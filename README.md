@@ -1,4 +1,4 @@
-# SubZeroDev.NarrativeEngine
+# SubZeroDev.GameEngine
 
 The specs for a **deterministic, game-agnostic narrative-game platform** — its
 architecture, API, the flagship kind, the MVP, and the hosting vision.
