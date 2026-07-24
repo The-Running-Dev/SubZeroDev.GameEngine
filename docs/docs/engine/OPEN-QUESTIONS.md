@@ -70,11 +70,6 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   the layout is actually built out.
 - **Doc-tree numbering merge** — both doc sets start at `01-`; merging the numbering
   schemes is deferred ([`02-architecture.md`](02-architecture.md) §12).
-- **Specs and code live in separate repos** — the platform specs are here; the reference
-  implementation (`src/engine/`) is in the companion project
-  [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife). Decide
-  if/when the engine code re-homes into this platform repo (the docs here already reference
-  it as external).
 
 ---
 

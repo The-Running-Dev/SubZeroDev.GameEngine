@@ -184,7 +184,7 @@ exactly the "culture pack for the game" the project envisioned.
 > **Why this matters to the platform.** Culture packs are the volume play: one kind,
 > many settings. The simulation kind can host Jones-in-Bulgaria, Jones-in-Corporate,
 > Jones-in-Startup — each a content pack, none an engine change. This is also what a
-> hosted service ([`neaas-platform-vision.md`](neaas-platform-vision.md)) would sell:
+> hosted service ([`neaas-platform-vision.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform)) would sell:
 > creators author packs, the engine runs them.
 >
 > A culture pack is distinct from a **new kind** (engine code, §1) and from a
@@ -391,7 +391,7 @@ the MVP ([`MVP.md`](MVP.md)). The separate Bulgaria culture pack, which belongs 
 Life in the Fast Lane, needs no new deliverable — it
 is a content pack over the existing simulation kind (§4a).
 
-**Deferred — [`neaas-platform-vision.md`](neaas-platform-vision.md):** hosting,
+**Deferred — [`neaas-platform-vision.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform):** hosting,
 accounts, billing, cloud sync, analytics, multiplayer, white-label.
 
 ---
@@ -406,10 +406,10 @@ first designed there: the projection boundary, the condition DSL, seeded RNG
 substreams, tiered content validation, the determinism harness, reason codes,
 localization, save/migration.
 
-> **Project split.** This repo is the **platform (engine) specs** — a Docusaurus site
-> rooted at `docs/`, content under `docs/docs/engine/`. The **games** (Life in the Fast
-> Lane and the Bulgaria adventure) and the current **engine implementation** (`src/engine/`)
-> live in the companion project,
-> [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife).
-> References to `games/…` throughout these docs point there. Both spec sets still start at
-> `01-`; merging the numbering schemes across the two projects stays deferred.
+> **Project split.** This repo (**SubZeroDev.GameEngine**) is the **Narrative Engine** —
+> both its **source** (`src/engine/`) and its **specs** (a Docusaurus site under
+> `docs/docs/engine/`). The **games** (Life in the Fast Lane, the Bulgaria adventure) live
+> in [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife); the
+> **hosting / NEaaS** layer in
+> [SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform). References
+> to `games/…` throughout these docs point to the game repo.

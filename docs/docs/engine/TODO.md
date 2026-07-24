@@ -33,10 +33,9 @@ Spec: [`04-core.md`](04-core.md) — the Kind interface, `GameState` envelope,
 API, session store, projection, validation, reason codes, MCP schemas, determinism
 harness.
 
-> **Implementation location.** The reference implementation currently lives in the
-> **companion project** [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife)
-> under `src/engine/` (a spec/code split — see OPEN-QUESTIONS). The `[x]` items below were
-> built there.
+> **Implementation.** The reference implementation lives in `src/engine/` in **this repo**
+> — the engine code and these specs sit together. The `[x]` Phase-1 items below are built
+> there.
 
 - [x] **Write the core spec** ([`04-core.md`](04-core.md)) — the seam and
       the platform types, so Phase 1+ builds against contracts, not decisions. Forced the
@@ -44,9 +43,10 @@ harness.
 
 - [x] Project scaffold: `src/engine/` package, TypeScript (strict), vitest, eslint with the
       determinism guard (bans `Math.random`, `Math.pow/exp/log/sin/cos/tan`, `Date.now`).
-- [x] Version control: this platform-spec repo, plus the companion implementation repo
-      [`The-Running-Dev/SubZeroDev.GameOfLife`](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife)
-      (which holds `src/engine/`). Both private.
+- [x] Version control: this repo (engine **source + specs**). Companions: the game
+      [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife) and
+      the hosting layer [SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform).
+      All private.
 - [x] Seeded PRNG (PCG32) + named substreams; serializable RNG state.
       `src/core/rng/pcg32.ts` — **verified bit-identical to the reference vectors.**
 - [x] Canonical serialization (sorted keys, rejects non-finite) + `serialize` /
@@ -113,9 +113,9 @@ harness.
 - [ ] More clients (web, Discord).
 - [ ] AI-assisted authoring (content only; engine validates).
 - [ ] The hosted service — only once all of the above works
-      ([`neaas-platform-vision.md`](neaas-platform-vision.md)).
+      ([`neaas-platform-vision.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform)).
 - [ ] Content-pack merge / override / dependency rules — before mods, not before MVP
-      ([`neaas-platform-vision.md`](neaas-platform-vision.md) → Known deferred gaps).
+      ([`neaas-platform-vision.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform) → Known deferred gaps).
 
 ### Content tooling — a first-class workstream, not an afterthought
 

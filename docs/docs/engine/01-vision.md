@@ -13,13 +13,14 @@
 > - What to build first, and when it's done: [`MVP.md`](MVP.md) · [`TODO.md`](TODO.md)
 > - The flagship kind's content model: [`03-story-graph-kind.md`](03-story-graph-kind.md)
 > - Shared Bulgarian source material: `games/bulgaria.md`
-> - Deferred hosting/business layer: [`neaas-platform-vision.md`](neaas-platform-vision.md)
+> - Deferred hosting/business layer: [`neaas-platform-vision.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform)
 > - The simulation kind, specified in full: `games/01-vision.md`
 >
 > The `games/…` docs above — the two games, the simulation kind, and the shared source —
-> live in the **companion project**,
-> [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife); this
-> repo is the platform (engine) only.
+> live in the **companion game project**,
+> [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife); the
+> hosting/NEaaS layer is [SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform).
+> **This repo is the engine — its source (`src/engine/`) and its specs (these docs).**
 
 ---
 
@@ -107,7 +108,7 @@ the same API to the same engine.
 
 - The hosted service, accounts, billing, cloud sync, analytics, multiplayer, and
   white-labelling. All of that is real long-term intent and is recorded in
-  [`neaas-platform-vision.md`](neaas-platform-vision.md) — but it is **deferred**. The
+  [`neaas-platform-vision.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform) — but it is **deferred**. The
   engine is a pure library first. (This is the source specification's own §33.1
   scope-creep risk, applied to itself.)
 - New game *kinds* authored by third parties. A kind is engine code; v1 ships two.

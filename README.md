@@ -1,44 +1,62 @@
 # SubZeroDev.GameEngine
 
-The specs for a **deterministic, game-agnostic narrative-game platform** — its
-architecture, API, the flagship kind, the MVP, and the hosting vision.
+The **Narrative Engine** — a deterministic, game-agnostic narrative-game platform: its
+**source** (`src/engine/`) and its **specs** (`docs/docs/engine/`) in one place.
 
 The model is **core → kinds → campaigns**: one shared deterministic core, game-*type*
 logic (`kinds`), and content (`campaigns`) as data. v1 targets two kinds — `story-graph`
 (flagship) and `simulation`.
 
-> **This repo is the platform (engine) specs only.** The games built on it (Life in the
-> Fast Lane and the Bulgaria adventure) and the current engine **implementation**
-> (`src/engine/`) live in the companion project,
-> [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife).
-> References to `games/…` in these docs point there.
+> **Companions.** The flagship **game** (Life in the Fast Lane) lives in
+> [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife); the
+> deferred **hosting / NEaaS** layer in
+> [SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform). `games/…`
+> references in these docs point to the game repo.
 
-## What's here
+## Status
 
-The specs are a [Docusaurus](https://docusaurus.io) site; content is under
-`docs/docs/engine/`:
+- **Specs:** the MVP contracts are finalized — the story-graph kind
+  ([`03`](docs/docs/engine/03-story-graph-kind.md)) and the core
+  ([`04-core`](docs/docs/engine/04-core.md)). See [MVP.md](docs/docs/engine/MVP.md).
+- **Code:** Phase 1 core in [`src/engine/`](src/engine/) — seeded PCG32 RNG and canonical
+  serialization, verified bit-identical to reference vectors. Next: the pure engine
+  `advance(state, action) → state`.
+- **Open items:** [OPEN-QUESTIONS.md](docs/docs/engine/OPEN-QUESTIONS.md) (the sharpest:
+  `PlayerProfile` isn't part of the core yet).
 
-| Doc | Holds |
+## Layout
+
+| Path | What |
 |---|---|
-| [`01-vision.md`](docs/docs/engine/01-vision.md) | Why the platform exists; the core/kind/campaign model |
-| [`02-architecture.md`](docs/docs/engine/02-architecture.md) | Every settled architecture decision — the contract (decisions) |
-| [`04-core.md`](docs/docs/engine/04-core.md) | The platform core as types — the API, session store, projection, validation, MCP schemas (the contract) |
-| [`03-story-graph-kind.md`](docs/docs/engine/03-story-graph-kind.md) | The flagship kind's content model |
-| [`MVP.md`](docs/docs/engine/MVP.md) | The smallest slice that proves the platform + Definition of Done |
-| [`TODO.md`](docs/docs/engine/TODO.md) | Ordered task list; the MVP boundary is marked |
-| [`OPEN-QUESTIONS.md`](docs/docs/engine/OPEN-QUESTIONS.md) | Living register of unknowns, gaps, deferred decisions |
-| [`neaas-platform-vision.md`](docs/docs/engine/neaas-platform-vision.md) | Deferred hosting / SaaS / business layer |
+| [`docs/docs/engine/`](docs/docs/engine/) | The specs — `01-vision`, `02-architecture`, `04-core` (the API/types), `03-story-graph-kind`, `MVP`, `TODO`, `OPEN-QUESTIONS` |
+| [`src/engine/`](src/engine/) | The implementation (TypeScript strict, vitest, determinism-guard eslint) |
+| `docs/` | The specs are a Docusaurus site; `docs/docs/` is its content root |
+| [`docs.ps1`](docs.ps1) | Build & serve the docs site |
 
 ## Build the docs site
 
-Requires Docker Desktop (base image `ghcr.io/the-running-dev/docs-template`, overlaid
-with the local config).
+Requires Docker Desktop (base image `ghcr.io/the-running-dev/docs-template`, overlaid with
+the local config).
 
 ```powershell
 ./docs.ps1            # build + serve at http://localhost:3000/docs
 ./docs.ps1 -Live      # + hot-reload while editing docs/
 ./docs.ps1 -BuildOnly # build the image only
 ```
+
+## Developing the engine
+
+```bash
+cd src/engine
+npm install
+npm test        # vitest
+npm run lint    # determinism guard + typescript-eslint
+npm run typecheck
+```
+
+Determinism is enforced, not hoped for: the eslint config bans `Math.random`, the
+non-bit-stable `Math.*` functions, and `Date.now` in `src/`, and the core replays
+byte-for-byte from a seed and its inputs.
 
 ## Where to start reading
 
@@ -50,5 +68,4 @@ with the local config).
 
 ---
 
-Private, work in progress. Companion:
-[SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife).
+Private, work in progress.

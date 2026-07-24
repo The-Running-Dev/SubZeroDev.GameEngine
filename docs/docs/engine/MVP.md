@@ -62,7 +62,7 @@ platform. Jones is the next milestone, on a core this slice already proves.
 - The `simulation` kind and Life in the Fast Lane — the next milestone, not the MVP.
 - Culture packs.
 - The other four Bulgaria arcs.
-- Everything in [`neaas-platform-vision.md`](neaas-platform-vision.md): hosting,
+- Everything in [`neaas-platform-vision.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform): hosting,
   accounts, billing, cloud sync, analytics, multiplayer, white-label.
 - Web / mobile / Discord clients — one text client is enough to prove the API.
 - AI-assisted authoring.
