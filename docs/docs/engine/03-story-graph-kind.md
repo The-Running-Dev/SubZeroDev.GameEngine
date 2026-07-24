@@ -1,0 +1,560 @@
+# Story-Graph Kind — Content Model
+
+**Document status:** Revision 1 — first build deliverable
+**Kind:** `story-graph`
+**Implementation language:** TypeScript (shared core with the simulation kind)
+
+> **Scope of this document**
+> The concrete content types for the flagship kind: the campaign, its typed variables,
+> nodes, choices, requirements, consequences, endings, and achievements — plus the
+> runtime state, how a turn resolves, and the projection. Ends with a worked example of
+> the MVP's Bureaucracy arc.
+>
+> - The architecture this obeys: [`02-architecture.md`](02-architecture.md)
+> - Reused verbatim from the core: the `Condition` tree, `LocKey`, `RngState`,
+>   `ReasonCode` — `games/04-engine-specification.md`
+> - The game this builds: `games/bulgaria-adventure.md`
+> - What ships first: [`MVP.md`](MVP.md)
+
+This kind reuses the core wherever it can. Types marked *(core)* are defined
+in the engine specification and not re-derived here.
+
+---
+
+## 1. The campaign
+
+A story-graph campaign is **data** (§1 of the architecture). It declares everything the
+engine needs to run it; the engine never recompiles to load one.
+
+```typescript
+interface StoryGraphCampaign {
+  // This is the `content` inside the core's `Campaign` envelope (04 §10.1).
+  // Envelope-owned identity — id, kindId, version, titleKey — lives on `Campaign`,
+  // NOT here, so it cannot drift (the same rule as kindState, §8.1).
+  descriptionKey: LocKey;
+
+  variables: VariableSchema;    // §2 — every variable, typed, declared up front
+  nodes: Record<string, Node>;  // §3 — keyed by node id
+  startNodeId: string;
+
+  achievements: AchievementDefinition[];   // §7
+}
+```
+
+`id`, `version`, `kind`, and `titleKey` are **not** fields here — they belong to the
+core `Campaign` envelope (04 §10.1), which wraps this content. Authors still write
+strings inline in the authoring form (§2.4 core); the build lifts them into the
+registry's shared `strings` map (04 §10.1), so no per-campaign string table travels at
+runtime.
+
+Load-time validation (§11) checks that `startNodeId` exists, every `goto` resolves,
+every variable referenced is declared, and every `LocKey` is present.
+
+---
+
+## 2. Variable schema — fully typed (N6)
+
+Every variable a campaign uses is declared here with a type and an initial value.
+Reading or writing an undeclared variable is a **load-time error**. Writing a value of
+the wrong type is a load-time error. This is the discipline decided in the
+architecture's §3.2 — the loose bag is banned.
+
+```typescript
+type VarType = "bool" | "int" | "enum";
+
+interface VariableDecl {
+  type: VarType;
+  initial: boolean | number | string;
+
+  values?: string[];        // enum only — the allowed values
+  min?: number;             // int only — clamp floor
+  max?: number;             // int only — clamp ceiling
+
+  visible?: boolean;        // surfaced to the player as a stat (§9)
+  labelKey?: LocKey;        // required when visible
+}
+
+type VariableSchema = Record<string, VariableDecl>;
+
+type VarValue = boolean | number | string;
+```
+
+> **⚑ Judgement call — no `string` free-type.** The architecture listed `string` as a
+> variable type. Free strings are a determinism and validation hazard (unbounded, no
+> load-time check on values) and no story-graph mechanic needs them — narrative text is
+> `LocKey`s, not variables. `enum` covers "one of a fixed set." Dropped `string` for
+> the MVP; add it back only if a campaign genuinely needs free text in state.
+
+**Player statistics are not a separate system.** A variable marked `visible: true` is a
+stat — it appears in the projection (§9) and the client's stats panel. That is the
+whole of the "Player Stats" requirement.
+
+**Relationships and money are ordinary variables.** A campaign that tracks the
+landlord's opinion declares `int` `landlord_affinity`; one that tracks cash declares
+`int` `money`. The story-graph kind imposes no relationship or currency model
+(architecture §6.3).
+
+---
+
+## 3. Nodes — the single content type (N7)
+
+A node is a scene: display text, plus what happens after it. The "what happens" is a
+discriminated union — the only content type in this kind.
+
+```typescript
+type Node = ChoiceNode | RandomNode | AutoNode | EndingNode;
+
+interface NodeBase {
+  id: string;
+  textKey: LocKey;              // may interpolate visible variables — see §3.1
+}
+
+interface ChoiceNode extends NodeBase {
+  kind: "choice";
+  choices: Choice[];           // the player picks one
+}
+
+interface RandomNode extends NodeBase {
+  kind: "random";              // engine picks, seeded — the only place RNG enters
+  transitions: RandomTransition[];
+}
+
+interface AutoNode extends NodeBase {
+  kind: "auto";                // no player input; one transition, taken immediately
+  effects?: Consequence[];
+  goto: string;
+}
+
+interface EndingNode extends NodeBase {
+  kind: "ending";              // terminal — the game ends here
+  endingId: string;
+  outcome?: "win" | "loss" | "neutral";   // default "neutral"
+}
+```
+
+Random and auto nodes are **pass-through**: the player never sits on one. After any
+transition the engine *settles* — resolving auto/random nodes in turn — until it lands
+on a choice or an ending (§8). So "a random event" is a `random` node the engine
+resolves and moves past; "an event not reached by a choice" is an `auto`/choice node a
+`goto` sends you to.
+
+### 3.1 Text interpolation
+
+A node's `textKey` string may reference **visible** variables: `"Your bank account
+contains {money}."` The engine substitutes the current value at render time from the
+visible-variable set (§9). Referencing a non-visible or undeclared variable in text is
+a load-time error — a hidden variable must not leak through prose.
+
+---
+
+## 4. Choices and transitions
+
+```typescript
+interface Choice {
+  id: string;
+  labelKey: LocKey;
+
+  showWhen?: Condition;        // omit the choice entirely if unmet (secret paths)
+  requirements?: Condition;    // show but disable, with a reason, if unmet
+  requirementFailKey?: LocKey;
+
+  effects?: Consequence[];     // §5 — typed operations, applied on selection
+  goto: string;                // target node id — required, validated
+}
+
+interface RandomTransition {
+  weight: number;              // relative; seeded weightedPick (core §3.2)
+  effects?: Consequence[];
+  goto: string;
+}
+```
+
+Two gates, deliberately distinct:
+
+- **`showWhen`** decides whether the choice *appears at all*. Use it for secrets — an
+  option that shouldn't exist until the player has the key. Default: always shown.
+- **`requirements`** decides whether a *shown* choice is *selectable*. If unmet, the
+  client renders it disabled with `requirementFailKey` as the reason — the Transparent
+  Consequences principle. This is the common case.
+
+A `goto` may target the choice's own node — that is how the Bureaucracy loop works
+(§12). Cycles are legal here and are a Tier 2 warning, not an error (architecture §9).
+
+---
+
+## 5. Consequences — typed effects
+
+A choice or transition mutates state only through typed operations on **declared**
+variables. There is no arbitrary path write — the audit-record discipline from the
+simulation kind's §10.4, carried over.
+
+```typescript
+type Consequence =
+  | { op: "set"; var: string; value: VarValue }
+  | { op: "increment"; var: string; by: number }   // int only
+  | { op: "decrement"; var: string; by: number };   // int only
+```
+
+Validation checks: `var` is declared; the op suits its type (`increment`/`decrement`
+require `int`; `set` value matches the declared type / enum values). `int` writes clamp
+to the variable's `min`/`max` after applying. Clamping happens once, after all of a
+transition's consequences apply — the same rule as the simulation kind's needs (§3.3
+there), so a `+5` then `-5` nets to zero rather than clipping.
+
+> **Turn advance is automatic, not a consequence.** The core increments the
+> built-in `turn` by 1 on every transition (architecture §6.4). A campaign wanting a
+> time *skip* declares its own `int` and advances it — the built-in `turn` stays a
+> faithful transition count.
+
+> **Achievements have no `unlock` consequence.** They are conditions (§7), evaluated
+> after every turn. To fire one at a narrative moment, set a variable there and let the
+> achievement's condition read it. One mechanism, uniform with the simulation kind.
+> *(⚑ If authors find this verbose, a direct `unlock` op can be added later — noted,
+> not built.)*
+
+---
+
+## 6. Requirements and conditions
+
+Requirements reuse the core's **`Condition` tree verbatim** — `all` / `any` /
+`not` / comparisons / `exists` / `count`
+(`games/04-engine-specification.md` §13.1). That
+operator set is **frozen** ([`04-core.md`](04-core.md) §18) — this kind adds no
+operators, only a field namespace. A condition's `field` resolves against this kind's
+state:
+
+```text
+var.<name>            a declared variable's current value
+turn                  the built-in transition counter
+visited.<nodeId>      how many times a node has become current — counts every entry,
+                      including the start node and settle pass-throughs (0 if never; §8.2)
+achieved.<id>         whether an achievement is unlocked (bool)
+ending                the endingId once ended (else absent)
+```
+
+Every `field` is checked at load time against the schema and node set (§11). This is
+the *only* stringly-typed surface left in the kind, so it is the one that gets rigorous
+path validation — exactly as the simulation kind found (§4.3 there).
+
+Example — the "certificate expired again" gate:
+
+```yaml
+requirements:
+  all:
+    - { field: var.documents_collected, operator: equals, value: true }
+    - { field: var.certificate_fresh,   operator: equals, value: true }
+```
+
+---
+
+## 7. Achievements
+
+Ported from the simulation kind, scoped to conditions over this kind's state.
+
+```typescript
+interface AchievementDefinition {
+  id: string;
+  nameKey: LocKey;             // "It Builds Character", not "First Ending"
+  descriptionKey: LocKey;
+  condition: Condition;        // over var.* / achieved.* / ending
+  hidden: boolean;             // if true, not listed until unlocked
+}
+```
+
+Evaluated after every turn (§8). Each fires **exactly once**; the unlock is written to
+the durable `PlayerProfile` (simulation kind §16.3) — never to authoritative game
+state, so it cannot affect determinism. A missing or corrupt profile degrades to "no
+achievements," never a broken game.
+
+---
+
+## 8. Runtime state and the turn
+
+### 8.1 State
+
+The story-graph kind's state is the **kind-specific subset only** — it is the
+`kindState` inside the core's `GameState` envelope
+([`04-core.md`](04-core.md) §2). Everything kind-agnostic — `gameId`, `seed`,
+`rng`, `campaignId`, `campaignVersion`, `status`, and the action log — lives on the
+envelope, not here. Duplicating them (as an earlier draft of this section did) would put
+the same field in two places and drift.
+
+```typescript
+interface StoryGraphKindState {
+  currentNodeId: string;
+  variables: Record<string, VarValue>;
+  turn: number;                            // kind-maintained; settle advances it (§8.2)
+  visitedCounts: Record<string, number>;   // nodeId → times entered (every entry; §8.2)
+  unlockedAchievements: string[];
+  endingId?: string;                        // set when an EndingNode is reached
+}
+```
+
+- **`status`** (`active` / `ended`) is the envelope's, reported by `advance`'s
+  `AdvanceResult.status` (04 §3). The kind sets `endingId` here; the core flips
+  status to `ended`.
+- **The choice log** is the envelope's generic `actionLog` (04 §2): each `LoggedAction`
+  carries the `choiceId` as its `actionId`. There is no separate `LoggedChoice`.
+- **`turn`** stays here because a "turn" is kind-specific — a node transition in this
+  kind, a week in the simulation kind.
+
+`variables` and `visitedCounts` are subject to the core's sorted-iteration rule
+([`04-core.md`](04-core.md) §8 / games/04 §2.2) — a `Record` iterated in a
+state-affecting way is sorted first, or a save/load round trip can diverge.
+
+### 8.2 The turn: `submitChoice` → settle
+
+The story-graph kind has exactly **one player action** — submit a choice — with no plan
+and no multi-action week (the model that led the simulation kind to drop `executeAction`,
+05 §6).
+
+Throughout, **enter(nodeId)** sets `currentNodeId = nodeId` **and** does
+`visitedCounts[nodeId] += 1` — so *every* entry counts, including settle pass-throughs
+and the initial start node (§8.1).
+
+```text
+submitChoice(state, choiceId):
+  1. resolve the current node (must be a ChoiceNode) and the named choice
+  2. reject if the choice is unavailable: showWhen false, or requirements unmet
+     → return ValidationError with the reason, no state change
+  3. apply the choice's effects (typed consequences, §5), then clamp
+  4. the core appends `{ actionId: choiceId }` to the envelope's actionLog
+  5. transition: turn += 1, enter(choice.goto)
+  6. SETTLE (below)
+  7. evaluate achievements; unlock any newly-satisfied, write to profile
+  8. return the new scene (§9), or the ending if status === "ended"
+```
+
+**Settle** — the pass-through resolution of non-choice nodes:
+
+```text
+settle(state):
+  loop (guard: max SETTLE_STEPS, default 64):
+    node = current node
+    if node.kind == "choice"  → stop; the player acts next
+    if node.kind == "ending"  → status = "ended", endingId = node.endingId; stop
+    if node.kind == "auto"     → apply effects, clamp; turn += 1; enter(node.goto)
+    if node.kind == "random"   → weightedPick a transition from the current RNG handle
+                                 (the triggering action's stream, or system:"start" at
+                                 createGame — 04 §4/§8);
+                                 apply its effects, clamp; turn += 1; enter(its goto)
+  if the guard trips → engine error (a content cycle of auto/random nodes with no exit;
+     Tier 2 validation warns on such cycles, the guard is the runtime backstop)
+```
+
+`createGame` **enters** `startNodeId` (so `visitedCounts[startNodeId]` becomes 1) and
+runs `settle` once — drawing any start random transitions from the `system:"start"` RNG
+stream (04 §4, §8) — so the first scene the player sees is already a choice or an ending.
+
+**Determinism.** Every random transition draws from the seeded RNG (core §3).
+Given the same seed and the same action log, `settle` makes the same picks — so the
+whole game replays byte-for-byte (§10). This is the concrete meaning of "deterministic"
+for this kind.
+
+---
+
+## 9. Projection — what a client sees
+
+Clients receive a projection, never raw state (architecture §7). For the story-graph
+kind:
+
+```typescript
+interface StoryGraphView {
+  campaignId: string;
+  status: "active" | "ended";
+  turn: number;
+
+  scene: {
+    textKey: LocKey;
+    text: string;                 // rendered, visible-variable params substituted
+  };
+
+  choices: VisibleChoice[];       // only choices whose showWhen passes
+  stats: Record<string, VarValue>; // visible: true variables, with their labels
+  unlockedAchievements: string[];  // non-hidden, unlocked
+
+  ending?: { endingId: string; outcome: "win" | "loss" | "neutral" };
+}
+
+interface VisibleChoice {
+  id: string;
+  labelKey: LocKey;
+  available: boolean;             // requirements met
+  reasonKey?: LocKey;             // present iff not available
+}
+```
+
+**Excluded from the projection:** non-visible variables, `visitedCounts`, `rng`, the
+action log, achievement conditions, and any hidden achievement not yet unlocked. A
+`showWhen`-hidden choice is omitted entirely — the client cannot know a secret path
+exists. This is what stops a client (or an AI agent over MCP) from seeing state the
+player shouldn't.
+
+---
+
+## 10. Determinism, save, versioning
+
+All three are core mechanisms; the story-graph kind only supplies its state shape.
+
+- **Save** = the serialized core `GameState` envelope (which carries
+  `campaignVersion`, `seed`, `rng`, `actionLog`, and this kind's `kindState`), in a
+  `SaveEnvelope` ([`04-core.md`](04-core.md) §10.2).
+- **Determinism harness** — a `{ config, actionLog }` fixture
+  ([`04-core.md`](04-core.md) §14) replays to a
+  byte-identical `serialize()`, via the golden-file + property tests of §18.4 there.
+- **Versioning / migration** — a save records the `campaignVersion` it was made under.
+  Loading against a *different* published version runs migration, which must map old
+  node ids forward or fail loudly rather than strand the player on a node that no longer
+  exists (architecture §8). A migrated save is marked not-replay-compatible.
+
+---
+
+## 11. Validation, story-graph-specific
+
+Tiered as in the architecture §9.
+
+**Tier 1 — load-time, hard fail:**
+
+- `startNodeId` exists; every `goto` and every random `transition.goto` resolves to a
+  real node.
+- Every variable in a consequence, condition, or text interpolation is declared.
+- Every consequence op suits its variable's type; every `set` value is in range / a
+  valid enum member.
+- Every `LocKey` is present in `strings`.
+- No node id, choice id, achievement id, or variable name is duplicated.
+- A `visible: true` variable has a `labelKey`; text interpolates only visible variables.
+
+**Tier 2 — load-time, warning:**
+
+- Unreachable nodes — no path from `startNodeId` reaches them (the source's "detect dead
+  branches").
+- A `choice`/`auto`/`random` cycle with no exit to a choice or ending (would trip the
+  settle guard at runtime).
+- A campaign with no reachable ending.
+
+**Tier 3 — simulation-time (§18.5 there):** a choice whose `requirements` no reachable
+state can satisfy; an ending no path reaches.
+
+---
+
+## 12. Worked example — the MVP Bureaucracy arc
+
+This is the concrete MVP content ([`MVP.md`](MVP.md)): ~6 nodes, typed variables, a
+requirement-gated retry, a loop with visit counts, a seeded random node, and the
+"It Builds Character" achievement. Authoring form (the build step derives the string
+table — architecture §2.4.1).
+
+```yaml
+id: bulgaria-bureaucracy
+version: "0.1.0"
+kind: story-graph
+title: "Bulgaria — The Bureaucracy Arc"
+startNodeId: municipality
+
+variables:
+  documents_collected: { type: bool, initial: false }
+  certificate_fresh:   { type: bool, initial: true }
+  patience:            { type: int,  initial: 10, min: 0, max: 10, visible: true, labelKey: stat.patience }
+  office_visits:       { type: int,  initial: 0,  min: 0 }
+  builds_character:    { type: bool, initial: false }
+
+achievements:
+  - id: it_builds_character
+    nameKey: ach.builds_character.name        # "It Builds Character"
+    descriptionKey: ach.builds_character.desc
+    condition: { field: var.builds_character, operator: equals, value: true }
+    hidden: true
+
+nodes:
+  municipality:
+    kind: choice
+    textKey: node.municipality.text            # arrive 08:03; "Closed until 11:30"
+    choices:
+      - id: wait
+        labelKey: choice.wait
+        effects: [ { op: decrement, var: patience, by: 2 } ]
+        goto: clerk_review
+      - id: coffee
+        labelKey: choice.coffee                # meet the mayor's cousin
+        effects: [ { op: set, var: documents_collected, value: true } ]
+        goto: clerk_review
+
+  clerk_review:
+    kind: random                               # she smiles... or she doesn't
+    textKey: node.clerk_review.text
+    transitions:
+      - weight: 3
+        effects: [ { op: set, var: certificate_fresh, value: false } ]
+        goto: expired                          # a certificate is now over three months old
+      - weight: 1
+        goto: room_14                          # you are sent onward
+
+  expired:
+    kind: choice
+    textKey: node.expired.text
+    choices:
+      - id: begin_again
+        labelKey: choice.begin_again
+        effects: [ { op: decrement, var: patience, by: 3 } ]
+        goto: municipality                     # the loop
+      - id: question_reality
+        labelKey: choice.question_reality
+        requirements: { field: var.patience, operator: less_or_equal, value: 3 }
+        requirementFailKey: req.too_much_patience
+        goto: reward                           # only the truly worn-down may pass
+
+  room_14:
+    kind: auto
+    textKey: node.room_14.text                 # Room 14 sends you to Room 6
+    effects: [ { op: increment, var: office_visits, by: 1 } ]
+    goto: room_6
+
+  room_6:
+    kind: choice
+    textKey: node.room_6.text                  # everything happens in Room 14
+    choices:
+      - id: continue_cycle
+        labelKey: choice.continue_cycle
+        effects: [ { op: increment, var: office_visits, by: 1 } ]
+        goto: room_14                          # the other loop
+      - id: go_home
+        labelKey: choice.go_home
+        requirements: { field: var.office_visits, operator: greater_or_equal, value: 3 }
+        requirementFailKey: req.not_yet_broken
+        goto: reward
+
+  reward:
+    kind: auto
+    textKey: node.reward.text                  # €300 and 28 years of legal responsibility
+    effects: [ { op: set, var: builds_character, value: true } ]
+    goto: ending_character
+
+  ending_character:
+    kind: ending
+    textKey: node.ending.text
+    endingId: it_builds_character
+    outcome: neutral
+```
+
+What this exercises, one-to-one against the MVP Definition of Done:
+
+- **Typed variables** (bool/int), visible stat (`patience`), clamping (`min`/`max`).
+- **Requirement-gated choices** with reasons (`question_reality`, `go_home`).
+- **A loop** via self-referential `goto` and **visit counts** (`office_visits >= 3`).
+- **A seeded random node** (`clerk_review`) — reproducible from the seed.
+- **An achievement** firing once from a variable set at the reward.
+- **Two clients** run this identically; **projection** hides `certificate_fresh`,
+  `office_visits`, `builds_character` and the RNG.
+
+---
+
+## 13. Judgement calls
+
+| § | Call | Revisit when |
+|---|---|---|
+| §2 | Dropped `string` variable type; `enum` covers fixed sets | A campaign needs free text in state |
+| §5 | No `unlock` consequence; achievements are conditions over a set variable | Authoring proves it verbose |
+| §5 | Built-in `turn` is a pure transition count; time skips are author variables | A kind-level clock is wanted |
+| §8.2 | `SETTLE_STEPS` guard default 64 | Profiling or a legitimately deep auto-chain |
+| §3 | Four node kinds (choice/random/auto/ending); `auto` is arguably a one-transition `random` | Simplification pass finds `auto` redundant |
+| §6/§8.2 | `visited` counts *every* entry (settle pass-throughs + start node), so it works on auto/random nodes | Authors want "times rested here" only |
