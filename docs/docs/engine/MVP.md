@@ -1,4 +1,4 @@
-# Narrative Engine — MVP
+# MVP
 
 **Status:** Agreed. The Definition of Done (§5) is finalized — it is the build target.
 
@@ -11,7 +11,7 @@
 
 ---
 
-## 1. The MVP in one sentence
+## 1. The MVP in One Sentence
 
 **A player — human or AI — plays the Bureaucracy arc of the Bulgaria adventure to an
 ending, through a text client and through MCP, on a deterministic engine with
@@ -22,7 +22,7 @@ core, session storage, the typed variable schema, requirement-gated choices, see
 random transitions, an achievement, the projection boundary, save/load, content
 validation, the client API, and the MCP surface.
 
-## 2. Why story-graph, not Jones
+## 2. Why Story-Graph, Not Jones
 
 Jones (Life in the Fast Lane) is where the project started and it is the deepest game —
 but it is the **largest build**, ~150 KB of engine spec. An MVP is the *minimum* that
@@ -40,7 +40,7 @@ core already proven.
 an order of magnitude larger (~150 KB of engine spec) without proving more of the
 platform. Jones is the next milestone, on a core this slice already proves.
 
-## 3. In scope
+## 3. In Scope
 
 - The **core layer**: the pure engine (`advance(state, action) → state`), a session
   store keyed by id, seeded RNG (PCG32, one substream is enough), the projection, save/
@@ -57,7 +57,7 @@ platform. Jones is the next milestone, on a core this slice already proves.
 - **Tests**: the determinism harness (golden file + property test) and Tier 1/2 content
   validation.
 
-## 4. Out of scope (explicitly)
+## 4. Out of Scope (Explicitly)
 
 - The `simulation` kind and Life in the Fast Lane — the next milestone, not the MVP.
 - Culture packs.
@@ -69,7 +69,7 @@ platform. Jones is the next milestone, on a core this slice already proves.
 - Migration between campaign versions (the *mechanism* is specified; the MVP does not
   exercise it).
 
-## 5. Definition of Done — the MVP
+## 5. Definition of Done — The MVP
 
 *Finalized (agreed this session). This is the build target for the MVP.*
 

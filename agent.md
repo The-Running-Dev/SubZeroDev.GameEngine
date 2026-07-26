@@ -9,7 +9,7 @@ only when it would have changed a decision.
 
 ---
 
-## Token economy
+## Token Economy
 
 1. **graphify** — nearly free on the code (AST), expensive on prose (~200K/rebuild) and
    marginal on this small a corpus. Don't full-rebuild the specs casually; use
@@ -19,7 +19,7 @@ only when it would have changed a decision.
 3. **Start a fresh session at phase boundaries.** `CLAUDE.md` + memory + the specs re-prime
    a new session cheaply — that's why they're kept tight.
 
-## What worked (keep doing)
+## What Worked (Keep Doing)
 
 - **Decide via questions, then batch-write.** Surface real forks one/few at a time with
   `AskUserQuestion` (recommended option first), get sign-off, *then* edit. Never bulk-apply
@@ -36,7 +36,7 @@ only when it would have changed a decision.
   only a full read catches (`learn-codebase` once found twelve here, incl. a functional bug
   where `DerivedPath` omitted `world.strangeness`).
 
-## Drift hazards specific to this repo
+## Drift Hazards Specific to This Repo
 
 - **`03-story-graph-kind` ↔ `04-core`** drift most: `04` implements `03` as types. When a
   type changes, update the prose, the examples, the projection, and the validation/test
@@ -49,7 +49,7 @@ only when it would have changed a decision.
 - **Encoding** — some imported source docs arrived CP1252, not UTF-8 (mojibake em-dashes /
   arrows). Rewrite to UTF-8 when importing.
 
-## Open concerns & assumptions
+## Open Concerns & Assumptions
 
 - **Spec-level unknowns** live in [`OPEN-QUESTIONS.md`](docs/docs/engine/OPEN-QUESTIONS.md).
   The sharpest: `PlayerProfile` — needed by the MVP achievement DoD — is not yet a core
@@ -61,9 +61,9 @@ only when it would have changed a decision.
   port 3000, `sidebar.ts`. `COPY` can't delete, so leftover template docs may show in the
   sidebar. Confirmed only against one local run.
 
-## Orientation in one paragraph
+## Orientation in One Paragraph
 
-This repo = the **Narrative Engine**: source (`src/engine/`, Phase 1 core started) + specs
+This repo = the **Game Engine**: source (`src/engine/`, Phase 1 core started) + specs
 (`docs/docs/engine/`). A game-agnostic **core** + **kinds** (engine-owned code) +
 **campaigns** (data); v1 ships two kinds, `story-graph` (flagship, the MVP) and
 `simulation`. A "campaign" is a kind + its data; a "culture pack" reskins a simulation

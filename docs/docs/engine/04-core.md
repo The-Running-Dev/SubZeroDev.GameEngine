@@ -1,4 +1,4 @@
-# Narrative Engine — Core Specification
+# Core Specification
 
 **Document status:** Revision 1 — the platform core, as types
 **Reading order:** logically the core *underlies* the kinds; numbered 04 only to
@@ -24,7 +24,7 @@ This document references them and does not restate the algorithms.
 
 ---
 
-## 1. The two layers of "engine"
+## 1. The Two Layers of "Engine"
 
 Two things get called "the engine." They are different, and the split is load-bearing.
 
@@ -38,7 +38,7 @@ Two things get called "the engine." They are different, and the split is load-be
 The platform API (§7) is the session store's surface. Clients talk to it; it calls the
 pure engine.
 
-### 1.1 Internal modules
+### 1.1 Internal Modules
 
 The core is one public surface but several internal modules, each a single
 responsibility. This is code organization, not new API — a peer-review recommendation to
@@ -60,7 +60,7 @@ only downward — a core module never imports a kind or client.
 
 ---
 
-## 2. The `GameState` envelope
+## 2. The `GameState` Envelope
 
 The core owns a **kind-agnostic envelope** and treats each kind's own state as an
 opaque payload inside it. This is the single most important type in the platform: it is
@@ -113,7 +113,7 @@ needs — live in `kindState`, opaque to the core.
 
 ---
 
-## 3. The Kind interface — the seam
+## 3. The Kind Interface — The Seam
 
 A **kind** is engine-owned code that teaches the core how one category of game
 plays. Every kind implements this interface; the core drives it without knowing
@@ -182,7 +182,7 @@ generator). After `advance`, the core reads the handle's final state back into
 
 ---
 
-## 4. Registration and the pure engine
+## 4. Registration and the Pure Engine
 
 Kinds are registered at engine construction — a fixed, engine-owned set (architecture
 §1). A missing kind is a construction error, not a runtime surprise.
@@ -266,7 +266,7 @@ is a story graph or a simulation is invisible to it.
 
 ---
 
-## 6. Scenes and actions (generic)
+## 6. Scenes and Actions (Generic)
 
 The unified surface every client renders. A kind projects its current situation into
 this shape; a story graph and a simulation both produce a `Scene`.
@@ -301,7 +301,7 @@ richer actions carries params.
 
 ---
 
-## 7. The session store and the platform API
+## 7. The Session Store and the Platform API
 
 The pure engine is stateless. The **session store** is the thin stateful layer clients
 actually call. It maps the architecture's §10 API onto the pure engine, keyed by
@@ -398,9 +398,9 @@ setting, declared and visible (docs/04 §6.1) — never granted by accident.
 
 ---
 
-## 10. Content, saves, migration
+## 10. Content, Saves, Migration
 
-### 10.1 Content registry
+### 10.1 Content Registry
 
 ```typescript
 interface ContentRegistry {
@@ -426,7 +426,7 @@ interface Campaign {
 The registry is frozen and pre-validated (§11) before the engine sees it. The engine
 performs no I/O; a loader package builds the registry from files (architecture §1).
 
-### 10.2 Save envelope and migration
+### 10.2 Save Envelope and Migration
 
 Carried from docs/04 §16. A save wraps the `GameState` envelope with the metadata needed
 to load it safely.
@@ -460,7 +460,7 @@ migration, which must map old ids forward (a story-graph node id that was rename
 save is `replayCompatible: false`: its action log can no longer be guaranteed to
 regenerate its history, because the rules changed.
 
-### 10.3 Why not event sourcing
+### 10.3 Why Not Event Sourcing
 
 The design carries an action log, deterministic replay, and byte-identical state — the
 ingredients of event sourcing. It stops deliberately short of adopting it as the
@@ -478,7 +478,7 @@ not a gap.
 
 ---
 
-## 11. Tiered validation
+## 11. Tiered Validation
 
 Every campaign is validated before the registry is frozen. The core runs the
 tiers; the kind supplies the checks via `validateCampaign`.
@@ -512,7 +512,7 @@ is data; all data goes through the same tiers, whatever produced it.
 
 ---
 
-## 12. Reason codes, state changes, messages
+## 12. Reason Codes, State Changes, Messages
 
 Kind-agnostic base vocabulary; kinds extend it (`Kind.reasonCodes`). Clients never
 string-match English (docs/04 §2.3).
@@ -551,7 +551,7 @@ history and the transparency requirement; `visible` gates what a client may show
 
 ---
 
-## 13. The MCP surface
+## 13. The MCP Surface
 
 The MCP server is a **client**, a sibling of the text client — a thin adapter over the
 same session store (§7), holding no game logic (architecture §10). Each tool is one
@@ -574,7 +574,7 @@ AI-specific. An agent that can call these tools plays the identical game a brows
 
 ---
 
-## 14. Determinism harness
+## 14. Determinism Harness
 
 The acceptance test with teeth (MVP §5, docs/04 §18.4): a `{ config, actionLog }`
 fixture replays to a **byte-identical** `serialize()`.
@@ -599,7 +599,7 @@ are the two properties that make byte-identical achievable at all.
 
 ---
 
-## 15. How the story-graph kind plugs in
+## 15. How the Story-Graph Kind Plugs In
 
 Concrete mapping — and the reconciliation this document forces on
 [`03-story-graph-kind.md`](03-story-graph-kind.md).
@@ -637,7 +637,7 @@ Concrete mapping — and the reconciliation this document forces on
 
 ---
 
-## 16. What this unblocks
+## 16. What This Unblocks
 
 With the seam typed, Phase 1 code can resume against real contracts:
 
@@ -653,7 +653,7 @@ Nothing above is speculative: every type here is exercised by the MVP
 
 ---
 
-## 17. Identifier conventions
+## 17. Identifier Conventions
 
 One fixed shape for every id, so validation, tooling, debugging, and authoring can rely
 on it. A peer-review recommendation, adopted before content scales.
@@ -673,7 +673,7 @@ Rules: ids are stable once published (a rename is a migration, §10.2); ids are 
 `[a-z0-9_-]` only; `LocKey`s namespace by content type so string tables stay navigable.
 Tier-1 validation (§11) enforces the character set and uniqueness.
 
-## 18. Frozen primitives
+## 18. Frozen Primitives
 
 Two shared primitives are held **deliberately small**, because these are the surfaces
 that grow without bound if left open (a peer-review caution taken up-front).

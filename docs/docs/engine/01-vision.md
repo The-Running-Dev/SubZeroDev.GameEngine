@@ -1,4 +1,4 @@
-# Narrative Engine — Vision
+# Vision
 
 **Document status:** Revision 1 — architecture settled
 **Project stage:** Design
@@ -24,7 +24,7 @@
 
 ---
 
-## 1. What this is
+## 1. What This Is
 
 A narrative game platform built as a **deterministic engine with interchangeable
 clients**. One engine powers many games; one API serves every client — web, mobile,
@@ -38,7 +38,7 @@ The central principle, unchanged from the source specification:
 
 ---
 
-## 2. The one idea that shapes everything: kinds
+## 2. The One Idea That Shapes Everything: Kinds
 
 The source specification treated "the engine" as a single branching-story engine and
 "a campaign" as story nodes plus choices. That model cannot host every game it wants
@@ -60,7 +60,7 @@ A **campaign** is a *kind plus its data*. Two kinds ship in v1:
 | `simulation` | Weekly-tick life simulation: time budget, needs, economy, systems | Life in the Fast Lane |
 | `story-graph` | Branching narrative: nodes, choices, typed variables, requirements, consequences | *(open)* |
 
-The narrative engine is the platform; **Life in the Fast Lane is a campaign on it** —
+The Game Engine is the platform; **Life in the Fast Lane is a campaign on it** —
 specifically, the flagship campaign of the `simulation` kind, already specified in
 full under `games/`.
 
@@ -94,7 +94,7 @@ decision, is in [`02-architecture.md`](02-architecture.md).
 
 ---
 
-## 4. What a client does
+## 4. What a Client Does
 
 Every client — human or AI — does exactly three things: request the current scene and
 state, present it, and submit the player's choice. It never computes an outcome, never
@@ -104,7 +104,7 @@ the same API to the same engine.
 
 ---
 
-## 5. Non-goals for v1
+## 5. Non-Goals for V1
 
 - The hosted service, accounts, billing, cloud sync, analytics, multiplayer, and
   white-labelling. All of that is real long-term intent and is recorded in
@@ -117,7 +117,7 @@ the same API to the same engine.
 
 ---
 
-## 6. The bet
+## 6. The Bet
 
 Prove the core and the two kinds through automated tests and a plain text client,
 with no UI and no AI in the loop. Once that works, every client is presentation and

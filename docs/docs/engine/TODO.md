@@ -1,4 +1,4 @@
-# Narrative Engine — TODO
+# TODO
 
 **Status:** Living task list. Ordered. The MVP boundary is marked; everything below it
 is post-MVP.
@@ -10,7 +10,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 ---
 
-## Phase 0 — Specify the story-graph kind
+## Phase 0 — Specify the Story-Graph Kind
 
 Nothing can be built until the flagship kind's content types exist.
 
@@ -27,7 +27,7 @@ Nothing can be built until the flagship kind's content types exist.
       (03 §8.2, 04 §4/§8), `AdvanceResult` shape tightened. MVP Definition of Done agreed
       ([`MVP.md`](MVP.md) §5). **Done.**
 
-## Phase 1 — Core (shared by every kind)
+## Phase 1 — Core (Shared by Every Kind)
 
 Spec: [`04-core.md`](04-core.md) — the Kind interface, `GameState` envelope,
 API, session store, projection, validation, reason codes, MCP schemas, determinism
@@ -61,7 +61,7 @@ harness.
 - [ ] Run `npm install && npm test` in CI (logic verified in Node during dev; not yet
       run through the vitest toolchain).
 
-## Phase 2 — The story-graph kind
+## Phase 2 — The Story-Graph Kind
 
 - [ ] Node / choice resolution against the Phase-0 types.
 - [ ] Typed variable schema: declare, validate, typed get/set consequences.
@@ -69,7 +69,7 @@ harness.
 - [ ] Seeded random-transition node.
 - [ ] Endings + achievement evaluation (unlock once, write to profile).
 
-## Phase 3 — Content: the Bureaucracy arc
+## Phase 3 — Content: The Bureaucracy Arc
 
 - [ ] Author 6–8 Bulgaria bureaucracy nodes (`games/bulgaria.md`): Municipality,
       Government Office, Room 14/6.
@@ -83,32 +83,32 @@ harness.
       (API coverage checklist).
 - [ ] MCP server: the same operations as tools; verify an agent completes the arc.
 
-## Phase 5 — Prove it
+## Phase 5 — Prove It
 
 - [ ] Every box in [`MVP.md`](MVP.md) §5 checked.
 - [ ] **MVP DONE.**
 
 ---
 
-## Post-MVP — depth
+## Post-MVP — Depth
 
-### Depth: Life in the Fast Lane (the `simulation` kind)
+### Depth: Life in the Fast Lane (The `simulation` Kind)
 
 - [ ] Build the simulation kind per `games/04-engine-specification.md` (Phases 1–4 there).
 - [ ] "Stable Life" scenario playable to a win and a loss.
 - [ ] Its Definition of Done: `games/life-in-the-fast-lane.md`.
 
-### Depth: finish the Bulgaria adventure
+### Depth: Finish the Bulgaria Adventure
 
 - [ ] The remaining four arcs (Inheritance, Enterprise, Driving, Return).
 - [ ] Its full Definition of Done: `games/bulgaria-adventure.md`.
 
-### Breadth: the first culture pack
+### Breadth: The First Culture Pack
 
 - [ ] Bulgaria culture pack over the simulation kind — Jones-in-Bulgaria content,
       no engine change ([`02-architecture.md`](02-architecture.md) §4a).
 
-### Breadth: the platform
+### Breadth: The Platform
 
 - [ ] More clients (web, Discord).
 - [ ] AI-assisted authoring (content only; engine validates).
@@ -117,7 +117,7 @@ harness.
 - [ ] Content-pack merge / override / dependency rules — before mods, not before MVP
       ([`neaas-platform-vision.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform) → Known deferred gaps).
 
-### Content tooling — a first-class workstream, not an afterthought
+### Content Tooling — A First-Class Workstream, Not an Afterthought
 
 > Peer review's sharpest point: as campaigns grow, the runtime stabilizes while
 > **tooling becomes the larger effort.** Named here so it is planned, not discovered.
@@ -130,7 +130,7 @@ harness.
 
 ---
 
-## Known open items carried in
+## Known Open Items Carried In
 
 > Full register of unknowns, gaps, and deferred decisions:
 > [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md).

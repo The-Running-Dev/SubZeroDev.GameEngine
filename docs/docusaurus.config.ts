@@ -10,7 +10,7 @@ import type * as Preset from '@docusaurus/preset-classic';
  * (not 'throw') to keep authoring frictionless; flip to 'throw' to gate builds.
  */
 const config: Config = {
-  title: 'Narrative Engine',
+  title: 'Game Engine',
   tagline: 'A deterministic, game-agnostic narrative game platform',
   url: 'https://docs.example.com',
   baseUrl: '/',
@@ -40,7 +40,7 @@ const config: Config = {
 
   themeConfig: {
     navbar: {
-      title: 'Narrative Engine',
+      title: 'Game Engine',
       items: [
         {type: 'docSidebar', sidebarId: 'docs', position: 'left', label: 'Docs'},
       ],

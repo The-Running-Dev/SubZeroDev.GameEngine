@@ -21,7 +21,7 @@ in the engine specification and not re-derived here.
 
 ---
 
-## 1. The campaign
+## 1. The Campaign
 
 A story-graph campaign is **data** (§1 of the architecture). It declares everything the
 engine needs to run it; the engine never recompiles to load one.
@@ -52,7 +52,7 @@ every variable referenced is declared, and every `LocKey` is present.
 
 ---
 
-## 2. Variable schema — fully typed (N6)
+## 2. Variable Schema — Fully Typed (N6)
 
 Every variable a campaign uses is declared here with a type and an initial value.
 Reading or writing an undeclared variable is a **load-time error**. Writing a value of
@@ -96,7 +96,7 @@ landlord's opinion declares `int` `landlord_affinity`; one that tracks cash decl
 
 ---
 
-## 3. Nodes — the single content type (N7)
+## 3. Nodes — The Single Content Type (N7)
 
 A node is a scene: display text, plus what happens after it. The "what happens" is a
 discriminated union — the only content type in this kind.
@@ -138,7 +138,7 @@ on a choice or an ending (§8). So "a random event" is a `random` node the engin
 resolves and moves past; "an event not reached by a choice" is an `auto`/choice node a
 `goto` sends you to.
 
-### 3.1 Text interpolation
+### 3.1 Text Interpolation
 
 A node's `textKey` string may reference **visible** variables: `"Your bank account
 contains {money}."` The engine substitutes the current value at render time from the
@@ -147,7 +147,7 @@ a load-time error — a hidden variable must not leak through prose.
 
 ---
 
-## 4. Choices and transitions
+## 4. Choices and Transitions
 
 ```typescript
 interface Choice {
@@ -182,7 +182,7 @@ A `goto` may target the choice's own node — that is how the Bureaucracy loop w
 
 ---
 
-## 5. Consequences — typed effects
+## 5. Consequences — Typed Effects
 
 A choice or transition mutates state only through typed operations on **declared**
 variables. There is no arbitrary path write — the audit-record discipline from the
@@ -214,7 +214,7 @@ there), so a `+5` then `-5` nets to zero rather than clipping.
 
 ---
 
-## 6. Requirements and conditions
+## 6. Requirements and Conditions
 
 Requirements reuse the core's **`Condition` tree verbatim** — `all` / `any` /
 `not` / comparisons / `exists` / `count`
@@ -268,7 +268,7 @@ achievements," never a broken game.
 
 ---
 
-## 8. Runtime state and the turn
+## 8. Runtime State and the Turn
 
 ### 8.1 State
 
@@ -302,7 +302,7 @@ interface StoryGraphKindState {
 ([`04-core.md`](04-core.md) §8 / games/04 §2.2) — a `Record` iterated in a
 state-affecting way is sorted first, or a save/load round trip can diverge.
 
-### 8.2 The turn: `submitChoice` → settle
+### 8.2 The Turn: `submitChoice` → Settle
 
 The story-graph kind has exactly **one player action** — submit a choice — with no plan
 and no multi-action week (the model that led the simulation kind to drop `executeAction`,
@@ -353,7 +353,7 @@ for this kind.
 
 ---
 
-## 9. Projection — what a client sees
+## 9. Projection — What a Client Sees
 
 Clients receive a projection, never raw state (architecture §7). For the story-graph
 kind:
@@ -392,7 +392,7 @@ player shouldn't.
 
 ---
 
-## 10. Determinism, save, versioning
+## 10. Determinism, Save, Versioning
 
 All three are core mechanisms; the story-graph kind only supplies its state shape.
 
@@ -409,7 +409,7 @@ All three are core mechanisms; the story-graph kind only supplies its state shap
 
 ---
 
-## 11. Validation, story-graph-specific
+## 11. Validation, Story-Graph-Specific
 
 Tiered as in the architecture §9.
 
@@ -437,7 +437,7 @@ state can satisfy; an ending no path reaches.
 
 ---
 
-## 12. Worked example — the MVP Bureaucracy arc
+## 12. Worked Example — The MVP Bureaucracy Arc
 
 This is the concrete MVP content ([`MVP.md`](MVP.md)): ~6 nodes, typed variables, a
 requirement-gated retry, a loop with visit counts, a seeded random node, and the
@@ -548,7 +548,7 @@ What this exercises, one-to-one against the MVP Definition of Done:
 
 ---
 
-## 13. Judgement calls
+## 13. Judgement Calls
 
 | § | Call | Revisit when |
 |---|---|---|
