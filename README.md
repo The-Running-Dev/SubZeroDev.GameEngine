@@ -1,6 +1,6 @@
 # SubZeroDev.GameEngine
 
-The **Narrative Engine** — a deterministic, game-agnostic narrative-game platform: its
+The **Game Engine** — a deterministic, game-agnostic narrative-game platform: its
 **source** (`src/engine/`) and its **specs** (`docs/docs/engine/`) in one place.
 
 The model is **core → kinds → campaigns**: one shared deterministic core, game-*type*
@@ -18,11 +18,12 @@ logic (`kinds`), and content (`campaigns`) as data. v1 targets two kinds — `st
 - **Specs:** the MVP contracts are finalized — the story-graph kind
   ([`03`](docs/docs/engine/03-story-graph-kind.md)) and the core
   ([`04-core`](docs/docs/engine/04-core.md)). See [MVP.md](docs/docs/engine/MVP.md).
-- **Code:** Phase 1 core in [`src/engine/`](src/engine/) — seeded PCG32 RNG and canonical
-  serialization, verified bit-identical to reference vectors. Next: the pure engine
-  `advance(state, action) → state`.
-- **Open items:** [OPEN-QUESTIONS.md](docs/docs/engine/OPEN-QUESTIONS.md) (the sharpest:
-  `PlayerProfile` isn't part of the core yet).
+  Every MVP-blocking gap is now decided; the register
+  ([OPEN-QUESTIONS.md](docs/docs/engine/OPEN-QUESTIONS.md) §1) is a decision log.
+- **Code:** [`src/engine/`](src/engine/) — seeded PCG32 RNG and canonical serialization,
+  verified bit-identical to reference vectors; toolchain green (15 tests).
+- **Next:** [TODO.md](docs/docs/engine/TODO.md) breaks the MVP into ordered units of work
+  (W0–W19). W1 is the core contract types and module skeleton.
 
 ## Layout
 
@@ -33,7 +34,7 @@ logic (`kinds`), and content (`campaigns`) as data. v1 targets two kinds — `st
 | `docs/` | The specs are a Docusaurus site; `docs/docs/` is its content root |
 | [`docs.ps1`](docs.ps1) | Build & serve the docs site |
 
-## Build the docs site
+## Build the Docs Site
 
 Requires Docker Desktop (base image `ghcr.io/the-running-dev/docs-template`, overlaid with
 the local config).
@@ -44,7 +45,7 @@ the local config).
 ./docs.ps1 -BuildOnly # build the image only
 ```
 
-## Developing the engine
+## Developing the Engine
 
 ```bash
 cd src/engine
@@ -58,7 +59,7 @@ Determinism is enforced, not hoped for: the eslint config bans `Math.random`, th
 non-bit-stable `Math.*` functions, and `Date.now` in `src/`, and the core replays
 byte-for-byte from a seed and its inputs.
 
-## Where to start reading
+## Where to Start Reading
 
 1. [Vision](docs/docs/engine/01-vision.md) — why the platform exists
 2. [Architecture](docs/docs/engine/02-architecture.md) — every settled decision

@@ -1,8 +1,8 @@
 # Project Instructions
 
-## What this project is
+## What This Project Is
 
-**SubZeroDev.GameEngine — the Narrative Engine.** A deterministic, game-agnostic
+**SubZeroDev.GameEngine — the Game Engine.** A deterministic, game-agnostic
 narrative-game platform: its **source** (`src/engine/`) and its **specs**
 (`docs/docs/engine/`) in one repo.
 
@@ -21,7 +21,7 @@ logic (`kinds`, engine-owned code), and content (`campaigns`, data). v1 ships tw
 The build strategy is **engine-first**: prove the deterministic engine with automated
 tests and a plain text client before any UI.
 
-## The specs — `docs/docs/engine/`
+## The Specs — `docs/docs/engine/`
 
 Read in order. Files are scoped deliberately and cross-reference by section number.
 
@@ -32,10 +32,10 @@ Read in order. Files are scoped deliberately and cross-reference by section numb
 | `04-core.md` | The core as **types**: the Kind interface (the seam), `GameState` envelope, engine API, session store, projection, validation, reason codes, MCP schemas, determinism harness. **The contract (types)** |
 | `03-story-graph-kind.md` | The flagship kind's content types: nodes, choices, typed variables, consequences, endings, achievements, turn/settle semantics + worked Bureaucracy-arc example. `kindState` plugs into 04's envelope |
 | `MVP.md` | The smallest slice that proves the platform, + Definition of Done (finalized) |
-| `TODO.md` | Ordered task list; the MVP boundary is marked |
-| `OPEN-QUESTIONS.md` | Living register of unknowns, gaps, deferred decisions. Start here for "what isn't settled" (e.g. `PlayerProfile` is not yet a core concept) |
+| `TODO.md` | The MVP as ordered **units of work** (W0–W19), each with contract refs, dependencies, and done-criteria; the MVP boundary is marked |
+| `OPEN-QUESTIONS.md` | Living register of unknowns, gaps, deferred decisions. §1 is now a **decision log** — the eight MVP-blocking gaps are all resolved; start here for the reasoning behind a contract |
 
-## The code — `src/engine/`
+## The Code — `src/engine/`
 
 The engine npm package (`package.json`, `tsconfig.json` strict, `eslint.config.js` with
 the determinism guard, `README.md`). Phase 1 core under `src/engine/src/core/`:
@@ -47,7 +47,7 @@ engine `advance(state, action) → state`.
 **Numbering is positional.** Inserting a doc between existing ones means renumbering
 everything after it and rewriting every cross-link. Prefer appending.
 
-### Where drift happens
+### Where Drift Happens
 
 **`03-story-graph-kind` ↔ `04-core`** drift: `04` implements `03` as types. An edit to one
 not mirrored in the other is this project's most common defect. When a type changes, update
@@ -69,7 +69,7 @@ acceptance test with teeth.
 
 ## Tooling
 
-### Docs site — `docs/` (Docusaurus)
+### Docs Site — `docs/` (Docusaurus)
 
 The specs are a Docusaurus site. `docs/` is both the Docusaurus overlay and the Docker
 build context:
@@ -89,7 +89,7 @@ Run it with **`docs.ps1`** (repo root; needs Docker Desktop running):
 | `./docs.ps1 -Live` | Same, but bind-mounts `docs/` so edits hot-reload without a rebuild |
 | `./docs.ps1 -BuildOnly` | Build the image only |
 
-### graphify — `/graphify`
+### Graphify — `/graphify`
 
 Personal skill at `~/.claude/skills/graphify/`. Turns the folder into a knowledge graph
 with community detection. There is **no current graph** in this repo — run `/graphify` to
@@ -106,7 +106,7 @@ build one.
   **together with everything they cross-reference**; verify cross-file edge counts against
   the backup afterward.
 
-### claude-mem
+### Claude-Mem
 
 Plugin at `~/.claude/plugins/cache/thedotmack/claude-mem/`. **`/claude-mem:learn-codebase`**
 reads every file in full — run it after a long session of many small edits; editing from
@@ -114,7 +114,7 @@ diffs accumulates drift only a full read catches. **`/claude-mem:cloud-sync`** u
 cmem.ai Pro and needs a token the **user** places themselves (Claude never handles
 credentials). Troubleshoot with `npx claude-mem doctor`.
 
-### Two memory systems — do not confuse them
+### Two Memory Systems — Do Not Confuse Them
 
 - **claude-mem** — background worker on `localhost:37777`, captures observations passively.
 - **Claude's file memory** — plain markdown under
@@ -125,7 +125,7 @@ Independent. Neither affects the other.
 
 ---
 
-## Working conventions
+## Working Conventions
 
 Findings and review items are presented **one at a time for sign-off**, not applied in
 bulk. When a suggestion is declined, record it in the affected document (or

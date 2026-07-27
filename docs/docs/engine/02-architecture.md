@@ -1,4 +1,4 @@
-# Narrative Engine — Architecture
+# Architecture
 
 **Document status:** Revision 1 — architecture settled; content model written (§4 →
 [`03-story-graph-kind.md`](03-story-graph-kind.md))
@@ -21,7 +21,7 @@ already specified there and is not re-derived here — it is core both kinds sha
 
 ---
 
-## 1. The three layers
+## 1. The Three Layers
 
 ```text
           ┌─────────────────────────────────────────────┐
@@ -34,7 +34,7 @@ Kinds     │  story-graph        │        simulation      │  engine-owned l
           └───────────────────────┬─────────────────────┘
                                   │
           ┌───────────────────────▼─────────────────────┐
-Core │ session state · seeded RNG · projection ·    │  game-agnostic core
+Core      │ session state · seeded RNG · projection ·    │  game-agnostic core
           │ conditions · save/migration · registry · API │
           └─────────────────────────────────────────────┘
 ```
@@ -60,7 +60,7 @@ authoring produces. A new *kind* is an engine feature, added deliberately.
 
 ---
 
-## 2. Session model
+## 2. Session Model
 
 The engine core is a **pure function**, identical in discipline to the simulation
 kind's §11.3:
@@ -94,16 +94,16 @@ action log }` — the determinism harness (§8) depends on this.
 
 ---
 
-## 3. State and variables
+## 3. State and Variables
 
-### 3.1 Two state shapes, by kind
+### 3.1 Two State Shapes, by Kind
 
 - The **simulation kind** carries structured, fully-typed state (`ActorState`,
   `WorldState`, …) — already specified.
 - The **story-graph kind** carries a **typed variable schema declared by the
   campaign**, plus the shared subsystems in §6.
 
-### 3.2 Story-graph variables are fully typed
+### 3.2 Story-Graph Variables Are Fully Typed
 
 Every variable a story-graph campaign uses is declared up front with a name, a type,
 and an initial value. A consequence that writes an undeclared or mistyped variable is
@@ -121,7 +121,7 @@ a **load-time error**. Reading an undeclared variable is a load-time error.
 // illustrative — full types land in 03-story-graph-kind.md
 interface VariableSchema {
   [name: string]: {
-    type: "bool" | "int" | "string" | "enum";
+    type: "bool" | "int" | "enum";   // `string` was dropped — 03 §2
     initial: boolean | number | string;
     values?: string[];        // for enum
     visible?: boolean;        // surfaced as a player stat — see §6.2
@@ -135,7 +135,7 @@ is the audit-record discipline from the simulation kind's §10.4, carried over.
 
 ---
 
-## 4. The story-graph kind: one content type
+## 4. The Story-Graph Kind: One Content Type
 
 The story-graph kind has a **single content type — the node.** A node is a scene:
 display text plus a set of choices. A choice may be gated by requirements and carries
@@ -161,7 +161,7 @@ The full node / choice / requirement / consequence / ending types are specified 
 
 ---
 
-## 4a. Content packs and culture packs
+## 4a. Content Packs and Culture Packs
 
 A campaign is data within a kind (§1). Some of that data is the game's *setting* — its
 jobs, places, events, characters, prices, and the language and voice it speaks in. A
@@ -200,7 +200,7 @@ submitted — it validates the data against the kind's schema either way.
 
 ---
 
-## 5. Determinism and randomness
+## 5. Determinism and Randomness
 
 Each kind **declares its own determinism contract**; the core provides the
 machinery.
@@ -222,7 +222,7 @@ paths, per the simulation kind's §2.1. This is core law, not per-kind.
 
 ---
 
-## 6. Shared subsystems in the story-graph kind
+## 6. Shared Subsystems in the Story-Graph Kind
 
 The source specification listed achievements, statistics, relationships and time in
 its engine responsibilities, save format, or API, but modeled none of them. All four
@@ -238,7 +238,7 @@ Whether achievements are game-scoped or persist across a player profile follows 
 simulation kind's resolution (profile-scoped, written outside authoritative game
 state so they never affect determinism).
 
-### 6.2 Player statistics
+### 6.2 Player Statistics
 
 **Not a separate system.** A statistic is a campaign variable marked `visible: true`
 in the schema (§3.2). The v1 UI's "Player Stats" panel renders exactly those. This is
@@ -263,9 +263,12 @@ the story-graph kind.
 
 ### 6.4 Time
 
-Story-graph time is a **turn counter**, not a clock. The core increments a
+Story-graph time is a **turn counter**, not a clock. The kind increments a
 built-in `turn` value on each node transition, readable in requirements and
-consequences like any variable. The clock references in the Bulgarian content
+consequences like any variable. (It is kind-owned rather than core-owned because a
+"turn" means something different per kind — a node transition here, a week in the
+simulation kind — and because it lives inside the opaque `kindState`;
+[`03-story-graph-kind.md`](03-story-graph-kind.md) §8.1.) The clock references in the Bulgarian content
 ("08:03", "opened at 08:00") are **scene text, not mechanics** — a campaign that wants
 a mechanical clock declares an int variable and advances it in consequences.
 
@@ -276,11 +279,11 @@ a mechanical clock declares an int variable and advances it in consequences.
 
 ---
 
-## 7. Projection and hidden state
+## 7. Projection and Hidden State
 
 Carried over wholesale from the simulation kind's §6. Clients receive a **projection**
 of state, not the state itself — variables marked hidden (event cooldowns, unrevealed
-flags, achievement progress, the RNG) never appear in what a client or AI agent can
+flags, achievement progress, the seed) never appear in what a client or AI agent can
 read. The visible-stat marker (§6.2) is the story-graph kind's use of this boundary:
 `visible: true` variables are in the projection, everything else is not.
 
@@ -292,7 +295,7 @@ read. The visible-stat marker (§6.2) is the story-graph kind's use of this boun
 
 ---
 
-## 8. Save, versioning, and migration
+## 8. Save, Versioning, and Migration
 
 Carried over from the simulation kind's §16, with one story-graph-specific hazard made
 explicit.
@@ -318,7 +321,7 @@ simulation kind's §18.4 applies unchanged. This is the concrete meaning of
 
 ---
 
-## 9. AI authoring boundary
+## 9. AI Authoring Boundary
 
 The source specification's AI-authoring section said "the engine always validates the
 final result" without saying what that means. The kind-boundary decision makes it
@@ -347,7 +350,7 @@ over from the simulation kind's §4.3.
 
 ---
 
-## 10. The API and MCP surface
+## 10. The API and MCP Surface
 
 One API serves every client and every kind. The source specification's operation list,
 made concrete and session-keyed (§2):
@@ -358,14 +361,17 @@ made concrete and session-keyed (§2):
 | `createSession` | `{ campaignId, seed? }` → `sessionId` |
 | `resumeSession` | `{ sessionId }` → current scene + visible state |
 | `getScene` | Current node's text and available (requirement-filtered) choices |
-| `getState` | The **projection** (§7), never raw state |
-| `submitChoice` | `{ sessionId, choiceId }` → new scene + visible state |
+| `getView` | The **projection** (§7), never raw state |
+| `submitAction` | `{ sessionId, actionId }` → new scene + visible state; for this kind an `actionId` *is* a choice id |
 | `saveGame` / `loadGame` | Serialize / restore, version-stamped (§8) |
+
+The names are the `SessionStore` surface as typed in [`04-core.md`](04-core.md) §7 —
+kind-agnostic on purpose, since the same operations serve the simulation kind.
 
 The **MCP server exposes these same operations as tools** (`start_game`,
 `continue_game`, `choose`, `get_scene`, `get_state`, `save_game`, `load_game`,
 `list_campaigns`). There is no AI-specific game path: an MCP agent and a browser both
-call `submitChoice`, both receive a projection, both play the identical game.
+call `submitAction`, both receive a projection, both play the identical game.
 
 > **Decision.** The source specification already had this right — MCP as a first-class
 > client, no special AI version. Making it *literally the same operations* rather than
@@ -375,21 +381,25 @@ call `submitChoice`, both receive a projection, both play the identical game.
 
 ---
 
-## 11. What is settled, what is next
+## 11. What Is Settled, What Is Next
 
 **Settled (this document):** the three-layer model; kinds as engine code; campaigns as
 data; the pure-core / server-session split; typed variables; the single-node-type
 story-graph model; determinism and seeded RNG; the four shared subsystems; projection;
 save/versioning/migration; the AI-authoring boundary; the unified API/MCP surface.
 
-**Next deliverable — `03-story-graph-kind.md`:** the concrete content types. Node,
-Choice, Requirement (reusing the simulation kind's `Condition` tree), Consequence,
-Ending, VariableSchema, AchievementDefinition, and the seeded random-transition node.
-With those, the Bulgaria make-your-own-adventure can be
-authored as real, validated content rather than mood text — a minimal slice of it is
-the MVP ([`MVP.md`](MVP.md)). The separate Bulgaria culture pack, which belongs to
+**Delivered — [`03-story-graph-kind.md`](03-story-graph-kind.md)** (the concrete content
+types: Node, Choice, Requirement reusing the simulation kind's `Condition` tree,
+Consequence, Ending, VariableSchema, AchievementDefinition, and the seeded
+random-transition node) **and [`04-core.md`](04-core.md)** (those decisions as platform
+types). With both, the Bulgaria make-your-own-adventure can be authored as real,
+validated content rather than mood text — a minimal slice of it is the MVP
+([`MVP.md`](MVP.md)). The separate Bulgaria culture pack, which belongs to
 Life in the Fast Lane, needs no new deliverable — it
 is a content pack over the existing simulation kind (§4a).
+
+**Next — build it.** The ordered task list is [`TODO.md`](TODO.md); what is still
+unsettled is [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md).
 
 **Deferred — [`neaas-platform-vision.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform):** hosting,
 accounts, billing, cloud sync, analytics, multiplayer, white-label.
@@ -406,7 +416,7 @@ first designed there: the projection boundary, the condition DSL, seeded RNG
 substreams, tiered content validation, the determinism harness, reason codes,
 localization, save/migration.
 
-> **Project split.** This repo (**SubZeroDev.GameEngine**) is the **Narrative Engine** —
+> **Project split.** This repo (**SubZeroDev.GameEngine**) is the **Game Engine** —
 > both its **source** (`src/engine/`) and its **specs** (a Docusaurus site under
 > `docs/docs/engine/`). The **games** (Life in the Fast Lane, the Bulgaria adventure) live
 > in [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife); the

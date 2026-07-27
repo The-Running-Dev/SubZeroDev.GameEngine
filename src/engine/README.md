@@ -1,4 +1,4 @@
-# narrative-engine (implementation)
+# Game Engine (Implementation)
 
 The code for the deterministic narrative game engine. The design lives in
 [`../../docs/docs/engine/`](../../docs/docs/engine/02-architecture.md); this is the build.
@@ -22,7 +22,7 @@ Structure mirrors the architecture's dependency layering
 ([`../../docs/docs/engine/02-architecture.md`](../../docs/docs/engine/02-architecture.md) §1):
 clients → kinds → core. The core never imports a kind or client.
 
-## Determinism is enforced, not hoped for
+## Determinism Is Enforced, Not Hoped For
 
 The whole engine must replay byte-for-byte from a seed and inputs
 ([`MVP.md`](../../docs/docs/engine/MVP.md)). Two mechanisms hold the line:

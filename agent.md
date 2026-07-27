@@ -9,7 +9,7 @@ only when it would have changed a decision.
 
 ---
 
-## Token economy
+## Token Economy
 
 1. **graphify** — nearly free on the code (AST), expensive on prose (~200K/rebuild) and
    marginal on this small a corpus. Don't full-rebuild the specs casually; use
@@ -19,7 +19,7 @@ only when it would have changed a decision.
 3. **Start a fresh session at phase boundaries.** `CLAUDE.md` + memory + the specs re-prime
    a new session cheaply — that's why they're kept tight.
 
-## What worked (keep doing)
+## What Worked (Keep Doing)
 
 - **Decide via questions, then batch-write.** Surface real forks one/few at a time with
   `AskUserQuestion` (recommended option first), get sign-off, *then* edit. Never bulk-apply
@@ -36,34 +36,37 @@ only when it would have changed a decision.
   only a full read catches (`learn-codebase` once found twelve here, incl. a functional bug
   where `DerivedPath` omitted `world.strangeness`).
 
-## Drift hazards specific to this repo
+## Drift Hazards Specific to This Repo
 
 - **`03-story-graph-kind` ↔ `04-core`** drift most: `04` implements `03` as types. When a
   type changes, update the prose, the examples, the projection, and the validation/test
   list too.
-- **Envelope-duplication recurs.** `kindState` (03 §8.1) and then `StoryGraphCampaign`
-  (03 §1 vs 04-core §10.1) each duplicated identity fields that belong on the envelope /
-  registry. When a kind mirrors a core concept, check the field lives in exactly one place.
+- **Envelope-duplication recurs — three times now.** `kindState` (03 §8.1), then
+  `StoryGraphCampaign` (03 §1 vs 04-core §10.1), then `StoryGraphView` (03 §9 vs 04-core
+  §6/§9, which had `status` 3×, scene text 2×, and the choice list twice under two
+  identical types). **It recurs on the *view* side too, not just state and content** —
+  whenever a kind mirrors a core concept, check the field lives in exactly one place.
 - **Positional numbering** — inserting a doc means renumbering + rewriting every link.
   Prefer appending.
 - **Encoding** — some imported source docs arrived CP1252, not UTF-8 (mojibake em-dashes /
   arrows). Rewrite to UTF-8 when importing.
 
-## Open concerns & assumptions
+## Open Concerns & Assumptions
 
 - **Spec-level unknowns** live in [`OPEN-QUESTIONS.md`](docs/docs/engine/OPEN-QUESTIONS.md).
-  The sharpest: `PlayerProfile` — needed by the MVP achievement DoD — is not yet a core
-  concept (defined only in the simulation kind, in the game repo). Resolve before Phase 2
-  achievements.
-- **Engine suite is Node-verified only**, not yet run through vitest/CI (`TODO.md` Phase 1).
+  Its §1 is now a **decision log** — all eight MVP-blocking gaps (including `PlayerProfile`,
+  long the sharpest) are resolved and written into the contracts. Nothing MVP-blocking is
+  open; add new gaps there as full entries.
+- **Engine suite runs green under vitest** (15 tests, `pcg32` + `canonical`); no CI
+  workflow yet (`TODO.md` Phase 1).
 - **The docs-site base image is unverified.** `docs.ps1` builds on
   `ghcr.io/the-running-dev/docs-template`; we *assume* `@docusaurus/preset-classic` (v3),
   port 3000, `sidebar.ts`. `COPY` can't delete, so leftover template docs may show in the
   sidebar. Confirmed only against one local run.
 
-## Orientation in one paragraph
+## Orientation in One Paragraph
 
-This repo = the **Narrative Engine**: source (`src/engine/`, Phase 1 core started) + specs
+This repo = the **Game Engine**: source (`src/engine/`, Phase 1 core started) + specs
 (`docs/docs/engine/`). A game-agnostic **core** + **kinds** (engine-owned code) +
 **campaigns** (data); v1 ships two kinds, `story-graph` (flagship, the MVP) and
 `simulation`. A "campaign" is a kind + its data; a "culture pack" reskins a simulation
