@@ -32,9 +32,9 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebar.ts',
-          // Renaming this also requires updating src/pages/index.tsx, which
-          // redirects the site root here. A <Redirect> emits no anchor, so
-          // onBrokenLinks cannot catch that drift -- it would fail silently.
+          // Renaming this also requires updating static/index.html, which
+          // forwards the site root here. That file is not a route, so
+          // onBrokenLinks cannot catch the drift -- it would fail silently.
           routeBasePath: 'docs',
         },
         blog: false,

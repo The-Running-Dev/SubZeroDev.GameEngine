@@ -257,11 +257,36 @@ the build on nine identical broken links. Same commit, same Node: the 20:32 depl
 Resolved with the second option below, which was already the less invasive one:
 
 - ~~Set `routeBasePath: '/'`~~ — would move every URL and contradict decision 2.
-- **Add a root page under `docs/src/pages/`, leaving `/docs/…` untouched.** Done:
-  [`docs/src/pages/index.tsx`](../docs/src/pages/index.tsx) redirects `/` to `/docs/`.
+- **Claim the root ourselves, leaving `/docs/…` untouched.** Done:
+  [`docs/static/index.html`](../docs/static/index.html) forwards `/` to `/docs/`.
 
 The point is not only that the root now resolves — it is that the site root is now **owned
 by this repository** rather than inherited from whatever the base image happens to contain.
+
+**Static file, not a `src/pages` route.** The first attempt here was a `src/pages/index.tsx`
+rendering `<Redirect>`. That was the wrong mechanism, for three reasons:
+
+1. **It re-used the mechanism that caused the outage.** The accidental root came from the
+   base image's own `src/pages` being picked up by the classic preset. A fix that depends on
+   that same plugin scanning that same directory leaves the root hostage to the image a
+   second time — an image revision that repathed or disabled the `pages` plugin would
+   silently remove the root again.
+2. **It required JavaScript.** `<Redirect>` is client-side routing, so the emitted
+   `index.html` is an empty shell that only forwards after React hydrates. A `meta refresh`
+   forwards with no JS at all, and carries a `rel=canonical` so the root does not compete
+   with `/docs/` in search results.
+3. **It was a second answer to a solved problem.** `SubZeroDev.WinGet` hit this during the
+   same docs-template migration and had already settled on `docs/static/index.html`. Two
+   sibling repos solving one problem two ways is drift for no gain.
+
+`docs/static/index.html` here is deliberately near-identical to WinGet's, down to the
+comment explaining when to delete it.
+
+**Note the difference in `onBrokenLinks`.** WinGet keeps the template default, `'warn'`;
+this repo sets `'throw'` (see the strict-gating decision above). So WinGet's static file
+fixes its bare-domain 404, while the navbar's link to `/` stays a tolerated warning there.
+Under `'throw'` the same file has to additionally satisfy the link checker — verified in CI
+rather than assumed, since a static file is not a route.
 
 **Standing risk, not closed by this fix:** both docs workflows track
 `ghcr.io/the-running-dev/docs-template:latest`, so an image revision can still break a
@@ -269,11 +294,11 @@ green `main` with no commit here. Pinning to a digest would trade that for manua
 Left open deliberately — see the deploy workflow's `container.image`.
 
 **Declined in review, retained knowingly.** Automated review flagged that
-`docs/src/pages/index.tsx` repeats `'docs'` from `routeBasePath`, and proposed extracting a
+`docs/static/index.html` repeats `'docs'` from `routeBasePath`, and proposed extracting a
 shared `DOCS_ROUTE_BASE` constant imported by both.
 
-The underlying mechanism is real and worth stating plainly: a `<Redirect>` renders no
-anchor, so `onBrokenLinks` never sees it. Renaming `routeBasePath` without updating the
+The underlying mechanism is real and worth stating plainly: the forwarding file is not a
+route, so `onBrokenLinks` never sees it. Renaming `routeBasePath` without updating the
 root page would send `/` to a dead route and **still build green** — the one drift in this
 site that the build gate cannot catch.
 
@@ -282,7 +307,7 @@ section above just reaffirmed it by rejecting `routeBasePath: '/'`; a module ind
 value the project has decided not to change buys nothing. The failure mode is a human
 editing the config, so the mitigation lives there instead — `docusaurus.config.ts` now
 carries a comment at `routeBasePath` naming the dependency and the silence, and the root
-page names the coupling from its side. If `routeBasePath` ever does become a live variable,
+file names the coupling from its side. If `routeBasePath` ever does become a live variable,
 revisit this and extract the constant then.
 
 #### The README links that must change
