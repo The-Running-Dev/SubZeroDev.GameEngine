@@ -320,6 +320,3 @@ Walk [`MVP.md`](MVP.md) §5 and attach test evidence to each box.
       `--force` moves vitest 2 → 4 and eslint 9 → 10. **Deferred deliberately**; revisit as
       a single toolchain upgrade once the determinism harness (W18) can prove the upgrade
       changed no behaviour.
-
-<!-- W0 red-path proof: deliberate broken site-absolute route, reverted before merge -->
-[This route does not exist](/docs/engine/does-not-exist)
