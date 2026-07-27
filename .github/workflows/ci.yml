@@ -1,0 +1,59 @@
+name: CI
+
+# Branches are covered by `pull_request`; `main` by `push`. Restricting push to
+# main is what stops a branch with an open PR producing two runs of this
+# workflow -- the same approach the installed docs-ci.yml takes, and the reason
+# it needs no concurrency group either.
+#
+# An earlier version triggered on every push *and* pull_request, deduplicated by
+# a concurrency group with cancel-in-progress. That raced: whichever run started
+# second cancelled the first, leaving two check-runs named `engine` on one commit
+# -- one success, one cancelled -- and a required-status-check rule that sees the
+# cancelled one blocks the merge even though everything passed.
+"on":
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+# Only reachable for pushes to main now, since a PR branch produces a single
+# run. cancel-in-progress is still right there: consecutive pushes to main
+# supersede each other.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  engine:
+    name: engine
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: src/engine
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/engine/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test

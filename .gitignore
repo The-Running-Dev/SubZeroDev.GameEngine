@@ -3,12 +3,24 @@ node_modules/
 
 # Build output
 dist/
-build/
 *.tsbuildinfo
+
+# NOT `build/`. That pattern used to be here and silently swallowed the
+# documentation system's installed *source* scripts in ./build --
+# Test-Documentation.ps1 and ConvertTo-DocumentationHomepage.ps1. The two
+# already-tracked files kept working, but any script a later `Invoke-SetupDocs`
+# added there would have been invisible to `git add -A`: present locally, green
+# locally, missing in CI, with nothing saying why. TypeScript emits to dist/
+# (src/engine/tsconfig.json outDir), so the bare pattern was protecting nothing.
 
 # Docusaurus local build
 .docusaurus/
 docs/build/
+
+# Built documentation site, written by Invoke-DocsBuild -OutputPath artifacts/docs
+# during local verification. Regenerable; committing it would add the whole
+# rendered site to the repository.
+artifacts/
 
 # graphify — regenerable and expensive; never commit
 graphify-out/

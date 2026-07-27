@@ -140,6 +140,12 @@ Verify Documentation Build
 Build and Deploy Documentation
 ```
 
+> **⚠ Do not require the third one as a pull-request check.** Verified against the
+> installed templates: `Build and Deploy Documentation` lives in `docs-deploy.yml`, which
+> triggers only on `push` to `main` and `workflow_dispatch`. Required on pull requests it
+> can never report, so every PR stays pending. Require the first two plus `CI / engine`;
+> treat deploy as post-merge verification.
+
 No registry credentials are needed — `ghcr.io/the-running-dev/docs-template` is a public
 package, so the `github.token` the workflows already fall back to is enough.
 `REGISTRY_TOKEN` is only required if `-BaseImage` points at a private fork or mirror.
@@ -152,13 +158,25 @@ Then it is automatic:
 The published URL is `url` + `baseUrl` in `docs/docusaurus.config.ts`, set by `-SiteUrl` at
 install time.
 
-To reproduce the CI build without pushing:
+To reproduce the CI build without pushing — **no `--user`**:
 
 ```bash
-docker run --rm -v "$PWD:/work" -w /work --user "$(id -u):$(id -g)" \
+docker run --rm -v "$PWD:/work" -w /work \
   ghcr.io/the-running-dev/docs-template:latest \
   Invoke-DocsBuild -SourceDocs /work/docs -OutputPath /work/artifacts/docs
 ```
+
+> **⚠ `--user` breaks `Invoke-DocsBuild` — verified by running both ways.** It overlays
+> `/work/docs` onto `/template` *inside the image* before building, and `/template` is
+> root-owned (`755`, baked into the image). `--user "$(id -u):$(id -g)"` makes the process
+> a non-root, non-writing user for that directory, so the overlay step fails outright:
+> `Copy-Item: Access to the path '/template/Dockerfile' is denied.` This is the opposite of
+> `Invoke-SetupDocs`, which writes only into the mounted `/work` and needs `--user` for
+> exactly the reason stated there — do not carry that flag over by habit.
+>
+> CI itself is unaffected: the installed `docs-ci.yml` runs this inside a GitHub Actions
+> `container:` job with no `user:` override, so it runs as the image's default root and
+> never hits this. It is a local-reproduction issue only, and only for this one command.
 
 #### Local preview
 
@@ -199,8 +217,8 @@ W0 installs the documentation system rather than hand-writing a docs job. Settle
 
 | # | Decision | Consequence |
 |---|---|---|
-| 1 | **Generate the homepage** from `README.md` (no `-NoHomepage`) | The README's 14 relative links must become absolute, or the gate fails — see below |
-| 2 | **No `-Overwrite`** | `docs/docusaurus.config.ts`, `docs/sidebar.ts`, `docs/Dockerfile`, and `docs.ps1` are reported *skipped* and survive with their local edits — including the deliberate `onBrokenLinks: 'throw'`. Only the genuinely missing pieces land: `build/`, `.config/`, the two workflows, and the generated homepage |
+| 1 | **Generate the homepage** from `README.md` (no `-NoHomepage`) | The README's relative links must become absolute, or the gate fails — **15 occurrences across 10 unique targets**; see below |
+| 2 | **No `-Overwrite`** | Five files are reported *skipped* and survive with their local edits — `docs/docusaurus.config.ts`, `docs/sidebar.ts`, `docs/Dockerfile`, `docs/.dockerignore`, and `docs.ps1` — including the deliberate `onBrokenLinks: 'throw'`. Only the genuinely missing pieces land: `build/`, `.config/`, the two workflows, and the generated homepage |
 | 3 | **Enable GitHub Pages and publish** | Documentation deployment moves *into* W0's scope |
 
 Two consequences of combining 1 and 2 that must be handled explicitly, because neither is
@@ -237,19 +255,28 @@ Left open. W0 ships the site at `/docs/`; the root is a separate decision.
 #### The README links that must change
 
 Generating the homepage rewrites the site origin but **not** relative links, so each of
-these becomes `docs/docs/…` relative to the site and fails the gate. All 14 need to become
-absolute URLs against the published site:
+these becomes `docs/docs/…` relative to the site and fails the gate.
 
-```text
-docs/docs/engine/01-vision.md          docs/docs/engine/02-architecture.md
-docs/docs/engine/03-story-graph-kind.md  docs/docs/engine/04-core.md
-docs/docs/engine/MVP.md                docs/docs/engine/TODO.md
-docs/docs/engine/OPEN-QUESTIONS.md     docs/docs/engine/
-docs.ps1                               src/engine/
-```
+**Replace by target, not by count** — there are **15 occurrences across 10 unique targets**,
+because some targets are linked twice under different text (`[MVP]` and `[MVP.md]` both
+point at `MVP.md`). Counting link texts instead of occurrences is how an earlier draft of
+this plan arrived at "14" and would have left one broken link behind.
 
-`docs.ps1` and `src/engine/` point at repository files with no published-site equivalent;
-they should become absolute links to the code host, not to the docs site.
+| Relative target | Absolute target |
+|---|---|
+| `docs/docs/engine/01-vision.md` | `https://game-engine.subzerodev.com/docs/engine/vision` |
+| `docs/docs/engine/02-architecture.md` | `https://game-engine.subzerodev.com/docs/engine/architecture` |
+| `docs/docs/engine/03-story-graph-kind.md` | `https://game-engine.subzerodev.com/docs/engine/story-graph-kind` |
+| `docs/docs/engine/04-core.md` | `https://game-engine.subzerodev.com/docs/engine/core` |
+| `docs/docs/engine/MVP.md` | `https://game-engine.subzerodev.com/docs/engine/mvp` |
+| `docs/docs/engine/TODO.md` | `https://game-engine.subzerodev.com/docs/engine/todo` |
+| `docs/docs/engine/OPEN-QUESTIONS.md` | `https://game-engine.subzerodev.com/docs/engine/open-questions` |
+| `docs/docs/engine/` | `https://game-engine.subzerodev.com/docs/engine/vision` |
+| `docs.ps1` | `https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/docs.ps1` |
+| `src/engine/` | `https://github.com/The-Running-Dev/SubZeroDev.GameEngine/tree/main/src/engine` |
+
+The last two point at repository files with no published-site equivalent, so they resolve
+to the code host rather than the docs site.
 
 ### Allowed Workflow Surface
 
@@ -314,24 +341,42 @@ credential is needed because the base image is public.
 #### Part A — author `.github/workflows/ci.yml`
 
 1. Workflow name `CI`.
-2. Triggers:
-   - `push`.
-   - `pull_request`.
+2. Triggers — **`pull_request`, plus `push` restricted to `main`**:
+
+   ```yaml
+   "on":
+     push:
+       branches:
+         - main
+     pull_request:
+   ```
+
+   Branches are covered by `pull_request`, `main` by `push`. Restricting the push trigger
+   is what prevents a branch with an open PR producing two runs of this workflow. This is
+   the same approach the installed `docs-ci.yml` takes — and the reason it carries no
+   concurrency group at all.
+
 3. Minimal permission:
    - `contents: read`.
-4. A `concurrency` group keyed on workflow + head repository + branch name, with
-   `cancel-in-progress: true`. Use the PR head repository/name when present and fall back
-   to `github.repository` / `github.ref_name` for pushes. A raw `github.ref` key is
-   insufficient: a branch push uses `refs/heads/...`, while its PR uses
-   `refs/pull/.../merge`, so the two runs would land in different groups. The shared
-   branch key makes a newer run cancel the older push/PR run for the same branch without
-   colliding with a same-named branch from a fork.
+4. A `concurrency` group on `github.ref`, with `cancel-in-progress: true`, so consecutive
+   pushes to `main` supersede each other:
 
    ```yaml
    concurrency:
-     group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
+     group: ${{ github.workflow }}-${{ github.ref }}
      cancel-in-progress: true
    ```
+
+   > **⚠ Corrected after it blocked a merge.** An earlier version of this plan specified an
+   > unrestricted `push:` trigger deduplicated by a group keyed on head repository +
+   > branch name, so that a push run and its PR run would share a group and one would
+   > cancel the other. That is exactly what happened — and it is worse than a duplicate
+   > run. The cancelled run still reports a check-run named `engine`, so a commit ends up
+   > with two `engine` results, one `success` and one `cancelled`. A
+   > `required_status_checks` rule sees the cancelled one and **blocks the merge with every
+   > check passing**. It is also a race: on one commit the push run won and both were
+   > green, so the failure is intermittent. Restrict the trigger instead of deduplicating
+   > after the fact.
 5. **One job, `engine`.** Documentation is handled by the installed `docs-ci.yml`, not by a
    job here — so a docs regression is never reported as an engine failure, and `ci.yml`
    stays a file the installer will never touch.
@@ -354,22 +399,42 @@ identifiable in GitHub.
 
 #### Part B — install the documentation system
 
-9. **Dry run first.** The installer supports `-WhatIf`; use it to confirm exactly which
-   files would be created, skipped, and replaced before anything is written:
+9. **Dry run first — via the script directly, not the dispatcher.** `-WhatIf` on the
+   `Invoke-SetupDocs` entry point stops at the container's command dispatcher and prints a
+   single line, enumerating nothing:
+
+   ```text
+   What if: Performing the operation "Invoke discovered PowerShell Script" on target
+   "/PSModule/Scripts/setup-docs.ps1".
+   ```
+
+   That is not a preview. Call the installer script directly to get the real one:
 
    ```bash
    docker run --rm -v "$PWD:/work" -w /work --user "$(id -u):$(id -g)" \
      ghcr.io/the-running-dev/docs-template:latest \
-     Invoke-SetupDocs -ProjectDir /work -Title 'Game Engine' \
+     pwsh -NoProfile -File /PSModule/Scripts/setup-docs.ps1 \
+       -ProjectDir /work -Title 'Game Engine' \
        -SiteUrl 'https://game-engine.subzerodev.com/' -WhatIf
    ```
 
-   Expect `docs/docusaurus.config.ts`, `docs/sidebar.ts`, `docs/Dockerfile`, and `docs.ps1`
-   to be reported **skipped** — that is decision 2 working. If any is reported as
-   *replaced*, stop: `-Overwrite` has leaked in and the local `onBrokenLinks: 'throw'` is
-   about to be lost.
+   Expect exactly **six creates and five skips**, and nothing written to the worktree:
 
-10. **Install** by re-running the same command without `-WhatIf`. New files:
+   ```text
+   Create:  build/ConvertTo-DocumentationHomepage.ps1   docs/docs/index.md
+            build/Test-Documentation.ps1                .config/DocumentationRules.psd1
+            .github/workflows/docs-ci.yml               .github/workflows/docs-deploy.yml
+
+   Skip:    docs/docusaurus.config.ts   docs/sidebar.ts   docs/Dockerfile
+            docs/.dockerignore          docs.ps1
+   ```
+
+   The five skips are decision 2 working. If any is reported as *replaced* or *removed*,
+   stop: `-Overwrite` has leaked in and the local `onBrokenLinks: 'throw'` is about to be
+   lost.
+
+10. **Install** with the public `Invoke-SetupDocs` entry point — the dispatcher is fine for
+    the real run, it is only `-WhatIf` that degrades — without `-Overwrite`. New files:
     `build/ConvertTo-DocumentationHomepage.ps1`, `build/Test-Documentation.ps1`,
     `.config/DocumentationRules.psd1`, `.github/workflows/docs-ci.yml`,
     `.github/workflows/docs-deploy.yml`, and `docs/docs/index.md`.
@@ -387,7 +452,8 @@ identifiable in GitHub.
     holds the placeholder `https://docs.example.com`. Getting this wrong ships a site whose
     internal links point at someone else's domain.
 
-12. **Convert the README's 14 relative links to absolute URLs** (listed in Phase 0). Spec
+12. **Convert every relative README link to an absolute URL** using the target map in
+    Phase 0 — 15 occurrences, 10 unique targets; replace by target, not by count. Spec
     links point at `https://game-engine.subzerodev.com/docs/engine/…`; `docs.ps1` and
     `src/engine/` point at the code host on GitHub, which has no published-site equivalent.
     Then regenerate and commit both files together:
@@ -416,15 +482,27 @@ identifiable in GitHub.
     ever dropped on a deploy, add `docs/static/CNAME` containing the hostname; Docusaurus
     copies `static/` verbatim into the build output.
 
-14. **Make the checks required** on the default branch, or a red run reports without
-    blocking:
+14. **Make the three pull-request checks required** on the default branch, or a red run
+    reports without blocking. `CI / engine` is the human-readable label GitHub's UI shows
+    (workflow name / job name); the required-status-check **context** a config must use is
+    the job name alone — confirmed via the check-runs API before configuring:
 
     ```text
+    engine
     Documentation links and terminology
     Verify Documentation Build
-    Build and Deploy Documentation
-    CI / engine
     ```
+
+    This repository uses a **ruleset**, not classic branch protection (`GET
+    .../branches/main/protection` 404s here) — add a `required_status_checks` rule to the
+    ruleset with the three contexts above, each pinned to the GitHub Actions app
+    (`integration_id: 15368`), rather than using the classic protection API.
+
+    **Do not require `Build and Deploy Documentation`.** It is declared in
+    `docs-deploy.yml`, which triggers only on `push` to `main` and `workflow_dispatch` — it
+    never runs on a pull request. Requiring a check that cannot report would leave **every
+    pull request pending forever**. Watch it after merges to `main` instead; it is
+    post-merge verification, not a merge gate.
 
 ### Also in W0
 
@@ -510,10 +588,12 @@ pwsh ./build/Test-Documentation.ps1
 ```
 
 ```bash
-docker run --rm -v "$PWD:/work" -w /work --user "$(id -u):$(id -g)" \
+docker run --rm -v "$PWD:/work" -w /work \
   ghcr.io/the-running-dev/docs-template:latest \
   Invoke-DocsBuild -SourceDocs /work/docs -OutputPath /work/artifacts/docs
 ```
+
+No `--user` here — see the warning under *Deploying* above.
 
 Then push the W0 branch and verify `CI / engine`, *Documentation links and terminology*,
 and *Verify Documentation Build* all run successfully. On a pull request nothing is
@@ -609,7 +689,9 @@ W0 is complete only when:
       `@types/node` targets Node 24.
 - [ ] GitHub Pages is enabled (*Source: GitHub Actions*), the custom domain resolves, and
       a push to `main` has **deployed the site to `https://game-engine.subzerodev.com`**.
-- [ ] The four checks are marked required on the default branch.
+- [ ] The **three** pull-request checks are marked required on the default branch —
+      `CI / engine`, *Documentation links and terminology*, *Verify Documentation Build* —
+      and *Build and Deploy Documentation* is **not** among them.
 - [ ] `docs/docs/index.md` matches a fresh generator run, and `README.md` has no relative
       links.
 - [ ] `onBrokenLinks: 'throw'` survives in `docs/docusaurus.config.ts` after the install.
