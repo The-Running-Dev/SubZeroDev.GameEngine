@@ -1,6 +1,7 @@
 # W0 Phase 1 — Draft Implementation Plan
 
-**Status:** Draft for peer review. Planning only; no W0 implementation is included.
+**Status:** Reviewed. **F1–F3 approved and applied; Phase 1 done.** Phases 2–6 await
+execution. Planning only; no W0 implementation is included.
 
 **Branch:** `codex/w0-phase-1-plan`
 
@@ -100,7 +101,27 @@ ghcr.io/the-running-dev/docs-template@sha256:000c221389cb5ba241bf91c69ec339539f7
 Record the resolved digest again immediately before implementation. The tag `:latest` is
 mutable, so a different digest requires a fresh dry run and installed-file review.
 
-### Review Findings Requiring Approval
+### Review Findings — F1–F3 **Approved and Applied**
+
+> **Disposition: all three accepted, and the corrections are already made** in
+> [`02-w0-ci-workflow.md`](02-w0-ci-workflow.md) and
+> [`TODO.md`](../docs/docs/engine/TODO.md). Each was reproduced before being accepted:
+>
+> - **F1** — ran both forms. The dispatcher `-WhatIf` printed one line and enumerated
+>   nothing; the direct `pwsh -File` form printed exactly six creates and five skips and
+>   wrote nothing to the worktree.
+> - **F2** — counted: 15 occurrences, 10 unique targets. The parent plan's "14" came from
+>   counting distinct link *texts* rather than occurrences.
+> - **F3** — read the installed `docs-deploy.yml`: it triggers only on `push` to `main`
+>   and `workflow_dispatch`.
+>
+> A fourth defect, raised inside F1, is also applied: the expected skip list is **five**
+> files, not four — `docs/.dockerignore` exists here and is skipped too.
+>
+> **Phase 1 below is therefore already done.** It is kept as the record of what changed and
+> why. Nothing in it needs re-executing; re-read it only to confirm the corrections landed.
+
+### The Findings
 
 #### F1 — The Documented Dry-Run Command Does Not Reach the Installer
 
@@ -243,11 +264,12 @@ No other tracked file is in scope.
 
 ---
 
-## Phase 1 — Reconcile the Approved Execution Documents
+## Phase 1 — Reconcile the Approved Execution Documents — **Done**
 
 ### What to Implement
 
-After peer approval, update only the discovered factual defects:
+*Applied; retained as the record of what changed.* The discovered factual defects, all now
+corrected in the authoritative documents:
 
 1. Replace the ineffective dry-run invocation with the direct `pwsh -File` command.
 2. Change the expected skip list from four files to the five files actually reported:
@@ -266,11 +288,13 @@ After peer approval, update only the discovered factual defects:
 
 ### Verification Checklist
 
-- [ ] Parent plan and `TODO.md` agree on required checks.
-- [ ] The documented dry run prints created/skipped/replaced operations.
-- [ ] The README count and mapping match the current file.
-- [ ] No engine contract or runtime file changes.
-- [ ] `git diff --check` passes.
+- [x] Parent plan and `TODO.md` agree on required checks — three, deploy excluded.
+- [x] The documented dry run prints created/skipped/replaced operations — verified by
+      running it; six creates, five skips, nothing written.
+- [x] The README count and mapping match the current file — 15 occurrences, 10 targets,
+      with the full target map now in the parent plan.
+- [x] No engine contract or runtime file changes.
+- [x] `git diff --check` passes.
 
 ### Anti-Pattern Guards
 
@@ -621,9 +645,10 @@ git status --short
 
 ## Peer-Review Order
 
-1. Approve or reject F1–F3.
-2. Review the allowed file surface and stop boundary.
-3. Review the README target map.
-4. Review installer preservation and byte-identity checks.
-5. Review external Pages/check sequencing.
-6. Approve execution of this plan in a fresh implementation task.
+F1–F3 are approved and applied, and Phase 1 is done — no longer under review. What remains:
+
+1. Review the allowed file surface and stop boundary.
+2. Review the README target map (now also in the parent plan).
+3. Review installer preservation and byte-identity checks.
+4. Review external Pages/check sequencing.
+5. Approve execution of **Phases 2–6** in a fresh implementation task.

@@ -72,10 +72,12 @@ local cannot drift, generates the site homepage from `README.md`, and publishes 
 - **Depends on:** nothing.
 - **Done when:** `CI / engine` plus the gate and the docs build all run green on a push; a
   newer run for the same repository branch cancels its superseded push/PR run; Pages is
-  enabled and a push to `main` has deployed to the real published URL; the four checks are
-  required on the default branch; `engines.node` establishes Node 24 as the floor while CI
-  runs Node 24; and three deliberate failures — a failing test, a broken README link, a
-  broken spec link — have each turned their own check red, with run URLs recorded.
+  enabled and a push to `main` has deployed to the real published URL; the three
+  pull-request checks are required on the default branch (deploy runs only on `main`, so
+  requiring it would leave every PR pending); `engines.node` establishes Node 24 as the
+  floor while CI runs Node 24; and three deliberate failures — a failing test, a broken
+  README link, a broken spec link — have each turned their own check red, with run URLs
+  recorded.
 - **Plan:** [`plans/02-w0-ci-workflow.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/02-w0-ci-workflow.md)
 
 ### W1 — Core Contract Types and Module Skeleton
