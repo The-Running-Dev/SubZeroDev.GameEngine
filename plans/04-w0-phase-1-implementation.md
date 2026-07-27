@@ -718,6 +718,46 @@ git status --short
       *are* this implementation's scope and are what's now complete).
 - [x] W1 remains unstarted.
 
+### Defects Found in Final Review — Fixed
+
+Three issues found by reviewing the finished state rather than re-reading the plan. All
+three originate in this repository's own authored files, not in Codex's work or the
+installed template — and two were latent traps that would have surfaced later, confusingly.
+
+**1. The concurrency design blocked the merge.** PR #3 sat at `mergeStateStatus: BLOCKED`
+with all three checks green. `ci.yml` triggered on every `push` *and* `pull_request`,
+deduplicated by a shared concurrency group with `cancel-in-progress: true`; both fire on a
+PR branch, so one run cancelled the other. The cancelled run still publishes a check-run
+named `engine`, leaving two `engine` results on one commit — one `success`, one
+`cancelled` — and the `required_status_checks` rule blocks on the cancelled one.
+
+The diagnosis was settled by comparing against the installed `docs-ci.yml`, which uses
+`push: branches: [main]` and **no concurrency group at all**: the template prevents the
+duplicate structurally, so it never needs to cancel anything. Fixed by matching that.
+Worth noting it is a *race* — on commit `1e1dd86` the push run won and both were green, so
+this would have failed intermittently rather than consistently.
+
+**2. `.gitignore` silently swallowed installer source files.** Line 6 was a bare `build/`
+under "Build output". The documentation system installs its *source* scripts to `./build`
+(`Test-Documentation.ps1`, `ConvertTo-DocumentationHomepage.ps1`). The two tracked files
+kept working, but verified by probe that a **new** file in `build/` is invisible to
+`git add -A` — so a future `Invoke-SetupDocs` adding a script there would produce a file
+that exists locally, passes locally, and is missing in CI with nothing explaining why.
+Confirmed the pattern was protecting nothing: TypeScript emits to `dist/`
+(`src/engine/tsconfig.json` `outDir`), and the only `build/` in the repository is the
+installed scripts. Removed the bare pattern, with a comment recording why it must not
+come back.
+
+**3. `artifacts/` was not ignored.** `Invoke-DocsBuild -OutputPath artifacts/docs` — the
+command in this plan's own local-verification steps — writes the full rendered site into
+the repository. It was deleted by hand twice during this implementation; anyone following
+the documented steps and running `git add -A` would commit the entire built site. Added
+`artifacts/`.
+
+Each fix was verified by probe, not by inspection: a new `build/` file now shows in
+`git status`; a file under `artifacts/` is now reported ignored by `git check-ignore`; the
+two tracked `build/` scripts remain tracked; `ci.yml` still parses and declares one job.
+
 ### Still Outstanding — Requires Merging PR #3
 
 Everything above is complete without merging. Two items in this plan's Phase 6 checklist

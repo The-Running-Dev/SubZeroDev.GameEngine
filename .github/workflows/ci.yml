@@ -1,14 +1,29 @@
 name: CI
 
+# Branches are covered by `pull_request`; `main` by `push`. Restricting push to
+# main is what stops a branch with an open PR producing two runs of this
+# workflow -- the same approach the installed docs-ci.yml takes, and the reason
+# it needs no concurrency group either.
+#
+# An earlier version triggered on every push *and* pull_request, deduplicated by
+# a concurrency group with cancel-in-progress. That raced: whichever run started
+# second cancelled the first, leaving two check-runs named `engine` on one commit
+# -- one success, one cancelled -- and a required-status-check rule that sees the
+# cancelled one blocks the merge even though everything passed.
 "on":
   push:
+    branches:
+      - main
   pull_request:
 
 permissions:
   contents: read
 
+# Only reachable for pushes to main now, since a PR branch produces a single
+# run. cancel-in-progress is still right there: consecutive pushes to main
+# supersede each other.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

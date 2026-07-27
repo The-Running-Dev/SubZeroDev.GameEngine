@@ -341,24 +341,42 @@ credential is needed because the base image is public.
 #### Part A — author `.github/workflows/ci.yml`
 
 1. Workflow name `CI`.
-2. Triggers:
-   - `push`.
-   - `pull_request`.
+2. Triggers — **`pull_request`, plus `push` restricted to `main`**:
+
+   ```yaml
+   "on":
+     push:
+       branches:
+         - main
+     pull_request:
+   ```
+
+   Branches are covered by `pull_request`, `main` by `push`. Restricting the push trigger
+   is what prevents a branch with an open PR producing two runs of this workflow. This is
+   the same approach the installed `docs-ci.yml` takes — and the reason it carries no
+   concurrency group at all.
+
 3. Minimal permission:
    - `contents: read`.
-4. A `concurrency` group keyed on workflow + head repository + branch name, with
-   `cancel-in-progress: true`. Use the PR head repository/name when present and fall back
-   to `github.repository` / `github.ref_name` for pushes. A raw `github.ref` key is
-   insufficient: a branch push uses `refs/heads/...`, while its PR uses
-   `refs/pull/.../merge`, so the two runs would land in different groups. The shared
-   branch key makes a newer run cancel the older push/PR run for the same branch without
-   colliding with a same-named branch from a fork.
+4. A `concurrency` group on `github.ref`, with `cancel-in-progress: true`, so consecutive
+   pushes to `main` supersede each other:
 
    ```yaml
    concurrency:
-     group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
+     group: ${{ github.workflow }}-${{ github.ref }}
      cancel-in-progress: true
    ```
+
+   > **⚠ Corrected after it blocked a merge.** An earlier version of this plan specified an
+   > unrestricted `push:` trigger deduplicated by a group keyed on head repository +
+   > branch name, so that a push run and its PR run would share a group and one would
+   > cancel the other. That is exactly what happened — and it is worse than a duplicate
+   > run. The cancelled run still reports a check-run named `engine`, so a commit ends up
+   > with two `engine` results, one `success` and one `cancelled`. A
+   > `required_status_checks` rule sees the cancelled one and **blocks the merge with every
+   > check passing**. It is also a race: on one commit the push run won and both were
+   > green, so the failure is intermittent. Restrict the trigger instead of deduplicating
+   > after the fact.
 5. **One job, `engine`.** Documentation is handled by the installed `docs-ci.yml`, not by a
    job here — so a docs regression is never reported as an engine failure, and `ci.yml`
    stays a file the installer will never touch.
