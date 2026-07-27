@@ -132,8 +132,10 @@ whatever the slug is, so no link needed rewriting — and the build proves it.
    merges it into the next line.
 3. **Never use trailing double-spaces for a line break** — `git diff --check` rejects them.
 4. **Render before merging a doc change.** A diff cannot show a merged paragraph, a
-   mis-ordered sidebar, or a dead anchor. W0's `docs` job automates this
-   ([`plans/02-w0-ci-workflow.md`](02-w0-ci-workflow.md)); until it lands, run:
+   mis-ordered sidebar, or a dead anchor. W0 automates this by installing the docs system,
+   whose `docs-ci.yml` runs both a link-and-terminology gate and a production build
+   ([`plans/02-w0-ci-workflow.md`](02-w0-ci-workflow.md)). **Until W0 lands**, the
+   equivalent locally is the current hand-rolled pair:
 
    ```bash
    pwsh ./docs.ps1 -BuildOnly
@@ -143,5 +145,8 @@ whatever the slug is, so no link needed rewriting — and the build proves it.
    docker run --rm game-engine-docs sh -c "pnpm run build"
    ```
 
-   `./docs.ps1` alone is **not** sufficient: it starts a dev server, and Docusaurus only
-   enforces broken links during a production build.
+   After W0, use the installed tooling instead — `pwsh ./build/Test-Documentation.ps1` and
+   `Invoke-DocsBuild`.
+
+   `./docs.ps1` alone is **not** sufficient either way: it starts a dev server, and
+   Docusaurus enforces broken links only during a production build.

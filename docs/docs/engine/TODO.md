@@ -60,18 +60,23 @@ done-criteria are demonstrated by a test, not by inspection.
 
 ## Core
 
-### W0 — CI Workflow
-Two jobs on every push and PR: `engine` (install / typecheck / lint / test) and `docs`
-(the Docusaurus **production** build), so every unit below is guarded from the first
-commit rather than the last. The docs job is not optional garnish — `docs/Dockerfile`
-runs a dev server, and Docusaurus only enforces `onBrokenLinks` during `docusaurus
-build`, so without it the repo's `throw` setting gates nothing. Also pins the Node floor
-(`engines`) so CI and local cannot drift.
+### W0 — CI and Documentation Gates
+**Author** `.github/workflows/ci.yml` with one `engine` job (install / typecheck / lint /
+test), and **install** the documentation system from the published container image, which
+brings `docs-ci.yml` (link-and-terminology gate + production build) and `docs-deploy.yml`
+(build + GitHub Pages) ready-made. Every unit below is then guarded from the first commit
+rather than the last. The docs half is not optional garnish — `docs/Dockerfile` runs a dev
+server, and Docusaurus enforces `onBrokenLinks` only during a production build, so without
+it the repo's `throw` setting gates nothing. Also pins the Node floor (`engines`) so CI and
+local cannot drift, generates the site homepage from `README.md`, and publishes the site.
 - **Depends on:** nothing.
-- **Done when:** a push runs both jobs green; a newer run for the same repository branch
-  cancels its superseded push/PR run; a deliberate failing test turns `engine` red and a
-  deliberate broken link turns `docs` red, with both run URLs recorded; and
-  `engines.node` establishes Node 24 as the floor while CI runs Node 24.
+- **Done when:** `CI / engine` plus the gate and the docs build all run green on a push; a
+  newer run for the same repository branch cancels its superseded push/PR run; Pages is
+  enabled and a push to `main` has deployed to the real published URL; the four checks are
+  required on the default branch; `engines.node` establishes Node 24 as the floor while CI
+  runs Node 24; and three deliberate failures — a failing test, a broken README link, a
+  broken spec link — have each turned their own check red, with run URLs recorded.
+- **Plan:** [`plans/02-w0-ci-workflow.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/02-w0-ci-workflow.md)
 
 ### W1 — Core Contract Types and Module Skeleton
 Create the module tree of 04 §1.1 (`kernel`, `session`, `persistence`, `projection`,

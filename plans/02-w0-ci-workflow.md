@@ -6,10 +6,21 @@ and `@types/node` is still `^22.0.0`. `TODO.md` W0 stays open until all three la
 
 **Unit:** `docs/docs/engine/TODO.md` — W0
 
-**Scope:** Add the minimum GitHub Actions workflow that (a) installs the engine package
-and runs typecheck, lint, and tests, and (b) runs the docs production build so the
-repository's `onBrokenLinks: 'throw'` setting actually gates something — on every push and
-pull request. Also pin the Node floor in `package.json` so CI and local agree.
+**Scope:** Two things, on every push and pull request:
+
+1. **Author** `.github/workflows/ci.yml` — one `engine` job: install, typecheck, lint, test.
+2. **Install** the documentation system from the published container image, which brings
+   `docs-ci.yml` (gate + build) and `docs-deploy.yml` (build + Pages) ready-made, plus the
+   link-and-terminology gate. This is what finally makes the repository's
+   `onBrokenLinks: 'throw'` setting gate something.
+
+Also pin the Node floor in `package.json` so CI and local agree, convert the README's
+relative links, and set the real published URL.
+
+**Method note.** An earlier draft hand-wrote a `docs` job that ran `docker build` then
+`pnpm run build`. That is superseded: the installer provides the equivalent and more, and
+keeps its workflows byte-identical to the template so upstream fixes arrive by re-running
+one command.
 
 ## Authority
 
@@ -63,9 +74,10 @@ before W1.
 ### The Documentation System — Reference and Adoption Path
 
 > **⚠ This section documents the docs system as it works once installed. This repository
-> has *not* installed it.** Its docs tooling is hand-rolled: a local `docs.ps1` plus
-> `docs/Dockerfile`. Everything below marked **not here** describes the post-install state,
-> and adopting it is a **decision W0 has not taken** — see *Implication for the docs job*.
+> has not installed it *yet*** — its docs tooling is currently hand-rolled: a local
+> `docs.ps1` plus `docs/Dockerfile`. Everything marked **not here** in the table below is
+> the post-install state, i.e. **what W0 delivers**. The adoption decision has now been
+> taken; see *Decisions taken* below for the exact switches and their consequences.
 
 Installed from the published container image — no Node install, no template checkout to
 keep in sync.
@@ -181,29 +193,78 @@ Docs serve under `/docs` (`routeBasePath: 'docs'`), so `docs/docs/index.md` is t
 landing page, not the site root. Setting `routeBasePath: '/'` makes the generated homepage
 the root, at the cost of moving every URL.
 
-#### Implication for the docs job — unresolved
+#### Decisions taken — this repository adopts the system
 
-W0 as planned below writes its **own** `docs` job that runs `docker build` then
-`pnpm run build`. Installing this system instead brings `docs-ci.yml` and
-`docs-deploy.yml` ready-made, plus a link-and-terminology gate W0 does not have. **The two
-approaches overlap and should not both be adopted.** Adopting it would also change three
-things this repo currently does differently: the homepage becomes generated from
-`README.md` (it is hand-written today), a `build/` directory appears, and deployment to
-GitHub Pages becomes live rather than out of scope. Left open deliberately — W0's docs job
-below is written for the current hand-rolled setup and remains implementable as-is.
+W0 installs the documentation system rather than hand-writing a docs job. Settled:
+
+| # | Decision | Consequence |
+|---|---|---|
+| 1 | **Generate the homepage** from `README.md` (no `-NoHomepage`) | The README's 14 relative links must become absolute, or the gate fails — see below |
+| 2 | **No `-Overwrite`** | `docs/docusaurus.config.ts`, `docs/sidebar.ts`, `docs/Dockerfile`, and `docs.ps1` are reported *skipped* and survive with their local edits — including the deliberate `onBrokenLinks: 'throw'`. Only the genuinely missing pieces land: `build/`, `.config/`, the two workflows, and the generated homepage |
+| 3 | **Enable GitHub Pages and publish** | Documentation deployment moves *into* W0's scope |
+
+Two consequences of combining 1 and 2 that must be handled explicitly, because neither is
+obvious:
+
+- **`docs.ps1` is skipped, so it will not regenerate the homepage.** The upstream
+  `docs.ps1` does that; this repository's hand-written one has no such step and is being
+  kept. The generator is installed independently at
+  `build/ConvertTo-DocumentationHomepage.ps1` and is invoked directly. Do **not** assume
+  `./docs.ps1 -BuildOnly` refreshes `docs/docs/index.md` here — it does not.
+- **`-SiteUrl` does not fix `docusaurus.config.ts`.** It only rewrites the site origin
+  inside the *generated homepage*. The published URL comes from `url` + `baseUrl` in
+  `docs/docusaurus.config.ts`, which is skipped under decision 2 and still holds the
+  placeholder `https://docs.example.com`. That file must be hand-edited, or the deployed
+  site's links point at a domain that is not ours.
+
+#### The README links that must change
+
+Generating the homepage rewrites the site origin but **not** relative links, so each of
+these becomes `docs/docs/…` relative to the site and fails the gate. All 14 need to become
+absolute URLs against the published site:
+
+```text
+docs/docs/engine/01-vision.md          docs/docs/engine/02-architecture.md
+docs/docs/engine/03-story-graph-kind.md  docs/docs/engine/04-core.md
+docs/docs/engine/MVP.md                docs/docs/engine/TODO.md
+docs/docs/engine/OPEN-QUESTIONS.md     docs/docs/engine/
+docs.ps1                               src/engine/
+```
+
+`docs.ps1` and `src/engine/` point at repository files with no published-site equivalent;
+they should become absolute links to the code host, not to the docs site.
 
 ### Allowed Workflow Surface
 
-Create exactly one **new workflow file**:
+Author exactly one **new workflow file**:
 
 ```text
-.github/workflows/ci.yml
+.github/workflows/ci.yml        # the `engine` job only
 ```
 
-W0 also updates the existing `src/engine/package.json` and its generated lockfile as
-described under “Also in W0”; “one new workflow file” does not mean “one changed file.”
+The documentation workflows are **installed, not authored**:
 
-Use:
+```text
+.github/workflows/docs-ci.yml       # gate + build       (installed)
+.github/workflows/docs-deploy.yml   # build + Pages      (installed)
+```
+
+This split is the installer's own design, not a preference: it *"never edits a workflow or
+script the project author wrote, which is why the gate and build live in their own
+`docs-ci.yml` rather than jobs appended to an existing test workflow."* Deploy stays a
+separate file because a workflow cannot grant a job more permission than the workflow
+declares, so folding the Pages/`id-token` grant into `docs-ci.yml` would hand the gate and
+verify jobs credentials they never use.
+
+**Never hand-edit the two installed workflows.** They are kept byte-identical to the
+template so `Invoke-SetupDocs` can be re-run to pick up upstream fixes; an edit is silently
+reverted on the next run.
+
+W0 also updates `src/engine/package.json` and its lockfile, `README.md`, and
+`docs/docusaurus.config.ts` as described below. "One new workflow file" does not mean "one
+changed file."
+
+For `ci.yml`, use:
 
 - `actions/checkout@v7`.
 - `actions/setup-node@v7`.
@@ -213,28 +274,27 @@ Use:
 - `ubuntu-latest`.
 - `npm ci`.
 - npm cache metadata keyed from `src/engine/package-lock.json`.
-- `contents: read` only. The docs base image
-  `ghcr.io/the-running-dev/docs-template` is **public** — verified by an anonymous
-  GHCR manifest pull returning `200` — so the docs job needs no registry credential and
-  W0's "no secrets" guard holds for both jobs.
+- `contents: read` only.
 - A `concurrency` group so a superseded run is cancelled rather than left to finish.
+
+The installed workflows carry their own permissions and container image; no registry
+credential is needed because the base image is public.
 
 ### Excluded Work
 
 - Core contract types or runtime implementation.
-- Documentation **deployment** (publishing the built site anywhere). Documentation
-  **validation** is in scope — see the docs job below.
 - Releases, package publication, or versioning.
 - Coverage thresholds.
 - Operating-system or Node-version matrices.
-- Branch-protection configuration.
 - Changes to lint, TypeScript, Vitest, or determinism rules.
+- Hand-authoring a docs job in `ci.yml` — superseded; the installer provides it.
+- Editing the installed workflows.
 
-## Phase 1 — Add the Workflow
+## Phase 1 — Author `ci.yml`, Install the Docs System
 
 ### What to Implement
 
-Create `.github/workflows/ci.yml` with:
+#### Part A — author `.github/workflows/ci.yml`
 
 1. Workflow name `CI`.
 2. Triggers:
@@ -255,8 +315,9 @@ Create `.github/workflows/ci.yml` with:
      group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
      cancel-in-progress: true
    ```
-5. Two jobs, `engine` and `docs`, running independently — a docs regression must not be
-   reported as an engine failure, or vice versa.
+5. **One job, `engine`.** Documentation is handled by the installed `docs-ci.yml`, not by a
+   job here — so a docs regression is never reported as an engine failure, and `ci.yml`
+   stays a file the installer will never touch.
 6. Runner `ubuntu-latest`; a reasonable timeout, recommended at 10 minutes.
 
 ### Job `engine`
@@ -274,30 +335,65 @@ Create `.github/workflows/ci.yml` with:
 Keep typecheck, lint, and test as separate named steps so a failed check is immediately
 identifiable in GitHub.
 
-### Job `docs`
+#### Part B — install the documentation system
 
-The reason this job exists: `onBrokenLinks: 'throw'` was set deliberately so a renamed
-heading or moved file fails rather than warns, but nothing runs `docusaurus build`, so
-today it gates nothing (Phase 0). This job is what makes that setting real.
+9. **Dry run first.** The installer supports `-WhatIf`; use it to confirm exactly which
+   files would be created, skipped, and replaced before anything is written:
 
-9. Steps in this order:
-   - Check out the repository.
-   - Build the docs image from the `docs/` context using `docs/Dockerfile`, passing
-     `BASE_IMAGE=ghcr.io/the-running-dev/docs-template:latest`. No registry login step —
-     the base image is public.
-   - Run the **production build** inside that image (`pnpm run build`), which is where
-     Docusaurus enforces `onBrokenLinks` / `onBrokenMarkdownLinks`.
+   ```bash
+   docker run --rm -v "$PWD:/work" -w /work --user "$(id -u):$(id -g)" \
+     ghcr.io/the-running-dev/docs-template:latest \
+     Invoke-SetupDocs -ProjectDir /work -Title 'Game Engine' \
+       -SiteUrl '<published-origin>/' -WhatIf
+   ```
 
-Do not run `docusaurus start`; the dev server does not check links and would never exit.
-Do not publish or deploy the built site — validation only.
+   Expect `docs/docusaurus.config.ts`, `docs/sidebar.ts`, `docs/Dockerfile`, and `docs.ps1`
+   to be reported **skipped** — that is decision 2 working. If any is reported as
+   *replaced*, stop: `-Overwrite` has leaked in and the local `onBrokenLinks: 'throw'` is
+   about to be lost.
+
+10. **Install** by re-running the same command without `-WhatIf`. New files:
+    `build/ConvertTo-DocumentationHomepage.ps1`, `build/Test-Documentation.ps1`,
+    `.config/DocumentationRules.psd1`, `.github/workflows/docs-ci.yml`,
+    `.github/workflows/docs-deploy.yml`, and `docs/docs/index.md`.
+
+11. **Set the published URL by hand** in `docs/docusaurus.config.ts` — `url` and `baseUrl`
+    together must equal the published origin. The installer skips this file under decision
+    2, so `-SiteUrl` alone does **not** update it; it is currently the placeholder
+    `https://docs.example.com`. Getting this wrong ships a site whose internal links point
+    at someone else's domain.
+
+12. **Convert the README's 14 relative links to absolute URLs** (listed in Phase 0). Spec
+    links point at the published docs site; `docs.ps1` and `src/engine/` point at the code
+    host. Then regenerate and commit both files together:
+
+    ```bash
+    pwsh ./build/ConvertTo-DocumentationHomepage.ps1
+    ```
+
+    Do **not** expect `./docs.ps1 -BuildOnly` to do this — the local `docs.ps1` is kept
+    under decision 2 and has no homepage step.
+
+13. **Enable GitHub Pages**: *Settings* → *Pages* → *Source* → **GitHub Actions**. Without
+    it `docs-deploy.yml` fails at `configure-pages` on the first push to `main`.
+
+14. **Make the checks required** on the default branch, or a red run reports without
+    blocking:
+
+    ```text
+    Documentation links and terminology
+    Verify Documentation Build
+    Build and Deploy Documentation
+    CI / engine
+    ```
 
 ### Also in W0
 
-10. Add `"engines": { "node": ">=24" }` to `src/engine/package.json`. This establishes
+15. Add `"engines": { "node": ">=24" }` to `src/engine/package.json`. This establishes
     Node 24 as the **minimum supported runtime** and rejects older majors; it deliberately
     permits newer Node releases. CI remains pinned to Node 24 so the tested baseline is
     stable.
-11. Bump `@types/node` from `^22.0.0` to `^24.0.0` so the type surface matches the runtime
+16. Bump `@types/node` from `^22.0.0` to `^24.0.0` so the type surface matches the runtime
     the tests actually execute on. Re-run `npm install` and commit the lockfile change.
 
 ### Documentation References
@@ -314,13 +410,21 @@ Do not publish or deploy the built site — validation only.
 - [ ] Every `engine` `run` command executes from `src/engine/`.
 - [ ] `npm ci` uses the committed lockfile without modifying it.
 - [ ] Typecheck, lint, and test are distinct steps.
-- [ ] No secret, write permission, publishing credential, or deployment token is present
-      — including in the `docs` job, which pulls a public base image.
+- [ ] No secret, write permission, publishing credential, or deployment token appears in
+      `ci.yml`. (`docs-deploy.yml` legitimately carries `pages: write` / `id-token: write`
+      — that is the installer's design and is not W0's to edit.)
 - [ ] `concurrency` gives push and pull-request runs for the same repository branch the
       same group and cancels a superseded run instead of leaving both active.
-- [ ] The `docs` job runs `pnpm run build`, not `docusaurus start`.
 - [ ] `engines.node` sets a minimum of Node 24, and the workflow explicitly runs Node 24.
 - [ ] `@types/node` matches the Node major the job runs.
+- [ ] The install reported `docusaurus.config.ts`, `sidebar.ts`, `Dockerfile`, and
+      `docs.ps1` as **skipped**, and `onBrokenLinks: 'throw'` survives in the config.
+- [ ] `docs/docusaurus.config.ts` `url` + `baseUrl` equal the real published origin — not
+      the `https://docs.example.com` placeholder.
+- [ ] `docs/docs/index.md` is committed and matches a fresh run of
+      `build/ConvertTo-DocumentationHomepage.ps1`.
+- [ ] No relative link survives in `README.md`.
+- [ ] The two installed workflows are byte-identical to the template — unedited.
 - [ ] `git diff --check` passes.
 
 ### Anti-Pattern Guards
@@ -330,12 +434,20 @@ Do not publish or deploy the built site — validation only.
 - Do not rely on the runner’s implicit Node version.
 - Do not omit `cache-dependency-path` for the subdirectory lockfile.
 - Do not combine all checks into one opaque shell command.
-- Do not add unrelated automation while creating the first CI guardrail. The `docs` job is
+- Do not add unrelated automation while creating the first CI guardrail. The docs system is
   not unrelated: it is the only thing that makes the repository's existing
   `onBrokenLinks: 'throw'` setting take effect.
 - Do not justify the Node version from `@types/node`; a types pin is not a runtime
   constraint. `engines` is the minimum-runtime constraint.
-- Do not add a GHCR login step or credential to the `docs` job.
+- Do not hand-edit `docs-ci.yml` or `docs-deploy.yml`; they are kept byte-identical to the
+  template and an edit is reverted by the next `Invoke-SetupDocs` run.
+- Do not add a docs job to `ci.yml`. It would duplicate `docs-ci.yml` and reintroduce the
+  overlap this method removes.
+- Do not pass `-Overwrite` to pick up one upstream fix; it replaces the tuned
+  `docusaurus.config.ts` along with everything else. Re-run without it, or diff first.
+- Do not assume `./docs.ps1 -BuildOnly` regenerates the homepage here — the upstream
+  `docs.ps1` does that, and this repository keeps its own.
+- Do not add a GHCR login step or credential; the base image is public.
 
 ## Phase 2 — Prove the Green Path
 
@@ -350,17 +462,21 @@ npm run lint
 npm test
 ```
 
-And for the docs job, from the repository root:
+And for the docs side, from the repository root — the gate, then the same build CI runs:
 
 ```bash
-pwsh ./docs.ps1 -BuildOnly
+pwsh ./build/Test-Documentation.ps1
 ```
 
 ```bash
-docker run --rm game-engine-docs sh -c "pnpm run build"
+docker run --rm -v "$PWD:/work" -w /work --user "$(id -u):$(id -g)" \
+  ghcr.io/the-running-dev/docs-template:latest \
+  Invoke-DocsBuild -SourceDocs /work/docs -OutputPath /work/artifacts/docs
 ```
 
-Then push the W0 branch and verify both `CI / engine` and `CI / docs` run successfully.
+Then push the W0 branch and verify `CI / engine`, *Documentation links and terminology*,
+and *Verify Documentation Build* all run successfully. On a pull request nothing is
+published — the Pages artifact is archived only.
 
 > **The local install is not byte-for-byte the CI install.** This machine's npm gates
 > package install scripts (`npm warn allow-scripts` for `esbuild` and `fsevents`), so
@@ -374,10 +490,13 @@ Then push the W0 branch and verify both `CI / engine` and `CI / docs` run succes
 - [ ] Local typecheck succeeds.
 - [ ] Local lint succeeds.
 - [ ] All 15 existing tests pass.
-- [ ] The local docs production build succeeds with zero broken links.
-- [ ] The pushed workflow starts automatically.
+- [ ] The local gate passes: no broken relative links, no bad heading anchors, no
+      generated-file drift.
+- [ ] The local `Invoke-DocsBuild` succeeds with zero broken links.
+- [ ] The pushed workflows start automatically.
 - [ ] The remote `CI / engine` job is green.
-- [ ] The remote `CI / docs` job is green.
+- [ ] *Documentation links and terminology* and *Verify Documentation Build* are green.
+- [ ] The pull request published nothing — only archived the Pages artifact.
 - [ ] The job logs show each required step ran rather than being skipped.
 
 ### Anti-Pattern Guards
@@ -393,27 +512,37 @@ W0’s Definition of Done requires evidence that a deliberate failure makes CI r
 
 ### What to Verify
 
-Both jobs need this evidence, and they fail for different reasons, so prove each:
+Three checks need this evidence, and they fail for different reasons, so prove each:
 
-1. On a temporary verification branch, add a deliberate failing test (for `engine`) **and**
-   a deliberate broken markdown link in a spec doc (for `docs`).
-2. Push the temporary failure.
-3. Verify `CI / engine` becomes red at the expected step, and `CI / docs` becomes red on
-   the broken link — the latter is the proof that `onBrokenLinks: 'throw'` now bites.
-4. **Record both run URLs in this plan** before reverting. The verification branch gets
+1. On a temporary verification branch, introduce three deliberate failures:
+   - a failing test — for `CI / engine`;
+   - a broken relative link in `README.md` — for *Documentation links and terminology*;
+   - a broken markdown link in a spec doc — for *Verify Documentation Build*, which is the
+     proof that `onBrokenLinks: 'throw'` finally bites.
+2. Push the temporary failures.
+3. Verify each check goes red at its own step, and that the *gate* and the *build* fail
+   independently — they catch different classes, and a single failure proving both would
+   mean one is not actually running.
+4. **Record all three run URLs in this plan** before reverting. The verification branch gets
    deleted, so a run link is the only durable evidence; "we saw it go red" is not.
 5. Revert the deliberate failures.
-6. Push again and verify both jobs return to green.
+6. Push again and verify every check returns to green.
 7. Delete the temporary verification branch after the evidence is recorded.
 
-The deliberate failure must never be merged into `main`.
+The deliberate failures must never be merged into `main`.
+
+> **Terminology warnings do not fail CI.** `docs-ci.yml` runs the gate without
+> `-TreatWarningsAsErrors`, so a terminology warning reports but does not block. Do not
+> use a terminology warning as the red-path failure — it will stay green and prove
+> nothing. Use a broken link or anchor.
 
 ### Verification Checklist
 
-- [ ] A controlled failure produces a red remote job in **both** `engine` and `docs`.
-- [ ] The `engine` job fails at the intended typecheck, lint, or test step.
-- [ ] The `docs` job fails on the broken link, not on an image-build or network error.
-- [ ] Both red run URLs are recorded in this plan.
+- [ ] A controlled failure produces a red result in **each** of the three checks.
+- [ ] `CI / engine` fails at the intended typecheck, lint, or test step.
+- [ ] The gate fails on the broken README link, not on a container or network error.
+- [ ] The docs build fails on the broken spec link, independently of the gate.
+- [ ] All three red run URLs are recorded in this plan.
 - [ ] The deliberate failures are reverted.
 - [ ] The restored revision produces green remote jobs.
 - [ ] No temporary failure remains in the final diff or history intended for merge.
@@ -429,16 +558,23 @@ The deliberate failure must never be merged into `main`.
 
 W0 is complete only when:
 
-- [ ] `.github/workflows/ci.yml` is merged.
-- [ ] Push and pull-request events run the workflow; a newer run for the same repository
+- [ ] `.github/workflows/ci.yml` is merged, carrying the `engine` job only.
+- [ ] `docs-ci.yml` and `docs-deploy.yml` are installed, unedited, and merged.
+- [ ] Push and pull-request events run the workflows; a newer run for the same repository
       branch cancels its superseded push/PR run.
 - [ ] Install, typecheck, lint, and test all execute successfully.
-- [ ] The docs production build executes successfully and enforces broken links.
+- [ ] The gate and the docs production build both execute and enforce their checks.
 - [ ] `engines.node` establishes Node 24 as the floor, CI runs Node 24, and
       `@types/node` targets Node 24.
-- [ ] A deliberate temporary failure has been observed turning **each** job red, with run
-      URLs recorded.
-- [ ] The restored workflow has returned to green.
+- [ ] GitHub Pages is enabled (*Source: GitHub Actions*) and a push to `main` has
+      **deployed the site to its real published URL** — not the placeholder.
+- [ ] The four checks are marked required on the default branch.
+- [ ] `docs/docs/index.md` matches a fresh generator run, and `README.md` has no relative
+      links.
+- [ ] `onBrokenLinks: 'throw'` survives in `docs/docusaurus.config.ts` after the install.
+- [ ] A deliberate temporary failure has been observed turning **each** of the three checks
+      red, with run URLs recorded.
+- [ ] The restored workflows have returned to green.
 - [ ] `docs/docs/engine/TODO.md` W0 is checked only after this evidence exists.
 - [ ] No W1 implementation is included.
 
