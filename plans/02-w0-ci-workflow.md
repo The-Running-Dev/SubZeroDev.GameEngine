@@ -235,22 +235,38 @@ obvious:
   placeholder `https://docs.example.com`. That file must be hand-edited, or the deployed
   site's links point at a domain that is not ours.
 
-#### ⚑ Open — the site root under a custom domain
+#### ✔ Closed — the site root under a custom domain
 
 `routeBasePath` is `'docs'`, and decision 2 keeps it that way. So the generated homepage
-publishes to **`https://game-engine.subzerodev.com/docs/`**, and the bare root
-`https://game-engine.subzerodev.com/` has nothing mapped to it.
+publishes to **`https://game-engine.subzerodev.com/docs/`**, and this section assumed the
+bare root `https://game-engine.subzerodev.com/` had nothing mapped to it.
 
-That is defensible for a docs subdomain, but it is worth deciding rather than discovering:
-a custom domain invites people to type the bare hostname. Two ways to close it, both out of
-W0's current scope:
+**That assumption was wrong, and the correction forced the decision.** The root *did*
+resolve on the first deploy — but only by accident. `docs/docusaurus.config.ts` never
+disables the classic preset's `pages` plugin, so it scanned `/template/src/pages/` and
+picked up the demo pages the base image happened to ship there. The first deploy therefore
+published the template's demo homepage at `/`, plus stray `/cv/`, `/portfolio/`,
+`/projects/`, and `/admin/projects/` routes, none of which belong to this project.
 
-- Set `routeBasePath: '/'` — the generated homepage becomes the site root. **Moves every
-  URL**, and contradicts decision 2's "keep the local config", so it would need to be a
-  deliberate follow-up.
-- Add a root landing page under `docs/src/pages/`, leaving `/docs/…` untouched.
+A later `docs-template:latest` revision removed those demo pages
+(`sha256:5e18fd4b…` → `sha256:2f0c9ad5…`). Nothing then claimed `/`, and because the navbar
+brand links to `/` from every page — including `404.html` — `onBrokenLinks: 'throw'` failed
+the build on nine identical broken links. Same commit, same Node: the 20:32 deploy of
+`47342b3` succeeded and the 22:29 re-run of that very commit failed.
 
-Left open. W0 ships the site at `/docs/`; the root is a separate decision.
+Resolved with the second option below, which was already the less invasive one:
+
+- ~~Set `routeBasePath: '/'`~~ — would move every URL and contradict decision 2.
+- **Add a root page under `docs/src/pages/`, leaving `/docs/…` untouched.** Done:
+  [`docs/src/pages/index.tsx`](../docs/src/pages/index.tsx) redirects `/` to `/docs/`.
+
+The point is not only that the root now resolves — it is that the site root is now **owned
+by this repository** rather than inherited from whatever the base image happens to contain.
+
+**Standing risk, not closed by this fix:** both docs workflows track
+`ghcr.io/the-running-dev/docs-template:latest`, so an image revision can still break a
+green `main` with no commit here. Pinning to a digest would trade that for manual bumps.
+Left open deliberately — see the deploy workflow's `container.image`.
 
 #### The README links that must change
 
