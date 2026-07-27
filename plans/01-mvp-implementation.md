@@ -7,6 +7,37 @@
 **Scope:** Implement the finalized story-graph MVP without silently altering the
 authoritative specifications. The Game Engine rename and contract review are complete.
 
+> ## ⚠ Read this before acting on anything below
+>
+> **This document is a historical record, not a task list.** Everything it proposed has
+> since been decided and written into the specifications. Working from it directly will
+> cause already-applied edits to be re-applied.
+>
+> - **D1–D8 are applied.** Each is in the specs and logged in
+>   [`OPEN-QUESTIONS.md`](../docs/docs/engine/OPEN-QUESTIONS.md) §1, which is now a
+>   decision log, not a gap list. Instructions below of the form *"correct the pseudocode
+>   before implementation"* are **already done** — do not redo them.
+> - **The Phase 0–9 sequence below is superseded** by the units of work **W0–W19** in
+>   [`TODO.md`](../docs/docs/engine/TODO.md), which is the authoritative execution order
+>   (as this document's own Authority section says). Mapping:
+>
+>   | Phase here | Unit(s) in `TODO.md` |
+>   |---|---|
+>   | 2 — Core contracts / modules | W1 |
+>   | 3 — Pure engine kernel | W2, W3 |
+>   | 4 — Registry, validation, localization, projection | W4, W5, W6 |
+>   | 5 — Session and profile persistence | W7, W8 |
+>   | 6 — Story-graph kind | W9–W14 |
+>   | 7 — Bureaucracy campaign and fixtures | W15 |
+>   | 8 — Text and MCP clients | W16, W17 |
+>   | 9 — Determinism harness and verification | W18, W19 |
+>
+>   CI has no phase here; it is **W0**, planned in
+>   [`02-w0-ci-workflow.md`](02-w0-ci-workflow.md).
+>
+> **What is still worth reading here:** the *rationale* behind each contract decision,
+> and the anti-pattern guards, which remain accurate and are not duplicated elsewhere.
+
 ## Authority and Change Control
 
 The specifications remain authoritative:
@@ -82,16 +113,21 @@ lockfile package metadata and exact technical references in the same change.
 Do not treat generic lower-case phrases such as “narrative game engine” or “narrative
 engines” as stale branding; they describe the product category.
 
-#### B2 — Enforce Title Case Across All Documentation — **Resolved**
+#### B2 — Enforce Title Case Across All Documentation — **Not adopted**
 
-**Decision:** Use Title Case for every Markdown heading in all repository documentation,
-not only the files already touched by the rename. Audit every tracked `*.md` file,
-including root guidance, implementation documentation, plans, and Docusaurus content.
-Correct headings consistently while preserving code spans, identifiers, acronyms, and
-intentional product spelling.
+**Original proposal:** Use Title Case for every Markdown heading in all repository
+documentation, not only the files already touched by the rename — auditing every tracked
+`*.md` file while preserving code spans, identifiers, acronyms, and product spelling.
 
-Treat the repository-wide heading normalization as an explicit part of this branch and
-describe it separately from the product rename during peer review.
+**Outcome: rejected during peer review, and never executed.** The cost was churn across
+ten spec files that invalidates every heading anchor, in a site whose broken-link check
+was `warn` at the time — so the build could not have caught what it broke, while B3 below
+made manual anchor verification a branch-acceptance gate. B2 would have manufactured the
+work B3 paid for. The headings the rename commits already title-cased were left as they
+are; the remainder were not touched.
+
+*(Recorded rather than deleted: the repository convention is that a declined suggestion is
+written down as known-and-retained, not dropped silently.)*
 
 #### B3 — Documentation Acceptance Criteria — **Resolved**
 
@@ -361,7 +397,7 @@ Validation emits a Tier 2 `no_reachable_choice` warning when no choice node is r
 from the start. This warns authors that the campaign is non-interactive without
 forbidding deliberate vignettes or test campaigns.
 
-### Phase 0 Verification
+### Phase 1 Verification
 
 - [x] D1–D4 have explicit dispositions before core implementation begins.
 - [x] D5 is resolved before achievement persistence.
@@ -370,7 +406,7 @@ forbidding deliberate vignettes or test campaigns.
 - [ ] D8 is represented in initial-settlement and validation tests.
 - [x] No specification has been silently changed to accommodate implementation.
 
-### Phase 0 Anti-Pattern Guards
+### Phase 1 Anti-Pattern Guards
 
 - Do not infer missing APIs from naming or pseudocode.
 - Do not implement both competing result shapes.

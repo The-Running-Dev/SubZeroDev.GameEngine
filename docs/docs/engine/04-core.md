@@ -117,7 +117,7 @@ needs — live in `kindState`, opaque to the core.
 > field as `unknown` (not a union of kind states) keeps the dependency arrow pointing
 > the right way — kinds depend on the core, never the reverse. Each kind casts its
 > own `kindState` internally, guarded by `kindId`. This is the platform equivalent of
-> the simulation kind's "engine imports no client" rule (docs/04 §20.1).
+> the simulation kind's "engine imports no client" rule (games/04-engine-specification.md §20.1).
 
 > **Determinism note.** No wall-clock (`createdAt`/`updatedAt`) lives in `GameState` —
 > that would make byte-identical replay impossible. Timestamps, if a host wants them,
@@ -192,7 +192,7 @@ interface InitialStateResult<KState> {
 
 `advance` is where a kind's whole ruleset lives. For the story-graph kind it is
 `submitChoice → settle` ([`03-story-graph-kind.md`](03-story-graph-kind.md) §8.2); for
-the simulation kind it is the weekly resolution (docs/04). The core calls it and
+the simulation kind it is the weekly resolution (`games/04-engine-specification.md`). The core calls it and
 never looks inside.
 
 > **One action model, two kinds.** The core's action is a string `actionId` plus
@@ -266,7 +266,7 @@ submitAction(state, actionId, params):
               changes:result.changes, messages:result.messages }
 ```
 
-Immutability is unconditional (docs/04 §11.3): every operation returns a new envelope.
+Immutability is unconditional (games/04-engine-specification.md §11.3): every operation returns a new envelope.
 
 **`createGame`** assembles the envelope and delegates the start to the kind:
 
@@ -472,7 +472,7 @@ It is exactly:
 { kind:"agent",  agentId, seq }    → `agent:${agentId}:${seq}`
 ```
 
-Substreams (docs/04 §3.2) mean adding a draw in one place never renumbers another, and
+Substreams (games/04-engine-specification.md §3.2) mean adding a draw in one place never renumbers another, and
 a rival kind's draws never perturb the player's. The MVP uses the `action` stream for
 play plus one `system` stream, `system:"start"`, for `createGame`'s initial `settle`
 (§4); the machinery for more is already there.
@@ -506,7 +506,7 @@ The core guarantees the envelope's own hidden fields (`seed`, `actionLog`,
 `kindState` raw) never reach a client except through `kind.project`, which is
 responsible for excluding the kind's hidden state (03 §9 lists the story-graph
 exclusions). The `agent` audience is the rival/AI view; widening it is a difficulty
-setting, declared and visible (docs/04 §6.1) — never granted by accident.
+setting, declared and visible (games/04-engine-specification.md §6.1) — never granted by accident.
 
 ---
 
@@ -517,7 +517,7 @@ setting, declared and visible (docs/04 §6.1) — never granted by accident.
 ```typescript
 interface ContentRegistry {
   readonly campaigns: ReadonlyMap<string, Campaign>;
-  readonly strings: ReadonlyMap<LocKey, string>;     // built form (architecture §2.4.1)
+  readonly strings: ReadonlyMap<LocKey, string>;     // built form — see the authoring boundary below
 }
 
 interface Campaign {
@@ -532,7 +532,7 @@ interface Campaign {
 > **Content excludes envelope identity.** A kind's `content` (e.g. `StoryGraphCampaign`,
 > 03 §1) holds only kind-specific data — it does **not** repeat `id`, `kindId`, `version`,
 > or `titleKey`, which live on `Campaign` here. Authored inline strings are lifted into
-> `registry.strings` at build time (architecture §2.4.1), so `content` carries no
+> `registry.strings` at build time (the authoring boundary below), so `content` carries no
 > per-campaign string table at runtime. Same anti-drift rule as `kindState` (§15).
 
 The registry is frozen and pre-validated (§11) before the engine sees it. The engine
@@ -570,7 +570,7 @@ strings (§12) with kind and campaign strings, and freezes both maps.
 
 ### 10.2 Save Envelope and Migration
 
-Carried from docs/04 §16. A save wraps the `GameState` envelope with the metadata needed
+Carried from games/04-engine-specification.md §16. A save wraps the `GameState` envelope with the metadata needed
 to load it safely.
 
 ```typescript
@@ -669,7 +669,7 @@ is data; all data goes through the same tiers, whatever produced it.
 ## 12. Reason Codes, State Changes, Messages
 
 Kind-agnostic base vocabulary; kinds extend it (`Kind.reasonCodes`). Clients never
-string-match English (docs/04 §2.3).
+string-match English (games/04-engine-specification.md §2.3).
 
 ```typescript
 type ReasonCode = string;        // stable, machine-readable; additive, never renamed
@@ -693,7 +693,7 @@ aspirational.
 ```typescript
 
 interface StateChange {
-  path: string;                  // audit record, not a write path (docs/04 §10.4)
+  path: string;                  // audit record, not a write path (games/04-engine-specification.md §10.4)
   op: "set" | "increment" | "decrement";
   value: string | number | boolean;
   previous?: string | number | boolean;
@@ -713,7 +713,7 @@ interface ActionResult extends CommandResult<GameState> { changes: StateChange[]
 ```
 
 `StateChange` is an **audit record emitted by typed reducers**, never the mutation
-mechanism — the discipline the simulation kind arrived at (docs/04 §10.4). It feeds
+mechanism — the discipline the simulation kind arrived at (games/04-engine-specification.md §10.4). It feeds
 history and the transparency requirement; `visible` gates what a client may show.
 
 ---
@@ -743,7 +743,7 @@ AI-specific. An agent that can call these tools plays the identical game a brows
 
 ## 14. Determinism Harness
 
-The acceptance test with teeth (MVP §5, docs/04 §18.4): a `{ config, actionLog }`
+The acceptance test with teeth (MVP §5, games/04-engine-specification.md §18.4): a `{ config, actionLog }`
 fixture replays to a **byte-identical** `serialize()`.
 
 ```typescript
@@ -851,7 +851,7 @@ that grow without bound if left open (a peer-review caution taken up-front).
 (`equals`, `not_equals`, `less_than`, `less_or_equal`, `greater_than`, `greater_or_equal`,
 `in`, `not_in`, `contains`, `has_tag`, `has_flag`) plus the tree combinators
 (`all`/`any`/`not`) and quantifiers (`exists`/`count`) are the whole surface — shared with
-the simulation kind (docs/04 §13.1). Tempting additions — `between`, `matches`,
+the simulation kind (games/04-engine-specification.md §13.1). Tempting additions — `between`, `matches`,
 arithmetic, `inventory()` / `relationship()` / `distance()` helpers, nested expressions —
 are **out** unless a concrete campaign need justifies each one individually. Every
 operator is permanent maintenance: a new one must be validated, evaluated, projected,
