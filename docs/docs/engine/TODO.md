@@ -1,3 +1,8 @@
+---
+sidebar_position: 6
+slug: todo
+---
+
 # TODO
 
 **Status:** Living task list, ordered. The MVP is broken into **units of work** — each one
@@ -56,10 +61,16 @@ done-criteria are demonstrated by a test, not by inspection.
 ## Core
 
 ### W0 — CI Workflow
-Run install / typecheck / lint / test on push, so every unit below is guarded from the
-first commit rather than the last.
+Two jobs on every push and PR: `engine` (install / typecheck / lint / test) and `docs`
+(the Docusaurus **production** build), so every unit below is guarded from the first
+commit rather than the last. The docs job is not optional garnish — `docs/Dockerfile`
+runs a dev server, and Docusaurus only enforces `onBrokenLinks` during `docusaurus
+build`, so without it the repo's `throw` setting gates nothing. Also pins the Node floor
+(`engines`) so CI and local cannot drift.
 - **Depends on:** nothing.
-- **Done when:** a push runs all four steps and a deliberate failure turns the build red.
+- **Done when:** a push runs both jobs green; a deliberate failing test turns `engine`
+  red and a deliberate broken link turns `docs` red, with both run URLs recorded; and
+  `engines` agrees with the Node version CI runs.
 
 ### W1 — Core Contract Types and Module Skeleton
 Create the module tree of 04 §1.1 (`kernel`, `session`, `persistence`, `projection`,
@@ -293,3 +304,11 @@ Walk [`MVP.md`](MVP.md) §5 and attach test evidence to each box.
 - [ ] Doc-tree numbering across repos — the engine specs and the game specs both start at
       `01-`. Largely obviated by the repo split (they are no longer one tree); confirm and
       close, or restate the remaining problem ([`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §2).
+- [ ] **Dev-dependency advisories** — `npm audit` reports 10 (3 moderate, 6 high, 1
+      critical). All are in `devDependencies`; the package has **no runtime dependencies**,
+      so nothing ships with them. The critical (`vitest` → `@vitest/mocker`, arbitrary file
+      read/execute) requires the **Vitest UI server**, which this project never starts — it
+      runs `vitest run`. No non-breaking fix exists: `npm audit fix` resolves none, and
+      `--force` moves vitest 2 → 4 and eslint 9 → 10. **Deferred deliberately**; revisit as
+      a single toolchain upgrade once the determinism harness (W18) can prove the upgrade
+      changed no behaviour.

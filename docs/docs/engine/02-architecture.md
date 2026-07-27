@@ -1,10 +1,16 @@
+---
+sidebar_position: 2
+---
+
 # Architecture
 
 **Document status:** Revision 1 — architecture settled; content model written (§4 →
 [`03-story-graph-kind.md`](03-story-graph-kind.md))
+
 **Project stage:** Design
 
 > **Scope of this document**
+>
 > Every settled architectural decision, with the reasoning. This is the contract the
 > content model and the API are built against.
 >

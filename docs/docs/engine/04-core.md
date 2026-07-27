@@ -1,11 +1,19 @@
+---
+sidebar_position: 3
+sidebar_label: Core Specification
+---
+
 # Core Specification
 
 **Document status:** Revision 1 — the platform core, as types
-**Reading order:** logically the core *underlies* the kinds; numbered 04 only to
+
+**Reading order:** logically the core *underlies* the kinds; the filename is `04` only to
 avoid renumbering. Read after [`02-architecture.md`](02-architecture.md), before or
-alongside [`03-story-graph-kind.md`](03-story-graph-kind.md).
+alongside [`03-story-graph-kind.md`](03-story-graph-kind.md) — which is the order the
+sidebar presents, via `sidebar_position` rather than the filename prefix.
 
 > **Scope of this document**
+>
 > The game-agnostic core, defined as types: the `GameState` envelope, the **Kind
 > interface** (the seam every kind implements), the platform engine API, the session
 > store, generic scenes/actions, projection, the content registry, tiered validation,

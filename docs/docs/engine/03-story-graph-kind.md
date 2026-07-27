@@ -1,10 +1,18 @@
+---
+sidebar_position: 4
+sidebar_label: Story-Graph Kind
+---
+
 # Story-Graph Kind — Content Model
 
 **Document status:** Revision 1 — first build deliverable
+
 **Kind:** `story-graph`
+
 **Implementation language:** TypeScript (shared core with the simulation kind)
 
 > **Scope of this document**
+>
 > The concrete content types for the flagship kind: the campaign, its typed variables,
 > nodes, choices, requirements, consequences, endings, and achievements — plus the
 > runtime state, how a turn resolves, and the projection. Ends with a worked example of

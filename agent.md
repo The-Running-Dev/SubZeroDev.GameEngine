@@ -47,7 +47,14 @@ only when it would have changed a decision.
   identical types). **It recurs on the *view* side too, not just state and content** —
   whenever a kind mirrors a core concept, check the field lives in exactly one place.
 - **Positional numbering** — inserting a doc means renumbering + rewriting every link.
-  Prefer appending.
+  Prefer appending. Sidebar *order* is `sidebar_position` front matter, decoupled from
+  filenames.
+- **A diff cannot show a rendering bug.** Every spec doc shipped for months with its
+  metadata fields merged into one run-on paragraph, because markdown joins consecutive
+  lines — correct markdown, wrong intent. A metadata field or blockquote label needs a
+  **blank line** after it (never trailing double-spaces: `git diff --check` rejects those).
+  Render before merging a doc change; `./docs.ps1` alone is not enough, since the dev
+  server does not check links — only a production build does.
 - **Encoding** — some imported source docs arrived CP1252, not UTF-8 (mojibake em-dashes /
   arrows). Rewrite to UTF-8 when importing.
 

@@ -1,3 +1,9 @@
+---
+sidebar_position: 7
+sidebar_label: Open Questions
+slug: open-questions
+---
+
 # Open Questions & Known Concerns
 
 **Document status:** Living register. Captures unknowns, gaps, and deferred decisions so
