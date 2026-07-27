@@ -6,8 +6,8 @@ import type * as Preset from '@docusaurus/preset-classic';
  * directory is copied over /template (see ./Dockerfile). Content lives in
  * ./docs (engine/); the sidebar is ./sidebar.ts.
  *
- * Placeholder title/url/tagline — edit to taste. Broken-link checks are 'warn'
- * (not 'throw') to keep authoring frictionless; flip to 'throw' to gate builds.
+ * Placeholder URL — edit before publishing. Broken links fail the build so
+ * documentation regressions cannot pass peer review unnoticed.
  */
 const config: Config = {
   title: 'Game Engine',
@@ -15,11 +15,11 @@ const config: Config = {
   url: 'https://docs.example.com',
   baseUrl: '/',
 
-  onBrokenLinks: 'warn',
+  onBrokenLinks: 'throw',
 
   markdown: {
     hooks: {
-      onBrokenMarkdownLinks: 'warn',
+      onBrokenMarkdownLinks: 'throw',
     },
   },
 

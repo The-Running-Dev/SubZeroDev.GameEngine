@@ -1,8 +1,14 @@
+---
+sidebar_position: 5
+slug: mvp
+---
+
 # MVP
 
 **Status:** Agreed. The Definition of Done (§5) is finalized — it is the build target.
 
 > **Scope of this document**
+>
 > The minimum viable product: the smallest build that proves the platform end to end.
 > What is in, what is out, and what "done" means.
 >

@@ -1,10 +1,18 @@
+---
+sidebar_position: 4
+sidebar_label: Story-Graph Kind
+---
+
 # Story-Graph Kind — Content Model
 
 **Document status:** Revision 1 — first build deliverable
+
 **Kind:** `story-graph`
+
 **Implementation language:** TypeScript (shared core with the simulation kind)
 
 > **Scope of this document**
+>
 > The concrete content types for the flagship kind: the campaign, its typed variables,
 > nodes, choices, requirements, consequences, endings, and achievements — plus the
 > runtime state, how a turn resolves, and the projection. Ends with a worked example of
@@ -47,7 +55,7 @@ interface StoryGraphCampaign {
 
 `id`, `version`, `kind`, and `titleKey` are **not** fields here — they belong to the
 core `Campaign` envelope (04 §10.1), which wraps this content. Authors still write
-strings inline in the authoring form (§2.4 core); the build lifts them into the
+strings inline in the authoring form; the build lifts them into the
 registry's shared `strings` map (04 §10.1), so no per-campaign string table travels at
 runtime.
 
@@ -494,7 +502,7 @@ state can satisfy; an ending no path reaches.
 This is the concrete MVP content ([`MVP.md`](MVP.md)): ~6 nodes, typed variables, a
 requirement-gated retry, a loop with visit counts, a seeded random node, and the
 "It Builds Character" achievement. Authoring form (the build step derives the string
-table — architecture §2.4.1).
+table — [`04-core.md`](04-core.md) §10.1).
 
 ```yaml
 id: bulgaria-bureaucracy

@@ -47,7 +47,14 @@ only when it would have changed a decision.
   identical types). **It recurs on the *view* side too, not just state and content** —
   whenever a kind mirrors a core concept, check the field lives in exactly one place.
 - **Positional numbering** — inserting a doc means renumbering + rewriting every link.
-  Prefer appending.
+  Prefer appending. Sidebar *order* is `sidebar_position` front matter, decoupled from
+  filenames.
+- **A diff cannot show a rendering bug.** Every spec doc shipped for months with its
+  metadata fields merged into one run-on paragraph, because markdown joins consecutive
+  lines — correct markdown, wrong intent. A metadata field or blockquote label needs a
+  **blank line** after it (never trailing double-spaces: `git diff --check` rejects those).
+  Render before merging a doc change; `./docs.ps1` alone is not enough, since the dev
+  server does not check links — only a production build does.
 - **Encoding** — some imported source docs arrived CP1252, not UTF-8 (mojibake em-dashes /
   arrows). Rewrite to UTF-8 when importing.
 
@@ -58,11 +65,15 @@ only when it would have changed a decision.
   long the sharpest) are resolved and written into the contracts. Nothing MVP-blocking is
   open; add new gaps there as full entries.
 - **Engine suite runs green under vitest** (15 tests, `pcg32` + `canonical`); no CI
-  workflow yet (`TODO.md` Phase 1).
-- **The docs-site base image is unverified.** `docs.ps1` builds on
-  `ghcr.io/the-running-dev/docs-template`; we *assume* `@docusaurus/preset-classic` (v3),
-  port 3000, `sidebar.ts`. `COPY` can't delete, so leftover template docs may show in the
-  sidebar. Confirmed only against one local run.
+  workflow yet (`TODO.md` W0).
+- **The docs-site base image is verified for the current W0 baseline.** `docs.ps1` builds
+  on the public `ghcr.io/the-running-dev/docs-template`; the installed image uses
+  Docusaurus 3, port 3000, and the local `sidebar.ts`. A production build passed with no
+  leftover template docs in the sidebar. Re-verify when the base image tag changes. The
+  site lands on `/docs/engine/vision`, not `/docs`.
+- **Broken links now fail the docs build** (`onBrokenLinks: 'throw'`). Renaming a heading
+  or a file breaks anchors *silently* under `warn`; under `throw` the build catches it.
+  Run the docs build before merging any doc rename.
 
 ## Orientation in One Paragraph
 

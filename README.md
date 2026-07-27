@@ -23,7 +23,8 @@ logic (`kinds`), and content (`campaigns`) as data. v1 targets two kinds — `st
 - **Code:** [`src/engine/`](src/engine/) — seeded PCG32 RNG and canonical serialization,
   verified bit-identical to reference vectors; toolchain green (15 tests).
 - **Next:** [TODO.md](docs/docs/engine/TODO.md) breaks the MVP into ordered units of work
-  (W0–W19). W1 is the core contract types and module skeleton.
+  (W0–W19). W0 adds CI and docs-build gates; W1 then adds the core contract types and
+  module skeleton.
 
 ## Layout
 
@@ -40,7 +41,7 @@ Requires Docker Desktop (base image `ghcr.io/the-running-dev/docs-template`, ove
 the local config).
 
 ```powershell
-./docs.ps1            # build + serve at http://localhost:3000/docs
+./docs.ps1            # build + serve at http://localhost:3000/docs/engine/vision
 ./docs.ps1 -Live      # + hot-reload while editing docs/
 ./docs.ps1 -BuildOnly # build the image only
 ```

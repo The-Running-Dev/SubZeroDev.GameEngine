@@ -1,3 +1,8 @@
+---
+sidebar_position: 6
+slug: todo
+---
+
 # TODO
 
 **Status:** Living task list, ordered. The MVP is broken into **units of work** — each one
@@ -55,11 +60,23 @@ done-criteria are demonstrated by a test, not by inspection.
 
 ## Core
 
-### W0 — CI Workflow
-Run install / typecheck / lint / test on push, so every unit below is guarded from the
-first commit rather than the last.
+### W0 — CI and Documentation Gates
+**Author** `.github/workflows/ci.yml` with one `engine` job (install / typecheck / lint /
+test), and **install** the documentation system from the published container image, which
+brings `docs-ci.yml` (link-and-terminology gate + production build) and `docs-deploy.yml`
+(build + GitHub Pages) ready-made. Every unit below is then guarded from the first commit
+rather than the last. The docs half is not optional garnish — `docs/Dockerfile` runs a dev
+server, and Docusaurus enforces `onBrokenLinks` only during a production build, so without
+it the repo's `throw` setting gates nothing. Also pins the Node floor (`engines`) so CI and
+local cannot drift, generates the site homepage from `README.md`, and publishes the site.
 - **Depends on:** nothing.
-- **Done when:** a push runs all four steps and a deliberate failure turns the build red.
+- **Done when:** `CI / engine` plus the gate and the docs build all run green on a push; a
+  newer run for the same repository branch cancels its superseded push/PR run; Pages is
+  enabled and a push to `main` has deployed to the real published URL; the four checks are
+  required on the default branch; `engines.node` establishes Node 24 as the floor while CI
+  runs Node 24; and three deliberate failures — a failing test, a broken README link, a
+  broken spec link — have each turned their own check red, with run URLs recorded.
+- **Plan:** [`plans/02-w0-ci-workflow.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/02-w0-ci-workflow.md)
 
 ### W1 — Core Contract Types and Module Skeleton
 Create the module tree of 04 §1.1 (`kernel`, `session`, `persistence`, `projection`,
@@ -293,3 +310,11 @@ Walk [`MVP.md`](MVP.md) §5 and attach test evidence to each box.
 - [ ] Doc-tree numbering across repos — the engine specs and the game specs both start at
       `01-`. Largely obviated by the repo split (they are no longer one tree); confirm and
       close, or restate the remaining problem ([`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §2).
+- [ ] **Dev-dependency advisories** — `npm audit` reports 10 (3 moderate, 6 high, 1
+      critical). All are in `devDependencies`; the package has **no runtime dependencies**,
+      so nothing ships with them. The critical (`vitest` → `@vitest/mocker`, arbitrary file
+      read/execute) requires the **Vitest UI server**, which this project never starts — it
+      runs `vitest run`. No non-breaking fix exists: `npm audit fix` resolves none, and
+      `--force` moves vitest 2 → 4 and eslint 9 → 10. **Deferred deliberately**; revisit as
+      a single toolchain upgrade once the determinism harness (W18) can prove the upgrade
+      changed no behaviour.

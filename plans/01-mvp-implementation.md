@@ -1,10 +1,44 @@
 # Game Engine MVP — Implementation Plan
 
-**Status:** Proposed for peer review  
-**Branch:** `rename-game-engine`  
-**Scope:** Complete and review the Game Engine rename already present on this branch,
-then implement the finalized story-graph MVP without silently altering the authoritative
-specifications.
+**Status:** Approved — PR #1 merged; execution starts at W0
+
+**Merged:** `f5cfb71` — Rename Narrative Engine to Game Engine (#1)
+
+**Scope:** Implement the finalized story-graph MVP without silently altering the
+authoritative specifications. The Game Engine rename and contract review are complete.
+
+> ## ⚠ Read this before acting on anything below
+>
+> **This document is a historical record, not a task list.** Everything it proposed has
+> since been decided and written into the specifications. Working from it directly will
+> cause already-applied edits to be re-applied.
+>
+> - **D1–D8 are applied.** Each is in the specs and logged in
+>   [`OPEN-QUESTIONS.md`](../docs/docs/engine/OPEN-QUESTIONS.md) §1, which is now a
+>   decision log, not a gap list. Instructions below of the form *"correct the pseudocode
+>   before implementation"* are **already done** — do not redo them.
+> - **Phases 2–9 have been removed from this document.** They duplicated work that
+>   [`TODO.md`](../docs/docs/engine/TODO.md) now owns as units **W0–W19**, the
+>   authoritative execution order (as this document's own Authority section says) — and the
+>   duplicate had already drifted out of agreement with the specs. See *Where the
+>   Implementation Work Lives* below for what was removed and why. The mapping they had:
+>
+>   | Phase (removed) | Unit(s) in `TODO.md` |
+>   |---|---|
+>   | 2 — Core contracts / modules | W1 |
+>   | 3 — Pure engine kernel | W2, W3 |
+>   | 4 — Registry, validation, localization, projection | W4, W5, W6 |
+>   | 5 — Session and profile persistence | W7, W8 |
+>   | 6 — Story-graph kind | W9–W14 |
+>   | 7 — Bureaucracy campaign and fixtures | W15 |
+>   | 8 — Text and MCP clients | W16, W17 |
+>   | 9 — Determinism harness and verification | W18, W19 |
+>
+>   CI never had a phase here; it is **W0**, planned in
+>   [`02-w0-ci-workflow.md`](02-w0-ci-workflow.md).
+>
+> **What is still worth reading here:** the *rationale* behind each contract decision,
+> and the anti-pattern guards, which remain accurate and are not duplicated elsewhere.
 
 ## Authority and Change Control
 
@@ -81,16 +115,21 @@ lockfile package metadata and exact technical references in the same change.
 Do not treat generic lower-case phrases such as “narrative game engine” or “narrative
 engines” as stale branding; they describe the product category.
 
-#### B2 — Enforce Title Case Across All Documentation — **Resolved**
+#### B2 — Enforce Title Case Across All Documentation — **Not adopted**
 
-**Decision:** Use Title Case for every Markdown heading in all repository documentation,
-not only the files already touched by the rename. Audit every tracked `*.md` file,
-including root guidance, implementation documentation, plans, and Docusaurus content.
-Correct headings consistently while preserving code spans, identifiers, acronyms, and
-intentional product spelling.
+**Original proposal:** Use Title Case for every Markdown heading in all repository
+documentation, not only the files already touched by the rename — auditing every tracked
+`*.md` file while preserving code spans, identifiers, acronyms, and product spelling.
 
-Treat the repository-wide heading normalization as an explicit part of this branch and
-describe it separately from the product rename during peer review.
+**Outcome: rejected during peer review, and never executed.** The cost was churn across
+ten spec files that invalidates every heading anchor, in a site whose broken-link check
+was `warn` at the time — so the build could not have caught what it broke, while B3 below
+made manual anchor verification a branch-acceptance gate. B2 would have manufactured the
+work B3 paid for. The headings the rename commits already title-cased were left as they
+are; the remainder were not touched.
+
+*(Recorded rather than deleted: the repository convention is that a declined suggestion is
+written down as known-and-retained, not dropped silently.)*
 
 #### B3 — Documentation Acceptance Criteria — **Resolved**
 
@@ -102,14 +141,13 @@ mandatory branch-acceptance check, not optional follow-up. Confirm:
 - Heading-case changes do not break anchors or cross-document links.
 - Existing links to companion repositories still resolve as intended.
 - No leftover template documentation appears in the generated sidebar.
-- Broken anchors or links fail branch acceptance even though the current Docusaurus
-  configuration reports them as warnings.
+- Broken anchors or links fail the Docusaurus build and branch acceptance.
 - Visual inspection evidence is recorded for navigation, representative pages, and the
   generated sidebar before peer-review approval.
 
 ### Documentation References
 
-- The complete branch diff: `git diff main...rename-game-engine`.
+- The merged rename diff: `git show f5cfb71`.
 - Documentation build instructions: `README.md`, “Build the Docs Site.”
 - Docusaurus configuration: `docs/docusaurus.config.ts` and `docs/sidebar.ts`.
 - Docker wrapper: `docs.ps1` and `docs/Dockerfile`.
@@ -117,18 +155,26 @@ mandatory branch-acceptance check, not optional follow-up. Confirm:
 
 ### Verification Checklist
 
-- [ ] The private package identifier and implementation README use the approved
+- [x] The private package identifier and implementation README use the approved
       `game-engine` / “Game Engine” names.
-- [ ] Every heading in every tracked Markdown document uses Title Case.
-- [ ] Code identifiers, acronyms, and product names retain their canonical casing inside
+- [x] Every heading in every tracked Markdown document uses Title Case.
+- [x] Code identifiers, acronyms, and product names retain their canonical casing inside
       headings.
-- [ ] Full-repository searches find no stale user-facing “Narrative Engine” branding.
-- [ ] Remaining `narrative-engine` occurrences match the B1 decision.
-- [ ] `git diff --check main...HEAD` passes.
-- [ ] The docs image builds successfully.
-- [ ] Rendered navigation, headings, anchors, and links are visually checked.
-- [ ] Peer review approves the completed rename before implementation work is layered
-      onto the branch.
+- [x] Full-repository searches find no stale user-facing “Narrative Engine” branding.
+- [x] Remaining `narrative-engine` occurrences match the B1 decision.
+- [x] `git diff --check main...HEAD` passes.
+- [x] The docs image builds successfully.
+- [x] Rendered navigation, headings, anchors, and links are visually checked.
+- [ ] Peer review approves the post-merge cleanup and documentation follow-ups before W0
+      implementation is layered onto the branch. **This box is the maintainer's sign-off —
+      it is not self-certified by the reviewing agent.** The evidence gathered for it, all
+      re-runnable: engine `npm ci` / typecheck / lint / test green (15 tests); the
+      determinism eslint guard verified to reject `Math.random`, `Date.now`, and
+      `Math.pow`; docs production build green with `onBrokenLinks: 'throw'`; 0 unresolved
+      cross-document `§` references; every internal markdown link resolving; the W0–W19
+      graph free of unknown, forward, and cyclic dependencies with every unit carrying
+      *Depends on* and *Done when*; all 18 [`MVP.md`](../docs/docs/engine/MVP.md) §5 boxes
+      mapped to a unit; `git diff --check` clean.
 
 ### Anti-Pattern Guards
 
@@ -155,28 +201,6 @@ The only implementation under `src/engine/src/` is:
 The following Phase 1 components do not yet exist: the core contract types, pure
 `Engine`, session store, projection mechanism, content registry/loader, validation,
 localization/reason-code tables, and determinism harness.
-
-### Allowed APIs
-
-Copy these contracts from the specifications; do not invent parallel surfaces:
-
-- `GameState`, `GameStatus`, `LoggedAction`: `04-core.md` §2.
-- `Kind<KState>`, `AdvanceResult<KState>`, `KindContext`: `04-core.md` §3.
-- `KindRegistry`, `createEngine`, `Engine`: `04-core.md` §4.
-- `NewGameConfig`: `04-core.md` §5.
-- `Scene`, `SceneBody`, `AvailableAction`, `ActionParams`: `04-core.md` §6.
-- `SessionStore`, `SessionHandle`, `SaveHandle`, `CampaignSummary`: `04-core.md` §7.
-- `StreamId`, `RngHandle`: `04-core.md` §8.
-- `ProjectionAudience`, `PlayerView`: `04-core.md` §9.
-- `ContentRegistry`, `Campaign`, `SaveEnvelope`: `04-core.md` §10.
-- Validation and command-result types: `04-core.md` §§11–12.
-- `PlaythroughFixture`: `04-core.md` §14.
-- Story-graph content and runtime types: `03-story-graph-kind.md` §§1–9.
-
-The conceptual phrase `advance(state, action) → state` does not introduce a second
-public engine method. The documented public operation is `Engine.submitAction`; a
-kind implements `Kind.advance`.
-
 ### Resolved Contract Decisions
 
 Apply each approved decision to the authoritative specifications before coding the
@@ -246,7 +270,8 @@ but undocumented parameters are never silently ignored.
 
 #### D5 — Cross-Kind Player Profile Boundary — **Resolved**
 
-Before story-graph achievement work (`TODO.md` Phase 2; this plan’s Phase 6), add:
+Before story-graph achievement work ([`TODO.md`](../docs/docs/engine/TODO.md) **W8**, the
+profile store, and **W13**, endings and achievements), add:
 
 ```typescript
 interface CreateSessionConfig extends NewGameConfig {
@@ -361,16 +386,16 @@ Validation emits a Tier 2 `no_reachable_choice` warning when no choice node is r
 from the start. This warns authors that the campaign is non-interactive without
 forbidding deliberate vignettes or test campaigns.
 
-### Phase 0 Verification
+### Phase 1 Verification
 
-- [ ] D1–D4 have explicit dispositions before core implementation begins.
-- [ ] D5 is resolved before achievement persistence.
-- [ ] D6 is resolved before the text client renders reasons.
-- [ ] D7 is resolved before authored campaign content is loaded.
+- [x] D1–D4 have explicit dispositions before core implementation begins.
+- [x] D5 is resolved before achievement persistence.
+- [x] D6 is resolved before the text client renders reasons.
+- [x] D7 is resolved before authored campaign content is loaded.
 - [ ] D8 is represented in initial-settlement and validation tests.
-- [ ] No specification has been silently changed to accommodate implementation.
+- [x] No specification has been silently changed to accommodate implementation.
 
-### Phase 0 Anti-Pattern Guards
+### Phase 1 Anti-Pattern Guards
 
 - Do not infer missing APIs from naming or pseudocode.
 - Do not implement both competing result shapes.
@@ -378,365 +403,43 @@ forbidding deliberate vignettes or test campaigns.
 - Do not revisit the B1 package decision as incidental implementation cleanup.
 
 ---
-
-## Phase 2 — Core Contracts and Module Boundaries
-
-### What to Implement
-
-Create focused modules matching `04-core.md` §1.1:
-
-```text
-src/engine/src/core/
-  kernel/
-  session/
-  persistence/
-  projection/
-  validation/
-  registry/
-  localization/
-  determinism/
-```
-
-Copy the documented types into the module that owns each responsibility. Add a small
-public barrel only after the ownership boundaries compile cleanly.
-
-Use `kindState: unknown`; each kind narrows its own state. Keep `KindRegistry` fixed and
-engine-owned.
-
-### Documentation References
-
-- `04-core.md` §§1.1–3, 5–12.
-- `04-core.md` §§15 and 17 for envelope ownership and identifiers.
-- Existing strict configuration in `src/engine/tsconfig.json`.
-
-### Verification Checklist
-
-- [ ] `npm run typecheck` passes.
-- [ ] Contract tests or compile-only fixtures cover all declared public shapes.
-- [ ] A dependency scan shows no core import from `kinds/`, `clients/`, or `mcp/`.
-- [ ] `GameState` contains no clock, profile, or duplicated kind state.
-- [ ] Optional properties satisfy `exactOptionalPropertyTypes`.
-
-### Anti-Pattern Guards
-
-- Do not type `kindState` as a union of known kinds.
-- Do not duplicate campaign identity inside kind content.
-- Do not add convenience fields absent from the specification.
-- Do not weaken strict TypeScript settings to make contracts compile.
-
----
-
-## Phase 3 — Pure Engine Kernel
-
-### What to Implement
-
-Copy the orchestration pattern from `04-core.md` §4:
-
-- `createEngine(registry, kinds)`.
-- `createGame(config)`.
-- `scene(state)`.
-- `view(state, audience)`.
-- `availableActions(state)`.
-- `submitAction(state, actionId, params?)`.
-- Canonical `serialize(state)`.
-- Validated `deserialize(data)` returning `CommandResult<GameState>`.
-
-Wrap the existing PCG32 implementation behind the documented `RngHandle`. Derive the
-start and action streams using the resolved D2 shape. A rejected action returns the
-original state unchanged and does not advance RNG or append the action log.
-
-### Documentation References
-
-- `04-core.md` §§2–5 and §8.
-- `04-core.md` §12 for result, change, and message types.
-- `src/engine/src/core/rng/pcg32.ts` for actual RNG APIs.
-- `src/engine/src/core/serialize/canonical.ts` for the serialization primitive.
-
-### Verification Checklist
-
-- [ ] `createGame` produces a valid envelope with a recorded seed.
-- [ ] Successful actions append exactly one monotonic `LoggedAction`.
-- [ ] Rejected actions preserve byte-identical serialized state.
-- [ ] RNG state writes back only after successful resolution.
-- [ ] Every operation returns a new envelope and leaves caller input unchanged.
-- [ ] Deserialization rejects invalid envelopes instead of trusting the JSON cast.
-- [ ] Unit tests cover missing kinds, missing campaigns, ended sessions, and unknown actions.
-
-### Anti-Pattern Guards
-
-- Do not mutate caller state or arrays.
-- Do not use `Math.random`, wall-clock APIs, or non-bit-stable math.
-- Do not expose the raw `Pcg32` object in persisted state.
-- Do not treat `StateChange.path` as a mutation path.
-
----
-
-## Phase 4 — Registry, Validation, Localization, and Projection
-
-### What to Implement
-
-Implement:
-
-- A frozen, in-memory `ContentRegistry`.
-- A loader boundary that performs no I/O inside the engine.
-- Tier 1 errors and Tier 2 warnings through each kind’s `validateCampaign`.
-- Identifier and localization-key validation.
-- The resolved base reason-code string table.
-- `Engine.view` and projection enforcement.
-
-The loader may read authoring data outside the engine package boundary, but it must hand
-the engine a resolved, prevalidated registry. Implement the D7 contract rather than
-ad-hoc YAML/JSON handling in the kernel.
-
-### Documentation References
-
-- `04-core.md` §§9–12 and §§17–18.
-- `03-story-graph-kind.md` §11 for kind-specific checks.
-- `OPEN-QUESTIONS.md` §§1.2–1.4.
-
-### Verification Checklist
-
-- [ ] A broken campaign fails registry construction with Tier 1 errors.
-- [ ] Unreachable content produces a Tier 2 warning without preventing load.
-- [ ] Duplicate and malformed identifiers fail validation.
-- [ ] Missing `LocKey` values fail validation.
-- [ ] Projections exclude seed, RNG, action log, raw kind state, and hidden values.
-- [ ] The engine kernel performs no filesystem or network I/O.
-
-### Anti-Pattern Guards
-
-- Do not freeze an unvalidated registry.
-- Do not string-match localized English in clients.
-- Do not leak hidden state to the `agent` audience by default.
-- Do not expand the frozen Condition operator set.
-
----
-
-## Phase 5 — Session and Profile Persistence
-
-### What to Implement
-
-Implement the `SessionStore` surface from `04-core.md` §7 with an in-memory adapter
-first:
-
-- `listCampaigns`.
-- `getScene` and `getView`.
-- `createSession` and `resumeSession`.
-- `submitAction`.
-- `saveGame` and `loadGame`.
-
-Persist canonical state blobs, not mutable engine objects. Add the separately approved
-profile store from D5. Achievement persistence failures must degrade to no achievements,
-not fail the game.
-
-### Documentation References
-
-- `04-core.md` §§7 and 10.
-- `03-story-graph-kind.md` §7.
-- `OPEN-QUESTIONS.md` §1.1.
-- `MVP.md` §5, “Persistent.”
-
-### Verification Checklist
-
-- [ ] Save mid-session, load, and continue without state loss.
-- [ ] Two sessions cannot mutate each other’s state.
-- [ ] Store metadata never appears in serialized `GameState`.
-- [ ] Profile unlocks survive across sessions.
-- [ ] Missing and corrupt profiles degrade exactly as approved in D5.
-
-### Anti-Pattern Guards
-
-- Do not place authoritative state in clients.
-- Do not use in-memory object identity as persistence.
-- Do not place `savedAt`, owner ids, or profile data in `GameState`.
-- Do not let profile reads affect deterministic resolution.
-
----
-
-## Phase 6 — Story-Graph Kind
-
-### What to Implement
-
-Copy the types and algorithms from `03-story-graph-kind.md`:
-
-- `StoryGraphCampaign` and variable declarations.
-- Choice, random, auto, and ending nodes.
-- Typed `Consequence` reducers with clamp-after-all-effects semantics.
-- The frozen Condition evaluator and story-graph field namespace.
-- `StoryGraphKindState`.
-- `submitChoice` followed by `settle`.
-- Scene/actions and `StoryGraphView` projection.
-- Ending and achievement evaluation.
-- Tier 1/2 story-graph validation.
-
-Every `enter(nodeId)` increments its visit count, including the starting node and
-settlement pass-through nodes. Use the current action RNG handle for random transitions
-and the start handle during initial settlement.
-
-### Documentation References
-
-- `03-story-graph-kind.md` §§1–11.
-- Copy the exact transition algorithms from §8.2.
-- Copy the projection contract and exclusions from §9.
-- `04-core.md` §15 for the core-to-kind mapping.
-
-### Verification Checklist
-
-- [ ] Typed reads and writes reject undeclared or mismatched variables.
-- [ ] Integer effects clamp once after the transition’s complete effect list.
-- [ ] `showWhen` choices are absent; unmet `requirements` choices are disabled with reasons.
-- [ ] Auto/random chains settle to a choice or ending.
-- [ ] A 64-step non-terminating settlement fails safely.
-- [ ] Random transitions reproduce from the same seed and action log.
-- [ ] Hidden variables, choices, and achievements never appear in projection.
-- [ ] Achievements unlock once and persist through the profile boundary.
-
-### Anti-Pattern Guards
-
-- Do not add free-string variables or a direct `unlock` consequence.
-- Do not merge `showWhen` and `requirements`.
-- Do not duplicate envelope fields in `StoryGraphKindState`.
-- Do not iterate state-affecting records without stable sorting.
-- Do not allow arbitrary string paths to mutate state.
-
----
-
-## Phase 7 — Bureaucracy Campaign and Validation Fixtures
-
-### What to Implement
-
-Copy the worked authoring example from `03-story-graph-kind.md` §12 into the resolved D7
-authoring format. Supply all localization strings. Add:
-
-- The valid Bureaucracy campaign.
-- A dangling-node fixture.
-- An undeclared-variable fixture.
-- An unreachable-node fixture.
-- A settlement-cycle fixture.
-
-Keep envelope identity in `Campaign`; the story-graph content contains only
-kind-specific data.
-
-### Documentation References
-
-- `03-story-graph-kind.md` §12.
-- `MVP.md` §§3 and 5.
-- `TODO.md` Phase 3.
-
-### Verification Checklist
-
-- [ ] The valid campaign loads without Tier 1 errors.
-- [ ] The Bureaucracy loop reaches the `office_visits >= 3` gate.
-- [ ] The seeded clerk transition reproduces.
-- [ ] The deliberately broken fixtures produce their expected tiers and paths.
-- [ ] Every authored string resolves through the registry.
-
-### Anti-Pattern Guards
-
-- Do not hard-code campaign behavior into the kind.
-- Do not repeat campaign identity in `StoryGraphCampaign`.
-- Do not suppress Tier 2 warnings merely to produce a clean load.
-
----
-
-## Phase 8 — Text and MCP Clients
-
-### What to Implement
-
-Implement two sibling adapters over `SessionStore`:
-
-1. A plain text client that exercises every public store operation.
-2. An MCP server exposing the exact tool surface from `04-core.md` §13.
-
-Both clients render only `Scene`, `AvailableAction`, `PlayerView`, messages, and visible
-changes. Neither client imports kind reducers or reads raw state.
-
-### Documentation References
-
-- `04-core.md` §§6–7 and §13.
-- `02-architecture.md` §10.
-- `MVP.md` §5, “Two clients, one game” and “Honest.”
-
-### Verification Checklist
-
-- [ ] Both clients complete the same campaign with the same seed and choices.
-- [ ] The text client covers every public session-store operation.
-- [ ] MCP schemas match the documented arguments and results.
-- [ ] Neither client imports `kinds/` or accesses persisted `GameState`.
-- [ ] Requirement failures render stable codes and localized reasons.
-
-### Anti-Pattern Guards
-
-- Do not add client-specific game operations.
-- Do not recompute requirements or outcomes in a client.
-- Do not create an AI-only rules path.
-- Do not expose raw save blobs as a substitute for session ids.
-
----
-
-## Phase 9 — Determinism Harness and MVP Verification
-
-### What to Implement
-
-Copy the `PlaythroughFixture` runner from `04-core.md` §14:
-
-1. Create a game from fixed config and seed.
-2. Replay each logged action.
-3. Canonically serialize the final state.
-4. Compare against a committed golden file.
-
-Add repeated-seed property tests and the end-to-end save/load, projection, validation,
-text-client, and MCP scenarios required by `MVP.md`.
-
-### Documentation References
-
-- `04-core.md` §14.
-- `MVP.md` §5.
-- `TODO.md` Phase 5.
-
-### Verification Checklist
-
-- [ ] `npm test`.
-- [ ] `npm run typecheck`.
-- [ ] `npm run lint`.
-- [ ] `npm run build`.
-- [ ] `git diff --check`.
-- [ ] Same seed plus action log produces byte-identical output.
-- [ ] `deserialize(serialize(state))` is deeply equal to state.
-- [ ] A one-byte golden-file change fails.
-- [ ] N seeds run twice with identical results.
-- [ ] The full suite runs in Node without DOM, network, or AI dependencies.
-- [ ] Every checkbox in `MVP.md` §5 is checked with test evidence.
-
-### Anti-Pattern Guards
-
-- Do not update golden files automatically without reviewing the semantic diff.
-- Do not claim determinism from unit RNG tests alone.
-- Do not skip client-boundary and projection tests.
-- Do not mark the MVP complete while any Definition-of-Done item lacks evidence.
-
----
+## Where the Implementation Work Lives
+
+The Phase 2–9 sections this plan originally carried — their *What to Implement* bodies,
+verification checklists, and the `Allowed APIs` copy-list — **have been removed**, not lost.
+They were a second copy of work that [`TODO.md`](../docs/docs/engine/TODO.md) now owns as
+units **W0–W19**, each with its own contract references, dependencies, and done-criteria.
+
+Two copies of the same checklist is a drift surface, and it had already drifted: the
+removed Phase 3 list still required *"RNG state writes back only after successful
+resolution"*, which the derived-not-carried decision
+([`04-core.md`](../docs/docs/engine/04-core.md) §8) made false — there is no persisted RNG
+state to write back. The removed `Allowed APIs` list had likewise gone stale, omitting
+`InitialStateResult` (D3), `ProfileStore` / `PlayerProfile` (D5), and `AuthoredText` /
+`BuiltCampaign` (D7) — all core types added when those very decisions were applied.
+
+The specifications are the API authority; `TODO.md` is the work authority. Neither is
+restated here. The phase → unit mapping is in the banner at the top of this document.
 
 ## Peer-Review Checklist
 
 Reviewers should confirm:
 
-- [ ] The plan copies authoritative contracts rather than inventing APIs.
-- [ ] B1–B3 cover completion and validation of the branch’s existing rename work.
-- [ ] D1–D8 identify every known decision that can change implementation.
-- [ ] Phase boundaries follow dependency order and can run in separate contexts.
-- [ ] Each phase has explicit verification and anti-pattern guards.
-- [ ] Profile and session persistence remain outside deterministic `GameState`.
-- [ ] Core/kind/campaign ownership is not duplicated.
-- [ ] Text and MCP remain presentation adapters over one session surface.
-- [ ] The final evidence matches the complete MVP Definition of Done.
+- [x] The plan copies authoritative contracts rather than inventing APIs.
+- [x] B1–B3 cover completion and validation of the branch's existing rename work.
+- [x] D1–D8 identify every known decision that can change implementation.
+- [x] Profile and session persistence remain outside deterministic `GameState`.
+- [x] Core/kind/campaign ownership is not duplicated.
+- [x] Text and MCP remain presentation adapters over one session surface.
+- [ ] The final evidence matches the complete MVP Definition of Done —
+      [`MVP.md`](../docs/docs/engine/MVP.md) §5, verified at **W19**.
+
+Dependency ordering and per-phase guards were checked here and now live on the units:
+the W0–W19 graph has no unknown, forward, or cyclic dependencies, and every unit carries
+both *Depends on* and *Done when*.
 
 ## Suggested Review Order
 
 1. Branch decisions B1–B3 and the rendered documentation.
-2. Contract decision gates D1–D8.
-3. Phase 2 module/type boundaries.
-4. Phase 3 engine result and RNG semantics.
-5. Phase 5 profile boundary.
-6. Phase 6 settlement and projection semantics.
-7. Final verification coverage.
+2. Contract decision gates D1–D8 — the rationale, which is not duplicated elsewhere.
+3. Everything else: [`TODO.md`](../docs/docs/engine/TODO.md), in unit order.

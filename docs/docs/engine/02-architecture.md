@@ -1,10 +1,16 @@
+---
+sidebar_position: 2
+---
+
 # Architecture
 
 **Document status:** Revision 1 — architecture settled; content model written (§4 →
 [`03-story-graph-kind.md`](03-story-graph-kind.md))
+
 **Project stage:** Design
 
 > **Scope of this document**
+>
 > Every settled architectural decision, with the reasoning. This is the contract the
 > content model and the API are built against.
 >
@@ -173,7 +179,7 @@ environment without touching the engine* — and the machinery already exists in
 simulation kind:
 
 - **Content registry + pack manifest** (`games/04-engine-specification.md` §4.1–4.2) — a game loads a resolved set of content packs; the engine never reads files or recompiles.
-- **Localization as string tables** (§2.4 there) — every player-facing string is a key; a language is a string-table swap.
+- **Localization as string tables** (`games/04-engine-specification.md` §2.4) — every player-facing string is a key; a language is a string-table swap.
 - **Swappable narrator voice** (`games/02-narrative-voice.md`) — the voice lives entirely in the string table, so a culture pack changes tone by changing content, not code.
 
 So **Jones-in-Bulgaria is a simulation-kind culture pack**: Life in the Fast Lane's

@@ -1,9 +1,15 @@
+---
+sidebar_position: 1
+---
+
 # Vision
 
 **Document status:** Revision 1 — architecture settled
+
 **Project stage:** Design
 
 > **Scope of this document**
+>
 > Why this platform exists and what it is. No types, no API shapes — those are in
 > [`02-architecture.md`](02-architecture.md).
 >
