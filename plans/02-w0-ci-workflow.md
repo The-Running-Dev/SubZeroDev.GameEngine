@@ -217,6 +217,23 @@ obvious:
   placeholder `https://docs.example.com`. That file must be hand-edited, or the deployed
   site's links point at a domain that is not ours.
 
+#### ⚑ Open — the site root under a custom domain
+
+`routeBasePath` is `'docs'`, and decision 2 keeps it that way. So the generated homepage
+publishes to **`https://game-engine.subzerodev.com/docs/`**, and the bare root
+`https://game-engine.subzerodev.com/` has nothing mapped to it.
+
+That is defensible for a docs subdomain, but it is worth deciding rather than discovering:
+a custom domain invites people to type the bare hostname. Two ways to close it, both out of
+W0's current scope:
+
+- Set `routeBasePath: '/'` — the generated homepage becomes the site root. **Moves every
+  URL**, and contradicts decision 2's "keep the local config", so it would need to be a
+  deliberate follow-up.
+- Add a root landing page under `docs/src/pages/`, leaving `/docs/…` untouched.
+
+Left open. W0 ships the site at `/docs/`; the root is a separate decision.
+
 #### The README links that must change
 
 Generating the homepage rewrites the site origin but **not** relative links, so each of
@@ -344,7 +361,7 @@ identifiable in GitHub.
    docker run --rm -v "$PWD:/work" -w /work --user "$(id -u):$(id -g)" \
      ghcr.io/the-running-dev/docs-template:latest \
      Invoke-SetupDocs -ProjectDir /work -Title 'Game Engine' \
-       -SiteUrl '<published-origin>/' -WhatIf
+       -SiteUrl 'https://game-engine.subzerodev.com/' -WhatIf
    ```
 
    Expect `docs/docusaurus.config.ts`, `docs/sidebar.ts`, `docs/Dockerfile`, and `docs.ps1`
@@ -357,15 +374,23 @@ identifiable in GitHub.
     `.config/DocumentationRules.psd1`, `.github/workflows/docs-ci.yml`,
     `.github/workflows/docs-deploy.yml`, and `docs/docs/index.md`.
 
-11. **Set the published URL by hand** in `docs/docusaurus.config.ts` — `url` and `baseUrl`
-    together must equal the published origin. The installer skips this file under decision
-    2, so `-SiteUrl` alone does **not** update it; it is currently the placeholder
-    `https://docs.example.com`. Getting this wrong ships a site whose internal links point
-    at someone else's domain.
+11. **Set the published URL by hand** in `docs/docusaurus.config.ts`. The published origin
+    is **`https://game-engine.subzerodev.com`**:
+
+    ```ts
+    url: 'https://game-engine.subzerodev.com',
+    baseUrl: '/',
+    ```
+
+    `baseUrl` is already `'/'`, so this is a one-line change to `url`. The installer skips
+    this file under decision 2, so `-SiteUrl` alone does **not** update it; it currently
+    holds the placeholder `https://docs.example.com`. Getting this wrong ships a site whose
+    internal links point at someone else's domain.
 
 12. **Convert the README's 14 relative links to absolute URLs** (listed in Phase 0). Spec
-    links point at the published docs site; `docs.ps1` and `src/engine/` point at the code
-    host. Then regenerate and commit both files together:
+    links point at `https://game-engine.subzerodev.com/docs/engine/…`; `docs.ps1` and
+    `src/engine/` point at the code host on GitHub, which has no published-site equivalent.
+    Then regenerate and commit both files together:
 
     ```bash
     pwsh ./build/ConvertTo-DocumentationHomepage.ps1
@@ -376,6 +401,20 @@ identifiable in GitHub.
 
 13. **Enable GitHub Pages**: *Settings* → *Pages* → *Source* → **GitHub Actions**. Without
     it `docs-deploy.yml` fails at `configure-pages` on the first push to `main`.
+
+13a. **Configure the custom domain.** `game-engine.subzerodev.com` is not the default
+    `*.github.io` origin, so two more things are needed:
+
+    - **DNS:** a `CNAME` record for `game-engine.subzerodev.com` →
+      `the-running-dev.github.io`.
+    - **Repository:** *Settings* → *Pages* → *Custom domain* → `game-engine.subzerodev.com`,
+      then **Enforce HTTPS** once the certificate is issued.
+
+    The template ships **no `CNAME` file** — verified, there is none anywhere in what the
+    installer writes — so the domain lives in Pages settings, not in the built artifact.
+    Under Actions-based deployment that is where GitHub reads it from. If the domain is
+    ever dropped on a deploy, add `docs/static/CNAME` containing the hostname; Docusaurus
+    copies `static/` verbatim into the build output.
 
 14. **Make the checks required** on the default branch, or a red run reports without
     blocking:
@@ -419,8 +458,10 @@ identifiable in GitHub.
 - [ ] `@types/node` matches the Node major the job runs.
 - [ ] The install reported `docusaurus.config.ts`, `sidebar.ts`, `Dockerfile`, and
       `docs.ps1` as **skipped**, and `onBrokenLinks: 'throw'` survives in the config.
-- [ ] `docs/docusaurus.config.ts` `url` + `baseUrl` equal the real published origin — not
-      the `https://docs.example.com` placeholder.
+- [ ] `docs/docusaurus.config.ts` has `url: 'https://game-engine.subzerodev.com'` and
+      `baseUrl: '/'` — not the `https://docs.example.com` placeholder.
+- [ ] DNS `CNAME` for `game-engine.subzerodev.com` → `the-running-dev.github.io` resolves,
+      and the custom domain is set in *Settings* → *Pages* with HTTPS enforced.
 - [ ] `docs/docs/index.md` is committed and matches a fresh run of
       `build/ConvertTo-DocumentationHomepage.ps1`.
 - [ ] No relative link survives in `README.md`.
@@ -566,8 +607,8 @@ W0 is complete only when:
 - [ ] The gate and the docs production build both execute and enforce their checks.
 - [ ] `engines.node` establishes Node 24 as the floor, CI runs Node 24, and
       `@types/node` targets Node 24.
-- [ ] GitHub Pages is enabled (*Source: GitHub Actions*) and a push to `main` has
-      **deployed the site to its real published URL** — not the placeholder.
+- [ ] GitHub Pages is enabled (*Source: GitHub Actions*), the custom domain resolves, and
+      a push to `main` has **deployed the site to `https://game-engine.subzerodev.com`**.
 - [ ] The four checks are marked required on the default branch.
 - [ ] `docs/docs/index.md` matches a fresh generator run, and `README.md` has no relative
       links.
