@@ -28,6 +28,10 @@ engine needs to run it; the engine never recompiles to load one.
 
 ```typescript
 interface StoryGraphCampaign {
+  // The RUNTIME form: LocKeys only. Authors write `StoryGraphCampaignSource`, whose
+  // player-facing fields are `AuthoredText`; a pure builder lifts the strings out and
+  // produces this plus a string table (04 §10.1). §12 below is written in source form.
+  //
   // This is the `content` inside the core's `Campaign` envelope (04 §10.1).
   // Envelope-owned identity — id, kindId, version, titleKey — lives on `Campaign`,
   // NOT here, so it cannot drift (the same rule as kindState, §8.1).
@@ -163,7 +167,7 @@ interface Choice {
 }
 
 interface RandomTransition {
-  weight: number;              // relative; seeded weightedPick (core §3.2)
+  weight: number;              // relative; positive integer — seeded weightedPick (04 §8)
   effects?: Consequence[];
   goto: string;
 }
@@ -201,10 +205,11 @@ to the variable's `min`/`max` after applying. Clamping happens once, after all o
 transition's consequences apply — the same rule as the simulation kind's needs (§3.3
 there), so a `+5` then `-5` nets to zero rather than clipping.
 
-> **Turn advance is automatic, not a consequence.** The core increments the
-> built-in `turn` by 1 on every transition (architecture §6.4). A campaign wanting a
-> time *skip* declares its own `int` and advances it — the built-in `turn` stays a
-> faithful transition count.
+> **Turn advance is automatic, not a consequence.** The **kind** increments the built-in
+> `turn` by 1 on every transition, including settle pass-throughs (§8.2). It cannot be
+> the core's job: `turn` lives inside `kindState`, which the core treats as opaque
+> (`unknown`, [`04-core.md`](04-core.md) §2). A campaign wanting a time *skip* declares
+> its own `int` and advances it — the built-in `turn` stays a faithful transition count.
 
 > **Achievements have no `unlock` consequence.** They are conditions (§7), evaluated
 > after every turn. To fire one at a narrative moment, set a variable there and let the
@@ -261,10 +266,24 @@ interface AchievementDefinition {
 }
 ```
 
-Evaluated after every turn (§8). Each fires **exactly once**; the unlock is written to
-the durable `PlayerProfile` (simulation kind §16.3) — never to authoritative game
-state, so it cannot affect determinism. A missing or corrupt profile degrades to "no
-achievements," never a broken game.
+Evaluated after every turn (§8). Each fires **exactly once**, and the unlock lands in
+**two places with different jobs**:
+
+- **In-game, authoritative:** `StoryGraphKindState.unlockedAchievements` (§8.1). This is
+  deterministic state — it must be, because `achieved.<id>` is a readable condition field
+  (§6), so an unlock can gate a later choice. It replays from seed + action log like
+  everything else in `kindState`.
+- **Cross-session, non-authoritative:** a durable `PlayerProfile` mirror in the core's
+  `ProfileStore` ([`04-core.md`](04-core.md) §7.1), upserted by the session store *after*
+  a successful action — never by `advance`, which is pure and does no I/O. Nothing in
+  resolution ever reads it, so it cannot perturb determinism. A missing or corrupt profile
+  degrades to "no achievements," never a broken game; a failed write is a warning that
+  does not roll back the game action.
+
+The kind's part of the bargain is small: unlock into `kindState` and emit an
+`achievement_unlocked` `StateChange` (04 §12). The store does the rest. Records are keyed
+`campaignId + achievementId`, because an achievement id is only unique within its campaign
+(04 §17).
 
 ---
 
@@ -275,7 +294,7 @@ achievements," never a broken game.
 The story-graph kind's state is the **kind-specific subset only** — it is the
 `kindState` inside the core's `GameState` envelope
 ([`04-core.md`](04-core.md) §2). Everything kind-agnostic — `gameId`, `seed`,
-`rng`, `campaignId`, `campaignVersion`, `status`, and the action log — lives on the
+`campaignId`, `campaignVersion`, `status`, and the action log — lives on the
 envelope, not here. Duplicating them (as an earlier draft of this section did) would put
 the same field in two places and drift.
 
@@ -313,15 +332,18 @@ Throughout, **enter(nodeId)** sets `currentNodeId = nodeId` **and** does
 and the initial start node (§8.1).
 
 ```text
-submitChoice(state, choiceId):
+submitChoice(state, choiceId, params):
+  0. reject if params is non-empty → unexpected_params (this kind takes none, 04 §3)
   1. resolve the current node (must be a ChoiceNode) and the named choice
   2. reject if the choice is unavailable: showWhen false, or requirements unmet
-     → return ValidationError with the reason, no state change
+     → return ValidationError with the reason (§8.3), no state change
   3. apply the choice's effects (typed consequences, §5), then clamp
   4. the core appends `{ actionId: choiceId }` to the envelope's actionLog
   5. transition: turn += 1, enter(choice.goto)
   6. SETTLE (below)
-  7. evaluate achievements; unlock any newly-satisfied, write to profile
+  7. evaluate achievements; append any newly-satisfied to unlockedAchievements
+     and emit a StateChange for each (durable profile writes happen outside
+     `advance`, which is pure — §7)
   8. return the new scene (§9), or the ending if status === "ended"
 ```
 
@@ -345,6 +367,30 @@ settle(state):
 `createGame` **enters** `startNodeId` (so `visitedCounts[startNodeId]` becomes 1) and
 runs `settle` once — drawing any start random transitions from the `system:"start"` RNG
 stream (04 §4, §8) — so the first scene the player sees is already a choice or an ending.
+`initialState` reports which: it returns an `InitialStateResult` (04 §3) whose `status` is
+`"ended"` when the start settled onto an `EndingNode`. That is a **valid** campaign — a
+vignette or a test fixture — and validation flags it `no_reachable_choice` at Tier 2 (§11),
+not as an error.
+
+### 8.3 Reason Codes
+
+The codes this kind adds to the base set (`Kind.reasonCodes`, 04 §3, §12). Each needs a
+localized message or registry validation fails (04 §12):
+
+| Code | When |
+|---|---|
+| `not_a_choice_node` | an action arrived while the current node is not a `ChoiceNode` — should be unreachable after settle |
+| `unexpected_params` | a non-empty `params` object; this kind declares none |
+| `settle_guard_tripped` | `SETTLE_STEPS` exceeded — an auto/random cycle with no exit (§8.2) |
+
+Reused from the base set: `unknown_action` (no such choice id on the current node),
+`requirement_unmet` (shown but gated — carries `requirementFailKey` as its message),
+`session_ended` (an action against an ended game).
+
+> **A hidden choice is `unknown_action`, not `action_not_available`.** Submitting a choice
+> whose `showWhen` fails returns exactly what a nonexistent choice id returns. The two
+> cases are deliberately indistinguishable: a distinct code would let a client probe ids
+> and confirm that a secret path exists, which is the one thing `showWhen` is for (§4, §9).
 
 **Determinism.** Every random transition draws from the seeded RNG (core §3).
 Given the same seed and the same action log, `settle` makes the same picks — so the
@@ -358,37 +404,37 @@ for this kind.
 Clients receive a projection, never raw state (architecture §7). For the story-graph
 kind:
 
+`StoryGraphView` is the `kindView` inside the core's `PlayerView`
+([`04-core.md`](04-core.md) §9), and it carries **only what the generic surface does not**.
+The scene text is `Scene.body`, the choice list is `Scene.actions`, and `gameId`/`status`
+are on `Scene` / `PlayerView` already (04 §6, §9) — repeating any of them here would put
+one value in two places, the drift this kind has already been bitten by twice
+(§8.1, §1).
+
 ```typescript
 interface StoryGraphView {
-  campaignId: string;
-  status: "active" | "ended";
   turn: number;
-
-  scene: {
-    textKey: LocKey;
-    text: string;                 // rendered, visible-variable params substituted
-  };
-
-  choices: VisibleChoice[];       // only choices whose showWhen passes
-  stats: Record<string, VarValue>; // visible: true variables, with their labels
+  stats: VisibleStat[];            // visible: true variables, with their labels
   unlockedAchievements: string[];  // non-hidden, unlocked
-
   ending?: { endingId: string; outcome: "win" | "loss" | "neutral" };
 }
 
-interface VisibleChoice {
-  id: string;
-  labelKey: LocKey;
-  available: boolean;             // requirements met
-  reasonKey?: LocKey;             // present iff not available
+interface VisibleStat {
+  var: string;                    // the declared variable name
+  labelKey: LocKey;               // required by §2 when visible
+  value: VarValue;
 }
 ```
 
-**Excluded from the projection:** non-visible variables, `visitedCounts`, `rng`, the
-action log, achievement conditions, and any hidden achievement not yet unlocked. A
-`showWhen`-hidden choice is omitted entirely — the client cannot know a secret path
-exists. This is what stops a client (or an AI agent over MCP) from seeing state the
-player shouldn't.
+The choices a player may pick are the core's `AvailableAction[]` (04 §6), produced by
+this kind's `availableActions`: `showWhen`-failing choices are **omitted entirely**, and
+a shown-but-ungated choice carries `available: false` with `reasonKey` =
+`requirementFailKey` (§4). There is no separate story-graph choice type.
+
+**Excluded from the projection:** non-visible variables, `visitedCounts`, the action log,
+achievement conditions, and any hidden achievement not yet unlocked. A `showWhen`-hidden
+choice is omitted entirely — the client cannot know a secret path exists. This is what
+stops a client (or an AI agent over MCP) from seeing state the player shouldn't.
 
 ---
 
@@ -397,7 +443,7 @@ player shouldn't.
 All three are core mechanisms; the story-graph kind only supplies its state shape.
 
 - **Save** = the serialized core `GameState` envelope (which carries
-  `campaignVersion`, `seed`, `rng`, `actionLog`, and this kind's `kindState`), in a
+  `campaignVersion`, `seed`, `actionLog`, and this kind's `kindState`), in a
   `SaveEnvelope` ([`04-core.md`](04-core.md) §10.2).
 - **Determinism harness** — a `{ config, actionLog }` fixture
   ([`04-core.md`](04-core.md) §14) replays to a
@@ -423,6 +469,9 @@ Tiered as in the architecture §9.
 - Every `LocKey` is present in `strings`.
 - No node id, choice id, achievement id, or variable name is duplicated.
 - A `visible: true` variable has a `labelKey`; text interpolates only visible variables.
+- Every `RandomTransition.weight` is a **positive integer**, and every `random` node has
+  at least one transition — `weightedPick` throws otherwise (04 §8), so this is a
+  load-time rule, not a runtime crash.
 
 **Tier 2 — load-time, warning:**
 
@@ -431,6 +480,9 @@ Tiered as in the architecture §9.
 - A `choice`/`auto`/`random` cycle with no exit to a choice or ending (would trip the
   settle guard at runtime).
 - A campaign with no reachable ending.
+- `no_reachable_choice` — no `ChoiceNode` is reachable from `startNodeId`, so the campaign
+  settles straight to an ending and the player never acts (§8.2). Valid but
+  non-interactive (04 §11).
 
 **Tier 3 — simulation-time (§18.5 there):** a choice whose `requirements` no reachable
 state can satisfy; an ending no path reaches.
@@ -544,7 +596,7 @@ What this exercises, one-to-one against the MVP Definition of Done:
 - **A seeded random node** (`clerk_review`) — reproducible from the seed.
 - **An achievement** firing once from a variable set at the reward.
 - **Two clients** run this identically; **projection** hides `certificate_fresh`,
-  `office_visits`, `builds_character` and the RNG.
+  `office_visits`, `builds_character`, the visit counts, and the seed.
 
 ---
 

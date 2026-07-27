@@ -14,7 +14,7 @@
 > - The flagship kind's content model: [`03-story-graph-kind.md`](03-story-graph-kind.md)
 > - Shared Bulgarian source material: `games/bulgaria.md`
 > - Deferred hosting/business layer: [`neaas-platform-vision.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform)
-> - The simulation kind, specified in full: `games/01-vision.md`
+> - The simulation kind, specified in full: `games/04-engine-specification.md`
 >
 > The `games/…` docs above — the two games, the simulation kind, and the shared source —
 > live in the **companion game project**,
@@ -58,7 +58,7 @@ A **campaign** is a *kind plus its data*. Two kinds ship in v1:
 | Kind | What it is | Flagship campaign |
 |---|---|---|
 | `simulation` | Weekly-tick life simulation: time budget, needs, economy, systems | Life in the Fast Lane |
-| `story-graph` | Branching narrative: nodes, choices, typed variables, requirements, consequences | *(open)* |
+| `story-graph` | Branching narrative: nodes, choices, typed variables, requirements, consequences | Bulgaria: Make-Your-Own-Adventure |
 
 The Game Engine is the platform; **Life in the Fast Lane is a campaign on it** —
 specifically, the flagship campaign of the `simulation` kind, already specified in

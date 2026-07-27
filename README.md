@@ -18,11 +18,12 @@ logic (`kinds`), and content (`campaigns`) as data. v1 targets two kinds — `st
 - **Specs:** the MVP contracts are finalized — the story-graph kind
   ([`03`](docs/docs/engine/03-story-graph-kind.md)) and the core
   ([`04-core`](docs/docs/engine/04-core.md)). See [MVP.md](docs/docs/engine/MVP.md).
-- **Code:** Phase 1 core in [`src/engine/`](src/engine/) — seeded PCG32 RNG and canonical
-  serialization, verified bit-identical to reference vectors. Next: the pure engine
-  `advance(state, action) → state`.
-- **Open items:** [OPEN-QUESTIONS.md](docs/docs/engine/OPEN-QUESTIONS.md) (the sharpest:
-  `PlayerProfile` isn't part of the core yet).
+  Every MVP-blocking gap is now decided; the register
+  ([OPEN-QUESTIONS.md](docs/docs/engine/OPEN-QUESTIONS.md) §1) is a decision log.
+- **Code:** [`src/engine/`](src/engine/) — seeded PCG32 RNG and canonical serialization,
+  verified bit-identical to reference vectors; toolchain green (15 tests).
+- **Next:** [TODO.md](docs/docs/engine/TODO.md) breaks the MVP into ordered units of work
+  (W0–W19). W1 is the core contract types and module skeleton.
 
 ## Layout
 

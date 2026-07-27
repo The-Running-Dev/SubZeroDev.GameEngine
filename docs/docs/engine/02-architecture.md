@@ -34,7 +34,7 @@ Kinds     │  story-graph        │        simulation      │  engine-owned l
           └───────────────────────┬─────────────────────┘
                                   │
           ┌───────────────────────▼─────────────────────┐
-Core │ session state · seeded RNG · projection ·    │  game-agnostic core
+Core      │ session state · seeded RNG · projection ·    │  game-agnostic core
           │ conditions · save/migration · registry · API │
           └─────────────────────────────────────────────┘
 ```
@@ -121,7 +121,7 @@ a **load-time error**. Reading an undeclared variable is a load-time error.
 // illustrative — full types land in 03-story-graph-kind.md
 interface VariableSchema {
   [name: string]: {
-    type: "bool" | "int" | "string" | "enum";
+    type: "bool" | "int" | "enum";   // `string` was dropped — 03 §2
     initial: boolean | number | string;
     values?: string[];        // for enum
     visible?: boolean;        // surfaced as a player stat — see §6.2
@@ -263,9 +263,12 @@ the story-graph kind.
 
 ### 6.4 Time
 
-Story-graph time is a **turn counter**, not a clock. The core increments a
+Story-graph time is a **turn counter**, not a clock. The kind increments a
 built-in `turn` value on each node transition, readable in requirements and
-consequences like any variable. The clock references in the Bulgarian content
+consequences like any variable. (It is kind-owned rather than core-owned because a
+"turn" means something different per kind — a node transition here, a week in the
+simulation kind — and because it lives inside the opaque `kindState`;
+[`03-story-graph-kind.md`](03-story-graph-kind.md) §8.1.) The clock references in the Bulgarian content
 ("08:03", "opened at 08:00") are **scene text, not mechanics** — a campaign that wants
 a mechanical clock declares an int variable and advances it in consequences.
 
@@ -280,7 +283,7 @@ a mechanical clock declares an int variable and advances it in consequences.
 
 Carried over wholesale from the simulation kind's §6. Clients receive a **projection**
 of state, not the state itself — variables marked hidden (event cooldowns, unrevealed
-flags, achievement progress, the RNG) never appear in what a client or AI agent can
+flags, achievement progress, the seed) never appear in what a client or AI agent can
 read. The visible-stat marker (§6.2) is the story-graph kind's use of this boundary:
 `visible: true` variables are in the projection, everything else is not.
 
@@ -358,14 +361,17 @@ made concrete and session-keyed (§2):
 | `createSession` | `{ campaignId, seed? }` → `sessionId` |
 | `resumeSession` | `{ sessionId }` → current scene + visible state |
 | `getScene` | Current node's text and available (requirement-filtered) choices |
-| `getState` | The **projection** (§7), never raw state |
-| `submitChoice` | `{ sessionId, choiceId }` → new scene + visible state |
+| `getView` | The **projection** (§7), never raw state |
+| `submitAction` | `{ sessionId, actionId }` → new scene + visible state; for this kind an `actionId` *is* a choice id |
 | `saveGame` / `loadGame` | Serialize / restore, version-stamped (§8) |
+
+The names are the `SessionStore` surface as typed in [`04-core.md`](04-core.md) §7 —
+kind-agnostic on purpose, since the same operations serve the simulation kind.
 
 The **MCP server exposes these same operations as tools** (`start_game`,
 `continue_game`, `choose`, `get_scene`, `get_state`, `save_game`, `load_game`,
 `list_campaigns`). There is no AI-specific game path: an MCP agent and a browser both
-call `submitChoice`, both receive a projection, both play the identical game.
+call `submitAction`, both receive a projection, both play the identical game.
 
 > **Decision.** The source specification already had this right — MCP as a first-class
 > client, no special AI version. Making it *literally the same operations* rather than
@@ -382,14 +388,18 @@ data; the pure-core / server-session split; typed variables; the single-node-typ
 story-graph model; determinism and seeded RNG; the four shared subsystems; projection;
 save/versioning/migration; the AI-authoring boundary; the unified API/MCP surface.
 
-**Next deliverable — `03-story-graph-kind.md`:** the concrete content types. Node,
-Choice, Requirement (reusing the simulation kind's `Condition` tree), Consequence,
-Ending, VariableSchema, AchievementDefinition, and the seeded random-transition node.
-With those, the Bulgaria make-your-own-adventure can be
-authored as real, validated content rather than mood text — a minimal slice of it is
-the MVP ([`MVP.md`](MVP.md)). The separate Bulgaria culture pack, which belongs to
+**Delivered — [`03-story-graph-kind.md`](03-story-graph-kind.md)** (the concrete content
+types: Node, Choice, Requirement reusing the simulation kind's `Condition` tree,
+Consequence, Ending, VariableSchema, AchievementDefinition, and the seeded
+random-transition node) **and [`04-core.md`](04-core.md)** (those decisions as platform
+types). With both, the Bulgaria make-your-own-adventure can be authored as real,
+validated content rather than mood text — a minimal slice of it is the MVP
+([`MVP.md`](MVP.md)). The separate Bulgaria culture pack, which belongs to
 Life in the Fast Lane, needs no new deliverable — it
 is a content pack over the existing simulation kind (§4a).
+
+**Next — build it.** The ordered task list is [`TODO.md`](TODO.md); what is still
+unsettled is [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md).
 
 **Deferred — [`neaas-platform-vision.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform):** hosting,
 accounts, billing, cloud sync, analytics, multiplayer, white-label.

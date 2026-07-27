@@ -43,8 +43,9 @@ platform. Jones is the next milestone, on a core this slice already proves.
 ## 3. In Scope
 
 - The **core layer**: the pure engine (`advance(state, action) → state`), a session
-  store keyed by id, seeded RNG (PCG32, one substream is enough), the projection, save/
-  load, canonical serialization.
+  store keyed by id and a profile store beside it (04-core §7/§7.1), seeded RNG
+  (PCG32; two streams — `action` and `system:"start"`, 04-core §4/§8), the projection,
+  save/load, canonical serialization, and the authoring→registry builder (04-core §10.1).
 - The **`story-graph` kind**: nodes, choices, typed-variable schema, requirements
   (reusing the simulation kind's `Condition` tree), consequences, endings,
   achievements, seeded random-transition nodes. Specified first in
@@ -95,8 +96,11 @@ platform. Jones is the next milestone, on a core this slice already proves.
 
 **Persistent**
 - [ ] Save mid-arc, load, and continue with no state loss.
-- [ ] The unlocked achievement **persists to the `PlayerProfile`** across sessions; a
-      missing or corrupt profile degrades to "no achievements", never a broken game (03 §7).
+- [ ] With a `profileId`, the unlocked achievement **persists to the `PlayerProfile`**
+      across sessions (04-core §7.1); a missing or corrupt profile degrades to "no
+      achievements", never a broken game (03 §7).
+- [ ] Without a `profileId` the session is **anonymous** — no profile read or write, and
+      the game still plays to its ending.
 
 **Sound**
 - [ ] Tier 1 validation rejects a deliberately broken campaign (dangling node id,

@@ -1,4 +1,4 @@
-# narrative-engine (Implementation)
+# Game Engine (Implementation)
 
 The code for the deterministic narrative game engine. The design lives in
 [`../../docs/docs/engine/`](../../docs/docs/engine/02-architecture.md); this is the build.

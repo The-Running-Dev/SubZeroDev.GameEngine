@@ -47,7 +47,7 @@ keep the growing core maintainable. The `src/engine/src/core/` layout mirrors it
 | Module | Owns | Section |
 |---|---|---|
 | `kernel` | the `GameState` envelope, the `Engine`, `submitAction` | §2, §4 |
-| `session` | the session store, save/load handles | §7 |
+| `session` | the session store, save/load handles, the profile store | §7, §7.1 |
 | `persistence` | canonical serialize/deserialize, `SaveEnvelope`, migration | §10 |
 | `projection` | the `project` mechanism, audiences | §9 |
 | `validation` | the tiered validator, `ValidationResult` | §11 |
@@ -70,15 +70,14 @@ what `advance`, `serialize`, and the session store operate on.
 type KindId = "story-graph" | "simulation";
 
 interface GameState {
-  formatVersion: number;         // save-format version (§10)
+  formatVersion: number;         // the shape of THIS envelope — see §10.2
   gameId: string;
 
   kindId: KindId;
   campaignId: string;
   campaignVersion: string;       // the published version this game runs (§10)
 
-  seed: string;
-  rng: RngState;                 // core owns randomness (§8); (from ../engine RngState)
+  seed: string;                  // the only randomness state — streams derive from it (§8)
 
   status: GameStatus;            // active | ended | abandoned
   kindState: unknown;            // the kind's own state — opaque to the core
@@ -96,9 +95,15 @@ interface LoggedAction {
 ```
 
 **What lives here vs in `kindState`.** The envelope holds everything a game has
-*regardless of kind*: identity, campaign reference, seed, RNG, status, and the action
+*regardless of kind*: identity, campaign reference, seed, status, and the action
 log. A kind's own concepts — current node, variables, turn counter, week number,
 needs — live in `kindState`, opaque to the core.
+
+> **No persisted RNG state.** Randomness is *derived*, not carried: every stream is a
+> pure function of `(seed, streamId)` (§8), so the envelope stores the seed and nothing
+> else. A persisted generator state would be written every action and read by nothing —
+> a serialized field free to drift from the derivable truth, taking byte-identical
+> replay with it. `{ seed, actionLog }` is the complete replay input.
 
 > **Why `kindState: unknown`.** The core must not depend on any kind. Typing the
 > field as `unknown` (not a union of kind states) keeps the dependency arrow pointing
@@ -125,7 +130,7 @@ interface Kind<KState> {
   readonly reasonCodes: readonly ReasonCode[];   // codes this kind adds to the base set (§12)
 
   /** Build the starting kind-state for a fresh game of this campaign. */
-  initialState(campaign: Campaign, ctx: KindContext): KState;
+  initialState(campaign: Campaign, ctx: KindContext): InitialStateResult<KState>;
 
   /** What the player can do right now — generic actions for the current scene (§6). */
   availableActions(state: KState, ctx: KindContext): AvailableAction[];
@@ -133,8 +138,13 @@ interface Kind<KState> {
   /** Render the current situation into a generic scene body (§6). */
   scene(state: KState, ctx: KindContext): SceneBody;
 
-  /** Resolve one player action. Pure: same (state, action, ctx) → same result. */
-  advance(state: KState, actionId: string, ctx: KindContext): AdvanceResult<KState>;
+  /** Resolve one player action. Pure: same (state, action, params, ctx) → same result. */
+  advance(
+    state: KState,
+    actionId: string,
+    params: ActionParams | undefined,
+    ctx: KindContext,
+  ): AdvanceResult<KState>;
 
   /** Narrow kind-state to the visible projection for an audience (§9). */
   project(state: KState, audience: ProjectionAudience, ctx: KindContext): unknown;
@@ -150,7 +160,27 @@ interface AdvanceResult<KState> {
   messages: OutcomeMessage[];    // player-facing, localized (§12)
   error?: ValidationError;       // set iff the action was rejected; state is unchanged
 }
+
+interface InitialStateResult<KState> {
+  state: KState;                 // the starting kind-state
+  status: "active" | "ended";    // a kind that settles at start may already be ended
+  changes: StateChange[];
+  messages: OutcomeMessage[];
+}
 ```
+
+> **Why `initialState` returns a result, not a bare `KState`.** A kind that settles at
+> start (story-graph, 03 §8.2) can land on an ending before the player acts — a valid
+> campaign (§11, Tier 2 warns). The core cannot discover this by inspecting `kindState`,
+> which is `unknown` to it by design (§2), so the kind must *say so*. `InitialStateResult`
+> is deliberately `AdvanceResult` minus `error`: a campaign is pre-validated before the
+> registry is frozen, so starting a game cannot fail the way an action can.
+
+> **Why `advance` receives `params`.** `submitAction` writes `params` into the replay log
+> (§2), so anything they affect must be reachable from the kind — otherwise the log
+> carries data that provably cannot change replay. The story-graph kind declares no
+> parameters (an action *is* a choice id) and returns a `ValidationError` if a non-empty
+> `params` object arrives. Undocumented parameters are never silently ignored.
 
 `advance` is where a kind's whole ruleset lives. For the story-graph kind it is
 `submitChoice → settle` ([`03-story-graph-kind.md`](03-story-graph-kind.md) §8.2); for
@@ -171,14 +201,15 @@ Everything a kind needs to resolve, supplied by the core:
 interface KindContext {
   readonly registry: ContentRegistry;   // §10 — the campaign and shared content
   readonly campaign: Campaign;           // this game's campaign, resolved
-  readonly rng: RngHandle;               // scoped seeded handle (§8); write-back is automatic
+  readonly rng: RngHandle;               // handle on this resolution's own stream (§8)
   readonly seq: number;                  // current action sequence number
 }
 ```
 
-The kind draws randomness only from `ctx.rng` (a handle over the core's seeded
-generator). After `advance`, the core reads the handle's final state back into
-`GameState.rng` — so the kind stays pure and randomness stays reproducible.
+The kind draws randomness only from `ctx.rng` — a handle on the stream derived for
+*this* resolution from `(seed, streamId)`. The handle is discarded when `advance`
+returns; nothing is written back, because the next resolution derives its own stream
+from the seed again (§8). The kind stays pure and every draw stays reproducible.
 
 ---
 
@@ -213,18 +244,18 @@ interface Engine {
 
 ```text
 submitAction(state, actionId, params):
-  1. kind = kinds[state.kindId]
-  2. handle = rngHandleFor(state.seed, state.rng, { action: seq })   // §8
-  3. result = kind.advance(state.kindState, actionId, { registry, campaign, rng: handle, seq })
+  1. kind = kinds[state.kindId];  seq = state.actionLog.length   // 0-based, monotonic
+  2. handle = rngHandleFor(state.seed, { kind:"action", seq })   // §8 — derived, not carried
+  3. result = kind.advance(state.kindState, actionId, params, { registry, campaign, rng: handle, seq })
   4. if result.error → return { ok:false, errors:[result.error] }, state unchanged  // ActionResult.errors is a list (§12)
   5. newState = {
        ...state,
        kindState: result.state,
-       rng: handle.toState(),
        status: result.status,
        actionLog: [...state.actionLog, { seq, actionId, params }],
      }
-  6. return { ok:true, state:newState, changes:result.changes, messages:result.messages }
+  6. return { ok:true, value:newState, errors:[], warnings:[],
+              changes:result.changes, messages:result.messages }
 ```
 
 Immutability is unconditional (docs/04 §11.3): every operation returns a new envelope.
@@ -235,13 +266,14 @@ Immutability is unconditional (docs/04 §11.3): every operation returns a new en
 createGame(config):
   1. campaign = registry.campaigns[config.campaignId]        // kind = campaign.kindId
   2. seed = config.seed ?? store-generated (and recorded)
-  3. startHandle = rngHandleFor(seed, fresh, { kind:"system", system:"start", seq:0 })   // §8
-  4. kindState0 = kind.initialState(campaign, { registry, campaign, rng: startHandle, seq: 0 })
+  3. startHandle = rngHandleFor(seed, { kind:"system", system:"start", seq:0 })   // §8
+  4. init = kind.initialState(campaign, { registry, campaign, rng: startHandle, seq: 0 })
      // a kind that settles at start (story-graph, 03 §8.2) draws its initial
-     // random transitions from startHandle
+     // random transitions from startHandle, and reports "ended" if it settled to one
   5. return the envelope { kindId: campaign.kindId, campaignId: campaign.id,
-       campaignVersion: campaign.version, seed, rng: startHandle.toState(),
-       status:"active", kindState: kindState0, actionLog: [] }
+       campaignVersion: campaign.version, seed,
+       status: init.status, kindState: init.state, actionLog: [] }
+     // init.changes / init.messages ride out on the CommandResult
 ```
 
 The **start** stream (`system:"start"`) is deliberately distinct from the per-action
@@ -330,6 +362,10 @@ interface SessionStore {
 interface SessionHandle { sessionId: string; scene: Scene; }
 interface SaveHandle { saveId: string; savedAtSeq: number; }
 interface CampaignSummary { campaignId: string; kindId: KindId; titleKey: LocKey; }
+
+interface CreateSessionConfig extends NewGameConfig {
+  profileId?: string;            // omitted → anonymous session; see §7.1
+}
 ```
 
 **The store persists the envelope (§2) and nothing else about play.** Wall-clock
@@ -340,6 +376,52 @@ supporting "resume on another device" (architecture §2).
 `createSession` generates and records a seed when the config omits one, so a resumed or
 replayed session is always reproducible.
 
+### 7.1 The Profile Store
+
+Achievements must outlive a game (MVP §5, 03 §7), but nothing durable may sit inside
+`GameState`. So the profile is a **second store beside the session store**, at the same
+layer — stateful, I/O-doing, and invisible to the pure engine.
+
+```typescript
+interface PlayerProfile {
+  formatVersion: 1;
+  profileId: string;
+  achievements: readonly AchievementRecord[];
+}
+
+interface AchievementRecord {
+  campaignId: string;            // achievement ids are only unique within a campaign
+  achievementId: string;
+}
+
+type ProfileWarningCode = "profile_missing" | "profile_corrupt" | "profile_write_failed";
+interface ProfileWarning { code: ProfileWarningCode; profileId: string; }
+
+interface ProfileLoadResult { profile: PlayerProfile; warnings: readonly ProfileWarning[]; }
+interface ProfileSaveResult { ok: boolean; warnings: readonly ProfileWarning[]; }
+
+interface ProfileStore {
+  load(profileId: string): Promise<ProfileLoadResult>;
+  save(profile: PlayerProfile): Promise<ProfileSaveResult>;
+}
+```
+
+Rules, all of them determinism-preserving:
+
+- **Profile identity is a session concern.** `profileId` lives on `CreateSessionConfig`
+  and the store's record — never on `NewGameConfig`, never on `GameState`. The pure
+  engine has no idea profiles exist.
+- **Nothing in resolution reads a profile.** A kind unlocks into its own `kindState`
+  (03 §7) and emits an `achievement_unlocked` `StateChange` (§12). *After* a successful
+  action, the session store idempotently upserts those records through the
+  `ProfileStore`. Profile contents and write outcomes never feed back into `advance`.
+- **Anonymous by default.** No `profileId` → no read, no write; achievements persist only
+  for that game. Cross-session persistence is opt-in.
+- **Degradation is a warning, never a failure.** Missing or corrupt loads return an empty
+  `formatVersion: 1` profile plus `profile_missing` / `profile_corrupt`. A failed write
+  returns `profile_write_failed` and **does not** roll back the completed game action —
+  the game is authoritative, the profile is a mirror.
+
 ---
 
 ## 8. Randomness
@@ -348,6 +430,12 @@ Fully specified and built. The core owns the seeded PCG32 generator
 (`src/engine/src/core/rng/pcg32.ts`, verified bit-identical
 to reference vectors) and hands each resolution a **scoped handle** derived from
 `(seed, streamId)` via `deriveStream`.
+
+**Randomness is derived, never carried.** `deriveStream(seed, streamId)` is a pure
+function: the same pair always yields the same generator, and different `streamId`s are
+independent. So a resolution takes a fresh handle, draws from it, and drops it — there
+is no generator state to thread through the envelope (§2), and replay needs only
+`{ seed, actionLog }`.
 
 ```typescript
 type StreamId =
@@ -360,14 +448,30 @@ interface RngHandle {
   nextPercent(): number;
   pick<T>(items: readonly T[]): T;
   weightedPick<T>(items: readonly { item: T; weight: number }[]): T;
-  toState(): RngState;
 }
+```
+
+`RngHandle` exposes no `toState()`: nothing reads it back. (`Pcg32.toState` remains on
+the primitive, for tests and for reference-vector verification.)
+
+**Stream-id encoding is part of the contract.** `deriveStream` hashes a *string*, so the
+`StreamId` → string mapping is normative — change it and every seeded outcome changes.
+It is exactly:
+
+```text
+{ kind:"action", seq }             → `action:${seq}`
+{ kind:"system", system, seq }     → `system:${system}:${seq}`
+{ kind:"agent",  agentId, seq }    → `agent:${agentId}:${seq}`
 ```
 
 Substreams (docs/04 §3.2) mean adding a draw in one place never renumbers another, and
 a rival kind's draws never perturb the player's. The MVP uses the `action` stream for
 play plus one `system` stream, `system:"start"`, for `createGame`'s initial `settle`
 (§4); the machinery for more is already there.
+
+> **`weightedPick` constrains content.** The built implementation requires every weight
+> to be a **positive integer** and throws otherwise. That makes it a load-time content
+> rule, not a runtime surprise — Tier 1 validation enforces it (03 §11).
 
 ---
 
@@ -390,7 +494,7 @@ interface PlayerView {
 //   return { gameId, status, kindView: kind.project(state.kindState, audience, ctx) }
 ```
 
-The core guarantees the envelope's own hidden fields (`rng`, `seed`, `actionLog`,
+The core guarantees the envelope's own hidden fields (`seed`, `actionLog`,
 `kindState` raw) never reach a client except through `kind.project`, which is
 responsible for excluding the kind's hidden state (03 §9 lists the story-graph
 exclusions). The `agent` audience is the rival/AI view; widening it is a difficulty
@@ -426,6 +530,36 @@ interface Campaign {
 The registry is frozen and pre-validated (§11) before the engine sees it. The engine
 performs no I/O; a loader package builds the registry from files (architecture §1).
 
+#### The Authoring → Registry Boundary
+
+"Built from files" is a *typed* step, not a hand-wave. Authors write player-facing text
+inline (03 §12); the runtime sees only `LocKey`s. Two types and one pure function make
+that a contract:
+
+```typescript
+interface AuthoredText { key: LocKey; text: string; }
+
+interface BuiltCampaign {
+  campaign: Campaign;                          // runtime form — LocKeys only
+  strings: ReadonlyMap<LocKey, string>;        // lifted out of the source
+}
+```
+
+Each kind declares a **source type** paired with its runtime type — for the flagship,
+`StoryGraphCampaignSource` mirrors `StoryGraphCampaign` (03 §1) with every player-facing
+field typed `AuthoredText` instead of `LocKey`. A **pure builder** validates the source,
+replaces each `AuthoredText` with its key, and returns `BuiltCampaign`. Repeated identical
+key/text pairs deduplicate; the same key with *different* text is a hard error.
+
+Registry assembly then validates every built campaign (§11), merges the protected core
+strings (§12) with kind and campaign strings, and freezes both maps.
+
+> **Parsing and files live outside the engine.** YAML/JSON decoding and filesystem access
+> belong to an outer adapter that feeds `unknown` into source-schema validation. The engine
+> package never reads a file — that is what makes "the engine performs no I/O" checkable.
+> **The MVP ships one locale, English**; additional locales are post-MVP and need no type
+> change, only more string tables.
+
 ### 10.2 Save Envelope and Migration
 
 Carried from docs/04 §16. A save wraps the `GameState` envelope with the metadata needed
@@ -447,11 +581,19 @@ interface SaveEnvelope {
 ```
 
 The four version fields exist because the four things they track change independently:
-the envelope shape, the serializer, the engine, and a kind's code can each move without
-the others. A loader checks all four before trusting a save. **Compression and
+the save wrapper's shape, the serializer, the engine, and a kind's code can each move
+without the others. A loader checks all four before trusting a save. **Compression and
 host-side metadata (playtime, title, thumbnail) are deliberately absent** — compression
 has no consumer yet, and host metadata belongs on the session-store record (§7), outside
 the replayable `GameState`, so it can never perturb byte-identical replay.
+
+> **`saveFormatVersion` vs `GameState.formatVersion` — different things.**
+> `saveFormatVersion` versions *this wrapper*; `GameState.formatVersion` (§2) versions the
+> **envelope inside it**. They are separate because `Engine.serialize` / `deserialize`
+> round-trip a bare `GameState` with no wrapper at all (§4) — the determinism harness
+> (§14) and the golden files compare exactly that string. Without its own stamp, a
+> standalone serialized envelope would carry no version information. Both move
+> independently; a loader reading a `SaveEnvelope` checks both.
 
 **The migration hazard, made concrete (architecture §8).** A save records the
 `campaignVersion` it ran. Loading it against a *different* published version runs
@@ -502,7 +644,11 @@ interface ValidationWarning { code: ReasonCode; messageKey: LocKey; path?: strin
 - **Tier 1 — load-time, hard fail:** referential integrity, schema conformance, declared
   variables, path validity, duplicate ids, missing string keys. (Story-graph's Tier 1 is
   03 §11.)
-- **Tier 2 — load-time, warning:** unreachable content, unexpected cycles.
+- **Tier 2 — load-time, warning:** unreachable content, unexpected cycles, and
+  `no_reachable_choice` — a campaign that settles straight to an ending with no choice
+  node reachable from the start. It loads and plays (§3, `InitialStateResult.status` reports
+  `"ended"` immediately); the warning tells an author their campaign is non-interactive
+  without forbidding a deliberate vignette or a single-scene test fixture.
 - **Tier 3 — simulation-time (§14):** unwinnable campaigns, dead-end states — found by
   running, not reading. Not part of load.
 
@@ -524,6 +670,19 @@ const BASE_REASON_CODES = [
   "action_not_available", "unknown_action", "requirement_unmet",
   "session_ended", "read_only_field", "check_succeeded", "check_failed",
 ] as const;
+```
+
+**The core ships their strings.** Every base code has a default-English message under a
+**reserved `core.reason.*` namespace** (`core.reason.unknown_action`, …), shipped with the
+engine. Registry construction (§10.1) merges core strings with kind and campaign strings
+and **rejects any attempt to write into `core.reason.*`** — a campaign cannot restyle what
+an engine-level error says, because clients and tooling depend on those meanings being
+stable. Kinds own the strings for codes *they* add (`Kind.reasonCodes`); campaigns own
+their narrative strings. **Validation fails if any registered reason code has no localized
+message** — that is what makes "clients never string-match English" enforceable rather than
+aspirational.
+
+```typescript
 
 interface StateChange {
   path: string;                  // audit record, not a write path (docs/04 §10.4)
@@ -610,13 +769,13 @@ Concrete mapping — and the reconciliation this document forces on
 | `Kind.advance(actionId)` | `submitChoice → settle` (03 §8.2); `actionId` is the choice id |
 | `AvailableAction` | a node choice, gated by `showWhen` / `requirements` (03 §4) |
 | `SceneBody` | the node's `textKey`, interpolated (03 §3.1) |
-| `Kind.project` | `StoryGraphView` (03 §9) — hides non-visible variables, visit counts, RNG |
+| `Kind.project` | `StoryGraphView` (03 §9) — turn, visible stats, unlocked achievements, ending; hides non-visible variables and visit counts. Scene text and choices are the generic `Scene`, not repeated here |
 | `Kind.validateCampaign` | 03 §11 |
 | `RngHandle.weightedPick` | random-transition node resolution (03 §3) |
 
 > **Reconciliation (done in 03).** Writing this seam exposed that `03`'s state
 > duplicated envelope-owned fields — `version`, `campaignId`, `campaignVersion`, `seed`,
-> `rng`, `status`, and the choice log. Those belong to the `GameState` envelope (§2),
+> `status`, and the choice log. Those belong to the `GameState` envelope (§2),
 > not the kind. `03` §8.1 now defines `StoryGraphKindState` as the kind-specific subset
 > only:
 >
@@ -639,17 +798,19 @@ Concrete mapping — and the reconciliation this document forces on
 
 ## 16. What This Unblocks
 
-With the seam typed, Phase 1 code can resume against real contracts:
+With the seam typed and every MVP-blocking gap decided
+([`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §1), the build runs against real contracts:
 
 1. The pure `Engine` (§4) — `createGame`, `submitAction`, `scene`, `view`, serialize.
-2. The `SessionStore` (§7).
-3. The story-graph `Kind` implementation (§3, §15) against
+2. The `SessionStore` (§7) and the `ProfileStore` beside it (§7.1).
+3. The registry and its authoring builder (§10.1).
+4. The story-graph `Kind` implementation (§3, §15) against
    [`03-story-graph-kind.md`](03-story-graph-kind.md).
-4. The determinism harness (§14) — now that fixtures have a type.
-5. The MCP server (§13) and text client — thin adapters over `SessionStore`.
+5. The determinism harness (§14) — now that fixtures have a type.
+6. The MCP server (§13) and text client — thin adapters over `SessionStore`.
 
 Nothing above is speculative: every type here is exercised by the MVP
-([`MVP.md`](MVP.md)).
+([`MVP.md`](MVP.md)). [`TODO.md`](TODO.md) sequences it as units of work W0–W19.
 
 ---
 
