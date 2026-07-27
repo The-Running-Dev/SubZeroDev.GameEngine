@@ -32,9 +32,9 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebar.ts',
-          // Renaming this also requires updating static/index.html, which
-          // forwards the site root here. That file is not a route, so
-          // onBrokenLinks cannot catch the drift -- it would fail silently.
+          // Renaming this also requires updating src/pages/index.tsx, whose
+          // meta refresh forwards the site root here. That target is a plain
+          // string, so onBrokenLinks cannot catch the drift.
           routeBasePath: 'docs',
         },
         blog: false,

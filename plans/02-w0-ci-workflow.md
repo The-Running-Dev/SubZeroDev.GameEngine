@@ -258,47 +258,51 @@ Resolved with the second option below, which was already the less invasive one:
 
 - ~~Set `routeBasePath: '/'`~~ — would move every URL and contradict decision 2.
 - **Claim the root ourselves, leaving `/docs/…` untouched.** Done:
-  [`docs/static/index.html`](../docs/static/index.html) forwards `/` to `/docs/`.
+  [`docs/src/pages/index.tsx`](../docs/src/pages/index.tsx) forwards `/` to `/docs/`.
 
 The point is not only that the root now resolves — it is that the site root is now **owned
 by this repository** rather than inherited from whatever the base image happens to contain.
 
-**Static file, not a `src/pages` route.** The first attempt here was a `src/pages/index.tsx`
-rendering `<Redirect>`. That was the wrong mechanism, for three reasons:
+**A route with a meta refresh — not a `src/pages` React redirect, and not a static file.**
+Two earlier attempts were both wrong, and the second was wrong in an instructive way:
 
-1. **It re-used the mechanism that caused the outage.** The accidental root came from the
-   base image's own `src/pages` being picked up by the classic preset. A fix that depends on
-   that same plugin scanning that same directory leaves the root hostage to the image a
-   second time — an image revision that repathed or disabled the `pages` plugin would
-   silently remove the root again.
-2. **It required JavaScript.** `<Redirect>` is client-side routing, so the emitted
-   `index.html` is an empty shell that only forwards after React hydrates. A `meta refresh`
-   forwards with no JS at all, and carries a `rel=canonical` so the root does not compete
-   with `/docs/` in search results.
-3. **It was a second answer to a solved problem.** `SubZeroDev.WinGet` hit this during the
-   same docs-template migration and had already settled on `docs/static/index.html`. Two
-   sibling repos solving one problem two ways is drift for no gain.
+1. **`<Redirect>` from `@docusaurus/router`.** Client-side routing, so the emitted
+   `index.html` is an empty shell that only forwards once React hydrates. No JavaScript, no
+   redirect.
+2. **`docs/static/index.html`, copied from `SubZeroDev.WinGet`.** The right *mechanism* — a
+   `meta refresh` plus `rel=canonical`, forwarding with no JavaScript — but it **does not
+   build here**. Docusaurus resolves links against the route table, and a static file is not
+   a route, so the navbar's link to `/` stayed broken. CI reproduced the original failure
+   exactly: the same nine broken links, the same targets, no static-file conflict warning.
 
-`docs/static/index.html` here is deliberately near-identical to WinGet's, down to the
-comment explaining when to delete it.
+**This is where the two repositories genuinely differ.** WinGet keeps the template default
+`onBrokenLinks: 'warn'`; this repository sets `'throw'` (see the strict-gating decision
+above). Under `'warn'` a static root file is sufficient, because the dangling navbar link is
+only a warning. Under `'throw'` the root must be a real route as well as a real file.
 
-**Note the difference in `onBrokenLinks`.** WinGet keeps the template default, `'warn'`;
-this repo sets `'throw'` (see the strict-gating decision above). So WinGet's static file
-fixes its bare-domain 404, while the navbar's link to `/` stays a tolerated warning there.
-Under `'throw'` the same file has to additionally satisfy the link checker — verified in CI
-rather than assumed, since a static file is not a route.
+So the target here is WinGet's redirect written as a page: `<Head>` emits the same
+`meta refresh` and `rel=canonical` into the server-rendered HTML, which gives the no-JS
+behaviour of the static file *and* registers the `/` route the checker requires.
 
-**Standing risk, not closed by this fix:** both docs workflows track
-`ghcr.io/the-running-dev/docs-template:latest`, so an image revision can still break a
-green `main` with no commit here. Pinning to a digest would trade that for manual bumps.
-Left open deliberately — see the deploy workflow's `container.image`.
+**On depending on the `pages` plugin.** The accidental root came from the base image's own
+`src/pages`, so reusing that plugin looks like repeating the mistake. It is not, and the
+reason is `'throw'`: if a future image revision repaths or disables the `pages` plugin, the
+`/` route disappears and the build fails immediately with these same nine broken links. The
+failure mode that made the original incident expensive — a silent change that only surfaced
+on the next deploy — is exactly what `'throw'` converts into a loud one.
+
+**If `onBrokenLinks` is ever relaxed to `'warn'` for parity with WinGet, switch this back to
+`docs/static/index.html`** and match that repository file-for-file. Under `'warn'` the static
+file is the better answer, for the reason that made it attractive here in the first place: it
+depends on nothing the base image controls.
 
 **Declined in review, retained knowingly.** Automated review flagged that
-`docs/static/index.html` repeats `'docs'` from `routeBasePath`, and proposed extracting a
+`docs/src/pages/index.tsx` repeats `'docs'` from `routeBasePath`, and proposed extracting a
 shared `DOCS_ROUTE_BASE` constant imported by both.
 
-The underlying mechanism is real and worth stating plainly: the forwarding file is not a
-route, so `onBrokenLinks` never sees it. Renaming `routeBasePath` without updating the
+The underlying mechanism is real and worth stating plainly: the redirect target is a plain
+string in a `meta` tag, not a link Docusaurus resolves, so `onBrokenLinks` never sees it.
+Renaming `routeBasePath` without updating the
 root page would send `/` to a dead route and **still build green** — the one drift in this
 site that the build gate cannot catch.
 
@@ -307,7 +311,7 @@ section above just reaffirmed it by rejecting `routeBasePath: '/'`; a module ind
 value the project has decided not to change buys nothing. The failure mode is a human
 editing the config, so the mitigation lives there instead — `docusaurus.config.ts` now
 carries a comment at `routeBasePath` naming the dependency and the silence, and the root
-file names the coupling from its side. If `routeBasePath` ever does become a live variable,
+page names the coupling from its side. If `routeBasePath` ever does become a live variable,
 revisit this and extract the constant then.
 
 #### The README links that must change
