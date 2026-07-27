@@ -68,9 +68,10 @@ runs a dev server, and Docusaurus only enforces `onBrokenLinks` during `docusaur
 build`, so without it the repo's `throw` setting gates nothing. Also pins the Node floor
 (`engines`) so CI and local cannot drift.
 - **Depends on:** nothing.
-- **Done when:** a push runs both jobs green; a deliberate failing test turns `engine`
-  red and a deliberate broken link turns `docs` red, with both run URLs recorded; and
-  `engines` agrees with the Node version CI runs.
+- **Done when:** a push runs both jobs green; a newer run for the same repository branch
+  cancels its superseded push/PR run; a deliberate failing test turns `engine` red and a
+  deliberate broken link turns `docs` red, with both run URLs recorded; and
+  `engines.node` establishes Node 24 as the floor while CI runs Node 24.
 
 ### W1 — Core Contract Types and Module Skeleton
 Create the module tree of 04 §1.1 (`kernel`, `session`, `persistence`, `projection`,

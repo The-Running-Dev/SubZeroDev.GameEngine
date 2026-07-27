@@ -60,15 +60,18 @@ before W1.
 
 ### Allowed Workflow Surface
 
-Create exactly one file:
+Create exactly one **new workflow file**:
 
 ```text
 .github/workflows/ci.yml
 ```
 
+W0 also updates the existing `src/engine/package.json` and its generated lockfile as
+described under “Also in W0”; “one new workflow file” does not mean “one changed file.”
+
 Use:
 
-- `actions/checkout@v6`.
+- `actions/checkout@v7`.
 - `actions/setup-node@v7`.
 - **Node.js 24** — the current Active LTS line ("Krypton", `v24.18.0` at time of writing).
   Verified against `https://nodejs.org/dist/index.json`: v26 and v25 exist but are
@@ -105,9 +108,19 @@ Create `.github/workflows/ci.yml` with:
    - `pull_request`.
 3. Minimal permission:
    - `contents: read`.
-4. A `concurrency` group keyed on workflow + ref, with `cancel-in-progress: true`. Both
-   triggers fire on a PR branch, so without this every PR commit runs the suite twice and
-   superseded runs keep burning minutes.
+4. A `concurrency` group keyed on workflow + head repository + branch name, with
+   `cancel-in-progress: true`. Use the PR head repository/name when present and fall back
+   to `github.repository` / `github.ref_name` for pushes. A raw `github.ref` key is
+   insufficient: a branch push uses `refs/heads/...`, while its PR uses
+   `refs/pull/.../merge`, so the two runs would land in different groups. The shared
+   branch key makes a newer run cancel the older push/PR run for the same branch without
+   colliding with a same-named branch from a fork.
+
+   ```yaml
+   concurrency:
+     group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
+     cancel-in-progress: true
+   ```
 5. Two jobs, `engine` and `docs`, running independently — a docs regression must not be
    reported as an engine failure, or vice versa.
 6. Runner `ubuntu-latest`; a reasonable timeout, recommended at 10 minutes.
@@ -146,9 +159,10 @@ Do not publish or deploy the built site — validation only.
 
 ### Also in W0
 
-10. Add `"engines": { "node": ">=24" }` to `src/engine/package.json`. Without it the
-    workflow's Node choice is unenforceable locally and the two silently drift; the field
-    is what makes "Node 24" a property of the package rather than of one YAML file.
+10. Add `"engines": { "node": ">=24" }` to `src/engine/package.json`. This establishes
+    Node 24 as the **minimum supported runtime** and rejects older majors; it deliberately
+    permits newer Node releases. CI remains pinned to Node 24 so the tested baseline is
+    stable.
 11. Bump `@types/node` from `^22.0.0` to `^24.0.0` so the type surface matches the runtime
     the tests actually execute on. Re-run `npm install` and commit the lockfile change.
 
@@ -168,9 +182,10 @@ Do not publish or deploy the built site — validation only.
 - [ ] Typecheck, lint, and test are distinct steps.
 - [ ] No secret, write permission, publishing credential, or deployment token is present
       — including in the `docs` job, which pulls a public base image.
-- [ ] `concurrency` cancels a superseded run instead of leaving it queued.
+- [ ] `concurrency` gives push and pull-request runs for the same repository branch the
+      same group and cancels a superseded run instead of leaving both active.
 - [ ] The `docs` job runs `pnpm run build`, not `docusaurus start`.
-- [ ] `engines` is present in `package.json` and agrees with the workflow's Node version.
+- [ ] `engines.node` sets a minimum of Node 24, and the workflow explicitly runs Node 24.
 - [ ] `@types/node` matches the Node major the job runs.
 - [ ] `git diff --check` passes.
 
@@ -185,7 +200,7 @@ Do not publish or deploy the built site — validation only.
   not unrelated: it is the only thing that makes the repository's existing
   `onBrokenLinks: 'throw'` setting take effect.
 - Do not justify the Node version from `@types/node`; a types pin is not a runtime
-  constraint. `engines` is the runtime constraint.
+  constraint. `engines` is the minimum-runtime constraint.
 - Do not add a GHCR login step or credential to the `docs` job.
 
 ## Phase 2 — Prove the Green Path
@@ -281,10 +296,12 @@ The deliberate failure must never be merged into `main`.
 W0 is complete only when:
 
 - [ ] `.github/workflows/ci.yml` is merged.
-- [ ] Push and pull-request events run the workflow, without duplicate concurrent runs.
+- [ ] Push and pull-request events run the workflow; a newer run for the same repository
+      branch cancels its superseded push/PR run.
 - [ ] Install, typecheck, lint, and test all execute successfully.
 - [ ] The docs production build executes successfully and enforces broken links.
-- [ ] `engines` and `@types/node` agree with the Node version the workflow runs.
+- [ ] `engines.node` establishes Node 24 as the floor, CI runs Node 24, and
+      `@types/node` targets Node 24.
 - [ ] A deliberate temporary failure has been observed turning **each** job red, with run
       URLs recorded.
 - [ ] The restored workflow has returned to green.

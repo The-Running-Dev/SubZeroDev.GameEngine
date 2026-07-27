@@ -65,12 +65,12 @@ only when it would have changed a decision.
   long the sharpest) are resolved and written into the contracts. Nothing MVP-blocking is
   open; add new gaps there as full entries.
 - **Engine suite runs green under vitest** (15 tests, `pcg32` + `canonical`); no CI
-  workflow yet (`TODO.md` Phase 1).
-- **The docs-site base image is unverified.** `docs.ps1` builds on
-  `ghcr.io/the-running-dev/docs-template`; we *assume* `@docusaurus/preset-classic` (v3),
-  port 3000, `sidebar.ts`. `COPY` can't delete, so leftover template docs may show in the
-  sidebar. Confirmed only against one local run. The site lands on
-  `/docs/engine/vision`, not `/docs`.
+  workflow yet (`TODO.md` W0).
+- **The docs-site base image is verified for the current W0 baseline.** `docs.ps1` builds
+  on the public `ghcr.io/the-running-dev/docs-template`; the installed image uses
+  Docusaurus 3, port 3000, and the local `sidebar.ts`. A production build passed with no
+  leftover template docs in the sidebar. Re-verify when the base image tag changes. The
+  site lands on `/docs/engine/vision`, not `/docs`.
 - **Broken links now fail the docs build** (`onBrokenLinks: 'throw'`). Renaming a heading
   or a file breaks anchors *silently* under `warn`; under `throw` the build catches it.
   Run the docs build before merging any doc rename.

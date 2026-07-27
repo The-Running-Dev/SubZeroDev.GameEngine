@@ -51,9 +51,9 @@ Affected: `01` (2 fields), `02` (2), `03` (3), `04` (2), plus the `Scope` blockq
 A blank line between each metadata field, and a `>` spacer line after each `Scope` label.
 
 **Not** two trailing spaces — the other markdown line-break idiom. Trailing whitespace is
-flagged by `git diff --check`, which W0's CI runs as a gate
-([`plans/02-w0-ci-workflow.md`](02-w0-ci-workflow.md)); that fix would fail the build it
-is meant to survive.
+flagged by `git diff --check`, which W0 requires in its local verification checklist
+([`plans/02-w0-ci-workflow.md`](02-w0-ci-workflow.md)); that fix would fail branch
+acceptance.
 
 ---
 

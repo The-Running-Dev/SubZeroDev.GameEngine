@@ -163,8 +163,8 @@ mandatory branch-acceptance check, not optional follow-up. Confirm:
 - [x] `git diff --check main...HEAD` passes.
 - [x] The docs image builds successfully.
 - [x] Rendered navigation, headings, anchors, and links are visually checked.
-- [x] Peer review approves the completed rename before implementation work is layered
-      onto the branch.
+- [ ] Peer review approves the post-merge cleanup and documentation follow-ups before W0
+      implementation is layered onto the branch.
 
 ### Anti-Pattern Guards
 

@@ -23,7 +23,8 @@ logic (`kinds`), and content (`campaigns`) as data. v1 targets two kinds — `st
 - **Code:** [`src/engine/`](src/engine/) — seeded PCG32 RNG and canonical serialization,
   verified bit-identical to reference vectors; toolchain green (15 tests).
 - **Next:** [TODO.md](docs/docs/engine/TODO.md) breaks the MVP into ordered units of work
-  (W0–W19). W1 is the core contract types and module skeleton.
+  (W0–W19). W0 adds CI and docs-build gates; W1 then adds the core contract types and
+  module skeleton.
 
 ## Layout
 
