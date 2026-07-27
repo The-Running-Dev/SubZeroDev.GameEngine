@@ -87,3 +87,6 @@ is [SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform)
 order: core → story-graph kind → minimal Bulgaria adventure → text client + MCP = MVP.
 Then depth (the simulation kind / Jones). Contracts: `04-core.md` (types),
 `02-architecture.md` (decisions).
+
+<!-- W0 red-path proof: deliberate broken relative link, reverted before merge -->
+See [this does not exist](docs/does-not-exist.md) for details.
