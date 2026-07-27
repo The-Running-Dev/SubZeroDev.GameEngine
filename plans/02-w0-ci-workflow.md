@@ -268,6 +268,23 @@ by this repository** rather than inherited from whatever the base image happens 
 green `main` with no commit here. Pinning to a digest would trade that for manual bumps.
 Left open deliberately — see the deploy workflow's `container.image`.
 
+**Declined in review, retained knowingly.** Automated review flagged that
+`docs/src/pages/index.tsx` repeats `'docs'` from `routeBasePath`, and proposed extracting a
+shared `DOCS_ROUTE_BASE` constant imported by both.
+
+The underlying mechanism is real and worth stating plainly: a `<Redirect>` renders no
+anchor, so `onBrokenLinks` never sees it. Renaming `routeBasePath` without updating the
+root page would send `/` to a dead route and **still build green** — the one drift in this
+site that the build gate cannot catch.
+
+The constant was declined anyway. `routeBasePath: 'docs'` is frozen by decision 2, and the
+section above just reaffirmed it by rejecting `routeBasePath: '/'`; a module indirecting a
+value the project has decided not to change buys nothing. The failure mode is a human
+editing the config, so the mitigation lives there instead — `docusaurus.config.ts` now
+carries a comment at `routeBasePath` naming the dependency and the silence, and the root
+page names the coupling from its side. If `routeBasePath` ever does become a live variable,
+revisit this and extract the constant then.
+
 #### The README links that must change
 
 Generating the homepage rewrites the site origin but **not** relative links, so each of
