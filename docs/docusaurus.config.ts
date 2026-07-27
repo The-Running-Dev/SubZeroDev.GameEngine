@@ -6,13 +6,14 @@ import type * as Preset from '@docusaurus/preset-classic';
  * directory is copied over /template (see ./Dockerfile). Content lives in
  * ./docs (engine/); the sidebar is ./sidebar.ts.
  *
- * Placeholder URL — edit before publishing. Broken links fail the build so
- * documentation regressions cannot pass peer review unnoticed.
+ * Published at the custom domain configured in GitHub Pages
+ * (game-engine.subzerodev.com). Broken links fail the build so documentation
+ * regressions cannot pass peer review unnoticed.
  */
 const config: Config = {
   title: 'Game Engine',
   tagline: 'A deterministic, game-agnostic narrative game platform',
-  url: 'https://docs.example.com',
+  url: 'https://game-engine.subzerodev.com',
   baseUrl: '/',
 
   onBrokenLinks: 'throw',

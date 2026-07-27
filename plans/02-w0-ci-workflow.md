@@ -158,13 +158,25 @@ Then it is automatic:
 The published URL is `url` + `baseUrl` in `docs/docusaurus.config.ts`, set by `-SiteUrl` at
 install time.
 
-To reproduce the CI build without pushing:
+To reproduce the CI build without pushing — **no `--user`**:
 
 ```bash
-docker run --rm -v "$PWD:/work" -w /work --user "$(id -u):$(id -g)" \
+docker run --rm -v "$PWD:/work" -w /work \
   ghcr.io/the-running-dev/docs-template:latest \
   Invoke-DocsBuild -SourceDocs /work/docs -OutputPath /work/artifacts/docs
 ```
+
+> **⚠ `--user` breaks `Invoke-DocsBuild` — verified by running both ways.** It overlays
+> `/work/docs` onto `/template` *inside the image* before building, and `/template` is
+> root-owned (`755`, baked into the image). `--user "$(id -u):$(id -g)"` makes the process
+> a non-root, non-writing user for that directory, so the overlay step fails outright:
+> `Copy-Item: Access to the path '/template/Dockerfile' is denied.` This is the opposite of
+> `Invoke-SetupDocs`, which writes only into the mounted `/work` and needs `--user` for
+> exactly the reason stated there — do not carry that flag over by habit.
+>
+> CI itself is unaffected: the installed `docs-ci.yml` runs this inside a GitHub Actions
+> `container:` job with no `user:` override, so it runs as the image's default root and
+> never hits this. It is a local-reproduction issue only, and only for this one command.
 
 #### Local preview
 
@@ -551,10 +563,12 @@ pwsh ./build/Test-Documentation.ps1
 ```
 
 ```bash
-docker run --rm -v "$PWD:/work" -w /work --user "$(id -u):$(id -g)" \
+docker run --rm -v "$PWD:/work" -w /work \
   ghcr.io/the-running-dev/docs-template:latest \
   Invoke-DocsBuild -SourceDocs /work/docs -OutputPath /work/artifacts/docs
 ```
+
+No `--user` here — see the warning under *Deploying* above.
 
 Then push the W0 branch and verify `CI / engine`, *Documentation links and terminology*,
 and *Verify Documentation Build* all run successfully. On a pull request nothing is

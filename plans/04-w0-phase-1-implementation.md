@@ -617,10 +617,19 @@ pwsh ./build/Test-Documentation.ps1
 ```
 
 ```bash
-docker run --rm -v "$PWD:/work" -w /work --user "$(id -u):$(id -g)" \
+docker run --rm -v "$PWD:/work" -w /work \
   ghcr.io/the-running-dev/docs-template:latest \
   Invoke-DocsBuild -SourceDocs /work/docs -OutputPath /work/artifacts/docs
 ```
+
+**No `--user` here.** Found during this implementation: `--user` makes `Invoke-DocsBuild`
+fail outright with `Access to the path '/template/Dockerfile' is denied.` — it overlays
+onto `/template`, which is root-owned in the image, so a non-root user can't write there.
+`Invoke-SetupDocs` needs `--user` because it writes only into the mounted `/work`;
+`Invoke-DocsBuild` does not, and carrying the flag over breaks it. Corrected everywhere it
+appeared in [`02-w0-ci-workflow.md`](02-w0-ci-workflow.md). CI is unaffected — the
+installed `docs-ci.yml` runs this inside a `container:` job with no `user:` override, so it
+already runs as root.
 
 Finally:
 

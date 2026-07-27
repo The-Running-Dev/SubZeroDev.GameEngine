@@ -16,13 +16,13 @@ logic (`kinds`), and content (`campaigns`) as data. v1 targets two kinds — `st
 ## Status
 
 - **Specs:** the MVP contracts are finalized — the story-graph kind
-  ([`03`](docs/docs/engine/03-story-graph-kind.md)) and the core
-  ([`04-core`](docs/docs/engine/04-core.md)). See [MVP.md](docs/docs/engine/MVP.md).
+  ([`03`](https://game-engine.subzerodev.com/docs/engine/story-graph-kind)) and the core
+  ([`04-core`](https://game-engine.subzerodev.com/docs/engine/core)). See [MVP.md](https://game-engine.subzerodev.com/docs/engine/mvp).
   Every MVP-blocking gap is now decided; the register
-  ([OPEN-QUESTIONS.md](docs/docs/engine/OPEN-QUESTIONS.md) §1) is a decision log.
-- **Code:** [`src/engine/`](src/engine/) — seeded PCG32 RNG and canonical serialization,
+  ([OPEN-QUESTIONS.md](https://game-engine.subzerodev.com/docs/engine/open-questions) §1) is a decision log.
+- **Code:** [`src/engine/`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/tree/main/src/engine) — seeded PCG32 RNG and canonical serialization,
   verified bit-identical to reference vectors; toolchain green (15 tests).
-- **Next:** [TODO.md](docs/docs/engine/TODO.md) breaks the MVP into ordered units of work
+- **Next:** [TODO.md](https://game-engine.subzerodev.com/docs/engine/todo) breaks the MVP into ordered units of work
   (W0–W19). W0 adds CI and docs-build gates; W1 then adds the core contract types and
   module skeleton.
 
@@ -30,10 +30,10 @@ logic (`kinds`), and content (`campaigns`) as data. v1 targets two kinds — `st
 
 | Path | What |
 |---|---|
-| [`docs/docs/engine/`](docs/docs/engine/) | The specs — `01-vision`, `02-architecture`, `04-core` (the API/types), `03-story-graph-kind`, `MVP`, `TODO`, `OPEN-QUESTIONS` |
-| [`src/engine/`](src/engine/) | The implementation (TypeScript strict, vitest, determinism-guard eslint) |
+| [`docs/docs/engine/`](https://game-engine.subzerodev.com/docs/engine/vision) | The specs — `01-vision`, `02-architecture`, `04-core` (the API/types), `03-story-graph-kind`, `MVP`, `TODO`, `OPEN-QUESTIONS` |
+| [`src/engine/`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/tree/main/src/engine) | The implementation (TypeScript strict, vitest, determinism-guard eslint) |
 | `docs/` | The specs are a Docusaurus site; `docs/docs/` is its content root |
-| [`docs.ps1`](docs.ps1) | Build & serve the docs site |
+| [`docs.ps1`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/docs.ps1) | Build & serve the docs site |
 
 ## Build the Docs Site
 
@@ -62,11 +62,11 @@ byte-for-byte from a seed and its inputs.
 
 ## Where to Start Reading
 
-1. [Vision](docs/docs/engine/01-vision.md) — why the platform exists
-2. [Architecture](docs/docs/engine/02-architecture.md) — every settled decision
-3. [The core](docs/docs/engine/04-core.md) — the platform as types
-4. [Story-graph kind](docs/docs/engine/03-story-graph-kind.md) — the flagship content model
-5. [MVP](docs/docs/engine/MVP.md) + [TODO](docs/docs/engine/TODO.md) — what ships first, in order
+1. [Vision](https://game-engine.subzerodev.com/docs/engine/vision) — why the platform exists
+2. [Architecture](https://game-engine.subzerodev.com/docs/engine/architecture) — every settled decision
+3. [The core](https://game-engine.subzerodev.com/docs/engine/core) — the platform as types
+4. [Story-graph kind](https://game-engine.subzerodev.com/docs/engine/story-graph-kind) — the flagship content model
+5. [MVP](https://game-engine.subzerodev.com/docs/engine/mvp) + [TODO](https://game-engine.subzerodev.com/docs/engine/todo) — what ships first, in order
 
 ---
 
