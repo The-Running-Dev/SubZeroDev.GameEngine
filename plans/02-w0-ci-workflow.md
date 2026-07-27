@@ -1,6 +1,8 @@
 # W0 — CI Workflow Plan
 
-**Status:** Proposed for review
+**Status:** **Approved — ready to implement in this repository.** Not yet implemented:
+`.github/workflows/` does not exist here, `src/engine/package.json` has no `engines` field,
+and `@types/node` is still `^22.0.0`. `TODO.md` W0 stays open until all three land here.
 
 **Unit:** `docs/docs/engine/TODO.md` — W0
 
