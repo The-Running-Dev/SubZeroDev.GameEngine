@@ -465,13 +465,20 @@ identifiable in GitHub.
     copies `static/` verbatim into the build output.
 
 14. **Make the three pull-request checks required** on the default branch, or a red run
-    reports without blocking:
+    reports without blocking. `CI / engine` is the human-readable label GitHub's UI shows
+    (workflow name / job name); the required-status-check **context** a config must use is
+    the job name alone — confirmed via the check-runs API before configuring:
 
     ```text
-    CI / engine
+    engine
     Documentation links and terminology
     Verify Documentation Build
     ```
+
+    This repository uses a **ruleset**, not classic branch protection (`GET
+    .../branches/main/protection` 404s here) — add a `required_status_checks` rule to the
+    ruleset with the three contexts above, each pinned to the GitHub Actions app
+    (`integration_id: 15368`), rather than using the classic protection API.
 
     **Do not require `Build and Deploy Documentation`.** It is declared in
     `docs-deploy.yml`, which triggers only on `push` to `main` and `workflow_dispatch` — it

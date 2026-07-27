@@ -582,13 +582,71 @@ contradicts the keep-local-config decision), or add a root landing page under
 
 ### Verification Checklist
 
-- [ ] Three pull-request checks are required on `main`.
-- [ ] Deploy is not configured as a pull-request requirement.
-- [ ] First main-branch deploy succeeds.
-- [ ] `https://game-engine.subzerodev.com/docs/` serves the generated homepage.
-- [ ] The bare root's 404 is **recorded as expected**, not reported as a deployment
-      failure.
-- [ ] HTTPS enforcement is enabled.
+- [x] Three pull-request checks are required on `main`. Configured on the repository
+      **ruleset** `Main` (id `19779713`) — this repo uses rulesets, not classic branch
+      protection, which is why `GET .../branches/main/protection` 404s. Added a
+      `required_status_checks` rule with contexts `engine`,
+      `Documentation links and terminology`, `Verify Documentation Build`, each pinned to
+      the GitHub Actions app (`integration_id: 15368`). The context is the check-run
+      **name** as GitHub reports it (`engine`, not the workflow-qualified `CI / engine`
+      the plan prose uses as shorthand elsewhere — verified via the check-runs API before
+      configuring, so the literal string matters here).
+- [x] Deploy is not configured as a pull-request requirement — confirmed absent from the
+      ruleset's required-checks list.
+- [ ] First main-branch deploy succeeds. **Not yet — PR #3 is not merged.** Deploy runs
+      only on push to `main`; this item completes once merge is authorized.
+- [ ] `https://game-engine.subzerodev.com/docs/` serves the generated homepage. Same
+      dependency as above.
+- [x] The bare root's 404 is **recorded as expected**, not reported as a deployment
+      failure — see A2 above and the "Bare Root" note; both `/` and `/docs/` currently
+      404 because nothing is deployed yet, which is the pre-deploy state, not the
+      post-deploy end state this note describes.
+- [ ] HTTPS enforcement is enabled. Deferred with the deploy items — the Pages API shows
+      `https_enforced: false` today; re-check once the first deploy has run.
+
+### Red-Path Proof — Evidence
+
+W0's Definition of Done requires a deliberate failure to turn each check red, independently,
+with run URLs recorded. Executed on a temporary branch (`codex/w0-red-path-proof`, PR
+[#4](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/4), closed without
+merging and deleted after this evidence was captured):
+
+Three isolated failures, chosen so each trips exactly one check — verified locally before
+push, then confirmed remotely:
+
+- **`engine`** — a failing test (`src/engine/src/core/__redpath.test.ts`,
+  `expect(true).toBe(false)`).
+- **`Documentation links and terminology`** — a broken relative link added to `agent.md`.
+  Placed **outside** the Docusaurus content tree (`docs/`) deliberately, so it does not
+  also trip the production build.
+- **`Verify Documentation Build`** — a broken **site-absolute** route
+  (`/docs/engine/does-not-exist`) added to `docs/docs/engine/TODO.md`. The gate's own
+  source skips `http(s)` and leading-`/` targets outright (`Test-Documentation.ps1`,
+  `Test-DocumentationLink`), so an absolute route trips only Docusaurus's own
+  `onBrokenLinks`, not the gate — confirmed by running the gate locally first, which
+  reported exactly one error, not two.
+
+| Check | Conclusion | Confirmed cause | Run |
+|---|---|---|---|
+| `engine` | ❌ failure | `AssertionError: expected true to be false` | [job](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/30301712349/job/90096018603) |
+| `Documentation links and terminology` | ❌ failure | `agent.md:92:27 [Error] MarkdownLink: Link target 'docs/does-not-exist.md' does not exist.` | [job](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/30301712368/job/90095977912) |
+| `Verify Documentation Build` | ❌ failure | `Broken link on source page path = /docs/engine/todo: -> linking to /docs/engine/does-not-exist` | [job](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/30301712368/job/90095978045) |
+
+A fourth, incidental result confirms a feature from `plans/02` that had not been directly
+observed until now: an earlier `engine` run on this same branch/PR shows
+[`conclusion: cancelled`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/30301700467/job/90095939239)
+— the `concurrency` group correctly cancelled a superseded run for the same branch.
+
+After capturing the above, the three failures were reverted in a single commit
+(`git revert --no-edit`), pushed, and all three checks returned green:
+
+| Check | Conclusion |
+|---|---|
+| `engine` | ✅ success |
+| `Documentation links and terminology` | ✅ success |
+| `Verify Documentation Build` | ✅ success |
+
+PR #4 closed without merge; `codex/w0-red-path-proof` deleted, both locally and on origin.
 
 ### Anti-Pattern Guards
 
@@ -640,17 +698,38 @@ git status --short
 
 ### Acceptance Checklist
 
-- [ ] Only the allowed Phase 1 file surface changed.
-- [ ] Engine clean install, typecheck, lint, and all 15 tests pass.
-- [ ] Documentation gate and production build pass.
-- [ ] Generated homepage is reproducible.
-- [ ] Installed workflows remain unedited.
-- [ ] Existing Docusaurus overlay remains intact.
-- [ ] Sidebar verified: homepage at top level, `engine/` order unchanged (A1).
-- [ ] Bare-root 404 recorded as an expected end state, not a defect (A2).
-- [ ] External state is reported accurately, with DNS recorded as already working.
-- [ ] W0 Phase 2 and Phase 3 remain unstarted.
-- [ ] W1 remains unstarted.
+- [x] Only the allowed Phase 1 file surface changed.
+- [x] Engine clean install, typecheck, lint, and all 15 tests pass.
+- [x] Documentation gate and production build pass.
+- [x] Generated homepage is reproducible — regenerated from the corrected README with the
+      install-time parameters and matches.
+- [x] Installed workflows remain unedited — diffed byte-for-byte against the image
+      templates.
+- [x] Existing Docusaurus overlay remains intact.
+- [x] Sidebar verified: `docs/docs/index.md` carries `sidebar_position: 1` at the top
+      level; every `docs/docs/engine/*.md` position is unchanged (1–7, `04-core` still
+      before `03-story-graph-kind`) (A1).
+- [x] Bare-root 404 recorded as an expected end state, not a defect (A2).
+- [x] External state is reported accurately, with DNS recorded as already working.
+- [x] Required checks configured on the ruleset; red-path proof captured with run URLs
+      and reverted to green — both recorded above.
+- [x] W0 Phase 2 and Phase 3 remain unstarted (this refers to `plans/02`'s Phase 2/3
+      verification phases — distinct from this document's own numbering, where Phases 3–6
+      *are* this implementation's scope and are what's now complete).
+- [x] W1 remains unstarted.
+
+### Still Outstanding — Requires Merging PR #3
+
+Everything above is complete without merging. Two items in this plan's Phase 6 checklist
+cannot be — they depend on `docs-deploy.yml`, which triggers only on push to `main`:
+
+- First deploy to `https://game-engine.subzerodev.com/docs/`.
+- HTTPS enforcement (`https_enforced` is `false` today; check again once a deploy has run —
+  GitHub may only offer the toggle after Pages has served the site once).
+
+Per instruction, **merging is paused for explicit confirmation** before it happens — it
+publishes a live site under a real custom domain, which is a different order of consequence
+than anything else in this plan.
 
 ## Peer-Review Order
 

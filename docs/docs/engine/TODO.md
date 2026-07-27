@@ -70,7 +70,7 @@ server, and Docusaurus enforces `onBrokenLinks` only during a production build, 
 it the repo's `throw` setting gates nothing. Also pins the Node floor (`engines`) so CI and
 local cannot drift, generates the site homepage from `README.md`, and publishes the site.
 - **Depends on:** nothing.
-- **Done when:** `CI / engine` plus the gate and the docs build all run green on a push; a
+- **Done when:** `engine` plus the gate and the docs build all run green on a push; a
   newer run for the same repository branch cancels its superseded push/PR run; Pages is
   enabled and a push to `main` has deployed to the real published URL; the three
   pull-request checks are required on the default branch (deploy runs only on `main`, so
@@ -78,7 +78,22 @@ local cannot drift, generates the site homepage from `README.md`, and publishes 
   floor while CI runs Node 24; and three deliberate failures — a failing test, a broken
   README link, a broken spec link — have each turned their own check red, with run URLs
   recorded.
-- **Plan:** [`plans/02-w0-ci-workflow.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/02-w0-ci-workflow.md)
+  - [x] Workflow authored, docs system installed, README converted, Node 24 aligned — all
+        green remotely on [PR #3](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/3).
+  - [x] Required checks configured on the `main` ruleset (`engine`,
+        *Documentation links and terminology*, *Verify Documentation Build*; deploy
+        excluded).
+  - [x] Red-path proof captured and reverted to green, with run URLs — full evidence in
+        [`plans/04-w0-phase-1-implementation.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/04-w0-phase-1-implementation.md).
+  - [ ] First deploy to `main` — blocked on merging PR #3, paused for explicit
+        confirmation since it publishes a live site to a real custom domain.
+  - [ ] HTTPS enforcement — depends on the first deploy.
+  - **Known, deliberate end state, once deployed:** `routeBasePath` stays `'docs'`, so
+    `https://game-engine.subzerodev.com/docs/` will serve while the bare
+    `https://game-engine.subzerodev.com/` **404s** — not a defect, a URL-structure choice
+    left open for a later unit. The generated homepage also adds a new top-level sidebar
+    entry above the `engine` category; ordering inside `engine/` is unaffected.
+- **Plan:** [`plans/02-w0-ci-workflow.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/02-w0-ci-workflow.md), [`plans/04-w0-phase-1-implementation.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/04-w0-phase-1-implementation.md)
 
 ### W1 — Core Contract Types and Module Skeleton
 Create the module tree of 04 §1.1 (`kernel`, `session`, `persistence`, `projection`,
@@ -320,3 +335,30 @@ Walk [`MVP.md`](MVP.md) §5 and attach test evidence to each box.
       `--force` moves vitest 2 → 4 and eslint 9 → 10. **Deferred deliberately**; revisit as
       a single toolchain upgrade once the determinism harness (W18) can prove the upgrade
       changed no behaviour.
+- [ ] **Three `docs-template` hardening findings, to raise upstream — after this PR
+      merges, not before.** Surfaced by automated review on
+      [PR #3](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/3); all three
+      sit in files installed verbatim from `ghcr.io/the-running-dev/docs-template` (not
+      authored in this repo), and this repo's own W0 decision is to never hand-edit
+      installer-owned files — so the fix belongs in the `docs-template` project, filed as
+      a separate PR there once this one is settled:
+  - `docs-ci.yml` / `docs-deploy.yml` pin `ghcr.io/the-running-dev/docs-template:latest`,
+    a mutable tag — non-reproducible, silent behaviour drift possible on future runs.
+    Checked whether the installer's own `-BaseImage` avoids this without an upstream
+    change: it doesn't — repinning an already-installed file needs `-Overwrite`, which
+    would also replace this repo's five preserved local files (`docusaurus.config.ts`,
+    `sidebar.ts`, `Dockerfile`, `.dockerignore`, `docs.ps1`). A fix needs a pin mechanism
+    scoped to just the docs workflows, independent of `-Overwrite`.
+  - `build/Test-Documentation.ps1`'s link validator resolves relative targets with
+    `Join-Path` + `GetFullPath` and only checks `Test-Path`, without constraining the
+    result to stay under `$Root` — a `../../` link can resolve outside the repository and
+    still "pass." Not currently exploitable here (no `../`-style links exist in this
+    repo's docs today); a validator-correctness gap, not a live defect.
+  - Same script's file enumeration (`Get-DocumentationFile`) recurses every directory
+    before applying `ExcludedSegments`, so excluded trees (`.git`, `node_modules`) are
+    still walked. Performance only, tagged "Optional" by the reviewer.
+  - Full findings, the verification behind declining each in this repo, and the reply
+    text posted on each review thread: PR #3, review comments
+    [1](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/3#discussion_r3660515997),
+    [2](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/3#discussion_r3660516002),
+    [3](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/3#discussion_r3660516006).
