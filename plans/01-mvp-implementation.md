@@ -1,10 +1,11 @@
 # Game Engine MVP — Implementation Plan
 
-**Status:** Proposed for peer review  
-**Branch:** `rename-game-engine`  
-**Scope:** Complete and review the Game Engine rename already present on this branch,
-then implement the finalized story-graph MVP without silently altering the authoritative
-specifications.
+**Status:** Approved — PR #1 merged; execution starts at W0
+
+**Merged:** `f5cfb71` — Rename Narrative Engine to Game Engine (#1)
+
+**Scope:** Implement the finalized story-graph MVP without silently altering the
+authoritative specifications. The Game Engine rename and contract review are complete.
 
 ## Authority and Change Control
 
@@ -102,14 +103,13 @@ mandatory branch-acceptance check, not optional follow-up. Confirm:
 - Heading-case changes do not break anchors or cross-document links.
 - Existing links to companion repositories still resolve as intended.
 - No leftover template documentation appears in the generated sidebar.
-- Broken anchors or links fail branch acceptance even though the current Docusaurus
-  configuration reports them as warnings.
+- Broken anchors or links fail the Docusaurus build and branch acceptance.
 - Visual inspection evidence is recorded for navigation, representative pages, and the
   generated sidebar before peer-review approval.
 
 ### Documentation References
 
-- The complete branch diff: `git diff main...rename-game-engine`.
+- The merged rename diff: `git show f5cfb71`.
 - Documentation build instructions: `README.md`, “Build the Docs Site.”
 - Docusaurus configuration: `docs/docusaurus.config.ts` and `docs/sidebar.ts`.
 - Docker wrapper: `docs.ps1` and `docs/Dockerfile`.
@@ -117,17 +117,17 @@ mandatory branch-acceptance check, not optional follow-up. Confirm:
 
 ### Verification Checklist
 
-- [ ] The private package identifier and implementation README use the approved
+- [x] The private package identifier and implementation README use the approved
       `game-engine` / “Game Engine” names.
-- [ ] Every heading in every tracked Markdown document uses Title Case.
-- [ ] Code identifiers, acronyms, and product names retain their canonical casing inside
+- [x] Every heading in every tracked Markdown document uses Title Case.
+- [x] Code identifiers, acronyms, and product names retain their canonical casing inside
       headings.
-- [ ] Full-repository searches find no stale user-facing “Narrative Engine” branding.
-- [ ] Remaining `narrative-engine` occurrences match the B1 decision.
-- [ ] `git diff --check main...HEAD` passes.
-- [ ] The docs image builds successfully.
-- [ ] Rendered navigation, headings, anchors, and links are visually checked.
-- [ ] Peer review approves the completed rename before implementation work is layered
+- [x] Full-repository searches find no stale user-facing “Narrative Engine” branding.
+- [x] Remaining `narrative-engine` occurrences match the B1 decision.
+- [x] `git diff --check main...HEAD` passes.
+- [x] The docs image builds successfully.
+- [x] Rendered navigation, headings, anchors, and links are visually checked.
+- [x] Peer review approves the completed rename before implementation work is layered
       onto the branch.
 
 ### Anti-Pattern Guards
@@ -363,12 +363,12 @@ forbidding deliberate vignettes or test campaigns.
 
 ### Phase 0 Verification
 
-- [ ] D1–D4 have explicit dispositions before core implementation begins.
-- [ ] D5 is resolved before achievement persistence.
-- [ ] D6 is resolved before the text client renders reasons.
-- [ ] D7 is resolved before authored campaign content is loaded.
+- [x] D1–D4 have explicit dispositions before core implementation begins.
+- [x] D5 is resolved before achievement persistence.
+- [x] D6 is resolved before the text client renders reasons.
+- [x] D7 is resolved before authored campaign content is loaded.
 - [ ] D8 is represented in initial-settlement and validation tests.
-- [ ] No specification has been silently changed to accommodate implementation.
+- [x] No specification has been silently changed to accommodate implementation.
 
 ### Phase 0 Anti-Pattern Guards
 
@@ -721,14 +721,14 @@ text-client, and MCP scenarios required by `MVP.md`.
 
 Reviewers should confirm:
 
-- [ ] The plan copies authoritative contracts rather than inventing APIs.
-- [ ] B1–B3 cover completion and validation of the branch’s existing rename work.
-- [ ] D1–D8 identify every known decision that can change implementation.
-- [ ] Phase boundaries follow dependency order and can run in separate contexts.
-- [ ] Each phase has explicit verification and anti-pattern guards.
-- [ ] Profile and session persistence remain outside deterministic `GameState`.
-- [ ] Core/kind/campaign ownership is not duplicated.
-- [ ] Text and MCP remain presentation adapters over one session surface.
+- [x] The plan copies authoritative contracts rather than inventing APIs.
+- [x] B1–B3 cover completion and validation of the branch’s existing rename work.
+- [x] D1–D8 identify every known decision that can change implementation.
+- [x] Phase boundaries follow dependency order and can run in separate contexts.
+- [x] Each phase has explicit verification and anti-pattern guards.
+- [x] Profile and session persistence remain outside deterministic `GameState`.
+- [x] Core/kind/campaign ownership is not duplicated.
+- [x] Text and MCP remain presentation adapters over one session surface.
 - [ ] The final evidence matches the complete MVP Definition of Done.
 
 ## Suggested Review Order

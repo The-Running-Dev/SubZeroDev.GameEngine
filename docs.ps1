@@ -20,13 +20,13 @@
     Host port to publish (container serves on 3000). Default 3000.
 
 .PARAMETER Tag
-    Image tag to build. Default 'gameoflife-docs'.
+    Image tag to build. Default 'game-engine-docs'.
 
 .PARAMETER BaseImage
     Base image passed as the Dockerfile BASE_IMAGE build-arg.
 
 .EXAMPLE
-    ./docs.ps1                 # build, run baked, serve http://localhost:3000/docs
+    ./docs.ps1                 # build, run baked, serve http://localhost:3000/docs/engine/vision
 .EXAMPLE
     ./docs.ps1 -Live           # build, run with hot-reload from docs/
 .EXAMPLE
@@ -37,7 +37,7 @@ param(
     [switch]$Live,
     [switch]$BuildOnly,
     [int]$Port = 3000,
-    [string]$Tag = 'gameoflife-docs',
+    [string]$Tag = 'game-engine-docs',
     [string]$BaseImage = 'ghcr.io/the-running-dev/docs-template:latest'
 )
 
@@ -80,5 +80,5 @@ if ($Live) {
 
 $runArgs += $Tag
 
-Write-Host "Serving at http://localhost:$Port/docs  (Ctrl+C to stop)" -ForegroundColor Green
+Write-Host "Serving at http://localhost:$Port/docs/engine/vision  (Ctrl+C to stop)" -ForegroundColor Green
 docker @runArgs

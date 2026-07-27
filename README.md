@@ -40,7 +40,7 @@ Requires Docker Desktop (base image `ghcr.io/the-running-dev/docs-template`, ove
 the local config).
 
 ```powershell
-./docs.ps1            # build + serve at http://localhost:3000/docs
+./docs.ps1            # build + serve at http://localhost:3000/docs/engine/vision
 ./docs.ps1 -Live      # + hot-reload while editing docs/
 ./docs.ps1 -BuildOnly # build the image only
 ```

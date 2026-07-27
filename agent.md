@@ -62,7 +62,11 @@ only when it would have changed a decision.
 - **The docs-site base image is unverified.** `docs.ps1` builds on
   `ghcr.io/the-running-dev/docs-template`; we *assume* `@docusaurus/preset-classic` (v3),
   port 3000, `sidebar.ts`. `COPY` can't delete, so leftover template docs may show in the
-  sidebar. Confirmed only against one local run.
+  sidebar. Confirmed only against one local run. The site lands on
+  `/docs/engine/vision`, not `/docs`.
+- **Broken links now fail the docs build** (`onBrokenLinks: 'throw'`). Renaming a heading
+  or a file breaks anchors *silently* under `warn`; under `throw` the build catches it.
+  Run the docs build before merging any doc rename.
 
 ## Orientation in One Paragraph
 
