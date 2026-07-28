@@ -303,14 +303,24 @@ Stated plainly, because this reverses the strict-gating decision above:
   `docs/docs/index.md`. Renaming or removing a spec page would break them silently. Grep for
   site-absolute links by hand when changing a page's slug.
 - **`onBrokenMarkdownLinks` was later relaxed too, deliberately, not for symmetry alone.**
-  It never saw the navbar link, so relaxing it gives up nothing beyond what the paragraph
-  above already gave up: every relative link and heading anchor it would have checked is the
-  exact class `build/Test-Documentation.ps1` hard-fails on (its line 391 excludes only
-  `http(s)`/`mailto`/`ftp` and site-absolute targets — everything else, it already gates).
-  Relaxing it puts `docs/docusaurus.config.ts` at exact template-default parity on both
-  settings, removing a local deviation that would otherwise need re-justifying against every
-  `Invoke-SetupDocs -Overwrite` re-run. The one residual gap neither check now covers: a link
-  form the gate's regex fails to parse.
+  It never saw the navbar link, so relaxing it gives up almost nothing beyond what the
+  paragraph above already gave up: every relative link and heading anchor it would have
+  checked is the class `build/Test-Documentation.ps1` hard-fails on (its line 391 excludes
+  only `http(s)`/`mailto`/`ftp` and site-absolute targets). Relaxing it puts
+  `docs/docusaurus.config.ts` at exact template-default parity on both settings, removing a
+  local deviation that would otherwise need re-justifying against every
+  `Invoke-SetupDocs -Overwrite` re-run.
+
+  **Precisely stated, the residual gap:** the gate extracts link targets with
+  `!?\[[^\]]*\]\(\s*([^)\s]+)…\)`, a capture group that excludes whitespace and `)`. A
+  relative target containing either — `./some file.md`, `./foo(bar).md` — fails that match
+  entirely and is silently invisible to the gate. Before this change, `onBrokenMarkdownLinks:
+  'throw'` was a backstop against exactly that case; now nothing is. **Checked and confirmed
+  not live**: no file name or link target anywhere in this repository contains a space or a
+  `)` (verified by scanning every relative link target in `docs/docs/`, `plans/`, `agent.md`,
+  `CLAUDE.md`). Recorded here rather than fixed, because closing it properly means teaching
+  the gate's regex real Markdown link-target grammar — a parser-correctness change to a
+  hard-fail check, worth its own review rather than folding into a documentation-drift PR.
 
 The narrower fix that would have kept `'throw'` — pointing the navbar brand at `/docs/` via
 `navbar.logo.href` — needs a `logo.src`, so it puts an image in the navbar the site does not

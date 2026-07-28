@@ -82,7 +82,7 @@ only when it would have changed a decision.
   spec page, grep for site-absolute links to it by hand — today that means the generated
   homepage, `docs/docs/index.md`. `onBrokenMarkdownLinks` is `'warn'` too, but that gives up
   nothing the gate doesn't already hard-fail on for relative links — the one residual gap is
-  a link form the gate's regex fails to parse. `'warn'` on `onBrokenLinks` is deliberate: it
+  a link syntax the gate's regex fails to parse. `'warn'` on `onBrokenLinks` is deliberate: it
   is what lets `docs/static/index.html` claim the site root, since the navbar brand links to
   `/` and a static file never satisfies a route checker. See `plans/02-w0-ci-workflow.md`.
 

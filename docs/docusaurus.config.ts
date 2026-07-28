@@ -22,7 +22,7 @@ import type * as Preset from '@docusaurus/preset-classic';
  * would otherwise cover, so nothing is given up by relaxing it. That gate does
  * deliberately skip site-absolute targets (its line 391), on the assumption
  * Docusaurus owned them; those are warned about only -- today that is the twelve
- * /docs/engine/... links in the generated homepage. A link form the gate's regex
+ * /docs/engine/... links in the generated homepage. A link syntax the gate's regex
  * fails to parse is the one residual gap neither check covers.
  */
 const config: Config = {
