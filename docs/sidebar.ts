@@ -46,6 +46,7 @@ const sidebars: SidebarsConfig = {
         'engine/clients',
         'engine/simulation-kind',
         'engine/content-packs',
+        'engine/management-simulation-kind',
       ],
     },
     {

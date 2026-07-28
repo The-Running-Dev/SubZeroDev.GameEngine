@@ -59,7 +59,30 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   `history` is **not adopted** until it is established what it holds that `StateChange` does
   not — most likely player-facing narrative framing, which would make it a projection
   concern rather than state. **Revisit when** the simulation kind's field detail is ported
-  (10 §14).
+  (10 §14). The same question arises for `management-simulation`, which declines `history`
+  on identical grounds ([`12-management-simulation-kind.md`](12-management-simulation-kind.md)
+  §3) — resolve both together or not at all.
+- **`previewAction`, and the tenth API operation it implies** — a spatial kind must be able
+  to check a parameterized action before committing it, and the only check available today
+  is to submit and rely on rejection leaving state unchanged (04 §4). That routes a read
+  through a write path, and clients hold projections rather than state (09 §1), so they
+  cannot call the pure engine themselves. 12 §7 specifies `previewAction` as *the same*
+  `advance` call with the result discarded — it cannot drift, which is why a separate
+  validator was rejected. **The consequence is that [`09-clients.md`](09-clients.md) §4's
+  coverage checklist becomes ten operations and ten MCP tools rather than nine and nine.**
+  That checklist is an MVP Definition-of-Done item and this kind is post-MVP, so 09 is
+  deliberately **not** amended yet. **Revisit when** the `management-simulation` kind is
+  built — and amend 09, `MVP.md` §5 and the MCP surface (04 §13) in one change, not three.
+- **A shared simulation substrate for tick-driven kinds** — `simulation` and
+  `management-simulation` are the same archetype: mutate pending configuration, then resolve
+  a block of simulated time through an ordered system pipeline (12 §2). Both hand-roll that
+  pipeline, and it is where determinism defects concentrate — the two-phase time ordering in
+  10 §3 is exactly the class of bug a shared, tested runner would stop recurring per kind. A
+  `SystemPipeline` in the core (ordered registration, deterministic per-system stream keying,
+  stable iteration, derived entity ids) would make kind N+1 cheaper. **Not extracted now:**
+  one built instance is not a pattern, and `simulation` is not built. **Revisit when** the
+  second tick-driven kind is actually implemented, so the abstraction is drawn from two real
+  cases rather than one and a specification.
 - **Third-party kinds, and the sandbox they would require** — architecture §1 **N2**
   rejected downloadable code kinds as a security and reproducibility hazard, and
   [`06-extensibility.md`](06-extensibility.md) §7 leaves that standing. It is a rejected

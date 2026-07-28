@@ -381,6 +381,27 @@ themselves.
 - [ ] "Stable Life" scenario playable to a win and a loss.
 - [ ] Its Definition of Done: `games/life-in-the-fast-lane.md`.
 
+### Depth: Sun Trap (The `management-simulation` Kind)
+
+The third kind, and the first spatial one. **Specified —**
+[`12-management-simulation-kind.md`](12-management-simulation-kind.md) fixes the seam; the
+game it serves lives in its own repository (12 §17).
+
+- [ ] **`KindContext.derive` and the `tick` stream** (04 §3.1, §8). Both are specified and
+      both are gaps `simulation` shares — its NPC draws need `agent` streams that no kind
+      could reach either. Build them with whichever kind lands first, not twice.
+- [ ] **`previewAction` and the tenth API pairing** — see
+      [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §2. Amend 09 §4, `MVP.md` §5 and the MCP
+      surface (04 §13) together.
+- [ ] Build the kind per 12: tick pipeline, guest and staff agents, pathfinding, queues,
+      construction, economy, incidents, objectives.
+- [ ] **Batch invariance is the acceptance test with teeth** (12 §5): `advance_ticks n`
+      reaches the same world as any split of it, compared as an `Outcome` (07 §3) rather
+      than as bytes, since the action logs legitimately differ.
+- [ ] Determinism beyond the seed (12 §9): integer arithmetic, no `Math.sqrt` in distance,
+      ties by entity id, canonical iteration order, derived entity ids, no serialized caches.
+- [ ] Its Definition of Done lives with the game, not here.
+
 ### Depth: Finish the Bulgaria Adventure
 
 - [ ] The remaining four arcs (Inheritance, Enterprise, Driving, Return).

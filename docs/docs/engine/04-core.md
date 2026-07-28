@@ -93,7 +93,7 @@ opaque payload inside it. This is the single most important type in the platform
 what `advance`, `serialize`, and the session store operate on.
 
 ```typescript
-type KindId = "story-graph" | "simulation";
+type KindId = "story-graph" | "simulation" | "management-simulation";
 
 interface GameState {
   formatVersion: number;         // the shape of THIS envelope — see §10.2
@@ -235,15 +235,27 @@ interface KindContext {
   readonly registry: ContentRegistry;   // §10 — the campaign and shared content
   readonly campaign: Campaign;           // this game's campaign, resolved
   readonly rng: RngHandle;               // handle on this resolution's own stream (§8)
+  readonly derive: (streamId: StreamId) => RngHandle;   // any other stream, same seed (§8)
   readonly seq: number;                  // current action sequence number
   readonly emit: ResolutionEmitter;      // this resolution's event handle (05 §4)
 }
 ```
 
 The kind draws randomness only from `ctx.rng` — a handle on the stream derived for
-*this* resolution from `(seed, streamId)`. The handle is discarded when `advance`
+*this* resolution from `(seed, streamId)` — or from `ctx.derive`, for the streams that are
+keyed by something other than the action. Either way the handle is discarded when `advance`
 returns; nothing is written back, because the next resolution derives its own stream
 from the seed again (§8). The kind stays pure and every draw stays reproducible.
+
+> **Why `derive` exists.** §8 defines four `StreamId` variants, but only a kind is ever in a
+> position to use three of them — the core cannot know that a draw belongs to *this guest's
+> fifth decision* rather than to the action in flight. Without `derive`, `ctx.rng` was the
+> only reachable stream and those variants were unreachable by construction. `derive` closes
+> over the game's `seed` and nothing else: it is pure, it persists nothing, and
+> `{ seed, actionLog }` remains the complete replay input. The kind that forced this is
+> `management-simulation`, whose correctness depends on draws keyed by simulated time rather
+> than by how a client batched its requests
+> ([`12-management-simulation-kind.md`](12-management-simulation-kind.md) §5).
 
 `ctx.emit` is the same shape for the same reasons: a handle scoped to this resolution,
 used and discarded, carrying nothing back into state. It reports what the kind is doing to
@@ -534,7 +546,8 @@ is no generator state to thread through the envelope (§2), and replay needs onl
 type StreamId =
   | { kind: "action"; seq: number }
   | { kind: "system"; system: string; seq: number }
-  | { kind: "agent"; agentId: string; seq: number };
+  | { kind: "agent"; agentId: string; seq: number }
+  | { kind: "tick"; tick: number; system: string };
 
 interface RngHandle {
   nextInt(minInclusive: number, maxInclusive: number): number;
@@ -555,12 +568,25 @@ It is exactly:
 { kind:"action", seq }             → `action:${seq}`
 { kind:"system", system, seq }     → `system:${system}:${seq}`
 { kind:"agent",  agentId, seq }    → `agent:${agentId}:${seq}`
+{ kind:"tick",   tick, system }    → `tick:${tick}:${system}`
 ```
 
 Substreams (games/04-engine-specification.md §3.2) mean adding a draw in one place never renumbers another, and
 a rival kind's draws never perturb the player's. The MVP uses the `action` stream for
 play plus one `system` stream, `system:"start"`, for `createGame`'s initial `settle`
 (§4); the machinery for more is already there.
+
+> **What goes in `agent.seq` is normative, and it is not the action seq.** It is the
+> *agent's own* draw counter, stored on that agent in `kindState` and incremented per draw.
+> Keying it to the action would make an agent's randomness depend on how many actions
+> preceded it, which is precisely what a per-agent stream exists to avoid.
+
+> **The `tick` variant is for world-level draws in a kind whose turn advances simulated
+> time** — guest spawning, incident rolls, weather. Keying them by `tick` rather than by
+> `seq` is what makes a batch of ticks produce the same result as the same ticks taken
+> singly; `12-management-simulation-kind.md` §5 states the property and why it is
+> load-bearing. `system` here names the drawing system, not a `StreamId` variant, so two
+> systems drawing on the same tick stay independent.
 
 > **`weightedPick` constrains content.** The built implementation requires every weight
 > to be a **positive integer** and throws otherwise. That makes it a load-time content

@@ -36,8 +36,9 @@ Clients   │ web · mobile · CLI · Discord · chat · MCP    │  presentatio
           └───────────────────────┬─────────────────────┘
                                   │  one API, one MCP surface
           ┌───────────────────────▼─────────────────────┐
-Kinds     │  story-graph        │        simulation      │  engine-owned logic
-          │  (nodes, choices)   │  (weekly tick, needs)  │
+Kinds     │ story-graph  │  simulation   │  management-   │  engine-owned logic
+          │ (nodes,      │  (weekly tick,│  simulation    │
+          │  choices)    │   needs)      │  (ticks, agents)│
           └───────────────────────┬─────────────────────┘
                                   │
           ┌───────────────────────▼─────────────────────┐
@@ -64,6 +65,60 @@ authoring produces. A new *kind* is an engine feature, added deliberately.
 > downloadable code kinds — puts arbitrary code inside a hosted deterministic engine,
 > a security and reproducibility hazard. Engine-owned kinds draw the clean line:
 > **kind = code (engine-owned), campaign = data (author-owned).**
+
+---
+
+## 1a. Is It a Kind? The Test
+
+§1 says a new kind is "an engine feature, added deliberately" but does not say how to tell
+one from a campaign. That question has now been asked three times — for `simulation`, for
+`management-simulation`, and implicitly every time a plugin mechanism is proposed — and
+answered each time from memory. It is the **first** question any new game raises, so it is
+written down here as a procedure.
+
+**The test:**
+
+> A kind exists only when its `advance` **cannot be expressed as validated data over an
+> existing kind.**
+
+Ask in order; stop at the first yes:
+
+1. **Can an existing kind's `advance` run it with different campaign data?** → It is a
+   **campaign**. This is the common case and the one §4a calls the volume play.
+2. **Can it run with different data plus content types that kind already interprets?** →
+   Still a **campaign**, possibly one that extends that kind's content schema.
+3. **Does it need new code inside `advance`, such that putting that code behind a
+   data-driven switch would amount to building a programming language?** → It is a **kind**.
+
+### Three things that never qualify
+
+| Not a reason | Why |
+|---|---|
+| **Richer or larger state** | `kindState` is `unknown` to the core ([`04-core.md`](04-core.md) §2). The core does not read it, so its size and shape cost the core nothing. If state richness qualified, any campaign with more variables would be a new kind |
+| **A different turn *quantum*** | `end_week` and `advance_ticks n` differ by a parameter, not a model. Both are *mutate pending configuration, then resolve a block of simulated time* |
+| **A different setting, theme, or locale** | That is precisely what a campaign and a culture pack are for (§4a) |
+
+### What it costs, so the test is worth applying
+
+A kind is a `KindId` widening, a full `Kind` implementation (04 §3), its own reason codes,
+event namespace, validator, projection and `outcome` — and because kinds are engine-owned
+(N2), **every new kind is an engine release.** A campaign is none of that.
+
+### Worked applications
+
+| Candidate | Verdict | By which step |
+|---|---|---|
+| Bulgaria adventure | Campaign | 1 — story-graph's `advance` runs it as data |
+| Life in the Fast Lane | Kind (`simulation`) | 3 — a weekly resolution pipeline over needs, jobs and events is not expressible as story-graph data |
+| Bulgaria culture pack | Campaign | 1 — same kind, replaced strings and campaigns (§4a) |
+| Resort management | Kind (`management-simulation`) | 3 — A\* pathfinding and guest utility scoring are code; a data-driven switch over them is the DSL N2 rejected ([`12-management-simulation-kind.md`](12-management-simulation-kind.md) §2) |
+| Mountain hotel, theme park, festival ground | **Campaign** | 1 — `management-simulation`'s `advance` runs all of them as data. This is the row that pays for the test |
+
+> **Why the last row matters most.** The resort draft proposed a kind by listing spatial
+> maps, hundreds of agents, queues and pathfinding — all *state*, which step 1's table
+> disqualifies. It reached the right answer for a reason that would also have licensed a
+> kind per resort theme. The test separates the two: one new kind, then every hotel, park
+> and nightclub after it is data.
 
 ---
 
