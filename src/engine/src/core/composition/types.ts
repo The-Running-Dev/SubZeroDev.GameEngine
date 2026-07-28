@@ -31,21 +31,27 @@ export interface IdSource {
  * the determinism guard bans `Date.now` in source to keep that structural.
  */
 export interface Clock {
-  now(): number;
+  /** ISO-8601. Used for session-store record timestamps and `EmittedRecord.emittedAt`
+   *  (05 §6) — the one place the platform reads a clock, and a named one. */
+  now(): string;
 }
 
-/** Composition root for the pure engine. */
+/**
+ * Composition root for the pure engine. Every port is supplied once, at construction,
+ * and never swapped afterwards — replacing a store mid-session would make every
+ * invariant in `04-core.md` conditional on when it was asked.
+ */
 export interface EngineHost {
-  kinds: KindRegistry;
-  registry: ContentRegistry;
-  ids?: IdSource;
-  emitter?: Emitter;
+  readonly kinds: KindRegistry;
+  readonly registry: ContentRegistry;
+  readonly ids?: IdSource;
+  readonly emitter?: Emitter;
 }
 
 /** Composition root for the session layer — the only place a clock appears. */
 export interface SessionHost {
-  engine: Engine;
-  sessions: SessionStore;
-  profiles?: ProfileStore;
-  clock?: Clock;
+  readonly engine: Engine;
+  readonly sessions: SessionStore;
+  readonly profiles?: ProfileStore;
+  readonly clock?: Clock;
 }

@@ -19,8 +19,9 @@ export interface ContentRegistry {
 
 /**
  * The runtime form: `LocKey`s only, no authored prose. Identity lives here and **not**
- * inside `content` — the envelope-duplication rule `CLAUDE.md` tracks (five occurrences)
- * is at its sharpest on this type.
+ * inside `content` — the envelope-duplication rule `CLAUDE.md` tracks is at its sharpest
+ * on this type. See `CLAUDE.md` for the ledger; the count is not repeated here, since a
+ * repeated count is exactly what has drifted before.
  */
 export interface Campaign {
   id: string;
