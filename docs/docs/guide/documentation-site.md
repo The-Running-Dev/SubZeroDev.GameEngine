@@ -20,32 +20,38 @@ image. This page covers building and checking it.
 
 ## What is authored, and what is generated
 
-Most of `docs/docs/` is authored directly. Two pages are not:
+Everything under `docs/docs/` is authored directly. **Exactly one page on the site is
+generated:**
 
-- **The site root** is generated from the repository's `README.md` into
-  `docs/src/pages/index.md`. **Do not edit it** — edit the README. Absolute
+- **The site root**, `docs/src/pages/index.md`, is generated from the repository's
+  `README.md`. **Do not edit it** — edit the README. Absolute
   `https://game-engine.subzerodev.com/…` links in the README are rewritten to site-relative
   ones as it is generated, which is what lets one file read correctly both on the code host
-  and here.
-- **The `/docs/` landing page** is ordinary authored content, listing the specs in reading
-  order.
+  and here. It is the only entry in `.config/DocumentationRules.psd1`'s `GeneratedFiles`, and
+  the gate fails the build if the committed copy and the generator disagree.
+
+The `/docs/` landing page is *not* generated, despite sitting next to it in the tree — it is
+ordinary authored content listing the specs in reading order. Edit it freely.
 
 The root being a real page rather than a redirect is what allows the strict link checking
 below: a redirect file serves a request but never satisfies a route checker.
 
-## Two link checks, and they do not overlap
+## Two link checks, overlapping in the middle
 
-Both run on every pull request, and both must pass.
+Both run on every pull request, and both must pass. They are complementary rather than
+disjoint: each covers ground the other cannot reach, and they agree in between.
 
-| Check | Covers |
-|---|---|
-| `build/Test-Documentation.ps1` | Relative links, heading anchors, terminology, and drift between a generated file and its source |
-| The Docusaurus production build | Site routes and anchors, including links the gate deliberately skips |
+| Check | Only it covers | Both cover |
+|---|---|---|
+| `build/Test-Documentation.ps1` | Markdown outside the site — `README.md`, `CLAUDE.md`, `agent.md`, `plans/` — plus terminology and generated-file drift | Relative links and their `#anchors` inside `docs/docs/` |
+| The Docusaurus production build | Site routes, and **site-absolute** targets like `/docs/engine/core`, which the gate skips by design | |
 
 `onBrokenLinks`, `onBrokenMarkdownLinks`, and `onBrokenAnchors` are all `throw`, so a renamed
-heading or a moved page fails the build rather than rotting quietly. The gate skips
-site-absolute targets by design, on the understanding that the build owns them — which is why
-relaxing either one leaves a gap.
+heading or a moved page fails the build rather than rotting quietly.
+
+The overlap is not waste — it is why a relative link is caught whichever tool runs first. The
+gaps are what matter: relax the gate and the files outside the site stop being checked; relax
+the build and site-absolute links stop being checked, because nothing else looks at them.
 
 ## The tooling is vendored, not forked
 

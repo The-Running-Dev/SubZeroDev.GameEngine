@@ -33,7 +33,10 @@ npm run lint    # determinism guard + typescript-eslint
 npm run typecheck
 ```
 
-Node 24 is the floor, enforced by `engines.node` so a local install and CI cannot drift apart.
+Node 24 is the floor. `engines.node` declares it and CI selects it explicitly, but npm treats
+`engines` as advisory unless `engine-strict` is set — which this repository does not set — so a
+local install on an older Node will warn rather than stop. The declaration states the floor;
+it does not enforce it.
 
 ## Determinism is enforced, not hoped for
 
