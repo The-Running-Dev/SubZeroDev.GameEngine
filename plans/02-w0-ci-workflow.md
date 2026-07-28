@@ -1,8 +1,8 @@
 # W0 — CI Workflow Plan
 
-**Status:** **Approved — ready to implement in this repository.** Not yet implemented:
-`.github/workflows/` does not exist here, `src/engine/package.json` has no `engines` field,
-and `@types/node` is still `^22.0.0`. `TODO.md` W0 stays open until all three land here.
+**Status:** **Implemented and accepted.** Landed in [PR #3](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/3)
+(`47342b3`) and refined in [PR #5](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/5)
+(`4e3effc`) — see *Final Acceptance* below. `TODO.md` W0 is closed.
 
 **Unit:** `docs/docs/engine/TODO.md` — W0
 
@@ -36,8 +36,9 @@ one command.
   subdirectory lockfile caching.
 - [Node.js release index](https://nodejs.org/dist/index.json) — the authority for which
   line is Active LTS. Checked, not assumed.
-- [`docs/docusaurus.config.ts`](../docs/docusaurus.config.ts) — `onBrokenLinks: 'throw'`,
-  and [`docs/Dockerfile`](../docs/Dockerfile) — the image the docs job builds.
+- [`docs/docusaurus.config.ts`](../docs/docusaurus.config.ts) — `onBrokenLinks: 'throw'` at
+  the time this plan was written; both Docusaurus checks are `'warn'` since PR #5, and
+  [`docs/Dockerfile`](../docs/Dockerfile) — the image the docs job builds.
 
 This plan does not amend the engine specifications. It implements only W0 and stops
 before W1.
@@ -45,6 +46,12 @@ before W1.
 ## Phase 0 — Documentation Discovery
 
 ### Confirmed Repository State
+
+> **Pre-W0 snapshot.** Every bullet below describes the repository before this plan was
+> implemented — no `.github/workflows/`, no `engines` field, `onBrokenLinks: 'throw'` gating
+> nothing for lack of a build that ran it. All of it changed once W0 landed; retained as the
+> discovery record this plan was built from, not as current state. See *Final Acceptance*
+> for what is true now.
 
 - No `.github/workflows/` directory exists.
 - The npm package lives at `src/engine/`.
@@ -218,7 +225,7 @@ W0 installs the documentation system rather than hand-writing a docs job. Settle
 | # | Decision | Consequence |
 |---|---|---|
 | 1 | **Generate the homepage** from `README.md` (no `-NoHomepage`) | The README's relative links must become absolute, or the gate fails — **15 occurrences across 10 unique targets**; see below |
-| 2 | **No `-Overwrite`** | Five files are reported *skipped* and survive with their local edits — `docs/docusaurus.config.ts`, `docs/sidebar.ts`, `docs/Dockerfile`, `docs/.dockerignore`, and `docs.ps1` — including the deliberate `onBrokenLinks: 'throw'`. Only the genuinely missing pieces land: `build/`, `.config/`, the two workflows, and the generated homepage |
+| 2 | **No `-Overwrite`** | Five files are reported *skipped* and survive with their local edits — `docs/docusaurus.config.ts`, `docs/sidebar.ts`, `docs/Dockerfile`, `docs/.dockerignore`, and `docs.ps1` — including `onBrokenLinks: 'throw'` at install time (later relaxed to `'warn'`, see *Final Acceptance*). Only the genuinely missing pieces land: `build/`, `.config/`, the two workflows, and the generated homepage |
 | 3 | **Enable GitHub Pages and publish** | Documentation deployment moves *into* W0's scope |
 
 Two consequences of combining 1 and 2 that must be handled explicitly, because neither is
@@ -295,8 +302,15 @@ Stated plainly, because this reverses the strict-gating decision above:
 - **Today's exposure: twelve links**, all `/docs/engine/…` in the generated homepage
   `docs/docs/index.md`. Renaming or removing a spec page would break them silently. Grep for
   site-absolute links by hand when changing a page's slug.
-- **`onBrokenMarkdownLinks` stays `'throw'`.** It never saw the navbar link, so relaxing it
-  for symmetry would give up coverage for nothing.
+- **`onBrokenMarkdownLinks` was later relaxed too, deliberately, not for symmetry alone.**
+  It never saw the navbar link, so relaxing it gives up nothing beyond what the paragraph
+  above already gave up: every relative link and heading anchor it would have checked is the
+  exact class `build/Test-Documentation.ps1` hard-fails on (its line 391 excludes only
+  `http(s)`/`mailto`/`ftp` and site-absolute targets — everything else, it already gates).
+  Relaxing it puts `docs/docusaurus.config.ts` at exact template-default parity on both
+  settings, removing a local deviation that would otherwise need re-justifying against every
+  `Invoke-SetupDocs -Overwrite` re-run. The one residual gap neither check now covers: a link
+  form the gate's regex fails to parse.
 
 The narrower fix that would have kept `'throw'` — pointing the navbar brand at `/docs/` via
 `navbar.logo.href` — needs a `logo.src`, so it puts an image in the navbar the site does not
@@ -504,8 +518,10 @@ identifiable in GitHub.
    ```
 
    The five skips are decision 2 working. If any is reported as *replaced* or *removed*,
-   stop: `-Overwrite` has leaked in and the local `onBrokenLinks: 'throw'` is about to be
-   lost.
+   stop: `-Overwrite` has leaked in and local edits — `url`, `title`, `routeBasePath`, the
+   navbar — are about to be lost. (`onBrokenLinks` and `onBrokenMarkdownLinks` are no longer
+   at risk here specifically: both now equal the template default of `'warn'`, per *Final
+   Acceptance*.)
 
 10. **Install** with the public `Invoke-SetupDocs` entry point — the dispatcher is fine for
     the real run, it is only `-WhatIf` that degrades — without `-Overwrite`. New files:
@@ -548,7 +564,10 @@ identifiable in GitHub.
     - **DNS:** a `CNAME` record for `game-engine.subzerodev.com` →
       `the-running-dev.github.io`.
     - **Repository:** *Settings* → *Pages* → *Custom domain* → `game-engine.subzerodev.com`,
-      then **Enforce HTTPS** once the certificate is issued.
+      then **Enforce HTTPS** once the certificate is issued. Done — enabled by the
+      repository owner. The domain is Cloudflare-fronted, so its own `http` → `https`
+      redirect is not usable as outside evidence of this setting; only the checkbox state
+      confirms it.
 
     The template ships **no `CNAME` file** — verified, there is none anywhere in what the
     installer writes — so the domain lives in Pages settings, not in the built artifact.
@@ -597,28 +616,32 @@ identifiable in GitHub.
 
 ### Verification Checklist
 
-- [ ] The workflow parses as valid GitHub Actions YAML.
-- [ ] Every `engine` `run` command executes from `src/engine/`.
-- [ ] `npm ci` uses the committed lockfile without modifying it.
-- [ ] Typecheck, lint, and test are distinct steps.
-- [ ] No secret, write permission, publishing credential, or deployment token appears in
+- [x] The workflow parses as valid GitHub Actions YAML.
+- [x] Every `engine` `run` command executes from `src/engine/`.
+- [x] `npm ci` uses the committed lockfile without modifying it.
+- [x] Typecheck, lint, and test are distinct steps.
+- [x] No secret, write permission, publishing credential, or deployment token appears in
       `ci.yml`. (`docs-deploy.yml` legitimately carries `pages: write` / `id-token: write`
       — that is the installer's design and is not W0's to edit.)
-- [ ] `concurrency` gives push and pull-request runs for the same repository branch the
+- [x] `concurrency` gives push and pull-request runs for the same repository branch the
       same group and cancels a superseded run instead of leaving both active.
-- [ ] `engines.node` sets a minimum of Node 24, and the workflow explicitly runs Node 24.
-- [ ] `@types/node` matches the Node major the job runs.
-- [ ] The install reported `docusaurus.config.ts`, `sidebar.ts`, `Dockerfile`, and
-      `docs.ps1` as **skipped**, and `onBrokenLinks: 'throw'` survives in the config.
-- [ ] `docs/docusaurus.config.ts` has `url: 'https://game-engine.subzerodev.com'` and
+- [x] `engines.node` sets a minimum of Node 24, and the workflow explicitly runs Node 24.
+- [x] `@types/node` matches the Node major the job runs.
+- [x] The install reported `docusaurus.config.ts`, `sidebar.ts`, `Dockerfile`, and
+      `docs.ps1` as **skipped** at install time, and `onBrokenLinks: 'throw'` survived that
+      install — later deliberately relaxed to `'warn'` in PR #5; see *Final Acceptance*.
+- [x] `docs/docusaurus.config.ts` has `url: 'https://game-engine.subzerodev.com'` and
       `baseUrl: '/'` — not the `https://docs.example.com` placeholder.
-- [ ] DNS `CNAME` for `game-engine.subzerodev.com` → `the-running-dev.github.io` resolves,
-      and the custom domain is set in *Settings* → *Pages* with HTTPS enforced.
-- [ ] `docs/docs/index.md` is committed and matches a fresh run of
+- [x] DNS `CNAME` for `game-engine.subzerodev.com` → `the-running-dev.github.io` resolves,
+      and the custom domain is set in *Settings* → *Pages* with HTTPS enforced — confirmed
+      and enabled by the repository owner. (Verifying this from outside the repository is
+      not possible: the domain is Cloudflare-fronted, so its own `http` → `https` redirect
+      is not evidence of the GitHub setting — the checkbox state is.)
+- [x] `docs/docs/index.md` is committed and matches a fresh run of
       `build/ConvertTo-DocumentationHomepage.ps1`.
-- [ ] No relative link survives in `README.md`.
-- [ ] The two installed workflows are byte-identical to the template — unedited.
-- [ ] `git diff --check` passes.
+- [x] No relative link survives in `README.md`.
+- [x] The two installed workflows are byte-identical to the template — unedited.
+- [x] `git diff --check` passes.
 
 ### Anti-Pattern Guards
 
@@ -628,8 +651,9 @@ identifiable in GitHub.
 - Do not omit `cache-dependency-path` for the subdirectory lockfile.
 - Do not combine all checks into one opaque shell command.
 - Do not add unrelated automation while creating the first CI guardrail. The docs system is
-  not unrelated: it is the only thing that makes the repository's existing
-  `onBrokenLinks: 'throw'` setting take effect.
+  not unrelated: it is the only thing that runs a Docusaurus production build at all, which
+  is what makes `onBrokenLinks` — `'throw'` at the time, `'warn'` since PR #5 — evaluate
+  anything in the first place.
 - Do not justify the Node version from `@types/node`; a types pin is not a runtime
   constraint. `engines` is the minimum-runtime constraint.
 - Do not hand-edit `docs-ci.yml` or `docs-deploy.yml`; they are kept byte-identical to the
@@ -681,18 +705,18 @@ published — the Pages artifact is archived only.
 
 ### Verification Checklist
 
-- [ ] Local clean install succeeds.
-- [ ] Local typecheck succeeds.
-- [ ] Local lint succeeds.
-- [ ] All 15 existing tests pass.
-- [ ] The local gate passes: no broken relative links, no bad heading anchors, no
+- [x] Local clean install succeeds.
+- [x] Local typecheck succeeds.
+- [x] Local lint succeeds.
+- [x] All 15 existing tests pass.
+- [x] The local gate passes: no broken relative links, no bad heading anchors, no
       generated-file drift.
-- [ ] The local `Invoke-DocsBuild` succeeds with zero broken links.
-- [ ] The pushed workflows start automatically.
-- [ ] The remote `CI / engine` job is green.
-- [ ] *Documentation links and terminology* and *Verify Documentation Build* are green.
-- [ ] The pull request published nothing — only archived the Pages artifact.
-- [ ] The job logs show each required step ran rather than being skipped.
+- [x] The local `Invoke-DocsBuild` succeeds with zero broken links.
+- [x] The pushed workflows start automatically.
+- [x] The remote `CI / engine` job is green.
+- [x] *Documentation links and terminology* and *Verify Documentation Build* are green.
+- [x] The pull request published nothing — only archived the Pages artifact.
+- [x] The job logs show each required step ran rather than being skipped.
 
 ### Anti-Pattern Guards
 
@@ -713,7 +737,14 @@ Three checks need this evidence, and they fail for different reasons, so prove e
    - a failing test — for `CI / engine`;
    - a broken relative link in `README.md` — for *Documentation links and terminology*;
    - a broken markdown link in a spec doc — for *Verify Documentation Build*, which is the
-     proof that `onBrokenLinks: 'throw'` finally bites.
+     proof that `onBrokenLinks: 'throw'` finally bites. *(This proof ran, and passed, while
+     `onBrokenLinks` was `'throw'`. Since PR #5 relaxed it to `'warn'`, the specific link
+     class that worked here — a site-absolute target, the one kind
+     `build/Test-Documentation.ps1` deliberately skips — would now only warn and would not
+     reproduce this failure. `Verify Documentation Build` still fails on genuinely malformed
+     MDX or a missing relative target inside the docs tree; it no longer fails on a
+     dangling `/docs/…` link. Recorded as a known consequence in *Final Acceptance*, not
+     re-proven here.)*
 2. Push the temporary failures.
 3. Verify each check goes red at its own step, and that the *gate* and the *build* fail
    independently — they catch different classes, and a single failure proving both would
@@ -733,14 +764,17 @@ The deliberate failures must never be merged into `main`.
 
 ### Verification Checklist
 
-- [ ] A controlled failure produces a red result in **each** of the three checks.
-- [ ] `CI / engine` fails at the intended typecheck, lint, or test step.
-- [ ] The gate fails on the broken README link, not on a container or network error.
-- [ ] The docs build fails on the broken spec link, independently of the gate.
-- [ ] All three red run URLs are recorded in this plan.
-- [ ] The deliberate failures are reverted.
-- [ ] The restored revision produces green remote jobs.
-- [ ] No temporary failure remains in the final diff or history intended for merge.
+- [x] A controlled failure produces a red result in **each** of the three checks. (This
+      happened while `onBrokenLinks` was `'throw'`; see the note above the proof steps for
+      why the third mechanism would not reproduce as-is today.)
+- [x] `CI / engine` fails at the intended typecheck, lint, or test step.
+- [x] The gate fails on the broken README link, not on a container or network error.
+- [x] The docs build fails on the broken spec link, independently of the gate.
+- [x] All three red run URLs are recorded in this plan — see `plans/04`, *Red-Path Proof —
+      Evidence*.
+- [x] The deliberate failures are reverted.
+- [x] The restored revision produces green remote jobs.
+- [x] No temporary failure remains in the final diff or history intended for merge.
 
 ### Anti-Pattern Guards
 
@@ -753,27 +787,39 @@ The deliberate failures must never be merged into `main`.
 
 W0 is complete only when:
 
-- [ ] `.github/workflows/ci.yml` is merged, carrying the `engine` job only.
-- [ ] `docs-ci.yml` and `docs-deploy.yml` are installed, unedited, and merged.
-- [ ] Push and pull-request events run the workflows; a newer run for the same repository
+- [x] `.github/workflows/ci.yml` is merged, carrying the `engine` job only.
+- [x] `docs-ci.yml` and `docs-deploy.yml` are installed, unedited, and merged.
+- [x] Push and pull-request events run the workflows; a newer run for the same repository
       branch cancels its superseded push/PR run.
-- [ ] Install, typecheck, lint, and test all execute successfully.
-- [ ] The gate and the docs production build both execute and enforce their checks.
-- [ ] `engines.node` establishes Node 24 as the floor, CI runs Node 24, and
+- [x] Install, typecheck, lint, and test all execute successfully.
+- [x] The gate and the docs production build both execute and enforce their checks.
+- [x] `engines.node` establishes Node 24 as the floor, CI runs Node 24, and
       `@types/node` targets Node 24.
-- [ ] GitHub Pages is enabled (*Source: GitHub Actions*), the custom domain resolves, and
-      a push to `main` has **deployed the site to `https://game-engine.subzerodev.com`**.
-- [ ] The **three** pull-request checks are marked required on the default branch —
+- [x] GitHub Pages is enabled (*Source: GitHub Actions*), the custom domain resolves, and
+      a push to `main` has **deployed the site to `https://game-engine.subzerodev.com`** —
+      green twice, [PR #3](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/3)
+      and [PR #5](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/5). HTTPS
+      enforcement is enabled by the repository owner in *Settings* → *Pages*; the domain is
+      Cloudflare-fronted, so the externally observable `http` → `https` redirect is
+      Cloudflare's and is not itself evidence of the GitHub setting.
+- [x] The **three** pull-request checks are marked required on the default branch —
       `CI / engine`, *Documentation links and terminology*, *Verify Documentation Build* —
       and *Build and Deploy Documentation* is **not** among them.
-- [ ] `docs/docs/index.md` matches a fresh generator run, and `README.md` has no relative
+- [x] `docs/docs/index.md` matches a fresh generator run, and `README.md` has no relative
       links.
-- [ ] `onBrokenLinks: 'throw'` survives in `docs/docusaurus.config.ts` after the install.
-- [ ] A deliberate temporary failure has been observed turning **each** of the three checks
+- [x] `onBrokenLinks` survived the install as `'throw'`, then was **deliberately relaxed to
+      `'warn'`** in PR #5 so `docs/static/index.html` could claim the site root — the navbar
+      brand links to `/` from every page, and a static file is never a route, so `'throw'`
+      failed the build on a link that serves correctly. `onBrokenMarkdownLinks` followed it
+      to `'warn'` for the same template-parity reason; `build/Test-Documentation.ps1` remains
+      the hard gate on relative links and anchors either way. See *✔ Closed — the site root
+      under a custom domain* below.
+- [x] A deliberate temporary failure has been observed turning **each** of the three checks
       red, with run URLs recorded.
-- [ ] The restored workflows have returned to green.
-- [ ] `docs/docs/engine/TODO.md` W0 is checked only after this evidence exists.
-- [ ] No W1 implementation is included.
+- [x] The restored workflows have returned to green.
+- [x] `docs/docs/engine/TODO.md` W0 is checked only after this evidence exists — this pass
+      is that evidence.
+- [x] No W1 implementation is included.
 
 ## Next Unit
 

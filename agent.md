@@ -64,22 +64,27 @@ only when it would have changed a decision.
   Its §1 is now a **decision log** — all eight MVP-blocking gaps (including `PlayerProfile`,
   long the sharpest) are resolved and written into the contracts. Nothing MVP-blocking is
   open; add new gaps there as full entries.
-- **Engine suite runs green under vitest** (15 tests, `pcg32` + `canonical`); no CI
-  workflow yet (`TODO.md` W0).
+- **Engine suite runs green under vitest** (15 tests, `pcg32` + `canonical`), and CI now
+  runs it: `.github/workflows/ci.yml` (`engine`), plus the installed `docs-ci.yml` and
+  `docs-deploy.yml`. The three pull-request checks are required on `main`; deploy is not,
+  since it runs only on push to `main` (`TODO.md` W0, closed).
 - **The docs-site base image is verified for the current W0 baseline.** `docs.ps1` builds
   on the public `ghcr.io/the-running-dev/docs-template`; the installed image uses
   Docusaurus 3, port 3000, and the local `sidebar.ts`. A production build passed with no
-  leftover template docs in the sidebar. Re-verify when the base image tag changes. The
-  site lands on `/docs/engine/vision`, not `/docs`.
-- **Two link checks, and they do not overlap.** `build/Test-Documentation.ps1` hard-fails on
-  relative links and heading anchors — that is the one that catches a doc rename, and it
-  still bites. Docusaurus's own pass is `onBrokenLinks: 'warn'`, so **site-absolute targets
-  (`/docs/engine/…`) are warned about, not gated**: the gate skips them by design (its line
-  391), having assumed Docusaurus owned them. If you rename or remove a spec page, grep for
-  site-absolute links to it by hand — today that means the generated homepage,
-  `docs/docs/index.md`. `'warn'` is deliberate: it is what lets `docs/static/index.html`
-  claim the site root, since the navbar brand links to `/` and a static file never satisfies
-  a route checker. See `plans/02-w0-ci-workflow.md`.
+  leftover template docs in the sidebar. Re-verify when the base image tag changes. `/docs/`
+  now serves the generated homepage (`docs/docs/index.md`); `/docs/engine/vision` is the
+  first spec page beneath it, and the bare domain forwards to `/docs/`.
+- **Two link checks, and they do not fully overlap.** `build/Test-Documentation.ps1`
+  hard-fails on relative links and heading anchors — that is the one that catches a doc
+  rename, and it still bites. Both of Docusaurus's own passes are `'warn'` by design:
+  **site-absolute targets (`/docs/engine/…`) are warned about, not gated**, since the gate
+  skips them (its line 391), having assumed Docusaurus owned them; if you rename or remove a
+  spec page, grep for site-absolute links to it by hand — today that means the generated
+  homepage, `docs/docs/index.md`. `onBrokenMarkdownLinks` is `'warn'` too, but that gives up
+  nothing the gate doesn't already hard-fail on for relative links — the one residual gap is
+  a link form the gate's regex fails to parse. `'warn'` on `onBrokenLinks` is deliberate: it
+  is what lets `docs/static/index.html` claim the site root, since the navbar brand links to
+  `/` and a static file never satisfies a route checker. See `plans/02-w0-ci-workflow.md`.
 
 ## Orientation in One Paragraph
 

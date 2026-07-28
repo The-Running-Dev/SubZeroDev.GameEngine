@@ -66,6 +66,11 @@ This plan covers W0 Phase 1 only. It must not:
 
 ### Confirmed Repository Baseline
 
+> **Pre-implementation snapshot**, accurate when this plan was written. `onBrokenLinks` is
+> `'warn'` since PR #5, not `'throw'`; the other bullets describe pre-W0 state this plan then
+> changed. Retained as the baseline the plan reasoned from — see *Final Acceptance* in
+> `plans/02` for current state.
+
 - `main` is synchronized with `origin/main`.
 - The old design branch and merged `main` have identical trees.
 - No `.github/`, `build/`, or `.config/` directory exists.
@@ -81,6 +86,10 @@ This plan covers W0 Phase 1 only. It must not:
 - The local `docs.ps1` builds and serves only; it does not regenerate the homepage.
 
 ### Confirmed External Baseline
+
+> **As of PR #5:** deployed twice green; the root and `/docs/` both serve; HTTPS enforcement
+> is confirmed enabled by the repository owner. The bullets below were accurate at the point
+> this plan was written — retained as the baseline the plan reasoned from.
 
 - GitHub Pages already uses the **GitHub Actions** build type.
 - `game-engine.subzerodev.com` is already set as the repository custom domain.
@@ -197,6 +206,10 @@ so both are folded into the phases they affect rather than raised as findings:
 - **A2 — the bare root will 404 after deployment** (Phase 6). `routeBasePath` stays
   `'docs'`, so the site publishes at `/docs/` and the bare hostname keeps returning 404.
   Deliberate, and now recorded as an expected end state instead of a latent surprise.
+  **Superseded by PR #5:** the root is no longer a 404. `docs/static/index.html` claims it
+  and forwards to `/docs/` — a third option this analysis did not consider, which moves no
+  URL and costs only `onBrokenLinks: 'warn'`. See `plans/02`, *✔ Closed — the site root
+  under a custom domain*.
 
 Both were verified against the published image and the live Pages configuration.
 
@@ -339,11 +352,11 @@ corrected in the authoritative documents:
 
 ### Verification Checklist
 
-- [ ] Image digest recorded.
-- [ ] Preview creates nothing in the worktree.
-- [ ] Six creates and five skips match the expected list.
-- [ ] No replacement is reported.
-- [ ] Worktree differs only by the approved planning/documentation corrections.
+- [x] Image digest recorded.
+- [x] Preview creates nothing in the worktree.
+- [x] Six creates and five skips match the expected list.
+- [x] No replacement is reported.
+- [x] Worktree differs only by the approved planning/documentation corrections.
 
 ### Anti-Pattern Guards
 
@@ -391,14 +404,14 @@ lockfile diff before accepting it.
 
 ### Verification Checklist
 
-- [ ] Workflow YAML parses.
-- [ ] The workflow contains one engine job and no docs job.
-- [ ] Every npm command runs from `src/engine`.
-- [ ] Typecheck, lint, and test remain separate.
-- [ ] No secret, write permission, registry login, matrix, or publication step exists.
-- [ ] `engines.node` is `>=24`.
-- [ ] `@types/node` targets Node 24 in the manifest and lockfile.
-- [ ] Lockfile changes are explained and limited to the requested dependency update.
+- [x] Workflow YAML parses.
+- [x] The workflow contains one engine job and no docs job.
+- [x] Every npm command runs from `src/engine`.
+- [x] Typecheck, lint, and test remain separate.
+- [x] No secret, write permission, registry login, matrix, or publication step exists.
+- [x] `engines.node` is `>=24`.
+- [x] `@types/node` targets Node 24 in the manifest and lockfile.
+- [x] Lockfile changes are explained and limited to the requested dependency update.
 
 ### Anti-Pattern Guards
 
@@ -431,11 +444,12 @@ Never hand-edit installer-owned scripts or workflows.
 
 ### Verification Checklist
 
-- [ ] Six expected files created.
-- [ ] Five expected files skipped and unchanged.
-- [ ] Installed workflows are byte-identical to the reviewed image templates.
-- [ ] `onBrokenLinks: 'throw'` remains present.
-- [ ] No source file under `src/engine/src/` changed.
+- [x] Six expected files created.
+- [x] Five expected files skipped and unchanged.
+- [x] Installed workflows are byte-identical to the reviewed image templates.
+- [x] `onBrokenLinks: 'throw'` remained present through this install — later deliberately
+      relaxed to `'warn'` in PR #5, see `plans/02`'s *Final Acceptance*.
+- [x] No source file under `src/engine/src/` changed.
 
 ### Anti-Pattern Guards
 
@@ -511,15 +525,15 @@ Two consequences, neither of them a defect, both worth confirming rather than di
 
 ### Verification Checklist
 
-- [ ] No relative Markdown link remains in `README.md`.
-- [ ] All 15 occurrences use the approved target map.
-- [ ] Generated homepage exists and matches a fresh generator run.
-- [ ] Placeholder origin is absent from `docs/docusaurus.config.ts`.
-- [ ] The docs gate passes.
-- [ ] Production docs build passes with zero broken links.
-- [ ] The rendered sidebar shows the generated homepage as a top-level entry above the
+- [x] No relative Markdown link remains in `README.md`.
+- [x] All 15 occurrences use the approved target map.
+- [x] Generated homepage exists and matches a fresh generator run.
+- [x] Placeholder origin is absent from `docs/docusaurus.config.ts`.
+- [x] The docs gate passes.
+- [x] Production docs build passes with zero broken links.
+- [x] The rendered sidebar shows the generated homepage as a top-level entry above the
       `engine` category.
-- [ ] Inside `engine/`, the order is still Vision → Architecture → **Core Specification** →
+- [x] Inside `engine/`, the order is still Vision → Architecture → **Core Specification** →
       **Story-Graph Kind** → MVP → TODO → Open Questions, matching the reading order
       `04-core` states.
 
@@ -558,6 +572,12 @@ After the workflows exist:
 
 #### The Bare Root Will 404 — Deliberately
 
+> **⚠ Superseded by PR #5.** The root is no longer a 404: `docs/static/index.html` claims it
+> and forwards to `/docs/` — a third exit this section did not list, which changes no URL
+> and needs no `routeBasePath` change, at the cost of `onBrokenLinks: 'warn'`. See
+> `plans/02`, *✔ Closed — the site root under a custom domain*. The analysis below is
+> retained as the reasoning that was current when W0 shipped.
+
 Both `https://game-engine.subzerodev.com/` and `/docs/` return 404 today because nothing
 has been deployed. After the first successful deploy they diverge:
 
@@ -593,23 +613,28 @@ contradicts the keep-local-config decision), or add a root landing page under
       configuring, so the literal string matters here).
 - [x] Deploy is not configured as a pull-request requirement — confirmed absent from the
       ruleset's required-checks list.
-- [ ] First main-branch deploy succeeds. **Not yet — PR #3 is not merged.** Deploy runs
-      only on push to `main`; this item completes once merge is authorized.
-- [ ] `https://game-engine.subzerodev.com/docs/` serves the generated homepage. Same
-      dependency as above.
-- [x] The bare root's 404 is **recorded as expected**, not reported as a deployment
-      failure — see A2 above and the "Bare Root" note; both `/` and `/docs/` currently
-      404 because nothing is deployed yet, which is the pre-deploy state, not the
-      post-deploy end state this note describes.
-- [ ] HTTPS enforcement is enabled. Deferred with the deploy items — the Pages API shows
-      `https_enforced: false` today; re-check once the first deploy has run.
+- [x] First main-branch deploy succeeds. Green twice: `47342b3` (PR #3,
+      [run](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/30303045991))
+      and `4e3effc` (PR #5,
+      [run](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/30316383318)).
+- [x] `https://game-engine.subzerodev.com/docs/` serves the generated homepage. Confirmed.
+- [x] The bare root's pre-deploy 404 was correctly recorded as expected rather than
+      reported as a failure. **Superseded:** PR #5 gave the root `docs/static/index.html`,
+      so it now serves — see the correction note under *The Bare Root Will 404* above.
+- [x] HTTPS enforcement is enabled — confirmed by the repository owner in *Settings* →
+      *Pages*. Cannot be re-verified externally: the domain is Cloudflare-fronted, so its
+      `http` → `https` redirect is Cloudflare's, not evidence of this GitHub setting.
 
 ### Red-Path Proof — Evidence
 
 W0's Definition of Done requires a deliberate failure to turn each check red, independently,
 with run URLs recorded. Executed on a temporary branch (`codex/w0-red-path-proof`, PR
 [#4](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/4), closed without
-merging and deleted after this evidence was captured):
+merging and deleted after this evidence was captured). This ran, and passed, while
+`onBrokenLinks` was `'throw'` — the `Verify Documentation Build` mechanism below (a
+site-absolute route) relies on that setting and would only warn, not fail, since PR #5
+relaxed it to `'warn'`. See `plans/02`, *Prove the Red Path*, for the same finding recorded
+against that plan's own copy of this proof:
 
 Three isolated failures, chosen so each trips exactly one check — verified locally before
 push, then confirmed remotely:
@@ -709,7 +734,8 @@ git status --short
 - [x] Sidebar verified: `docs/docs/index.md` carries `sidebar_position: 1` at the top
       level; every `docs/docs/engine/*.md` position is unchanged (1–7, `04-core` still
       before `03-story-graph-kind`) (A1).
-- [x] Bare-root 404 recorded as an expected end state, not a defect (A2).
+- [x] Bare-root 404 recorded as an expected end state, not a defect (A2). **Superseded by
+      PR #5** — the root now serves via `docs/static/index.html`; see A2's note above.
 - [x] External state is reported accurately, with DNS recorded as already working.
 - [x] Required checks configured on the ruleset; red-path proof captured with run URLs
       and reverted to green — both recorded above.
@@ -758,18 +784,21 @@ Each fix was verified by probe, not by inspection: a new `build/` file now shows
 `git status`; a file under `artifacts/` is now reported ignored by `git check-ignore`; the
 two tracked `build/` scripts remain tracked; `ci.yml` still parses and declares one job.
 
-### Still Outstanding — Requires Merging PR #3
+### Outstanding After Merge — Resolved
 
-Everything above is complete without merging. Two items in this plan's Phase 6 checklist
-cannot be — they depend on `docs-deploy.yml`, which triggers only on push to `main`:
+PR #3 merged (`47342b3`) and PR #5 followed (`4e3effc`). The two items this section once
+listed as blocked on that merge are both done:
 
-- First deploy to `https://game-engine.subzerodev.com/docs/`.
-- HTTPS enforcement (`https_enforced` is `false` today; check again once a deploy has run —
-  GitHub may only offer the toggle after Pages has served the site once).
+- First deploy to `https://game-engine.subzerodev.com/docs/` — green twice, PR #3
+  ([run](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/30303045991))
+  and PR #5
+  ([run](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/30316383318)).
+- HTTPS enforcement — confirmed enabled by the repository owner in *Settings* → *Pages*,
+  the one W0 item that could not be verified or performed from a session with no access to
+  repository settings.
 
-Per instruction, **merging is paused for explicit confirmation** before it happens — it
-publishes a live site under a real custom domain, which is a different order of consequence
-than anything else in this plan.
+The bare root also stopped being a 404 in PR #5, ahead of anything this section anticipated
+— see the corrected notes above (A2, *The Bare Root Will 404*).
 
 ## Peer-Review Order
 
