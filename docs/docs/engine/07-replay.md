@@ -339,11 +339,11 @@ Not on every commit. The corpus grows without bound and most changes cannot affe
 
 ## 9. Deferred
 
-- **Session capture from a deployment** — the second half of the original idea. Turning a
-  real hosted session into a fixture needs a capture path, retention rules, and a privacy
-  review: an action log is a record of what a person did, and 05 §3.2 already establishes
-  that the platform does not put player-supplied text into operational data by default.
-  Deferred deliberately, and it shares only the runner with this document.
+- **Session capture from a deployment** — the second half of the original idea, now
+  specified separately in [`08-session-capture.md`](08-session-capture.md). It produces
+  exactly the `ReplayFixture` above and needs no new format; what it needed was a privacy
+  contract, which is why it is its own document and is gated on the hosting layer rather
+  than on anything here.
 - **Widening `Kind.outcome` beyond terminal identity** — the member exists (§3.3) and is
   deliberately confined to published ids. Letting a kind contribute counts or values would
   make the oracle sensitive to content rebalancing, which §3.4 exists to prevent. Revisit
