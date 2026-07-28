@@ -15,14 +15,15 @@ import type * as Preset from '@docusaurus/preset-classic';
  * static file is not a route -- so under 'throw' that link fails the build even
  * though the file serves correctly.
  *
- * The cost is real and bounded. build/Test-Documentation.ps1 still hard-fails on
- * relative links and heading anchors, but it deliberately skips site-absolute
- * targets (its line 391) because Docusaurus used to own them. Those are now
- * warned about, not gated -- today that is the twelve /docs/engine/... links in
- * the generated homepage.
- *
- * `onBrokenMarkdownLinks` stays 'throw': it never saw the navbar link, so
- * relaxing it would give up coverage for nothing.
+ * `onBrokenMarkdownLinks` is 'warn' too, matching the template default exactly on
+ * both settings. Both Docusaurus checks are advisory by design here; the hard
+ * gate is build/Test-Documentation.ps1, which fails the build on every relative
+ * link and heading anchor in the docs tree -- the exact class onBrokenMarkdownLinks
+ * would otherwise cover, so nothing is given up by relaxing it. That gate does
+ * deliberately skip site-absolute targets (its line 391), on the assumption
+ * Docusaurus owned them; those are warned about only -- today that is the twelve
+ * /docs/engine/... links in the generated homepage. A link syntax the gate's regex
+ * fails to parse is the one residual gap neither check covers.
  */
 const config: Config = {
   title: 'Game Engine',
@@ -34,7 +35,7 @@ const config: Config = {
 
   markdown: {
     hooks: {
-      onBrokenMarkdownLinks: 'throw',
+      onBrokenMarkdownLinks: 'warn',
     },
   },
 

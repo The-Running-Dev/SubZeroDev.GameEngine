@@ -67,8 +67,10 @@ brings `docs-ci.yml` (link-and-terminology gate + production build) and `docs-de
 (build + GitHub Pages) ready-made. Every unit below is then guarded from the first commit
 rather than the last. The docs half is not optional garnish — `docs/Dockerfile` runs a dev
 server, and Docusaurus enforces `onBrokenLinks` only during a production build, so without
-it the repo's `throw` setting gates nothing. Also pins the Node floor (`engines`) so CI and
-local cannot drift, generates the site homepage from `README.md`, and publishes the site.
+CI that pass never runs at all. Both Docusaurus link checks are `'warn'` by design; the hard
+gate is `build/Test-Documentation.ps1`, which fails on every relative link and heading
+anchor. Also pins the Node floor (`engines`) so CI and local cannot drift, generates the
+site homepage from `README.md`, and publishes the site.
 - **Depends on:** nothing.
 - **Done when:** `engine` plus the gate and the docs build all run green on a push; a
   newer run for the same repository branch cancels its superseded push/PR run; Pages is
@@ -85,14 +87,23 @@ local cannot drift, generates the site homepage from `README.md`, and publishes 
         excluded).
   - [x] Red-path proof captured and reverted to green, with run URLs — full evidence in
         [`plans/04-w0-phase-1-implementation.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/04-w0-phase-1-implementation.md).
-  - [ ] First deploy to `main` — blocked on merging PR #3, paused for explicit
-        confirmation since it publishes a live site to a real custom domain.
-  - [ ] HTTPS enforcement — depends on the first deploy.
-  - **Known, deliberate end state, once deployed:** `routeBasePath` stays `'docs'`, so
-    `https://game-engine.subzerodev.com/docs/` will serve while the bare
-    `https://game-engine.subzerodev.com/` **404s** — not a defect, a URL-structure choice
-    left open for a later unit. The generated homepage also adds a new top-level sidebar
-    entry above the `engine` category; ordering inside `engine/` is unaffected.
+  - [x] First deploy to `main` — green twice: `47342b3`
+        ([run](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/30303045991),
+        PR #3) and `4e3effc`
+        ([run](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/30316383318),
+        PR #5). `https://game-engine.subzerodev.com/docs/` serves the generated homepage.
+  - [x] HTTPS enforcement — enabled in *Settings* → *Pages* by the repository owner. Note
+        for future reference: the domain is Cloudflare-fronted, so the `http` → `https`
+        redirect observable from outside is Cloudflare's "Always Use HTTPS" and is not by
+        itself evidence of this setting — the checkbox state is.
+  - **Known, deliberate end state:** `routeBasePath` stays `'docs'`, so the specs serve
+    from `https://game-engine.subzerodev.com/docs/`. The bare
+    `https://game-engine.subzerodev.com/` no longer 404s — `docs/static/index.html` claims
+    the root and forwards to `/docs/`, which is why `onBrokenLinks` is `'warn'`: the navbar
+    brand links to `/` from every page, and a static file is never a route, so `'throw'`
+    fails the build on a link that serves correctly. The generated homepage also adds a new
+    top-level sidebar entry above the `engine` category; ordering inside `engine/` is
+    unaffected.
 - **Plan:** [`plans/02-w0-ci-workflow.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/02-w0-ci-workflow.md), [`plans/04-w0-phase-1-implementation.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/04-w0-phase-1-implementation.md)
 
 ### W1 — Core Contract Types and Module Skeleton
