@@ -18,8 +18,9 @@ the game; §17 says exactly what and why.
 > many-agent, tick-driven world with the `GameState` envelope, the
 > one-action model, projection, reason codes, events and terminal identity.
 >
-> It is **not** a game design. The flagship game built on this kind lives in its own
-> repository, the way Life in the Fast Lane lives in
+> It is **not** a game design. The flagship game built on this kind — **Sun Trap** — lives
+> in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap), the way
+> Life in the Fast Lane lives in
 > [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife) — §17.
 
 ---
@@ -493,9 +494,10 @@ portable: a fixture recorded from a client running at 4× compares equal to the 
 
 ## 17. What Remains in the Game Repository
 
-This is the seam, not the game. The flagship management game — its vision, design, guest
-and building field detail, client specification, MVP, roadmap and balance harness — lives in
-its own repository, exactly as Life in the Fast Lane does for `simulation` (10 §14).
+This is the seam, not the game. **Sun Trap** — its vision, design, guest and building field
+detail, client specification, MVP, roadmap and balance harness — lives in
+[SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap), exactly as Life
+in the Fast Lane does for `simulation` (10 §14).
 
 | Lives with the game | Why not here |
 |---|---|

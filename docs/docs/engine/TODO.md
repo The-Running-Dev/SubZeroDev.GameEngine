@@ -44,8 +44,9 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] Project scaffold: `src/engine/` package ([Engine Package](/docs/guide/engine-package)),
       TypeScript strict, vitest, eslint with the
       determinism guard (bans `Math.random`, `Math.pow/exp/log/sin/cos/tan`, `Date.now`).
-- [x] Version control: this repo (engine **source + specs**). Companions: the game
+- [x] Version control: this repo (engine **source + specs**). Companions: the games
       [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife) and
+      [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap), and
       the hosting layer [SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform).
       All private.
 - [x] **Seeded PRNG (PCG32)** + `deriveStream` substreams, serializable state.
@@ -385,8 +386,8 @@ themselves.
 ### Depth: Sun Trap (The `world-graph` Kind)
 
 The third kind, and the first spatial one. **Specified —**
-[`12-world-graph-kind.md`](12-world-graph-kind.md) fixes the seam; the
-game it serves lives in its own repository (12 §17).
+[`12-world-graph-kind.md`](12-world-graph-kind.md) fixes the seam; the game it serves lives
+in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap) (12 §17).
 
 - [ ] **`KindContext.derive` and the `tick` stream** (04 §3.1, §8). Both are specified and
       both are gaps `simulation` shares — its NPC draws need `agent` streams that no kind

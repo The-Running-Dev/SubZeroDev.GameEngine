@@ -482,7 +482,9 @@ localization, save/migration.
 > both its **source** (`src/engine/`, described at
 > [Engine Package](/docs/guide/engine-package)) and its **specs** (a Docusaurus site under
 > `docs/docs/engine/`). The **games** (Life in the Fast Lane, the Bulgaria adventure) live
-> in [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife); the
+> in [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife), and
+> Sun Trap — the `world-graph` game — in
+> [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap); the
 > **hosting / NEaaS** layer in
 > [SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform). References
-> to `games/…` throughout these docs point to the game repo.
+> to `games/…` throughout these docs point to SubZeroDev.GameOfLife specifically.

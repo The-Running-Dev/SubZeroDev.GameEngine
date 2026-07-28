@@ -99,8 +99,10 @@ This repo = the **Game Engine**: source (`src/engine/`, Phase 1 core started) + 
 **campaigns** (data); v1 ships two kinds, `story-graph` (flagship, the MVP) and
 `simulation`. A "campaign" is a kind + its data; a "culture pack" reskins a simulation
 campaign. The flagship game (Life in the Fast Lane) is the companion
-[SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife); hosting
+[SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife); a second,
+Sun Trap, sits on the `world-graph` kind in
+[SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap); hosting
 is [SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform). Build
 order: core → story-graph kind → minimal Bulgaria adventure → text client + MCP = MVP.
-Then depth (the simulation kind / Jones). Contracts: `04-core.md` (types),
-`02-architecture.md` (decisions).
+Then depth (the simulation kind / Jones), then breadth (`world-graph` / Sun Trap).
+Contracts: `04-core.md` (types), `02-architecture.md` (decisions).

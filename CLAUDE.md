@@ -22,6 +22,10 @@ logic (`kinds`, engine-owned code), and content (`campaigns`, data). v1 ships tw
   `simulation` **kind** (its §5, §7–§10, §12, §14), which is engine-owned code that needs a
   contract *here* against the Kind seam, the way `03-story-graph-kind` is one. Stated in
   `04-core`, *Reused, not re-derived*.
+- **Game** — [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap):
+  Sun Trap, the flagship `world-graph`-kind game — a satirical resort-management sim. Design
+  only, no code. Its kind contract is `12-world-graph-kind.md` here; the game's maps,
+  scenarios, balance and client live there. Nothing in these specs depends on it.
 - **Hosting / NEaaS** — [SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform):
   the deferred hosting / SaaS layer.
 
