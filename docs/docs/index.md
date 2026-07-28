@@ -30,6 +30,7 @@ section number.
 | [Extensibility](engine/06-extensibility.md) | Where the engine can be extended and by whom: the ports a host supplies, and why the determinism boundary is the trust boundary |
 | [Replay](engine/07-replay.md) | The regression oracle: replaying committed fixtures across engine versions, and what "the same game" means when the bytes may differ |
 | [Session Capture](engine/08-session-capture.md) | Turning a played session into a fixture: what may be taken from a person, what is refused, and how long it lives |
+| [Clients](engine/09-clients.md) | The client contract: what a client may and may not do, and the API coverage checklist that verifies it |
 
 **The Core** comes first deliberately: `04` implements `03` as types, and the core is the
 shorter way in. The two drift apart more easily than anything else here — an edit to one that

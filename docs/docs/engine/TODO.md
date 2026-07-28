@@ -295,18 +295,26 @@ copies: dangling node, undeclared variable, unreachable node, settlement cycle.
 
 ### W16 — Text Client
 The plain proving instrument, over `SessionStore` only.
-- **Spec:** 04 §§6–7; [`MVP.md`](MVP.md) §5 "Honest."
+- **Spec:** 04 §§6–7; [`09-clients.md`](09-clients.md) — the contract, and §4 the checklist;
+      [`MVP.md`](MVP.md) §5 "Honest."
 - **Depends on:** W7, W12.
-- **Done when:** it drives every public session-store operation (API coverage checklist);
-      it imports nothing from `kinds/` and never reads a persisted `GameState`; requirement
-      failures render from reason codes, never matched English.
+- **Done when:** the **API coverage checklist** (09 §4) is complete for the text-client
+      column — all eight operations exercised by automated tests, not by inspection; it
+      imports nothing from `kinds/` and never reads a persisted `GameState`; requirement
+      failures render from reason codes, never matched English; an unknown reason code
+      renders rather than crashing (09 §5).
 
 ### W17 — MCP Server
 The same operations as tools — a sibling adapter, no AI-specific path.
-- **Spec:** 04 §13.
+- **Spec:** 04 §13; [`09-clients.md`](09-clients.md) §7 — MCP is a sibling, not a special
+      case.
 - **Depends on:** W7, W12.
-- **Done when:** all eight tools match their documented args and results; an agent
-      completes the arc; the same seed and choices produce the same result as W16.
+- **Done when:** all eight tools match their documented args and results and map
+      one-to-one onto the eight store operations, with no ninth (09 §4); the MCP column of
+      the coverage checklist is complete; an agent completes the arc; the same seed and
+      choices produce **byte-identical** `serialize()` output to W16's run — the client
+      contract's proof (09 §1); an agent sees no more than a human client does, including
+      getting `unknown_action` for a hidden choice.
 
 ### W18 — Determinism Harness
 The `PlaythroughFixture` runner, committed golden files, property tests, and the

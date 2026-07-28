@@ -1,0 +1,190 @@
+---
+sidebar_label: Clients
+---
+
+# Clients — The Contract
+
+**Document status:** Revision 1 — new contract, MVP scope
+
+**Reading order:** after [`04-core.md`](04-core.md) §7 (the session store, which is the only
+surface a client touches) and §13 (the MCP tools). This makes operational a rule the other
+documents assert four times and never define.
+
+> **Scope of this document**
+>
+> What a client may do, what it must not, and how that is *verified* rather than asserted.
+> Defines the **API coverage checklist** that `MVP.md` §5 and `TODO.md` W16 both require and
+> neither specifies.
+>
+> It covers the text client and the MCP server, which are the MVP's two. Web, mobile and
+> Discord are out of scope (MVP §4) and inherit this contract unchanged when they arrive.
+
+---
+
+## 1. The Rule, Made Testable
+
+*"Clients present state and submit choices. No game logic, ever"* (architecture §1) is
+repeated in `01-vision`, `04-core` §1 and §13 — and nowhere is it said what counts as game
+logic. Stated as a testable invariant:
+
+> **Two different clients, given the same campaign, seed and action sequence, must produce
+> byte-identical `serialize()` output.** A client contributes nothing to the game but the
+> order of the actions it submits.
+
+That is not a new test. `MVP.md` §5 already requires the identical arc to complete through
+the text client and through MCP; this states *why* that box is the load-bearing one — it is
+the client contract's proof, not a convenience check.
+
+The corollary is the useful working rule: **a client is a projection of the session store,
+never a participant.** If removing the client and driving the store directly would change
+the game, the client is doing something it should not.
+
+---
+
+## 2. The Only Surface
+
+A client calls `SessionStore` ([`04-core.md`](04-core.md) §7) and nothing else. It does not
+import the pure engine, a kind, the registry, or the projection machinery — the dependency
+arrow in 04 §1.1 points downward and clients are above everything.
+
+Eight operations, and there is no ninth:
+
+| Operation | Kind | Returns |
+|---|---|---|
+| `listCampaigns()` | Query | `CampaignSummary[]` |
+| `getScene(sessionId)` | Query | `Scene` |
+| `getView(sessionId)` | Query | `PlayerView` |
+| `createSession(config)` | Command | `SessionHandle` |
+| `resumeSession(sessionId)` | Command | `Scene` |
+| `submitAction(sessionId, actionId, params?)` | Command | `ActionResult` |
+| `saveGame(sessionId)` | Command | `SaveHandle` |
+| `loadGame(saveId)` | Command | `SessionHandle` |
+
+---
+
+## 3. What a Client May and May Not Do
+
+| May | May not |
+|---|---|
+| Render `Scene` text and the action list the engine returned | **Decide which actions are available** — `availableActions` already did |
+| Show a disabled action with the reason the engine supplied | **Evaluate a `Condition`**, or any requirement, itself |
+| Resolve a `LocKey` against the string table for display | **String-match English** to infer meaning (04 §12) |
+| Format numbers and dates for the player's locale | **Compute a consequence**, clamp a variable, or advance a turn |
+| Keep the latest `Scene`/`PlayerView` to render | **Reason over accumulated state** to predict or pre-empt the engine |
+| Show an error's localized message | **Retry a rejected action automatically**, or reinterpret a `ReasonCode` |
+| Offer save/load through the store | **Persist game state itself**, in any form |
+
+> **The sharpest line is the second row.** A client that hides an action because it believes
+> the requirement is unmet has reimplemented the requirement — and will disagree with the
+> engine the moment either changes. `availableActions` returns what is available *and* what
+> is shown-but-disabled with its `requirementFailKey` (03 §4, §9); rendering that faithfully
+> is the whole job.
+>
+> Note this also means a client never sees a `showWhen`-hidden choice at all, and must not
+> try to discover one: submitting an unknown id returns `unknown_action`, deliberately
+> indistinguishable from a hidden one (03 §8.3).
+
+**On caching.** Holding the last `Scene` to redraw is presentation. Accumulating state to
+decide anything is logic. The test is §1's: if the cache changed what got submitted, it was
+logic.
+
+---
+
+## 4. The API Coverage Checklist
+
+`MVP.md` §5 requires *"No game logic lives in either client — verified by the API coverage
+checklist."* This is that checklist.
+
+**Every public `SessionStore` operation must be exercised by an automated test driving the
+real client**, not by inspection and not by a unit test of the store. One row per operation,
+one column per MVP client:
+
+| # | Operation | Text client (W16) | MCP tool (W17) |
+|---|---|---|---|
+| 1 | `listCampaigns` | ☐ | `list_campaigns` ☐ |
+| 2 | `createSession` | ☐ | `start_game` ☐ |
+| 3 | `resumeSession` | ☐ | `continue_game` ☐ |
+| 4 | `getScene` | ☐ | `get_scene` ☐ |
+| 5 | `getView` | ☐ | `get_state` ☐ |
+| 6 | `submitAction` | ☐ | `choose` ☐ |
+| 7 | `saveGame` | ☐ | `save_game` ☐ |
+| 8 | `loadGame` | ☐ | `load_game` ☐ |
+
+**The mapping is one-to-one, and that is the point.** Eight store operations, eight MCP
+tools, no tool that is not an operation and no operation without a tool. That is what
+*"no AI-specific path"* (04 §13) means concretely — it is checkable by counting, not by
+reading intent.
+
+**A ninth row would be a defect.** If a client needs something the store does not offer, the
+answer is a store operation specified in 04 §7 — never a client-side workaround. Adding a
+row here without adding one there is the signal that logic has leaked upward.
+
+The checklist is satisfied when every box is ticked **and** §1's invariant test passes: the
+same arc, same seed, same choices, through both clients, serializing identically.
+
+---
+
+## 5. Reason Codes and Messages
+
+Clients never interpret a `ReasonCode`; they look up its string. The core ships default
+English for every base code under the reserved `core.reason.*` namespace, and registry
+construction rejects any attempt to override it (04 §12), so a client can rely on a message
+existing for every code it may receive.
+
+- **Display** the resolved `OutcomeMessage`/`ValidationError` message.
+- **Do not branch** on a code to change game behaviour. Branching on it to choose an *icon*
+  or a *colour* is presentation and is fine; branching on it to decide whether to resubmit is
+  logic and is not.
+- **An unknown code must render, not crash.** Codes are additive (04 §12), so a client will
+  eventually meet one it was not built against. Fall back to the raw code — visibly ugly,
+  never fatal.
+
+---
+
+## 6. Projection Is Not Optional
+
+A client receives `PlayerView` (04 §9) and never `GameState`. It has no route to hidden
+variables, `visitedCounts`, or the action log — the projection exists precisely so that
+"the client cannot leak what the player should not see" is structural rather than a matter
+of client discipline.
+
+This is why §2's surface has no `getState`: there is no operation that returns raw state,
+deliberately. A client that finds it needs one is asking the wrong question.
+
+---
+
+## 7. MCP Is a Sibling, Not a Special Case
+
+The MCP server is a client like the text client — a thin adapter over the same store,
+holding no game logic (04 §13, architecture §10). Everything in this document applies to it
+unchanged.
+
+The one thing worth stating because it is easy to get wrong: **an agent playing through MCP
+is a player.** It receives the same projection, is subject to the same requirement gating,
+and gets the same `unknown_action` for a hidden choice. There is no privileged view, no
+richer state, and no tool that reveals more than a human client can see. If an agent could
+see further, the projection boundary would be a client-side convention rather than an engine
+guarantee.
+
+---
+
+## 8. The Text Client's Additional Job
+
+The text client is the MVP's **proving instrument** (MVP §3), which gives it one obligation
+no other client has: it must drive **every** operation in §4, because it is the thing that
+demonstrates the API is complete.
+
+A web client may reasonably use six of the eight. The text client using six would mean two
+operations ship unproven.
+
+---
+
+## 9. Deferred
+
+- **Web, mobile and Discord clients** (MVP §4). They inherit this contract unchanged; the
+  checklist gains a column each.
+- **Client-side localization beyond string lookup.** The MVP ships English only (04 §10.1);
+  pluralization and locale-aware formatting are a client concern to specify when a second
+  locale exists.
+- **Streaming or partial scene delivery.** The store returns whole `Scene`s. Worth revisiting
+  only if a client proves a whole scene is too much, which no MVP client does.

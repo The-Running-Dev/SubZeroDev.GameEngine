@@ -43,6 +43,7 @@ const sidebars: SidebarsConfig = {
         'engine/extensibility',
         'engine/replay',
         'engine/session-capture',
+        'engine/clients',
       ],
     },
     {
