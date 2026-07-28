@@ -1,16 +1,17 @@
 # Docs Site — Information Architecture and Upstream Debt
 
-**Status:** **Implemented**, except W-D3's open question and W-D4, which is upstream work.
-Written after PR #7 landed the generated site root; implemented in the same pull request that
-added this file.
+**Status:** **Implemented**, except W-D3's open question. Written after PR #7 landed the
+generated site root; implemented in the same pull request that added this file. W-D4 was
+filed and merged upstream afterwards, and the vendored gate re-synced to pick it up.
 
 | Item | State |
 |---|---|
 | W-D1 sections | Done — manual `docs/sidebar.ts`, no files moved, no URL changed |
 | W-D2 anchors | Done — `onBrokenAnchors: 'throw'` first, then the anchors |
 | W-D3 site links | Done for `src/engine/` and `docs.ps1` via two new `guide/` pages; the two companion-repository links stay on the code host, which is correct |
-| W-D4 upstream gap | **Open** — belongs in `Docusaurus-Template`, filed separately |
+| W-D4 upstream gap | Done — filed and merged upstream as [#56](https://github.com/The-Running-Dev/Docusaurus-Template/pull/56), then vendored back |
 | W-D5 gate sync | Done — vendored gate is byte-identical to upstream again |
+| W-D6 preview toolchain | **Open** — `docs.ps1`, `docs/Dockerfile`, `docs/.dockerignore` are well behind upstream; found while doing W-D5, deliberately not folded into it |
 
 **Scope:** How the published site is organised and linked, plus the vendored-tooling debt
 found while getting there. No engine work; nothing here blocks W1.
@@ -122,6 +123,14 @@ Raised by automated review on PR #6, verified against the source, and recorded i
 review". It was never actually filed. **Confirmed not live in this repository** — no link
 target here contains a space or `)` — so this is correctness work, not an outage.
 
+**Filed and merged** as [#56](https://github.com/The-Running-Dev/Docusaurus-Template/pull/56).
+An alternation replaces the single character class: group 1 for the angle-bracket form, group
+2 for a bare destination admitting balanced pairs. The pull request also added
+`tests/TestDocumentation.Tests.ps1` — the gate's **first** test harness, which is why the bug
+shipped at all. The vendored copy here was re-synced afterwards; running both regexes over
+every Markdown file in this repository extracts identical targets on every line, confirming
+what the filing predicted: correctness only, no behaviour change here.
+
 ### W-D5 — Sync the vendored gate
 
 `build/Test-Documentation.ps1` was **33 lines behind** upstream's copy. Two fixes it lacked:
@@ -136,6 +145,30 @@ target here contains a space or `)` — so this is correctness work, not an outa
 has em dashes in headings. It was synced *before* W-D2 added anchors, so a failure could only
 have come from one of them. Every existing anchored link was checked against both the old and
 new slug rules first — none changed meaning, so the sync landed clean.
+
+### W-D6 — Three more vendored files are behind upstream
+
+Found while re-syncing the gate for W-D5. Checking the *whole* vendored surface rather than
+just the one file turned up three more that differ from upstream `main`:
+
+| File | Upstream now |
+|---|---|
+| `docs.ps1` | Regenerates the README-derived page on every run, reading `routeBasePath` live from `docs/docusaurus.config.ts`, and picks the output path from it |
+| `docs/Dockerfile` | Strips a stale image's `src/pages` so local preview matches what CI publishes, keeping `src/theme/NotFound` |
+| `docs/.dockerignore` | Excludes `node_modules`, `artifacts`, `build`, `.git`, `.github` instead of just the two Docker files |
+
+`.github/workflows/docs-ci.yml`, `.github/workflows/docs-deploy.yml` and
+`build/ConvertTo-DocumentationHomepage.ps1` are all byte-identical to upstream, so this is
+localised. `docusaurus.config.ts`, `sidebar.ts` and `DocumentationRules.psd1` are intentional
+local overrides and are not in scope.
+
+**Not folded into the W-D5 sync, deliberately.** That sync was a one-line-equivalent
+correctness fix with no behaviour change here; these three change how the site is previewed
+and built locally, and `docs.ps1`'s own header prose is repo-specific — it may be locally
+authored rather than a stale vendor copy, which has to be established before overwriting it.
+Worth noting that upstream's `docs.ps1` would remove a real pain: the homepage regeneration
+this repository currently does by replicating the generator's logic by hand, because there is
+no `pwsh` in the agent environment.
 
 Also worth reporting, though not ours to fix:
 `docs/getting-started/installing-the-docs-system.md` upstream went stale with #52 — it still
