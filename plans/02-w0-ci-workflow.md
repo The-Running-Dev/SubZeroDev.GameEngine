@@ -11,8 +11,8 @@ and `@types/node` is still `^22.0.0`. `TODO.md` W0 stays open until all three la
 1. **Author** `.github/workflows/ci.yml` — one `engine` job: install, typecheck, lint, test.
 2. **Install** the documentation system from the published container image, which brings
    `docs-ci.yml` (gate + build) and `docs-deploy.yml` (build + Pages) ready-made, plus the
-   link-and-terminology gate. This is what finally makes the repository's
-   `onBrokenLinks: 'throw'` setting gate something.
+   link-and-terminology gate. (`onBrokenLinks` was `'throw'` at the time of this plan; it
+   is now `'warn'` — see *the site root under a custom domain* below for why.)
 
 Also pin the Node floor in `package.json` so CI and local agree, convert the README's
 relative links, and set the real published URL.
@@ -258,51 +258,63 @@ Resolved with the second option below, which was already the less invasive one:
 
 - ~~Set `routeBasePath: '/'`~~ — would move every URL and contradict decision 2.
 - **Claim the root ourselves, leaving `/docs/…` untouched.** Done:
-  [`docs/src/pages/index.tsx`](../docs/src/pages/index.tsx) forwards `/` to `/docs/`.
+  [`docs/static/index.html`](../docs/static/index.html) forwards `/` to `/docs/`.
 
 The point is not only that the root now resolves — it is that the site root is now **owned
 by this repository** rather than inherited from whatever the base image happens to contain.
 
-**A route with a meta refresh — not a `src/pages` React redirect, and not a static file.**
-Two earlier attempts were both wrong, and the second was wrong in an instructive way:
+**Settled on `SubZeroDev.WinGet`'s mechanism, which required relaxing `onBrokenLinks`.**
+Three forms were tried, and CI decided between them:
 
-1. **`<Redirect>` from `@docusaurus/router`.** Client-side routing, so the emitted
-   `index.html` is an empty shell that only forwards once React hydrates. No JavaScript, no
-   redirect.
-2. **`docs/static/index.html`, copied from `SubZeroDev.WinGet`.** The right *mechanism* — a
-   `meta refresh` plus `rel=canonical`, forwarding with no JavaScript — but it **does not
-   build here**. Docusaurus resolves links against the route table, and a static file is not
-   a route, so the navbar's link to `/` stayed broken. CI reproduced the original failure
-   exactly: the same nine broken links, the same targets, no static-file conflict warning.
+| Attempt | Result |
+|---|---|
+| `<Redirect>` from `@docusaurus/router` | Built green, but emits an empty shell that only forwards once React hydrates — no JavaScript, no redirect |
+| `docs/static/index.html`, copied from WinGet | Failed under `'throw'` — reproduced the original failure exactly: the same nine broken links to `/`, no static-file conflict warning |
+| A route emitting the same `meta refresh` via `<Head>` | Green under `'throw'`, and verified in the artifact |
 
-**This is where the two repositories genuinely differ.** WinGet keeps the template default
-`onBrokenLinks: 'warn'`; this repository sets `'throw'` (see the strict-gating decision
-above). Under `'warn'` a static root file is sufficient, because the dangling navbar link is
-only a warning. Under `'throw'` the root must be a real route as well as a real file.
+The third worked, but the second is the one that matches WinGet, and matching it won:
+**`onBrokenLinks` is now `'warn'`**, the template default and WinGet's setting, and the root
+is `docs/static/index.html`.
 
-So the target here is WinGet's redirect written as a page: `<Head>` emits the same
-`meta refresh` and `rel=canonical` into the server-rendered HTML, which gives the no-JS
-behaviour of the static file *and* registers the `/` route the checker requires.
+**Why the static file cannot pass under `'throw'`.** Docusaurus resolves links against the
+route table. A static file serves the request but is not a route, so the navbar brand's link
+to `/` stays "broken" in the checker's eyes no matter that the page works. This is the whole
+reason the two repositories had diverged.
 
-**On depending on the `pages` plugin.** The accidental root came from the base image's own
-`src/pages`, so reusing that plugin looks like repeating the mistake. It is not, and the
-reason is `'throw'`: if a future image revision repaths or disables the `pages` plugin, the
-`/` route disappears and the build fails immediately with these same nine broken links. The
-failure mode that made the original incident expensive — a silent change that only surfaced
-on the next deploy — is exactly what `'throw'` converts into a loud one.
+### What relaxing `onBrokenLinks` actually costs
 
-**If `onBrokenLinks` is ever relaxed to `'warn'` for parity with WinGet, switch this back to
-`docs/static/index.html`** and match that repository file-for-file. Under `'warn'` the static
-file is the better answer, for the reason that made it attractive here in the first place: it
-depends on nothing the base image controls.
+Stated plainly, because this reverses the strict-gating decision above:
+
+- **Still hard-gated.** `build/Test-Documentation.ps1` fails the build on relative link
+  targets, heading anchors, terminology, and generated-file drift. That is the check that
+  catches a doc rename, and it is untouched.
+- **No longer gated.** The gate deliberately skips site-absolute targets — `$value.StartsWith('/')`
+  at its line 391, with the comment *"routes are checked by the Docusaurus build's own
+  broken-link pass"*. That assumption no longer holds. Those links are now warned about and
+  nothing fails on them.
+- **Today's exposure: twelve links**, all `/docs/engine/…` in the generated homepage
+  `docs/docs/index.md`. Renaming or removing a spec page would break them silently. Grep for
+  site-absolute links by hand when changing a page's slug.
+- **`onBrokenMarkdownLinks` stays `'throw'`.** It never saw the navbar link, so relaxing it
+  for symmetry would give up coverage for nothing.
+
+The narrower fix that would have kept `'throw'` — pointing the navbar brand at `/docs/` via
+`navbar.logo.href` — needs a `logo.src`, so it puts an image in the navbar the site does not
+otherwise have. Rejected as a bigger change to the rendered site than the link-gate
+difference is worth.
+
+**The real fix is upstream.** The config `Invoke-SetupDocs` installs renders a navbar brand
+linking to `/` while creating no route there, so every consumer repository carries this
+latent broken link — invisible only because the default is `'warn'`. If `docs-template` ever
+gives the brand an `href` or ships a root page, this repository can drop
+`docs/static/index.html` and go back to `'throw'`.
 
 **Declined in review, retained knowingly.** Automated review flagged that
-`docs/src/pages/index.tsx` repeats `'docs'` from `routeBasePath`, and proposed extracting a
+`docs/static/index.html` repeats `'docs'` from `routeBasePath`, and proposed extracting a
 shared `DOCS_ROUTE_BASE` constant imported by both.
 
 The underlying mechanism is real and worth stating plainly: the redirect target is a plain
-string in a `meta` tag, not a link Docusaurus resolves, so `onBrokenLinks` never sees it.
-Renaming `routeBasePath` without updating the
+string in a file Docusaurus copies verbatim, so nothing checks it at all. Renaming `routeBasePath` without updating the
 root page would send `/` to a dead route and **still build green** — the one drift in this
 site that the build gate cannot catch.
 
@@ -311,7 +323,7 @@ section above just reaffirmed it by rejecting `routeBasePath: '/'`; a module ind
 value the project has decided not to change buys nothing. The failure mode is a human
 editing the config, so the mitigation lives there instead — `docusaurus.config.ts` now
 carries a comment at `routeBasePath` naming the dependency and the silence, and the root
-page names the coupling from its side. If `routeBasePath` ever does become a live variable,
+file names the coupling from its side. If `routeBasePath` ever does become a live variable,
 revisit this and extract the constant then.
 
 #### The README links that must change

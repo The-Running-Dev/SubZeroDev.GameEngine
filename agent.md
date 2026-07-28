@@ -71,9 +71,15 @@ only when it would have changed a decision.
   Docusaurus 3, port 3000, and the local `sidebar.ts`. A production build passed with no
   leftover template docs in the sidebar. Re-verify when the base image tag changes. The
   site lands on `/docs/engine/vision`, not `/docs`.
-- **Broken links now fail the docs build** (`onBrokenLinks: 'throw'`). Renaming a heading
-  or a file breaks anchors *silently* under `warn`; under `throw` the build catches it.
-  Run the docs build before merging any doc rename.
+- **Two link checks, and they do not overlap.** `build/Test-Documentation.ps1` hard-fails on
+  relative links and heading anchors — that is the one that catches a doc rename, and it
+  still bites. Docusaurus's own pass is `onBrokenLinks: 'warn'`, so **site-absolute targets
+  (`/docs/engine/…`) are warned about, not gated**: the gate skips them by design (its line
+  391), having assumed Docusaurus owned them. If you rename or remove a spec page, grep for
+  site-absolute links to it by hand — today that means the generated homepage,
+  `docs/docs/index.md`. `'warn'` is deliberate: it is what lets `docs/static/index.html`
+  claim the site root, since the navbar brand links to `/` and a static file never satisfies
+  a route checker. See `plans/02-w0-ci-workflow.md`.
 
 ## Orientation in One Paragraph
 
