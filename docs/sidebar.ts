@@ -9,11 +9,15 @@ import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
  * runs into the positional numbering CLAUDE.md warns about. Naming doc ids here
  * gives the same sections at no URL cost.
  *
- * Ids are paths under docs/docs/ without the extension, so the numeric filename
- * prefixes stay — they still order the files on disk — while the reading order
+ * Ids are paths under docs/docs/ without the extension **and without the numeric
+ * filename prefix** — Docusaurus strips it when deriving the id, which is the
+ * same reason it does not appear in the URL. So `engine/01-vision.md` is
+ * `engine/vision`, while `engine/MVP.md`, having no prefix, is `engine/MVP`.
+ *
+ * The prefixes stay on disk, where they still order the files; the reading order
  * below is stated outright instead of being inferred from them. That is why
- * `04-core` precedes `03-story-graph-kind`: the core is the shorter way in, and
- * the specs say so.
+ * `core` precedes `story-graph-kind`: the core is the shorter way in, and the
+ * specs say so.
  *
  * Adding a page means adding it here. The trade for stable URLs is that a new
  * file is invisible until it is listed; an id that does not resolve fails the
@@ -26,13 +30,13 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Orientation',
       collapsed: false,
-      items: ['engine/01-vision', 'engine/02-architecture'],
+      items: ['engine/vision', 'engine/architecture'],
     },
     {
       type: 'category',
       label: 'Contracts',
       collapsed: false,
-      items: ['engine/04-core', 'engine/03-story-graph-kind'],
+      items: ['engine/core', 'engine/story-graph-kind'],
     },
     {
       type: 'category',
