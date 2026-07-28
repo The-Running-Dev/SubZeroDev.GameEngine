@@ -88,8 +88,15 @@ build context:
   all three Docusaurus link checks are `'throw'`, anchors included — they
   were `'warn'` only while a static file held the site root, and `build/Test-Documentation.ps1`
   is the second gate, covering the relative links and anchors Docusaurus resolves differently;
-  see `agent.md`, *Two link checks*). Spec docs reference
-  `src/engine/` code by relative path — that code is in this repo (`../../src/engine/…`).
+  see `agent.md`, *Two link checks*). **Spec docs name `src/engine/` code by its
+  repository-root path in prose — `src/engine/eslint.config.js` — never by a relative
+  traversal, and never as a markdown link.** `docs/` is the whole Docker build context
+  (`COPY . .`), so `src/engine/` is not in the image: a relative link out of `docs/docs/engine/`
+  would resolve to nothing and fail the production build under `onBrokenLinks: 'throw'`. A
+  relative path in *prose* is no better — it is clickable nowhere, meaningless on the published
+  page (which lives at a URL, not a directory), and correct only while reading raw markdown in
+  a checkout. To point a reader at the code, link the **guide page**
+  (`/docs/guide/engine-package`), which is a real route.
 - `docs/src/pages/index.md` — **the site root, generated from `README.md`.** Do not edit;
   edit the README. `.config/DocumentationRules.psd1` registers it for drift checking, and
   the gate fails the build if the two disagree. Because `routeBasePath` is `'docs'`, the
