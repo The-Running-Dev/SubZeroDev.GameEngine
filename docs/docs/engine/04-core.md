@@ -796,6 +796,7 @@ Kind-agnostic base vocabulary; kinds extend it (`Kind.reasonCodes`). Clients nev
 string-match English (games/04-engine-specification.md §2.3).
 
 ```typescript
+type LocKey = string;            // key into the string table; stable, additive, never renamed
 type ReasonCode = string;        // stable, machine-readable; additive, never renamed
 
 const BASE_REASON_CODES = [
