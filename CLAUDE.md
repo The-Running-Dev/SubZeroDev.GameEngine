@@ -31,6 +31,7 @@ Read in order. Files are scoped deliberately and cross-reference by section numb
 | `02-architecture.md` | Every settled architecture decision with rationale. **The contract (decisions)** |
 | `04-core.md` | The core as **types**: the Kind interface (the seam), `GameState` envelope, engine API, session store, projection, validation, reason codes, MCP schemas, determinism harness. **The contract (types)** |
 | `03-story-graph-kind.md` | The flagship kind's content types: nodes, choices, typed variables, consequences, endings, achievements, turn/settle semantics + worked Bureaucracy-arc example. `kindState` plugs into 04's envelope |
+| `06-extensibility.md` | Where the engine can be extended: the **ports** a host supplies (`IdSource`, stores, `Emitter`, `Clock`), the two composition roots, and the rule that decides — *a host may supply anything that cannot change `serialize()` output*, which makes the determinism boundary the trust boundary. Kinds stay engine-owned per architecture N2 |
 | `05-observability.md` | Logging and tracing as a **separate channel** from `StateChange`: the clock-free `EngineEvent`, the per-resolution emitter handle, sinks, and the boundary that stamps time and trace ids. The invariant is that dropping every event changes nothing |
 | `MVP.md` | The smallest slice that proves the platform, + Definition of Done (finalized) |
 | `TODO.md` | The MVP as ordered **units of work** (W0–W19), each with contract refs, dependencies, and done-criteria; the MVP boundary is marked |
