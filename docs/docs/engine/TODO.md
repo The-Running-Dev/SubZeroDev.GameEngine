@@ -97,13 +97,14 @@ site homepage from `README.md`, and publishes the site.
         redirect observable from outside is Cloudflare's "Always Use HTTPS" and is not by
         itself evidence of this setting — the checkbox state is.
   - **Known, deliberate end state:** `routeBasePath` stays `'docs'`, so the specs serve
-    from `https://game-engine.subzerodev.com/docs/`. The bare
-    `https://game-engine.subzerodev.com/` no longer 404s — `docs/static/index.html` claims
-    the root and forwards to `/docs/`, which is why `onBrokenLinks` is `'warn'`: the navbar
-    brand links to `/` from every page, and a static file is never a route, so `'throw'`
-    fails the build on a link that serves correctly. The generated homepage also adds a new
-    top-level sidebar entry above the `engine` category; ordering inside `engine/` is
-    unaffected.
+    from `https://game-engine.subzerodev.com/docs/` and the bare
+    `https://game-engine.subzerodev.com/` serves the README, generated into
+    `docs/src/pages/index.md` by the docs installer. That is a real route, so both
+    broken-link checks are `'throw'`. They were briefly `'warn'` while a static file held
+    the root instead — a static file serves the request but never satisfies a route
+    checker, so the navbar brand's link to `/` failed the build under `'throw'`. The
+    `/docs/` landing page lists the specs in reading order and adds one top-level sidebar
+    entry above the `engine` category; ordering inside `engine/` is unaffected.
 - **Plan:** [`plans/02-w0-ci-workflow.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/02-w0-ci-workflow.md), [`plans/04-w0-phase-1-implementation.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/04-w0-phase-1-implementation.md)
 
 ### W1 — Core Contract Types and Module Skeleton
