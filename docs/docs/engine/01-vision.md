@@ -19,13 +19,20 @@
 > - The flagship kind's content model: [`03-story-graph-kind.md`](03-story-graph-kind.md)
 > - Shared Bulgarian source material: `games/bulgaria.md`
 > - Deferred hosting/business layer: [`neaas-platform-vision.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform)
-> - The simulation kind, specified in full: `games/04-engine-specification.md`
+> - The engine specification these docs were **derived from**:
+>   `games/04-engine-specification.md`. Superseded here for everything the core owns; still
+>   the only place the `simulation` kind's own rules are written ([`04-core.md`](04-core.md),
+>   *Reused, not re-derived*)
 >
 > The `games/…` docs above — the two games, the simulation kind, and the shared source —
 > live in the **companion game project**,
-> [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife); the
+> [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife). A
+> second game, Sun Trap, sits on the `world-graph` kind in
+> [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap); the
 > hosting/NEaaS layer is [SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform).
 > **This repo is the engine — its source (`src/engine/`) and its specs (these docs).**
+> The source is not part of this site; [Engine Package](/docs/guide/engine-package)
+> is the route to it.
 
 ---
 

@@ -71,7 +71,8 @@ value here would make logging an input to the simulation.
 
 **No clock, no randomness, no allocation of identity.** The core never stamps a
 timestamp, never draws a trace id, never calls `Date.now`. The determinism guard in
-`src/engine/eslint.config.js` already bans the first and third; this document adds no
+`src/engine/eslint.config.js` ([Engine Package](/docs/guide/engine-package)) already bans
+the first and third; this document adds no
 exception, and every field that conventionally needs a clock or an RNG is supplied at the
 boundary instead (§6). This follows the line 04 §2 already drew for the envelope and 04
 §7 drew for the session record — observability does not get a special case.

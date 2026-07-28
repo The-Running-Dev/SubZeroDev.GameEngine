@@ -24,10 +24,28 @@ sidebar presents, stated in `docs/sidebar.ts` rather than taken from the filenam
 > to the platform.
 
 **Reused, not re-derived.** The seeded RNG (`RngState`, PCG32, `deriveStream`) and
-canonical serialization are already built and verified in
-`src/engine/src/core/`, and specified in
-`games/04-engine-specification.md` §3, §2.1.
-This document references them and does not restate the algorithms.
+canonical serialization are already built and verified in `src/engine/src/core/`
+([Engine Package](/docs/guide/engine-package)), and were
+first specified in `games/04-engine-specification.md` §3, §2.1. This document references
+them and does not restate the algorithms.
+
+> **What `games/04-engine-specification.md` is, and is not.** It is a 104 KB engine
+> specification in the companion game project,
+> [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife) — the
+> document **this one was derived from**. It is cited throughout these specs, and every such
+> citation is **provenance, not authority**.
+>
+> For anything the core owns — the engine API, randomness, save and serialization, testing,
+> package layout, conditions, projections — **this document supersedes it.** Where the two
+> disagree, this one is correct, and the older text should be read as the draft that led
+> here rather than as a second opinion.
+>
+> It remains authoritative for exactly one thing: the **`simulation` kind's own** content and
+> resolution model (its §5, §7–§10, §12, §14). That kind is engine-owned code
+> (architecture §1) and will need a contract in *this* repository against the Kind seam
+> (§3), the way [`03-story-graph-kind.md`](03-story-graph-kind.md) is one. Until that exists,
+> the upstream sections are where its rules live — and they are written as a game's engine
+> spec, not as a kind, so they do not yet plug into §3.
 
 ---
 
@@ -76,7 +94,7 @@ opaque payload inside it. This is the single most important type in the platform
 what `advance`, `serialize`, and the session store operate on.
 
 ```typescript
-type KindId = "story-graph" | "simulation";
+type KindId = "story-graph" | "simulation" | "world-graph";
 
 interface GameState {
   formatVersion: number;         // the shape of THIS envelope — see §10.2
@@ -203,11 +221,15 @@ interface InitialStateResult<KState> {
 the simulation kind it is the weekly resolution (`games/04-engine-specification.md`). The core calls it and
 never looks inside.
 
-> **One action model, two kinds.** The core's action is a string `actionId` plus
-> optional params. For the story-graph kind an action *is* a choice id. For the
-> simulation kind, actions map to its richer verbs (submit a plan, end the week). The
-> core does not care — it forwards the `actionId` and the kind interprets it. This
-> is what lets one API (§7) and one MCP surface (§13) serve both.
+> **One action model, three kinds.** The core's action is a string `actionId` plus
+> optional params. For the story-graph kind an action *is* a choice id, and it declares no
+> params at all. For the simulation kind, actions map to its richer verbs (submit a plan,
+> end the week). For the world-graph kind they are richer still — `build` carries a
+> definition, a position and a rotation; `advance_ticks` carries a tick count
+> ([`12-world-graph-kind.md`](12-world-graph-kind.md) §6). The core does not care — it
+> forwards the `actionId` and the kind interprets it. This is what lets one API (§7) and
+> one MCP surface (§13) serve all three, and the spread from *no params* to *four* is the
+> evidence that the model scales rather than merely fitting the two it was drawn from.
 
 ### 3.1 KindContext
 
@@ -218,15 +240,27 @@ interface KindContext {
   readonly registry: ContentRegistry;   // §10 — the campaign and shared content
   readonly campaign: Campaign;           // this game's campaign, resolved
   readonly rng: RngHandle;               // handle on this resolution's own stream (§8)
+  readonly derive: (streamId: StreamId) => RngHandle;   // any other stream, same seed (§8)
   readonly seq: number;                  // current action sequence number
   readonly emit: ResolutionEmitter;      // this resolution's event handle (05 §4)
 }
 ```
 
 The kind draws randomness only from `ctx.rng` — a handle on the stream derived for
-*this* resolution from `(seed, streamId)`. The handle is discarded when `advance`
+*this* resolution from `(seed, streamId)` — or from `ctx.derive`, for the streams that are
+keyed by something other than the action. Either way the handle is discarded when `advance`
 returns; nothing is written back, because the next resolution derives its own stream
 from the seed again (§8). The kind stays pure and every draw stays reproducible.
+
+> **Why `derive` exists.** §8 defines four `StreamId` variants, but only a kind is ever in a
+> position to use three of them — the core cannot know that a draw belongs to *this guest's
+> fifth decision* rather than to the action in flight. Without `derive`, `ctx.rng` was the
+> only reachable stream and those variants were unreachable by construction. `derive` closes
+> over the game's `seed` and nothing else: it is pure, it persists nothing, and
+> `{ seed, actionLog }` remains the complete replay input. The kind that forced this is
+> `world-graph`, whose correctness depends on draws keyed by simulated time rather
+> than by how a client batched its requests
+> ([`12-world-graph-kind.md`](12-world-graph-kind.md) §5).
 
 `ctx.emit` is the same shape for the same reasons: a handle scoped to this resolution,
 used and discarded, carrying nothing back into state. It reports what the kind is doing to
@@ -392,11 +426,12 @@ interface SessionStore {
   listCampaigns(): CampaignSummary[];
   getScene(sessionId: string): Promise<Scene>;
   getView(sessionId: string): Promise<PlayerView>;
+  getStrings(sessionId: string): Promise<StringTable>;   // resolve LocKeys — below
 
   // ── Commands (advance or persist) ────────────────────
-  createSession(config: NewGameConfig): Promise<SessionHandle>;      // → sessionId
+  createSession(config: CreateSessionConfig): Promise<SessionHandle>;   // profileId lives here
   resumeSession(sessionId: string): Promise<Scene>;
-  submitAction(sessionId: string, actionId: string, params?: ActionParams): Promise<ActionResult>;
+  submitAction(sessionId: string, actionId: string, params?: ActionParams): Promise<SessionActionResult>;
   saveGame(sessionId: string): Promise<SaveHandle>;                  // named/manual save
   loadGame(saveId: string): Promise<SessionHandle>;
 }
@@ -408,7 +443,40 @@ interface CampaignSummary { campaignId: string; kindId: KindId; titleKey: LocKey
 interface CreateSessionConfig extends NewGameConfig {
   profileId?: string;            // omitted → anonymous session; see §7.1
 }
+
+/** What a client gets back from an action. Never the envelope. */
+interface SessionActionResult {
+  ok: boolean;
+  scene?: Scene;                 // the new scene, on success — a projection (§9)
+  errors: ValidationError[];
+  warnings: ValidationWarning[];
+  changes: StateChange[];        // audit records, `visible`-gated (§12)
+  messages: OutcomeMessage[];
+}
+
+type StringTable = Readonly<Record<LocKey, string>>;
 ```
+
+> **`submitAction` returns `SessionActionResult`, not `ActionResult`.** `ActionResult`
+> extends `CommandResult<GameState>` (§12) — its success value is **the envelope**, seed and
+> action log and opaque `kindState` included. That type is correct for the *pure engine*
+> (§4), whose caller is the store; handing it to a client would put raw state on the other
+> side of the projection boundary and make §9 a convention rather than a guarantee. The
+> store unwraps it and returns a `Scene`.
+
+> **`createSession` takes `CreateSessionConfig`.** It previously took `NewGameConfig`, which
+> carries no `profileId` — leaving `CreateSessionConfig` defined and unreachable, and no way
+> for a client to start the profiled session MVP §5 requires for cross-session achievements.
+> `profileId` stays off `NewGameConfig` and out of `GameState` (§7.1); it is a *session*
+> input, which is exactly what this type is for.
+
+> **Why `getStrings` is a store operation.** Every client-facing type carries `LocKey`s —
+> `Scene.actions[].labelKey`, `CampaignSummary.titleKey`, `OutcomeMessage.key`,
+> `ValidationError` — and a client that may call nothing but this store (09 §2) otherwise has
+> no way to render any of them. Resolving them *inside* the DTOs was the alternative and is
+> worse: it would bake a locale into the projection and lose the property that clients never
+> string-match English (§12). The table is keyed by the campaign and locale the session was
+> created with; a locale switch is a new session, which is all the MVP's single locale needs.
 
 **The store persists the envelope (§2) and nothing else about play.** Wall-clock
 timestamps, owner ids, and other host metadata live on the store's record, outside the
@@ -483,7 +551,8 @@ is no generator state to thread through the envelope (§2), and replay needs onl
 type StreamId =
   | { kind: "action"; seq: number }
   | { kind: "system"; system: string; seq: number }
-  | { kind: "agent"; agentId: string; seq: number };
+  | { kind: "agent"; agentId: string; seq: number }
+  | { kind: "tick"; tick: number; system: string };
 
 interface RngHandle {
   nextInt(minInclusive: number, maxInclusive: number): number;
@@ -504,12 +573,25 @@ It is exactly:
 { kind:"action", seq }             → `action:${seq}`
 { kind:"system", system, seq }     → `system:${system}:${seq}`
 { kind:"agent",  agentId, seq }    → `agent:${agentId}:${seq}`
+{ kind:"tick",   tick, system }    → `tick:${tick}:${system}`
 ```
 
 Substreams (games/04-engine-specification.md §3.2) mean adding a draw in one place never renumbers another, and
 a rival kind's draws never perturb the player's. The MVP uses the `action` stream for
 play plus one `system` stream, `system:"start"`, for `createGame`'s initial `settle`
 (§4); the machinery for more is already there.
+
+> **What goes in `agent.seq` is normative, and it is not the action seq.** It is the
+> *agent's own* draw counter, stored on that agent in `kindState` and incremented per draw.
+> Keying it to the action would make an agent's randomness depend on how many actions
+> preceded it, which is precisely what a per-agent stream exists to avoid.
+
+> **The `tick` variant is for world-level draws in a kind whose turn advances simulated
+> time** — guest spawning, incident rolls, weather. Keying them by `tick` rather than by
+> `seq` is what makes a batch of ticks produce the same result as the same ticks taken
+> singly; `12-world-graph-kind.md` §5 states the property and why it is
+> load-bearing. `system` here names the drawing system, not a `StreamId` variant, so two
+> systems drawing on the same tick stay independent.
 
 > **`weightedPick` constrains content.** The built implementation requires every weight
 > to be a **positive integer** and throws otherwise. That makes it a load-time content
@@ -523,7 +605,7 @@ Clients receive a **projection**, never raw state (architecture §7). The core r
 the mechanism; the kind supplies the narrowing.
 
 ```typescript
-type ProjectionAudience = "player" | "agent";
+type ProjectionAudience = "player" | "ai";
 
 interface PlayerView {
   gameId: string;
@@ -539,8 +621,16 @@ interface PlayerView {
 The core guarantees the envelope's own hidden fields (`seed`, `actionLog`,
 `kindState` raw) never reach a client except through `kind.project`, which is
 responsible for excluding the kind's hidden state (03 §9 lists the story-graph
-exclusions). The `agent` audience is the rival/AI view; widening it is a difficulty
+exclusions). The `ai` audience is the rival/AI view; widening it is a difficulty
 setting, declared and visible (games/04-engine-specification.md §6.1) — never granted by accident.
+
+> **Why `ai` and not `agent`.** "Agent" was doing two incompatible jobs across these
+> specs: an *AI player* here, and a *simulated entity* in `StreamId`
+> (`{ kind: "agent"; agentId }`, §8) and throughout
+> [`12-world-graph-kind.md`](12-world-graph-kind.md), where guests and staff are agents. A
+> spatial kind full of autonomous entities made the collision unavoidable, so the audience
+> took the new name and `agent` now means exactly one thing: an entity the simulation
+> owns. Renamed before any code existed, which is the only cheap time to do it.
 
 ---
 
@@ -768,11 +858,12 @@ store operation. There is no AI-specific game path.
 | Tool | Args | Returns |
 |---|---|---|
 | `list_campaigns` | `{}` | `CampaignSummary[]` |
-| `start_game` | `{ campaignId, seed? }` | `{ sessionId, scene: Scene }` |
+| `start_game` | `{ campaignId, seed?, profileId? }` | `{ sessionId, scene: Scene }` |
 | `continue_game` | `{ sessionId }` | `Scene` |
 | `get_scene` | `{ sessionId }` | `Scene` |
 | `get_state` | `{ sessionId }` | `PlayerView` |
-| `choose` | `{ sessionId, actionId, params? }` | `ActionResult` (with the new `Scene`) |
+| `get_strings` | `{ sessionId }` | `StringTable` — resolve `LocKey`s (§7) |
+| `choose` | `{ sessionId, actionId, params? }` | `SessionActionResult` (§7 — carries the new `Scene`, never the envelope) |
 | `save_game` | `{ sessionId }` | `{ saveId }` |
 | `load_game` | `{ saveId }` | `{ sessionId, scene: Scene }` |
 

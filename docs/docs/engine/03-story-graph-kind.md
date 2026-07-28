@@ -18,8 +18,11 @@ sidebar_label: Story-Graph Kind
 > the MVP's Bureaucracy arc.
 >
 > - The architecture this obeys: [`02-architecture.md`](02-architecture.md)
-> - Reused verbatim from the core: the `Condition` tree, `LocKey`, `RngState`,
->   `ReasonCode` — `games/04-engine-specification.md`
+> - Reused verbatim from the core: the `Condition` tree, `LocKey` and `ReasonCode` are
+>   **defined** in [`04-core.md`](04-core.md). `RngState` is the exception — 04 §8 states the
+>   contract and deliberately does not restate the algorithm, which lives in
+>   `src/engine/src/core/rng/` ([Engine Package](/docs/guide/engine-package)) and
+>   originated in `games/04-engine-specification.md` §3
 > - The game this builds: `games/bulgaria-adventure.md`
 > - What ships first: [`MVP.md`](MVP.md)
 

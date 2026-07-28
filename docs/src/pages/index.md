@@ -15,11 +15,14 @@ logic (`kinds`), and content (`campaigns`) as data. v1 targets two kinds — `st
 the site root, which publishes this README. The specs are rendered and cross-linked under
 **[/docs](/docs/)**.
 
-> **Companions.** The flagship **game** (Life in the Fast Lane) lives in
+> **Companions.** The flagship **game** (Life in the Fast Lane, on the `simulation` kind)
+> lives in
 > [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife); the
+> second (Sun Trap, on the `world-graph` kind) in
+> [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap); the
 > deferred **hosting / NEaaS** layer in
 > [SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform). `games/…`
-> references in these docs point to the game repo.
+> references in these docs point to SubZeroDev.GameOfLife specifically.
 
 ## Status
 

@@ -30,6 +30,10 @@ section number.
 | [Extensibility](engine/06-extensibility.md) | Where the engine can be extended and by whom: the ports a host supplies, and why the determinism boundary is the trust boundary |
 | [Replay](engine/07-replay.md) | The regression oracle: replaying committed fixtures across engine versions, and what "the same game" means when the bytes may differ |
 | [Session Capture](engine/08-session-capture.md) | Turning a played session into a fixture: what may be taken from a person, what is refused, and how long it lives |
+| [Clients](engine/09-clients.md) | The client contract: what a client may and may not do, and the API coverage checklist that verifies it |
+| [Simulation Kind](engine/10-simulation-kind.md) | The second kind, expressed against the Kind seam: the week as a turn, plan actions, and what its state must not duplicate |
+| [Content Packs](engine/11-content-packs.md) | Resolving many packs into one frozen registry — merge, override, dependency — and the identity that keeps a game reproducible |
+| [World-Graph Kind](engine/12-world-graph-kind.md) | The third kind: a tick batch as a turn, spatial verbs, and the batch-invariance property that keeps presentation speed out of the results |
 
 **The Core** comes first deliberately: `04` implements `03` as types, and the core is the
 shorter way in. The two drift apart more easily than anything else here — an edit to one that

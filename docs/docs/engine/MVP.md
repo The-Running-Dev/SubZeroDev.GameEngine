@@ -139,8 +139,15 @@ platform. Jones is the next milestone, on a core this slice already proves.
       the platform has no hidden client or provider dependency.
 
 **Honest**
-- [ ] No game logic lives in either client — verified by the API coverage checklist
-      (the text client drives every public engine method).
+- [ ] No game logic lives in either client — verified by the **API coverage checklist**
+      ([`09-clients.md`](09-clients.md) §4): every `SessionStore` operation exercised by an
+      automated test through the text client *and* through its MCP tool, one-to-one, with no
+      tool that is not an operation and no client-side workaround for a missing one.
+- [ ] The client contract's own proof: the same arc, seed, **counting `IdSource`** and
+      choices driven through both clients serialize **identically** (09 §1). The id source
+      is part of the fixture, not an afterthought — `gameId` is serialized and random by
+      default (06 §5.1), so without fixing it the comparison can never pass. This is what "no game logic" means
+      operationally — a client contributes nothing but the order of the actions it submits.
 
 When every box is checked, the platform is proven. Depth (Jones) and breadth (more
 campaigns, more clients, hosting) build on a foundation that already works.

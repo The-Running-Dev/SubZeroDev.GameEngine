@@ -43,6 +43,10 @@ const sidebars: SidebarsConfig = {
         'engine/extensibility',
         'engine/replay',
         'engine/session-capture',
+        'engine/clients',
+        'engine/simulation-kind',
+        'engine/content-packs',
+        'engine/world-graph-kind',
       ],
     },
     {

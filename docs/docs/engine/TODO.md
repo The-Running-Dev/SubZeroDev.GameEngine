@@ -41,10 +41,12 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
       authoring→registry builder, zero-choice campaigns, `InitialStateResult`, `params` to
       `advance`, story-graph reason codes, the two format versions
       ([`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §1).
-- [x] Project scaffold: `src/engine/` package, TypeScript strict, vitest, eslint with the
+- [x] Project scaffold: `src/engine/` package ([Engine Package](/docs/guide/engine-package)),
+      TypeScript strict, vitest, eslint with the
       determinism guard (bans `Math.random`, `Math.pow/exp/log/sin/cos/tan`, `Date.now`).
-- [x] Version control: this repo (engine **source + specs**). Companions: the game
+- [x] Version control: this repo (engine **source + specs**). Companions: the games
       [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife) and
+      [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap), and
       the hosting layer [SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform).
       All private.
 - [x] **Seeded PRNG (PCG32)** + `deriveStream` substreams, serializable state.
@@ -191,11 +193,11 @@ The Tier 1 / Tier 2 framework, identifier and `LocKey` rules, delegating kind ch
       registry can never be frozen.
 
 ### W6 — Projection
-`Engine.view`, the `player` / `agent` audiences, and the `kind.project` seam.
+`Engine.view`, the `player` / `ai` audiences, and the `kind.project` seam.
 - **Spec:** 04 §9.
 - **Depends on:** W3.
 - **Done when:** `seed`, `actionLog`, and raw `kindState` cannot reach a client by any
-      path; the `agent` audience is not wider than `player` by default.
+      path; the `ai` audience is not wider than `player` by default.
 
 ### W7 — Session Store
 The in-memory store: `listCampaigns`, `getScene`, `getView`, `createSession`,
@@ -295,18 +297,26 @@ copies: dangling node, undeclared variable, unreachable node, settlement cycle.
 
 ### W16 — Text Client
 The plain proving instrument, over `SessionStore` only.
-- **Spec:** 04 §§6–7; [`MVP.md`](MVP.md) §5 "Honest."
+- **Spec:** 04 §§6–7; [`09-clients.md`](09-clients.md) — the contract, and §4 the checklist;
+      [`MVP.md`](MVP.md) §5 "Honest."
 - **Depends on:** W7, W12.
-- **Done when:** it drives every public session-store operation (API coverage checklist);
-      it imports nothing from `kinds/` and never reads a persisted `GameState`; requirement
-      failures render from reason codes, never matched English.
+- **Done when:** the **API coverage checklist** (09 §4) is complete for the text-client
+      column — all nine operations exercised by automated tests, not by inspection; it
+      imports nothing from `kinds/` and never reads a persisted `GameState`; requirement
+      failures render from reason codes, never matched English; an unknown reason code
+      renders rather than crashing (09 §5).
 
 ### W17 — MCP Server
 The same operations as tools — a sibling adapter, no AI-specific path.
-- **Spec:** 04 §13.
+- **Spec:** 04 §13; [`09-clients.md`](09-clients.md) §7 — MCP is a sibling, not a special
+      case.
 - **Depends on:** W7, W12.
-- **Done when:** all eight tools match their documented args and results; an agent
-      completes the arc; the same seed and choices produce the same result as W16.
+- **Done when:** every tool matches its documented args and results and maps
+      one-to-one onto a store operation, with no tool that is not one (09 §4); the MCP column of
+      the coverage checklist is complete; an agent completes the arc; the same seed and
+      choices, under the same counting `IdSource`, produce **byte-identical** `serialize()`
+      output to W16's run — the client contract's proof (09 §1); an agent sees no more than a human client does, including
+      getting `unknown_action` for a hidden choice.
 
 ### W18 — Determinism Harness
 The `PlaythroughFixture` runner, committed golden files, property tests, and the
@@ -362,9 +372,37 @@ themselves.
 
 ### Depth: Life in the Fast Lane (The `simulation` Kind)
 
-- [ ] Build the simulation kind per `games/04-engine-specification.md` (Phases 1–4 there).
+- [ ] **Specify the kind first, in this repository.** `games/04-engine-specification.md` is
+      an *engine* spec, not a kind spec — roughly half of it (§1–§3, §6, §11, §16–§18, §20)
+      is core material [`04-core.md`](04-core.md) now owns, and the rest is written as a
+      game's engine rather than against the Kind seam. The contract that belongs here is the
+      simulation equivalent of [`03-story-graph-kind.md`](03-story-graph-kind.md), extracted
+      from its §5, §7–§10, §12 and §14 and reconciled with `04` §3, the `GameState`
+      envelope, `Kind.outcome`, and the `kind.simulation.*` event namespace (05 §9).
+- [ ] Then build it, per that contract (upstream Phases 1–4 remain a useful build order).
 - [ ] "Stable Life" scenario playable to a win and a loss.
 - [ ] Its Definition of Done: `games/life-in-the-fast-lane.md`.
+
+### Depth: Sun Trap (The `world-graph` Kind)
+
+The third kind, and the first spatial one. **Specified —**
+[`12-world-graph-kind.md`](12-world-graph-kind.md) fixes the seam; the game it serves lives
+in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap) (12 §17).
+
+- [ ] **`KindContext.derive` and the `tick` stream** (04 §3.1, §8). Both are specified and
+      both are gaps `simulation` shares — its NPC draws need `agent` streams that no kind
+      could reach either. Build them with whichever kind lands first, not twice.
+- [ ] **`previewAction` and the tenth API pairing** — see
+      [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §2. Amend 09 §4, `MVP.md` §5 and the MCP
+      surface (04 §13) together.
+- [ ] Build the kind per 12: tick pipeline, guest and staff agents, pathfinding, queues,
+      construction, economy, incidents, objectives.
+- [ ] **Batch invariance is the acceptance test with teeth** (12 §5): `advance_ticks n`
+      reaches the same world as any split of it, compared as an `Outcome` (07 §3) rather
+      than as bytes, since the action logs legitimately differ.
+- [ ] Determinism beyond the seed (12 §9): integer arithmetic, no `Math.sqrt` in distance,
+      ties by entity id, canonical iteration order, derived entity ids, no serialized caches.
+- [ ] Its Definition of Done lives with the game, not here.
 
 ### Depth: Finish the Bulgaria Adventure
 
@@ -385,7 +423,10 @@ themselves.
 - [ ] AI-assisted authoring (content only; engine validates).
 - [ ] The hosted service — only once all of the above works
       ([`neaas-platform-vision.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform)).
-- [ ] Content-pack merge / override / dependency rules — before mods, not before MVP
+- [ ] Content packs, per [`11-content-packs.md`](11-content-packs.md) — `resolvePacks` as a
+      pure ordered fold; campaigns replace wholesale, strings per key; exact-version
+      dependencies with no range solving; `campaignVersion` stamped with the `ResolutionId`
+      so a game records the content it actually ran against. Before mods, not before MVP
       ([`neaas-platform-vision.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform) → Known deferred gaps).
 
 ### Content Tooling — A First-Class Workstream, Not an Afterthought
