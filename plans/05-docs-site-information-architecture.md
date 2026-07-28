@@ -12,7 +12,7 @@ filed and merged upstream afterwards, and the vendored gate re-synced to pick it
 | W-D4 upstream gap | Done — filed and merged upstream as [#56](https://github.com/The-Running-Dev/Docusaurus-Template/pull/56), then vendored back |
 | W-D5 gate sync | Done — vendored gate is byte-identical to upstream again |
 | W-D6 preview toolchain | **Open** — `docs.ps1`, `docs/Dockerfile`, `docs/.dockerignore` are well behind upstream; found while doing W-D5, deliberately not folded into it |
-| W-D7 nested parentheses | **Open** — the gate still cannot see a link destination with *nested* parentheses; upstream work, needs a design call |
+| W-D7 nested parentheses | Done — fixed upstream as [#57](https://github.com/The-Running-Dev/Docusaurus-Template/pull/57) with a scanner, then vendored back |
 
 **Scope:** How the published site is organised and linked, plus the vendored-tooling debt
 found while getting there. No engine work; nothing here blocks W1.
@@ -173,11 +173,25 @@ target rather than just nested ones.
 **Confirmed not live here** — no link target in this repository contains a parenthesis in
 either form.
 
-Upstream work, and unlike W-D4 it carries a design decision rather than a one-line fix:
-arbitrary nesting is not expressible with a character class, so it needs either .NET
-balancing groups — correct but hard to read — or a small destination scanner replacing the
-regex for that branch. Left for the maintainer to choose. #56 added the gate's first test
-harness, so a regression case now has somewhere natural to live.
+Unlike W-D4 this carried a design decision rather than a one-line fix: arbitrary nesting is
+not expressible with a character class, so it needed either .NET balancing groups or a small
+destination scanner.
+
+**Resolved as [#57](https://github.com/The-Running-Dev/Docusaurus-Template/pull/57), with the
+scanner.** `Read-MarkdownInlineLink` finds each `[…](` and then walks the destination
+tracking depth, so the `)` that closes the link is recognised by its depth rather than by
+position. Balancing groups were rejected deliberately — capable, but hard to read in a file
+whose whole job is being trusted, and there is no `pwsh` in the agent environment to verify
+one against. Three tests landed with it, including one asserting that an *unbalanced*
+destination produces no finding, since this bug class shows up as silence.
+
+**The inertness check needed correcting to be believed.** A first pass over this repository
+reported one differing line — `plans/05` line 160, the very table documenting the bug, whose
+`./foo((bar)).md` example the fixed gate now sees. That turned out to be an artefact of the
+check, not of the fix: the example sits in an inline code span, and the gate masks code
+spans (`Get-MaskedDocumentationLine`, line 237) before extracting links. Re-run with masking
+applied, the difference disappears — **22 files, 0 differing lines**. Worth recording because
+the first result looked exactly like a real regression in a file about regressions.
 
 ### W-D6 — Three more vendored files are behind upstream
 
