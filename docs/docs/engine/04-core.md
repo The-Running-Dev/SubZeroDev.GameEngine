@@ -1,5 +1,4 @@
 ---
-sidebar_position: 3
 sidebar_label: Core Specification
 ---
 
@@ -10,7 +9,7 @@ sidebar_label: Core Specification
 **Reading order:** logically the core *underlies* the kinds; the filename is `04` only to
 avoid renumbering. Read after [`02-architecture.md`](02-architecture.md), before or
 alongside [`03-story-graph-kind.md`](03-story-graph-kind.md) — which is the order the
-sidebar presents, via `sidebar_position` rather than the filename prefix.
+sidebar presents, stated in `docs/sidebar.ts` rather than taken from the filename prefix.
 
 > **Scope of this document**
 >

@@ -20,13 +20,13 @@ the site root, which publishes this README. The specs are rendered and cross-lin
 ## Status
 
 - **Specs:** the MVP contracts are finalized — the story-graph kind
-  ([`03`](https://game-engine.subzerodev.com/docs/engine/story-graph-kind)) and the core
-  ([`04-core`](https://game-engine.subzerodev.com/docs/engine/core)). See [MVP.md](https://game-engine.subzerodev.com/docs/engine/mvp).
+  ([`03`](https://game-engine.subzerodev.com/docs/engine/story-graph-kind#1-the-campaign)) and the core
+  ([`04-core`](https://game-engine.subzerodev.com/docs/engine/core#2-the-gamestate-envelope)). See [MVP.md](https://game-engine.subzerodev.com/docs/engine/mvp#1-the-mvp-in-one-sentence).
   Every MVP-blocking gap is now decided; the register
-  ([OPEN-QUESTIONS.md](https://game-engine.subzerodev.com/docs/engine/open-questions) §1) is a decision log.
-- **Code:** [`src/engine/`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/tree/main/src/engine) — seeded PCG32 RNG and canonical serialization,
+  ([OPEN-QUESTIONS.md](https://game-engine.subzerodev.com/docs/engine/open-questions#1-mvp-relevant-gaps--all-resolved) §1) is a decision log.
+- **Code:** [`src/engine/`](https://game-engine.subzerodev.com/docs/guide/engine-package) — seeded PCG32 RNG and canonical serialization,
   verified bit-identical to reference vectors; toolchain green (15 tests).
-- **Next:** [TODO.md](https://game-engine.subzerodev.com/docs/engine/todo) breaks the MVP into ordered units of work
+- **Next:** [TODO.md](https://game-engine.subzerodev.com/docs/engine/todo#core) breaks the MVP into ordered units of work
   (W0–W19). W0 adds CI and docs-build gates; W1 then adds the core contract types and
   module skeleton.
 
@@ -35,9 +35,9 @@ the site root, which publishes this README. The specs are rendered and cross-lin
 | Path | What |
 |---|---|
 | [`docs/docs/engine/`](https://game-engine.subzerodev.com/docs/engine/vision) | The specs — `01-vision`, `02-architecture`, `04-core` (the API/types), `03-story-graph-kind`, `MVP`, `TODO`, `OPEN-QUESTIONS` |
-| [`src/engine/`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/tree/main/src/engine) | The implementation (TypeScript strict, vitest, determinism-guard eslint) |
+| [`src/engine/`](https://game-engine.subzerodev.com/docs/guide/engine-package) | The implementation (TypeScript strict, vitest, determinism-guard eslint) |
 | `docs/` | The specs are a Docusaurus site; `docs/docs/` is its content root |
-| [`docs.ps1`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/docs.ps1) | Build & serve the docs site |
+| [`docs.ps1`](https://game-engine.subzerodev.com/docs/guide/documentation-site#previewing-locally) | Build & serve the docs site |
 
 ## Build the Docs Site
 
@@ -66,11 +66,11 @@ byte-for-byte from a seed and its inputs.
 
 ## Where to Start Reading
 
-1. [Vision](https://game-engine.subzerodev.com/docs/engine/vision) — why the platform exists
-2. [Architecture](https://game-engine.subzerodev.com/docs/engine/architecture) — every settled decision
-3. [The core](https://game-engine.subzerodev.com/docs/engine/core) — the platform as types
-4. [Story-graph kind](https://game-engine.subzerodev.com/docs/engine/story-graph-kind) — the flagship content model
-5. [MVP](https://game-engine.subzerodev.com/docs/engine/mvp) + [TODO](https://game-engine.subzerodev.com/docs/engine/todo) — what ships first, in order
+1. [Vision](https://game-engine.subzerodev.com/docs/engine/vision#1-what-this-is) — why the platform exists
+2. [Architecture](https://game-engine.subzerodev.com/docs/engine/architecture#1-the-three-layers) — every settled decision
+3. [The core](https://game-engine.subzerodev.com/docs/engine/core#1-the-two-layers-of-engine) — the platform as types
+4. [Story-graph kind](https://game-engine.subzerodev.com/docs/engine/story-graph-kind#3-nodes--the-single-content-type-n7) — the flagship content model
+5. [MVP](https://game-engine.subzerodev.com/docs/engine/mvp#3-in-scope) + [TODO](https://game-engine.subzerodev.com/docs/engine/todo#core) — what ships first, in order
 
 ---
 
