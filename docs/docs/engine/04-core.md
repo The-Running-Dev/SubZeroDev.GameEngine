@@ -161,6 +161,12 @@ interface Kind<KState> {
 
   /** Tiered content validation of a campaign of this kind (§11). */
   validateCampaign(campaign: Campaign): ValidationResult;
+
+  /**
+   * A minimal, cross-version-stable terminal identity — published ids only, never
+   * values ([`07-replay.md`](07-replay.md) §3.3).
+   */
+  outcome(state: KState): unknown;
 }
 
 interface AdvanceResult<KState> {
@@ -806,6 +812,12 @@ interface PlaythroughFixture {
 
 Canonical serialization (§10, built) and seeded RNG (§8, built and reference-verified)
 are the two properties that make byte-identical achievable at all.
+
+> **This harness compares a build against itself.** It cannot answer *did this change alter
+> a game that already exists* — a change that alters every game identically is perfectly
+> deterministic and runs green here. That question needs a different comparison, against a
+> *previous* build, and a projection that survives an intended serialization change.
+> [`07-replay.md`](07-replay.md) specifies it.
 
 ---
 

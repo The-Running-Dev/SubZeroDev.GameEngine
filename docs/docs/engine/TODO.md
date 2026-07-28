@@ -329,6 +329,23 @@ Walk [`MVP.md`](MVP.md) §5 and attach test evidence to each box.
 
 ## Post-MVP — Depth
 
+### Rigour: The Replay Regression Oracle
+
+Replaying committed fixtures across **engine versions**, per
+[`07-replay.md`](07-replay.md). Distinct from W18, which compares a build against itself.
+
+- [ ] The `Outcome` projection and the three-verdict runner (07 §3, §6), driven by a
+      counting `IdSource` (06 §5.1) so `createGame` itself replays.
+- [ ] A seed corpus: every MVP §5 playable box, plus a fixture for each bug fixed after W19
+      — 05 §11 already makes a bug report a fixture, so this is capture, not authoring.
+- [ ] Wired to run on `src/engine/src/core/` and `kinds/` changes and on release tags, not
+      on every commit (07 §8).
+- [ ] Regenerating a committed `.outcome.json` is a deliberate, reviewed step — never an
+      automatic sweep (07 §7).
+
+**Not MVP.** It compares versions, and before W19 there is only one. Sequenced here so the
+contract is settled while the reasoning is fresh, which is the same call observability took.
+
 ### Depth: Life in the Fast Lane (The `simulation` Kind)
 
 - [ ] Build the simulation kind per `games/04-engine-specification.md` (Phases 1–4 there).
