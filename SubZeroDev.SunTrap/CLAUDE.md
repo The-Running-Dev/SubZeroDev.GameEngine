@@ -39,7 +39,7 @@ before writing anything that describes behaviour rather than content.
 | The action list and parameters | `build`, `demolish`, `hire_staff`, `fire_staff`, `assign_staff`, `set_price`, `open_building`, `close_building`, `dismiss_alert`, `advance_ticks` — that is the set |
 | Determinism | Integers only, ties break by entity id, canonical iteration order, engine-derived entity ids, no `Math.sqrt` in distance, no serialized caches |
 | Batch invariance | A batch of ticks reaches the same world as the same ticks taken singly. Presentation speed is never a game input |
-| Win and loss | Not engine statuses. The envelope has `active | ended | abandoned`; win/loss is terminal identity, published ids only |
+| Win and loss | Not engine statuses. The envelope has exactly three — `active`, `ended`, `abandoned` — and win/loss is terminal identity, published ids only |
 | Reason codes and event names | Defined in the kind contract. A new one is an engine change, not a content change |
 | Content pack merging | Campaigns replace wholesale, strings replace per key |
 | The client contract | A client is a projection of the session store, never a participant |
