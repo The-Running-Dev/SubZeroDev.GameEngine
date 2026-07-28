@@ -114,6 +114,28 @@ interface ManagementSimulationKindState {
 > dismissed and dismissal is a player action. It is not a duplicate of `OutcomeMessage`,
 > which is per-resolution and not persisted.
 
+### 3.1 `initialState`
+
+`Kind.initialState(campaign, ctx)` (04 §3) builds the starting world from campaign data: the
+authored map, starting cash, the scenario's unlocked definitions, any pre-placed buildings,
+and `tick: 0`.
+
+Two rules the seam already implies, stated because a spatial kind is the first place they
+bite:
+
+- **Pre-placed buildings take ids from `nextEntityOrdinal` like any other** (§9), assigned in
+  authored order. A scenario that pre-places three buildings starts with
+  `nextEntityOrdinal: 3` and ids that are a pure function of the campaign — never of load
+  order or a host id source.
+- **Any randomness in setup draws from `ctx.derive({ kind: "tick", tick: 0, system })`**, not
+  from `ctx.rng`. `initialState` is not an action and has no `seq`; keying setup by tick 0
+  keeps §5's rule — *this kind never touches the action stream* — true without exception.
+
+`InitialStateResult.status` may be `"ended"` at creation, exactly as `story-graph` may settle
+onto an ending before the player acts (04 §3). For this kind that means a scenario whose
+objectives are already satisfied or whose failure condition already holds at tick 0 — a valid
+campaign that Tier 2 should warn about (§15), not a crash.
+
 ---
 
 ## 4. The Turn Is a Tick Batch
@@ -418,14 +440,21 @@ its own.
 
 ## 15. Validation
 
+`Kind.validateCampaign(campaign)` (04 §3) is where all of this is implemented. It runs at
+registry construction, before the registry is frozen, and it is pure and total — no
+simulation, no search, no I/O.
+
 The draft's Tier 1 and Tier 2 lists map onto the tiered validator (04 §11) unchanged:
 duplicate ids, missing references, invalid footprints, missing localization, buildings with
 no entrance, negative capacity are Tier 1; unreachable unlocks, map regions disconnected
 from every spawn, building categories with no demand, staff roles with no task generator
 are Tier 2.
 
-Two additions this contract requires at Tier 1: the `advance_ticks` cap (§6) must be
-present and positive, and every price band must be a valid integer-cent range.
+Three additions this contract requires. At **Tier 1**: the `advance_ticks` cap (§6) must be
+present and positive, and every price band must be a valid integer-cent range. At **Tier
+2**: a scenario already resolved at tick 0 — objectives satisfied or a failure condition met
+before the player acts (§3.1). That is a legal campaign, so it warns rather than fails, but
+it is almost always an authoring error.
 
 > **The draft's "Tier 3 simulation findings" is not validation.** Dominant buildings,
 > infinite-money loops, queue deadlock and unavoidable bankruptcy are **content-balance**

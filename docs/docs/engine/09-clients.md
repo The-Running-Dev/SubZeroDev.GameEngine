@@ -202,7 +202,8 @@ The text client is the MVP's **proving instrument** (MVP §3), which gives it on
 no other client has: it must drive **every** operation in §4, because it is the thing that
 demonstrates the API is complete.
 
-A web client may reasonably use six of the eight. The text client using six would mean two
+A web client may reasonably use seven of the nine — one that autosaves on every action need
+never call `saveGame` or `loadGame` explicitly. The text client using seven would mean two
 operations ship unproven.
 
 ---
