@@ -19,7 +19,10 @@
 > - The flagship kind's content model: [`03-story-graph-kind.md`](03-story-graph-kind.md)
 > - Shared Bulgarian source material: `games/bulgaria.md`
 > - Deferred hosting/business layer: [`neaas-platform-vision.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform)
-> - The simulation kind, specified in full: `games/04-engine-specification.md`
+> - The engine specification these docs were **derived from**:
+>   `games/04-engine-specification.md`. Superseded here for everything the core owns; still
+>   the only place the `simulation` kind's own rules are written ([`04-core.md`](04-core.md),
+>   *Reused, not re-derived*)
 >
 > The `games/…` docs above — the two games, the simulation kind, and the shared source —
 > live in the **companion game project**,

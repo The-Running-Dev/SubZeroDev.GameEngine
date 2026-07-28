@@ -15,6 +15,13 @@ logic (`kinds`, engine-owned code), and content (`campaigns`, data). v1 ships tw
   Life in the Fast Lane, the flagship `simulation`-kind game. Its docs are where much of
   this engine's core was first designed; `games/…` references throughout these specs point
   there.
+  **`games/04-engine-specification.md` is the ancestor, not a second authority.** It is a
+  104 KB *engine* spec that `02-architecture` and `04-core` were derived from, and it is
+  cited ~21 times across these docs — every citation is provenance. For anything the core
+  owns, the docs here supersede it. It still holds the only written rules for the
+  `simulation` **kind** (its §5, §7–§10, §12, §14), which is engine-owned code that needs a
+  contract *here* against the Kind seam, the way `03-story-graph-kind` is one. Stated in
+  `04-core`, *Reused, not re-derived*.
 - **Hosting / NEaaS** — [SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform):
   the deferred hosting / SaaS layer.
 

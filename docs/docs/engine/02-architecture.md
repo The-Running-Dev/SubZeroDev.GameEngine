@@ -18,7 +18,9 @@
 >   (the Kind interface, the `GameState` envelope, the API, session store, projection,
 >   validation, MCP schemas)
 > - The flagship kind's content types: [`03-story-graph-kind.md`](03-story-graph-kind.md)
-> - The simulation kind, fully specified: `games/04-engine-specification.md`
+> - The engine specification this one was **derived from**:
+>   `games/04-engine-specification.md` — provenance rather than authority; see
+>   [`04-core.md`](04-core.md), *Reused, not re-derived*
 
 This document reuses, by design, large parts of the Life in the Fast Lane engine
 specification. Where it says "carried over from the simulation kind," the mechanism is

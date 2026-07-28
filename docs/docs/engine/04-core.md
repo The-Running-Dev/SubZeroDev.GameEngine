@@ -24,10 +24,27 @@ sidebar presents, stated in `docs/sidebar.ts` rather than taken from the filenam
 > to the platform.
 
 **Reused, not re-derived.** The seeded RNG (`RngState`, PCG32, `deriveStream`) and
-canonical serialization are already built and verified in
-`src/engine/src/core/`, and specified in
-`games/04-engine-specification.md` §3, §2.1.
-This document references them and does not restate the algorithms.
+canonical serialization are already built and verified in `src/engine/src/core/`, and were
+first specified in `games/04-engine-specification.md` §3, §2.1. This document references
+them and does not restate the algorithms.
+
+> **What `games/04-engine-specification.md` is, and is not.** It is a 104 KB engine
+> specification in the companion game project,
+> [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife) — the
+> document **this one was derived from**. It is cited throughout these specs, and every such
+> citation is **provenance, not authority**.
+>
+> For anything the core owns — the engine API, randomness, save and serialization, testing,
+> package layout, conditions, projections — **this document supersedes it.** Where the two
+> disagree, this one is correct, and the older text should be read as the draft that led
+> here rather than as a second opinion.
+>
+> It remains authoritative for exactly one thing: the **`simulation` kind's own** content and
+> resolution model (its §5, §7–§10, §12, §14). That kind is engine-owned code
+> (architecture §1) and will need a contract in *this* repository against the Kind seam
+> (§3), the way [`03-story-graph-kind.md`](03-story-graph-kind.md) is one. Until that exists,
+> the upstream sections are where its rules live — and they are written as a game's engine
+> spec, not as a kind, so they do not yet plug into §3.
 
 ---
 

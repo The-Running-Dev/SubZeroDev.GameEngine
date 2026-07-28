@@ -370,7 +370,14 @@ themselves.
 
 ### Depth: Life in the Fast Lane (The `simulation` Kind)
 
-- [ ] Build the simulation kind per `games/04-engine-specification.md` (Phases 1–4 there).
+- [ ] **Specify the kind first, in this repository.** `games/04-engine-specification.md` is
+      an *engine* spec, not a kind spec — roughly half of it (§1–§3, §6, §11, §16–§18, §20)
+      is core material [`04-core.md`](04-core.md) now owns, and the rest is written as a
+      game's engine rather than against the Kind seam. The contract that belongs here is the
+      simulation equivalent of [`03-story-graph-kind.md`](03-story-graph-kind.md), extracted
+      from its §5, §7–§10, §12 and §14 and reconciled with `04` §3, the `GameState`
+      envelope, `Kind.outcome`, and the `kind.simulation.*` event namespace (05 §9).
+- [ ] Then build it, per that contract (upstream Phases 1–4 remain a useful build order).
 - [ ] "Stable Life" scenario playable to a win and a loss.
 - [ ] Its Definition of Done: `games/life-in-the-fast-lane.md`.
 
