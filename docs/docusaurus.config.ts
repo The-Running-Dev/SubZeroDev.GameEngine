@@ -17,6 +17,12 @@ import type * as Preset from '@docusaurus/preset-classic';
  * back. This also re-gates the site-absolute /docs/... links that
  * build/Test-Documentation.ps1 skips by design (its line 391), which nothing
  * else was checking while this was 'warn'.
+ *
+ * `onBrokenAnchors` is 'throw' too, which is what makes it safe to deep-link
+ * README entries at headings rather than at whole pages: neither checker
+ * validated fragments before -- onBrokenLinks resolves routes, and the gate
+ * skips site-absolute targets -- so an anchor was the one link class nothing
+ * covered. A renamed heading now fails the build.
  */
 const config: Config = {
   title: 'Game Engine',
@@ -25,6 +31,8 @@ const config: Config = {
   baseUrl: '/',
 
   onBrokenLinks: 'throw',
+
+  onBrokenAnchors: 'throw',
 
   markdown: {
     hooks: {

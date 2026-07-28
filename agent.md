@@ -47,8 +47,8 @@ only when it would have changed a decision.
   identical types). **It recurs on the *view* side too, not just state and content** —
   whenever a kind mirrors a core concept, check the field lives in exactly one place.
 - **Positional numbering** — inserting a doc means renumbering + rewriting every link.
-  Prefer appending. Sidebar *order* is `sidebar_position` front matter, decoupled from
-  filenames.
+  Prefer appending. Sidebar *order and sections* live in `docs/sidebar.ts`, decoupled from
+  filenames — and a new page must be added there or it never appears.
 - **A diff cannot show a rendering bug.** Every spec doc shipped for months with its
   metadata fields merged into one run-on paragraph, because markdown joins consecutive
   lines — correct markdown, wrong intent. A metadata field or blockquote label needs a

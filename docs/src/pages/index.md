@@ -24,13 +24,13 @@ the site root, which publishes this README. The specs are rendered and cross-lin
 ## Status
 
 - **Specs:** the MVP contracts are finalized — the story-graph kind
-  ([`03`](/docs/engine/story-graph-kind)) and the core
-  ([`04-core`](/docs/engine/core)). See [MVP.md](/docs/engine/mvp).
+  ([`03`](/docs/engine/story-graph-kind#1-the-campaign)) and the core
+  ([`04-core`](/docs/engine/core#2-the-gamestate-envelope)). See [MVP.md](/docs/engine/mvp#1-the-mvp-in-one-sentence).
   Every MVP-blocking gap is now decided; the register
-  ([OPEN-QUESTIONS.md](/docs/engine/open-questions) §1) is a decision log.
-- **Code:** [`src/engine/`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/tree/main/src/engine) — seeded PCG32 RNG and canonical serialization,
+  ([OPEN-QUESTIONS.md](/docs/engine/open-questions#1-mvp-relevant-gaps--all-resolved) §1) is a decision log.
+- **Code:** [`src/engine/`](/docs/guide/engine-package) — seeded PCG32 RNG and canonical serialization,
   verified bit-identical to reference vectors; toolchain green (15 tests).
-- **Next:** [TODO.md](/docs/engine/todo) breaks the MVP into ordered units of work
+- **Next:** [TODO.md](/docs/engine/todo#core) breaks the MVP into ordered units of work
   (W0–W19). W0 adds CI and docs-build gates; W1 then adds the core contract types and
   module skeleton.
 
@@ -39,9 +39,9 @@ the site root, which publishes this README. The specs are rendered and cross-lin
 | Path | What |
 |---|---|
 | [`docs/docs/engine/`](/docs/engine/vision) | The specs — `01-vision`, `02-architecture`, `04-core` (the API/types), `03-story-graph-kind`, `MVP`, `TODO`, `OPEN-QUESTIONS` |
-| [`src/engine/`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/tree/main/src/engine) | The implementation (TypeScript strict, vitest, determinism-guard eslint) |
+| [`src/engine/`](/docs/guide/engine-package) | The implementation (TypeScript strict, vitest, determinism-guard eslint) |
 | `docs/` | The specs are a Docusaurus site; `docs/docs/` is its content root |
-| [`docs.ps1`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/docs.ps1) | Build & serve the docs site |
+| [`docs.ps1`](/docs/guide/documentation-site#previewing-locally) | Build & serve the docs site |
 
 ## Build the Docs Site
 
@@ -70,11 +70,11 @@ byte-for-byte from a seed and its inputs.
 
 ## Where to Start Reading
 
-1. [Vision](/docs/engine/vision) — why the platform exists
-2. [Architecture](/docs/engine/architecture) — every settled decision
-3. [The core](/docs/engine/core) — the platform as types
-4. [Story-graph kind](/docs/engine/story-graph-kind) — the flagship content model
-5. [MVP](/docs/engine/mvp) + [TODO](/docs/engine/todo) — what ships first, in order
+1. [Vision](/docs/engine/vision#1-what-this-is) — why the platform exists
+2. [Architecture](/docs/engine/architecture#1-the-three-layers) — every settled decision
+3. [The core](/docs/engine/core#1-the-two-layers-of-engine) — the platform as types
+4. [Story-graph kind](/docs/engine/story-graph-kind#3-nodes--the-single-content-type-n7) — the flagship content model
+5. [MVP](/docs/engine/mvp#3-in-scope) + [TODO](/docs/engine/todo#core) — what ships first, in order
 
 ---
 
