@@ -80,7 +80,7 @@ the engine's contract changes, §1 is the first thing to reconcile, and every sh
 the second.
 
 **Envelope duplication.** The engine names this as its own recurring defect and it has been
-caught four times there. It arrives here as: adding a field to a shape in `06` that the
+caught five times there. It arrives here as: adding a field to a shape in `06` that the
 engine already owns. Before adding any field, ask whether the envelope, the campaign, or the
 registry already holds it.
 

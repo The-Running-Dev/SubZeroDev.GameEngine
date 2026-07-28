@@ -4,8 +4,9 @@
 discover that people, alcohol, plumbing, weather, queues, staffing and basic geometry have
 formed an alliance against you.
 
-> **Status:** design documents only. No code yet. Staged inside the Game Engine repository
-> for review; move to its own repository before any implementation begins.
+> **Status:** design documents only. Nothing here has been built, played or tested — the
+> design is unproven in every respect, and [`04-mvp.md`](04-mvp.md) exists to find out which
+> parts of it are wrong. All balance numbers are placeholders.
 
 ---
 

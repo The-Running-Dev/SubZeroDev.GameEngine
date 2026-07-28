@@ -40,7 +40,8 @@ Read in order. Files are scoped deliberately and cross-reference by section numb
 | `03-story-graph-kind.md` | The flagship kind's content types: nodes, choices, typed variables, consequences, endings, achievements, turn/settle semantics + worked Bureaucracy-arc example. `kindState` plugs into 04's envelope |
 | `11-content-packs.md` | Post-MVP: resolving an ordered pack set into the frozen registry. Campaigns replace wholesale, strings replace per key. The load-bearing part is **identity** — `campaignVersion` becomes a digest of the resolution, because two players on the same campaign version with different packs are playing different games and the envelope had no way to say so |
 | `10-simulation-kind.md` | The second kind against the Kind seam — **the seam only**, not a port. Reconciles the upstream model with the envelope (seven fields it must not duplicate, and no persisted `RngState`), maps its richer verbs onto the one-action model (`plan.add`/`remove`/`clear`, `end_week`), and fixes projection, reason codes, events and terminal identity. §14 states what is still upstream and why |
-| `09-clients.md` | The **client contract**, MVP scope: a client is a projection of the session store, never a participant — made testable as *two clients, same inputs, byte-identical `serialize()`*. Defines the **API coverage checklist** that `MVP.md` §5 and W16 both required and neither specified: eight store operations, eight MCP tools, one-to-one |
+| `12-world-graph-kind.md` | The third kind: a navigable world with autonomous inhabitants. A tick batch is the turn, and **batch invariance** — `advance_ticks n` reaches the same `kindState` as any split of it — is the load-bearing property, the one that forced `KindContext.derive` and the `tick` stream into 04. Win/loss is `Kind.outcome`, not a `GameStatus`. Not related to `story-graph` despite the suffix: a story graph is *authored*, a world graph is *navigated* |
+| `09-clients.md` | The **client contract**, MVP scope: a client is a projection of the session store, never a participant — made testable as *two clients, same inputs, byte-identical `serialize()`*. Defines the **API coverage checklist** that `MVP.md` §5 and W16 both required and neither specified: nine store operations, nine MCP tools, one-to-one |
 | `08-session-capture.md` | Turning a played session into a `ReplayFixture` — post-MVP, gated on hosting. Mostly a **privacy contract**: no identity, only kind-declared params (`ActionParams` is arbitrary caller input), no timing; the seed is the sharp edge; promotion to the committed corpus is a reviewed one-way door |
 | `07-replay.md` | The **regression oracle**, post-MVP: replaying `{config, actionLog}` fixtures across *engine versions* and comparing an `Outcome` built only from cross-version-stable vocabulary (`GameStatus`, `ReasonCode`, achievement ids). Distinct from 04 §14, which compares a build against itself. Fixtures are inputs, not state, so this sidesteps save migration |
 | `06-extensibility.md` | Where the engine can be extended: the **ports** a host supplies (`IdSource`, stores, `Emitter`, `Clock`), the two composition roots, and the rule that decides — *a host may supply anything that cannot change `serialize()` output*, which makes the determinism boundary the trust boundary. Kinds stay engine-owned per architecture N2 |
@@ -68,12 +69,23 @@ free — reorder the list in `docs/sidebar.ts` — but *inserting* still is not.
 not mirrored in the other is this project's most common defect. When a type changes, update
 the prose description, any example, the projection, and the validation/test list too.
 
-**Envelope-duplication recurs.** A kind must not duplicate what the `GameState` envelope,
-`Campaign`, or registry already own. Two caught so far: `StoryGraphKindState` duplicated
-envelope fields (03 §8.1); `StoryGraphCampaign` duplicated `id`/`version`/`titleKey`/
-`strings` that belong on `Campaign` / the registry (04-core §10.1). When a kind mirrors a
-core concept (state, campaign, …), check the identity fields live in exactly one place —
-the envelope, not the kind.
+**Envelope-duplication recurs — five times now.** A kind must not duplicate what the
+`GameState` envelope, `Campaign`, or registry already own. The full ledger, in order:
+
+1. `StoryGraphKindState` duplicated envelope fields (03 §8.1)
+2. `StoryGraphCampaign` duplicated `id`/`version`/`titleKey`/`strings` belonging to
+   `Campaign` / the registry (04-core §10.1)
+3. `StoryGraphView` duplicated scene and status fields (03 §9 vs 04-core §6/§9)
+4. `SimulationKindState` carried seven envelope fields plus a persisted `RngState` (10 §2)
+5. `ResortGameState` carried six plus a persisted `RngState` (12 §3)
+
+**This ledger itself drifted** — four documents carried four different counts, none of them
+complete, because each was written from memory rather than from the list. When updating it,
+add to the list and re-count; do not increment a number.
+
+**It recurs on the *view* side too**, not just state and content (entry 3). Whenever a kind
+mirrors a core concept, check the identity fields live in exactly one place — the envelope,
+not the kind.
 
 **Determinism is enforced, not hoped for.** The eslint guard bans `Math.random`, the
 non-bit-stable `Math.*` functions, and `Date.now` in `src/`. The core must replay

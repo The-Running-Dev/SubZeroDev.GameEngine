@@ -77,7 +77,8 @@ festival ground after it is a **campaign** of that kind.
 **The draft's `ResortGameState` is not this kind's state.** It was written as a standalone
 engine's envelope and carries six fields the core owns, plus one the core bans. Reproducing
 it would be the envelope-duplication defect `CLAUDE.md` names as this project's recurring
-one — this is its **fourth** occurrence, after 03 §8.1, 04 §10.1 and 10 §2.
+one — this is its **fifth** occurrence, after 03 §8.1, 04 §10.1, 03 §9 and 10 §2.
+`CLAUDE.md` carries the full ledger.
 
 | Draft field | Where it belongs now |
 |---|---|

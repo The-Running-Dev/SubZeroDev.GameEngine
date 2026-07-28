@@ -40,7 +40,7 @@ engine.
 **The upstream `GameState` is not this kind's state.** It was written before the envelope
 existed and carries seven fields the core now owns. Reproducing it verbatim would be the
 envelope-duplication defect `CLAUDE.md` names as this project's recurring one — already
-caught twice, in 03 §8.1 and 04 §10.1.
+caught three times, in 03 §8.1, 04 §10.1 and 03 §9 — the last on the *view* side.
 
 | Upstream field | Where it belongs now |
 |---|---|

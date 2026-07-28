@@ -41,11 +41,15 @@ only when it would have changed a decision.
 - **`03-story-graph-kind` ↔ `04-core`** drift most: `04` implements `03` as types. When a
   type changes, update the prose, the examples, the projection, and the validation/test
   list too.
-- **Envelope-duplication recurs — three times now.** `kindState` (03 §8.1), then
+- **Envelope-duplication recurs — five times now.** `kindState` (03 §8.1), then
   `StoryGraphCampaign` (03 §1 vs 04-core §10.1), then `StoryGraphView` (03 §9 vs 04-core
   §6/§9, which had `status` 3×, scene text 2×, and the choice list twice under two
-  identical types). **It recurs on the *view* side too, not just state and content** —
-  whenever a kind mirrors a core concept, check the field lives in exactly one place.
+  identical types), then `SimulationKindState` (10 §2), then `ResortGameState` (12 §3) —
+  the last two each also carrying a persisted `RngState` the envelope bans outright.
+  **It recurs on the *view* side too, not just state and content** — whenever a kind
+  mirrors a core concept, check the field lives in exactly one place. `CLAUDE.md` holds
+  the canonical ledger; **count the list, never increment the number** — four documents
+  once carried four different counts of this, all written from memory.
 - **Positional numbering** — inserting a doc means renumbering + rewriting every link.
   Prefer appending. Sidebar *order and sections* live in `docs/sidebar.ts`, decoupled from
   filenames — and a new page must be added there or it never appears.

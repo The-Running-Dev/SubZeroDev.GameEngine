@@ -18,8 +18,9 @@ it would have changed a decision.
 
 These documents began as an eight-document draft that proposed a new engine kind and, in
 doing so, **wrote a parallel engine** — its own state envelope, its own `createGame` /
-`executeCommand` / `advanceTicks` API, its own status union. Roughly seven of its operations
-already existed on the engine, under different names.
+`executeCommand` / `advanceTicks` API, its own status union. Six of its eight operations
+already existed on the engine under different names; only `validateCommand` and
+`advanceTicks` were new, and neither survived as specified.
 
 That is the shape of the mistake this repo is most prone to, and it was not obvious from
 inside the draft: every individual paragraph read like reasonable game design. It only became
@@ -30,9 +31,10 @@ visible when each claim was checked against the engine's actual contract.
 
 ## Inherited Hazards
 
-- **Envelope duplication.** Caught four times in the engine. It arrives here as a field added
-  to a shape in `06-content-and-systems` that the engine already owns. Check the envelope,
-  the campaign, and the registry before adding any field.
+- **Envelope duplication.** Caught five times in the engine, which keeps the canonical ledger
+  in its own `CLAUDE.md`. It arrives here as a field added to a shape in
+  `06-content-and-systems` that the engine already owns. Check the envelope, the campaign,
+  and the registry before adding any field.
 - **Counts drift from what they count.** "All eight operations" against a nine-row table
   survived two full review passes in the engine repo, and there were three instances of the
   same defect in total. When a document states a number, count the list.
