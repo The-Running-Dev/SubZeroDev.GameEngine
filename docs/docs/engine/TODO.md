@@ -400,7 +400,10 @@ themselves.
 - [ ] AI-assisted authoring (content only; engine validates).
 - [ ] The hosted service — only once all of the above works
       ([`neaas-platform-vision.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform)).
-- [ ] Content-pack merge / override / dependency rules — before mods, not before MVP
+- [ ] Content packs, per [`11-content-packs.md`](11-content-packs.md) — `resolvePacks` as a
+      pure ordered fold; campaigns replace wholesale, strings per key; exact-version
+      dependencies with no range solving; `campaignVersion` stamped with the `ResolutionId`
+      so a game records the content it actually ran against. Before mods, not before MVP
       ([`neaas-platform-vision.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform) → Known deferred gaps).
 
 ### Content Tooling — A First-Class Workstream, Not an Afterthought

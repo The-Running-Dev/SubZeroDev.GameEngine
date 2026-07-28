@@ -45,6 +45,7 @@ const sidebars: SidebarsConfig = {
         'engine/session-capture',
         'engine/clients',
         'engine/simulation-kind',
+        'engine/content-packs',
       ],
     },
     {
