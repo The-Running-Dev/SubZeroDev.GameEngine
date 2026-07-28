@@ -145,19 +145,27 @@ and a **validating** `deserialize` returning `CommandResult<GameState>`.
       ended session, and unknown action each have a test.
 
 ### W3a — Observability: Emitter, Events, and Sinks
-The operational event channel. `Emitter`, the per-resolution `ResolutionEmitter` handle on
-`KindContext`, the core event set (05 §8), and the three MVP sinks — `nullEmitter`,
-`recordingEmitter`, `jsonlEmitter`. Numbered `3a` rather than inserted, so no existing unit
-renumbers — the same convention architecture §4a uses.
-- **Spec:** [`05-observability.md`](05-observability.md), all sections; 04 §3.1, §4, §14.
+The **core half** of the operational event channel. `Emitter`, the per-resolution
+`ResolutionEmitter` handle on `KindContext`, the `GameEvent`/`SystemEvent` split, the core
+event set (05 §8), and two sinks — `nullEmitter` and `recordingEmitter`. Numbered `3a`
+rather than inserted, so no existing unit renumbers — the same convention architecture §4a
+uses.
+
+**The boundary half is W7's**, because it cannot exist before the session store does:
+stamping, spans, `attempt`, and `jsonlEmitter` all belong to the layer that owns a clock.
+- **Spec:** [`05-observability.md`](05-observability.md) §§1–5, §7–§10, §12; 04 §3.1, §4, §14.
 - **Depends on:** W1, W3. (Kind events come with the kind units — W11 and W12.)
 - **Done when:** `emit` returns `void` and no core code path reads anything back from a
-      sink; a fixture replays byte-identically under `nullEmitter` and `recordingEmitter`;
-      the same fixture twice under `recordingEmitter` yields the identical event sequence
-      including ordinals; ordinals restart at 0 each resolution, so a stream does not depend
-      on how many games ran before; a sink that throws on every call does not fail a game;
-      no `EngineEvent` field is populated from a clock or an RNG draw; a name outside
-      `core.*` emitted by the core, or outside `kind.<kindId>.*` by a kind, fails.
+      sink; the core isolates every `emit`, so a sink that throws on every call does not
+      fail a game; a fixture replays byte-identically under `nullEmitter` and
+      `recordingEmitter`; the same fixture twice under `recordingEmitter` yields the
+      identical event sequence including ordinals, comparing modulo `gameId`; ordinals
+      restart at 0 each resolution, so a stream does not depend on how many games ran
+      before; no `EngineEvent` field is populated from a clock or an RNG draw;
+      `core.validation.completed` and `core.deserialize.rejected` are `scope: "system"` and
+      carry no `gameId`; a rejected unknown action id is absent from the emitted `data`; a
+      name outside `core.*` emitted by the core, or outside `kind.<kindId>.*` by a kind,
+      fails.
 
 ### W4 — Registry, Authoring Builder, Localization
 The frozen in-memory `ContentRegistry`; `AuthoredText` → `BuiltCampaign` pure builder; the
@@ -188,12 +196,18 @@ The Tier 1 / Tier 2 framework, identifier and `LocKey` rules, delegating kind ch
 ### W7 — Session Store
 The in-memory store: `listCampaigns`, `getScene`, `getView`, `createSession`,
 `resumeSession`, `submitAction`, `saveGame`, `loadGame`. Persist canonical blobs, not live
-objects.
-- **Spec:** 04 §7, §10.2.
-- **Depends on:** W3, W6.
+objects. **Owns the observability boundary** (05 §6) — the half W3a deliberately leaves
+out, because stamping needs the layer that has a clock.
+- **Spec:** 04 §7, §10.2; [`05-observability.md`](05-observability.md) §6, §6.1, §11.
+- **Depends on:** W3a, W3, W6.
 - **Done when:** save mid-session → load → continue loses no state; two sessions cannot
       mutate each other; `savedAt`, owner ids, and other host metadata never appear in a
-      serialized `GameState`.
+      serialized `GameState`; every command wraps the base emitter per call via
+      `withEmitter` and stamps `emittedAt`, `traceId`, `spanId`, `attempt` and `sessionId`;
+      two concurrent commands never cross-attribute an event, verified with interleaved
+      sessions rather than asserted; `attempt` increments on **rejected** submissions too,
+      so repeated invalid actions are distinguishable where `seq` repeats (05 §5);
+      `jsonlEmitter` writes one stamped record per line.
 
 ### W8 — Profile Store
 `PlayerProfile`, `ProfileStore`, `profileId` on `CreateSessionConfig`, and the post-action

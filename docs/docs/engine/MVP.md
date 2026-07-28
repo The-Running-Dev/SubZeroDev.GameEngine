@@ -107,9 +107,13 @@ platform. Jones is the next milestone, on a core this slice already proves.
 - [ ] Every golden fixture replays byte-identically under `nullEmitter` and under
       `recordingEmitter` — logging cannot change the game (05 §2).
 - [ ] The same fixture replayed twice produces the **identical event stream** — same
-      names, order, and data (05 §5).
+      names, order, and data, compared modulo `gameId`, which a replay legitimately
+      changes (05 §5).
 - [ ] A sink that throws on every call does not break a game; the fixture still completes
-      with byte-identical output (05 §12).
+      with byte-identical output, because the core isolates every `emit` (05 §10).
+- [ ] Submitting an action id that matches nothing emits no `actionId` — the
+      no-player-text rule holds against arbitrary caller input (05 §3.2, §8).
+- [ ] Two concurrent session-store commands never cross-attribute an event (05 §6.1).
 - [ ] A kind emitting outside its `kind.<kindId>.*` namespace, or an event name it did not
       declare, fails (05 §9).
 - [ ] Playing the arc with the `jsonl` sink at `trace` yields a stream in which the

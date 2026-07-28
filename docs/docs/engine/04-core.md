@@ -267,17 +267,25 @@ interface Engine {
 submitAction(state, actionId, params):
   1. kind = kinds[state.kindId];  seq = state.actionLog.length   // 0-based, monotonic
   2. handle = rngHandleFor(state.seed, { kind:"action", seq })   // §8 — derived, not carried
-  3. result = kind.advance(state.kindState, actionId, params, { registry, campaign, rng: handle, seq })
-  4. if result.error → return { ok:false, errors:[result.error] }, state unchanged  // ActionResult.errors is a list (§12)
-  5. newState = {
+  3. emit = resolutionEmitter(emitter, state.gameId, seq)        // 05 §4 — ordinal starts at 0
+  4. result = kind.advance(state.kindState, actionId, params, { registry, campaign, rng: handle, seq, emit })
+  5. if result.error → return { ok:false, errors:[result.error] }, state unchanged  // ActionResult.errors is a list (§12)
+  6. newState = {
        ...state,
        kindState: result.state,
        status: result.status,
        actionLog: [...state.actionLog, { seq, actionId, params }],
      }
-  6. return { ok:true, value:newState, errors:[], warnings:[],
+  7. return { ok:true, value:newState, errors:[], warnings:[],
               changes:result.changes, messages:result.messages }
 ```
+
+> **A rejected action does not advance `seq`.** Step 5 returns without appending, so the
+> next attempt computes the same `seq` from the same log length. That is deliberate — the
+> log is the replay spine and a refused action is not part of it — but it means two rejected
+> attempts emit events with identical `(gameId, seq, ordinal)`. Observability states that
+> limit rather than papering over it, and disambiguates at the boundary
+> ([`05-observability.md`](05-observability.md) §5, §6).
 
 Immutability is unconditional (games/04-engine-specification.md §11.3): every operation returns a new envelope.
 
@@ -288,14 +296,19 @@ createGame(config):
   1. campaign = registry.campaigns[config.campaignId]        // kind = campaign.kindId
   2. seed = config.seed ?? store-generated (and recorded)
   3. startHandle = rngHandleFor(seed, { kind:"system", system:"start", seq:0 })   // §8
-  4. init = kind.initialState(campaign, { registry, campaign, rng: startHandle, seq: 0 })
+  4. startEmit = resolutionEmitter(emitter, gameId, 0)            // 05 §4 — seq 0, ordinal 0
+  5. init = kind.initialState(campaign, { registry, campaign, rng: startHandle, seq: 0, emit: startEmit })
      // a kind that settles at start (story-graph, 03 §8.2) draws its initial
      // random transitions from startHandle, and reports "ended" if it settled to one
-  5. return the envelope { kindId: campaign.kindId, campaignId: campaign.id,
+  6. return the envelope { kindId: campaign.kindId, campaignId: campaign.id,
        campaignVersion: campaign.version, seed,
        status: init.status, kindState: init.state, actionLog: [] }
      // init.changes / init.messages ride out on the CommandResult
 ```
+
+The start resolution uses `seq: 0` for both the RNG stream and the emitter, matching the
+first action's numbering; the two never collide because the *stream* is `system:"start"`
+rather than `action` (below), and because the emitter's ordinal restarts per resolution.
 
 The **start** stream (`system:"start"`) is deliberately distinct from the per-action
 streams `submitAction` uses (`{ kind:"action", seq }`), so a start-of-game random draw

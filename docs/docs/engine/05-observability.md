@@ -97,16 +97,30 @@ type Severity = "trace" | "debug" | "info" | "warn" | "error";
 
 type EventName = string;         // dotted, namespaced, stable; additive, never renamed
 
-interface EngineEvent {
+type EventScope = "game" | "system";
+
+interface EngineEventBase {
   readonly name: EventName;      // "core.action.rejected" — §3.1
   readonly severity: Severity;   // fixed per name, not per call site — §7
-  readonly gameId: string;       // from the envelope (04 §2)
-  readonly seq: number;          // the action sequence this resolution belongs to
   readonly ordinal: number;      // 0-based, monotonic within this resolution — §5
-  readonly kindId?: KindId;      // set on kind-emitted events (§9)
   readonly reason?: ReasonCode;  // when the event corresponds to a rejection or outcome
   readonly data?: EventData;     // structured detail — §3.2
 }
+
+/** Emitted while resolving a specific game. */
+interface GameEvent extends EngineEventBase {
+  readonly scope: "game";
+  readonly gameId: string;       // from the envelope (04 §2)
+  readonly seq: number;          // the action sequence this resolution belongs to
+  readonly kindId?: KindId;      // set on kind-emitted events (§9)
+}
+
+/** Emitted where no game exists, or where the input claiming to be one is untrusted. */
+interface SystemEvent extends EngineEventBase {
+  readonly scope: "system";
+}
+
+type EngineEvent = GameEvent | SystemEvent;
 
 type EventData = Readonly<Record<string, string | number | boolean>>;
 ```
@@ -114,6 +128,15 @@ type EventData = Readonly<Record<string, string | number | boolean>>;
 Every field is derivable from state and the resolution in progress. Nothing here requires
 a clock, an RNG draw, or ambient process state, which is what makes the whole record
 reproducible (§5).
+
+> **Why the scope split rather than optional `gameId`.** Two of the core events in §8
+> genuinely have no game to name. `core.validation.completed` runs at registry
+> construction, before any game exists; `core.deserialize.rejected` fires on an envelope
+> the engine has just refused to trust, so reading a `gameId` out of it would be
+> propagating exactly the field it declined to accept. Making `gameId` merely optional
+> would leave both cases legal *and* undistinguished, so a consumer could not tell "no
+> game" from "forgot to set it". A discriminated union makes each case say which it is,
+> and makes `event.scope === "game"` the guard that gives a consumer `gameId` and `seq`.
 
 ### 3.1 Naming and Namespaces
 
@@ -211,16 +234,29 @@ Tracing conventionally identifies work with random ids and orders it with timest
 core can do neither. It does not need to: the envelope already carries a unique
 deterministic key.
 
-**`(gameId, seq, ordinal)` totally orders every event the core emits.** `gameId` is unique
-per game (04 §2), `seq` is monotonic per action (04 §2), and `ordinal` is monotonic within
-one resolution (§4). No two core events share the triple.
+**`(gameId, seq, ordinal)` orders every event of an *accepted* resolution.** `gameId` is
+unique per game (04 §2), `seq` is the action sequence, and `ordinal` is monotonic within one
+resolution (§4).
 
-This buys a property worth more than the convenience:
+Two limits on that, both real, both consequences of things 04 already decided:
 
-> **The event stream is itself deterministic.** The same `{seed, actionLog}` produces the
-> same sequence of `EngineEvent`s, in the same order, with the same data — because every
-> field is derived from state, and emission points are fixed in the code rather than
-> conditioned on anything ambient.
+- **A rejected action does not advance `seq`.** 04 §3 is explicit that a rejected action
+  leaves state unchanged and appends nothing to the action log, so `seq` — which is the
+  log's length — is the same on the next attempt. Two rejected submissions at the same
+  position therefore produce the *same* triple. The core cannot fix this without a counter
+  that is not derivable from `{seed, actionLog}`, which would be ambient state of exactly
+  the kind §2 forbids. The boundary disambiguates instead, with `attempt` (§6).
+- **`gameId` is runtime identity, not replay input.** `NewGameConfig` carries a seed, not a
+  game id, so a replay of the same fixture is a *different game* and its events carry a
+  different `gameId`. That is correct behaviour, not a defect — but it means `gameId` must
+  be normalized out of any stream comparison (§12).
+
+With those two stated, the property that remains is still the valuable one:
+
+> **The replayable event stream is deterministic.** The same `{seed, actionLog}` produces
+> the same sequence of `EngineEvent`s — same names, same order, same ordinals, same data —
+> modulo `gameId`. Rejected attempts are not part of it, because they are not in the action
+> log and so are not replayed at all.
 
 Which makes the log a first-class debugging instrument rather than a best-effort one:
 
@@ -245,9 +281,42 @@ interface EmittedRecord {
   readonly emittedAt: string;    // ISO-8601, from the host clock — never from the core
   readonly traceId: string;      // per session-store command
   readonly spanId: string;       // per unit of work within it
+  readonly attempt: number;      // per-session submission counter — disambiguates §5
   readonly sessionId?: string;   // the store's key; absent for pure-engine-only use
 }
 ```
+
+`attempt` is what closes the rejected-action collision in §5. The store counts submissions
+per session, including rejected ones, so `(gameId, attempt, ordinal)` is unique on a live
+stream even where `(gameId, seq, ordinal)` repeats. It lives here rather than on
+`EngineEvent` precisely because it is *not* derivable from `{seed, actionLog}` — putting it
+in the core would be the ambient state §2 forbids, and would make the replayable stream
+depend on how many invalid submissions a player happened to make.
+
+### 6.1 How Per-Command Context Reaches an Event
+
+`createEngine` takes one long-lived `Emitter` (§4), but every record above needs values
+that change per command — and two commands may be in flight at once. Ambient
+"current span" state would misattribute events between concurrent sessions, so the
+contract does not use any.
+
+**The store decorates, per command.** For each command it wraps its base emitter in a
+short-lived one that closes over that command's `traceId`, `spanId`, `attempt` and
+`sessionId`, and hands *that* to the engine call:
+
+```typescript
+interface Engine {
+  // …existing members (04 §4)…
+  /** The same engine, with every event stamped for one command. */
+  withEmitter(emitter: Emitter): Engine;
+}
+```
+
+The decorator is created and discarded inside one command, so nothing is shared between
+concurrent commands and no mutable context outlives the call. This is the same
+per-resolution-handle discipline `ctx.rng` and `ctx.emit` already follow (§4), applied one
+layer out — the engine itself stays free of ambient state, and correctness does not depend
+on an async-context mechanism the runtime may or may not provide.
 
 The store opens one span per command (`submitAction`, `createSession`, `resumeSession`,
 `saveGame`, `loadGame`), and core events emitted during that command become events within
@@ -298,7 +367,7 @@ The normative starter set. Additive: more may be added, none renamed (§3.1).
 |---|---|---|---|
 | `core.game.created` | `info` | `createGame` returns | `campaignId`, `campaignVersion`, `kindId` |
 | `core.action.accepted` | `info` | An action advanced the game | `actionId` |
-| `core.action.rejected` | `info` | An action was refused; state unchanged | `actionId`; `reason` set |
+| `core.action.rejected` | `info` | An action was refused; state unchanged | `actionId` **only if it resolved** (below); `reason` set |
 | `core.game.ended` | `info` | `status` became `"ended"` | — |
 | `core.rng.stream.derived` | `trace` | A stream was derived from `(seed, streamId)` (04 §8) | `streamId` |
 | `core.serialize.completed` | `debug` | Canonical serialization ran | `bytes` |
@@ -306,9 +375,25 @@ The normative starter set. Additive: more may be added, none renamed (§3.1).
 | `core.validation.completed` | `info` | Tiered validation ran (04 §11) | `tier`, `errors`, `warnings` |
 | `core.migration.applied` | `warn` | A save was migrated; `replayCompatible: false` (04 §10.2) | `fromVersion`, `toVersion` |
 
+> **An unresolved `actionId` is never logged.** `submitAction` takes an arbitrary string
+> (04 §7), and an id matching nothing is ordinary play rather than an error — a hidden
+> choice returns `unknown_action` deliberately (03 §8.3). So the rejected-action event
+> carries `actionId` **only when it resolved to an action the campaign declares**; when it
+> did not, the field is omitted and `reason` alone carries the meaning.
+>
+> Without that rule the no-player-text guarantee in §3.2 is not a guarantee: any caller
+> could write arbitrary text into a hosted operator's logs by submitting it as an action id,
+> and the claim that the stream ships without a redaction pass would be false. Omitting the
+> field costs nothing diagnostically — `unknown_action` plus the resolution's `seq` already
+> says what happened and where.
+
 Note `core.game.created` and `core.action.accepted` carry no seed. A seed makes a game
 reproducible by anyone holding the log, and the stream is not the place that decision gets
 made — forensics attaches it deliberately instead (§11).
+
+`core.validation.completed` and `core.deserialize.rejected` are `scope: "system"` (§3) —
+the first runs before any game exists, the second on an envelope the engine has just
+refused to trust. Every other event in the table is `scope: "game"`.
 
 ---
 
@@ -357,9 +442,22 @@ A sink is an `Emitter` implementation. Three ship with the MVP:
 
 **The sink contract:**
 
-- **It must not throw.** An emitter that throws would turn a logging fault into a game
-  fault, which §2 forbids. Implementations catch their own errors; the core does not wrap
-  `emit` in a `try`, because doing so would imply that throwing is expected.
+- **It must not throw — and the core defends anyway.** A conforming sink catches its own
+  errors. The core additionally isolates every `emit` call, so a sink that throws is
+  swallowed and the game continues unaffected.
+
+  > **Both halves are required, and an earlier draft of this document had only the first.**
+  > It said implementations catch their own errors and the core deliberately does *not*
+  > wrap `emit`, on the reasoning that wrapping would imply throwing is expected. That is
+  > a tidy principle and it is wrong here, because it contradicts §2. If a faulty sink can
+  > abort a resolution, then attaching a sink can change the outcome of a game — which is
+  > precisely what "removing every event changes nothing" denies. The invariant is worth
+  > more than the principle, so the core catches. "Must not throw" remains a conformance
+  > requirement on sinks; the core's `try` is defence in depth, not permission.
+
+  What the core does with a swallowed error is deliberately narrow: it is discarded. It
+  cannot be logged through the emitter that just failed, and routing it anywhere else would
+  reintroduce the coupling this whole section avoids.
 - **It must not call back into the engine.** No sink may invoke a store command or read
   game state; that is a re-entrancy hazard and, in a hosted context, a loop.
 - **It must not be assumed synchronous or ordered across resolutions.** Within a
@@ -404,14 +502,28 @@ What the suite must show, beyond the per-unit criteria in [`TODO.md`](TODO.md):
   executable, and it is the check that would catch a kind branching on emission.
 - **Stream reproducibility** — the same fixture replayed twice under `recordingEmitter`
   produces the identical event sequence: same names, same order, same `data`, same
-  ordinals.
+  ordinals. **`gameId` is normalized out of the comparison**, because a replay is a new
+  game and legitimately carries a new id (§5); a golden stream that pinned it would fail on
+  every run and teach the suite to be ignored.
+- **Uniqueness holds where it is claimed** — across the events of one accepted resolution,
+  and across accepted resolutions, `(gameId, seq, ordinal)` does not repeat. A test submits
+  the *same invalid action twice* and asserts the triple **does** repeat, and that
+  `attempt` (§6) is what distinguishes them — pinning the limitation rather than leaving it
+  to be rediscovered as a deduplication bug.
+- **System-scope events carry no game identity** — `core.validation.completed` and
+  `core.deserialize.rejected` are `scope: "system"` and have no `gameId` or `seq` to
+  fabricate (§3).
 - **Namespace enforcement** — a kind emitting outside `kind.<kindId>.*`, or emitting a
   name absent from its `eventNames`, fails.
 - **No clock, no randomness** — the determinism guard already bans `Date.now` and
   `Math.random` under `src/`; a test asserts no `EngineEvent` field is populated from
   either, by constructing events under a frozen environment.
 - **A throwing sink does not break a game** — an emitter that throws on every call is
-  installed, and a fixture still completes with byte-identical output.
+  installed, and a fixture still completes with byte-identical output. This test is only
+  meaningful because the core isolates `emit` (§10); it is the executable form of that
+  decision.
+- **An unresolved action id never reaches the stream** — submitting an action id that
+  matches nothing produces `core.action.rejected` with no `actionId` in `data` (§8).
 
 ---
 
