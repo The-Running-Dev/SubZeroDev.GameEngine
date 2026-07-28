@@ -15,7 +15,7 @@ The **game**. It is content and design, built on an engine that lives elsewhere.
 
 ```text
 SubZeroDev.GameEngine          the deterministic platform
-  └── management-simulation    the kind — engine-owned code, engine repository
+  └── world-graph    the kind — engine-owned code, engine repository
         └── Sun Trap           this repository — campaigns, design, client, balance
 ```
 
@@ -38,7 +38,7 @@ done.
 ## The Engine Contract
 
 The kind this game runs on is specified at
-[Management-Simulation Kind](https://game-engine.subzerodev.com/docs/engine/management-simulation-kind).
+[World-Graph Kind](https://game-engine.subzerodev.com/docs/engine/world-graph-kind).
 Read it before adding anything here that looks like engine behaviour — several things that
 feel like game decisions are already fixed there:
 

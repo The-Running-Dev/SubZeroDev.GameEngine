@@ -1,13 +1,13 @@
 ---
-sidebar_label: Management-Simulation Kind
+sidebar_label: World-Graph Kind
 ---
 
-# Management-Simulation Kind — Contract
+# World-Graph Kind — Contract
 
 **Document status:** Revision 1 — **the seam only.** Field-level content detail lives with
 the game; §17 says exactly what and why.
 
-**Kind:** `management-simulation`
+**Kind:** `world-graph`
 
 **Reading order:** after [`04-core.md`](04-core.md) §3 (the seam) and
 [`10-simulation-kind.md`](10-simulation-kind.md), which this most closely resembles.
@@ -15,7 +15,7 @@ the game; §17 says exactly what and why.
 > **Scope of this document**
 >
 > The third engine-owned kind, expressed against the Kind seam. It reconciles a spatial,
-> many-agent, tick-driven management simulation with the `GameState` envelope, the
+> many-agent, tick-driven world with the `GameState` envelope, the
 > one-action model, projection, reason codes, events and terminal identity.
 >
 > It is **not** a game design. The flagship game built on this kind lives in its own
@@ -26,12 +26,26 @@ the game; §17 says exactly what and why.
 
 ## 1. What This Kind Is
 
-A spatial management simulation. The player builds and configures facilities; autonomous
-guests and staff move through them; the world advances in fixed ticks and resolves through
-an ordered system pipeline.
+**A navigable world with autonomous inhabitants.** The player shapes the world — placing,
+pricing, staffing — and never commands the inhabitants; they route themselves across it and
+act on their own preferences. The world advances in fixed ticks through an ordered system
+pipeline.
 
 Where `story-graph`'s unit of play is *one choice* and `simulation`'s is *one week*, this
 kind's is **a batch of ticks the caller chooses**.
+
+> **`world-graph` and `story-graph` are not related, despite the names.** Both name the
+> structure their `advance` walks, which is the naming convention — but a story graph is
+> **authored**: its edges are choices a writer wrote, and traversal is the player picking
+> one. A world graph is **navigated**: its edges are adjacency, and traversal is
+> pathfinding by entities the player does not control. Sharing a suffix means they answer
+> the same question about themselves, not that they share a mechanism. They share no code.
+
+> **Why not `management-simulation`, the name the draft proposed.** It fails §1a twice.
+> *Management* is a theme, and §1a says themes are campaigns — a colony sim, an ecosystem
+> model or a transport network would run on this identical kind and none of them is
+> management. And the `-simulation` suffix implies a specialization of the `simulation`
+> kind, which it is not: they are siblings with entirely different `advance` bodies.
 
 ---
 
@@ -78,7 +92,7 @@ one — this is its **fourth** occurrence, after 03 §8.1, 04 §10.1 and 10 §2.
 What remains is the kind's own:
 
 ```typescript
-interface ManagementSimulationKindState {
+interface WorldGraphKindState {
   tick: number;                                   // §4 — the only authoritative clock field
 
   map: ResortMap;                                 // terrain, zones, spawns, exits, revision
@@ -288,7 +302,7 @@ Both map to `ended`. The win/loss distinction is **terminal identity**, which is
 `Kind.outcome` is for ([`07-replay.md`](07-replay.md) §3.3):
 
 ```typescript
-outcome(state: ManagementSimulationKindState): {
+outcome(state: WorldGraphKindState): {
   resolution: "objectives_met" | "failed" | null;   // null while active
   objectivesMet: readonly string[];                  // published objective ids
   failureId: string | null;                          // published failure-condition id
@@ -338,7 +352,7 @@ to drift, the same objection §3 makes to `rng`.
 
 ## 10. Projection
 
-`ManagementSimulationView` is the `kindView` inside the core's `PlayerView` (04 §9) and
+`WorldGraphView` is the `kindView` inside the core's `PlayerView` (04 §9) and
 carries only what the generic surface does not, the rule `StoryGraphView` follows (03 §9).
 
 Never crosses the boundary: the seed and any stream state, future incident weights, hidden
@@ -379,7 +393,7 @@ Reused from the base set: `unknown_action`, `requirement_unmet`, `session_ended`
 
 ## 12. Events
 
-Namespaced `kind.management-simulation.*` (05 §9), declared as `Kind.eventNames`:
+Namespaced `kind.world-graph.*` (05 §9), declared as `Kind.eventNames`:
 
 | Name (after the namespace) | Severity | Emitted at |
 |---|---|---|

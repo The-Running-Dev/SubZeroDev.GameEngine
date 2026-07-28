@@ -7,7 +7,7 @@
 >
 > **This is downstream of two other milestones.** The engine's own MVP proves the platform
 > with the `story-graph` kind and explicitly excludes even the `simulation` kind. The
-> `management-simulation` kind is the third milestone. Nothing here starts until that kind
+> `world-graph` kind is the third milestone. Nothing here starts until that kind
 > exists.
 
 ---

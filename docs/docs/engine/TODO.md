@@ -192,11 +192,11 @@ The Tier 1 / Tier 2 framework, identifier and `LocKey` rules, delegating kind ch
       registry can never be frozen.
 
 ### W6 — Projection
-`Engine.view`, the `player` / `agent` audiences, and the `kind.project` seam.
+`Engine.view`, the `player` / `ai` audiences, and the `kind.project` seam.
 - **Spec:** 04 §9.
 - **Depends on:** W3.
 - **Done when:** `seed`, `actionLog`, and raw `kindState` cannot reach a client by any
-      path; the `agent` audience is not wider than `player` by default.
+      path; the `ai` audience is not wider than `player` by default.
 
 ### W7 — Session Store
 The in-memory store: `listCampaigns`, `getScene`, `getView`, `createSession`,
@@ -382,10 +382,10 @@ themselves.
 - [ ] "Stable Life" scenario playable to a win and a loss.
 - [ ] Its Definition of Done: `games/life-in-the-fast-lane.md`.
 
-### Depth: Sun Trap (The `management-simulation` Kind)
+### Depth: Sun Trap (The `world-graph` Kind)
 
 The third kind, and the first spatial one. **Specified —**
-[`12-management-simulation-kind.md`](12-management-simulation-kind.md) fixes the seam; the
+[`12-world-graph-kind.md`](12-world-graph-kind.md) fixes the seam; the
 game it serves lives in its own repository (12 §17).
 
 - [ ] **`KindContext.derive` and the `tick` stream** (04 §3.1, §8). Both are specified and

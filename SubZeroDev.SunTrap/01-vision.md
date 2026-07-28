@@ -32,14 +32,14 @@ The game should be mechanically legible and narratively absurd.
 
 ## 2. Architectural Position
 
-This game runs on the **`management-simulation` kind** in the Game Engine. The kind already
+This game runs on the **`world-graph` kind** in the Game Engine. The kind already
 exists as a contract; this repository supplies content, design and a client.
 
 ```text
 Game Engine substrate
 ├── story-graph
 ├── simulation                 → Life in the Fast Lane (SubZeroDev.GameOfLife)
-└── management-simulation      → Sun Trap (this repository)
+└── world-graph      → Sun Trap (this repository)
 ```
 
 **Why it needed a new kind, stated correctly.** The engine's test
@@ -52,7 +52,7 @@ would be a rules DSL, which the engine rejects on principle.
 
 **The consequence is the good news.** One kind covers the genre. A mountain hotel, theme
 park, nightclub district, festival ground or corporate retreat centre is a **campaign** of
-`management-simulation`, not another kind — no engine change, no release. Sun Trap is the
+`world-graph`, not another kind — no engine change, no release. Sun Trap is the
 first campaign family, not the only possible one.
 
 **What this game does not get to decide.** Determinism rules, the action list, state

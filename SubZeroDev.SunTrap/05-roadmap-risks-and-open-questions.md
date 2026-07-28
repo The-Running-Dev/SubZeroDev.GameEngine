@@ -6,7 +6,7 @@
 
 ## 1. Development Phases
 
-**Phase 0 — the kind.** Not work in this repository. The `management-simulation` kind must
+**Phase 0 — the kind.** Not work in this repository. The `world-graph` kind must
 be specified (done) and built in the engine repository before Phase 1 starts.
 
 **Phase 1 — headless kernel.** Tick clock, map state, actions, deterministic entity ids,
@@ -170,7 +170,7 @@ Recorded so they are not reopened.
 
 | Question | Answer |
 |---|---|
-| Final kind name | `management-simulation`. `resort-management` is a campaign family, not a kind |
+| Final kind name | `world-graph`. `resort-management` is a campaign family, not a kind |
 | Does the session store live outside the engine? | Yes, from day one — the core is a pure function and sessions are a store above it |
 | Are commands event-sourced, or is the log diagnostic? | The action log **is** the replay spine, not diagnostics. `{ seed, actionLog }` reconstructs a session completely |
 | Fixed-step batching rules | Batch invariance: any split of a tick batch reaches the same world |

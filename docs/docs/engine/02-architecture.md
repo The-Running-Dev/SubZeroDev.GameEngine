@@ -36,9 +36,9 @@ Clients   │ web · mobile · CLI · Discord · chat · MCP    │  presentatio
           └───────────────────────┬─────────────────────┘
                                   │  one API, one MCP surface
           ┌───────────────────────▼─────────────────────┐
-Kinds     │ story-graph  │  simulation   │  management-   │  engine-owned logic
-          │ (nodes,      │  (weekly tick,│  simulation    │
-          │  choices)    │   needs)      │  (ticks, agents)│
+Kinds     │ story-graph  │  simulation   │  world-graph   │  engine-owned logic
+          │ (nodes,      │  (weekly tick,│  (space, ticks,│
+          │  choices)    │   needs)      │   agents)      │
           └───────────────────────┬─────────────────────┘
                                   │
           ┌───────────────────────▼─────────────────────┐
@@ -72,7 +72,7 @@ authoring produces. A new *kind* is an engine feature, added deliberately.
 
 §1 says a new kind is "an engine feature, added deliberately" but does not say how to tell
 one from a campaign. That question has now been asked three times — for `simulation`, for
-`management-simulation`, and implicitly every time a plugin mechanism is proposed — and
+`world-graph`, and implicitly every time a plugin mechanism is proposed — and
 answered each time from memory. It is the **first** question any new game raises, so it is
 written down here as a procedure.
 
@@ -111,8 +111,8 @@ event namespace, validator, projection and `outcome` — and because kinds are e
 | Bulgaria adventure | Campaign | 1 — story-graph's `advance` runs it as data |
 | Life in the Fast Lane | Kind (`simulation`) | 3 — a weekly resolution pipeline over needs, jobs and events is not expressible as story-graph data |
 | Bulgaria culture pack | Campaign | 1 — same kind, replaced strings and campaigns (§4a) |
-| Resort management | Kind (`management-simulation`) | 3 — A\* pathfinding and guest utility scoring are code; a data-driven switch over them is the DSL N2 rejected ([`12-management-simulation-kind.md`](12-management-simulation-kind.md) §2) |
-| Mountain hotel, theme park, festival ground | **Campaign** | 1 — `management-simulation`'s `advance` runs all of them as data. This is the row that pays for the test |
+| Resort management | Kind (`world-graph`) | 3 — A\* pathfinding and guest utility scoring are code; a data-driven switch over them is the DSL N2 rejected ([`12-world-graph-kind.md`](12-world-graph-kind.md) §2) |
+| Mountain hotel, theme park, festival ground | **Campaign** | 1 — `world-graph`'s `advance` runs all of them as data. This is the row that pays for the test |
 
 > **Why the last row matters most.** The resort draft proposed a kind by listing spatial
 > maps, hundreds of agents, queues and pathfinding — all *state*, which step 1's table

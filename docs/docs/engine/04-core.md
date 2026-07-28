@@ -94,7 +94,7 @@ opaque payload inside it. This is the single most important type in the platform
 what `advance`, `serialize`, and the session store operate on.
 
 ```typescript
-type KindId = "story-graph" | "simulation" | "management-simulation";
+type KindId = "story-graph" | "simulation" | "world-graph";
 
 interface GameState {
   formatVersion: number;         // the shape of THIS envelope — see §10.2
@@ -254,9 +254,9 @@ from the seed again (§8). The kind stays pure and every draw stays reproducible
 > only reachable stream and those variants were unreachable by construction. `derive` closes
 > over the game's `seed` and nothing else: it is pure, it persists nothing, and
 > `{ seed, actionLog }` remains the complete replay input. The kind that forced this is
-> `management-simulation`, whose correctness depends on draws keyed by simulated time rather
+> `world-graph`, whose correctness depends on draws keyed by simulated time rather
 > than by how a client batched its requests
-> ([`12-management-simulation-kind.md`](12-management-simulation-kind.md) §5).
+> ([`12-world-graph-kind.md`](12-world-graph-kind.md) §5).
 
 `ctx.emit` is the same shape for the same reasons: a handle scoped to this resolution,
 used and discarded, carrying nothing back into state. It reports what the kind is doing to
@@ -585,7 +585,7 @@ play plus one `system` stream, `system:"start"`, for `createGame`'s initial `set
 > **The `tick` variant is for world-level draws in a kind whose turn advances simulated
 > time** — guest spawning, incident rolls, weather. Keying them by `tick` rather than by
 > `seq` is what makes a batch of ticks produce the same result as the same ticks taken
-> singly; `12-management-simulation-kind.md` §5 states the property and why it is
+> singly; `12-world-graph-kind.md` §5 states the property and why it is
 > load-bearing. `system` here names the drawing system, not a `StreamId` variant, so two
 > systems drawing on the same tick stay independent.
 
@@ -601,7 +601,7 @@ Clients receive a **projection**, never raw state (architecture §7). The core r
 the mechanism; the kind supplies the narrowing.
 
 ```typescript
-type ProjectionAudience = "player" | "agent";
+type ProjectionAudience = "player" | "ai";
 
 interface PlayerView {
   gameId: string;
@@ -617,8 +617,16 @@ interface PlayerView {
 The core guarantees the envelope's own hidden fields (`seed`, `actionLog`,
 `kindState` raw) never reach a client except through `kind.project`, which is
 responsible for excluding the kind's hidden state (03 §9 lists the story-graph
-exclusions). The `agent` audience is the rival/AI view; widening it is a difficulty
+exclusions). The `ai` audience is the rival/AI view; widening it is a difficulty
 setting, declared and visible (games/04-engine-specification.md §6.1) — never granted by accident.
+
+> **Why `ai` and not `agent`.** "Agent" was doing two incompatible jobs across these
+> specs: an *AI player* here, and a *simulated entity* in `StreamId`
+> (`{ kind: "agent"; agentId }`, §8) and throughout
+> [`12-world-graph-kind.md`](12-world-graph-kind.md), where guests and staff are agents. A
+> spatial kind full of autonomous entities made the collision unavoidable, so the audience
+> took the new name and `agent` now means exactly one thing: an entity the simulation
+> owns. Renamed before any code existed, which is the only cheap time to do it.
 
 ---
 
