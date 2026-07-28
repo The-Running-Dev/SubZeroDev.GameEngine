@@ -61,6 +61,7 @@ keep the growing core maintainable. The `src/engine/src/core/` layout mirrors it
 | `registry` | the content registry, campaign resolution | §10.1 |
 | `localization` | `LocKey` resolution against string tables | §12, §17 |
 | `determinism` | the RNG handle, streams, the harness | §8, §14 |
+| `observability` | the `Emitter`, `EngineEvent`, sinks | [`05-observability.md`](05-observability.md) |
 
 Kinds (`kinds/`) and clients (`clients/`, `mcp/`) sit above; the dependency arrow points
 only downward — a core module never imports a kind or client.
@@ -135,6 +136,7 @@ which kind it is.
 interface Kind<KState> {
   readonly id: KindId;
   readonly reasonCodes: readonly ReasonCode[];   // codes this kind adds to the base set (§12)
+  readonly eventNames: readonly EventName[];     // events this kind may emit (05 §9)
 
   /** Build the starting kind-state for a fresh game of this campaign. */
   initialState(campaign: Campaign, ctx: KindContext): InitialStateResult<KState>;
@@ -210,6 +212,7 @@ interface KindContext {
   readonly campaign: Campaign;           // this game's campaign, resolved
   readonly rng: RngHandle;               // handle on this resolution's own stream (§8)
   readonly seq: number;                  // current action sequence number
+  readonly emit: ResolutionEmitter;      // this resolution's event handle (05 §4)
 }
 ```
 
@@ -217,6 +220,13 @@ The kind draws randomness only from `ctx.rng` — a handle on the stream derived
 *this* resolution from `(seed, streamId)`. The handle is discarded when `advance`
 returns; nothing is written back, because the next resolution derives its own stream
 from the seed again (§8). The kind stays pure and every draw stays reproducible.
+
+`ctx.emit` is the same shape for the same reasons: a handle scoped to this resolution,
+used and discarded, carrying nothing back into state. It reports what the kind is doing to
+whatever sink the host attached, and `emit` returns `void` precisely so that nothing about
+the sink can reach the game ([`05-observability.md`](05-observability.md) §2). Removing
+every event must leave `serialize()` byte-identical — the determinism harness asserts it
+(§14).
 
 ---
 
@@ -228,7 +238,11 @@ Kinds are registered at engine construction — a fixed, engine-owned set (archi
 ```typescript
 type KindRegistry = Readonly<Record<KindId, Kind<unknown>>>;
 
-function createEngine(registry: ContentRegistry, kinds: KindRegistry): Engine;
+function createEngine(
+  registry: ContentRegistry,
+  kinds: KindRegistry,
+  emitter?: Emitter,             // observability sink; defaults to nullEmitter (05 §4)
+): Engine;
 ```
 
 The **pure engine** exposes kind-agnostic operations over the envelope. It resolves the
@@ -253,17 +267,25 @@ interface Engine {
 submitAction(state, actionId, params):
   1. kind = kinds[state.kindId];  seq = state.actionLog.length   // 0-based, monotonic
   2. handle = rngHandleFor(state.seed, { kind:"action", seq })   // §8 — derived, not carried
-  3. result = kind.advance(state.kindState, actionId, params, { registry, campaign, rng: handle, seq })
-  4. if result.error → return { ok:false, errors:[result.error] }, state unchanged  // ActionResult.errors is a list (§12)
-  5. newState = {
+  3. emit = resolutionEmitter(emitter, state.gameId, seq)        // 05 §4 — ordinal starts at 0
+  4. result = kind.advance(state.kindState, actionId, params, { registry, campaign, rng: handle, seq, emit })
+  5. if result.error → return { ok:false, errors:[result.error] }, state unchanged  // ActionResult.errors is a list (§12)
+  6. newState = {
        ...state,
        kindState: result.state,
        status: result.status,
        actionLog: [...state.actionLog, { seq, actionId, params }],
      }
-  6. return { ok:true, value:newState, errors:[], warnings:[],
+  7. return { ok:true, value:newState, errors:[], warnings:[],
               changes:result.changes, messages:result.messages }
 ```
+
+> **A rejected action does not advance `seq`.** Step 5 returns without appending, so the
+> next attempt computes the same `seq` from the same log length. That is deliberate — the
+> log is the replay spine and a refused action is not part of it — but it means two rejected
+> attempts emit events with identical `(gameId, seq, ordinal)`. Observability states that
+> limit rather than papering over it, and disambiguates at the boundary
+> ([`05-observability.md`](05-observability.md) §5, §6).
 
 Immutability is unconditional (games/04-engine-specification.md §11.3): every operation returns a new envelope.
 
@@ -274,14 +296,19 @@ createGame(config):
   1. campaign = registry.campaigns[config.campaignId]        // kind = campaign.kindId
   2. seed = config.seed ?? store-generated (and recorded)
   3. startHandle = rngHandleFor(seed, { kind:"system", system:"start", seq:0 })   // §8
-  4. init = kind.initialState(campaign, { registry, campaign, rng: startHandle, seq: 0 })
+  4. startEmit = resolutionEmitter(emitter, gameId, 0)            // 05 §4 — seq 0, ordinal 0
+  5. init = kind.initialState(campaign, { registry, campaign, rng: startHandle, seq: 0, emit: startEmit })
      // a kind that settles at start (story-graph, 03 §8.2) draws its initial
      // random transitions from startHandle, and reports "ended" if it settled to one
-  5. return the envelope { kindId: campaign.kindId, campaignId: campaign.id,
+  6. return the envelope { kindId: campaign.kindId, campaignId: campaign.id,
        campaignVersion: campaign.version, seed,
        status: init.status, kindState: init.state, actionLog: [] }
      // init.changes / init.messages ride out on the CommandResult
 ```
+
+The start resolution uses `seq: 0` for both the RNG stream and the emitter, matching the
+first action's numbering; the two never collide because the *stream* is `system:"start"`
+rather than `action` (below), and because the emitter's ordinal restarts per resolution.
 
 The **start** stream (`system:"start"`) is deliberately distinct from the per-action
 streams `submitAction` uses (`{ kind:"action", seq }`), so a start-of-game random draw
@@ -715,6 +742,13 @@ interface ActionResult extends CommandResult<GameState> { changes: StateChange[]
 mechanism — the discipline the simulation kind arrived at (games/04-engine-specification.md §10.4). It feeds
 history and the transparency requirement; `visible` gates what a client may show.
 
+> **`StateChange` is not logging.** It is a domain record: localized, returned in
+> `AdvanceResult`, persisted by what the store keeps, and shown to players. Operational
+> logging and tracing is a **separate channel** that is emitted to a sink, never returned,
+> never localized, and free to be discarded entirely with no behavioural difference —
+> [`05-observability.md`](05-observability.md) §1 draws the line and §2 explains why
+> merging the two would break determinism.
+
 ---
 
 ## 13. The MCP Surface
@@ -759,6 +793,14 @@ interface PlaythroughFixture {
   diff catches an unintended behaviour change across the whole engine.
 - **Property tests** — N random seeds, each run twice, outputs compared; catches
   non-determinism on paths no fixture touches.
+- **Sink independence** — every fixture replays twice, once with `nullEmitter` and once
+  with `recordingEmitter`, and both `serialize()` outputs must be byte-identical. This is
+  what makes observability ([`05-observability.md`](05-observability.md) §2) safe to have
+  inside a deterministic core: it catches a kind that branches on emission, which no
+  state-only golden file would notice.
+- **Stream reproducibility** — the same fixture under `recordingEmitter` twice yields the
+  identical event sequence, so the event stream is itself a golden-fileable artifact
+  (05 §5).
 
 Canonical serialization (§10, built) and seeded RNG (§8, built and reference-verified)
 are the two properties that make byte-identical achievable at all.

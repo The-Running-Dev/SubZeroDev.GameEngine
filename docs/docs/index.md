@@ -26,6 +26,7 @@ section number.
 |---|---|
 | [The Core](engine/04-core.md) | The core as **types**: the Kind interface, the `GameState` envelope, the engine API, projection, validation — **the contract (types)** |
 | [Story-Graph Kind](engine/03-story-graph-kind.md) | The flagship kind: nodes, choices, typed variables, consequences, endings, turn and settle semantics |
+| [Observability](engine/05-observability.md) | Logging and tracing: the operational event channel, and the rules that keep it from breaking determinism |
 
 **The Core** comes first deliberately: `04` implements `03` as types, and the core is the
 shorter way in. The two drift apart more easily than anything else here — an edit to one that

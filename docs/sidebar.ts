@@ -36,7 +36,7 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Contracts',
       collapsed: false,
-      items: ['engine/core', 'engine/story-graph-kind'],
+      items: ['engine/core', 'engine/story-graph-kind', 'engine/observability'],
     },
     {
       type: 'category',

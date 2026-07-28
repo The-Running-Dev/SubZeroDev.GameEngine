@@ -10,9 +10,14 @@ sized to be picked up in a fresh session. The MVP boundary is marked; everything
 is post-MVP.
 
 > The MVP's Definition of Done is [`MVP.md`](MVP.md) §5 — every unit below rolls up to it.
-> The contracts are [`04-core.md`](04-core.md) and
-> [`03-story-graph-kind.md`](03-story-graph-kind.md). Nothing unsettled remains for the
+> The contracts are [`04-core.md`](04-core.md),
+> [`03-story-graph-kind.md`](03-story-graph-kind.md) and
+> [`05-observability.md`](05-observability.md). Nothing unsettled remains for the
 > MVP: [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §1 is now a decision log.
+>
+> **Unit numbering is positional, like the doc numbering.** A unit inserted between two
+> existing ones takes a letter suffix — `W3a` — rather than renumbering everything after
+> it and invalidating every reference in `plans/`. Same convention as architecture §4a.
 
 Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
@@ -108,13 +113,15 @@ site homepage from `README.md`, and publishes the site.
 
 ### W1 — Core Contract Types and Module Skeleton
 Create the module tree of 04 §1.1 (`kernel`, `session`, `persistence`, `projection`,
-`validation`, `registry`, `localization`, `determinism`) and put each declared type in the
-module that owns it. Types only — no behaviour.
-- **Spec:** 04 §§1.1–3, 5–12, §17.
+`validation`, `registry`, `localization`, `determinism`, `observability`) and put each
+declared type in the module that owns it. Types only — no behaviour.
+- **Spec:** 04 §§1.1–3, 5–12, §17; 05 §§3–4 for the `observability` types.
 - **Depends on:** nothing.
 - **Done when:** `npm run typecheck` passes with `exactOptionalPropertyTypes`; a dependency
       scan shows no core module importing `kinds/`, `clients/`, or `mcp/`; `kindState` is
-      `unknown`, not a union; `GameState` carries no clock, profile, or kind state.
+      `unknown`, not a union; `GameState` carries no clock, profile, or kind state;
+      `EngineEvent` carries no timestamp and no trace id — both are added at the boundary
+      (05 §6).
 
 ### W2 — RNG Handle and Stream Derivation
 Wrap the built `Pcg32` behind `RngHandle`, and implement the normative `StreamId` → string
@@ -136,6 +143,29 @@ and a **validating** `deserialize` returning `CommandResult<GameState>`.
       every operation returns a new envelope and leaves its input untouched; `deserialize`
       rejects a malformed envelope instead of casting; unknown kind, unknown campaign,
       ended session, and unknown action each have a test.
+
+### W3a — Observability: Emitter, Events, and Sinks
+The **core half** of the operational event channel. `Emitter`, the per-resolution
+`ResolutionEmitter` handle on `KindContext`, the `GameEvent`/`SystemEvent` split, the core
+event set (05 §8), and two sinks — `nullEmitter` and `recordingEmitter`. Numbered `3a`
+rather than inserted, so no existing unit renumbers — the same convention architecture §4a
+uses.
+
+**The boundary half is W7's**, because it cannot exist before the session store does:
+stamping, spans, `attempt`, and `jsonlEmitter` all belong to the layer that owns a clock.
+- **Spec:** [`05-observability.md`](05-observability.md) §§1–5, §7–§10, §12; 04 §3.1, §4, §14.
+- **Depends on:** W1, W3. (Kind events come with the kind units — W11 and W12.)
+- **Done when:** `emit` returns `void` and no core code path reads anything back from a
+      sink; the core isolates every `emit`, so a sink that throws on every call does not
+      fail a game; a fixture replays byte-identically under `nullEmitter` and
+      `recordingEmitter`; the same fixture twice under `recordingEmitter` yields the
+      identical event sequence including ordinals, comparing modulo `gameId`; ordinals
+      restart at 0 each resolution, so a stream does not depend on how many games ran
+      before; no `EngineEvent` field is populated from a clock or an RNG draw;
+      `core.validation.completed` and `core.deserialize.rejected` are `scope: "system"` and
+      carry no `gameId`; a rejected unknown action id is absent from the emitted `data`; a
+      name outside `core.*` emitted by the core, or outside `kind.<kindId>.*` by a kind,
+      fails.
 
 ### W4 — Registry, Authoring Builder, Localization
 The frozen in-memory `ContentRegistry`; `AuthoredText` → `BuiltCampaign` pure builder; the
@@ -166,12 +196,18 @@ The Tier 1 / Tier 2 framework, identifier and `LocKey` rules, delegating kind ch
 ### W7 — Session Store
 The in-memory store: `listCampaigns`, `getScene`, `getView`, `createSession`,
 `resumeSession`, `submitAction`, `saveGame`, `loadGame`. Persist canonical blobs, not live
-objects.
-- **Spec:** 04 §7, §10.2.
-- **Depends on:** W3, W6.
+objects. **Owns the observability boundary** (05 §6) — the half W3a deliberately leaves
+out, because stamping needs the layer that has a clock.
+- **Spec:** 04 §7, §10.2; [`05-observability.md`](05-observability.md) §6, §6.1, §11.
+- **Depends on:** W3a, W3, W6.
 - **Done when:** save mid-session → load → continue loses no state; two sessions cannot
       mutate each other; `savedAt`, owner ids, and other host metadata never appear in a
-      serialized `GameState`.
+      serialized `GameState`; every command wraps the base emitter per call via
+      `withEmitter` and stamps `emittedAt`, `traceId`, `spanId`, `attempt` and `sessionId`;
+      two concurrent commands never cross-attribute an event, verified with interleaved
+      sessions rather than asserted; `attempt` increments on **rejected** submissions too,
+      so repeated invalid actions are distinguishable where `seq` repeats (05 §5);
+      `jsonlEmitter` writes one stamped record per line.
 
 ### W8 — Profile Store
 `PlayerProfile`, `ProfileStore`, `profileId` on `CreateSessionConfig`, and the post-action
@@ -204,17 +240,19 @@ The frozen `Condition` evaluator plus this kind's field namespace (`var.*`, `tur
 ### W11 — Nodes, Turn, and Settle
 The four node kinds, `enter(nodeId)`, the settle loop, the `SETTLE_STEPS` guard, and
 `initialState` returning `InitialStateResult`.
-- **Spec:** 03 §3, §8.1, §8.2.
-- **Depends on:** W2, W9, W10.
+- **Spec:** 03 §3, §8.1, §8.2, §8.4.
+- **Depends on:** W2, W3a, W9, W10.
 - **Done when:** an auto/random chain settles to a choice or ending; every entry increments
       its visit count, including the start node and pass-throughs; a 64-step
       non-terminating chain fails with `settle_guard_tripped`; a start that settles onto an
-      ending reports `status: "ended"`; random transitions reproduce from seed + action log.
+      ending reports `status: "ended"`; random transitions reproduce from seed + action log;
+      the settle loop emits `settle.step`, `node.entered` (with `visitCount`) and
+      `random.picked`, and a stream diff localizes a seeded divergence to one transition.
 
 ### W12 — Scene, Actions, Projection, Reason Codes
 `availableActions` (omit on `showWhen`, disable with a reason on `requirements`), `scene`,
 the slim `StoryGraphView`, and the kind's reason codes.
-- **Spec:** 03 §4, §8.3, §9; 04 §6.
+- **Spec:** 03 §4, §8.3, §8.4, §9; 04 §6.
 - **Depends on:** W6, W11.
 - **Done when:** a `showWhen`-hidden choice is absent from the view **and** returns
       `unknown_action` when submitted — indistinguishable from a nonexistent id; a gated
@@ -267,12 +305,16 @@ The same operations as tools — a sibling adapter, no AI-specific path.
       completes the arc; the same seed and choices produce the same result as W16.
 
 ### W18 — Determinism Harness
-The `PlaythroughFixture` runner, committed golden files, and property tests.
-- **Spec:** 04 §14.
-- **Depends on:** W15.
+The `PlaythroughFixture` runner, committed golden files, property tests, and the
+sink-independence pass.
+- **Spec:** 04 §14; 05 §12.
+- **Depends on:** W3a, W15.
 - **Done when:** the same seed + action log serializes byte-identically; a one-byte golden
       edit fails the suite; N random seeds run twice match; `deserialize(serialize(state))`
-      round-trips; the suite passes in Node with no DOM, network, or AI adapter installed.
+      round-trips; every fixture replays byte-identically under `nullEmitter` and
+      `recordingEmitter`; the event stream is golden-filed and a stream diff fails the suite
+      on an unintended behavioural change; the suite passes in Node with no DOM, network, or
+      AI adapter installed.
 
 ### W19 — MVP Acceptance
 Walk [`MVP.md`](MVP.md) §5 and attach test evidence to each box.
