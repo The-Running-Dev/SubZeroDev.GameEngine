@@ -14,12 +14,14 @@ formed an alliance against you.
 The **game**. It is content and design, built on an engine that lives elsewhere.
 
 ```text
-SubZeroDev.GameEngine          the deterministic platform
-  └── world-graph    the kind — engine-owned code, engine repository
-        └── Sun Trap           this repository — campaigns, design, client, balance
+SubZeroDev.GameEngine     the deterministic platform
+  └── world-graph         the kind — engine-owned code, engine repository
+        └── Sun Trap      this repository — campaigns, design, client, balance
 ```
 
-This mirrors the relationship
+The engine is
+[SubZeroDev.GameEngine](https://github.com/The-Running-Dev/SubZeroDev.GameEngine). This
+mirrors the relationship
 [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife) has with
 the `simulation` kind: the kind contract lives in the engine, the game lives here.
 
@@ -38,19 +40,28 @@ done.
 ## The Engine Contract
 
 The kind this game runs on is specified at
-[World-Graph Kind](https://game-engine.subzerodev.com/docs/engine/world-graph-kind).
-Read it before adding anything here that looks like engine behaviour — several things that
-feel like game decisions are already fixed there:
+[World-Graph Kind](https://game-engine.subzerodev.com/docs/engine/world-graph-kind) — the
+document to read before adding anything here that looks like engine behaviour. Several
+things that feel like game decisions are already fixed there:
 
 | Already decided by the engine | Where |
 |---|---|
-| What may live in game state, and what may not | §3 |
-| The action list and their parameters | §6 |
-| That a batch of ticks equals the same ticks taken singly | §5 |
-| That win and loss are not engine statuses | §8 |
-| Integer-only arithmetic, tie-breaking by id, derived entity ids | §9 |
-| Reason codes and event names | §11, §12 |
-| That content packs merge campaigns wholesale and strings per key | §14 |
+| What may live in game state, and what may not | [§3](https://game-engine.subzerodev.com/docs/engine/world-graph-kind) |
+| That a batch of ticks equals the same ticks taken singly | [§5](https://game-engine.subzerodev.com/docs/engine/world-graph-kind) |
+| The action list and their parameters | [§6](https://game-engine.subzerodev.com/docs/engine/world-graph-kind) |
+| That win and loss are not engine statuses | [§8](https://game-engine.subzerodev.com/docs/engine/world-graph-kind) |
+| Integer-only arithmetic, tie-breaking by id, derived entity ids | [§9](https://game-engine.subzerodev.com/docs/engine/world-graph-kind) |
+| Reason codes and event names | [§11, §12](https://game-engine.subzerodev.com/docs/engine/world-graph-kind) |
+| That content packs merge campaigns wholesale and strings per key | [§14](https://game-engine.subzerodev.com/docs/engine/world-graph-kind) |
+
+The wider engine contract, when a question is not kind-specific:
+
+| Document | Answers |
+|---|---|
+| [Architecture](https://game-engine.subzerodev.com/docs/engine/architecture) | Every settled decision, including §1a — the test for whether something is a kind or a campaign |
+| [The Core](https://game-engine.subzerodev.com/docs/engine/core) | The `GameState` envelope, the Kind seam, the engine API, projection, validation |
+| [Clients](https://game-engine.subzerodev.com/docs/engine/clients) | What a client may and may not do, and the coverage checklist that proves it |
+| [Content Packs](https://game-engine.subzerodev.com/docs/engine/content-packs) | How packs resolve, and why `campaignVersion` becomes a digest |
 
 ## Documents
 

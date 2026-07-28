@@ -5,10 +5,13 @@
 > **Scope**
 > The smallest slice that proves this game, and what "done" means for it.
 >
-> **This is downstream of two other milestones.** The engine's own MVP proves the platform
-> with the `story-graph` kind and explicitly excludes even the `simulation` kind. The
-> `world-graph` kind is the third milestone. Nothing here starts until that kind
-> exists.
+> **This is downstream of two other milestones.** The engine's own
+> [MVP](https://game-engine.subzerodev.com/docs/engine/mvp) proves the platform with the
+> `story-graph` kind and explicitly excludes even the `simulation` kind. The
+> [`world-graph` kind](https://game-engine.subzerodev.com/docs/engine/world-graph-kind) is
+> the third milestone. Nothing here starts until that kind exists — and the determinism and
+> architecture boxes below are **engine** guarantees this game can only break, never
+> establish.
 
 ---
 

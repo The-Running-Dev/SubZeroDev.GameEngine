@@ -13,7 +13,10 @@
 
 ## 1. The Rules These Shapes Must Obey
 
-Taken from the kind contract; every shape below is written to satisfy them.
+Taken from the
+[World-Graph Kind](https://game-engine.subzerodev.com/docs/engine/world-graph-kind) contract;
+every shape below is written to satisfy them. **That document is authoritative — where this
+table and it disagree, it is right and this is stale.**
 
 | Rule | Consequence here |
 |---|---|

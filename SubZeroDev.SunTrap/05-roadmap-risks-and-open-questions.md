@@ -166,7 +166,11 @@ Questions the engine has since answered are listed in §5 rather than here.
 
 ## 5. Closed by the Engine
 
-Recorded so they are not reopened.
+Recorded so they are not reopened. Each is settled in the engine's published contracts —
+[World-Graph Kind](https://game-engine.subzerodev.com/docs/engine/world-graph-kind),
+[The Core](https://game-engine.subzerodev.com/docs/engine/core) and
+[Content Packs](https://game-engine.subzerodev.com/docs/engine/content-packs) — and reopening
+one here would mean contradicting the engine rather than deciding something.
 
 | Question | Answer |
 |---|---|
