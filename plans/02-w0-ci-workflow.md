@@ -244,6 +244,18 @@ obvious:
 
 #### ✔ Closed — the site root under a custom domain
 
+> **⚠ Superseded — the upstream fix this section predicted has shipped, and this repository
+> has adopted it.** The exit condition written below ("If `docs-template` ever gives the brand
+> an `href` or ships a root page, this repository can drop `docs/static/index.html` and go
+> back to `'throw'`") is now met. `Docusaurus-Template` [#52](https://github.com/The-Running-Dev/Docusaurus-Template/pull/52)
+> makes a non-`/` consumer's site root a **generated route** built from its own `README.md`,
+> and [#54](https://github.com/The-Running-Dev/Docusaurus-Template/pull/54) — raised from here — fixed the link rewriting that
+> shipped with it. So `docs/static/index.html` is deleted, `docs/src/pages/index.md` is the
+> root, `docs/docs/index.md` is a landing page rather than a second copy of the README, and
+> both broken-link checks are `'throw'` again. The analysis below is retained as the
+> reasoning that was current at the time; every mention of the static file describes a state
+> that no longer exists.
+
 `routeBasePath` is `'docs'`, and decision 2 keeps it that way. So the generated homepage
 publishes to **`https://game-engine.subzerodev.com/docs/`**, and this section assumed the
 bare root `https://game-engine.subzerodev.com/` had nothing mapped to it.
@@ -264,8 +276,10 @@ the build on nine identical broken links. Same commit, same Node: the 20:32 depl
 Resolved with the second option below, which was already the less invasive one:
 
 - ~~Set `routeBasePath: '/'`~~ — would move every URL and contradict decision 2.
-- **Claim the root ourselves, leaving `/docs/…` untouched.** Done:
-  [`docs/static/index.html`](../docs/static/index.html) forwards `/` to `/docs/`.
+- **Claim the root ourselves, leaving `/docs/…` untouched.** Done at the time with
+  `docs/static/index.html`, a meta refresh forwarding `/` to `/docs/`. **Superseded — see
+  the note at the top of this section: that file is gone, and the root is now a generated
+  route.**
 
 The point is not only that the root now resolves — it is that the site root is now **owned
 by this repository** rather than inherited from whatever the base image happens to contain.

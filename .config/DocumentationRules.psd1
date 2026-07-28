@@ -49,7 +49,7 @@
     # when -NoHomepage is passed. Keep them if you edit this block by hand.
     GeneratedFiles = @(
         @{
-            Path = 'docs/docs/index.md'
+            Path = 'docs/src/pages/index.md'
             Source = 'README.md'
             Generator = 'build/ConvertTo-DocumentationHomepage.ps1'
             SourceParameter = 'ReadmePath'
@@ -57,6 +57,7 @@
                 Title = 'Game Engine'
                 Description = ''
                 SiteUrl = 'https://game-engine.subzerodev.com/'
+                RouteBasePath = 'docs'
             }
         }
     )

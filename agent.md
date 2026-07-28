@@ -74,17 +74,19 @@ only when it would have changed a decision.
   leftover template docs in the sidebar. Re-verify when the base image tag changes. `/docs/`
   now serves the generated homepage (`docs/docs/index.md`); `/docs/engine/vision` is the
   first spec page beneath it, and the bare domain forwards to `/docs/`.
-- **Two link checks, and they do not fully overlap.** `build/Test-Documentation.ps1`
+- **Two link checks, and between them everything is now gated.** `build/Test-Documentation.ps1`
   hard-fails on relative links and heading anchors — that is the one that catches a doc
-  rename, and it still bites. Both of Docusaurus's own passes are `'warn'` by design:
-  **site-absolute targets (`/docs/engine/…`) are warned about, not gated**, since the gate
-  skips them (its line 391), having assumed Docusaurus owned them; if you rename or remove a
-  spec page, grep for site-absolute links to it by hand — today that means the generated
-  homepage, `docs/docs/index.md`. `onBrokenMarkdownLinks` is `'warn'` too, but that gives up
-  nothing the gate doesn't already hard-fail on for relative links — the one residual gap is
-  a link syntax the gate's regex fails to parse. `'warn'` on `onBrokenLinks` is deliberate: it
-  is what lets `docs/static/index.html` claim the site root, since the navbar brand links to
-  `/` and a static file never satisfies a route checker. See `plans/02-w0-ci-workflow.md`.
+  rename. Both of Docusaurus's own passes are back to `'throw'`, which re-covers the
+  **site-absolute targets (`/docs/engine/…`)** the gate skips by design (its line 391). They
+  were `'warn'` only while a static file held the site root: a static file is never a route,
+  so the navbar brand's link to `/` could not satisfy the checker. The root is a real route
+  again — `docs/src/pages/index.md`, generated from the README — so the compromise is gone.
+  See `plans/02-w0-ci-workflow.md`.
+- **The site root is generated; edit `README.md`, never `docs/src/pages/index.md`.** The gate
+  drift-checks the two and fails the build if they disagree. Absolute
+  `https://game-engine.subzerodev.com/…` links in the README are rewritten to site-relative
+  on the generated page, which is what lets one file read correctly on GitHub and on the
+  site.
 
 ## Orientation in One Paragraph
 

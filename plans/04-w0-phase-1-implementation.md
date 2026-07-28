@@ -572,11 +572,14 @@ After the workflows exist:
 
 #### The Bare Root Will 404 — Deliberately
 
-> **⚠ Superseded by PR #5.** The root is no longer a 404: `docs/static/index.html` claims it
-> and forwards to `/docs/` — a third exit this section did not list, which changes no URL
-> and needs no `routeBasePath` change, at the cost of `onBrokenLinks: 'warn'`. See
-> `plans/02`, *✔ Closed — the site root under a custom domain*. The analysis below is
-> retained as the reasoning that was current when W0 shipped.
+> **⚠ Superseded twice.** PR #5 first stopped the root being a 404 with
+> `docs/static/index.html`, a meta refresh forwarding to `/docs/` — a third exit this section
+> did not list, which changed no URL and needed no `routeBasePath` change, at the cost of
+> `onBrokenLinks: 'warn'`. That file has since been **deleted**: the upstream template now
+> generates a non-`/` consumer's site root from its own `README.md`, so the root is a real
+> route and both broken-link checks are `'throw'` again. See `plans/02`, *✔ Closed — the site
+> root under a custom domain*. The analysis below is retained as the reasoning that was
+> current when W0 shipped.
 
 Both `https://game-engine.subzerodev.com/` and `/docs/` return 404 today because nothing
 has been deployed. After the first successful deploy they diverge:
