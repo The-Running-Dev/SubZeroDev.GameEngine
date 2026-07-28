@@ -51,6 +51,15 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   (`games/05-text-client.md` header, `games/04` §20)
   describe an aspirational `packages/` monorepo; the code is `src/engine/`. Reconcile when
   the layout is actually built out.
+- **`history` in the simulation kind's state** — the upstream model carries
+  `history: HistoryEntry[]`, a narrative record of what happened. That overlaps
+  `StateChange[]`, which `advance` already returns (04 §12), and the event stream
+  ([`05-observability.md`](05-observability.md)). Three records of the same events is the
+  duplication rule [`10-simulation-kind.md`](10-simulation-kind.md) §2 exists to prevent, so
+  `history` is **not adopted** until it is established what it holds that `StateChange` does
+  not — most likely player-facing narrative framing, which would make it a projection
+  concern rather than state. **Revisit when** the simulation kind's field detail is ported
+  (10 §14).
 - **Third-party kinds, and the sandbox they would require** — architecture §1 **N2**
   rejected downloadable code kinds as a security and reproducibility hazard, and
   [`06-extensibility.md`](06-extensibility.md) §7 leaves that standing. It is a rejected

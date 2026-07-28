@@ -31,6 +31,7 @@ section number.
 | [Replay](engine/07-replay.md) | The regression oracle: replaying committed fixtures across engine versions, and what "the same game" means when the bytes may differ |
 | [Session Capture](engine/08-session-capture.md) | Turning a played session into a fixture: what may be taken from a person, what is refused, and how long it lives |
 | [Clients](engine/09-clients.md) | The client contract: what a client may and may not do, and the API coverage checklist that verifies it |
+| [Simulation Kind](engine/10-simulation-kind.md) | The second kind, expressed against the Kind seam: the week as a turn, plan actions, and what its state must not duplicate |
 
 **The Core** comes first deliberately: `04` implements `03` as types, and the core is the
 shorter way in. The two drift apart more easily than anything else here — an edit to one that

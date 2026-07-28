@@ -44,6 +44,7 @@ const sidebars: SidebarsConfig = {
         'engine/replay',
         'engine/session-capture',
         'engine/clients',
+        'engine/simulation-kind',
       ],
     },
     {
