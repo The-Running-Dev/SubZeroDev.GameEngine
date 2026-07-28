@@ -41,6 +41,7 @@ const sidebars: SidebarsConfig = {
         'engine/story-graph-kind',
         'engine/observability',
         'engine/extensibility',
+        'engine/replay',
       ],
     },
     {
