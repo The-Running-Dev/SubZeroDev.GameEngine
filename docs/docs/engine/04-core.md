@@ -221,11 +221,15 @@ interface InitialStateResult<KState> {
 the simulation kind it is the weekly resolution (`games/04-engine-specification.md`). The core calls it and
 never looks inside.
 
-> **One action model, two kinds.** The core's action is a string `actionId` plus
-> optional params. For the story-graph kind an action *is* a choice id. For the
-> simulation kind, actions map to its richer verbs (submit a plan, end the week). The
-> core does not care — it forwards the `actionId` and the kind interprets it. This
-> is what lets one API (§7) and one MCP surface (§13) serve both.
+> **One action model, three kinds.** The core's action is a string `actionId` plus
+> optional params. For the story-graph kind an action *is* a choice id, and it declares no
+> params at all. For the simulation kind, actions map to its richer verbs (submit a plan,
+> end the week). For the world-graph kind they are richer still — `build` carries a
+> definition, a position and a rotation; `advance_ticks` carries a tick count
+> ([`12-world-graph-kind.md`](12-world-graph-kind.md) §6). The core does not care — it
+> forwards the `actionId` and the kind interprets it. This is what lets one API (§7) and
+> one MCP surface (§13) serve all three, and the spread from *no params* to *four* is the
+> evidence that the model scales rather than merely fitting the two it was drawn from.
 
 ### 3.1 KindContext
 

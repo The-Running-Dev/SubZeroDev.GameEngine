@@ -300,7 +300,7 @@ The plain proving instrument, over `SessionStore` only.
       [`MVP.md`](MVP.md) §5 "Honest."
 - **Depends on:** W7, W12.
 - **Done when:** the **API coverage checklist** (09 §4) is complete for the text-client
-      column — all eight operations exercised by automated tests, not by inspection; it
+      column — all nine operations exercised by automated tests, not by inspection; it
       imports nothing from `kinds/` and never reads a persisted `GameState`; requirement
       failures render from reason codes, never matched English; an unknown reason code
       renders rather than crashing (09 §5).

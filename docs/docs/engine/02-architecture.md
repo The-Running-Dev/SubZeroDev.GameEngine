@@ -24,7 +24,7 @@
 
 This document reuses, by design, large parts of the Life in the Fast Lane engine
 specification. Where it says "carried over from the simulation kind," the mechanism is
-already specified there and is not re-derived here — it is core both kinds share.
+already specified there and is not re-derived here — it is core every kind shares.
 
 ---
 
