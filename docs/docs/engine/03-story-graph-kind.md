@@ -441,6 +441,24 @@ Two of these carry most of the value, for the two audiences the events exist to 
 > (§12) depends on it. Emitting the count at each entry makes an off-by-one visible at the
 > step that caused it rather than several turns later, when a gate fails to open.
 
+### 8.5 Terminal Identity
+
+`Kind.outcome` ([`04-core.md`](04-core.md) §3) returns this kind's terminal identity for the
+replay oracle ([`07-replay.md`](07-replay.md) §3.3):
+
+```typescript
+outcome(state: StoryGraphKindState): { endingId: string | null }
+```
+
+`endingId` when the game has settled onto an `EndingNode` (§8.2), `null` while it is still
+active. Nothing else — not `turn`, not variable values, not `visitedCounts`.
+
+> **Why so little.** The oracle compares games across engine versions, and anything that a
+> content rebalance may legitimately change would report as a regression. An ending id is a
+> published id, stable by the same rule that governs every other id (04 §17), so it survives
+> a rebalance and a serialization change alike. `turn` and variables do not, which is why
+> they are excluded here even though they are more informative in a debugger.
+
 ---
 
 ## 9. Projection — What a Client Sees

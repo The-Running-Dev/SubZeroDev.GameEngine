@@ -50,16 +50,54 @@ change to the *serialization*, which is frequently intended, and so it cannot di
 The load-bearing property, and the reason this is tractable at all:
 
 ```typescript
-interface PlaythroughFixture {          // 04 §14, unchanged
-  name: string;
-  config: NewGameConfig;                // campaignId, campaignVersion, seed
-  actionLog: LoggedAction[];            // { seq, actionId, params }
+interface ReplayFixture {
+  readonly name: string;
+  readonly config: NewGameConfig;         // campaignId, seed (04 §5)
+  readonly campaignVersion: string;       // pinned here, not in NewGameConfig — below
+  readonly capturedUnder: string;         // the engine version that recorded the outcome
+  readonly submissions: readonly Submission[];   // every attempt, accepted or not — §2.1
+}
+
+interface Submission {
+  readonly actionId: string;
+  readonly params?: Readonly<Record<string, string | number | boolean>>;
 }
 ```
 
-Every value in a fixture is an **id or a primitive**, and ids are *stable once published* —
-a rename is a migration ([`04-core.md`](04-core.md) §17). Nothing in a fixture is engine
-internals.
+Every value is an **id or a primitive**, and ids are *stable once published* — a rename is a
+migration ([`04-core.md`](04-core.md) §17). Nothing here is engine internals.
+
+> **Why this is not `PlaythroughFixture` (04 §14).** Two fields that document needs and the
+> determinism harness does not.
+>
+> `NewGameConfig` carries `campaignId`, `seed` and `audience` — **no `campaignVersion`**. The
+> determinism harness does not need one: it runs against whatever the registry currently
+> holds, and compares a build against itself in the same process. A cross-version oracle
+> does need one, because "the same game" is only meaningful against a pinned content
+> version, and because `unrunnable` (§6) has to be able to say *which* version went missing.
+>
+> `capturedUnder` exists for the same reason: a divergence report is not actionable without
+> naming both engine versions that disagree. Neither field belongs on `NewGameConfig`, which
+> is a *runtime* input — pinning them on the fixture keeps the core contract unchanged.
+
+### 2.1 Submissions, Not the Action Log
+
+**A fixture records every submitted action, including rejected ones. The action log does
+not.**
+
+04 §4 is explicit that a rejected action leaves state unchanged and appends nothing to
+`actionLog` — `seq` is the log's length, so the next attempt reuses it. That rule is correct
+for replay determinism and it makes `actionLog` **unusable as a submission history**: the
+rejections are simply not in it.
+
+Reusing it here would have been self-defeating. §3 promises one `Decision` per submitted
+action and §6 continues past a rejection specifically to see whether a later action
+recovered — neither of which is possible from data that excludes rejections. So the fixture
+carries its own `submissions` list, and `Decision[]` is exactly parallel to it.
+
+The relationship to 04 §14 is then clean: filtering `submissions` to the accepted ones
+reconstructs an `actionLog`, so a `ReplayFixture` can always produce a `PlaythroughFixture`,
+but not the reverse.
 
 Contrast the save path, which carries state and therefore carries the whole versioning
 problem — `saveFormatVersion`, `serializationVersion`, `replayCompatible` (04 §10.2). A
@@ -88,12 +126,15 @@ platform has already promised to keep stable.
 interface Outcome {
   readonly finalStatus: GameStatus;          // active | ended | abandoned (04 §2)
   readonly acceptedActions: number;          // how far the log got before diverging
-  readonly decisions: readonly Decision[];   // one per submitted action, in order
-  readonly achievements: readonly string[];  // unlocked ids, sorted (04 §7.1)
+  readonly decisions: readonly Decision[];   // one per SUBMISSION, in order — §2.1
+  readonly achievements: readonly string[];  // unlocked ids, sorted — §3.2
+  readonly terminal?: unknown;               // the kind's terminal identity — §3.3
 }
 
 interface Decision {
-  readonly seq: number;
+  readonly index: number;                    // 0-based position in submissions — §3.1
+  readonly seq: number | null;               // the accepted log position, null if rejected
+  readonly actionId: string;
   readonly accepted: boolean;
   readonly reason?: ReasonCode;              // set iff rejected (04 §12)
 }
@@ -106,9 +147,59 @@ interface Decision {
   reference them, so a rename already breaks old data and is already forbidden. That makes
   them the ideal cross-version vocabulary: the platform guarantees their meaning survives
   exactly as long as this oracle needs it to.
-- Achievement ids are core-visible through the profile store, keyed
-  `campaignId + achievementId` (04 §7.1), so they need no kind-specific access.
+- Achievement ids are stable published ids (04 §17), read as §3.2 describes.
 - `acceptedActions` is a count of log entries.
+
+### 3.1 `index`, Because `seq` Is Not Unique
+
+A rejected action does not advance `seq` (04 §4), so two rejected submissions at the same
+position share one. `seq` therefore cannot identify a submission, and a divergence reported
+at a `seq` would be ambiguous exactly where rejections cluster — which is where this oracle
+is most useful.
+
+`index` is the 0-based position in `submissions` and is unique by construction. `seq` is
+retained as `number | null` because it is still the useful cross-reference into the action
+log and into the observability stream (05 §5), and `null` states outright that a rejected
+submission has no log position rather than leaving a repeated number to be misread.
+
+### 3.2 Where Achievements Come From
+
+`unlockedAchievements` lives in `kindState`, which is `unknown` to the core (04 §2), so a
+pure-engine runner **cannot read it**. The profile store can — it is keyed
+`campaignId + achievementId` (04 §7.1) and is kind-agnostic — but only if there is a profile
+at all, and an anonymous session has none.
+
+**So the runner is a session-layer runner, not a pure-engine one.** It composes
+`createSessionLayer` (06 §4) with an in-memory `ProfileStore` and a fixed `profileId`, and
+reads the unlocked set from the profile after the last submission. That is a deliberate
+choice with a cost — the oracle exercises one layer more than the determinism harness does —
+and the alternative was dropping achievements from `Outcome` entirely, which would blind it
+to "this arc no longer unlocks its achievement", a regression worth catching.
+
+### 3.3 `terminal` — Terminal Identity, and Only That
+
+`finalStatus` records *that* a game ended. It cannot record *which* ending, because
+`endingId` lives in `kindState`. Without it, a change that routes the last action to a
+different ending — same decisions, same counts, same status — compares **equal**, and the
+oracle reports `match` on exactly the kind of regression it exists to catch.
+
+So `Kind` gains one member, mirroring `project` (04 §9):
+
+```typescript
+interface Kind<KState> {
+  // …existing members (04 §3)…
+  /** A minimal, cross-version-stable terminal identity. Ids only — never values. */
+  outcome(state: KState): unknown;
+}
+```
+
+**The constraint is what keeps it from becoming a false-positive generator.** A kind returns
+*published ids* — `story-graph` returns `{ endingId }` (03 §8.5) — and never variable values, counts,
+or anything a content rebalance legitimately changes. §3.4 stays the rule; `outcome` is the
+narrow exception for terminal identity, not a door back to state comparison.
+
+This was deferred in the first draft and the deferral was wrong: it traded a real, silent
+miss for the avoidance of a hypothetical one.
 
 **Nothing here is kind-specific**, which is the point — the oracle works for `story-graph`
 and `simulation` alike with no new `Kind` member and no per-kind maintenance.
@@ -121,12 +212,11 @@ and `simulation` alike with no new `Kind` member and no per-kind maintenance.
 > game ended somewhere different, several turns later, with no indication of where it
 > diverged.
 
-### 3.1 What Is Deliberately Not in `Outcome`
+### 3.4 What Is Deliberately Not in `Outcome`
 
 - **Variable values.** Kind-specific, and they change for legitimate reasons — a rebalance
   is not a regression. Including them would make the oracle cry wolf on every content edit.
-- **`endingId`.** Kind-specific (03 §3). `finalStatus` captures *that* a game ended, which
-  is kind-agnostic; *which* ending is a candidate for the extension in §9.
+  This is the rule `terminal` (§3.3) is the single narrow exception to.
 - **The event stream** ([`05-observability.md`](05-observability.md) §5). It is
   golden-fileable and it is a fine debugging aid, but event names are explicitly additive
   and retirable (05 §3.1), so the stream is *designed* to change. Comparing it would report
@@ -160,9 +250,10 @@ game changed**, and it should read that way in a diff.
 3. **Deliberate edge cases.** A rejected action, an unknown action, a start that settles
    straight to an ending (04 §11, Tier 2 `no_reachable_choice`).
 
-**A fixture records the engine version it was captured under.** Not to migrate it — §2
-explains why that is unnecessary — but so a divergence report can say *which* versions
-disagree.
+**A fixture records `capturedUnder` and `campaignVersion` (§2).** Not to migrate anything —
+§2 explains why that is unnecessary — but so a divergence report can name which engine
+versions disagree, and so `unrunnable` can distinguish a withdrawn campaign from a missing
+version of one.
 
 ---
 
@@ -184,18 +275,24 @@ one action in, which is exactly where several interesting divergences live.
 ```typescript
 type ReplayVerdict =
   | { kind: "match" }
-  | { kind: "diverged"; at: number; expected: Outcome; actual: Outcome }
+  | { kind: "diverged"; at: number; capturedUnder: string;
+      expected: Outcome; actual: Outcome }
   | { kind: "unrunnable"; reason: "campaign_withdrawn" | "campaign_version_missing" };
 ```
 
-The runner creates a game from the fixture's `config` under a counting `IdSource`, submits
-each `LoggedAction` in order, builds an `Outcome`, and compares.
+The runner resolves the fixture's `campaignVersion` in the registry, creates a session layer
+(06 §4) with a counting `IdSource` and an in-memory `ProfileStore` (§3.2), creates a game
+from `config`, submits each `Submission` in order, builds an `Outcome`, and compares.
+
+`at` is the **`index`** of the first differing `Decision`, not a `seq` — §3.1 explains why
+`seq` cannot serve. `capturedUnder` comes from the fixture, so a divergence report names both
+engine versions that disagree rather than only the one running.
 
 **Three verdicts, deliberately, rather than pass/fail:**
 
 - `match` — the game plays as recorded.
-- `diverged` — it does not, and `at` is the first `seq` whose `Decision` differs, so the
-  report points at the action that changed rather than at the end of the game.
+- `diverged` — it does not, and `at` is the `index` of the first differing `Decision` (§3.1),
+  so the report points at the submission that changed rather than at the end of the game.
 - `unrunnable` — the fixture's content is gone (§2). **Not a failure**, because a withdrawn
   campaign is a legitimate content decision, and reporting it as a regression would train
   the team to ignore the suite. It is reported and counted separately.
@@ -247,10 +344,10 @@ Not on every commit. The corpus grows without bound and most changes cannot affe
   review: an action log is a record of what a person did, and 05 §3.2 already establishes
   that the platform does not put player-supplied text into operational data by default.
   Deferred deliberately, and it shares only the runner with this document.
-- **A kind-supplied `Outcome` extension** — `Kind.outcome(state): unknown`, mirroring
-  `project` (04 §9), so `story-graph` could contribute `endingId` and `simulation` its own
-  summary. Worth adding when a divergence is missed that it would have caught; not before,
-  since every kind-specific field is a new source of false positives (§3.1).
+- **Widening `Kind.outcome` beyond terminal identity** — the member exists (§3.3) and is
+  deliberately confined to published ids. Letting a kind contribute counts or values would
+  make the oracle sensitive to content rebalancing, which §3.4 exists to prevent. Revisit
+  only against a divergence that terminal identity provably missed.
 - **Bisecting a divergence across versions** — given a `diverged` verdict, finding the
   commit that caused it. Ordinary `git bisect` over the replay command covers this without
   new engine work.

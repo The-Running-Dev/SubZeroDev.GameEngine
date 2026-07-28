@@ -161,6 +161,12 @@ interface Kind<KState> {
 
   /** Tiered content validation of a campaign of this kind (§11). */
   validateCampaign(campaign: Campaign): ValidationResult;
+
+  /**
+   * A minimal, cross-version-stable terminal identity — published ids only, never
+   * values ([`07-replay.md`](07-replay.md) §3.3).
+   */
+  outcome(state: KState): unknown;
 }
 
 interface AdvanceResult<KState> {
