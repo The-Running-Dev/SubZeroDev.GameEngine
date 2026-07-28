@@ -18,6 +18,15 @@ image. This page covers building and checking it.
 | `./docs.ps1 -Live` | Same, but bind-mounts `docs/` so edits hot-reload |
 | `./docs.ps1 -BuildOnly` | Build the image only |
 
+> **`docs.ps1` is installed, not committed.** It comes from the documentation template
+> along with `build/` and `.config/`, and is written by `Invoke-SetupDocs` — which rewrites
+> it for this project's paths and image tag, so it is a *generated* file rather than a
+> vendored one. If it is not present in your checkout, run the installer.
+>
+> It was previously committed here in a hand-written form that predated the template and
+> had drifted from it; the installed version additionally regenerates the README-derived
+> site root on every run, which is why the local copy was dropped rather than reconciled.
+
 ## What is authored, and what is generated
 
 Everything under `docs/docs/` is authored directly. **Exactly one page on the site is
