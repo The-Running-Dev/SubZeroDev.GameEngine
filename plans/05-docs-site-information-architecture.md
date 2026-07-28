@@ -13,6 +13,7 @@ filed and merged upstream afterwards, and the vendored gate re-synced to pick it
 | W-D5 gate sync | Done — vendored gate is byte-identical to upstream again |
 | W-D6 preview toolchain | Done for `docs.ps1` — deleted, since it is an *installed* file the repository should not have been carrying. `docs/Dockerfile` and `docs/.dockerignore` retained; see below |
 | W-D7 nested parentheses | Done — fixed upstream as [#57](https://github.com/The-Running-Dev/Docusaurus-Template/pull/57) with a scanner, then vendored back |
+| W-D8 source-path convention | Done — the convention was wrong, not the ten references; `CLAUDE.md` corrected. One owner action left: retire the review rule |
 
 **Scope:** How the published site is organised and linked, plus the vendored-tooling debt
 found while getting there. No engine work; nothing here blocks W1.
@@ -259,6 +260,40 @@ tells non-`/` consumers to add `docs/src/pages/index.md` by hand and calls
 session appeared to be working in that area, so it was left alone.
 
 ---
+
+## W-D8 — The `src/engine/` path convention, settled
+
+Automated review flagged the same thing on PR #10 and PR #12: spec docs name engine source
+by its repository-root path (`src/engine/eslint.config.js`) rather than relative to the
+document. It was declined twice on the grounds that **ten such references across six spec
+files use the bare form and none use a relative one** — then raised again, because a rule
+that keeps firing is not settled by being declined.
+
+**The decline was right, but the argument was weak.** It measured practice against practice.
+`CLAUDE.md` *did* state the convention — "Spec docs reference `src/engine/` code by relative
+path" — so the rule was enforcing this project's own stated intent, and the specs were the
+ones out of line. On that framing the ten references should have moved.
+
+**What actually settles it is that the convention cannot be implemented.** `docs/` is the
+entire Docker build context (`docs/Dockerfile` is `COPY . .`), so `src/engine/` is **not in
+the image**. A relative markdown link out of `docs/docs/engine/` resolves to nothing and
+fails the production build under `onBrokenLinks: 'throw'`. So the convention can never apply
+to links — only to prose, where a relative path is:
+
+- clickable nowhere, in a checkout or on the site;
+- meaningless on the published page, which lives at a URL and has no parent directory;
+- correct only while reading the raw `.md` in a checkout — and `CLAUDE.md`'s own example,
+  `../../src/engine/…`, was the wrong depth for `docs/docs/engine/` anyway.
+
+**Resolved by correcting the convention, not the ten references.** `CLAUDE.md` now states the
+repository-root form outright, with the build-context reason, and points at the guide page
+(`/docs/guide/engine-package`) as the way to actually link a reader to the code — that being a
+real route.
+
+**One thing this cannot fix from inside the repository:** compliance rule 2303296 still
+encodes the old convention and will keep flagging every new spec until it is retired or
+rewritten on the review platform. That is an owner action, noted here so the next person
+seeing the flag finds the reasoning instead of re-deciding it.
 
 ## Suggested order
 

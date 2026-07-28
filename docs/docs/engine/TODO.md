@@ -346,6 +346,20 @@ Replaying committed fixtures across **engine versions**, per
 **Not MVP.** It compares versions, and before W19 there is only one. Sequenced here so the
 contract is settled while the reasoning is fresh, which is the same call observability took.
 
+### Rigour: Session Capture
+
+Turning a played session into a fixture, per
+[`08-session-capture.md`](08-session-capture.md). **Gated on the hosting layer**, which
+MVP §4 defers — there is nothing to capture from a local client the developer drives
+themselves.
+
+- [ ] Capture emits a `ReplayFixture` and no new format (08 §2).
+- [ ] The refusal rules hold under test: no identity, only kind-declared params, no timing
+      (08 §3). A fixture built from a submission carrying undeclared keys drops them.
+- [ ] Capture triggers only on an `error`-severity event or an explicit report — never as
+      background collection (08 §5).
+- [ ] Promotion into the replay corpus is a reviewed human step, never automatic (08 §7).
+
 ### Depth: Life in the Fast Lane (The `simulation` Kind)
 
 - [ ] Build the simulation kind per `games/04-engine-specification.md` (Phases 1–4 there).

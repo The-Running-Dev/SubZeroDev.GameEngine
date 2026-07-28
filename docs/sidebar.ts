@@ -42,6 +42,7 @@ const sidebars: SidebarsConfig = {
         'engine/observability',
         'engine/extensibility',
         'engine/replay',
+        'engine/session-capture',
       ],
     },
     {

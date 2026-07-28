@@ -31,6 +31,7 @@ Read in order. Files are scoped deliberately and cross-reference by section numb
 | `02-architecture.md` | Every settled architecture decision with rationale. **The contract (decisions)** |
 | `04-core.md` | The core as **types**: the Kind interface (the seam), `GameState` envelope, engine API, session store, projection, validation, reason codes, MCP schemas, determinism harness. **The contract (types)** |
 | `03-story-graph-kind.md` | The flagship kind's content types: nodes, choices, typed variables, consequences, endings, achievements, turn/settle semantics + worked Bureaucracy-arc example. `kindState` plugs into 04's envelope |
+| `08-session-capture.md` | Turning a played session into a `ReplayFixture` — post-MVP, gated on hosting. Mostly a **privacy contract**: no identity, only kind-declared params (`ActionParams` is arbitrary caller input), no timing; the seed is the sharp edge; promotion to the committed corpus is a reviewed one-way door |
 | `07-replay.md` | The **regression oracle**, post-MVP: replaying `{config, actionLog}` fixtures across *engine versions* and comparing an `Outcome` built only from cross-version-stable vocabulary (`GameStatus`, `ReasonCode`, achievement ids). Distinct from 04 §14, which compares a build against itself. Fixtures are inputs, not state, so this sidesteps save migration |
 | `06-extensibility.md` | Where the engine can be extended: the **ports** a host supplies (`IdSource`, stores, `Emitter`, `Clock`), the two composition roots, and the rule that decides — *a host may supply anything that cannot change `serialize()` output*, which makes the determinism boundary the trust boundary. Kinds stay engine-owned per architecture N2 |
 | `05-observability.md` | Logging and tracing as a **separate channel** from `StateChange`: the clock-free `EngineEvent`, the per-resolution emitter handle, sinks, and the boundary that stamps time and trace ids. The invariant is that dropping every event changes nothing |
@@ -88,8 +89,15 @@ build context:
   all three Docusaurus link checks are `'throw'`, anchors included — they
   were `'warn'` only while a static file held the site root, and `build/Test-Documentation.ps1`
   is the second gate, covering the relative links and anchors Docusaurus resolves differently;
-  see `agent.md`, *Two link checks*). Spec docs reference
-  `src/engine/` code by relative path — that code is in this repo (`../../src/engine/…`).
+  see `agent.md`, *Two link checks*). **Spec docs name `src/engine/` code by its
+  repository-root path in prose — `src/engine/eslint.config.js` — never by a relative
+  traversal, and never as a markdown link.** `docs/` is the whole Docker build context
+  (`COPY . .`), so `src/engine/` is not in the image: a relative link out of `docs/docs/engine/`
+  would resolve to nothing and fail the production build under `onBrokenLinks: 'throw'`. A
+  relative path in *prose* is no better — it is clickable nowhere, meaningless on the published
+  page (which lives at a URL, not a directory), and correct only while reading raw markdown in
+  a checkout. To point a reader at the code, link the **guide page**
+  (`/docs/guide/engine-package`), which is a real route.
 - `docs/src/pages/index.md` — **the site root, generated from `README.md`.** Do not edit;
   edit the README. `.config/DocumentationRules.psd1` registers it for drift checking, and
   the gate fails the build if the two disagree. Because `routeBasePath` is `'docs'`, the
