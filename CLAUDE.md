@@ -101,7 +101,12 @@ build context:
 - `docs/Dockerfile` — extends `ghcr.io/the-running-dev/docs-template` and `COPY . .`
   overlays the above onto `/template`.
 
-Run it with **`docs.ps1`** (repo root; needs Docker Desktop running):
+Run it with **`docs.ps1`** (repo root; needs Docker Desktop running). **It is installed by
+`Invoke-SetupDocs`, not committed** — the installer rewrites it for this project's paths and
+tag, so it is generated rather than vendored. A hand-written copy predating the template used
+to be committed here and was deleted; if the file is missing, run the installer. The installed
+version also regenerates `docs/src/pages/index.md` from `README.md` on every run, which
+retires doing that by hand:
 
 | Command | Does |
 |---|---|

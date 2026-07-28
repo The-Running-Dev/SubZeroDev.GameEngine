@@ -11,7 +11,7 @@ filed and merged upstream afterwards, and the vendored gate re-synced to pick it
 | W-D3 site links | Done for `src/engine/` and `docs.ps1` via two new `guide/` pages; the two companion-repository links stay on the code host, which is correct |
 | W-D4 upstream gap | Done — filed and merged upstream as [#56](https://github.com/The-Running-Dev/Docusaurus-Template/pull/56), then vendored back |
 | W-D5 gate sync | Done — vendored gate is byte-identical to upstream again |
-| W-D6 preview toolchain | **Open** — `docs.ps1`, `docs/Dockerfile`, `docs/.dockerignore` are well behind upstream; found while doing W-D5, deliberately not folded into it |
+| W-D6 preview toolchain | Done for `docs.ps1` — deleted, since it is an *installed* file the repository should not have been carrying. `docs/Dockerfile` and `docs/.dockerignore` retained; see below |
 | W-D7 nested parentheses | Done — fixed upstream as [#57](https://github.com/The-Running-Dev/Docusaurus-Template/pull/57) with a scanner, then vendored back |
 
 **Scope:** How the published site is organised and linked, plus the vendored-tooling debt
@@ -213,9 +213,44 @@ local overrides and are not in scope.
 correctness fix with no behaviour change here; these three change how the site is previewed
 and built locally, and `docs.ps1`'s own header prose is repo-specific — it may be locally
 authored rather than a stale vendor copy, which has to be established before overwriting it.
-Worth noting that upstream's `docs.ps1` would remove a real pain: the homepage regeneration
-this repository currently does by replicating the generator's logic by hand, because there is
+
+### Resolution — `docs.ps1` deleted
+
+**It was locally authored, and that was the defect.** All three files date from the initial
+commit, *before* the template was installed in W0 — which wrote only `build/` and `.config/`.
+So they were never stale vendored copies, and the byte-comparison that first flagged them was
+never a valid test: `setup-docs.ps1` **rewrites** `docs.ps1` with four substitutions (script
+directory, config directory, image tag, base image), so the installed form never matches the
+raw template anyway.
+
+That reframes the item. `docs.ps1` is a **generated** file — the installer's output — and
+committing a hand-written substitute meant the repository carried a permanent, invisible fork
+of a file the tooling owns. Deleting it is the fix; `Invoke-SetupDocs` writes the real one.
+
+Deletion is safe and was checked rather than assumed:
+
+- **No CI dependency.** Nothing in `.github/workflows/` executes it; the only `docs.ps1`
+  mention in `docs-ci.yml` is a comment about `setup-docs.ps1`.
+- **No broken links.** Its seventeen references are prose or absolute URLs — no relative
+  markdown link resolves to it, so neither the gate nor the Docusaurus build is affected.
+- **The references stay true.** Upstream's parameter set is a superset of the deleted one —
+  same `-Live`, `-BuildOnly`, `-Port`, `-Tag`, `-BaseImage`, plus `-NoHomepage` — so every
+  documented command still works once the installer runs. `README.md` therefore needed no
+  edit, which also avoided regenerating `docs/src/pages/index.md` by hand.
+
+**The gain is the one flagged when this was filed:** the installed `docs.ps1` regenerates the
+README-derived site root on every run, retiring the by-hand replication of
+`ConvertTo-DocumentationHomepage.ps1`'s logic that this repository has needed because there is
 no `pwsh` in the agent environment.
+
+**The cost, stated plainly:** between this change and the next `Invoke-SetupDocs` run, `./docs.ps1`
+does not exist in a fresh checkout. `CLAUDE.md` and the contributor guide now say so and say
+what to run.
+
+**`docs/Dockerfile` and `docs/.dockerignore` are retained.** They are also installer outputs,
+but they are the Docker *build context* the preview depends on, and deleting them would leave
+no way to build the site locally at all until the installer runs. Their drift is recorded
+above and is not causing a problem; revisit if the installer is re-run for another reason.
 
 Also worth reporting, though not ours to fix:
 `docs/getting-started/installing-the-docs-system.md` upstream went stale with #52 — it still
