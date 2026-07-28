@@ -12,6 +12,7 @@ filed and merged upstream afterwards, and the vendored gate re-synced to pick it
 | W-D4 upstream gap | Done — filed and merged upstream as [#56](https://github.com/The-Running-Dev/Docusaurus-Template/pull/56), then vendored back |
 | W-D5 gate sync | Done — vendored gate is byte-identical to upstream again |
 | W-D6 preview toolchain | **Open** — `docs.ps1`, `docs/Dockerfile`, `docs/.dockerignore` are well behind upstream; found while doing W-D5, deliberately not folded into it |
+| W-D7 nested parentheses | **Open** — the gate still cannot see a link destination with *nested* parentheses; upstream work, needs a design call |
 
 **Scope:** How the published site is organised and linked, plus the vendored-tooling debt
 found while getting there. No engine work; nothing here blocks W1.
@@ -145,6 +146,38 @@ what the filing predicted: correctness only, no behaviour change here.
 has em dashes in headings. It was synced *before* W-D2 added anchors, so a failure could only
 have come from one of them. Every existing anchored link was checked against both the old and
 new slug rules first — none changed meaning, so the sync landed clean.
+
+### W-D7 — The gate still cannot see nested parentheses
+
+Raised by automated review on PR #9, against the very fix W-D4 had just landed. Verified
+rather than taken on trust — both expressions run over the same inputs:
+
+| Input | Old | New |
+|---|---|---|
+| `[a](./plain.md)` | `./plain.md` | `./plain.md` |
+| `[a](./foo(bar).md)` | `./foo(bar` | `./foo(bar).md` |
+| `[a](./a(b)c(d).md)` | `./a(b` | `./a(b)c(d).md` |
+| `[a](./foo((bar)).md)` | `./foo((bar` | **no match** |
+
+The limit is *nesting* specifically. Sequential pairs and one level of depth both work;
+`\([^()]*\)` cannot consume `((…))`, so the whole link fails to match and is skipped.
+
+**Worth being honest about the direction.** For this one input class the new expression is
+worse in the way that matters most: the old one produced a wrong capture and reported it —
+visible, if incorrect — while the new one skips silently. That is precisely the failure mode
+#56's own rationale singles out as the worse one. It is still not a regression *from* W-D4,
+which strictly narrowed an existing gap and left this corner no worse than it found it, and
+holding the sync would only have kept the version that mis-captures every parenthesised
+target rather than just nested ones.
+
+**Confirmed not live here** — no link target in this repository contains a parenthesis in
+either form.
+
+Upstream work, and unlike W-D4 it carries a design decision rather than a one-line fix:
+arbitrary nesting is not expressible with a character class, so it needs either .NET
+balancing groups — correct but hard to read — or a small destination scanner replacing the
+regex for that branch. Left for the maintainer to choose. #56 added the gate's first test
+harness, so a regression case now has somewhere natural to live.
 
 ### W-D6 — Three more vendored files are behind upstream
 
