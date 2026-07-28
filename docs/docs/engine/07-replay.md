@@ -329,7 +329,8 @@ The workflow makes the decision explicit and reviewable:
 
 Not on every commit. The corpus grows without bound and most changes cannot affect it.
 
-- **On changes to `src/engine/src/core/` or `kinds/`** — the code that can alter a game.
+- **On changes to `src/engine/src/core/` or `kinds/`** — the code that can alter a game
+  ([Engine Package](/docs/guide/engine-package)).
 - **On every release tag**, against the previous tag's corpus, which is the comparison the
   oracle is actually for.
 - **Never as a merge gate on documentation-only changes**, which is most of this

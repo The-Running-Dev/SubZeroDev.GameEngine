@@ -24,7 +24,8 @@ sidebar presents, stated in `docs/sidebar.ts` rather than taken from the filenam
 > to the platform.
 
 **Reused, not re-derived.** The seeded RNG (`RngState`, PCG32, `deriveStream`) and
-canonical serialization are already built and verified in `src/engine/src/core/`, and were
+canonical serialization are already built and verified in `src/engine/src/core/`
+([Engine Package](/docs/guide/engine-package)), and were
 first specified in `games/04-engine-specification.md` §3, §2.1. This document references
 them and does not restate the algorithms.
 

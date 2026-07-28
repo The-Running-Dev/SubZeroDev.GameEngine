@@ -49,8 +49,10 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   (`games/04-engine-specification.md` §8.4).
 - **`packages/` vs `src/engine/` naming** — the simulation docs
   (`games/05-text-client.md` header, `games/04` §20)
-  describe an aspirational `packages/` monorepo; the code is `src/engine/`. Reconcile when
-  the layout is actually built out.
+  describe an aspirational `packages/` monorepo; the code is `src/engine/`
+  ([Engine Package](/docs/guide/engine-package)). The resort draft proposed `packages/` a
+  third time (12 §17 declines to restate it), so this is now three documents against one
+  layout. Reconcile when the layout is actually built out.
 - **`history` in the simulation kind's state** — the upstream model carries
   `history: HistoryEntry[]`, a narrative record of what happened. That overlaps
   `StateChange[]`, which `advance` already returns (04 §12), and the event stream

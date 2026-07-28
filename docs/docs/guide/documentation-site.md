@@ -62,6 +62,24 @@ The overlap is not waste — it is why a relative link is caught whichever tool 
 gaps are what matter: relax the gate and the files outside the site stop being checked; relax
 the build and site-absolute links stop being checked, because nothing else looks at them.
 
+## Naming engine code from a spec
+
+`docs/` is the **entire Docker build context** — the Dockerfile does `COPY . .`, so
+`src/engine/` is not in the image. That single fact fixes the convention:
+
+| Do | Don't |
+|---|---|
+| Name the file by its **repository-root path, in prose**: `` `src/engine/eslint.config.js` `` | Write a **relative traversal** — `../../../src/engine/…` resolves to nothing in the image and fails the build under `onBrokenLinks: 'throw'` |
+| Link **[Engine Package](/docs/guide/engine-package)** when the reader needs the code itself | Make the path a **markdown link**. There is no route for it — the page lives at a URL, not a directory |
+
+A relative path in prose is no better than a relative link: it is clickable nowhere,
+meaningless on the published page, and correct only while reading raw markdown in a
+checkout.
+
+**Every spec that names engine code links the guide page once**, at its most load-bearing
+mention. That is what makes a bare path navigable without inventing a route that does not
+exist.
+
 ## The tooling is vendored, not forked
 
 `build/` and `.config/` are installed from

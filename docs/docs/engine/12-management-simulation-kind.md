@@ -288,8 +288,8 @@ geometry. This kind does not, and the rules below are the contract.
 **Integer arithmetic only.** Utility scores, path costs, condition and cleanliness values,
 and all money are integers — fixed-point where a fraction is needed, with the scaling
 factor part of the content contract. The determinism guard in `src/engine/eslint.config.js`
-already bans the non-bit-stable `Math.*` functions; this states the positive rule those
-bans imply.
+([Engine Package](/docs/guide/engine-package)) already bans the non-bit-stable `Math.*`
+functions; this states the positive rule those bans imply.
 
 **No `Math.sqrt` in distance.** Comparisons use squared Euclidean, Manhattan or Chebyshev
 distance — all integer, all order-preserving for the comparisons that matter.

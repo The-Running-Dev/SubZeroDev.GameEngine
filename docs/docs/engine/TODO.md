@@ -41,7 +41,8 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
       authoring→registry builder, zero-choice campaigns, `InitialStateResult`, `params` to
       `advance`, story-graph reason codes, the two format versions
       ([`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §1).
-- [x] Project scaffold: `src/engine/` package, TypeScript strict, vitest, eslint with the
+- [x] Project scaffold: `src/engine/` package ([Engine Package](/docs/guide/engine-package)),
+      TypeScript strict, vitest, eslint with the
       determinism guard (bans `Math.random`, `Math.pow/exp/log/sin/cos/tan`, `Date.now`).
 - [x] Version control: this repo (engine **source + specs**). Companions: the game
       [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife) and

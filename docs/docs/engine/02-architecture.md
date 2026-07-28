@@ -479,7 +479,8 @@ substreams, tiered content validation, the determinism harness, reason codes,
 localization, save/migration.
 
 > **Project split.** This repo (**SubZeroDev.GameEngine**) is the **Game Engine** —
-> both its **source** (`src/engine/`) and its **specs** (a Docusaurus site under
+> both its **source** (`src/engine/`, described at
+> [Engine Package](/docs/guide/engine-package)) and its **specs** (a Docusaurus site under
 > `docs/docs/engine/`). The **games** (Life in the Fast Lane, the Bulgaria adventure) live
 > in [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife); the
 > **hosting / NEaaS** layer in

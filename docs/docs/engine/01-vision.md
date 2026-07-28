@@ -29,6 +29,8 @@
 > [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife); the
 > hosting/NEaaS layer is [SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform).
 > **This repo is the engine — its source (`src/engine/`) and its specs (these docs).**
+> The source is not part of this site; [Engine Package](/docs/guide/engine-package)
+> is the route to it.
 
 ---
 
