@@ -11,10 +11,9 @@ The model is **core → kinds → campaigns**: one shared deterministic core, ga
 logic (`kinds`), and content (`campaigns`) as data. v1 targets two kinds — `story-graph`
 (flagship) and `simulation`.
 
-**Documentation:**
-**[game-engine.subzerodev.com/docs](/docs/)** — the
-specs, rendered and cross-linked. This file is that site's front page, so it reads the
-same in both places.
+**Documentation:** **[game-engine.subzerodev.com](/)** —
+the site root, which publishes this README. The specs are rendered and cross-linked under
+**[/docs](/docs/)**.
 
 > **Companions.** The flagship **game** (Life in the Fast Lane) lives in
 > [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife); the
