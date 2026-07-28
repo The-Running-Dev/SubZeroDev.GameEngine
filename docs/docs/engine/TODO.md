@@ -113,15 +113,19 @@ site homepage from `README.md`, and publishes the site.
 
 ### W1 — Core Contract Types and Module Skeleton
 Create the module tree of 04 §1.1 (`kernel`, `session`, `persistence`, `projection`,
-`validation`, `registry`, `localization`, `determinism`, `observability`) and put each
-declared type in the module that owns it. Types only — no behaviour.
-- **Spec:** 04 §§1.1–3, 5–12, §17; 05 §§3–4 for the `observability` types.
+`validation`, `registry`, `localization`, `determinism`, `observability`, `composition`) and
+put each declared type in the module that owns it. Types only — no behaviour.
+- **Spec:** 04 §§1.1–3, 5–12, §17; 05 §§3–4 for the `observability` types;
+      [`06-extensibility.md`](06-extensibility.md) §4–§5 for `composition` — the two host
+      roots and the `IdSource` and `Clock` port interfaces.
 - **Depends on:** nothing.
 - **Done when:** `npm run typecheck` passes with `exactOptionalPropertyTypes`; a dependency
       scan shows no core module importing `kinds/`, `clients/`, or `mcp/`; `kindState` is
       `unknown`, not a union; `GameState` carries no clock, profile, or kind state;
       `EngineEvent` carries no timestamp and no trace id — both are added at the boundary
-      (05 §6).
+      (05 §6); every port is an interface with a working default, supplied only through
+      `EngineHost` or `SessionHost`, and no core module reads a clock or generates an id
+      itself (06 §4).
 
 ### W2 — RNG Handle and Stream Derivation
 Wrap the built `Pcg32` behind `RngHandle`, and implement the normative `StreamId` → string

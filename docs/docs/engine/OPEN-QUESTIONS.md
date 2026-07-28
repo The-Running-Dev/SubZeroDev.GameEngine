@@ -51,6 +51,13 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   (`games/05-text-client.md` header, `games/04` §20)
   describe an aspirational `packages/` monorepo; the code is `src/engine/`. Reconcile when
   the layout is actually built out.
+- **Third-party kinds, and the sandbox they would require** — architecture §1 **N2**
+  rejected downloadable code kinds as a security and reproducibility hazard, and
+  [`06-extensibility.md`](06-extensibility.md) §7 leaves that standing. It is a rejected
+  *mechanism*, not a closed question: a WASM host with a deterministic ABI — no clock, no
+  ambient float nondeterminism, fuel-metered — could satisfy 06 §2's rule. **Revisit when**
+  there is a concrete demand for kinds the engine team did not write; the conventions in
+  06 §8 are chosen so that revisiting costs no rework.
 - **Observability beyond the event channel** — the OpenTelemetry exporter, sampling, and
   inbound trace-context propagation; metrics as a channel separate from events; per-kind
   log-level configuration; author-facing presentation of `kind.story-graph.*` events. The

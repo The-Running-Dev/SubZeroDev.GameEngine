@@ -62,6 +62,7 @@ keep the growing core maintainable. The `src/engine/src/core/` layout mirrors it
 | `localization` | `LocKey` resolution against string tables | §12, §17 |
 | `determinism` | the RNG handle, streams, the harness | §8, §14 |
 | `observability` | the `Emitter`, `EngineEvent`, sinks | [`05-observability.md`](05-observability.md) |
+| `composition` | the host roots and the port interfaces | [`06-extensibility.md`](06-extensibility.md) |
 
 Kinds (`kinds/`) and clients (`clients/`, `mcp/`) sit above; the dependency arrow points
 only downward — a core module never imports a kind or client.
@@ -79,7 +80,7 @@ type KindId = "story-graph" | "simulation";
 
 interface GameState {
   formatVersion: number;         // the shape of THIS envelope — see §10.2
-  gameId: string;
+  gameId: string;                // from the IdSource port (06 §5.1); opaque to the core
 
   kindId: KindId;
   campaignId: string;
@@ -293,8 +294,9 @@ Immutability is unconditional (games/04-engine-specification.md §11.3): every o
 
 ```text
 createGame(config):
+  0. gameId = ids.newGameId()                                // 06 §5.1 — the IdSource port
   1. campaign = registry.campaigns[config.campaignId]        // kind = campaign.kindId
-  2. seed = config.seed ?? store-generated (and recorded)
+  2. seed = config.seed ?? ids.newSeed()                     // 06 §5.1 — recorded in the envelope
   3. startHandle = rngHandleFor(seed, { kind:"system", system:"start", seq:0 })   // §8
   4. startEmit = resolutionEmitter(emitter, gameId, 0)            // 05 §4 — seq 0, ordinal 0
   5. init = kind.initialState(campaign, { registry, campaign, rng: startHandle, seq: 0, emit: startEmit })
