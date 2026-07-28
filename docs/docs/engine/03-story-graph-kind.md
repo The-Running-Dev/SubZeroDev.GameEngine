@@ -404,6 +404,43 @@ Given the same seed and the same action log, `settle` makes the same picks — s
 whole game replays byte-for-byte (§10). This is the concrete meaning of "deterministic"
 for this kind.
 
+### 8.4 Events
+
+The operational events this kind emits, declared as `Kind.eventNames`
+([`04-core.md`](04-core.md) §3) and namespaced `kind.story-graph.*`
+([`05-observability.md`](05-observability.md) §9). They are emitted through `ctx.emit`
+(04 §3.1), never returned, and never localized — a `StateChange` (§5) is what the *player*
+is owed, and these are what a developer or a content author needs instead.
+
+| Name (after `kind.story-graph.`) | Severity | Emitted at | `data` |
+|---|---|---|---|
+| `choice.submitted` | `debug` | §8.2 step 1, after the choice resolves | `nodeId`, `choiceId` |
+| `choice.rejected` | `info` | §8.2 step 2 | `choiceId`; `reason` set (§8.3) |
+| `requirement.evaluated` | `trace` | §8.2 step 2, once per requirement | `choiceId`, `satisfied` |
+| `consequence.applied` | `debug` | §8.2 steps 3 and 5, per typed effect | `variable`, `op`, `clamped` |
+| `node.entered` | `debug` | every `enter(nodeId)` — §8.2 | `nodeId`, `nodeKind`, `visitCount` |
+| `settle.step` | `trace` | each iteration of the settle loop | `step`, `nodeId`, `nodeKind` |
+| `random.picked` | `debug` | a `random` node chose a transition | `nodeId`, `goto`, `weight` |
+| `settle.guard_tripped` | `error` | `SETTLE_STEPS` exceeded | `nodeId`; `reason` set |
+| `achievement.unlocked` | `info` | §8.2 step 7 | `achievementId` |
+| `ending.reached` | `info` | settle landed on an `EndingNode` | `endingId` |
+
+Two of these carry most of the value, for the two audiences the events exist to serve:
+
+- **`requirement.evaluated`** is the author's answer to *why was my choice greyed out*.
+  It fires per requirement rather than per choice, so a compound condition (§6) reports
+  which clause failed — something the single `requirement_unmet` reason code (§8.3)
+  deliberately cannot say, because the player is not owed the campaign's internals.
+- **`random.picked`** is the developer's answer to *why did this replay diverge*. Paired
+  with `node.entered` and `visitCount`, a stream diff localizes a determinism failure to
+  one transition, instead of to a `serialize()` byte offset.
+
+> **`visitCount` on `node.entered`, and why it is worth logging.** Every entry counts,
+> including settle pass-throughs and the initial start node (§8.2) — a rule that is easy to
+> state and easy to get subtly wrong, since the Bureaucracy loop's `office_visits ≥ 3` gate
+> (§12) depends on it. Emitting the count at each entry makes an off-by-one visible at the
+> step that caused it rather than several turns later, when a gate fails to open.
+
 ---
 
 ## 9. Projection — What a Client Sees

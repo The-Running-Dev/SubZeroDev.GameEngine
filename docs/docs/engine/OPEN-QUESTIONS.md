@@ -51,6 +51,12 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   (`games/05-text-client.md` header, `games/04` §20)
   describe an aspirational `packages/` monorepo; the code is `src/engine/`. Reconcile when
   the layout is actually built out.
+- **Observability beyond the event channel** — the OpenTelemetry exporter, sampling, and
+  inbound trace-context propagation; metrics as a channel separate from events; per-kind
+  log-level configuration; author-facing presentation of `kind.story-graph.*` events. The
+  event contract itself is MVP scope and specified; these four are deliberately not
+  ([`05-observability.md`](05-observability.md) §13). The first belongs with the hosting
+  layer, which is itself deferred (MVP §4).
 - **Doc-tree numbering merge** — the engine specs and the game specs both start at `01-`.
   This was a live problem when they shared one tree; the repo split
   ([`02-architecture.md`](02-architecture.md) §12) has largely dissolved it. **Open:**

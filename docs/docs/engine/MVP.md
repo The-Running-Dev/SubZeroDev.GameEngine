@@ -60,8 +60,12 @@ platform. Jones is the next milestone, on a core this slice already proves.
   ending, the "It Builds Character" achievement.
 - **One text client** — the plain proving instrument.
 - **The MCP server** — the same operations as tools.
-- **Tests**: the determinism harness (golden file + property test) and Tier 1/2 content
-  validation.
+- **Observability**: the operational event channel — the `Emitter`, the core and
+  story-graph event sets, timestamp and trace stamping at the session-store boundary, and
+  the three MVP sinks (05-observability §10). Deterministic by construction and asserted
+  by the harness; the OpenTelemetry exporter is deferred with the hosting layer (§4).
+- **Tests**: the determinism harness (golden file + property test), sink independence,
+  and Tier 1/2 content validation.
 
 ## 4. Out of Scope (Explicitly)
 
@@ -98,6 +102,19 @@ platform. Jones is the next milestone, on a core this slice already proves.
 - [ ] `deserialize(serialize(state))` is deep-equal to `state`.
 - [ ] A committed **golden-file fixture** (`{config, actionLog}` → expected `serialize()`)
       runs green in the suite; a one-byte diff fails it (04-core §14).
+
+**Observable**
+- [ ] Every golden fixture replays byte-identically under `nullEmitter` and under
+      `recordingEmitter` — logging cannot change the game (05 §2).
+- [ ] The same fixture replayed twice produces the **identical event stream** — same
+      names, order, and data (05 §5).
+- [ ] A sink that throws on every call does not break a game; the fixture still completes
+      with byte-identical output (05 §12).
+- [ ] A kind emitting outside its `kind.<kindId>.*` namespace, or an event name it did not
+      declare, fails (05 §9).
+- [ ] Playing the arc with the `jsonl` sink at `trace` yields a stream in which the
+      Bureaucracy gate's visit counts and the random transition's pick are both readable —
+      the events earn their place by making a real failure diagnosable (03 §8.4).
 
 **Persistent**
 - [ ] Save mid-arc, load, and continue with no state loss.
