@@ -309,11 +309,11 @@ The same operations as tools — a sibling adapter, no AI-specific path.
 - **Spec:** 04 §13; [`09-clients.md`](09-clients.md) §7 — MCP is a sibling, not a special
       case.
 - **Depends on:** W7, W12.
-- **Done when:** all eight tools match their documented args and results and map
-      one-to-one onto the eight store operations, with no ninth (09 §4); the MCP column of
+- **Done when:** every tool matches its documented args and results and maps
+      one-to-one onto a store operation, with no tool that is not one (09 §4); the MCP column of
       the coverage checklist is complete; an agent completes the arc; the same seed and
-      choices produce **byte-identical** `serialize()` output to W16's run — the client
-      contract's proof (09 §1); an agent sees no more than a human client does, including
+      choices, under the same counting `IdSource`, produce **byte-identical** `serialize()`
+      output to W16's run — the client contract's proof (09 §1); an agent sees no more than a human client does, including
       getting `unknown_action` for a hidden choice.
 
 ### W18 — Determinism Harness

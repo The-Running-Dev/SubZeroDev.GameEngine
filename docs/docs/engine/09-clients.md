@@ -27,9 +27,17 @@ documents assert four times and never define.
 repeated in `01-vision`, `04-core` §1 and §13 — and nowhere is it said what counts as game
 logic. Stated as a testable invariant:
 
-> **Two different clients, given the same campaign, seed and action sequence, must produce
-> byte-identical `serialize()` output.** A client contributes nothing to the game but the
-> order of the actions it submits.
+> **Two different clients, given the same campaign, seed, `IdSource` and action sequence,
+> must produce byte-identical `serialize()` output.** A client contributes nothing to the
+> game but the order of the actions it submits.
+
+> **The `IdSource` belongs in that list, and leaving it out made the test impossible.**
+> `gameId` is a serialized envelope field (04 §2) drawn from the `IdSource` port, whose
+> default is deliberately random (06 §5.1) — so two independently created sessions differ in
+> their first field no matter how identically they play. The test fixes a **counting
+> `IdSource`** for both runs, the same way the replay oracle does (07 §5). Normalizing
+> `gameId` out afterwards would work too and is worse: it weakens the assertion to hide a
+> setup detail.
 
 That is not a new test. `MVP.md` §5 already requires the identical arc to complete through
 the text client and through MCP; this states *why* that box is the load-bearing one — it is
@@ -47,18 +55,29 @@ A client calls `SessionStore` ([`04-core.md`](04-core.md) §7) and nothing else.
 import the pure engine, a kind, the registry, or the projection machinery — the dependency
 arrow in 04 §1.1 points downward and clients are above everything.
 
-Eight operations, and there is no ninth:
-
 | Operation | Kind | Returns |
 |---|---|---|
 | `listCampaigns()` | Query | `CampaignSummary[]` |
 | `getScene(sessionId)` | Query | `Scene` |
 | `getView(sessionId)` | Query | `PlayerView` |
+| `getStrings(sessionId)` | Query | `StringTable` |
 | `createSession(config)` | Command | `SessionHandle` |
 | `resumeSession(sessionId)` | Command | `Scene` |
-| `submitAction(sessionId, actionId, params?)` | Command | `ActionResult` |
+| `submitAction(sessionId, actionId, params?)` | Command | `SessionActionResult` |
 | `saveGame(sessionId)` | Command | `SaveHandle` |
 | `loadGame(saveId)` | Command | `SessionHandle` |
+
+Three of those are recent corrections that this contract forced, and each was a hole a
+client would have fallen into:
+
+- **`getStrings` exists because every client-facing type carries `LocKey`s.** A client
+  restricted to this surface had no way to resolve `labelKey`, `titleKey` or an
+  `OutcomeMessage` — the contract as first written could not be implemented (04 §7).
+- **`submitAction` returns `SessionActionResult`, not `ActionResult`.** The latter's success
+  value is the *envelope* — seed, action log, opaque `kindState` — so returning it would put
+  raw state past the projection boundary and make §6 a convention rather than a guarantee.
+- **`createSession` takes `CreateSessionConfig`.** It previously took `NewGameConfig`, which
+  has no `profileId`, so no client could start the profiled session MVP §5 requires.
 
 ---
 
@@ -106,18 +125,24 @@ one column per MVP client:
 | 3 | `resumeSession` | ☐ | `continue_game` ☐ |
 | 4 | `getScene` | ☐ | `get_scene` ☐ |
 | 5 | `getView` | ☐ | `get_state` ☐ |
-| 6 | `submitAction` | ☐ | `choose` ☐ |
-| 7 | `saveGame` | ☐ | `save_game` ☐ |
-| 8 | `loadGame` | ☐ | `load_game` ☐ |
+| 6 | `getStrings` | ☐ | `get_strings` ☐ |
+| 7 | `submitAction` | ☐ | `choose` ☐ |
+| 8 | `saveGame` | ☐ | `save_game` ☐ |
+| 9 | `loadGame` | ☐ | `load_game` ☐ |
 
-**The mapping is one-to-one, and that is the point.** Eight store operations, eight MCP
-tools, no tool that is not an operation and no operation without a tool. That is what
-*"no AI-specific path"* (04 §13) means concretely — it is checkable by counting, not by
-reading intent.
+**The mapping is one-to-one, and that is the point.** Every store operation has exactly one
+MCP tool, and there is no tool that is not an operation. That is what *"no AI-specific path"*
+(04 §13) means concretely — checkable by counting, not by reading intent.
 
-**A ninth row would be a defect.** If a client needs something the store does not offer, the
-answer is a store operation specified in 04 §7 — never a client-side workaround. Adding a
-row here without adding one there is the signal that logic has leaked upward.
+> **An earlier draft of this section said "eight operations, and there is no ninth", and
+> called a ninth row a defect. That was wrong**, and the localization hole proved it: a
+> client had no way to resolve a `LocKey`, and the only correct fix was a ninth operation.
+>
+> The rule it was reaching for survives, restated properly: **a client never works around a
+> missing operation.** If a client needs something the store does not offer, the answer is a
+> new operation in 04 §7 *and* a new row here — never client-side logic. A row added here
+> without one there is the signal that logic has leaked upward. It is the asymmetry that is
+> the defect, not the count.
 
 The checklist is satisfied when every box is ticked **and** §1's invariant test passes: the
 same arc, same seed, same choices, through both clients, serializing identically.
@@ -131,7 +156,8 @@ English for every base code under the reserved `core.reason.*` namespace, and re
 construction rejects any attempt to override it (04 §12), so a client can rely on a message
 existing for every code it may receive.
 
-- **Display** the resolved `OutcomeMessage`/`ValidationError` message.
+- **Display** the resolved `OutcomeMessage`/`ValidationError` message, looked up in the
+  `StringTable` from `getStrings` (§2).
 - **Do not branch** on a code to change game behaviour. Branching on it to choose an *icon*
   or a *colour* is presentation and is fine; branching on it to decide whether to resubmit is
   logic and is not.
@@ -148,8 +174,10 @@ variables, `visitedCounts`, or the action log — the projection exists precisel
 "the client cannot leak what the player should not see" is structural rather than a matter
 of client discipline.
 
-This is why §2's surface has no `getState`: there is no operation that returns raw state,
-deliberately. A client that finds it needs one is asking the wrong question.
+This is why §2's surface has no operation returning raw state — deliberately, and why
+`submitAction` returns `SessionActionResult` rather than the engine's `ActionResult`, whose
+success value *is* the envelope. A client that finds it needs raw state is asking the wrong
+question.
 
 ---
 

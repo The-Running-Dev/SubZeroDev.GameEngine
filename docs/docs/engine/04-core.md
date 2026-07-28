@@ -409,11 +409,12 @@ interface SessionStore {
   listCampaigns(): CampaignSummary[];
   getScene(sessionId: string): Promise<Scene>;
   getView(sessionId: string): Promise<PlayerView>;
+  getStrings(sessionId: string): Promise<StringTable>;   // resolve LocKeys — below
 
   // ── Commands (advance or persist) ────────────────────
-  createSession(config: NewGameConfig): Promise<SessionHandle>;      // → sessionId
+  createSession(config: CreateSessionConfig): Promise<SessionHandle>;   // profileId lives here
   resumeSession(sessionId: string): Promise<Scene>;
-  submitAction(sessionId: string, actionId: string, params?: ActionParams): Promise<ActionResult>;
+  submitAction(sessionId: string, actionId: string, params?: ActionParams): Promise<SessionActionResult>;
   saveGame(sessionId: string): Promise<SaveHandle>;                  // named/manual save
   loadGame(saveId: string): Promise<SessionHandle>;
 }
@@ -425,7 +426,40 @@ interface CampaignSummary { campaignId: string; kindId: KindId; titleKey: LocKey
 interface CreateSessionConfig extends NewGameConfig {
   profileId?: string;            // omitted → anonymous session; see §7.1
 }
+
+/** What a client gets back from an action. Never the envelope. */
+interface SessionActionResult {
+  ok: boolean;
+  scene?: Scene;                 // the new scene, on success — a projection (§9)
+  errors: ValidationError[];
+  warnings: ValidationWarning[];
+  changes: StateChange[];        // audit records, `visible`-gated (§12)
+  messages: OutcomeMessage[];
+}
+
+type StringTable = Readonly<Record<LocKey, string>>;
 ```
+
+> **`submitAction` returns `SessionActionResult`, not `ActionResult`.** `ActionResult`
+> extends `CommandResult<GameState>` (§12) — its success value is **the envelope**, seed and
+> action log and opaque `kindState` included. That type is correct for the *pure engine*
+> (§4), whose caller is the store; handing it to a client would put raw state on the other
+> side of the projection boundary and make §9 a convention rather than a guarantee. The
+> store unwraps it and returns a `Scene`.
+
+> **`createSession` takes `CreateSessionConfig`.** It previously took `NewGameConfig`, which
+> carries no `profileId` — leaving `CreateSessionConfig` defined and unreachable, and no way
+> for a client to start the profiled session MVP §5 requires for cross-session achievements.
+> `profileId` stays off `NewGameConfig` and out of `GameState` (§7.1); it is a *session*
+> input, which is exactly what this type is for.
+
+> **Why `getStrings` is a store operation.** Every client-facing type carries `LocKey`s —
+> `Scene.actions[].labelKey`, `CampaignSummary.titleKey`, `OutcomeMessage.key`,
+> `ValidationError` — and a client that may call nothing but this store (09 §2) otherwise has
+> no way to render any of them. Resolving them *inside* the DTOs was the alternative and is
+> worse: it would bake a locale into the projection and lose the property that clients never
+> string-match English (§12). The table is keyed by the campaign and locale the session was
+> created with; a locale switch is a new session, which is all the MVP's single locale needs.
 
 **The store persists the envelope (§2) and nothing else about play.** Wall-clock
 timestamps, owner ids, and other host metadata live on the store's record, outside the
@@ -785,11 +819,12 @@ store operation. There is no AI-specific game path.
 | Tool | Args | Returns |
 |---|---|---|
 | `list_campaigns` | `{}` | `CampaignSummary[]` |
-| `start_game` | `{ campaignId, seed? }` | `{ sessionId, scene: Scene }` |
+| `start_game` | `{ campaignId, seed?, profileId? }` | `{ sessionId, scene: Scene }` |
 | `continue_game` | `{ sessionId }` | `Scene` |
 | `get_scene` | `{ sessionId }` | `Scene` |
 | `get_state` | `{ sessionId }` | `PlayerView` |
-| `choose` | `{ sessionId, actionId, params? }` | `ActionResult` (with the new `Scene`) |
+| `get_strings` | `{ sessionId }` | `StringTable` — resolve `LocKey`s (§7) |
+| `choose` | `{ sessionId, actionId, params? }` | `SessionActionResult` (§7 — carries the new `Scene`, never the envelope) |
 | `save_game` | `{ sessionId }` | `{ saveId }` |
 | `load_game` | `{ saveId }` | `{ sessionId, scene: Scene }` |
 
