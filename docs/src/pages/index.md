@@ -4,34 +4,65 @@ title: 'Game Engine'
 
 # SubZeroDev.GameEngine
 
-**A narrative engine for entire families of games.**
+**Build mechanics once. Create infinite games.**
 
 ## Why This Exists
 
-Game engines solved rendering, physics, animation, audio, and networking.
+Game engines solved rendering.
 
-Every new game still rewrites gameplay from scratch.
+They solved physics.
 
-**SubZeroDev.GameEngine asks a different question: what if gameplay itself became
-reusable?**
+They solved animation.
+
+They solved audio.
+
+They solved networking.
+
+Then we collectively decided the correct approach was to rewrite inventory systems,
+dialogue systems, quest systems, AI, save systems, and progression mechanics for the
+next thirty years.
+
+Apparently that seemed reasonable.
+
+SubZeroDev.GameEngine politely disagrees.
+
+Instead of asking how to render another world...
+
+it asks a different question:
+
+**What if gameplay itself became reusable?**
 
 ---
 
 ## One Engine. Genuinely Different Games.
 
 A weekly-budget life simulation and a branching narrative adventure are not the same
-shape of game. Force one model to fake the other and it explodes combinatorially.
+shape of game.
 
-So this engine doesn't pick one. It has a shared deterministic core, and on top of it,
-**kinds** — reviewed engine code that defines how one category of game actually plays.
-A **campaign** is a kind plus its data.
+Force one model to pretend to be the other and, sooner or later, everything catches
+fire.
 
-The sharpest proof isn't a claim, it's a constraint the project set for itself: build
-two games that share only a setting and a voice — nothing mechanical — on the same
-engine. **Life in the Fast Lane** (a life-simulation `kind`) and **Bulgaria:
-Make-Your-Own-Adventure** (a branching-narrative `kind`) share the same Bulgarian
-setting and the same deadpan tone, and nothing else. If the engine/kind/campaign split
-holds, that's what it looks like.
+So this engine doesn't pretend.
+
+It has one shared deterministic core and a growing collection of **Kinds** — think of
+a Kind as a genre's rulebook: how choices and consequences work, how a weekly budget of
+time and needs works, how a world's inhabitants move on their own. Reviewed engine code,
+not content.
+
+A **Campaign** is the actual game written with that rulebook — a Kind plus its data.
+`story-graph` is a Kind; Bulgaria: Make-Your-Own-Adventure is a Campaign built on it.
+
+The proof isn't marketing. It's a constraint the project imposed on itself: build two
+games that share only a setting and a voice, and absolutely nothing mechanical.
+
+- **Life in the Fast Lane** — a weekly life simulation.
+- **Bulgaria: Make-Your-Own-Adventure** — a branching narrative.
+
+Same country. Same deadpan humor. Completely different mechanics.
+
+If the architecture survives that experiment...
+
+it probably survives yours.
 
 ---
 
@@ -39,9 +70,9 @@ holds, that's what it looks like.
 
 ```mermaid
 flowchart TD
-    Core["Core — deterministic state, seeded RNG, save and replay, validation, one API"]
-    Kinds["Kinds — game-type logic, engine-owned code"]
-    Campaigns["Campaigns — a kind, plus its data"]
+    Core["Core — deterministic state, seeded RNG, replay, validation, one API"]
+    Kinds["Kinds — reviewed engine mechanics"]
+    Campaigns["Campaigns — a Kind plus content"]
     Clients["Clients — web, CLI, Discord, MCP agents"]
 
     Core --> Kinds --> Campaigns --> Clients
@@ -51,114 +82,297 @@ flowchart TD
     Kinds -.-> WG(world-graph)
 ```
 
-The core solves the hard engineering problems **once** — session state, seeded
-randomness, save and replay, validation, localization, content packs, versioned
-migration, one client/MCP API. Every kind inherits all of it for free. A kind defines
-mechanics. A campaign defines a world. A client just presents.
+The core solves difficult engineering problems exactly once:
+
+- deterministic state
+- seeded randomness
+- save/load
+- replay
+- migrations
+- localization
+- validation
+- content packs
+- one API
+
+Every Kind inherits those capabilities automatically. Concretely: `simulation` is the
+Kind — the rulebook for weekly-budget life sims. Life in the Fast Lane is the Campaign
+— the actual game written with it. Kinds define mechanics. Campaigns define worlds.
+Clients simply present them.
+
+The client gets all the credit. The core does all the work. As is tradition.
 
 ---
 
 ## Build Mechanics Once
 
-One kind, many campaigns, many games. Three kinds are committed:
+One Kind. Many Campaigns. Many Games.
 
-| Kind | What it plays like | Flagship |
-|---|---|---|
-| `story-graph` | Branching narrative — nodes, choices, typed variables, consequences | Bulgaria: Make-Your-Own-Adventure |
-| `simulation` | Weekly-tick life sim — time budget, needs, economy | Life in the Fast Lane ([SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife)) |
-| `world-graph` | A navigable world with autonomous inhabitants | Sun Trap ([SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap)) |
+Turns out writing the same inventory system fifteen times wasn't the pinnacle of
+software engineering after all.
 
-A fourth is where this is headed, not where it is: an **online RPG** kind — named here
-as direction, not yet specified, unlike the three above.
+### Story Graph
+
+Designed for games built around choices and consequences. Perfect for:
+
+- Adventure games
+- Detective stories
+- Interactive fiction
+- Visual novels
+- Educational branching narratives
+
+**Flagship Campaign:** Bulgaria: Make-Your-Own-Adventure
+
+### Simulation
+
+Designed around deterministic time, needs, economy, and progression. Perfect for:
+
+- Life simulations
+- Career simulators
+- Relationship simulators
+- Business-life hybrids
+
+**Flagship Campaign:** Life in the Fast Lane
+
+### World Graph
+
+Designed around autonomous inhabitants living inside navigable spaces. Perfect for:
+
+- Resort management
+- Theme parks
+- Hotels
+- Hospitals
+- Transportation
+- Living worlds
+
+**Flagship Campaign:** Sun Trap
+
+Future Kinds naturally follow. Online RPGs. City builders. Strategy. Survival. Economic
+simulations. Not because the engine keeps growing, but because it keeps learning one
+more style of simulation. None of them are planned; all of them are the shape of what's
+possible once a fourth Kind is.
+
+---
+
+## The Engine Doesn't Know
+
+The engine doesn't know what a dragon is.
+
+Or a hotel.
+
+Or a detective.
+
+Or an unpaid intern.
+
+It doesn't know what Bulgaria is.
+
+Or Mars.
+
+Or medieval Europe.
+
+It only understands deterministic simulation.
+
+Everything else is just someone else's remarkably specific data.
 
 ---
 
 ## Deterministic By Design
 
-Every session replays byte-identical from a seed and its action log — that's the
-determinism harness's job, and it's tested, not assumed. Across engine versions, what's
-guaranteed is the *outcome*, not the bytes: an intentional change is allowed to move the
-serialized format; a regression isn't, and catching that distinction is what the replay
-oracle exists for. Every bug is reproducible, not "worked on my machine." The simulation
-is authoritative; the client is disposable.
+Every session can replay from nothing more than which campaign version it's running, a
+seed, and an action log.
 
-This isn't a best-effort convention. An eslint rule bans `Math.random`, the non-bit-stable
-`Math.*` functions, and `Date.now` from ever reaching the core — determinism is
-enforced, not hoped for.
+Every bug is reproducible. Not "works on my machine." That phrase has been politely
+escorted off the premises.
 
----
+Across versions, an unintended divergence is a regression, full stop. An intended one
+still gets caught — it just gets reviewed and committed instead of quietly shipped.
+Serialization is allowed to evolve either way; nothing changes what a save file means
+without someone signing off on the diff.
 
-## AI-Native
+Replay isn't a debugging feature. It's an architectural guarantee.
 
-**By design, not by roadmap:** the API has no special AI path — an MCP agent and a
-human client submit to the exact same store operations, so once any client exists, an
-AI agent plays the identical game a human does. Nothing is playable yet (`src/engine/`
-is still Phase 1, the deterministic core), so this isn't a claim about what's running
-today — it's a settled architectural decision that isn't up for revision once a client
-does exist. A client, human or machine, only ever does three things: read the scene,
-present it, submit a choice.
+This isn't enforced by developer discipline. The engine simply refuses to cooperate. The
+lint rules ban:
 
-**Where this is headed:** AI generating validated content instead of a human writing
-boilerplate — the engine validates everything at the boundary regardless of who authored
-it, which is what makes that safe to build toward. This part is deferred, not shipped.
+- `Math.random`
+- non-bit-stable `Math.*`
+- `Date.now`
+
+Determinism is enforced. Not hoped for.
 
 ---
 
-## Not Another Engine
+## AI Native
 
-Unity, Unreal, and Godot render worlds. This engine defines how worlds *behave* — the
-rules, the state, the replay — and stays out of how any of it looks.
+There is no "AI mode."
+
+There is only the API.
+
+Humans and AI submit the exact same commands.
+
+Equality is important. Especially when they're both about to violate validation rules.
+
+(To be fair, nobody can submit anything yet — Phase 1 is still the deterministic core.
+Consider this a promise, not a demo.)
+
+An AI agent doesn't get special powers.
+
+It plays the same game everyone else does, once there's a game to play.
+
+Read. Present. Submit a choice. That's it.
+
+Long-term, AI becomes a content author rather than a mechanic author.
+
+Generate quests. Generate dialogue. Generate NPCs. Generate campaigns. Generate worlds.
+
+The engine validates everything at the boundary before it becomes reality.
+
+Because creativity should be encouraged. Undefined behavior shouldn't.
+
+---
+
+## Not Another Game Engine
+
+Unity renders. Unreal renders. Godot renders.
+
+This engine quietly sits underneath asking, *"Yes... but what actually happens?"*
+
+Turns out that's the interesting part.
+
+Rendering is presentation. Simulation is authority. One changes every few years. The
+other should survive decades.
+
+---
+
+## Why Build It?
+
+Because writing inventory systems stopped being exciting sometime around the third one.
+
+Because simulation should outlive presentation.
+
+Because rendering engines deserve to stop pretending they're gameplay engines.
+
+Because AI deserves somewhere better to put ideas than another pile of duplicated
+boilerplate.
+
+Because software should occasionally learn from its mistakes.
+
+This one has.
+
+---
+
+## Philosophy
+
+Technology changes. Rendering APIs change. JavaScript frameworks reproduce faster than
+rabbits. Graphics cards become obsolete. Today's fashionable architecture becomes
+tomorrow's migration guide.
+
+Good simulation doesn't.
+
+The rules that define how a world behaves can remain stable while everything around
+them changes. That's the bet.
 
 ---
 
 ## Mission
 
-We are not building games.
+We're not trying to build one great game. That would be far too sensible.
 
-We are teaching deterministic worlds how to behave.
+We're trying to stop rebuilding the same mechanics forever.
 
-One core. Many kinds. Infinite worlds.
+One deterministic core. Many Kinds. Infinite worlds.
+
+Future Us will probably appreciate the effort. Present Us certainly will.
 
 ---
 
 ## Status
 
-- **Specs:** the MVP contracts are finalized — the story-graph kind
-  ([`03`](/docs/engine/story-graph-kind#1-the-campaign)) and the core
-  ([`04-core`](/docs/engine/core#2-the-gamestate-envelope)). See [MVP.md](/docs/engine/mvp#1-the-mvp-in-one-sentence).
-  Every MVP-blocking gap is now decided; the register
-  ([OPEN-QUESTIONS.md](/docs/engine/open-questions#1-mvp-relevant-gaps--all-resolved) §1) is a decision log.
-- **Code:** [`src/engine/`](/docs/guide/engine-package) — seeded PCG32 RNG and canonical serialization,
-  verified bit-identical to reference vectors; core contract types and module skeleton in place.
-- **Next:** [TODO.md](/docs/engine/todo#core) breaks the MVP into ordered units of work
-  (W0–W19), in progress.
+### Specifications
 
-## Companions
+The MVP contracts are complete: [Core](/docs/engine/core), [Story Graph](/docs/engine/story-graph-kind), [Architecture](/docs/engine/architecture).
 
-- **Game** — [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife):
-  Life in the Fast Lane (`simulation`) and Bulgaria: Make-Your-Own-Adventure
-  (`story-graph`) — the two games proving the engine/kind/campaign split.
-- **Game** — [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap):
-  Sun Trap, a satirical resort-management sim on the `world-graph` kind. Design only, no
-  code yet.
-- **Hosting / NEaaS** — [SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform):
-  the deferred hosting / SaaS layer. Not part of v1.
+Every MVP-blocking decision has already been made
+([OPEN-QUESTIONS.md](/docs/engine/open-questions#1-mvp-relevant-gaps--all-resolved) §1). The remaining work is implementation. Not philosophy.
 
-## Where to Go Next
+### Code
 
-- **Evaluating the architecture?** Start at
-  [Vision](/docs/engine/vision#1-what-this-is), then
-  [Architecture](/docs/engine/architecture#1-the-three-layers) for every
-  settled decision and its rationale.
-- **Want to see determinism is real, not just written?**
-  [`src/engine/`](/docs/guide/engine-package) — the seeded RNG and
-  canonical serialization are tested against reference vectors today.
-- **Curious what playing one of these looks like?** Read about the flagship games in
-  [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife).
-- **Want to get involved?**
-  [TODO.md](/docs/engine/todo#core) is the actual next unit of work, and
-  [OPEN-QUESTIONS.md](/docs/engine/open-questions) is every unresolved
-  decision — open an issue or start a discussion on what's there.
+Current implementation ([`src/engine/`](/docs/guide/engine-package)) includes:
+
+- deterministic PCG32 RNG
+- canonical serialization
+- verified bit-identical reference vectors
+- strict TypeScript
+- determinism guard (eslint)
+- core contract types and module skeleton
+
+The foundation exists. Now comes the fun part — the determinism harness and replay
+verification are still ahead, per [TODO.md](/docs/engine/todo#core).
+
+### Next
+
+Implement the remaining roadmap ([TODO.md](/docs/engine/todo#core), W0–W19). One deterministic subsystem at a time. Unlike game development.
+
+---
+
+## Companion Projects
+
+**Life in the Fast Lane** — a deterministic life simulator planned for the Simulation
+Kind. The flagship proving reusable mechanics can support entirely different campaigns,
+once the Kind exists to prove it on. Not playable yet — nobody's is. In
+[SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife).
+
+**Bulgaria: Make-Your-Own-Adventure** — a branching narrative planned for the Story
+Graph Kind. Same setting. Different mechanics. Exactly the point, once it's built. Also
+in [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife).
+
+**Sun Trap** — a satirical resort-management simulation built on World Graph. Currently
+design. Eventually chaos. In
+[SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap).
+
+**Platform** — the future hosting layer. Deferred, because one impossible project at a
+time seems sufficiently ambitious. In
+[SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform).
+
+---
+
+## Who Is This For?
+
+Developers tired of rebuilding the same mechanics. System designers. Narrative
+designers. Simulation nerds. AI-assisted workflows. Researchers. Tool builders.
+
+And anyone who's ever stared at an existing codebase and quietly whispered, *"There has
+to be a better way."*
+
+There might be.
+
+---
+
+## Continue Reading
+
+If you've made it this far, you're either intrigued or already mentally arguing with
+the architecture.
+
+Excellent — both are valid reasons to keep reading.
+
+Start here:
+
+1. [Vision](/docs/engine/vision) — why the platform exists
+2. [Architecture](/docs/engine/architecture) — every settled decision
+3. [Core](/docs/engine/core) — the platform as types
+4. [Story Graph](/docs/engine/story-graph-kind)
+5. [Simulation](/docs/engine/simulation-kind)
+6. [World Graph](/docs/engine/world-graph-kind)
+7. [Content Packs](/docs/engine/content-packs)
+8. [MVP](/docs/engine/mvp)
+9. [TODO](/docs/engine/todo)
+
+Then decide whether the idea is brilliant...
+
+...or complete madness.
+
+Either way, you've understood it.
+
+---
 
 ## Layout
 
