@@ -177,13 +177,16 @@ Everything else is just someone else's remarkably specific data.
 
 ## Deterministic By Design
 
-Every session can replay from nothing more than a seed and an action log.
+Every session can replay from nothing more than which campaign version it's running, a
+seed, and an action log.
 
 Every bug is reproducible. Not "works on my machine." That phrase has been politely
 escorted off the premises.
 
-Across versions, outcomes remain authoritative. Serialization is allowed to evolve.
-Gameplay isn't.
+Across versions, an unintended divergence is a regression, full stop. An intended one
+still gets caught — it just gets reviewed and committed instead of quietly shipped.
+Serialization is allowed to evolve either way; nothing changes what a save file means
+without someone signing off on the diff.
 
 Replay isn't a debugging feature. It's an architectural guarantee.
 
@@ -313,13 +316,14 @@ Implement the remaining roadmap ([TODO.md](/docs/engine/todo#core), W0–W19). O
 
 ## Companion Projects
 
-**Life in the Fast Lane** — a deterministic life simulator built on the Simulation Kind.
-The flagship proving that reusable mechanics can support entirely different campaigns.
-In [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife).
-
-**Bulgaria: Make-Your-Own-Adventure** — a branching narrative built on the Story Graph
-Kind. Same setting. Different mechanics. Exactly the point. Also in
+**Life in the Fast Lane** — a deterministic life simulator planned for the Simulation
+Kind. The flagship proving reusable mechanics can support entirely different campaigns,
+once the Kind exists to prove it on. Not playable yet — nobody's is. In
 [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife).
+
+**Bulgaria: Make-Your-Own-Adventure** — a branching narrative planned for the Story
+Graph Kind. Same setting. Different mechanics. Exactly the point, once it's built. Also
+in [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife).
 
 **Sun Trap** — a satirical resort-management simulation built on World Graph. Currently
 design. Eventually chaos. In
