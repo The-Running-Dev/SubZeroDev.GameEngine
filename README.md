@@ -30,6 +30,54 @@ it asks a different question:
 
 ---
 
+## Origin Story
+
+This project didn't begin with a grand vision.
+
+It began because I missed Jones in the Fast Lane.
+
+One evening I wondered how its mechanics actually worked. Mostly out of curiosity.
+
+So I asked an LLM to explain them.
+
+It happily started describing weekly budgets, needs, jobs, education, relationships,
+random events...
+
+...and then it started suggesting implementation details.
+
+That was supposed to be the end of the conversation.
+
+Instead I caught myself thinking:
+
+> "Well... if I'm already writing the mechanics..."
+
+A few minutes later that became:
+
+> "...why make them specific to Jones?"
+
+Then:
+
+> "...what if the mechanics themselves were reusable?"
+
+And then the rabbit hole opened.
+
+Every answer created a better question.
+
+If life simulation can be reusable... why not branching narratives?
+
+If branching narratives can... why not management games? Why not autonomous worlds?
+
+Why not build the deterministic substrate instead of another game?
+
+At some point I stopped trying to write Jones in the Fast Lane.
+
+I accidentally started writing a game engine.
+
+I still maintain this is entirely the LLM's fault. It should have given a shorter
+answer.
+
+---
+
 ## One Engine. Genuinely Different Games.
 
 A weekly-budget life simulation and a branching narrative adventure are not the same
