@@ -50,9 +50,9 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
       the hosting layer [SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform).
       All private.
 - [x] **Seeded PRNG (PCG32)** + `deriveStream` substreams, serializable state.
-      `src/core/rng/pcg32.ts` — verified bit-identical to the reference vectors.
+      `src/engine/src/core/determinism/pcg32.ts` — verified bit-identical to the reference vectors.
 - [x] **Canonical serialization** (sorted keys, rejects non-finite).
-      `src/core/serialize/canonical.ts`.
+      `src/engine/src/core/persistence/canonical.ts`.
 - [x] **Toolchain runs green** — `npm install && npm test && npm run lint && npm run
       typecheck`; 15 tests across `pcg32` and `canonical`.
 
@@ -134,7 +134,7 @@ Wrap the built `Pcg32` behind `RngHandle`, and implement the normative `StreamId
 encoding. No generator state is persisted anywhere.
 - **Spec:** 04 §8.
 - **Depends on:** W1.
-- **Done when:** the three encoding forms round-trip exactly as specified; the same
+- **Done when:** all four encoding forms round-trip exactly as specified; the same
       `(seed, streamId)` yields identical draws across runs; different stream ids are
       independent; `GameState` contains no RNG field.
 

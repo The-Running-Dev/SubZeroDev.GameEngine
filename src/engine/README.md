@@ -27,10 +27,10 @@ clients → kinds → core. The core never imports a kind or client.
 The whole engine must replay byte-for-byte from a seed and inputs
 ([`MVP.md`](../../docs/docs/engine/MVP.md)). Two mechanisms hold the line:
 
-- **Seeded RNG only.** `src/core/rng/pcg32.ts` is the sole source of randomness.
+- **Seeded RNG only.** `src/core/determinism/pcg32.ts` is the sole source of randomness.
   It is verified bit-identical to the reference PCG32 (seed 42, 54 →
   `a15c02b7 7b47f409 ba1d3330 83d2f293 bfa4784b cbed606e`).
-- **Canonical serialization.** `src/core/serialize/canonical.ts` sorts object keys
+- **Canonical serialization.** `src/core/persistence/canonical.ts` sorts object keys
   and rejects non-finite numbers, so the same state always serializes to the same bytes.
 - **A lint guard.** `eslint.config.js` bans `Math.random`, `Math.pow/exp/log/sin/cos/tan`,
   and `Date.now` in `src/` — the APIs that are non-deterministic or not bit-stable across

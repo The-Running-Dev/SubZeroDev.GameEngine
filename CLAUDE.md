@@ -58,8 +58,8 @@ Read in order. Files are scoped deliberately and cross-reference by section numb
 
 The engine npm package (`package.json`, `tsconfig.json` strict, `eslint.config.js` with
 the determinism guard, `README.md`). Phase 1 core under `src/engine/src/core/`:
-`rng/pcg32.ts` (seeded PCG32, verified bit-identical to reference vectors),
-`serialize/canonical.ts` (canonical serialization), each with a `.test.ts` alongside. The
+`determinism/pcg32.ts` (seeded PCG32, verified bit-identical to reference vectors),
+`persistence/canonical.ts` (canonical serialization), each with a `.test.ts` alongside. The
 contracts it builds against are `04-core` and `03-story-graph-kind`; next up is the pure
 engine `advance(state, action) → state`.
 
