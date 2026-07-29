@@ -228,7 +228,7 @@ the platform reads a clock is a named one.
 make `Date.now` reachable from inside the determinism boundary through a supported API —
 undoing by convenience what the eslint guard enforces by rule.
 
-### 5.5 `ExperimentSource`
+### 5.5 `ExperimentSource` {#experimentsource}
 
 ```typescript
 interface ExperimentSource {
