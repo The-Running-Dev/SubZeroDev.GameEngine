@@ -38,10 +38,12 @@
 
 ## 1. What This Is
 
-A narrative game platform built as a **deterministic engine with interchangeable
-clients**. One engine powers many games; one API serves every client — web, mobile,
-CLI, Discord, chat, and MCP-compatible AI agents. The UI is a replaceable client that
-holds no game logic.
+Game engines solved rendering, physics, animation, audio, and networking, once each.
+Every new game still rewrites gameplay from scratch. This platform exists to ask
+whether gameplay itself can be reusable — and answers it as a **deterministic engine
+with interchangeable clients**. One engine powers many games; one API serves every
+client — web, mobile, CLI, Discord, chat, and MCP-compatible AI agents. The UI is a
+replaceable client that holds no game logic.
 
 The central principle, unchanged from the source specification:
 

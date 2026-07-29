@@ -4,25 +4,122 @@ title: 'Game Engine'
 
 # SubZeroDev.GameEngine
 
-The **Game Engine** — a deterministic, game-agnostic narrative-game platform: its
-**source** (`src/engine/`) and its **specs** (`docs/docs/engine/`) in one place.
+**A narrative engine for entire families of games.**
 
-The model is **core → kinds → campaigns**: one shared deterministic core, game-*type*
-logic (`kinds`), and content (`campaigns`) as data. v1 targets two kinds — `story-graph`
-(flagship) and `simulation`.
+## Why This Exists
 
-**Documentation:** **[game-engine.subzerodev.com](/)** —
-the site root, which publishes this README. The specs are rendered and cross-linked under
-**[/docs](/docs/)**.
+Game engines solved rendering, physics, animation, audio, and networking.
 
-> **Companions.** The flagship **game** (Life in the Fast Lane, on the `simulation` kind)
-> lives in
-> [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife); the
-> second (Sun Trap, on the `world-graph` kind) in
-> [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap); the
-> deferred **hosting / NEaaS** layer in
-> [SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform). `games/…`
-> references in these docs point to SubZeroDev.GameOfLife specifically.
+Every new game still rewrites gameplay from scratch.
+
+**SubZeroDev.GameEngine asks a different question: what if gameplay itself became
+reusable?**
+
+---
+
+## One Engine. Genuinely Different Games.
+
+A weekly-budget life simulation and a branching narrative adventure are not the same
+shape of game. Force one model to fake the other and it explodes combinatorially.
+
+So this engine doesn't pick one. It has a shared deterministic core, and on top of it,
+**kinds** — reviewed engine code that defines how one category of game actually plays.
+A **campaign** is a kind plus its data.
+
+The sharpest proof isn't a claim, it's a constraint the project set for itself: build
+two games that share only a setting and a voice — nothing mechanical — on the same
+engine. **Life in the Fast Lane** (a life-simulation `kind`) and **Bulgaria:
+Make-Your-Own-Adventure** (a branching-narrative `kind`) share the same Bulgarian
+setting and the same deadpan tone, and nothing else. If the engine/kind/campaign split
+holds, that's what it looks like.
+
+---
+
+## The Model
+
+```mermaid
+flowchart TD
+    Core["Core — deterministic state, seeded RNG, save and replay, validation, one API"]
+    Kinds["Kinds — game-type logic, engine-owned code"]
+    Campaigns["Campaigns — a kind, plus its data"]
+    Clients["Clients — web, CLI, Discord, MCP agents"]
+
+    Core --> Kinds --> Campaigns --> Clients
+
+    Kinds -.-> SG(story-graph)
+    Kinds -.-> SIM(simulation)
+    Kinds -.-> WG(world-graph)
+```
+
+The core solves the hard engineering problems **once** — session state, seeded
+randomness, save and replay, validation, localization, content packs, versioned
+migration, one client/MCP API. Every kind inherits all of it for free. A kind defines
+mechanics. A campaign defines a world. A client just presents.
+
+---
+
+## Build Mechanics Once
+
+One kind, many campaigns, many games. Three kinds are committed:
+
+| Kind | What it plays like | Flagship |
+|---|---|---|
+| `story-graph` | Branching narrative — nodes, choices, typed variables, consequences | Bulgaria: Make-Your-Own-Adventure |
+| `simulation` | Weekly-tick life sim — time budget, needs, economy | Life in the Fast Lane ([SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife)) |
+| `world-graph` | A navigable world with autonomous inhabitants | Sun Trap ([SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap)) |
+
+A fourth is where this is headed, not where it is: an **online RPG** kind — named here
+as direction, not yet specified, unlike the three above.
+
+---
+
+## Deterministic By Design
+
+Every session replays byte-identical from a seed and its action log — that's the
+determinism harness's job, and it's tested, not assumed. Across engine versions, what's
+guaranteed is the *outcome*, not the bytes: an intentional change is allowed to move the
+serialized format; a regression isn't, and catching that distinction is what the replay
+oracle exists for. Every bug is reproducible, not "worked on my machine." The simulation
+is authoritative; the client is disposable.
+
+This isn't a best-effort convention. An eslint rule bans `Math.random`, the non-bit-stable
+`Math.*` functions, and `Date.now` from ever reaching the core — determinism is
+enforced, not hoped for.
+
+---
+
+## AI-Native
+
+**By design, not by roadmap:** the API has no special AI path — an MCP agent and a
+human client submit to the exact same store operations, so once any client exists, an
+AI agent plays the identical game a human does. Nothing is playable yet (`src/engine/`
+is still Phase 1, the deterministic core), so this isn't a claim about what's running
+today — it's a settled architectural decision that isn't up for revision once a client
+does exist. A client, human or machine, only ever does three things: read the scene,
+present it, submit a choice.
+
+**Where this is headed:** AI generating validated content instead of a human writing
+boilerplate — the engine validates everything at the boundary regardless of who authored
+it, which is what makes that safe to build toward. This part is deferred, not shipped.
+
+---
+
+## Not Another Engine
+
+Unity, Unreal, and Godot render worlds. This engine defines how worlds *behave* — the
+rules, the state, the replay — and stays out of how any of it looks.
+
+---
+
+## Mission
+
+We are not building games.
+
+We are teaching deterministic worlds how to behave.
+
+One core. Many kinds. Infinite worlds.
+
+---
 
 ## Status
 
@@ -32,10 +129,36 @@ the site root, which publishes this README. The specs are rendered and cross-lin
   Every MVP-blocking gap is now decided; the register
   ([OPEN-QUESTIONS.md](/docs/engine/open-questions#1-mvp-relevant-gaps--all-resolved) §1) is a decision log.
 - **Code:** [`src/engine/`](/docs/guide/engine-package) — seeded PCG32 RNG and canonical serialization,
-  verified bit-identical to reference vectors; toolchain green (15 tests).
+  verified bit-identical to reference vectors; core contract types and module skeleton in place.
 - **Next:** [TODO.md](/docs/engine/todo#core) breaks the MVP into ordered units of work
-  (W0–W19). W0 adds CI and docs-build gates; W1 then adds the core contract types and
-  module skeleton.
+  (W0–W19), in progress.
+
+## Companions
+
+- **Game** — [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife):
+  Life in the Fast Lane (`simulation`) and Bulgaria: Make-Your-Own-Adventure
+  (`story-graph`) — the two games proving the engine/kind/campaign split.
+- **Game** — [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap):
+  Sun Trap, a satirical resort-management sim on the `world-graph` kind. Design only, no
+  code yet.
+- **Hosting / NEaaS** — [SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform):
+  the deferred hosting / SaaS layer. Not part of v1.
+
+## Where to Go Next
+
+- **Evaluating the architecture?** Start at
+  [Vision](/docs/engine/vision#1-what-this-is), then
+  [Architecture](/docs/engine/architecture#1-the-three-layers) for every
+  settled decision and its rationale.
+- **Want to see determinism is real, not just written?**
+  [`src/engine/`](/docs/guide/engine-package) — the seeded RNG and
+  canonical serialization are tested against reference vectors today.
+- **Curious what playing one of these looks like?** Read about the flagship games in
+  [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife).
+- **Want to get involved?**
+  [TODO.md](/docs/engine/todo#core) is the actual next unit of work, and
+  [OPEN-QUESTIONS.md](/docs/engine/open-questions) is every unresolved
+  decision — open an issue or start a discussion on what's there.
 
 ## Layout
 
@@ -67,20 +190,14 @@ npm run lint    # determinism guard + typescript-eslint
 npm run typecheck
 ```
 
-Determinism is enforced, not hoped for: the eslint config bans `Math.random`, the
-non-bit-stable `Math.*` functions, and `Date.now` in `src/`, and the core replays
-byte-for-byte from a seed and its inputs.
-
-## Where to Start Reading
-
-1. [Vision](/docs/engine/vision#1-what-this-is) — why the platform exists
-2. [Architecture](/docs/engine/architecture#1-the-three-layers) — every settled decision
-3. [The core](/docs/engine/core#1-the-two-layers-of-engine) — the platform as types
-4. [Story-graph kind](/docs/engine/story-graph-kind#3-nodes--the-single-content-type-n7) — the flagship content model
-5. [MVP](/docs/engine/mvp#3-in-scope) + [TODO](/docs/engine/todo#core) — what ships first, in order
+Same determinism guard as above: the eslint config bans `Math.random`, the
+non-bit-stable `Math.*` functions, and `Date.now` in `src/` — it's enforced at lint time,
+not left to review.
 
 ---
 
-Private, work in progress.
+**Documentation:** **[game-engine.subzerodev.com](/)** —
+the site root, which publishes this README. The specs are rendered and cross-linked under
+**[/docs](/docs/)**.
 
 [View the documentation](/docs/)
