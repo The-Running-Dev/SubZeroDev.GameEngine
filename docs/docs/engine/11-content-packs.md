@@ -148,7 +148,7 @@ function applyExperimentGates(
 A pack whose `experimentGate` is absent is always included. A pack whose gate is present is
 included only when `assignments[gate.experimentId] === gate.variant`. `assignments` is
 resolved once per session, before this call, from
-[`ExperimentSource.resolve`](06-extensibility.md#55-experimentsource) — one call per
+[`ExperimentSource.resolve`](06-extensibility.md#55) — one call per
 distinct `experimentId` referenced across the candidate packs.
 
 **This runs *before* `resolvePacks`, not inside it.** `resolvePacks` stays exactly as pure
