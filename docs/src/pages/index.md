@@ -75,9 +75,12 @@ as direction, not yet specified, unlike the three above.
 
 ## Deterministic By Design
 
-Every session replays byte-identical from a seed and its action log — forever, across
-engine versions. Every save is portable. Every bug is reproducible, not "worked on my
-machine." The simulation is authoritative; the client is disposable.
+Every session replays byte-identical from a seed and its action log — that's the
+determinism harness's job, and it's tested, not assumed. Across engine versions, what's
+guaranteed is the *outcome*, not the bytes: an intentional change is allowed to move the
+serialized format; a regression isn't, and catching that distinction is what the replay
+oracle exists for. Every bug is reproducible, not "worked on my machine." The simulation
+is authoritative; the client is disposable.
 
 This isn't a best-effort convention. An eslint rule bans `Math.random`, the non-bit-stable
 `Math.*` functions, and `Date.now` from ever reaching the core — determinism is
@@ -87,10 +90,13 @@ enforced, not hoped for.
 
 ## AI-Native
 
-**True today:** an AI agent connected through MCP plays the *identical* game a human
-plays through any other client — same API, same rules, no special AI mode. That's not
-a roadmap item; it's the architecture. A client, human or machine, only ever does three
-things: read the scene, present it, submit a choice.
+**By design, not by roadmap:** the API has no special AI path — an MCP agent and a
+human client submit to the exact same store operations, so once any client exists, an
+AI agent plays the identical game a human does. Nothing is playable yet (`src/engine/`
+is still Phase 1, the deterministic core), so this isn't a claim about what's running
+today — it's a settled architectural decision that isn't up for revision once a client
+does exist. A client, human or machine, only ever does three things: read the scene,
+present it, submit a choice.
 
 **Where this is headed:** AI generating validated content instead of a human writing
 boilerplate — the engine validates everything at the boundary regardless of who authored
