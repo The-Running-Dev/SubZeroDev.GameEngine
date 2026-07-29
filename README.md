@@ -46,9 +46,7 @@ engine code that defines how an entire category of games behaves.
 A **Campaign** is simply a Kind plus its data.
 
 The proof isn't marketing. It's a constraint the project imposed on itself: build two
-games that share only a setting and a voice...
-
-...and absolutely nothing mechanical.
+games that share only a setting and a voice, and absolutely nothing mechanical.
 
 - **Life in the Fast Lane** — a weekly life simulation.
 - **Bulgaria: Make-Your-Own-Adventure** — a branching narrative.
@@ -140,10 +138,9 @@ Designed around autonomous inhabitants living inside navigable spaces. Perfect f
 **Flagship:** Sun Trap
 
 Future Kinds naturally follow. Online RPGs. City builders. Strategy. Survival. Economic
-simulations. Not because the engine keeps growing...
-
-...because it keeps learning one more style of simulation. None of them are planned; all
-of them are the shape of what's possible once a fourth Kind is.
+simulations. Not because the engine keeps growing, but because it keeps learning one
+more style of simulation. None of them are planned; all of them are the shape of what's
+possible once a fourth Kind is.
 
 ---
 
@@ -339,13 +336,10 @@ There might be.
 
 ## Continue Reading
 
-If you've made it this far...
+If you've made it this far, you're either intrigued or already mentally arguing with
+the architecture.
 
-you're either intrigued...
-
-or already mentally arguing with the architecture.
-
-Excellent. Both are valid reasons to keep reading.
+Excellent — both are valid reasons to keep reading.
 
 Start here:
 
