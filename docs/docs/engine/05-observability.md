@@ -284,6 +284,7 @@ interface EmittedRecord {
   readonly spanId: string;       // per unit of work within it
   readonly attempt: number;      // per-session submission counter — disambiguates §5
   readonly sessionId?: string;   // the store's key; absent for pure-engine-only use
+  readonly experiments?: Readonly<Record<string, string>>;  // resolved once per session
 }
 ```
 
@@ -293,6 +294,14 @@ stream even where `(gameId, seq, ordinal)` repeats. It lives here rather than on
 `EngineEvent` precisely because it is *not* derivable from `{seed, actionLog}` — putting it
 in the core would be the ambient state §2 forbids, and would make the replayable stream
 depend on how many invalid submissions a player happened to make.
+
+`experiments` lives here for the identical reason, one layer further out. It is the same
+assignment map `applyExperimentGates` resolved for this session
+([`11-content-packs.md`](11-content-packs.md) §5a) — the store already has it, since it used
+it to select packs before `createGame` — attached here so an event can be attributed to a
+variant without the core ever knowing one exists. Unlike `traceId`/`spanId`/`attempt`, which
+are per-*command*, this is per-*session*: resolved once at session creation and stamped
+unchanged onto every event that session emits, the same lifetime `sessionId` already has.
 
 ### 6.1 How Per-Command Context Reaches an Event
 

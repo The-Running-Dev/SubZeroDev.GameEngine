@@ -46,11 +46,13 @@ interface ContentPack {
   readonly version: string;
   readonly kindId: KindId;                   // a pack targets exactly one kind
   readonly dependsOn: readonly PackRef[];    // §5
+  readonly experimentGate?: ExperimentGate;  // §5a — absent means always included
   readonly campaigns: readonly BuiltCampaign[];   // 04 §10.1 — already the built form
   readonly strings: ReadonlyMap<LocKey, string>;
 }
 
 interface PackRef { readonly id: string; readonly version: string; }
+interface ExperimentGate { readonly experimentId: string; readonly variant: string; }
 ```
 
 A pack carries **built** campaigns, not source. Authoring happens first and produces
@@ -130,6 +132,44 @@ say what content it ran against (§6), and is otherwise inert.
 
 ---
 
+## 5a. Experiment Gates
+
+A/B testing and feature flags are **not** a new mechanism — they are one more reason a pack
+might not be in the set `resolvePacks` sees. §4a's promise was "one kind, many settings, no
+engine change"; a flag is a setting like any other, resolved by the same pipeline.
+
+```typescript
+function applyExperimentGates(
+  packs: readonly ContentPack[],
+  assignments: Readonly<Record<string, string>>,
+): readonly ContentPack[];
+```
+
+A pack whose `experimentGate` is absent is always included. A pack whose gate is present is
+included only when `assignments[gate.experimentId] === gate.variant`. `assignments` is
+resolved once per session, before this call, from
+[`ExperimentSource.resolve`](06-extensibility.md#55-experimentsource) — one call per
+distinct `experimentId` referenced across the candidate packs.
+
+**This runs *before* `resolvePacks`, not inside it.** `resolvePacks` stays exactly as pure
+and total as §3 already states — it never learns that gates exist, because the pack array it
+receives has already had the excluded packs removed. Nothing about its signature, its fold,
+or its purity changes.
+
+**Gate filtering happens before dependency resolution (§5), not after.** A pack excluded by
+its gate is simply absent from the set §5's checks run against. The consequence is a rule
+that falls out of the *existing* Tier 1 check rather than adding a new one: **an ungated pack
+must never `dependsOn` a gated one**, because in whichever variant excludes the dependency,
+"a `dependsOn` names a pack present in the set" (§7) fails — correctly. A pack meant to be
+available in every variant of an experiment cannot depend on a pack that is not.
+
+**What this does not specify.** Rollout percentages, sticky-session semantics beyond what
+`profileId` already gives, statistical validity, and measuring an experiment's outcome are
+none of them here — they are `ExperimentSource`'s implementation (06 §5.5) or a hosting
+concern (§8), the same way *which* packs exist at all is never this document's business.
+
+---
+
 ## 6. Identity, and Why Determinism Needs It
 
 This is the part that is not obvious, and it is the reason this document is a contract
@@ -165,6 +205,13 @@ that is unique to the *content it actually ran against*, and:
 > genuinely did change — but it means pack order is not a knob to fiddle with on a live
 > deployment, and a host that reorders should expect saves to require migration.
 
+> **This is also the entire identity story for experiment gates (§5a), unchanged.** Two
+> sessions in different variants resolve different pack sets, hence different `ResolutionId`
+> digests, hence different `campaignVersion`s — the same distinction §5a's filtering already
+> produces, with no further mechanism. A player's variant is legible from their save the same
+> way any other content difference is: it is not, directly, but *what they actually ran
+> against* is, which is the property that matters.
+
 ---
 
 ## 7. Validation
@@ -193,3 +240,8 @@ nothing, and the failure is invisible at play — the original string simply ren
   sits with the third-party discussion in [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md).
 - **Per-locale pack splitting.** The MVP ships one locale (04 §10.1). A locale-only pack is
   already expressible as a pack contributing nothing but `strings`.
+- **Experiment bucketing algorithms, rollout percentages, and outcome measurement.** §5a
+  fixes only that a gate is a pure filter over an already-resolved assignment. How that
+  assignment is computed is `ExperimentSource`'s business (06 §5.5); analyzing what happened
+  under each variant is analytics, out of MVP scope by name
+  ([`MVP.md`](MVP.md) §4).

@@ -426,8 +426,12 @@ in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap) (
 - [ ] Content packs, per [`11-content-packs.md`](11-content-packs.md) — `resolvePacks` as a
       pure ordered fold; campaigns replace wholesale, strings per key; exact-version
       dependencies with no range solving; `campaignVersion` stamped with the `ResolutionId`
-      so a game records the content it actually ran against. Before mods, not before MVP
+      so a game records the content it actually ran against; experiment gates (§5a) as the
+      one mechanism for both A/B testing and feature flags, filtered before the fold via
+      `ExperimentSource` (06 §5.5). Before mods, not before MVP
       ([`neaas-platform-vision.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform) → Known deferred gaps).
+      W1's `composition/types.ts` predates this design and does not yet declare
+      `ExperimentSource`; add it there when this unit is implemented in code.
 
 ### Content Tooling — A First-Class Workstream, Not an Afterthought
 
