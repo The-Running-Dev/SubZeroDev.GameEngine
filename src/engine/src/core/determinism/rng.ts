@@ -22,6 +22,13 @@ export function encodeStreamId(streamId: StreamId): string {
       return `agent:${streamId.agentId}:${streamId.seq}`;
     case "tick":
       return `tick:${streamId.tick}:${streamId.system}`;
+    default: {
+      // Exhaustiveness guard: a malformed StreamId (unsafe cast, or a variant added to
+      // the union without updating this function) must fail loudly, not silently hash
+      // `undefined` into a deterministic-but-wrong stream.
+      const unreachable: never = streamId;
+      throw new Error(`encodeStreamId: unknown StreamId kind: ${JSON.stringify(unreachable)}`);
+    }
   }
 }
 

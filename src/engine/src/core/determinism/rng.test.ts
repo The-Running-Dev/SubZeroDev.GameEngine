@@ -8,6 +8,11 @@ describe("encodeStreamId", () => {
     expect(encodeStreamId({ kind: "agent", agentId: "guest-7", seq: 12 })).toBe("agent:guest-7:12");
     expect(encodeStreamId({ kind: "tick", tick: 40, system: "weather" })).toBe("tick:40:weather");
   });
+
+  it("throws on an unrecognized kind instead of silently returning undefined", () => {
+    const malformed = { kind: "bogus" } as unknown as Parameters<typeof encodeStreamId>[0];
+    expect(() => encodeStreamId(malformed)).toThrow(/unknown StreamId kind/);
+  });
 });
 
 describe("rngHandleFor", () => {
