@@ -1,6 +1,6 @@
 # SubZeroDev.GameEngine
 
-**A narrative engine for entire families of games.**
+**Build mechanics once. Create infinite games.**
 
 ## Why This Exists
 
@@ -64,8 +64,22 @@ One kind, many campaigns, many games. Three kinds are committed:
 | `simulation` | Weekly-tick life sim — time budget, needs, economy | Life in the Fast Lane ([SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife)) |
 | `world-graph` | A navigable world with autonomous inhabitants | Sun Trap ([SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap)) |
 
+Each shape of mechanic naturally supports more than its one flagship:
+
+- **`story-graph`** fits adventure games, detective stories, interactive fiction, visual
+  novels, educational branching narratives — anything that's fundamentally a graph of
+  choices and consequences.
+- **`simulation`** fits career sims, relationship sims, business-life hybrids — anything
+  that's fundamentally a weekly budget of time, needs, and economy.
+- **`world-graph`** fits resort and hotel management, theme parks, hospitals,
+  transportation networks — anything that's fundamentally a navigable world with
+  inhabitants that act on their own.
+
 A fourth is where this is headed, not where it is: an **online RPG** kind — named here
-as direction, not yet specified, unlike the three above.
+as direction, not yet specified, unlike the three above. Further out still: city
+builders, strategy games, survival games, economic simulations — none of them planned,
+just the shape of what "teach the engine one more style of simulation" keeps making
+possible.
 
 ---
 
@@ -107,6 +121,32 @@ rules, the state, the replay — and stays out of how any of it looks.
 
 ---
 
+## Why Build It?
+
+Because every new game starts by rebuilding systems that already exist.
+
+Because game mechanics deserve to be reusable, the same way rendering and physics
+already are.
+
+Because simulation should outlive presentation — a rendering framework will be replaced
+long before the rules of a good simulation stop being true.
+
+Because AI-generated content deserves a validated system to land in, not another pile
+of boilerplate to duplicate.
+
+---
+
+## Philosophy
+
+Rendering technology will keep changing. Presentation frameworks will keep changing.
+How content gets authored — by a person, or increasingly with AI — will keep changing.
+
+Deterministic simulation doesn't have to. The rules that define how a world behaves can
+stay stable for decades, underneath all of that churn. That's the bet this engine is
+built on.
+
+---
+
 ## Mission
 
 We are not building games.
@@ -140,6 +180,14 @@ One core. Many kinds. Infinite worlds.
 - **Hosting / NEaaS** — [SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform):
   the deferred hosting / SaaS layer. Not part of v1.
 
+## Who Is This For?
+
+Game developers building something narrative- or simulation-shaped. Systems and
+narrative designers who'd rather define mechanics once than per-game. AI-assisted
+development, since validated structure is what makes AI-authored content safe to trust.
+Researchers and tool builders who want a deterministic substrate under their own work.
+Anyone who thinks gameplay should be reusable.
+
 ## Where to Go Next
 
 - **Evaluating the architecture?** Start at
@@ -155,6 +203,18 @@ One core. Many kinds. Infinite worlds.
   [TODO.md](https://game-engine.subzerodev.com/docs/engine/todo#core) is the actual next unit of work, and
   [OPEN-QUESTIONS.md](https://game-engine.subzerodev.com/docs/engine/open-questions) is every unresolved
   decision — open an issue or start a discussion on what's there.
+
+**Continue reading, in order:**
+
+1. [Vision](https://game-engine.subzerodev.com/docs/engine/vision) — why the platform exists
+2. [Architecture](https://game-engine.subzerodev.com/docs/engine/architecture) — every settled decision
+3. [The Core](https://game-engine.subzerodev.com/docs/engine/core) — the platform as types
+4. The three kinds:
+   [story-graph](https://game-engine.subzerodev.com/docs/engine/story-graph-kind),
+   [simulation](https://game-engine.subzerodev.com/docs/engine/simulation-kind),
+   [world-graph](https://game-engine.subzerodev.com/docs/engine/world-graph-kind)
+5. [Content Packs](https://game-engine.subzerodev.com/docs/engine/content-packs) — how a kind becomes a campaign
+6. [MVP](https://game-engine.subzerodev.com/docs/engine/mvp) + [TODO](https://game-engine.subzerodev.com/docs/engine/todo) — what ships first, in order
 
 ## Layout
 
