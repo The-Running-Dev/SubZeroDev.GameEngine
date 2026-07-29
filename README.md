@@ -40,10 +40,13 @@ fire.
 
 So this engine doesn't pretend.
 
-It has one shared deterministic core and a growing collection of **Kinds** — reviewed
-engine code that defines how an entire category of games behaves.
+It has one shared deterministic core and a growing collection of **Kinds** — think of
+a Kind as a genre's rulebook: how choices and consequences work, how a weekly budget of
+time and needs works, how a world's inhabitants move on their own. Reviewed engine code,
+not content.
 
-A **Campaign** is simply a Kind plus its data.
+A **Campaign** is the actual game written with that rulebook — a Kind plus its data.
+`story-graph` is a Kind; Bulgaria: Make-Your-Own-Adventure is a Campaign built on it.
 
 The proof isn't marketing. It's a constraint the project imposed on itself: build two
 games that share only a setting and a voice, and absolutely nothing mechanical.
@@ -87,8 +90,10 @@ The core solves difficult engineering problems exactly once:
 - content packs
 - one API
 
-Every Kind inherits those capabilities automatically. Kinds define mechanics. Campaigns
-define worlds. Clients simply present them.
+Every Kind inherits those capabilities automatically. Concretely: `simulation` is the
+Kind — the rulebook for weekly-budget life sims. Life in the Fast Lane is the Campaign
+— the actual game written with it. Kinds define mechanics. Campaigns define worlds.
+Clients simply present them.
 
 The client gets all the credit. The core does all the work. As is tradition.
 
@@ -111,7 +116,7 @@ Designed for games built around choices and consequences. Perfect for:
 - Visual novels
 - Educational branching narratives
 
-**Flagship:** Bulgaria: Make-Your-Own-Adventure
+**Flagship Campaign:** Bulgaria: Make-Your-Own-Adventure
 
 ### Simulation
 
@@ -122,7 +127,7 @@ Designed around deterministic time, needs, economy, and progression. Perfect for
 - Relationship simulators
 - Business-life hybrids
 
-**Flagship:** Life in the Fast Lane
+**Flagship Campaign:** Life in the Fast Lane
 
 ### World Graph
 
@@ -135,7 +140,7 @@ Designed around autonomous inhabitants living inside navigable spaces. Perfect f
 - Transportation
 - Living worlds
 
-**Flagship:** Sun Trap
+**Flagship Campaign:** Sun Trap
 
 Future Kinds naturally follow. Online RPGs. City builders. Strategy. Survival. Economic
 simulations. Not because the engine keeps growing, but because it keeps learning one
