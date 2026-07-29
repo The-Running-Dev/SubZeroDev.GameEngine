@@ -78,6 +78,7 @@ no partial trust to model. A seam is on one side of the line or the other.
 | `ProfileStore` | Outside — durable, beside the session store | **Yes** | §5.2 |
 | `Emitter` | Outside — write-only, returns `void` | **Yes** | 05 §4 |
 | `Clock` | Outside — boundary only, never reaches the core | **Yes** | §5.4 |
+| `ExperimentSource` | Outside — resolves a variant used to select packs and tag events; never reaches the core | **Yes** | §5.5 |
 | Clients | Above everything — presentation only | **Yes**, no registration needed | 02 §1 |
 | Campaigns, content packs | Data, validated in tiers | **Yes**, already the content path | 04 §10.1 |
 
@@ -120,6 +121,7 @@ interface SessionHost {
   readonly sessions: SessionStore;       // §5.2
   readonly profiles?: ProfileStore;      // §5.2 — omitted → anonymous-only (04 §7.1)
   readonly clock?: Clock;                // §5.4 — defaults to the system clock
+  readonly experiments?: ExperimentSource; // §5.5 — defaults to "no experiments running"
 }
 
 function createSessionLayer(host: SessionHost): SessionStore;
@@ -225,6 +227,69 @@ the platform reads a clock is a named one.
 **It is deliberately absent from `EngineHost`.** Handing a clock to the pure engine would
 make `Date.now` reachable from inside the determinism boundary through a supported API —
 undoing by convenience what the eslint guard enforces by rule.
+
+### 5.5 `ExperimentSource` {#experimentsource}
+
+```typescript
+interface ExperimentSource {
+  /** A stable variant for one experiment, or `null` if `bucketKey` is not enrolled.
+   *  Boundary only — the core never receives this port, and its result never enters
+   *  `GameState`. */
+  resolve(experimentId: string, bucketKey: string): string | null;
+}
+```
+
+Resolves an A/B or feature-flag assignment, at session-creation time, for whichever content
+pack selection and event tagging need it (11 §5a, 05 §6). It follows `Clock`'s shape exactly
+— boundary-only, optional, `SessionHost`-scoped — for the same reason: a variant that could
+reach the pure engine and be branched on inside `advance` would reopen the universal-DSL
+pressure architecture N2 already rejected once (§7).
+
+**Nothing about a kind's behaviour is gated through this port.** A kind cannot see which
+variant a game is in, cannot ask, and has no field to ask through. What varies is *which
+content the kind is handed* — §2's line, unmoved: a host may supply anything that cannot
+change `serialize()` output, and a resolved variant only ever changes which packs get
+selected before `resolvePacks` runs, at a stage the pure engine never observes.
+
+**`bucketKey` is `profileId` when the session is profiled, else the session's `seed`.** The
+session layer computes this once — the fallback rule the design calls for — before calling
+`resolve`, rather than handing every `ExperimentSource` a raw `profileId | null` and asking
+each implementation to reimplement the same fallback; that would be exactly the kind of
+incidental divergence §2's boundary rule exists to prevent. It is also what keeps anonymous
+sessions from collapsing onto one shared assignment: each has its own `seed` (04 §7),
+generated before pack selection runs, so each anonymous session still buckets
+deterministically — just not *stably across* sessions the way a `profileId` does.
+`profileId` itself is the same value `CreateSessionConfig` already carries (04 §7.1) and
+that `GameState` is barred from ever holding — folding it into `bucketKey` crosses no new
+line, because only the *result* of `resolve` continues past the call, exactly as
+`IdSource`'s randomness never crosses in, only its output does (§3).
+
+**`null` means "not enrolled," and it is a different value from any legal variant.**
+`ExperimentGate.variant` (11 §2) is an unconstrained string, so a *fixed-string* default —
+always returning `"control"`, say — risks colliding with whatever string a gate happens to
+use, silently enabling a pack no experiment actually assigned. Returning `null` instead is
+structurally incapable of that: `assignments[gate.experimentId] === gate.variant` (11 §5a)
+can never be true when the left side is `null`, so "no experiments running" — the default,
+when `experiments` is omitted — is a guarantee, not a coincidence of which string was
+picked.
+
+**Where the registry a variant selects actually lands.** `createEngine` binds one
+`ContentRegistry` at construction and never swaps it (§4), so a host running experiments
+does not resolve packs once, globally — it resolves once **per distinct assignment
+combination**, via `applyExperimentGates` + `resolvePacks` (11 §5a), and builds one `Engine`
+per resulting registry, keyed by the `ResolutionId` that resolution already produces (11
+§6). Routing a given `createSession` call to the right pre-built `Engine`, having already
+resolved that session's assignments, is host-side composition above this seam — the same
+way wiring a request to `createSession` at all is — and this document does not constrain it
+further.
+
+**A real implementation's only obligation:** be a pure function of its two arguments. Two
+calls with the same `(experimentId, bucketKey)` must return the same variant, or pack
+selection stops being reproducible from the assignment alone — the property 11 §6's
+identity mechanism depends on. The bucketing algorithm itself — hash choice, rollout
+percentage, sticky-session semantics beyond what `bucketKey` already gives for free — is a
+host decision this document does not constrain, the same way `SessionStore`'s storage
+backend is not constrained (§5.2).
 
 ---
 
