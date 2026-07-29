@@ -537,7 +537,7 @@ Rules, all of them determinism-preserving:
 ## 8. Randomness
 
 Fully specified and built. The core owns the seeded PCG32 generator
-(`src/engine/src/core/rng/pcg32.ts`, verified bit-identical
+(`src/engine/src/core/determinism/pcg32.ts`, verified bit-identical
 to reference vectors) and hands each resolution a **scoped handle** derived from
 `(seed, streamId)` via `deriveStream`.
 

@@ -13,8 +13,8 @@ working on it. What it must *do* is the specs' job — start with
 
 | Path | What |
 |---|---|
-| `src/engine/src/core/rng/` | Seeded PCG32 and stream derivation |
-| `src/engine/src/core/serialize/` | Canonical serialization |
+| `src/engine/src/core/determinism/` | Seeded PCG32 and stream derivation |
+| `src/engine/src/core/persistence/` | Canonical serialization |
 | `src/engine/package.json` | Scripts and the Node floor |
 | `src/engine/eslint.config.js` | The determinism guard |
 

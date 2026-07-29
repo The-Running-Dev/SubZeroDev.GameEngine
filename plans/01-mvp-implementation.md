@@ -194,8 +194,8 @@ mandatory branch-acceptance check, not optional follow-up. Confirm:
 
 The only implementation under `src/engine/src/` is:
 
-- `core/rng/pcg32.ts` — `RngState`, `Pcg32`, and `deriveStream`.
-- `core/serialize/canonical.ts` — `canonicalStringify`, `serialize`, and `deserialize`.
+- `core/determinism/pcg32.ts` — `RngState`, `Pcg32`, and `deriveStream`.
+- `core/persistence/canonical.ts` — `canonicalStringify`, `serialize`, and `deserialize`.
 - Tests alongside both modules.
 
 The following Phase 1 components do not yet exist: the core contract types, pure
