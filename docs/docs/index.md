@@ -4,6 +4,9 @@ title: 'Game Engine'
 
 # The Docs
 
+One deterministic core. Three kinds of game. Every new game is content, not code — that's
+the bet, and [the front page](/) makes the case for it.
+
 The **Game Engine** is a deterministic, game-agnostic narrative-game platform. This is its
 documentation, in the order the sidebar presents it. The project's front page — what it is,
 where the code lives — is [the site root](/).
