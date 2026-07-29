@@ -232,9 +232,10 @@ undoing by convenience what the eslint guard enforces by rule.
 
 ```typescript
 interface ExperimentSource {
-  /** A stable variant key for one experiment. Boundary only — the core never receives
-   *  this port, and its result never enters `GameState`. */
-  resolve(experimentId: string, profileId: string | null): string;
+  /** A stable variant for one experiment, or `null` if `bucketKey` is not enrolled.
+   *  Boundary only — the core never receives this port, and its result never enters
+   *  `GameState`. */
+  resolve(experimentId: string, bucketKey: string): string | null;
 }
 ```
 
@@ -250,21 +251,43 @@ content the kind is handed* — §2's line, unmoved: a host may supply anything 
 change `serialize()` output, and a resolved variant only ever changes which packs get
 selected before `resolvePacks` runs, at a stage the pure engine never observes.
 
-`profileId` is the same value `CreateSessionConfig` already carries (04 §7.1) and that
-`GameState` is barred from ever holding — passing it to `resolve` crosses no new line,
-because the *result* is what continues past this call, exactly as `IdSource`'s randomness
-never crosses in, only its output does (§3).
+**`bucketKey` is `profileId` when the session is profiled, else the session's `seed`.** The
+session layer computes this once — the fallback rule the design calls for — before calling
+`resolve`, rather than handing every `ExperimentSource` a raw `profileId | null` and asking
+each implementation to reimplement the same fallback; that would be exactly the kind of
+incidental divergence §2's boundary rule exists to prevent. It is also what keeps anonymous
+sessions from collapsing onto one shared assignment: each has its own `seed` (04 §7),
+generated before pack selection runs, so each anonymous session still buckets
+deterministically — just not *stably across* sessions the way a `profileId` does.
+`profileId` itself is the same value `CreateSessionConfig` already carries (04 §7.1) and
+that `GameState` is barred from ever holding — folding it into `bucketKey` crosses no new
+line, because only the *result* of `resolve` continues past the call, exactly as
+`IdSource`'s randomness never crosses in, only its output does (§3).
 
-**The default returns the same fixed variant for every `experimentId`, ignoring
-`profileId`.** That is "no experiments running," stated as code rather than as an absence —
-an embedder who supplies nothing gets a functioning engine in which every
-`experimentGate`-bearing pack is simply never selected (11 §5a).
+**`null` means "not enrolled," and it is a different value from any legal variant.**
+`ExperimentGate.variant` (11 §2) is an unconstrained string, so a *fixed-string* default —
+always returning `"control"`, say — risks colliding with whatever string a gate happens to
+use, silently enabling a pack no experiment actually assigned. Returning `null` instead is
+structurally incapable of that: `assignments[gate.experimentId] === gate.variant` (11 §5a)
+can never be true when the left side is `null`, so "no experiments running" — the default,
+when `experiments` is omitted — is a guarantee, not a coincidence of which string was
+picked.
+
+**Where the registry a variant selects actually lands.** `createEngine` binds one
+`ContentRegistry` at construction and never swaps it (§4), so a host running experiments
+does not resolve packs once, globally — it resolves once **per distinct assignment
+combination**, via `applyExperimentGates` + `resolvePacks` (11 §5a), and builds one `Engine`
+per resulting registry, keyed by the `ResolutionId` that resolution already produces (11
+§6). Routing a given `createSession` call to the right pre-built `Engine`, having already
+resolved that session's assignments, is host-side composition above this seam — the same
+way wiring a request to `createSession` at all is — and this document does not constrain it
+further.
 
 **A real implementation's only obligation:** be a pure function of its two arguments. Two
-calls with the same `(experimentId, profileId)` must return the same variant, or pack
+calls with the same `(experimentId, bucketKey)` must return the same variant, or pack
 selection stops being reproducible from the assignment alone — the property 11 §6's
 identity mechanism depends on. The bucketing algorithm itself — hash choice, rollout
-percentage, sticky-session semantics beyond what `profileId` already gives for free — is a
+percentage, sticky-session semantics beyond what `bucketKey` already gives for free — is a
 host decision this document does not constrain, the same way `SessionStore`'s storage
 backend is not constrained (§5.2).
 

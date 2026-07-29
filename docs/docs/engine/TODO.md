@@ -430,8 +430,8 @@ in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap) (
       one mechanism for both A/B testing and feature flags, filtered before the fold via
       `ExperimentSource` (06 §5.5). Before mods, not before MVP
       ([`neaas-platform-vision.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform) → Known deferred gaps).
-      W1's `composition/types.ts` predates this design and does not yet declare
-      `ExperimentSource`; add it there when this unit is implemented in code.
+      W1's `src/engine/src/core/composition/types.ts` predates this design and does not yet
+      declare `ExperimentSource`; add it there when this unit is implemented in code.
 
 ### Content Tooling — A First-Class Workstream, Not an Afterthought
 

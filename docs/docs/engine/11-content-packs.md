@@ -141,15 +141,18 @@ engine change"; a flag is a setting like any other, resolved by the same pipelin
 ```typescript
 function applyExperimentGates(
   packs: readonly ContentPack[],
-  assignments: Readonly<Record<string, string>>,
+  assignments: Readonly<Record<string, string | null>>,
 ): readonly ContentPack[];
 ```
 
 A pack whose `experimentGate` is absent is always included. A pack whose gate is present is
-included only when `assignments[gate.experimentId] === gate.variant`. `assignments` is
-resolved once per session, before this call, from
-[`ExperimentSource.resolve`](06-extensibility.md#experimentsource) — one call per
-distinct `experimentId` referenced across the candidate packs.
+included only when `assignments[gate.experimentId] === gate.variant` — never true when the
+assignment is `null` ("not enrolled") or the key is simply missing, which is what makes "no
+`ExperimentSource` supplied" (06 §5.5) safe by construction rather than by luck of which
+default string was picked. `assignments` is resolved once per session, before this call,
+from [`ExperimentSource.resolve`](06-extensibility.md#experimentsource) — one call per
+distinct `experimentId` referenced across the candidate packs, keyed by the session's
+`bucketKey` (`profileId`, else `seed` — 06 §5.5).
 
 **This runs *before* `resolvePacks`, not inside it.** `resolvePacks` stays exactly as pure
 and total as §3 already states — it never learns that gates exist, because the pack array it
@@ -158,13 +161,19 @@ or its purity changes.
 
 **Gate filtering happens before dependency resolution (§5), not after.** A pack excluded by
 its gate is simply absent from the set §5's checks run against. The consequence is a rule
-that falls out of the *existing* Tier 1 check rather than adding a new one: **an ungated pack
-must never `dependsOn` a gated one**, because in whichever variant excludes the dependency,
-"a `dependsOn` names a pack present in the set" (§7) fails — correctly. A pack meant to be
-available in every variant of an experiment cannot depend on a pack that is not.
+that falls out of the *existing* Tier 1 check rather than adding a new one, and it is not
+limited to the ungated case: **a pack's `dependsOn` may only name a pack that is present in
+every variant assignment where the pack itself is** — in practice, an ungated pack (always
+present) or a pack gated on the exact same `{experimentId, variant}` (co-selected by
+construction, since one lookup decides both together). Depending on a pack gated by a
+*different* experiment, or a different variant of the same one, is legal to author but not
+safe: some assignment can select the dependent while excluding the dependency, and "a
+`dependsOn` names a pack present in the set" (§7) then fails at session creation rather than
+at authoring time. A pack meant to be available in every variant of an experiment cannot
+depend on a pack that is not.
 
 **What this does not specify.** Rollout percentages, sticky-session semantics beyond what
-`profileId` already gives, statistical validity, and measuring an experiment's outcome are
+`bucketKey` already gives, statistical validity, and measuring an experiment's outcome are
 none of them here — they are `ExperimentSource`'s implementation (06 §5.5) or a hosting
 concern (§8), the same way *which* packs exist at all is never this document's business.
 
