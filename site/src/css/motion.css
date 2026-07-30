@@ -1,0 +1,181 @@
+/*
+ * Motion.
+ *
+ * Everything here is additive. The page is complete and readable with this file
+ * removed — reveals start visible and are only hidden once JavaScript has an
+ * observer in hand (see hooks/useRevealOnScroll.ts), and the hero sequence is a
+ * pure CSS animation that cannot leave content stranded.
+ *
+ * Nothing spins, nothing bounces, nothing follows the cursor, and no section is
+ * pinned. Motion is here for timing and hierarchy, not attention.
+ */
+
+:root {
+  --motion-fast: 140ms;
+  --motion-standard: 240ms;
+  --motion-slow: 480ms;
+  --motion-story: 700ms;
+  --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* --- Scroll reveals ------------------------------------------------------ */
+
+/*
+ * Default state is visible. The hidden state below applies only under
+ * `.js-reveal`, which the hook adds after an observer exists. Order is the
+ * safety mechanism, not the transition.
+ */
+[data-reveal] {
+  opacity: 1;
+  transform: none;
+}
+
+.js-reveal [data-reveal] {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity var(--motion-story) var(--motion-ease),
+    transform var(--motion-story) var(--motion-ease);
+  will-change: opacity, transform;
+}
+
+.js-reveal [data-reveal="shown"] {
+  opacity: 1;
+  transform: none;
+  will-change: auto;
+}
+
+/* --- Hero sequence -------------------------------------------------------- */
+
+/*
+ * The eyebrow, headline and ellipsis are NOT animated. They paint on mount.
+ *
+ * The page is client-rendered, so it already starts blank and waits for the
+ * bundle; staggering the headline on top of that would put well over a second
+ * of nothing in front of the most important words on the page. Only the last
+ * two lines stagger, because their timing is the joke.
+ */
+.signature,
+.scroll-invitation {
+  animation: hero-line var(--motion-slow) var(--motion-ease) both;
+}
+
+.signature {
+  animation-delay: 320ms;
+}
+
+.scroll-invitation {
+  animation-delay: 620ms;
+}
+
+@keyframes hero-line {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* --- Signature easter egg ------------------------------------------------- */
+
+/*
+ * Desktop only, on purpose. The alternate is absent from layout entirely below
+ * the breakpoint and where hover is unavailable, so it cannot widen the line or
+ * be half-triggered by a tap. Above it, the two stack in one grid cell so the
+ * swap costs no layout shift.
+ */
+.signature-alt {
+  display: none;
+}
+
+@media (hover: hover) and (min-width: 701px) {
+  .signature {
+    display: inline-grid;
+  }
+
+  .signature-default,
+  .signature-alt {
+    grid-area: 1 / 1;
+    transition: opacity var(--motion-standard) var(--motion-ease);
+  }
+
+  .signature-alt {
+    display: block;
+    opacity: 0;
+  }
+
+  .signature:hover .signature-default {
+    opacity: 0;
+  }
+
+  .signature:hover .signature-alt {
+    opacity: 1;
+  }
+}
+
+/* --- Interactive states --------------------------------------------------- */
+
+.architecture-spine a,
+.kind-branch a,
+.cta-actions a,
+.site-header a {
+  transition:
+    color var(--motion-fast) var(--motion-ease),
+    border-color var(--motion-fast) var(--motion-ease),
+    background-color var(--motion-fast) var(--motion-ease);
+}
+
+.kind-branch {
+  transition:
+    border-color var(--motion-standard) var(--motion-ease),
+    background-color var(--motion-standard) var(--motion-ease),
+    transform var(--motion-standard) var(--motion-ease);
+}
+
+.kind-branch:hover,
+.kind-branch:focus-within {
+  background: var(--landing-surface);
+  border-color: var(--landing-border-strong);
+  transform: translateY(-2px);
+}
+
+/* --- Reduced motion ------------------------------------------------------- */
+
+/*
+ * Content is shown immediately and completely. Reveals are neutralised at the
+ * source rather than sped up, so nothing waits on an intersection event, and
+ * the hero sequence is removed rather than shortened.
+ *
+ * Hover and focus states survive — they communicate state, not motion, and
+ * removing them would cost information.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .js-reveal [data-reveal],
+  .js-reveal [data-reveal="shown"] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .signature,
+  .scroll-invitation {
+    animation: none;
+  }
+
+  .kind-branch,
+  .kind-branch:hover,
+  .kind-branch:focus-within {
+    transform: none;
+    transition: none;
+  }
+
+  .architecture-spine a,
+  .kind-branch a,
+  .cta-actions a,
+  .site-header a {
+    transition: none;
+  }
+}

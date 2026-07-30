@@ -35,6 +35,13 @@ only when it would have changed a decision.
   A pattern built from the text you changed confirms your edits instead of finding your misses.
   **Removals are where this bites**: a bad edit contradicts something visibly, a missed removal
   is silent.
+- **Pull the real image before reasoning about it.** Merging the landing page (`site/`, a Vite
+  build) onto the docs build (`docs/`, Docusaurus) meant one real question: do their `assets/`
+  folders collide? Guessing wrong would have silently overwritten one build's JS with the
+  other's. `docker pull ghcr.io/the-running-dev/docs-template` and running the actual build
+  answered it in two commands: Docusaurus nests under `assets/css/` and `assets/js/`; Vite
+  writes flat hashed files straight into `assets/`. Never touch. `build/Merge-LandingPage.ps1`
+  ships on that verified fact, not an assumption about how either bundler works.
 - **Spec before code.** Building ahead of spec is where drift starts. Asked to "keep going"
   into code, we stopped and wrote the core spec (`04-core`) first — which immediately
   exposed that `03`'s kind-state duplicated envelope fields. That reconciliation would have
@@ -84,7 +91,11 @@ only when it would have changed a decision.
   Docusaurus 3, port 3000, and the local `sidebar.ts`. A production build passed with no
   leftover template docs in the sidebar. Re-verify when the base image tag changes. `/docs/`
   now serves the generated homepage (`docs/docs/index.md`); `/docs/engine/vision` is the
-  first spec page beneath it, and the bare domain forwards to `/docs/`.
+  first spec page beneath it. **Once `feature/landing-page` merges, the bare domain `/` stops
+  being `docs/src/pages/index.md` (generated from README) and becomes the standalone landing
+  page (`site/`) instead** — `build/Merge-LandingPage.ps1`, wired into both `docs-ci.yml` and
+  `docs-deploy.yml`, overlays it on every build. `/docs/` and everything beneath it is
+  unaffected; only the site root changes owner.
 - **Two link checks, and between them everything is now gated.** `build/Test-Documentation.ps1`
   hard-fails on relative links and heading anchors — that is the one that catches a doc
   rename. Both of Docusaurus's own passes are back to `'throw'`, which re-covers the

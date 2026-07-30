@@ -18,10 +18,14 @@ corrects the facts in one place rather than rewriting eleven files, and the orig
 capability lists and route tables stay where they are — **overridden, not deleted**. Where they
 disagree with this document, they are wrong and this document is right.
 
-**There are no open questions of fact.** Two items were previously marked VERIFY AT BUILD — both
-concerned the docs base image — and both closed as **moot** when the landing page became a standalone
-site (§4). One decision remains outstanding, but it is a choice rather than a fact: **hosting** (§6),
-recorded as undecided and deliberately not reconstructed.
+**There are no open questions of fact, and no open mechanism either.** Two items were previously
+marked VERIFY AT BUILD — both concerned the docs base image — and both closed as **moot** when the
+landing page became a standalone site (§4). Placement, routing and hosting platform are all decided
+(§6), and the build-assembly step that merges this project's output with the docs site's into one
+deployable tree is built: `build/Merge-LandingPage.ps1`, wired into both `docs-ci.yml` and
+`docs-deploy.yml`. What is still true is that the docs build itself is expected to be reworked, at
+which point this script is the piece most likely to need revisiting — but nothing here is blocked on
+that happening.
 
 ---
 
@@ -188,26 +192,32 @@ The notes stay in the file as authored. Treat them as answered, not open.
 
 Every destination the page may link to. Anything not on this list does not exist.
 
+**Decided: the landing page is packaged to be served at `/`, with the documentation site at `/docs`
+on the same origin.** Routes below are root-relative for that reason. The origin itself is also
+decided — GitHub Pages, at `game-engine.subzerodev.com`, the docs site's existing deployment now
+serving both projects, merged by `build/Merge-LandingPage.ps1` into the one artifact tree
+`docs-deploy.yml` uploads (§6).
+
 | Destination | Route |
 |---|---|
 | Landing page | `/` — the site's own single route |
-| Documentation index | `https://game-engine.subzerodev.com/docs/` |
-| Architecture | `https://game-engine.subzerodev.com/docs/engine/architecture` |
-| Vision | `https://game-engine.subzerodev.com/docs/engine/vision` |
-| Core contract | `https://game-engine.subzerodev.com/docs/engine/core` |
-| Story Graph kind | `https://game-engine.subzerodev.com/docs/engine/story-graph-kind` |
-| Simulation kind | `https://game-engine.subzerodev.com/docs/engine/simulation-kind` |
-| World Graph kind | `https://game-engine.subzerodev.com/docs/engine/world-graph-kind` |
-| Engine package guide | `https://game-engine.subzerodev.com/docs/guide/engine-package` |
-| Repository | `https://github.com/The-Running-Dev/SubZeroDev.GameEngine` |
+| Documentation index | `/docs/` |
+| Architecture | `/docs/engine/architecture` |
+| Vision | `/docs/engine/vision` |
+| Core contract | `/docs/engine/core` |
+| Story Graph kind | `/docs/engine/story-graph-kind` |
+| Simulation kind | `/docs/engine/simulation-kind` |
+| World Graph kind | `/docs/engine/world-graph-kind` |
+| Content packs — what a Campaign resolves to | `/docs/engine/content-packs` |
+| Clients contract | `/docs/engine/clients` |
+| Engine package guide | `/docs/guide/engine-package` |
+| Repository | `https://github.com/The-Running-Dev/SubZeroDev.GameEngine` (external — stays absolute) |
 
-**Every docs destination is an absolute cross-site URL.** The landing page is a separate site, so
-`/docs/engine/architecture` is not a path it can resolve — it is a link to another origin. The
-bundle writes these as site-relative paths throughout, which would 404 on the landing page.
-
-**Nothing validates these links.** Docusaurus' `onBrokenLinks` governs only routes inside the docs
-site, and `build/Test-Documentation.ps1` skips site-absolute targets by design. So **this table is
-the only check that exists**, which has one practical consequence: renaming or renumbering a spec
+**Nothing validates the `/docs/...` links.** Docusaurus' `onBrokenLinks` governs only routes inside
+the docs site's own build, and `build/Test-Documentation.ps1` skips site-absolute targets by design.
+Being root-relative and same-origin does not add a check — it removes the *reason* the old absolute
+form existed (bridging two origins), but the link itself is still unverified by anything in this
+repository. So **this table remains the only check that exists**: renaming or renumbering a spec
 silently breaks a landing-page CTA, with no build failure anywhere. Re-check it whenever
 `docs/docs/engine/` is restructured.
 
@@ -323,8 +333,44 @@ Settled decisions. These are the facts the rest of the bundle must be read again
 | **Placement** | Standalone site under `site/`, independent of the docs project |
 | **Stack** | React, client-rendered single-page app. Plain Vite is sufficient |
 | **Theme** | Dark only |
-| **Hosting** | **Not decided.** Not GitHub Pages |
+| **Routing** | Decided: landing at `/`, docs at `/docs`, same origin. See §3 |
+| **Hosting platform** | **Decided: GitHub Pages.** See below |
 | **`README.md`** | Out of scope. Not edited, not shortened, not consulted as a source of copy |
+
+### Hosting — GitHub Pages, same domain as the docs
+
+**Decided.** This corrects an earlier statement in this document that hosting was "not decided" and
+explicitly "not GitHub Pages" — that reflected an instruction given earlier in the same working
+session, superseded by a later one confirming GitHub Pages.
+
+Concretely, this is not a new deployment target — it is the **existing one**, now serving both
+projects instead of one. `docs-deploy.yml` already deploys the docs site to GitHub Pages at the
+custom domain configured in `docs/docusaurus.config.ts` and `.config/DocumentationRules.psd1`:
+`game-engine.subzerodev.com`. GitHub Pages serves exactly one site per repository, so there was never
+a version of "hosting = GitHub Pages" that meant a *second* Pages site — it always meant this repo's
+one Pages deployment, at this one domain, now covering `/` (landing) and `/docs` (documentation)
+together. That is precisely the shape the routing decision in §3 already assumed, which is why
+settling the platform changes nothing about the routes themselves.
+
+**Consequences, now unblocked:**
+
+- **The domain is known**: `https://game-engine.subzerodev.com/`. Canonical URL and Open Graph URL
+  for the landing page can be filled in — see `site/index.html`.
+- **A sitemap entry is now meaningful**, if one is ever added.
+
+**Built:** the mechanism that assembles this project's `dist/` and the docs site's own build output
+into the one artifact `docs-deploy.yml` uploads to Pages — `build/Merge-LandingPage.ps1`, wired into
+both `docs-ci.yml`'s verify job (so every PR proves the merge before anything ships) and
+`docs-deploy.yml` itself. `docs/docusaurus.config.ts` and `docs/sidebar.ts` are still untouched; the
+merge is additive, overwriting only the docs build's generated-from-README root `index.html` and
+adding the landing page's assets. Verified against a real build of both projects, not assumed: the
+two builds never write the same paths — Docusaurus nests its bundle under `assets/css/` and
+`assets/js/`, Vite writes flat hashed files directly into `assets/` — and the script refuses to
+proceed if anything under the docs build's own `docs/` subtree changes.
+
+When the docs build gets reworked, this script is the piece most likely to need revisiting — its
+inputs are two directory trees with a known, verified shape, so revisiting it is a bounded, cheap
+change rather than a rewrite.
 
 ### Rendering — client-side, and the requirement that went with it
 
@@ -364,14 +410,6 @@ One palette. No light mode, no toggle.
   against by name.
 - The three light-mode strategies in `01-implementation-plan.md` §7 are withdrawn. One of them
   ("follow the current site theme automatically") referred to a site theme that no longer exists.
-
-### Hosting — not decided
-
-Recorded as unknown, and **not** to be reconstructed. Until a host is chosen, the bundle cannot
-specify build commands, deploy steps, a domain, a canonical URL, Open Graph URLs or sitemap entries.
-Any document that appears to specify them is assuming, not stating.
-
-The docs deployment is unrelated and untouched.
 
 ### Two smaller facts
 
@@ -436,7 +474,7 @@ What can be verified, and how:
 |---|---|
 | Type check, lint, format | The `site/` project's own toolchain, once scaffolded |
 | Component and interaction tests | Same. Achievable now that a project exists to host them |
-| Site builds | The `site/` build. **Deploy verification waits on a hosting decision** (§6) |
+| Site builds, merges cleanly onto the docs build | The `site/` build, plus `build/Merge-LandingPage.ps1` — proven on every PR by `docs-ci.yml`'s verify job (§6) |
 | Docs and engine untouched | `build/Test-Documentation.ps1`, `.github/workflows/docs-ci.yml`, `.github/workflows/ci.yml` — none of which this work should affect |
 | **Social-preview unfurl** | Manual, against the **built** HTML. Confirm Open Graph tags are in the served shell, not React-injected (§6) |
 | **Reveal safety** | Content visible when the observer never fires — force by disabling it, or test an element already in view on load |
