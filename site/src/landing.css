@@ -71,23 +71,18 @@ nav a:hover {
 }
 
 /*
- * min-height used to be 36rem, which measured out to 220px of dead space
- * above and below the actual content (355px) -- the box was taller than
- * anything in it needed, centered by align-content, so the excess just
- * became empty margin on both sides.
- *
- * 24rem is a cap on the minimum, not a floor: min() means the computed
- * min-height never exceeds 24rem, and the svh term can push it lower still
- * on short viewports (a small landscape phone, say) so the hero shrinks
- * rather than overflowing. On ordinary viewports it isn't the binding
- * constraint at all -- content + padding are taller than 24rem, so they
- * determine the real height, same as before this comment was corrected.
+ * min-height used to be 36rem, then 24rem -- both still left visible dead
+ * space above and below the actual content once the heading sizes below
+ * were cut further and the hero no longer needed as much room to hold
+ * them. 16rem is a cap on the minimum, not a floor (see below); on
+ * ordinary viewports content + padding are taller than that, so they
+ * determine the real height, same as before.
  */
 .hero {
   display: grid;
-  min-height: min(24rem, calc(100svh - 5rem));
+  min-height: min(16rem, calc(100svh - 5rem));
   align-content: center;
-  padding-block: 3.5rem;
+  padding-block: 2.25rem;
 }
 .eyebrow,
 .section-index {
@@ -108,15 +103,18 @@ h2 {
   line-height: 0.98;
 }
 /*
- * The floor is 2.1rem, not 3.6rem. At 3.6rem (57.6px) on a 320px viewport the
- * headline broke to one word per line -- "Build / mechanics / once. / Create /
- * infinite / games." -- six lines. It never overflowed, so it passed the letter
- * of the 320px rule while losing the composed line entirely.
+ * The floor matters, not just the ceiling. An earlier version of this rule
+ * had a much larger floor (3.6rem = 57.6px) and at 320px the headline broke
+ * to one word per line -- "Build / mechanics / once. / Create / infinite /
+ * games." -- six lines. It never overflowed, so it passed the letter of the
+ * 320px rule while losing the composed line entirely. 1.9rem (30.4px)
+ * wraps to three balanced lines instead -- checked directly, not assumed,
+ * each time this value changes.
  */
 h1 {
-  font-size: clamp(2.1rem, 5.2vw, 4rem);
+  font-size: clamp(1.9rem, 3.6vw, 2.75rem);
   font-weight: 650;
-  margin-block: 1.15rem 1.6rem;
+  margin-block: 1rem 1.25rem;
   max-width: none;
 }
 
@@ -140,7 +138,7 @@ h1 {
  * requires it.
  */
 h2 {
-  font-size: clamp(1.5rem, 2.4vw, 2.25rem);
+  font-size: clamp(1.3rem, 1.7vw, 1.75rem);
   font-weight: 590;
 }
 .hero-pause {
@@ -166,7 +164,7 @@ h2 {
   color: var(--landing-accent);
 }
 .scroll-invitation {
-  margin-top: 3rem;
+  margin-top: 2rem;
 }
 /*
  * Every section ends with one of these, chained to the next section's id. The
@@ -176,24 +174,24 @@ h2 {
  * target (deep-linkable, focus-reachable) and reachable from the one before.
  */
 .continue {
-  margin-top: 2.5rem;
+  margin-top: 1.5rem;
 }
 
 section {
-  padding-block: clamp(2.5rem, 5vw, 4rem);
+  padding-block: clamp(1.75rem, 3.5vw, 2.75rem);
   scroll-margin-top: 1.5rem;
 }
 .section-narrow {
   max-width: 48rem;
 }
 .section-index {
-  margin-bottom: 1.35rem;
+  margin-bottom: 0.9rem;
 }
 .prose-stack,
 .contract-copy {
   display: grid;
-  gap: 1.25rem;
-  margin-top: 2.3rem;
+  gap: 1.1rem;
+  margin-top: 1.5rem;
   max-width: 39rem;
 }
 .prose-stack {
@@ -216,19 +214,19 @@ section {
 }
 .split-prose {
   display: grid;
-  gap: 2rem;
+  gap: 1.5rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-top: 2rem;
+  margin-top: 1.5rem;
   max-width: 55rem;
 }
 .split-prose p {
   color: var(--landing-muted);
-  font-size: 1.18rem;
-  line-height: 1.6;
+  font-size: 1.1rem;
+  line-height: 1.55;
 }
 .aside {
   color: var(--landing-origin-text);
-  margin-top: 2rem;
+  margin-top: 1.25rem;
 }
 /*
  * No ch-based max-width -- the same bug as h2's old 14ch cap (see the note
@@ -238,10 +236,10 @@ section {
  * section's own width genuinely requires it.
  */
 .display-copy {
-  font-size: clamp(1.4rem, 2.2vw, 2rem);
+  font-size: clamp(1.25rem, 1.6vw, 1.6rem);
   letter-spacing: -0.045em;
   line-height: 1.05;
-  margin-top: 1.4rem;
+  margin-top: 1rem;
 }
 
 .architecture {
@@ -252,15 +250,15 @@ section {
 }
 .architecture-intro p:last-child {
   color: var(--landing-muted);
-  line-height: 1.55;
-  margin-top: 2rem;
+  line-height: 1.5;
+  margin-top: 1.25rem;
   max-width: 40rem;
 }
 .architecture-diagram {
   display: grid;
-  gap: 2rem;
+  gap: 1.5rem;
   grid-template-columns: 12rem 1fr;
-  margin-top: 2.5rem;
+  margin-top: 1.75rem;
 }
 .architecture-spine {
   border-left: 1px solid var(--landing-border-strong);
@@ -318,17 +316,17 @@ section {
 }
 .architecture-note {
   color: var(--landing-muted);
-  line-height: 1.6;
-  margin-top: 2rem;
+  line-height: 1.55;
+  margin-top: 1.25rem;
   max-width: 48rem;
 }
 
 .abstraction {
-  font-size: 1.2rem;
-  line-height: 1.65;
+  font-size: 1.1rem;
+  line-height: 1.6;
 }
 .abstraction > p {
-  margin-top: 1.7rem;
+  margin-top: 1.15rem;
   max-width: 41rem;
 }
 .list-sentence {
@@ -349,13 +347,13 @@ section {
 
 .ledgers {
   display: grid;
-  gap: 3rem;
+  gap: 2rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .ledgers ol,
 .ledgers ul {
   list-style: none;
-  margin: 1.75rem 0 0;
+  margin: 1.1rem 0 0;
   padding: 0;
 }
 
@@ -412,15 +410,15 @@ section {
 }
 .cta > p:not(.section-index) {
   color: var(--landing-muted);
-  font-size: 1.2rem;
-  margin-top: 1.7rem;
+  font-size: 1.1rem;
+  margin-top: 1.15rem;
 }
 .cta-actions {
   align-items: start;
   display: flex;
   flex-wrap: wrap;
-  gap: 1.35rem 2rem;
-  margin-top: 2rem;
+  gap: 1.1rem 1.75rem;
+  margin-top: 1.5rem;
 }
 .cta-actions a {
   text-decoration-color: var(--landing-accent);
@@ -435,15 +433,15 @@ footer {
   color: var(--landing-muted);
   display: grid;
   gap: 0.3rem;
-  padding-block: 3rem;
+  padding-block: 2.25rem;
 }
 footer strong {
   color: var(--landing-origin-text);
-  font-size: 1.2rem;
-  margin-top: 1.5rem;
+  font-size: 1.1rem;
+  margin-top: 1rem;
 }
 footer small {
-  margin-top: 2rem;
+  margin-top: 1.25rem;
 }
 
 @media (max-width: 700px) {
