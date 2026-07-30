@@ -18,7 +18,8 @@ architecture behind the project's accidental origin.
 | **Rendering** | Client-side. No prerender. The no-JavaScript requirement is **dropped** |
 | **Theme** | Dark only. `color-scheme: dark`, no `prefers-color-scheme` branch, no toggle |
 | **Architecture diagram** | Fan-out from `Kinds` to the three real kinds. Each layer is a link to its spec |
-| **Hosting** | **Not decided.** Not GitHub Pages |
+| **Routing** | Decided: landing at `/`, docs at `/docs`, same origin — internal links are root-relative |
+| **Hosting platform** | **Not decided**, and narrower than routing. Not GitHub Pages |
 | **`README.md`** | Out of scope — not edited, not consulted as a source of copy |
 
 Nothing under `docs/`, `.config/`, `build/` or `src/` changes. The documentation site keeps its
@@ -104,8 +105,12 @@ The defects corrected, in brief:
 
 ## Open
 
-1. **Hosting** — undecided, and not to be reconstructed. Until it is chosen, the bundle cannot specify
-   build or deploy steps, a domain, canonical URL, Open Graph URL or sitemap entries.
+1. **Hosting platform** — undecided, and not to be reconstructed. Routing is now settled (landing at
+   `/`, docs at `/docs`, same origin), but *which* host serves that combined tree, and how the two
+   independent builds get assembled into one deployable output, remain open. Until the platform is
+   chosen, the bundle cannot specify build or deploy steps, a domain, canonical URL, Open Graph URL
+   or sitemap entries. Deliberately deferred — the docs build process is expected to be reworked, so
+   assembling a pipeline against it now would be effort spent twice.
 2. **`<noscript>` fallback** — one line of markup so a JavaScript-disabled visitor sees something
    rather than a blank page. Worth a deliberate yes or no.
 

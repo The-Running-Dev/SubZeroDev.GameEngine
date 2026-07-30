@@ -72,9 +72,9 @@ nav a:hover {
 
 .hero {
   display: grid;
-  min-height: min(48rem, calc(100svh - 5rem));
+  min-height: min(36rem, calc(100svh - 5rem));
   align-content: center;
-  padding-block: 8rem;
+  padding-block: 5rem;
 }
 .eyebrow,
 .section-index {
@@ -101,7 +101,7 @@ h2 {
  * of the 320px rule while losing the composed line entirely.
  */
 h1 {
-  font-size: clamp(2.1rem, 9vw, 8.6rem);
+  font-size: clamp(2.1rem, 7vw, 5.5rem);
   font-weight: 650;
   margin-block: 1.15rem 1.6rem;
   max-width: none;
@@ -119,7 +119,7 @@ h1 {
   }
 }
 h2 {
-  font-size: clamp(2.5rem, 5.1vw, 4.7rem);
+  font-size: clamp(1.9rem, 3.6vw, 3rem);
   font-weight: 590;
   max-width: 14ch;
 }
@@ -133,19 +133,35 @@ h2 {
   font-size: clamp(1.3rem, 2vw, 1.8rem);
   margin-top: 1.6rem;
 }
-.scroll-invitation {
+.scroll-invitation,
+.continue {
   color: var(--landing-muted);
+  display: block;
   font-size: 0.78rem;
-  margin-top: 6rem;
   text-decoration: none;
   width: max-content;
 }
-.scroll-invitation:hover {
+.scroll-invitation:hover,
+.continue:hover {
   color: var(--landing-accent);
+}
+.scroll-invitation {
+  margin-top: 3rem;
+}
+/*
+ * Every section ends with one of these, chained to the next section's id. The
+ * hero's "Scroll. It escalates." was the only anchor on the page — the reader
+ * could jump from the top to the first section and no further. This extends
+ * the same device the whole way down, so every section is both a real anchor
+ * target (deep-linkable, focus-reachable) and reachable from the one before.
+ */
+.continue {
+  margin-top: 2.5rem;
 }
 
 section {
-  padding-block: clamp(5.5rem, 12vw, 10rem);
+  padding-block: clamp(3.5rem, 8vw, 6rem);
+  scroll-margin-top: 1.5rem;
 }
 .section-narrow {
   max-width: 48rem;
@@ -182,7 +198,7 @@ section {
   display: grid;
   gap: 2rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-top: 3rem;
+  margin-top: 2rem;
   max-width: 55rem;
 }
 .split-prose p {
@@ -192,10 +208,10 @@ section {
 }
 .aside {
   color: var(--landing-origin-text);
-  margin-top: 3rem;
+  margin-top: 2rem;
 }
 .display-copy {
-  font-size: clamp(1.7rem, 4.2vw, 3.5rem);
+  font-size: clamp(1.6rem, 3vw, 2.6rem);
   letter-spacing: -0.045em;
   line-height: 1.05;
   margin-top: 1.4rem;
@@ -218,7 +234,7 @@ section {
   display: grid;
   gap: 2rem;
   grid-template-columns: 12rem 1fr;
-  margin-top: 4rem;
+  margin-top: 2.5rem;
 }
 .architecture-spine {
   border-left: 1px solid var(--landing-border-strong);
@@ -307,13 +323,13 @@ section {
 
 .ledgers {
   display: grid;
-  gap: 5rem;
+  gap: 3rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .ledgers ol,
 .ledgers ul {
   list-style: none;
-  margin: 2.5rem 0 0;
+  margin: 1.75rem 0 0;
   padding: 0;
 }
 
@@ -378,7 +394,7 @@ section {
   display: flex;
   flex-wrap: wrap;
   gap: 1.35rem 2rem;
-  margin-top: 3rem;
+  margin-top: 2rem;
 }
 .cta-actions a {
   text-decoration-color: var(--landing-accent);
@@ -393,7 +409,7 @@ footer {
   color: var(--landing-muted);
   display: grid;
   gap: 0.3rem;
-  padding-block: 4rem;
+  padding-block: 3rem;
 }
 footer strong {
   color: var(--landing-origin-text);
@@ -401,7 +417,7 @@ footer strong {
   margin-top: 1.5rem;
 }
 footer small {
-  margin-top: 3rem;
+  margin-top: 2rem;
 }
 
 @media (max-width: 700px) {
@@ -414,7 +430,7 @@ footer small {
     gap: 0.75rem;
   }
   .hero {
-    min-height: 42rem;
+    min-height: 32rem;
   }
   .split-prose,
   .contract,

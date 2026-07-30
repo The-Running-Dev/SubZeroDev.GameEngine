@@ -12,18 +12,17 @@ describe("landing page", () => {
     expect(screen.getAllByText("Well... why not?")).toHaveLength(2);
   });
 
-  it("uses the verified absolute documentation routes", () => {
+  it("uses the verified root-relative documentation routes", () => {
+    // Root-relative, not absolute: the landing page is packaged to be served
+    // at "/" with the docs at "/docs" on the same origin.
     render(<App />);
 
     expect(
       screen.getByRole("link", { name: "Read the architecture" }),
-    ).toHaveAttribute(
-      "href",
-      "https://game-engine.subzerodev.com/docs/engine/architecture",
-    );
+    ).toHaveAttribute("href", "/docs/engine/architecture");
     expect(
       screen.getByRole("link", { name: "View the documentation" }),
-    ).toHaveAttribute("href", "https://game-engine.subzerodev.com/docs/");
+    ).toHaveAttribute("href", "/docs/");
   });
 
   it("presents every architecture layer and kind as links without interaction", () => {
@@ -31,7 +30,7 @@ describe("landing page", () => {
 
     expect(screen.getAllByRole("link", { name: "Core" })[0]).toHaveAttribute(
       "href",
-      "https://game-engine.subzerodev.com/docs/engine/core",
+      "/docs/engine/core",
     );
     expect(
       screen.getAllByRole("link", { name: "story-graph" })[0],
@@ -78,10 +77,39 @@ describe("landing page", () => {
 
     expect(
       screen.getAllByRole("link", { name: "Campaigns" })[0],
-    ).toHaveAttribute(
-      "href",
-      "https://game-engine.subzerodev.com/docs/engine/content-packs",
+    ).toHaveAttribute("href", "/docs/engine/content-packs");
+  });
+
+  it("chains every section to the next with a real anchor, not just the hero", () => {
+    // The hero's "Scroll. It escalates." used to be the only anchor on the
+    // page, reaching exactly one section further. Every section now has both
+    // a stable id and a link to the next one, so the chain reaches the end.
+    render(<App />);
+
+    const chain = [
+      "top",
+      "origin",
+      "problem",
+      "realization",
+      "architecture",
+      "abstraction",
+      "contract",
+      "principles",
+      "resolution",
+      "continue",
+    ];
+
+    for (const id of chain) {
+      expect(document.getElementById(id)).not.toBeNull();
+    }
+
+    const continueLinks = screen.getAllByRole("link", { name: /Continue/ });
+    const targets = continueLinks.map((link) =>
+      link.getAttribute("href")?.slice(1),
     );
+    // Every section but the hero and the last one links to the next: eight
+    // links, each one step ahead of the section that holds it.
+    expect(targets).toEqual(chain.slice(2));
   });
 
   it("leaves revealed content visible when no observer exists", () => {

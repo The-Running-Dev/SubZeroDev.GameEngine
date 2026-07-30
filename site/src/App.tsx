@@ -2,26 +2,34 @@ import "./landing.css";
 import "./css/motion.css";
 import { useRevealOnScroll } from "./hooks/useRevealOnScroll";
 
-const docs = "https://game-engine.subzerodev.com/docs/";
+const docs = "/docs/";
 const repository = "https://github.com/The-Running-Dev/SubZeroDev.GameEngine";
 
 /**
- * Verified against the route inventory in
- * plans/06-landing-page/00-repository-reality.md §3. These are cross-site
- * absolute URLs: the landing page is a separate origin and cannot resolve
- * /docs/... as a path. Nothing validates them automatically — the docs site's
- * own link checker never sees them, and build/Test-Documentation.ps1 skips
- * site-absolute targets by design — so the inventory is the only check. Re-read
- * it whenever docs/docs/engine/ is restructured.
+ * Root-relative, not absolute. The landing page is packaged to be served at
+ * `/`, with the documentation site at `/docs` on the same origin — so a path
+ * is enough; there is no cross-origin gap to bridge with a full URL anymore.
+ *
+ * The route *paths* below are still verified against
+ * plans/06-landing-page/00-repository-reality.md §3, and that inventory is
+ * still the only check on them: nothing here validates that /docs/engine/core
+ * exists, since the docs site's own link checker only sees its own routes and
+ * build/Test-Documentation.ps1 skips site-absolute targets by design. Re-read
+ * the inventory whenever docs/docs/engine/ is restructured.
+ *
+ * What this does NOT decide: which host serves the combined output, or how
+ * the two builds (this project's `dist/` and the docs site's build) get
+ * assembled into one deployable tree. Both remain open — see
+ * 00-repository-reality.md §6.
  */
 const routes = {
-  architecture: "https://game-engine.subzerodev.com/docs/engine/architecture",
-  core: "https://game-engine.subzerodev.com/docs/engine/core",
-  storyGraph: "https://game-engine.subzerodev.com/docs/engine/story-graph-kind",
-  simulation: "https://game-engine.subzerodev.com/docs/engine/simulation-kind",
-  worldGraph: "https://game-engine.subzerodev.com/docs/engine/world-graph-kind",
-  contentPacks: "https://game-engine.subzerodev.com/docs/engine/content-packs",
-  clients: "https://game-engine.subzerodev.com/docs/engine/clients",
+  architecture: "/docs/engine/architecture",
+  core: "/docs/engine/core",
+  storyGraph: "/docs/engine/story-graph-kind",
+  simulation: "/docs/engine/simulation-kind",
+  worldGraph: "/docs/engine/world-graph-kind",
+  contentPacks: "/docs/engine/content-packs",
+  clients: "/docs/engine/clients",
 } as const;
 
 const branches = [
@@ -77,6 +85,21 @@ function RepositoryLink({ href, children }: LinkProps) {
     <a href={href} target="_blank" rel="noreferrer">
       {children}
       <span className="visually-hidden"> (opens in a new tab)</span>
+    </a>
+  );
+}
+
+/**
+ * The only anchor on the page used to be the hero's "Scroll. It escalates.",
+ * reaching exactly one section further. This is the same device, reused at the
+ * end of every section, so the chain reaches all the way to the end and every
+ * section has a real, deep-linkable id rather than existing only as scroll
+ * position.
+ */
+function ContinueLink({ to }: { to: string }) {
+  return (
+    <a className="continue" href={to}>
+      Continue <span aria-hidden="true">↓</span>
     </a>
   );
 }
@@ -149,9 +172,11 @@ function App() {
             <p>Then it started suggesting implementation details.</p>
             <p>That was unfortunate.</p>
           </div>
+          <ContinueLink to="#problem" />
         </section>
 
         <section
+          id="problem"
           className="problem section-wide"
           aria-labelledby="problem-title"
         >
@@ -167,9 +192,11 @@ function App() {
             </p>
           </div>
           <p className="aside">That seemed... inefficient.</p>
+          <ContinueLink to="#realization" />
         </section>
 
         <section
+          id="realization"
           data-reveal=""
           className="realization section-narrow"
           aria-labelledby="realization-title"
@@ -183,9 +210,11 @@ function App() {
             <p>A relationship model is not a game.</p>
             <p>They are mechanics. And mechanics should be reusable.</p>
           </div>
+          <ContinueLink to="#architecture" />
         </section>
 
         <section
+          id="architecture"
           className="architecture section-wide"
           aria-labelledby="architecture-title"
         >
@@ -233,9 +262,11 @@ function App() {
             Kinds define mechanics. Campaigns define worlds. Clients simply
             present them.
           </p>
+          <ContinueLink to="#abstraction" />
         </section>
 
         <section
+          id="abstraction"
           className="abstraction section-narrow"
           aria-labelledby="abstraction-title"
         >
@@ -252,9 +283,11 @@ function App() {
             Consequences.
           </p>
           <p>Everything else is remarkably specific data.</p>
+          <ContinueLink to="#contract" />
         </section>
 
         <section
+          id="contract"
           className="contract section-wide"
           aria-labelledby="contract-title"
         >
@@ -272,6 +305,7 @@ function App() {
               Equality is important. Especially when both are about to violate
               validation rules.
             </p>
+            <ContinueLink to="#principles" />
           </div>
         </section>
 
@@ -282,6 +316,7 @@ function App() {
         capabilities are a tighter unnumbered run.
       */}
         <section
+          id="principles"
           className="ledgers section-wide"
           aria-label="Engine principles"
         >
@@ -308,10 +343,12 @@ function App() {
                 <li key={item}>{item}</li>
               ))}
             </ul>
+            <ContinueLink to="#resolution" />
           </article>
         </section>
 
         <section
+          id="resolution"
           data-reveal=""
           className="resolution section-narrow"
           aria-labelledby="resolution-title"
@@ -336,9 +373,11 @@ function App() {
               have given a shorter answer.
             </p>
           </div>
+          <ContinueLink to="#continue" />
         </section>
 
         <section
+          id="continue"
           data-reveal=""
           className="cta section-wide"
           aria-labelledby="cta-title"

@@ -188,28 +188,36 @@ The notes stay in the file as authored. Treat them as answered, not open.
 
 Every destination the page may link to. Anything not on this list does not exist.
 
+**Decided: the landing page is packaged to be served at `/`, with the documentation site at `/docs`
+on the same origin.** Routes below are root-relative for that reason — not because the domain is
+settled, but because the *path structure* is: whichever host eventually serves this, the two
+projects arrive at it as one combined tree, landing at the root and docs beneath `/docs`. That is
+narrower than a full hosting decision. **Still open:** which host or platform serves the combined
+output, and the mechanism that assembles this project's `dist/` and the docs site's build into one
+deployable tree. Both are deliberately out of scope here — see §6 — because the docs build process
+is expected to be reworked, and building an assembly pipeline against a process that is about to
+change would be wasted effort.
+
 | Destination | Route |
 |---|---|
 | Landing page | `/` — the site's own single route |
-| Documentation index | `https://game-engine.subzerodev.com/docs/` |
-| Architecture | `https://game-engine.subzerodev.com/docs/engine/architecture` |
-| Vision | `https://game-engine.subzerodev.com/docs/engine/vision` |
-| Core contract | `https://game-engine.subzerodev.com/docs/engine/core` |
-| Story Graph kind | `https://game-engine.subzerodev.com/docs/engine/story-graph-kind` |
-| Simulation kind | `https://game-engine.subzerodev.com/docs/engine/simulation-kind` |
-| World Graph kind | `https://game-engine.subzerodev.com/docs/engine/world-graph-kind` |
-| Content packs — what a Campaign resolves to | `https://game-engine.subzerodev.com/docs/engine/content-packs` |
-| Clients contract | `https://game-engine.subzerodev.com/docs/engine/clients` |
-| Engine package guide | `https://game-engine.subzerodev.com/docs/guide/engine-package` |
-| Repository | `https://github.com/The-Running-Dev/SubZeroDev.GameEngine` |
+| Documentation index | `/docs/` |
+| Architecture | `/docs/engine/architecture` |
+| Vision | `/docs/engine/vision` |
+| Core contract | `/docs/engine/core` |
+| Story Graph kind | `/docs/engine/story-graph-kind` |
+| Simulation kind | `/docs/engine/simulation-kind` |
+| World Graph kind | `/docs/engine/world-graph-kind` |
+| Content packs — what a Campaign resolves to | `/docs/engine/content-packs` |
+| Clients contract | `/docs/engine/clients` |
+| Engine package guide | `/docs/guide/engine-package` |
+| Repository | `https://github.com/The-Running-Dev/SubZeroDev.GameEngine` (external — stays absolute) |
 
-**Every docs destination is an absolute cross-site URL.** The landing page is a separate site, so
-`/docs/engine/architecture` is not a path it can resolve — it is a link to another origin. The
-bundle writes these as site-relative paths throughout, which would 404 on the landing page.
-
-**Nothing validates these links.** Docusaurus' `onBrokenLinks` governs only routes inside the docs
-site, and `build/Test-Documentation.ps1` skips site-absolute targets by design. So **this table is
-the only check that exists**, which has one practical consequence: renaming or renumbering a spec
+**Nothing validates the `/docs/...` links.** Docusaurus' `onBrokenLinks` governs only routes inside
+the docs site's own build, and `build/Test-Documentation.ps1` skips site-absolute targets by design.
+Being root-relative and same-origin does not add a check — it removes the *reason* the old absolute
+form existed (bridging two origins), but the link itself is still unverified by anything in this
+repository. So **this table remains the only check that exists**: renaming or renumbering a spec
 silently breaks a landing-page CTA, with no build failure anywhere. Re-check it whenever
 `docs/docs/engine/` is restructured.
 
@@ -325,8 +333,26 @@ Settled decisions. These are the facts the rest of the bundle must be read again
 | **Placement** | Standalone site under `site/`, independent of the docs project |
 | **Stack** | React, client-rendered single-page app. Plain Vite is sufficient |
 | **Theme** | Dark only |
-| **Hosting** | **Not decided.** Not GitHub Pages |
+| **Routing** | Decided: landing at `/`, docs at `/docs`, same origin. See §3 |
+| **Hosting platform** | **Not decided.** Not GitHub Pages. Narrower than routing — see below |
 | **`README.md`** | Out of scope. Not edited, not shortened, not consulted as a source of copy |
+
+### Routing decided; hosting platform still open
+
+These are two different questions, and only one of them has been answered.
+
+**Decided:** the combined output has the landing page at `/` and the documentation site at `/docs`,
+on one origin. That is a statement about *path structure*, and it is enough to make the routes in
+§3 root-relative rather than absolute.
+
+**Not decided:** which host or platform serves that combined output, and how the two independent
+builds — this project's `dist/` and the docs site's own build output — get assembled into one
+deployable tree before anything is hosted. Neither `docs/docusaurus.config.ts` nor `docs/sidebar.ts`
+is touched to make this true, and no build-assembly script exists yet. Both are left alone
+deliberately: the docs build process is expected to be reworked, and wiring an assembly step against
+a process that is about to change would be effort spent twice. When that rework lands, the assembly
+mechanism is the next concrete piece of work, informed by whatever the reworked docs build actually
+produces.
 
 ### Rendering — client-side, and the requirement that went with it
 
