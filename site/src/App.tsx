@@ -404,7 +404,7 @@ function App() {
           aria-labelledby="worlds-title"
         >
           <p className="section-index">10 / THE ENGINE</p>
-          <h2 id="worlds-title">The Engine Exists.</h2>
+          <h2 id="worlds-title">It Exists.</h2>
           <p className="worlds-lead">So do the worlds it will run.</p>
           <ul className="worlds-list">
             {branches.map((branch) => (
