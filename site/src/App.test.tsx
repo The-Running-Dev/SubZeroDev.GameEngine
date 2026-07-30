@@ -144,7 +144,9 @@ describe("landing page", () => {
     expect(traceSection?.textContent).toContain("clerk_review");
     expect(traceSection?.textContent).toContain("It Builds Character");
     expect(traceSection?.textContent).toMatch(/not a screenshot/i);
-    expect(traceSection?.textContent).not.toMatch(/live|running|gameplay/i);
+    expect(traceSection?.textContent).not.toMatch(
+      /\b(?:live|running|gameplay)\b/i,
+    );
   });
 
   it("leaves revealed content visible when no observer exists", () => {

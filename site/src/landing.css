@@ -390,7 +390,7 @@ section {
   border-top: 1px solid var(--landing-border-decorative);
   display: grid;
   gap: 0.3rem 1.5rem;
-  grid-template-columns: 9rem 1fr;
+  grid-template-columns: 9rem minmax(0, 1fr);
   padding-block: 1rem;
 }
 .trace-flow li:last-child {
@@ -409,7 +409,7 @@ section {
   margin-top: 1.5rem;
   max-width: none;
 }
-.trace > a {
+.trace > a:not(.continue) {
   display: inline-block;
   margin-top: 1.25rem;
 }
