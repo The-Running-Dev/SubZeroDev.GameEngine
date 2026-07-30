@@ -114,13 +114,14 @@ Every item below was an open question requiring inspection. The audit in
 | Exact engine name and capitalization | SubZeroDev Game Engine |
 | Actual layer terminology | `Core → Kinds → Campaigns → Clients` (§1). No `Mechanics`, no `Games` |
 | Existing visual brand | None to inherit — new standalone project |
-| Current homepage route and component | The docs site's `/` is README-generated and stays. The landing page is separate (§5, §6) |
-| GitHub link, architecture path, docs entry route | Route inventory (§3), as absolute cross-site URLs |
+| Current homepage route and component | Superseded: `/` now serves the landing page, not the docs site's generated homepage. `docs/docs/` and everything under `/docs` is unaffected (§5, §6) |
+| GitHub link, architecture path, docs entry route | Route inventory (§3) — root-relative paths, same origin as the docs (§6) |
 | Light-mode requirements | Dark only. No toggle, no `prefers-color-scheme` branch (§6) |
 | Whether the default navbar/footer should remain | Not applicable — the site owns its own shell |
 | Whether a live demo exists | No. Blocked until `advance(state, action)` exists. Do not fake one |
 | Whether replay and AI command validation are implemented | Replay is **planned** (post-MVP); command validation is a **contract**. Capability matrix, §2 |
+| Hosting | GitHub Pages, same domain as the docs (§6). The build-assembly step is built: `build/Merge-LandingPage.ps1` |
 
-One item genuinely remains open: **hosting**, which is undecided and not to be reconstructed.
+Nothing remains open.
 
 The capability matrix is a snapshot. Re-check it whenever a work item lands — see §2.

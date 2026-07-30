@@ -18,12 +18,14 @@ corrects the facts in one place rather than rewriting eleven files, and the orig
 capability lists and route tables stay where they are — **overridden, not deleted**. Where they
 disagree with this document, they are wrong and this document is right.
 
-**There are no open questions of fact.** Two items were previously marked VERIFY AT BUILD — both
-concerned the docs base image — and both closed as **moot** when the landing page became a standalone
-site (§4). Placement, routing and hosting platform are all decided (§6). What remains open is
-narrower and mechanical: the build-assembly step that merges this project's output with the docs
-site's into one deployable tree — deliberately deferred pending a docs-build rework, not blocked on
-any unresolved fact.
+**There are no open questions of fact, and no open mechanism either.** Two items were previously
+marked VERIFY AT BUILD — both concerned the docs base image — and both closed as **moot** when the
+landing page became a standalone site (§4). Placement, routing and hosting platform are all decided
+(§6), and the build-assembly step that merges this project's output with the docs site's into one
+deployable tree is built: `build/Merge-LandingPage.ps1`, wired into both `docs-ci.yml` and
+`docs-deploy.yml`. What is still true is that the docs build itself is expected to be reworked, at
+which point this script is the piece most likely to need revisiting — but nothing here is blocked on
+that happening.
 
 ---
 
@@ -193,10 +195,8 @@ Every destination the page may link to. Anything not on this list does not exist
 **Decided: the landing page is packaged to be served at `/`, with the documentation site at `/docs`
 on the same origin.** Routes below are root-relative for that reason. The origin itself is also
 decided — GitHub Pages, at `game-engine.subzerodev.com`, the docs site's existing deployment now
-serving both projects (§6). **Still open:** the mechanism that assembles this project's `dist/` and
-the docs site's build into the one artifact tree `docs-deploy.yml` uploads. That stays out of scope
-here — see §6 — because the docs build process is expected to be reworked, and building an assembly
-pipeline against a process that is about to change would be wasted effort.
+serving both projects, merged by `build/Merge-LandingPage.ps1` into the one artifact tree
+`docs-deploy.yml` uploads (§6).
 
 | Destination | Route |
 |---|---|
@@ -358,14 +358,19 @@ settling the platform changes nothing about the routes themselves.
   for the landing page can be filled in — see `site/index.html`.
 - **A sitemap entry is now meaningful**, if one is ever added.
 
-**Still not built:** the mechanism that assembles this project's `dist/` and the docs site's own
-build output into the one artifact `docs-deploy.yml` uploads to Pages. Neither
-`docs/docusaurus.config.ts` nor `docs/sidebar.ts` nor `.github/workflows/docs-deploy.yml` has been
-touched — that stays deliberately deferred, not because the platform is unclear (it no longer is),
-but because the docs build process is expected to be reworked, and wiring an assembly step against a
-process that is about to change would be effort spent twice. When that rework lands, the assembly
-step — building both projects and merging landing's output at the artifact root with the docs build
-under `/docs` — is the next concrete piece of work.
+**Built:** the mechanism that assembles this project's `dist/` and the docs site's own build output
+into the one artifact `docs-deploy.yml` uploads to Pages — `build/Merge-LandingPage.ps1`, wired into
+both `docs-ci.yml`'s verify job (so every PR proves the merge before anything ships) and
+`docs-deploy.yml` itself. `docs/docusaurus.config.ts` and `docs/sidebar.ts` are still untouched; the
+merge is additive, overwriting only the docs build's generated-from-README root `index.html` and
+adding the landing page's assets. Verified against a real build of both projects, not assumed: the
+two builds never write the same paths — Docusaurus nests its bundle under `assets/css/` and
+`assets/js/`, Vite writes flat hashed files directly into `assets/` — and the script refuses to
+proceed if anything under the docs build's own `docs/` subtree changes.
+
+When the docs build gets reworked, this script is the piece most likely to need revisiting — its
+inputs are two directory trees with a known, verified shape, so revisiting it is a bounded, cheap
+change rather than a rewrite.
 
 ### Rendering — client-side, and the requirement that went with it
 
@@ -469,7 +474,7 @@ What can be verified, and how:
 |---|---|
 | Type check, lint, format | The `site/` project's own toolchain, once scaffolded |
 | Component and interaction tests | Same. Achievable now that a project exists to host them |
-| Site builds | The `site/` build. **Deploy verification waits on the build-assembly step** (§6), not on the platform — GitHub Pages is decided |
+| Site builds, merges cleanly onto the docs build | The `site/` build, plus `build/Merge-LandingPage.ps1` — proven on every PR by `docs-ci.yml`'s verify job (§6) |
 | Docs and engine untouched | `build/Test-Documentation.ps1`, `.github/workflows/docs-ci.yml`, `.github/workflows/ci.yml` — none of which this work should affect |
 | **Social-preview unfurl** | Manual, against the **built** HTML. Confirm Open Graph tags are in the served shell, not React-injected (§6) |
 | **Reveal safety** | Content visible when the observer never fires — force by disabling it, or test an element already in view on load |

@@ -20,11 +20,13 @@ architecture behind the project's accidental origin.
 | **Architecture diagram** | Fan-out from `Kinds` to the three real kinds. Each layer is a link to its spec |
 | **Routing** | Decided: landing at `/`, docs at `/docs`, same origin — internal links are root-relative |
 | **Hosting platform** | **Decided: GitHub Pages** — the docs site's existing deployment, now serving both, at `game-engine.subzerodev.com` |
+| **Build assembly** | **Built.** `build/Merge-LandingPage.ps1`, wired into `docs-ci.yml` and `docs-deploy.yml` |
 | **`README.md`** | Out of scope — not edited, not consulted as a source of copy |
 
-Nothing under `docs/`, `.config/`, `build/` or `src/` changes yet — the build-assembly step that
-merges this project's output into the docs deployment is still to come. Until then, the documentation
-site keeps its README-generated root, its sidebar, its theme and its deployment exactly as they are.
+`docs/docusaurus.config.ts` and `docs/sidebar.ts` are untouched — the merge is additive, overwriting
+only the docs build's generated-from-README root `index.html`. The documentation site keeps its
+sidebar, its theme, and every route under `/docs` exactly as they were; only the site root changes
+owner, once this PR merges and the next deploy runs.
 
 ---
 
@@ -106,14 +108,13 @@ The defects corrected, in brief:
 
 ## Open
 
-1. **Build-assembly step** — how the two independent builds (this project's `dist/`, the docs site's
-   own build output) get merged into the one artifact tree `docs-deploy.yml` uploads to GitHub Pages.
-   The platform, domain and routing are all decided (landing at `/`, docs at `/docs`,
-   `game-engine.subzerodev.com`); only the mechanism that produces that combined tree is unbuilt.
-   Deliberately deferred — the docs build process is expected to be reworked, so assembling a
-   pipeline against it now would be effort spent twice.
-2. **`<noscript>` fallback** — one line of markup so a JavaScript-disabled visitor sees something
-   rather than a blank page. Worth a deliberate yes or no.
+Nothing. The build-assembly step is built (`build/Merge-LandingPage.ps1`), and the `<noscript>`
+fallback question resolved to yes — it's in `site/index.html`.
+
+The one thing genuinely outside this bundle's control: the docs build process is expected to be
+reworked at some point, and `build/Merge-LandingPage.ps1` is the piece most likely to need
+revisiting when that happens. Its inputs are two directory trees with a verified shape, so that is a
+bounded change, not a rewrite.
 
 Two items previously marked VERIFY AT BUILD **closed as moot** when placement changed: both concerned
 the docs base image masking or colliding with `src/pages/index.*` and `custom.css`, and a standalone
