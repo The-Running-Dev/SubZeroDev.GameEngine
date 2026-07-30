@@ -198,6 +198,8 @@ Every destination the page may link to. Anything not on this list does not exist
 | Story Graph kind | `https://game-engine.subzerodev.com/docs/engine/story-graph-kind` |
 | Simulation kind | `https://game-engine.subzerodev.com/docs/engine/simulation-kind` |
 | World Graph kind | `https://game-engine.subzerodev.com/docs/engine/world-graph-kind` |
+| Content packs — what a Campaign resolves to | `https://game-engine.subzerodev.com/docs/engine/content-packs` |
+| Clients contract | `https://game-engine.subzerodev.com/docs/engine/clients` |
 | Engine package guide | `https://game-engine.subzerodev.com/docs/guide/engine-package` |
 | Repository | `https://github.com/The-Running-Dev/SubZeroDev.GameEngine` |
 

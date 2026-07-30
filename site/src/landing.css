@@ -4,8 +4,20 @@
   --landing-surface-raised: #151821;
   --landing-text: #f4f5f7;
   --landing-muted: #a2a9b4;
+  /*
+   * Two border tokens, by job.
+   *
+   * `decorative` is hairline separation nothing depends on seeing. `strong` is
+   * for anything meaning-bearing — diagram connectors, dividers that carry
+   * structure, focus and selection state — and so must clear the 3:1 WCAG
+   * minimum for non-text.
+   *
+   * 0.35 is not arbitrary: over #090a0d it composites to rgb(96,97,99) for
+   * 3.14:1. The previous 0.24 gave rgb(68,69,71) and only 2.06:1, which fails.
+   * Below 0.34 this token cannot meet its own purpose.
+   */
   --landing-border-decorative: rgba(255, 255, 255, 0.11);
-  --landing-border-strong: rgba(255, 255, 255, 0.24);
+  --landing-border-strong: rgba(255, 255, 255, 0.35);
   --landing-accent: #82d8ff;
   --landing-accent-soft: rgba(130, 216, 255, 0.12);
   --landing-origin-text: #d8d0c2;
@@ -82,11 +94,29 @@ h2 {
   letter-spacing: -0.055em;
   line-height: 0.98;
 }
+/*
+ * The floor is 2.1rem, not 3.6rem. At 3.6rem (57.6px) on a 320px viewport the
+ * headline broke to one word per line -- "Build / mechanics / once. / Create /
+ * infinite / games." -- six lines. It never overflowed, so it passed the letter
+ * of the 320px rule while losing the composed line entirely.
+ */
 h1 {
-  font-size: clamp(3.6rem, 9vw, 8.6rem);
+  font-size: clamp(2.1rem, 9vw, 8.6rem);
   font-weight: 650;
   margin-block: 1.15rem 1.6rem;
   max-width: none;
+}
+
+/*
+ * The deliberate two-line break is an enhancement, not a fixture. Above the
+ * mobile breakpoint the <br> composes the headline; below it the line wraps
+ * naturally, because a hard break at narrow widths is what forces the
+ * one-word-per-line shape.
+ */
+@media (max-width: 700px) {
+  h1 br {
+    display: none;
+  }
 }
 h2 {
   font-size: clamp(2.5rem, 5.1vw, 4.7rem);
@@ -219,6 +249,9 @@ section {
   display: grid;
   gap: 1rem;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 .kind-branch {
   background: var(--landing-surface-raised);
@@ -277,13 +310,18 @@ section {
   gap: 5rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-.ledgers ol {
-  counter-reset: ledger;
+.ledgers ol,
+.ledgers ul {
   list-style: none;
   margin: 2.5rem 0 0;
   padding: 0;
 }
-.ledgers li {
+
+/*
+ * Refusals: the numbered ledger. Ruled rows, monospace index, one per line --
+ * the form that makes a list of prohibitions feel enumerated and deliberate.
+ */
+.ledger-refusals li {
   align-items: baseline;
   border-top: 1px solid var(--landing-border-decorative);
   display: grid;
@@ -291,13 +329,31 @@ section {
   grid-template-columns: 2rem 1fr;
   padding-block: 1.1rem;
 }
-.ledgers li:last-child {
+.ledger-refusals li:last-child {
   border-bottom: 1px solid var(--landing-border-decorative);
 }
-.ledgers li span {
+.ledger-refusals li span {
   color: var(--landing-accent);
   font-family: ui-monospace, Consolas, monospace;
   font-size: 0.72rem;
+}
+
+/*
+ * Capabilities: deliberately NOT the same shape. Rendering both as matched
+ * ledgers made twelve numbered lines read as one long block and cancelled the
+ * contrast the pairing exists to create. Unnumbered, unruled, tighter, with a
+ * single accent rule holding the group -- related, clearly not a mirror.
+ */
+.ledger-capabilities ul {
+  border-left: 2px solid var(--landing-accent-soft);
+  display: grid;
+  gap: 0.9rem;
+  padding-left: 1.5rem;
+}
+.ledger-capabilities li {
+  color: var(--landing-origin-text);
+  font-size: 1.05rem;
+  line-height: 1.45;
 }
 .time-passage {
   color: var(--landing-accent);
