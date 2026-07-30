@@ -21,6 +21,11 @@ export type ReasonCode = string;
  * The kind-agnostic base set. Every one ships a default-English message under the
  * reserved `core.reason.*` namespace, and registry construction rejects any campaign
  * attempting to override it. Kinds extend this via `Kind.reasonCodes`.
+ *
+ * `unknown_campaign`, `unknown_kind`, and `invalid_state` were added during W3 — the
+ * pure engine kernel (`createGame`, `submitAction`, `deserialize`) needs a rejection code
+ * for each and none of the original seven fit. See `plans/09-w3-pure-engine-kernel.md`,
+ * Decision 2.
  */
 export const BASE_REASON_CODES = [
   "action_not_available",
@@ -30,6 +35,9 @@ export const BASE_REASON_CODES = [
   "read_only_field",
   "check_succeeded",
   "check_failed",
+  "unknown_campaign",
+  "unknown_kind",
+  "invalid_state",
 ] as const;
 
 export type BaseReasonCode = (typeof BASE_REASON_CODES)[number];
