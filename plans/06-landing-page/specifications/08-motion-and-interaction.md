@@ -67,7 +67,7 @@ Use `IntersectionObserver`.
 
 Requirements:
 
-- content remains accessible before hydration
+- content is visible on mount, before any observer fires
 - animation class added only after observation
 - no scroll-jacking
 - no pinned ten-screen cinematic sections

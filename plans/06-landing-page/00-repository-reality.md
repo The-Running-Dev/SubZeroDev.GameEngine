@@ -18,8 +18,10 @@ corrects the facts in one place rather than rewriting eleven files, and the orig
 capability lists and route tables stay where they are — **overridden, not deleted**. Where they
 disagree with this document, they are wrong and this document is right.
 
-Two items are marked **VERIFY AT BUILD** because they depend on the contents of a Docker base
-image that cannot be inspected without pulling it. Those are the only open questions of fact.
+**There are no open questions of fact.** Two items were previously marked VERIFY AT BUILD — both
+concerned the docs base image — and both closed as **moot** when the landing page became a standalone
+site (§4). One decision remains outstanding, but it is a choice rather than a fact: **hosting** (§6),
+recorded as undecided and deliberately not reconstructed.
 
 ---
 
@@ -463,7 +465,7 @@ following needed no change and should be preserved:
 - The voice guide, the 5–10% humor target, and the tone progression from mysterious hero to
   joke-free CTA.
 - Progressive enhancement as the motion strategy: static semantic page first, motion last,
-  content never gated on JavaScript or an intersection event.
+  content never gated on an intersection event.
 - The refusal to fake a technical demo. `specifications/08-motion-and-interaction.md` says a
   command-validation demo should exist "only when backed by actual engine behavior". That is
   exactly right, and per §2 it is not yet buildable.

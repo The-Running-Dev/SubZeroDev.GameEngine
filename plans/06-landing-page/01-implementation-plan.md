@@ -18,7 +18,7 @@ The finished homepage should:
 - establish deterministic commands and validation as the architectural core;
 - guide technically curious visitors toward the architecture, documentation, and repository;
 - feel like an editorial technical essay rather than a SaaS product template;
-- remain clear and complete without animation or client-side JavaScript;
+- remain clear and complete without animation, and stay readable when a reveal does not fire;
 - leave the documentation site entirely alone — it is a separate property.
 
 The homepage is successful when a visitor moves through this sequence:
@@ -271,7 +271,7 @@ Keep highly composed narrative copy close to its section component. Do not creat
 
 ### Purpose
 
-Build the entire narrative as an accessible, server-rendered page before adding motion or complex interaction.
+Build the entire narrative as an accessible, semantic page before adding motion or complex interaction. Not server-rendered — the page is a client-rendered SPA — but complete and readable the moment it mounts, with nothing waiting on a reveal.
 
 ### Recommended component boundaries
 
@@ -537,7 +537,7 @@ A restrained motion pass that improves timing and hierarchy without changing con
 
 ### Gate 5 exit criteria
 
-- JavaScript failure does not hide content.
+- A reveal that does not fire leaves content visible, never hidden.
 - Reduced-motion mode is complete.
 - Animations do not delay navigation or interaction.
 - Motion is used selectively, not section by section.
@@ -551,7 +551,7 @@ A restrained motion pass that improves timing and hierarchy without changing con
 - all navigation and CTA links;
 - architecture mouse, keyboard, and touch behavior;
 - theme switching where supported;
-- no hydration mismatch;
+- no flash of unstyled or unrevealed content on mount;
 - no broken documentation behavior;
 - external-link behavior;
 - default and reduced-motion states.
