@@ -151,6 +151,41 @@ h2 {
   font-size: clamp(1.3rem, 2vw, 1.8rem);
   margin-top: 1.6rem;
 }
+/*
+ * Small side notes, styled distinctly from both the origin-text prose
+ * (.prose-stack, warm tan) and the plain body copy -- muted gray, smaller,
+ * a quiet aside rather than something competing with the actual narrative.
+ * Kept to the parts of the page where the humor budget is highest: the hero
+ * and the resolution, never the architecture or command-boundary sections.
+ */
+.commentary {
+  color: var(--landing-muted);
+  font-size: 0.92rem;
+  font-style: italic;
+  line-height: 1.5;
+  margin-top: 1.5rem;
+  max-width: 28rem;
+}
+.commentary p {
+  margin: 0;
+}
+.commentary-marker {
+  color: var(--landing-accent);
+  font-style: normal;
+  margin-right: 0.35em;
+}
+.commentary ul {
+  display: grid;
+  gap: 0.3rem;
+  list-style: none;
+  margin: 0.5rem 0 0 1.3em;
+  padding: 0;
+}
+.commentary ul li::before {
+  color: var(--landing-accent);
+  content: "— ";
+  font-style: normal;
+}
 .scroll-invitation,
 .continue {
   color: var(--landing-muted);
@@ -400,6 +435,59 @@ section {
   font-family: ui-monospace, Consolas, monospace;
   font-size: 0.8em;
   padding-top: 1rem;
+}
+
+/*
+ * The payoff: what the engine actually builds. Deliberately not a repeat of
+ * the architecture section's kind-branch cards -- this is a closing
+ * statement, not another diagram, so it reads as simple rows (name, kind),
+ * closer in spirit to .ledger-refusals than to .kind-branches.
+ */
+.worlds {
+  background: var(--landing-surface);
+  border-block: 1px solid var(--landing-border-decorative);
+  max-width: none;
+  padding-inline: max(1.5rem, calc((100% - var(--measure)) / 2 + 1.5rem));
+}
+.worlds-lead {
+  color: var(--landing-muted);
+  margin-top: 0.6rem;
+}
+.worlds-list {
+  display: grid;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 1.25rem 0 0;
+  padding: 0;
+}
+.worlds-item {
+  align-items: baseline;
+  border-top: 1px solid var(--landing-border-decorative);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  justify-content: space-between;
+  padding-block: 0.9rem;
+}
+.worlds-item:last-child {
+  border-bottom: 1px solid var(--landing-border-decorative);
+}
+.worlds-item strong {
+  color: var(--landing-text);
+  font-size: 1.1rem;
+  font-weight: 590;
+}
+.worlds-item a {
+  color: var(--landing-accent);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-underline-offset: 0.3em;
+}
+.worlds .commentary {
+  margin-top: 1.1rem;
+  max-width: none;
 }
 
 .cta {

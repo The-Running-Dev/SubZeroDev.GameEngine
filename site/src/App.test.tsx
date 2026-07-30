@@ -96,6 +96,7 @@ describe("landing page", () => {
       "contract",
       "principles",
       "resolution",
+      "worlds",
       "continue",
     ];
 
@@ -107,9 +108,26 @@ describe("landing page", () => {
     const targets = continueLinks.map((link) =>
       link.getAttribute("href")?.slice(1),
     );
-    // Every section but the hero and the last one links to the next: eight
+    // Every section but the hero and the last one links to the next: nine
     // links, each one step ahead of the section that holds it.
     expect(targets).toEqual(chain.slice(2));
+  });
+
+  it("names the real campaigns in the closing payoff, not placeholder titles", () => {
+    // The engine has no announced projects beyond the three flagship
+    // campaigns already verified in the architecture diagram. This section
+    // must reuse the same names, not invent new ones.
+    render(<App />);
+
+    const worldsSection = document.getElementById("worlds");
+    expect(worldsSection).not.toBeNull();
+    expect(worldsSection?.textContent).toContain(
+      "Bulgaria: Make-Your-Own-Adventure",
+    );
+    expect(worldsSection?.textContent).toContain("Life in the Fast Lane");
+    expect(worldsSection?.textContent).toContain("Sun Trap");
+    // Nothing is playable yet -- "Coming Soon" would overclaim status.
+    expect(worldsSection?.textContent).not.toMatch(/coming soon/i);
   });
 
   it("leaves revealed content visible when no observer exists", () => {

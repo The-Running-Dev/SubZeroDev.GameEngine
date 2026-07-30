@@ -149,6 +149,19 @@ function App() {
               Seriously. Why not?
             </span>
           </p>
+          <div className="commentary">
+            <p>
+              <span className="commentary-marker" aria-hidden="true">
+                *
+              </span>
+              Results may include:
+            </p>
+            <ul>
+              <li>an accidental game engine</li>
+              <li>this page, explaining the accidental game engine</li>
+              <li>continued uncertainty about how any of this happened</li>
+            </ul>
+          </div>
           <a className="scroll-invitation" href="#origin">
             Scroll. It escalates. <span aria-hidden="true">↓</span>
           </a>
@@ -182,7 +195,7 @@ function App() {
           className="problem section-wide"
           aria-labelledby="problem-title"
         >
-          <p className="section-index">02 / THE RECURRING PROBLEM</p>
+          <p className="section-index">02 / THE PATTERN</p>
           <h2 id="problem-title">The Problem Was Not Rendering.</h2>
           <div className="split-prose">
             <p>
@@ -221,7 +234,7 @@ function App() {
           aria-labelledby="architecture-title"
         >
           <div className="architecture-intro">
-            <p className="section-index">04 / THE MODEL</p>
+            <p className="section-index">04 / THE ARCHITECTURE</p>
             <h2 id="architecture-title">Reuse the Rules. Replace the World.</h2>
             <p>
               One deterministic core. Reviewed kinds. Campaigns with their own
@@ -359,6 +372,12 @@ function App() {
           <h2 id="resolution-title">
             This Project Did Not Begin With a Grand Vision.
           </h2>
+          <p className="commentary">
+            <span className="commentary-marker" aria-hidden="true">
+              *
+            </span>
+            This was supposed to be a quick question. It wasn&apos;t.
+          </p>
           <div className="prose-stack">
             <p>
               It began because I missed <em>Jones in the Fast Lane</em>.
@@ -375,6 +394,33 @@ function App() {
               have given a shorter answer.
             </p>
           </div>
+          <ContinueLink to="#worlds" />
+        </section>
+
+        <section
+          id="worlds"
+          data-reveal=""
+          className="worlds section-wide"
+          aria-labelledby="worlds-title"
+        >
+          <p className="section-index">10 / THE ENGINE</p>
+          <h2 id="worlds-title">The Engine Exists.</h2>
+          <p className="worlds-lead">So do the worlds it will run.</p>
+          <ul className="worlds-list">
+            {branches.map((branch) => (
+              <li key={branch.kind} className="worlds-item">
+                <strong>{branch.campaign}</strong>
+                <DocsLink href={branch.href}>{branch.kind}</DocsLink>
+              </li>
+            ))}
+          </ul>
+          <p className="commentary">
+            <span className="commentary-marker" aria-hidden="true">
+              *
+            </span>
+            None of them are playable yet. The engine has to work first. That
+            part is still being written.
+          </p>
           <ContinueLink to="#continue" />
         </section>
 
@@ -384,7 +430,7 @@ function App() {
           className="cta section-wide"
           aria-labelledby="cta-title"
         >
-          <p className="section-index">10 / CONTINUE READING</p>
+          <p className="section-index">11 / CONTINUE READING</p>
           <h2 id="cta-title">Still Here?</h2>
           <p>Good. Now it becomes considerably less philosophical.</p>
           <div className="cta-actions">
