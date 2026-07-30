@@ -452,6 +452,12 @@ in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap) (
 > [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md).
 
 
+- [ ] **No unit owns the real migration mechanism.** W3's `Engine.migrate` is a
+      pass-through to `deserialize` — correct for now, since `MVP.md` §4 excludes
+      migration from the MVP and there is exactly one `formatVersion` in existence — but
+      the mechanism 04 §10.2 describes (detect a version mismatch, remap old ids, mark
+      `replayCompatible: false`) has no `W`-numbered unit building it. Post-MVP, before it's
+      needed. See `plans/09-w3-pure-engine-kernel.md` (repository root), Decision 5.
 - [ ] `wisdom` attribute has no consumer in the simulation kind — needs one to earn its
       place (`games/04-engine-specification.md` §8.4).
 - [ ] Provisional numbers across the simulation kind (drift rates, scenario economics,

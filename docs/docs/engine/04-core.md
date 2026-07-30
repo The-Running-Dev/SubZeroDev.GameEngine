@@ -286,6 +286,13 @@ function createEngine(
 ): Engine;
 ```
 
+> **Superseded by `06-extensibility.md` §4–§5.1.** The three-positional-argument form
+> above predates the `IdSource` port, which closed a real gap this signature left open
+> (`gameId` and `seed` had no named source). The current, implemented signature is
+> `createEngine(host: EngineHost): Engine`, with `EngineHost { kinds, registry, ids?,
+> emitter? }` — the same "provenance, not authority" relationship this document has with
+> `games/04-engine-specification.md` above, just one level down.
+
 The **pure engine** exposes kind-agnostic operations over the envelope. It resolves the
 kind by `state.kindId`, derives the RNG handle, delegates, and reassembles the envelope:
 
