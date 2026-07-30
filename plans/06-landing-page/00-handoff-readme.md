@@ -20,14 +20,20 @@ The signature is:
 
 When instructions, terminology, claims, or wording differ, use this order:
 
-1. **Repository instructions and verified repository evidence**
-2. **`01-implementation-plan.md`**
-3. **`02-approved-homepage-copy.md`**
-4. **Files inside `specifications/`**
+1. **`00-repository-reality.md`** — the completed repository audit. Overrides everything below
+   it on any question of fact: architecture layer names, capability claims, routes, build
+   mechanics, tooling.
+2. **Repository instructions and verified repository evidence**
+3. **`01-implementation-plan.md`**
+4. **`02-approved-homepage-copy.md`**
+5. **Files inside `specifications/`**
+
+Where 1 and 2 appear to disagree, 2 is ground truth and 1 has gone stale — fix
+`00-repository-reality.md` rather than working around it.
 
 Repository evidence includes:
 
-- `AGENTS.md` and other repository instructions;
+- `CLAUDE.md` (project instructions) and `agent.md` (lessons learned);
 - actual code and exported APIs;
 - current architecture documentation;
 - existing routes;
@@ -41,9 +47,16 @@ The specification files preserve product reasoning, creative context, alternativ
 
 ## Required working method
 
-### First: repository truth audit
+### First: repository truth audit — DONE, see `00-repository-reality.md`
 
-Before changing code, inspect the repository and produce a short findings note covering:
+**This audit has been performed. Do not repeat it.** Its findings are
+`00-repository-reality.md`, which is the highest authority in this bundle. Re-deriving these
+facts invites a second set of answers that disagree with the first.
+
+Read that document, then go to *Second: reconcile claims* — noting that the claim
+classifications it asks for are already made, in `00-repository-reality.md` §2.
+
+It covered, and settled, each of the following:
 
 - actual engine name and capitalization;
 - verified architecture layer names;

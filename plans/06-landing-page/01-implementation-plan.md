@@ -71,7 +71,17 @@ No phase should rely on assumptions that the preceding gate was intended to reso
 
 ---
 
-## 4. Phase 0 — Repository truth audit
+## 4. Phase 0 — Repository truth audit — COMPLETE
+
+> **This gate is closed.** The audit was performed against the repository and its findings are
+> `00-repository-reality.md`, which supersedes this section and every other document here on
+> questions of fact. Gate 0's exit criteria are met: no layer name is speculative, no
+> call-to-action points to an invented route, the build and validation commands are known, and
+> the boundary between implemented and aspirational capability is documented as a classified
+> matrix.
+>
+> The rest of this section is retained as the record of what was asked for. Do not re-run it —
+> a second derivation produces a second set of answers.
 
 ### Purpose
 
@@ -79,7 +89,7 @@ Replace specification assumptions with evidence from the actual project.
 
 ### Inspect
 
-- repository-level instructions such as `AGENTS.md`;
+- repository-level instructions — `CLAUDE.md` and `agent.md`;
 - package manager and lockfile;
 - Docusaurus and React versions;
 - current homepage implementation;

@@ -1,10 +1,24 @@
 # Implementation Roadmap
 
-## Phase 0 — Repository discovery
+> **Two notes before using this document.**
+>
+> **Phase 0 is complete.** The audit was performed; its findings are
+> `00-repository-reality.md`, which overrides this file on every question of fact. Do not
+> re-run the discovery below.
+>
+> **The phase order here conflicts with `01-implementation-plan.md`, which wins.** This file
+> puts motion (Phase 3) before architecture interaction (Phase 4); the implementation plan puts
+> architecture interaction (Phase 5 there is motion) first. Follow the implementation plan: it
+> is higher in the authority order, and animating an interaction that does not exist yet is the
+> wrong dependency direction. Phase 5 below also specifies a formatter, linter, type check and
+> unit tests that have nothing to run in — see `00-repository-reality.md` §7 for what replaces
+> them.
 
-Before implementation:
+## Phase 0 — Repository discovery — COMPLETE
 
-- inspect `AGENTS.md`
+Retained as the record of what was asked for:
+
+- inspect repository instructions — `CLAUDE.md` and `agent.md`
 - inspect package manager
 - inspect Docusaurus version
 - inspect existing `src/pages/index.*`
