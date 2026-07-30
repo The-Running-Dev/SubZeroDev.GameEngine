@@ -131,8 +131,8 @@ function App() {
         <section id="top" className="hero" aria-labelledby="hero-title">
           <p className="eyebrow">SUBZERODEV GAME ENGINE</p>
           <h1 id="hero-title">
-            Build mechanics once.
-            <br /> Create infinite games.
+            Build Mechanics Once.
+            <br /> Create Infinite Games.
           </h1>
           <p className="hero-pause" aria-hidden="true">
             ...
@@ -162,7 +162,7 @@ function App() {
         >
           <p className="section-index">01 / THE ACCIDENT</p>
           <h2 id="origin-title">
-            I missed <em>Jones in the Fast Lane</em>.
+            I Missed <em>Jones in the Fast Lane</em>.
           </h2>
           <div className="prose-stack">
             <p>So I asked an LLM how it worked.</p>
@@ -183,7 +183,7 @@ function App() {
           aria-labelledby="problem-title"
         >
           <p className="section-index">02 / THE RECURRING PROBLEM</p>
-          <h2 id="problem-title">The problem was not rendering.</h2>
+          <h2 id="problem-title">The Problem Was Not Rendering.</h2>
           <div className="split-prose">
             <p>
               Game engines solved rendering. Physics. Input. Audio. Networking.
@@ -222,7 +222,7 @@ function App() {
         >
           <div className="architecture-intro">
             <p className="section-index">04 / THE MODEL</p>
-            <h2 id="architecture-title">Reuse the rules. Replace the world.</h2>
+            <h2 id="architecture-title">Reuse the Rules. Replace the World.</h2>
             <p>
               One deterministic core. Reviewed kinds. Campaigns with their own
               content. Clients that present rather than participate.
@@ -274,7 +274,7 @@ function App() {
         >
           <p className="section-index">05 / THE LIMIT</p>
           <h2 id="abstraction-title">
-            The engine doesn&apos;t know what a dragon is.
+            The Engine Doesn&apos;t Know What a Dragon Is.
           </h2>
           <p className="list-sentence">
             Or a detective. Or a hotel. Or a spaceship. Or Bulgaria.
@@ -295,7 +295,7 @@ function App() {
         >
           <div>
             <p className="section-index">06 / THE BOUNDARY</p>
-            <h2 id="contract-title">Commands are the boundary.</h2>
+            <h2 id="contract-title">Commands Are the Boundary.</h2>
           </div>
           <div className="contract-copy">
             <p>
@@ -324,7 +324,7 @@ function App() {
         >
           <article className="ledger-refusals" aria-labelledby="refusals-title">
             <p className="section-index">07 / REFUSALS</p>
-            <h2 id="refusals-title">Things this engine refuses to do</h2>
+            <h2 id="refusals-title">Things This Engine Refuses to Do</h2>
             <ol>
               {refusals.map((item, index) => (
                 <li key={item}>
@@ -339,7 +339,7 @@ function App() {
             aria-labelledby="capabilities-title"
           >
             <p className="section-index">08 / CAPABILITIES</p>
-            <h2 id="capabilities-title">Things it happily does</h2>
+            <h2 id="capabilities-title">Things It Happily Does</h2>
             <ul>
               {capabilities.map((item) => (
                 <li key={item}>{item}</li>
@@ -357,7 +357,7 @@ function App() {
         >
           <p className="section-index">09 / THE ESCALATION</p>
           <h2 id="resolution-title">
-            This project did not begin with a grand vision.
+            This Project Did Not Begin With a Grand Vision.
           </h2>
           <div className="prose-stack">
             <p>
@@ -385,7 +385,7 @@ function App() {
           aria-labelledby="cta-title"
         >
           <p className="section-index">10 / CONTINUE READING</p>
-          <h2 id="cta-title">Still here?</h2>
+          <h2 id="cta-title">Still Here?</h2>
           <p>Good. Now it becomes considerably less philosophical.</p>
           <div className="cta-actions">
             <DocsLink href={routes.architecture}>

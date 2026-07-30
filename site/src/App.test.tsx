@@ -7,7 +7,7 @@ describe("landing page", () => {
     render(<App />);
 
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-      "Build mechanics once. Create infinite games.",
+      "Build Mechanics Once. Create Infinite Games.",
     );
     expect(screen.getAllByText("Well... why not?")).toHaveLength(2);
   });
