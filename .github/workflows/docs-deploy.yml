@@ -56,10 +56,16 @@ jobs:
             # The landing page is a second, independent project (site/) sharing
             # this one GitHub Pages deployment: it serves "/", the docs serve
             # "/docs". The base image already has Node -- no setup-node needed.
-            - name: Build landing page
+            #
+            # `check`, not a bare build -- see docs-ci.yml's verify job, which
+            # runs the same command. This job is the one that actually runs on
+            # a push to main (verify skips push events), so it is also the
+            # last thing standing between a broken landing page and a real
+            # deploy if a check was ever bypassed getting there.
+            - name: Build and verify landing page
               run: |
                   npm --prefix site ci
-                  npm --prefix site run build
+                  npm --prefix site run check
 
             # Overlays the landing page onto the docs build -- see
             # build/Merge-LandingPage.ps1, and the same step in docs-ci.yml's

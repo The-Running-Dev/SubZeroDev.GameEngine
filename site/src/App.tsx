@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import "./landing.css";
 import "./css/motion.css";
 import { useRevealOnScroll } from "./hooks/useRevealOnScroll";
@@ -65,7 +66,7 @@ const capabilities = [
   "Become considerably larger than the original idea.",
 ];
 
-type LinkProps = { href: string; children: React.ReactNode };
+type LinkProps = { href: string; children: ReactNode };
 
 /**
  * Documentation links navigate in place. The docs are where the reader is meant

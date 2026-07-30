@@ -69,10 +69,17 @@ jobs:
             # The landing page is a second, independent project (site/) sharing
             # this one GitHub Pages deployment: it serves "/", the docs serve
             # "/docs". The base image already has Node -- no setup-node needed.
-            - name: Build landing page
+            #
+            # `check` runs format:check, lint, typecheck, vitest and the build
+            # (site/package.json), not just the build. A bare `build` would let
+            # a broken component test or a missing Open Graph tag merge and
+            # deploy as long as the bundle still compiled -- `check` is what a
+            # contributor runs locally before pushing, made a required step
+            # here too, not a weaker CI-only substitute for it.
+            - name: Build and verify landing page
               run: |
                   npm --prefix site ci
-                  npm --prefix site run build
+                  npm --prefix site run check
 
             # Overlays the landing page onto the docs build -- overwrites the
             # docs build's generated-from-README root index.html, merges in
