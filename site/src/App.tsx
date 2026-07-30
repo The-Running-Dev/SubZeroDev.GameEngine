@@ -146,7 +146,7 @@ function App() {
           <p className="signature">
             <span className="signature-default">Well... why not?</span>
             <span className="signature-alt" aria-hidden="true">
-              Seriously. Why not?
+              Fine. Why not?
             </span>
           </p>
           <div className="commentary">
@@ -185,7 +185,7 @@ function App() {
               events.
             </p>
             <p>Then it started suggesting implementation details.</p>
-            <p>That was unfortunate.</p>
+            <p>That escalated quickly.</p>
           </div>
           <ContinueLink to="#problem" />
         </section>
