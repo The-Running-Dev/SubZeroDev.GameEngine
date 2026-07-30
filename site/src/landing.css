@@ -155,8 +155,9 @@ h2 {
  * Small side notes, styled distinctly from both the origin-text prose
  * (.prose-stack, warm tan) and the plain body copy -- muted gray, smaller,
  * a quiet aside rather than something competing with the actual narrative.
- * Kept to the parts of the page where the humor budget is highest: the hero
- * and the resolution, never the architecture or command-boundary sections.
+ * Kept to the parts of the page where the humor budget is highest: the hero,
+ * the resolution, and the closing payoff -- never the architecture or
+ * command-boundary sections.
  */
 .commentary {
   color: var(--landing-muted);
