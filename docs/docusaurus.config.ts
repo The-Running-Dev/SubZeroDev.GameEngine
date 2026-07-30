@@ -24,11 +24,16 @@ import type * as Preset from '@docusaurus/preset-classic';
  * skips site-absolute targets -- so an anchor was the one link class nothing
  * covered. A renamed heading now fails the build.
  */
+// Hoisted so the raw-HTML navbar brand below can reference the same value
+// Docusaurus uses everywhere else, rather than a second hardcoded '/' that
+// would silently stop matching if this site ever moved to a subpath.
+const baseUrl = '/';
+
 const config: Config = {
   title: 'Game Engine',
   tagline: 'A deterministic, game-agnostic narrative game platform',
   url: 'https://game-engine.subzerodev.com',
-  baseUrl: '/',
+  baseUrl,
 
   onBrokenLinks: 'throw',
 
@@ -80,8 +85,7 @@ const config: Config = {
         {
           type: 'html',
           position: 'left',
-          value:
-            '<a class="navbar__brand" href="/"><b class="navbar__title text--truncate">Game Engine</b></a>',
+          value: `<a class="navbar__brand" href="${baseUrl}"><b class="navbar__title text--truncate">Game Engine</b></a>`,
         },
         {type: 'docSidebar', sidebarId: 'docs', position: 'left', label: 'Docs'},
       ],
