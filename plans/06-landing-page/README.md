@@ -19,11 +19,12 @@ architecture behind the project's accidental origin.
 | **Theme** | Dark only. `color-scheme: dark`, no `prefers-color-scheme` branch, no toggle |
 | **Architecture diagram** | Fan-out from `Kinds` to the three real kinds. Each layer is a link to its spec |
 | **Routing** | Decided: landing at `/`, docs at `/docs`, same origin — internal links are root-relative |
-| **Hosting platform** | **Not decided**, and narrower than routing. Not GitHub Pages |
+| **Hosting platform** | **Decided: GitHub Pages** — the docs site's existing deployment, now serving both, at `game-engine.subzerodev.com` |
 | **`README.md`** | Out of scope — not edited, not consulted as a source of copy |
 
-Nothing under `docs/`, `.config/`, `build/` or `src/` changes. The documentation site keeps its
-README-generated root, its sidebar, its theme and its deployment exactly as they are.
+Nothing under `docs/`, `.config/`, `build/` or `src/` changes yet — the build-assembly step that
+merges this project's output into the docs deployment is still to come. Until then, the documentation
+site keeps its README-generated root, its sidebar, its theme and its deployment exactly as they are.
 
 ---
 
@@ -105,12 +106,12 @@ The defects corrected, in brief:
 
 ## Open
 
-1. **Hosting platform** — undecided, and not to be reconstructed. Routing is now settled (landing at
-   `/`, docs at `/docs`, same origin), but *which* host serves that combined tree, and how the two
-   independent builds get assembled into one deployable output, remain open. Until the platform is
-   chosen, the bundle cannot specify build or deploy steps, a domain, canonical URL, Open Graph URL
-   or sitemap entries. Deliberately deferred — the docs build process is expected to be reworked, so
-   assembling a pipeline against it now would be effort spent twice.
+1. **Build-assembly step** — how the two independent builds (this project's `dist/`, the docs site's
+   own build output) get merged into the one artifact tree `docs-deploy.yml` uploads to GitHub Pages.
+   The platform, domain and routing are all decided (landing at `/`, docs at `/docs`,
+   `game-engine.subzerodev.com`); only the mechanism that produces that combined tree is unbuilt.
+   Deliberately deferred — the docs build process is expected to be reworked, so assembling a
+   pipeline against it now would be effort spent twice.
 2. **`<noscript>` fallback** — one line of markup so a JavaScript-disabled visitor sees something
    rather than a blank page. Worth a deliberate yes or no.
 

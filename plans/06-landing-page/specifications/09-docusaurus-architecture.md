@@ -84,8 +84,9 @@ match at any depth.
 - Font declarations, kept to the variants actually used.
 - Optionally a one-line `<noscript>` message. A deliberate choice either way, not an omission.
 
-Canonical and Open Graph **URLs wait on a hosting decision** — the domain is not decided. Do not
-fill them in speculatively.
+Canonical and Open Graph **URLs are now known**: `https://game-engine.subzerodev.com/`, the docs
+site's existing GitHub Pages deployment (`00-repository-reality.md` §6). Set them in `index.html`
+rather than leaving them out — see `site/index.html` for the implemented tags.
 
 ## Page implementation
 

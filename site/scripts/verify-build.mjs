@@ -10,6 +10,8 @@ const requiredTags = [
   /<meta\s+property="og:title"\s+content="SubZeroDev Game Engine"\s*\/>/,
   /<meta\s+property="og:description"\s+content="Build mechanics once\. Create infinite games\."\s*\/>/,
   /<meta\s+property="og:type"\s+content="website"\s*\/>/,
+  /<meta\s+property="og:url"\s+content="https:\/\/game-engine\.subzerodev\.com\/"\s*\/>/,
+  /<link\s+rel="canonical"\s+href="https:\/\/game-engine\.subzerodev\.com\/"\s*\/>/,
   /<meta\s+name="twitter:card"\s+content="summary"\s*\/>/,
 ];
 

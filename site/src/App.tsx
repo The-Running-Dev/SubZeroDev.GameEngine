@@ -17,9 +17,10 @@ const repository = "https://github.com/The-Running-Dev/SubZeroDev.GameEngine";
  * build/Test-Documentation.ps1 skips site-absolute targets by design. Re-read
  * the inventory whenever docs/docs/engine/ is restructured.
  *
- * What this does NOT decide: which host serves the combined output, or how
- * the two builds (this project's `dist/` and the docs site's build) get
- * assembled into one deployable tree. Both remain open — see
+ * Hosting is GitHub Pages, at game-engine.subzerodev.com — the docs site's
+ * existing deployment, now serving both projects. What still does NOT exist is
+ * the build-assembly step: how this project's `dist/` and the docs site's
+ * build get merged into the one artifact tree docs-deploy.yml uploads. See
  * 00-repository-reality.md §6.
  */
 const routes = {

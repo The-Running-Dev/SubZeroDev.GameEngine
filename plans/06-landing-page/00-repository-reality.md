@@ -20,8 +20,10 @@ disagree with this document, they are wrong and this document is right.
 
 **There are no open questions of fact.** Two items were previously marked VERIFY AT BUILD — both
 concerned the docs base image — and both closed as **moot** when the landing page became a standalone
-site (§4). One decision remains outstanding, but it is a choice rather than a fact: **hosting** (§6),
-recorded as undecided and deliberately not reconstructed.
+site (§4). Placement, routing and hosting platform are all decided (§6). What remains open is
+narrower and mechanical: the build-assembly step that merges this project's output with the docs
+site's into one deployable tree — deliberately deferred pending a docs-build rework, not blocked on
+any unresolved fact.
 
 ---
 
@@ -189,14 +191,12 @@ The notes stay in the file as authored. Treat them as answered, not open.
 Every destination the page may link to. Anything not on this list does not exist.
 
 **Decided: the landing page is packaged to be served at `/`, with the documentation site at `/docs`
-on the same origin.** Routes below are root-relative for that reason — not because the domain is
-settled, but because the *path structure* is: whichever host eventually serves this, the two
-projects arrive at it as one combined tree, landing at the root and docs beneath `/docs`. That is
-narrower than a full hosting decision. **Still open:** which host or platform serves the combined
-output, and the mechanism that assembles this project's `dist/` and the docs site's build into one
-deployable tree. Both are deliberately out of scope here — see §6 — because the docs build process
-is expected to be reworked, and building an assembly pipeline against a process that is about to
-change would be wasted effort.
+on the same origin.** Routes below are root-relative for that reason. The origin itself is also
+decided — GitHub Pages, at `game-engine.subzerodev.com`, the docs site's existing deployment now
+serving both projects (§6). **Still open:** the mechanism that assembles this project's `dist/` and
+the docs site's build into the one artifact tree `docs-deploy.yml` uploads. That stays out of scope
+here — see §6 — because the docs build process is expected to be reworked, and building an assembly
+pipeline against a process that is about to change would be wasted effort.
 
 | Destination | Route |
 |---|---|
@@ -334,25 +334,38 @@ Settled decisions. These are the facts the rest of the bundle must be read again
 | **Stack** | React, client-rendered single-page app. Plain Vite is sufficient |
 | **Theme** | Dark only |
 | **Routing** | Decided: landing at `/`, docs at `/docs`, same origin. See §3 |
-| **Hosting platform** | **Not decided.** Not GitHub Pages. Narrower than routing — see below |
+| **Hosting platform** | **Decided: GitHub Pages.** See below |
 | **`README.md`** | Out of scope. Not edited, not shortened, not consulted as a source of copy |
 
-### Routing decided; hosting platform still open
+### Hosting — GitHub Pages, same domain as the docs
 
-These are two different questions, and only one of them has been answered.
+**Decided.** This corrects an earlier statement in this document that hosting was "not decided" and
+explicitly "not GitHub Pages" — that reflected an instruction given earlier in the same working
+session, superseded by a later one confirming GitHub Pages.
 
-**Decided:** the combined output has the landing page at `/` and the documentation site at `/docs`,
-on one origin. That is a statement about *path structure*, and it is enough to make the routes in
-§3 root-relative rather than absolute.
+Concretely, this is not a new deployment target — it is the **existing one**, now serving both
+projects instead of one. `docs-deploy.yml` already deploys the docs site to GitHub Pages at the
+custom domain configured in `docs/docusaurus.config.ts` and `.config/DocumentationRules.psd1`:
+`game-engine.subzerodev.com`. GitHub Pages serves exactly one site per repository, so there was never
+a version of "hosting = GitHub Pages" that meant a *second* Pages site — it always meant this repo's
+one Pages deployment, at this one domain, now covering `/` (landing) and `/docs` (documentation)
+together. That is precisely the shape the routing decision in §3 already assumed, which is why
+settling the platform changes nothing about the routes themselves.
 
-**Not decided:** which host or platform serves that combined output, and how the two independent
-builds — this project's `dist/` and the docs site's own build output — get assembled into one
-deployable tree before anything is hosted. Neither `docs/docusaurus.config.ts` nor `docs/sidebar.ts`
-is touched to make this true, and no build-assembly script exists yet. Both are left alone
-deliberately: the docs build process is expected to be reworked, and wiring an assembly step against
-a process that is about to change would be effort spent twice. When that rework lands, the assembly
-mechanism is the next concrete piece of work, informed by whatever the reworked docs build actually
-produces.
+**Consequences, now unblocked:**
+
+- **The domain is known**: `https://game-engine.subzerodev.com/`. Canonical URL and Open Graph URL
+  for the landing page can be filled in — see `site/index.html`.
+- **A sitemap entry is now meaningful**, if one is ever added.
+
+**Still not built:** the mechanism that assembles this project's `dist/` and the docs site's own
+build output into the one artifact `docs-deploy.yml` uploads to Pages. Neither
+`docs/docusaurus.config.ts` nor `docs/sidebar.ts` nor `.github/workflows/docs-deploy.yml` has been
+touched — that stays deliberately deferred, not because the platform is unclear (it no longer is),
+but because the docs build process is expected to be reworked, and wiring an assembly step against a
+process that is about to change would be effort spent twice. When that rework lands, the assembly
+step — building both projects and merging landing's output at the artifact root with the docs build
+under `/docs` — is the next concrete piece of work.
 
 ### Rendering — client-side, and the requirement that went with it
 
@@ -392,14 +405,6 @@ One palette. No light mode, no toggle.
   against by name.
 - The three light-mode strategies in `01-implementation-plan.md` §7 are withdrawn. One of them
   ("follow the current site theme automatically") referred to a site theme that no longer exists.
-
-### Hosting — not decided
-
-Recorded as unknown, and **not** to be reconstructed. Until a host is chosen, the bundle cannot
-specify build commands, deploy steps, a domain, a canonical URL, Open Graph URLs or sitemap entries.
-Any document that appears to specify them is assuming, not stating.
-
-The docs deployment is unrelated and untouched.
 
 ### Two smaller facts
 
@@ -464,7 +469,7 @@ What can be verified, and how:
 |---|---|
 | Type check, lint, format | The `site/` project's own toolchain, once scaffolded |
 | Component and interaction tests | Same. Achievable now that a project exists to host them |
-| Site builds | The `site/` build. **Deploy verification waits on a hosting decision** (§6) |
+| Site builds | The `site/` build. **Deploy verification waits on the build-assembly step** (§6), not on the platform — GitHub Pages is decided |
 | Docs and engine untouched | `build/Test-Documentation.ps1`, `.github/workflows/docs-ci.yml`, `.github/workflows/ci.yml` — none of which this work should affect |
 | **Social-preview unfurl** | Manual, against the **built** HTML. Confirm Open Graph tags are in the served shell, not React-injected (§6) |
 | **Reveal safety** | Content visible when the observer never fires — force by disabling it, or test an element already in view on load |
