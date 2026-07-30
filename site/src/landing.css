@@ -368,6 +368,52 @@ section {
 .list-sentence {
   color: var(--landing-origin-text);
 }
+
+/*
+ * The example: one real turn through the story-graph kind spec's worked
+ * MVP arc (docs/docs/engine/03-story-graph-kind.md §12), not a mockup --
+ * same ruled-row shape as .ledger-refusals, since this is also an
+ * enumerated sequence, just two columns instead of one.
+ */
+.trace-lead {
+  color: var(--landing-muted);
+  margin-top: 1.25rem;
+}
+.trace-flow {
+  display: grid;
+  gap: 0;
+  list-style: none;
+  margin: 1.5rem 0 0;
+  padding: 0;
+}
+.trace-flow li {
+  border-top: 1px solid var(--landing-border-decorative);
+  display: grid;
+  gap: 0.3rem 1.5rem;
+  grid-template-columns: 9rem minmax(0, 1fr);
+  padding-block: 1rem;
+}
+.trace-flow li:last-child {
+  border-bottom: 1px solid var(--landing-border-decorative);
+}
+.trace-flow strong {
+  color: var(--landing-accent);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.82rem;
+}
+.trace-flow span {
+  color: var(--landing-origin-text);
+  line-height: 1.5;
+}
+.trace .commentary {
+  margin-top: 1.5rem;
+  max-width: none;
+}
+.trace > a:not(.continue) {
+  display: inline-block;
+  margin-top: 1.25rem;
+}
+
 .contract {
   border-block: 1px solid var(--landing-border-decorative);
   display: grid;

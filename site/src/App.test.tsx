@@ -93,6 +93,7 @@ describe("landing page", () => {
       "realization",
       "architecture",
       "abstraction",
+      "trace",
       "contract",
       "principles",
       "resolution",
@@ -128,6 +129,24 @@ describe("landing page", () => {
     expect(worldsSection?.textContent).toContain("Sun Trap");
     // Nothing is playable yet -- "Coming Soon" would overclaim status.
     expect(worldsSection?.textContent).not.toMatch(/coming soon/i);
+  });
+
+  it("grounds the worked example in the real spec, not a mocked screenshot", () => {
+    // The trace section exists to make the abstract "state, commands, rules"
+    // list concrete -- with the MVP Bureaucracy arc that is already
+    // authored in docs/docs/engine/03-story-graph-kind.md §12, not an
+    // invented mockup standing in for a system that doesn't run yet.
+    render(<App />);
+
+    const traceSection = document.getElementById("trace");
+    expect(traceSection).not.toBeNull();
+    expect(traceSection?.textContent).toContain("municipality");
+    expect(traceSection?.textContent).toContain("clerk_review");
+    expect(traceSection?.textContent).toContain("It Builds Character");
+    expect(traceSection?.textContent).toMatch(/not a screenshot/i);
+    expect(traceSection?.textContent).not.toMatch(
+      /\b(?:live|running|gameplay)\b/i,
+    );
   });
 
   it("leaves revealed content visible when no observer exists", () => {
