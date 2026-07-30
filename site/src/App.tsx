@@ -298,6 +298,66 @@ function App() {
             Consequences.
           </p>
           <p>Everything else is remarkably specific data.</p>
+          <ContinueLink to="#trace" />
+        </section>
+
+        <section
+          id="trace"
+          data-reveal=""
+          className="trace section-narrow"
+          aria-labelledby="trace-title"
+        >
+          <p className="section-index">06 / THE EXAMPLE</p>
+          <h2 id="trace-title">Here&apos;s What It Does Know.</h2>
+          <p className="trace-lead">
+            The MVP&apos;s worked example, from the story-graph kind spec: a
+            requirement-gated retry, a loop with visit counts, and one seeded
+            coin flip.
+          </p>
+          <ol className="trace-flow">
+            <li>
+              <strong>municipality</strong>
+              <span>
+                Wait it out, or meet the mayor&apos;s cousin over coffee.
+              </span>
+            </li>
+            <li>
+              <strong>clerk_review</strong>
+              <span>Seeded random: she smiles, or she doesn&apos;t.</span>
+            </li>
+            <li>
+              <strong>expired</strong>
+              <span>
+                Certificate&apos;s three months stale. Start over — or, patience
+                run out, cut the line.
+              </span>
+            </li>
+            <li>
+              <strong>room_14</strong>
+              <span>
+                Sent to Room 6. Everything happens in Room 14. Three visits,
+                then out.
+              </span>
+            </li>
+            <li>
+              <strong>reward</strong>
+              <span>
+                €300, 28 years of legal responsibility, and the achievement{" "}
+                <em>It Builds Character</em>.
+              </span>
+            </li>
+          </ol>
+          <p className="commentary">
+            <span className="commentary-marker" aria-hidden="true">
+              *
+            </span>
+            This is the spec, not a screenshot. The engine that runs it
+            doesn&apos;t exist yet — but the shape is real, not invented for
+            this page.
+          </p>
+          <DocsLink href={routes.storyGraph}>
+            Read the full worked example
+          </DocsLink>
           <ContinueLink to="#contract" />
         </section>
 
@@ -307,7 +367,7 @@ function App() {
           aria-labelledby="contract-title"
         >
           <div>
-            <p className="section-index">06 / THE BOUNDARY</p>
+            <p className="section-index">07 / THE BOUNDARY</p>
             <h2 id="contract-title">Commands Are the Boundary.</h2>
           </div>
           <div className="contract-copy">
@@ -336,7 +396,7 @@ function App() {
           aria-label="Engine principles"
         >
           <article className="ledger-refusals" aria-labelledby="refusals-title">
-            <p className="section-index">07 / REFUSALS</p>
+            <p className="section-index">08 / REFUSALS</p>
             <h2 id="refusals-title">Things This Engine Refuses to Do</h2>
             <ol>
               {refusals.map((item, index) => (
@@ -351,7 +411,7 @@ function App() {
             className="ledger-capabilities"
             aria-labelledby="capabilities-title"
           >
-            <p className="section-index">08 / CAPABILITIES</p>
+            <p className="section-index">09 / CAPABILITIES</p>
             <h2 id="capabilities-title">Things It Happily Does</h2>
             <ul>
               {capabilities.map((item) => (
@@ -368,7 +428,7 @@ function App() {
           className="resolution section-narrow"
           aria-labelledby="resolution-title"
         >
-          <p className="section-index">09 / THE ESCALATION</p>
+          <p className="section-index">10 / THE ESCALATION</p>
           <h2 id="resolution-title">
             This Project Did Not Begin With a Grand Vision.
           </h2>
@@ -403,7 +463,7 @@ function App() {
           className="worlds section-wide"
           aria-labelledby="worlds-title"
         >
-          <p className="section-index">10 / THE ENGINE</p>
+          <p className="section-index">11 / THE ENGINE</p>
           <h2 id="worlds-title">It Exists.</h2>
           <p className="worlds-lead">So do the worlds it will run.</p>
           <ul className="worlds-list">
@@ -430,7 +490,7 @@ function App() {
           className="cta section-wide"
           aria-labelledby="cta-title"
         >
-          <p className="section-index">11 / CONTINUE READING</p>
+          <p className="section-index">12 / CONTINUE READING</p>
           <h2 id="cta-title">Still Here?</h2>
           <p>Good. Now it becomes considerably less philosophical.</p>
           <div className="cta-actions">
