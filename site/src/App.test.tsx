@@ -83,4 +83,63 @@ describe("landing page", () => {
       "https://game-engine.subzerodev.com/docs/engine/content-packs",
     );
   });
+
+  it("leaves revealed content visible when no observer exists", () => {
+    // The failure mode worth testing: a reveal that never fires must not hide
+    // content. Without IntersectionObserver the hook must decline to add
+    // .js-reveal at all, since that class is what applies the hidden state.
+    const original = window.IntersectionObserver;
+    // @ts-expect-error deliberately removing the API to simulate absence
+    delete window.IntersectionObserver;
+
+    try {
+      render(<App />);
+      expect(document.documentElement.classList.contains("js-reveal")).toBe(
+        false,
+      );
+      expect(screen.getByRole("heading", { level: 1 })).toBeVisible();
+    } finally {
+      window.IntersectionObserver = original;
+    }
+  });
+
+  it("reveals content once it intersects, and unobserves it", () => {
+    const observed: Element[] = [];
+    const unobserved: Element[] = [];
+    let trigger: ((entries: unknown[]) => void) | undefined;
+
+    class FakeObserver {
+      constructor(cb: (entries: unknown[]) => void) {
+        trigger = cb;
+      }
+      observe(el: Element) {
+        observed.push(el);
+      }
+      unobserve(el: Element) {
+        unobserved.push(el);
+      }
+      disconnect() {}
+    }
+
+    const original = window.IntersectionObserver;
+    window.IntersectionObserver =
+      FakeObserver as unknown as typeof IntersectionObserver;
+
+    try {
+      render(<App />);
+      expect(document.documentElement.classList.contains("js-reveal")).toBe(
+        true,
+      );
+      expect(observed.length).toBeGreaterThan(0);
+
+      const first = observed[0];
+      trigger?.([{ isIntersecting: true, target: first }]);
+
+      expect(first.getAttribute("data-reveal")).toBe("shown");
+      expect(unobserved).toContain(first);
+    } finally {
+      window.IntersectionObserver = original;
+      document.documentElement.classList.remove("js-reveal");
+    }
+  });
 });

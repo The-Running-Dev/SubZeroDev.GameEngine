@@ -1,4 +1,6 @@
 import "./landing.css";
+import "./css/motion.css";
+import { useRevealOnScroll } from "./hooks/useRevealOnScroll";
 
 const docs = "https://game-engine.subzerodev.com/docs/";
 const repository = "https://github.com/The-Running-Dev/SubZeroDev.GameEngine";
@@ -80,6 +82,8 @@ function RepositoryLink({ href, children }: LinkProps) {
 }
 
 function App() {
+  useRevealOnScroll();
+
   return (
     <>
       <header className="site-header">
@@ -108,7 +112,18 @@ function App() {
           <p className="hero-pause" aria-hidden="true">
             ...
           </p>
-          <p className="signature">Well... why not?</p>
+          {/*
+            Desktop-only easter egg, and that limitation is deliberate. Touch
+            has no hover, and making a decorative line focusable would add a tab
+            stop that announces nothing useful. The alternate is hidden from
+            assistive technology so the line reads once, not twice.
+          */}
+          <p className="signature">
+            <span className="signature-default">Well... why not?</span>
+            <span className="signature-alt" aria-hidden="true">
+              Seriously. Why not?
+            </span>
+          </p>
           <a className="scroll-invitation" href="#origin">
             Scroll. It escalates. <span aria-hidden="true">↓</span>
           </a>
@@ -116,6 +131,7 @@ function App() {
 
         <section
           id="origin"
+          data-reveal=""
           className="origin section-narrow"
           aria-labelledby="origin-title"
         >
@@ -154,6 +170,7 @@ function App() {
         </section>
 
         <section
+          data-reveal=""
           className="realization section-narrow"
           aria-labelledby="realization-title"
         >
@@ -187,6 +204,7 @@ function App() {
           the diagram's text alternative -- is announced by nothing.
         */}
           <div
+            data-reveal=""
             className="architecture-diagram"
             role="group"
             aria-label="Architecture: Core is inherited by Kinds, which plus content become Campaigns, presented by Clients. Kinds fan out to three engine-owned kinds — story-graph, simulation and world-graph — each with a flagship campaign."
@@ -294,6 +312,7 @@ function App() {
         </section>
 
         <section
+          data-reveal=""
           className="resolution section-narrow"
           aria-labelledby="resolution-title"
         >
@@ -319,7 +338,11 @@ function App() {
           </div>
         </section>
 
-        <section className="cta section-wide" aria-labelledby="cta-title">
+        <section
+          data-reveal=""
+          className="cta section-wide"
+          aria-labelledby="cta-title"
+        >
           <p className="section-index">10 / CONTINUE READING</p>
           <h2 id="cta-title">Still here?</h2>
           <p>Good. Now it becomes considerably less philosophical.</p>
