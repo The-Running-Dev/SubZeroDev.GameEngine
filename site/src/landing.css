@@ -101,7 +101,7 @@ h2 {
  * of the 320px rule while losing the composed line entirely.
  */
 h1 {
-  font-size: clamp(2.1rem, 7vw, 5.5rem);
+  font-size: clamp(2.1rem, 5.2vw, 4rem);
   font-weight: 650;
   margin-block: 1.15rem 1.6rem;
   max-width: none;
@@ -118,10 +118,17 @@ h1 {
     display: none;
   }
 }
+/*
+ * No max-width in ch here. It used to be 14ch, which force-wrapped almost
+ * every section heading to two or three lines regardless of how much room
+ * the section actually had -- "This project did not begin with a grand
+ * vision." became three lines at 1280px, where the section is nearly 900px
+ * wide. Headings now wrap only when the section's own width genuinely
+ * requires it.
+ */
 h2 {
-  font-size: clamp(1.9rem, 3.6vw, 3rem);
+  font-size: clamp(1.5rem, 2.4vw, 2.25rem);
   font-weight: 590;
-  max-width: 14ch;
 }
 .hero-pause {
   color: var(--landing-muted);
@@ -160,7 +167,7 @@ h2 {
 }
 
 section {
-  padding-block: clamp(3.5rem, 8vw, 6rem);
+  padding-block: clamp(2.5rem, 5vw, 4rem);
   scroll-margin-top: 1.5rem;
 }
 .section-narrow {
@@ -211,7 +218,7 @@ section {
   margin-top: 2rem;
 }
 .display-copy {
-  font-size: clamp(1.6rem, 3vw, 2.6rem);
+  font-size: clamp(1.4rem, 2.2vw, 2rem);
   letter-spacing: -0.045em;
   line-height: 1.05;
   margin-top: 1.4rem;
