@@ -116,7 +116,7 @@ function createGame(host: EngineHost, config: NewGameConfig): CommandResult<Game
   // plan 09's inline note under createGame. A kind that settles at start and wants its
   // opening messages seen is covered by the client calling scene() immediately after.
   const state: GameState = {
-    formatVersion: 1,
+    formatVersion: CURRENT_FORMAT_VERSION,
     gameId,
     kindId: campaign.kindId,
     campaignId: campaign.id,
@@ -155,9 +155,18 @@ function submitAction(
     return { ok: false, errors: [error], warnings: [], changes: [], messages: [] };
   }
 
-  // Safe under the same argument: campaignId was validated in createGame and no field on
-  // GameState lets a client alter it afterward.
-  const campaign = host.registry.campaigns.get(state.campaignId)!;
+  const campaign = host.registry.campaigns.get(state.campaignId);
+  if (!campaign) {
+    // Defensive, same reasoning as the kind check above: reachable only via a foreign or
+    // hand-built state (deserialize now rejects this at the boundary too, but a state can
+    // still be constructed directly in tests or by a future caller).
+    const error: ValidationError = {
+      code: "unknown_campaign",
+      messageKey: "core.reason.unknown_campaign",
+      path: state.campaignId,
+    };
+    return { ok: false, errors: [error], warnings: [], changes: [], messages: [] };
+  }
 
   const seq = state.actionLog.length;
   const ctx = buildKindContext(host.registry, campaign, state.seed, { kind: "action", seq }, seq);
@@ -183,6 +192,12 @@ function submitAction(
 // ---------------------------------------------------------------------------
 // Read-only projections: scene, availableActions, view (04 §6, §9)
 // ---------------------------------------------------------------------------
+
+// The non-null assertions below are safe: createGame and submitAction only ever produce
+// a GameState whose campaignId/kindId resolve against this same host, and deserializeState
+// now checks resolvability too (not just shape) before returning ok:true. None of these
+// three methods can report an error — Engine.scene/availableActions/view return bare
+// values, not a CommandResult — so the guarantee has to live at the boundary instead.
 
 function view(host: EngineHost, state: GameState, audience: ProjectionAudience): PlayerView {
   const campaign = host.registry.campaigns.get(state.campaignId)!;
@@ -225,12 +240,18 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+/** The only envelope shape that has ever existed (04 §2, §10.2). */
+const CURRENT_FORMAT_VERSION = 1;
+
 const VALID_KIND_IDS: readonly string[] = ["story-graph", "simulation", "world-graph"];
 const VALID_STATUSES: readonly string[] = ["active", "ended", "abandoned"];
 
 function isValidLoggedAction(v: unknown): v is LoggedAction {
   if (!isPlainObject(v)) return false;
-  if (typeof v["seq"] !== "number") return false;
+  // "0-based, monotonic" (kernel/types.ts) rules out negatives and fractions here; the
+  // 0-based-monotonic-across-the-whole-log check lives in isValidActionLog below, since
+  // it needs the array, not just one entry.
+  if (typeof v["seq"] !== "number" || !Number.isInteger(v["seq"]) || v["seq"] < 0) return false;
   if (typeof v["actionId"] !== "string") return false;
   if ("params" in v) {
     const params = v["params"];
@@ -243,13 +264,23 @@ function isValidLoggedAction(v: unknown): v is LoggedAction {
 }
 
 /**
+ * `submitAction` always appends at `state.actionLog.length` (04 §4), so a log it produced
+ * is always exactly `[0, 1, 2, ..., length-1]`. Enforcing that shape on the way in is what
+ * keeps a deserialized log from handing a later `submitAction` a duplicate or gapped `seq`.
+ */
+function isValidActionLog(v: unknown): v is LoggedAction[] {
+  if (!Array.isArray(v)) return false;
+  return v.every((entry, index) => isValidLoggedAction(entry) && entry.seq === index);
+}
+
+/**
  * Hand-written structural check — no schema library; the package has zero runtime
  * dependencies (`TODO.md`, dev-dependency-advisories note) and this unit doesn't add one.
  * `kindState` is checked only for presence: it is `unknown` to the core by design (04 §2).
  */
 function isValidGameStateShape(v: unknown): v is GameState {
   if (!isPlainObject(v)) return false;
-  if (typeof v["formatVersion"] !== "number") return false;
+  if (v["formatVersion"] !== CURRENT_FORMAT_VERSION) return false;
   if (typeof v["gameId"] !== "string") return false;
   if (typeof v["kindId"] !== "string" || !VALID_KIND_IDS.includes(v["kindId"])) return false;
   if (typeof v["campaignId"] !== "string") return false;
@@ -257,7 +288,7 @@ function isValidGameStateShape(v: unknown): v is GameState {
   if (typeof v["seed"] !== "string") return false;
   if (typeof v["status"] !== "string" || !VALID_STATUSES.includes(v["status"])) return false;
   if (!("kindState" in v)) return false;
-  if (!Array.isArray(v["actionLog"]) || !v["actionLog"].every(isValidLoggedAction)) return false;
+  if (!isValidActionLog(v["actionLog"])) return false;
   return true;
 }
 
@@ -265,7 +296,14 @@ function serializeState(state: GameState): string {
   return canonicalStringify(state);
 }
 
-function deserializeState(data: string): CommandResult<GameState> {
+/**
+ * Shape-valid is not enough: a foreign or stale save can name a `campaignId`/`kindId`
+ * this host doesn't have, and every other engine method assumes a `GameState` it's
+ * handed already resolves against `host` (see the comment above `view`/`scene`/
+ * `availableActions`). Checked here, once, at the boundary, rather than defended against
+ * on every later call.
+ */
+function deserializeState(host: EngineHost, data: string): CommandResult<GameState> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(data);
@@ -278,14 +316,28 @@ function deserializeState(data: string): CommandResult<GameState> {
     return { ok: false, errors: [error], warnings: [] };
   }
 
+  if (!host.registry.campaigns.has(parsed.campaignId)) {
+    const error: ValidationError = {
+      code: "unknown_campaign",
+      messageKey: "core.reason.unknown_campaign",
+      path: parsed.campaignId,
+    };
+    return { ok: false, errors: [error], warnings: [] };
+  }
+
+  if (!host.kinds[parsed.kindId]) {
+    const error: ValidationError = { code: "unknown_kind", messageKey: "core.reason.unknown_kind", path: parsed.kindId };
+    return { ok: false, errors: [error], warnings: [] };
+  }
+
   return { ok: true, value: parsed, errors: [], warnings: [] };
 }
 
-function migrateState(data: string): CommandResult<GameState> {
+function migrateState(host: EngineHost, data: string): CommandResult<GameState> {
   // Migration mechanism is specified (04-core.md §10.2) but unexercised by the MVP
   // (MVP.md §4): exactly one formatVersion exists, so there is nothing to migrate from
   // yet. See plans/09-w3-pure-engine-kernel.md, Decision 5.
-  return deserializeState(data);
+  return deserializeState(host, data);
 }
 
 // ---------------------------------------------------------------------------
@@ -300,7 +352,7 @@ export function createEngine(host: EngineHost): Engine {
     availableActions: (state) => availableActions(host, state),
     submitAction: (state, actionId, params) => submitAction(host, state, actionId, params),
     serialize: (state) => serializeState(state),
-    deserialize: (data) => deserializeState(data),
-    migrate: (data) => migrateState(data),
+    deserialize: (data) => deserializeState(host, data),
+    migrate: (data) => migrateState(host, data),
   };
 }

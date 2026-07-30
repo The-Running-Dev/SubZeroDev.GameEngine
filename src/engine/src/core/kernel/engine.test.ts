@@ -205,6 +205,16 @@ describe("submitAction", () => {
     expect(result.errors[0]?.code).toBe("unknown_kind");
   });
 
+  it("rejects submitAction on a state whose campaignId isn't registered", () => {
+    const engine = createEngine(makeHost());
+    const created = engine.createGame({ campaignId: "test-campaign" });
+    const foreignState: GameState = { ...(created.value as GameState), campaignId: "gone" };
+
+    const result = engine.submitAction(foreignState, "increment");
+    expect(result.ok).toBe(false);
+    expect(result.errors[0]?.code).toBe("unknown_campaign");
+  });
+
   it("surfaces the kind's own unknown_action rejection", () => {
     const engine = createEngine(makeHost());
     const created = engine.createGame({ campaignId: "test-campaign" });
@@ -299,6 +309,57 @@ describe("serialize / deserialize / migrate", () => {
     const result = engine.deserialize(JSON.stringify(raw));
     expect(result.ok).toBe(false);
     expect(result.errors[0]?.code).toBe("invalid_state");
+  });
+
+  it("rejects an unsupported formatVersion", () => {
+    const engine = createEngine(makeHost());
+    const created = engine.createGame({ campaignId: "test-campaign" });
+    const raw = JSON.parse(engine.serialize(created.value as GameState)) as Record<string, unknown>;
+    raw["formatVersion"] = 2;
+    const result = engine.deserialize(JSON.stringify(raw));
+    expect(result.ok).toBe(false);
+    expect(result.errors[0]?.code).toBe("invalid_state");
+  });
+
+  it("rejects an actionLog with a gap in seq", () => {
+    const engine = createEngine(makeHost());
+    const created = engine.createGame({ campaignId: "test-campaign" });
+    const raw = JSON.parse(engine.serialize(created.value as GameState)) as Record<string, unknown>;
+    raw["actionLog"] = [{ seq: 0, actionId: "increment" }, { seq: 2, actionId: "increment" }];
+    const result = engine.deserialize(JSON.stringify(raw));
+    expect(result.ok).toBe(false);
+    expect(result.errors[0]?.code).toBe("invalid_state");
+  });
+
+  it("rejects an actionLog with a negative or non-integer seq", () => {
+    const engine = createEngine(makeHost());
+    const created = engine.createGame({ campaignId: "test-campaign" });
+    const raw = JSON.parse(engine.serialize(created.value as GameState)) as Record<string, unknown>;
+    raw["actionLog"] = [{ seq: -1, actionId: "increment" }];
+    expect(engine.deserialize(JSON.stringify(raw)).ok).toBe(false);
+
+    raw["actionLog"] = [{ seq: 0.5, actionId: "increment" }];
+    expect(engine.deserialize(JSON.stringify(raw)).ok).toBe(false);
+  });
+
+  it("rejects a shape-valid envelope whose campaign isn't in this host's registry", () => {
+    const engine = createEngine(makeHost());
+    const created = engine.createGame({ campaignId: "test-campaign" });
+    const raw = JSON.parse(engine.serialize(created.value as GameState)) as Record<string, unknown>;
+    raw["campaignId"] = "some-other-campaign";
+    const result = engine.deserialize(JSON.stringify(raw));
+    expect(result.ok).toBe(false);
+    expect(result.errors[0]?.code).toBe("unknown_campaign");
+  });
+
+  it("rejects a shape-valid envelope whose kind isn't registered on this host", () => {
+    const engine = createEngine(makeHost());
+    const created = engine.createGame({ campaignId: "test-campaign" });
+    const raw = JSON.parse(engine.serialize(created.value as GameState)) as Record<string, unknown>;
+    raw["kindId"] = "simulation";
+    const result = engine.deserialize(JSON.stringify(raw));
+    expect(result.ok).toBe(false);
+    expect(result.errors[0]?.code).toBe("unknown_kind");
   });
 
   it("never throws on malformed input", () => {
