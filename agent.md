@@ -28,6 +28,13 @@ only when it would have changed a decision.
 - **Verify, don't assert.** Running the PCG32 code in Node caught a golden-test vector
   written from memory (`5cae1c8b` → actually `cbed606e`). Assert only what you have checked;
   report failures plainly.
+- **Search the concept, not the phrasing you just edited.** Striking a requirement from seven
+  places, `grep 'without client-side'` returned clean — it cannot match *"or client-side
+  JavaScript"*, and six stale statements survived a check reported as thorough (PR #23; review
+  caught two, a concept-level re-sweep for `javascript|prerender|hydrat|SSR` caught the rest).
+  A pattern built from the text you changed confirms your edits instead of finding your misses.
+  **Removals are where this bites**: a bad edit contradicts something visibly, a missed removal
+  is silent.
 - **Spec before code.** Building ahead of spec is where drift starts. Asked to "keep going"
   into code, we stopped and wrote the core spec (`04-core`) first — which immediately
   exposed that `03`'s kind-state duplicated envelope fields. That reconciliation would have
