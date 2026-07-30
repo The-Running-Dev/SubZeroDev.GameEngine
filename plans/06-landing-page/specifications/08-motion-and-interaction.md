@@ -56,7 +56,10 @@ Possible sequence:
 4. `Well... why not?` appears.
 5. Scroll invitation appears last.
 
-All content must remain visible without JavaScript.
+A failed or absent reveal must leave content **visible, never hidden**. Content is visible by
+default; animation is added on top. An `IntersectionObserver` that never fires — an element already
+in view on load, an observer error, a bailed-out effect — must degrade to fully readable content, not
+to a blank section.
 
 ## Scroll reveals
 

@@ -2,7 +2,8 @@
 
 ## Overall model
 
-The homepage is a single custom Docusaurus page designed as a scrolling narrative.
+The landing page is a single standalone React page designed as a scrolling narrative, living under
+`site/` and separate from the documentation site.
 
 It should feel like an interactive essay, not a collection of product cards.
 
@@ -169,19 +170,24 @@ Games
 
 ### Diagram
 
+Four layers, fixed by `00-repository-reality.md` §1. The five-layer version this section used to draw
+described a model that does not exist.
+
 ```text
-Deterministic Core
-        ↓
-Reusable Mechanics
-        ↓
-Game Kinds
-        ↓
-Campaign Content
-        ↓
-Presentation
+Core
+  ↓
+Kinds ─────┬──────────────┬──────────────┐
+  ↓     story-graph    simulation    world-graph
+Campaigns  Bulgaria     Life in the   Sun Trap
+  ↓                     Fast Lane
+Clients
 ```
 
-Each layer should be clickable or hoverable to reveal a short explanation.
+**Fan out, do not stack.** Four nodes in a vertical line cannot carry the widest canvas on the page.
+The branch fills it and demonstrates the thesis instead of asserting it.
+
+Each layer name is a **link** to its spec, not a click target that reveals a panel — every summary is
+visible already, so revealing it adds nothing. Hover and focus highlighting is CSS only.
 
 ### Core copy
 
@@ -277,11 +283,12 @@ Well... why not?
 ### CTAs
 
 - Read the architecture
-- Explore the concepts
 - View the documentation
 - Browse the repository
 
-Primary CTA should be `Read the architecture`.
+Primary CTA should be `Read the architecture`. "Explore the concepts" is cut — it had no destination,
+and four CTAs in one block was one too many. Destinations are the absolute cross-site URLs in
+`00-repository-reality.md` §3.
 
 ## Section 12 — Footer
 

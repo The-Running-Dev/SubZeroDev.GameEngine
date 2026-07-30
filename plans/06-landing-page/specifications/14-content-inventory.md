@@ -95,8 +95,8 @@
 
 - `Well... why not?` stays.
 - The origin story is a homepage element, not hidden background.
-- The page should be a custom Docusaurus page, not only Markdown.
-- Docusaurus is the host, not the visual experience.
+- The page is a standalone React SPA under `site/`, not part of the documentation site.
+- Dark only. No light mode, no toggle.
 - The homepage may be funny; the docs should become serious.
 - Humor target is restrained.
 - No generic SaaS look.
@@ -104,18 +104,23 @@
 - Typography and whitespace carry the design.
 - The truth is more memorable than a polished origin myth.
 
-## Open repository-specific decisions
+## Repository-specific decisions — ALL RESOLVED
 
-These require inspection:
+Every item below was an open question requiring inspection. The audit in
+`00-repository-reality.md` answered all of them; that document is the authority.
 
-- exact engine name and capitalization
-- actual layer terminology
-- existing visual brand
-- current homepage route and component
-- GitHub link
-- architecture documentation path
-- docs entry route
-- light-mode requirements
-- whether the default navbar/footer should remain
-- whether a live demo exists
-- whether replay and AI command validation are implemented or planned
+| Was open | Resolved |
+|---|---|
+| Exact engine name and capitalization | SubZeroDev Game Engine |
+| Actual layer terminology | `Core → Kinds → Campaigns → Clients` (§1). No `Mechanics`, no `Games` |
+| Existing visual brand | None to inherit — new standalone project |
+| Current homepage route and component | The docs site's `/` is README-generated and stays. The landing page is separate (§5, §6) |
+| GitHub link, architecture path, docs entry route | Route inventory (§3), as absolute cross-site URLs |
+| Light-mode requirements | Dark only. No toggle, no `prefers-color-scheme` branch (§6) |
+| Whether the default navbar/footer should remain | Not applicable — the site owns its own shell |
+| Whether a live demo exists | No. Blocked until `advance(state, action)` exists. Do not fake one |
+| Whether replay and AI command validation are implemented | Replay is **planned** (post-MVP); command validation is a **contract**. Capability matrix, §2 |
+
+One item genuinely remains open: **hosting**, which is undecided and not to be reconstructed.
+
+The capability matrix is a snapshot. Re-check it whenever a work item lands — see §2.

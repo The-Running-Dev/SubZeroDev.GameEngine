@@ -77,7 +77,15 @@ Four minimal edits, so an implementer cannot follow a stale instruction:
 
 16 of 34 files carried no unique content. See *Cleanup detail* above.
 
-### 2. BLOCKER — the homepage is a generated file behind a CI gate
+### 2. PLACEMENT CONSTRAINT — the docs site's `/` is a generated file behind a CI gate
+
+> **Reclassified.** This was recorded as a blocker on the assumption that the landing page would be
+> built inside the docs project. It is a **standalone site under `site/`**, so this is not a problem
+> to solve — it is the boundary between the two properties, and the reason the landing page needs its
+> own project. The retirement procedure this finding originally implied is withdrawn in full; nothing
+> in the documentation system changes.
+
+
 
 The bundle's core instruction (`specifications/09-docusaurus-architecture.md:5`,
 `13-agent-implementation-brief.md:70`) is "implement the homepage as a custom Docusaurus React
@@ -94,7 +102,13 @@ Adding `index.tsx` beside `index.md` creates two routes at `/`; deleting `index.
 registered generated-file check. Not a Gate 0 detail — it invalidates the delivery vehicle, and
 no document in the bundle mentions it.
 
-### 3. BLOCKER — there is no local Docusaurus project to build into
+### 3. Why a standalone project is required — there is nothing here to build into
+
+> **Reclassified** from blocker for the same reason as finding 2. The absence of a project to extend
+> is not a defect in the bundle; it is why the landing page gets its own `package.json` under `site/`
+> — which in turn makes the bundle's test plan achievable rather than unrunnable.
+
+
 
 `docs/` contains only `docusaurus.config.ts`, `sidebar.ts`, `Dockerfile`, `.dockerignore` and
 markdown. No `package.json`, no `node_modules`, no `src/components`, no `src/css/custom.css`, no
@@ -160,7 +174,12 @@ split.
   `docusaurus.config.ts:56` sets `blog: false`.
 - Same file lists `/architecture/...`; the real path is `/docs/engine/architecture`.
 - The navbar today has exactly one item (Docs).
-- `02-approved-homepage-copy.md:302` "Explore the concepts" has **no** corresponding route.
+- `02-approved-homepage-copy.md:302` "Explore the concepts" has **no** corresponding route. Cut.
+- **Every docs destination is an absolute cross-site URL**, not a path — the landing page is a
+  separate origin and cannot resolve `/docs/...`. And nothing validates them: Docusaurus'
+  `onBrokenLinks` covers only the docs site, and `build/Test-Documentation.ps1` skips site-absolute
+  targets by design. The route inventory is the only check that exists, so renaming a spec silently
+  breaks a CTA with no build failure anywhere.
 
 ### 7. `AGENTS.md` does not exist
 
@@ -168,7 +187,13 @@ Referenced by `00-handoff-readme.md:30`, `01-implementation-plan.md:82`,
 `12-implementation-roadmap.md:7`. This repo uses `CLAUDE.md` and `agent.md`. Corrected in all
 three.
 
-### 8. The README already tells this story
+### 8. The README already tells this story — OUT OF SCOPE by decision
+
+> The observation stands and is left on record, but `README.md` is **out of scope**: not edited, not
+> shortened, not consulted as a source of copy. There is no pitch-ownership decision to make, because
+> the docs site keeps its README-generated root unchanged and the landing page is a separate property.
+
+
 
 `README.md` is 459 lines and its headings map almost 1:1 onto the bundle's proposed sequence.
 Because the README *is* the homepage today (finding 2), the bundle proposed a second home for
@@ -225,19 +250,28 @@ preserve the bundle as authored, which is a legitimate call — but the risk is 
 mitigated to zero. If this bundle is going to be handed to an implementing agent rather than
 read by a human, correcting the seven affected files in place is the better trade.
 
-### Retiring the generated homepage is expensive, and the cost is all in machinery
+### ~~Retiring the generated homepage is expensive~~ — WITHDRAWN
 
-The decision buys a React landing page by giving up a working drift gate, re-running an installer
-that rewrites an uncommitted script (`docs.ps1`), and editing `CLAUDE.md` plus a config comment
-that both explain the old arrangement as settled design.
+This was the strongest objection to the earlier plan: retiring the generated homepage meant giving up
+a working drift gate, re-running an installer that rewrites an uncommitted script, and editing
+`CLAUDE.md` plus a config comment.
 
-The alternative — keep the README as the homepage, restructure it, add theming — was not
-explored to the same depth. It would get a meaningful fraction of the design win for none of the
-machinery cost, and it keeps a single source of truth for the pitch. It loses the interactive
-architecture diagram, which is the bundle's best idea and genuinely hard to do in markdown.
+**It evaporated with the assumption beneath it.** The landing page is standalone, so nothing is
+retired and nothing in the documentation system changes. Recorded rather than deleted because it is
+the clearest evidence that the placement correction genuinely simplified the work rather than shuffling
+complexity — two open unknowns closed as moot at the same time.
 
-This was decided deliberately and I am not reopening it. But the plan should not pretend the
-cost is small: **the landing page is cheap and the retirement is not.**
+### The no-JavaScript requirement was found late, and there may be others
+
+It sat in seven places, in documents read in full, and only became visible when the stack changed —
+because Docusaurus satisfied it invisibly. **A constraint met by accident is indistinguishable from a
+constraint understood**, until the thing meeting it is removed.
+
+Dropping it was the call, and the strike deliberately preserved the three requirements tangled with it
+(keyboard, screen reader, reduced motion) plus restated reveal safety. But the class of error is worth
+naming: route handling, heading-anchor generation and image handling were also framework-provided and
+have not been audited with the same care. Theme toggling and `prefers-color-scheme` closed when the
+dark-only decision landed.
 
 ### Two unknowns sit on the critical path
 

@@ -83,24 +83,34 @@ type ArchitectureLayer = {
 
 ### Required behavior
 
-- visible static fallback
-- semantic buttons or links if interactive
-- keyboard navigation
-- touch support
-- no hover-only descriptions
-- active state reflected with `aria-pressed` or proper disclosure semantics
-- no canvas unless necessary
-- prefer SVG or semantic HTML
+**Each layer is a link, not a click target.** That decision removes most of what this component used
+to need:
+
+- every layer and its summary visible without interaction — there is no "fallback", this is the
+  component
+- layers are `<a>` elements pointing at the specs, using the absolute URLs in
+  `00-repository-reality.md` §3
+- keyboard operation, focus handling and screen-reader semantics therefore come free
+- hover and focus highlighting via CSS only
+- no details region, no `aria-pressed`, no selection state, no separate mobile disclosure variant
+- decorative connectors hidden from assistive technology
+- prefer SVG or semantic HTML; no canvas
+
+The earlier design had clicking a layer reveal its summary in a details panel. Since interaction must
+never gate meaning, those summaries had to be visible anyway — so the panel re-showed text already on
+the page, at the cost of the entire ARIA and mobile-disclosure surface above.
 
 ### Layers
 
-1. Deterministic Core
-2. Reusable Mechanics
-3. Game Kinds
-4. Campaigns
-5. Games / Presentation
+Four, fixed by `00-repository-reality.md` §1:
 
-Names must be verified against actual project terminology before implementation.
+1. `Core`
+2. `Kinds` — which fans out to `story-graph`, `simulation`, `world-graph`
+3. `Campaigns`
+4. `Clients`
+
+There is no `Mechanics` layer and no `Games` layer; both were inventions. Mechanics live inside
+Kinds. Draw it as a fan-out, not a vertical stack — see `specifications/07-visual-design-system.md`.
 
 ## `PhilosophySection`
 
@@ -113,13 +123,28 @@ Contains:
 
 Should not become a long wall of text.
 
-## `RefusalsSection`
+## `RefusalsSection` and `CapabilitiesSection`
 
-Render as a clean vertical list.
+**Four items each, and break the symmetry.**
 
-Do not use red cross icons everywhere.
+As authored these were six items each, in deliberately matched vertical ledgers — "render similarly
+to Refusals for visual symmetry". That produced twelve numbered short lines back to back in identical
+form, in the longest text-only stretch of the page. Two identical blocks read as one long block, and
+the rhetorical contrast the pairing exists to create is exactly what identical treatment destroys.
 
-Possible design:
+So:
+
+- **Four items each**, not six. Both lists had filler by item five.
+- **Drop the refusal "Rewrite the same inventory system for every game."** By the time the reader
+  reaches it, the hero, the problem section and the realization have each said it.
+- **Treat them differently.** One as the numbered vertical ledger; the other tighter — inline, or
+  two columns, or unnumbered. Or merge both into a single side-by-side "refuses / does" contrast,
+  which is one visual event instead of two identical ones.
+
+Still true: no red cross icons, no six-card feature grid, and Refusals must not read as errors —
+which is why `--landing-danger-soft` was removed from the palette.
+
+Numbered ledger form, for whichever list keeps it:
 
 ```text
 01  Rewrite inventory systems
@@ -127,27 +152,20 @@ Possible design:
 03  Trust unvalidated content
 ```
 
-## `CapabilitiesSection`
+## `StoryTimeline` — DROPPED
 
-Render similarly to Refusals for visual symmetry.
+Do not build it. Two reasons.
 
-Avoid a six-card feature grid unless later testing proves it is more readable.
+**It fails its own admission criterion.** The condition was "use only if it adds clarity without
+repeating the origin prose". Its seven steps — *I miss Jones / Ask an LLM / Mechanics explained /
+Implementation suggested / Reuse discovered / Determinism required / Engine appears* — are each
+already narrated: the first four in the origin trigger, the last three across the realization and
+resolution sections. It can only repeat the origin prose, so the condition is unsatisfiable.
 
-## `StoryTimeline`
-
-Optional.
-
-Use only if it adds clarity without repeating the origin prose.
-
-Timeline steps:
-
-- I miss Jones
-- Ask an LLM
-- Mechanics explained
-- Implementation suggested
-- Reuse discovered
-- Determinism required
-- Engine appears
+**It is visually the same shape as the architecture diagram** — vertical stacked nodes joined by
+arrows. Two of those on one page reads as the same component twice, which flattens the one element
+that is supposed to be the page's single visual event. The cost is not just repetition; it is
+dilution of the centerpiece.
 
 ## `DocumentationCta`
 
@@ -157,9 +175,11 @@ Read the architecture
 
 ### Secondary actions
 
-- Explore concepts
 - View documentation
 - Browse GitHub
+
+"Explore the concepts" is cut — it had no destination (`00-repository-reality.md` §3), and four CTAs
+in one block was one too many regardless.
 
 ### Tone
 
@@ -171,21 +191,36 @@ Read the architecture
 
 ## `LandingFooter`
 
-Contains project identity and signature closing.
+Contains project identity and signature closing. The site owns its own footer — there is no framework
+footer to avoid duplicating.
 
-Should not duplicate the full default Docusaurus footer if both are rendered.
+### The signature interaction
+
+*"Well... why not?"* becoming *"Seriously. Why not?"* is **hover and focus on desktop only**, and that
+limitation is deliberate rather than an oversight. Touch devices have no hover, and making a
+decorative line focusable adds a tab stop that announces nothing useful to a screen-reader user — a
+real accessibility cost for a joke.
+
+If it should be available to everyone, make it a real `<button>` with an accessible name. Do not
+leave it as a focusable non-control.
 
 ## `Reveal`
 
-Avoid creating a component that hides content before JavaScript.
+Never hide content behind a reveal that may not fire. Prefer a hook or data attribute that adds
+enhancement classes on top of content that is already visible.
 
-Prefer a hook or data attribute that adds enhancement classes.
+The rule: **a failed or absent reveal leaves content visible, never hidden.** An
+`IntersectionObserver` that never fires — element already in view on load, observer error, bailed-out
+effect — must degrade to readable content, not a blank section.
 
 ## Testing expectations
 
+The project owns its own test runner (`00-repository-reality.md` §7), so these are achievable rather
+than aspirational.
+
 - render test for each major section
-- keyboard interaction test for architecture layers
-- reduced-motion behavior test where practical
-- no broken internal links
-- no hydration mismatch
-- Lighthouse or equivalent checks
+- architecture layers render as links with the correct hrefs, matching the route inventory
+- reduced-motion behavior
+- reveal safety — content present when the observer does not fire
+- Open Graph tags present in the built HTML, not React-injected
+- no horizontal overflow at 320px

@@ -47,7 +47,11 @@ Well... why not?
 
 **Scroll invitation**
 
-Scroll. It gets weirder.
+Scroll. It escalates.
+
+*(Was "Scroll. It gets weirder." The page does not get weirder — it gets more serious, deliberately,
+which is one of its better decisions. "Escalates" is truthful, keeps the deadpan, and reuses an
+approved recurring line.)*
 
 ---
 
@@ -119,37 +123,40 @@ And mechanics should be reusable.
 
 ### Reuse the rules. Replace the world.
 
-The following labels and relationships are provisional until confirmed against the repository.
+Labels and relationships are fixed by `00-repository-reality.md` §1. The five-layer version this
+section used to carry — with a `Reusable Mechanics` layer and `Games` at the bottom — described a
+model that does not exist.
 
-**Deterministic Core**
+**Core**
 
-Validates commands, advances time, and controls state transitions.
+Deterministic state, seeded randomness, save and replay, validation. One API.
 
-*establishes*
+*inherited by*
 
-**Reusable Mechanics**
+**Kinds**
 
-Inventory, economy, schedules, relationships, progression, and other reusable systems.
+Reviewed engine mechanics. Three of them: story graphs, simulations, world graphs.
 
-*composed as*
-
-**Game Kinds**
-
-Reusable arrangements of mechanics for families of games and simulations.
-
-*configured by*
+*plus content*
 
 **Campaigns**
 
-Characters, places, items, stories, worlds, and configured rules.
+Characters, places, items, stories, worlds. A Kind plus the data that makes it a game.
 
-*presented as*
+*presented by*
 
-**Games**
+**Clients**
 
-The simulation does not depend on a renderer.
+Web. Command line. Discord. An AI agent. The simulation does not depend on any of them.
 
-The renderer observes the simulation.
+Mechanics live inside Kinds — there is no separate mechanics layer. Kinds define mechanics. Campaigns
+define worlds. Clients simply present them.
+
+A Client observes the simulation. It never participates in it.
+
+*Render this as a fan-out: the spine on the left, and Kinds branching to `story-graph`, `simulation`
+and `world-graph` with their flagship campaigns. Each layer name is a link to its spec. See*
+`specifications/07-visual-design-system.md`.
 
 ---
 
@@ -209,13 +216,17 @@ AI submits commands.
 
 The engine validates both.
 
-Neither receives permission to reach into the world and rearrange state directly.
+Neither gets permission to reach into the world and rearrange state directly.
 
 Equality is important.
 
 Especially when both are about to violate validation rules.
 
-**Verification note:** If the human/AI command boundary is planned rather than implemented, revise this section so it describes an architectural principle rather than current behavior.
+**Verification note — ANSWERED.** The command boundary is an **architectural contract**, not current
+behavior: `validation/` is types only and `advance(state, action)` is not written yet
+(`00-repository-reality.md` §2). This section is written in the present tense as a statement of
+design, which is legitimate — but it must not be surrounded by copy implying a running system, and it
+must never claim the validation has been *observed* to work.
 
 ---
 
@@ -223,17 +234,17 @@ Especially when both are about to violate validation rules.
 
 ### Things this engine refuses to do
 
-01 — Rewrite the same inventory system for every game.
+01 — Hide randomness where nobody can reproduce it.
 
-02 — Hide randomness where nobody can reproduce it.
+02 — Embed gameplay rules inside rendering code.
 
-03 — Embed gameplay rules inside rendering code.
+03 — Allow arbitrary state mutation.
 
-04 — Allow arbitrary state mutation.
+04 — Trust generated content because it sounded confident.
 
-05 — Trust generated content because it sounded confident.
-
-06 — Confuse presentation with simulation.
+*(Four, down from six. "Rewrite the same inventory system for every game" is cut — the hero, the
+problem section and the realization have each already said it. "Confuse presentation with simulation"
+is cut as a near-duplicate of 02.)*
 
 ---
 
@@ -241,19 +252,29 @@ Especially when both are about to violate validation rules.
 
 ### Things it happily does
 
-01 — Validate commands.
+01 — Produce randomness you can reproduce from a seed.
 
-02 — Produce deterministic state transitions.
+02 — Serialize a world to bytes, identically, every time.
 
-03 — Replay worlds.
+03 — Separate mechanics from fiction.
 
-04 — Separate mechanics from fiction.
+04 — Become considerably larger than the original idea.
 
-05 — Operate independently from a single presentation.
+**Verification note — ANSWERED.** Rewritten against the capability matrix in
+`00-repository-reality.md` §2, which is the authority for what may be claimed.
 
-06 — Become considerably larger than the original idea.
+Removed, because they are **contracts or plans**, not behavior:
 
-**Verification note:** Present only verified current capabilities as direct statements. Rephrase architectural contracts and remove unsupported items.
+- *"Validate commands"* — `validation/` is types only.
+- *"Produce deterministic state transitions"* — the RNG and canonical serialization exist; the
+  transition function does not. Items 01 and 02 above claim exactly the parts that are real.
+- *"Replay worlds"* — post-MVP, not implemented.
+- *"Operate independently from a single presentation"* — a contract; no client exists yet.
+
+Items 01–03 are implemented or genuinely architectural. Item 04 is a joke and stays.
+
+Re-check this list whenever a work item lands — the matrix is a snapshot, and the first thing
+`advance(state, action)` does is make three of the removed lines true.
 
 ---
 
@@ -267,13 +288,9 @@ The reasonable response would have been to enjoy the explanation, close the conv
 
 Instead, one question led to another.
 
-If mechanics were reusable, the simulation should not depend on presentation.
-
-If the simulation was separate, commands could be validated.
-
-If commands were deterministic, worlds could be replayed.
-
-If content was data, humans and AI could use the same engine interface.
+*(Four "If X, then Y" lines were cut here. They restated the architecture, operating-contract and
+abstraction sections the reader has just finished — the repetition the trigger/resolution split
+exists to avoid. The resolution's job is the turn and the punchline, not a recap.)*
 
 A week later...
 
@@ -299,11 +316,14 @@ Read the architecture
 
 **Secondary actions**
 
-- Explore the concepts
 - View the documentation
 - Browse the repository
 
-Use only verified destinations.
+*("Explore the concepts" is cut — it had no destination, and four CTAs in one block was one too
+many.)*
+
+Destinations are the absolute cross-site URLs in `00-repository-reality.md` §3. The landing page is a
+separate site, so `/docs/...` is a link to another origin, not a path it can resolve.
 
 ---
 

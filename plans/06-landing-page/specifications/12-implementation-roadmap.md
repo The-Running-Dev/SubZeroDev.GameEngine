@@ -20,7 +20,7 @@ Retained as the record of what was asked for:
 
 - inspect repository instructions — `CLAUDE.md` and `agent.md`
 - inspect package manager
-- inspect Docusaurus version
+- inspect React and build-tool versions
 - inspect existing `src/pages/index.*`
 - inspect `src/css/custom.css`
 - inspect theme configuration
@@ -54,8 +54,8 @@ No complex animation.
 
 ### Acceptance
 
-- complete page readable without JavaScript
-- all links work
+- content visible when a reveal does not fire
+- all links work, and match the route inventory in `00-repository-reality.md` §3
 - responsive layout works
 - content matches approved copy
 - default docs remain unchanged
@@ -109,29 +109,39 @@ Implement an interactive architecture diagram based on real project terminology.
 
 ## Phase 5 — Quality control
 
-Run:
+Run the `site/` project's own toolchain — it owns a `package.json`, so these are real:
 
 - formatter
 - linter
 - type check
 - unit tests
-- Docusaurus build
-- internal link checks
+- production build
 - accessibility review
 - responsive screenshots
-- Lighthouse audit if available
+
+By hand, because nothing automates them:
+
+- **CTA destinations** against the route inventory in `00-repository-reality.md` §3. They are
+  cross-site absolute URLs, which no link checker in this repository sees.
+- **Open Graph tags present in the built HTML**, not React-injected.
+- **Reveal safety** — content visible when the observer does not fire.
+
+Deploy verification **waits on a hosting decision**; none is made.
 
 ## Phase 6 — Optional enhancements
 
 Only after the core page is complete:
 
-- deterministic command demo
-- replay visualization
-- timeline interaction
+- deterministic command demo — **blocked** until `advance(state, action)` exists. Do not fake it; a
+  simulated demo of a determinism claim is the one lie this project cannot afford
+- replay visualization — likewise, and replay is post-MVP
 - architecture deep-linking
 - social preview image
 - analytics events
 - live example world
+
+Dropped: the origin timeline interaction. It duplicates the origin prose and repeats the architecture
+diagram's shape — see `10-component-specifications.md`.
 
 ## Definition of done
 

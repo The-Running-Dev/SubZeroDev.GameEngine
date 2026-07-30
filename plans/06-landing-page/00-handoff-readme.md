@@ -2,7 +2,8 @@
 
 ## Objective
 
-Design and implement a custom Docusaurus homepage for the SubZeroDev Game Engine.
+Design and implement a standalone React landing page for the SubZeroDev Game Engine, living under
+`site/`. It is a separate site from the documentation — see `00-repository-reality.md` §6.
 
 The homepage should feel like a restrained, technically credible editorial essay that gradually reveals the serious architecture behind the project's accidental origin.
 
@@ -61,7 +62,7 @@ It covered, and settled, each of the following:
 - actual engine name and capitalization;
 - verified architecture layer names;
 - implemented, contractual, planned, and unsupported capabilities;
-- existing homepage and Docusaurus structure;
+- where the landing page lives, and why not in the docs project;
 - documentation, architecture, GitHub, and blog routes;
 - current navbar, footer, theme, fonts, logo, and visual tokens;
 - package manager and required validation commands;
@@ -179,14 +180,14 @@ The implementation is complete only when:
 - the origin story and architectural insight form one coherent narrative;
 - architecture terminology is verified;
 - the complete story works without animation;
-- content remains available without client-side JavaScript;
+- a failed or absent reveal leaves content visible, never hidden;
 - architecture interaction supports keyboard, pointer, and touch;
 - reduced-motion behavior is complete;
 - focus is visible;
 - WCAG AA contrast is met;
 - the page works without horizontal overflow at 320px;
-- routes and CTA destinations are real;
-- documentation behavior remains unchanged;
+- routes and CTA destinations are real, and match the route inventory in `00-repository-reality.md` §3;
+- Open Graph and social-preview tags are present in the built HTML shell, not React-injected;
 - repository-required checks and production build pass;
 - no unsupported capability is presented as current fact.
 

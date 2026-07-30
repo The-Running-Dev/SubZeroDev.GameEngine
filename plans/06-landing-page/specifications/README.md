@@ -1,6 +1,12 @@
 # SubZeroDev Game Engine Landing Page Specification Bundle
 
-This bundle defines the creative direction, user experience, content, visual system, Docusaurus implementation, motion design, and implementation plan for the SubZeroDev Game Engine landing page.
+> **Read `../00-repository-reality.md` first.** It is the highest authority in this bundle and
+> overrides everything here on any question of fact — architecture names, capability claims, routes,
+> placement, stack and theme. These specifications were authored without access to the repository.
+
+This bundle defines the creative direction, user experience, content, visual system, site
+implementation, motion design, and implementation plan for the SubZeroDev Game Engine landing page —
+a standalone React site under `site/`, separate from the documentation.
 
 The central idea is simple:
 
@@ -23,7 +29,7 @@ Use this bundle as input for:
 - Claude Opus or another design/review model
 - Codex or another implementation agent
 - A human designer
-- A Docusaurus implementation task
+- A React implementation task
 - A repository issue or project milestone
 - A future visual prototype
 

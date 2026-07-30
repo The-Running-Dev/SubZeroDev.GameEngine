@@ -113,16 +113,17 @@ Build the rules once.
 Replace the world.
 
 ```text
-Deterministic Core
-        ↓
-Reusable Mechanics
-        ↓
-Game Kinds
-        ↓
-Campaigns
-        ↓
-Games
+Core
+  ↓
+Kinds ─────┬──────────────┬──────────────┐
+  ↓     story-graph    simulation    world-graph
+Campaigns  Bulgaria     Life in the   Sun Trap
+  ↓                     Fast Lane
+Clients
 ```
+
+Four layers, not five — there is no `Mechanics` layer, and the last one is `Clients`, not `Games`.
+See `00-repository-reality.md` §1. Draw it as the fan-out above, not a vertical stack.
 
 ---
 
@@ -265,7 +266,6 @@ Now it becomes considerably less philosophical.
 ### Buttons
 
 Read the architecture  
-Explore the concepts  
 View the documentation  
 Browse the repository
 

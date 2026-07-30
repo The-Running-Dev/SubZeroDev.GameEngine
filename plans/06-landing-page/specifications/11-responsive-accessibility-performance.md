@@ -28,7 +28,7 @@
 
 ## Breakpoint guidance
 
-Use existing Docusaurus breakpoints if available.
+There are no existing breakpoints to inherit — this is a new standalone project.
 
 Suggested conceptual breakpoints:
 
@@ -116,9 +116,12 @@ These are guidelines:
 
 ### Rendering
 
-Prefer static server rendering through Docusaurus.
+The page is a client-rendered React SPA. It is not prerendered or server-rendered, and the
+requirement that content survive without JavaScript has been dropped — see
+`00-repository-reality.md` §6.
 
-Avoid client-only rendering for primary content.
+What still holds: content is visible by default and animation is added on top, so a reveal that
+never fires leaves the page readable rather than blank.
 
 ### Fonts
 
@@ -132,14 +135,24 @@ Do not load five weights for each font.
 
 ## SEO and social previews
 
+**These tags must live in the static HTML shell, not be injected by React.** Slack, Discord,
+Twitter/X, LinkedIn and iMessage unfurlers do not execute JavaScript, so a React-injected meta tag
+is invisible to them and every shared link renders bare. For a page whose main distribution is a
+pasted link, this is the single most consequential consequence of client-side rendering.
+
+Search coverage likewise depends on the crawler executing JavaScript. A noted tradeoff — this
+bundle states no organic-search ambition.
+
 Create:
 
 - page title
 - meta description
-- canonical URL
 - Open Graph title
 - Open Graph description
 - project-specific social preview image
+
+Canonical URL, Open Graph URL and any sitemap entry **wait on a hosting decision** — the domain is
+not decided (`00-repository-reality.md` §6). Do not fill them in speculatively.
 
 The social preview can use typography only:
 

@@ -4,7 +4,8 @@ Use this document as the direct prompt for a coding agent after supplying the re
 
 ## Objective
 
-Design and implement a polished custom Docusaurus landing page for the SubZeroDev Game Engine.
+Design and implement a polished standalone React landing page for the SubZeroDev Game Engine, under
+`site/`. Read `00-repository-reality.md` first — it is the highest authority in this bundle.
 
 The page should feel like a beautifully designed technical essay rather than a normal documentation homepage or generic SaaS landing page.
 
@@ -67,10 +68,10 @@ Do not clone those brands.
 ## Technical instructions
 
 1. Inspect repository instructions and conventions before editing.
-2. Implement as a custom Docusaurus React homepage.
-3. Reuse existing dependencies and design tokens where appropriate.
+2. Implement as a standalone React SPA under `site/`. Plain Vite is sufficient.
+3. There are no existing dependencies or design tokens to reuse — this is a new project.
 4. Avoid adding an animation library unless clearly necessary.
-5. Keep primary content statically rendered.
+5. Put Open Graph and social-preview tags in the static HTML shell, never React-injected.
 6. Use semantic HTML.
 7. Ensure keyboard access.
 8. Support reduced motion.
@@ -84,14 +85,19 @@ Do not clone those brands.
 ## Suggested files
 
 ```text
-src/pages/index.tsx
-src/pages/index.module.css
-src/components/landing/*
-src/css/landing/*
-src/data/landingPageContent.ts
+site/index.html              the shell — Open Graph tags live HERE, not in React
+site/package.json
+site/vite.config.ts
+site/src/main.tsx
+site/src/App.tsx
+site/src/components/*
+site/src/css/*
+site/src/data/landingContent.ts
+site/src/hooks/*
 ```
 
-Adjust to repository conventions.
+Full structure in `09-docusaurus-architecture.md`. `site/` needs no `.gitignore` change — the
+repository's `node_modules/` and `dist/` patterns match at any depth.
 
 ## Constraints
 

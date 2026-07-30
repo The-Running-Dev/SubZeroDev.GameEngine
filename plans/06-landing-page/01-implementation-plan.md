@@ -3,7 +3,7 @@
 ## Implementation Plan
 
 **Status:** Planning complete; repository inspection required before implementation  
-**Scope:** Custom Docusaurus homepage only  
+**Scope:** A standalone React landing page under `site/`. Not part of the documentation site  
 **Primary objective:** Turn the existing specification bundle into a polished, accessible, technically credible scrolling narrative without disrupting the documentation experience.
 
 ---
@@ -19,7 +19,7 @@ The finished homepage should:
 - guide technically curious visitors toward the architecture, documentation, and repository;
 - feel like an editorial technical essay rather than a SaaS product template;
 - remain clear and complete without animation or client-side JavaScript;
-- preserve the behavior, conventions, and routes of the existing Docusaurus site.
+- leave the documentation site entirely alone — it is a separate property.
 
 The homepage is successful when a visitor moves through this sequence:
 
@@ -91,10 +91,10 @@ Replace specification assumptions with evidence from the actual project.
 
 - repository-level instructions — `CLAUDE.md` and `agent.md`;
 - package manager and lockfile;
-- Docusaurus and React versions;
+- React and build-tool versions;
 - current homepage implementation;
 - global styles and existing design tokens;
-- Docusaurus theme configuration;
+- theme decision (dark only);
 - navbar and footer configuration;
 - documentation, architecture, blog, and repository routes;
 - current fonts, icons, logo, favicon, and social-preview assets;
@@ -301,13 +301,12 @@ LandingPage
 - Use real links and buttons.
 - Do not use clickable `div` elements.
 - Do not create a universal section component that obscures semantics.
-- Do not hide primary content before hydration.
-- Preserve Docusaurus layout behavior unless the approved design explicitly replaces the landing header or footer.
-- Keep primary copy statically rendered.
+- Do not hide primary content behind a reveal that may never fire.
+- The site owns its own shell — header, footer and layout. There is no framework layout to preserve.
 
-### Static architecture fallback
+### Static architecture presentation
 
-Before any interactivity, the architecture must show:
+The architecture must show, without any interaction:
 
 - every layer;
 - the order and relationship of the layers;
@@ -315,17 +314,20 @@ Before any interactivity, the architecture must show:
 - a text alternative to decorative connectors;
 - all essential information on mobile.
 
+Since every layer is a link rather than a click target (`00-repository-reality.md` §1), this is not
+a "fallback" — it is the component. Interaction adds highlighting, nothing more.
+
 ### Gate 2 deliverable
 
-A complete, unanimated homepage that is understandable and navigable with CSS disabled, JavaScript disabled, keyboard only, or a screen reader.
+A complete, unanimated homepage that is understandable and navigable with CSS disabled, keyboard only, or a screen reader.
 
 ### Gate 2 exit criteria
 
 - All required content is present.
 - Heading hierarchy is logical.
-- Links point to confirmed destinations.
-- Page renders without client-only dependencies.
-- Documentation routes and theme behavior remain intact.
+- Links point to confirmed destinations, per the route inventory in `00-repository-reality.md` §3.
+- Content is visible when a reveal does not fire.
+- Open Graph and social-preview tags are in the built HTML shell.
 
 ---
 
@@ -407,15 +409,16 @@ Final values should adapt to existing project tokens:
 - avoid viewport-height traps;
 - verify at 320px width.
 
-### Light-mode strategy
+### Theme — dark only
 
-Choose one after repository inspection:
+**Decided.** One palette, no light mode, no toggle. The three options this section used to offer are
+withdrawn; one of them ("follow the current site theme automatically") referred to a site theme that
+no longer exists.
 
-- fully support a deliberate light palette;
-- keep the homepage intentionally dark while preserving theme controls elsewhere;
-- follow the current site theme automatically.
-
-Do not allow an accidental half-supported light mode.
+- Set `color-scheme: dark` on the root, so form controls, scrollbars, focus rings and autofill match
+  rather than rendering light against a near-black page.
+- Do **not** branch on `prefers-color-scheme`. There is nothing to branch to, and branching is
+  precisely how the accidental half-supported light mode this section warned about appears.
 
 ### Gate 3 deliverable
 
@@ -424,10 +427,10 @@ A responsive, visually complete homepage with no animation dependency.
 ### Gate 3 exit criteria
 
 - The page does not resemble a generic SaaS template.
-- Architecture is the main visual event.
-- Contrast meets WCAG AA.
-- No content overflows at 320px.
-- Navigation and documentation still feel related to the homepage.
+- Architecture is the main visual event — drawn as a fan-out, not a four-node stack.
+- Contrast meets WCAG AA, including the meaning-bearing border token.
+- No content overflows at 320px, with the hero headline wrapping rather than holding its composed
+  line break.
 
 ---
 
@@ -435,42 +438,43 @@ A responsive, visually complete homepage with no animation dependency.
 
 ### Purpose
 
-Make the core concept easier to explore without making interaction necessary for comprehension.
+Give the reader a way into the specs from the diagram, without building a component whose only job is
+re-showing text already on the page.
 
-### Desktop behavior
+### The layers are links
 
-- hovering or focusing a layer highlights it;
-- activating a layer selects it;
-- the corresponding summary appears in a stable details region;
-- selection persists until another layer is chosen;
-- focus and pointer states communicate the same meaning.
+This phase used to specify a details region: click a layer, its summary appears in a stable panel,
+selection persists. That is withdrawn. Because interaction must never gate meaning, all four summaries
+had to be visible anyway — so the panel revealed nothing new, at the cost of `aria-pressed`, selection
+state, a separate mobile disclosure variant and their tests.
 
-### Mobile behavior
+Instead, **each layer node is an `<a>`** pointing at that layer's spec, using the absolute cross-site
+URLs in `00-repository-reality.md` §3. `Core` → the core contract, `Kinds` → the three kind specs, and
+so on.
 
-- layers use buttons or disclosure controls;
-- tapping reveals the layer explanation immediately below it;
-- only one expanded layer is acceptable, but not mandatory;
-- there is no hover-only information.
+### Behavior
 
-### Accessibility behavior
+- hover and focus highlight the layer — **CSS only**, no state;
+- every layer and its summary is visible at all times, on every viewport;
+- activating a layer navigates to its spec;
+- decorative connectors are hidden from assistive technology;
+- no hover-only information anywhere;
+- no live-region announcements — nothing changes in place.
 
-- use semantic buttons or links;
-- support Tab, Shift+Tab, Enter, and Space;
-- reflect state using appropriate disclosure semantics or `aria-pressed`;
-- keep decorative connectors hidden from assistive technology;
-- avoid unnecessary live-region announcements;
-- retain a visible text equivalent.
+Keyboard operation, focus handling and screen-reader semantics all come free from using real links.
+There is no separate mobile behavior to design: a link works the same everywhere.
 
 ### Gate 4 deliverable
 
-A keyboard-, pointer-, and touch-accessible architecture explorer built from verified project terminology.
+An architecture diagram, drawn as a fan-out from `Kinds` to the three real kinds, whose layer names
+are working links into the documentation.
 
 ### Gate 4 exit criteria
 
-- Interaction adds detail but never gates meaning.
-- Focus order is predictable.
-- Mobile behavior is deliberate.
-- The static fallback remains intact.
+- Every layer and summary is readable without interacting.
+- Focus order follows reading order.
+- Every href matches the route inventory.
+- Highlighting adds no ARIA state and no JavaScript.
 
 ---
 
@@ -478,10 +482,23 @@ A keyboard-, pointer-, and touch-accessible architecture explorer built from ver
 
 ### Add only
 
-- a restrained hero reveal sequence;
+- a restrained hero reveal on the **last two lines only** — see below;
 - selected narrative reveals at key transitions;
 - architecture highlight transitions;
-- the optional signature hover/focus response.
+- the signature hover/focus response, desktop-only.
+
+### The hero paints immediately
+
+The eyebrow, headline and ellipsis render in full on mount, with **no reveal**. Only the signature and
+the scroll invitation stagger in — the two lines whose timing is actually a joke.
+
+The five-stage sequence originally specified (label, then headline, then ellipsis, then signature,
+then invitation) was written when the page was prerendered, so it began from painted content. The page
+is now a client-rendered SPA: it starts blank, waits for the bundle to parse and mount, and only then
+would begin staggering. That puts well over a second of nothing in front of the page's most important
+words, against this plan's own "fast initial render" and "no layout shifts" goals.
+
+Keep the comic beat. Lose the blank screen.
 
 ### Timing direction
 
@@ -507,8 +524,12 @@ When reduced motion is requested:
 - show all content immediately;
 - remove reveal transforms and delays;
 - disable animated diagram transitions;
-- preserve clear instant hover, focus, and selection states;
+- preserve clear instant hover and focus states;
 - do not wait for intersection events to expose content.
+
+This is a `prefers-reduced-motion` requirement and is unaffected by the page being client-rendered.
+It is also distinct from **reveal safety** — that content stays visible when an observer never fires —
+which applies whether or not reduced motion is requested.
 
 ### Gate 5 deliverable
 
@@ -581,15 +602,25 @@ Check:
 
 ### Project checks
 
-Run the repository’s established:
+Run the `site/` project's own toolchain — it owns a `package.json`, so these are real rather than
+borrowed (`00-repository-reality.md` §7):
 
 - formatter;
 - linter;
 - type check;
 - component/unit tests;
-- Docusaurus production build;
-- internal-link validation;
-- CI-equivalent checks.
+- production build.
+
+Two that are **not** available:
+
+- **Deploy verification waits on a hosting decision.** No host is chosen, so there is no deploy to
+  verify.
+- **Automated link validation does not exist** for the docs CTAs. They are cross-site absolute URLs,
+  which Docusaurus' checker never sees and `build/Test-Documentation.ps1` skips by design. Check them
+  by hand against the route inventory in `00-repository-reality.md` §3.
+
+Confirm also that this work left the docs and engine alone: `build/Test-Documentation.ps1`,
+`.github/workflows/docs-ci.yml` and `.github/workflows/ci.yml` should all be unaffected.
 
 ### Editorial verification
 
@@ -615,86 +646,102 @@ A release-readiness note covering:
 ### Definition of done
 
 - Homepage is visually distinctive and product-specific.
-- The true origin story is clear and memorable.
-- The architecture is accurate.
+- The true origin story is clear and memorable, and told once — trigger and resolution, not a recap.
+- The architecture is accurate: four layers, drawn as a fan-out, every layer name a working link.
 - The story works without animation.
+- Content stays visible when a reveal does not fire.
 - Every interaction supports keyboard and touch.
 - Reduced motion is complete.
 - The page works at 320px width.
-- Internal links work.
-- Documentation behavior is unchanged.
-- Build and required checks pass.
+- Every CTA matches the route inventory.
+- Open Graph tags are in the built HTML shell, not React-injected.
+- Build and the project's own checks pass.
 - No unsupported capabilities are presented as current fact.
 
 ---
 
 ## 11. Suggested implementation structure
 
-Exact paths must follow the repository:
+Everything lives under `site/`, a standalone React project. There is no `landing/` subfolder because
+there is nothing else in the project to distinguish it from.
 
 ```text
-src/
-├── components/
-│   └── landing/
-│       ├── ArchitectureDiagram/
-│       ├── AbstractionSection.tsx
-│       ├── CapabilitiesSection.tsx
-│       ├── CommandContractSection.tsx
-│       ├── DocumentationCta.tsx
-│       ├── HeroSection.tsx
-│       ├── OriginResolution.tsx
-│       ├── OriginTrigger.tsx
-│       ├── ProblemSection.tsx
-│       ├── RealizationSection.tsx
-│       └── RefusalsSection.tsx
-├── css/
-│   └── landing/
-│       ├── motion.css
-│       ├── tokens.css
-│       └── typography.css
-├── data/
-│   └── landingPageContent.ts
-├── hooks/
-│   ├── usePrefersReducedMotion.ts
-│   └── useRevealOnScroll.ts
-└── pages/
-    ├── index.tsx
-    └── index.module.css
+site/
+├── index.html                  the shell — Open Graph tags live HERE
+├── package.json
+├── vite.config.ts
+└── src/
+    ├── main.tsx
+    ├── App.tsx
+    ├── components/
+    │   ├── ArchitectureDiagram/
+    │   ├── AbstractionSection.tsx
+    │   ├── CommandContractSection.tsx
+    │   ├── DocumentationCta.tsx
+    │   ├── HeroSection.tsx
+    │   ├── LedgerSection.tsx
+    │   ├── OriginResolution.tsx
+    │   ├── OriginTrigger.tsx
+    │   ├── ProblemSection.tsx
+    │   └── RealizationSection.tsx
+    ├── css/
+    │   ├── motion.css
+    │   ├── tokens.css
+    │   └── typography.css
+    ├── data/
+    │   └── landingContent.ts
+    └── hooks/
+        ├── usePrefersReducedMotion.ts
+        └── useRevealOnScroll.ts
 ```
 
-Avoid unnecessary fragmentation. A smaller structure is preferable if existing conventions favor it.
+`LedgerSection` serves both Refusals and Capabilities, which share a shape without being rendered
+identically. See `specifications/09-docusaurus-architecture.md` for the fuller layout.
+
+Avoid unnecessary fragmentation. A smaller structure is preferable if it stays readable.
 
 ---
 
 ## 12. Testing strategy
 
+The project owns a test runner, so all of this is achievable (`00-repository-reality.md` §7).
+
 ### Component-level
 
 - each major section renders its approved content;
-- architecture layers expose correct labels and descriptions;
-- interactive layer state changes correctly;
-- CTA destinations match the verified route inventory.
+- architecture layers render as links with the correct `href`, matching the route inventory;
+- every layer summary is present without interaction;
+- CTA destinations match the route inventory.
 
 ### Interaction-level
 
-- architecture can be operated with keyboard only;
-- mobile disclosures work with touch;
-- focus and selected states remain synchronized;
-- signature Easter egg is available on both hover and focus if included.
+- the page is fully operable with keyboard only;
+- focus order follows reading order;
+- layer highlighting requires no ARIA state.
 
 ### Resilience
 
-- content remains visible when JavaScript is unavailable;
-- reduced-motion mode removes delayed reveals;
+- **reveal safety** — content is present when the observer never fires. Force it by stubbing
+  `IntersectionObserver`, or by testing an element already in view on load;
+- reduced-motion mode removes delayed reveals and shows everything immediately;
+- the hero's eyebrow, headline and ellipsis are present on first render, with no reveal;
 - unknown or missing optional content does not break the layout;
-- long translated or edited labels do not destroy the architecture layout.
+- long labels do not destroy the architecture layout.
 
-### Regression
+### Build output
 
-- docs routes still render;
-- default navbar/footer behavior remains correct;
-- theme variables do not leak unexpectedly into documentation;
-- global landing styles do not alter unrelated pages.
+- **Open Graph and social-preview tags are present in the built HTML**, not injected by React. This
+  is the one test that catches the most consequential failure mode of client-side rendering, and it
+  must assert against the build output rather than the rendered DOM;
+- no horizontal overflow at 320px.
+
+### Not applicable
+
+The regression suite this section used to specify — docs routes still render, navbar and footer
+behavior intact, theme variables not leaking into documentation, landing styles not altering unrelated
+pages — assumed the page lived inside the docs site. It is a separate project with no shared styles,
+routes or theme, so there is nothing to regress. Confirm the docs are untouched via
+`build/Test-Documentation.ps1` and leave it there.
 
 ---
 
@@ -726,7 +773,8 @@ Avoid unnecessary fragmentation. A smaller structure is preferable if existing c
 
 ### Risk: landing styles damage documentation
 
-**Mitigation:** Scope page styles, preserve Docusaurus conventions, and add documentation regression checks.
+**Mitigation:** No longer applicable. The landing page is a separate project with no shared styles,
+routes or theme, so it cannot affect the documentation. Confirm with `build/Test-Documentation.ps1`.
 
 ### Risk: dark mode is polished but light mode is accidental
 

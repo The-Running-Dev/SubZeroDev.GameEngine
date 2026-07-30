@@ -1,12 +1,28 @@
 # Landing Page — Planning Bundle
 
-Planning documents for a custom Docusaurus homepage for the SubZeroDev Game Engine.
+Planning documents for the SubZeroDev Game Engine landing page — a **standalone React site under
+`site/`**, separate from the documentation.
 
-**Objective:** a restrained, technically credible editorial page at `/` that reveals the
-serious architecture behind the project's accidental origin.
+**Objective:** a restrained, technically credible editorial page that reveals the serious
+architecture behind the project's accidental origin.
 **Primary line:** Build mechanics once. Create infinite games.
 **Signature:** Well... why not?
 **Design concept:** Cold logic, warm accident.
+
+## Settled
+
+| | |
+|---|---|
+| **Placement** | Standalone site under `site/`. Not part of the docs project |
+| **Stack** | React, client-rendered SPA. Plain Vite is sufficient |
+| **Rendering** | Client-side. No prerender. The no-JavaScript requirement is **dropped** |
+| **Theme** | Dark only. `color-scheme: dark`, no `prefers-color-scheme` branch, no toggle |
+| **Architecture diagram** | Fan-out from `Kinds` to the three real kinds. Each layer is a link to its spec |
+| **Hosting** | **Not decided.** Not GitHub Pages |
+| **`README.md`** | Out of scope — not edited, not consulted as a source of copy |
+
+Nothing under `docs/`, `.config/`, `build/` or `src/` changes. The documentation site keeps its
+README-generated root, its sidebar, its theme and its deployment exactly as they are.
 
 ---
 
@@ -58,40 +74,44 @@ byte-identical to their siblings, plus a top-level copy of the implementation pl
 byte-identical to `01-implementation-plan.md`. 18 documents remain. The redundant
 `subzerodev-implementation-handoff/` nesting level was flattened away.
 
-**Correction:** one new document, `00-repository-reality.md`, carries the repository audit the
-bundle deferred. The authored documents were left as written — their content is good and their
-reasoning is worth keeping. What was wrong were their *facts*, and facts are exactly what one
-overriding document can carry without touching a word of the original.
+**Correction:** one new document, `00-repository-reality.md`, carries the repository audit the bundle
+deferred, and is the highest authority here. The authored documents were largely left as written —
+their voice and reasoning are good. What was wrong were their *facts*, plus a set of design decisions
+recorded in `../08-landing-page-design-review.md`.
 
-The defects it corrects, in brief:
+The defects corrected, in brief:
 
-- A **five-layer architecture model** (`Core → Mechanics → Kinds → Campaigns → Games`) that does
-  not exist. The real model is four layers: `Core → Kinds → Campaigns → Clients`. There is no
-  `Mechanics` layer, and there are exactly three Kinds, all engine-owned.
-- **Five capability claims** stated as current behavior that are contracts or post-MVP plans.
-  There is no `advance(state, action)` yet.
-- **Three dead routes** — `/blog/…` (blog is off), `/architecture/…`, and an "Explore the
-  concepts" CTA with no destination.
-- **A reference to `AGENTS.md`**, which does not exist. This repo uses `CLAUDE.md` and
-  `agent.md`.
-- **The homepage is a generated file behind a required CI check**, so the bundle's central
-  instruction — a custom React page at `src/pages/index.tsx` — cannot be followed without
-  retiring that generation first.
-- **No local Docusaurus project exists** to build into, and **no test runner exists** for the
-  docs site, so the bundle's test plan cannot run as written.
+- A **five-layer architecture model** (`Core → Mechanics → Kinds → Campaigns → Games`) that does not
+  exist. The real model is four: `Core → Kinds → Campaigns → Clients`. There is no `Mechanics` layer,
+  and there are exactly three Kinds, all engine-owned.
+- **Five capability claims** stated as current behavior that are contracts or post-MVP plans. There
+  is no `advance(state, action)` yet.
+- **Three dead routes** — `/blog/…` (blog is off), `/architecture/…`, and an "Explore the concepts"
+  CTA with no destination. Docs links are also **absolute cross-site URLs**, not paths.
+- **A reference to `AGENTS.md`**, which does not exist. This repo uses `CLAUDE.md` and `agent.md`.
+- **Two divergent token sets**, disagreeing on four values. `01-implementation-plan.md` §7 is now
+  canonical.
+- **`--landing-border` failed contrast** wherever it carried meaning. Split into decorative and
+  meaning-bearing tokens.
+- **The type scale overflowed 320px** while the bundle required it not to.
+- **A placement constraint, not a defect:** the docs site's `/` is a generated file behind a required
+  CI check, so the landing page could never have lived there. It is a separate project, and that is
+  the boundary rather than a problem to solve.
+- **No Docusaurus project existed to build into** — which is why the landing page needs its own,
+  and why its test plan is now achievable rather than unrunnable.
 
 ---
 
-## Open decisions
+## Open
 
-Both are recorded in `00-repository-reality.md` and neither is settled.
+1. **Hosting** — undecided, and not to be reconstructed. Until it is chosen, the bundle cannot specify
+   build or deploy steps, a domain, canonical URL, Open Graph URL or sitemap entries.
+2. **`<noscript>` fallback** — one line of markup so a JavaScript-disabled visitor sees something
+   rather than a blank page. Worth a deliberate yes or no.
 
-1. **Who owns the pitch** (§6). Retiring the generated homepage removes the only check keeping
-   `README.md` and the landing page in agreement. Recommendation: the page owns the narrative
-   and the README shortens to a code-host entry point. **Decide before copy is locked** — the
-   failure mode is silent drift.
-2. **Two base-image unknowns** (§4), marked VERIFY AT BUILD: whether the image ships its own
-   `src/pages/index.*`, and whether it ships a `custom.css` wired via `theme.customCss`.
+Two items previously marked VERIFY AT BUILD **closed as moot** when placement changed: both concerned
+the docs base image masking or colliding with `src/pages/index.*` and `custom.css`, and a standalone
+project shares neither.
 
 ## Known and retained
 
@@ -108,11 +128,23 @@ Items considered and deliberately kept or dropped, recorded rather than left sil
   says it should be real "only when backed by actual engine behavior" — which is correct, and
   the reason it waits. Do not fake it; a simulated demo of a determinism claim is the one lie
   this project cannot afford.
-- **No docs-site test infrastructure is being built.** The bundle's component and interaction
-  test plan cannot run. Accepted as out of scope; `00-repository-reality.md` §7 lists what
-  replaces it. If site tests are wanted later, that is separate work and it starts with a
-  `package.json`.
-- **Three internal contradictions are resolved by the authority order rather than by editing.**
-  The bundle carries three different page sequences, two conflicting phase orders, and two
-  disjoint component trees. `01-implementation-plan.md` wins on all three, being both the most
-  developed and higher in the authority order than `specifications/`.
+- **The origin story is now told twice, not three times.** Four "If X, then Y" lines were cut from
+  the resolution — they summarised the middle of the page. The resolution keeps the turn and the
+  punchline, which is its actual job.
+- **`StoryTimeline` is dropped.** It failed its own admission criterion ("only if it adds clarity
+  without repeating the origin prose" — its seven steps are all already narrated), and it is visually
+  the same vertical-node shape as the architecture diagram, which flattens the page's one visual
+  event.
+- **The interactive diagram's details panel is dropped.** Because interaction must never gate
+  meaning, its summaries had to be visible anyway — so the panel re-showed text already on the page,
+  at the cost of `aria-pressed`, selection state and a separate mobile variant. Layers are links
+  instead: keyboard, focus and screen-reader semantics come free, and the detail lives in the spec.
+- **The signature easter egg is desktop-only**, and that is stated rather than left implicit. Touch
+  has no hover, and making a decorative line focusable adds a tab stop announcing nothing.
+- **Three internal contradictions are resolved by the authority order rather than by editing.** The
+  bundle carries three different page sequences, two conflicting phase orders, and two disjoint
+  component trees. `01-implementation-plan.md` wins on all three, being both the most developed and
+  higher in the authority order than `specifications/`.
+- **The capability matrix will go stale.** It snapshots `src/engine/` at W2, and nothing links it to
+  the code. Re-check before any copy change and whenever a work item lands. The failure direction is
+  benign — a stale matrix understates what is built — but that is luck, not design.
