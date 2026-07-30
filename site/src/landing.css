@@ -70,11 +70,24 @@ nav a:hover {
   color: var(--landing-text);
 }
 
+/*
+ * min-height used to be 36rem, which measured out to 220px of dead space
+ * above and below the actual content (355px) -- the box was taller than
+ * anything in it needed, centered by align-content, so the excess just
+ * became empty margin on both sides.
+ *
+ * 24rem is a cap on the minimum, not a floor: min() means the computed
+ * min-height never exceeds 24rem, and the svh term can push it lower still
+ * on short viewports (a small landscape phone, say) so the hero shrinks
+ * rather than overflowing. On ordinary viewports it isn't the binding
+ * constraint at all -- content + padding are taller than 24rem, so they
+ * determine the real height, same as before this comment was corrected.
+ */
 .hero {
   display: grid;
-  min-height: min(36rem, calc(100svh - 5rem));
+  min-height: min(24rem, calc(100svh - 5rem));
   align-content: center;
-  padding-block: 5rem;
+  padding-block: 3.5rem;
 }
 .eyebrow,
 .section-index {
@@ -217,12 +230,18 @@ section {
   color: var(--landing-origin-text);
   margin-top: 2rem;
 }
+/*
+ * No ch-based max-width -- the same bug as h2's old 14ch cap (see the note
+ * on h2 above). 11ch forced "Why would I write this for one game?" into a
+ * 188px-wide box and wrapped it to three lines inside a 768px-wide section,
+ * over 500px of unused width sitting beside it. It now wraps only when the
+ * section's own width genuinely requires it.
+ */
 .display-copy {
   font-size: clamp(1.4rem, 2.2vw, 2rem);
   letter-spacing: -0.045em;
   line-height: 1.05;
   margin-top: 1.4rem;
-  max-width: 11ch;
 }
 
 .architecture {
@@ -436,9 +455,14 @@ footer small {
     justify-content: flex-end;
     gap: 0.75rem;
   }
-  .hero {
-    min-height: 32rem;
-  }
+  /*
+   * No mobile override anymore. The old 32rem WAS a true floor -- a bare
+   * min-height with no viewport-based escape -- and it left ~194px of dead
+   * space above and below the actual content at 320px (512px box, 318px
+   * content). The base rule's min(24rem, ...) cap already degrades
+   * correctly on narrow viewports without a separate case; see the comment
+   * above .hero.
+   */
   .split-prose,
   .contract,
   .ledgers,
