@@ -23,7 +23,10 @@ import type { EngineHost } from "../composition/types.js";
  */
 
 const MARKER_SEED = "MARKER-SEED-should-never-leak";
-const MARKER_ACTION = "MARKER-ACTION-should-not-leak";
+/** Submitted and logged to actionLog — must not leak into view()/scene(). */
+const MARKER_LOGGED_ACTION = "MARKER-ACTION-should-not-leak-into-view";
+/** A different, ordinary id — legitimately client-visible via availableActions(). */
+const VISIBLE_ACTION_ID = "visible-action";
 const MARKER_SECRET = "TOP-SECRET-marker";
 
 interface TestKindState {
@@ -43,10 +46,10 @@ function makeTestKind(overrides?: Partial<Kind<TestKindState>>): Kind<TestKindSt
       changes: [],
       messages: [],
     }),
-    availableActions: (): AvailableAction[] => [{ id: MARKER_ACTION, labelKey: "test.mark", available: true }],
+    availableActions: (): AvailableAction[] => [{ id: VISIBLE_ACTION_ID, labelKey: "test.mark", available: true }],
     scene: (state): SceneBody => ({ textKey: "test.scene", text: `counter=${state.counter}` }),
     advance: (state, actionId): AdvanceResult<TestKindState> => {
-      if (actionId === MARKER_ACTION) {
+      if (actionId === MARKER_LOGGED_ACTION) {
         return { state: { ...state, counter: state.counter + 1 }, status: "active", changes: [], messages: [] };
       }
       return {
@@ -83,20 +86,33 @@ function makeHost(overrides?: Partial<EngineHost>): EngineHost {
 }
 
 describe("projection: no envelope secret reaches a client by any path", () => {
-  it("view, scene, and availableActions never contain the seed, the action id, or the kind's hidden field", () => {
+  it("view and scene never contain the seed, the logged action id, or the kind's hidden field", () => {
     const engine = createEngine(makeHost());
     const created = engine.createGame({ campaignId: "test-campaign", seed: MARKER_SEED });
-    const afterAction = engine.submitAction(created.value as GameState, MARKER_ACTION);
+    const afterAction = engine.submitAction(created.value as GameState, MARKER_LOGGED_ACTION);
     const state = afterAction.value as GameState;
-    expect(state.actionLog).toEqual([{ seq: 0, actionId: MARKER_ACTION }]);
+    expect(state.actionLog).toEqual([{ seq: 0, actionId: MARKER_LOGGED_ACTION }]);
 
-    const outputs = [engine.view(state, "player"), engine.scene(state), engine.availableActions(state)];
-
-    for (const output of outputs) {
+    for (const output of [engine.view(state, "player"), engine.scene(state)]) {
       const serialized = JSON.stringify(output);
       expect(serialized).not.toContain(MARKER_SEED);
       expect(serialized).not.toContain(MARKER_SECRET);
+      expect(serialized).not.toContain(MARKER_LOGGED_ACTION);
     }
+  });
+
+  it("availableActions never contains the seed or the kind's hidden field — but legitimately shows its own action ids", () => {
+    const engine = createEngine(makeHost());
+    const created = engine.createGame({ campaignId: "test-campaign", seed: MARKER_SEED });
+    const state = created.value as GameState;
+
+    const actions = engine.availableActions(state);
+    const serialized = JSON.stringify(actions);
+
+    expect(serialized).not.toContain(MARKER_SEED);
+    expect(serialized).not.toContain(MARKER_SECRET);
+    // Not a leak: AvailableAction.id is the client-facing contract (04 §6).
+    expect(actions.some((a) => a.id === VISIBLE_ACTION_ID)).toBe(true);
   });
 });
 
