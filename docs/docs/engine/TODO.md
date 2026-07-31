@@ -247,19 +247,21 @@ iteration of state-affecting records.
 - **Done when:** undeclared and mistyped writes are rejected; `+5` then `-5` on a clamped
       int nets zero rather than clipping; a save/load round trip cannot reorder a `Record`.
 
-### W10 — Conditions and Requirements
+### [x] W10 — Conditions and Requirements
 The frozen `Condition` evaluator plus this kind's field namespace (`var.*`, `turn`,
 `visited.*`, `achieved.*`, `ending`).
 - **Spec:** 03 §6; 04 §18.
 - **Depends on:** W9.
+- **Status:** Done — [PR #43](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/43).
 - **Done when:** only the frozen operator set evaluates; every `field` path is checked at
       load against the schema and node set; an unknown path is a Tier 1 error.
 
-### W11 — Nodes, Turn, and Settle
+### [x] W11 — Nodes, Turn, and Settle
 The four node kinds, `enter(nodeId)`, the settle loop, the `SETTLE_STEPS` guard, and
 `initialState` returning `InitialStateResult`.
 - **Spec:** 03 §3, §8.1, §8.2, §8.4.
 - **Depends on:** W2, W3a, W9, W10.
+- **Status:** Done — [PR #44](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/44).
 - **Done when:** an auto/random chain settles to a choice or ending; every entry increments
       its visit count, including the start node and pass-throughs; a 64-step
       non-terminating chain fails with `settle_guard_tripped`; a start that settles onto an
