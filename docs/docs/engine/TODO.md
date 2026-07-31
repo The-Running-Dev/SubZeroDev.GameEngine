@@ -247,11 +247,12 @@ iteration of state-affecting records.
 - **Done when:** undeclared and mistyped writes are rejected; `+5` then `-5` on a clamped
       int nets zero rather than clipping; a save/load round trip cannot reorder a `Record`.
 
-### W10 — Conditions and Requirements
+### [x] W10 — Conditions and Requirements
 The frozen `Condition` evaluator plus this kind's field namespace (`var.*`, `turn`,
 `visited.*`, `achieved.*`, `ending`).
 - **Spec:** 03 §6; 04 §18.
 - **Depends on:** W9.
+- **Status:** Done — [PR #43](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/43).
 - **Done when:** only the frozen operator set evaluates; every `field` path is checked at
       load against the schema and node set; an unknown path is a Tier 1 error.
 
