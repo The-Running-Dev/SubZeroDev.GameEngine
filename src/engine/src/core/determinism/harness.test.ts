@@ -105,11 +105,26 @@ describe("runFixture", () => {
     expect(runFixture(engine, fixture)).toBe(runFixture(engine, fixture));
   });
 
+  it("throws, naming the fixture, when config.seed is missing — even past the type system", () => {
+    // The type requires `seed`, so this can only happen via untyped data (JSON, an `as`
+    // cast) — simulated here the same way, to prove the runtime backstop actually fires
+    // rather than trusting the type alone.
+    const engine = createEngine(makeHost());
+    const fixture = {
+      name: "no seed",
+      config: { campaignId: "test-campaign" },
+      actionLog: [],
+    } as unknown as PlaythroughFixture;
+
+    expect(() => runFixture(engine, fixture)).toThrow(/no seed/);
+    expect(() => runFixture(engine, fixture)).toThrow(/config\.seed is required/);
+  });
+
   it("throws, naming the fixture, when createGame rejects", () => {
     const engine = createEngine(makeHost());
     const fixture: PlaythroughFixture = {
       name: "unknown campaign",
-      config: { campaignId: "does-not-exist" },
+      config: { campaignId: "does-not-exist", seed: "fixed-seed" },
       actionLog: [],
     };
 

@@ -14,8 +14,13 @@ import type { Engine, LoggedAction, NewGameConfig } from "../kernel/types.js";
 
 export interface PlaythroughFixture {
   name: string;
-  /** Includes the fixed seed — a fixture with no explicit `seed` is not reproducible. */
-  config: NewGameConfig;
+  /**
+   * `seed` narrowed from `NewGameConfig`'s own optional field to required — a fixture
+   * with no explicit seed is not reproducible (`createGame` falls back to
+   * `IdSource.newSeed()`, random by default), so the type itself forbids constructing
+   * one that way rather than leaving it to a doc comment nobody enforces.
+   */
+  config: NewGameConfig & { seed: string };
   actionLog: LoggedAction[];
 }
 
@@ -32,6 +37,14 @@ export interface PlaythroughFixture {
  * `vitest run` than a silently wrong final `serialize()`.
  */
 export function runFixture(engine: Engine, fixture: PlaythroughFixture): string {
+  // Runtime backstop, not just the type: a fixture built from untyped data (JSON, an
+  // `as` cast) could still smuggle a missing seed past the compiler. Same
+  // trust-but-verify pattern the rest of this codebase applies to content-controlled
+  // input, even where a type already claims the shape is guaranteed.
+  if (fixture.config.seed === undefined) {
+    throw new Error(`runFixture "${fixture.name}": config.seed is required for a reproducible fixture`);
+  }
+
   const created = engine.createGame(fixture.config);
   if (!created.ok || !created.value) {
     throw new Error(
