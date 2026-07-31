@@ -553,4 +553,19 @@ describe("observability", () => {
 
     expect(recorder.events.some((e) => e.name === "core.game.ended")).toBe(true);
   });
+
+  it("scene() uses one read context for body, actions, and its bundled view — not two", () => {
+    const recorder = createRecordingEmitter();
+    const engine = createEngine(makeHost({ emitter: recorder }));
+    const created = engine.createGame({ campaignId: "test-campaign" });
+    const before = recorder.events.length;
+    engine.scene(created.value as GameState);
+    const rngDerivedDuringScene = recorder.events.slice(before).filter((e) => e.name === "core.rng.stream.derived");
+
+    // A single read context derives ctx.rng exactly once; a second, independent context
+    // built via a nested view() call would double this and also restart the ordinal
+    // sequence at 0 a second time within the same logical scene() call.
+    expect(rngDerivedDuringScene).toHaveLength(1);
+    expect(rngDerivedDuringScene[0]?.ordinal).toBe(0);
+  });
 });

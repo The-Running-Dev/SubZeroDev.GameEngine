@@ -253,6 +253,9 @@ function availableActions(host: EngineHost, state: GameState): AvailableAction[]
 function scene(host: EngineHost, state: GameState): Scene {
   const campaign = host.registry.campaigns.get(state.campaignId)!;
   const kind = host.kinds[state.kindId]!;
+  // One read context for the whole call — body, actions, and the bundled view all share
+  // it, so there is exactly one ordinal sequence (and one core.rng.stream.derived) per
+  // scene() call rather than a second one sneaking in via a nested view() call.
   const ctx = buildReadContext(host, campaign, kind, state);
   return {
     gameId: state.gameId,
@@ -260,8 +263,13 @@ function scene(host: EngineHost, state: GameState): Scene {
     body: kind.scene(state.kindState, ctx),
     actions: kind.availableActions(state.kindState, ctx),
     // Scene.view has no audience parameter — hardcoded to "player", matching
-    // NewGameConfig.audience's own default.
-    view: view(host, state, "player"),
+    // NewGameConfig.audience's own default. Built inline from the same ctx rather than
+    // via view(host, state, "player"), which would build a second, independent one.
+    view: {
+      gameId: state.gameId,
+      status: state.status,
+      kindView: kind.project(state.kindState, "player", ctx),
+    },
   };
 }
 
@@ -325,13 +333,16 @@ function isValidGameStateShape(v: unknown): v is GameState {
   return true;
 }
 
-function serializeState(host: EngineHost, state: GameState): string {
-  const result = canonicalStringify(state);
-  const emitters = makeResolutionEmitters(host.emitter ?? nullEmitter, state.gameId, state.actionLog.length);
-  emitters.core.emit(CORE_EVENTS.serializeCompleted.name, CORE_EVENTS.serializeCompleted.severity, {
-    data: { bytes: new TextEncoder().encode(result).length },
-  });
-  return result;
+/**
+ * No `host`, no emission — deliberately. `Engine.serialize(state): string` is the one
+ * place 04 §4 commits to a bare `f(state): string`, and 04 §1's "no I/O" for the pure
+ * engine is the same reasoning that keeps a clock and an `IdSource` out of it. Consulting
+ * `host.emitter` here would be a host-port dependency this function was never given, even
+ * though the emitted event couldn't have changed the returned string. `core.serialize.
+ * completed` stays defined in `CORE_EVENTS` with no call site — see the comment there.
+ */
+function serializeState(state: GameState): string {
+  return canonicalStringify(state);
 }
 
 /**
@@ -415,7 +426,7 @@ export function createEngine(host: EngineHost): Engine {
     view: (state, audience) => view(host, state, audience),
     availableActions: (state) => availableActions(host, state),
     submitAction: (state, actionId, params) => submitAction(host, state, actionId, params),
-    serialize: (state) => serializeState(host, state),
+    serialize: (state) => serializeState(state),
     deserialize: (data) => deserializeState(host, data),
     migrate: (data) => migrateState(host, data),
   };
