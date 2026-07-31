@@ -290,10 +290,11 @@ plus an `achievement_unlocked` `StateChange`.
 - **Done when:** an achievement fires exactly once across repeated turns; the unlock is
       readable as `achieved.<id>` in a later condition; `advance` performs no I/O.
 
-### W14 — Story-Graph Validation
+### [x] W14 — Story-Graph Validation
 The kind's Tier 1 and Tier 2 checks via `validateCampaign`.
 - **Spec:** 03 §11.
 - **Depends on:** W5, W11.
+- **Status:** Done — [PR #55](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/55).
 - **Done when:** dangling `goto`, undeclared variable, duplicate id, missing `LocKey`,
       non-visible variable in text, and a non-positive-integer `weight` each fail Tier 1
       with a path; unreachable nodes, exitless cycles, and `no_reachable_choice` warn at
