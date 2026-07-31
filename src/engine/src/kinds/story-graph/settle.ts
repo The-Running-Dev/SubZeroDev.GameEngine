@@ -21,12 +21,17 @@ import { enter, type StoryGraphKindState } from "./state.js";
 /** Default per 03 §8.2 — no unit before this one exposes a way to configure it. */
 export const SETTLE_STEPS = 64;
 
+/**
+ * `nodes` is content-controlled (authored, potentially parsed from JSON/YAML), so a
+ * plain truthy check on `nodes[nodeId]` would let an id like `"toString"` resolve an
+ * inherited `Object.prototype` value instead of failing — the same class of gap W9's
+ * `requireDecl` guards against for `VariableSchema`.
+ */
 function requireNode(nodes: Record<string, Node>, nodeId: string): Node {
-  const node = nodes[nodeId];
-  if (!node) {
+  if (!Object.hasOwn(nodes, nodeId)) {
     throw new Error(`story-graph settle: node "${nodeId}" does not exist`);
   }
-  return node;
+  return nodes[nodeId] as Node;
 }
 
 /**

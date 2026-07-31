@@ -185,6 +185,14 @@ describe("settle", () => {
     const steps = events.filter((e) => e.name === "kind.story-graph.settle.step");
     expect(steps).toHaveLength(SETTLE_STEPS);
   });
+
+  it("a goto targeting an Object.prototype member name is treated as a missing node, not an inherited value", () => {
+    const nodes: Record<string, Node> = {
+      n1: { id: "n1", kind: "auto", textKey: "t", goto: "toString" },
+    };
+    const { emitter } = recordingEmitter();
+    expect(() => settle(nodes, schema, baseState(), fixedRng(), emitter)).toThrow();
+  });
 });
 
 const campaign: StoryGraphCampaign = {

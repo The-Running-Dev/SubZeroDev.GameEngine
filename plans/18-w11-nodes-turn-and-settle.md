@@ -95,6 +95,18 @@ integer, at-least-one-transition) is enforced by `RngHandle.weightedPick` itself
 (already built, W2) — 03 §11 calls this out explicitly ("`weightedPick` throws otherwise
 ... so this is a load-time rule, not a runtime crash"), so `settle` adds no extra guard.
 
+### 6. Both content-controlled lookups are hardened against `Object.prototype` collisions (PR #44 review)
+
+`visitedCounts[nodeId]` (`state.ts`'s `enter`) and `nodes[nodeId]` (`settle.ts`'s
+`requireNode`) both read a plain-object bracket lookup keyed by content-authored ids —
+`"toString"` or `"__proto__"` would otherwise resolve an inherited `Object.prototype`
+value instead of `undefined`/a missing-node error, the same class of gap W9's
+`requireDecl`/null-prototype `variables` guard against. `enter` now rebuilds
+`visitedCounts` null-prototype (`Object.create(null)`) on every call — the same fix
+W9 applies to `variables` — and `requireNode` gained the `Object.hasOwn` check
+`requireDecl` already uses. `nodes` itself doesn't need to become null-prototype, since
+nothing ever writes to it (content, read-only).
+
 ## Design
 
 ### New files

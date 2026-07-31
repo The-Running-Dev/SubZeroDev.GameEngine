@@ -20,11 +20,17 @@ export interface StoryGraphKindState {
   endingId?: string;
 }
 
-/** Sets `currentNodeId` and increments `visitedCounts[nodeId]` — every entry counts. */
+/**
+ * Sets `currentNodeId` and increments `visitedCounts[nodeId]` — every entry counts.
+ * `visitedCounts` is rebuilt null-prototype (`Object.create(null)`) on every call, so a
+ * node id like `"toString"` or `"__proto__"` can't resolve an inherited value through
+ * `[[Get]]` and corrupt the count — the same hardening W9's `variables.ts` applies to
+ * schema-controlled keys.
+ */
 export function enter(state: StoryGraphKindState, nodeId: string): StoryGraphKindState {
-  return {
-    ...state,
-    currentNodeId: nodeId,
-    visitedCounts: { ...state.visitedCounts, [nodeId]: (state.visitedCounts[nodeId] ?? 0) + 1 },
-  };
+  const visitedCounts: Record<string, number> = Object.create(null) as Record<string, number>;
+  for (const key of Object.keys(state.visitedCounts)) visitedCounts[key] = state.visitedCounts[key]!;
+  visitedCounts[nodeId] = (visitedCounts[nodeId] ?? 0) + 1;
+
+  return { ...state, currentNodeId: nodeId, visitedCounts };
 }

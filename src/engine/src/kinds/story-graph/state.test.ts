@@ -36,4 +36,15 @@ describe("enter", () => {
     enter(before, "clerk_review");
     expect(before).toEqual(snapshot);
   });
+
+  it("a node id colliding with an Object.prototype member counts correctly, not an inherited value", () => {
+    const next = enter(baseState(), "toString");
+    expect(next.visitedCounts.toString).toBe(1);
+  });
+
+  it("a node id of __proto__ counts correctly rather than touching the prototype", () => {
+    const next = enter(baseState(), "__proto__");
+    expect(Object.hasOwn(next.visitedCounts, "__proto__")).toBe(true);
+    expect((next.visitedCounts as Record<string, unknown>).__proto__).toBe(1);
+  });
 });
