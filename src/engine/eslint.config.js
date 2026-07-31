@@ -44,8 +44,35 @@ export default tseslint.config(
               message: "Dependency arrow (04 §1.1): the core must not import a kind. Kinds depend on the core, never the reverse."
             },
             {
-              group: ["**/clients/*", "**/clients", "**/mcp/*", "**/mcp"],
+              // Both the bare directory specifier (`../clients`, resolving to an index
+              // module) and a nested file within it (`../clients/text/client.js`) need
+              // covering — `**/clients/**` alone doesn't match the bare form, since `**`
+              // after a trailing slash still expects at least one more path segment.
+              group: ["**/clients", "**/clients/**", "**/mcp", "**/mcp/**"],
               message: "Dependency arrow (04 §1.1): the core must not import a client or the MCP adapter."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    // Client contract (09-clients.md §2): "a client calls SessionStore and nothing else."
+    // A client that imported a kind directly could reach past the projection boundary the
+    // same way `09-clients.md` §6 says the surface itself prevents. Same "lint rule instead
+    // of a one-time scan" reasoning as the core-boundary rule above. Tests are exempt:
+    // a client's own test harness legitimately builds a real store from a real kind and
+    // campaign, the same integration-test shape every other kind/campaign test uses.
+    files: ["src/clients/**/*.ts"],
+    ignores: ["src/clients/**/*.test.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/kinds", "**/kinds/**"],
+              message: "Client contract (09-clients.md §2): a client must not import a kind directly — it calls SessionStore and nothing else."
             }
           ]
         }
