@@ -269,11 +269,12 @@ The four node kinds, `enter(nodeId)`, the settle loop, the `SETTLE_STEPS` guard,
       the settle loop emits `settle.step`, `node.entered` (with `visitCount`) and
       `random.picked`, and a stream diff localizes a seeded divergence to one transition.
 
-### W12 — Scene, Actions, Projection, Reason Codes
+### [x] W12 — Scene, Actions, Projection, Reason Codes
 `availableActions` (omit on `showWhen`, disable with a reason on `requirements`), `scene`,
 the slim `StoryGraphView`, and the kind's reason codes.
 - **Spec:** 03 §4, §8.3, §8.4, §9; 04 §6.
 - **Depends on:** W6, W11.
+- **Status:** Done — [PR #47](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/47).
 - **Done when:** a `showWhen`-hidden choice is absent from the view **and** returns
       `unknown_action` when submitted — indistinguishable from a nonexistent id; a gated
       choice renders disabled with its `requirementFailKey`; hidden variables and visit
