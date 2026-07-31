@@ -458,6 +458,17 @@ in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap) (
       the mechanism 04 §10.2 describes (detect a version mismatch, remap old ids, mark
       `replayCompatible: false`) has no `W`-numbered unit building it. Post-MVP, before it's
       needed. See `plans/09-w3-pure-engine-kernel.md` (repository root), Decision 5.
+- [ ] **`SessionHost`/`createSessionLayer` (06 §4) don't reconcile as written.**
+      `SessionHost.sessions` is typed `SessionStore` — the full nine-operation API — but
+      `createSessionLayer(host: SessionHost): SessionStore` reads as producing that same
+      type from an input that already has it, which only makes sense if `sessions` was
+      meant to be a lower-level, storage-only port that `createSessionLayer` wraps with
+      the stamping (05 §6.1) and profile-upsert (04 §7.1) behaviour — a port `04-core.md`
+      never separately names. W7 built `createInMemorySessionStore` directly against
+      `session/types.ts`'s `SessionStore` instead, since TODO's own W7 done-criteria never
+      name `SessionHost` or `createSessionLayer`. The composition-root generality
+      `06-extensibility.md` §4 describes is still unbuilt. See
+      `plans/14-w7-session-store.md`, Decision 1.
 - [ ] `wisdom` attribute has no consumer in the simulation kind — needs one to earn its
       place (`games/04-engine-specification.md` §8.4).
 - [ ] Provisional numbers across the simulation kind (drift rates, scenario economics,

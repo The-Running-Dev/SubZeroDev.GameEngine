@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { createRecordingEmitter, emitSystemEvent, makeResolutionEmitters, nullEmitter, safeEmit } from "./emitter.js";
-import type { Emitter, GameEvent } from "./types.js";
+import { createRecordingEmitter, emitSystemEvent, jsonlEmitter, makeResolutionEmitters, nullEmitter, safeEmit } from "./emitter.js";
+import type { Emitter, EmittedRecord, GameEvent } from "./types.js";
 
 describe("nullEmitter", () => {
   it("discards every event and never throws", () => {
@@ -58,6 +58,49 @@ describe("emitSystemEvent", () => {
     const [event] = recorder.events;
     expect(event && "reason" in event).toBe(false);
     expect(event && "data" in event).toBe(false);
+  });
+});
+
+describe("jsonlEmitter", () => {
+  function makeRecord(overrides?: Partial<EmittedRecord>): EmittedRecord {
+    return {
+      event: { scope: "system", name: "core.a", severity: "info", ordinal: 0 },
+      emittedAt: "2026-01-01T00:00:00.000Z",
+      traceId: "trace-1",
+      spanId: "span-1",
+      attempt: 1,
+      ...overrides,
+    };
+  }
+
+  it("writes exactly one JSON-parseable line per record, in order", () => {
+    const lines: string[] = [];
+    const sink = jsonlEmitter((line) => lines.push(line));
+
+    sink.write(makeRecord({ traceId: "trace-1" }));
+    sink.write(makeRecord({ traceId: "trace-2" }));
+
+    expect(lines).toHaveLength(2);
+    expect(lines.every((line) => !line.includes("\n"))).toBe(true);
+    expect(JSON.parse(lines[0] as string).traceId).toBe("trace-1");
+    expect(JSON.parse(lines[1] as string).traceId).toBe("trace-2");
+  });
+
+  it("round-trips every EmittedRecord field", () => {
+    const lines: string[] = [];
+    const sink = jsonlEmitter((line) => lines.push(line));
+    const record = makeRecord({ sessionId: "session-1" });
+
+    sink.write(record);
+
+    expect(JSON.parse(lines[0] as string)).toEqual(record);
+  });
+
+  it("swallows a throwing write function", () => {
+    const sink = jsonlEmitter(() => {
+      throw new Error("disk is full");
+    });
+    expect(() => sink.write(makeRecord())).not.toThrow();
   });
 });
 

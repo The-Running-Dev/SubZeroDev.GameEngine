@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { defaultIdSource } from "./defaults.js";
+import { defaultClock, defaultIdSource } from "./defaults.js";
 
 describe("defaultIdSource", () => {
   it("newGameId returns a non-empty string", () => {
@@ -15,5 +15,18 @@ describe("defaultIdSource", () => {
   it("successive calls differ", () => {
     expect(defaultIdSource.newGameId()).not.toBe(defaultIdSource.newGameId());
     expect(defaultIdSource.newSeed()).not.toBe(defaultIdSource.newSeed());
+  });
+});
+
+describe("defaultClock", () => {
+  it("now() returns a valid ISO-8601 string close to the real current time", () => {
+    const before = Date.now();
+    const now = defaultClock.now();
+    const after = Date.now();
+
+    expect(now).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+    const parsed = Date.parse(now);
+    expect(parsed).toBeGreaterThanOrEqual(before);
+    expect(parsed).toBeLessThanOrEqual(after);
   });
 });

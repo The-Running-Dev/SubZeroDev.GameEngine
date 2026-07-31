@@ -10,7 +10,7 @@ import type { RngHandle, StreamId } from "../determinism/types.js";
 import type { ProjectionAudience, PlayerView } from "../projection/types.js";
 import type { ValidationError, ValidationResult } from "../validation/types.js";
 import type { Campaign, ContentRegistry } from "../registry/types.js";
-import type { EventName, ResolutionEmitter } from "../observability/types.js";
+import type { Emitter, EventName, ResolutionEmitter } from "../observability/types.js";
 import type {
   CommandResult,
   OutcomeMessage,
@@ -205,4 +205,8 @@ export interface Engine {
   serialize(state: GameState): string;
   deserialize(data: string): CommandResult<GameState>;
   migrate(data: string): CommandResult<GameState>;
+  /** The same engine, with every event stamped for one command (05-observability.md
+   *  §6.1). The session store builds a short-lived decorator per command and swaps it in
+   *  here rather than the pure engine ever holding a clock or per-command context itself. */
+  withEmitter(emitter: Emitter): Engine;
 }
