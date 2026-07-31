@@ -501,6 +501,24 @@ in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap) (
       and W8's `reason` literal-string precedent. Needs the same formal codification in
       `04-core.md` §12 once a caller (W11's `submitChoice`) actually attaches these to an
       `AdvanceResult`. See `plans/16-w9-variables-and-consequences.md`, Decision 3.
+- [ ] **`04-core.md`'s ancestor citation for the `Condition` type is stale — the shape
+      itself was never ported into this repo's docs.** §18 declares the operator set
+      frozen and cites `games/04-engine-specification.md` §13.1 for the full surface, but
+      that document lives in the companion `SubZeroDev.GameOfLife` repo, not here. W10
+      ported the shape from it directly (`Condition`/`ComparisonOperator`/`ExistsCondition`/
+      `CountCondition`) into `core/condition/types.ts`, dropping the ancestor's
+      `CollectionSelector` (a closed union of simulation-kind paths with no kind-agnostic
+      meaning). `04-core.md` §18 should restate the ported shape rather than pointing at a
+      sibling repo a reader of this one can't open. See
+      `plans/17-w10-conditions-and-requirements.md`, Decision 1.
+- [ ] **Kind-owned reason-code `messageKey`s have no stated namespace.** `04-core.md` §12
+      reserves `core.reason.*` for the base set only; `kind.<kindId>.*` (05 §9) is
+      event-name namespacing, a different vocabulary. W10 used
+      `story-graph.reason.<code>` (kind id, no `kind.` wrapper) as the minimal-invention
+      parallel, for `unknown_condition_field` — not registered anywhere yet, since no unit
+      before W12 wires real kind messages. Needs the same formal codification as the two
+      `StateChange` gaps above, once W12 actually registers a story-graph reason message.
+      See `plans/17-w10-conditions-and-requirements.md`, Decision 3.
 - [ ] `wisdom` attribute has no consumer in the simulation kind — needs one to earn its
       place (`games/04-engine-specification.md` §8.4).
 - [ ] Provisional numbers across the simulation kind (drift rates, scenario economics,
