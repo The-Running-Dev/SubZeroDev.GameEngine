@@ -67,7 +67,7 @@ function makeTools(): McpTools {
   return createMcpTools(buildStore());
 }
 
-describe("McpTools — the API coverage checklist (04-core.md §13)", () => {
+describe("McpTools — the API coverage checklist (09-clients.md §4)", () => {
   it("list_campaigns — returns the real campaign summary", () => {
     const tools = makeTools();
     const campaigns = tools.list_campaigns({});
