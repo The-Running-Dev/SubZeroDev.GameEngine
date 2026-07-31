@@ -183,16 +183,13 @@ question.
 
 ## 7. MCP Is a Sibling, Not a Special Case
 
-The MCP server is a client like the text client — a thin adapter over the same store,
-holding no game logic (04 §13, architecture §10). Everything in this document applies to it
-unchanged.
-
-The one thing worth stating because it is easy to get wrong: **an agent playing through MCP
-is a player.** It receives the same projection, is subject to the same requirement gating,
-and gets the same `unknown_action` for a hidden choice. There is no privileged view, no
-richer state, and no tool that reveals more than a human client can see. If an agent could
-see further, the projection boundary would be a client-side convention rather than an engine
-guarantee.
+The full statement of this — the tool table and the "agent is a player" guarantee —
+moved to
+[`SubZeroDev.Platform`](https://github.com/The-Running-Dev/SubZeroDev.Platform)'s
+[`mcp-tool-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform/blob/main/docs/docs/mcp-tool-contract.md),
+alongside `04-core.md` §13. Everything else in this document applies to the MCP server
+unchanged: it is a client like the text client, a thin adapter over the same store,
+holding no game logic (architecture §10).
 
 ---
 

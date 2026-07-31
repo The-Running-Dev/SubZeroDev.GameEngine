@@ -864,25 +864,14 @@ history and the transparency requirement; `visible` gates what a client may show
 
 ## 13. The MCP Surface
 
-The MCP server is a **client**, a sibling of the text client — a thin adapter over the
-same session store (§7), holding no game logic (architecture §10). Each tool is one
-store operation. There is no AI-specific game path.
-
-| Tool | Args | Returns |
-|---|---|---|
-| `list_campaigns` | `{}` | `CampaignSummary[]` |
-| `start_game` | `{ campaignId, seed?, profileId? }` | `{ sessionId, scene: Scene }` |
-| `continue_game` | `{ sessionId }` | `Scene` |
-| `get_scene` | `{ sessionId }` | `Scene` |
-| `get_state` | `{ sessionId }` | `PlayerView` |
-| `get_strings` | `{ sessionId }` | `StringTable` — resolve `LocKey`s (§7) |
-| `choose` | `{ sessionId, actionId, params? }` | `SessionActionResult` (§7 — carries the new `Scene`, never the envelope) |
-| `save_game` | `{ sessionId }` | `{ saveId }` |
-| `load_game` | `{ saveId }` | `{ sessionId, scene: Scene }` |
-
-`choose` is `submitAction` — "choose" is the MCP-facing name for submitting an action,
-whatever the kind. Returns and args are the platform types above; no schema is
-AI-specific. An agent that can call these tools plays the identical game a browser does.
+The tool table itself — args, returns, one tool per session-store operation — moved to
+[`SubZeroDev.Platform`](https://github.com/The-Running-Dev/SubZeroDev.Platform)'s
+[`mcp-tool-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform/blob/main/docs/docs/mcp-tool-contract.md):
+it's a hosting-facing contract, not core engine material, even though `McpTools`
+([`src/engine/src/mcp/server.ts`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/src/engine/src/mcp/server.ts))
+implements it here, wrapping this repo's own session store (§7) with no runtime
+dependency, tested end to end against it (`TODO.md` W17). Architecture §10 still holds:
+no game logic in the adapter, no AI-specific path.
 
 ---
 
