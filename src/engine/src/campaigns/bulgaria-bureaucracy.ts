@@ -46,7 +46,6 @@ export const bulgariaBureaucracySource: StoryGraphCampaignSource = {
 
   nodes: {
     municipality: {
-      id: "municipality",
       kind: "choice",
       text: {
         key: "bureaucracy.municipality.text",
@@ -82,7 +81,6 @@ export const bulgariaBureaucracySource: StoryGraphCampaignSource = {
     },
 
     clerk_review: {
-      id: "clerk_review",
       kind: "random",
       text: { key: "bureaucracy.clerk_review.text", text: "The clerk calls your number." },
       transitions: [
@@ -96,7 +94,6 @@ export const bulgariaBureaucracySource: StoryGraphCampaignSource = {
     },
 
     expired: {
-      id: "expired",
       kind: "choice",
       text: {
         key: "bureaucracy.expired.text",
@@ -130,7 +127,6 @@ export const bulgariaBureaucracySource: StoryGraphCampaignSource = {
     },
 
     room_14: {
-      id: "room_14",
       kind: "auto",
       text: { key: "bureaucracy.room_14.text", text: "Room 14 sends you to Room 6." },
       effects: [{ op: "increment", var: "office_visits", by: 1 }],
@@ -138,7 +134,6 @@ export const bulgariaBureaucracySource: StoryGraphCampaignSource = {
     },
 
     room_6: {
-      id: "room_6",
       kind: "choice",
       text: { key: "bureaucracy.room_6.text", text: "Room 6 informs you that everything happens in Room 14." },
       choices: [
@@ -171,7 +166,6 @@ export const bulgariaBureaucracySource: StoryGraphCampaignSource = {
     },
 
     reward: {
-      id: "reward",
       kind: "ending",
       text: {
         key: "bureaucracy.reward.text",

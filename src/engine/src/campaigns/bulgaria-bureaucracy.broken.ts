@@ -34,7 +34,6 @@ export const undeclaredVariableFixture = ((): typeof bulgariaBureaucracySource =
 export const unreachableNodeFixture = ((): typeof bulgariaBureaucracySource => {
   const source = clone();
   source.nodes["orphan_office"] = {
-    id: "orphan_office",
     kind: "choice",
     text: { key: "bureaucracy.orphan_office.text", text: "A door nobody was ever told about." },
     choices: [

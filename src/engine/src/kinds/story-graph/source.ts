@@ -27,8 +27,14 @@ export type ChoiceSource = Omit<Choice, "labelKey" | "requirementFailKey"> & {
   requirementFail?: AuthoredText;
 };
 
+/**
+ * No `id` field — unlike every other source type, a node's identity is carried by its
+ * `StoryGraphCampaignSource.nodes` Record key alone, never duplicated onto the node
+ * itself. Two sources of truth for the same id (a Record key and an embedded `node.id`)
+ * could silently diverge; the runtime `Node.id` a settled game actually reports is always
+ * derived from the key that reached it, not authored twice.
+ */
 interface NodeSourceBase {
-  id: string;
   text: AuthoredText;
 }
 
@@ -67,19 +73,19 @@ function buildChoice(choice: ChoiceSource, take: Take): Choice {
   };
 }
 
-function buildNode(node: NodeSource, take: Take): Node {
+function buildNode(id: string, node: NodeSource, take: Take): Node {
   const textKey = take(node.text);
   switch (node.kind) {
     case "choice":
-      return { id: node.id, kind: "choice", textKey, choices: node.choices.map((c) => buildChoice(c, take)) };
+      return { id, kind: "choice", textKey, choices: node.choices.map((c) => buildChoice(c, take)) };
     case "random":
-      return { id: node.id, kind: "random", textKey, transitions: node.transitions };
+      return { id, kind: "random", textKey, transitions: node.transitions };
     case "auto": {
-      const { id, effects, goto } = node;
+      const { effects, goto } = node;
       return { id, kind: "auto", textKey, ...(effects !== undefined ? { effects } : {}), goto };
     }
     case "ending": {
-      const { id, endingId, outcome } = node;
+      const { endingId, outcome } = node;
       return { id, kind: "ending", textKey, endingId, ...(outcome !== undefined ? { outcome } : {}) };
     }
   }
@@ -112,14 +118,18 @@ export function buildStoryGraphCampaign(source: StoryGraphCampaignSource): {
     return text.key;
   };
 
-  const variables: VariableSchema = {};
+  // Object.create(null): both maps are built from content-controlled keys (an author's
+  // own node/variable ids), so a plain {} risks a key like "__proto__" mutating the
+  // object's prototype via the legacy setter instead of creating an own property — the
+  // same hardening variables.ts and nodes.ts already apply to these exact maps at runtime.
+  const variables: VariableSchema = Object.create(null) as VariableSchema;
   for (const [name, decl] of Object.entries(source.variables)) {
     variables[name] = buildVariableDecl(decl, take);
   }
 
-  const nodes: Record<string, Node> = {};
+  const nodes: Record<string, Node> = Object.create(null) as Record<string, Node>;
   for (const [id, node] of Object.entries(source.nodes)) {
-    nodes[id] = buildNode(node, take);
+    nodes[id] = buildNode(id, node, take);
   }
 
   const content: StoryGraphCampaign = {
