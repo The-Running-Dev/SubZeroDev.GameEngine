@@ -348,11 +348,12 @@ The plain proving instrument, over `SessionStore` only.
       failures render from reason codes, never matched English; an unknown reason code
       renders rather than crashing (09 §5).
 
-### W17 — MCP Server
+### [x] W17 — MCP Server
 The same operations as tools — a sibling adapter, no AI-specific path.
 - **Spec:** [04 §13](04-core.md#13-the-mcp-surface); [09 §7](09-clients.md#7-mcp-is-a-sibling-not-a-special-case)
       — MCP is a sibling, not a special case.
 - **Depends on:** [W7](#x-w7--session-store), [W12](#x-w12--scene-actions-projection-reason-codes).
+- **Status:** Done — [PR #66](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/66).
 - **Done when:** every tool matches its documented args and results and maps
       one-to-one onto a store operation, with no tool that is not one (09 §4); the MCP column of
       the coverage checklist is complete; an agent completes the arc; the same seed and
