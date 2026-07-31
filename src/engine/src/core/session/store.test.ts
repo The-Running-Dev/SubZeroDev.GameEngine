@@ -165,6 +165,45 @@ describe("save / load round trip", () => {
     const store = makeStore();
     await expect(store.loadGame("does-not-exist")).rejects.toThrow();
   });
+
+  it("a saved and loaded session keeps its original audience", async () => {
+    const store = makeStore();
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign", audience: "ai" });
+    const { saveId } = await store.saveGame(sessionId);
+    const loaded = await store.loadGame(saveId);
+
+    const view = await store.getView(loaded.sessionId);
+    expect(view.kindView).toEqual({ counter: 0, audience: "ai" });
+  });
+});
+
+describe("same-session concurrency", () => {
+  it("two concurrent submitAction calls against the same session apply both actions — no lost update", async () => {
+    const store = makeStore();
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+
+    const [first, second] = await Promise.all([store.submitAction(sessionId, "increment"), store.submitAction(sessionId, "increment")]);
+
+    expect(first.ok).toBe(true);
+    expect(second.ok).toBe(true);
+    const scene = await store.getScene(sessionId);
+    expect(scene.body.text).toBe("counter=2");
+  });
+
+  it("attempt is still exactly {1, 2} across two concurrent same-session submissions, never {1, 1}", async () => {
+    const records: number[] = [];
+    const sink: EmittedRecordSink = {
+      write: (record) => {
+        if (record.event.name === "core.action.accepted") records.push(record.attempt);
+      },
+    };
+    const store = makeStore({ recordSink: sink });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+
+    await Promise.all([store.submitAction(sessionId, "increment"), store.submitAction(sessionId, "increment")]);
+
+    expect(records.sort()).toEqual([1, 2]);
+  });
 });
 
 describe("no host-metadata leak", () => {
@@ -304,5 +343,31 @@ describe("jsonlEmitter integration", () => {
     for (const line of lines) {
       expect(() => JSON.parse(line)).not.toThrow();
     }
+  });
+});
+
+describe("a throwing recordSink does not break a command", () => {
+  it("createSession still succeeds when the sink's write() throws on every call", async () => {
+    const throwingSink: EmittedRecordSink = {
+      write: () => {
+        throw new Error("sink is broken");
+      },
+    };
+    const store = makeStore({ recordSink: throwingSink });
+    const handle = await store.createSession({ campaignId: "test-campaign" });
+    expect(handle.scene.body.text).toBe("counter=0");
+  });
+
+  it("submitAction still applies the action when the sink's write() throws on every call", async () => {
+    const throwingSink: EmittedRecordSink = {
+      write: () => {
+        throw new Error("sink is broken");
+      },
+    };
+    const store = makeStore({ recordSink: throwingSink });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+    const result = await store.submitAction(sessionId, "increment");
+    expect(result.ok).toBe(true);
+    expect(result.scene?.body.text).toBe("counter=1");
   });
 });

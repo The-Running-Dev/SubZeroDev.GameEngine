@@ -47,6 +47,7 @@ interface SaveRecord {
   saveId: string;
   blob: string;
   savedAtSeq: number;
+  audience: ProjectionAudience;
 }
 
 export interface InMemorySessionStoreOptions {
@@ -89,7 +90,14 @@ function buildDecorator(
         attempt: ctx.attempt,
         ...(ctx.sessionId !== undefined ? { sessionId: ctx.sessionId } : {}),
       };
-      sink.write(record);
+      // Same "must not throw, and the core defends anyway" contract as safeEmit
+      // (observability/emitter.ts, 05 §10) — a faulty EmittedRecordSink must not be able
+      // to abort a session-store command.
+      try {
+        sink.write(record);
+      } catch {
+        // Discarded — see safeEmit's doc comment; the same reasoning applies here.
+      }
     },
   };
 }
@@ -114,6 +122,26 @@ export function createInMemorySessionStore(options: InMemorySessionStoreOptions)
 
   const sessions = new Map<string, SessionRecord>();
   const saves = new Map<string, SaveRecord>();
+  // Per-session serialization. `withCommand`'s `await Promise.resolve()` (Decision 9) is
+  // what makes cross-session concurrency genuinely interleave for the isolation test — but
+  // the same yield point would let two commands against the *same* session both read
+  // `record.blob` before either writes it back, losing an update. Queuing same-session
+  // commands behind their predecessor closes that without affecting cross-session
+  // concurrency at all, since each sessionId gets its own independent queue.
+  const sessionLocks = new Map<string, Promise<unknown>>();
+
+  function runExclusive<T>(sessionId: string, fn: () => Promise<T>): Promise<T> {
+    const previous = sessionLocks.get(sessionId) ?? Promise.resolve();
+    const run = previous.then(fn, fn);
+    sessionLocks.set(
+      sessionId,
+      run.then(
+        () => undefined,
+        () => undefined,
+      ),
+    );
+    return run;
+  }
 
   function getSession(sessionId: string): SessionRecord {
     const record = sessions.get(sessionId);
@@ -209,47 +237,56 @@ export function createInMemorySessionStore(options: InMemorySessionStoreOptions)
 
     async resumeSession(sessionId: string): Promise<Scene> {
       const record = getSession(sessionId);
-      return withCommand(sessionId, record.attemptCounter, (decoratedEngine) => {
-        const state = mustDeserialize(decoratedEngine, record.blob);
-        return decoratedEngine.scene(state);
-      });
+      return runExclusive(sessionId, () =>
+        withCommand(sessionId, record.attemptCounter, (decoratedEngine) => {
+          const state = mustDeserialize(decoratedEngine, record.blob);
+          return decoratedEngine.scene(state);
+        }),
+      );
     },
 
     async submitAction(sessionId: string, actionId: string, params?: ActionParams): Promise<SessionActionResult> {
       const record = getSession(sessionId);
-      // Increments before dispatch, including for a submission that goes on to be
-      // rejected — plan 14 Decision 4. `attempt: 1` on the first submission, not `0`.
-      record.attemptCounter += 1;
-      const attempt = record.attemptCounter;
 
-      return withCommand(sessionId, attempt, (decoratedEngine) => {
-        const state = mustDeserialize(decoratedEngine, record.blob);
-        const result = decoratedEngine.submitAction(state, actionId, params);
+      return runExclusive(sessionId, () => {
+        // Increments before dispatch, including for a submission that goes on to be
+        // rejected — plan 14 Decision 4. `attempt: 1` on the first submission, not `0`.
+        // Deferred to inside the lock so two same-session submissions still attempt in
+        // the order they acquire it, not the order they were called.
+        record.attemptCounter += 1;
+        const attempt = record.attemptCounter;
 
-        if (result.ok && result.value) {
-          record.blob = decoratedEngine.serialize(result.value);
-          return {
-            ok: true,
-            scene: decoratedEngine.scene(result.value),
-            errors: result.errors,
-            warnings: result.warnings,
-            changes: result.changes,
-            messages: result.messages,
-          };
-        }
+        return withCommand(sessionId, attempt, (decoratedEngine) => {
+          const state = mustDeserialize(decoratedEngine, record.blob);
+          const result = decoratedEngine.submitAction(state, actionId, params);
 
-        return { ok: false, errors: result.errors, warnings: result.warnings, changes: result.changes, messages: result.messages };
+          if (result.ok && result.value) {
+            record.blob = decoratedEngine.serialize(result.value);
+            return {
+              ok: true,
+              scene: decoratedEngine.scene(result.value),
+              errors: result.errors,
+              warnings: result.warnings,
+              changes: result.changes,
+              messages: result.messages,
+            };
+          }
+
+          return { ok: false, errors: result.errors, warnings: result.warnings, changes: result.changes, messages: result.messages };
+        });
       });
     },
 
     async saveGame(sessionId: string): Promise<SaveHandle> {
       const record = getSession(sessionId);
-      return withCommand(sessionId, record.attemptCounter, (decoratedEngine) => {
-        const state = mustDeserialize(decoratedEngine, record.blob);
-        const saveId = mintId();
-        saves.set(saveId, { saveId, blob: record.blob, savedAtSeq: state.actionLog.length });
-        return { saveId, savedAtSeq: state.actionLog.length };
-      });
+      return runExclusive(sessionId, () =>
+        withCommand(sessionId, record.attemptCounter, (decoratedEngine) => {
+          const state = mustDeserialize(decoratedEngine, record.blob);
+          const saveId = mintId();
+          saves.set(saveId, { saveId, blob: record.blob, savedAtSeq: state.actionLog.length, audience: record.audience });
+          return { saveId, savedAtSeq: state.actionLog.length };
+        }),
+      );
     },
 
     async loadGame(saveId: string): Promise<SessionHandle> {
@@ -258,10 +295,9 @@ export function createInMemorySessionStore(options: InMemorySessionStoreOptions)
 
       return withCommand(sessionId, 0, (decoratedEngine) => {
         const state = mustDeserialize(decoratedEngine, save.blob);
-        // A loaded session has no NewGameConfig.audience to recover from GameState (it
-        // was never part of the envelope) — defaults to "player", the same default
-        // scene()'s own bundled view uses (kernel/engine.ts).
-        sessions.set(sessionId, { sessionId, blob: save.blob, audience: "player", attemptCounter: 0 });
+        // The saved audience round-trips through SaveRecord (set in saveGame above) —
+        // a session created with audience: "ai" must still be "ai" after save/load.
+        sessions.set(sessionId, { sessionId, blob: save.blob, audience: save.audience, attemptCounter: 0 });
         return { sessionId, scene: decoratedEngine.scene(state) };
       });
     },
