@@ -6,6 +6,14 @@ title: 'Game Engine'
 
 **Build mechanics once. Create infinite games.**
 
+## Quick Links
+
+- **[Read the docs](/docs/)** — specs, architecture, API contracts, in reading order
+- **[Roadmap & milestones](/docs/engine/todo)** — every unit of work, done and remaining
+- **[Changelog](/docs/engine/changelog)** — one entry per merged PR, regenerated automatically
+- **[Current status](#status)** — what's built, what's next, right below
+- **[Engine source](/docs/guide/engine-package)** — `src/engine/`: TypeScript strict, vitest, zero runtime dependencies
+
 ## Why This Exists
 
 Game engines solved rendering.
@@ -259,8 +267,8 @@ Humans and AI submit the exact same commands.
 
 Equality is important. Especially when they're both about to violate validation rules.
 
-(To be fair, nobody can submit anything yet — Phase 1 is still the deterministic core.
-Consider this a promise, not a demo.)
+(To be fair, there's no playable campaign yet — the story-graph kind that would make one
+possible is next on the roadmap. Consider this a promise, not a demo.)
 
 An AI agent doesn't get special powers.
 
@@ -335,30 +343,35 @@ Future Us will probably appreciate the effort. Present Us certainly will.
 
 ## Status
 
-### Specifications
+> This section is a coarse snapshot, kept short on purpose. The living, unit-by-unit
+> breakdown — done, in progress, not started — lives in one place:
+> **[TODO.md](/docs/engine/todo)**. Nothing here
+> duplicates it, so nothing here can drift from it.
 
-The MVP contracts are complete: [Core](/docs/engine/core), [Story Graph](/docs/engine/story-graph-kind), [Architecture](/docs/engine/architecture).
+### Specifications — done
 
-Every MVP-blocking decision has already been made
-([OPEN-QUESTIONS.md](/docs/engine/open-questions#1-mvp-relevant-gaps--all-resolved) §1). The remaining work is implementation. Not philosophy.
+The MVP contracts are complete and every MVP-blocking decision has already been made
+([OPEN-QUESTIONS.md §1](/docs/engine/open-questions#1-mvp-relevant-gaps--all-resolved)):
+[Vision](/docs/engine/vision),
+[Architecture](/docs/engine/architecture),
+[Core](/docs/engine/core),
+[Story Graph](/docs/engine/story-graph-kind). The remaining
+work is implementation. Not philosophy.
 
-### Code
+### Code — the core layer is done (W0–W8)
 
-Current implementation ([`src/engine/`](/docs/guide/engine-package)) includes:
+Deterministic kernel (seeded PCG32, canonical serialization, `createEngine`/`createGame`/
+`submitAction`/projections), the observability channel, the content registry and tiered
+validation, and the in-memory session and profile stores are all built and tested against
+[`04-core.md`](/docs/engine/core) — strict TypeScript,
+zero runtime dependencies, and a lint-enforced determinism guard.
 
-- deterministic PCG32 RNG
-- canonical serialization
-- verified bit-identical reference vectors
-- strict TypeScript
-- determinism guard (eslint)
-- core contract types and module skeleton
+### Next — the story-graph kind (W9–W14)
 
-The foundation exists. Now comes the fun part — the determinism harness and replay
-verification are still ahead, per [TODO.md](/docs/engine/todo#core).
-
-### Next
-
-Implement the remaining roadmap ([TODO.md](/docs/engine/todo#core), W0–W19). One deterministic subsystem at a time. Unlike game development.
+The flagship kind's mechanics: typed variables and consequences, conditions and
+requirements, nodes and turn resolution, achievements. Then content, clients, and the
+determinism harness (W15–W19). Full sequencing and done-criteria for every unit:
+[TODO.md](/docs/engine/todo).
 
 ---
 
