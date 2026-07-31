@@ -38,7 +38,11 @@ function interpolate(template: string, params: Readonly<Record<string, string | 
 function renderAction(action: AvailableAction, strings: StringTable): string {
   const label = resolveOrFallback(strings, action.labelKey);
   if (action.available) return `  [${action.id}] ${label}`;
-  const reason = action.reasonKey !== undefined ? resolveOrFallback(strings, action.reasonKey) : "unavailable";
+  // `reasonKey` is documented as present iff `available` is false (kernel/types.ts) — the
+  // fallback below is a defensive backstop against that contract being violated upstream,
+  // resolved through a real reason code rather than a literal English string, the same
+  // never-hardcode discipline every other render function in this module follows.
+  const reason = resolveOrFallback(strings, action.reasonKey ?? "core.reason.action_not_available");
   return `  [${action.id}] ${label} (${reason})`;
 }
 
@@ -64,9 +68,20 @@ export function renderScene(scene: Scene, strings: StringTable): string {
  * kind that produced it cannot destructure it without importing `kinds/*`, which this
  * client must not. Rendered verbatim as JSON: boring on purpose (the ancestor spec's own
  * words) rather than reaching past the projection boundary.
+ *
+ * `JSON.stringify` can throw (a circular structure, a `BigInt`) — `kindView` is `unknown`,
+ * so this client has no basis to assume a kind's projection is always JSON-safe. Falls back
+ * to a visible placeholder rather than crashing the whole render, the same never-crash
+ * discipline `resolveOrFallback` applies to an unresolvable `LocKey`.
  */
 export function renderView(view: PlayerView): string {
-  return [`Game ${view.gameId} — ${view.status}`, JSON.stringify(view.kindView, null, 2)].join("\n");
+  let kindView: string;
+  try {
+    kindView = JSON.stringify(view.kindView, null, 2) ?? "undefined";
+  } catch {
+    kindView = "(kindView could not be rendered)";
+  }
+  return [`Game ${view.gameId} — ${view.status}`, kindView].join("\n");
 }
 
 /**
@@ -107,12 +122,16 @@ export function renderWarnings(warnings: readonly ValidationWarning[], strings: 
 export function renderActionResult(result: SessionActionResult, strings: StringTable): string {
   const parts: string[] = [];
 
-  if (result.ok && result.scene) {
+  // Branches on `ok` alone, not `ok && scene` — `SessionActionResult.scene` is optional in
+  // the type even though the real store always sets it on success; requiring it here would
+  // silently misrender a structurally-valid `{ ok: true, scene: undefined }` as a rejection
+  // and drop its messages/changes instead of rendering them.
+  if (result.ok) {
     const messages = renderMessages(result.messages, strings);
     if (messages) parts.push(messages);
     const changes = renderChanges(result.changes);
     if (changes) parts.push(changes);
-    parts.push(renderScene(result.scene, strings));
+    if (result.scene) parts.push(renderScene(result.scene, strings));
   } else {
     parts.push(renderErrors(result.errors, strings));
   }

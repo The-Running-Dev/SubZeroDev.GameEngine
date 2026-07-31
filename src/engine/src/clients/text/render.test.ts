@@ -23,6 +23,7 @@ const strings: StringTable = {
   "choice.go_home.label": "Go home",
   "choice.go_home.fail": "The paperwork isn't old enough yet.",
   "core.reason.unknown_action": "That action isn't recognized.",
+  "core.reason.action_not_available": "This action isn't available right now.",
   "outcome.greeting": "Welcome, {name}.",
 };
 
@@ -74,6 +75,18 @@ describe("renderScene", () => {
     };
     expect(renderScene(scene, strings)).toContain("(no actions available)");
   });
+
+  it("falls back to a real reason code, not a literal, when an unavailable action has no reasonKey", () => {
+    const scene: Scene = {
+      gameId: "g1",
+      status: "active",
+      body: { textKey: "t", text: "Room 6." },
+      actions: [{ id: "go_home", labelKey: "choice.go_home.label", available: false }],
+      view: { gameId: "g1", status: "active", kindView: {} },
+    };
+    const text = renderScene(scene, strings);
+    expect(text).toContain("[go_home] Go home (This action isn't available right now.)");
+  });
 });
 
 describe("renderView", () => {
@@ -82,6 +95,14 @@ describe("renderView", () => {
     const text = renderView(view);
     expect(text).toContain("g1");
     expect(text).toContain('"turn": 3');
+  });
+
+  it("renders a placeholder instead of throwing when kindView isn't JSON-serializable", () => {
+    const cyclic: Record<string, unknown> = {};
+    cyclic["self"] = cyclic;
+    const view: PlayerView = { gameId: "g1", status: "active", kindView: cyclic };
+    expect(() => renderView(view)).not.toThrow();
+    expect(renderView(view)).toContain("(kindView could not be rendered)");
   });
 });
 
@@ -174,6 +195,22 @@ describe("renderActionResult", () => {
       messages: [],
     };
     expect(renderActionResult(result, strings)).toBe("That action isn't recognized.");
+  });
+
+  it("still renders messages and changes on success even when scene is absent", () => {
+    // SessionActionResult.scene is optional in the type even though the real store
+    // always sets it on ok:true — branching on `ok && scene` would misrender this as a
+    // rejection and silently drop the message/changes below.
+    const result: SessionActionResult = {
+      ok: true,
+      errors: [],
+      warnings: [],
+      changes: [{ path: "var.office_visits", op: "increment", value: 1, previous: 0, reason: "x", visible: true }],
+      messages: [{ key: "outcome.greeting", params: { name: "Ben" }, visible: true }],
+    };
+    const text = renderActionResult(result, strings);
+    expect(text).toContain("Welcome, Ben.");
+    expect(text).toContain("var.office_visits");
   });
 });
 

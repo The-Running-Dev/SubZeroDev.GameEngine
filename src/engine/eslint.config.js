@@ -44,9 +44,11 @@ export default tseslint.config(
               message: "Dependency arrow (04 §1.1): the core must not import a kind. Kinds depend on the core, never the reverse."
             },
             {
-              // `**` (not a single `*`) so a nested import like `../clients/text/client.js`
-              // still matches, not just a flat `../clients/foo.js`.
-              group: ["**/clients/**", "**/mcp/**"],
+              // Both the bare directory specifier (`../clients`, resolving to an index
+              // module) and a nested file within it (`../clients/text/client.js`) need
+              // covering — `**/clients/**` alone doesn't match the bare form, since `**`
+              // after a trailing slash still expects at least one more path segment.
+              group: ["**/clients", "**/clients/**", "**/mcp", "**/mcp/**"],
               message: "Dependency arrow (04 §1.1): the core must not import a client or the MCP adapter."
             }
           ]
@@ -69,7 +71,7 @@ export default tseslint.config(
         {
           patterns: [
             {
-              group: ["**/kinds/**"],
+              group: ["**/kinds", "**/kinds/**"],
               message: "Client contract (09-clients.md §2): a client must not import a kind directly — it calls SessionStore and nothing else."
             }
           ]

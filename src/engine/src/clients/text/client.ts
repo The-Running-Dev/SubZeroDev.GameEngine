@@ -22,8 +22,10 @@ import type {
 } from "../../core/session/types.js";
 import { renderActionResult, renderCampaignList, renderScene, renderSaveHandle, renderView } from "./render.js";
 
-/** What every operation returns: the store's own value, for a test to assert on real
- *  data, plus the text a human would see for it — never a third shape. */
+/** What every operation but `getStrings` returns: the store's own value, for a test to
+ *  assert on real data, plus the text a human would see for it — never a third shape.
+ *  `getStrings` is the one exception (see its own doc comment below): a whole string
+ *  table has no natural rendered form the way a scene, an error, or a save handle does. */
 export interface Rendered<T> {
   value: T;
   text: string;
@@ -50,6 +52,10 @@ export class TextClient {
     return { value, text: renderView(value) };
   }
 
+  /** Returns the table itself, not `Rendered<StringTable>` — every other operation's
+   *  `text` is what a human reads on a screen; a raw key→string map isn't a screen, it's
+   *  the resource every other render call resolves against (including this client's own,
+   *  internally, for the other eight). */
   getStrings(sessionId: string): Promise<StringTable> {
     return this.store.getStrings(sessionId);
   }
