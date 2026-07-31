@@ -15,6 +15,8 @@ import type { ValidationResult } from "../validation/types.js";
 import type { EngineHost } from "../composition/types.js";
 import { jsonlEmitter } from "../observability/emitter.js";
 import type { EmittedRecord, EmittedRecordSink } from "../observability/types.js";
+import { createInMemoryProfileStore } from "./profile-store.js";
+import type { ProfileStore } from "./types.js";
 
 interface TestKindState {
   counter: number;
@@ -39,6 +41,23 @@ function makeTestKind(): Kind<TestKindState> {
       }
       if (actionId === "end") {
         return { state, status: "ended", changes: [], messages: [] };
+      }
+      if (actionId === "unlock-first-count" || actionId === "unlock-second-thing") {
+        const achievementId = actionId === "unlock-first-count" ? "first-count" : "second-thing";
+        return {
+          state,
+          status: "active",
+          changes: [
+            {
+              path: `achieved.${achievementId}`,
+              op: "set",
+              value: true,
+              reason: "achievement_unlocked",
+              visible: true,
+            },
+          ],
+          messages: [],
+        };
       }
       return {
         state,
@@ -76,12 +95,13 @@ function makeEngine(overrides?: Partial<EngineHost>): Engine {
   return createEngine({ kinds: makeKinds(), registry: makeRegistry(), ...overrides });
 }
 
-function makeStore(overrides?: { engine?: Engine; recordSink?: EmittedRecordSink }) {
+function makeStore(overrides?: { engine?: Engine; recordSink?: EmittedRecordSink; profiles?: ProfileStore }) {
   const registry = makeRegistry();
   return createInMemorySessionStore({
     engine: overrides?.engine ?? makeEngine({ registry }),
     registry,
     ...(overrides?.recordSink ? { recordSink: overrides.recordSink } : {}),
+    ...(overrides?.profiles ? { profiles: overrides.profiles } : {}),
   });
 }
 
@@ -369,5 +389,151 @@ describe("a throwing recordSink does not break a command", () => {
     const result = await store.submitAction(sessionId, "increment");
     expect(result.ok).toBe(true);
     expect(result.scene?.body.text).toBe("counter=1");
+  });
+});
+
+describe("profile store wiring (W8)", () => {
+  it("an unlock survives a new session with the same profileId, read directly from the ProfileStore", async () => {
+    const profiles = createInMemoryProfileStore();
+    const store = makeStore({ profiles });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    await store.submitAction(sessionId, "unlock-first-count");
+
+    const { profile } = await profiles.load("p1");
+    expect(profile.achievements).toEqual([{ campaignId: "test-campaign", achievementId: "first-count" }]);
+
+    // A brand new session, same profileId, same ProfileStore instance.
+    const second = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    expect(second.sessionId).not.toBe(sessionId);
+    const { profile: stillThere } = await profiles.load("p1");
+    expect(stillThere.achievements).toEqual([{ campaignId: "test-campaign", achievementId: "first-count" }]);
+  });
+
+  it("no profileId means no read and no write — the ProfileStore is never called", async () => {
+    let loadCalls = 0;
+    let saveCalls = 0;
+    const spyProfiles: ProfileStore = {
+      load: async (profileId) => {
+        loadCalls += 1;
+        return { profile: { formatVersion: 1, profileId, achievements: [] }, warnings: [] };
+      },
+      save: async () => {
+        saveCalls += 1;
+        return { ok: true, warnings: [] };
+      },
+    };
+    const store = makeStore({ profiles: spyProfiles });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign" }); // no profileId
+    await store.submitAction(sessionId, "unlock-first-count");
+
+    expect(loadCalls).toBe(0);
+    expect(saveCalls).toBe(0);
+  });
+
+  it("an action with no achievement-unlock changes never touches the ProfileStore", async () => {
+    let loadCalls = 0;
+    const spyProfiles: ProfileStore = {
+      load: async (profileId) => {
+        loadCalls += 1;
+        return { profile: { formatVersion: 1, profileId, achievements: [] }, warnings: [] };
+      },
+      save: async () => ({ ok: true, warnings: [] }),
+    };
+    const store = makeStore({ profiles: spyProfiles });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    await store.submitAction(sessionId, "increment");
+
+    expect(loadCalls).toBe(0);
+  });
+
+  it("a missing profile surfaces profile_missing as a warning on the unlocking SessionActionResult", async () => {
+    const profiles = createInMemoryProfileStore();
+    const store = makeStore({ profiles });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "never-seen-before" });
+    const result = await store.submitAction(sessionId, "unlock-first-count");
+
+    expect(result.ok).toBe(true);
+    expect(result.warnings).toEqual([{ code: "profile_missing", messageKey: "core.reason.profile_missing", path: "never-seen-before" }]);
+  });
+
+  it("a corrupt profile surfaces profile_corrupt as a warning", async () => {
+    const profiles = createInMemoryProfileStore({ raw: new Map([["p1", { nonsense: true }]]) });
+    const store = makeStore({ profiles });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    const result = await store.submitAction(sessionId, "unlock-first-count");
+
+    expect(result.warnings).toEqual([{ code: "profile_corrupt", messageKey: "core.reason.profile_corrupt", path: "p1" }]);
+  });
+
+  it("a write failure warns without rolling back the game action", async () => {
+    // No profile seeded, so the load half of the upsert also warns profile_missing —
+    // both warnings surface, in load-then-save order.
+    const profiles = createInMemoryProfileStore({ onSave: () => false });
+    const store = makeStore({ profiles });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    const result = await store.submitAction(sessionId, "unlock-first-count");
+
+    expect(result.ok).toBe(true);
+    expect(result.scene).toBeDefined();
+    expect(result.warnings).toEqual([
+      { code: "profile_missing", messageKey: "core.reason.profile_missing", path: "p1" },
+      { code: "profile_write_failed", messageKey: "core.reason.profile_write_failed", path: "p1" },
+    ]);
+    // The game action itself is unaffected — the session advanced regardless.
+    expect((await store.getScene(sessionId)).body.text).toBe("counter=0"); // "unlock-first-count" doesn't touch counter
+  });
+
+  it("the same achievement unlocked twice upserts idempotently — one record, not two", async () => {
+    const profiles = createInMemoryProfileStore();
+    const store = makeStore({ profiles });
+
+    const a = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    await store.submitAction(a.sessionId, "unlock-first-count");
+    const b = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    await store.submitAction(b.sessionId, "unlock-first-count"); // same achievement, different session
+
+    const { profile } = await profiles.load("p1");
+    expect(profile.achievements).toEqual([{ campaignId: "test-campaign", achievementId: "first-count" }]);
+  });
+
+  it("two different achievements both accumulate on the same profile", async () => {
+    const profiles = createInMemoryProfileStore();
+    const store = makeStore({ profiles });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    await store.submitAction(sessionId, "unlock-first-count");
+    await store.submitAction(sessionId, "unlock-second-thing");
+
+    const { profile } = await profiles.load("p1");
+    expect(profile.achievements).toEqual(
+      expect.arrayContaining([
+        { campaignId: "test-campaign", achievementId: "first-count" },
+        { campaignId: "test-campaign", achievementId: "second-thing" },
+      ]),
+    );
+    expect(profile.achievements).toHaveLength(2);
+  });
+
+  it("a loaded profile's content never affects resolution — byte-identical state regardless of what's pre-seeded", async () => {
+    const decoyProfiles = createInMemoryProfileStore({
+      raw: new Map([["p1", { formatVersion: 1, profileId: "p1", achievements: [{ campaignId: "test-campaign", achievementId: "first-count" }] }]]),
+    });
+    const emptyProfiles = createInMemoryProfileStore();
+
+    async function runSequence(profiles: ProfileStore): Promise<string> {
+      // A fixed IdSource so gameId doesn't itself differ between the two runs — only the
+      // profile content should be able to, and this test is asserting it doesn't.
+      const registry = makeRegistry();
+      const engine = makeEngine({ registry, ids: { newGameId: () => "fixed-game-id", newSeed: () => "fixed-seed" } });
+      const store = createInMemorySessionStore({ engine, registry, profiles });
+      const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1", seed: "fixed-seed" });
+      await store.submitAction(sessionId, "increment");
+      await store.submitAction(sessionId, "unlock-first-count");
+      const scene = await store.getScene(sessionId);
+      return JSON.stringify(scene);
+    }
+
+    const withDecoy = await runSequence(decoyProfiles);
+    const withoutDecoy = await runSequence(emptyProfiles);
+    expect(withDecoy).toBe(withoutDecoy);
   });
 });

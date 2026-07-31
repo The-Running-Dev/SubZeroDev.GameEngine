@@ -40,6 +40,11 @@ export type ReasonCode = string;
  * (`validation/tiered.ts`) — the core's own Tier-1 checks (campaign id shape, `titleKey`
  * shape, `titleKey` resolving in that campaign's strings, 04 §11/§17) needed a code each.
  * See `plans/12-w5-tiered-validation.md`, Decision 1.
+ *
+ * `profile_missing`, `profile_corrupt`, and `profile_write_failed` were added during W8 —
+ * they mirror `ProfileWarningCode` (`session/types.ts`) so a `ProfileWarning` can be
+ * adapted into a `ValidationWarning` and surfaced through `SessionActionResult.warnings`,
+ * the only channel available to report one. See `plans/15-w8-profile-store.md`, Decision 2.
  */
 export const BASE_REASON_CODES = [
   "action_not_available",
@@ -58,6 +63,9 @@ export const BASE_REASON_CODES = [
   "invalid_identifier",
   "invalid_loc_key",
   "missing_string_key",
+  "profile_missing",
+  "profile_corrupt",
+  "profile_write_failed",
 ] as const;
 
 export type BaseReasonCode = (typeof BASE_REASON_CODES)[number];
@@ -85,6 +93,9 @@ const CORE_REASON_TEXT: Readonly<Record<BaseReasonCode, string>> = {
   invalid_identifier: "That id doesn't match the required shape.",
   invalid_loc_key: "That text key doesn't match the required shape.",
   missing_string_key: "That text key has no authored string.",
+  profile_missing: "No saved profile was found; starting with an empty one.",
+  profile_corrupt: "The saved profile couldn't be read; starting with an empty one.",
+  profile_write_failed: "The profile couldn't be saved. Your game progress was not affected.",
 };
 
 /** `core.reason.<code>` → its shipped default-English message, for every base code. */

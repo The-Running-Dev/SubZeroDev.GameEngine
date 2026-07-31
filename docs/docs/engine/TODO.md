@@ -469,6 +469,16 @@ in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap) (
       name `SessionHost` or `createSessionLayer`. The composition-root generality
       `06-extensibility.md` §4 describes is still unbuilt. See
       `plans/14-w7-session-store.md`, Decision 1.
+- [ ] **The achievement-unlock `StateChange` shape is a convention this unit invented, not
+      one `04-core.md`/`03-story-graph-kind.md` pin.** Both docs say a kind "emits an
+      `achievement_unlocked` `StateChange`" but neither fixes its `path`/`op`/`value` —
+      `StateChange.reason` is a bare `ReasonCode` (`type ReasonCode = string`), so a
+      kind-agnostic session store has no contract to detect one by. W8 built against
+      `{ path: "achieved.<id>", op: "set", value: true, reason: "achievement_unlocked" }`
+      (reusing 03 §6's already-fixed `achieved.<id>` condition-field name), and no real
+      kind has implemented it yet to check the two sides against each other. Needs formal
+      codification in `04-core.md` §12 once `story-graph` (W9–14) or `simulation` actually
+      emits one. See `plans/15-w8-profile-store.md`, Decision 1.
 - [ ] `wisdom` attribute has no consumer in the simulation kind — needs one to earn its
       place (`games/04-engine-specification.md` §8.4).
 - [ ] Provisional numbers across the simulation kind (drift rates, scenario economics,
