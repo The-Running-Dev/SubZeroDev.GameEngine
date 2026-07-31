@@ -60,6 +60,10 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 # The MVP — Units of Work
 
+> **MVP DONE.** W1–W19 are all checked. [`MVP.md`](MVP.md) §5's Definition of Done is
+> checked box-by-box against a named test for each one — the platform is proven. What
+> follows below (Post-MVP) is depth and breadth building on it, not the MVP itself.
+
 Ordered by dependency. **W1–W8** are core (shared by every kind), **W9–W14** the
 story-graph kind, **W15–W19** content, clients, and proof. A unit is done when its
 done-criteria are demonstrated by a test, not by inspection.
@@ -376,9 +380,10 @@ sink-independence pass.
       on an unintended behavioural change; the suite passes in Node with no DOM, network, or
       AI adapter installed.
 
-### W19 — MVP Acceptance
+### [x] W19 — MVP Acceptance
 Walk [`MVP.md`](MVP.md) §5 and attach test evidence to each box.
 - **Depends on:** every unit above.
+- **Status:** Done — [PR #71](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/71).
 - **Done when:** every box is checked with a named test. **MVP DONE.**
 
 ---
