@@ -569,3 +569,28 @@ describe("observability", () => {
     expect(rngDerivedDuringScene[0]?.ordinal).toBe(0);
   });
 });
+
+describe("withEmitter", () => {
+  it("redirects emitted events to the new emitter, not the original one", () => {
+    const original = createRecordingEmitter();
+    const swapped = createRecordingEmitter();
+    const engine = createEngine(makeHost({ emitter: original }));
+    const rebound = engine.withEmitter(swapped);
+
+    const created = rebound.createGame({ campaignId: "test-campaign" });
+    rebound.submitAction(created.value as GameState, "increment");
+
+    expect(original.events).toEqual([]);
+    expect(swapped.events.length).toBeGreaterThan(0);
+  });
+
+  it("leaves game-affecting behaviour unchanged by the swap", () => {
+    const engine = createEngine(makeHost({ ids: { newGameId: () => "g", newSeed: () => "s" } }));
+    const rebound = engine.withEmitter(createRecordingEmitter());
+
+    const viaOriginal = engine.createGame({ campaignId: "test-campaign", seed: "fixed-seed" });
+    const viaRebound = rebound.createGame({ campaignId: "test-campaign", seed: "fixed-seed" });
+
+    expect(engine.serialize(viaRebound.value as GameState)).toBe(engine.serialize(viaOriginal.value as GameState));
+  });
+});

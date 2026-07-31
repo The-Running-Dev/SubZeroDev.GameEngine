@@ -438,5 +438,9 @@ export function createEngine(host: EngineHost): Engine {
     serialize: (state) => serializeState(state),
     deserialize: (data) => deserializeState(host, data),
     migrate: (data) => migrateState(host, data),
+    // 05-observability.md §6.1: reconstructing over the new emitter is cheap and pure —
+    // createEngine does no I/O, only the in-namespace event-name check (above), which is
+    // idempotent over the same host.kinds.
+    withEmitter: (emitter) => createEngine({ ...host, emitter }),
   };
 }

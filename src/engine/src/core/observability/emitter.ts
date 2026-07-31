@@ -3,11 +3,23 @@
  *
  * Contract: `05-observability.md` §§2, 4–5, 9–10.
  *
- * The boundary half — stamping, spans, `attempt`, `jsonlEmitter` — is W7's; it needs a
- * clock, which only the session-store layer has (05 §6).
+ * Stamping, spans, and `attempt` live in `session/store.ts` (W7) — they need a clock,
+ * which only the session-store layer has (05 §6). `jsonlEmitter` lives here, beside the
+ * other sinks, but is an `EmittedRecordSink` rather than an `Emitter` — see the type's own
+ * doc comment and `plans/14-w7-session-store.md` Decision 2.
  */
 
-import type { EngineEvent, Emitter, EventData, EventName, ResolutionEmitter, Severity, SystemEvent } from "./types.js";
+import type {
+  EmittedRecord,
+  EmittedRecordSink,
+  EngineEvent,
+  Emitter,
+  EventData,
+  EventName,
+  ResolutionEmitter,
+  Severity,
+  SystemEvent,
+} from "./types.js";
 import type { KindId } from "../kernel/types.js";
 import type { ReasonCode } from "../kernel/reasons.js";
 
@@ -55,6 +67,25 @@ export function safeEmit(sink: Emitter, event: EngineEvent): void {
   } catch {
     // Discarded — see the doc comment above.
   }
+}
+
+/**
+ * "Development, and the text client" (05 §10). One JSON object per line, written through
+ * an injected `write` rather than a concrete stream — keeps this testable without touching
+ * the filesystem, and lets a real caller wire it to `fs.appendFileSync`, a `WriteStream`,
+ * or `process.stdout` as they see fit. Same "must not throw" contract as any other sink:
+ * a `write` that throws is swallowed here, for the identical reason `safeEmit` swallows.
+ */
+export function jsonlEmitter(write: (line: string) => void): EmittedRecordSink {
+  return {
+    write(record: EmittedRecord) {
+      try {
+        write(JSON.stringify(record));
+      } catch {
+        // Discarded — see safeEmit's doc comment; the same reasoning applies here.
+      }
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------

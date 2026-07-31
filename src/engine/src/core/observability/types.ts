@@ -91,3 +91,14 @@ export interface EmittedRecord {
   /** The store's key; absent for pure-engine-only use. */
   readonly sessionId?: string;
 }
+
+/**
+ * A **boundary** sink — distinct from `Emitter` (05 §6, §10; `plans/14-w7-session-store.md`
+ * Decision 2). `nullEmitter`/`recordingEmitter` are `Emitter`s and run at the core layer,
+ * where no `EmittedRecord` exists yet. `jsonlEmitter` implements this instead: it only ever
+ * runs inside the session store, after a per-command decorator has already built the
+ * `EmittedRecord` from a bare `EngineEvent`.
+ */
+export interface EmittedRecordSink {
+  write(record: EmittedRecord): void;
+}
