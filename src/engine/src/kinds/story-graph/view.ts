@@ -31,9 +31,14 @@ export interface StoryGraphView {
 }
 
 /**
- * `unlockedAchievements` passes through unfiltered — 03 §9 says "non-hidden, unlocked",
- * but `AchievementDefinition.hidden` doesn't exist until W13, and `state.unlockedAchievements`
- * is always `[]` until then regardless (nothing populates it yet). See plan 19, Decision 5.
+ * `unlockedAchievements` passes through unfiltered, on purpose — 03 §9's field comment
+ * says "non-hidden, unlocked", but 03 §7 defines `hidden` as "not listed **until
+ * unlocked**", which only makes sense if unlocking is exactly what makes an achievement
+ * listed. The two read in tension; §7's full-prose definition wins over §9's three-word
+ * gloss (written before `AchievementDefinition` existed — plan 19, Decision 5). A hidden
+ * achievement becomes visible here at the moment it unlocks, same as any other. See
+ * `plans/20-w13-endings-and-achievements.md`, Decision 3, and `TODO.md`'s Known Open
+ * Items for the unresolved doc-level tension.
  *
  * `ending.outcome` reads `content.nodes[state.currentNodeId]` rather than needing a new
  * state field — that id is already the ending node's own once `status === "ended"`

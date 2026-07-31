@@ -530,6 +530,16 @@ in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap) (
       on. `04-core.md` §12 itself still doesn't document the `<kindId>.reason.*`
       convention — a documentation follow-up, not blocking (`plans/19-w12-…`, Decision 3).
       See `plans/17-w10-conditions-and-requirements.md`, Decision 3.
+- [ ] **03 §7 and §9 read in tension over whether a `hidden` achievement appears in
+      `StoryGraphView.unlockedAchievements` once unlocked.** §9's field comment says
+      "non-hidden, unlocked"; §7 defines `hidden` as "not listed **until unlocked**",
+      which only makes sense if unlocking is what makes it listed. W13 resolved this in
+      code in §7's favor — `project` passes every unlocked id through regardless of
+      `hidden` — since §7 is the section that actually defines the field's semantics in
+      full prose, and §9's comment predates `AchievementDefinition` existing at all (W12
+      built `StoryGraphView` against a placeholder type, plan 19 Decision 5). Needs a doc
+      pass to make §9's comment agree with §7 rather than contradict it. See
+      `plans/20-w13-endings-and-achievements.md`, Decision 3.
 - [ ] `wisdom` attribute has no consumer in the simulation kind — needs one to earn its
       place (`games/04-engine-specification.md` §8.4).
 - [ ] Provisional numbers across the simulation kind (drift rates, scenario economics,
