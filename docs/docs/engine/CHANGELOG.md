@@ -9,8 +9,12 @@ of `main`, not maintained by hand. This project squash-merges every pull request
 `git log` already is the changelog; regenerating it is strictly more reliable than a
 second, hand-kept copy.
 
-- **2026-07-31** — Regenerate docs/src/pages/index.md from the updated README
-- **2026-07-31** — Docs discoverability: README navigation, accurate status, and an auto-generated changelog
+- **2026-07-31** — [Docs: mark W10/W11 done, refresh README's status snapshot, regenerate homepage (#45)](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/45)
+- **2026-07-31** — [W11 — Nodes, Turn, and Settle: the node graph, enter/settle, and initialState (#44)](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/44)
+- **2026-07-31** — [W10 — Conditions and Requirements: the frozen Condition evaluator + field namespace (#43)](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/43)
+- **2026-07-31** — [Docs: mark W0–W9 done in TODO.md, with the merging PR for each (#42)](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/42)
+- **2026-07-31** — [W9 — Variables and Consequences: typed set/increment/decrement, clamp-once (#41)](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/41)
+- **2026-07-31** — [Docs discoverability: README navigation, accurate status, auto-generated changelog (#40)](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/40)
 - **2026-07-31** — [W8 — Profile Store: in-memory store and the post-action upsert (#39)](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/39)
 - **2026-07-31** — [W7 — Session Store: in-memory store, Engine.withEmitter, jsonlEmitter (#38)](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/38)
 - **2026-07-31** — [W6 — Projection: black-box acceptance tests for the client boundary (#37)](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/37)
