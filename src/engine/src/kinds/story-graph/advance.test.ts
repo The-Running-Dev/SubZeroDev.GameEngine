@@ -59,6 +59,19 @@ const endingViaAdvanceCampaign: StoryGraphCampaign = {
   },
 };
 
+const campaignWithAchievement: StoryGraphCampaign = {
+  ...campaign,
+  achievements: [
+    {
+      id: "flush",
+      nameKey: "ach.flush.name",
+      descriptionKey: "ach.flush.desc",
+      condition: { field: "var.money", operator: "equals", value: 3 },
+      hidden: false,
+    },
+  ],
+};
+
 function baseState(overrides?: Partial<StoryGraphKindState>): StoryGraphKindState {
   return {
     currentNodeId: "start",
@@ -136,6 +149,18 @@ describe("advance", () => {
     expect(result.status).toBe("ended");
     expect(result.state.endingId).toBe("vignette");
   });
+
+  it("unlocks an achievement whose condition becomes true from the turn's own effects", () => {
+    const result = advance(baseState(), "wait", undefined, fakeCtx(campaignWithAchievement));
+    expect(result.state.unlockedAchievements).toEqual(["flush"]);
+    expect(result.changes.at(-1)).toEqual({
+      path: "achieved.flush",
+      op: "set",
+      value: true,
+      reason: "achievement_unlocked",
+      visible: true,
+    });
+  });
 });
 
 describe("story-graph kind — through the real engine (integration)", () => {
@@ -192,6 +217,32 @@ describe("story-graph kind — through the real engine (integration)", () => {
     const view = engine.view(result.value, "player");
     const kindView = view.kindView as { stats: { var: string; value: unknown }[] };
     expect(kindView.stats).toEqual([{ var: "money", labelKey: "stat.money", value: 3 }]);
+  });
+
+  it("an achievement unlock survives the real engine seam end to end", () => {
+    const registryCampaign: Campaign = {
+      id: "bureaucracy",
+      kindId: "story-graph",
+      version: "1",
+      titleKey: "t",
+      content: campaignWithAchievement,
+    };
+    const strings = new Map([["t", "Bureaucracy awaits."], ["choice.wait", "Wait"]]);
+    const registry: ContentRegistry = { campaigns: new Map([["bureaucracy", registryCampaign]]), strings };
+    const kinds = { "story-graph": makeStoryGraphKind() } as unknown as KindRegistry;
+    const engine = createEngine({ kinds, registry });
+
+    const created = engine.createGame({ campaignId: "bureaucracy" });
+    if (!created.ok || !created.value) throw new Error("expected success");
+
+    const result = engine.submitAction(created.value, "wait");
+    if (!result.ok || !result.value) throw new Error("expected success");
+
+    expect(result.changes.some((c) => c.reason === "achievement_unlocked" && c.path === "achieved.flush")).toBe(true);
+
+    const view = engine.view(result.value, "player");
+    const kindView = view.kindView as { unlockedAchievements: string[] };
+    expect(kindView.unlockedAchievements).toEqual(["flush"]);
   });
 
   it("submitAction rejects an unknown choice id via the real engine seam", () => {

@@ -15,6 +15,7 @@ import { applyConsequences } from "./variables.js";
 import { requireNode } from "./nodes.js";
 import { enterAndEmit, settle } from "./settle.js";
 import { evaluateStoryGraphCondition, toConditionContext } from "./conditions.js";
+import { evaluateAchievements } from "./achievements.js";
 import type { StoryGraphCampaign } from "./campaign.js";
 import type { StoryGraphKindState } from "./state.js";
 
@@ -67,10 +68,14 @@ export function advance(
   );
   const settled = settle(content.nodes, content.variables, transitioned, ctx.rng, ctx.emit);
 
+  // 03 §8.2 step 7 — after settle, before returning, so an achievement's condition can
+  // react to the ending settle just resolved (plan 20, "Ending resolution").
+  const achieved = evaluateAchievements(content.achievements, settled.state);
+
   return {
-    state: settled.state,
+    state: { ...settled.state, unlockedAchievements: achieved.unlockedAchievements },
     status: settled.status,
-    changes: [...applied.changes, ...settled.changes],
+    changes: [...applied.changes, ...settled.changes, ...achieved.changes],
     messages: [],
   };
 }
