@@ -130,7 +130,13 @@ export interface Kind<KState> {
   ): AdvanceResult<KState>;
 
   project(state: KState, audience: ProjectionAudience, ctx: KindContext): unknown;
-  validateCampaign(campaign: Campaign): ValidationResult;
+  /**
+   * `strings` is the registry's built string table — a `LocKey` is only ever a
+   * reference, so checking one resolves (or that a node's rendered text only
+   * interpolates a declared, visible variable) needs the table itself, not just the
+   * opaque `Campaign.content` (`plans/21-w14-story-graph-validation.md`, Decision 1).
+   */
+  validateCampaign(campaign: Campaign, strings: ReadonlyMap<LocKey, string>): ValidationResult;
 
   /** Cross-version-stable terminal identity — published ids only, never values, so a
    *  balance pass cannot read as a regression (07 §3.3–§3.4). */
