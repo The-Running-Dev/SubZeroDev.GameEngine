@@ -354,18 +354,19 @@ The MVP contracts are complete and every MVP-blocking decision has already been 
 [Story Graph](https://game-engine.subzerodev.com/docs/engine/story-graph-kind). The remaining
 work is implementation. Not philosophy.
 
-### Code — the core layer, and typed variables and conditions, are done (W0–W10)
+### Code — the core layer and most of the story-graph kind's mechanics are done (W0–W11)
 
 Deterministic kernel (seeded PCG32, canonical serialization, `createEngine`/`createGame`/
 `submitAction`/projections), the observability channel, the content registry and tiered
 validation, and the in-memory session and profile stores are all built and tested against
 [`04-core.md`](https://game-engine.subzerodev.com/docs/engine/core) — strict TypeScript,
 zero runtime dependencies, and a lint-enforced determinism guard. The story-graph kind's
-typed variables and consequences, and the frozen `Condition` evaluator, are built too.
+typed variables and consequences, the frozen `Condition` evaluator, and the node graph's
+turn/settle resolution are built too.
 
-### Next — nodes, turns, and the rest of the story-graph kind (W11–W14)
+### Next — requirement-gated choices, achievements, and validation (W12–W14)
 
-Node resolution and turn settlement, then requirement-gated choices, achievements, and
+Scene rendering and gated `availableActions`, endings and achievements, then Tier 1/2
 content validation. Then content, clients, and the determinism harness (W15–W19). Full
 sequencing and done-criteria for every unit:
 [TODO.md](https://game-engine.subzerodev.com/docs/engine/todo).
