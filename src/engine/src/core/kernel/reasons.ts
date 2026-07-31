@@ -26,6 +26,15 @@ export type ReasonCode = string;
  * pure engine kernel (`createGame`, `submitAction`, `deserialize`) needs a rejection code
  * for each and none of the original seven fit. See `plans/09-w3-pure-engine-kernel.md`,
  * Decision 2.
+ *
+ * `string_conflict` and `protected_string_key` were added during W4 — registry assembly
+ * (`registry/build.ts`) needs a code for each of its two hard-fail conditions. See
+ * `plans/11-w4-registry-authoring-localization.md`, Decision 1.
+ *
+ * `duplicate_campaign_id` was added on review of the same PR: `Kind.validateCampaign`
+ * (Tier 1, 04 §11) sees one campaign at a time, so it structurally cannot catch two
+ * different campaigns sharing an id — only whatever assembles the whole registry can.
+ * That's `buildContentRegistry`, so the code belongs beside the other two it already owns.
  */
 export const BASE_REASON_CODES = [
   "action_not_available",
@@ -38,9 +47,39 @@ export const BASE_REASON_CODES = [
   "unknown_campaign",
   "unknown_kind",
   "invalid_state",
+  "string_conflict",
+  "protected_string_key",
+  "duplicate_campaign_id",
 ] as const;
 
 export type BaseReasonCode = (typeof BASE_REASON_CODES)[number];
+
+/**
+ * The default-English message for every base code, under the reserved `core.reason.*`
+ * namespace (04 §12). Built from a `Record<BaseReasonCode, string>` literal so the
+ * compiler — not a runtime check — refuses to build if a code is ever added here without
+ * a message (plan 11, Decision 4).
+ */
+const CORE_REASON_TEXT: Readonly<Record<BaseReasonCode, string>> = {
+  action_not_available: "This action isn't available right now.",
+  unknown_action: "That action isn't recognized.",
+  requirement_unmet: "A requirement for this action hasn't been met yet.",
+  session_ended: "This session has already ended.",
+  read_only_field: "That field can't be changed.",
+  check_succeeded: "The check succeeded.",
+  check_failed: "The check failed.",
+  unknown_campaign: "That campaign isn't registered.",
+  unknown_kind: "That game kind isn't registered.",
+  invalid_state: "The saved game data couldn't be read.",
+  string_conflict: "The same text key was authored with two different strings.",
+  protected_string_key: "Campaign content can't override a reserved core message.",
+  duplicate_campaign_id: "Two campaigns can't share the same id.",
+};
+
+/** `core.reason.<code>` → its shipped default-English message, for every base code. */
+export const CORE_REASON_MESSAGES: ReadonlyMap<LocKey, string> = new Map(
+  BASE_REASON_CODES.map((code) => [`core.reason.${code}`, CORE_REASON_TEXT[code]] as const),
+);
 
 /**
  * An **audit record emitted by a typed reducer — never the mutation mechanism.** It
