@@ -493,16 +493,20 @@ in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap) (
       kind has implemented it yet to check the two sides against each other. Needs formal
       codification in `04-core.md` §12 once `story-graph` (W9–14) or `simulation` actually
       emits one. See `plans/15-w8-profile-store.md`, Decision 1.
-- [ ] **The consequence-applied `StateChange` shape is also an invented convention.** 03
-      §5/§8.4 describe the `consequence.applied` *event* (`data: variable, op, clamped`)
-      but not the `StateChange` a variable write should produce. W9 built against one
-      coalesced `StateChange` per touched variable per batch —
+- [ ] **The consequence-applied `StateChange` shape is also an invented convention —
+      now load-bearing, not just provisional.** 03 §5/§8.4 describe the
+      `consequence.applied` *event* (`data: variable, op, clamped`) but not the
+      `StateChange` a variable write should produce. W9 built against one coalesced
+      `StateChange` per touched variable per batch —
       `{ path: "var.<name>", op: "set", value: <final>, previous: <before>,
       reason: "consequence_applied", visible: <decl.visible> }` — reusing 03 §6's
       `var.<name>` condition-field name, `op: "set"` regardless of which typed ops ran,
-      and W8's `reason` literal-string precedent. Needs the same formal codification in
-      `04-core.md` §12 once a caller (W11's `submitChoice`) actually attaches these to an
-      `AdvanceResult`. See `plans/16-w9-variables-and-consequences.md`, Decision 3.
+      and W8's `reason` literal-string precedent. W12's `advance` (`submitChoice`) is now
+      the real caller that attaches these to `AdvanceResult.changes` — the convention is
+      exercised and tested, not merely predicted. Still needs formal codification in
+      `04-core.md` §12 itself, which this unit deliberately left as a documentation
+      follow-up rather than doing inline (`plans/19-w12-…`, Decision 3). See
+      `plans/16-w9-variables-and-consequences.md`, Decision 3.
 - [ ] **`04-core.md`'s ancestor citation for the `Condition` type is stale — the shape
       itself was never ported into this repo's docs.** §18 declares the operator set
       frozen and cites `games/04-engine-specification.md` §13.1 for the full surface, but
@@ -513,13 +517,16 @@ in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap) (
       meaning). `04-core.md` §18 should restate the ported shape rather than pointing at a
       sibling repo a reader of this one can't open. See
       `plans/17-w10-conditions-and-requirements.md`, Decision 1.
-- [ ] **Kind-owned reason-code `messageKey`s have no stated namespace.** `04-core.md` §12
-      reserves `core.reason.*` for the base set only; `kind.<kindId>.*` (05 §9) is
-      event-name namespacing, a different vocabulary. W10 used
-      `story-graph.reason.<code>` (kind id, no `kind.` wrapper) as the minimal-invention
-      parallel, for `unknown_condition_field` — not registered anywhere yet, since no unit
-      before W12 wires real kind messages. Needs the same formal codification as the two
-      `StateChange` gaps above, once W12 actually registers a story-graph reason message.
+- [ ] **Kind-owned reason-code `messageKey`s have no stated namespace in `04-core.md`
+      itself — now registered and used, but only in code.** §12 reserves `core.reason.*`
+      for the base set only; `kind.<kindId>.*` (05 §9) is event-name namespacing, a
+      different vocabulary. W10 used `story-graph.reason.<code>` (kind id, no `kind.`
+      wrapper) as the minimal-invention parallel, for `unknown_condition_field`. W12
+      formalized it in code — `kinds/story-graph/reasons.ts` mirrors `kernel/reasons.ts`'s
+      own pattern exactly (a const array, a compiler-forced-complete message table, a
+      `ReadonlyMap` built from both) and is the real, tested caller this item was waiting
+      on. `04-core.md` §12 itself still doesn't document the `<kindId>.reason.*`
+      convention — a documentation follow-up, not blocking (`plans/19-w12-…`, Decision 3).
       See `plans/17-w10-conditions-and-requirements.md`, Decision 3.
 - [ ] `wisdom` attribute has no consumer in the simulation kind — needs one to earn its
       place (`games/04-engine-specification.md` §8.4).

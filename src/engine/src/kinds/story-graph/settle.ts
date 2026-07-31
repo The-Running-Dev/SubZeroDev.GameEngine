@@ -13,8 +13,9 @@ import type { Campaign } from "../../core/registry/types.js";
 import type { InitialStateResult, KindContext } from "../../core/kernel/types.js";
 import type { RngHandle } from "../../core/determinism/types.js";
 import type { ResolutionEmitter } from "../../core/observability/types.js";
+import type { StateChange } from "../../core/kernel/reasons.js";
 import { applyConsequences, buildInitialVariables, type VariableSchema } from "./variables.js";
-import type { Node } from "./nodes.js";
+import { requireNode, type Node } from "./nodes.js";
 import type { StoryGraphCampaign } from "./campaign.js";
 import { enter, type StoryGraphKindState } from "./state.js";
 
@@ -22,24 +23,12 @@ import { enter, type StoryGraphKindState } from "./state.js";
 export const SETTLE_STEPS = 64;
 
 /**
- * `nodes` is content-controlled (authored, potentially parsed from JSON/YAML), so a
- * plain truthy check on `nodes[nodeId]` would let an id like `"toString"` resolve an
- * inherited `Object.prototype` value instead of failing — the same class of gap W9's
- * `requireDecl` guards against for `VariableSchema`.
- */
-function requireNode(nodes: Record<string, Node>, nodeId: string): Node {
-  if (!Object.hasOwn(nodes, nodeId)) {
-    throw new Error(`story-graph settle: node "${nodeId}" does not exist`);
-  }
-  return nodes[nodeId] as Node;
-}
-
-/**
  * `enter` plus the `node.entered` event (03 §8.4) — shared by `initialState` (the start
- * node) and `settle` (every pass-through), so "every entry counts" holds for both without
- * duplicating the event logic. See plan 18, Decision 2.
+ * node), `settle` (every pass-through), and `advance.ts` (a choice's own transition, 03
+ * §8.2 step 5 — the identical "enter, count, emit" primitive), so "every entry counts"
+ * holds everywhere without duplicating the event logic. See plan 18, Decision 2.
  */
-function enterAndEmit(
+export function enterAndEmit(
   nodes: Record<string, Node>,
   state: StoryGraphKindState,
   nodeId: string,
@@ -56,6 +45,10 @@ function enterAndEmit(
 export interface SettleResult {
   state: StoryGraphKindState;
   status: "active" | "ended";
+  /** Every pass-through's applied-consequences audit trail, in transition order — a
+   *  choice's own effects (03 §8.2 step 3) are not included; the caller (`advance.ts`)
+   *  concatenates those separately. See plan 19, Decision 2. */
+  changes: StateChange[];
 }
 
 /**
@@ -77,6 +70,7 @@ export function settle(
   emit: ResolutionEmitter,
 ): SettleResult {
   let state = initial;
+  const changes: StateChange[] = [];
 
   for (let step = 0; step < SETTLE_STEPS; step++) {
     const node = requireNode(nodes, state.currentNodeId);
@@ -85,15 +79,16 @@ export function settle(
     });
 
     if (node.kind === "choice") {
-      return { state, status: "active" };
+      return { state, status: "active", changes };
     }
 
     if (node.kind === "ending") {
-      return { state: { ...state, endingId: node.endingId }, status: "ended" };
+      return { state: { ...state, endingId: node.endingId }, status: "ended", changes };
     }
 
     if (node.kind === "auto") {
       const applied = applyConsequences(schema, state.variables, node.effects ?? []);
+      changes.push(...applied.changes);
       state = enterAndEmit(nodes, { ...state, variables: applied.variables, turn: state.turn + 1 }, node.goto, emit);
       continue;
     }
@@ -104,6 +99,7 @@ export function settle(
       data: { nodeId: node.id, goto: picked.goto, weight: picked.weight },
     });
     const applied = applyConsequences(schema, state.variables, picked.effects ?? []);
+    changes.push(...applied.changes);
     state = enterAndEmit(nodes, { ...state, variables: applied.variables, turn: state.turn + 1 }, picked.goto, emit);
   }
 

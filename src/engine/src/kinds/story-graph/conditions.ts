@@ -19,6 +19,7 @@ import type { VariableSchema } from "./variables.js";
 import type { Condition, ConditionResolver } from "../../core/condition/types.js";
 import { evaluateCondition } from "../../core/condition/evaluate.js";
 import type { ValidationError } from "../../core/validation/types.js";
+import type { StoryGraphKindState } from "./state.js";
 
 export interface ConditionContext {
   variables: Readonly<Record<string, unknown>>;
@@ -26,6 +27,20 @@ export interface ConditionContext {
   visitedCounts: Readonly<Record<string, number>>;
   unlockedAchievements: readonly string[];
   endingId?: string;
+}
+
+/**
+ * The `StoryGraphKindState → ConditionContext` adapter — both `scene.ts` (choice gating)
+ * and `advance.ts` (`showWhen`/`requirements` evaluation, 03 §8.2 steps 1–2) need it.
+ */
+export function toConditionContext(state: StoryGraphKindState): ConditionContext {
+  return {
+    variables: state.variables,
+    turn: state.turn,
+    visitedCounts: state.visitedCounts,
+    unlockedAchievements: state.unlockedAchievements,
+    ...(state.endingId !== undefined ? { endingId: state.endingId } : {}),
+  };
 }
 
 /**
