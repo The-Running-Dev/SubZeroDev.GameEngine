@@ -67,6 +67,27 @@ jobs:
         steps:
             - name: Check out repository
               uses: actions/checkout@v7
+              with:
+                  # Full history, not the default shallow clone -- the changelog step
+                  # below reads the whole `git log`.
+                  fetch-depth: 0
+
+            # Regenerated fresh for every build, never committed -- replaces the old
+            # recurring "chore: update changelog" pull request. `docs/docs/engine/
+            # CHANGELOG.md` is still committed as a static fallback for anyone reading
+            # the repository directly on GitHub; only the deployed site is guaranteed
+            # current. Local `docs.ps1` preview still shows the committed (possibly
+            # stale) copy -- its Docker build context is `docs/`, which cannot reach
+            # this repo-root generator.
+            - name: Regenerate changelog (build-only, not committed)
+              run: |
+                  # This job runs inside a container, so the checkout is owned by a
+                  # different uid than the one running it -- git refuses to touch it
+                  # ("dubious ownership") until explicitly trusted.
+                  git config --global --add safe.directory "$env:GITHUB_WORKSPACE"
+                  $body = & ./build/ConvertTo-Changelog.ps1 -RepoRoot . -RepositorySlug '${{ github.repository }}'
+                  $docsPage = @('---', 'slug: changelog', '---', '') + $body
+                  Set-Content -Path 'docs/docs/engine/CHANGELOG.md' -Value $docsPage -Encoding utf8NoBOM
 
             - name: Build documentation
               run: /template/scripts/docs-build.ps1 -SourceDocs ./docs -OutputPath artifacts/docs

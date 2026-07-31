@@ -64,7 +64,9 @@
     # --- GeneratedFiles:end ---
 
     # Individual files excluded from scanning, relative to the project root.
-    ExcludedFiles = @(
-        'CHANGELOG.md'
-    )
+    # CHANGELOG.md (repo root) used to be listed here -- removed along with the file
+    # itself, since a stale, uncommitted-going-forward copy would mislead a reader
+    # more than having none at all. The docs site's copy (docs/docs/engine/CHANGELOG.md)
+    # is the current, authoritative one; it isn't excluded, and gets scanned normally.
+    ExcludedFiles = @()
 }
