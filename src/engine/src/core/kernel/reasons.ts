@@ -35,6 +35,11 @@ export type ReasonCode = string;
  * (Tier 1, 04 §11) sees one campaign at a time, so it structurally cannot catch two
  * different campaigns sharing an id — only whatever assembles the whole registry can.
  * That's `buildContentRegistry`, so the code belongs beside the other two it already owns.
+ *
+ * `invalid_identifier`, `invalid_loc_key`, and `missing_string_key` were added during W5
+ * (`validation/tiered.ts`) — the core's own Tier-1 checks (campaign id shape, `titleKey`
+ * shape, `titleKey` resolving in that campaign's strings, 04 §11/§17) needed a code each.
+ * See `plans/12-w5-tiered-validation.md`, Decision 1.
  */
 export const BASE_REASON_CODES = [
   "action_not_available",
@@ -50,6 +55,9 @@ export const BASE_REASON_CODES = [
   "string_conflict",
   "protected_string_key",
   "duplicate_campaign_id",
+  "invalid_identifier",
+  "invalid_loc_key",
+  "missing_string_key",
 ] as const;
 
 export type BaseReasonCode = (typeof BASE_REASON_CODES)[number];
@@ -74,6 +82,9 @@ const CORE_REASON_TEXT: Readonly<Record<BaseReasonCode, string>> = {
   string_conflict: "The same text key was authored with two different strings.",
   protected_string_key: "Campaign content can't override a reserved core message.",
   duplicate_campaign_id: "Two campaigns can't share the same id.",
+  invalid_identifier: "That id doesn't match the required shape.",
+  invalid_loc_key: "That text key doesn't match the required shape.",
+  missing_string_key: "That text key has no authored string.",
 };
 
 /** `core.reason.<code>` → its shipped default-English message, for every base code. */
