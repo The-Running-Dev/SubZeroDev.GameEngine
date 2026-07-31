@@ -66,7 +66,7 @@ done-criteria are demonstrated by a test, not by inspection.
 
 ## Core
 
-### W0 — CI and Documentation Gates
+### [x] W0 — CI and Documentation Gates
 **Author** `.github/workflows/ci.yml` with one `engine` job (install / typecheck / lint /
 test), and **install** the documentation system from the published container image, which
 brings `docs-ci.yml` (link-and-terminology gate + production build) and `docs-deploy.yml`
@@ -113,7 +113,7 @@ site homepage from `README.md`, and publishes the site.
     entry above the `engine` category; ordering inside `engine/` is unaffected.
 - **Plan:** [`plans/02-w0-ci-workflow.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/02-w0-ci-workflow.md), [`plans/04-w0-phase-1-implementation.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/04-w0-phase-1-implementation.md)
 
-### W1 — Core Contract Types and Module Skeleton
+### [x] W1 — Core Contract Types and Module Skeleton
 Create the module tree of 04 §1.1 (`kernel`, `session`, `persistence`, `projection`,
 `validation`, `registry`, `localization`, `determinism`, `observability`, `composition`) and
 put each declared type in the module that owns it. Types only — no behaviour.
@@ -121,6 +121,7 @@ put each declared type in the module that owns it. Types only — no behaviour.
       [`06-extensibility.md`](06-extensibility.md) §4–§5 for `composition` — the two host
       roots and the `IdSource` and `Clock` port interfaces.
 - **Depends on:** nothing.
+- **Status:** Done — [PR #17](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/17).
 - **Done when:** `npm run typecheck` passes with `exactOptionalPropertyTypes`; a dependency
       scan shows no core module importing `kinds/`, `clients/`, or `mcp/`; `kindState` is
       `unknown`, not a union; `GameState` carries no clock, profile, or kind state;
@@ -129,28 +130,30 @@ put each declared type in the module that owns it. Types only — no behaviour.
       `EngineHost` or `SessionHost`, and no core module reads a clock or generates an id
       itself (06 §4).
 
-### W2 — RNG Handle and Stream Derivation
+### [x] W2 — RNG Handle and Stream Derivation
 Wrap the built `Pcg32` behind `RngHandle`, and implement the normative `StreamId` → string
 encoding. No generator state is persisted anywhere.
 - **Spec:** 04 §8.
 - **Depends on:** W1.
+- **Status:** Done — [PR #22](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/22).
 - **Done when:** all four encoding forms round-trip exactly as specified; the same
       `(seed, streamId)` yields identical draws across runs; different stream ids are
       independent; `GameState` contains no RNG field.
 
-### W3 — Pure Engine Kernel
+### [x] W3 — Pure Engine Kernel
 `createEngine`, `createGame` (consuming `InitialStateResult`), `submitAction` (passing
 `params`, returning the new state in `value`), `scene`, `availableActions`, `serialize`,
 and a **validating** `deserialize` returning `CommandResult<GameState>`.
 - **Spec:** 04 §§2–5, §12.
 - **Depends on:** W1, W2.
+- **Status:** Done — [PR #33](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/33).
 - **Done when:** a successful action appends exactly one monotonic `LoggedAction`; a
       rejected action leaves serialized state byte-identical and does not advance the log;
       every operation returns a new envelope and leaves its input untouched; `deserialize`
       rejects a malformed envelope instead of casting; unknown kind, unknown campaign,
       ended session, and unknown action each have a test.
 
-### W3a — Observability: Emitter, Events, and Sinks
+### [x] W3a — Observability: Emitter, Events, and Sinks
 The **core half** of the operational event channel. `Emitter`, the per-resolution
 `ResolutionEmitter` handle on `KindContext`, the `GameEvent`/`SystemEvent` split, the core
 event set (05 §8), and two sinks — `nullEmitter` and `recordingEmitter`. Numbered `3a`
@@ -161,6 +164,7 @@ uses.
 stamping, spans, `attempt`, and `jsonlEmitter` all belong to the layer that owns a clock.
 - **Spec:** [`05-observability.md`](05-observability.md) §§1–5, §7–§10, §12; 04 §3.1, §4, §14.
 - **Depends on:** W1, W3. (Kind events come with the kind units — W11 and W12.)
+- **Status:** Done — [PR #34](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/34).
 - **Done when:** `emit` returns `void` and no core code path reads anything back from a
       sink; the core isolates every `emit`, so a sink that throws on every call does not
       fail a game; a fixture replays byte-identically under `nullEmitter` and
@@ -173,39 +177,43 @@ stamping, spans, `attempt`, and `jsonlEmitter` all belong to the layer that owns
       name outside `core.*` emitted by the core, or outside `kind.<kindId>.*` by a kind,
       fails.
 
-### W4 — Registry, Authoring Builder, Localization
+### [x] W4 — Registry, Authoring Builder, Localization
 The frozen in-memory `ContentRegistry`; `AuthoredText` → `BuiltCampaign` pure builder; the
 protected `core.reason.*` string merge; `LocKey` resolution. Parsing and file I/O stay in
 an outer adapter.
 - **Spec:** 04 §10.1, §12, §17.
 - **Depends on:** W1.
+- **Status:** Done — [PR #35](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/35).
 - **Done when:** identical key/text pairs deduplicate and conflicting ones fail; a write
       into `core.reason.*` is rejected; a registered reason code with no message fails
       construction; the engine package performs no filesystem or network I/O.
 
-### W5 — Tiered Validation
+### [x] W5 — Tiered Validation
 The Tier 1 / Tier 2 framework, identifier and `LocKey` rules, delegating kind checks to
 `validateCampaign`.
 - **Spec:** 04 §11, §17.
 - **Depends on:** W4.
+- **Status:** Done — [PR #36](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/36).
 - **Done when:** a Tier 1 error fails registry construction with a path; a Tier 2 warning
       loads and is reported; duplicate and malformed identifiers fail; an unvalidated
       registry can never be frozen.
 
-### W6 — Projection
+### [x] W6 — Projection
 `Engine.view`, the `player` / `ai` audiences, and the `kind.project` seam.
 - **Spec:** 04 §9.
 - **Depends on:** W3.
+- **Status:** Done — [PR #37](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/37).
 - **Done when:** `seed`, `actionLog`, and raw `kindState` cannot reach a client by any
       path; the `ai` audience is not wider than `player` by default.
 
-### W7 — Session Store
+### [x] W7 — Session Store
 The in-memory store: `listCampaigns`, `getScene`, `getView`, `createSession`,
 `resumeSession`, `submitAction`, `saveGame`, `loadGame`. Persist canonical blobs, not live
 objects. **Owns the observability boundary** (05 §6) — the half W3a deliberately leaves
 out, because stamping needs the layer that has a clock.
 - **Spec:** 04 §7, §10.2; [`05-observability.md`](05-observability.md) §6, §6.1, §11.
 - **Depends on:** W3a, W3, W6.
+- **Status:** Done — [PR #38](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/38).
 - **Done when:** save mid-session → load → continue loses no state; two sessions cannot
       mutate each other; `savedAt`, owner ids, and other host metadata never appear in a
       serialized `GameState`; every command wraps the base emitter per call via
@@ -215,11 +223,12 @@ out, because stamping needs the layer that has a clock.
       so repeated invalid actions are distinguishable where `seq` repeats (05 §5);
       `jsonlEmitter` writes one stamped record per line.
 
-### W8 — Profile Store
+### [x] W8 — Profile Store
 `PlayerProfile`, `ProfileStore`, `profileId` on `CreateSessionConfig`, and the post-action
 idempotent upsert.
 - **Spec:** 04 §7.1.
 - **Depends on:** W7.
+- **Status:** Done — [PR #39](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/39).
 - **Done when:** an unlock survives a new session with the same `profileId`; no `profileId`
       means no read and no write; missing and corrupt both load an empty profile with the
       right warning; a write failure warns without rolling back the game action; a profile
@@ -227,11 +236,12 @@ idempotent upsert.
 
 ## The Story-Graph Kind
 
-### W9 — Variables and Consequences
+### [x] W9 — Variables and Consequences
 `VariableSchema`, typed `set` / `increment` / `decrement`, clamp-after-all-effects, sorted
 iteration of state-affecting records.
 - **Spec:** 03 §2, §5, §8.1.
 - **Depends on:** W1.
+- **Status:** Done — [PR #41](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/41).
 - **Done when:** undeclared and mistyped writes are rejected; `+5` then `-5` on a clamped
       int nets zero rather than clipping; a save/load round trip cannot reorder a `Record`.
 
