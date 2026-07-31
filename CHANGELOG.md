@@ -5,6 +5,7 @@ of `main`, not maintained by hand. This project squash-merges every pull request
 `git log` already is the changelog; regenerating it is strictly more reliable than a
 second, hand-kept copy.
 
+- **2026-07-31** — [Docs: mark W13 done in TODO.md (#53)](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/53)
 - **2026-07-31** — [W13 — Endings and Achievements: evaluation wired into advance, unlock-once (#51)](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/51)
 - **2026-07-31** — [Docs: mark W12 done in TODO.md (#49)](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/49)
 - **2026-07-31** — [W12 — Scene, Actions, Projection, Reason Codes: submitChoice assembled end to end (#47)](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/47)
