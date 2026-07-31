@@ -479,6 +479,16 @@ in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap) (
       kind has implemented it yet to check the two sides against each other. Needs formal
       codification in `04-core.md` §12 once `story-graph` (W9–14) or `simulation` actually
       emits one. See `plans/15-w8-profile-store.md`, Decision 1.
+- [ ] **The consequence-applied `StateChange` shape is also an invented convention.** 03
+      §5/§8.4 describe the `consequence.applied` *event* (`data: variable, op, clamped`)
+      but not the `StateChange` a variable write should produce. W9 built against one
+      coalesced `StateChange` per touched variable per batch —
+      `{ path: "var.<name>", op: "set", value: <final>, previous: <before>,
+      reason: "consequence_applied", visible: <decl.visible> }` — reusing 03 §6's
+      `var.<name>` condition-field name, `op: "set"` regardless of which typed ops ran,
+      and W8's `reason` literal-string precedent. Needs the same formal codification in
+      `04-core.md` §12 once a caller (W11's `submitChoice`) actually attaches these to an
+      `AdvanceResult`. See `plans/16-w9-variables-and-consequences.md`, Decision 3.
 - [ ] `wisdom` attribute has no consumer in the simulation kind — needs one to earn its
       place (`games/04-engine-specification.md` §8.4).
 - [ ] Provisional numbers across the simulation kind (drift rates, scenario economics,
