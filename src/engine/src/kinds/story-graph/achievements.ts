@@ -36,16 +36,22 @@ export function evaluateAchievements(
   achievements: readonly AchievementDefinition[],
   state: StoryGraphKindState,
 ): { unlockedAchievements: string[]; changes: StateChange[] } {
-  let unlocked = state.unlockedAchievements;
+  // One copy of the input up front (never mutated after), then a Set for O(1)
+  // membership checks and in-place pushes instead of an O(n) `.includes` scan and an
+  // O(n) array copy per achievement (PR #51 review) — same authored-order chaining
+  // semantics, just without the quadratic overhead as achievement counts grow.
+  const unlocked = [...state.unlockedAchievements];
+  const unlockedIds = new Set(unlocked);
   const changes: StateChange[] = [];
 
   for (const achievement of achievements) {
-    if (unlocked.includes(achievement.id)) continue;
+    if (unlockedIds.has(achievement.id)) continue;
 
     const context = toConditionContext({ ...state, unlockedAchievements: unlocked });
     if (!evaluateStoryGraphCondition(achievement.condition, context)) continue;
 
-    unlocked = [...unlocked, achievement.id];
+    unlockedIds.add(achievement.id);
+    unlocked.push(achievement.id);
     changes.push({
       path: `achieved.${achievement.id}`,
       op: "set",
