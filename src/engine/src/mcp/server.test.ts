@@ -37,10 +37,15 @@ const SEED = "bureaucracy-seed-3";
  * only a real counter proves for a run that creates more than one.
  */
 function createCountingIds(): IdSource {
-  let n = 0;
+  // Independent counters, not one shared between them — createGame calls newGameId()
+  // first and only falls back to newSeed() when a fixture omits its own seed, so a
+  // single shared counter would couple seed numbering to how many game ids happened to
+  // be allocated first, rather than each counting from 0 on its own.
+  let gameN = 0;
+  let seedN = 0;
   return {
-    newGameId: () => `counting-game-id-${n++}`,
-    newSeed: () => `counting-seed-${n++}`,
+    newGameId: () => `counting-game-id-${gameN++}`,
+    newSeed: () => `counting-seed-${seedN++}`,
   };
 }
 
