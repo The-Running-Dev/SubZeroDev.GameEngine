@@ -3,12 +3,11 @@
  *
  * Contract: `04-core.md` §§2–5, §12; `06-extensibility.md` §4–§5.1 for `EngineHost` and
  * `IdSource`, which supersede `04-core.md` §4's three-positional-argument snippet (see
- * `plans/09-w3-pure-engine-kernel.md`, Decision 1).
+ * `plans/09-w3-pure-engine-kernel.md`, Decision 1); `05-observability.md` §§2, 4–5, 9–10
+ * for the event emission wired in below (`plans/10-w3a-observability.md`).
  *
- * Scope note (same plan, Decisions 4–5): `ctx.emit` is a local no-op stub — the real
- * `Emitter`/ordinals/sinks are W3a's scope — and `migrate` is a pass-through to
- * `deserialize`, since migration is specified (04 §10.2) but explicitly unexercised by
- * the MVP (`MVP.md` §4).
+ * Scope note (plan 09, Decision 5): `migrate` is a pass-through to `deserialize`, since
+ * migration is specified (04 §10.2) but explicitly unexercised by the MVP (`MVP.md` §4).
  */
 
 import type {
@@ -17,52 +16,56 @@ import type {
   AvailableAction,
   Engine,
   GameState,
+  Kind,
   KindContext,
   LoggedAction,
   NewGameConfig,
   Scene,
 } from "./types.js";
 import type { CommandResult } from "./reasons.js";
-import type { StreamId } from "../determinism/types.js";
-import { rngHandleFor } from "../determinism/rng.js";
+import type { RngHandle, StreamId } from "../determinism/types.js";
+import { encodeStreamId, rngHandleFor } from "../determinism/rng.js";
 import type { Campaign, ContentRegistry } from "../registry/types.js";
-import type { ResolutionEmitter } from "../observability/types.js";
 import type { PlayerView, ProjectionAudience } from "../projection/types.js";
 import type { ValidationError } from "../validation/types.js";
 import type { EngineHost } from "../composition/types.js";
 import { defaultIdSource } from "../composition/defaults.js";
 import { canonicalStringify } from "../persistence/canonical.js";
+import { makeResolutionEmitters, nullEmitter, emitSystemEvent, type ResolutionEmitters } from "../observability/emitter.js";
+import { CORE_EVENTS } from "../observability/events.js";
 
 // ---------------------------------------------------------------------------
 // KindContext construction
 // ---------------------------------------------------------------------------
 
 /**
- * `emit` returns `void` and does nothing — see the module doc's scope note. Every call
- * site is marked `// TODO(W3a)` so the eventual swap for the real
- * `resolutionEmitter(emitter, gameId, seq)` wrapper (05-observability.md) is a
- * find-and-replace, not a redesign.
+ * Every stream derivation — `ctx.rng` and every `ctx.derive(...)` call — traces through
+ * `core.rng.stream.derived` (05 §8). Applies uniformly, including read paths: nothing in
+ * the core event catalog is read-specific, so there is no reason to special-case them.
  */
-const noopResolutionEmitter: ResolutionEmitter = {
-  emit: () => {
-    // TODO(W3a): wire the real Emitter/ordinals/core event set here.
-  },
-};
-
 function buildKindContext(
   registry: ContentRegistry,
   campaign: Campaign,
+  kind: Kind<unknown>,
   seed: string,
   streamId: StreamId,
   seq: number,
+  emitters: ResolutionEmitters,
 ): KindContext {
+  const deriveAndTrace = (s: StreamId): RngHandle => {
+    emitters.core.emit(CORE_EVENTS.rngStreamDerived.name, CORE_EVENTS.rngStreamDerived.severity, {
+      data: { streamId: encodeStreamId(s) },
+    });
+    return rngHandleFor(seed, s);
+  };
+
   return {
     registry,
     campaign,
-    rng: rngHandleFor(seed, streamId),
-    derive: (s) => rngHandleFor(seed, s),
+    rng: deriveAndTrace(streamId),
+    derive: deriveAndTrace,
     seq,
-    emit: noopResolutionEmitter,
+    emit: emitters.forKind(kind.id, kind.eventNames),
   };
 }
 
@@ -71,11 +74,14 @@ function buildKindContext(
  * none of which advance anything. Derived from a `system:"view"` stream, deliberately
  * distinct from the `action` stream so a kind that ever drew randomness while rendering
  * could not collide with the next `submitAction`'s draw at the same seq (plan 09,
- * Decision 3).
+ * Decision 3). Gets a real, sink-connected `ResolutionEmitters` like every other
+ * resolution — no core *lifecycle* event fires for a read (none is named for one in 05
+ * §8), but `core.rng.stream.derived` and any `kind.*` event still reach the sink.
  */
-function buildReadContext(registry: ContentRegistry, campaign: Campaign, state: GameState): KindContext {
+function buildReadContext(host: EngineHost, campaign: Campaign, kind: Kind<unknown>, state: GameState): KindContext {
   const seq = state.actionLog.length;
-  return buildKindContext(registry, campaign, state.seed, { kind: "system", system: "view", seq }, seq);
+  const emitters = makeResolutionEmitters(host.emitter ?? nullEmitter, state.gameId, seq);
+  return buildKindContext(host.registry, campaign, kind, state.seed, { kind: "system", system: "view", seq }, seq, emitters);
 }
 
 // ---------------------------------------------------------------------------
@@ -107,9 +113,11 @@ function createGame(host: EngineHost, config: NewGameConfig): CommandResult<Game
   const gameId = ids.newGameId();
   const seed = config.seed ?? ids.newSeed();
 
+  const emitters = makeResolutionEmitters(host.emitter ?? nullEmitter, gameId, 0);
+
   // The start stream (`system:"start"`) is distinct from the per-action `action` stream,
   // so a start-of-game random draw can never collide with an action's (04 §4).
-  const ctx = buildKindContext(host.registry, campaign, seed, { kind: "system", system: "start", seq: 0 }, 0);
+  const ctx = buildKindContext(host.registry, campaign, kind, seed, { kind: "system", system: "start", seq: 0 }, 0, emitters);
   const init = kind.initialState(campaign, ctx);
 
   // init.changes / init.messages have nowhere to go on CommandResult<GameState> — see
@@ -127,6 +135,13 @@ function createGame(host: EngineHost, config: NewGameConfig): CommandResult<Game
     actionLog: [],
   };
 
+  emitters.core.emit(CORE_EVENTS.gameCreated.name, CORE_EVENTS.gameCreated.severity, {
+    data: { campaignId: campaign.id, campaignVersion: campaign.version, kindId: campaign.kindId },
+  });
+  if (init.status === "ended") {
+    emitters.core.emit(CORE_EVENTS.gameEnded.name, CORE_EVENTS.gameEnded.severity);
+  }
+
   return { ok: true, value: state, errors: [], warnings: [] };
 }
 
@@ -140,9 +155,26 @@ function submitAction(
   actionId: string,
   params?: ActionParams,
 ): ActionResult {
-  if (state.status !== "active") {
-    const error: ValidationError = { code: "session_ended", messageKey: "core.reason.session_ended" };
+  const seq = state.actionLog.length;
+  const emitters = makeResolutionEmitters(host.emitter ?? nullEmitter, state.gameId, seq);
+
+  /**
+   * Every rejection path emits `core.action.rejected` (05 §8). `includeActionId` is the
+   * "only if it resolved" rule: `false` for the three core-level checks below, since none
+   * of them ever asked the kind whether the id means anything; for the kind's own
+   * rejection it is `true` unless the code is `unknown_action` — the one code that means
+   * the kind didn't recognize the id either (05 §8's callout).
+   */
+  function reject(error: ValidationError, includeActionId: boolean): ActionResult {
+    emitters.core.emit(CORE_EVENTS.actionRejected.name, CORE_EVENTS.actionRejected.severity, {
+      reason: error.code,
+      ...(includeActionId ? { data: { actionId } } : {}),
+    });
     return { ok: false, errors: [error], warnings: [], changes: [], messages: [] };
+  }
+
+  if (state.status !== "active") {
+    return reject({ code: "session_ended", messageKey: "core.reason.session_ended" }, false);
   }
 
   const kind = host.kinds[state.kindId];
@@ -151,8 +183,7 @@ function submitAction(
     // deserialize always has a kindId present in `host.kinds` (each of those validates
     // it). Only reachable via a hand-built or cross-version state — exactly what a
     // foreign deserialize could hand back.
-    const error: ValidationError = { code: "unknown_kind", messageKey: "core.reason.unknown_kind", path: state.kindId };
-    return { ok: false, errors: [error], warnings: [], changes: [], messages: [] };
+    return reject({ code: "unknown_kind", messageKey: "core.reason.unknown_kind", path: state.kindId }, false);
   }
 
   const campaign = host.registry.campaigns.get(state.campaignId);
@@ -160,20 +191,22 @@ function submitAction(
     // Defensive, same reasoning as the kind check above: reachable only via a foreign or
     // hand-built state (deserialize now rejects this at the boundary too, but a state can
     // still be constructed directly in tests or by a future caller).
-    const error: ValidationError = {
-      code: "unknown_campaign",
-      messageKey: "core.reason.unknown_campaign",
-      path: state.campaignId,
-    };
-    return { ok: false, errors: [error], warnings: [], changes: [], messages: [] };
+    return reject(
+      { code: "unknown_campaign", messageKey: "core.reason.unknown_campaign", path: state.campaignId },
+      false,
+    );
   }
 
-  const seq = state.actionLog.length;
-  const ctx = buildKindContext(host.registry, campaign, state.seed, { kind: "action", seq }, seq);
+  const ctx = buildKindContext(host.registry, campaign, kind, state.seed, { kind: "action", seq }, seq, emitters);
   const result = kind.advance(state.kindState, actionId, params, ctx);
 
   if (result.error) {
-    return { ok: false, errors: [result.error], warnings: [], changes: [], messages: [] };
+    return reject(result.error, result.error.code !== "unknown_action");
+  }
+
+  emitters.core.emit(CORE_EVENTS.actionAccepted.name, CORE_EVENTS.actionAccepted.severity, { data: { actionId } });
+  if (result.status === "ended") {
+    emitters.core.emit(CORE_EVENTS.gameEnded.name, CORE_EVENTS.gameEnded.severity);
   }
 
   // exactOptionalPropertyTypes: omit `params` entirely rather than assign it `undefined`.
@@ -195,14 +228,14 @@ function submitAction(
 
 // The non-null assertions below are safe: createGame and submitAction only ever produce
 // a GameState whose campaignId/kindId resolve against this same host, and deserializeState
-// now checks resolvability too (not just shape) before returning ok:true. None of these
-// three methods can report an error — Engine.scene/availableActions/view return bare
-// values, not a CommandResult — so the guarantee has to live at the boundary instead.
+// checks resolvability too (not just shape) before returning ok:true. None of these three
+// methods can report an error — Engine.scene/availableActions/view return bare values, not
+// a CommandResult — so the guarantee has to live at the boundary instead.
 
 function view(host: EngineHost, state: GameState, audience: ProjectionAudience): PlayerView {
   const campaign = host.registry.campaigns.get(state.campaignId)!;
   const kind = host.kinds[state.kindId]!;
-  const ctx = buildReadContext(host.registry, campaign, state);
+  const ctx = buildReadContext(host, campaign, kind, state);
   return {
     gameId: state.gameId,
     status: state.status,
@@ -213,14 +246,14 @@ function view(host: EngineHost, state: GameState, audience: ProjectionAudience):
 function availableActions(host: EngineHost, state: GameState): AvailableAction[] {
   const campaign = host.registry.campaigns.get(state.campaignId)!;
   const kind = host.kinds[state.kindId]!;
-  const ctx = buildReadContext(host.registry, campaign, state);
+  const ctx = buildReadContext(host, campaign, kind, state);
   return kind.availableActions(state.kindState, ctx);
 }
 
 function scene(host: EngineHost, state: GameState): Scene {
   const campaign = host.registry.campaigns.get(state.campaignId)!;
   const kind = host.kinds[state.kindId]!;
-  const ctx = buildReadContext(host.registry, campaign, state);
+  const ctx = buildReadContext(host, campaign, kind, state);
   return {
     gameId: state.gameId,
     status: state.status,
@@ -292,8 +325,13 @@ function isValidGameStateShape(v: unknown): v is GameState {
   return true;
 }
 
-function serializeState(state: GameState): string {
-  return canonicalStringify(state);
+function serializeState(host: EngineHost, state: GameState): string {
+  const result = canonicalStringify(state);
+  const emitters = makeResolutionEmitters(host.emitter ?? nullEmitter, state.gameId, state.actionLog.length);
+  emitters.core.emit(CORE_EVENTS.serializeCompleted.name, CORE_EVENTS.serializeCompleted.severity, {
+    data: { bytes: new TextEncoder().encode(result).length },
+  });
+  return result;
 }
 
 /**
@@ -304,6 +342,7 @@ function serializeState(state: GameState): string {
  * on every later call.
  */
 function deserializeState(host: EngineHost, data: string): CommandResult<GameState> {
+  const sink = host.emitter ?? nullEmitter;
   let parsed: unknown;
   try {
     parsed = JSON.parse(data);
@@ -312,11 +351,17 @@ function deserializeState(host: EngineHost, data: string): CommandResult<GameSta
   }
 
   if (!isValidGameStateShape(parsed)) {
+    emitSystemEvent(sink, CORE_EVENTS.deserializeRejected.name, CORE_EVENTS.deserializeRejected.severity, {
+      reason: "invalid_state",
+    });
     const error: ValidationError = { code: "invalid_state", messageKey: "core.reason.invalid_state" };
     return { ok: false, errors: [error], warnings: [] };
   }
 
   if (!host.registry.campaigns.has(parsed.campaignId)) {
+    emitSystemEvent(sink, CORE_EVENTS.deserializeRejected.name, CORE_EVENTS.deserializeRejected.severity, {
+      reason: "unknown_campaign",
+    });
     const error: ValidationError = {
       code: "unknown_campaign",
       messageKey: "core.reason.unknown_campaign",
@@ -326,6 +371,9 @@ function deserializeState(host: EngineHost, data: string): CommandResult<GameSta
   }
 
   if (!host.kinds[parsed.kindId]) {
+    emitSystemEvent(sink, CORE_EVENTS.deserializeRejected.name, CORE_EVENTS.deserializeRejected.severity, {
+      reason: "unknown_kind",
+    });
     const error: ValidationError = { code: "unknown_kind", messageKey: "core.reason.unknown_kind", path: parsed.kindId };
     return { ok: false, errors: [error], warnings: [] };
   }
@@ -345,13 +393,29 @@ function migrateState(host: EngineHost, data: string): CommandResult<GameState> 
 // ---------------------------------------------------------------------------
 
 export function createEngine(host: EngineHost): Engine {
+  // 05 §9: engine construction rejects a kind declaring an event name outside its own
+  // `kind.<kindId>.*` namespace. Only whichever kinds are actually present at runtime are
+  // checked — `host.kinds`'s type is a closed Record over all three KindIds, but the MVP
+  // legitimately registers only `story-graph` (plan 09's engine.test.ts note).
+  for (const kind of Object.values(host.kinds)) {
+    const prefix = `kind.${kind.id}.`;
+    for (const name of kind.eventNames) {
+      if (!name.startsWith(prefix)) {
+        throw new Error(
+          `createEngine: kind "${kind.id}" declares event name "${name}" outside its own ` +
+            `"${prefix}" namespace (05-observability.md §9)`,
+        );
+      }
+    }
+  }
+
   return {
     createGame: (config) => createGame(host, config),
     scene: (state) => scene(host, state),
     view: (state, audience) => view(host, state, audience),
     availableActions: (state) => availableActions(host, state),
     submitAction: (state, actionId, params) => submitAction(host, state, actionId, params),
-    serialize: (state) => serializeState(state),
+    serialize: (state) => serializeState(host, state),
     deserialize: (data) => deserializeState(host, data),
     migrate: (data) => migrateState(host, data),
   };
