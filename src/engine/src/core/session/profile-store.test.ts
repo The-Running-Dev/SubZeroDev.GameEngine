@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createInMemoryProfileStore } from "./profile-store.js";
+import type { AchievementRecord } from "./types.js";
 
 describe("createInMemoryProfileStore", () => {
   it("a missing profile loads empty with formatVersion 1 and a profile_missing warning", async () => {
@@ -56,5 +57,38 @@ describe("createInMemoryProfileStore", () => {
     const store = createInMemoryProfileStore({ onSave: (profile) => profile.profileId !== "blocked" });
     expect((await store.save({ formatVersion: 1, profileId: "ok", achievements: [] })).ok).toBe(true);
     expect((await store.save({ formatVersion: 1, profileId: "blocked", achievements: [] })).ok).toBe(false);
+  });
+
+  it("a stored entry whose internal profileId doesn't match its key is treated as corrupt", async () => {
+    // Filed under "p1", but its own profileId claims "p2" — accepting this as-is would
+    // mean a later save() (which always writes under profile.profileId) silently
+    // redirects to "p2" instead of the profile that was actually requested.
+    const store = createInMemoryProfileStore({ raw: new Map([["p1", { formatVersion: 1, profileId: "p2", achievements: [] }]]) });
+    const { profile, warnings } = await store.load("p1");
+    expect(profile).toEqual({ formatVersion: 1, profileId: "p1", achievements: [] });
+    expect(warnings).toEqual([{ code: "profile_corrupt", profileId: "p1" }]);
+  });
+
+  it("load returns a clone — mutating the returned profile never affects what's persisted", async () => {
+    const store = createInMemoryProfileStore();
+    await store.save({ formatVersion: 1, profileId: "p1", achievements: [{ campaignId: "c1", achievementId: "a1" }] });
+
+    const { profile: first } = await store.load("p1");
+    // `achievements` is typed readonly — cast to prove the *runtime* array isn't shared,
+    // not just that the type checker would stop a well-behaved caller.
+    (first.achievements as AchievementRecord[]).push({ campaignId: "c1", achievementId: "a2" });
+
+    const { profile: second } = await store.load("p1");
+    expect(second.achievements).toEqual([{ campaignId: "c1", achievementId: "a1" }]);
+  });
+
+  it("save stores a clone — mutating the caller's object after save() never affects what's persisted", async () => {
+    const store = createInMemoryProfileStore();
+    const profile = { formatVersion: 1 as const, profileId: "p1", achievements: [{ campaignId: "c1", achievementId: "a1" }] };
+    await store.save(profile);
+    profile.achievements.push({ campaignId: "c1", achievementId: "a2" });
+
+    const { profile: loaded } = await store.load("p1");
+    expect(loaded.achievements).toEqual([{ campaignId: "c1", achievementId: "a1" }]);
   });
 });

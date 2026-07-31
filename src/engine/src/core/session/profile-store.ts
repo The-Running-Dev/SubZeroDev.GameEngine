@@ -30,10 +30,18 @@ function isValidAchievementRecord(v: unknown): v is AchievementRecord {
   return isPlainObject(v) && typeof v["campaignId"] === "string" && typeof v["achievementId"] === "string";
 }
 
-function isValidPlayerProfile(v: unknown): v is PlayerProfile {
+/**
+ * Requires `raw.profileId === profileId`, not just `typeof ... === "string"` — a stored
+ * entry whose internal `profileId` doesn't match the key it's filed under is corruption
+ * too. Without this check, `load("p1")` could return a profile whose own `profileId` is
+ * `"p2"`, and a subsequent `save()` (which always writes under `profile.profileId`) would
+ * then silently redirect the write to `"p2"` — the requested profile never accumulates
+ * anything.
+ */
+function isValidPlayerProfile(v: unknown, profileId: string): v is PlayerProfile {
   if (!isPlainObject(v)) return false;
   if (v["formatVersion"] !== 1) return false;
-  if (typeof v["profileId"] !== "string") return false;
+  if (v["profileId"] !== profileId) return false;
   if (!Array.isArray(v["achievements"])) return false;
   return v["achievements"].every(isValidAchievementRecord);
 }
@@ -52,17 +60,22 @@ export function createInMemoryProfileStore(options?: InMemoryProfileStoreOptions
         return { profile: emptyProfile(profileId), warnings: [{ code: "profile_missing", profileId }] };
       }
       const raw = store.get(profileId);
-      if (!isValidPlayerProfile(raw)) {
+      if (!isValidPlayerProfile(raw, profileId)) {
         return { profile: emptyProfile(profileId), warnings: [{ code: "profile_corrupt", profileId }] };
       }
-      return { profile: raw, warnings: [] };
+      // Cloned, not returned by reference — a caller mutating the returned profile (or
+      // its achievements array) must not silently mutate persisted state without going
+      // through save().
+      return { profile: structuredClone(raw), warnings: [] };
     },
 
     async save(profile: PlayerProfile): Promise<ProfileSaveResult> {
       if (onSave && !onSave(profile)) {
         return { ok: false, warnings: [{ code: "profile_write_failed", profileId: profile.profileId }] };
       }
-      store.set(profile.profileId, profile);
+      // Cloned for the same reason load() clones on the way out — the caller's object
+      // must not be able to mutate what's persisted after this call returns.
+      store.set(profile.profileId, structuredClone(profile));
       return { ok: true, warnings: [] };
     },
   };

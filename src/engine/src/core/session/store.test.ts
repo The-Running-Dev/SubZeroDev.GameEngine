@@ -536,4 +536,41 @@ describe("profile store wiring (W8)", () => {
     const withoutDecoy = await runSequence(emptyProfiles);
     expect(withDecoy).toBe(withoutDecoy);
   });
+
+  it("a throwing/rejecting ProfileStore degrades to a warning — the already-advanced action is not rolled back or aborted", async () => {
+    const throwingProfiles: ProfileStore = {
+      load: async () => {
+        throw new Error("network is down");
+      },
+      save: async () => ({ ok: true, warnings: [] }),
+    };
+    const store = makeStore({ profiles: throwingProfiles });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+
+    const result = await store.submitAction(sessionId, "unlock-first-count");
+
+    expect(result.ok).toBe(true);
+    expect(result.scene).toBeDefined();
+    expect(result.warnings).toEqual([{ code: "profile_write_failed", messageKey: "core.reason.profile_write_failed", path: "p1" }]);
+    // The game action is unaffected — the session really did advance.
+    expect((await store.getScene(sessionId)).body.text).toBe("counter=0");
+  });
+
+  it("two different sessions sharing one profileId, unlocking concurrently, both persist — no lost update", async () => {
+    const profiles = createInMemoryProfileStore();
+    const store = makeStore({ profiles });
+    const a = await store.createSession({ campaignId: "test-campaign", profileId: "shared" });
+    const b = await store.createSession({ campaignId: "test-campaign", profileId: "shared" });
+
+    await Promise.all([store.submitAction(a.sessionId, "unlock-first-count"), store.submitAction(b.sessionId, "unlock-second-thing")]);
+
+    const { profile } = await profiles.load("shared");
+    expect(profile.achievements).toEqual(
+      expect.arrayContaining([
+        { campaignId: "test-campaign", achievementId: "first-count" },
+        { campaignId: "test-campaign", achievementId: "second-thing" },
+      ]),
+    );
+    expect(profile.achievements).toHaveLength(2);
+  });
 });

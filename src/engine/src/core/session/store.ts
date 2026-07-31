@@ -188,12 +188,18 @@ export function createInMemorySessionStore(options: InMemorySessionStoreOptions)
   // commands behind their predecessor closes that without affecting cross-session
   // concurrency at all, since each sessionId gets its own independent queue.
   const sessionLocks = new Map<string, Promise<unknown>>();
+  // Same reasoning, one lock domain over: `upsertAchievements`'s load→merge→save is
+  // itself a read-modify-write, and two *different* sessions can share the same
+  // `profileId` (that's the whole point of a profile) — `sessionLocks` alone doesn't
+  // serialize that. A second, independent lock domain keyed by `profileId` closes it
+  // without coupling to session locking at all.
+  const profileLocks = new Map<string, Promise<unknown>>();
 
-  function runExclusive<T>(sessionId: string, fn: () => Promise<T>): Promise<T> {
-    const previous = sessionLocks.get(sessionId) ?? Promise.resolve();
+  function runExclusive<T>(locks: Map<string, Promise<unknown>>, key: string, fn: () => Promise<T>): Promise<T> {
+    const previous = locks.get(key) ?? Promise.resolve();
     const run = previous.then(fn, fn);
-    sessionLocks.set(
-      sessionId,
+    locks.set(
+      key,
       run.then(
         () => undefined,
         () => undefined,
@@ -302,7 +308,7 @@ export function createInMemorySessionStore(options: InMemorySessionStoreOptions)
 
     async resumeSession(sessionId: string): Promise<Scene> {
       const record = getSession(sessionId);
-      return runExclusive(sessionId, () =>
+      return runExclusive(sessionLocks, sessionId, () =>
         withCommand(sessionId, record.attemptCounter, (decoratedEngine) => {
           const state = mustDeserialize(decoratedEngine, record.blob);
           return decoratedEngine.scene(state);
@@ -313,7 +319,7 @@ export function createInMemorySessionStore(options: InMemorySessionStoreOptions)
     async submitAction(sessionId: string, actionId: string, params?: ActionParams): Promise<SessionActionResult> {
       const record = getSession(sessionId);
 
-      return runExclusive(sessionId, () => {
+      return runExclusive(sessionLocks, sessionId, () => {
         // Increments before dispatch, including for a submission that goes on to be
         // rejected — plan 14 Decision 4. `attempt: 1` on the first submission, not `0`.
         // Deferred to inside the lock so two same-session submissions still attempt in
@@ -330,10 +336,24 @@ export function createInMemorySessionStore(options: InMemorySessionStoreOptions)
 
             // "After a successful action" (04 §7.1) — never on rejection, and never
             // before the engine call above has already returned (plan 15 Decision 3).
-            const profileWarnings =
-              options.profiles && record.profileId
-                ? await upsertAchievements(options.profiles, record.profileId, state.campaignId, result.changes)
-                : [];
+            // Locked per-profileId (not just per-session): two different sessions can
+            // share a profileId, and the upsert itself is a load-modify-save that would
+            // otherwise race across them. Caught, not propagated: a throwing/rejecting
+            // ProfileStore must degrade to a warning, the same as an explicit
+            // profile_write_failed — it must never abort a command whose game action has
+            // already advanced and been persisted.
+            const { profiles } = options;
+            let profileWarnings: ValidationWarning[] = [];
+            if (profiles && record.profileId) {
+              const profileId = record.profileId;
+              try {
+                profileWarnings = await runExclusive(profileLocks, profileId, () =>
+                  upsertAchievements(profiles, profileId, state.campaignId, result.changes),
+                );
+              } catch {
+                profileWarnings = [{ code: "profile_write_failed", messageKey: "core.reason.profile_write_failed", path: profileId }];
+              }
+            }
 
             return {
               ok: true,
@@ -352,7 +372,7 @@ export function createInMemorySessionStore(options: InMemorySessionStoreOptions)
 
     async saveGame(sessionId: string): Promise<SaveHandle> {
       const record = getSession(sessionId);
-      return runExclusive(sessionId, () =>
+      return runExclusive(sessionLocks, sessionId, () =>
         withCommand(sessionId, record.attemptCounter, (decoratedEngine) => {
           const state = mustDeserialize(decoratedEngine, record.blob);
           const saveId = mintId();
