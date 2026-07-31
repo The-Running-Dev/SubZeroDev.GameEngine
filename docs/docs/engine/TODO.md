@@ -60,6 +60,10 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 # The MVP — Units of Work
 
+> **MVP DONE.** W1–W19 are all checked. [`MVP.md`](MVP.md) §5's Definition of Done is
+> checked box-by-box against a named test for each one — the platform is proven. What
+> follows below (Post-MVP) is depth and breadth building on it, not the MVP itself.
+
 Ordered by dependency. **W1–W8** are core (shared by every kind), **W9–W14** the
 story-graph kind, **W15–W19** content, clients, and proof. A unit is done when its
 done-criteria are demonstrated by a test, not by inspection.
@@ -362,12 +366,13 @@ The same operations as tools — a sibling adapter, no AI-specific path.
       output to W16's run — the client contract's proof ([09 §1](09-clients.md#1-the-rule-made-testable)); an agent sees no more than a human client does, including
       getting `unknown_action` for a hidden choice.
 
-### W18 — Determinism Harness
+### [x] W18 — Determinism Harness
 The `PlaythroughFixture` runner, committed golden files, property tests, and the
 sink-independence pass.
 - **Spec:** [04 §14](04-core.md#14-determinism-harness); [05 §12](05-observability.md#12-validation-and-tests).
 - **Depends on:** [W3a](#x-w3a--observability-emitter-events-and-sinks),
       [W15](#x-w15--the-bureaucracy-campaign-and-broken-fixtures).
+- **Status:** Done — [PR #70](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/70).
 - **Done when:** the same seed + action log serializes byte-identically; a one-byte golden
       edit fails the suite; N random seeds run twice match; `deserialize(serialize(state))`
       round-trips; every fixture replays byte-identically under `nullEmitter` and
@@ -375,9 +380,10 @@ sink-independence pass.
       on an unintended behavioural change; the suite passes in Node with no DOM, network, or
       AI adapter installed.
 
-### W19 — MVP Acceptance
+### [x] W19 — MVP Acceptance
 Walk [`MVP.md`](MVP.md) §5 and attach test evidence to each box.
 - **Depends on:** every unit above.
+- **Status:** Done — [PR #71](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/71).
 - **Done when:** every box is checked with a named test. **MVP DONE.**
 
 ---

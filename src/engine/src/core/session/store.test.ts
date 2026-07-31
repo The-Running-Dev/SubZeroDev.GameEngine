@@ -409,7 +409,7 @@ describe("profile store wiring (W8)", () => {
     expect(stillThere.achievements).toEqual([{ campaignId: "test-campaign", achievementId: "first-count" }]);
   });
 
-  it("no profileId means no read and no write — the ProfileStore is never called", async () => {
+  it("no profileId means no read and no write — the ProfileStore is never called, and the session still plays to its ending (MVP.md §5, 'Persistent')", async () => {
     let loadCalls = 0;
     let saveCalls = 0;
     const spyProfiles: ProfileStore = {
@@ -425,9 +425,12 @@ describe("profile store wiring (W8)", () => {
     const store = makeStore({ profiles: spyProfiles });
     const { sessionId } = await store.createSession({ campaignId: "test-campaign" }); // no profileId
     await store.submitAction(sessionId, "unlock-first-count");
+    const result = await store.submitAction(sessionId, "end");
 
     expect(loadCalls).toBe(0);
     expect(saveCalls).toBe(0);
+    expect(result.ok).toBe(true);
+    expect(result.scene?.status).toBe("ended");
   });
 
   it("an action with no achievement-unlock changes never touches the ProfileStore", async () => {

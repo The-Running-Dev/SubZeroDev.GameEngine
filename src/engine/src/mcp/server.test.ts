@@ -27,10 +27,22 @@ import { buildBulgariaBureaucracyCampaign, BULGARIA_BUREAUCRACY_CAMPAIGN_ID } fr
 // lands on room_14 — see plans/22-w15-bureaucracy-campaign-and-broken-fixtures.md.
 const SEED = "bureaucracy-seed-3";
 
-// A fixed (non-random) IdSource so gameId doesn't itself differ between two independently
-// built stores — 06-extensibility.md §5.1, the same fixture requirement engine.test.ts's
-// own observability tests and store.test.ts's profile-isolation test already establish.
-const FIXED_IDS: IdSource = { newGameId: () => "fixed-game-id", newSeed: () => "fixed-seed" };
+/**
+ * A genuinely *counting* IdSource — 09-clients.md §1 and 06-extensibility.md §5.1 both
+ * name this specific kind of fixture, not just "a fixed one": "the same seed, choices,
+ * and counting IdSource produce byte-identical serialize() output." A fresh counter per
+ * call, starting at 0 — two independent runs that each create the same number of games
+ * in the same order still line up, which a single shared constant can't distinguish from
+ * a real counting source when (as here) exactly one game is created per run, but which
+ * only a real counter proves for a run that creates more than one.
+ */
+function createCountingIds(): IdSource {
+  let n = 0;
+  return {
+    newGameId: () => `counting-game-id-${n++}`,
+    newSeed: () => `counting-seed-${n++}`,
+  };
+}
 
 function makeStoryGraphKind(): Kind<StoryGraphKindState> {
   return {
@@ -205,9 +217,9 @@ describe("McpTools — an agent is a player (09-clients.md §7)", () => {
 });
 
 describe("the client contract's proof (09-clients.md §1)", () => {
-  it("the same seed and choices, under the same fixed IdSource, produce identical scene/view sequences through TextClient and McpTools", async () => {
-    const textClient = new TextClient(buildStore(FIXED_IDS));
-    const mcpTools = createMcpTools(buildStore(FIXED_IDS));
+  it("the same seed and choices, under the same counting IdSource, produce identical scene/view sequences through TextClient and McpTools", async () => {
+    const textClient = new TextClient(buildStore(createCountingIds()));
+    const mcpTools = createMcpTools(buildStore(createCountingIds()));
 
     async function runViaTextClient(): Promise<unknown[]> {
       const snapshots: unknown[] = [];
