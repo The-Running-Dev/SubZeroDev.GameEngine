@@ -59,12 +59,14 @@ export default tseslint.config(
   {
     // Client contract (09-clients.md §2): "a client calls SessionStore and nothing else."
     // A client that imported a kind directly could reach past the projection boundary the
-    // same way `09-clients.md` §6 says the surface itself prevents. Same "lint rule instead
-    // of a one-time scan" reasoning as the core-boundary rule above. Tests are exempt:
-    // a client's own test harness legitimately builds a real store from a real kind and
-    // campaign, the same integration-test shape every other kind/campaign test uses.
-    files: ["src/clients/**/*.ts"],
-    ignores: ["src/clients/**/*.test.ts"],
+    // same way `09-clients.md` §6 says the surface itself prevents. The MCP server is a
+    // client too (09 §7 — "a thin adapter over the same store"), so the same rule covers
+    // `src/mcp/**` alongside `src/clients/**`. Same "lint rule instead of a one-time scan"
+    // reasoning as the core-boundary rule above. Tests are exempt: a client's own test
+    // harness legitimately builds a real store from a real kind and campaign, the same
+    // integration-test shape every other kind/campaign test uses.
+    files: ["src/clients/**/*.ts", "src/mcp/**/*.ts"],
+    ignores: ["src/clients/**/*.test.ts", "src/mcp/**/*.test.ts"],
     rules: {
       "no-restricted-imports": [
         "error",
