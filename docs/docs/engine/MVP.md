@@ -89,103 +89,103 @@ platform. Jones is the next milestone, on a core this slice already proves.
 
 **Playable**
 - [x] A player starts a session, plays the Bureaucracy arc, and reaches its ending.
-      — `campaigns/bulgaria-bureaucracy.test.ts`: *"go_home at the gate ends the game,
+      — `src/engine/src/campaigns/bulgaria-bureaucracy.test.ts`: *"go_home at the gate ends the game,
       unlocking it_builds_character"*.
 - [x] Requirement-gated choices are shown as unavailable **with a reason**, not hidden.
-      — `kinds/story-graph/scene.test.ts`: *"shows a gated choice with available: false
+      — `src/engine/src/kinds/story-graph/scene.test.ts`: *"shows a gated choice with available: false
       and its requirementFailKey"*; real-arc proof in
-      `clients/text/client.test.ts`: *"7. submitAction — success renders the new scene;
+      `src/engine/src/clients/text/client.test.ts`: *"7. submitAction — success renders the new scene;
       a gated choice renders unavailable with its real reason"*.
 - [x] At least one seeded random-transition node behaves and reproduces.
-      — `campaigns/bulgaria-bureaucracy.test.ts`: *"the seeded clerk_review transition
+      — `src/engine/src/campaigns/bulgaria-bureaucracy.test.ts`: *"the seeded clerk_review transition
       reproduces across two independent createGame calls"*.
 - [x] The "It Builds Character" achievement unlocks exactly once.
-      — `kinds/story-graph/achievements.test.ts`: *"fires exactly once — a second
+      — `src/engine/src/kinds/story-graph/achievements.test.ts`: *"fires exactly once — a second
       evaluation on an already-unlocked state doesn't re-add or re-emit"*.
 - [x] The Bureaucracy **loop** is traversed and its `office_visits ≥ 3` gate is reached —
       loops, self-`goto`, and visit counts all exercised.
-      — `campaigns/bulgaria-bureaucracy.test.ts`: *"wait, then two continue_cycle passes,
+      — `src/engine/src/campaigns/bulgaria-bureaucracy.test.ts`: *"wait, then two continue_cycle passes,
       reaches the office_visits >= 3 gate"*.
 
 **Two clients, one game**
 - [x] The identical arc is completable through the **text client**.
-      — `clients/text/client.test.ts`: *"7. submitAction — success renders the new
+      — `src/engine/src/clients/text/client.test.ts`: *"7. submitAction — success renders the new
       scene; a gated choice renders unavailable with its real reason"* (reaches the
       ending in the same flow).
 - [x] The identical arc is completable through the **MCP server** — same operations,
       same result, no AI-specific path.
-      — `mcp/server.test.ts`: *"completes the Bureaucracy arc through choose alone,
+      — `src/engine/src/mcp/server.test.ts`: *"completes the Bureaucracy arc through choose alone,
       reaching the ending and the achievement"*.
 
 **Deterministic**
 - [x] Two runs from the same seed and choice log produce **byte-identical**
       `serialize()` output.
-      — `core/determinism/harness.test.ts`: *"the same fixture run twice produces
+      — `src/engine/src/core/determinism/harness.test.ts`: *"the same fixture run twice produces
       byte-identical serialize() output"*; real-campaign version:
-      `campaigns/bulgaria-bureaucracy.determinism.test.ts`: *"$name: serialize() output
+      `src/engine/src/campaigns/bulgaria-bureaucracy.determinism.test.ts`: *"$name: serialize() output
       is golden-filed"*.
 - [x] `deserialize(serialize(state))` is deep-equal to `state`.
-      — `core/kernel/engine.test.ts`: *"round-trips a valid envelope"*; real-campaign
-      version: `campaigns/bulgaria-bureaucracy.determinism.test.ts`: *"$name:
+      — `src/engine/src/core/kernel/engine.test.ts`: *"round-trips a valid envelope"*; real-campaign
+      version: `src/engine/src/campaigns/bulgaria-bureaucracy.determinism.test.ts`: *"$name:
       deserialize(serialize(state)) round-trips"*.
 - [x] A committed **golden-file fixture** (`{config, actionLog}` → expected `serialize()`)
       runs green in the suite; a one-byte diff fails it (04-core §14).
-      — `campaigns/bulgaria-bureaucracy.determinism.test.ts`: *"$name: serialize()
+      — `src/engine/src/campaigns/bulgaria-bureaucracy.determinism.test.ts`: *"$name: serialize()
       output is golden-filed"* (the committed snapshot) plus *"a one-character
       difference is detectable — the sensitivity toMatchSnapshot() itself relies on"*.
 
 **Observable**
 - [x] Every golden fixture replays byte-identically under `nullEmitter` and under
       `recordingEmitter` — logging cannot change the game (05 §2).
-      — `campaigns/bulgaria-bureaucracy.determinism.test.ts`: *"$name: replays
+      — `src/engine/src/campaigns/bulgaria-bureaucracy.determinism.test.ts`: *"$name: replays
       byte-identically under nullEmitter and recordingEmitter"*.
 - [x] The same fixture replayed twice produces the **identical event stream** — same
       names, order, and data, compared modulo `gameId`, which a replay legitimately
       changes (05 §5).
-      — `campaigns/bulgaria-bureaucracy.determinism.test.ts`: *"$name: replayed twice
+      — `src/engine/src/campaigns/bulgaria-bureaucracy.determinism.test.ts`: *"$name: replayed twice
       under recordingEmitter yields the identical event sequence"*.
 - [x] A sink that throws on every call does not break a game; the fixture still completes
       with byte-identical output, because the core isolates every `emit` (05 §10).
-      — `core/kernel/engine.test.ts`: *"a sink that throws on every call does not fail a
+      — `src/engine/src/core/kernel/engine.test.ts`: *"a sink that throws on every call does not fail a
       game"*.
 - [x] Submitting an action id that matches nothing emits no `actionId` — the
       no-player-text rule holds against arbitrary caller input (05 §3.2, §8).
-      — `core/kernel/engine.test.ts`: *"omits actionId for an unresolved action,
+      — `src/engine/src/core/kernel/engine.test.ts`: *"omits actionId for an unresolved action,
       includes it for a resolved-but-rejected one"*.
 - [x] Two concurrent session-store commands never cross-attribute an event (05 §6.1).
-      — `core/session/store.test.ts`: *"two concurrent submitAction calls against
+      — `src/engine/src/core/session/store.test.ts`: *"two concurrent submitAction calls against
       different sessions never cross-attribute an emitted record's sessionId"*.
 - [x] A kind emitting outside its `kind.<kindId>.*` namespace, or an event name it did not
       declare, fails (05 §9).
-      — `core/kernel/engine.test.ts`: *"createEngine rejects a kind whose eventNames
+      — `src/engine/src/core/kernel/engine.test.ts`: *"createEngine rejects a kind whose eventNames
       escape its own namespace"*; runtime paths in
-      `core/observability/emitter.test.ts`: *"forKind view rejects a name outside its
+      `src/engine/src/core/observability/emitter.test.ts`: *"forKind view rejects a name outside its
       own kind namespace"* and *"forKind view rejects a name not in declaredEventNames
       even if in-namespace"*.
 - [x] Playing the arc with the `jsonl` sink at `trace` yields a stream in which the
       Bureaucracy gate's visit counts and the random transition's pick are both readable —
       the events earn their place by making a real failure diagnosable (03 §8.4).
-      — `campaigns/bulgaria-bureaucracy.observability.test.ts`: *"plays wait,
+      — `src/engine/src/campaigns/bulgaria-bureaucracy.observability.test.ts`: *"plays wait,
       continue_cycle x2, go_home and finds both in the parsed stream"* (new for W19 —
       see `plans/26-w19-mvp-acceptance.md`, gap 1).
 
 **Persistent**
 - [x] Save mid-arc, load, and continue with no state loss.
-      — `core/session/store.test.ts`: *"save mid-session, load, and continue loses no
+      — `src/engine/src/core/session/store.test.ts`: *"save mid-session, load, and continue loses no
       state"*.
 - [x] With a `profileId`, the unlocked achievement **persists to the `PlayerProfile`**
       across sessions (04-core §7.1); a missing or corrupt profile degrades to "no
       achievements", never a broken game (03 §7).
-      — `core/session/store.test.ts`: *"an unlock survives a new session with the same
+      — `src/engine/src/core/session/store.test.ts`: *"an unlock survives a new session with the same
       profileId, read directly from the ProfileStore"*, *"a missing profile surfaces
       profile_missing as a warning on the unlocking SessionActionResult"*, *"a corrupt
       profile surfaces profile_corrupt as a warning"*; degradation shape in
-      `core/session/profile-store.test.ts`: *"a missing profile loads empty with
+      `src/engine/src/core/session/profile-store.test.ts`: *"a missing profile loads empty with
       formatVersion 1 and a profile_missing warning"* and *"a corrupt profile loads
       empty with a profile_corrupt warning"*.
 - [x] Without a `profileId` the session is **anonymous** — no profile read or write, and
       the game still plays to its ending.
-      — `core/session/store.test.ts`: *"no profileId means no read and no write — the
+      — `src/engine/src/core/session/store.test.ts`: *"no profileId means no read and no write — the
       ProfileStore is never called, and the session still plays to its ending"*
       (extended for W19 to prove both halves together — see
       `plans/26-w19-mvp-acceptance.md`, gap 3).
@@ -193,17 +193,17 @@ platform. Jones is the next milestone, on a core this slice already proves.
 **Sound**
 - [x] Tier 1 validation rejects a deliberately broken campaign (dangling node id,
       undeclared variable) at load.
-      — `campaigns/bulgaria-bureaucracy.test.ts`: *"dangling node: Tier 1
+      — `src/engine/src/campaigns/bulgaria-bureaucracy.test.ts`: *"dangling node: Tier 1
       dangling_reference at the retargeted goto, campaign does not load"* and
       *"undeclared variable: Tier 1 undeclared_variable at the rewritten effect,
       campaign does not load"*.
 - [x] Tier 2 flags an unreachable node as a warning.
-      — `campaigns/bulgaria-bureaucracy.test.ts`: *"unreachable node: Tier 2
+      — `src/engine/src/campaigns/bulgaria-bureaucracy.test.ts`: *"unreachable node: Tier 2
       unreachable_node, campaign still loads"*.
 - [x] The projection never exposes a hidden variable to either client.
-      — `core/kernel/projection.test.ts`: *"view and scene never contain the seed, the
+      — `src/engine/src/core/kernel/projection.test.ts`: *"view and scene never contain the seed, the
       logged action id, or the kind's hidden field"*; kind-level:
-      `kinds/story-graph/view.test.ts`: *"excludes non-visible variables and
+      `src/engine/src/kinds/story-graph/view.test.ts`: *"excludes non-visible variables and
       visitedCounts entirely"*.
 
 **Portable**
@@ -220,8 +220,8 @@ platform. Jones is the next milestone, on a core this slice already proves.
       ([`09-clients.md`](09-clients.md) §4): every `SessionStore` operation exercised by an
       automated test through the text client *and* through its MCP tool, one-to-one, with no
       tool that is not an operation and no client-side workaround for a missing one.
-      — `clients/text/client.test.ts`: `describe("TextClient — the API coverage
-      checklist (09-clients.md §4)")`, nine numbered tests; `mcp/server.test.ts`:
+      — `src/engine/src/clients/text/client.test.ts`: `describe("TextClient — the API coverage
+      checklist (09-clients.md §4)")`, nine numbered tests; `src/engine/src/mcp/server.test.ts`:
       `describe("McpTools — the API coverage checklist (09-clients.md §4)")`, the
       matching nine.
 - [x] The client contract's own proof: the same arc, seed, **counting `IdSource`** and
@@ -229,7 +229,7 @@ platform. Jones is the next milestone, on a core this slice already proves.
       is part of the fixture, not an afterthought — `gameId` is serialized and random by
       default (06 §5.1), so without fixing it the comparison can never pass. This is what "no game logic" means
       operationally — a client contributes nothing but the order of the actions it submits.
-      — `mcp/server.test.ts`: *"the same seed and choices, under the same counting
+      — `src/engine/src/mcp/server.test.ts`: *"the same seed and choices, under the same counting
       IdSource, produce identical scene/view sequences through TextClient and
       McpTools"* (fixed for W19 to use a genuinely counting `IdSource`, not a constant —
       see `plans/26-w19-mvp-acceptance.md`, gap 2).
