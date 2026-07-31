@@ -30,6 +30,11 @@ export type ReasonCode = string;
  * `string_conflict` and `protected_string_key` were added during W4 — registry assembly
  * (`registry/build.ts`) needs a code for each of its two hard-fail conditions. See
  * `plans/11-w4-registry-authoring-localization.md`, Decision 1.
+ *
+ * `duplicate_campaign_id` was added on review of the same PR: `Kind.validateCampaign`
+ * (Tier 1, 04 §11) sees one campaign at a time, so it structurally cannot catch two
+ * different campaigns sharing an id — only whatever assembles the whole registry can.
+ * That's `buildContentRegistry`, so the code belongs beside the other two it already owns.
  */
 export const BASE_REASON_CODES = [
   "action_not_available",
@@ -44,6 +49,7 @@ export const BASE_REASON_CODES = [
   "invalid_state",
   "string_conflict",
   "protected_string_key",
+  "duplicate_campaign_id",
 ] as const;
 
 export type BaseReasonCode = (typeof BASE_REASON_CODES)[number];
@@ -67,6 +73,7 @@ const CORE_REASON_TEXT: Readonly<Record<BaseReasonCode, string>> = {
   invalid_state: "The saved game data couldn't be read.",
   string_conflict: "The same text key was authored with two different strings.",
   protected_string_key: "Campaign content can't override a reserved core message.",
+  duplicate_campaign_id: "Two campaigns can't share the same id.",
 };
 
 /** `core.reason.<code>` → its shipped default-English message, for every base code. */

@@ -69,6 +69,16 @@ describe("buildContentRegistry", () => {
     );
   });
 
+  it("rejects two campaigns sharing the same id, without leaking the duplicate's strings", () => {
+    const first = built(makeCampaign({ id: "dup", version: "1" }), { "campaign.first": "First." });
+    const second = built(makeCampaign({ id: "dup", version: "2" }), { "campaign.second": "Second." });
+    const result = buildContentRegistry([first, second]);
+    expect(result.ok).toBe(false);
+    expect(result.errors[0]?.code).toBe("duplicate_campaign_id");
+    expect(result.errors[0]?.path).toBe("dup");
+    expect(result.value).toBeUndefined();
+  });
+
   it("dedupes an identical key/text pair shared across two campaigns", () => {
     const a = built(makeCampaign({ id: "a" }), { "shared.key": "Shared." });
     const b = built(makeCampaign({ id: "b" }), { "shared.key": "Shared." });
