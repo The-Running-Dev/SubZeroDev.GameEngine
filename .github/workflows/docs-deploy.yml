@@ -59,6 +59,10 @@ jobs:
             # in docs-ci.yml's verify job for the full rationale.
             - name: Regenerate changelog (build-only, not committed)
               run: |
+                  # This job runs inside a container, so the checkout is owned by a
+                  # different uid than the one running it -- git refuses to touch it
+                  # ("dubious ownership") until explicitly trusted.
+                  git config --global --add safe.directory "$env:GITHUB_WORKSPACE"
                   $body = & ./build/ConvertTo-Changelog.ps1 -RepoRoot . -RepositorySlug '${{ github.repository }}'
                   $docsPage = @('---', 'slug: changelog', '---', '') + $body
                   Set-Content -Path 'docs/docs/engine/CHANGELOG.md' -Value $docsPage -Encoding utf8NoBOM
