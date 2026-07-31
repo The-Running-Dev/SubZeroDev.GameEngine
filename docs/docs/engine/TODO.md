@@ -307,6 +307,7 @@ Author 03 §12 in the W4 source form with all its strings, plus four deliberatel
 copies: dangling node, undeclared variable, unreachable node, settlement cycle.
 - **Spec:** 03 §12; `games/bulgaria.md`; [`MVP.md`](MVP.md) §3.
 - **Depends on:** W4, W14.
+- **Status:** Done — [PR #60](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/60).
 - **Done when:** the valid campaign loads with no Tier 1 errors; the loop reaches its
       `office_visits >= 3` gate; the seeded clerk transition reproduces; each broken fixture
       produces its expected tier and path; every authored string resolves through the
