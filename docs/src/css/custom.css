@@ -1,0 +1,23 @@
+/**
+ * Local override of the base docs-template image's CSS, wired in by
+ * `docusaurus.config.ts`'s `theme.customCss` — same "local overrides" pattern
+ * as that file and sidebar.ts.
+ *
+ * Prose links (`(09 §4)`-style inline citations, cross-doc references) render
+ * with Infima's default color alone, no underline -- indistinguishable from
+ * surrounding text on a quick scan, and a problem color contrast alone never
+ * fully solves. Underlining every in-content link makes "this is clickable"
+ * legible without depending on color. Scoped to `.markdown` (Docusaurus's own
+ * class for the rendered doc/blog article body) so navbar, sidebar, and
+ * footer links -- already distinguished by position and layout, not by
+ * running text -- are untouched.
+ */
+.markdown a {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.markdown a:hover {
+  text-decoration-thickness: 2px;
+}
