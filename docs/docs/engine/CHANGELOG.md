@@ -9,6 +9,8 @@ of `main`, not maintained by hand. This project squash-merges every pull request
 `git log` already is the changelog; regenerating it is strictly more reliable than a
 second, hand-kept copy.
 
+- **2026-07-31** — Regenerate docs/src/pages/index.md from the updated README
+- **2026-07-31** — Docs discoverability: README navigation, accurate status, and an auto-generated changelog
 - **2026-07-31** — [W8 — Profile Store: in-memory store and the post-action upsert (#39)](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/39)
 - **2026-07-31** — [W7 — Session Store: in-memory store, Engine.withEmitter, jsonlEmitter (#38)](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/38)
 - **2026-07-31** — [W6 — Projection: black-box acceptance tests for the client boundary (#37)](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/37)

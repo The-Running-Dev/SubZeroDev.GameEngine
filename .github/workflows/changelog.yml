@@ -32,7 +32,12 @@ jobs:
     update-changelog:
         name: Regenerate Changelog
         runs-on: ubuntu-latest
-        if: "!startsWith(github.event.head_commit.message, 'chore: update changelog')"
+        # Loosely matched, not an exact-prefix check -- the merge commit's exact
+        # subject depends on how it was merged and whether a reviewer edited the
+        # pre-filled title, so this only needs "update changelog" to appear
+        # anywhere in it. Mirrors the generator's own skip in
+        # build/ConvertTo-Changelog.ps1 for the same reason.
+        if: "!contains(github.event.head_commit.message, 'update changelog')"
         steps:
             - name: Check out repository
               uses: actions/checkout@v7

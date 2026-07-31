@@ -13,10 +13,13 @@
     GitHub's own UI recognizes) wrap the same body differently, so front matter
     doesn't belong in the generator itself.
 
-    A commit whose subject starts with "chore: update changelog" is skipped --
-    that is this generator's own regeneration commit, once
-    `.github/workflows/changelog.yml` merges one, and it would otherwise show up
-    inside the changelog it produced.
+    A commit whose subject contains "update changelog" (case-insensitive, anywhere
+    in the subject rather than an exact prefix) is skipped -- that is this
+    generator's own regeneration commit, once `.github/workflows/changelog.yml`
+    merges one, and it would otherwise show up inside the changelog it produced.
+    Matched loosely on purpose: a merge commit's exact subject depends on how it
+    was merged and whether a reviewer edited the pre-filled title, so an exact
+    prefix match is one retitle away from missing it.
 
 .PARAMETER RepoRoot
     Path to the git repository root. Needs full history (not a shallow clone).
@@ -45,6 +48,16 @@ if ($LASTEXITCODE -ne 0) {
     throw 'git log failed -- is this running inside a git checkout with full history (fetch-depth: 0)?'
 }
 
+# Markdown-escapes a commit subject before it's embedded as link text or a
+# plain list item -- an unescaped '[' or ']' in a PR title would otherwise
+# corrupt the surrounding link syntax (backslash escaped first, so escaping
+# the brackets afterwards can't double up on a subject that already contains
+# a literal backslash).
+function ConvertTo-EscapedMarkdown {
+    param([Parameter(Mandatory)][string] $Text)
+    $Text.Replace('\', '\\').Replace('[', '\[').Replace(']', '\]')
+}
+
 $entryLines = foreach ($entry in ($rawLog -split "`n")) {
     if ([string]::IsNullOrWhiteSpace($entry)) { continue }
 
@@ -52,15 +65,16 @@ $entryLines = foreach ($entry in ($rawLog -split "`n")) {
     $date = $parts[0]
     $subject = $parts[1]
 
-    if ($subject -match '^chore: update changelog') { continue }
+    if ($subject -match '(?i)update changelog') { continue }
 
+    $escapedSubject = ConvertTo-EscapedMarkdown -Text $subject
     $prMatch = [regex]::Match($subject, '\(#(?<pr>\d+)\)\s*$')
     if ($prMatch.Success) {
         $prUrl = "https://github.com/$RepositorySlug/pull/$($prMatch.Groups['pr'].Value)"
-        "- **$date** — [$subject]($prUrl)"
+        "- **$date** — [$escapedSubject]($prUrl)"
     }
     else {
-        "- **$date** — $subject"
+        "- **$date** — $escapedSubject"
     }
 }
 
