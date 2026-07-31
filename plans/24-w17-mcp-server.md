@@ -35,13 +35,12 @@ how `client.test.ts` proved `TextClient` without an interactive terminal.
 
 A real transport-level MCP server (mirroring `blog-mcp`'s shape: `@modelcontextprotocol/sdk`,
 its own `package.json`, a real stdio/HTTP transport) is the natural post-MVP follow-up once
-an MVP needs a literal running agent-facing process — not this unit's job. Its home is
-[SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform), the deferred
-hosting layer (MVP §4), not a new repo — a live network-facing server is a hosting concern,
-the same way `05-observability.md` §13 already places the OpenTelemetry exporter there.
-`McpTools` is designed to be that future server's entire tool-layer implementation; Platform
-would wrap it in a transport, not reimplement it. Recorded as a deferred item in
-[`OPEN-QUESTIONS.md`](../docs/docs/engine/OPEN-QUESTIONS.md) §2 rather than left implicit.
+an MVP needs a literal running agent-facing process — not this unit's job, and not this
+repo's concern to track. Recorded directly in
+[SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform)'s own vision
+doc (`docs/docs/neaas-platform-vision.md`, "What the hosted layer would add") rather than
+in this repo's `OPEN-QUESTIONS.md` — the engine doesn't own hosting concerns, so the note
+belongs where the layer that would build it already tracks its own deferred intent.
 
 ## Decisions
 

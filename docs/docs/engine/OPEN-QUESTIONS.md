@@ -102,15 +102,6 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   This was a live problem when they shared one tree; the repo split
   ([`02-architecture.md`](02-architecture.md) §12) has largely dissolved it. **Open:**
   confirm nothing depends on a merged numbering and close the item.
-- **A real, transport-level MCP server** — `TODO.md` W17 builds `McpTools`, the
-  nine-tool adapter 04 §13 specifies, entirely inside `src/engine/` with no runtime
-  dependency: it's called directly by tests, never over stdio or HTTP. A literal
-  agent-facing process (`@modelcontextprotocol/sdk`, a transport, its own deploy) is a
-  hosting-layer concern the same way the OpenTelemetry exporter above is — it belongs
-  with [SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform),
-  not a new repo, once that layer is built (MVP §4 defers it entirely). `McpTools` is
-  designed to be that server's whole implementation of the tool layer — Platform would
-  wrap it in a transport, not reimplement it.
 
 ---
 
