@@ -162,4 +162,13 @@ describe("evaluateCondition — exists / count", () => {
     };
     expect(evaluateCondition(tooFew, r)).toBe(false);
   });
+
+  it("count's operator type excludes the array/string-shaped comparisons", () => {
+    const r = npcResolver([{ name: "a", hostile: true }]);
+    const where: Condition = { field: "hostile", operator: "equals", value: true };
+    // @ts-expect-error "in" is not a CountComparisonOperator — it would throw at evaluation
+    // since count always compares two numbers, never an array/string.
+    const invalid: Condition = { count: { collection: "world.npcs", where }, operator: "in", value: 1 };
+    expect(() => evaluateCondition(invalid, r)).toThrow();
+  });
 });

@@ -129,6 +129,14 @@ unit tests it directly rather than through story-graph content that doesn't exis
   unreachable from this kind's own content — tested directly against the generic
   evaluator with a synthetic array field, not through story-graph.
 
+**`CountCondition.operator` is narrowed to a six-operator `CountComparisonOperator`**
+(`equals`/`not_equals`/`less_than`/`less_or_equal`/`greater_than`/`greater_or_equal`),
+not the full eleven (caught in PR #43 review). `count` always compares a numeric match
+total against `value: number` — the array/string-shaped operators (`in`, `contains`,
+`has_tag`, `has_flag`) would type-check against the original `ComparisonOperator` but
+always throw inside `compare()`, since they need an array/string operand that a count can
+never be. A `@ts-expect-error` test proves the invalid shape no longer constructs.
+
 ### 3. Story-graph's field-path validator returns `ValidationError[]`, not a thrown guard
 
 Unlike W9's undeclared-variable guard (which throws, because Tier 1 validation was

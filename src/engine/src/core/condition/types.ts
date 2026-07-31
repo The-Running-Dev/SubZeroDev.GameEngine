@@ -46,9 +46,22 @@ export interface ExistsCondition {
   exists: { collection: string; where: Condition };
 }
 
+/**
+ * `count`'s own comparison is always two numbers (a match total against `value`) — the
+ * six ordering/equality operators, never the array/string-shaped ones (`in`, `contains`,
+ * `has_tag`, `has_flag`), which would type-check but always throw at evaluation.
+ */
+export type CountComparisonOperator =
+  | "equals"
+  | "not_equals"
+  | "less_than"
+  | "less_or_equal"
+  | "greater_than"
+  | "greater_or_equal";
+
 export interface CountCondition {
   count: { collection: string; where: Condition };
-  operator: ComparisonOperator;
+  operator: CountComparisonOperator;
   value: number;
 }
 
