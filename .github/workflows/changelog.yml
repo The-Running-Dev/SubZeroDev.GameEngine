@@ -1,0 +1,67 @@
+name: Changelog
+
+# Regenerates the changelog from main's merge history and opens a pull request
+# if it changed. Every commit on main is a squash-merged PR (see
+# build/ConvertTo-Changelog.ps1), so the source of truth is git log itself --
+# this just keeps the two committed copies (the docs page, the repo-root file
+# GitHub's own UI recognizes) from silently falling behind it.
+#
+# Runs on push to main rather than pull_request: the changelog can only be
+# generated from what has actually merged, not from a branch that hasn't yet.
+# The `if` guard below skips the run this workflow's own regeneration commit
+# would otherwise cause, since merging its PR is itself a push to main.
+
+"on":
+    push:
+        branches:
+            - main
+
+permissions:
+    contents: write
+    pull-requests: write
+
+concurrency:
+    group: changelog
+    cancel-in-progress: false
+
+defaults:
+    run:
+        shell: pwsh
+
+jobs:
+    update-changelog:
+        name: Regenerate Changelog
+        runs-on: ubuntu-latest
+        # Loosely matched, not an exact-prefix check -- the merge commit's exact
+        # subject depends on how it was merged and whether a reviewer edited the
+        # pre-filled title, so this only needs "update changelog" to appear
+        # anywhere in it. Mirrors the generator's own skip in
+        # build/ConvertTo-Changelog.ps1 for the same reason.
+        if: "!contains(github.event.head_commit.message, 'update changelog')"
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@v7
+              with:
+                  fetch-depth: 0
+
+            - name: Regenerate changelog
+              run: |
+                  $body = & ./build/ConvertTo-Changelog.ps1 -RepoRoot . -RepositorySlug '${{ github.repository }}'
+                  $docsPage = @('---', 'slug: changelog', '---', '') + $body
+                  Set-Content -Path 'docs/docs/engine/CHANGELOG.md' -Value $docsPage -Encoding utf8NoBOM
+                  Set-Content -Path 'CHANGELOG.md' -Value $body -Encoding utf8NoBOM
+
+            - name: Open pull request if it changed
+              uses: peter-evans/create-pull-request@v8
+              with:
+                  commit-message: 'chore: update changelog'
+                  title: 'chore: update changelog'
+                  body: >
+                      Auto-generated from the merge history of `main` by
+                      `.github/workflows/changelog.yml`. Nothing to review by
+                      hand unless the generated content itself looks wrong.
+                  branch: chore/update-changelog
+                  delete-branch: true
+                  add-paths: |
+                      CHANGELOG.md
+                      docs/docs/engine/CHANGELOG.md
