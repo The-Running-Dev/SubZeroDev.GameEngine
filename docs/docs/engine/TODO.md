@@ -335,12 +335,13 @@ copies: dangling node, undeclared variable, unreachable node, settlement cycle.
       produces its expected tier and path; every authored string resolves through the
       registry.
 
-### W16 — Text Client
+### [x] W16 — Text Client
 The plain proving instrument, over `SessionStore` only.
 - **Spec:** [04 §§6–7](04-core.md); [`09-clients.md`](09-clients.md) — the contract, and
       [§4](09-clients.md#4-the-api-coverage-checklist) the checklist;
       [MVP §5](MVP.md#5-definition-of-done--the-mvp) "Honest."
 - **Depends on:** [W7](#x-w7--session-store), [W12](#x-w12--scene-actions-projection-reason-codes).
+- **Status:** Done — [PR #63](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/63).
 - **Done when:** the **API coverage checklist** (09 §4) is complete for the text-client
       column — all nine operations exercised by automated tests, not by inspection; it
       imports nothing from `kinds/` and never reads a persisted `GameState`; requirement
