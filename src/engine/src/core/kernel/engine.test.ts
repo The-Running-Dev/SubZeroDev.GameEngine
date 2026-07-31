@@ -12,6 +12,8 @@ import type {
 import type { Campaign, ContentRegistry } from "../registry/types.js";
 import type { ValidationResult } from "../validation/types.js";
 import type { EngineHost } from "../composition/types.js";
+import { createRecordingEmitter, nullEmitter } from "../observability/emitter.js";
+import type { GameEvent } from "../observability/types.js";
 
 interface TestKindState {
   counter: number;
@@ -376,5 +378,194 @@ describe("serialize / deserialize / migrate", () => {
     const result = engine.migrate(data);
     expect(result.ok).toBe(true);
     expect(result.value?.gameId).toBe(created.value?.gameId);
+  });
+});
+
+describe("observability", () => {
+  // A fixed IdSource, not just a fixed seed: gameId comes from crypto.randomUUID() by
+  // default (composition/defaults.ts) regardless of seed, so two runs being compared
+  // byte-for-byte need the same gameId too (06-extensibility.md §5.1 — "with a counting
+  // IdSource, a fixture produces the same envelope every run, including gameId").
+  const fixedIds = { newGameId: () => "fixed-game-id", newSeed: () => "fixed-seed" };
+
+  function runFixture(emitter: EngineHost["emitter"]): string {
+    const engine = createEngine(makeHost({ ids: fixedIds, ...(emitter ? { emitter } : {}) }));
+    const created = engine.createGame({ campaignId: "test-campaign", seed: "fixed-seed" });
+    const afterFirst = engine.submitAction(created.value as GameState, "increment");
+    const afterSecond = engine.submitAction(afterFirst.value as GameState, "end");
+    return engine.serialize(afterSecond.value as GameState);
+  }
+
+  it("sink independence: nullEmitter and a recordingEmitter produce byte-identical serialize() output", () => {
+    const withoutRecording = runFixture(nullEmitter);
+    const withRecording = runFixture(createRecordingEmitter());
+    expect(withRecording).toBe(withoutRecording);
+  });
+
+  it("stream reproducibility: the same fixture replayed twice under recordingEmitter yields the identical event sequence modulo gameId", () => {
+    const firstRecorder = createRecordingEmitter();
+    runFixture(firstRecorder);
+    const secondRecorder = createRecordingEmitter();
+    runFixture(secondRecorder);
+
+    const normalize = (events: readonly GameEvent[]) =>
+      events.map((event) => {
+        const clone: Record<string, unknown> = { ...event };
+        delete clone["gameId"];
+        return clone;
+      });
+    const gameEvents = (recorder: ReturnType<typeof createRecordingEmitter>) =>
+      recorder.events.filter((e): e is GameEvent => e.scope === "game");
+
+    expect(normalize(gameEvents(firstRecorder))).toEqual(normalize(gameEvents(secondRecorder)));
+  });
+
+  it("ordinals restart at 0 on each resolution", () => {
+    const recorder = createRecordingEmitter();
+    const engine = createEngine(makeHost({ emitter: recorder }));
+    const created = engine.createGame({ campaignId: "test-campaign" });
+    const afterFirst = engine.submitAction(created.value as GameState, "increment");
+    engine.submitAction(afterFirst.value as GameState, "increment");
+
+    const bySeq = new Map<number, number[]>();
+    for (const event of recorder.events) {
+      if (event.scope !== "game") continue;
+      const list = bySeq.get(event.seq) ?? [];
+      list.push(event.ordinal);
+      bySeq.set(event.seq, list);
+    }
+    expect(bySeq.size).toBeGreaterThan(1);
+    for (const ordinals of bySeq.values()) {
+      expect(ordinals[0]).toBe(0);
+    }
+  });
+
+  it("core.deserialize.rejected is scope: system and carries no gameId", () => {
+    const recorder = createRecordingEmitter();
+    const engine = createEngine(makeHost({ emitter: recorder }));
+    engine.deserialize("not json");
+    const [event] = recorder.events;
+    expect(event?.scope).toBe("system");
+    expect(event?.name).toBe("core.deserialize.rejected");
+    expect(event && "gameId" in event).toBe(false);
+  });
+
+  it("omits actionId for an unresolved action, includes it for a resolved-but-rejected one", () => {
+    const rejectingKind = makeTestKind({
+      advance: (state, actionId): AdvanceResult<TestKindState> => {
+        if (actionId === "gated") {
+          return {
+            state,
+            status: "active",
+            changes: [],
+            messages: [],
+            error: { code: "requirement_unmet", messageKey: "core.reason.requirement_unmet" },
+          };
+        }
+        return {
+          state,
+          status: "active",
+          changes: [],
+          messages: [],
+          error: { code: "unknown_action", messageKey: "core.reason.unknown_action" },
+        };
+      },
+    });
+    const recorder = createRecordingEmitter();
+    const engine = createEngine(makeHost({ kinds: makeKinds(rejectingKind), emitter: recorder }));
+    const state = engine.createGame({ campaignId: "test-campaign" }).value as GameState;
+
+    engine.submitAction(state, "totally-unknown");
+    engine.submitAction(state, "gated");
+
+    const rejected = recorder.events.filter((e) => e.name === "core.action.rejected") as GameEvent[];
+    expect(rejected[0]?.data).toBeUndefined();
+    expect(rejected[1]?.data).toEqual({ actionId: "gated" });
+  });
+
+  it("createEngine rejects a kind whose eventNames escape its own namespace", () => {
+    const badKind = makeTestKind({ eventNames: ["kind.wrong-kind.foo"] });
+    expect(() => createEngine(makeHost({ kinds: makeKinds(badKind) }))).toThrow();
+  });
+
+  it("a kind's own ctx.emit reaches the sink with kindId stamped", () => {
+    const emittingKind = makeTestKind({
+      eventNames: ["kind.story-graph.tested"],
+      advance: (state, actionId, _params, ctx): AdvanceResult<TestKindState> => {
+        ctx.emit.emit("kind.story-graph.tested", "debug");
+        if (actionId === "increment") {
+          return { state: { counter: state.counter + 1 }, status: "active", changes: [], messages: [] };
+        }
+        return { state, status: "ended", changes: [], messages: [] };
+      },
+    });
+    const recorder = createRecordingEmitter();
+    const engine = createEngine(makeHost({ kinds: makeKinds(emittingKind), emitter: recorder }));
+    const created = engine.createGame({ campaignId: "test-campaign" });
+    engine.submitAction(created.value as GameState, "increment");
+
+    const kindEvents = recorder.events.filter((e) => e.name === "kind.story-graph.tested") as GameEvent[];
+    expect(kindEvents).toHaveLength(1);
+    expect(kindEvents[0]?.kindId).toBe("story-graph");
+  });
+
+  it("a sink that throws on every call does not fail a game", () => {
+    const throwingEmitter = {
+      emit: () => {
+        throw new Error("boom");
+      },
+    };
+    const throwing = createEngine(makeHost({ ids: fixedIds, emitter: throwingEmitter }));
+    const clean = createEngine(makeHost({ ids: fixedIds }));
+
+    const createdThrowing = throwing.createGame({ campaignId: "test-campaign", seed: "fixed-seed" });
+    const createdClean = clean.createGame({ campaignId: "test-campaign", seed: "fixed-seed" });
+    expect(createdThrowing.ok).toBe(true);
+
+    const afterThrowing = throwing.submitAction(createdThrowing.value as GameState, "increment");
+    const afterClean = clean.submitAction(createdClean.value as GameState, "increment");
+    expect(afterThrowing.ok).toBe(true);
+    expect(throwing.serialize(afterThrowing.value as GameState)).toBe(clean.serialize(afterClean.value as GameState));
+  });
+
+  it("emits core.game.created with campaign identity and core.action.accepted with actionId", () => {
+    const recorder = createRecordingEmitter();
+    const engine = createEngine(makeHost({ emitter: recorder }));
+    const created = engine.createGame({ campaignId: "test-campaign" });
+    engine.submitAction(created.value as GameState, "increment");
+
+    const createdEvent = recorder.events.find((e) => e.name === "core.game.created") as GameEvent | undefined;
+    expect(createdEvent?.data).toEqual({
+      campaignId: "test-campaign",
+      campaignVersion: "1",
+      kindId: "story-graph",
+    });
+
+    const acceptedEvent = recorder.events.find((e) => e.name === "core.action.accepted") as GameEvent | undefined;
+    expect(acceptedEvent?.data).toEqual({ actionId: "increment" });
+  });
+
+  it("emits core.game.ended when an action ends the game", () => {
+    const recorder = createRecordingEmitter();
+    const engine = createEngine(makeHost({ emitter: recorder }));
+    const created = engine.createGame({ campaignId: "test-campaign" });
+    engine.submitAction(created.value as GameState, "end");
+
+    expect(recorder.events.some((e) => e.name === "core.game.ended")).toBe(true);
+  });
+
+  it("scene() uses one read context for body, actions, and its bundled view — not two", () => {
+    const recorder = createRecordingEmitter();
+    const engine = createEngine(makeHost({ emitter: recorder }));
+    const created = engine.createGame({ campaignId: "test-campaign" });
+    const before = recorder.events.length;
+    engine.scene(created.value as GameState);
+    const rngDerivedDuringScene = recorder.events.slice(before).filter((e) => e.name === "core.rng.stream.derived");
+
+    // A single read context derives ctx.rng exactly once; a second, independent context
+    // built via a nested view() call would double this and also restart the ordinal
+    // sequence at 0 a second time within the same logical scene() call.
+    expect(rngDerivedDuringScene).toHaveLength(1);
+    expect(rngDerivedDuringScene[0]?.ordinal).toBe(0);
   });
 });
