@@ -119,9 +119,9 @@ site homepage from `README.md`, and publishes the site.
 Create the module tree of 04 §1.1 (`kernel`, `session`, `persistence`, `projection`,
 `validation`, `registry`, `localization`, `determinism`, `observability`, `composition`) and
 put each declared type in the module that owns it. Types only — no behaviour.
-- **Spec:** 04 §§1.1–3, 5–12, §17; 05 §§3–4 for the `observability` types;
-      [`06-extensibility.md`](06-extensibility.md) §4–§5 for `composition` — the two host
-      roots and the `IdSource` and `Clock` port interfaces.
+- **Spec:** [04 §§1.1–3, 5–12, §17](04-core.md); [05 §§3–4](05-observability.md) for the
+      `observability` types; [`06-extensibility.md`](06-extensibility.md) §4–§5 for
+      `composition` — the two host roots and the `IdSource` and `Clock` port interfaces.
 - **Depends on:** nothing.
 - **Status:** Done — [PR #17](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/17).
 - **Done when:** `npm run typecheck` passes with `exactOptionalPropertyTypes`; a dependency
@@ -135,8 +135,8 @@ put each declared type in the module that owns it. Types only — no behaviour.
 ### [x] W2 — RNG Handle and Stream Derivation
 Wrap the built `Pcg32` behind `RngHandle`, and implement the normative `StreamId` → string
 encoding. No generator state is persisted anywhere.
-- **Spec:** 04 §8.
-- **Depends on:** W1.
+- **Spec:** [04 §8](04-core.md#8-randomness).
+- **Depends on:** [W1](#x-w1--core-contract-types-and-module-skeleton).
 - **Status:** Done — [PR #22](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/22).
 - **Done when:** all four encoding forms round-trip exactly as specified; the same
       `(seed, streamId)` yields identical draws across runs; different stream ids are
@@ -146,8 +146,9 @@ encoding. No generator state is persisted anywhere.
 `createEngine`, `createGame` (consuming `InitialStateResult`), `submitAction` (passing
 `params`, returning the new state in `value`), `scene`, `availableActions`, `serialize`,
 and a **validating** `deserialize` returning `CommandResult<GameState>`.
-- **Spec:** 04 §§2–5, §12.
-- **Depends on:** W1, W2.
+- **Spec:** [04 §§2–5, §12](04-core.md).
+- **Depends on:** [W1](#x-w1--core-contract-types-and-module-skeleton),
+      [W2](#x-w2--rng-handle-and-stream-derivation).
 - **Status:** Done — [PR #33](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/33).
 - **Done when:** a successful action appends exactly one monotonic `LoggedAction`; a
       rejected action leaves serialized state byte-identical and does not advance the log;
@@ -164,8 +165,12 @@ uses.
 
 **The boundary half is W7's**, because it cannot exist before the session store does:
 stamping, spans, `attempt`, and `jsonlEmitter` all belong to the layer that owns a clock.
-- **Spec:** [`05-observability.md`](05-observability.md) §§1–5, §7–§10, §12; 04 §3.1, §4, §14.
-- **Depends on:** W1, W3. (Kind events come with the kind units — W11 and W12.)
+- **Spec:** [`05-observability.md`](05-observability.md) §§1–5, §7–§10, §12;
+      [04 §3.1](04-core.md#31-kindcontext), [§4](04-core.md#4-registration-and-the-pure-engine),
+      [§14](04-core.md#14-determinism-harness).
+- **Depends on:** [W1](#x-w1--core-contract-types-and-module-skeleton),
+      [W3](#x-w3--pure-engine-kernel). (Kind events come with the kind units —
+      [W11](#x-w11--nodes-turn-and-settle) and [W12](#x-w12--scene-actions-projection-reason-codes).)
 - **Status:** Done — [PR #34](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/34).
 - **Done when:** `emit` returns `void` and no core code path reads anything back from a
       sink; the core isolates every `emit`, so a sink that throws on every call does not
@@ -183,8 +188,10 @@ stamping, spans, `attempt`, and `jsonlEmitter` all belong to the layer that owns
 The frozen in-memory `ContentRegistry`; `AuthoredText` → `BuiltCampaign` pure builder; the
 protected `core.reason.*` string merge; `LocKey` resolution. Parsing and file I/O stay in
 an outer adapter.
-- **Spec:** 04 §10.1, §12, §17.
-- **Depends on:** W1.
+- **Spec:** [04 §10.1](04-core.md#101-content-registry),
+      [§12](04-core.md#12-reason-codes-state-changes-messages),
+      [§17](04-core.md#17-identifier-conventions).
+- **Depends on:** [W1](#x-w1--core-contract-types-and-module-skeleton).
 - **Status:** Done — [PR #35](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/35).
 - **Done when:** identical key/text pairs deduplicate and conflicting ones fail; a write
       into `core.reason.*` is rejected; a registered reason code with no message fails
@@ -193,8 +200,8 @@ an outer adapter.
 ### [x] W5 — Tiered Validation
 The Tier 1 / Tier 2 framework, identifier and `LocKey` rules, delegating kind checks to
 `validateCampaign`.
-- **Spec:** 04 §11, §17.
-- **Depends on:** W4.
+- **Spec:** [04 §11](04-core.md#11-tiered-validation), [§17](04-core.md#17-identifier-conventions).
+- **Depends on:** [W4](#x-w4--registry-authoring-builder-localization).
 - **Status:** Done — [PR #36](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/36).
 - **Done when:** a Tier 1 error fails registry construction with a path; a Tier 2 warning
       loads and is reported; duplicate and malformed identifiers fail; an unvalidated
@@ -202,8 +209,8 @@ The Tier 1 / Tier 2 framework, identifier and `LocKey` rules, delegating kind ch
 
 ### [x] W6 — Projection
 `Engine.view`, the `player` / `ai` audiences, and the `kind.project` seam.
-- **Spec:** 04 §9.
-- **Depends on:** W3.
+- **Spec:** [04 §9](04-core.md#9-projection).
+- **Depends on:** [W3](#x-w3--pure-engine-kernel).
 - **Status:** Done — [PR #37](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/37).
 - **Done when:** `seed`, `actionLog`, and raw `kindState` cannot reach a client by any
       path; the `ai` audience is not wider than `player` by default.
@@ -213,8 +220,13 @@ The in-memory store: `listCampaigns`, `getScene`, `getView`, `createSession`,
 `resumeSession`, `submitAction`, `saveGame`, `loadGame`. Persist canonical blobs, not live
 objects. **Owns the observability boundary** (05 §6) — the half W3a deliberately leaves
 out, because stamping needs the layer that has a clock.
-- **Spec:** 04 §7, §10.2; [`05-observability.md`](05-observability.md) §6, §6.1, §11.
-- **Depends on:** W3a, W3, W6.
+- **Spec:** [04 §7](04-core.md#7-the-session-store-and-the-platform-api),
+      [§10.2](04-core.md#102-save-envelope-and-migration);
+      [05 §6](05-observability.md#6-the-boundary--stamping-and-tracing),
+      [§6.1](05-observability.md#61-how-per-command-context-reaches-an-event),
+      [§11](05-observability.md#11-incident-forensics--a-bug-report-is-a-fixture).
+- **Depends on:** [W3a](#x-w3a--observability-emitter-events-and-sinks),
+      [W3](#x-w3--pure-engine-kernel), [W6](#x-w6--projection).
 - **Status:** Done — [PR #38](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/38).
 - **Done when:** save mid-session → load → continue loses no state; two sessions cannot
       mutate each other; `savedAt`, owner ids, and other host metadata never appear in a
@@ -228,8 +240,8 @@ out, because stamping needs the layer that has a clock.
 ### [x] W8 — Profile Store
 `PlayerProfile`, `ProfileStore`, `profileId` on `CreateSessionConfig`, and the post-action
 idempotent upsert.
-- **Spec:** 04 §7.1.
-- **Depends on:** W7.
+- **Spec:** [04 §7.1](04-core.md#71-the-profile-store).
+- **Depends on:** [W7](#x-w7--session-store).
 - **Status:** Done — [PR #39](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/39).
 - **Done when:** an unlock survives a new session with the same `profileId`; no `profileId`
       means no read and no write; missing and corrupt both load an empty profile with the
@@ -241,8 +253,9 @@ idempotent upsert.
 ### [x] W9 — Variables and Consequences
 `VariableSchema`, typed `set` / `increment` / `decrement`, clamp-after-all-effects, sorted
 iteration of state-affecting records.
-- **Spec:** 03 §2, §5, §8.1.
-- **Depends on:** W1.
+- **Spec:** [03 §2](03-story-graph-kind.md#2-variable-schema--fully-typed-n6),
+      [§5](03-story-graph-kind.md#5-consequences--typed-effects), [§8.1](03-story-graph-kind.md#81-state).
+- **Depends on:** [W1](#x-w1--core-contract-types-and-module-skeleton).
 - **Status:** Done — [PR #41](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/41).
 - **Done when:** undeclared and mistyped writes are rejected; `+5` then `-5` on a clamped
       int nets zero rather than clipping; a save/load round trip cannot reorder a `Record`.
@@ -250,8 +263,9 @@ iteration of state-affecting records.
 ### [x] W10 — Conditions and Requirements
 The frozen `Condition` evaluator plus this kind's field namespace (`var.*`, `turn`,
 `visited.*`, `achieved.*`, `ending`).
-- **Spec:** 03 §6; 04 §18.
-- **Depends on:** W9.
+- **Spec:** [03 §6](03-story-graph-kind.md#6-requirements-and-conditions);
+      [04 §18](04-core.md#18-frozen-primitives).
+- **Depends on:** [W9](#x-w9--variables-and-consequences).
 - **Status:** Done — [PR #43](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/43).
 - **Done when:** only the frozen operator set evaluates; every `field` path is checked at
       load against the schema and node set; an unknown path is a Tier 1 error.
@@ -259,8 +273,12 @@ The frozen `Condition` evaluator plus this kind's field namespace (`var.*`, `tur
 ### [x] W11 — Nodes, Turn, and Settle
 The four node kinds, `enter(nodeId)`, the settle loop, the `SETTLE_STEPS` guard, and
 `initialState` returning `InitialStateResult`.
-- **Spec:** 03 §3, §8.1, §8.2, §8.4.
-- **Depends on:** W2, W3a, W9, W10.
+- **Spec:** [03 §3](03-story-graph-kind.md#3-nodes--the-single-content-type-n7),
+      [§8.1](03-story-graph-kind.md#81-state), [§8.2](03-story-graph-kind.md),
+      [§8.4](03-story-graph-kind.md#84-events).
+- **Depends on:** [W2](#x-w2--rng-handle-and-stream-derivation),
+      [W3a](#x-w3a--observability-emitter-events-and-sinks),
+      [W9](#x-w9--variables-and-consequences), [W10](#x-w10--conditions-and-requirements).
 - **Status:** Done — [PR #44](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/44).
 - **Done when:** an auto/random chain settles to a choice or ending; every entry increments
       its visit count, including the start node and pass-throughs; a 64-step
@@ -272,8 +290,10 @@ The four node kinds, `enter(nodeId)`, the settle loop, the `SETTLE_STEPS` guard,
 ### [x] W12 — Scene, Actions, Projection, Reason Codes
 `availableActions` (omit on `showWhen`, disable with a reason on `requirements`), `scene`,
 the slim `StoryGraphView`, and the kind's reason codes.
-- **Spec:** 03 §4, §8.3, §8.4, §9; 04 §6.
-- **Depends on:** W6, W11.
+- **Spec:** [03 §4](03-story-graph-kind.md#4-choices-and-transitions),
+      [§8.3](03-story-graph-kind.md#83-reason-codes), [§8.4](03-story-graph-kind.md#84-events),
+      [§9](03-story-graph-kind.md#9-projection--what-a-client-sees); [04 §6](04-core.md#6-scenes-and-actions-generic).
+- **Depends on:** [W6](#x-w6--projection), [W11](#x-w11--nodes-turn-and-settle).
 - **Status:** Done — [PR #47](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/47).
 - **Done when:** a `showWhen`-hidden choice is absent from the view **and** returns
       `unknown_action` when submitted — indistinguishable from a nonexistent id; a gated
@@ -284,16 +304,16 @@ the slim `StoryGraphView`, and the kind's reason codes.
 ### [x] W13 — Endings and Achievements
 Ending resolution, achievement evaluation after every turn, unlock-once into `kindState`
 plus an `achievement_unlocked` `StateChange`.
-- **Spec:** 03 §7, §8.2.
-- **Depends on:** W8, W11.
+- **Spec:** [03 §7](03-story-graph-kind.md#7-achievements), [§8.2](03-story-graph-kind.md).
+- **Depends on:** [W8](#x-w8--profile-store), [W11](#x-w11--nodes-turn-and-settle).
 - **Status:** Done — [PR #51](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/51).
 - **Done when:** an achievement fires exactly once across repeated turns; the unlock is
       readable as `achieved.<id>` in a later condition; `advance` performs no I/O.
 
 ### [x] W14 — Story-Graph Validation
 The kind's Tier 1 and Tier 2 checks via `validateCampaign`.
-- **Spec:** 03 §11.
-- **Depends on:** W5, W11.
+- **Spec:** [03 §11](03-story-graph-kind.md#11-validation-story-graph-specific).
+- **Depends on:** [W5](#x-w5--tiered-validation), [W11](#x-w11--nodes-turn-and-settle).
 - **Status:** Done — [PR #55](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/55).
 - **Done when:** dangling `goto`, undeclared variable, duplicate id, missing `LocKey`,
       non-visible variable in text, and a non-positive-integer `weight` each fail Tier 1
@@ -305,8 +325,10 @@ The kind's Tier 1 and Tier 2 checks via `validateCampaign`.
 ### [x] W15 — The Bureaucracy Campaign and Broken Fixtures
 Author 03 §12 in the W4 source form with all its strings, plus four deliberately broken
 copies: dangling node, undeclared variable, unreachable node, settlement cycle.
-- **Spec:** 03 §12; `games/bulgaria.md`; [`MVP.md`](MVP.md) §3.
-- **Depends on:** W4, W14.
+- **Spec:** [03 §12](03-story-graph-kind.md#12-worked-example--the-mvp-bureaucracy-arc);
+      `games/bulgaria.md`; [MVP §3](MVP.md#3-in-scope).
+- **Depends on:** [W4](#x-w4--registry-authoring-builder-localization),
+      [W14](#x-w14--story-graph-validation).
 - **Status:** Done — [PR #60](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/60).
 - **Done when:** the valid campaign loads with no Tier 1 errors; the loop reaches its
       `office_visits >= 3` gate; the seeded clerk transition reproduces; each broken fixture
@@ -315,9 +337,10 @@ copies: dangling node, undeclared variable, unreachable node, settlement cycle.
 
 ### W16 — Text Client
 The plain proving instrument, over `SessionStore` only.
-- **Spec:** 04 §§6–7; [`09-clients.md`](09-clients.md) — the contract, and §4 the checklist;
-      [`MVP.md`](MVP.md) §5 "Honest."
-- **Depends on:** W7, W12.
+- **Spec:** [04 §§6–7](04-core.md); [`09-clients.md`](09-clients.md) — the contract, and
+      [§4](09-clients.md#4-the-api-coverage-checklist) the checklist;
+      [MVP §5](MVP.md#5-definition-of-done--the-mvp) "Honest."
+- **Depends on:** [W7](#x-w7--session-store), [W12](#x-w12--scene-actions-projection-reason-codes).
 - **Done when:** the **API coverage checklist** (09 §4) is complete for the text-client
       column — all nine operations exercised by automated tests, not by inspection; it
       imports nothing from `kinds/` and never reads a persisted `GameState`; requirement
@@ -326,9 +349,9 @@ The plain proving instrument, over `SessionStore` only.
 
 ### W17 — MCP Server
 The same operations as tools — a sibling adapter, no AI-specific path.
-- **Spec:** 04 §13; [`09-clients.md`](09-clients.md) §7 — MCP is a sibling, not a special
-      case.
-- **Depends on:** W7, W12.
+- **Spec:** [04 §13](04-core.md#13-the-mcp-surface); [09 §7](09-clients.md#7-mcp-is-a-sibling-not-a-special-case)
+      — MCP is a sibling, not a special case.
+- **Depends on:** [W7](#x-w7--session-store), [W12](#x-w12--scene-actions-projection-reason-codes).
 - **Done when:** every tool matches its documented args and results and maps
       one-to-one onto a store operation, with no tool that is not one (09 §4); the MCP column of
       the coverage checklist is complete; an agent completes the arc; the same seed and
@@ -339,8 +362,9 @@ The same operations as tools — a sibling adapter, no AI-specific path.
 ### W18 — Determinism Harness
 The `PlaythroughFixture` runner, committed golden files, property tests, and the
 sink-independence pass.
-- **Spec:** 04 §14; 05 §12.
-- **Depends on:** W3a, W15.
+- **Spec:** [04 §14](04-core.md#14-determinism-harness); [05 §12](05-observability.md#12-validation-and-tests).
+- **Depends on:** [W3a](#x-w3a--observability-emitter-events-and-sinks),
+      [W15](#x-w15--the-bureaucracy-campaign-and-broken-fixtures).
 - **Done when:** the same seed + action log serializes byte-identically; a one-byte golden
       edit fails the suite; N random seeds run twice match; `deserialize(serialize(state))`
       round-trips; every fixture replays byte-identically under `nullEmitter` and
