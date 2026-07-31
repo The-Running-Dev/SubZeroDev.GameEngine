@@ -15,6 +15,7 @@
 import type { AuthoredText, BuiltCampaign, Campaign, ContentRegistry } from "./types.js";
 import { CORE_REASON_MESSAGES, type CommandResult } from "../kernel/reasons.js";
 import type { ValidationError } from "../validation/types.js";
+import type { LocKey } from "../localization/types.js";
 import { mergeStringTables, type StringConflict } from "./strings.js";
 
 const PROTECTED_PREFIX = "core.reason.";
@@ -52,8 +53,20 @@ export function buildCampaign(campaign: Campaign, authoredText: readonly Authore
  * takes one `Campaign` at a time (04 §3), so it structurally cannot see that a *different*
  * campaign being assembled into the same registry already claimed an id — only whatever
  * assembles the whole set can catch that, which is here.
+ *
+ * `kindMessages` merges in each registered kind's own default reason-code messages (e.g.
+ * `kinds/story-graph/reasons.ts`'s `STORY_GRAPH_REASON_MESSAGES`) — this module is
+ * core-owned and cannot import a kind directly (the dependency-arrow rule), so a
+ * composition root supplies them. Defaults to `[]`: nothing calls this with kind messages
+ * yet (no composition root exists), so every existing caller is unaffected. Only
+ * `core.reason.*` gets `PROTECTED_PREFIX`'s hard campaign-write rejection; a campaign
+ * colliding with a kind's own namespace instead surfaces as an ordinary `string_conflict`
+ * from the merge below — still a hard failure, just not a specifically-named one.
  */
-export function buildContentRegistry(builtCampaigns: readonly BuiltCampaign[]): CommandResult<ContentRegistry> {
+export function buildContentRegistry(
+  builtCampaigns: readonly BuiltCampaign[],
+  kindMessages: readonly ReadonlyMap<LocKey, string>[] = [],
+): CommandResult<ContentRegistry> {
   // Checked first, and short-circuits before any merging: a silently dropped duplicate
   // (the later campaign overwriting the earlier one in a plain Map build) would still let
   // that duplicate's strings leak into the merged table even though its Campaign entry
@@ -94,7 +107,7 @@ export function buildContentRegistry(builtCampaigns: readonly BuiltCampaign[]): 
     return { ok: false, errors: protectedWrites, warnings: [] };
   }
 
-  const merged = mergeStringTables([CORE_REASON_MESSAGES, ...builtCampaigns.map((b) => b.strings)]);
+  const merged = mergeStringTables([CORE_REASON_MESSAGES, ...kindMessages, ...builtCampaigns.map((b) => b.strings)]);
   if (!merged.ok) {
     return { ok: false, errors: conflictErrors(merged.conflicts), warnings: [] };
   }

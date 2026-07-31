@@ -59,3 +59,18 @@ export interface EndingNode extends NodeBase {
 }
 
 export type Node = ChoiceNode | RandomNode | AutoNode | EndingNode;
+
+/**
+ * `nodes` is content-controlled (authored, potentially parsed from JSON/YAML), so
+ * `Object.hasOwn` guards against an id like `"toString"` resolving an inherited
+ * `Object.prototype` value instead of a real missing-node error — the same class of
+ * lookup `variables.ts`'s `requireDecl` guards. Shared here (rather than duplicated in
+ * every module that walks a node map) since `settle.ts`, `scene.ts`, `advance.ts`, and
+ * `view.ts` all need the identical check.
+ */
+export function requireNode(nodes: Record<string, Node>, nodeId: string): Node {
+  if (!Object.hasOwn(nodes, nodeId)) {
+    throw new Error(`story-graph nodes: node "${nodeId}" does not exist`);
+  }
+  return nodes[nodeId] as Node;
+}
