@@ -5,6 +5,7 @@ of `main`, not maintained by hand. This project squash-merges every pull request
 `git log` already is the changelog; regenerating it is strictly more reliable than a
 second, hand-kept copy.
 
+- **2026-07-31** — [W12 — Scene, Actions, Projection, Reason Codes: submitChoice assembled end to end (#47)](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/47)
 - **2026-07-31** — [Docs: mark W10/W11 done, refresh README's status snapshot, regenerate homepage (#45)](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/45)
 - **2026-07-31** — [W11 — Nodes, Turn, and Settle: the node graph, enter/settle, and initialState (#44)](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/44)
 - **2026-07-31** — [W10 — Conditions and Requirements: the frozen Condition evaluator + field namespace (#43)](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/43)
