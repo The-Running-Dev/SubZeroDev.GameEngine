@@ -281,11 +281,12 @@ the slim `StoryGraphView`, and the kind's reason codes.
       counts never appear in a projection; `StoryGraphView` repeats nothing the generic
       `Scene` already carries.
 
-### W13 — Endings and Achievements
+### [x] W13 — Endings and Achievements
 Ending resolution, achievement evaluation after every turn, unlock-once into `kindState`
 plus an `achievement_unlocked` `StateChange`.
 - **Spec:** 03 §7, §8.2.
 - **Depends on:** W8, W11.
+- **Status:** Done — [PR #51](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/51).
 - **Done when:** an achievement fires exactly once across repeated turns; the unlock is
       readable as `achieved.<id>` in a later condition; `advance` performs no I/O.
 
