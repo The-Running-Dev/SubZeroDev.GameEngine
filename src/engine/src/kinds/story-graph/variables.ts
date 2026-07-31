@@ -14,6 +14,16 @@
  * guard is the runtime backstop for content that shouldn't be able to reach here, the
  * same precedent `determinism/pcg32.ts`'s `weightedPick` sets for an all-zero-weight
  * `random` node. See plan 16, Decision 1.
+ *
+ * Two defensive-hardening notes (both raised in PR #41 review, matching the pattern
+ * `canonical.ts`/`pcg32.ts` already apply to foreign/corrupted input):
+ * - `increment`/`decrement` validate that both the running value and `by` are finite
+ *   integers before doing arithmetic, so corrupted `kindState` or a bad delta can't
+ *   produce a `NaN`/`Infinity` that later crashes canonical serialization.
+ * - Variable maps use a null-prototype object (`Object.create(null)`), and lookups use
+ *   `Object.hasOwn`, so a schema-declared variable literally named `__proto__` can't have
+ *   its writes silently swallowed by the prototype accessor, and an inherited
+ *   `Object.prototype` member name can't be misread as a declared variable.
  */
 
 import type { LocKey } from "../../core/localization/types.js";
@@ -50,19 +60,20 @@ export type Consequence =
  * Decision 4).
  */
 export function buildInitialVariables(schema: VariableSchema): Record<string, VarValue> {
-  const variables: Record<string, VarValue> = {};
+  const variables: Record<string, VarValue> = Object.create(null) as Record<string, VarValue>;
   for (const name of Object.keys(schema).sort()) {
-    variables[name] = schema[name]!.initial;
+    const decl = schema[name]!;
+    checkSetValue(name, decl, decl.initial);
+    variables[name] = decl.initial;
   }
   return variables;
 }
 
 function requireDecl(schema: VariableSchema, name: string): VariableDecl {
-  const decl = schema[name];
-  if (!decl) {
+  if (!Object.hasOwn(schema, name)) {
     throw new Error(`story-graph variables: undeclared variable "${name}"`);
   }
-  return decl;
+  return schema[name]!;
 }
 
 function checkSetValue(name: string, decl: VariableDecl, value: VarValue): void {
@@ -91,6 +102,12 @@ function requireInt(name: string, decl: VariableDecl, op: string): void {
   }
 }
 
+function requireFiniteInt(label: string, value: number): void {
+  if (typeof value !== "number" || !Number.isInteger(value)) {
+    throw new Error(`story-graph variables: ${label} is not a finite integer (${JSON.stringify(value)})`);
+  }
+}
+
 function clamp(decl: VariableDecl, value: number): number {
   let v = value;
   if (decl.min !== undefined && v < decl.min) v = decl.min;
@@ -111,7 +128,8 @@ export function applyConsequences(
   variables: Readonly<Record<string, VarValue>>,
   consequences: readonly Consequence[],
 ): { variables: Record<string, VarValue>; changes: StateChange[] } {
-  const next: Record<string, VarValue> = { ...variables };
+  const next: Record<string, VarValue> = Object.create(null) as Record<string, VarValue>;
+  for (const key of Object.keys(variables)) next[key] = variables[key] as VarValue;
   const before = new Map<string, VarValue>();
 
   for (const c of consequences) {
@@ -125,10 +143,14 @@ export function applyConsequences(
         break;
       case "increment":
         requireInt(c.var, decl, "increment");
+        requireFiniteInt(`"${c.var}"'s current value`, next[c.var] as number);
+        requireFiniteInt(`"${c.var}" increment amount`, c.by);
         next[c.var] = (next[c.var] as number) + c.by;
         break;
       case "decrement":
         requireInt(c.var, decl, "decrement");
+        requireFiniteInt(`"${c.var}"'s current value`, next[c.var] as number);
+        requireFiniteInt(`"${c.var}" decrement amount`, c.by);
         next[c.var] = (next[c.var] as number) - c.by;
         break;
     }

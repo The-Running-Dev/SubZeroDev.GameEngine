@@ -72,6 +72,50 @@ describe("applyConsequences — guards", () => {
     const variables = buildInitialVariables(schema);
     expect(() => applyConsequences(schema, variables, [{ op: "decrement", var: "mood", by: 1 }])).toThrow();
   });
+
+  it("throws on increment by a non-integer amount", () => {
+    const variables = buildInitialVariables(schema);
+    expect(() => applyConsequences(schema, variables, [{ op: "increment", var: "money", by: 1.5 }])).toThrow();
+  });
+
+  it("throws on increment by NaN or Infinity", () => {
+    const variables = buildInitialVariables(schema);
+    expect(() => applyConsequences(schema, variables, [{ op: "increment", var: "money", by: NaN }])).toThrow();
+    expect(() => applyConsequences(schema, variables, [{ op: "increment", var: "money", by: Infinity }])).toThrow();
+  });
+
+  it("throws on increment against a corrupted (non-integer) current value", () => {
+    const corrupted = { ...buildInitialVariables(schema), money: 1.5 };
+    expect(() => applyConsequences(schema, corrupted, [{ op: "increment", var: "money", by: 1 }])).toThrow();
+  });
+
+  it("throws building initial variables from a schema with a non-integer int initial", () => {
+    const badSchema: VariableSchema = { money: { type: "int", initial: 1.5 } };
+    expect(() => buildInitialVariables(badSchema)).toThrow();
+  });
+
+  it("a variable named __proto__ is written and read like any other declared variable", () => {
+    // Object-literal syntax specially interprets a literal `__proto__: ...` key as setting
+    // the prototype rather than an own property — parsing JSON (as authored campaign
+    // content would be) is how a genuine own "__proto__" key actually arises.
+    const protoSchema: VariableSchema = JSON.parse('{"__proto__":{"type":"int","initial":1}}') as VariableSchema;
+    expect(Object.hasOwn(protoSchema, "__proto__")).toBe(true);
+
+    const variables = buildInitialVariables(protoSchema);
+    expect(Object.keys(variables)).toEqual(["__proto__"]);
+    expect((variables as Record<string, unknown>).__proto__).toBe(1);
+
+    const result = applyConsequences(protoSchema, variables, [{ op: "increment", var: "__proto__", by: 1 }]);
+    expect((result.variables as Record<string, unknown>).__proto__).toBe(2);
+    expect(result.changes).toEqual([
+      { path: "var.__proto__", op: "set", value: 2, previous: 1, reason: "consequence_applied", visible: false },
+    ]);
+  });
+
+  it("does not resolve inherited Object.prototype members as declared variables", () => {
+    const variables = buildInitialVariables(schema);
+    expect(() => applyConsequences(schema, variables, [{ op: "set", var: "toString", value: 1 }])).toThrow();
+  });
 });
 
 describe("applyConsequences — clamp-once semantics", () => {
