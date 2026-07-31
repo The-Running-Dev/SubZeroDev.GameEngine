@@ -19,11 +19,21 @@
 import type { ActionParams, Scene } from "../core/kernel/types.js";
 import type { PlayerView } from "../core/projection/types.js";
 import type { StringTable } from "../core/localization/types.js";
-import type { CampaignSummary, CreateSessionConfig, SessionActionResult, SessionStore } from "../core/session/types.js";
+import type { CampaignSummary, SessionActionResult, SessionStore } from "../core/session/types.js";
+
+/** 04 §13's own documented args — deliberately narrower than `CreateSessionConfig`, which
+ *  also carries `audience`. An MCP caller choosing `audience: "ai"` would widen its own
+ *  projection through every later `get_state`, breaking "an agent sees no more than a
+ *  human client does" (09 §7) — the table has no `audience` field for exactly that reason. */
+export interface StartGameArgs {
+  campaignId: string;
+  seed?: string;
+  profileId?: string;
+}
 
 export interface McpTools {
-  list_campaigns(): CampaignSummary[];
-  start_game(args: CreateSessionConfig): Promise<{ sessionId: string; scene: Scene }>;
+  list_campaigns(args: Record<string, never>): CampaignSummary[];
+  start_game(args: StartGameArgs): Promise<{ sessionId: string; scene: Scene }>;
   continue_game(args: { sessionId: string }): Promise<Scene>;
   get_scene(args: { sessionId: string }): Promise<Scene>;
   get_state(args: { sessionId: string }): Promise<PlayerView>;
@@ -38,7 +48,13 @@ export interface McpTools {
 export function createMcpTools(store: SessionStore): McpTools {
   return {
     list_campaigns: () => store.listCampaigns(),
-    start_game: (args) => store.createSession(args),
+    // Rebuilt field-by-field from StartGameArgs, not a forwarded caller object — an MCP
+    // caller can only ever supply what the table names, and `audience` is never one of
+    // them. `store.createSession` defaults a missing `audience` to "player" itself.
+    start_game: (args) => {
+      const config: StartGameArgs = { campaignId: args.campaignId, ...(args.seed !== undefined ? { seed: args.seed } : {}), ...(args.profileId !== undefined ? { profileId: args.profileId } : {}) };
+      return store.createSession(config);
+    },
     continue_game: (args) => store.resumeSession(args.sessionId),
     get_scene: (args) => store.getScene(args.sessionId),
     get_state: (args) => store.getView(args.sessionId),

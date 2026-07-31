@@ -70,7 +70,7 @@ function makeTools(): McpTools {
 describe("McpTools — the API coverage checklist (04-core.md §13)", () => {
   it("list_campaigns — returns the real campaign summary", () => {
     const tools = makeTools();
-    const campaigns = tools.list_campaigns();
+    const campaigns = tools.list_campaigns({});
     expect(campaigns).toEqual([{ campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, kindId: "story-graph", titleKey: "bureaucracy.campaign.title" }]);
   });
 
@@ -80,6 +80,37 @@ describe("McpTools — the API coverage checklist (04-core.md §13)", () => {
     expect(result.sessionId).toBeTruthy();
     expect(result.scene.body.text).toContain("A handwritten");
     expect(result.scene.actions.map((a) => a.id).sort()).toEqual(["ask_guard", "coffee", "try_another_entrance", "wait"]);
+  });
+
+  it("start_game — never forwards audience to the store, even if a caller bypasses the type system", async () => {
+    // StartGameArgs has no `audience` field, so this can't be expressed through the
+    // type — simulating an untyped MCP transport (real JSON-RPC args from an LLM aren't
+    // type-checked) attempting the widening finding 1 flagged. A recording fake store
+    // (not the real one) proves what config actually reaches createSession, since the
+    // real story-graph kind's project() doesn't branch on audience and so can't show a
+    // difference through get_state alone.
+    let capturedConfig: unknown;
+    const recordingStore = {
+      listCampaigns: () => [],
+      getScene: () => Promise.reject(new Error("unused")),
+      getView: () => Promise.reject(new Error("unused")),
+      getStrings: () => Promise.reject(new Error("unused")),
+      createSession: (config: unknown) => {
+        capturedConfig = config;
+        return Promise.resolve({ sessionId: "s1", scene: { gameId: "g1", status: "active" as const, body: { textKey: "t", text: "t" }, actions: [], view: { gameId: "g1", status: "active" as const, kindView: {} } } });
+      },
+      resumeSession: () => Promise.reject(new Error("unused")),
+      submitAction: () => Promise.reject(new Error("unused")),
+      saveGame: () => Promise.reject(new Error("unused")),
+      loadGame: () => Promise.reject(new Error("unused")),
+    } as unknown as SessionStore;
+
+    const tools = createMcpTools(recordingStore);
+    const untypedArgs = { campaignId: "c", seed: "s", audience: "ai" } as unknown as Parameters<McpTools["start_game"]>[0];
+    await tools.start_game(untypedArgs);
+
+    expect(capturedConfig).toEqual({ campaignId: "c", seed: "s" });
+    expect(capturedConfig).not.toHaveProperty("audience");
   });
 
   it("continue_game — returns the current scene unchanged, no side effect", async () => {
