@@ -126,6 +126,31 @@ it locally. `enterAndEmit` is exported from `settle.ts` too, for `advance`'s own
 choice-transition step (03 §8.2 step 5 is the exact same "enter, count, emit" primitive
 settle's pass-throughs already use).
 
+### 7. PR #47 review: `text.ts`/`nodes.ts` needed real tests; two missing defensive guards; `buildContentRegistry` couldn't reach kind messages at all
+
+Two co-located-test findings were **not** instances of the declined types-only precedent
+(PR #17, #43, #44) — `text.ts` (`interpolateText`) and `nodes.ts` (`requireNode`, added by
+this PR) are genuine logic, not type declarations, so both got `.test.ts` files.
+
+`visibleVariables` read `variables[name]` without checking the key exists — deserialize
+validates `kindState`'s *presence* only, not its declared shape (04 §2 treats it as
+`unknown`), so corrupted/foreign state could silently surface `undefined` as a stat value
+or an interpolated `"undefined"`. `project`'s stat-building similarly assumed
+`VariableDecl.labelKey` (optional in the type) is always present for a visible variable —
+true only once Tier 1 (W14) enforces 03 §2's "a `visible: true` variable has a `labelKey`"
+rule, which doesn't exist yet. Both now throw — the same runtime-backstop class as every
+other content-controlled lookup in this kind.
+
+`buildContentRegistry` (`core/registry/build.ts`, W4) only ever merged `CORE_REASON_MESSAGES`
+plus campaign strings — `STORY_GRAPH_REASON_MESSAGES` had no path into a real registry at
+all. The core can't import a kind directly (dependency-arrow rule), so the fix is an
+optional `kindMessages` parameter a composition root would supply — defaults to `[]`,
+so every existing caller (including `validation/tiered.ts`) is unaffected. No composition
+root exists yet to actually pass story-graph's messages through it; that wiring, and
+whether kind namespaces need `PROTECTED_PREFIX`-style protection from campaign overwrite
+(today they'd surface as an ordinary `string_conflict`, not a named
+`protected_string_key`), is left open rather than force-fit into this PR.
+
 ## Design
 
 ### New files

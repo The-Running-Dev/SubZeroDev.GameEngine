@@ -95,4 +95,11 @@ describe("project", () => {
     expect(keys).not.toContain("body");
     expect(keys).not.toContain("actions");
   });
+
+  it("throws when a visible variable has no labelKey (Tier 1's own job, not yet built)", () => {
+    const noLabel: VariableSchema = { money: { type: "int", initial: 2, visible: true } };
+    const brokenCampaign = campaign({ variables: noLabel });
+    const state = baseState({ variables: { money: 2 } });
+    expect(() => project(state, "player", fakeCtx(brokenCampaign))).toThrow();
+  });
 });

@@ -110,4 +110,24 @@ describe("buildContentRegistry", () => {
     expect(result.ok).toBe(false);
     expect(result.errors[0]?.code).toBe("protected_string_key");
   });
+
+  it("merges kind-supplied reason messages alongside the core ones", () => {
+    const kindMessages = new Map([["story-graph.reason.not_a_choice_node", "That action can't be taken right now."]]);
+    const result = buildContentRegistry([], [kindMessages]);
+    expect(result.ok).toBe(true);
+    expect(result.value?.strings.get("story-graph.reason.not_a_choice_node")).toBe(
+      "That action can't be taken right now.",
+    );
+    expect(result.value?.strings.get("core.reason.unknown_action")).toBe(
+      CORE_REASON_MESSAGES.get("core.reason.unknown_action"),
+    );
+  });
+
+  it("still fails on a conflicting key between kind messages and a campaign's own strings", () => {
+    const kindMessages = new Map([["story-graph.reason.not_a_choice_node", "Kind text."]]);
+    const campaign = built(makeCampaign(), { "story-graph.reason.not_a_choice_node": "Campaign text." });
+    const result = buildContentRegistry([campaign], [kindMessages]);
+    expect(result.ok).toBe(false);
+    expect(result.errors[0]?.code).toBe("string_conflict");
+  });
 });

@@ -181,6 +181,12 @@ export function applyConsequences(
  * source both `scene`'s text interpolation and `project`'s `VisibleStat[]` (03 §9) filter
  * through, so "only visible variables ever reach a client" is enforced in exactly one
  * place.
+ *
+ * Throws if a declared variable is absent from `variables` — deserialize validates
+ * `kindState`'s presence only, not its declared shape, so corrupted or foreign state
+ * could otherwise silently surface `undefined` as a stat value or an interpolated
+ * "undefined" in rendered text. The same runtime-backstop class as every other guard in
+ * this kind.
  */
 export function visibleVariables(
   schema: VariableSchema,
@@ -189,6 +195,9 @@ export function visibleVariables(
   const result: Record<string, VarValue> = Object.create(null) as Record<string, VarValue>;
   for (const name of Object.keys(schema).sort()) {
     if (schema[name]!.visible) {
+      if (!Object.hasOwn(variables, name)) {
+        throw new Error(`story-graph variables: declared variable "${name}" is missing from state`);
+      }
       result[name] = variables[name] as VarValue;
     }
   }

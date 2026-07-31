@@ -53,11 +53,13 @@ export function project(
   const visible = visibleVariables(content.variables, state.variables);
   const stats: VisibleStat[] = Object.keys(visible)
     .sort()
-    .map((name) => ({
-      var: name,
-      labelKey: content.variables[name]!.labelKey!,
-      value: visible[name]!,
-    }));
+    .map((name) => {
+      const labelKey = content.variables[name]!.labelKey;
+      if (labelKey === undefined) {
+        throw new Error(`story-graph view: visible variable "${name}" has no labelKey`);
+      }
+      return { var: name, labelKey, value: visible[name]! };
+    });
 
   let ending: StoryGraphView["ending"];
   if (state.endingId !== undefined) {

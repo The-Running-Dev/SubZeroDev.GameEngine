@@ -522,9 +522,10 @@ in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap) (
       for the base set only; `kind.<kindId>.*` (05 §9) is event-name namespacing, a
       different vocabulary. W10 used `story-graph.reason.<code>` (kind id, no `kind.`
       wrapper) as the minimal-invention parallel, for `unknown_condition_field`. W12
-      formalized it in code — `kinds/story-graph/reasons.ts` mirrors `kernel/reasons.ts`'s
-      own pattern exactly (a const array, a compiler-forced-complete message table, a
-      `ReadonlyMap` built from both) and is the real, tested caller this item was waiting
+      formalized it in code — `src/engine/src/kinds/story-graph/reasons.ts` mirrors
+      `src/engine/src/core/kernel/reasons.ts`'s own pattern exactly (a const array, a
+      compiler-forced-complete message table, a `ReadonlyMap` built from both) and is the
+      real, tested caller this item was waiting
       on. `04-core.md` §12 itself still doesn't document the `<kindId>.reason.*`
       convention — a documentation follow-up, not blocking (`plans/19-w12-…`, Decision 3).
       See `plans/17-w10-conditions-and-requirements.md`, Decision 3.

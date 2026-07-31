@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { applyConsequences, buildInitialVariables, type VariableSchema } from "./variables.js";
+import { applyConsequences, buildInitialVariables, visibleVariables, type VariableSchema } from "./variables.js";
 import { canonicalStringify } from "../../core/persistence/canonical.js";
 
 const schema: VariableSchema = {
@@ -184,5 +184,16 @@ describe("applyConsequences — purity", () => {
     const result = applyConsequences(schema, variables, [{ op: "increment", var: "money", by: 1 }]);
     expect(variables).toEqual(snapshot);
     expect(result.variables).not.toBe(variables);
+  });
+});
+
+describe("visibleVariables", () => {
+  it("includes only declared visible: true variables", () => {
+    const variables = buildInitialVariables(schema);
+    expect(visibleVariables(schema, variables)).toEqual({ mood: "neutral" });
+  });
+
+  it("throws when a declared visible variable is missing from the given state", () => {
+    expect(() => visibleVariables(schema, {})).toThrow();
   });
 });
