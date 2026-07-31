@@ -120,6 +120,21 @@ describe("runFixture", () => {
     expect(() => runFixture(engine, fixture)).toThrow(/config\.seed is required/);
   });
 
+  it("throws when config.seed is explicitly null — createGame's own `??` treats null and undefined alike", () => {
+    // `config.seed ?? ids.newSeed()` (kernel/engine.ts) is nullish coalescing, not an
+    // `undefined` check, so a guard that only rejected `undefined` would still let a
+    // null seed reach a random fallback silently.
+    const engine = createEngine(makeHost());
+    const fixture = {
+      name: "null seed",
+      config: { campaignId: "test-campaign", seed: null },
+      actionLog: [],
+    } as unknown as PlaythroughFixture;
+
+    expect(() => runFixture(engine, fixture)).toThrow(/null seed/);
+    expect(() => runFixture(engine, fixture)).toThrow(/config\.seed is required/);
+  });
+
   it("throws, naming the fixture, when createGame rejects", () => {
     const engine = createEngine(makeHost());
     const fixture: PlaythroughFixture = {

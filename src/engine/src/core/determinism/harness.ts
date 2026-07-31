@@ -38,10 +38,13 @@ export interface PlaythroughFixture {
  */
 export function runFixture(engine: Engine, fixture: PlaythroughFixture): string {
   // Runtime backstop, not just the type: a fixture built from untyped data (JSON, an
-  // `as` cast) could still smuggle a missing seed past the compiler. Same
+  // `as` cast) could still smuggle a missing seed past the compiler. `typeof !== "string"`
+  // rather than an `undefined` check alone — `createGame` falls back to `IdSource.newSeed()`
+  // via `config.seed ?? ids.newSeed()`, and `??` treats `null` as missing exactly the same
+  // way `undefined` is, so a narrower check would still let a null seed through. Same
   // trust-but-verify pattern the rest of this codebase applies to content-controlled
   // input, even where a type already claims the shape is guaranteed.
-  if (fixture.config.seed === undefined) {
+  if (typeof fixture.config.seed !== "string") {
     throw new Error(`runFixture "${fixture.name}": config.seed is required for a reproducible fixture`);
   }
 
