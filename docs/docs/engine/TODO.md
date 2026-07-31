@@ -78,6 +78,8 @@ gate is `build/Test-Documentation.ps1`, which fails on every relative link and h
 anchor. Also pins the Node floor (`engines`) so CI and local cannot drift, generates the
 site homepage from `README.md`, and publishes the site.
 - **Depends on:** nothing.
+- **Status:** Done — [PR #3](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/3)
+      (workflow + docs system; landed across a few follow-up PRs — see the evidence below).
 - **Done when:** `engine` plus the gate and the docs build all run green on a push; a
   newer run for the same repository branch cancels its superseded push/PR run; Pages is
   enabled and a push to `main` has deployed to the real published URL; the three
