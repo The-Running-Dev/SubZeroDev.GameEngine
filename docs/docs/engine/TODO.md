@@ -34,8 +34,8 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
       (envelope vs kind-state).
 - [x] **`executeAction` removed.** No client called it; the plan flow covers execution
       (`games/05-text-client.md` §6). A method with no caller is a hypothesis.
-- [x] **MVP contracts finalized** — campaign/content identity split (04 §10.1), `visited`
-      semantics + start-of-game RNG stream (03 §8.2, 04 §4/§8), `AdvanceResult` tightened,
+- [x] **MVP contracts finalized** — campaign/content identity split ([04 §10.1](04-core.md#101-content-registry)), `visited`
+      semantics + start-of-game RNG stream ([03 §8.2](03-story-graph-kind.md), [04 §4](04-core.md#4-registration-and-the-pure-engine)/[§8](04-core.md#8-randomness)), `AdvanceResult` tightened,
       Definition of Done agreed ([`MVP.md`](MVP.md) §5).
 - [x] **All eight MVP-blocking gaps decided** — profile store, base reason strings,
       authoring→registry builder, zero-choice campaigns, `InitialStateResult`, `params` to
@@ -128,9 +128,9 @@ put each declared type in the module that owns it. Types only — no behaviour.
       scan shows no core module importing `kinds/`, `clients/`, or `mcp/`; `kindState` is
       `unknown`, not a union; `GameState` carries no clock, profile, or kind state;
       `EngineEvent` carries no timestamp and no trace id — both are added at the boundary
-      (05 §6); every port is an interface with a working default, supplied only through
+      ([05 §6](05-observability.md#6-the-boundary--stamping-and-tracing)); every port is an interface with a working default, supplied only through
       `EngineHost` or `SessionHost`, and no core module reads a clock or generates an id
-      itself (06 §4).
+      itself ([06 §4](06-extensibility.md#4-the-composition-root)).
 
 ### [x] W2 — RNG Handle and Stream Derivation
 Wrap the built `Pcg32` behind `RngHandle`, and implement the normative `StreamId` → string
@@ -159,7 +159,7 @@ and a **validating** `deserialize` returning `CommandResult<GameState>`.
 ### [x] W3a — Observability: Emitter, Events, and Sinks
 The **core half** of the operational event channel. `Emitter`, the per-resolution
 `ResolutionEmitter` handle on `KindContext`, the `GameEvent`/`SystemEvent` split, the core
-event set (05 §8), and two sinks — `nullEmitter` and `recordingEmitter`. Numbered `3a`
+event set ([05 §8](05-observability.md#8-core-events)), and two sinks — `nullEmitter` and `recordingEmitter`. Numbered `3a`
 rather than inserted, so no existing unit renumbers — the same convention architecture §4a
 uses.
 
@@ -218,7 +218,7 @@ The Tier 1 / Tier 2 framework, identifier and `LocKey` rules, delegating kind ch
 ### [x] W7 — Session Store
 The in-memory store: `listCampaigns`, `getScene`, `getView`, `createSession`,
 `resumeSession`, `submitAction`, `saveGame`, `loadGame`. Persist canonical blobs, not live
-objects. **Owns the observability boundary** (05 §6) — the half W3a deliberately leaves
+objects. **Owns the observability boundary** ([05 §6](05-observability.md#6-the-boundary--stamping-and-tracing)) — the half W3a deliberately leaves
 out, because stamping needs the layer that has a clock.
 - **Spec:** [04 §7](04-core.md#7-the-session-store-and-the-platform-api),
       [§10.2](04-core.md#102-save-envelope-and-migration);
@@ -234,7 +234,7 @@ out, because stamping needs the layer that has a clock.
       `withEmitter` and stamps `emittedAt`, `traceId`, `spanId`, `attempt` and `sessionId`;
       two concurrent commands never cross-attribute an event, verified with interleaved
       sessions rather than asserted; `attempt` increments on **rejected** submissions too,
-      so repeated invalid actions are distinguishable where `seq` repeats (05 §5);
+      so repeated invalid actions are distinguishable where `seq` repeats ([05 §5](05-observability.md#5-correlation-without-a-clock));
       `jsonlEmitter` writes one stamped record per line.
 
 ### [x] W8 — Profile Store
@@ -342,11 +342,11 @@ The plain proving instrument, over `SessionStore` only.
       [MVP §5](MVP.md#5-definition-of-done--the-mvp) "Honest."
 - **Depends on:** [W7](#x-w7--session-store), [W12](#x-w12--scene-actions-projection-reason-codes).
 - **Status:** Done — [PR #63](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/63).
-- **Done when:** the **API coverage checklist** (09 §4) is complete for the text-client
+- **Done when:** the **API coverage checklist** ([09 §4](09-clients.md#4-the-api-coverage-checklist)) is complete for the text-client
       column — all nine operations exercised by automated tests, not by inspection; it
       imports nothing from `kinds/` and never reads a persisted `GameState`; requirement
       failures render from reason codes, never matched English; an unknown reason code
-      renders rather than crashing (09 §5).
+      renders rather than crashing ([09 §5](09-clients.md#5-reason-codes-and-messages)).
 
 ### [x] W17 — MCP Server
 The same operations as tools — a sibling adapter, no AI-specific path.
@@ -356,10 +356,10 @@ The same operations as tools — a sibling adapter, no AI-specific path.
 - **Depends on:** [W7](#x-w7--session-store), [W12](#x-w12--scene-actions-projection-reason-codes).
 - **Status:** Done — [PR #66](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/66).
 - **Done when:** every tool matches its documented args and results and maps
-      one-to-one onto a store operation, with no tool that is not one (09 §4); the MCP column of
+      one-to-one onto a store operation, with no tool that is not one ([09 §4](09-clients.md#4-the-api-coverage-checklist)); the MCP column of
       the coverage checklist is complete; an agent completes the arc; the same seed and
       choices, under the same counting `IdSource`, produce **byte-identical** `serialize()`
-      output to W16's run — the client contract's proof (09 §1); an agent sees no more than a human client does, including
+      output to W16's run — the client contract's proof ([09 §1](09-clients.md#1-the-rule-made-testable)); an agent sees no more than a human client does, including
       getting `unknown_action` for a hidden choice.
 
 ### W18 — Determinism Harness
@@ -390,13 +390,13 @@ Replaying committed fixtures across **engine versions**, per
 [`07-replay.md`](07-replay.md). Distinct from W18, which compares a build against itself.
 
 - [ ] The `Outcome` projection and the three-verdict runner (07 §3, §6), driven by a
-      counting `IdSource` (06 §5.1) so `createGame` itself replays.
+      counting `IdSource` ([06 §5.1](06-extensibility.md)) so `createGame` itself replays.
 - [ ] A seed corpus: every MVP §5 playable box, plus a fixture for each bug fixed after W19
       — 05 §11 already makes a bug report a fixture, so this is capture, not authoring.
 - [ ] Wired to run on `src/engine/src/core/` and `kinds/` changes and on release tags, not
-      on every commit (07 §8).
+      on every commit ([07 §8](07-replay.md#8-where-this-runs)).
 - [ ] Regenerating a committed `.outcome.json` is a deliberate, reviewed step — never an
-      automatic sweep (07 §7).
+      automatic sweep ([07 §7](07-replay.md#7-intended-change-versus-regression)).
 
 **Not MVP.** It compares versions, and before W19 there is only one. Sequenced here so the
 contract is settled while the reasoning is fresh, which is the same call observability took.
@@ -408,12 +408,12 @@ Turning a played session into a fixture, per
 MVP §4 defers — there is nothing to capture from a local client the developer drives
 themselves.
 
-- [ ] Capture emits a `ReplayFixture` and no new format (08 §2).
+- [ ] Capture emits a `ReplayFixture` and no new format ([08 §2](08-session-capture.md#2-what-is-captured)).
 - [ ] The refusal rules hold under test: no identity, only kind-declared params, no timing
-      (08 §3). A fixture built from a submission carrying undeclared keys drops them.
+      ([08 §3](08-session-capture.md#3-what-is-refused)). A fixture built from a submission carrying undeclared keys drops them.
 - [ ] Capture triggers only on an `error`-severity event or an explicit report — never as
-      background collection (08 §5).
-- [ ] Promotion into the replay corpus is a reviewed human step, never automatic (08 §7).
+      background collection ([08 §5](08-session-capture.md#5-when-a-capture-may-be-taken)).
+- [ ] Promotion into the replay corpus is a reviewed human step, never automatic ([08 §7](08-session-capture.md#7-promotion-is-a-one-way-door)).
 
 ### Depth: Life in the Fast Lane (The `simulation` Kind)
 
@@ -423,7 +423,7 @@ themselves.
       game's engine rather than against the Kind seam. The contract that belongs here is the
       simulation equivalent of [`03-story-graph-kind.md`](03-story-graph-kind.md), extracted
       from its §5, §7–§10, §12 and §14 and reconciled with `04` §3, the `GameState`
-      envelope, `Kind.outcome`, and the `kind.simulation.*` event namespace (05 §9).
+      envelope, `Kind.outcome`, and the `kind.simulation.*` event namespace ([05 §9](05-observability.md#9-kind-events)).
 - [ ] Then build it, per that contract (upstream Phases 1–4 remain a useful build order).
 - [ ] "Stable Life" scenario playable to a win and a loss.
 - [ ] Its Definition of Done: `games/life-in-the-fast-lane.md`.
@@ -432,20 +432,20 @@ themselves.
 
 The third kind, and the first spatial one. **Specified —**
 [`12-world-graph-kind.md`](12-world-graph-kind.md) fixes the seam; the game it serves lives
-in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap) (12 §17).
+in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap) ([12 §17](12-world-graph-kind.md#17-what-remains-in-the-game-repository)).
 
-- [ ] **`KindContext.derive` and the `tick` stream** (04 §3.1, §8). Both are specified and
+- [ ] **`KindContext.derive` and the `tick` stream** ([04 §3.1](04-core.md#31-kindcontext), [§8](04-core.md#8-randomness)). Both are specified and
       both are gaps `simulation` shares — its NPC draws need `agent` streams that no kind
       could reach either. Build them with whichever kind lands first, not twice.
 - [ ] **`previewAction` and the tenth API pairing** — see
       [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §2. Amend 09 §4, `MVP.md` §5 and the MCP
-      surface (04 §13) together.
+      surface ([04 §13](04-core.md#13-the-mcp-surface)) together.
 - [ ] Build the kind per 12: tick pipeline, guest and staff agents, pathfinding, queues,
       construction, economy, incidents, objectives.
-- [ ] **Batch invariance is the acceptance test with teeth** (12 §5): `advance_ticks n`
-      reaches the same world as any split of it, compared as an `Outcome` (07 §3) rather
+- [ ] **Batch invariance is the acceptance test with teeth** ([12 §5](12-world-graph-kind.md#5-batch-invariance--and-the-two-seam-changes-it-forced)): `advance_ticks n`
+      reaches the same world as any split of it, compared as an `Outcome` ([07 §3](07-replay.md#3-what-the-same-outcome-means)) rather
       than as bytes, since the action logs legitimately differ.
-- [ ] Determinism beyond the seed (12 §9): integer arithmetic, no `Math.sqrt` in distance,
+- [ ] Determinism beyond the seed ([12 §9](12-world-graph-kind.md#9-determinism-beyond-the-seed)): integer arithmetic, no `Math.sqrt` in distance,
       ties by entity id, canonical iteration order, derived entity ids, no serialized caches.
 - [ ] Its Definition of Done lives with the game, not here.
 
@@ -463,7 +463,7 @@ in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap) (
 
 - [ ] More clients (web, Discord).
 - [ ] **Additional locales.** The MVP ships English only; the authoring→registry types
-      already support more (04 §10.1), so this is string tables plus tooling, no type
+      already support more ([04 §10.1](04-core.md#101-content-registry)), so this is string tables plus tooling, no type
       change.
 - [ ] AI-assisted authoring (content only; engine validates).
 - [ ] The hosted service — only once all of the above works
@@ -473,7 +473,7 @@ in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap) (
       dependencies with no range solving; `campaignVersion` stamped with the `ResolutionId`
       so a game records the content it actually ran against; experiment gates (§5a) as the
       one mechanism for both A/B testing and feature flags, filtered before the fold via
-      `ExperimentSource` (06 §5.5). Before mods, not before MVP
+      `ExperimentSource` ([06 §5.5](06-extensibility.md#experimentsource)). Before mods, not before MVP
       ([`neaas-platform-vision.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform) → Known deferred gaps).
       W1's `src/engine/src/core/composition/types.ts` predates this design and does not yet
       declare `ExperimentSource`; add it there when this unit is implemented in code.
@@ -503,12 +503,12 @@ in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap) (
       the mechanism 04 §10.2 describes (detect a version mismatch, remap old ids, mark
       `replayCompatible: false`) has no `W`-numbered unit building it. Post-MVP, before it's
       needed. See `plans/09-w3-pure-engine-kernel.md` (repository root), Decision 5.
-- [ ] **`SessionHost`/`createSessionLayer` (06 §4) don't reconcile as written.**
+- [ ] **`SessionHost`/`createSessionLayer` ([06 §4](06-extensibility.md#4-the-composition-root)) don't reconcile as written.**
       `SessionHost.sessions` is typed `SessionStore` — the full nine-operation API — but
       `createSessionLayer(host: SessionHost): SessionStore` reads as producing that same
       type from an input that already has it, which only makes sense if `sessions` was
       meant to be a lower-level, storage-only port that `createSessionLayer` wraps with
-      the stamping (05 §6.1) and profile-upsert (04 §7.1) behaviour — a port `04-core.md`
+      the stamping ([05 §6.1](05-observability.md#61-how-per-command-context-reaches-an-event)) and profile-upsert ([04 §7.1](04-core.md#71-the-profile-store)) behaviour — a port `04-core.md`
       never separately names. W7 built `createInMemorySessionStore` directly against
       `session/types.ts`'s `SessionStore` instead, since TODO's own W7 done-criteria never
       name `SessionHost` or `createSessionLayer`. The composition-root generality
@@ -550,7 +550,7 @@ in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap) (
       `plans/17-w10-conditions-and-requirements.md`, Decision 1.
 - [ ] **Kind-owned reason-code `messageKey`s have no stated namespace in `04-core.md`
       itself — now registered and used, but only in code.** §12 reserves `core.reason.*`
-      for the base set only; `kind.<kindId>.*` (05 §9) is event-name namespacing, a
+      for the base set only; `kind.<kindId>.*` ([05 §9](05-observability.md#9-kind-events)) is event-name namespacing, a
       different vocabulary. W10 used `story-graph.reason.<code>` (kind id, no `kind.`
       wrapper) as the minimal-invention parallel, for `unknown_condition_field`. W12
       formalized it in code — `src/engine/src/kinds/story-graph/reasons.ts` mirrors

@@ -59,6 +59,12 @@ const config: Config = {
           routeBasePath: 'docs',
         },
         blog: false,
+        // Local override of the base image's CSS, same pattern as this whole
+        // file overriding /template's default config -- see the file's own
+        // comment for why (prose links are underlined for visibility).
+        theme: {
+          customCss: './src/css/custom.css',
+        },
       } satisfies Preset.Options,
     ],
   ],
