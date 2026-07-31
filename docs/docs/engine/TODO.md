@@ -302,7 +302,7 @@ The kind's Tier 1 and Tier 2 checks via `validateCampaign`.
 
 ## Content, Clients, Proof
 
-### W15 — The Bureaucracy Campaign and Broken Fixtures
+### [x] W15 — The Bureaucracy Campaign and Broken Fixtures
 Author 03 §12 in the W4 source form with all its strings, plus four deliberately broken
 copies: dangling node, undeclared variable, unreachable node, settlement cycle.
 - **Spec:** 03 §12; `games/bulgaria.md`; [`MVP.md`](MVP.md) §3.
