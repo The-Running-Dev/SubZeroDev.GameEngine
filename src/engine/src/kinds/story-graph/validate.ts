@@ -168,11 +168,18 @@ function validateRandomTransitions(content: StoryGraphCampaign): ValidationError
  * check: `applyConsequences` clamps an out-of-range `set`, it never rejects one.
  */
 function validateConsequenceValue(schema: VariableSchema, consequence: Consequence): ValidationError | undefined {
-  const decl = schema[consequence.var];
-  if (!decl) return error("undeclared_variable", consequence.var);
+  // Object.hasOwn, not a truthy check: schema is content-controlled, so a var named
+  // e.g. "toString" must not resolve an inherited Object.prototype value as if it were
+  // declared — the same guard runtime's requireDecl (variables.ts) already uses.
+  if (!Object.hasOwn(schema, consequence.var)) return error("undeclared_variable", consequence.var);
+  const decl = schema[consequence.var]!;
 
   if (consequence.op === "increment" || consequence.op === "decrement") {
-    return decl.type === "int" ? undefined : error("invalid_consequence_value", consequence.var);
+    if (decl.type !== "int") return error("invalid_consequence_value", consequence.var);
+    // Runtime (applyConsequences's requireFiniteInt) throws on a non-finite-integer `by`;
+    // Tier 1 must reject the same content, or a validated campaign can still crash at
+    // runtime the moment this consequence applies.
+    return Number.isInteger(consequence.by) ? undefined : error("invalid_consequence_value", consequence.var);
   }
 
   switch (decl.type) {

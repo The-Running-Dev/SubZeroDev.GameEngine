@@ -332,6 +332,29 @@ describe("validateCampaign — Tier 1: consequence type checking", () => {
     const result = validateCampaign(campaignEnvelope(content), validStrings);
     expect(result.errors.some((e) => e.code === "invalid_consequence_value")).toBe(false);
   });
+
+  it("fails on a non-finite or non-integer by operand, not just the target variable's type", () => {
+    const nonInteger = withRoom14Effect({ op: "increment", var: "patience", by: 1.5 });
+    expect(
+      validateCampaign(campaignEnvelope(nonInteger), validStrings).errors.some(
+        (e) => e.code === "invalid_consequence_value" && e.path === "patience",
+      ),
+    ).toBe(true);
+
+    const nan = withRoom14Effect({ op: "decrement", var: "patience", by: NaN });
+    expect(
+      validateCampaign(campaignEnvelope(nan), validStrings).errors.some(
+        (e) => e.code === "invalid_consequence_value" && e.path === "patience",
+      ),
+    ).toBe(true);
+  });
+
+  it("treats a consequence.var colliding with an Object.prototype member as undeclared, not falling through", () => {
+    const content = withRoom14Effect({ op: "set", var: "toString", value: "anything" });
+    const result = validateCampaign(campaignEnvelope(content), validStrings);
+    expect(result.errors.some((e) => e.code === "undeclared_variable" && e.path === "toString")).toBe(true);
+    expect(result.errors.some((e) => e.code === "invalid_consequence_value")).toBe(false);
+  });
 });
 
 describe("validateCampaign — Tier 2: reachability", () => {

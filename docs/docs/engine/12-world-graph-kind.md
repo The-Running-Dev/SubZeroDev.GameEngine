@@ -456,9 +456,9 @@ its own.
 
 ## 15. Validation
 
-`Kind.validateCampaign(campaign)` (04 §3) is where all of this is implemented. It runs at
-registry construction, before the registry is frozen, and it is pure and total — no
-simulation, no search, no I/O.
+`Kind.validateCampaign(campaign, strings)` (04 §3) is where all of this is implemented. It
+runs at registry construction, before the registry is frozen, and it is pure and total —
+no simulation, no search, no I/O.
 
 The draft's Tier 1 and Tier 2 lists map onto the tiered validator (04 §11) unchanged:
 duplicate ids, missing references, invalid footprints, missing localization, buildings with
