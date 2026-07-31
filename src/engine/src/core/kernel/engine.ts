@@ -88,6 +88,14 @@ function buildReadContext(host: EngineHost, campaign: Campaign, kind: Kind<unkno
 // createGame (04 §4)
 // ---------------------------------------------------------------------------
 
+/**
+ * `config.audience` is never read here, deliberately: `GameState` carries no audience
+ * field (04 §9 — one envelope must serve both the `player` and `ai` views), so the pure
+ * engine has nothing to do with it. `NewGameConfig` is the base type both this and
+ * `CreateSessionConfig` (`session/types.ts`) share; only the session store (W7) has
+ * anywhere to remember "this session defaults to the `ai` view" across repeated
+ * `getScene`/`getView` calls — see `plans/13-w6-projection.md`.
+ */
 function createGame(host: EngineHost, config: NewGameConfig): CommandResult<GameState> {
   const campaign = host.registry.campaigns.get(config.campaignId);
   if (!campaign) {
@@ -262,9 +270,10 @@ function scene(host: EngineHost, state: GameState): Scene {
     status: state.status,
     body: kind.scene(state.kindState, ctx),
     actions: kind.availableActions(state.kindState, ctx),
-    // Scene.view has no audience parameter — hardcoded to "player", matching
-    // NewGameConfig.audience's own default. Built inline from the same ctx rather than
-    // via view(host, state, "player"), which would build a second, independent one.
+    // Scene.view has no audience parameter, so it's hardcoded to "player" here — nothing
+    // connects this to NewGameConfig.audience (GameState carries no audience field; see
+    // createGame's own comment). Built inline from the same ctx rather than via
+    // view(host, state, "player"), which would build a second, independent one.
     view: {
       gameId: state.gameId,
       status: state.status,
