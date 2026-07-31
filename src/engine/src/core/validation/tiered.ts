@@ -73,7 +73,7 @@ export function buildValidatedContentRegistry(
       continue;
     }
 
-    const kindResult = kind.validateCampaign(campaign);
+    const kindResult = kind.validateCampaign(campaign, strings);
     errors.push(...kindResult.errors);
     warnings.push(...kindResult.warnings);
   }

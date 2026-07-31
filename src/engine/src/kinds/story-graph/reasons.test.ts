@@ -14,12 +14,23 @@ describe("STORY_GRAPH_REASON_MESSAGES", () => {
     expect(STORY_GRAPH_REASON_MESSAGES.size).toBe(STORY_GRAPH_REASON_CODES.length);
   });
 
-  it("declares the three codes 03 §8.3 names, plus W10's unknown_condition_field", () => {
+  it("declares the runtime codes (03 §8.3, W10's unknown_condition_field) and W14's Tier 1/2 validation codes", () => {
     expect([...STORY_GRAPH_REASON_CODES]).toEqual([
       "not_a_choice_node",
       "unexpected_params",
       "settle_guard_tripped",
       "unknown_condition_field",
+      "dangling_reference",
+      "undeclared_variable",
+      "invalid_consequence_value",
+      "duplicate_id",
+      "missing_label_key",
+      "non_visible_variable_in_text",
+      "invalid_transition_weight",
+      "unreachable_node",
+      "unreachable_cycle",
+      "no_reachable_choice",
+      "no_reachable_ending",
     ]);
   });
 });

@@ -177,8 +177,13 @@ interface Kind<KState> {
   /** Narrow kind-state to the visible projection for an audience (§9). */
   project(state: KState, audience: ProjectionAudience, ctx: KindContext): unknown;
 
-  /** Tiered content validation of a campaign of this kind (§11). */
-  validateCampaign(campaign: Campaign): ValidationResult;
+  /**
+   * Tiered content validation of a campaign of this kind (§11). `strings` is the
+   * registry's built string table — checking a `LocKey` resolves, or that rendered text
+   * interpolates only a declared, visible variable, needs the table itself, not just the
+   * kind's opaque `content`.
+   */
+  validateCampaign(campaign: Campaign, strings: ReadonlyMap<LocKey, string>): ValidationResult;
 
   /**
    * A minimal, cross-version-stable terminal identity — published ids only, never
