@@ -56,6 +56,15 @@ describe("buildValidatedContentRegistry", () => {
     expect(result.errors[0]?.code).toBe("invalid_loc_key");
   });
 
+  it("accepts a hyphenated titleKey — 04 §17's ASCII [a-z0-9_-] rule applies to LocKeys too", () => {
+    const campaign = makeCampaign({ titleKey: "event.pipe-disaster.title" });
+    const result = buildValidatedContentRegistry(
+      [built(campaign, { "event.pipe-disaster.title": "Pipe Disaster" })],
+      makeKinds(),
+    );
+    expect(result.ok).toBe(true);
+  });
+
   it("fails when titleKey is well-formed but has no authored string", () => {
     const campaign = makeCampaign({ titleKey: "test.title" });
     const result = buildValidatedContentRegistry([built(campaign, {})], makeKinds());

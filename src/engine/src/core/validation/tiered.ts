@@ -24,8 +24,12 @@ import type { ValidationError, ValidationWarning } from "./types.js";
 /** 04 §17: campaign ids are kebab-case. */
 const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
-/** 04 §17: `LocKey`s are dotted, `type.id[.field]` — two or three lowercase segments. */
-const LOC_KEY_SHAPE = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*){1,2}$/;
+/**
+ * 04 §17: `LocKey`s are dotted, `type.id[.field]` — two or three lowercase segments, each
+ * drawn from the same ASCII `[a-z0-9_-]` every id uses (the general rule, not just the
+ * `event.pipe_disaster.title`-style examples the table happens to show).
+ */
+const LOC_KEY_SHAPE = /^[a-z][a-z0-9_-]*(\.[a-z][a-z0-9_-]*){1,2}$/;
 
 function validateCoreOwnedFields(campaign: Campaign, strings: ReadonlyMap<string, string>): ValidationError[] {
   const errors: ValidationError[] = [];
