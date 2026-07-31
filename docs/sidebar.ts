@@ -53,7 +53,7 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Delivery',
       collapsed: false,
-      items: ['engine/MVP', 'engine/TODO', 'engine/OPEN-QUESTIONS'],
+      items: ['engine/MVP', 'engine/TODO', 'engine/OPEN-QUESTIONS', 'engine/CHANGELOG'],
     },
     {
       type: 'category',
