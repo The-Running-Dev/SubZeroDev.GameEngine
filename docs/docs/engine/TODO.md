@@ -405,7 +405,7 @@ Set a real version on the engine package and define the tagging scheme the oracl
 cross-version comparison depends on.
 - **Spec:** [07 §2](07-replay.md#2-fixtures-are-inputs-not-state), [§8](07-replay.md#8-where-this-runs).
 - **Depends on:** nothing.
-- **Status:** Done.
+- **Status:** Done — [PR #73](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/73).
 - **Done when:** `src/engine/package.json` carries a real semver; a documented tag scheme
       exists; the version is readable from code without a runtime dependency; the first tag
       is cut at the current MVP-done commit.
@@ -420,7 +420,7 @@ against a synthetic kind. Composed directly against `Engine` and `ProfileStore`,
 during implementation).
 - **Spec:** [07 §2–§3](07-replay.md#2-fixtures-are-inputs-not-state), [§5](07-replay.md#5-prerequisite-a-controllable), [§6](07-replay.md#6-the-runner-and-its-verdicts).
 - **Depends on:** [W20](#x-w20--engine-versioning-and-release-tags).
-- **Status:** Done.
+- **Status:** Done — [PR #73](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/73).
 - **Done when:** all three verdicts (`match`/`diverged`/`unrunnable`) are reachable and
       tested; `at` is a `Decision.index`, never a `seq`; a rejected submission records
       `seq: null` and does not stop the replay; achievements are read from an in-memory
@@ -435,7 +435,7 @@ copies test files accumulated across W16–W19 that a sixth (this unit's own cor
 otherwise have joined.
 - **Spec:** [07 §4](07-replay.md#4-the-corpus), [§5](07-replay.md#5-prerequisite-a-controllable).
 - **Depends on:** [W21](#x-w21--replay-oracle-outcome-and-the-runner).
-- **Status:** Done.
+- **Status:** Done — [PR #73](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/73).
 - **Done when:** every MVP §5 *Playable* box has a fixture (the arc, the gated choice, the
       seeded transition, the achievement, the loop gate); at least one deliberate edge-case
       fixture exists (a rejection, an unknown action); `kinds/story-graph/kind.ts` is the
@@ -453,7 +453,7 @@ Regenerating a committed `.outcome.json` is a deliberate, reviewed, single-fixtu
 an automatic sweep ([07 §7](07-replay.md#7-intended-change-versus-regression)).
 - **Spec:** [07 §7–§8](07-replay.md#7-intended-change-versus-regression).
 - **Depends on:** [W20](#x-w20--engine-versioning-and-release-tags), [W22](#x-w22--replay-oracle-the-corpus).
-- **Status:** Done.
+- **Status:** Done — [PR #73](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/73).
 - **Done when:** the suite runs on engine-package changes and on release tags; it does not
       run on documentation-only changes; regenerating an outcome file is a documented,
       deliberate per-fixture command, never a sweep. The release-tag job itself is unverified
