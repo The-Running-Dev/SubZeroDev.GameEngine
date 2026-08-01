@@ -443,22 +443,34 @@ otherwise have joined.
       produces `diverged` with the right `at`.
 
 ### [x] W23 — Replay Oracle: CI Wiring
-`pull_request` gained a `paths: [src/engine/**]` filter — broader than `core/`/`kinds/` alone,
-since a campaign-, client-, or MCP-only PR still needs the full `engine` job; `push` to `main`
-stays unfiltered, since path filters and tag pushes don't reliably combine. A new
+No `paths` filter was actually kept on `pull_request` — one was tried and reverted (`ci.yml`'s
+own comment: a path-filtered required check that never starts leaves a PR waiting on a report
+that never arrives). The equivalent skip lives *inside* the `engine` job instead ("Determine
+whether the engine package changed"), so it always reports while skipping the expensive steps
+on a documentation-only PR ([07 §8](07-replay.md#8-where-this-runs)). `push` to `main` stays
+unfiltered regardless, since path filters and tag pushes don't reliably combine. A new
 `release-tag-replay` job runs only on `v*` tags, extracts the previous tag's committed
 `.outcome.json` files via `git show`, and runs the corpus test against them via
-`REPLAY_EXPECTED_OUTCOMES_DIR` — the actual cross-version comparison ([07 §8](07-replay.md#8-where-this-runs)).
+`REPLAY_BASELINE_DIR` — the actual cross-version comparison.
 Regenerating a committed `.outcome.json` is a deliberate, reviewed, single-fixture step — never
 an automatic sweep ([07 §7](07-replay.md#7-intended-change-versus-regression)).
 - **Spec:** [07 §7–§8](07-replay.md#7-intended-change-versus-regression).
 - **Depends on:** [W20](#x-w20--engine-versioning-and-release-tags), [W22](#x-w22--replay-oracle-the-corpus).
 - **Status:** Done — [PR #73](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/73).
 - **Done when:** the suite runs on engine-package changes and on release tags; it does not
-      run on documentation-only changes; regenerating an outcome file is a documented,
-      deliberate per-fixture command, never a sweep. The release-tag job itself is unverified
-      beyond local shell-logic testing — it needs a second real tag to exercise end to end
-      (milestone M3, `plans/27-replay-oracle-programme.md`).
+      run on documentation-only changes (verified live: a `plans/`-only PR reported `engine`
+      green in 22s rather than not running at all). Regenerating an outcome file is a
+      documented, deliberate per-fixture command, never a sweep. **The release-tag job's
+      comparison branch is now verified live**, not just by local shell-logic testing: cutting
+      `v0.2.0` (the first commit with a replay corpus) found the job's checkout never fetched
+      sibling tags (`actions/checkout`'s `fetch-tags` defaults to `false`), so the comparison
+      always fell through to "nothing to compare yet" regardless of what tags existed — fixed
+      in `fetch-tags: true`, then proven end to end with a disposable tag: `4 passed | 5
+      skipped` against `v0.2.0`'s real fixtures (PR #76). Milestone M3
+      (`plans/27-replay-oracle-programme.md`) needed restating too — it said the *second* tag
+      would prove this, which undercounts by one: `v0.1.0` predates the corpus entirely, so a
+      second tag would have hit the same fixture-free skip on correct code. `v0.2.0` is the
+      actual milestone M3 needed (`plans/35-w26-toolchain-upgrade.md`, Decision 4).
 
 ### Rigour: Session Capture
 
@@ -493,14 +505,20 @@ The third kind, and the first spatial one. **Specified —**
 [`12-world-graph-kind.md`](12-world-graph-kind.md) fixes the seam; the game it serves lives
 in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap) ([12 §17](12-world-graph-kind.md#17-what-remains-in-the-game-repository)).
 
-- [ ] **`KindContext.derive` and the `tick` stream** ([04 §3.1](04-core.md#31-kindcontext), [§8](04-core.md#8-randomness)). Both are specified and
-      both are gaps `simulation` shares — its NPC draws need `agent` streams that no kind
-      could reach either. Build them with whichever kind lands first, not twice.
-- [ ] **`previewAction` and the tenth API pairing** — see
-      [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §2. Amend 09 §4, `MVP.md` §5 and the MCP
-      surface ([04 §13](04-core.md#13-the-mcp-surface)) together.
+- [x] **`KindContext.derive` and the `tick` stream — already built, since W1/W2.** Not a gap
+      this kind needs to close: `KindContext.derive` (04 §3.1) and all four `StreamId`
+      variants, including `tick` and `agent`, exist in `core/kernel/types.ts`,
+      `core/kernel/engine.ts`, `core/determinism/types.ts` and `core/determinism/rng.ts`
+      (the encoder, exhaustiveness-guarded). `simulation`'s NPC draws and this kind's tick
+      draws already have a reachable home — 04 §3.1's own callout box already documents
+      `derive` closing exactly the reachability gap this checkbox describes as still open.
 - [ ] Build the kind per 12: tick pipeline, guest and staff agents, pathfinding, queues,
-      construction, economy, incidents, objectives.
+      construction, economy, incidents, objectives — **including `previewAction` and the
+      tenth API pairing** ([`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §2), amending 09 §4,
+      `MVP.md` §5 and the MCP surface ([04 §13](04-core.md#13-the-mcp-surface)) together in
+      the same change this kind lands in — not scheduled as a separate, earlier checkbox,
+      since both 12 §7 and `OPEN-QUESTIONS.md` §2 are explicit it is deferred until this
+      kind actually needs it.
 - [ ] **Batch invariance is the acceptance test with teeth** ([12 §5](12-world-graph-kind.md#5-batch-invariance--and-the-two-seam-changes-it-forced)): `advance_ticks n`
       reaches the same world as any split of it, compared as an `Outcome` ([07 §3](07-replay.md#3-what-the-same-outcome-means)) rather
       than as bytes, since the action logs legitimately differ.
@@ -628,17 +646,18 @@ in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap) (
 - [ ] Provisional numbers across the simulation kind (drift rates, scenario economics,
       `demandBand` thresholds, housing-quality formula, travel costs) need a balancing
       pass once the sim harness runs.
-- [ ] Doc-tree numbering across repos — the engine specs and the game specs both start at
-      `01-`. Largely obviated by the repo split (they are no longer one tree); confirm and
-      close, or restate the remaining problem ([`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §2).
-- [ ] **Dev-dependency advisories** — `npm audit` reports 10 (3 moderate, 6 high, 1
-      critical). All are in `devDependencies`; the package has **no runtime dependencies**,
-      so nothing ships with them. The critical (`vitest` → `@vitest/mocker`, arbitrary file
-      read/execute) requires the **Vitest UI server**, which this project never starts — it
-      runs `vitest run`. No non-breaking fix exists: `npm audit fix` resolves none, and
-      `--force` moves vitest 2 → 4 and eslint 9 → 10. **Deferred deliberately**; revisit as
-      a single toolchain upgrade once the determinism harness (W18) can prove the upgrade
-      changed no behaviour.
+- [ ] **Dev-dependency advisories — deferred precondition now met; tracked as W26.**
+      `npm audit` reports 6 (3 moderate, 2 high, 1 critical) — several transitive advisories
+      resolved upstream on their own since this was last measured, when it read 10 (3
+      moderate, 6 high, 1 critical). All are in `devDependencies`; the package has **no
+      runtime dependencies**, so nothing ships with them. The critical (`vitest` →
+      `@vitest/mocker`, arbitrary file read/execute) requires the **Vitest UI server**, which
+      this project never starts — it runs `vitest run`. No non-breaking fix exists: `npm audit
+      fix` resolves none, and `--force` moves vitest 2 → 4 and eslint 9 → 10. The original
+      deferral condition — "once the determinism harness (W18) can prove the upgrade changed
+      no behaviour" — is met twice over: W18 landed, and W20–W23 added the replay oracle as a
+      second, stronger instrument neither this entry nor W18 anticipated. Scoped as
+      [`plans/35-w26-toolchain-upgrade.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/35-w26-toolchain-upgrade.md).
 - [ ] **Three `docs-template` hardening findings, to raise upstream — after this PR
       merges, not before.** Surfaced by automated review on
       [PR #3](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/3); all three

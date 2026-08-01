@@ -98,10 +98,14 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   event contract itself is MVP scope and specified; these four are deliberately not
   ([`05-observability.md`](05-observability.md) §13). The first belongs with the hosting
   layer, which is itself deferred (MVP §4).
-- **Doc-tree numbering merge** — the engine specs and the game specs both start at `01-`.
-  This was a live problem when they shared one tree; the repo split
-  ([`02-architecture.md`](02-architecture.md) §12) has largely dissolved it. **Open:**
-  confirm nothing depends on a merged numbering and close the item.
+- **Doc-tree numbering merge — closed.** The engine specs and the game specs both start at
+  `01-`, which was a live problem only while they shared one tree. They no longer do
+  ([`02-architecture.md`](02-architecture.md) §12: separate repositories, separate
+  Docusaurus sites, `games/…` citations are prose provenance rather than links). Confirmed
+  nothing depends on a merged numbering: the engine specs never link into `games/…` as a
+  route, and both of `docs/`'s link checks are `'throw'` (`agent.md`, *Two link checks*), so
+  a real cross-repo link would already have failed the build if one existed. There is no
+  merged numbering to collide, and none is coming — closing rather than leaving open.
 - **`SessionHost` / `createSessionLayer` remain unbuilt** — [`06-extensibility.md`](06-extensibility.md)
   §4 specifies a composition root, `createSessionLayer(host: SessionHost): SessionStore`,
   producing a `SessionStore` from a `SessionHost` whose `sessions` field is already typed as

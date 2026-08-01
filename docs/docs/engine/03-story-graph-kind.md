@@ -480,7 +480,7 @@ one value in two places, the drift this kind has already been bitten by twice
 interface StoryGraphView {
   turn: number;
   stats: VisibleStat[];            // visible: true variables, with their labels
-  unlockedAchievements: string[];  // non-hidden, unlocked
+  unlockedAchievements: string[];  // unlocked — including hidden ones, from the moment they unlock (§7)
   ending?: { endingId: string; outcome: "win" | "loss" | "neutral" };
 }
 
