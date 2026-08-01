@@ -288,6 +288,23 @@ conditions are independent of its objectives, this kind's failures hang off goal
 failing goal is already in `goalsFailed` — naming *which one* ended the game when several
 fail in the same week would expose iteration order, not a fact about the game.
 
+The terminal check is normative and runs after the week's actions and all end-of-week systems
+have completed (and before the next week's start-of-week systems):
+
+1. Evaluate every goal against the resulting state and collect both goal lists, sorting each
+   list by `GoalDefinition.id`.
+2. If any failure applies while the required-goal set is incomplete, `resolution` is `failed`.
+   If failure and completion are simultaneous, apply `goalFailurePrecedence`: when enabled,
+   `resolution` is `failed`; when disabled, the complete required-goal set resolves as
+   `goals_met` even if `goalsFailed` is non-empty.
+3. If neither goal resolution applies and the resulting week is at or beyond the configured
+   limit, resolve as `week_limit_reached`.
+
+Thus a goal terminal always wins the week cap on the same end-of-week pass; the cap wins only
+when the game is otherwise still active. A terminal state is never advanced into another week,
+and `resolution` is immutable once set. This ordering, including the configured failure
+tie-break, is part of the replay contract rather than an implementation detail.
+
 Published ids only — never money, needs, or week counts, all of which a balance pass changes
 legitimately and none of which a regression oracle should treat as a defect (07 §3.4).
 
@@ -334,7 +351,7 @@ This is the seam, not the whole kind. Still to be brought over from
 | §9, §9.1 | `WeeklyActionPlan`'s own shape (`ActionType`, `GameAction`) | References content ids (jobs, courses, …) that have no home until the row below lands |
 | §14.1–§14.9 | Content definition types | ~25 KB. Needs the authoring→registry split applying (04 §10.1), which for story-graph was its own piece of work |
 | §13.3–§13.4 | `Modifier`, `Reward` | Simulation mechanics hanging off `Condition`, not condition operators (§8 is scoped to §13.1–§13.2 only). `Modifier.operation: "multiply"` against this kind's integer-cents money (§6) has no upstream rounding rule — a determinism hazard to resolve *before* porting, not after, flagged here rather than fixed here |
-| §12.2–§12.3 | End-of-week system order, goal precedence | Normative and short; blocked only on this table's own content-type row above |
+| §12.2–§12.3 | Detailed content-driven end-of-week systems and goal definitions | The terminal ordering and week-limit tie-break are fixed in §12; concrete system/goal detail still depends on the content-type row above |
 | §7 | Base and derived values | Rule adopted (§2, §6); the formulae are content-balance material |
 
 **This table now accounts for every field `SimulationKindState` (§2) names** — nine of ten
