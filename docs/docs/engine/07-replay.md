@@ -79,6 +79,10 @@ migration ([`04-core.md`](04-core.md) §17). Nothing here is engine internals.
 > `capturedUnder` exists for the same reason: a divergence report is not actionable without
 > naming both engine versions that disagree. Neither field belongs on `NewGameConfig`, which
 > is a *runtime* input — pinning them on the fixture keeps the core contract unchanged.
+>
+> **`capturedUnder` is `src/engine/package.json`'s own version** (W20 — Engine Versioning and
+> Release Tags), read at the point a fixture is captured or regenerated. A fixture is always
+> written with the version that recorded its outcome, never left blank or backfilled later.
 
 ### 2.1 Submissions, Not the Action Log
 
@@ -169,12 +173,24 @@ pure-engine runner **cannot read it**. The profile store can — it is keyed
 `campaignId + achievementId` (04 §7.1) and is kind-agnostic — but only if there is a profile
 at all, and an anonymous session has none.
 
-**So the runner is a session-layer runner, not a pure-engine one.** It composes
-`createSessionLayer` (06 §4) with an in-memory `ProfileStore` and a fixed `profileId`, and
-reads the unlocked set from the profile after the last submission. That is a deliberate
-choice with a cost — the oracle exercises one layer more than the determinism harness does —
-and the alternative was dropping achievements from `Outcome` entirely, which would blind it
-to "this arc no longer unlocks its achievement", a regression worth catching.
+**So the runner needs a `ProfileStore` alongside the engine — but not the full `SessionStore`
+a real client uses.** `finalStatus` and `terminal` (§3.3) both need the raw `GameState` itself
+(`state.status`, `state.kindState`), and `SessionStore`'s client-facing surface
+(`createInMemorySessionStore`, `src/engine/src/core/session/store.ts`) never returns one — a
+client holds a `sessionId` and receives only a `Scene`/`PlayerView` projection (04 §7, 09 §1),
+by design. The runner is not a client, so it is built the same way
+`core/determinism/harness.ts`'s `runFixture` is: directly against `Engine`, driving
+`createGame`/`submitAction` itself and reading `GameState` off the result.
+
+Achievements still go through the exact tested path `createInMemorySessionStore` uses
+internally, not a second reimplementation: `session/store.ts` exports `upsertAchievements`
+for this reason, and the runner calls it with a fixed `profileId` after every accepted
+submission, then reads the unlocked set from the `ProfileStore` once, after the last one.
+
+> **Not `createSessionLayer`/`SessionHost` (06 §4) either.** That composition root is
+> specified but unbuilt — W7 built `createInMemorySessionStore` directly against
+> `session/types.ts` instead, and nothing in this document needs the unbuilt generality. See
+> [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §2 for the open item and its "revisit when."
 
 ### 3.3 `terminal` — Terminal Identity, and Only That
 
@@ -183,7 +199,8 @@ to "this arc no longer unlocks its achievement", a regression worth catching.
 different ending — same decisions, same counts, same status — compares **equal**, and the
 oracle reports `match` on exactly the kind of regression it exists to catch.
 
-So `Kind` gains one member, mirroring `project` (04 §9):
+So `Kind` gains one member, mirroring `project` (04 §9). **Built** — `04-core.md` §3 already
+carries it, and every real kind assembly implements it:
 
 ```typescript
 interface Kind<KState> {
@@ -255,9 +272,19 @@ game changed**, and it should read that way in a diff.
 versions disagree, and so `unrunnable` can distinguish a withdrawn campaign from a missing
 version of one.
 
+> **Plain JSON files, not vitest snapshots — a deliberate divergence from `04-core.md` §14.**
+> The determinism harness's golden files are `toMatchSnapshot()`, and that choice was right
+> there: a golden `serialize()` blob has no reviewable content of its own, so letting the
+> tooling manage it costs nothing. An `Outcome` diff is the opposite — it is the artifact a
+> human reads to decide *intended change* versus *regression* (§7), and `vitest -u` rewrites
+> every snapshot in the suite in one keystroke. That is exactly the rubber-stamp failure mode
+> §7 exists to prevent: regenerating must be a deliberate, reviewed, **single-fixture**
+> operation, never a sweep. Plain committed JSON, regenerated one file at a time by a named
+> script or manual edit, keeps that true structurally rather than by discipline.
+
 ---
 
-## 5. Prerequisite: A Controllable `IdSource`
+## 5. Prerequisite: A Controllable `IdSource` {#prerequisite-a-controllable-idsource}
 
 Cross-version replay requires `createGame` to be reproducible, and until
 [`06-extensibility.md`](06-extensibility.md) §5.1 named the `IdSource` port it was not:
@@ -267,6 +294,12 @@ The runner supplies a **counting `IdSource`**, so `gameId` is fixed and any seed
 fixture omits is derived rather than random. Without it the oracle would have to exclude
 game identity from comparison and could not replay creation at all — it would have to start
 one action in, which is exactly where several interesting divergences live.
+
+**Already built, as a test-local helper.** `createCountingIds()` exists in
+`src/engine/src/mcp/server.test.ts`, with independent counters for `newGameId`/`newSeed` (fixed
+in PR #72, addressing a review finding on PR #71). It is promoted to shared test support — so
+the runner and every corpus test import one definition rather than each defining its own — as
+part of building the corpus (§4).
 
 ---
 
@@ -280,8 +313,8 @@ type ReplayVerdict =
   | { kind: "unrunnable"; reason: "campaign_withdrawn" | "campaign_version_missing" };
 ```
 
-The runner resolves the fixture's `campaignVersion` in the registry, creates a session layer
-(06 §4) with a counting `IdSource` and an in-memory `ProfileStore` (§3.2), creates a game
+The runner resolves the fixture's `campaignVersion` in the registry, builds an `Engine` with
+a counting `IdSource` and pairs it with an in-memory `ProfileStore` (§3.2), creates a game
 from `config`, submits each `Submission` in order, builds an `Outcome`, and compares.
 
 `at` is the **`index`** of the first differing `Decision`, not a `seq` — §3.1 explains why
@@ -329,12 +362,19 @@ The workflow makes the decision explicit and reviewable:
 
 Not on every commit. The corpus grows without bound and most changes cannot affect it.
 
-- **On changes to `src/engine/src/core/` or `kinds/`** — the code that can alter a game
-  ([Engine Package](/docs/guide/engine-package)).
+- **On changes to `src/engine/src/core/` or `src/engine/src/kinds/`** — the code that can
+  alter a game ([Engine Package](/docs/guide/engine-package)).
 - **On every release tag**, against the previous tag's corpus, which is the comparison the
-  oracle is actually for.
+  oracle is actually for. This needs a real versioning and tagging scheme first — W20, since
+  today `src/engine/package.json` is `0.0.0` and the repository has no git tags at all.
 - **Never as a merge gate on documentation-only changes**, which is most of this
   repository's traffic today.
+
+**`.github/workflows/ci.yml` has no path filters yet** — it runs the full `engine` job (typecheck,
+lint, test) on every `pull_request` and every `push` to `main`, documentation-only changes
+included. Restricting it to `src/engine/src/core/` and `src/engine/src/kinds/` paths, and adding
+the release-tag comparison job, is W23's job — this document specifies the trigger, not the
+workflow YAML.
 
 ---
 

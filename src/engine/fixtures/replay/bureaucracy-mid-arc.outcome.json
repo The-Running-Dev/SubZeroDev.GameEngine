@@ -1,0 +1,9 @@
+{
+  "finalStatus": "active",
+  "acceptedActions": 1,
+  "decisions": [
+    { "index": 0, "seq": 0, "actionId": "wait", "accepted": true }
+  ],
+  "achievements": [],
+  "terminal": { "endingId": null }
+}

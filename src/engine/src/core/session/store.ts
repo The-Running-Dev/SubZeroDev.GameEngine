@@ -77,8 +77,14 @@ function toValidationWarning(warning: ProfileWarning): ValidationWarning {
  * construction rather than by convention (plan 15 Decision 3). Idempotent: an
  * already-present `{campaignId, achievementId}` is never re-added, whether it arrived via
  * an earlier action on this same profile or twice in one `changes` array.
+ *
+ * Exported for the replay regression oracle (`07-replay.md` §3.2), which drives the same
+ * profile-upsert path directly against a raw `Engine` rather than through this
+ * `SessionStore` — the oracle needs `finalStatus`/`terminal` off the raw `GameState`, which
+ * `SessionStore`'s client-facing surface never exposes, but achievements must still go
+ * through this exact tested path rather than a second, drifting reimplementation.
  */
-async function upsertAchievements(
+export async function upsertAchievements(
   profiles: ProfileStore,
   profileId: string,
   campaignId: string,

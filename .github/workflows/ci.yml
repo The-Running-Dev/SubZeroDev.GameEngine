@@ -10,10 +10,22 @@ name: CI
 # second cancelled the first, leaving two check-runs named `engine` on one commit
 # -- one success, one cancelled -- and a required-status-check rule that sees the
 # cancelled one blocks the merge even though everything passed.
+#
+# No `paths` filter on either trigger. A path-filtered `pull_request` was tried and
+# reverted: `engine` is a required status check on `main`'s ruleset, and a workflow
+# run that never starts because no matching path changed means the required check
+# never reports at all -- GitHub then leaves the PR waiting on a check that will
+# never arrive, rather than treating it as satisfied. The `engine` job itself now
+# does the equivalent skip internally (see its own "Determine..." step below),
+# which keeps the job always reporting while still skipping the expensive steps on
+# a documentation-only PR (07-replay.md §8's "never a merge gate on
+# documentation-only changes").
 "on":
   push:
     branches:
       - main
+    tags:
+      - "v*"
   pull_request:
 
 permissions:
@@ -29,15 +41,86 @@ concurrency:
 jobs:
   engine:
     name: engine
+    # Always runs, on every event including a tag push -- a tag can in principle be cut
+    # against a commit that was never itself verified as a branch push or a checked PR
+    # (an unenforced assumption an earlier version of this job made), so this is the one
+    # place every ref actually gets typecheck/lint/test.
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: src/engine
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
+        with:
+          # pull_request needs both endpoints reachable to diff against; push (branch or
+          # tag) always runs the real steps below regardless, so shallow is fine there.
+          fetch-depth: ${{ github.event_name == 'pull_request' && 0 || 1 }}
+
+      - name: Determine whether the engine package changed
+        id: changed
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            if git diff --quiet "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" -- src/engine; then
+              echo "changed=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Node.js
+        if: steps.changed.outputs.changed == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/engine/package-lock.json
+
+      - name: Install dependencies
+        if: steps.changed.outputs.changed == 'true'
+        working-directory: src/engine
+        run: npm ci
+
+      - name: Typecheck
+        if: steps.changed.outputs.changed == 'true'
+        working-directory: src/engine
+        run: npm run typecheck
+
+      - name: Lint
+        if: steps.changed.outputs.changed == 'true'
+        working-directory: src/engine
+        run: npm run lint
+
+      - name: Test
+        if: steps.changed.outputs.changed == 'true'
+        working-directory: src/engine
+        run: npm test
+
+  # The replay regression oracle's cross-version comparison (07-replay.md §8): on every
+  # release tag, run *this* tag's engine against the *previous* tag's own fixture
+  # submissions and committed .outcome.json files together — the actual "did this change
+  # alter a game that already exists" question, distinct from the engine job's own test
+  # run above, which only ever compares a build against its own commit's corpus
+  # (07-replay.md §1).
+  #
+  # Both the fixture and the outcome are pulled from the previous tag, not just the
+  # outcome — comparing this commit's (possibly edited or removed) fixture inputs against
+  # an old recorded outcome would not be a clean version-to-version comparison.
+  #
+  # Skips cleanly, not a failure, when there is no previous tag yet (plans/27, milestone
+  # M3) — the very first tag has nothing to compare against.
+  release-tag-replay:
+    name: replay oracle — release tag comparison
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository (full history, so previous tags resolve)
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
@@ -47,13 +130,53 @@ jobs:
           cache-dependency-path: src/engine/package-lock.json
 
       - name: Install dependencies
+        working-directory: src/engine
         run: npm ci
 
-      - name: Typecheck
-        run: npm run typecheck
+      - name: Find the previous release tag
+        id: previous
+        run: |
+          current="${GITHUB_REF#refs/tags/}"
+          previous=$(git tag --list 'v*' --sort=-v:refname | grep -A1 -F -x "$current" | tail -n1)
+          if [ -z "$previous" ] || [ "$previous" = "$current" ]; then
+            echo "No previous tag before $current — nothing to compare yet (M3, plans/27)."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Comparing $current against $previous"
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "tag=$previous" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Lint
-        run: npm run lint
+      # Runs from the repo root (no working-directory override), matching the pathspec
+      # below, which is itself repo-root-relative -- src/engine/fixtures/replay. An
+      # earlier version set working-directory: src/engine here while keeping the
+      # src/engine/-prefixed pathspec, which resolved to the nonexistent
+      # src/engine/src/engine/fixtures/replay and silently extracted nothing.
+      #
+      # `|| true` on the ls-tree/grep pipeline: an empty match (the previous tag predates
+      # W22's corpus entirely -- true of v0.1.0, the only tag today, cut before any fixture
+      # existed) must not itself end the step under this shell's `-eo pipefail` default.
+      # The `has_fixtures` check below is the real guard against that case; this is cheap
+      # insurance alongside it.
+      - name: Extract the previous tag's fixtures and outcomes
+        id: extract
+        if: steps.previous.outputs.found == 'true'
+        run: |
+          mkdir -p /tmp/replay-baseline
+          for path in $(git ls-tree -r --name-only "${{ steps.previous.outputs.tag }}" -- src/engine/fixtures/replay | grep -E '\.(fixture|outcome)\.json$' || true); do
+            name=$(basename "$path")
+            git show "${{ steps.previous.outputs.tag }}:$path" > "/tmp/replay-baseline/$name"
+          done
+          if ls /tmp/replay-baseline/*.fixture.json >/dev/null 2>&1; then
+            echo "has_fixtures=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "${{ steps.previous.outputs.tag }} predates the replay corpus (W22) — nothing to compare yet."
+            echo "has_fixtures=false" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Test
-        run: npm test
+      - name: Run the corpus against the previous tag's fixtures and outcomes
+        if: steps.previous.outputs.found == 'true' && steps.extract.outputs.has_fixtures == 'true'
+        working-directory: src/engine
+        env:
+          REPLAY_BASELINE_DIR: /tmp/replay-baseline
+        run: npx vitest run src/campaigns/bulgaria-bureaucracy.replay.test.ts

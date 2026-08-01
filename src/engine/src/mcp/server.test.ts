@@ -4,21 +4,9 @@ import { TextClient } from "../clients/text/client.js";
 import { createEngine } from "../core/kernel/engine.js";
 import { createInMemorySessionStore } from "../core/session/store.js";
 import { buildValidatedContentRegistry } from "../core/validation/tiered.js";
-import { validateCampaign } from "../kinds/story-graph/validate.js";
-import { STORY_GRAPH_REASON_CODES } from "../kinds/story-graph/reasons.js";
-import { initialState } from "../kinds/story-graph/settle.js";
-import { availableActions, scene } from "../kinds/story-graph/scene.js";
-import { advance } from "../kinds/story-graph/advance.js";
-import { project } from "../kinds/story-graph/view.js";
-import type { StoryGraphKindState } from "../kinds/story-graph/state.js";
-import type {
-  Kind,
-  KindRegistry,
-  InitialStateResult,
-  AvailableAction,
-  SceneBody,
-  AdvanceResult,
-} from "../core/kernel/types.js";
+import { storyGraphKind } from "../kinds/story-graph/kind.js";
+import { createCountingIds } from "../core/determinism/counting-ids.js";
+import type { KindRegistry } from "../core/kernel/types.js";
 import type { SessionStore } from "../core/session/types.js";
 import type { IdSource } from "../core/composition/types.js";
 import { buildBulgariaBureaucracyCampaign, BULGARIA_BUREAUCRACY_CAMPAIGN_ID } from "../campaigns/bulgaria-bureaucracy.js";
@@ -27,52 +15,10 @@ import { buildBulgariaBureaucracyCampaign, BULGARIA_BUREAUCRACY_CAMPAIGN_ID } fr
 // lands on room_14 — see plans/22-w15-bureaucracy-campaign-and-broken-fixtures.md.
 const SEED = "bureaucracy-seed-3";
 
-/**
- * A genuinely *counting* IdSource — 09-clients.md §1 and 06-extensibility.md §5.1 both
- * name this specific kind of fixture, not just "a fixed one": "the same seed, choices,
- * and counting IdSource produce byte-identical serialize() output." A fresh counter per
- * call, starting at 0 — two independent runs that each create the same number of games
- * in the same order still line up, which a single shared constant can't distinguish from
- * a real counting source when (as here) exactly one game is created per run, but which
- * only a real counter proves for a run that creates more than one.
- */
-function createCountingIds(): IdSource {
-  // Independent counters, not one shared between them — createGame calls newGameId()
-  // first and only falls back to newSeed() when a fixture omits its own seed, so a
-  // single shared counter would couple seed numbering to how many game ids happened to
-  // be allocated first, rather than each counting from 0 on its own.
-  let gameN = 0;
-  let seedN = 0;
-  return {
-    newGameId: () => `counting-game-id-${gameN++}`,
-    newSeed: () => `counting-seed-${seedN++}`,
-  };
-}
-
-function makeStoryGraphKind(): Kind<StoryGraphKindState> {
-  return {
-    id: "story-graph",
-    reasonCodes: STORY_GRAPH_REASON_CODES,
-    eventNames: [
-      "kind.story-graph.settle.step",
-      "kind.story-graph.node.entered",
-      "kind.story-graph.random.picked",
-      "kind.story-graph.settle.guard_tripped",
-    ],
-    initialState: (c, ctx): InitialStateResult<StoryGraphKindState> => initialState(c, ctx),
-    availableActions: (state, ctx): AvailableAction[] => availableActions(state, ctx),
-    scene: (state, ctx): SceneBody => scene(state, ctx),
-    advance: (state, actionId, params, ctx): AdvanceResult<StoryGraphKindState> => advance(state, actionId, params, ctx),
-    project: (state, audience, ctx) => project(state, audience, ctx),
-    validateCampaign: (campaign, strings) => validateCampaign(campaign, strings),
-    outcome: (state) => ({ endingId: state.endingId ?? null }),
-  };
-}
-
 function buildStore(ids?: IdSource): SessionStore {
   const built = buildBulgariaBureaucracyCampaign();
   if (!built.ok || !built.value) throw new Error("expected the real campaign to build");
-  const kinds = { "story-graph": makeStoryGraphKind() } as unknown as KindRegistry;
+  const kinds = { "story-graph": storyGraphKind } as unknown as KindRegistry;
   const registryResult = buildValidatedContentRegistry([built.value], kinds);
   if (!registryResult.ok || !registryResult.value) throw new Error("expected the real campaign to validate");
 
