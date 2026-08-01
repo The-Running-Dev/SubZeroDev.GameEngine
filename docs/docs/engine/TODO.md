@@ -494,6 +494,48 @@ had gotten wrong.
       cites the code or plan that proves the correction; no file under `src/engine/` changes.
 - **Plan:** [`plans/34-w24-core-spec-reconciliation.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/34-w24-core-spec-reconciliation.md)
 
+### [x] W25 — Simulation Kind Seam Reconciliation
+Brings `10-simulation-kind.md` up to date against the conventions W24 codified and closes gaps
+against the `Kind` interface it never addressed: folds `initialState`/`InitialStateResult` into
+§3, adds a deferred §14 Validation (matching the `history` deferral's own idiom), narrows the
+`GameStatus` mapping in §2 to match `12-world-graph-kind.md` §8's identical resolution, and
+replaces `outcome()`'s shape — dropping an `endingId` this kind never had a concept for,
+widening `resolution` to three values, and adding `goalsFailed`. Completes §15 ("What Remains
+Upstream"), which accounted for one of `SimulationKindState`'s ten fields before this.
+- **Spec:** 10 §2 (`KindState`'s heading carries an inline code span the anchor slugger
+      doesn't handle cleanly — cited by number, not linked), [§3](10-simulation-kind.md#3-the-turn-is-a-week),
+      [§12](10-simulation-kind.md#12-terminal-identity), [§14](10-simulation-kind.md#14-validation),
+      [§15](10-simulation-kind.md#15-what-remains-upstream-and-why).
+- **Depends on:** [W24](#x-w24--core-spec-reconciliation).
+- **Status:** Done — [PR #80](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/80).
+- **Done when:** every field `SimulationKindState` names has a row in §15; `outcome()`'s shape
+      is justified against the upstream source rather than assumed (confirmed by full-text
+      search that this kind has no ending concept); a review finding that the
+      `week_limit_reached`/goal precedence is unresolved is flagged explicitly rather than
+      guessed at; no file under `src/engine/` changes.
+- **Plan:** [`plans/32-w25-simulation-kind-seam-reconciliation.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/32-w25-simulation-kind-seam-reconciliation.md)
+
+### [x] W26 — Toolchain Upgrade
+`vitest` 2.1.9 → 4.1.10, `eslint` 9.39.5 → 10.8.0. `typescript-eslint` did **not** need to
+move — 8.65.0 already declares `eslint: "^8.57.0 || ^9.0.0 || ^10.0.0"` as a valid peer, so the
+plan's anticipated three-package bump was actually two. `npm audit` went from 6 vulnerabilities
+(3 moderate, 2 high, 1 critical) to **0** — better than the "partial clear is fine" outcome the
+plan allowed for. The determinism guard's specific rules (`no-restricted-properties`,
+`no-restricted-globals`, `no-restricted-imports`) are unchanged in eslint 10's migration guide;
+Node 24 already satisfies its new floor (`>=20.19`/`>=22.13`/`>=24`).
+- **Spec:** none — tooling only.
+- **Depends on:** [W18](#x-w18--determinism-harness), [W22](#x-w22--replay-oracle-the-corpus) —
+      both done, the entry's own stated precondition, met twice over once W20–W23 added the
+      replay oracle as a second instrument.
+- **Status:** Done — [PR #82](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/82).
+- **Done when:** 39 files / 445 tests pass unchanged; the determinism guard is proven still
+      live by a deliberate red-path test (a `Math.random()` and a banned core→kind import each
+      independently fail lint, both reverted); the replay corpus and the W18 event-stream golden
+      are verified byte-unmodified by the upgrade, not merely unregenerated; `v0.2.0` — tagged
+      ahead of this unit specifically so a real predecessor corpus would exist — precedes the
+      tag this unit cuts.
+- **Plan:** [`plans/35-w26-toolchain-upgrade.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/35-w26-toolchain-upgrade.md)
+
 ### Rigour: Session Capture
 
 Turning a played session into a fixture, per
@@ -668,18 +710,6 @@ in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap) (
 - [ ] Provisional numbers across the simulation kind (drift rates, scenario economics,
       `demandBand` thresholds, housing-quality formula, travel costs) need a balancing
       pass once the sim harness runs.
-- [ ] **Dev-dependency advisories — deferred precondition now met; tracked as W26.**
-      `npm audit` reports 6 (3 moderate, 2 high, 1 critical) — several transitive advisories
-      resolved upstream on their own since this was last measured, when it read 10 (3
-      moderate, 6 high, 1 critical). All are in `devDependencies`; the package has **no
-      runtime dependencies**, so nothing ships with them. The critical (`vitest` →
-      `@vitest/mocker`, arbitrary file read/execute) requires the **Vitest UI server**, which
-      this project never starts — it runs `vitest run`. No non-breaking fix exists: `npm audit
-      fix` resolves none, and `--force` moves vitest 2 → 4 and eslint 9 → 10. The original
-      deferral condition — "once the determinism harness (W18) can prove the upgrade changed
-      no behaviour" — is met twice over: W18 landed, and W20–W23 added the replay oracle as a
-      second, stronger instrument neither this entry nor W18 anticipated. Scoped as
-      [`plans/35-w26-toolchain-upgrade.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/35-w26-toolchain-upgrade.md).
 - [ ] **Three `docs-template` hardening findings, to raise upstream — after this PR
       merges, not before.** Surfaced by automated review on
       [PR #3](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/3); all three
