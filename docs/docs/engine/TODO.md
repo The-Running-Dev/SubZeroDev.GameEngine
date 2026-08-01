@@ -629,7 +629,7 @@ branch. Deliberately the smallest arc built so far: one node, no variables, no a
       pass; test count grows from 41 files/478 tests.
 
 ### [x] W29 — Bulgaria Adventure: The Inheritance Arc
-The fifth real arc: `src/engine/src/campaigns/bulgaria-inheritance.ts`, authored from
+The fourth real arc: `src/engine/src/campaigns/bulgaria-inheritance.ts`, authored from
 `games/bulgaria.md`'s three scenes ("Property Inheritance", "Village Life", "Family Meeting").
 Larger than the two before it — `games/bulgaria-adventure.md` names this arc's own exercise as
 "branching on prior choices, relationship variables, an ending," which needed real design, not
