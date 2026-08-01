@@ -8,6 +8,10 @@ proved against a synthetic kind first — the same core-owned, kind-agnostic spl
 
 **Depends on:** W20 (for `capturedUnder`).
 
+**Note:** Two of Qodo's review findings on [PR #73](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/73)
+were real gaps in this unit's `runner.ts`, fixed after the fact — see *Post-Review
+Corrections* below.
+
 ## What This Unit Builds
 
 `core/replay/types.ts` — `Submission`, `ReplayFixture`, `Decision`, `Outcome`,
@@ -62,6 +66,24 @@ throws on the first rejection (a `PlaythroughFixture` is authored to succeed end
 `buildReplayOutcome` records a `Decision` for every submission regardless of outcome and
 keeps going, because a later submission recovering is itself the signal 07 §6 says this
 oracle exists to catch.
+
+## Post-Review Corrections
+
+Two of Qodo's review findings on PR #73 were real gaps here, fixed after the initial draft:
+
+1. **A `null` seed could reach `createGame` silently.** `ReplayFixture.config.seed` is typed
+   `string`, but a fixture parsed from committed JSON is untyped at runtime — `config.seed ??
+   ids.newSeed()` (`kernel/engine.ts`) is nullish coalescing, so a `null` seed would fall
+   through to a non-reproducible fallback exactly as an `undefined` one would. `harness.ts`'s
+   `runFixture` already has this exact backstop; `buildReplayOutcome` did not. Added the same
+   `typeof fixture.config.seed !== "string"` check, throwing before anything else runs.
+2. **`findDivergence` never compared `Decision.index`.** A hand-edited `.outcome.json` with a
+   reordered or typo'd index could still report `match`, since the comparator only checked
+   `seq`/`actionId`/`accepted`/`reason`. `index` is itself part of the committed artifact
+   (07 §3.1), not a value the comparator should re-derive from array position and trust
+   blindly — added to the comparison.
+
+Both are covered by new cases in `runner.test.ts`.
 
 ## Design
 

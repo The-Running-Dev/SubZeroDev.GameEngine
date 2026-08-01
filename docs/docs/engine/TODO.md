@@ -418,7 +418,7 @@ against a synthetic kind. Composed directly against `Engine` and `ProfileStore`,
 `createInMemorySessionStore` — its client-facing `SessionStore` surface never returns the raw
 `GameState` `finalStatus`/`terminal` need (07 §3.2, revised from this unit's original plan
 during implementation).
-- **Spec:** [07 §2–§3](07-replay.md#2-fixtures-are-inputs-not-state), [§5](07-replay.md#5-prerequisite-a-controllable), [§6](07-replay.md#6-the-runner-and-its-verdicts).
+- **Spec:** [07 §2–§3](07-replay.md#2-fixtures-are-inputs-not-state), [§5](07-replay.md#prerequisite-a-controllable-idsource), [§6](07-replay.md#6-the-runner-and-its-verdicts).
 - **Depends on:** [W20](#x-w20--engine-versioning-and-release-tags).
 - **Status:** Done — [PR #73](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/73).
 - **Done when:** all three verdicts (`match`/`diverged`/`unrunnable`) are reachable and
@@ -433,7 +433,7 @@ Bureaucracy campaign: every MVP §5 playable box, plus a deliberate edge case. A
 `story-graph` kind assembly (`kinds/story-graph/kind.ts`), de-duplicating five byte-identical
 copies test files accumulated across W16–W19 that a sixth (this unit's own corpus test) would
 otherwise have joined.
-- **Spec:** [07 §4](07-replay.md#4-the-corpus), [§5](07-replay.md#5-prerequisite-a-controllable).
+- **Spec:** [07 §4](07-replay.md#4-the-corpus), [§5](07-replay.md#prerequisite-a-controllable-idsource).
 - **Depends on:** [W21](#x-w21--replay-oracle-outcome-and-the-runner).
 - **Status:** Done — [PR #73](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/73).
 - **Done when:** every MVP §5 *Playable* box has a fixture (the arc, the gated choice, the

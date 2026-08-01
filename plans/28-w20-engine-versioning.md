@@ -14,6 +14,12 @@ a version scheme onto an already-built corpus would mean rewriting every fixture
 
 `src/engine/package.json`'s `version` moves from the placeholder `0.0.0` to `0.1.0` — the
 MVP is done (W0–W19), so this is a real first release, not a bump for its own sake.
+`package-lock.json`'s two `version` fields (root and the `""` package entry) were patched
+to match by hand, not via `npm install --package-lock-only` — that was tried first and
+reverted after it rewrote unrelated `libc` platform-dependency metadata elsewhere in the
+lockfile, apparently from a local npm version difference, unrelated churn worth avoiding in
+a PR about versioning the package itself. (Found on review, PR #73 — the lockfile was
+initially missed entirely.)
 
 `src/engine/src/version.ts` exports `ENGINE_VERSION`, read from `package.json` at import
 time via `fs.readFileSync` rather than duplicated as a second literal. This is a boundary

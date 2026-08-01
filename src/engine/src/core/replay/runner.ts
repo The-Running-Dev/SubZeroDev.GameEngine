@@ -55,6 +55,16 @@ function resolveCampaign(
  * back once at the end (07 §3.2).
  */
 export async function buildReplayOutcome(ctx: ReplayRunnerContext, fixture: ReplayFixture): Promise<ReplayResult> {
+  // Runtime backstop, not just the type: a fixture built from untyped data (JSON, an `as`
+  // cast) could still smuggle a missing seed past the compiler, same as
+  // `core/determinism/harness.ts`'s `runFixture` — `typeof !== "string"` rather than an
+  // `undefined` check alone, since `createGame`'s `config.seed ?? ids.newSeed()` treats
+  // `null` as missing exactly the same way, and a narrower check would let a null seed
+  // through to a non-reproducible random fallback silently.
+  if (typeof fixture.config.seed !== "string") {
+    throw new Error(`buildReplayOutcome "${fixture.name}": config.seed is required for a reproducible replay`);
+  }
+
   const unrunnable = resolveCampaign(ctx.registry, fixture);
   if (unrunnable) return { kind: "unrunnable", reason: unrunnable.reason };
 
@@ -120,7 +130,7 @@ export function findDivergence(expected: Outcome, actual: Outcome): number | und
   for (let i = 0; i < length; i++) {
     const e = expected.decisions[i];
     const a = actual.decisions[i];
-    if (!e || !a || e.seq !== a.seq || e.actionId !== a.actionId || e.accepted !== a.accepted || e.reason !== a.reason) {
+    if (!e || !a || e.index !== a.index || e.seq !== a.seq || e.actionId !== a.actionId || e.accepted !== a.accepted || e.reason !== a.reason) {
       return i;
     }
   }

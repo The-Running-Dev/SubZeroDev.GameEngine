@@ -284,7 +284,7 @@ version of one.
 
 ---
 
-## 5. Prerequisite: A Controllable `IdSource`
+## 5. Prerequisite: A Controllable `IdSource` {#prerequisite-a-controllable-idsource}
 
 Cross-version replay requires `createGame` to be reproducible, and until
 [`06-extensibility.md`](06-extensibility.md) §5.1 named the `IdSource` port it was not:

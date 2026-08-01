@@ -96,6 +96,15 @@ function makeFixture(overrides?: Partial<ReplayFixture>): ReplayFixture {
 }
 
 describe("buildReplayOutcome", () => {
+  it("throws when config.seed is explicitly null — a fixture parsed from untyped JSON could still smuggle one past the type", async () => {
+    // `config.seed ?? ids.newSeed()` (kernel/engine.ts) is nullish coalescing, not an
+    // `undefined` check, so a guard that only rejected `undefined` would still let a null
+    // seed reach a non-reproducible fallback silently — same reasoning as
+    // `core/determinism/harness.test.ts`'s equivalent case for `runFixture`.
+    const fixture = { ...makeFixture(), config: { campaignId: "test-campaign", seed: null } } as unknown as ReplayFixture;
+    await expect(buildReplayOutcome(makeContext(), fixture)).rejects.toThrow(/config\.seed is required/);
+  });
+
   it("builds finalStatus, acceptedActions, decisions, achievements, and terminal from a real replay", async () => {
     const result = await buildReplayOutcome(makeContext(), makeFixture());
     if (result.kind !== "outcome") throw new Error("expected an outcome");
@@ -172,6 +181,20 @@ describe("findDivergence", () => {
 
     const actual = { ...expected.outcome, terminal: { endingId: "a_different_ending" } };
     expect(findDivergence(expected.outcome, actual)).toBe(expected.outcome.decisions.length);
+  });
+
+  it("catches a corrupted index even when every other Decision field matches", async () => {
+    // A hand-edited .outcome.json with decisions reordered or an index typo'd — every other
+    // field could still agree, and index is itself part of the committed artifact (07 §3.1),
+    // not a value the comparator is free to re-derive from array position and trust blindly.
+    const expected = await buildReplayOutcome(makeContext(), makeFixture());
+    if (expected.kind !== "outcome") throw new Error("expected an outcome");
+
+    const actual = {
+      ...expected.outcome,
+      decisions: expected.outcome.decisions.map((d, i) => (i === 1 ? { ...d, index: 99 } : d)),
+    };
+    expect(findDivergence(expected.outcome, actual)).toBe(1);
   });
 });
 
