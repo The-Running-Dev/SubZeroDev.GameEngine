@@ -56,18 +56,18 @@ What remains is the kind's own:
 
 ```typescript
 interface SimulationKindState {
-  calendar: CalendarState;                     // current week, time units spent/committed
+  calendar: CalendarState;                     // §2.1
   player: PlayerState;                         // §6
-  economy: EconomyState;
-  world: WorldState;
+  economy: EconomyState;                       // §2.5
+  world: WorldState;                           // §2.2
 
-  activeEffects: StatusEffect[];
-  activeOpportunities: Opportunity[];
-  scheduledEvents: ScheduledEvent[];
-  pendingEventResponses: PendingEventResponse[];
+  activeEffects: StatusEffect[];                // §2.3
+  activeOpportunities: Opportunity[];           // §2.3
+  scheduledEvents: ScheduledEvent[];            // §2.3
+  pendingEventResponses: PendingEventResponse[]; // §2.3
 
-  goals: GoalState[];
-  plan: WeeklyActionPlan | null;               // §4 — the week being assembled
+  goals: GoalState[];                          // §2.4
+  plan: WeeklyActionPlan | null;               // §4.1 — the week being assembled
 }
 ```
 
@@ -82,7 +82,351 @@ interface SimulationKindState {
 >
 > **`WeeklyActionPlan.totalTimeCost` / `totalMoneyCostCents`** — marked "engine-computed"
 > upstream. Derived values do not belong in serialized state: they can disagree with the
-> actions they summarise, and a disagreement is unresolvable. They are computed on read.
+> actions they summarise, and a disagreement is unresolvable. They are computed on read (§4.1).
+
+The rest of this section restates every field type `SimulationKindState` names above, except
+`PlayerState` (§6, deferred) — the field-level port `plans/36-simulation-kind-programme.md`
+calls **W27** (assigned as a real `W` number when this unit is cut), sized against upstream
+§5.1, §5.3–§5.6.
+
+Two primitives recur across several of these types and are introduced once, here, rather than
+per-field: **money is integer cents**, and **rates are integer basis points**, matching
+upstream §2.1 and already stated as this kind's own rule in §6 below.
+
+```typescript
+type Cents = number;         // integer; 1234 === $12.34
+type BasisPoints = number;   // integer; 250 === 2.50%
+```
+
+Both are simulation-kind primitives — no other kind has a money concept — reused by every
+later section that needs them, including §6 (Player State) once ported.
+
+**A second recurring rule: `Record<string, T>` iteration that affects state must use sorted
+keys.** `Record` key order follows insertion order, which after a `serialize`/`deserialize`
+round trip follows the order of keys in the JSON text — so an iteration whose *result* depends
+on order (weighted selection, decay, a scan that stops at the first match) can diverge between
+a fresh game and a loaded one even though the two states are logically identical. Read-only
+iteration for display is exempt. This is a real, upstream-inherited requirement (§2.2) that
+`04-core.md` does not yet state generically — flagged here because this kind is the first with
+`Record`-typed state fields whose iteration order is load-bearing, not because it is settled
+that the rule belongs only here. Applies below to `WorldState.eventCooldowns` and
+`EconomyState.sectorDemand`/`marketPrices` (§2.5), and will apply to `PlayerState.skills`/
+`reputation`/`counters` once §6 is ported.
+
+### 2.1 Calendar State
+
+```typescript
+interface CalendarState {
+  currentWeek: number;
+  currentYear: number;
+  season?: "spring" | "summer" | "autumn" | "winter";
+
+  totalTimeUnits: number;
+  committedTimeUnits: number;
+  spentTimeUnits: number;
+}
+```
+
+Invariant, checked after every mutation (upstream §5.1):
+
+```text
+0 ≤ committedTimeUnits + spentTimeUnits ≤ totalTimeUnits
+availableTimeUnits = totalTimeUnits − committedTimeUnits − spentTimeUnits
+```
+
+Upstream fixes `totalTimeUnits`' starting value at a bare constant (`WEEKLY_TIME_UNITS = 14`).
+Not restated as a constant here: `totalTimeUnits` already lives in mutable state, not as a
+fixed rule, and whether a scenario may start a game with a different weekly budget is a
+`ScenarioDefinition` question for §7 once content types are ported — stating 14 as fixed now
+would prejudge that.
+
+### 2.2 World State
+
+```typescript
+interface WorldState {
+  npcs: NPCState[];                          // §7 once ported (upstream §14.6)
+  locations: LocationState[];
+
+  jobMarket: JobMarketState;
+  eventCooldowns: Record<string, number>;     // eventId → week last fired. Sorted-iteration rule applies (above)
+  firedUniqueEvents: string[];
+  chainStates: EventChainState[];
+
+  strangenessBase: number;                   // 0–100; the derived value below adds modifiers
+  headlinePool: HeadlinePoolState;
+
+  agents: AgentState[];                      // rivals; empty in open_life mode. §7 once ported (upstream §14.9)
+
+  flags: Record<string, boolean>;
+}
+
+interface HeadlinePoolState {
+  remainingIds: string[];        // shuffled, drawn from the front
+  shownThisWeek?: string;
+  cyclesCompleted: number;
+}
+
+interface LocationState {
+  definitionId: string;
+  discovered: boolean;
+  accessible: boolean;
+}
+
+interface JobMarketState {
+  openings: JobOpening[];
+}
+
+interface JobOpening {
+  jobId: string;
+  contested: boolean;
+  positionsAvailable?: number;   // absent = uncontested, unbounded
+  postedWeek: number;
+  expiresAtWeek?: number;
+}
+
+interface EventChainState {
+  chainId: string;
+  scope: ChainScope;
+  currentStep: number;
+  startedWeek: number;
+  active: boolean;
+}
+
+type ChainScope = "game" | "profile";
+```
+
+`JobOpening.contested`/`positionsAvailable` implement the scarcity model §7 will need (upstream
+§14.1, §14.3): `entry`/`skilled` postings are uncontested with unbounded positions, while
+`professional`/`senior` roles and promotion slots carry real, finite counts the player and a
+rival compete for.
+
+**`positionsAvailable` is optional here, not `Number.POSITIVE_INFINITY` as upstream states it.**
+`canonicalStringify` (`core/persistence/canonical.ts`) rejects any non-finite number outright —
+`Infinity` cannot survive a save/load round trip in this engine, whether or not `JSON.stringify`
+would silently coerce it to `null` first. Absence-means-unbounded is not invented for this: it
+is the same pattern upstream's own `CourseDefinition.seatsAvailable`/`HousingDefinition.
+unitsAvailable` already use for an identical "uncapped" concept (§7 once ported, upstream
+§14.2–§14.3) — `JobOpening` is the one place upstream reached for a literal infinity instead of
+its own more common convention.
+
+#### World Strangeness
+
+Content (once §7 is ported) gates events and headlines on a **derived** strangeness value, not
+the raw `strangenessBase` above — so a `Modifier` (upstream §13.3, deferred with the rest of
+content mechanics) can push it, and so the raw number never leaks into a projection. The player
+is meant to notice the drift, not read the dial. `strangenessBase` itself rises on a curve with
+elapsed weeks; the curve's shape is content-balance material, out of scope here the same way §7
+(Base and Derived Values, upstream) is out of scope for this unit.
+
+#### Chain Scope — and an Item This Raises
+
+Scope is declared per chain, not globally, because event chains are not all the same kind of
+thing: a `"game"`-scoped chain cannot survive past this game (an eviction ladder should not
+follow a new character into their next life), while a `"profile"`-scoped chain is meant to
+outlive any single game and advance on cumulative weeks played across every game under one
+profile.
+
+**This is a real, unresolved item, not a restatement.** A `"profile"`-scoped `EventChainState`
+needs somewhere to live that is *not* `GameState`/`SimulationKindState` — by definition, since
+it must survive past the game that's ending. The only persistent, cross-game store this
+platform has is `PlayerProfile` (04 §7.1: `{ formatVersion, profileId, achievements }`), and it
+has no field for arbitrary kind-declared profile-scoped data today. Whether `PlayerProfile`
+gains one, and what a kind-agnostic core does with a shape it cannot introspect, is a design
+question for whichever unit first needs a `"profile"`-scoped chain to actually persist — not
+this one. Until then, `ChainScope` is specified as a closed union of two values (matching
+upstream) with the second value's storage genuinely unimplemented, the same honest-gap pattern
+`history` already uses in this document. Recorded in
+[`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) alongside it.
+
+### 2.3 Effects, Opportunities, and Scheduled Events
+
+```typescript
+interface StatusEffect {
+  id: string;
+  sourceId: string;
+  sourceKind: "item" | "housing" | "trait" | "event" | "job" | "course" | "system";
+
+  modifiers: Modifier[];         // §7 once ported (upstream §13.3)
+
+  appliedWeek: number;
+  expiresAtWeek?: number;        // absent = permanent while source persists
+  stacking: "refresh" | "stack";
+  descriptionKey: LocKey;
+  visible: boolean;
+}
+
+interface Opportunity {
+  id: string;                    // unique per occurrence
+  definitionId: string;
+  kind: OpportunityKind;
+  targetId: string;
+
+  offeredWeek: number;
+  expiresAtWeek: number;
+
+  terms?: Record<string, unknown>;
+}
+
+type OpportunityKind =
+  | "job_offer" | "promotion" | "course_place"
+  | "housing" | "business" | "social";
+
+interface ScheduledEvent {
+  id: string;
+  eventId: string;
+  scheduledWeek: number;
+  createdWeek: number;
+
+  chainId?: string;
+  chainStep?: number;
+  payload?: Record<string, unknown>;
+}
+
+interface PendingEventResponse {
+  id: string;
+  eventId: string;
+  rolledWeek: number;          // week N — when it fired
+  presentWeek: number;         // week N+1 — when the player answers
+  availableChoiceIds: string[];
+}
+```
+
+`PendingEventResponse` implements the deferred-event model (upstream §11.5): events roll at the
+end of week N; those needing a decision queue here and are presented at the start of week N+1
+(the `events` entry in §12.1's start-of-week order), where their time cost competes against a
+fresh budget. `end_week` (§4) refuses to resolve while `pendingEventResponses` is non-empty —
+the concrete reason code is named once §10 (Reason Codes) has a real caller to attach it to.
+
+#### Opportunity Lifecycle
+
+**Generation**, three paths, all producing an `Opportunity` from an `OpportunityDefinition`
+(§7 once ported, upstream §14.8):
+
+| Path | Trigger |
+|---|---|
+| Rolled | An end-of-week system draws from the eligible pool, weighted, from the world stream |
+| Action | An action's own outcome — negotiating well produces an offer |
+| Event or reward | An event outcome, or a `Reward` of type `"opportunity"` (§7) |
+
+`expiresAtWeek` is set from the definition's `durationWeeks`.
+
+**Resolution.** An open opportunity leaves `activeOpportunities` exactly one way:
+
+| Outcome | Cause |
+|---|---|
+| Accepted | An `accept_opportunity` action |
+| Declined | A `decline_opportunity` action |
+| Expired | `expiresAtWeek` passed |
+| Revoked | A contested position filled by a rival |
+
+**End-of-week ordering, within the `opportunities` system (§12.2):** revoke anything whose
+target position was just filled, then expire anything past `expiresAtWeek`, then offer new
+opportunities from the eligible pool. Revoking and expiring before offering means a slot freed
+this week becomes available to re-offer this week rather than next.
+
+**Why explicit decline exists.** Letting an offer lapse and refusing it to someone's face are
+different acts once NPCs remember things (§7 once ported, upstream §14.6) — turning down a
+manager's offer is a relationship event; forgetting to answer is a different one. Without a
+distinct decline path the engine cannot tell them apart.
+
+**Revocation is deliberate, not a bug.** If holding an unexpired offer reserved the slot, a
+contested position could never actually be taken by a rival, and the scarcity model (§2.2)
+would be decorative. The offer evaporates instead, with a visible message.
+
+#### Scheduled Event Lifecycle
+
+**Creation.** An event outcome's own `scheduledEvents: Array<{ eventId, inWeeks }>` (§7 once
+ported) produces a `ScheduledEvent` with `scheduledWeek = currentWeek + inWeeks`, inheriting
+`chainId`/`chainStep` from the event that scheduled it.
+
+**Firing**, within the `events` system, in this order: take every `ScheduledEvent` where
+`scheduledWeek <= currentWeek` and fire each one **unconditionally** — ignoring weight,
+cooldown, uniqueness and its own conditions, since it was already committed to when scheduled —
+queue any with choices as a `PendingEventResponse` for next week, then roll random eligible
+events by weight as normal. Firing scheduled events before rolling random ones matters for the
+same reason revoke-before-offer does above.
+
+Re-checking eligibility at fire time was considered and rejected: it lets a multi-week chain
+break silently in the middle (a three-week-out hearing whose triggering condition drifted in
+week two just never fires, with nothing recording why), which is a worse failure than an
+event firing on a stale premise.
+
+**Cancellation.** An event outcome's `endsChain: true` cancels every pending `ScheduledEvent`
+sharing that `chainId`. This is the intended way to stop a sequence — paying off arrears ends
+an eviction chain, which cancels the scheduled hearing — and it is explicit and inspectable,
+not implicit.
+
+> **Deliberate limitation, carried from upstream.** A `ScheduledEvent` with no `chainId` has no
+> cancellation path: it fires regardless of anything that happens between scheduling and
+> firing. Content that wants a scheduled event to be cancellable must put it in a chain.
+
+### 2.4 Goal State
+
+```typescript
+interface GoalState {
+  definitionId: string;
+  status: "active" | "completed" | "failed";
+
+  satisfiedThisWeek: boolean;
+  consecutiveWeeksSatisfied: number;
+  requiredDurationWeeks?: number;
+
+  firstSatisfiedWeek?: number;
+  completedWeek?: number;
+  failedWeek?: number;
+
+  progressNotes: GoalProgressNote[];
+}
+
+interface GoalProgressNote {
+  conditionIndex: number;
+  satisfied: boolean;
+  currentValue: unknown;
+  targetValue: unknown;
+}
+```
+
+`consecutiveWeeksSatisfied` resets to zero on any unsatisfied week — no partial credit for a
+goal that requires a sustained condition, which is what makes a duration requirement
+anti-exploit rather than decorative.
+
+`progressNotes` exists for the Transparent Consequences principle — a client can show *which*
+clause of a compound goal (§8, `Condition`'s `all`/`any` tree) is currently unmet, not just that
+the goal isn't done yet.
+
+### 2.5 Economy State
+
+```typescript
+interface EconomyState {
+  inflation: BasisPoints;
+  unemploymentRate: BasisPoints;
+  interestRate: BasisPoints;
+
+  sectorDemand: Record<string, number>;      // exact value — hidden. Sorted-iteration rule applies (above)
+  marketPrices: Record<string, Cents>;       // sorted-iteration rule applies (above)
+
+  publishedIndicators: string[];   // which keys the player is allowed to see
+  flags: Record<string, boolean>;
+}
+
+type DemandBand = "cold" | "steady" | "hot";
+
+function demandBand(value: number): DemandBand;   // <35 cold, 35–65 steady, >65 hot
+```
+
+**Sector demand is banded in projection, never the raw value.** The exact number is a direct
+input to job-availability rolls, and exposing it would let a player optimise against the
+formula directly. But hiding *which* industries are hiring entirely would make every education
+decision a blind guess — the opposite of Transparent Consequences. So a projection exposes
+`demandBand(value)` and never `value`: a player learns that logistics is hot and retail is
+cold, never that logistics is exactly 71.
+
+`publishedIndicators` controls the rest — inflation, unemployment and interest are ordinary
+published facts by default; a scenario may withhold them.
+
+The `35`/`65` band thresholds are carried from upstream as provisional, the same status
+`TODO.md`'s *Known Open Items* already gives the simulation kind's other unbalanced numbers —
+tune once real demand distributions exist to tune against.
 
 ---
 
@@ -149,6 +493,30 @@ is free text.
 
 **Plans are immutable.** Every edit produces a new plan; preview is free and never requires
 re-validating from scratch.
+
+### 4.1 The Weekly Action Plan
+
+```typescript
+interface WeeklyActionPlan {
+  readonly week: number;
+  readonly actions: readonly GameAction[];   // §7 once ported (upstream §9) — the action schema itself
+}
+```
+
+Sized against upstream §9.1, minus the two fields §2's callout box already excludes —
+`totalTimeCost`/`totalMoneyCostCents` are computed on read, never stored, for the same reason
+every other derived value in this kind is (§2.5's `demandBand`, and §7's derived-value layer
+once ported).
+
+Upstream also carries a `finalized` flag with no setter and no defined effect — dropped here
+entirely, not merely unstated. `plan.clear`/`plan.add`/`plan.remove` mutate nothing in place
+(immutability, above); `end_week` consuming a plan already *is* the commit point, so a second
+"are you sure" flag inside replayable state would duplicate a decision the action model already
+makes. A client wanting a confirmation prompt owns that prompt as presentation, not state.
+
+`GameAction`'s own shape (`ActionType`, `targetId`, `parameters`) is upstream §9, not §9.1 —
+out of scope for this unit, ported alongside action resolution
+(`plans/36-simulation-kind-programme.md`'s **W30**).
 
 ---
 
@@ -340,16 +708,19 @@ This is the seam, not the whole kind. Still to be brought over from
 | Upstream | Holds | Why not yet |
 |---|---|---|
 | §8.1–§8.9 | Player-state field detail (`PlayerState`) | ~20 KB. Structural home is fixed (§6); the fields need reconciling against typed-variable discipline (03 §2) before restating |
-| §5.1, §5.3–§5.6 | The other nine `SimulationKindState` fields' upstream shapes — `CalendarState`, `WorldState`, `StatusEffect`, `Opportunity`, `ScheduledEvent`, `PendingEventResponse`, `GoalState`, `EconomyState` | ~425 lines. Same status as player state: the structural home is fixed (§2's table); field detail needs the same reconciliation before restating |
-| §9, §9.1 | `WeeklyActionPlan`'s own shape (`ActionType`, `GameAction`) | References content ids (jobs, courses, …) that have no home until the row below lands |
+| §9 | `ActionType`, `GameAction` | References content ids (jobs, courses, …) that have no home until the content-type row below lands. `WeeklyActionPlan`'s own shape is ported (§4.1) — only the action schema it holds remains |
 | §14.1–§14.9 | Content definition types | ~25 KB. Needs the authoring→registry split applying (04 §10.1), which for story-graph was its own piece of work |
 | §13.3–§13.4 | `Modifier`, `Reward` | Simulation mechanics hanging off `Condition`, not condition operators (§8 is scoped to §13.1–§13.2 only). `Modifier.operation: "multiply"` against this kind's integer-cents money (§6) has no upstream rounding rule — a determinism hazard to resolve *before* porting, not after, flagged here rather than fixed here |
 | §12.2–§12.3 | End-of-week system order, goal precedence | Normative and short; blocked only on this table's own content-type row above |
-| §7 | Base and derived values | Rule adopted (§2, §6); the formulae are content-balance material |
+| §7 | Base and derived values | Rule adopted (§2.2's world-strangeness note, §6); the formulae are content-balance material |
 
-**This table now accounts for every field `SimulationKindState` (§2) names** — nine of ten
-were missing a row entirely in this document's first revision (only `PlayerState` had one);
-completeness is what makes the claim below trustworthy rather than merely reassuring.
+**§5.1 and §5.3–§5.6 are ported** (§2.1–§2.5) — `CalendarState`, `WorldState`, `StatusEffect`,
+`Opportunity`, `ScheduledEvent`, `PendingEventResponse`, `GoalState` and `EconomyState`, the
+eight of `SimulationKindState`'s ten fields this table used to list as outstanding together.
+Of the ten, only `PlayerState` remains unported; `plan: WeeklyActionPlan`'s own shape is ported
+too (§4.1), though the `GameAction`s it holds are not (§9, above). One real item came out of the
+port rather than being merely transcribed: `ChainScope`'s `"profile"` value has nowhere to
+persist yet, recorded in `OPEN-QUESTIONS.md` alongside `history`.
 
 **Nothing above changes this contract's shape** — each is detail hanging off a seam this
 document fixes. What it does mean is that the upstream sections stay authoritative for those
