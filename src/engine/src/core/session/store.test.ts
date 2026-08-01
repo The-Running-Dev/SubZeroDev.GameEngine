@@ -101,7 +101,6 @@ function makeStore(overrides?: { engine?: Engine; recordSink?: EmittedRecordSink
   return createInMemorySessionStore({
     engine: overrides?.engine ?? makeEngine({ registry }),
     registry,
-    kinds: makeKinds(),
     ...(overrides?.recordSink ? { recordSink: overrides.recordSink } : {}),
     ...(overrides?.profiles ? { profiles: overrides.profiles } : {}),
   });
@@ -275,7 +274,7 @@ describe("observability stamping", () => {
   it("stamps sessionId, and stamps emittedAt from the clock", async () => {
     const { sink, records } = collectingSink();
     const fixedClock = { now: () => "2026-01-01T00:00:00.000Z" };
-    const store = createInMemorySessionStore({ engine: makeEngine(), registry: makeRegistry(), kinds: makeKinds(), clock: fixedClock, recordSink: sink });
+    const store = createInMemorySessionStore({ engine: makeEngine(), registry: makeRegistry(), clock: fixedClock, recordSink: sink });
     const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
 
     expect(records.length).toBeGreaterThan(0);
@@ -529,7 +528,7 @@ describe("profile store wiring (W8)", () => {
       // profile content should be able to, and this test is asserting it doesn't.
       const registry = makeRegistry();
       const engine = makeEngine({ registry, ids: { newGameId: () => "fixed-game-id", newSeed: () => "fixed-seed" } });
-      const store = createInMemorySessionStore({ engine, registry, kinds: makeKinds(), profiles });
+      const store = createInMemorySessionStore({ engine, registry, profiles });
       const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1", seed: "fixed-seed" });
       await store.submitAction(sessionId, "increment");
       await store.submitAction(sessionId, "unlock-first-count");

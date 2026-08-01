@@ -14,7 +14,6 @@ import type {
   ActionParams,
   Engine,
   GameState,
-  KindRegistry,
   NewGameConfig,
   Scene,
 } from "../kernel/types.js";
@@ -122,9 +121,6 @@ interface SaveRecord {
 export interface InMemorySessionStoreOptions {
   engine: Engine;
   registry: ContentRegistry;
-  /** Needed only for `saveGame`/`loadGame`'s `SaveEnvelope` stamping and migration
-   *  dispatch — every other command reaches a kind through `engine` alone. */
-  kinds: KindRegistry;
   /** Defaults to `defaultClock` (the real wall clock) — see `composition/defaults.ts`. */
   clock?: Clock;
   /** Defaults to a no-op — no boundary sink is wired unless a caller asks for one. */
@@ -190,7 +186,12 @@ function mustDeserialize(engine: Engine, blob: string): GameState {
 }
 
 export function createInMemorySessionStore(options: InMemorySessionStoreOptions): SessionStore {
-  const { engine, registry, kinds } = options;
+  const { engine, registry } = options;
+  // Read off `engine` rather than taken as a second, independently-suppliable option
+  // (Qodo review, PR #92) — this is the same `KindRegistry` every gameplay call already
+  // resolves `state.kindId` against, so `saveGame`/`loadGame`'s stamping and migration
+  // dispatch structurally cannot disagree with it.
+  const kinds = engine.kinds;
   const clock = options.clock ?? defaultClock;
   const recordSink = options.recordSink ?? noopRecordSink;
 

@@ -205,6 +205,44 @@ describe("resolveSaveEnvelope — kindVersion migration", () => {
     const resolution = resolveSaveEnvelope(v1Blob(), makeKinds(kindV2Failing), makeRegistry(makeCampaign("1.0.0")));
     expect(resolution).toEqual({ ok: false, code: "migration_failed" });
   });
+
+  it("a kind migration that throws is caught and yields migration_failed, not an uncaught exception", () => {
+    const throwingMigration = (): CommandResult<unknown> => {
+      throw new Error("buggy content-migration code");
+    };
+    const kindV2Throwing = makeKind("2.0.0", throwingMigration);
+    expect(() => resolveSaveEnvelope(v1Blob(), makeKinds(kindV2Throwing), makeRegistry(makeCampaign("1.0.0")))).not.toThrow();
+    const resolution = resolveSaveEnvelope(v1Blob(), makeKinds(kindV2Throwing), makeRegistry(makeCampaign("1.0.0")));
+    expect(resolution).toEqual({ ok: false, code: "migration_failed" });
+  });
+
+  it("a migration that legitimately returns a falsy kindState (0) is accepted, not misread as failure", () => {
+    const falsyMigration = (): CommandResult<unknown> => ({ ok: true, value: 0, errors: [], warnings: [] });
+    const kindV2Falsy = makeKind("2.0.0", falsyMigration);
+    const resolution = resolveSaveEnvelope(v1Blob(), makeKinds(kindV2Falsy), makeRegistry(makeCampaign("1.0.0")));
+    expect(resolution).toEqual({ ok: true, state: { ...BASE_STATE, kindState: 0 }, replayCompatible: false });
+  });
+});
+
+describe("resolveSaveEnvelope — outer/inner consistency", () => {
+  it("rejects as invalid_state when the resolved campaign's own kindId disagrees with the envelope's kindId", () => {
+    const parsed = JSON.parse(v1Blob()) as Record<string, unknown>;
+    parsed["kindId"] = "simulation"; // GameState.kindId is a closed 3-value union; pick a real-but-wrong one
+    const mismatchedKindEnvelope = JSON.stringify(parsed);
+    const kinds = { "story-graph": makeKind("1.0.0"), simulation: makeKind("1.0.0") } as unknown as KindRegistry;
+    const resolution = resolveSaveEnvelope(mismatchedKindEnvelope, kinds, makeRegistry(makeCampaign("1.0.0")));
+    expect(resolution).toEqual({ ok: false, code: "invalid_state" });
+  });
+
+  it("rejects as invalid_state when the outer campaignId disagrees with the embedded state's campaignId", () => {
+    const otherCampaign = makeCampaign("1.0.0");
+    otherCampaign.id = "some-other-campaign";
+    const parsed = JSON.parse(v1Blob()) as Record<string, unknown>;
+    parsed["campaignId"] = "some-other-campaign";
+    const registry: ContentRegistry = { campaigns: new Map([["some-other-campaign", otherCampaign]]), strings: new Map() };
+    const resolution = resolveSaveEnvelope(JSON.stringify(parsed), makeKinds(makeKind("1.0.0")), registry);
+    expect(resolution).toEqual({ ok: false, code: "invalid_state" });
+  });
 });
 
 describe("resolveSaveEnvelope — campaignVersion migration", () => {

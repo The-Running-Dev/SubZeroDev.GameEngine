@@ -199,8 +199,10 @@ submission, then reads the unlocked set from the `ProfileStore` once, after the 
 different ending — same decisions, same counts, same status — compares **equal**, and the
 oracle reports `match` on exactly the kind of regression it exists to catch.
 
-So `Kind` gains one member, mirroring `project` (04 §9). **Built** — `04-core.md` §3 already
-carries it, and every real kind assembly implements it:
+So, to solve *this* problem, `Kind` gains one member, mirroring `project` (04 §9) — `version`
+and `migrateState` are a separate, later addition (W31, save migration), unrelated to the
+replay oracle this section is about. **Built** — `04-core.md` §3 already carries it, and
+every real kind assembly implements it:
 
 ```typescript
 interface Kind<KState> {
@@ -219,7 +221,8 @@ This was deferred in the first draft and the deferral was wrong: it traded a rea
 miss for the avoidance of a hypothetical one.
 
 **Nothing here is kind-specific**, which is the point — the oracle works for `story-graph`
-and `simulation` alike with no new `Kind` member and no per-kind maintenance.
+and `simulation` alike with no *additional* `Kind` member beyond `outcome` and no per-kind
+maintenance.
 
 > **What `decisions` catches, and why it is the valuable field.** It records, for every
 > action a player actually submitted, whether the engine took it and why not if it did

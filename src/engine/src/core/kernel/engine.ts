@@ -432,6 +432,7 @@ export function createEngine(host: EngineHost): Engine {
   }
 
   return {
+    kinds: host.kinds,
     createGame: (config) => createGame(host, config),
     scene: (state) => scene(host, state),
     view: (state, audience) => view(host, state, audience),

@@ -216,6 +216,12 @@ export interface NewGameConfig {
 /** Kind-agnostic operations over the envelope. Resolves the kind by `state.kindId`,
  *  derives the RNG handle, delegates, and reassembles. */
 export interface Engine {
+  /** The same `KindRegistry` this engine resolves `state.kindId` against — exposed so a
+   *  caller needing kind metadata outside gameplay (`SessionStore`'s `SaveEnvelope`
+   *  stamping/migration, W31) reads it off the one `Engine` it already holds, rather than
+   *  taking a second, independently-suppliable `kinds` option that could silently
+   *  disagree with what this engine actually plays against. */
+  readonly kinds: KindRegistry;
   createGame(config: NewGameConfig): CommandResult<GameState>;
   scene(state: GameState): Scene;
   view(state: GameState, audience: ProjectionAudience): PlayerView;

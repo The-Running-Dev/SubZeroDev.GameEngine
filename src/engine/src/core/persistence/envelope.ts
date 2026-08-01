@@ -16,6 +16,7 @@ import { isValidGameStateShape } from "../kernel/engine.js";
 import { canonicalStringify } from "./canonical.js";
 import type { SaveEnvelope } from "./types.js";
 import { ENGINE_VERSION } from "../../version.js";
+import type { CommandResult } from "../kernel/reasons.js";
 
 /** The only envelope shape and canonical-serializer version that have ever existed. Both
  *  are introduced by this unit, so a mismatch against either is unreachable today — see
@@ -83,6 +84,25 @@ export type SaveEnvelopeResolution =
   | { ok: false; code: "invalid_state" | "unknown_campaign" | "unknown_kind" | "save_requires_migration" | "migration_failed" };
 
 /**
+ * Runs a `migrateState` implementation defensively — it is kind- or campaign-owned
+ * content code, not core code, so a throw must degrade to the documented
+ * `migration_failed` rejection rather than escape as an arbitrary error. Same reasoning
+ * as `submitAction`'s own `profiles` catch in `session/store.ts`: content-adjacent code
+ * that fails must never propagate past its own well-defined failure channel.
+ */
+function invokeMigration(
+  migrateState: (state: unknown, fromVersion: string) => CommandResult<unknown>,
+  state: unknown,
+  fromVersion: string,
+): CommandResult<unknown> {
+  try {
+    return migrateState(state, fromVersion);
+  } catch {
+    return { ok: false, errors: [{ code: "migration_failed", messageKey: "core.reason.migration_failed" }], warnings: [] };
+  }
+}
+
+/**
  * Parses, validates, and — if `kindVersion`/`campaignVersion` moved — migrates a stored
  * blob forward. Every failure names a reason code; the caller (`SessionStore.loadGame`)
  * is the one that actually throws, matching its own established "session store: X
@@ -125,21 +145,30 @@ export function resolveSaveEnvelope(blob: string, kinds: KindRegistry, registry:
   const kind = kinds[parsed.kindId];
   if (!kind) return { ok: false, code: "unknown_kind" };
 
+  // The checksum covers only `state` — nothing stops the *outer* wrapper fields from
+  // being edited independently of it. Cross-checking them against each other and against
+  // the embedded (checksummed) GameState closes that: a campaign that doesn't actually
+  // belong to the claimed kind, or outer ids that disagree with the embedded state's own,
+  // can only mean tampered or corrupt wrapper metadata.
+  if (campaign.kindId !== parsed.kindId) return { ok: false, code: "invalid_state" };
+  if (parsed.state.kindId !== parsed.kindId) return { ok: false, code: "invalid_state" };
+  if (parsed.state.campaignId !== parsed.campaignId) return { ok: false, code: "invalid_state" };
+
   let kindState = parsed.state.kindState;
   let migrated = false;
 
   if (parsed.kindVersion !== kind.version) {
     if (!kind.migrateState) return { ok: false, code: "save_requires_migration" };
-    const result = kind.migrateState(kindState, parsed.kindVersion);
-    if (!result.ok || !result.value) return { ok: false, code: "migration_failed" };
+    const result = invokeMigration(kind.migrateState.bind(kind), kindState, parsed.kindVersion);
+    if (!result.ok || result.value === undefined) return { ok: false, code: "migration_failed" };
     kindState = result.value;
     migrated = true;
   }
 
   if (parsed.campaignVersion !== campaign.version) {
     if (!campaign.migrateState) return { ok: false, code: "save_requires_migration" };
-    const result = campaign.migrateState(kindState, parsed.campaignVersion);
-    if (!result.ok || !result.value) return { ok: false, code: "migration_failed" };
+    const result = invokeMigration(campaign.migrateState.bind(campaign), kindState, parsed.campaignVersion);
+    if (!result.ok || result.value === undefined) return { ok: false, code: "migration_failed" };
     kindState = result.value;
     migrated = true;
   }
