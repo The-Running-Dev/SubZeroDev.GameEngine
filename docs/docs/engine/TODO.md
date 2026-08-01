@@ -502,8 +502,7 @@ against the `Kind` interface it never addressed: folds `initialState`/`InitialSt
 replaces `outcome()`'s shape — dropping an `endingId` this kind never had a concept for,
 widening `resolution` to three values, and adding `goalsFailed`. Completes §15 ("What Remains
 Upstream"), which accounted for one of `SimulationKindState`'s ten fields before this.
-- **Spec:** 10 §2 (`KindState`'s heading carries an inline code span the anchor slugger
-      doesn't handle cleanly — cited by number, not linked), [§3](10-simulation-kind.md#3-the-turn-is-a-week),
+- **Spec:** [10 §2](10-simulation-kind.md#2-kindstate--what-belongs-here), [§3](10-simulation-kind.md#3-the-turn-is-a-week),
       [§12](10-simulation-kind.md#12-terminal-identity), [§14](10-simulation-kind.md#14-validation),
       [§15](10-simulation-kind.md#15-what-remains-upstream-and-why).
 - **Depends on:** [W24](#x-w24--core-spec-reconciliation).
