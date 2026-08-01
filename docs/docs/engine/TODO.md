@@ -591,7 +591,28 @@ in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap) (
 
 ### Depth: Finish the Bulgaria Adventure
 
-- [ ] The remaining four arcs (Inheritance, Enterprise, Driving, Return).
+### [x] W27 — Bulgaria Adventure: The Driving Arc
+The second real arc: `src/engine/src/campaigns/bulgaria-driving.ts`, authored from
+`games/bulgaria.md`'s "Driving" and "BMW Ownership" scenes, mirroring
+`bulgaria-bureaucracy.ts`'s established pattern. Picked over the other three remaining arcs
+because reading the actual built Bureaucracy campaign against the design doc surfaced two real
+discrepancies affecting Enterprise and Return specifically — both recorded in
+[`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §2, neither resolved here. Demonstrates a branching
+ending (two endings, gated by an earlier choice via `showWhen`) that Bureaucracy's single-ending
+design never exercised.
+- **Spec:** [03 §4](03-story-graph-kind.md#4-choices-and-transitions) (`showWhen`);
+      `games/bulgaria.md`, `games/bulgaria-adventure.md`.
+- **Depends on:** nothing engine-side — `story-graph` is fully built; this is content only.
+- **Status:** Done — [PR #86](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/86).
+- **Done when:** both endings are reachable and the wrong-branch choice is absent, not merely
+      disabled, verified by test; `serialize()` output for each path is golden-filed and
+      round-trips; the determinism harness's sink-independence and replay-byte-identity checks
+      pass; test count grows from 39 files/445 tests. Replay-corpus fixtures were found not to
+      be cheap for a second campaign — the existing harness assumes one campaign per corpus
+      directory (`OPEN-QUESTIONS.md` §2) — so this unit has none; not blocking.
+- **Plan:** [`plans/37-w27-bulgaria-driving-arc.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/37-w27-bulgaria-driving-arc.md)
+
+- [ ] The remaining three arcs (Inheritance, Enterprise, Return).
 - [ ] Its full Definition of Done: `games/bulgaria-adventure.md`.
 
 ### Breadth: The First Culture Pack
