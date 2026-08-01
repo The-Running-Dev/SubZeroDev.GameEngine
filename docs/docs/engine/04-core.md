@@ -154,6 +154,7 @@ which kind it is.
 ```typescript
 interface Kind<KState> {
   readonly id: KindId;
+  readonly version: string;                      // manually maintained semver (§10.2, W31)
   readonly reasonCodes: readonly ReasonCode[];   // codes this kind adds to the base set (§12)
   readonly eventNames: readonly EventName[];     // events this kind may emit (05 §9)
 
@@ -190,6 +191,15 @@ interface Kind<KState> {
    * values ([`07-replay.md`](07-replay.md) §3.3).
    */
   outcome(state: KState): unknown;
+
+  /**
+   * Migrates a `KState` produced under an older `version` forward, when this kind's own
+   * state shape changed (§10.2). Optional — most version bumps don't change the shape a
+   * save references. Invoked only at the save-load boundary (`SessionStore`), never by
+   * `advance`; a missing function on a version mismatch fails the load rather than
+   * silently handing this version a state it wasn't written to read.
+   */
+  migrateState?(oldState: unknown, fromVersion: string): CommandResult<KState>;
 }
 
 interface AdvanceResult<KState> {
@@ -726,10 +736,37 @@ interface SaveEnvelope {
 
 The four version fields exist because the four things they track change independently:
 the save wrapper's shape, the serializer, the engine, and a kind's code can each move
-without the others. A loader checks all four before trusting a save. **Compression and
-host-side metadata (playtime, title, thumbnail) are deliberately absent** — compression
-has no consumer yet, and host metadata belongs on the session-store record (§7), outside
-the replayable `GameState`, so it can never perturb byte-identical replay.
+without the others. **Compression and host-side metadata (playtime, title, thumbnail) are
+deliberately absent** — compression has no consumer yet, and host metadata belongs on the
+session-store record (§7), outside the replayable `GameState`, so it can never perturb
+byte-identical replay.
+
+**Built during W31** (`SessionStore.saveGame`/`loadGame`, `core/persistence/envelope.ts`),
+closing what had been a specified-but-unbuilt mechanism since W3. Not every field gates a
+load the same way:
+
+- **`saveFormatVersion` / `serializationVersion` mismatch** fails loudly
+  (`save_requires_migration`, §12) — this unit introduces both, so neither has a real
+  prior value to migrate from yet; a future unit earns that logic only once one of them
+  actually moves.
+- **`engineVersion` mismatch** never gates a load by itself — recorded for provenance
+  only, per this section's own reasoning that it changes independently of the others.
+- **`kindVersion` / `campaignVersion` mismatch** is the actual migration: `Kind.migrateState`
+  (§3) runs first for a kind-state shape change, then `Campaign.migrateState` for a
+  content-id rename — a shape change is a precondition for content remapping to address
+  the right fields. Either axis missing its migration function when a mismatch is present
+  fails loudly the same way; a registered migration that itself fails does too
+  (`migration_failed`, §12).
+- **A successful migration** sets `replayCompatible: false`, sticky forward — once a
+  lineage has passed through a migrated load, it never becomes replay-compatible again,
+  even across further saves that need no further migration.
+
+Migration functions are engine-or-content-owned, never a host-supplied port: a port may
+supply anything that cannot change `serialize()` output
+([`06-extensibility.md`](06-extensibility.md) §6), and remapping old ids is definitionally
+a change to it. Proven in `core/persistence/envelope.test.ts` against a synthetic
+kind/campaign, not a real campaign republish — every shipped campaign is still at
+`1.0.0`, so there is nothing real to migrate from yet either (`plans/38-save-migration-programme.md`).
 
 > **`saveFormatVersion` vs `GameState.formatVersion` — different things.**
 > `saveFormatVersion` versions *this wrapper*; `GameState.formatVersion` (§2) versions the

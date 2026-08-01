@@ -328,7 +328,9 @@ function isValidActionLog(v: unknown): v is LoggedAction[] {
  * dependencies (`TODO.md`, dev-dependency-advisories note) and this unit doesn't add one.
  * `kindState` is checked only for presence: it is `unknown` to the core by design (04 §2).
  */
-function isValidGameStateShape(v: unknown): v is GameState {
+/** Exported for `persistence/envelope.ts` — a `SaveEnvelope`'s `state` field needs the
+ *  same deep shape check `deserialize` runs, not a second, drifting reimplementation. */
+export function isValidGameStateShape(v: unknown): v is GameState {
   if (!isPlainObject(v)) return false;
   if (v["formatVersion"] !== CURRENT_FORMAT_VERSION) return false;
   if (typeof v["gameId"] !== "string") return false;

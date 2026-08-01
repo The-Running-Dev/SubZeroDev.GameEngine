@@ -23,7 +23,7 @@ function buildStore(ids?: IdSource): SessionStore {
   if (!registryResult.ok || !registryResult.value) throw new Error("expected the real campaign to validate");
 
   const engine = createEngine({ kinds, registry: registryResult.value, ...(ids ? { ids } : {}) });
-  return createInMemorySessionStore({ engine, registry: registryResult.value });
+  return createInMemorySessionStore({ engine, registry: registryResult.value, kinds });
 }
 
 function makeTools(): McpTools {

@@ -685,6 +685,31 @@ remaining calls for more structure. The ending's own prose is new, not adapted f
       already proven generically (W7, W14, W16–W18) against Bureaucracy and re-exercised by
       every arc's own test suite since — not separate work per arc.
 
+### [x] W31 — Save Migration
+Builds the real save-migration mechanism `04-core.md` §10.2 specifies, closing the gap this
+list carried since W3. `Kind` gains `version` and an optional `migrateState`; `Campaign` gains
+an optional `migrateState` for content-id renames — neither is a new port
+([06 §6](06-extensibility.md#6-adding-a-port)'s own rule rules that out, since a migration
+function's whole purpose is to change what `serialize()` produces. `SessionStore.saveGame`
+now stamps a real `SaveEnvelope` (`core/persistence/envelope.ts`) instead of a bare blob;
+`loadGame` verifies its checksum and all five stamped fields, dispatching to `Kind.migrateState`
+then `Campaign.migrateState` on a version mismatch, and failing loudly
+(`save_requires_migration` / `migration_failed`) when no migration path resolves one. Proven
+against a synthetic kind/campaign fixture, not a real Bulgaria campaign republish — every
+shipped campaign is still at `1.0.0`.
+- **Spec:** [04 §3](04-core.md#3-the-kind-interface--the-seam), [§10.2](04-core.md#102-save-envelope-and-migration); [06 §6](06-extensibility.md#6-adding-a-port).
+- **Depends on:** nothing engine-side.
+- **Status:** Done — PR pending.
+- **Done when:** every base-case save/load test still passes unmodified (the envelope is
+      transparent to `SessionStore`'s public surface); a kind-version mismatch with a
+      registered migration succeeds and flips `replayCompatible: false`; the same with no
+      migration registered fails loudly; a campaign-version mismatch does the same; both axes
+      moving at once run kind migration before campaign migration, proven by an ordering
+      guard, not just an assertion; a `saveFormatVersion`/`serializationVersion` mismatch fails
+      loudly (neither has ever moved); an `engineVersion` mismatch never gates a load; `npm run
+      typecheck && npm run lint && npm test` all pass.
+- **Plan:** [`plans/38-save-migration-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/38-save-migration-programme.md)
+
 ### Breadth: The First Culture Pack
 
 - [ ] Bulgaria culture pack over the simulation kind — Jones-in-Bulgaria content,
@@ -728,12 +753,6 @@ remaining calls for more structure. The ending's own prose is new, not adapted f
 > [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md).
 
 
-- [ ] **No unit owns the real migration mechanism.** W3's `Engine.migrate` is a
-      pass-through to `deserialize` — correct for now, since `MVP.md` §4 excludes
-      migration from the MVP and there is exactly one `formatVersion` in existence — but
-      the mechanism 04 §10.2 describes (detect a version mismatch, remap old ids, mark
-      `replayCompatible: false`) has no `W`-numbered unit building it. Post-MVP, before it's
-      needed. See `plans/09-w3-pure-engine-kernel.md` (repository root), Decision 5.
 - [ ] **`SessionHost`/`createSessionLayer` ([06 §4](06-extensibility.md#4-the-composition-root)) don't reconcile as written.**
       Moved to [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §2, since the replay regression oracle
       (W21) is now a second real call site that bypasses the same gap rather than closing it —

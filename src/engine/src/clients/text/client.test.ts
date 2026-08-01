@@ -25,7 +25,7 @@ function makeClient(): TextClient {
   if (!registryResult.ok || !registryResult.value) throw new Error("expected the real campaign to validate");
 
   const engine = createEngine({ kinds, registry: registryResult.value });
-  const store: SessionStore = createInMemorySessionStore({ engine, registry: registryResult.value });
+  const store: SessionStore = createInMemorySessionStore({ engine, registry: registryResult.value, kinds });
   return new TextClient(store);
 }
 

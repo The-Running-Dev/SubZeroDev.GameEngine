@@ -413,6 +413,7 @@ describe("validateCampaign — through buildValidatedContentRegistry (integratio
   function makeStoryGraphKind(): Kind<unknown> {
     return {
       id: "story-graph",
+      version: "1.0.0",
       reasonCodes: [],
       eventNames: [],
       initialState: () => ({ state: {}, status: "active", changes: [], messages: [] }),

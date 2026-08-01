@@ -28,6 +28,7 @@ import { project } from "./view.js";
 
 export const storyGraphKind: Kind<StoryGraphKindState> = {
   id: "story-graph",
+  version: "1.0.0",
   reasonCodes: STORY_GRAPH_REASON_CODES,
   eventNames: [
     "kind.story-graph.settle.step",

@@ -22,6 +22,7 @@ interface TestKindState {
 function makeTestKind(overrides?: Partial<Kind<TestKindState>>): Kind<TestKindState> {
   return {
     id: "story-graph",
+    version: "1.0.0",
     reasonCodes: [],
     eventNames: [],
     initialState: (): InitialStateResult<TestKindState> => ({

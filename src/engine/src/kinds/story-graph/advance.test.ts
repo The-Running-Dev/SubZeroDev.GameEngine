@@ -167,6 +167,7 @@ describe("story-graph kind — through the real engine (integration)", () => {
   function makeStoryGraphKind(): Kind<StoryGraphKindState> {
     return {
       id: "story-graph",
+      version: "1.0.0",
       reasonCodes: ["not_a_choice_node", "unexpected_params", "settle_guard_tripped", "unknown_condition_field"],
       eventNames: [
         "kind.story-graph.settle.step",

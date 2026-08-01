@@ -38,6 +38,7 @@ function buildJsonlStore(lines: string[]): SessionStore {
   return createInMemorySessionStore({
     engine,
     registry: registryResult.value,
+    kinds,
     recordSink: jsonlEmitter((line) => lines.push(line)),
   });
 }

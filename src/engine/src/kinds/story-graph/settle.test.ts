@@ -286,6 +286,7 @@ describe("initialState — through the real engine (integration)", () => {
   function makeStoryGraphKind(overrides: StubOverrides): Kind<StoryGraphKindState> {
     return {
       id: "story-graph",
+      version: "1.0.0",
       reasonCodes: ["settle_guard_tripped"],
       eventNames: [
         "kind.story-graph.settle.step",
