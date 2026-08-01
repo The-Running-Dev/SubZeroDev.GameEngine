@@ -119,16 +119,21 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   real call sites and zero real implementations of the specified abstraction. **Revisit when**
   a second `SessionStore` implementation is actually needed: the composition-root generality
   should be drawn from two real cases, not one and a specification.
-- **Enterprise's climax scene is already spent** — `games/bulgaria-adventure.md`'s arc table
-  assigns `games/bulgaria.md`'s "Ultimate Bulgarian Reward" scene, and by extension its
-  achievement, to the **Enterprise** arc. But `bulgaria-bureaucracy.ts` already consumes both
-  verbatim as its own ending (`endingId: "ultimate_reward"`, achievement `it_builds_character`)
-  — a real authoring decision from W15 the design doc was never updated to reflect. Whoever
-  builds Enterprise needs either new climax content and a new achievement id, or a decision
-  that Enterprise simply doesn't get one. Found while planning the Driving arc
-  (`plans/37-w27-bulgaria-driving-arc.md`), which sidesteps it rather than resolving it.
-  **Revisit when** Enterprise is actually scoped — this is a design decision, not a
-  content-authoring task, and belongs to whoever does that unit.
+- **Enterprise's climax scene was already spent — resolved by building it (W30).**
+  `games/bulgaria-adventure.md`'s arc table assigned `games/bulgaria.md`'s "Ultimate Bulgarian
+  Reward" scene, and by extension its achievement, to Enterprise — but `bulgaria-bureaucracy.ts`
+  had already consumed both verbatim as its own ending (`endingId: "ultimate_reward"`,
+  achievement `it_builds_character`), a real W15 authoring decision the design doc never caught
+  up to. Decided rather than deferred further: Enterprise gets **new** climax content (a
+  `debt_cents` running stat replacing the accumulation half of the named exercise, one shared
+  ending rather than a branch) and **no achievement** — the game's own Definition of Done needs
+  only "at least one" across the whole game, already satisfied by Bureaucracy's, so Enterprise
+  doesn't need its own to close the game's content requirement. Design proposed for sign-off
+  before implementation, given inventing narrative content the source material doesn't supply
+  is a bigger step than transcribing existing scenes. **Open remainder**: `games/bulgaria-
+  adventure.md` itself still assigns "Ultimate Reward" and the achievement to Enterprise —
+  that document lives in the companion `SubZeroDev.GameOfLife` repository, so correcting it is
+  a follow-up there, same treatment as the Return finding below.
 - **"Return seeds variables the other arcs read" isn't mechanically achievable — confirmed
   by building it (W28).** `games/bulgaria-adventure.md` says this of the Return arc, but every
   arc is built as its own standalone `Campaign` (confirmed by how Bureaucracy, Driving, and

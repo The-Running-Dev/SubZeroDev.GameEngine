@@ -1,0 +1,410 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`determinism harness — the real Enterprise campaign (04-core.md §14) > 'full arc, borrow_money (highest debt)': event stream is golden-filed 1`] = `
+[
+  {
+    "data": {
+      "streamId": "system:start:0",
+    },
+    "name": "core.rng.stream.derived",
+    "ordinal": 0,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "nodeId": "starting_a_business",
+      "nodeKind": "choice",
+      "visitCount": 1,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.node.entered",
+    "ordinal": 1,
+    "scope": "game",
+    "seq": 0,
+    "severity": "debug",
+  },
+  {
+    "data": {
+      "nodeId": "starting_a_business",
+      "nodeKind": "choice",
+      "step": 0,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.settle.step",
+    "ordinal": 2,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "campaignId": "bulgaria-enterprise",
+      "campaignVersion": "1.0.0",
+      "kindId": "story-graph",
+    },
+    "name": "core.game.created",
+    "ordinal": 3,
+    "scope": "game",
+    "seq": 0,
+    "severity": "info",
+  },
+  {
+    "data": {
+      "streamId": "action:0",
+    },
+    "name": "core.rng.stream.derived",
+    "ordinal": 0,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "nodeId": "entrepreneur",
+      "nodeKind": "choice",
+      "visitCount": 1,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.node.entered",
+    "ordinal": 1,
+    "scope": "game",
+    "seq": 0,
+    "severity": "debug",
+  },
+  {
+    "data": {
+      "nodeId": "entrepreneur",
+      "nodeKind": "choice",
+      "step": 0,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.settle.step",
+    "ordinal": 2,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "actionId": "offer_coffee",
+    },
+    "name": "core.action.accepted",
+    "ordinal": 3,
+    "scope": "game",
+    "seq": 0,
+    "severity": "info",
+  },
+  {
+    "data": {
+      "streamId": "action:1",
+    },
+    "name": "core.rng.stream.derived",
+    "ordinal": 0,
+    "scope": "game",
+    "seq": 1,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "nodeId": "ending",
+      "nodeKind": "ending",
+      "visitCount": 1,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.node.entered",
+    "ordinal": 1,
+    "scope": "game",
+    "seq": 1,
+    "severity": "debug",
+  },
+  {
+    "data": {
+      "nodeId": "ending",
+      "nodeKind": "ending",
+      "step": 0,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.settle.step",
+    "ordinal": 2,
+    "scope": "game",
+    "seq": 1,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "actionId": "borrow_money",
+    },
+    "name": "core.action.accepted",
+    "ordinal": 3,
+    "scope": "game",
+    "seq": 1,
+    "severity": "info",
+  },
+  {
+    "name": "core.game.ended",
+    "ordinal": 4,
+    "scope": "game",
+    "seq": 1,
+    "severity": "info",
+  },
+]
+`;
+
+exports[`determinism harness — the real Enterprise campaign (04-core.md §14) > 'full arc, borrow_money (highest debt)': serialize() output is golden-filed 1`] = `"{"actionLog":[{"actionId":"offer_coffee","seq":0},{"actionId":"borrow_money","seq":1}],"campaignId":"bulgaria-enterprise","campaignVersion":"1.0.0","formatVersion":1,"gameId":"fixed-game-id","kindId":"story-graph","kindState":{"currentNodeId":"ending","endingId":"a_permanent_line_item","turn":2,"unlockedAchievements":[],"variables":{"debt_cents":20000},"visitedCounts":{"ending":1,"entrepreneur":1,"starting_a_business":1}},"seed":"enterprise-seed-1","status":"ended"}"`;
+
+exports[`determinism harness — the real Enterprise campaign (04-core.md §14) > 'full arc, discover_entrepreneurship (…': event stream is golden-filed 1`] = `
+[
+  {
+    "data": {
+      "streamId": "system:start:0",
+    },
+    "name": "core.rng.stream.derived",
+    "ordinal": 0,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "nodeId": "starting_a_business",
+      "nodeKind": "choice",
+      "visitCount": 1,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.node.entered",
+    "ordinal": 1,
+    "scope": "game",
+    "seq": 0,
+    "severity": "debug",
+  },
+  {
+    "data": {
+      "nodeId": "starting_a_business",
+      "nodeKind": "choice",
+      "step": 0,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.settle.step",
+    "ordinal": 2,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "campaignId": "bulgaria-enterprise",
+      "campaignVersion": "1.0.0",
+      "kindId": "story-graph",
+    },
+    "name": "core.game.created",
+    "ordinal": 3,
+    "scope": "game",
+    "seq": 0,
+    "severity": "info",
+  },
+  {
+    "data": {
+      "streamId": "action:0",
+    },
+    "name": "core.rng.stream.derived",
+    "ordinal": 0,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "nodeId": "entrepreneur",
+      "nodeKind": "choice",
+      "visitCount": 1,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.node.entered",
+    "ordinal": 1,
+    "scope": "game",
+    "seq": 0,
+    "severity": "debug",
+  },
+  {
+    "data": {
+      "nodeId": "entrepreneur",
+      "nodeKind": "choice",
+      "step": 0,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.settle.step",
+    "ordinal": 2,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "actionId": "hide",
+    },
+    "name": "core.action.accepted",
+    "ordinal": 3,
+    "scope": "game",
+    "seq": 0,
+    "severity": "info",
+  },
+  {
+    "data": {
+      "streamId": "action:1",
+    },
+    "name": "core.rng.stream.derived",
+    "ordinal": 0,
+    "scope": "game",
+    "seq": 1,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "nodeId": "ending",
+      "nodeKind": "ending",
+      "visitCount": 1,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.node.entered",
+    "ordinal": 1,
+    "scope": "game",
+    "seq": 1,
+    "severity": "debug",
+  },
+  {
+    "data": {
+      "nodeId": "ending",
+      "nodeKind": "ending",
+      "step": 0,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.settle.step",
+    "ordinal": 2,
+    "scope": "game",
+    "seq": 1,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "actionId": "discover_entrepreneurship",
+    },
+    "name": "core.action.accepted",
+    "ordinal": 3,
+    "scope": "game",
+    "seq": 1,
+    "severity": "info",
+  },
+  {
+    "name": "core.game.ended",
+    "ordinal": 4,
+    "scope": "game",
+    "seq": 1,
+    "severity": "info",
+  },
+]
+`;
+
+exports[`determinism harness — the real Enterprise campaign (04-core.md §14) > 'full arc, discover_entrepreneurship (…': serialize() output is golden-filed 1`] = `"{"actionLog":[{"actionId":"hide","seq":0},{"actionId":"discover_entrepreneurship","seq":1}],"campaignId":"bulgaria-enterprise","campaignVersion":"1.0.0","formatVersion":1,"gameId":"fixed-game-id","kindId":"story-graph","kindState":{"currentNodeId":"ending","endingId":"a_permanent_line_item","turn":2,"unlockedAchievements":[],"variables":{"debt_cents":0},"visitedCounts":{"ending":1,"entrepreneur":1,"starting_a_business":1}},"seed":"enterprise-seed-1","status":"ended"}"`;
+
+exports[`determinism harness — the real Enterprise campaign (04-core.md §14) > 'mid-arc, non-terminal': event stream is golden-filed 1`] = `
+[
+  {
+    "data": {
+      "streamId": "system:start:0",
+    },
+    "name": "core.rng.stream.derived",
+    "ordinal": 0,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "nodeId": "starting_a_business",
+      "nodeKind": "choice",
+      "visitCount": 1,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.node.entered",
+    "ordinal": 1,
+    "scope": "game",
+    "seq": 0,
+    "severity": "debug",
+  },
+  {
+    "data": {
+      "nodeId": "starting_a_business",
+      "nodeKind": "choice",
+      "step": 0,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.settle.step",
+    "ordinal": 2,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "campaignId": "bulgaria-enterprise",
+      "campaignVersion": "1.0.0",
+      "kindId": "story-graph",
+    },
+    "name": "core.game.created",
+    "ordinal": 3,
+    "scope": "game",
+    "seq": 0,
+    "severity": "info",
+  },
+  {
+    "data": {
+      "streamId": "action:0",
+    },
+    "name": "core.rng.stream.derived",
+    "ordinal": 0,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "nodeId": "entrepreneur",
+      "nodeKind": "choice",
+      "visitCount": 1,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.node.entered",
+    "ordinal": 1,
+    "scope": "game",
+    "seq": 0,
+    "severity": "debug",
+  },
+  {
+    "data": {
+      "nodeId": "entrepreneur",
+      "nodeKind": "choice",
+      "step": 0,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.settle.step",
+    "ordinal": 2,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "actionId": "ask_who_invited_them",
+    },
+    "name": "core.action.accepted",
+    "ordinal": 3,
+    "scope": "game",
+    "seq": 0,
+    "severity": "info",
+  },
+]
+`;
+
+exports[`determinism harness — the real Enterprise campaign (04-core.md §14) > 'mid-arc, non-terminal': serialize() output is golden-filed 1`] = `"{"actionLog":[{"actionId":"ask_who_invited_them","seq":0}],"campaignId":"bulgaria-enterprise","campaignVersion":"1.0.0","formatVersion":1,"gameId":"fixed-game-id","kindId":"story-graph","kindState":{"currentNodeId":"entrepreneur","turn":1,"unlockedAchievements":[],"variables":{"debt_cents":0},"visitedCounts":{"entrepreneur":1,"starting_a_business":1}},"seed":"enterprise-seed-1","status":"active"}"`;

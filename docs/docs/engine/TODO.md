@@ -653,8 +653,37 @@ settle it" (`outcome: "win"`).
       round-trips; the determinism harness's sink-independence and replay-byte-identity checks
       pass; test count grows from 43 files/497 tests.
 
-- [ ] The remaining arc (Enterprise).
-- [ ] Its full Definition of Done: `games/bulgaria-adventure.md`.
+### [x] W30 — Bulgaria Adventure: The Enterprise Arc
+The fifth and final real arc: `src/engine/src/campaigns/bulgaria-enterprise.ts`, authored from
+`games/bulgaria.md`'s "Starting a Business" and "Entrepreneur" scenes only — the arc's own third
+scene, "Ultimate Reward," and its "It Builds Character" achievement, are already spent by
+Bureaucracy (`OPEN-QUESTIONS.md` §2, found during W27). Design proposed for sign-off before
+implementation, since inventing closing content is a bigger step than transcribing existing
+scenes: `debt_cents` (int, visible) carries what remains of the named exercise
+("accumulating debt"), as a running stat in the same idiom as Bureaucracy's own counters, not a
+gate; no achievement, since the game's Definition of Done needs only "at least one" across the
+whole game; one shared ending rather than a branch, since `games/bulgaria-adventure.md` names
+"an ending" for this arc singular, same as the others, and with the achievement gone nothing
+remaining calls for more structure. The ending's own prose is new, not adapted from any
+`bulgaria.md` scene, since the one this arc was assigned is unavailable.
+
+**All five Bulgaria Adventure arcs are now built** — Bureaucracy (MVP), Driving (W27), Return
+(W28), Inheritance (W29), Enterprise (W30).
+- **Spec:** `games/bulgaria.md`, `games/bulgaria-adventure.md`.
+- **Depends on:** nothing engine-side — content only, same as W27–W29.
+- **Status:** Done — [PR #89](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/89).
+- **Done when:** all four `starting_a_business` choices proceed to `entrepreneur`; each
+      `entrepreneur` choice's `debt_cents` effect is confirmed independently (0, 5000, or
+      20000) and all four reach the one ending; `serialize()` output for the high-debt and
+      no-debt paths is golden-filed and round-trips; the determinism harness's
+      sink-independence and replay-byte-identity checks pass; test count grows from 45
+      files/537 tests.
+
+- [ ] Its full Definition of Done beyond content: `games/bulgaria-adventure.md` lists MCP
+      parity, gated choices, seeded random, achievement persistence, save/load, validation, and
+      byte-identical replay as separate checkboxes, but all seven are platform capabilities
+      already proven generically (W7, W14, W16–W18) against Bureaucracy and re-exercised by
+      every arc's own test suite since — not separate work per arc.
 
 ### Breadth: The First Culture Pack
 
