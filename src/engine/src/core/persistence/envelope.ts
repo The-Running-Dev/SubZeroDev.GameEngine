@@ -24,8 +24,19 @@ import type { CommandResult } from "../kernel/reasons.js";
 export const CURRENT_SAVE_FORMAT_VERSION = 1;
 export const CURRENT_SERIALIZATION_VERSION = 1;
 
-export function computeChecksum(serializedState: string): string {
-  return createHash("sha256").update(serializedState).digest("hex");
+export function computeChecksum(serializedContent: string): string {
+  return createHash("sha256").update(serializedContent).digest("hex");
+}
+
+/**
+ * What the checksum actually covers: `state` plus `replayCompatible`. The latter has no
+ * other cross-check protecting it (unlike `kindId`/`campaignId`, verified against each
+ * other and the embedded state below) — without it here, flipping a migrated save's
+ * `replayCompatible` from `false` back to `true` in the stored blob would silently defeat
+ * the sticky-forward guarantee §10.2 documents.
+ */
+function checksummedContent(state: GameState, replayCompatible: boolean): string {
+  return canonicalStringify({ state, replayCompatible });
 }
 
 export interface BuildSaveEnvelopeParams {
@@ -39,7 +50,7 @@ export interface BuildSaveEnvelopeParams {
 
 export function buildSaveEnvelope(params: BuildSaveEnvelopeParams): SaveEnvelope {
   const { state, kind, campaign, replayCompatible } = params;
-  const checksum = computeChecksum(canonicalStringify(state));
+  const checksum = computeChecksum(checksummedContent(state, replayCompatible));
   return {
     saveFormatVersion: CURRENT_SAVE_FORMAT_VERSION,
     serializationVersion: CURRENT_SERIALIZATION_VERSION,
@@ -129,7 +140,7 @@ export function resolveSaveEnvelope(blob: string, kinds: KindRegistry, registry:
     return { ok: false, code: "invalid_state" };
   }
 
-  if (computeChecksum(canonicalStringify(parsed.state)) !== parsed.checksum) {
+  if (computeChecksum(checksummedContent(parsed.state, parsed.replayCompatible)) !== parsed.checksum) {
     return { ok: false, code: "invalid_state" };
   }
 

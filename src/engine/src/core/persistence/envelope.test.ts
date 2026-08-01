@@ -129,7 +129,7 @@ describe("buildSaveEnvelope / resolveSaveEnvelope — no mismatch", () => {
     expect(envelope.engineVersion).toBe(ENGINE_VERSION);
     expect(envelope.saveFormatVersion).toBe(CURRENT_SAVE_FORMAT_VERSION);
     expect(envelope.serializationVersion).toBe(CURRENT_SERIALIZATION_VERSION);
-    expect(envelope.checksum).toBe(computeChecksum(canonicalStringify(BASE_STATE)));
+    expect(envelope.checksum).toBe(computeChecksum(canonicalStringify({ state: BASE_STATE, replayCompatible: true })));
   });
 
   it("a tampered state fails checksum verification as invalid_state", () => {
@@ -300,5 +300,12 @@ describe("resolveSaveEnvelope — replayCompatible is sticky", () => {
   it("stays false on a matching-version load if the envelope was already replayCompatible: false", () => {
     const resolution = resolveSaveEnvelope(v1Blob(false), makeKinds(makeKind("1.0.0")), makeRegistry(makeCampaign("1.0.0")));
     expect(resolution).toEqual({ ok: true, state: BASE_STATE, replayCompatible: false });
+  });
+
+  it("rejects as invalid_state if replayCompatible is flipped false → true in the stored blob — the checksum covers it too", () => {
+    const parsed = JSON.parse(v1Blob(false)) as Record<string, unknown>;
+    parsed["replayCompatible"] = true;
+    const resolution = resolveSaveEnvelope(JSON.stringify(parsed), makeKinds(makeKind("1.0.0")), makeRegistry(makeCampaign("1.0.0")));
+    expect(resolution).toEqual({ ok: false, code: "invalid_state" });
   });
 });
