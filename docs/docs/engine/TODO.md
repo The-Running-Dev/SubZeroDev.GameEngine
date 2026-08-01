@@ -775,7 +775,7 @@ upstream section this contract needs except the last unit's own (`ActionType`/`G
 - **Spec:** [10 §7](10-simulation-kind.md#7-content-definition-types), [§8](10-simulation-kind.md#8-conditions-and-requirements),
       [§15](10-simulation-kind.md#15-what-remains-upstream-and-why).
 - **Depends on:** [W33](#x-w33--simulation-kind-actor-state).
-- **Status:** Done — PR pending.
+- **Status:** Done — [PR #96](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/96).
 - **Done when:** every content type upstream §14.1–§14.9 names has a full shape in this
       repository, with identity fields (`id`/`version`/`titleKey`) excluded per the
       envelope-duplication rule; `Modifier`'s `multiply` semantics are stated precisely
