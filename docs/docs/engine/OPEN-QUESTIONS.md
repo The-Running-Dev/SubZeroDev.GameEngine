@@ -64,6 +64,16 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   (10 §15). The same question arises for `world-graph`, which declines `history`
   on identical grounds ([`12-world-graph-kind.md`](12-world-graph-kind.md)
   §3) — resolve both together or not at all.
+- **`ChainScope`'s `"profile"` value has nowhere to persist** — a `"profile"`-scoped event
+  chain (10 §2.2) is meant to survive past the game it started in and advance on cumulative
+  weeks played across every game under one profile, but the only cross-game store this
+  platform has is `PlayerProfile` (04 §7.1: `{ formatVersion, profileId, achievements }`),
+  which has no field for arbitrary kind-declared profile-scoped data. Found while porting
+  `WorldState` (10 §2.2, the field-detail port `plans/36-simulation-kind-programme.md` calls
+  W27). **Revisit when** a unit actually needs a `"profile"`-scoped chain to persist —
+  specifying a mechanism generically now, with exactly one (still-hypothetical) consumer,
+  would be the same one-built-instance-is-not-a-pattern reasoning this register already
+  applies to `createSessionLayer` and the tick-pipeline substrate.
 - **`previewAction`, and the tenth API operation it implies** — a spatial kind must be able
   to check a parameterized action before committing it, and the only check available today
   is to submit and rely on rejection leaving state unchanged (04 §4). That routes a read

@@ -710,6 +710,32 @@ shipped campaign is still at `1.0.0`.
       typecheck && npm run lint && npm test` all pass.
 - **Plan:** [`plans/38-save-migration-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/38-save-migration-programme.md)
 
+### [x] W32 — Simulation Kind: State Types
+The first contract unit of the simulation-kind programme
+([`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md),
+proposed there as W27). Doc-only — ports upstream §5.1, §5.3–§5.6 and §9.1 into
+`10-simulation-kind.md` as new §2.1–§2.5 and §4.1: `CalendarState`, `WorldState` (with its
+world-strangeness and chain-scope subsections), `StatusEffect`/`Opportunity`/`ScheduledEvent`/
+`PendingEventResponse` (with both lifecycle subsections), `GoalState`, `EconomyState`, and
+`WeeklyActionPlan`'s own shape. Introduces this kind's `Cents`/`BasisPoints` primitives and its
+sorted-`Record`-iteration rule, both reused by later units. Eight of `SimulationKindState`'s ten
+fields are now specified in this repository; only `PlayerState` (W28, next) and the `GameAction`
+schema `WeeklyActionPlan.actions` holds (W30) remain.
+- **Spec:** [10 §2](10-simulation-kind.md#2-kindstate--what-belongs-here), [§4.1](10-simulation-kind.md#41-the-weekly-action-plan),
+      [§15](10-simulation-kind.md#15-what-remains-upstream-and-why).
+- **Depends on:** [W25](#x-w25--simulation-kind-seam-reconciliation) (the seam must be complete
+      before field detail hangs off it, per `plans/36`).
+- **Status:** Done — PR pending.
+- **Done when:** every field named in `SimulationKindState` (§2) except `PlayerState` has a
+      full type restated in this repository, reconciled against envelope-duplication and
+      forward-referencing not-yet-ported types (`NPCState`, `AgentState`, `GameAction`,
+      `Modifier`, `OpportunityDefinition`) by name rather than inventing placeholder shapes;
+      §15's table drops the rows this unit closes and gains no new ones; a genuine new open
+      item found during the port (`ChainScope`'s `"profile"` value has nowhere to persist) is
+      recorded in `OPEN-QUESTIONS.md`, not silently absorbed or dropped; no file under
+      `src/engine/` changes; `build/Test-Documentation.ps1` passes.
+- **Plan:** [`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md)
+
 ### Breadth: The First Culture Pack
 
 - [ ] Bulgaria culture pack over the simulation kind — Jones-in-Bulgaria content,
