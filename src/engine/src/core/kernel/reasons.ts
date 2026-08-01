@@ -45,6 +45,16 @@ export type ReasonCode = string;
  * they mirror `ProfileWarningCode` (`session/types.ts`) so a `ProfileWarning` can be
  * adapted into a `ValidationWarning` and surfaced through `SessionActionResult.warnings`,
  * the only channel available to report one. See `plans/15-w8-profile-store.md`, Decision 2.
+ *
+ * `save_requires_migration` and `migration_failed` were added during W31 — `SessionStore`'s
+ * `loadGame` (`session/store.ts`) needs a code for, respectively, a version mismatch with no
+ * migration path registered (an envelope/serializer axis, which never has one; or a kind/
+ * campaign axis with no `migrateState` supplied) and a registered migration that itself
+ * returned failure. Neither travels through `CommandResult` today — `SaveHandle`/
+ * `SessionHandle` have no error channel (same reasoning as `createSession`'s throw,
+ * `plans/14-w7-session-store.md`, Design item 1) — but both are registered here anyway so
+ * the vocabulary and its localized message live in one place, ready for whenever a real
+ * error channel exists. See `plans/38-save-migration-programme.md`.
  */
 export const BASE_REASON_CODES = [
   "action_not_available",
@@ -66,6 +76,8 @@ export const BASE_REASON_CODES = [
   "profile_missing",
   "profile_corrupt",
   "profile_write_failed",
+  "save_requires_migration",
+  "migration_failed",
 ] as const;
 
 export type BaseReasonCode = (typeof BASE_REASON_CODES)[number];
@@ -96,6 +108,8 @@ const CORE_REASON_TEXT: Readonly<Record<BaseReasonCode, string>> = {
   profile_missing: "No saved profile was found; starting with an empty one.",
   profile_corrupt: "The saved profile couldn't be read; starting with an empty one.",
   profile_write_failed: "The profile couldn't be saved. Your game progress was not affected.",
+  save_requires_migration: "This save was made under a version this build can't read, and no migration is available for it.",
+  migration_failed: "This save's migration failed. Your progress was not affected.",
 };
 
 /** `core.reason.<code>` → its shipped default-English message, for every base code. */

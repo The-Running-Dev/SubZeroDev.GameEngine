@@ -15,6 +15,7 @@ function built(campaign: Campaign, strings: Record<string, string> = { "test.tit
 function makeStubKind(overrides?: Partial<Kind<unknown>>): Kind<unknown> {
   return {
     id: "story-graph",
+    version: "1.0.0",
     reasonCodes: [],
     eventNames: [],
     initialState: () => ({ state: {}, status: "active", changes: [], messages: [] }),

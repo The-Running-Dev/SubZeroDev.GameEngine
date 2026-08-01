@@ -111,6 +111,10 @@ export interface InitialStateResult<KState> {
  */
 export interface Kind<KState> {
   readonly id: KindId;
+  /** A kind's code can change independently of the engine (04 §10.2) — manually
+   *  maintained semver, the same convention `Campaign.version` already uses. Read by
+   *  `SaveEnvelope.kindVersion` (10 §10.2) at the save boundary, nowhere inside `advance`. */
+  readonly version: string;
   /** Codes this kind adds to the base set. Each needs a localized message or registry
    *  validation fails. */
   readonly reasonCodes: readonly ReasonCode[];
@@ -141,6 +145,15 @@ export interface Kind<KState> {
   /** Cross-version-stable terminal identity — published ids only, never values, so a
    *  balance pass cannot read as a regression (07 §3.3–§3.4). */
   outcome(state: KState): unknown;
+
+  /**
+   * Migrates a `KState` produced under an older `version` forward to this one, when the
+   * state's own shape changed (10 §10.2). Optional — most version bumps don't change the
+   * shape a save references. Invoked only by the save-load boundary (`SessionStore`),
+   * never by `advance`; a missing function on a version mismatch fails the load loudly
+   * rather than silently proceeding with a state this version wasn't written to read.
+   */
+  migrateState?(oldState: unknown, fromVersion: string): CommandResult<KState>;
 }
 
 /** A fixed, engine-owned set. A missing kind is a construction error. */
@@ -203,6 +216,12 @@ export interface NewGameConfig {
 /** Kind-agnostic operations over the envelope. Resolves the kind by `state.kindId`,
  *  derives the RNG handle, delegates, and reassembles. */
 export interface Engine {
+  /** The same `KindRegistry` this engine resolves `state.kindId` against — exposed so a
+   *  caller needing kind metadata outside gameplay (`SessionStore`'s `SaveEnvelope`
+   *  stamping/migration, W31) reads it off the one `Engine` it already holds, rather than
+   *  taking a second, independently-suppliable `kinds` option that could silently
+   *  disagree with what this engine actually plays against. */
+  readonly kinds: KindRegistry;
   createGame(config: NewGameConfig): CommandResult<GameState>;
   scene(state: GameState): Scene;
   view(state: GameState, audience: ProjectionAudience): PlayerView;

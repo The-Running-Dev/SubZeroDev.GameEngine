@@ -11,6 +11,7 @@
 
 import type { LocKey } from "../localization/types.js";
 import type { KindId } from "../kernel/types.js";
+import type { CommandResult } from "../kernel/reasons.js";
 
 export interface ContentRegistry {
   readonly campaigns: ReadonlyMap<string, Campaign>;
@@ -30,6 +31,16 @@ export interface Campaign {
   titleKey: LocKey;
   /** Kind-specific; opaque to the core. */
   content: unknown;
+
+  /**
+   * Migrates a `kindState` forward when this campaign's own content ids or shape changed
+   * between `fromVersion` and this `Campaign.version` (04 §10.2) — e.g. a node or
+   * achievement id rename. Optional — most version bumps rename nothing a save
+   * references. Runs at the save-load boundary only, after any `Kind.migrateState` (a
+   * kind-state shape change is a precondition for content remapping to address the right
+   * fields), never during `advance`.
+   */
+  migrateState?(kindState: unknown, fromVersion: string): CommandResult<unknown>;
 }
 
 /** One authored string, before it is lifted into the string table. */

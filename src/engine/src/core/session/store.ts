@@ -19,6 +19,7 @@ import type {
 } from "../kernel/types.js";
 import type { StateChange } from "../kernel/reasons.js";
 import type { ContentRegistry } from "../registry/types.js";
+import { buildSaveEnvelope, resolveSaveEnvelope, serializeSaveEnvelope } from "../persistence/envelope.js";
 import type { PlayerView, ProjectionAudience } from "../projection/types.js";
 import type { StringTable } from "../localization/types.js";
 import type { ValidationWarning } from "../validation/types.js";
@@ -50,6 +51,10 @@ interface SessionRecord {
   /** Set once at `createSession`, never swapped (06 §4's "supplied once" convention).
    *  Omitted → anonymous session: no profile read, no profile write (04 §7.1). */
   profileId?: string;
+  /** False once this lineage has passed through a migrated `loadGame` — sticky forward,
+   *  never reset (04 §10.2: a migrated save is no longer byte-replayable). Stamped into
+   *  the next `SaveEnvelope` this session's `saveGame` produces. */
+  replayCompatible: boolean;
 }
 
 /**
@@ -182,6 +187,11 @@ function mustDeserialize(engine: Engine, blob: string): GameState {
 
 export function createInMemorySessionStore(options: InMemorySessionStoreOptions): SessionStore {
   const { engine, registry } = options;
+  // Read off `engine` rather than taken as a second, independently-suppliable option
+  // (Qodo review, PR #92) — this is the same `KindRegistry` every gameplay call already
+  // resolves `state.kindId` against, so `saveGame`/`loadGame`'s stamping and migration
+  // dispatch structurally cannot disagree with it.
+  const kinds = engine.kinds;
   const clock = options.clock ?? defaultClock;
   const recordSink = options.recordSink ?? noopRecordSink;
 
@@ -306,6 +316,7 @@ export function createInMemorySessionStore(options: InMemorySessionStoreOptions)
           blob: decoratedEngine.serialize(state),
           audience,
           attemptCounter: 0,
+          replayCompatible: true,
           ...(config.profileId !== undefined ? { profileId: config.profileId } : {}),
         });
         return { sessionId, scene: decoratedEngine.scene(state) };
@@ -381,8 +392,22 @@ export function createInMemorySessionStore(options: InMemorySessionStoreOptions)
       return runExclusive(sessionLocks, sessionId, () =>
         withCommand(sessionId, record.attemptCounter, (decoratedEngine) => {
           const state = mustDeserialize(decoratedEngine, record.blob);
+          const campaign = registry.campaigns.get(state.campaignId);
+          const kind = kinds[state.kindId];
+          if (!campaign || !kind) {
+            // Defensive, same class as mustDeserialize's own throw above: a state this
+            // engine just resolved (deserializeState checks both campaignId and kindId)
+            // cannot fail either lookup except through store corruption.
+            throw new Error("session store: saveGame — resolved state's campaign or kind is missing from the registry");
+          }
+          const envelope = buildSaveEnvelope({ state, kind, campaign, replayCompatible: record.replayCompatible });
           const saveId = mintId();
-          saves.set(saveId, { saveId, blob: record.blob, savedAtSeq: state.actionLog.length, audience: record.audience });
+          saves.set(saveId, {
+            saveId,
+            blob: serializeSaveEnvelope(envelope),
+            savedAtSeq: state.actionLog.length,
+            audience: record.audience,
+          });
           return { saveId, savedAtSeq: state.actionLog.length };
         }),
       );
@@ -393,10 +418,26 @@ export function createInMemorySessionStore(options: InMemorySessionStoreOptions)
       const sessionId = mintId();
 
       return withCommand(sessionId, 0, (decoratedEngine) => {
-        const state = mustDeserialize(decoratedEngine, save.blob);
+        const resolution = resolveSaveEnvelope(save.blob, kinds, registry);
+        if (!resolution.ok) {
+          // No CommandResult channel on SaveHandle/SessionHandle to report this through —
+          // same reasoning as createSession's throw above (plan 14, Design item 1).
+          throw new Error(`session store: loadGame rejected — ${resolution.code}`);
+        }
+        // Re-validated through the engine's own deserialize — the same boundary check and
+        // event emission every other state entering a session goes through, rather than
+        // envelope.ts's own checks (necessarily narrower: they only need enough to compare
+        // versions) standing in as a second, parallel guarantee.
+        const state = mustDeserialize(decoratedEngine, decoratedEngine.serialize(resolution.state));
         // The saved audience round-trips through SaveRecord (set in saveGame above) —
         // a session created with audience: "ai" must still be "ai" after save/load.
-        sessions.set(sessionId, { sessionId, blob: save.blob, audience: save.audience, attemptCounter: 0 });
+        sessions.set(sessionId, {
+          sessionId,
+          blob: decoratedEngine.serialize(state),
+          audience: save.audience,
+          attemptCounter: 0,
+          replayCompatible: resolution.replayCompatible,
+        });
         return { sessionId, scene: decoratedEngine.scene(state) };
       });
     },
