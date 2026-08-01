@@ -736,6 +736,29 @@ schema `WeeklyActionPlan.actions` holds (W30) remain.
       `src/engine/` changes; `build/Test-Documentation.ps1` passes.
 - **Plan:** [`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md)
 
+### [x] W33 — Simulation Kind: Actor State
+The second contract unit of the simulation-kind programme
+([`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md),
+proposed there as W28). Doc-only — ports upstream §7 and §8.1–§8.9 into `10-simulation-kind.md`
+as new §6.1–§6.11: the base/derived-value layer (`DerivedPath`, application order, stacking,
+expiry), the shared `ActorState`/`PlayerState` shape, and its nine areas (identity, finances,
+needs, attributes, education, career, housing, inventory, relationships). `ActorState` comes
+over whole, shared verbatim by the player and every rival (`plans/36` Finding 1) — not ported
+"for the player" with rival support deferred. Every field `SimulationKindState` (§2) names now
+has a full shape in this repository.
+- **Spec:** [10 §6](10-simulation-kind.md#6-player-state), [§15](10-simulation-kind.md#15-what-remains-upstream-and-why).
+- **Depends on:** [W32](#x-w32--simulation-kind-state-types).
+- **Status:** Done — [PR #95](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/95).
+- **Done when:** `ActorState`'s open-keyed `Record` fields (`skills`, `reputation`, `flags`,
+      `counters`) are explicitly reconciled against `02-architecture.md` N6 ("the loose bag is
+      banned") rather than left to look like an unexamined exception; not-yet-ported types
+      (`AgentState`, `NPCState`, `JobDefinition`, `CourseDefinition`, `HousingDefinition`,
+      `ItemDefinition`, `BackgroundDefinition`) are forward-referenced by name; the integer
+      `0–100` range rule for needs/skills/attributes/reputation is stated somewhere, not
+      silently dropped; §15's table drops every row this unit closes; no file under
+      `src/engine/` changes; `build/Test-Documentation.ps1` passes.
+- **Plan:** [`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md)
+
 ### Breadth: The First Culture Pack
 
 - [ ] Bulgaria culture pack over the simulation kind — Jones-in-Bulgaria content,

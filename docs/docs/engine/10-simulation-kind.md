@@ -539,14 +539,420 @@ consequences 05 §5 and 07 §3.1 describe.
 ## 6. Player State
 
 Nine areas: identity, finances, needs, attributes, education, career, housing, inventory,
-relationships (upstream §8.1–§8.9).
+relationships (upstream §8.1–§8.9), plus the base/derived-value layer they read through
+(upstream §7). Both are ported below — the field-level port
+`plans/36-simulation-kind-programme.md` calls **W28** (assigned as a real `W` number when this
+unit is cut), sized against upstream §7 and §8.1–§8.9.
 
-**Field detail is not restated here** (§15). What this contract fixes is where they live —
-inside `SimulationKindState.player`, opaque to the core — and two engine-level rules:
+- **Money is integer cents; rates are integer basis points** — `Cents`/`BasisPoints` (§2),
+  used throughout finances, career and housing below.
+- **Derived values are computed, never stored** (§6.1) — for the reason in §2: a stored
+  derived value can disagree with what it's derived from, and the disagreement is
+  unresolvable.
 
-- **Money is integer cents.** No floating point in state; the determinism guard bans the
-  non-bit-stable `Math.*` functions for the same reason.
-- **Derived values are computed, never stored** (upstream §7), for the reason in §2.
+### 6.1 Base and Derived Values
+
+**State stores base values. Modifiers never write to state.** A derived value is computed on
+read by applying every active modifier over the base — the fix for a defect upstream's earlier
+revisions had: a modifier that *sets* a need to a fixed value for three weeks has nothing to
+restore when it expires, if the base was overwritten rather than layered over.
+
+```typescript
+type DerivedPath =
+  | `player.needs.${NeedKey}`                     // §6.5
+  | `player.attributes.${keyof AttributeState}`    // §6.6
+  | `player.skills.${string}`
+  | "player.housing.quality"                       // §6.9
+  | "player.career.effectivePerformance"           // §6.8
+  | "calendar.energyRecoveryRate"
+  | "world.strangeness";                           // §2.2
+
+interface DerivedValueResolver {
+  resolve(path: DerivedPath, base: number, effects: StatusEffect[]): number;
+  isReadOnly(path: string): boolean;
+}
+```
+
+`DerivedPath` is a closed union — the same reason `ActionType` is (§9, once ported): it is what
+lets Tier 1 validation (§14) reject a `Modifier` targeting a derived field at load time, rather
+than discovering it at runtime. A path can name a value with no literal stored counterpart
+(`career.effectivePerformance`, `calendar.energyRecoveryRate`) precisely because it is
+derived — computing it does not require anything to have been written down first.
+
+**Application order is fixed:**
+
+```text
+1. base value
+2. all `add` and `subtract` modifiers, summed
+3. all `multiply` modifiers, multiplied
+4. `set` overrides, highest priority wins; ties broken by earliest appliedWeek
+5. clamp to the field's declared range
+```
+
+**Stacking** is governed by `StatusEffect.stacking` (§2.3): a second effect from the same
+`sourceId` with `"refresh"` replaces the first and resets its expiry; `"stack"` adds a second,
+independent layer. Two different sources always stack.
+
+**Expiry** is removal from `activeEffects` at the *start* of the week following
+`expiresAtWeek` (the `effects` entry in §3's start-of-week order) — an effect expiring in week
+12 still applies throughout week 12. Because nothing was ever overwritten, expiry has nothing
+to undo; the derived value simply recomputes against a shorter effect list.
+
+Derived paths are read-only: a `Modifier` or content effect targeting one is a Tier 1
+validation error (`read_only_field`, already a base reason code).
+
+> **Provisional, not settled.** Resolving a derived value on every access costs against a
+> performance budget this contract does not itself set a number for. The assumed mitigation is
+> memoizing per week per path, invalidated when `activeEffects` changes — carried from
+> upstream as the intended strategy, not yet measured against anything real in this repository.
+> If it turns out wrong, the caching strategy changes; the layer model above does not.
+
+### 6.2 The Shared Actor Shape
+
+**The player and every rival share one shape.** A rival obeying different mechanics than the
+player would be undetectable drift, not a feature — the only way to guarantee identical rules
+structurally is for both to run the same state through the same systems.
+
+```typescript
+interface ActorState {
+  identity: ActorIdentity;          // §6.3
+  currentLocationId: string;
+  finances: FinancialState;         // §6.4
+  needs: NeedState;                 // §6.5
+  attributes: AttributeState;       // §6.6
+
+  education: EducationState;        // §6.7
+  career: CareerState;              // §6.8
+  housing: HousingState;            // §6.9
+
+  inventory: InventoryItem[];       // §6.10
+  relationships: RelationshipState[]; // §6.11
+
+  skills: Record<string, number>;
+  traits: string[];
+  reputation: Record<string, number>;
+
+  flags: Record<string, boolean>;
+  counters: Record<string, number>;  // hidden — never appears in a projection
+}
+
+/** The player is an actor. Alias kept for readability at call sites. */
+type PlayerState = ActorState;
+```
+
+`SimulationKindState.player: PlayerState` (§2) is this same shape; a rival is
+`AgentState.actor: ActorState` (§7 once ported, upstream §14.9) — identical fields, run through
+identical resolvers. Porting "player state" narrowly and adding rival support later was
+considered and rejected: it would produce a shape that has to be re-derived the moment a rival
+exists, rather than one written correctly once.
+
+**Needs, skills, attributes and reputation values are integers in `0–100`**, matching this
+kind's numeric-representation rule (§2.1's `Cents`/`BasisPoints` sit beside this same rule
+upstream). Not a type-level constraint — `number` cannot express a bounded integer range in
+TypeScript — so it is enforced the same way every other declared range in this kind is: Tier 1
+validation once the relevant content type exists to declare the bound against (§14), and typed
+reducers that clamp on write, never a raw assignment.
+
+**`skills`, `reputation`, `flags` and `counters` are open-keyed `Record`s, not a violation of
+"the loose bag is banned" (`02-architecture.md` N6).** N6's own reasoning names what it
+protects against: *this kind's* typed-reducer discipline (§5 — `StateChange` is emitted only by
+typed reducers, never an arbitrary mutation), which is the mechanism story-graph's
+`VariableSchema` (03 §2) exists to bring to a campaign-authored variable bag that has no such
+reducers of its own. Every key entering these `Record`s arrives through a resolver that already
+knows the id is real — a reward granting a skill, an achievement condition reading a counter —
+and once content types are ported (§7), Tier 1 validation (§14) checks referential integrity the
+same way it will for every other content-id reference in this kind. `counters` in particular is
+filled two ways: **automatically**, incrementing `counters[change.reason]` for every emitted
+`StateChange` (the reason-code vocabulary is already a taxonomy of things that happen, so
+statistics like "times evicted" or "checks failed" come free), and **explicitly**, from a
+`"counter"`-type `Reward` (§7 once ported) for statistics that are not state changes in their
+own right. Both paths write through typed code, never through a client-supplied key.
+
+**All four are subject to the sorted-iteration rule (§2).** `counters` is the newest and the
+easiest to forget, because the automatic path writes to it from inside every reducer rather
+than from one obvious call site.
+
+`counters` never appears in a projection, for the same reason `luck` (§6.6) and `resentment`
+(§6.11) do not: a player who can see the count knows they are being measured, which defeats
+the point of measuring it.
+
+### 6.3 Identity
+
+```typescript
+interface ActorIdentity {
+  actorId: string;          // "player" or a rival's agent id
+  name: string;
+  age: number;
+  backgroundId: string;     // §7 once ported (upstream §14.8) — BackgroundDefinition
+}
+
+type PlayerIdentity = ActorIdentity;
+```
+
+`actorId` is load-bearing, not decorative: relationships are held per actor (§6.11) and NPCs
+remember things about specific actors (§7 once ported, upstream §14.6), so every actor must be
+individually addressable.
+
+### 6.4 Finances
+
+```typescript
+interface FinancialState {
+  cashCents: Cents;
+  savingsCents: Cents;
+  debtCents: Cents;
+
+  weeklyIncomeCents: Cents;
+  weeklyExpensesCents: Cents;
+
+  overdueBalanceCents: Cents;
+  creditScore?: number;
+
+  accounts: FinancialAccount[];
+}
+
+interface FinancialAccount {
+  id: string;
+  kind: "checking" | "savings" | "credit_card" | "loan" | "investment";
+  label: LocKey;
+
+  balanceCents: Cents;            // negative = owed
+  interestRate: BasisPoints;      // per annum
+
+  minimumPaymentCents?: Cents;
+  paymentDueWeek?: number;
+
+  openedWeek: number;
+  closedWeek?: number;
+}
+```
+
+### 6.5 Needs
+
+```typescript
+interface NeedState {
+  health: number;
+  energy: number;
+  happiness: number;
+  stress: number;
+  satiety: number;
+}
+
+type NeedKey = keyof NeedState;
+
+const NEED_POLARITY: Record<NeedKey, "higher_is_better" | "lower_is_better"> = {
+  health:    "higher_is_better",
+  energy:    "higher_is_better",
+  happiness: "higher_is_better",
+  satiety:   "higher_is_better",
+  stress:    "lower_is_better",
+};
+```
+
+`NEED_POLARITY` exists so generic code — a "most urgent need" helper, rival need-scoring, goal
+evaluation — cannot get direction wrong for `stress`, the one need where higher is worse.
+Content-balance material (drift rates, clamp semantics) is out of scope here — already named
+provisional in `TODO.md`'s *Known Open Items*.
+
+### 6.6 Attributes
+
+```typescript
+interface AttributeState {
+  intelligence: number;
+  discipline: number;
+  charisma: number;
+  creativity: number;
+  resilience: number;
+  wisdom: number;
+  luck: number;      // hidden — never appears in a projection
+}
+```
+
+`wisdom` has no consumer specified anywhere in this contract or upstream — already tracked in
+`TODO.md`'s *Known Open Items* ("`wisdom` attribute has no consumer... needs one to earn its
+place"), not repeated as a second open item here.
+
+### 6.7 Education
+
+```typescript
+interface EducationState {
+  enrollments: CourseEnrollment[];
+  credentials: Credential[];
+  completedCourseIds: string[];
+  failedCourseIds: string[];
+}
+
+interface CourseEnrollment {
+  courseId: string;               // §7 once ported (upstream §14.2) — CourseDefinition
+  startedWeek: number;
+  weeksCompleted: number;
+
+  attendedUnits: number;
+  studyUnits: number;
+  missedSessions: number;
+
+  tuitionPaidCents: Cents;
+  tuitionOutstandingCents: Cents;
+
+  retainedProgress: number;      // 0–100, carried from a prior failed attempt
+  status: "active" | "completed" | "failed" | "withdrawn";
+}
+
+interface Credential {
+  id: string;
+  courseId: string;
+  awardedWeek: number;
+  level: CredentialLevel;
+  labelKey: LocKey;
+}
+
+type CredentialLevel =
+  | "none"
+  | "school"
+  | "certificate"
+  | "diploma"
+  | "degree"
+  | "postgraduate";
+```
+
+`CredentialLevel` is ordered, which is what makes a scenario requirement like "certificate or
+better" directly expressible rather than needing an enumerated list of acceptable values.
+
+### 6.8 Career
+
+```typescript
+interface CareerState {
+  currentEmployment?: Employment;
+  history: EmploymentRecord[];
+
+  totalWeeksEmployed: number;
+  pendingApplications: JobApplication[];
+
+  highestTierAchieved: JobTier;
+}
+
+interface Employment {
+  jobId: string;                 // §7 once ported (upstream §14.1) — JobDefinition
+  employerId: string;
+  startedWeek: number;
+
+  performance: number;           // 0–100
+  attendanceRatio: number;       // 0–100, rolling
+  warnings: number;
+  probationUntilWeek?: number;
+
+  weeklyPayCents: Cents;
+  weeksAtCurrentPay: number;
+}
+
+interface EmploymentRecord {
+  jobId: string;
+  employerId: string;
+  tier: JobTier;
+  startedWeek: number;
+  endedWeek: number;
+  endReason: ReasonCode;
+  finalPerformance: number;
+}
+
+interface JobApplication {
+  jobId: string;
+  submittedWeek: number;
+  resolvesWeek: number;
+  contested: boolean;
+  outcome?: "pending" | "offered" | "rejected" | "position_filled";
+}
+
+type JobTier = "entry" | "skilled" | "professional" | "senior";
+
+const JOB_TIER_RANK: Record<JobTier, number> = {
+  entry: 0, skilled: 1, professional: 2, senior: 3,
+};
+```
+
+`JobTier` is ranked for the same reason `CredentialLevel` is ordered (§6.7): a career goal or
+job requirement reading "skilled or better" needs an ordering, not just a tag. `career.
+effectivePerformance` (§6.1's `DerivedPath`) is computed from `Employment.performance` plus
+whatever `PerformanceFactor`s (§7 once ported, upstream §14.1) apply — never stored itself.
+
+### 6.9 Housing
+
+```typescript
+interface HousingState {
+  definitionId: string;           // §7 once ported (upstream §14.3) — HousingDefinition
+  movedInWeek: number;
+
+  ownership: "renting" | "owned" | "mortgaged" | "staying_with_someone";
+
+  damage: number;                // 0–100, mutable
+  weeklyCostCents: Cents;
+  depositPaidCents: Cents;
+
+  rentDueWeek: number;
+  overdueRentCents: Cents;
+  missedPayments: number;
+  evictionStage: EvictionStage;
+
+  landlordNpcId?: string;        // §7 once ported (upstream §14.6) — NPCState
+}
+
+type EvictionStage =
+  | "none"
+  | "warning"
+  | "penalty"
+  | "formal_notice"
+  | "hearing_scheduled"
+  | "evicted";
+```
+
+`quality` (§6.1's `player.housing.quality`) is derived and read-only, never stored: writing to
+it fails Tier 1 validation the same way any other `DerivedPath` write does. Its formula —
+`clamp(round((comfort + safety) / 2) − round(damage × 0.6), 0, 100)`, against
+`HousingDefinition` fields not yet ported (§7) — is carried from upstream as provisional
+content-balance material, the same status `TODO.md`'s *Known Open Items* already gives it.
+
+### 6.10 Inventory
+
+```typescript
+interface InventoryItem {
+  instanceId: string;
+  definitionId: string;          // §7 once ported (upstream §14.4) — ItemDefinition
+
+  quantity: number;
+  acquiredWeek: number;
+  purchasePriceCents: Cents;
+
+  condition: number;             // 0–100
+  weeksSinceMaintenance: number;
+  broken: boolean;
+}
+```
+
+### 6.11 Relationships
+
+**A relationship is held by the actor, not by the NPC.** Each actor carries their own record of
+how a given NPC regards them — the player and a rival can hold different, independent
+relationships with the same NPC, which is what a competitive life sim needs (an NPC "social
+climber" rival strategy, upstream design, is unimplementable any other way).
+
+```typescript
+interface RelationshipState {
+  npcId: string;                  // §7 once ported (upstream §14.6) — NPCState
+  category: "professional" | "personal" | "transactional" | "adversarial";
+
+  affinity: number;
+  trust: number;
+  respect: number;
+  resentment: number;      // hidden — never appears in a projection
+
+  knownSinceWeek: number;
+  lastInteractionWeek?: number;
+  interactionCount: number;
+}
+```
+
+The affective dimensions (`affinity`/`trust`/`respect`/`resentment`) live here, on the actor —
+`NPCState` (§7 once ported) holds only what genuinely belongs to the NPC itself: its role,
+availability and memories, none of which differ per observer.
 
 ---
 
@@ -707,20 +1113,20 @@ This is the seam, not the whole kind. Still to be brought over from
 
 | Upstream | Holds | Why not yet |
 |---|---|---|
-| §8.1–§8.9 | Player-state field detail (`PlayerState`) | ~20 KB. Structural home is fixed (§6); the fields need reconciling against typed-variable discipline (03 §2) before restating |
 | §9 | `ActionType`, `GameAction` | References content ids (jobs, courses, …) that have no home until the content-type row below lands. `WeeklyActionPlan`'s own shape is ported (§4.1) — only the action schema it holds remains |
-| §14.1–§14.9 | Content definition types | ~25 KB. Needs the authoring→registry split applying (04 §10.1), which for story-graph was its own piece of work |
-| §13.3–§13.4 | `Modifier`, `Reward` | Simulation mechanics hanging off `Condition`, not condition operators (§8 is scoped to §13.1–§13.2 only). `Modifier.operation: "multiply"` against this kind's integer-cents money (§6) has no upstream rounding rule — a determinism hazard to resolve *before* porting, not after, flagged here rather than fixed here |
+| §14.1–§14.9 | Content definition types | ~25 KB. Needs the authoring→registry split applying (04 §10.1), which for story-graph was its own piece of work. `ActorState`'s own shape no longer waits on this — every content-id field it holds (`jobId`, `courseId`, `definitionId`, `npcId`, …) is forward-referenced by name, per §6.2's precedent |
+| §13.3–§13.4 | `Modifier`, `Reward` | Simulation mechanics hanging off `Condition`, not condition operators (§8 is scoped to §13.1–§13.2 only). `Modifier.operation: "multiply"` against this kind's integer-cents money (§6.1) has no upstream rounding rule — a determinism hazard to resolve *before* porting, not after, flagged here rather than fixed here |
 | §12.2–§12.3 | End-of-week system order, goal precedence | Normative and short; blocked only on this table's own content-type row above |
-| §7 | Base and derived values | Rule adopted (§2.2's world-strangeness note, §6); the formulae are content-balance material |
 
-**§5.1 and §5.3–§5.6 are ported** (§2.1–§2.5) — `CalendarState`, `WorldState`, `StatusEffect`,
-`Opportunity`, `ScheduledEvent`, `PendingEventResponse`, `GoalState` and `EconomyState`, the
-eight of `SimulationKindState`'s ten fields this table used to list as outstanding together.
-Of the ten, only `PlayerState` remains unported; `plan: WeeklyActionPlan`'s own shape is ported
-too (§4.1), though the `GameAction`s it holds are not (§9, above). One real item came out of the
-port rather than being merely transcribed: `ChainScope`'s `"profile"` value has nowhere to
-persist yet, recorded in `OPEN-QUESTIONS.md` alongside `history`.
+**§5.1, §5.3–§5.6, §7 and §8.1–§8.9 are all ported** (§2.1–§2.5, §6.1–§6.11) — every field
+`SimulationKindState` (§2) names now has a full shape specified in this repository, and so does
+the base/derived-value layer they read through. `ActorState` comes over whole, shared verbatim
+by the player and every rival (§6.2) — porting "player state" alone and adding rival support
+later was considered and rejected (`plans/36-simulation-kind-programme.md` Finding 1). One
+finding came out of this port rather than being merely transcribed: `ActorState`'s open-keyed
+`Record` fields (`skills`, `reputation`, `flags`, `counters`) do not reintroduce the "loose bag"
+`02-architecture.md` N6 bans — reconciled in §6.2 against that decision's own stated reasoning,
+rather than assumed compatible.
 
 **Nothing above changes this contract's shape** — each is detail hanging off a seam this
 document fixes. What it does mean is that the upstream sections stay authoritative for those
