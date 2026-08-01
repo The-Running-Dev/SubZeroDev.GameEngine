@@ -208,7 +208,10 @@ function Get-MaskedDocumentationLine {
         [string[]] $Line,
 
         [Parameter()]
-        [switch] $MaskLinkTarget
+        [switch] $MaskLinkTarget,
+
+        [Parameter()]
+        [switch] $PreserveInlineCode
     )
 
     $masked = [string[]]::new($Line.Count)
@@ -235,7 +238,15 @@ function Get-MaskedDocumentationLine {
         }
 
         # Inline code spans, longest runs first so ``a`b`` is handled correctly.
-        $value = [regex]::Replace($current, '(`+)(?:.*?)\1', { ' ' * $args[0].Length })
+        # PreserveInlineCode keeps the enclosed text (dropping only the backtick
+        # delimiters) instead of blanking the whole span -- callers computing
+        # heading anchors need the span's text, since real sluggers keep it.
+        if ($PreserveInlineCode) {
+            $value = [regex]::Replace($current, '(`+)(.*?)\1', { $args[0].Groups[2].Value })
+        }
+        else {
+            $value = [regex]::Replace($current, '(`+)(?:.*?)\1', { ' ' * $args[0].Length })
+        }
 
         if ($MaskLinkTarget) {
             # Link and image targets plus bare URLs are addresses, not prose.
@@ -281,7 +292,7 @@ function Get-DocumentationAnchor {
     )
 
     $lines = @(Get-Content -LiteralPath $FullPath)
-    $masked = Get-MaskedDocumentationLine -Line $lines
+    $masked = Get-MaskedDocumentationLine -Line $lines -PreserveInlineCode
     $anchors = [System.Collections.Generic.HashSet[string]]::new(
         [System.StringComparer]::OrdinalIgnoreCase
     )
