@@ -179,7 +179,7 @@ interface JobMarketState {
 interface JobOpening {
   jobId: string;
   contested: boolean;
-  positionsAvailable: number;   // Number.POSITIVE_INFINITY when uncontested
+  positionsAvailable?: number;   // absent = uncontested, unbounded
   postedWeek: number;
   expiresAtWeek?: number;
 }
@@ -199,6 +199,15 @@ type ChainScope = "game" | "profile";
 §14.1, §14.3): `entry`/`skilled` postings are uncontested with unbounded positions, while
 `professional`/`senior` roles and promotion slots carry real, finite counts the player and a
 rival compete for.
+
+**`positionsAvailable` is optional here, not `Number.POSITIVE_INFINITY` as upstream states it.**
+`canonicalStringify` (`core/persistence/canonical.ts`) rejects any non-finite number outright —
+`Infinity` cannot survive a save/load round trip in this engine, whether or not `JSON.stringify`
+would silently coerce it to `null` first. Absence-means-unbounded is not invented for this: it
+is the same pattern upstream's own `CourseDefinition.seatsAvailable`/`HousingDefinition.
+unitsAvailable` already use for an identical "uncapped" concept (§7 once ported, upstream
+§14.2–§14.3) — `JobOpening` is the one place upstream reached for a literal infinity instead of
+its own more common convention.
 
 #### World Strangeness
 
