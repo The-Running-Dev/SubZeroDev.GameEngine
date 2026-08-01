@@ -497,7 +497,7 @@ portable: a fixture recorded from a client running at 4× compares equal to the 
 This is the seam, not the game. **Sun Trap** — its vision, design, guest and building field
 detail, client specification, MVP, roadmap and balance harness — lives in
 [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap), exactly as Life
-in the Fast Lane does for `simulation` (10 §14).
+in the Fast Lane does for `simulation` (10 §15).
 
 | Lives with the game | Why not here |
 |---|---|
@@ -508,4 +508,4 @@ in the Fast Lane does for `simulation` (10 §14).
 | The balance harness (§15) | Searches for dominant strategies — a game tool, not an engine gate |
 
 **Nothing above changes this contract's shape.** Each is detail hanging off a seam this
-document fixes — the same relationship, and the same reasoning, as 10 §14.
+document fixes — the same relationship, and the same reasoning, as 10 §15.
