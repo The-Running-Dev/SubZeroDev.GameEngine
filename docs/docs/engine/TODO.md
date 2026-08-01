@@ -472,6 +472,28 @@ an automatic sweep ([07 §7](07-replay.md#7-intended-change-versus-regression)).
       second tag would have hit the same fixture-free skip on correct code. `v0.2.0` is the
       actual milestone M3 needed (`plans/35-w26-toolchain-upgrade.md`, Decision 4).
 
+### Rigour: Spec and Toolchain Debt
+
+Not new capability — the documentation and tooling debt six units (W8–W13) each correctly
+deferred as "not blocking," none since picked up because no unit owned them. Named and
+sequenced in [`plans/33-post-mvp-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/33-post-mvp-programme.md), Tranche A.
+
+### [x] W24 — Core Spec Reconciliation
+Codifies in `04-core.md` §12 and §18 the conventions the code has implemented and depended on
+since W8–W13 (two `StateChange` shapes, the `<kindId>.reason.*` messageKey namespace, the
+`Condition` shape itself), fixes one intra-document contradiction in `03-story-graph-kind.md`
+§9, closes the doc-tree numbering item, ticks all eighteen boxes of `09-clients.md` §4's API
+coverage checklist with a real test cited per box, and corrects six entries `TODO.md` itself
+had gotten wrong.
+- **Spec:** [04 §12](04-core.md#12-reason-codes-state-changes-messages), [§18](04-core.md#18-frozen-primitives); [03 §9](03-story-graph-kind.md#9-projection--what-a-client-sees); [09 §4](09-clients.md#4-the-api-coverage-checklist).
+- **Depends on:** nothing.
+- **Status:** Done — [PR #77](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/77).
+- **Done when:** every convention is stated where the interface it belongs to is defined, not
+      only where it is used; `09-clients.md`'s checklist reflects real, run, passing tests
+      rather than an unticked table beside a closed MVP claim; every corrected `TODO.md` entry
+      cites the code or plan that proves the correction; no file under `src/engine/` changes.
+- **Plan:** [`plans/34-w24-core-spec-reconciliation.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/34-w24-core-spec-reconciliation.md)
+
 ### Rigour: Session Capture
 
 Turning a played session into a fixture, per
