@@ -1,22 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { buildStoryGraphCampaign, type StoryGraphCampaignSource } from "../kinds/story-graph/source.js";
+import { storyGraphKind } from "../kinds/story-graph/kind.js";
 import { validateCampaign } from "../kinds/story-graph/validate.js";
-import { STORY_GRAPH_REASON_CODES } from "../kinds/story-graph/reasons.js";
-import { initialState } from "../kinds/story-graph/settle.js";
-import { availableActions, scene } from "../kinds/story-graph/scene.js";
-import { advance } from "../kinds/story-graph/advance.js";
-import { project } from "../kinds/story-graph/view.js";
 import type { StoryGraphKindState } from "../kinds/story-graph/state.js";
 import { buildValidatedContentRegistry } from "../core/validation/tiered.js";
 import { createEngine } from "../core/kernel/engine.js";
-import type {
-  Kind,
-  KindRegistry,
-  InitialStateResult,
-  AvailableAction,
-  SceneBody,
-  AdvanceResult,
-} from "../core/kernel/types.js";
+import type { KindRegistry } from "../core/kernel/types.js";
 import type { Campaign, ContentRegistry } from "../core/registry/types.js";
 import {
   bulgariaBureaucracySource,
@@ -36,30 +25,10 @@ import {
 // `office_visits >= 3` gate needs exercised, since the "expired" branch dominates most seeds.
 const SEEDED_ROOM_14_SEED = "bureaucracy-seed-3";
 
-function makeStoryGraphKind(): Kind<StoryGraphKindState> {
-  return {
-    id: "story-graph",
-    reasonCodes: STORY_GRAPH_REASON_CODES,
-    eventNames: [
-      "kind.story-graph.settle.step",
-      "kind.story-graph.node.entered",
-      "kind.story-graph.random.picked",
-      "kind.story-graph.settle.guard_tripped",
-    ],
-    initialState: (c, ctx): InitialStateResult<StoryGraphKindState> => initialState(c, ctx),
-    availableActions: (state, ctx): AvailableAction[] => availableActions(state, ctx),
-    scene: (state, ctx): SceneBody => scene(state, ctx),
-    advance: (state, actionId, params, ctx): AdvanceResult<StoryGraphKindState> => advance(state, actionId, params, ctx),
-    project: (state, audience, ctx) => project(state, audience, ctx),
-    validateCampaign: (campaign, strings) => validateCampaign(campaign, strings),
-    outcome: (state) => ({ endingId: state.endingId ?? null }),
-  };
-}
-
 function buildValidRegistry(): { registry: ContentRegistry; kinds: KindRegistry } {
   const built = buildBulgariaBureaucracyCampaign();
   if (!built.ok || !built.value) throw new Error("expected the real campaign to build");
-  const kinds = { "story-graph": makeStoryGraphKind() } as unknown as KindRegistry;
+  const kinds = { "story-graph": storyGraphKind } as unknown as KindRegistry;
   const result = buildValidatedContentRegistry([built.value], kinds);
   if (!result.ok || !result.value) throw new Error("expected the real campaign to validate");
   return { registry: result.value, kinds };
@@ -71,7 +40,7 @@ describe("bulgaria-bureaucracy — loads clean", () => {
     expect(built.ok).toBe(true);
     if (!built.ok || !built.value) throw new Error("expected success");
 
-    const kinds = { "story-graph": makeStoryGraphKind() } as unknown as KindRegistry;
+    const kinds = { "story-graph": storyGraphKind } as unknown as KindRegistry;
     const result = buildValidatedContentRegistry([built.value], kinds);
     expect(result.ok).toBe(true);
     expect(result.errors).toEqual([]);

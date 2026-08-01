@@ -1,0 +1,12 @@
+{
+  "finalStatus": "ended",
+  "acceptedActions": 4,
+  "decisions": [
+    { "index": 0, "seq": 0, "actionId": "wait", "accepted": true },
+    { "index": 1, "seq": 1, "actionId": "continue_cycle", "accepted": true },
+    { "index": 2, "seq": 2, "actionId": "continue_cycle", "accepted": true },
+    { "index": 3, "seq": 3, "actionId": "go_home", "accepted": true }
+  ],
+  "achievements": ["it_builds_character"],
+  "terminal": { "endingId": "ultimate_reward" }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "bureaucracy-full-arc",
+  "config": { "campaignId": "bulgaria-bureaucracy", "seed": "bureaucracy-seed-3" },
+  "campaignVersion": "1.0.0",
+  "capturedUnder": "0.1.0",
+  "submissions": [
+    { "actionId": "wait" },
+    { "actionId": "continue_cycle" },
+    { "actionId": "continue_cycle" },
+    { "actionId": "go_home" }
+  ]
+}

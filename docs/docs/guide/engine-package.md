@@ -50,8 +50,20 @@ same seed and the same actions, every run must produce the same bytes. See
 [the core](/docs/engine/core) for how that surfaces in the engine API, and
 [architecture](/docs/engine/architecture) for why the platform is built on it.
 
+## Versioning and Releases
+
+`src/engine/package.json`'s `version` is a real semver, and a git tag `vX.Y.Z` marks the
+commit each release was cut at — plain tags, since the engine is currently the only thing in
+this repository that is versioned at all. `src/engine/src/version.ts` exports
+`ENGINE_VERSION`, read from `package.json` at import time rather than duplicated as a second
+literal, so a release only ever bumps the version in one place.
+
+This is what the replay regression oracle's `capturedUnder` reads
+([`07-replay.md`](/docs/engine/replay) §2) — every committed fixture is stamped with the
+`ENGINE_VERSION` that was current when its outcome was recorded, and the oracle's release-tag
+comparison (07 §8) runs the corpus against the previous tag.
+
 ## Where the work is going
 
-[TODO](/docs/engine/todo) breaks the MVP into ordered units. The package currently holds the
-two verified primitives above; the next unit adds the core contract types and the module
-skeleton.
+[TODO](/docs/engine/todo) breaks the MVP into ordered units. The MVP itself (W0–W19) is done;
+the replay regression oracle (W20–W23) is the current work.

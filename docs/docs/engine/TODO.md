@@ -395,17 +395,70 @@ Walk [`MVP.md`](MVP.md) §5 and attach test evidence to each box.
 Replaying committed fixtures across **engine versions**, per
 [`07-replay.md`](07-replay.md). Distinct from W18, which compares a build against itself.
 
-- [ ] The `Outcome` projection and the three-verdict runner (07 §3, §6), driven by a
-      counting `IdSource` ([06 §5.1](06-extensibility.md)) so `createGame` itself replays.
-- [ ] A seed corpus: every MVP §5 playable box, plus a fixture for each bug fixed after W19
-      — 05 §11 already makes a bug report a fixture, so this is capture, not authoring.
-- [ ] Wired to run on `src/engine/src/core/` and `kinds/` changes and on release tags, not
-      on every commit ([07 §8](07-replay.md#8-where-this-runs)).
-- [ ] Regenerating a committed `.outcome.json` is a deliberate, reviewed step — never an
-      automatic sweep ([07 §7](07-replay.md#7-intended-change-versus-regression)).
-
 **Not MVP.** It compares versions, and before W19 there is only one. Sequenced here so the
 contract is settled while the reasoning is fresh, which is the same call observability took.
+Broken into four units — see `plans/27-replay-oracle-programme.md` for the reasoning behind
+the split and the decisions each one resolved.
+
+### [x] W20 — Engine Versioning and Release Tags
+Set a real version on the engine package and define the tagging scheme the oracle's
+cross-version comparison depends on.
+- **Spec:** [07 §2](07-replay.md#2-fixtures-are-inputs-not-state), [§8](07-replay.md#8-where-this-runs).
+- **Depends on:** nothing.
+- **Status:** Done.
+- **Done when:** `src/engine/package.json` carries a real semver; a documented tag scheme
+      exists; the version is readable from code without a runtime dependency; the first tag
+      is cut at the current MVP-done commit.
+
+### [x] W21 — Replay Oracle: Outcome and the Runner
+The `Outcome`/`Decision` projection and the three-verdict runner (07 §3, §6), driven by a
+counting `IdSource` ([06 §5.1](06-extensibility.md)) so `createGame` itself replays. Core-owned
+and kind-agnostic, the same split `core/determinism/harness.ts` (W18) used, proved first
+against a synthetic kind. Composed directly against `Engine` and `ProfileStore`, not
+`createInMemorySessionStore` — its client-facing `SessionStore` surface never returns the raw
+`GameState` `finalStatus`/`terminal` need (07 §3.2, revised from this unit's original plan
+during implementation).
+- **Spec:** [07 §2–§3](07-replay.md#2-fixtures-are-inputs-not-state), [§5](07-replay.md#5-prerequisite-a-controllable), [§6](07-replay.md#6-the-runner-and-its-verdicts).
+- **Depends on:** [W20](#x-w20--engine-versioning-and-release-tags).
+- **Status:** Done.
+- **Done when:** all three verdicts (`match`/`diverged`/`unrunnable`) are reachable and
+      tested; `at` is a `Decision.index`, never a `seq`; a rejected submission records
+      `seq: null` and does not stop the replay; achievements are read from an in-memory
+      `ProfileStore` after the last submission.
+
+### [x] W22 — Replay Oracle: The Corpus
+The committed `fixtures/replay/*.{fixture,outcome}.json` set (07 §4) against the real
+Bureaucracy campaign: every MVP §5 playable box, plus a deliberate edge case. Also promotes
+`createCountingIds` to `core/determinism/counting-ids.ts` and extracts the single real
+`story-graph` kind assembly (`kinds/story-graph/kind.ts`), de-duplicating five byte-identical
+copies test files accumulated across W16–W19 that a sixth (this unit's own corpus test) would
+otherwise have joined.
+- **Spec:** [07 §4](07-replay.md#4-the-corpus), [§5](07-replay.md#5-prerequisite-a-controllable).
+- **Depends on:** [W21](#x-w21--replay-oracle-outcome-and-the-runner).
+- **Status:** Done.
+- **Done when:** every MVP §5 *Playable* box has a fixture (the arc, the gated choice, the
+      seeded transition, the achievement, the loop gate); at least one deliberate edge-case
+      fixture exists (a rejection, an unknown action); `kinds/story-graph/kind.ts` is the
+      single kind assembly and the five duplicates are gone; a hand-edited `.outcome.json`
+      produces `diverged` with the right `at`.
+
+### [x] W23 — Replay Oracle: CI Wiring
+`pull_request` gained a `paths: [src/engine/**]` filter — broader than `core/`/`kinds/` alone,
+since a campaign-, client-, or MCP-only PR still needs the full `engine` job; `push` to `main`
+stays unfiltered, since path filters and tag pushes don't reliably combine. A new
+`release-tag-replay` job runs only on `v*` tags, extracts the previous tag's committed
+`.outcome.json` files via `git show`, and runs the corpus test against them via
+`REPLAY_EXPECTED_OUTCOMES_DIR` — the actual cross-version comparison ([07 §8](07-replay.md#8-where-this-runs)).
+Regenerating a committed `.outcome.json` is a deliberate, reviewed, single-fixture step — never
+an automatic sweep ([07 §7](07-replay.md#7-intended-change-versus-regression)).
+- **Spec:** [07 §7–§8](07-replay.md#7-intended-change-versus-regression).
+- **Depends on:** [W20](#x-w20--engine-versioning-and-release-tags), [W22](#x-w22--replay-oracle-the-corpus).
+- **Status:** Done.
+- **Done when:** the suite runs on engine-package changes and on release tags; it does not
+      run on documentation-only changes; regenerating an outcome file is a documented,
+      deliberate per-fixture command, never a sweep. The release-tag job itself is unverified
+      beyond local shell-logic testing — it needs a second real tag to exercise end to end
+      (milestone M3, `plans/27-replay-oracle-programme.md`).
 
 ### Rigour: Session Capture
 
@@ -510,16 +563,10 @@ in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap) (
       `replayCompatible: false`) has no `W`-numbered unit building it. Post-MVP, before it's
       needed. See `plans/09-w3-pure-engine-kernel.md` (repository root), Decision 5.
 - [ ] **`SessionHost`/`createSessionLayer` ([06 §4](06-extensibility.md#4-the-composition-root)) don't reconcile as written.**
-      `SessionHost.sessions` is typed `SessionStore` — the full nine-operation API — but
-      `createSessionLayer(host: SessionHost): SessionStore` reads as producing that same
-      type from an input that already has it, which only makes sense if `sessions` was
-      meant to be a lower-level, storage-only port that `createSessionLayer` wraps with
-      the stamping ([05 §6.1](05-observability.md#61-how-per-command-context-reaches-an-event)) and profile-upsert ([04 §7.1](04-core.md#71-the-profile-store)) behaviour — a port `04-core.md`
-      never separately names. W7 built `createInMemorySessionStore` directly against
-      `session/types.ts`'s `SessionStore` instead, since TODO's own W7 done-criteria never
-      name `SessionHost` or `createSessionLayer`. The composition-root generality
-      `06-extensibility.md` §4 describes is still unbuilt. See
-      `plans/14-w7-session-store.md`, Decision 1.
+      Moved to [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §2, since the replay regression oracle
+      (W21) is now a second real call site that bypasses the same gap rather than closing it —
+      see [`07-replay.md`](07-replay.md) §3.2. See `plans/14-w7-session-store.md`, Decision 1,
+      for the original reasoning.
 - [ ] **The achievement-unlock `StateChange` shape is a convention this unit invented, not
       one `04-core.md`/`03-story-graph-kind.md` pin.** Both docs say a kind "emits an
       `achievement_unlocked` `StateChange`" but neither fixes its `path`/`op`/`value` —

@@ -102,6 +102,19 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   This was a live problem when they shared one tree; the repo split
   ([`02-architecture.md`](02-architecture.md) §12) has largely dissolved it. **Open:**
   confirm nothing depends on a merged numbering and close the item.
+- **`SessionHost` / `createSessionLayer` remain unbuilt** — [`06-extensibility.md`](06-extensibility.md)
+  §4 specifies a composition root, `createSessionLayer(host: SessionHost): SessionStore`,
+  producing a `SessionStore` from a `SessionHost` whose `sessions` field is already typed as
+  one — which only reconciles if `sessions` was meant to be a lower-level, storage-only port
+  that `createSessionLayer` wraps with stamping (05 §6.1) and profile-upsert (04 §7.1)
+  behaviour, a port `04-core.md` never separately names. W7 built `createInMemorySessionStore`
+  directly against `session/types.ts` instead, since W7's own done-criteria never named
+  `SessionHost` or `createSessionLayer` (`plans/14-w7-session-store.md`, Decision 1). The
+  replay regression oracle (W21) composes `createInMemorySessionStore` for the same reason —
+  see [`07-replay.md`](07-replay.md) §3.2 — rather than resolving this gap, so it now has two
+  real call sites and zero real implementations of the specified abstraction. **Revisit when**
+  a second `SessionStore` implementation is actually needed: the composition-root generality
+  should be drawn from two real cases, not one and a specification.
 
 ---
 

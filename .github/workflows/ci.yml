@@ -10,11 +10,22 @@ name: CI
 # second cancelled the first, leaving two check-runs named `engine` on one commit
 # -- one success, one cancelled -- and a required-status-check rule that sees the
 # cancelled one blocks the merge even though everything passed.
+#
+# `pull_request.paths` is `07-replay.md` §8's "never a merge gate on documentation-only
+# changes" -- most of this repository's traffic. `push` deliberately stays unfiltered:
+# GitHub Actions' path-filter diff against a tag push is not the same "files changed since
+# last build" comparison it is for a branch push, and getting that wrong would risk the
+# release-tag job silently never running. A doc-only merge to `main` re-running `engine`
+# once is a cheap, safe default next to that risk.
 "on":
   push:
     branches:
       - main
+    tags:
+      - "v*"
   pull_request:
+    paths:
+      - "src/engine/**"
 
 permissions:
   contents: read
@@ -29,6 +40,10 @@ concurrency:
 jobs:
   engine:
     name: engine
+    # A tag push only needs the release-tag-replay job below — this job's typecheck/
+    # lint/test already ran on the commit itself via the push-to-main or pull_request
+    # event, so re-running it here would just repeat that work under a different ref.
+    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -57,3 +72,65 @@ jobs:
 
       - name: Test
         run: npm test
+
+  # The replay regression oracle's cross-version comparison (07-replay.md §8): on every
+  # release tag, run *this* tag's engine and *this* tag's fixture submissions against the
+  # *previous* tag's committed .outcome.json files — the actual "did this change alter a
+  # game that already exists" question, distinct from the engine job's own test run, which
+  # only ever compares a build against its own commit's corpus (07-replay.md §1).
+  #
+  # Skips cleanly, not a failure, when there is no previous tag yet (plans/27, milestone
+  # M3) — the very first tag has nothing to compare against.
+  release-tag-replay:
+    name: replay oracle — release tag comparison
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: src/engine
+
+    steps:
+      - name: Check out repository (full history, so previous tags resolve)
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/engine/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Find the previous release tag
+        id: previous
+        run: |
+          current="${GITHUB_REF#refs/tags/}"
+          previous=$(git tag --list 'v*' --sort=-v:refname | grep -A1 -F -x "$current" | tail -n1)
+          if [ -z "$previous" ] || [ "$previous" = "$current" ]; then
+            echo "No previous tag before $current — nothing to compare yet (M3, plans/27)."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Comparing $current against $previous"
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "tag=$previous" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Extract the previous tag's committed outcomes
+        if: steps.previous.outputs.found == 'true'
+        run: |
+          mkdir -p /tmp/previous-outcomes
+          for path in $(git ls-tree -r --name-only "${{ steps.previous.outputs.tag }}" -- src/engine/fixtures/replay | grep '\.outcome\.json$'); do
+            name=$(basename "$path")
+            git show "${{ steps.previous.outputs.tag }}:$path" > "/tmp/previous-outcomes/$name"
+          done
+
+      - name: Run the corpus against the previous tag's outcomes
+        if: steps.previous.outputs.found == 'true'
+        env:
+          REPLAY_EXPECTED_OUTCOMES_DIR: /tmp/previous-outcomes
+        run: npx vitest run src/campaigns/bulgaria-bureaucracy.replay.test.ts

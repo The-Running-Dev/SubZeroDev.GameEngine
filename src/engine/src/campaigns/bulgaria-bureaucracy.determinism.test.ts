@@ -4,15 +4,9 @@ import { createEngine } from "../core/kernel/engine.js";
 import { createRecordingEmitter, nullEmitter } from "../core/observability/emitter.js";
 import type { EngineEvent } from "../core/observability/types.js";
 import { buildValidatedContentRegistry } from "../core/validation/tiered.js";
-import type { Engine, Kind, KindRegistry, InitialStateResult, AvailableAction, SceneBody, AdvanceResult } from "../core/kernel/types.js";
+import type { Engine, KindRegistry } from "../core/kernel/types.js";
 import type { IdSource } from "../core/composition/types.js";
-import { validateCampaign } from "../kinds/story-graph/validate.js";
-import { STORY_GRAPH_REASON_CODES } from "../kinds/story-graph/reasons.js";
-import { initialState } from "../kinds/story-graph/settle.js";
-import { availableActions, scene } from "../kinds/story-graph/scene.js";
-import { advance } from "../kinds/story-graph/advance.js";
-import { project } from "../kinds/story-graph/view.js";
-import type { StoryGraphKindState } from "../kinds/story-graph/state.js";
+import { storyGraphKind } from "../kinds/story-graph/kind.js";
 import { buildBulgariaBureaucracyCampaign, BULGARIA_BUREAUCRACY_CAMPAIGN_ID } from "./bulgaria-bureaucracy.js";
 
 // The scan-verified seed whose first weighted pick at clerk_review (3 expired : 1 room_14)
@@ -24,30 +18,10 @@ const SEED = "bureaucracy-seed-3";
 // ever differ in this one field.
 const FIXED_IDS: IdSource = { newGameId: () => "fixed-game-id", newSeed: () => "fixed-seed" };
 
-function makeStoryGraphKind(): Kind<StoryGraphKindState> {
-  return {
-    id: "story-graph",
-    reasonCodes: STORY_GRAPH_REASON_CODES,
-    eventNames: [
-      "kind.story-graph.settle.step",
-      "kind.story-graph.node.entered",
-      "kind.story-graph.random.picked",
-      "kind.story-graph.settle.guard_tripped",
-    ],
-    initialState: (c, ctx): InitialStateResult<StoryGraphKindState> => initialState(c, ctx),
-    availableActions: (state, ctx): AvailableAction[] => availableActions(state, ctx),
-    scene: (state, ctx): SceneBody => scene(state, ctx),
-    advance: (state, actionId, params, ctx): AdvanceResult<StoryGraphKindState> => advance(state, actionId, params, ctx),
-    project: (state, audience, ctx) => project(state, audience, ctx),
-    validateCampaign: (campaign, strings) => validateCampaign(campaign, strings),
-    outcome: (state) => ({ endingId: state.endingId ?? null }),
-  };
-}
-
 function buildEngine(ids?: IdSource): Engine {
   const built = buildBulgariaBureaucracyCampaign();
   if (!built.ok || !built.value) throw new Error("expected the real campaign to build");
-  const kinds = { "story-graph": makeStoryGraphKind() } as unknown as KindRegistry;
+  const kinds = { "story-graph": storyGraphKind } as unknown as KindRegistry;
   const registryResult = buildValidatedContentRegistry([built.value], kinds);
   if (!registryResult.ok || !registryResult.value) throw new Error("expected the real campaign to validate");
   return createEngine({ kinds, registry: registryResult.value, ...(ids ? { ids } : {}) });
