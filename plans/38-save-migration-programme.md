@@ -125,10 +125,24 @@ Building on `SessionStore.saveGame`/`loadGame`:
   (`ENGINE_VERSION`, already exported by W20's `version.ts`), `kindId`, `kindVersion` (from
   `Kind.version`, Decision 2), `campaignId`, `campaignVersion` (from the registry), a
   checksum over `state`, and `replayCompatible: true`.
-- **`loadGame`** parses the envelope, verifies the checksum, and compares `kindVersion` and
-  `campaignVersion` against what the registry currently has registered.
-  - **On a match**: deserialize normally, exactly as today.
-  - **On a mismatch**: dispatch to the relevant migration function —
+- **`loadGame`** parses the envelope and verifies the checksum, then checks all five stamped
+  fields — not just the two content-facing ones:
+  - **`saveFormatVersion` / `serializationVersion` mismatch**: fail loudly
+    (`save_requires_migration`). Exactly one value exists for each today (this unit
+    introduces the wrapper itself), so — mirroring Finding 4's reasoning that there is
+    nothing real to migrate a *campaign* from yet — there is equally nothing to migrate an
+    envelope *shape* or a *serializer* format from. Building remapping logic for axes that
+    have never moved is exactly the kind of validation-for-a-scenario-that-can't-happen this
+    project avoids; a future unit earns that logic only once one of these actually bumps.
+  - **`engineVersion` mismatch**: never gates anything by itself. §10.2's own reasoning for
+    giving it a separate field — "a kind's code can change independently of the engine" —
+    cuts the same way in reverse: an engine patch that touches neither the serializer nor any
+    kind's state shape shouldn't block a load. Recorded for provenance only.
+  - **`kindVersion` / `campaignVersion` mismatch**: the actual migration this unit builds —
+    dispatch to the relevant migration function.
+  - **On all fields matching**: deserialize normally, exactly as today.
+  - **On a `kindVersion`/`campaignVersion` mismatch**: dispatch to the relevant migration
+    function —
     - `Kind`-owned, for a kind-version mismatch (kind-state shape changed):
       `Kind.migrateState?(oldState: unknown, fromVersion: string): CommandResult<KState>`.
     - Campaign-owned, for a campaign-version mismatch (content ids renamed), supplied
@@ -148,16 +162,33 @@ against a registry that only has the second registered, migrating a renamed fiel
 mirroring exactly how W18's determinism harness and W21's replay runner were each proven
 against a synthetic kind before (or instead of) touching real content.
 
+**Scope note — no persisted-save corpus exists to migrate from.** `SessionStore` holds saves
+in an in-memory `Map` (`core/session/store.ts`) with no persistence port in `06-extensibility.md`'s
+catalogue — a save does not survive a process restart today. So "no behavior change for
+anything currently saved" (Done-When, below) means *within the same running process*: every
+save this unit's `loadGame` will ever see was itself written by this unit's `saveGame`, in
+the new enveloped shape. There is no real legacy raw-blob corpus in the wild to detect or
+upgrade, and adding that detection path now — before any host persists a save across a
+version bump — would be speculative complexity this project's own conventions rule out.
+This axis becomes real only once a host adds persistent save storage (deferred to NEaaS,
+`SubZeroDev.Platform`); building for it now is out of scope, same as Decision 4's real-campaign
+deferral.
+
 ---
 
 ## Done-When
 
 - `Kind` gains `version: string`; `storyGraphKind` declares `"1.0.0"`.
 - `saveGame` produces a real `SaveEnvelope`, not a bare blob; `loadGame` verifies its
-  checksum and both version fields before trusting it.
-- A version match loads exactly as today — no behavior change for anything currently saved.
-- A version mismatch with no registered migration fails loudly, with a named reason code,
-  never silently proceeding and never silently discarding state.
+  checksum and all five stamped fields — `saveFormatVersion`, `serializationVersion`,
+  `engineVersion` (informational only), `kindVersion`, `campaignVersion` — before trusting it.
+- All fields matching loads exactly as today — no behavior change for any save produced by
+  this unit's own `saveGame` (see the Design section's scope note: no prior-format save
+  corpus exists to migrate from, in-process or persisted).
+- A `saveFormatVersion` or `serializationVersion` mismatch fails loudly — no migration exists
+  for either axis, since neither has ever moved.
+- A `kindVersion`/`campaignVersion` mismatch with no registered migration fails loudly, with
+  a named reason code, never silently proceeding and never silently discarding state.
 - A version mismatch with a registered migration succeeds, producing a state with
   `replayCompatible: false`.
 - The synthetic fixture proves both the kind-version and campaign-version migration paths,
