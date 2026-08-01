@@ -125,10 +125,22 @@ Building on `SessionStore.saveGame`/`loadGame`:
   (`ENGINE_VERSION`, already exported by W20's `version.ts`), `kindId`, `kindVersion` (from
   `Kind.version`, Decision 2), `campaignId`, `campaignVersion` (from the registry), a
   checksum over `state`, and `replayCompatible: true`.
-- **`loadGame`** parses the envelope, verifies the checksum, and compares `kindVersion` and
-  `campaignVersion` against what the registry currently has registered.
-  - **On a match**: deserialize normally, exactly as today.
-  - **On a mismatch**: dispatch to the relevant migration function —
+- **`loadGame`** first distinguishes a `SaveEnvelope` from a legacy raw canonical `GameState`
+  blob. A legacy blob is accepted only when it passes the existing canonical state-schema
+  validation (including its `formatVersion`) and its kind/campaign identifiers resolve in the
+  current registry; it is treated as having the versions supported by that registry, loaded
+  with the pre-migration behavior, and upgraded to a `SaveEnvelope` on the next save (the
+  original blob is never trusted as an envelope). A malformed or unresolvable legacy blob is
+  rejected with a typed `invalid_legacy_save` error.
++- For an envelope, `loadGame` parses and structurally validates the wrapper, verifies the
+  checksum over `state`, and independently checks `saveFormatVersion`,
+  `serializationVersion`, `engineVersion`, and `kindVersion` against the versions supported
+  by the loader before trusting `state`. A mismatch in any of those four fields is rejected
+  or handled by its dedicated compatibility/migration logic; it is never passed to
+  deserialization as if compatible. `campaignVersion` is a separate content-migration check,
+  compared against the campaign registry only after those four compatibility checks.
++  - **On a match**: deserialize normally, exactly as today.
++  - **On a mismatch**: dispatch to the relevant migration function —
     - `Kind`-owned, for a kind-version mismatch (kind-state shape changed):
       `Kind.migrateState?(oldState: unknown, fromVersion: string): CommandResult<KState>`.
     - Campaign-owned, for a campaign-version mismatch (content ids renamed), supplied
@@ -153,11 +165,15 @@ against a synthetic kind before (or instead of) touching real content.
 ## Done-When
 
 - `Kind` gains `version: string`; `storyGraphKind` declares `"1.0.0"`.
-- `saveGame` produces a real `SaveEnvelope`, not a bare blob; `loadGame` verifies its
-  checksum and both version fields before trusting it.
-- A version match loads exactly as today — no behavior change for anything currently saved.
-- A version mismatch with no registered migration fails loudly, with a named reason code,
-  never silently proceeding and never silently discarding state.
+- `saveGame` produces a real `SaveEnvelope`, not a bare blob; `loadGame` validates legacy raw
+  canonical blobs through the compatibility path, and for envelopes verifies their structure,
+  checksum, and all four independent compatibility fields (`saveFormatVersion`,
+  `serializationVersion`, `engineVersion`, and `kindVersion`) before trusting `state`.
+- A legacy blob loads exactly as today and is upgraded to an envelope on the next save; a
+  matching envelope also loads without behavior changes for anything currently saved.
+- Each incompatible envelope field has a dedicated rejection/compatibility test, and a
+  version mismatch with no registered migration fails loudly, with a named reason code, never
+  silently proceeding and never silently discarding state.
 - A version mismatch with a registered migration succeeds, producing a state with
   `replayCompatible: false`.
 - The synthetic fixture proves both the kind-version and campaign-version migration paths,
