@@ -860,6 +860,46 @@ history and the transparency requirement; `visible` gates what a client may show
 > [`05-observability.md`](05-observability.md) §1 draws the line and §2 explains why
 > merging the two would break determinism.
 
+**Two `StateChange` shapes are conventions this platform invented rather than derived from
+the ancestor**, both real in code and load-bearing before either was written down here —
+[`03-story-graph-kind.md`](03-story-graph-kind.md) §7's `achievement_unlocked` and §5's
+`consequence_applied`. Restated exactly as the code emits them, kind-agnostic in structure
+even though the two examples are both story-graph's:
+
+```typescript
+// An achievement unlock (03 §7). The path reuses the condition-field name (§18) an
+// `achieved.<id>` check already reads, so unlocking and querying agree on one name.
+{ path: `achieved.${achievementId}`, op: "set", value: true,
+  reason: "achievement_unlocked", visible: true }
+
+// A variable write from resolving consequences (03 §5). One coalesced change per
+// touched variable per batch, not one per typed op — `op` is always "set" regardless of
+// which increment/decrement/set operations actually ran, because 03 §5's clamp-after-
+// all-effects rule means an intermediate op has no individually meaningful audit value.
+// `previous` is the pre-batch value; `visible` mirrors the variable's own declaration.
+{ path: `var.${name}`, op: "set", value: <final value>, previous: <pre-batch value>,
+  reason: "consequence_applied", visible: <declaration's own `visible`> }
+```
+
+Both are conventions, not requirements — a future kind may need a different shape for an
+analogous concept, provided it documents that shape here the same way. What they fix is the
+*pattern*: an audit record's `path` names the thing that changed using the same string a
+`Condition` would read to check it, and `reason` identifies *why* using a stable code a
+kind-agnostic session store (or a client) can switch on without string-matching prose.
+
+**Kind-owned reason codes carry their own `messageKey` namespace, distinct from event
+names.** A kind's `Kind.reasonCodes` need a localized message the same way the base set
+does (above), and the convention is `<kindId>.reason.<code>` — no `kind.` wrapper, unlike
+[`05-observability.md`](05-observability.md) §9's *event* namespace,
+`kind.<kindId>.<event>`. The two are easy to conflate because they differ only by one
+segment, which is exactly why this needs stating rather than assuming: a reason-code
+message key and an event name are different vocabularies serving different consumers
+(one renders to a player, one traces a resolution), and neither is a namespace *for* the
+other. `story-graph.reason.unknown_condition_field`
+(`kinds/story-graph/reasons.ts`) is the shipping example — a code this kind adds for a
+condition-evaluation failure with no analogue in the base set, so it has no home but a
+kind-owned namespace.
+
 ---
 
 ## 13. The MCP Surface
@@ -1004,6 +1044,52 @@ arithmetic, `inventory()` / `relationship()` / `distance()` helpers, nested expr
 are **out** unless a concrete campaign need justifies each one individually. Every
 operator is permanent maintenance: a new one must be validated, evaluated, projected,
 migrated, and taught to every tool. The bar to add is high on purpose.
+
+The shape itself, as ported into this repository (`core/condition/types.ts`):
+
+```typescript
+type ComparisonOperator =
+  "equals" | "not_equals" | "less_than" | "less_or_equal" |
+  "greater_than" | "greater_or_equal" | "in" | "not_in" | "contains" |
+  "has_tag" | "has_flag";
+
+interface ComparisonCondition { field: string; operator: ComparisonOperator; value: unknown; }
+interface AllCondition { all: Condition[]; }
+interface AnyCondition { any: Condition[]; }
+interface NotCondition { not: Condition; }
+interface ExistsCondition { exists: { collection: string; where: Condition }; }
+
+// count's own comparison is always two numbers (a match total against `value`) — only
+// the six ordering/equality operators, never the array/string-shaped ones, which would
+// type-check but always throw at evaluation.
+type CountComparisonOperator =
+  "equals" | "not_equals" | "less_than" | "less_or_equal" | "greater_than" | "greater_or_equal";
+interface CountCondition {
+  count: { collection: string; where: Condition };
+  operator: CountComparisonOperator;
+  value: number;
+}
+
+type Condition =
+  ComparisonCondition | AllCondition | AnyCondition | NotCondition |
+  ExistsCondition | CountCondition;
+
+// What a caller supplies to the evaluator, which knows nothing itself about `var.*`,
+// story nodes, or any other kind's field vocabulary.
+interface ConditionResolver {
+  field(path: string): unknown;
+  collection(name: string): readonly ConditionResolver[];
+}
+```
+
+**One field of the ancestor's shape did not port.** `games/04-engine-specification.md`
+§13.1's `Condition` also carries a `CollectionSelector` — a closed union of
+simulation-kind paths (`player.inventory`, `world.npcs`, …). None of those are
+kind-agnostic, so `collection` here is a plain `string`, and which strings are legal is
+entirely up to whichever kind resolves them (`kinds/story-graph/conditions.ts` for the one
+kind that exists today). The ancestor citation above stays as provenance — per
+`CLAUDE.md`, every `games/…` citation is provenance, not a second authority — but this
+section, not that document, is now where the shape itself lives.
 
 **Reason codes are additive, never renamed** (§12) — saves and replay logs reference
 them, so a rename breaks old data.
