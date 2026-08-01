@@ -87,6 +87,25 @@ determinism harness (W18) can prove the upgrade changed no behaviour."
 This is the one carried-in item that graduated from "deferred" to "actionable" purely because
 earlier units landed. **Becomes W26** ([`plans/35`](35-w26-toolchain-upgrade.md)).
 
+### 3a. The MVP's own coverage checklist reads as zero-percent complete
+
+Found on a later verification pass, after the tranches below were drafted; numbered `3a` so the
+findings above keep their references, the same convention architecture §4a uses.
+
+`09-clients.md` §4 says of itself: *"`MVP.md` §5 requires 'No game logic lives in either client
+— verified by the API coverage checklist.' **This is that checklist.**"* All eighteen boxes
+(nine operations × two client columns) are `☐`.
+
+W16 and W17 are both `[x]`, each with a done-criterion naming that table, and `MVP.md` §5 is
+closed. The nine operations match `core/session/types.ts` one for one, so the work is genuinely
+done — but a reader auditing the MVP-done claim follows it to its named instrument and finds
+nothing ticked.
+
+It changes no sequencing, which is why it is a finding here and an item in
+[`plans/34`](34-w24-core-spec-reconciliation.md) rather than a tranche of its own. It is worth
+stating at programme level because it is the only item that makes a **closed** milestone look
+open.
+
 ### 4. `previewAction` is not a standalone unit and should not be scheduled as one
 
 TODO.md lists it under *Depth: Sun Trap* as its own checkbox, which reads like schedulable

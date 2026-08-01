@@ -1,11 +1,13 @@
 # W24 — Core Spec Reconciliation
 
 **Unit:** [`docs/docs/engine/TODO.md`](../docs/docs/engine/TODO.md) — proposed as W24. Closes
-six entries under *Known Open Items Carried In* and one stale checkbox under *Depth: Sun Trap*.
+six entries under *Known Open Items Carried In*, one stale checkbox under *Depth: Sun Trap*, and
+the MVP's own API coverage checklist.
 
 **Scope:** Doc-only. Codify in `04-core.md` and `03-story-graph-kind.md` the conventions the
 code already implements and depends on, restate one type whose only citation points at another
-repository, resolve one intra-document contradiction, and correct six stale TODO.md entries.
+repository, resolve one intra-document contradiction, tick the MVP's own coverage checklist, and
+correct six stale TODO.md entries.
 No code changes — every item here is the documentation half of something already built and
 tested.
 
@@ -147,7 +149,36 @@ build). There is no merged numbering to collide.
 **Change:** close it in `OPEN-QUESTIONS.md` §2 and remove the TODO entry, with one sentence
 recording *why* it closed rather than deleting it silently.
 
-### 7. Correct six stale TODO.md entries
+### 7. Tick `09-clients.md` §4's API coverage checklist
+
+Found during a verification pass over the specs, and the most reader-visible item in this unit.
+
+`09-clients.md` §4 introduces itself as the instrument `MVP.md` §5 names:
+
+> `MVP.md` §5 requires *"No game logic lives in either client — verified by the API coverage
+> checklist."* **This is that checklist.**
+
+**All eighteen boxes are unticked** — nine operations × two client columns, every one `☐`.
+
+Yet W16 and W17 are both `[x]` in TODO.md, each with a done-criterion naming this table
+explicitly ("the API coverage checklist (09 §4) is complete for the text-client column"; "the
+MCP column of the coverage checklist is complete"), and `MVP.md` §5 is checked and closed.
+
+Verified the underlying work really is done — the nine operations in the table match
+`core/session/types.ts` exactly, one for one:
+
+`listCampaigns` · `createSession` · `resumeSession` · `getScene` · `getView` · `getStrings` ·
+`submitAction` · `saveGame` · `loadGame`
+
+So this is presentation, not a coverage gap. But it is the worst kind of presentation defect:
+a reader auditing the MVP-done claim follows `MVP.md` §5 to its named instrument and finds
+zero of eighteen complete. The claim and its evidence directly contradict each other.
+
+**Change:** tick all eighteen, each row citing the test that exercises it. If a row cannot be
+tied to a named test, that is a real finding and gets raised rather than ticked — which is
+exactly why this is worth doing as verification rather than as a formality.
+
+### 8. Correct six stale TODO.md entries
 
 Full evidence for the first four in [`plans/33`](33-post-mvp-programme.md), Findings 1–4. The
 fifth was found after that plan was written — by this unit's own PR, see below. Summarised:
@@ -226,6 +257,8 @@ one place, which is the point of item 3.
 - 03 §9's `unlockedAchievements` comment agrees with §7 and with `view.ts`.
 - The doc-tree numbering item is closed in `OPEN-QUESTIONS.md` §2 with its reason.
 - All six stale TODO.md entries are corrected, each citing the code or plan that proves it.
+- `09-clients.md` §4's eighteen checkboxes are ticked, each citing the test that exercises it;
+  any row without a nameable test is raised as a finding rather than ticked.
 - `./docs.ps1 -BuildOnly` passes — both Docusaurus link checks are `'throw'` and
   `build/Test-Documentation.ps1` is the second gate.
 - **No file under `src/engine/` is modified.** If any item appears to require a code change,
