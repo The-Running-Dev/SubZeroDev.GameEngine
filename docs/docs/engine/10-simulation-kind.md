@@ -291,6 +291,16 @@ fail in the same week would expose iteration order, not a fact about the game.
 Published ids only — never money, needs, or week counts, all of which a balance pass changes
 legitimately and none of which a regression oracle should treat as a defect (07 §3.4).
 
+> **This shape fixes the three terminal *values*, not yet their precedence.** Upstream
+> §12.2's `END_WEEK_SYSTEM_ORDER` runs `goals` before `failure` and names no week-limit
+> check at all; §12.3's `goalFailurePrecedence` resolves only the goals-vs-failure tie.
+> Whether a week that simultaneously exhausts `weekLimit` *and* resolves every goal reports
+> `week_limit_reached` or `goals_met` is genuinely open — not merely undocumented here, but
+> unresolved in the upstream source this section would port from. §15 already lists
+> §12.2–§12.3 as not-yet-ported end-of-week material; this is the concrete reason that
+> matters for `outcome()` specifically; treat `week_limit_reached`'s precedence against the
+> other two as provisional until that lands, the same as `history`'s status in §2.
+
 ---
 
 ## 13. Determinism
