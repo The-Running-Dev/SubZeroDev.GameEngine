@@ -121,6 +121,12 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          # actions/checkout defaults fetch-tags to false. On a tag-triggered run that means
+          # only the triggering tag itself is fetched -- fetch-depth: 0 gets full commit
+          # history, but not sibling tags -- so "Find the previous release tag" below always
+          # finds none. Found live: pushing v0.2.0 produced "No previous tag before v0.2.0"
+          # even though v0.1.0 was on origin the whole time (run 30698926200).
+          fetch-tags: true
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
