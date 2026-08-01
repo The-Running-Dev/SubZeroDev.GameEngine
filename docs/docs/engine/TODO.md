@@ -612,7 +612,23 @@ design never exercised.
       directory (`OPEN-QUESTIONS.md` §2) — so this unit has none; not blocking.
 - **Plan:** [`plans/37-w27-bulgaria-driving-arc.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/37-w27-bulgaria-driving-arc.md)
 
-- [ ] The remaining three arcs (Inheritance, Enterprise, Return).
+### [x] W28 — Bulgaria Adventure: The Return Arc
+The third real arc: `src/engine/src/campaigns/bulgaria-return.ts`, authored from
+`games/bulgaria.md`'s single "Expat Returns" scene. No separate plan file — the pattern was
+proven twice by W27, and this arc's own design had no open question to resolve: unlike Driving,
+`games/bulgaria-adventure.md` names no mechanic for Return beyond "seeds variables the other
+arcs read," already found (`OPEN-QUESTIONS.md` §2, W27) not to be mechanically achievable. The
+correct minimal design is therefore a single `choice` node whose four options (matching the
+source scene's own four reactions) all converge on one shared `ending` — no invented flag or
+branch. Deliberately the smallest arc built so far: one node, no variables, no achievement.
+- **Spec:** `games/bulgaria.md`, `games/bulgaria-adventure.md`.
+- **Depends on:** nothing engine-side — content only, same as W27.
+- **Status:** Done — [PR #87](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/87).
+- **Done when:** all four choices reach the one ending; `serialize()` output is golden-filed and
+      round-trips; the determinism harness's sink-independence and replay-byte-identity checks
+      pass; test count grows from 41 files/478 tests.
+
+- [ ] The remaining two arcs (Inheritance, Enterprise).
 - [ ] Its full Definition of Done: `games/bulgaria-adventure.md`.
 
 ### Breadth: The First Culture Pack

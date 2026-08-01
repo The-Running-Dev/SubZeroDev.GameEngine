@@ -129,17 +129,17 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   (`plans/37-w27-bulgaria-driving-arc.md`), which sidesteps it rather than resolving it.
   **Revisit when** Enterprise is actually scoped — this is a design decision, not a
   content-authoring task, and belongs to whoever does that unit.
-- **"Return seeds variables the other arcs read" isn't mechanically achievable** —
-  `games/bulgaria-adventure.md` says this of the Return arc, but every arc is built as its own
-  standalone `Campaign` (confirmed by how Bureaucracy and Driving are both wired: a
-  self-contained `id`, its own `startNodeId`, no shared session). `story-graph`'s `Campaign`
-  has no mechanism for one campaign's `kindState` to be read by another's — sessions are
-  per-campaign (04 §7). The likely intent is narrative continuity in prose, not a technical
-  dependency, but as written the design doc claims a property the architecture doesn't support.
-  One practical consequence already exercised: arc build order is safe regardless, since
-  nothing actually depends on Return running first. **Revisit when** Return is actually built —
-  either confirm the narrative-only reading and correct the doc, or decide arcs need an actual
-  shared-state mechanism, which would be new architecture, not content.
+- **"Return seeds variables the other arcs read" isn't mechanically achievable — confirmed
+  by building it (W28).** `games/bulgaria-adventure.md` says this of the Return arc, but every
+  arc is built as its own standalone `Campaign` (confirmed by how Bureaucracy, Driving, and
+  now Return are all wired: a self-contained `id`, its own `startNodeId`, no shared session).
+  `story-graph`'s `Campaign` has no mechanism for one campaign's `kindState` to be read by
+  another's — sessions are per-campaign (04 §7). `bulgaria-return.ts` was built standalone, with
+  no variables at all, confirming the narrative-only reading rather than assuming it. **Open
+  remainder**: `games/bulgaria-adventure.md` itself still claims the seeding property — that
+  document lives in the companion `SubZeroDev.GameOfLife` repository, so correcting it is a
+  follow-up there, out of scope for this repo. Nothing here blocks on it: arc build order was
+  already safe regardless, and that has now been exercised three times over.
 - **The replay-corpus test harness assumes one campaign per corpus directory** —
   `bulgaria-bureaucracy.replay.test.ts` (W22) does a generic `readdirSync` scan of
   `fixtures/replay/` to enumerate fixtures, but builds its `ReplayRunnerContext` from *only*
