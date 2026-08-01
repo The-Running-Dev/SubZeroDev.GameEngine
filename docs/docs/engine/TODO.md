@@ -699,7 +699,7 @@ against a synthetic kind/campaign fixture, not a real Bulgaria campaign republis
 shipped campaign is still at `1.0.0`.
 - **Spec:** [04 §3](04-core.md#3-the-kind-interface--the-seam), [§10.2](04-core.md#102-save-envelope-and-migration); [06 §6](06-extensibility.md#6-adding-a-port).
 - **Depends on:** nothing engine-side.
-- **Status:** Done — PR pending.
+- **Status:** Done — [PR #92](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/92).
 - **Done when:** every base-case save/load test still passes unmodified (the envelope is
       transparent to `SessionStore`'s public surface); a kind-version mismatch with a
       registered migration succeeds and flips `replayCompatible: false`; the same with no
