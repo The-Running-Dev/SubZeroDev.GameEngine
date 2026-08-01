@@ -5,7 +5,7 @@ sidebar_label: Simulation Kind
 # Simulation Kind — Contract
 
 **Document status:** Revision 1 — **the seam only.** Field-level content detail is still
-upstream; §14 says exactly what and why.
+upstream; §15 says exactly what and why.
 
 **Kind:** `simulation`
 
@@ -19,7 +19,7 @@ upstream; §14 says exactly what and why.
 >
 > It is **not** a port of that document. Roughly half of it is core material `04-core` now
 > owns, and the half that is kind-specific runs to ~50 KB of field detail that this contract
-> deliberately does not restate — see §14.
+> deliberately does not restate — see §15.
 
 ---
 
@@ -47,7 +47,7 @@ caught three times, in 03 §8.1, 04 §10.1 and 03 §9 — the last on the *view*
 | `version` | `GameState.formatVersion` — the envelope (04 §2) |
 | `gameId` | The envelope, from the `IdSource` port (06 §5.1) |
 | `seed` | The envelope — the *only* randomness state |
-| `status` | The envelope |
+| `status` | The envelope — but narrowed. Upstream's `GameStatus` is `"active" \| "completed" \| "failed" \| "abandoned"`; the envelope's is `"active" \| "ended" \| "abandoned"` (04 §2). `completed` and `failed` both map to `ended` — **the core has no concept of winning**, the same resolution [`12-world-graph-kind.md`](12-world-graph-kind.md) §8 gives the identical upstream conflict. The win/loss/week-limit distinction lives in `outcome()` (§12), not here |
 | `actionLog` | The envelope — the replay spine |
 | `metadata` | The session-store record, outside replayable state (04 §7) |
 | **`rng: RngState`** | **Nowhere.** 04 §2 bans persisted generator state outright: streams derive from `(seed, streamId)`, so a stored `RngState` is a field written every action and read by nothing, free to drift from the derivable truth |
@@ -114,6 +114,15 @@ events         present responses deferred from last week
 > player is quietly granted or robbed of time units with nothing to show it. This is the
 > kind of rule the determinism harness cannot catch and the replay oracle (07) can.
 
+**`initialState(campaign, ctx): InitialStateResult<KState>`** (04 §4) builds the calendar
+at week one with a full time budget, the player and world state the campaign declares, and
+an empty plan. `status` is always `"active"`: unlike `story-graph`, where an authored chain
+can settle straight to an ending before the player ever acts, this kind has no path from
+`initialState` to a terminal state — every `outcome()` value besides `null` (§12) requires
+at least one `end_week`, and week one has not run yet. `InitialStateResult` exists so a kind
+can report an immediate terminal state (04 §4: `KState` is opaque to the core, "so the kind
+must *say so*"); this kind simply never needs to.
+
 ---
 
 ## 4. Actions — One Model, Richer Verbs
@@ -164,7 +173,7 @@ consequences 05 §5 and 07 §3.1 describe.
 Nine areas: identity, finances, needs, attributes, education, career, housing, inventory,
 relationships (upstream §8.1–§8.9).
 
-**Field detail is not restated here** (§14). What this contract fixes is where they live —
+**Field detail is not restated here** (§15). What this contract fixes is where they live —
 inside `SimulationKindState.player`, opaque to the core — and two engine-level rules:
 
 - **Money is integer cents.** No floating point in state; the determinism guard bans the
@@ -195,6 +204,10 @@ Reused verbatim from the core's frozen operator set (04 §18), which originated 
 are out unless a concrete campaign need justifies each individually — the bar 04 §18 sets
 deliberately high, and this kind is the one most likely to test it.
 
+**This section's scope is conditions and requirements only** (upstream §13.1–§13.2).
+`Modifier` and `Reward` (upstream §13.3–§13.4) are simulation mechanics, not condition
+operators, and are deferred to the content-type port along with the rest of §7 — see §15.
+
 ---
 
 ## 9. Projection
@@ -223,6 +236,10 @@ message or registry validation fails:
 
 Reused from the base set: `unknown_action`, `requirement_unmet`, `session_ended`.
 
+Each code's `messageKey` lives under `simulation.reason.<code>` (04 §12), the
+`<kindId>.reason.*` convention — not to be confused with 05 §9's `kind.<kindId>.*` *event*
+namespace, §11 below.
+
 ---
 
 ## 11. Events
@@ -236,6 +253,7 @@ Namespaced `kind.simulation.*` (05 §9), declared as `Kind.eventNames`:
 | `system.ran` | `trace` | Once per system, in order |
 | `action.resolved` | `debug` | Per planned action during `end_week` |
 | `effect.expired` | `debug` | An `activeEffect` passed `expiresAtWeek` |
+| `goal.achieved` | `info` | A goal's completion condition met |
 | `goal.failed` | `info` | A goal's failure condition met |
 | `week.ended` | `info` | End of resolution |
 
@@ -251,8 +269,24 @@ the phase that moved.
 (07 §3.3):
 
 ```typescript
-outcome(state: SimulationKindState): { endingId: string | null; goalsMet: readonly string[] }
+outcome(state: SimulationKindState): {
+  resolution: "goals_met" | "failed" | "week_limit_reached" | null;  // null while active
+  goalsMet: readonly string[];      // completed GoalDefinition ids, sorted
+  goalsFailed: readonly string[];   // failed GoalDefinition ids, sorted
+}
 ```
+
+This kind has **no ending concept** — nothing upstream resembles `story-graph`'s `Ending`
+type — so unlike that kind's `{ endingId: string | null }`, terminal identity here is
+`resolution` plus which goals landed on which side. `resolution` carries three non-null
+values, not two: `week_limit_reached` is a genuine third terminal path this kind already
+names as a reason code (§10), distinct from tripping a failure condition. `goalsFailed`
+exists because `goalFailurePrecedence` (upstream §12.3) can default a game to `goals_met`
+*while* other goals failed — without it, that playthrough and a clean sweep would produce
+identical outcomes. `failureId` is deliberately absent: unlike `world-graph`, whose failure
+conditions are independent of its objectives, this kind's failures hang off goals, so the
+failing goal is already in `goalsFailed` — naming *which one* ended the game when several
+fail in the same week would expose iteration order, not a fact about the game.
 
 Published ids only — never money, needs, or week counts, all of which a balance pass changes
 legitimately and none of which a regression oracle should treat as a defect (07 §3.4).
@@ -272,17 +306,40 @@ outcome in the game.
 
 ---
 
-## 14. What Remains Upstream, and Why
+## 14. Validation
+
+`Kind.validateCampaign(campaign, strings)` (04 §11) is where this is implemented — pure,
+total, run once at registry construction, before the registry is frozen.
+
+**Deferred, the way §2 defers `history`, rather than left unraised.** Concrete Tier 1/Tier
+2 rules need the content types §7 defers to §15 — a job/course/housing id can't be checked
+for referential integrity before the type naming those ids exists. Once it does, the shape
+follows 03 §11 and 12 §15's precedent directly: Tier 1 (hard fail) for duplicate ids,
+dangling references between content types (a job naming a `requiredCredentialId` that
+doesn't exist), missing `LocKey`s, and out-of-range declared values; Tier 2 (warning) for
+unreachable content (a goal no scenario's `goalIds` ever names) and non-fatal authoring
+smells. **Revisit when** §15's content-type port lands.
+
+---
+
+## 15. What Remains Upstream, and Why
 
 This is the seam, not the whole kind. Still to be brought over from
 `games/04-engine-specification.md`, in the order that unblocks the most:
 
 | Upstream | Holds | Why not yet |
 |---|---|---|
-| §8.1–§8.9 | Player-state field detail | ~20 KB. Structural home is fixed (§6); the fields need reconciling against typed-variable discipline (03 §2) before restating |
+| §8.1–§8.9 | Player-state field detail (`PlayerState`) | ~20 KB. Structural home is fixed (§6); the fields need reconciling against typed-variable discipline (03 §2) before restating |
+| §5.1, §5.3–§5.6 | The other nine `SimulationKindState` fields' upstream shapes — `CalendarState`, `WorldState`, `StatusEffect`, `Opportunity`, `ScheduledEvent`, `PendingEventResponse`, `GoalState`, `EconomyState` | ~425 lines. Same status as player state: the structural home is fixed (§2's table); field detail needs the same reconciliation before restating |
+| §9, §9.1 | `WeeklyActionPlan`'s own shape (`ActionType`, `GameAction`) | References content ids (jobs, courses, …) that have no home until the row below lands |
 | §14.1–§14.9 | Content definition types | ~25 KB. Needs the authoring→registry split applying (04 §10.1), which for story-graph was its own piece of work |
-| §12.2–§12.3 | End-of-week system order, goal precedence | Normative and short; blocked only on §14's goal types |
+| §13.3–§13.4 | `Modifier`, `Reward` | Simulation mechanics hanging off `Condition`, not condition operators (§8 is scoped to §13.1–§13.2 only). `Modifier.operation: "multiply"` against this kind's integer-cents money (§6) has no upstream rounding rule — a determinism hazard to resolve *before* porting, not after, flagged here rather than fixed here |
+| §12.2–§12.3 | End-of-week system order, goal precedence | Normative and short; blocked only on this table's own content-type row above |
 | §7 | Base and derived values | Rule adopted (§2, §6); the formulae are content-balance material |
+
+**This table now accounts for every field `SimulationKindState` (§2) names** — nine of ten
+were missing a row entirely in this document's first revision (only `PlayerState` had one);
+completeness is what makes the claim below trustworthy rather than merely reassuring.
 
 **Nothing above changes this contract's shape** — each is detail hanging off a seam this
 document fixes. What it does mean is that the upstream sections stay authoritative for those

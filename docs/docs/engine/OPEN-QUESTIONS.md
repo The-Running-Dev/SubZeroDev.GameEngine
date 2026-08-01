@@ -61,7 +61,7 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   `history` is **not adopted** until it is established what it holds that `StateChange` does
   not — most likely player-facing narrative framing, which would make it a projection
   concern rather than state. **Revisit when** the simulation kind's field detail is ported
-  (10 §14). The same question arises for `world-graph`, which declines `history`
+  (10 §15). The same question arises for `world-graph`, which declines `history`
   on identical grounds ([`12-world-graph-kind.md`](12-world-graph-kind.md)
   §3) — resolve both together or not at all.
 - **`previewAction`, and the tenth API operation it implies** — a spatial kind must be able
