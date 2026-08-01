@@ -1,0 +1,109 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`determinism harness — the real Return campaign (04-core.md §14) > 'full arc to home_again': event stream is golden-filed 1`] = `
+[
+  {
+    "data": {
+      "streamId": "system:start:0",
+    },
+    "name": "core.rng.stream.derived",
+    "ordinal": 0,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "nodeId": "expat_returns",
+      "nodeKind": "choice",
+      "visitCount": 1,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.node.entered",
+    "ordinal": 1,
+    "scope": "game",
+    "seq": 0,
+    "severity": "debug",
+  },
+  {
+    "data": {
+      "nodeId": "expat_returns",
+      "nodeKind": "choice",
+      "step": 0,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.settle.step",
+    "ordinal": 2,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "campaignId": "bulgaria-return",
+      "campaignVersion": "1.0.0",
+      "kindId": "story-graph",
+    },
+    "name": "core.game.created",
+    "ordinal": 3,
+    "scope": "game",
+    "seq": 0,
+    "severity": "info",
+  },
+  {
+    "data": {
+      "streamId": "action:0",
+    },
+    "name": "core.rng.stream.derived",
+    "ordinal": 0,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "nodeId": "home_again",
+      "nodeKind": "ending",
+      "visitCount": 1,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.node.entered",
+    "ordinal": 1,
+    "scope": "game",
+    "seq": 0,
+    "severity": "debug",
+  },
+  {
+    "data": {
+      "nodeId": "home_again",
+      "nodeKind": "ending",
+      "step": 0,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.settle.step",
+    "ordinal": 2,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "actionId": "smile",
+    },
+    "name": "core.action.accepted",
+    "ordinal": 3,
+    "scope": "game",
+    "seq": 0,
+    "severity": "info",
+  },
+  {
+    "name": "core.game.ended",
+    "ordinal": 4,
+    "scope": "game",
+    "seq": 0,
+    "severity": "info",
+  },
+]
+`;
+
+exports[`determinism harness — the real Return campaign (04-core.md §14) > 'full arc to home_again': serialize() output is golden-filed 1`] = `"{"actionLog":[{"actionId":"smile","seq":0}],"campaignId":"bulgaria-return","campaignVersion":"1.0.0","formatVersion":1,"gameId":"fixed-game-id","kindId":"story-graph","kindState":{"currentNodeId":"home_again","endingId":"home_again","turn":1,"unlockedAchievements":[],"variables":{},"visitedCounts":{"expat_returns":1,"home_again":1}},"seed":"return-seed-1","status":"ended"}"`;
