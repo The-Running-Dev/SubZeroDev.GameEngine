@@ -191,3 +191,115 @@ bulk. When a suggestion is declined, record it in the affected document (or
 `OPEN-QUESTIONS.md`) as a known-and-retained issue rather than dropping it silently.
 
 Lessons learned the hard way live in [`agent.md`](agent.md).
+
+### Safe Start
+
+Before editing: `git status --short --branch`, `git remote -v`, and enough of a file listing
+to know what is actually here. Read this file and the relevant sources **completely** — this
+project's recurring defect is editing from memory rather than from the artifact. Preserve
+unrelated work; never commit secrets, caches, or build output (`artifacts/`, `dist/`,
+`node_modules/`). Work on a focused branch.
+
+### Effort and Model Selection
+
+Match capability and reasoning effort to the **task**, not to the tool that reached it. Use
+the smallest model and lowest effort that still produces production-quality output; reserve
+the strongest model and highest effort for genuinely ambiguous or architectural work. Budget
+scales with **complexity, not size** — a one-line change to the determinism guard is
+architectural; a 500-line spec transcription against a settled seam is not.
+
+| Tier | Work | Model here |
+|---|---|---|
+| **Deep reasoning** | Architecture, specs, API/seam design, root-cause analysis, multi-step planning, comparing implementation approaches, security and performance strategy | **Opus**, high effort |
+| **Implementation** | Code against settled contracts, tests, refactors, bug fixes, CI/infra, docs tightly coupled to implementation | **Sonnet** — or Opus at standard effort for significant features, large PRs, or hard bugs |
+| **High volume** | Summaries, changelogs, commit messages, PR descriptions, formatting, triage, log and tool-output summarization | **Haiku**, default effort |
+
+Worked examples from this repository: the W20–W26 programme split and the
+`10-simulation-kind` `outcome()` reconciliation were deep-reasoning; W24's execution — eight
+enumerated edits against an approved plan — was implementation tier and did not need Opus.
+
+**Division of control.** The *user* sets the session model with `/model`; *Claude* sets
+subagent models via the Agent tool's `model` parameter and scales its own reasoning depth.
+Claude cannot switch its own session model — if a task warrants a different tier, say so
+rather than silently over- or under-spending.
+
+**Escalate rather than guess.** A high-volume task that raises an architectural question
+becomes implementation tier; an implementation task that raises architectural uncertainty
+becomes deep-reasoning tier. **Do not continue implementing while that uncertainty is
+unresolved** — this repo's contracts are the thing most expensive to get wrong.
+
+### Git and Pull Requests
+
+**Commit messages follow this repository's existing descriptive style, not Conventional
+Commits** — `W20-W23 — Replay Regression Oracle`, `Fix release-tag-replay: checkout never
+fetched sibling tags`. Deliberate: 75 merged PRs set that precedent, and a `feat:`/`docs:`
+prefix would buy nothing this project reads. Keep them **concise** — state what changed and
+why it was not the obvious alternative; the long-form reasoning belongs in `plans/`.
+
+**Stage explicitly, by named path.** Never `git add -A`, `git add .`, or a bare directory —
+a broad add silently sweeps up unrelated working-tree state. Not a borrowed rule:
+`.gitignore`'s own comment records a near-miss where a `build/` pattern would have made
+installer-added scripts invisible to `git add -A` — present locally, green locally, missing
+in CI, with nothing saying why.
+
+**Never force-push or rewrite published history.** `main` blocks it (`non_fast_forward`);
+feature branches do not, so it is discipline rather than enforcement. If a pushed commit
+needs changing, add a follow-up commit.
+
+**Do not enable auto-merge.** Open the PR, report the check outcomes, and leave the merge to
+the user. (Auto-merge is enabled at the repository level and `required_approving_review_count`
+is `0`, so it *would* work — this is a deliberate workflow choice, not a limitation.)
+
+> **Push every commit before announcing a PR is ready.** Announcing invites an immediate
+> merge, and a commit pushed after that lands on a branch nobody merges — PR #77's second
+> commit was squashed out exactly this way and needed recovering as PR #78. With auto-merge
+> off, this discipline is the only thing preventing it.
+
+**Three required checks** on `main` — `engine`, `Documentation links and terminology`,
+`Verify Documentation Build`. The deploy job is *not* required (it runs only on `main`, so
+requiring it would leave every PR pending).
+
+**`required_review_thread_resolution` is on**, and `qodo-code-review` leaves conversation
+threads that do **not** appear in `gh pr view --json reviewRequests,latestReviews`. Query
+threads directly via the GraphQL `reviewThreads` field. Resolve a thread only when a
+validated fix satisfies it; leave ambiguous findings open and report them.
+
+### Validation
+
+Run what applies, and do not claim a gate passed that did not run:
+
+```powershell
+./build/Test-Documentation.ps1                                  # authored links, anchors, terminology
+cd src/engine; npm run typecheck; npm run lint; npm test        # the `engine` job's own three
+git diff --check
+git status --short --branch
+```
+
+`./docs.ps1 -BuildOnly` is the production Docusaurus build (`onBrokenLinks: 'throw'`, the only
+gate that resolves *routes* and heading anchors). It needs Docker **and** an installed
+`docs.ps1`. When either is missing, say so plainly and verify the *Verify Documentation Build*
+check on the PR instead — never report it as locally passing.
+
+**Never state or imply a published URL until the deploy workflow for that exact merge commit
+reports success.** A merged PR is not a deployed site; poll the run rather than estimating.
+
+### Imported From the Blog Repository — and What Did Not Transfer
+
+The conventions above were reconciled from `The-Running-Dev`'s blog-repository guidelines.
+Recorded here so the same reconciliation is not redone, and so the non-transferring rules are
+not re-imported by someone reading that document next to this one.
+
+**Two of its rules are inverted here and must not be adopted:**
+
+1. *"Do not restore `build/ConvertTo-DocumentationHomepage.ps1` or `docs/src/pages/index.md`"*
+   — correct there, because its blog owns `/`. **Both are load-bearing here**: `routeBasePath`
+   is `'docs'`, so the README *is* the site root, generated into `docs/src/pages/index.md` and
+   drift-checked by `.config/DocumentationRules.psd1`.
+2. *"Required PR checks are"* — it lists two. This repo requires **three**; `engine` has no
+   equivalent there and is this repository's most valuable gate.
+
+**Absent here, so the rules referencing them do not apply:** `tools/blog-mcp/` (and every
+`blog_*` tool), `docs/blog/`, `docs/src/pages/blog/`, `MILESTONES.md`, `.config/blog.json`,
+`build/Test-DocumentationArtifact.ps1`, `.agents/workflows/`. There is no blog, no
+front-matter/tag/slug contract, and no `/welcome/` route — this repository publishes specs
+under `/docs/`.
