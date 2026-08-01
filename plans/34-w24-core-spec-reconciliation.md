@@ -5,7 +5,7 @@ six entries under *Known Open Items Carried In* and one stale checkbox under *De
 
 **Scope:** Doc-only. Codify in `04-core.md` and `03-story-graph-kind.md` the conventions the
 code already implements and depends on, restate one type whose only citation points at another
-repository, resolve one intra-document contradiction, and correct five stale TODO.md entries.
+repository, resolve one intra-document contradiction, and correct six stale TODO.md entries.
 No code changes — every item here is the documentation half of something already built and
 tested.
 
@@ -147,7 +147,7 @@ build). There is no merged numbering to collide.
 **Change:** close it in `OPEN-QUESTIONS.md` §2 and remove the TODO entry, with one sentence
 recording *why* it closed rather than deleting it silently.
 
-### 7. Correct five stale TODO.md entries
+### 7. Correct six stale TODO.md entries
 
 Full evidence for the first four in [`plans/33`](33-post-mvp-programme.md), Findings 1–4. The
 fifth was found after that plan was written — by this unit's own PR, see below. Summarised:
@@ -159,6 +159,7 @@ fifth was found after that plan was written — by this unit's own PR, see below
 | "`previewAction` and the tenth API pairing" as a standalone checkbox | Reads as schedulable; 12 §7 and `OPEN-QUESTIONS.md` §2 both say it is deliberately deferred *and* must change 09/`MVP.md`/04 §13 in one edit. Reword as folded into the world-graph build |
 | The `04 §3.1` reference behind the `derive` checkbox | 04 §3.1 declares `derive` on `KindContext`; check that its prose actually says the `tick` and `agent` variants are reachable, since the checkbox's claim that they were not came from somewhere |
 | W23's description: "`pull_request` gained a `paths: [src/engine/**]` filter" (TODO.md:446) | **The filter never shipped.** `ci.yml` lines 13–22 record it as "tried and reverted": a path-filtered `pull_request` means a required check never *starts*, and GitHub leaves the PR waiting on a report that never arrives rather than treating it as satisfied. The equivalent skip moved *inside* the job ("Determine whether the engine package changed", `ci.yml:59`), so `engine` always reports while skipping the expensive steps |
+| W23's status note: "it needs **a second real tag** to exercise end to end" (TODO.md:460), and `plans/27`'s M3 saying the same | **Off by one.** `v0.1.0` points at `96586bf`, which predates W22 and carries no corpus, so a second tag hits `ci.yml`'s `has_fixtures=false` guard and *skips* the comparison. The oracle needs a predecessor that carries a corpus — `e26fa9d` is the first such commit. Fix in [`plans/35`](35-w26-toolchain-upgrade.md), Decision 4 |
 
 The `04 §3.1` row is a check, not a known defect — flagged so it is looked at rather than assumed.
 
@@ -224,7 +225,7 @@ one place, which is the point of item 3.
 - §18 carries the `Condition` shape inline; the `games/…` citation remains as provenance only.
 - 03 §9's `unlockedAchievements` comment agrees with §7 and with `view.ts`.
 - The doc-tree numbering item is closed in `OPEN-QUESTIONS.md` §2 with its reason.
-- All five stale TODO.md entries are corrected, each citing the code or plan that proves it.
+- All six stale TODO.md entries are corrected, each citing the code or plan that proves it.
 - `./docs.ps1 -BuildOnly` passes — both Docusaurus link checks are `'throw'` and
   `build/Test-Documentation.ps1` is the second gate.
 - **No file under `src/engine/` is modified.** If any item appears to require a code change,

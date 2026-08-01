@@ -176,13 +176,16 @@ cheapest Tranche C item to pull forward if that changes.
 |---|---|---|
 | **M4 — The specs stop lying** | W24 + W25 merged | Every convention the code relies on is stated in a contract; both kind docs reconcile against the same core. The stale checkboxes are gone |
 | **M5 — The oracle earns its keep** | W26 merged | A major dependency bump lands with the corpus proving it changed no behaviour — the first time the W20–W23 investment pays out rather than just standing by |
-| **M6 — Cross-version proof** | The second release tag | Inherited unchanged from `plans/27` (M3). W26 is the natural candidate to cut `v0.2.0` against, which would close M6 as a side effect |
+| **M6 — Cross-version proof** | A tag whose **predecessor carries a corpus** | `plans/27`'s M3 says the *second* tag; that is wrong — `v0.1.0` predates the corpus, so a second tag exercises the corpus-free guard, not the oracle. Needs `e26fa9d` tagged `v0.2.0` first, then W26 cuts `v0.3.0`. See [`plans/35`](35-w26-toolchain-upgrade.md), Decision 4 |
 | **M7 — Two kinds run** | The simulation kind plays "Stable Life" to a win and a loss | The platform thesis moves from *proven* to *proven twice*. `02-architecture.md` N2's core/kind split stops being an assertion |
 | **M8 — Depth** | Bulgaria's five arcs + the culture pack | Content breadth on both kinds |
 
-M6 is worth stating separately from M5 even though one change can close both: the oracle's
-headline capability (comparing this build against a *previous* build) still cannot be
-demonstrated until a second tag exists, no matter how well W26 lands.
+M6 is worth stating separately from M5, and no longer for the reason `plans/27` gave. The
+original framing — "cannot be demonstrated until a second tag exists" — undercounts by one.
+`v0.1.0` was cut at `96586bf`, before W22 committed any fixture, so a second tag finds an empty
+baseline and the comparison step is skipped rather than run. **M6 needs a tag whose predecessor
+carries a corpus**, and the first commit that qualifies is `e26fa9d`. Full evidence and the fix
+in [`plans/35`](35-w26-toolchain-upgrade.md), Decision 4.
 
 ---
 

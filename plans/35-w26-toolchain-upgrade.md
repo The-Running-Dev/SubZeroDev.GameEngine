@@ -37,6 +37,10 @@ that has nothing to do with the test runner.
 This is the first occasion the W18 and W20–W23 investment is *used* rather than merely
 standing by, which is why [`plans/33`](33-post-mvp-programme.md) makes it milestone M5.
 
+> **One precondition is not free.** The cross-version half of that claim needs a
+> corpus-bearing baseline tag, and none exists — `v0.1.0` predates the corpus entirely.
+> Decision 4 resolves it; the claim is unsupported without that step.
+
 ---
 
 ## Current State (measured, not recalled)
@@ -153,16 +157,39 @@ to force. A toolchain upgrade that rewrites behavioural goldens under the cover 
 bump is the failure mode W18 and W20–W23 were built to prevent, and it would be ironic to
 commit it in the first unit that uses them.
 
-### 4. Cut `v0.2.0` from this unit
+### 4. Tag `e26fa9d` as `v0.2.0` **first**, then cut `v0.3.0` from this unit
 
-W20 established plain `vX.Y.Z` tags, and `plans/27`'s milestone M3 notes the oracle's headline
-capability — comparing against a *previous* version — cannot be demonstrated until a second tag
-exists. This unit is the natural candidate: it changes no engine behaviour by design, so the
-cross-version comparison it enables should be a clean `match` on every fixture. That is the
-ideal first exercise of the `release-tag-replay` CI job, which W23 itself flagged as "unverified
-beyond local shell-logic testing — it needs a second real tag to exercise end to end."
+This decision originally read "cut `v0.2.0` from this unit," inheriting `plans/27` milestone M3
+and TODO.md:460, which both say the **second** tag produces the first genuine cross-version
+comparison. **That is wrong, and it was wrong before this plan repeated it.**
 
-If W24/W25 land first, they are doc-only and equally safe to include in the same tag.
+Verified:
+
+| Fact | Evidence |
+|---|---|
+| `v0.1.0` is the only tag, and points at `96586bf` | `git rev-list -n1 v0.1.0` |
+| `96586bf` contains **no** replay corpus | `git ls-tree -r --name-only v0.1.0 -- src/engine/fixtures/` returns nothing — it predates W22 |
+| The job skips rather than compares in that case | `ci.yml`'s *Extract…* step sets `has_fixtures=false`, and the *Run…* step is gated on it |
+| The workflow already knows | Its own comment: "an empty match (the previous tag predates W22's corpus entirely — **true of v0.1.0, the only tag today**)" — the `fec9ab4` guard was written *for* this case |
+
+So a second tag compares against a corpus-free baseline and exercises **the guard, not the
+oracle**. The first genuine comparison needs a *corpus-bearing* predecessor, which no tag is.
+
+**The fix is not a workaround — it corrects a real omission.** `e26fa9d` (the W20–W23 merge)
+shipped engine versioning and the replay oracle: features, warranting a minor bump under W20's
+own plain-`vX.Y.Z` scheme. It never got a tag. Tagging it `v0.2.0` retroactively is correct
+release hygiene on its own merits, *and* it establishes the corpus-bearing baseline, because
+`e26fa9d` is the first commit where `src/engine/fixtures/replay/` exists.
+
+This unit then cuts **`v0.3.0`**, whose predecessor `v0.2.0` has a full corpus — a genuine
+comparison, and the ideal first exercise of the job, since W26 changes no engine behaviour by
+design and should therefore produce a clean `match` on every fixture.
+
+Rejected alternative: moving `v0.1.0` to `e26fa9d`. Tags are published references and W20
+deliberately chose `96586bf` for a stated reason (`plans/28`, Decision 3). Re-pointing it would
+invalidate that reasoning and rewrite a released marker to paper over a milestone error.
+
+If W24/W25 land first, they are doc-only and equally safe to include in the `v0.3.0` tag.
 
 ### 5. TypeScript is not bumped unless something forces it
 
@@ -190,8 +217,12 @@ otherwise it stays.
   their reachability, not dropped.
 - The TODO.md entry reflects the true post-upgrade state.
 - CI green, including the `engine` job and both documentation gates.
-- `v0.2.0` tagged, and the `release-tag-replay` job observed running against `v0.1.0`'s
-  committed outcomes — the first genuine cross-version comparison (programme milestone M6).
+- `e26fa9d` tagged `v0.2.0` **before** this unit's own tag is cut (Decision 4), establishing the
+  first corpus-bearing baseline.
+- `v0.3.0` tagged from this unit, and the `release-tag-replay` job observed **running the
+  comparison step** against `v0.2.0`'s committed outcomes — not skipping it. The distinction is
+  the whole point: a green job that skipped proves nothing, and the run log must show
+  `has_fixtures=true` and a `match` verdict per fixture (programme milestone M6).
 
 ---
 
