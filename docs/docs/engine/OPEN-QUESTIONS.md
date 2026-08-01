@@ -119,6 +119,40 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   real call sites and zero real implementations of the specified abstraction. **Revisit when**
   a second `SessionStore` implementation is actually needed: the composition-root generality
   should be drawn from two real cases, not one and a specification.
+- **Enterprise's climax scene is already spent** — `games/bulgaria-adventure.md`'s arc table
+  assigns `games/bulgaria.md`'s "Ultimate Bulgarian Reward" scene, and by extension its
+  achievement, to the **Enterprise** arc. But `bulgaria-bureaucracy.ts` already consumes both
+  verbatim as its own ending (`endingId: "ultimate_reward"`, achievement `it_builds_character`)
+  — a real authoring decision from W15 the design doc was never updated to reflect. Whoever
+  builds Enterprise needs either new climax content and a new achievement id, or a decision
+  that Enterprise simply doesn't get one. Found while planning the Driving arc
+  (`plans/37-w27-bulgaria-driving-arc.md`), which sidesteps it rather than resolving it.
+  **Revisit when** Enterprise is actually scoped — this is a design decision, not a
+  content-authoring task, and belongs to whoever does that unit.
+- **"Return seeds variables the other arcs read" isn't mechanically achievable** —
+  `games/bulgaria-adventure.md` says this of the Return arc, but every arc is built as its own
+  standalone `Campaign` (confirmed by how Bureaucracy and Driving are both wired: a
+  self-contained `id`, its own `startNodeId`, no shared session). `story-graph`'s `Campaign`
+  has no mechanism for one campaign's `kindState` to be read by another's — sessions are
+  per-campaign (04 §7). The likely intent is narrative continuity in prose, not a technical
+  dependency, but as written the design doc claims a property the architecture doesn't support.
+  One practical consequence already exercised: arc build order is safe regardless, since
+  nothing actually depends on Return running first. **Revisit when** Return is actually built —
+  either confirm the narrative-only reading and correct the doc, or decide arcs need an actual
+  shared-state mechanism, which would be new architecture, not content.
+- **The replay-corpus test harness assumes one campaign per corpus directory** —
+  `bulgaria-bureaucracy.replay.test.ts` (W22) does a generic `readdirSync` scan of
+  `fixtures/replay/` to enumerate fixtures, but builds its `ReplayRunnerContext` from *only*
+  the Bureaucracy campaign's registry. A second campaign's fixtures dropped into the same
+  directory would be enumerated by that scan and then fail, since the registry they'd run
+  against doesn't contain their campaign. W22 built this before a second campaign existed, so
+  it was never wrong for its own scope — but it means today's replay-corpus pattern doesn't
+  extend to a second campaign without either a multi-campaign registry in that shared context,
+  or a parallel per-campaign test file scoping its own directory read by filename prefix.
+  Found while implementing W27 (`plans/37-w27-bulgaria-driving-arc.md`), which has no replay
+  fixtures as a result — not blocking that unit, but real friction for every arc after it.
+  **Revisit when** a second campaign's replay coverage is actually wanted: decide the shared-vs-
+  per-campaign shape once, from two real cases, rather than guessing ahead of one.
 
 ---
 
