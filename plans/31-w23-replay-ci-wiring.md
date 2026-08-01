@@ -90,7 +90,7 @@ to work."
 
 ## Post-Review Corrections
 
-Six findings from Qodo's review of the first draft were acted on; two were not.
+Seven findings from Qodo's review of the first two drafts were acted on; one was not.
 
 **Real, fixed:**
 
@@ -119,6 +119,18 @@ Six findings from Qodo's review of the first draft were acted on; two were not.
    `npm install --package-lock-only`, which was tried first and reverted — it also rewrote
    unrelated `libc` metadata on optional platform dependencies, apparently from a difference
    in the local npm version's serialization, and that churn had nothing to do with this fix.
+8. **The release-tag job never checked whether the previous tag actually had a corpus.**
+   `v0.1.0` (W20's tag, the only one that exists today) was cut *before* the corpus (W22)
+   existed — the very first time a second tag makes this job run for real, "the previous tag"
+   would be `v0.1.0`, whose `src/engine/fixtures/replay/` is empty. Extraction would silently
+   produce zero files, and the corpus test's own "the corpus is non-empty" assertion would
+   fail on a false alarm, not a real regression. Fixed by checking, right after extraction,
+   whether any `*.fixture.json` landed in the baseline directory, and skipping the "run the
+   corpus" step entirely (not a failure) when none did — the same "not a failure" framing the
+   "no previous tag at all" case already gets. Verified empirically that a failing `grep`
+   inside `for x in $(cmd | grep ...)` does not itself abort the step under this shell's
+   `-eo pipefail` default (a `for` loop over zero words simply iterates zero times), though
+   `|| true` was added anyway as cheap, explicit insurance.
 
 **Reviewed, not acted on:**
 

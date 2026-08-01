@@ -152,17 +152,30 @@ jobs:
       # earlier version set working-directory: src/engine here while keeping the
       # src/engine/-prefixed pathspec, which resolved to the nonexistent
       # src/engine/src/engine/fixtures/replay and silently extracted nothing.
+      #
+      # `|| true` on the ls-tree/grep pipeline: an empty match (the previous tag predates
+      # W22's corpus entirely -- true of v0.1.0, the only tag today, cut before any fixture
+      # existed) must not itself end the step under this shell's `-eo pipefail` default.
+      # The `has_fixtures` check below is the real guard against that case; this is cheap
+      # insurance alongside it.
       - name: Extract the previous tag's fixtures and outcomes
+        id: extract
         if: steps.previous.outputs.found == 'true'
         run: |
           mkdir -p /tmp/replay-baseline
-          for path in $(git ls-tree -r --name-only "${{ steps.previous.outputs.tag }}" -- src/engine/fixtures/replay | grep -E '\.(fixture|outcome)\.json$'); do
+          for path in $(git ls-tree -r --name-only "${{ steps.previous.outputs.tag }}" -- src/engine/fixtures/replay | grep -E '\.(fixture|outcome)\.json$' || true); do
             name=$(basename "$path")
             git show "${{ steps.previous.outputs.tag }}:$path" > "/tmp/replay-baseline/$name"
           done
+          if ls /tmp/replay-baseline/*.fixture.json >/dev/null 2>&1; then
+            echo "has_fixtures=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "${{ steps.previous.outputs.tag }} predates the replay corpus (W22) — nothing to compare yet."
+            echo "has_fixtures=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Run the corpus against the previous tag's fixtures and outcomes
-        if: steps.previous.outputs.found == 'true'
+        if: steps.previous.outputs.found == 'true' && steps.extract.outputs.has_fixtures == 'true'
         working-directory: src/engine
         env:
           REPLAY_BASELINE_DIR: /tmp/replay-baseline
