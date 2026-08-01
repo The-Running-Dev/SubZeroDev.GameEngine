@@ -725,7 +725,7 @@ schema `WeeklyActionPlan.actions` holds (W30) remain.
       [§15](10-simulation-kind.md#15-what-remains-upstream-and-why).
 - **Depends on:** [W25](#x-w25--simulation-kind-seam-reconciliation) (the seam must be complete
       before field detail hangs off it, per `plans/36`).
-- **Status:** Done — PR pending.
+- **Status:** Done — [PR #94](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/94).
 - **Done when:** every field named in `SimulationKindState` (§2) except `PlayerState` has a
       full type restated in this repository, reconciled against envelope-duplication and
       forward-referencing not-yet-ported types (`NPCState`, `AgentState`, `GameAction`,
