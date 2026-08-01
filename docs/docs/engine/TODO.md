@@ -628,7 +628,32 @@ branch. Deliberately the smallest arc built so far: one node, no variables, no a
       round-trips; the determinism harness's sink-independence and replay-byte-identity checks
       pass; test count grows from 41 files/478 tests.
 
-- [ ] The remaining two arcs (Inheritance, Enterprise).
+### [x] W29 — Bulgaria Adventure: The Inheritance Arc
+The fifth real arc: `src/engine/src/campaigns/bulgaria-inheritance.ts`, authored from
+`games/bulgaria.md`'s three scenes ("Property Inheritance", "Village Life", "Family Meeting").
+Larger than the two before it — `games/bulgaria-adventure.md` names this arc's own exercise as
+"branching on prior choices, relationship variables, an ending," which needed real design, not
+just transcription. Two variables carry it: `family_tension` (int, visible) accumulates the way
+Bureaucracy's own counters do, without gating anything; `has_documentation` (bool, set only by
+`request_records` or `consult_lawyer` in the first scene) gates the one choice at the climax
+that actually resolves the plot (`bring_out_documents`, via `showWhen`) — that option does not
+exist at all for a player who never sought documentation, the clearest possible instance of
+"branching on prior choices." A second, different kind of branch: `pretend_never_inherited` in
+the second scene skips the climax entirely via an immediate `goto`, rather than a gate. Three
+endings result: an early opt-out, an ungated "nothing resolved," and the one gated "documents
+settle it" (`outcome: "win"`).
+- **Spec:** `games/bulgaria.md`, `games/bulgaria-adventure.md`;
+      [03 §4](03-story-graph-kind.md#4-choices-and-transitions) (`showWhen`).
+- **Depends on:** nothing engine-side — content only, same as W27/W28.
+- **Status:** Done — [PR #88](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/88).
+- **Done when:** the gated choice is confirmed absent (not disabled) without prior
+      documentation, and present and leading to the win ending with it; the early-opt-out branch
+      is confirmed to skip the climax node entirely; `family_tension` accumulates and clamps at
+      its floor; `serialize()` output for each of the four fixtures is golden-filed and
+      round-trips; the determinism harness's sink-independence and replay-byte-identity checks
+      pass; test count grows from 43 files/497 tests.
+
+- [ ] The remaining arc (Enterprise).
 - [ ] Its full Definition of Done: `games/bulgaria-adventure.md`.
 
 ### Breadth: The First Culture Pack

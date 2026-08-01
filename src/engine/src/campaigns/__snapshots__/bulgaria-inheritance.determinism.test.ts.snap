@@ -1,0 +1,656 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`determinism harness — the real Inheritance campaign (04-core.md §14) > 'avoided arc, skipping family_meeting': event stream is golden-filed 1`] = `
+[
+  {
+    "data": {
+      "streamId": "system:start:0",
+    },
+    "name": "core.rng.stream.derived",
+    "ordinal": 0,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "nodeId": "property_inheritance",
+      "nodeKind": "choice",
+      "visitCount": 1,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.node.entered",
+    "ordinal": 1,
+    "scope": "game",
+    "seq": 0,
+    "severity": "debug",
+  },
+  {
+    "data": {
+      "nodeId": "property_inheritance",
+      "nodeKind": "choice",
+      "step": 0,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.settle.step",
+    "ordinal": 2,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "campaignId": "bulgaria-inheritance",
+      "campaignVersion": "1.0.0",
+      "kindId": "story-graph",
+    },
+    "name": "core.game.created",
+    "ordinal": 3,
+    "scope": "game",
+    "seq": 0,
+    "severity": "info",
+  },
+  {
+    "data": {
+      "streamId": "action:0",
+    },
+    "name": "core.rng.stream.derived",
+    "ordinal": 0,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "nodeId": "village_life",
+      "nodeKind": "choice",
+      "visitCount": 1,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.node.entered",
+    "ordinal": 1,
+    "scope": "game",
+    "seq": 0,
+    "severity": "debug",
+  },
+  {
+    "data": {
+      "nodeId": "village_life",
+      "nodeKind": "choice",
+      "step": 0,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.settle.step",
+    "ordinal": 2,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "actionId": "accept_tomato_logic",
+    },
+    "name": "core.action.accepted",
+    "ordinal": 3,
+    "scope": "game",
+    "seq": 0,
+    "severity": "info",
+  },
+  {
+    "data": {
+      "streamId": "action:1",
+    },
+    "name": "core.rng.stream.derived",
+    "ordinal": 0,
+    "scope": "game",
+    "seq": 1,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "nodeId": "ending_avoided",
+      "nodeKind": "ending",
+      "visitCount": 1,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.node.entered",
+    "ordinal": 1,
+    "scope": "game",
+    "seq": 1,
+    "severity": "debug",
+  },
+  {
+    "data": {
+      "nodeId": "ending_avoided",
+      "nodeKind": "ending",
+      "step": 0,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.settle.step",
+    "ordinal": 2,
+    "scope": "game",
+    "seq": 1,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "actionId": "pretend_never_inherited",
+    },
+    "name": "core.action.accepted",
+    "ordinal": 3,
+    "scope": "game",
+    "seq": 1,
+    "severity": "info",
+  },
+  {
+    "name": "core.game.ended",
+    "ordinal": 4,
+    "scope": "game",
+    "seq": 1,
+    "severity": "info",
+  },
+]
+`;
+
+exports[`determinism harness — the real Inheritance campaign (04-core.md §14) > 'avoided arc, skipping family_meeting': serialize() output is golden-filed 1`] = `"{"actionLog":[{"actionId":"accept_tomato_logic","seq":0},{"actionId":"pretend_never_inherited","seq":1}],"campaignId":"bulgaria-inheritance","campaignVersion":"1.0.0","formatVersion":1,"gameId":"fixed-game-id","kindId":"story-graph","kindState":{"currentNodeId":"ending_avoided","endingId":"avoided_the_inheritance","turn":2,"unlockedAchievements":[],"variables":{"family_tension":0,"has_documentation":false},"visitedCounts":{"ending_avoided":1,"property_inheritance":1,"village_life":1}},"seed":"inheritance-seed-1","status":"ended"}"`;
+
+exports[`determinism harness — the real Inheritance campaign (04-core.md §14) > 'mid-arc, non-terminal': event stream is golden-filed 1`] = `
+[
+  {
+    "data": {
+      "streamId": "system:start:0",
+    },
+    "name": "core.rng.stream.derived",
+    "ordinal": 0,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "nodeId": "property_inheritance",
+      "nodeKind": "choice",
+      "visitCount": 1,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.node.entered",
+    "ordinal": 1,
+    "scope": "game",
+    "seq": 0,
+    "severity": "debug",
+  },
+  {
+    "data": {
+      "nodeId": "property_inheritance",
+      "nodeKind": "choice",
+      "step": 0,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.settle.step",
+    "ordinal": 2,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "campaignId": "bulgaria-inheritance",
+      "campaignVersion": "1.0.0",
+      "kindId": "story-graph",
+    },
+    "name": "core.game.created",
+    "ordinal": 3,
+    "scope": "game",
+    "seq": 0,
+    "severity": "info",
+  },
+  {
+    "data": {
+      "streamId": "action:0",
+    },
+    "name": "core.rng.stream.derived",
+    "ordinal": 0,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "nodeId": "village_life",
+      "nodeKind": "choice",
+      "visitCount": 1,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.node.entered",
+    "ordinal": 1,
+    "scope": "game",
+    "seq": 0,
+    "severity": "debug",
+  },
+  {
+    "data": {
+      "nodeId": "village_life",
+      "nodeKind": "choice",
+      "step": 0,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.settle.step",
+    "ordinal": 2,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "actionId": "cut_padlock",
+    },
+    "name": "core.action.accepted",
+    "ordinal": 3,
+    "scope": "game",
+    "seq": 0,
+    "severity": "info",
+  },
+]
+`;
+
+exports[`determinism harness — the real Inheritance campaign (04-core.md §14) > 'mid-arc, non-terminal': serialize() output is golden-filed 1`] = `"{"actionLog":[{"actionId":"cut_padlock","seq":0}],"campaignId":"bulgaria-inheritance","campaignVersion":"1.0.0","formatVersion":1,"gameId":"fixed-game-id","kindId":"story-graph","kindState":{"currentNodeId":"village_life","turn":1,"unlockedAchievements":[],"variables":{"family_tension":3,"has_documentation":false},"visitedCounts":{"property_inheritance":1,"village_life":1}},"seed":"inheritance-seed-1","status":"active"}"`;
+
+exports[`determinism harness — the real Inheritance campaign (04-core.md §14) > 'resolved arc via documentation': event stream is golden-filed 1`] = `
+[
+  {
+    "data": {
+      "streamId": "system:start:0",
+    },
+    "name": "core.rng.stream.derived",
+    "ordinal": 0,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "nodeId": "property_inheritance",
+      "nodeKind": "choice",
+      "visitCount": 1,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.node.entered",
+    "ordinal": 1,
+    "scope": "game",
+    "seq": 0,
+    "severity": "debug",
+  },
+  {
+    "data": {
+      "nodeId": "property_inheritance",
+      "nodeKind": "choice",
+      "step": 0,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.settle.step",
+    "ordinal": 2,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "campaignId": "bulgaria-inheritance",
+      "campaignVersion": "1.0.0",
+      "kindId": "story-graph",
+    },
+    "name": "core.game.created",
+    "ordinal": 3,
+    "scope": "game",
+    "seq": 0,
+    "severity": "info",
+  },
+  {
+    "data": {
+      "streamId": "action:0",
+    },
+    "name": "core.rng.stream.derived",
+    "ordinal": 0,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "nodeId": "village_life",
+      "nodeKind": "choice",
+      "visitCount": 1,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.node.entered",
+    "ordinal": 1,
+    "scope": "game",
+    "seq": 0,
+    "severity": "debug",
+  },
+  {
+    "data": {
+      "nodeId": "village_life",
+      "nodeKind": "choice",
+      "step": 0,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.settle.step",
+    "ordinal": 2,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "actionId": "request_records",
+    },
+    "name": "core.action.accepted",
+    "ordinal": 3,
+    "scope": "game",
+    "seq": 0,
+    "severity": "info",
+  },
+  {
+    "data": {
+      "streamId": "action:1",
+    },
+    "name": "core.rng.stream.derived",
+    "ordinal": 0,
+    "scope": "game",
+    "seq": 1,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "nodeId": "family_meeting",
+      "nodeKind": "choice",
+      "visitCount": 1,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.node.entered",
+    "ordinal": 1,
+    "scope": "game",
+    "seq": 1,
+    "severity": "debug",
+  },
+  {
+    "data": {
+      "nodeId": "family_meeting",
+      "nodeKind": "choice",
+      "step": 0,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.settle.step",
+    "ordinal": 2,
+    "scope": "game",
+    "seq": 1,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "actionId": "ask_oldest_neighbour",
+    },
+    "name": "core.action.accepted",
+    "ordinal": 3,
+    "scope": "game",
+    "seq": 1,
+    "severity": "info",
+  },
+  {
+    "data": {
+      "streamId": "action:2",
+    },
+    "name": "core.rng.stream.derived",
+    "ordinal": 0,
+    "scope": "game",
+    "seq": 2,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "nodeId": "ending_resolved",
+      "nodeKind": "ending",
+      "visitCount": 1,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.node.entered",
+    "ordinal": 1,
+    "scope": "game",
+    "seq": 2,
+    "severity": "debug",
+  },
+  {
+    "data": {
+      "nodeId": "ending_resolved",
+      "nodeKind": "ending",
+      "step": 0,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.settle.step",
+    "ordinal": 2,
+    "scope": "game",
+    "seq": 2,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "actionId": "bring_out_documents",
+    },
+    "name": "core.action.accepted",
+    "ordinal": 3,
+    "scope": "game",
+    "seq": 2,
+    "severity": "info",
+  },
+  {
+    "name": "core.game.ended",
+    "ordinal": 4,
+    "scope": "game",
+    "seq": 2,
+    "severity": "info",
+  },
+]
+`;
+
+exports[`determinism harness — the real Inheritance campaign (04-core.md §14) > 'resolved arc via documentation': serialize() output is golden-filed 1`] = `"{"actionLog":[{"actionId":"request_records","seq":0},{"actionId":"ask_oldest_neighbour","seq":1},{"actionId":"bring_out_documents","seq":2}],"campaignId":"bulgaria-inheritance","campaignVersion":"1.0.0","formatVersion":1,"gameId":"fixed-game-id","kindId":"story-graph","kindState":{"currentNodeId":"ending_resolved","endingId":"the_documents_settle_it","turn":3,"unlockedAchievements":[],"variables":{"family_tension":0,"has_documentation":true},"visitedCounts":{"ending_resolved":1,"family_meeting":1,"property_inheritance":1,"village_life":1}},"seed":"inheritance-seed-1","status":"ended"}"`;
+
+exports[`determinism harness — the real Inheritance campaign (04-core.md §14) > 'unresolved arc without documentation': event stream is golden-filed 1`] = `
+[
+  {
+    "data": {
+      "streamId": "system:start:0",
+    },
+    "name": "core.rng.stream.derived",
+    "ordinal": 0,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "nodeId": "property_inheritance",
+      "nodeKind": "choice",
+      "visitCount": 1,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.node.entered",
+    "ordinal": 1,
+    "scope": "game",
+    "seq": 0,
+    "severity": "debug",
+  },
+  {
+    "data": {
+      "nodeId": "property_inheritance",
+      "nodeKind": "choice",
+      "step": 0,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.settle.step",
+    "ordinal": 2,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "campaignId": "bulgaria-inheritance",
+      "campaignVersion": "1.0.0",
+      "kindId": "story-graph",
+    },
+    "name": "core.game.created",
+    "ordinal": 3,
+    "scope": "game",
+    "seq": 0,
+    "severity": "info",
+  },
+  {
+    "data": {
+      "streamId": "action:0",
+    },
+    "name": "core.rng.stream.derived",
+    "ordinal": 0,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "nodeId": "village_life",
+      "nodeKind": "choice",
+      "visitCount": 1,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.node.entered",
+    "ordinal": 1,
+    "scope": "game",
+    "seq": 0,
+    "severity": "debug",
+  },
+  {
+    "data": {
+      "nodeId": "village_life",
+      "nodeKind": "choice",
+      "step": 0,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.settle.step",
+    "ordinal": 2,
+    "scope": "game",
+    "seq": 0,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "actionId": "call_mother",
+    },
+    "name": "core.action.accepted",
+    "ordinal": 3,
+    "scope": "game",
+    "seq": 0,
+    "severity": "info",
+  },
+  {
+    "data": {
+      "streamId": "action:1",
+    },
+    "name": "core.rng.stream.derived",
+    "ordinal": 0,
+    "scope": "game",
+    "seq": 1,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "nodeId": "family_meeting",
+      "nodeKind": "choice",
+      "visitCount": 1,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.node.entered",
+    "ordinal": 1,
+    "scope": "game",
+    "seq": 1,
+    "severity": "debug",
+  },
+  {
+    "data": {
+      "nodeId": "family_meeting",
+      "nodeKind": "choice",
+      "step": 0,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.settle.step",
+    "ordinal": 2,
+    "scope": "game",
+    "seq": 1,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "actionId": "ask_oldest_neighbour",
+    },
+    "name": "core.action.accepted",
+    "ordinal": 3,
+    "scope": "game",
+    "seq": 1,
+    "severity": "info",
+  },
+  {
+    "data": {
+      "streamId": "action:2",
+    },
+    "name": "core.rng.stream.derived",
+    "ordinal": 0,
+    "scope": "game",
+    "seq": 2,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "nodeId": "ending_unresolved",
+      "nodeKind": "ending",
+      "visitCount": 1,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.node.entered",
+    "ordinal": 1,
+    "scope": "game",
+    "seq": 2,
+    "severity": "debug",
+  },
+  {
+    "data": {
+      "nodeId": "ending_unresolved",
+      "nodeKind": "ending",
+      "step": 0,
+    },
+    "kindId": "story-graph",
+    "name": "kind.story-graph.settle.step",
+    "ordinal": 2,
+    "scope": "game",
+    "seq": 2,
+    "severity": "trace",
+  },
+  {
+    "data": {
+      "actionId": "stay_silent",
+    },
+    "name": "core.action.accepted",
+    "ordinal": 3,
+    "scope": "game",
+    "seq": 2,
+    "severity": "info",
+  },
+  {
+    "name": "core.game.ended",
+    "ordinal": 4,
+    "scope": "game",
+    "seq": 2,
+    "severity": "info",
+  },
+]
+`;
+
+exports[`determinism harness — the real Inheritance campaign (04-core.md §14) > 'unresolved arc without documentation': serialize() output is golden-filed 1`] = `"{"actionLog":[{"actionId":"call_mother","seq":0},{"actionId":"ask_oldest_neighbour","seq":1},{"actionId":"stay_silent","seq":2}],"campaignId":"bulgaria-inheritance","campaignVersion":"1.0.0","formatVersion":1,"gameId":"fixed-game-id","kindId":"story-graph","kindState":{"currentNodeId":"ending_unresolved","endingId":"the_argument_continues","turn":3,"unlockedAchievements":[],"variables":{"family_tension":2,"has_documentation":false},"visitedCounts":{"ending_unresolved":1,"family_meeting":1,"property_inheritance":1,"village_life":1}},"seed":"inheritance-seed-1","status":"ended"}"`;
