@@ -748,7 +748,7 @@ over whole, shared verbatim by the player and every rival (`plans/36` Finding 1)
 has a full shape in this repository.
 - **Spec:** [10 §6](10-simulation-kind.md#6-player-state), [§15](10-simulation-kind.md#15-what-remains-upstream-and-why).
 - **Depends on:** [W32](#x-w32--simulation-kind-state-types).
-- **Status:** Done — PR pending.
+- **Status:** Done — [PR #95](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/95).
 - **Done when:** `ActorState`'s open-keyed `Record` fields (`skills`, `reputation`, `flags`,
       `counters`) are explicitly reconciled against `02-architecture.md` N6 ("the loose bag is
       banned") rather than left to look like an unexamined exception; not-yet-ported types
