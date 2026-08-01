@@ -759,6 +759,34 @@ has a full shape in this repository.
       `src/engine/` changes; `build/Test-Documentation.ps1` passes.
 - **Plan:** [`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md)
 
+### [x] W34 — Simulation Kind: Content Definition Types
+The third and largest contract unit of the simulation-kind programme
+([`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md),
+proposed there as W29). Doc-only — ports upstream §13.3–§13.4 and §14.1–§14.9 into
+`10-simulation-kind.md` as new §7.1–§7.10: `Modifier`/`Reward`, then jobs, courses, housing,
+items, events, NPCs, goals/scenarios/difficulty, supporting definitions (opportunities,
+achievements, headlines, employers, locations, backgrounds, traits, skills), and agents.
+Corrects a factual error in `plans/32`'s Finding H and `plans/36`'s own Finding 2 — both claimed
+upstream specifies no rounding rule for `Modifier.operation: "multiply"` against integer-cents
+money; checked directly against the primary source while drafting §7.1, and it does ("rounded
+half-away-from-zero after the full chain"). Both plan documents corrected in place. Every
+upstream section this contract needs except the last unit's own (`ActionType`/`GameAction`,
+`Requirement`, end-of-week ordering) is now specified in this repository.
+- **Spec:** [10 §7](10-simulation-kind.md#7-content-definition-types), [§8](10-simulation-kind.md#8-conditions-and-requirements),
+      [§15](10-simulation-kind.md#15-what-remains-upstream-and-why).
+- **Depends on:** [W33](#x-w33--simulation-kind-actor-state).
+- **Status:** Done — PR pending.
+- **Done when:** every content type upstream §14.1–§14.9 names has a full shape in this
+      repository, with identity fields (`id`/`version`/`titleKey`) excluded per the
+      envelope-duplication rule; `Modifier`'s `multiply` semantics are stated precisely
+      (basis-points-shaped `value`, round-half-away-from-zero once after the full chain), not
+      merely flagged as unresolved; the `plans/32`/`plans/36` correction is recorded in both
+      plan documents, not only in the new spec content; not-yet-ported types (`Requirement`,
+      `GameAction`, `ActionOutcome`) are forward-referenced by name; §15's table drops every
+      row this unit closes and states that exactly one contract unit remains; no file under
+      `src/engine/` changes; `build/Test-Documentation.ps1` passes.
+- **Plan:** [`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md)
+
 ### Breadth: The First Culture Pack
 
 - [ ] Bulgaria culture pack over the simulation kind — Jones-in-Bulgaria content,

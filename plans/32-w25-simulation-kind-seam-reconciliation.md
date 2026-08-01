@@ -181,12 +181,15 @@ kind.
 This compounds Finding E: the doc under-reports what remains both in `SimulationKindState`'s
 types *and* in the mechanics hanging off `Condition`.
 
-One of them carries a determinism hazard worth flagging in the same pass: `Modifier.operation`
-includes `"multiply"` with a `value: number`, targeting paths that include money — which 10 §6
-states is **integer cents, no floating point**. Upstream specifies no rounding rule. It is not
-this unit's job to fix that (it belongs in the content-type port, `plans/36` W29, which records
-it as Finding 2), but §14's table should name §13.3–§13.4 as outstanding so the port does not
-inherit it silently.
+One of them looked, at the time this finding was written, like a determinism hazard worth
+flagging in the same pass: `Modifier.operation` includes `"multiply"` with a `value: number`,
+targeting paths that include money — which 10 §6 states is **integer cents, no floating
+point**. **Correction (W34):** upstream does specify a rounding rule for this — "`multiply`
+uses `value / 100` as a percentage against integer bases, rounded half-away-from-zero after
+the full chain" (§13.3) — this finding simply missed that sentence. Not this unit's job to
+restate precisely either way (it belongs in the content-type port, `plans/36` W29/W34, which
+records the correction as Finding 2), but §14's table should still name §13.3–§13.4 as
+outstanding so the port does not skip them silently.
 
 **Change:** add §13.3–§13.4 to §14's table alongside the eight types from Finding E, and add
 one sentence to §8 noting that its scope is conditions and requirements only, with modifiers

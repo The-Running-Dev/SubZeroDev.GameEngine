@@ -958,7 +958,11 @@ availability and memories, none of which differ per observer.
 
 ## 7. Content Definition Types
 
-Jobs, courses, housing, items, events, NPCs, goals, scenarios, agents (upstream §14.1–§14.9).
+Jobs, courses, housing, items, events, NPCs, goals, scenarios, agents (upstream §14.1–§14.9),
+plus `Modifier` and `Reward` (upstream §13.3–§13.4) — simulation mechanics hanging off
+`Condition`, not condition operators, so they belong here rather than in §8. Ported below —
+the field-level port `plans/36-simulation-kind-programme.md` calls **W29** (assigned as a real
+`W` number when this unit is cut), sized against upstream §13.3–§13.4 and §14.1–§14.9.
 
 These are **campaign data**, loaded through the content registry (04 §10.1) exactly as
 story-graph campaigns are. A simulation campaign is `kindId: "simulation"` plus data
@@ -969,6 +973,595 @@ Identity fields — `id`, `version`, `titleKey` — live on the core `Campaign` 
 **not** in the kind's content types, the correction already applied to
 `StoryGraphCampaign` (04 §10.1).
 
+Every type below references `Requirement`/`RequirementType` (upstream §13.2) and `GameAction`'s
+own schema (upstream §9) by name — neither is ported yet, deferred to the last contract unit
+(`plans/36`'s W30, "Resolution and systems") alongside end-of-week ordering, which several of
+these types also reference.
+
+### 7.1 Modifiers and Rewards
+
+```typescript
+interface Modifier {
+  target: string;                 // must resolve to a writable base path (§6.1's DerivedPath, or a stored field)
+  operation: "add" | "subtract" | "multiply" | "set";
+  value: number;
+  durationWeeks?: number;
+  sourceId: string;
+  priority?: number;              // `set` conflict resolution; default 0
+}
+```
+
+Application order, stacking and expiry are §6.1's — this is the content shape that produces the
+`StatusEffect.modifiers` (§2.3) `resolve` reads.
+
+**`multiply`'s arithmetic, stated precisely.** `value` is basis-points-shaped: `value/100` is
+the percentage change, so `value: 250` means "+2.50%" (a factor of `1.0250`), matching this
+kind's `BasisPoints` convention (§2) exactly even though the field itself is typed `number`
+here, not `BasisPoints` — `operation` is the discriminant a reader (and a validator) needs, the
+same way `StateChange.value`'s meaning already depends on `StateChange.op` elsewhere in this
+platform. Several `multiply` modifiers targeting the same path compose by multiplying their
+exact factors together — never by rounding after each one — and **round-half-away-from-zero
+applies exactly once, after the full chain is combined**, matching this kind's numeric
+convention (§2) of stating a rounding rule at the point of use. Rounding after each step instead
+of once at the end would let modifier *order* change the result of an operation §6.1 already
+declares order-independent ("all `multiply` modifiers, multiplied" — a product, not a fold with
+an intermediate rounding step), which would be a second, silent source of divergence beyond
+whatever `add`/`subtract`/`set` already contribute.
+
+> **A claim in `plans/36-simulation-kind-programme.md`'s own Finding 2 needed correcting while
+> writing this section.** That finding — reasonably, given it's exactly the kind of hazard this
+> kind's determinism story cares about — flagged `multiply` against integer-cents money as
+> having "no rounding rule specified" upstream. Checked directly against the primary source
+> while drafting this port: upstream *does* specify one, in the sentence immediately following
+> `Modifier`'s own declaration. The finding missed it; the correction is recorded in `plans/32`
+> and `plans/36` themselves, not just here, since a wrong claim about a primary source is worth
+> fixing where it was made, not only where it was next read.
+
+**Addressing collection members.** Several state collections are arrays rather than `Record`s
+(§2, §6), and content needs to target one member — the landlord's affinity, one item's
+condition. Array-typed state is addressed **by its natural key, never by index**:
+
+| Collection | Key | Example target |
+|---|---|---|
+| `player.relationships` | `npcId` | `player.relationships.npc-landlord.affinity` |
+| `player.inventory` | `instanceId` | `player.inventory.item-0041.condition` |
+| `player.education.enrollments` | `courseId` | `player.education.enrollments.crs-bookkeeping.studyUnits` |
+| `world.npcs` | `id` | `world.npcs.npc-landlord.currentRole` |
+
+Index addressing is forbidden: array order is not part of the state contract (§2's canonical
+iteration rule already establishes why insertion order cannot be load-bearing), so
+`relationships.0.affinity` would target a different NPC after any reordering and silently
+corrupt a save. Tier 1 validation (§14) rejects a numeric path segment.
+
+```typescript
+interface Reward {
+  type: RewardType;
+  target?: string;
+  value?: unknown;
+  parameters?: Record<string, unknown>;
+}
+
+type RewardType =
+  | "credential" | "skill" | "attribute" | "money" | "item"
+  | "reputation" | "relationship" | "unlock_location"
+  | "unlock_course" | "opportunity" | "flag" | "modifier"
+  | "counter";        // increments ActorState.counters (§6.2)
+```
+
+`RewardType` is the entire outcome vocabulary of this kind, in one closed union — every way a
+job, course, event or achievement can change an actor's state funnels through it.
+
+### 7.2 Jobs
+
+```typescript
+interface JobDefinition {
+  id: string;
+  titleKey: LocKey;
+  descriptionKey: LocKey;
+
+  employerId: string;          // EmployerDefinition, §7.9
+  careerPathId: string;
+  tier: JobTier;                // §6.8
+
+  schedule: JobSchedule;
+  compensation: JobCompensation;
+
+  requirements: Requirement[];  // §13.2, deferred (W30)
+  performance: JobPerformanceRules;
+
+  promotionPaths: PromotionPath[];
+  terminationRules: TerminationRule[];
+
+  contested: boolean;
+  positionsAvailable?: number;    // required when contested. Never Infinity — absent = uncontested (§2.2)
+
+  tags: string[];
+}
+
+interface JobSchedule {
+  weeklyTimeCost: number;
+  flexibility: number;
+  requiredDays?: string[];
+  shiftTypes?: string[];
+  remoteEligible?: boolean;
+}
+
+interface JobCompensation {
+  baseWeeklyPayCents: Cents;
+  performanceBonusCents?: Cents;
+  commissionRate?: BasisPoints;
+  overtimeRate?: BasisPoints;
+  benefits?: string[];
+}
+
+interface JobPerformanceRules {
+  factors: PerformanceFactor[];
+  weeklyDriftToward: number;      // performance regresses toward this baseline
+  minimumAcceptable: number;
+}
+
+interface PerformanceFactor {
+  source: "skill" | "attribute" | "need" | "relationship" | "item" | "housing";
+  key: string;
+  weight: number;                 // may be negative, e.g. stress
+}
+
+interface PromotionPath {
+  toJobId: string;
+  minimumWeeksInRole: number;
+  minimumPerformance: number;
+  requirements: Requirement[];    // §13.2, deferred (W30)
+  contested: boolean;
+  baseChance: number;
+}
+
+interface TerminationRule {
+  code: ReasonCode;
+  condition: Condition;
+  warningsBeforeTermination: number;
+  severanceWeeks?: number;
+  messageKey: LocKey;
+}
+```
+
+`JobOpening.positionsAvailable` (§2.2) already established the "optional, absent = unbounded"
+rule this type's own `positionsAvailable?: number` follows — stated once there, applied
+consistently here rather than re-derived.
+
+### 7.3 Courses
+
+```typescript
+interface CourseDefinition {
+  id: string;
+  nameKey: LocKey;
+  descriptionKey: LocKey;
+  providerId: string;
+
+  tuitionCents: Cents;
+  durationWeeks: number;
+  weeklyTimeCost: number;
+  difficulty: number;
+
+  seatsAvailable?: number;        // absent = uncapped
+  requirements: Requirement[];    // §13.2, deferred (W30)
+  rewards: Reward[];              // §7.1
+  awardsCredential?: CredentialLevel;  // §6.7
+
+  failureRules: CourseFailureRules;
+  tags: string[];
+}
+
+interface CourseFailureRules {
+  minimumAttendanceRatio: number;
+  minimumStudyUnitsPerWeek: number;
+  maximumMissedSessions: number;
+  tuitionGraceWeeks: number;
+  maximumStress?: number;
+  progressRetainedOnFailure: number;   // 0–100
+}
+```
+
+### 7.4 Housing
+
+```typescript
+interface HousingDefinition {
+  id: string;
+  nameKey: LocKey;
+  descriptionKey: LocKey;
+
+  upfrontCostCents: Cents;
+  weeklyCostCents: Cents;
+  depositCents?: Cents;
+
+  capacity: number;
+  comfort: number;
+  safety: number;
+  prestige: number;
+  storage: number;
+
+  commuteModifier: number;
+  energyRecoveryModifier: number;
+  happinessModifier: number;
+  healthModifier: number;
+
+  maintenanceRisk: number;
+  unitsAvailable?: number;        // absent = uncapped
+
+  requirements: Requirement[];    // §13.2, deferred (W30)
+  tags: string[];
+}
+```
+
+`comfort`/`safety`/`damage` feed `player.housing.quality` (§6.1, §6.9) — the derived, read-only
+value this kind computes rather than stores.
+
+### 7.5 Items
+
+```typescript
+interface ItemDefinition {
+  id: string;
+  nameKey: LocKey;
+  descriptionKey: LocKey;
+  category: string;
+
+  purchasePriceCents: Cents;
+  baseResaleValueCents: Cents;
+  weeklyCostCents?: Cents;
+
+  effects: Modifier[];             // §7.1
+  stacking: "refresh" | "stack";
+
+  durability?: number;
+  maintenanceRules?: MaintenanceRule[];
+
+  requirements: Requirement[];     // §13.2, deferred (W30)
+  tags: string[];
+}
+
+interface MaintenanceRule {
+  intervalWeeks: number;
+  costCents: Cents;
+  timeCost: number;
+  skillCheck?: CheckDefinition;     // §7.6
+  conditionLossIfSkipped: number;
+  breakageChanceAtZeroCondition: number;
+}
+```
+
+### 7.6 Events
+
+```typescript
+interface EventDefinition {
+  id: string;
+  category: string;
+  titleKey: LocKey;
+  descriptionKey: LocKey;
+
+  weight: number;
+  conditions: Condition;           // §8
+
+  cooldownWeeks?: number;
+  unique?: boolean;
+
+  choices?: EventChoice[];
+  automaticOutcome?: EventOutcome;
+
+  chainId?: string;
+  chainStep?: number;
+
+  tags: string[];
+}
+
+interface EventChoice {
+  id: string;
+  labelKey: LocKey;
+
+  timeCost?: number;
+  moneyCostCents?: Cents;
+
+  requirements?: Requirement[];    // §13.2, deferred (W30)
+  check?: CheckDefinition;
+
+  outcomes: ConditionalOutcome[];
+}
+
+interface ConditionalOutcome {
+  condition?: Condition;           // §8
+  onDegree?: ActionOutcome["degree"][];  // §9/§10, deferred (W30)
+  weight?: number;
+  outcome: EventOutcome;
+}
+
+interface EventOutcome {
+  effects: Modifier[];             // §7.1
+  rewards?: Reward[];              // §7.1
+  messages: OutcomeMessage[];      // 04 §12
+
+  generatedEvents?: string[];
+  scheduledEvents?: Array<{ eventId: string; inWeeks: number }>;    // §2.3
+  generatedOpportunities?: string[];                                // §2.3
+
+  advancesChain?: boolean;
+  endsChain?: boolean;             // §2.3
+}
+
+interface CheckDefinition {
+  skill?: string;
+  attribute?: keyof AttributeState;   // §6.6
+  difficulty: number;
+
+  modifiers?: CheckModifier[];
+  criticalSuccessMargin?: number;
+  criticalFailureMargin?: number;
+
+  minimumChance?: number;         // default 5
+  maximumChance?: number;         // default 95
+}
+
+interface CheckModifier {
+  source: "skill" | "attribute" | "need" | "reputation" | "relationship" | "item";
+  key: string;
+  weight: number;
+}
+```
+
+An event whose selected choice's outcome is non-empty (has choices at all) defers to the
+following week via `PendingEventResponse` (§2.3); an event with only `automaticOutcome` resolves
+immediately within end-of-week processing (§12.2, deferred, W30). `ConditionalOutcome.onDegree`
+forward-references `ActionOutcome`'s own `degree` field — action resolution's shape, deferred to
+the same unit that defines it.
+
+### 7.7 NPCs
+
+```typescript
+interface NPCDefinition {
+  id: string;
+  nameKey: LocKey;
+  descriptionKey: LocKey;
+
+  defaultRole: string;
+  initialRelationship: NPCRelationship;
+  availability: AvailabilityRule[];
+
+  tags: string[];
+}
+
+interface NPCState {
+  id: string;
+  definitionId: string;
+
+  memories: NPCMemory[];
+
+  currentRole: string;
+  availability: AvailabilityRule[];
+
+  flags: Record<string, boolean>;
+}
+
+/** The affective dimensions, structurally — held by actors (§6.11), not by NPCs. An NPC's own
+ *  `initialRelationship` (above) is the seed an actor's own RelationshipState starts from, not
+ *  a relationship the NPC itself carries. */
+interface NPCRelationship {
+  affinity: number;
+  trust: number;
+  respect: number;
+  resentment: number;    // hidden — never appears in a projection
+}
+
+interface NPCMemory {
+  id: string;
+  aboutActorId: string;      // whom this memory concerns — §6.3's actorId
+  eventId?: string;
+  week: number;
+
+  category: string;
+  magnitude: number;
+
+  descriptionKey: LocKey;
+  expiresAtWeek?: number;
+}
+
+interface AvailabilityRule {
+  locationId?: string;        // §7.9
+  fromWeek?: number;
+  toWeek?: number;
+  condition?: Condition;      // §8
+}
+```
+
+`WorldState.npcs: NPCState[]` (§2.2) forward-referenced this shape; it lands here. `NPCState`
+holds only what genuinely belongs to the NPC — role, availability, memories — never the
+affective dimensions, which `RelationshipState` (§6.11) already established live per-actor: the
+same NPC can respect the player and resent a rival simultaneously.
+
+### 7.8 Goals, Scenarios, and Difficulty
+
+```typescript
+interface GoalDefinition {
+  id: string;
+  labelKey: LocKey;
+  descriptionKey: LocKey;
+  category: string;
+
+  conditions: Condition;              // §8
+  requiredDurationWeeks?: number;
+  failureConditions?: Condition;      // §8
+
+  rewards?: Reward[];                 // §7.1
+}
+
+interface ScenarioDefinition {
+  id: string;
+  nameKey: LocKey;
+  descriptionKey: LocKey;
+
+  startingBackgroundIds: string[];    // §7.9
+  startingCashCents: Cents;
+  startingHousingId: string;          // §7.4
+  startingLocationId: string;         // §7.9
+  startingInventory: Array<{ definitionId: string; quantity: number }>;
+
+  goalIds: string[];
+  weekLimit?: number;
+  mode: GameMode;
+
+  goalFailurePrecedence: GoalFailurePrecedence;   // default "goals_win"
+}
+
+type GameMode = "classic" | "open_life" | "challenge";
+type GoalFailurePrecedence = "goals_win" | "failure_wins";
+
+interface DifficultyDefinition {
+  id: string;
+  labelKey: LocKey;
+
+  economyModifiers: Modifier[];        // §7.1
+  needDriftModifiers: Modifier[];      // §7.1
+  checkDifficultyOffset: number;
+
+  rivalInformationAccess: "standard" | "enhanced";
+  rivalStartingAdvantages: Modifier[];  // §7.1
+}
+```
+
+`GoalFailurePrecedence` and its default are already load-bearing in §12 (Terminal Identity) and
+flagged there as provisional against `week_limit_reached`'s own precedence — restating the type
+here does not resolve that; §12's own callout stands. Every rival advantage is declared on
+`DifficultyDefinition` and nowhere else, which is what makes an "any advantage must be explicit"
+audit possible at all: a rival that is simply better at something the definition doesn't name
+would be undetectable drift, the same class of risk §6.2 raised for actor-state parity.
+
+### 7.9 Supporting Definitions
+
+```typescript
+interface OpportunityDefinition {
+  id: string;
+  kind: OpportunityKind;           // §2.3
+  targetId: string;                // jobId, courseId, housingId, npcId — by kind
+
+  nameKey: LocKey;
+  descriptionKey: LocKey;
+
+  durationWeeks: number;           // how long the offer stands once made
+  weight: number;                  // pool selection — hidden, never projected
+  conditions?: Condition;          // §8 — eligibility to be offered at all
+  requirements?: Requirement[];    // §13.2, deferred (W30) — what accepting demands
+
+  terms?: Record<string, unknown>;
+  acceptRewards?: Reward[];        // §7.1
+  contested: boolean;              // may be revoked when the position is filled (§2.3)
+
+  tags: string[];
+}
+
+interface AchievementDefinition {
+  id: string;
+  nameKey: LocKey;                // player-facing flavour, not a mechanical description
+  descriptionKey: LocKey;
+
+  condition: Condition;           // §8 — typically over counters, §6.2
+  hidden: boolean;                // true = not listed until unlocked
+
+  scope: "profile";                // v1: always profile-scoped
+}
+
+interface HeadlineDefinition {
+  id: string;
+  textKey: LocKey;
+
+  minStrangeness?: number;         // §2.2
+  maxStrangeness?: number;
+  conditions?: Condition;          // §8
+
+  tags: string[];
+}
+
+interface EmployerDefinition {
+  id: string;
+  nameKey: LocKey;
+  sector: string;
+  reputation: number;              // hidden
+  jobIds: string[];                // §7.2
+  npcIds: string[];                // §7.7
+}
+
+interface LocationDefinition {
+  id: string;
+  nameKey: LocKey;
+  descriptionKey: LocKey;
+
+  connections: string[];           // adjacent location ids — the map graph
+  travelTimeUnits: number;         // cost to enter this location from an adjacent one
+  actionTypes: ActionType[];       // §9, deferred (W30) — what can be done here
+
+  unlockedBy?: Condition;          // §8
+}
+
+interface BackgroundDefinition {
+  id: string;
+  nameKey: LocKey;
+  descriptionKey: LocKey;
+  startingAttributes: AttributeState;    // §6.6
+  startingSkills: Record<string, number>;
+  startingCredentials: CredentialLevel[]; // §6.7
+  startingTraits: string[];
+  startingCashModifierCents: Cents;
+}
+
+interface TraitDefinition {
+  id: string;
+  nameKey: LocKey;
+  descriptionKey: LocKey;
+  effects: Modifier[];              // §7.1
+  conflictsWith: string[];
+}
+
+interface SkillDefinition {
+  id: string;
+  nameKey: LocKey;
+  category: string;
+  decayPerWeek: number;
+}
+```
+
+**`travel`'s map is an explicit adjacency graph, not pathfinding.** `travel` moves to an
+*adjacent* location only — its `targetId` is a location id, its derived time cost is that
+location's `travelTimeUnits`, and it is valid only when the target appears in the current
+location's `connections`. A multi-hop journey costs multiple actions and multiple time units by
+design: geography is a real budget line, not a solved-away convenience. An action whose type is
+not in the current location's `actionTypes` fails with `wrong_location` (§10, once that reason
+code has a real dispatcher to attach it to — W30).
+
+### 7.10 Agents
+
+```typescript
+interface AgentStrategy {
+  id: string;
+  selectActions(view: PublicWorldState, agent: AgentState): GameAction[];  // §9, deferred (W30)
+}
+
+interface AgentState {
+  id: string;
+  strategyId: string;
+  displayNameKey: LocKey;
+
+  actor: ActorState;              // §6.2 — identical shape to the player
+  goals: GoalState[];             // §2.4
+
+  planningDepth: number;
+  strategy: Record<string, unknown>;   // hidden — never projected
+}
+```
+
+`WorldState.agents: AgentState[]` (§2.2) forward-referenced this shape; it lands here, closing
+the last forward reference `plans/36`'s "actor state comes over whole" finding (§6.2) named. The
+rival runs `ActorState` unmodified — the same code path the player's own actions resolve
+through — so `strategy`/`planningDepth` are the *only* fields this type adds beyond an ordinary
+actor, and both are hidden from every projection. `AgentStrategy.selectActions`'s own
+`PublicWorldState` parameter is a projection type (§9, once fully specified) — an agent decides
+from the same visible information a client would see, never from the hidden state a
+`DerivedValueResolver` (§6.1) or a resolver itself can read.
+
 ---
 
 ## 8. Conditions and Requirements
@@ -978,9 +1571,11 @@ Reused verbatim from the core's frozen operator set (04 §18), which originated 
 are out unless a concrete campaign need justifies each individually — the bar 04 §18 sets
 deliberately high, and this kind is the one most likely to test it.
 
-**This section's scope is conditions and requirements only** (upstream §13.1–§13.2).
-`Modifier` and `Reward` (upstream §13.3–§13.4) are simulation mechanics, not condition
-operators, and are deferred to the content-type port along with the rest of §7 — see §15.
+**This section's scope is conditions only** (upstream §13.1). `Requirement`/`RequirementType`
+(upstream §13.2) are deferred alongside `GameAction`'s own schema and end-of-week ordering —
+§7's content types already reference `Requirement` by name; see §15. `Modifier` and `Reward`
+(upstream §13.3–§13.4) are simulation mechanics, not condition operators, and are ported in
+**§7.1**, not here.
 
 ---
 
@@ -1111,22 +1706,29 @@ smells. **Revisit when** §15's content-type port lands.
 This is the seam, not the whole kind. Still to be brought over from
 `games/04-engine-specification.md`, in the order that unblocks the most:
 
+Everything left is one unit — `plans/36-simulation-kind-programme.md`'s **W30**, "Resolution and
+systems":
+
 | Upstream | Holds | Why not yet |
 |---|---|---|
-| §9 | `ActionType`, `GameAction` | References content ids (jobs, courses, …) that have no home until the content-type row below lands. `WeeklyActionPlan`'s own shape is ported (§4.1) — only the action schema it holds remains |
-| §14.1–§14.9 | Content definition types | ~25 KB. Needs the authoring→registry split applying (04 §10.1), which for story-graph was its own piece of work. `ActorState`'s own shape no longer waits on this — every content-id field it holds (`jobId`, `courseId`, `definitionId`, `npcId`, …) is forward-referenced by name, per §6.2's precedent |
-| §13.3–§13.4 | `Modifier`, `Reward` | Simulation mechanics hanging off `Condition`, not condition operators (§8 is scoped to §13.1–§13.2 only). `Modifier.operation: "multiply"` against this kind's integer-cents money (§6.1) has no upstream rounding rule — a determinism hazard to resolve *before* porting, not after, flagged here rather than fixed here |
-| §12.2–§12.3 | End-of-week system order, goal precedence | Normative and short; blocked only on this table's own content-type row above |
+| §9 | `ActionType`, `GameAction` | The action schema `WeeklyActionPlan.actions` (§4.1) holds. Needs the resolver dispatch it's ported alongside, so a reader isn't handed a schema with nothing that executes it |
+| §13.2 | `Requirement`, `RequirementType` | Referenced by name throughout §7's content types; ties to action/requirement validation, ported with resolution rather than standing alone |
+| §12.2–§12.3 | End-of-week system order, goal precedence | Normative and short; needs `GameAction`/`Requirement` above, since the systems it orders dispatch on both |
 
-**§5.1, §5.3–§5.6, §7 and §8.1–§8.9 are all ported** (§2.1–§2.5, §6.1–§6.11) — every field
-`SimulationKindState` (§2) names now has a full shape specified in this repository, and so does
-the base/derived-value layer they read through. `ActorState` comes over whole, shared verbatim
-by the player and every rival (§6.2) — porting "player state" alone and adding rival support
-later was considered and rejected (`plans/36-simulation-kind-programme.md` Finding 1). One
-finding came out of this port rather than being merely transcribed: `ActorState`'s open-keyed
-`Record` fields (`skills`, `reputation`, `flags`, `counters`) do not reintroduce the "loose bag"
-`02-architecture.md` N6 bans — reconciled in §6.2 against that decision's own stated reasoning,
-rather than assumed compatible.
+**Every other row this table used to carry is closed.** `§5.1`, `§5.3–§5.6`, `§7`, `§8.1–§8.9`,
+`§13.3–§13.4` and `§14.1–§14.9` are all ported (§2.1–§2.5, §4.1, §6.1–§6.11, §7.1–§7.10) — every
+field `SimulationKindState` (§2) names now has a full shape specified in this repository, so
+does the base/derived-value layer they read through, and so does every content definition type
+a real campaign will need to declare.
+
+Two findings came out of this pass rather than being plain transcription. `ActorState` comes
+over whole, shared verbatim by the player and every rival (§6.2) — porting "player state" alone
+and adding rival support later was considered and rejected
+(`plans/36-simulation-kind-programme.md` Finding 1). And `plans/36`'s own Finding 2 needed
+correcting, not just applying: it claimed upstream specifies no rounding rule for
+`Modifier.operation: "multiply"` against this kind's integer-cents money, and upstream in fact
+does — checked directly against the primary source while drafting §7.1, and the correction is
+recorded in `plans/32` and `plans/36` themselves, not only here.
 
 **Nothing above changes this contract's shape** — each is detail hanging off a seam this
 document fixes. What it does mean is that the upstream sections stay authoritative for those
