@@ -138,7 +138,7 @@ agree, and W30 is where that is settled in detail.
 |---|---|---|
 | **W31** | State, variables, and the plan | W9 |
 | **W32** | The week: start-of-week, resolution, end-of-week | W11 + W12 |
-| **W33** | Validation, the "Stable Life" scenario, corpus | W14 + W15 + W22 |
+| ~~**W33**~~ | ~~Validation, the "Stable Life" scenario, corpus~~ | ~~W14 + W15 + W22~~ |
 
 Deliberately mirrors the story-graph build order (W9→W14), which worked. The differences are
 that W32 is larger than any single story-graph unit (a whole ordered system pipeline rather
@@ -149,6 +149,31 @@ test subject.
 kind, and the two-phase time-ordering rule (10 §3) is called out in the contract itself as
 "the kind of rule the determinism harness cannot catch and the replay oracle (07) can." Adding
 simulation fixtures to `fixtures/replay/` is the payoff for that claim.
+
+> **W33 split into three, while cutting it as a real `W` number (post-W37).** The mirror above
+> — W14 + W15 + W22 — assumes story-graph's own precedent holds: *author content against
+> already-coded types.* It doesn't hold here. Story-graph's content types (`Node`, `Choice`,
+> …) were built as real code across W9–W13, before W14 ever ran. Simulation's content-
+> definition types (contract §7 — `JobDefinition`, `CourseDefinition`, `HousingDefinition`,
+> `ItemDefinition`, `EventDefinition`, `NPCDefinition`, `GoalDefinition`/`ScenarioDefinition`,
+> and eight more) were deliberately deferred to the doc-only contract phase (W34) and were
+> still prose-only, not code, when this unit was reached — W37's own end-of-week/start-of-week
+> systems are stubbed for exactly this reason (`endOfWeek.ts`'s header: "most systems need
+> content types … that don't exist until the content-definition-types build unit"). Treating
+> W33 as one unit would have bundled four different jobs — porting ~400+ lines of new types,
+> wiring previously-stubbed systems and resolvers against them, authoring an actual scenario,
+> and building Tier 1/2 validation plus replay fixtures — into a single PR, larger than any
+> unit this programme has produced. Split instead, the same way the Contract phase's own size
+> was handled (one unit per type cluster, not one unit for everything):
+>
+> | W | Unit | Scope |
+> |---|---|---|
+> | **W38** | Content-definition types | Port §7 to `content.ts` — no system/resolver wiring. `NPCState`/`AgentState`/`NPCMemory`/`NPCRelationship`/`AvailabilityRule`/`Modifier` already exist (`state.ts`, W31/W36) as runtime state; this unit ports only the content-side counterparts (`NPCDefinition`, `AgentStrategy`, `Reward`, and everything in §7.2–§7.6, §7.8, §7.9) it was missing. |
+> | **W39** | Wire the "Stable Life" vertical slice | Real logic for whichever end-of-week systems and resolvers the scenario in W40 actually exercises against W38's types — not all twelve systems or all thirty action types. The rest stay honest stubs, the same discipline W37 already established, applied one layer up. |
+> | **W40** | The "Stable Life" scenario, validation, corpus | Author the campaign (mirrors W15), Tier 1/2 `validateCampaign` (mirrors W14), and replay-corpus fixtures for its win/loss paths (mirrors W22) — folded together per this programme's own original reasoning: the scenario *is* the test subject. |
+>
+> W-numbers assigned when each is cut, per `TODO.md`'s positional-numbering note — same
+> convention this programme already used for W27–W33 themselves.
 
 ---
 
@@ -211,8 +236,11 @@ and marks it optional for the base game.
 |---|---|---|
 | **S1 — The contract is whole** | W30 merged | Every type `SimulationKindState` names is specified in this repository. `10-simulation-kind.md` stops being "the seam only" |
 | **S2 — A week resolves** | W32 merged | The loop runs: plan, `end_week`, systems, next week. Determinism harness passes on it |
-| **S3 — Stable Life plays** | W33 merged | Win and loss both reachable through the text client and MCP identically. Programme milestone **M7** |
-| **S4 — Guarded** | W33's fixtures in the corpus | The replay oracle covers a second kind; the two-phase time-ordering rule has a regression test with teeth |
+| **S3 — Stable Life plays** | W40 merged | Win and loss both reachable through the text client and MCP identically. Programme milestone **M7** |
+| **S4 — Guarded** | W40's fixtures in the corpus | The replay oracle covers a second kind; the two-phase time-ordering rule has a regression test with teeth |
+
+(S3/S4 were "W33 merged" before the split above — W38/W39 are prerequisites W33 never named as
+its own steps, not new milestones in their own right.)
 
 `life-in-the-fast-lane.md`'s DoD adds one criterion this programme does **not** deliver — "at
 least one culture pack loads and swaps content without an engine change." That is content
