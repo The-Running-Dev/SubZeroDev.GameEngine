@@ -285,8 +285,8 @@ did not. `plans/39`'s **T0** milestone is "W41 merged *and* first package versio
 - [ ] `npm run typecheck` still covers test files (`tsconfig.json` unchanged in that respect).
 - [ ] `src/index.ts` exists, uses only explicit named re-exports, and matches the inventory
       above.
-- [ ] `npm pack --dry-run` ships `dist/` and `package.json` only, and the file count is in
-      the low hundreds rather than 540.
+- [ ] `npm pack --dry-run` ships `dist/`, `package.json`, and npm-mandated package metadata
+      (such as the package README), with the file count in the low hundreds rather than 540.
 - [ ] A clean consumer installs the **packed tarball**, imports only
       `@the-running-dev/game-engine`, and both `tsc --noEmit` and a runtime `createGame`
       succeed.
