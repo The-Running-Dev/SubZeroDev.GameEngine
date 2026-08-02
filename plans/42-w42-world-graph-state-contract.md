@@ -323,7 +323,7 @@ follow-up commit, not a reason to stall.
 
 **3 — Port the eight drafted types into §3**, adjusted only where an engine rule requires it,
 with each adjustment stated rather than silently applied. Four adjustments are already known
-and decided: `ResortMap` → `WorldMap` (Decision 4 — do it on this pass), `Queue.buildingId`
+and decided: use the engine-owned `WorldMap` name (Decision 4), `Queue.buildingId`
 dropped, the three open-keyed records reconciled against N6 in `10 §6.2`'s wording, and
 MVP-inert fields marked at the field.
 
@@ -403,11 +403,11 @@ implementation unit settle them. That is exactly what `plans/39` Decision 1 forb
 `unknown` in W36 and had to be narrowed later in W38, and the intervening code was written
 against a type that could not be checked. Design them now, while the cost is a paragraph.
 
-### 4. `ResortMap` is renamed `WorldMap` — and this one cannot wait
+### 4. `WorldMap` is the engine-owned map name
 
 `12-world-graph-kind.md` §1 rejects the name `management-simulation` on the explicit grounds
 that *"a colony sim, an ecosystem model or a transport network would run on this identical
-kind."* A type called `ResortMap` in engine-owned code contradicts that argument in the most
+kind."* A type called a resort-specific map name in engine-owned code contradicts that argument in the most
 visible place it could — the state interface. Both built kinds use structural names (`Node`,
 `Choice`; `ActorState`, `PlayerState`), never themed ones.
 
@@ -497,7 +497,7 @@ conspicuous; it is deliberate.
       offsets, and the authoring shape is forward-referenced to W43 (Decision 5).
 - [ ] The `revenueTodayCents` / `expensesTodayCents` reset is defined as the first tick of a
       new day via `floor(tick / ticksPerDay)`, with no stored day field (Decision 7).
-- [ ] `ResortMap` appears nowhere in the document; `WorldMap` does (Decision 4).
+- [ ] The contract and plan use the engine-owned `WorldMap` name (Decision 4).
 - [ ] `Queue` has no `buildingId`, and `Guest.queueId` still resolves.
 - [ ] The three open-keyed records (`Guest.preferences`, `Building.pricesCents`,
       `Building.inventory`) carry the N6 reconciliation in `10 §6.2`'s wording, not a fresh

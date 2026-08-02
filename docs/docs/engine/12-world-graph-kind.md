@@ -98,7 +98,7 @@ What remains is the kind's own:
 interface WorldGraphKindState {
   tick: number;                                   // §4 — the only authoritative clock field
 
-  map: ResortMap;                                 // terrain, zones, spawns, exits, revision
+  map: WorldMap;                                  // terrain, zones, spawns, exits, revision
   finances: Finances;
 
   buildings: readonly Building[];
@@ -199,7 +199,7 @@ type GuestNeedValue = number;      // 0..100, where 0 is fully depleted
 type UtilityScore = number;        // fixed-point integer by design
 type PercentBasis = number;        // integer basis points, where 10000 = 100%
 
-interface ResortMap {
+interface WorldMap {
   width: number;                             // positive integer, map width in tiles
   height: number;                            // positive integer, map height in tiles
   revision: number;                          // integer, changes whenever authored map topology changes
@@ -240,8 +240,7 @@ interface Building {
   y: number;                                // integer tile y of anchored origin
   width: number;                            // integer tile width from definition
   height: number;                           // integer tile height from definition
-  rotation: Rotation;                       // pending M2 gate — see OPEN-QUESTIONS
-  entrances: readonly Position[];            // pending M2 gate — authored absolute or footprint-relative?
+  rotation: Rotation;                       // quarter-turn footprint rotation
   status: BuildingStatus;
   isOpen: boolean;
   buildStartTick: number;                   // inclusive tick when building entered state
@@ -320,10 +319,6 @@ interface GuestOpinions {
   attractiveness: number;
   queues: number;
   service: number;
-  // M2 gate: Sun Trap documents disagree on whether these are required
-  staffBehaviour: number;
-  accessibility: number;
-  noise: number;
 }
 
 interface GuestPreferences {
@@ -415,31 +410,33 @@ interface Alert {
 }
 ```
 
-### 3.3 Questions and Structural Answers (to be confirmed by Sun Trap)
+### 3.3 Structural Answers
 
-**Pending Sun Trap decisions that remain open for this unit:** building entrance coordinate basis
-and full `GuestOpinions` coverage must be aligned before this contract is treated as final.  
-**Open in `OPEN-QUESTIONS.md`:** building entrances (`absolute` vs `footprint-relative`),
-rotation model (`0` vs `0|90|180|270`), the provisional tick duration used for the
-`today` accumulator boundary, and whether `GuestOpinions` keeps the 7-field list or adds
-three additional factors.
+This section is normative. Entrances are not runtime state: W43 content definitions provide
+footprint-relative authored offsets, and world entrance positions are derived purely from the
+building origin and rotation (with quarter-turn integer transforms) when needed. Guest opinions
+store the seven slowly-changing impressions defined above; additional evaluation inputs are not
+serialized state.
 
-We do define default, reversible handling for the unresolved structural questions:
+We define the following handling for values that are campaign configuration:
 
 - **Guest pruning.** Departed/removed guests are pruned from `guests` at the end of the tick
   batch that finalized that lifecycle state. The contract therefore prevents unbounded
   serialized growth while preserving historical objective calculations via `ObjectiveProgress`.
 - **`today` accumulator boundary.** `revenueTodayCents` and `expensesTodayCents` reset on each
   campaign-defined day boundary computed from `tick` and the published `ticksPerMinute`/minutes
-  per day settings. Campaigns that need fractional boundaries can set those settings to 0/0
-  only via validation warning, not in a way that destabilizes determinism.
+  per day settings. Tier 1 validation rejects non-positive or non-finite boundary settings,
+  including `0/0`; implementations must not calculate a day boundary from them.
 
 `queue`, `staff task`, and nested entity collections are not top-level collections. Their ids are
 still derived from `nextEntityOrdinal` at creation.
 
 ### 3.4 Canonical collection order
 
-All serialized arrays are iterated in id order for contract behavior, not insertion order:
+All serialized arrays are iterated in canonical id order for contract behavior, not insertion
+order. Compare an id's prefix using ASCII/UTF-8 code-unit lexicographic order; when prefixes
+match, parse the ordinal after the colon as a base-10 integer and compare it numerically (with
+exactly the same rule for ties). This ordering is locale-independent:
 
 - `buildings`, `constructionSites`, `guests`, `staff`, `incidents`,
   `objectives`, and `alerts` are all canonicalized by each element's `id`
