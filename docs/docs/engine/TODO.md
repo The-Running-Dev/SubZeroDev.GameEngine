@@ -887,8 +887,8 @@ story-graph's own precedent — *author content against already-coded types* —
 doesn't, since this kind's content-definition types (contract §7) were deferred to the
 doc-only contract phase (W34) rather than built as code the way story-graph's were across
 W9–W13. `plans/36` now splits W33 into W38–W40; see that document's own callout under *Build*
-for the reasoning. This unit is the first: port contract §7 to `src/engine/src/kinds/
-simulation/content.ts` — `Reward`, `JobDefinition` (+6 nested types), `CourseDefinition`,
+for the reasoning. This unit is the first: port contract §7 to
+`src/engine/src/kinds/simulation/content.ts` — `Reward`, `JobDefinition` (+6 nested types), `CourseDefinition`,
 `HousingDefinition`, `ItemDefinition` (+1 nested), `EventDefinition` (+5 nested),
 `NPCDefinition`, `GoalDefinition`/`ScenarioDefinition`/`DifficultyDefinition`,
 `OpportunityDefinition`/`AchievementDefinition`/`HeadlineDefinition`/`EmployerDefinition`/
@@ -902,8 +902,8 @@ the four contract units (W32–W35) already used one level up.
 - **Depends on:** [W37](#x-w37--simulation-kind-the-week).
 - **Status:** Done — [PR #100](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/100).
 - **Done when:** every type §7 names that isn't already runtime state in `state.ts`/`actor.ts`
-      exists in `content.ts`; `AvailabilityRule.condition` (currently `unknown`, deferred per
-      its own comment) is narrowed to the real core `Condition` type now that this unit has a
+      exists in `content.ts`; `AvailabilityRule.condition` — `unknown` since W36, deferred per
+      its own comment there — is narrowed to the real core `Condition` type, this unit's
       natural import point for it; `npm run typecheck && npm run lint && npm test` all pass
       with no new runtime logic — this unit is types only.
 - **Plan:** [`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md)
