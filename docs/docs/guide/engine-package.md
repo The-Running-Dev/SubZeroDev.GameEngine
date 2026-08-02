@@ -65,22 +65,24 @@ comparison (07 §8) runs the corpus against the previous tag.
 
 ## Companion Consumption
 
-The package is not a supported cross-repository dependency yet: it is still named
-`game-engine`, marked `private`, and has no public export map or publication workflow.
-Companion repositories must not make deep imports from `src/` or treat a sibling checkout as
-their CI contract.
+The package target is shipped as a private GitHub Packages module:
+`@the-running-dev/game-engine@0.1.0`.
 
-The decided delivery target is a private GitHub Packages npm package named
-`@the-running-dev/game-engine`, published from the existing `src/engine/` directory. It will
-provide one declaration-bearing ESM root export, be linked to this repository, and be consumed
-by exact semver plus a committed lockfile. GitHub Actions in an explicitly granted companion
-repository will install it with package-read permission; release publication will use this
-repository's short-lived `GITHUB_TOKEN`, not a committed credential.
+Companion projects consume it by registry from a tarball built and published in
+`release-engine-package.yml`, not by source-tree `file:` links. The package has
+one declaration-bearing ESM root export and is available at `src/engine/src/index.ts`
+(`exports["."]` in `package.json`).
 
-The first unit in the [world-graph programme](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/39-world-graph-kind-programme.md)
-implements and proves that boundary with a packed-tarball consumer smoke test before any
-companion game relies on it. Local `file:` links may remain a developer convenience, but they
-do not satisfy the consumer gate because they are mutable and depend on checkout layout.
+To consume it:
+
+```bash
+npm config set @the-running-dev:registry https://npm.pkg.github.com
+npm install @the-running-dev/game-engine
+```
+
+GitHub Packages requires an auth token tied to a repo that grants that package read access.
+The engine repository's release workflow publishes with `GITHUB_TOKEN`; companion workflows
+should use a repository-scoped token with package read permission.
 
 ## Where the work is going
 
