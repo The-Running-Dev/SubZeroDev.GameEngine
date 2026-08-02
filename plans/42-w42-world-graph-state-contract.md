@@ -6,36 +6,38 @@ W42 checkbox.
 **Scope:** Replace `12-world-graph-kind.md` §3's eleven-field sketch of
 `WorldGraphKindState` with the complete, authoritative runtime-state contract — every type it
 names, fully specified, reconciled against `SubZeroDev.SunTrap`'s own draft and against this
-engine's determinism and envelope rules. **Planned doc-only; see the amendment below for what
-the branch actually carries.**
+engine's determinism and envelope rules. **Doc-only. No code, no `src/engine` change.**
 
-> ### Amendment — this branch also carries W45's skeleton
+> ### Amendment — W45's skeleton was written here, and has been moved off
 >
-> This plan was written doc-only, and its *Handoff* and *Done-When* still say so: "no code,
-> no `src/engine` change", "if you find yourself editing `src/engine/`, stop — that is W45."
-> The branch does not honour that. It carries `src/engine/src/kinds/world-graph/` — state
-> types, the nine immediate reducers, projection, outcome, validation and the kind assembly —
-> which is W45's unit, executed here without its own plan.
+> Mid-unit, this branch acquired `src/engine/src/kinds/world-graph/` — state types, the nine
+> immediate reducers, projection, outcome, validation and the kind assembly. That is W45's
+> unit, executed without its own plan, against a plan that says "if you find yourself editing
+> `src/engine/`, stop — that is W45."
 >
-> **Recorded rather than reverted**, because the code is written, tested and green, and
-> deleting working code to restore a boundary costs more than it buys. But two consequences
-> are now facts of this branch and not opinions:
+> **It has been moved to `feature/w45-world-graph-kind-skeleton`, branched from this one at
+> the commit where contract and code were reconciled, and removed from here.** W42 is
+> doc-only again and its PR reviews as one thing. Nothing is discarded: the branch carries
+> the code with every fix that review produced, and W45 starts from it rather than from
+> nothing.
 >
-> 1. **W45's ledger entry in [`plans/39`](39-world-graph-kind-programme.md) is partly
->    discharged here**, so whoever cuts the W45 plan is reviewing and completing an existing
->    skeleton — the tick pipeline, the systems, and everything W43/W44 add — rather than
->    starting from the contract.
-> 2. **The contract and its implementation were reviewed together, and that is what caught
->    most of what this branch fixes.** Eight divergences between §3.2 and the code surfaced
->    only because both existed: `ResortMap`/`WorldMap`, `Building.entrances`, the opinion
->    count, `StaffTask.kind`/`type`, and a `set_price` action the contract gave nowhere to
->    write. On four of them the *code* was right and the document was wrong against this
->    plan's own Decisions.
+> **Two findings from the episode are worth keeping, because they are why the code was worth
+> saving rather than deleting:**
 >
-> The lesson is not "always merge the units" — `plans/39` split them for review reasons that
-> still hold. It is that a contract written with no implementation to check it against is
-> checked by nothing, which is an argument for W45 following W42 closely, not for the two
-> arriving in one PR unannounced.
+> 1. **A contract with no implementation to check it against is checked by nothing.** Eight
+>    divergences between §3.2 and the code surfaced only because both existed —
+>    `ResortMap`/`WorldMap`, `Building.entrances`, the opinion count, `StaffTask.kind`/`type`,
+>    and a `set_price` action the contract gave nowhere to write. On four of them the *code*
+>    was right and the document was wrong against this plan's own Decisions. That is an
+>    argument for W45 following W42 closely, not for the two arriving in one PR unannounced.
+> 2. **Two contract defects were found only by writing the code.** `Building` had no price
+>    field for `set_price` to write to, and §3.4's canonical id order would have compared
+>    ordinals lexicographically — `building:10` before `building:2` — a determinism defect
+>    that bites only past nine entities of one prefix. Both are fixed in the contract, in
+>    this unit, where they belong.
+>
+> **When W45 is cut**, its plan should be written against the merged contract and the
+> existing branch reviewed *as* its first deliverable, not re-derived.
 
 **Depends on:** Nothing. Four decisions owned by Sun Trap were thought to bear on it, two of
 them blocking — **none of them does.** Three are settled by rules this contract already owns,
@@ -546,19 +548,18 @@ conspicuous; it is deliberate.
 - [ ] §3's "the seam only" status line is updated.
 - [ ] Anything genuinely left open is in `OPEN-QUESTIONS.md` with a stated *revisit when*,
       not left implicit.
-- [ ] `./build/Test-Documentation.ps1` passes and `git diff --check` is clean. **The "no
-      `src/engine` file changed" condition this box carried is not met** — see the Amendment
-      at the top. In its place: `npm run typecheck`, `npm run lint` and `npm test` all pass,
-      and every type in §3.2 matches the code that implements it.
+- [ ] `./build/Test-Documentation.ps1` passes; `git diff --check` is clean; no `src/engine`
+      file changed. (Briefly untrue mid-unit — see the Amendment. `npm run typecheck`, `npm
+      run lint` and `npm test` are run anyway, because removing the kind must leave the
+      package green.)
 
 ---
 
 ## Explicitly Not In Scope
 
-- ~~**No code.** Not one file under `src/engine/`. `WorldGraphKindState` becomes real
-  TypeScript in W45, against this contract.~~ **Superseded by the Amendment** — the branch
-  carries the W45 skeleton. The tick pipeline (W46) genuinely is not here: `advance_ticks`
-  advances the counter and runs none of §4's twenty systems.
+- **No code.** Not one file under `src/engine/`. `WorldGraphKindState` becomes real
+  TypeScript in W45, against this contract — on `feature/w45-world-graph-kind-skeleton`,
+  which already carries a reviewed draft of it (see the Amendment).
 - **No content-definition types.** `GuestArchetypeDefinition`, `BuildingDefinition`,
   `ScenarioDefinition` and the rest are W43. The boundary is the one §3 already draws:
   *runtime state* here, *campaign data* there. `Building.definitionId` is in scope; what a
