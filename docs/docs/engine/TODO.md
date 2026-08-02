@@ -997,7 +997,7 @@ does, and that's a real, separate future unit (story-graph's own equivalent, W16
 quietly dropped from the criteria.
 - **Spec:** [10 §14](10-simulation-kind.md#14-validation), [07 §4](07-replay.md#4-the-corpus).
 - **Depends on:** [W39](#w39).
-- **Status:** Done — PR pending.
+- **Status:** Done — [PR #102](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/102).
 - **Done when:** Tier 1/2 validation rejects a duplicate goal id and an unresolved `LocKey`
       for this kind's own content; one win fixture and one loss fixture are committed under
       `fixtures/replay/` and pass the replay oracle, including the release-tag-replay CI job;
