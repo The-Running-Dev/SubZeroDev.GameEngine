@@ -1068,12 +1068,15 @@ no entrance, negative capacity are Tier 1; unreachable unlocks, map regions disc
 from every spawn, building categories with no demand, staff roles with no task generator
 are Tier 2.
 
-Additions this contract requires. At **Tier 1**: every authored id this kind reads — building
-and product definitions, staff roles, objectives, zones — must be non-empty and **contain no
-`.`**, because §13's `StateChange` paths are dot-separated and an id carrying a dot makes a
-path parse two ways. It is checked here rather than assumed because these ids are content,
-and content is exactly what a contract cannot assume about; entity ids need no check, since
-§9 constructs them. The `advance_ticks` cap (§6) must be present and positive; `ticksPerDay`
+Additions this contract requires. At **Tier 1**: **every authored id this kind reads must be
+non-empty and contain no `.`** — building and product definitions, staff roles, objectives
+and zones today, and guest archetypes, incidents, scenarios and whatever else W43 adds, on
+the same terms and without amending this sentence. The rule is stated over *all* authored
+ids rather than over a list of them, because a list is a second thing to maintain and would
+be wrong the moment W43 lands. §13's paths are dot-separated, so an id carrying a dot makes a
+path parse two ways; it is checked rather than assumed because these ids are content, and
+content is exactly what a contract cannot assume about. Entity ids need no check, since §9
+constructs them. The `advance_ticks` cap (§6) must be present and positive; `ticksPerDay`
 (§3.3) must be present and positive; every price band
 must be a valid integer-cent range containing the definition's default price; a
 pre-placed building (§3.1) must name a real definition, fit inside the map, sit on terrain
