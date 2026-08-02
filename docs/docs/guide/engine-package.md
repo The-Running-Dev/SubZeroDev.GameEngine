@@ -65,11 +65,12 @@ comparison (07 §8) runs the corpus against the previous tag.
 
 ## Companion Consumption
 
-The package is `@the-running-dev/game-engine`, **configured for** private publication to
-GitHub Packages. The boundary is built and gated, but **no version has been published yet** —
-there is no installable registry artefact today. `release-engine-package.yml` runs on a `v*`
-tag push, and the tags that exist all predate it. The first publication ships whatever
-`src/engine/package.json` says at that tag, so the manifest version and the tag move together.
+The package is `@the-running-dev/game-engine`, published to GitHub Packages as the **public**
+`0.4.0` release on the `v0.4.0` tag (2026-08-02). The publication was verified against the
+packages API. `release-engine-package.yml` runs on a `v*` tag push, so the manifest version and
+the release tag must move together for future releases. The visibility decision is recorded in
+[OPEN-QUESTIONS](/docs/engine/open-questions) §2 because the repository's earlier plans called
+for private publication.
 
 Companion projects consume it by registry from a tarball built and published in
 `release-engine-package.yml`, not by source-tree `file:` links — a `file:` link resolves
@@ -78,20 +79,20 @@ broken. The package has one declaration-bearing ESM root export, defined at
 `src/engine/src/index.ts` and reached through `exports["."]` in `package.json`; deep paths
 into `dist/` are deliberately unresolvable rather than merely discouraged.
 
-Once a version exists, consume it with:
+Consume the published package with:
 
 ```bash
 npm config set @the-running-dev:registry https://npm.pkg.github.com
-npm install @the-running-dev/game-engine
+npm install @the-running-dev/game-engine@0.4.0
 ```
 
-GitHub Packages requires an auth token tied to a repo that grants that package read access.
-The engine repository's release workflow publishes with `GITHUB_TOKEN`; companion workflows
-should use a repository-scoped token with package read permission.
+The release workflow publishes with `GITHUB_TOKEN`. If the registry requests authentication,
+use a token with package read permission; the visibility question and its implications for
+companion CI are tracked in [OPEN-QUESTIONS](/docs/engine/open-questions) §2.
 
 ## Where the work is going
 
 [TODO](/docs/engine/todo) breaks the work into ordered units. The MVP and replay oracle are
-done. The companion consumer boundary above is **merged and gated in CI, but its first
-publication has not happened** — those are two separate facts and the programme tracks them
-separately. The programme in progress builds the `world-graph` kind, contract first.
+done. The companion consumer boundary above is **merged, gated in CI, and published as
+`@the-running-dev/game-engine@0.4.0`**. The programme in progress builds the `world-graph` kind,
+contract first.
