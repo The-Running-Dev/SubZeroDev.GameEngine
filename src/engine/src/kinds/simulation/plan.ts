@@ -7,9 +7,16 @@
  * methods — no wiring into `Kind.advance`/`kernel/engine.ts` yet, matching W9's own
  * `applyConsequences` precedent (`plans/16-w9-variables-and-consequences.md`). That's the
  * next unit's job, once `end_week`'s resolution pipeline exists to call these from.
+ *
+ * `removeAction`'s rejection code is cataloged in `reasons.ts`, not hardcoded here —
+ * mirroring `kinds/story-graph/reasons.ts`'s own pattern from the first unit that needed
+ * a real reason code, not held back until `Kind.reasonCodes` itself is assembled.
  */
 
 import type { CommandResult } from "../../core/kernel/reasons.js";
+import type { SimulationReasonCode } from "./reasons.js";
+
+const ACTION_NOT_PLANNED: SimulationReasonCode = "action_not_planned";
 
 export type ActionType =
   | "work" | "work_overtime"
@@ -53,7 +60,7 @@ export function removeAction(plan: WeeklyActionPlan, index: number): CommandResu
   if (!Number.isInteger(index) || index < 0 || index >= plan.actions.length) {
     return {
       ok: false,
-      errors: [{ code: "action_not_planned", messageKey: "simulation.reason.action_not_planned" }],
+      errors: [{ code: ACTION_NOT_PLANNED, messageKey: `simulation.reason.${ACTION_NOT_PLANNED}` }],
       warnings: [],
     };
   }
