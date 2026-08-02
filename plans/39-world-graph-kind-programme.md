@@ -161,7 +161,7 @@ land before the kind contract without violating Decision 1.
 | W | Unit | Source | Scope |
 |---|---|---|---|
 | **W42** | State types | `content-and-systems.md` §§2–9 | `ResortMap`, `Guest`, `Building`, `Queue`, `Staff`, `ConstructionSite`, `Finances`, `Loan` — ported into `12-world-graph-kind.md` §3, replacing today's top-level-only sketch |
-| **W43** | Content-definition types | `game-design.md` (needs, opinions, adjacency, placement, incidents), `content-and-systems.md` §10's one-paragraph list | `GuestArchetypeDefinition`, `BuildingDefinition`, `StaffRoleDefinition`, `ProductDefinition`, `ScenarioDefinition`, `ObjectiveDefinition`, `IncidentDefinition`, `TerrainDefinition`, `PolicyDefinition`, `AchievementDefinition` — genuinely new design, not transcription (Finding 2) |
+| **W43** | Content-definition types | `game-design.md` (needs, opinions, adjacency, placement, incidents), `content-and-systems.md` §10's one-paragraph list | `MapDefinition`, `GuestArchetypeDefinition`, `BuildingDefinition`, `StaffRoleDefinition`, `ProductDefinition`, `ScenarioDefinition`, `ObjectiveDefinition`, `IncidentDefinition`, `TerrainDefinition`, `PolicyDefinition`, `AchievementDefinition` — genuinely new design, not transcription (Finding 2) |
 | **W44** | Resolution and systems detail | `12-world-graph-kind.md` §4, §9, `content-and-systems.md` §§8–9 | The 20-system tick-pipeline order restated against real types; utility-scoring and pathfinding cost-model shapes; tie-breaking rules already normative in §9, restated alongside the functions that implement them |
 
 Split by type cluster with a natural review boundary, the same reasoning `plans/36` gave for
@@ -292,7 +292,8 @@ names both.
 
 - [x] Cut the W43 doc-only design plan; do not treat this unit as a mechanical port.
 - [ ] Separate authoring/source definitions from validated runtime content where necessary.
-- [ ] Define terrain, scenery, building, product, staff-role and guest-archetype definitions.
+- [ ] Define the campaign-owned map catalog plus terrain, scenery, building, product,
+      staff-role and guest-archetype definitions.
 - [ ] Define scenario, objective, incident, policy and achievement definitions.
 - [ ] Define stable ids, cross-reference rules, localization/text ownership and defaults.
 - [ ] Define footprint rotations, entrances, placement constraints and adjacency effects.

@@ -151,6 +151,12 @@ Declare `WorldGraphCampaignSource` and `WorldGraphCampaign`, following `04-core.
 - parsing YAML/JSON remains outside the engine;
 - runtime content remains plain serializable data, not an indexed `Map` graph.
 
+The campaign root owns a required canonical `maps` catalog. Each source entry is a
+`MapDefinitionSource`; the builder produces its `MapDefinition` runtime counterpart. A
+scenario stores only `mapId`, which must resolve in that catalog. `Kind.initialState` turns
+the selected definition into the mutable `WorldMap`; neither the scenario nor runtime state
+owns a second copy of the authored map definition.
+
 Do not add a third "compiled content" model in W43. W45 may build ephemeral indexes from
 validated runtime arrays; caches are not campaign data or saved state.
 
@@ -159,6 +165,12 @@ validated runtime arrays; caches are not campaign data or saved state.
 Every definition has an `id: string`. Ids are opaque, non-empty, contain no `.`, and are
 unique within their definition namespace. Cross-references always state the namespace they
 target. Canonical definition order is lexicographic by id after the pure build step.
+
+Map definitions have their own namespace. `WorldGraphCampaign.maps` is the sole catalog;
+`ScenarioDefinition.mapId` targets it, and the source/runtime map pair owns dimensions,
+topology, zones, and spawn/exit cells that seed `WorldMap`. Scenario placement entries stay
+scenario-owned and reference the campaign's building/scenery catalogs instead of embedding
+those definitions.
 
 Defaults are not identity. A missing optional source field may become an explicit runtime
 value, but a missing id or unresolved reference is always Tier 1.
@@ -232,12 +244,12 @@ The execution change may rename a type for clarity, but it may not silently drop
 
 | Cluster | Required contract surface |
 |---|---|
-| Root | `WorldGraphCampaignSource`, `WorldGraphCampaign`, authored map/scenario selection, tick limits, `ticksPerDay`, definition catalogs |
+| Root | `WorldGraphCampaignSource`, `WorldGraphCampaign`, required canonical `MapDefinitionSource`/`MapDefinition` catalog, scenario selection, tick limits, `ticksPerDay`, definition catalogs |
 | Shared | authored/runtime text pairing, definition ids, integer curve, condition, effect, tags/categories, canonical ordering |
-| Spatial | `TerrainDefinition`, `SceneryDefinition`, scenery/map placement, placement rule, adjacency input/effect, footprint, entrance offset, allowed rotations |
+| Spatial | `MapDefinitionSource`, `MapDefinition`, dimensions/topology/zones/spawns/exits, `TerrainDefinition`, `SceneryDefinition`, scenery/building map placement, placement rule, adjacency input/effect, footprint, entrance offset, allowed rotations |
 | Service | `BuildingDefinition`, `ProductDefinition`, queue/service configuration, staff requirements, prices/costs, product effects, litter output |
 | Agents | `GuestArchetypeDefinition`, need profiles/curves, budgets, patience, preferences, spawn/arrival inputs; `StaffRoleDefinition`, wages, supported task kinds, work rates |
-| Scenario | `ScenarioDefinition`, pre-placed buildings/scenery, starting cash/unlocks/policies, map reference, objective/failure references, time limits |
+| Scenario | `ScenarioDefinition`, `mapId` reference into the campaign-owned map catalog, pre-placed buildings/scenery, starting cash/unlocks/policies, objective/failure references, time limits |
 | Rules | `ObjectiveDefinition`, failure definition or explicit failure branch, `IncidentDefinition`, `PolicyDefinition`, `AchievementDefinition` |
 | Localization | every player-facing source field as `AuthoredText`; every runtime counterpart as `LocKey`; no inline runtime strings |
 
@@ -255,8 +267,11 @@ code would otherwise need a default.
    discriminator, or runtime entity id. Resolve the terrain/incident/needs conflicts first.
 3. **Define the shared data language:** ids, text, conditions, effects, integer curves,
    scales, and canonical collection rules.
-4. **Define the spatial/service cluster:** terrain, scenery, building, product, footprint,
-   entrance, placement, adjacency, queue, service, and litter inputs.
+4. **Define the spatial/service cluster:** the source/runtime map pair and campaign-owned map
+   catalog first, then terrain, scenery, building, product, footprint, entrance, placement,
+   adjacency, queue, service, and litter inputs. State that each scenario's `mapId` resolves
+   in that catalog and that `initialState` combines the selected definition with the
+   scenario's placements to materialize `WorldMap`.
 5. **Define the agent cluster:** guest archetype and staff role, including MVP needs,
    budgets, patience, wages, task capabilities, and fixed-point scales.
 6. **Define the scenario/rules cluster:** scenario, objectives/failures, incidents, policies,
@@ -278,11 +293,12 @@ code would otherwise need a default.
 ### Tier 1 — hard failure
 
 - Duplicate or malformed definition ids; a reference that does not resolve in its declared
-  namespace.
+  namespace, including a scenario `mapId` absent from the campaign's map catalog.
 - Missing/conflicting localization; a runtime player-facing string that bypasses `LocKey`.
 - Non-integer, out-of-range, or incorrectly ordered curve/price/service/patience values.
-- Empty/invalid footprints, unsupported rotations, invalid entrance offsets, no entrance,
-  impossible terrain requirements, or overlapping/out-of-bounds pre-placements.
+- Invalid map dimensions/topology, missing spawn/exit cells, empty/invalid footprints,
+  unsupported rotations, invalid entrance offsets, no entrance, impossible terrain
+  requirements, or overlapping/out-of-bounds map pre-placements.
 - Record keys not declared by validated content, including guest need/opinion/effect targets.
 - Invalid condition/effect discriminators or payloads; recursive expressions with an empty
   `all`/`any` where the contract does not define an identity value.
@@ -309,6 +325,10 @@ queue deadlock, and unavoidable bankruptcy are harness findings, not W43 Tier 3.
 - [ ] `12-world-graph-kind.md` §14 declares the complete source and runtime campaign shapes.
 - [ ] Every definition in the Required Type Inventory is fully typed or explicitly replaced
       by a named, typed equivalent.
+- [ ] `WorldGraphCampaign` owns one canonical `MapDefinition` catalog;
+      `ScenarioDefinition.mapId` resolves into it; and `initialState` has one documented,
+      deterministic conversion from the selected definition plus scenario placements to
+      mutable `WorldMap` state.
 - [ ] Campaign envelope identity is distinguished from nested definition identity.
 - [ ] Source text, runtime `LocKey`s, default materialization, and canonical order follow
       `04-core.md` §10.1 with no second loader model.
@@ -334,7 +354,10 @@ queue deadlock, and unavoidable bankruptcy are harness findings, not W43 Tier 3.
 
 ## Explicitly Not In Scope
 
-- **No engine code.** W45 ports the merged W42–W44 contract into TypeScript.
+- **No engine code.** W45 reviews the existing `feature/w45-world-graph-kind-skeleton`
+  draft against the merged W42–W44 contract, then aligns the world-graph state/content
+  modules, `initialState`, validation, projection/outcome, assembly, and nine immediate
+  reducers. The 20-system tick pipeline remains W46.
 - **No W44 resolution design.** System order, A*, utility formula composition, queue/service
   timing, simultaneous events, rounding, and tie-breaking remain W44.
 - **No balance values.** Sun Trap chooses weights, prices, rates, thresholds, `ticksPerDay`,

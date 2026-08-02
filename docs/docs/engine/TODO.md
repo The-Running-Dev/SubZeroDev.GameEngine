@@ -623,7 +623,7 @@ when it declined a programme doc for this kind.
       `WorldGraphKindState`'s closure
       (`Incident`, `ObjectiveProgress`, `Alert`, `TerrainCell`, `PathCell`, `Zone`) are
       drafted in neither repository, so this is design work, not a port.
-- [ ] **W43 planned — content-definition contract:** archetypes, buildings, products,
+- [ ] **W43 planned — content-definition contract:** maps, archetypes, buildings, products,
       terrain, incidents, scenarios, objectives, policies and achievements. **Ready to
       execute** —
       [`plans/43-w43-world-graph-content-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/43-w43-world-graph-content-contract.md),
