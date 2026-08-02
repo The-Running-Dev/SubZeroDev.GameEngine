@@ -250,7 +250,7 @@ ids, integers, or enumerated rotations** — none is free text, which keeps
 
 **`ticks` is bounded.** `submitAction` is synchronous and pure, so an unbounded tick count
 is an unbounded pure computation inside one call. The cap is campaign data, Tier 1
-validated, and exceeding it is `tick_limit_exceeded` (§11) — a rejection, not a truncation,
+validated, and exceeding it is `tick_limit_reached` (§11) — a rejection, not a truncation,
 because a silently shortened batch would break §5.
 
 ---
@@ -506,6 +506,18 @@ in the Fast Lane does for `simulation` (10 §15).
 | Map authoring, scenarios, objectives, incidents | Campaign data |
 | The visual client and its renderer choice | 09 already fixes the client contract; the renderer is a game decision |
 | The balance harness (§15) | Searches for dominant strategies — a game tool, not an engine gate |
+
+**"Field detail lives with the game" names *design authority*, not a permanent split of the
+TypeScript itself.** The shapes in this table are still engine code once built — `Guest`,
+`Building`, `ResortMap` and the rest compile inside this kind's own package the same way
+`simulation`'s `ActorState`/content-definition types do (10 §7, §15), not as a second copy
+Sun Trap maintains in parallel. What "lives with the game" is the *content this schema
+carries* — which guest archetype, which drink stand, which map — and the design decisions
+behind field values, exactly as 10 §15 states for `simulation`. `SubZeroDev.SunTrap/docs/
+docs/design/content-and-systems.md` already writes its own state shapes to this contract's
+rules and defers to it on every disagreement — that draft is source material this kind's own
+build ports from and then owns, the same relationship upstream's engine specification had to
+`10-simulation-kind.md` before it was ported (`plans/39-world-graph-kind-programme.md`).
 
 **Nothing above changes this contract's shape.** Each is detail hanging off a seam this
 document fixes — the same relationship, and the same reasoning, as 10 §15.

@@ -148,11 +148,11 @@ units start rather than after.
 
 | W | Unit | Plan | Size | Depends on |
 |---|---|---|---|---|
-| **W27–W3x** | The `simulation` kind — port and build | [`plans/36`](36-simulation-kind-programme.md) | **Large** — its own programme | W25 |
-| **W3x+** | Bulgaria Adventure — remaining four arcs | *when cut* | Medium, content | — |
-| **W3x+** | Save migration mechanism (04 §10.2) | *when cut* | Medium | — |
-| **W3x+** | The `world-graph` kind (Sun Trap) | *when cut* | **Large** | W24; absorbs `previewAction` |
-| **W3x+** | Content tooling — validator, graph viz, diff, l10n | *when cut* | Large, several units | Kinds it validates |
+| **W27–W30** | Bulgaria Adventure — remaining four arcs | — (content, no plan file per arc) | Medium, content | — |
+| **W31** | Save migration mechanism (04 §10.2) | — | Medium | — |
+| **W32–W40** | The `simulation` kind — port and build | [`plans/36`](36-simulation-kind-programme.md) | **Large** — its own programme | W25 |
+| **W41–W4x** | The `world-graph` kind — contract and build | [`plans/39`](39-world-graph-kind-programme.md) | **Large** — its own programme | W24; absorbs `previewAction` |
+| **W4x+** | Content tooling — validator, graph viz, diff, l10n | *when cut* | Large, several units | Kinds it validates |
 
 **The Bulgaria arcs and the migration mechanism are both genuinely un-blocked today** and
 could be pulled into Tranche A if the appetite is for content or for closing a known gap
@@ -237,13 +237,28 @@ line counts make a defensible unit split possible today. The world-graph kind's 
 code; `12-world-graph-kind.md` §17 explicitly leaves it there. Splitting that build now would
 be sizing work against a document that does not exist yet.
 
-### 4. No W-numbers are assigned past W27
+> **Superseded.** `SubZeroDev.SunTrap` has since written that document —
+> `docs/docs/design/content-and-systems.md`, `game-design.md`, `mvp.md` and
+> `client-specification.md`, around 980 lines together, sized similarly to `simulation`'s own
+> pre-port source. The precondition this decision names no longer holds.
+> [`plans/39-world-graph-kind-programme.md`](39-world-graph-kind-programme.md) is that
+> programme doc, cut once the source material existed to size it against — the same
+> milestone `plans/36` reached for `simulation`.
 
-Tranche B's ordering after the simulation kind depends on decisions not yet made (whether
-Bulgaria content or the world-graph kind comes next, whether migration gets forced early).
-Assigning `W28`–`W40` now would create exactly the renumber-and-rewrite-every-reference
-problem `TODO.md`'s own numbering note warns about. Tranche B units take their numbers when
-they are cut, in the order they are cut, per the existing convention.
+### 4. W-numbers are assigned only when a unit is actually cut, never reserved ahead of it
+
+Written when nothing past W27 existed yet, to avoid pre-assigning `W28`–`W40` before the
+order those units would run in was decided — exactly the renumber-and-rewrite-every-
+reference problem `TODO.md`'s own numbering note warns about. All of Tranche B named at the
+time has since been cut, in this order: Bulgaria's four arcs (**W27–W30**), save migration
+(**W31**), and the simulation kind's own nine units (**W32–W40**, `plans/36`). The
+convention held throughout — none were reserved before the unit before them existed.
+
+`plans/39`'s own **W41–W4x** for the world-graph kind is the same convention applied
+forward, not an exception to it: W41 is the real next number now that W40 is the last one
+actually cut, and the range stays open-ended (`W4x`, matching `plans/36`'s own `W27–W3x` row
+above) rather than committing to W48 as fixed before W42 is even cut. Whatever comes after
+world-graph — content tooling or anything else — still takes its number only when cut.
 
 ---
 

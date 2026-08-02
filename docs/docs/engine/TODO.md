@@ -569,6 +569,13 @@ The third kind, and the first spatial one. **Specified —**
 [`12-world-graph-kind.md`](12-world-graph-kind.md) fixes the seam; the game it serves lives
 in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap) ([12 §17](12-world-graph-kind.md#17-what-remains-in-the-game-repository)).
 
+**Now has its own programme doc**, the same milestone `simulation` reached with `plans/36`:
+[`plans/39-world-graph-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/39-world-graph-kind-programme.md),
+proposing **W41–W48** (three contract units, five build units), cut once Sun Trap's own
+design docs (`content-and-systems.md`, `game-design.md`, `mvp.md`, `client-specification.md`)
+existed to size it against — the precondition `plans/33`'s own Decision 3 named as missing
+when it declined a programme doc for this kind.
+
 - [x] **`KindContext.derive` and the `tick` stream — already built, since W1/W2.** Not a gap
       this kind needs to close: `KindContext.derive` (04 §3.1) and all four `StreamId`
       variants, including `tick` and `agent`, exist in `core/kernel/types.ts`,
@@ -580,15 +587,16 @@ in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap) (
       construction, economy, incidents, objectives — **including `previewAction` and the
       tenth API pairing** ([`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §2), amending 09 §4,
       `MVP.md` §5 and the MCP surface ([04 §13](04-core.md#13-the-mcp-surface)) together in
-      the same change this kind lands in — not scheduled as a separate, earlier checkbox,
-      since both 12 §7 and `OPEN-QUESTIONS.md` §2 are explicit it is deferred until this
-      kind actually needs it.
+      the same change this kind lands in — its own build unit (W47) per `plans/39`, not
+      scheduled as a separate, earlier checkbox, since both 12 §7 and
+      `OPEN-QUESTIONS.md` §2 are explicit it is deferred until this kind actually needs it.
 - [ ] **Batch invariance is the acceptance test with teeth** ([12 §5](12-world-graph-kind.md#5-batch-invariance--and-the-two-seam-changes-it-forced)): `advance_ticks n`
       reaches the same world as any split of it, compared as an `Outcome` ([07 §3](07-replay.md#3-what-the-same-outcome-means)) rather
       than as bytes, since the action logs legitimately differ.
 - [ ] Determinism beyond the seed ([12 §9](12-world-graph-kind.md#9-determinism-beyond-the-seed)): integer arithmetic, no `Math.sqrt` in distance,
       ties by entity id, canonical iteration order, derived entity ids, no serialized caches.
 - [ ] Its Definition of Done lives with the game, not here.
+- **Plan:** [`plans/39-world-graph-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/39-world-graph-kind-programme.md)
 
 ### Depth: Finish the Bulgaria Adventure
 
