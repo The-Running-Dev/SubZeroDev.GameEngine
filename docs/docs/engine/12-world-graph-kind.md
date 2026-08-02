@@ -960,12 +960,37 @@ listed so the second is not discovered later as a gap.
 > forced rather than stylistic: 04 §12 types `StateChange.value` as
 > `string | number | boolean`, so a row saying `path: "buildings"` has nothing legal to put
 > in `value`, and "the array changed" is not an audit record a client could render anyway.
-> Two path shapes follow, and there are only two — **singleton** (`tick`,
-> `finances.cashCents`: the kind's own top-level scalars, which belong to no collection) and
-> **entity-scoped** (`<collection>.<entityId>.<field>`: anything reached through one).
-> Appearing and disappearing are entity-scoped like any other field, written as a boolean on
-> `<collection>.<entityId>.exists`. A `null` assignment is `""` for the same reason the
-> collection rule exists: the type has no null.
+>
+> **A path is the dotted traversal of `WorldGraphKindState` (§3.2) down to the scalar that
+> changed** — which closes the valid set without a second list to maintain. Two shapes follow
+> from the state's own shape, and only two:
+>
+> | Shape | Reaches | Examples |
+> |---|---|---|
+> | **Singleton** | a scalar not held in a collection | `tick`, `finances.cashCents`, `map.revision` |
+> | **Entity-scoped** | `<collection>.<entityId>.<field>` | `buildings.b:3.isOpen`, `alerts.a:9.dismissedAtTick` |
+>
+> `<entityId>` is the entity's own id (§9), never its array index — an index is a property of
+> how the collection is stored, and §3.4's whole point is that storage order is not
+> addressable. Appearing and disappearing are entity-scoped like any other field, written as
+> a boolean on `<collection>.<entityId>.exists`. A `null` assignment is `""` for the same
+> reason the collection rule exists: the type has no null.
+>
+> **This is normative, and it is checkable.** 04 §12 types `path` as an unconstrained
+> `string`, so nothing structural stops a producer inventing one; the rule above is what
+> makes divergence a defect rather than a matter of taste. A path is valid iff it resolves
+> against §3.2 — walk it segment by segment, taking `<entityId>` as a lookup by id, and it
+> must land on a scalar. A path that does not resolve is a producer defect, not a consumer's
+> to accommodate, and the check is cheap enough to assert in this kind's own tests. Adding a
+> top-level scalar to `WorldGraphKindState` therefore extends the valid set automatically,
+> which is the point of deriving it rather than listing it — a hand-maintained list of
+> singleton paths would be one more thing to drift from the fields it describes.
+>
+> **Two fields are reachable by that rule and still never audited.** `nextEntityOrdinal` is
+> an id source, not player-facing state — auditing it would emit a row on every creation
+> saying a counter moved. `map.*` changes only when authored topology does (§3.2), which is
+> not something an action does. Stated because "derivable from the state type" would
+> otherwise imply they should appear.
 
 `reason` is a descriptive code naming *why* the change happened, not a rejection code —
 `simulation`'s `action_eat` and `story-graph`'s `achievement_unlocked` set that precedent,
