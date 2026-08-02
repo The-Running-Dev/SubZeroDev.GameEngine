@@ -972,9 +972,16 @@ listed so the second is not discovered later as a gap.
 >
 > `<entityId>` is the entity's own id (§9), never its array index — an index is a property of
 > how the collection is stored, and §3.4's whole point is that storage order is not
-> addressable. Appearing and disappearing are entity-scoped like any other field, written as
-> a boolean on `<collection>.<entityId>.exists`. A `null` assignment is `""` for the same
-> reason the collection rule exists: the type has no null.
+> addressable. A `null` assignment is `""` for the same reason the collection rule exists:
+> the type has no null.
+>
+> **`.exists` is the one synthetic leaf, and the only one.** Appearing and disappearing are
+> not fields of any type in §3.2 — an entity that was removed has no field left to carry the
+> news. So `<collection>.<entityId>.exists` is defined as a boolean assertion about
+> *membership*: the traversal resolves the entity, and `.exists` reports whether the
+> collection holds it. Everything else in a path is a real field, and no second synthetic
+> leaf may be added without amending this paragraph — an open set of invented leaves would
+> put the grammar right back where it started.
 >
 > **This is normative, and it is checkable.** 04 §12 types `path` as an unconstrained
 > `string`, so nothing structural stops a producer inventing one; the rule above is what

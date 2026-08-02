@@ -154,6 +154,80 @@ describe("worldGraphKind — immediate actions", () => {
     }
   });
 
+  it("emits only StateChange paths that resolve against the state (12 §13)", () => {
+    // The grammar is normative but `StateChange.path` is an unconstrained string, so this
+    // is the check that makes divergence a failing test rather than a matter of taste:
+    // walk the path against kindState, taking `<entityId>` as a lookup by id, and it must
+    // land on a scalar — or, for the one synthetic leaf `.exists`, on the entity whose
+    // membership it asserts.
+    const resolves = (state: WorldGraphKindState, path: string, value: unknown): boolean => {
+      const segments = path.split(".");
+      const synthetic = segments.at(-1) === "exists";
+      let node: unknown = state;
+
+      for (const segment of synthetic ? segments.slice(0, -1) : segments) {
+        if (Array.isArray(node)) {
+          node = node.find((entry: { id?: string }) => entry.id === segment);
+        } else if (typeof node === "object" && node !== null) {
+          node = (node as Record<string, unknown>)[segment];
+        } else {
+          return false;
+        }
+        if (node === undefined) return synthetic && value === false;
+      }
+
+      return synthetic
+        ? value === true
+        : node === null || ["string", "number", "boolean"].includes(typeof node);
+    };
+
+    const engine = makeEngine();
+    const built = engine.submitAction(createdWorld(), "build", { definitionId: "drink-stand", x: 1, y: 1, rotation: 0 });
+    const hired = engine.submitAction(built.value!, "hire_staff", { roleId: "vendor" });
+    const assigned = engine.submitAction(hired.value!, "assign_staff", { staffId: "staff:3", buildingId: "building:0" });
+    const priced = engine.submitAction(assigned.value!, "set_price", { buildingId: "building:0", productId: "water", priceCents: 150 });
+    const closed = engine.submitAction(priced.value!, "close_building", { buildingId: "building:0" });
+    const dismissed = engine.submitAction(closed.value!, "dismiss_alert", { alertId: "alert:2" });
+    const ticked = engine.submitAction(dismissed.value!, "advance_ticks", { ticks: 1 });
+
+    const steps = [built, hired, assigned, priced, closed, dismissed, ticked];
+    const emitted = steps.flatMap((step) => step.changes);
+    expect(emitted.length).toBeGreaterThan(0);
+
+    for (const [index, step] of steps.entries()) {
+      // Resolved against the state the action produced, so an `.exists` row is checked
+      // against the membership it claims rather than merely parsed.
+      const state = kindState(step.value!);
+      for (const change of step.changes) {
+        expect(resolves(state, change.path, change.value), `step ${index}: ${change.path}`).toBe(true);
+      }
+    }
+  });
+
+  it("rejects a path the grammar does not admit, so the check above can fail", () => {
+    const engine = makeEngine();
+    const built = engine.submitAction(createdWorld(), "build", { definitionId: "drink-stand", x: 1, y: 1, rotation: 0 });
+    const state = kindState(built.value!);
+
+    // A collection path, an invented leaf, and an array index — the three shapes §13 bans.
+    for (const path of ["buildings", "buildings.building:0.colour", "buildings.0.isOpen"]) {
+      let node: unknown = state;
+      let landed = true;
+      for (const segment of path.split(".")) {
+        if (Array.isArray(node)) {
+          node = node.find((entry: { id?: string }) => entry.id === segment);
+        } else if (typeof node === "object" && node !== null) {
+          node = (node as Record<string, unknown>)[segment];
+        } else {
+          node = undefined;
+        }
+        if (node === undefined) { landed = false; break; }
+      }
+      const scalar = landed && ["string", "number", "boolean"].includes(typeof node);
+      expect(scalar, path).toBe(false);
+    }
+  });
+
   it("records a purchase as an expense, not only as cash leaving", () => {
     const engine = makeEngine();
     const built = engine.submitAction(createdWorld(), "build", { definitionId: "drink-stand", x: 1, y: 1, rotation: 0 });
