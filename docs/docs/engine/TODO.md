@@ -559,8 +559,14 @@ themselves.
       ([05 §9](05-observability.md#9-kind-events)) — see
       [`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md)
       for the full split and findings.
-- [ ] Then build it, per that contract (upstream Phases 1–4 remain a useful build order).
-- [ ] "Stable Life" scenario playable to a win and a loss.
+- [x] **Build the engine-owned simulation kind.** Done across W36–W40: state and variables,
+      the weekly pipeline, content definitions, the vertical slice, validation, and the real
+      `Kind<SimulationKindState>` assembly all run through the core engine seam.
+- [x] **Engine-owned "Stable Life" fixture reaches a win and a loss through the replay
+      oracle.** W40 commits both paths and records the remaining honest gap: simulation
+      projection is not implemented, so neither path is playable through the text client or
+      MCP yet. That is separate from the engine/replay milestone and remains part of the full
+      game Definition of Done below.
 - [ ] Its Definition of Done: `games/life-in-the-fast-lane.md`.
 
 ### Depth: Sun Trap (The `world-graph` Kind)
