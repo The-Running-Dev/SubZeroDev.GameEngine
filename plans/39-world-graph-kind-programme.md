@@ -208,29 +208,42 @@ scratch-directory prototype that proved the whole boundary end to end (packed ta
 clean consumer → `tsc --noEmit` exit 0 → runtime `createGame` exit 0) before any repository
 file was changed.
 
+**Merged:** [PR #108](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/108).
+Everything below is ticked against merged evidence verified on `main` at `db9c62a` — the
+three new CI steps were confirmed running (not merely present) in that commit's own workflow
+run. The two publication boxes are the repository owner's and remain open.
+
 - [x] Cut a focused W41 plan with current package contents and intended public API inventory.
-- [ ] Rename the npm package to the lowercase scoped name `@the-running-dev/game-engine`.
-- [ ] Keep `src/engine/` as the source package; do not relocate it to satisfy stale `packages/` prose.
-- [ ] Add one root public entry point that exports only supported core, registry, session,
+- [x] Rename the npm package to the lowercase scoped name `@the-running-dev/game-engine`.
+- [x] Keep `src/engine/` as the source package; do not relocate it to satisfy stale `packages/` prose.
+- [x] Add one root public entry point that exports only supported core, registry, session,
       projection, client and built-kind symbols.
-- [ ] Add `types` and ESM `import` targets through `package.json#exports`; deep source imports
+- [x] Add `types` and ESM `import` targets through `package.json#exports`; deep source imports
       remain unsupported.
-- [ ] Restrict the packed artefact to runtime output, declarations, package metadata and
+- [x] Restrict the packed artefact to runtime output, declarations, package metadata and
       required documentation; exclude tests, fixtures and source-only internals.
-- [ ] Link package metadata to this repository and configure publication to
+- [x] Link package metadata to this repository and configure publication to
       `https://npm.pkg.github.com`.
-- [ ] Make a clean package build produce complete JavaScript, declarations and source maps.
-- [ ] Add a consumer smoke project that installs the packed tarball and imports only the root
+- [x] Make a clean package build produce complete JavaScript, declarations and source maps.
+- [x] Add a consumer smoke project that installs the packed tarball and imports only the root
       package name.
-- [ ] Make the smoke project construct an engine/registry path and typecheck under Node 24.
-- [ ] Run package build, tarball inspection and consumer smoke in required CI.
-- [ ] Add a tag/manual release workflow with least-privilege `packages: write` permission.
-- [ ] Document developer authentication without committing credentials or tokens.
+- [x] Make the smoke project construct an engine/registry path and typecheck under Node 24.
+- [x] Run package build, tarball inspection and consumer smoke in required CI.
+- [x] Add a tag/manual release workflow with least-privilege `packages: write` permission.
+- [x] Document developer authentication without committing credentials or tokens.
 - [ ] Publish the first private package version and grant Sun Trap Actions read access.
+      **Open, and owner-only.** Verified nothing is published; the three existing tags all
+      predate `release-engine-package.yml`, so publication needs a `v0.4.0` tag push (with
+      `package.json` moved to match, per W41's own corrected Decision 5).
 - [ ] Record the exact package coordinate, version and permissions for Sun Trap's M1 handoff;
-      the companion repository owns its own dependency and CI change.
-- [ ] **Gate:** a clean external consumer installs, imports, typechecks and constructs the
-      engine using only supported exports.
+      the companion repository owns its own dependency and CI change. **Blocked on the box
+      above** — there is no version to record until one exists.
+- [x] **Gate:** a clean external consumer installs, imports, typechecks and constructs the
+      engine using only supported exports. Met by `consumer-smoke/`, which installs the packed
+      tarball rather than linking the source — the distinction Decision 4 turns on.
+
+**T0 is therefore not reached.** W41 is merged; the first version is not published, and T0
+names both.
 
 ### W42 — authoritative runtime-state contract
 

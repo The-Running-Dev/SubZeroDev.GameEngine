@@ -65,15 +65,20 @@ comparison (07 §8) runs the corpus against the previous tag.
 
 ## Companion Consumption
 
-The package target is shipped as a private GitHub Packages module:
-`@the-running-dev/game-engine@0.1.0`.
+The package is `@the-running-dev/game-engine`, **configured for** private publication to
+GitHub Packages. The boundary is built and gated, but **no version has been published yet** —
+there is no installable registry artefact today. `release-engine-package.yml` runs on a `v*`
+tag push, and the tags that exist all predate it. The first publication ships whatever
+`src/engine/package.json` says at that tag, so the manifest version and the tag move together.
 
 Companion projects consume it by registry from a tarball built and published in
-`release-engine-package.yml`, not by source-tree `file:` links. The package has
-one declaration-bearing ESM root export and is available at `src/engine/src/index.ts`
-(`exports["."]` in `package.json`).
+`release-engine-package.yml`, not by source-tree `file:` links — a `file:` link resolves
+through `src/` and would pass while `exports`, `files` and the declaration emit were all still
+broken. The package has one declaration-bearing ESM root export, defined at
+`src/engine/src/index.ts` and reached through `exports["."]` in `package.json`; deep paths
+into `dist/` are deliberately unresolvable rather than merely discouraged.
 
-To consume it:
+Once a version exists, consume it with:
 
 ```bash
 npm config set @the-running-dev:registry https://npm.pkg.github.com
@@ -87,5 +92,6 @@ should use a repository-scoped token with package read permission.
 ## Where the work is going
 
 [TODO](/docs/engine/todo) breaks the work into ordered units. The MVP and replay oracle are
-done; the next proposed programme starts with the companion consumer boundary and then builds
-the `world-graph` kind.
+done. The companion consumer boundary above is **merged and gated in CI, but its first
+publication has not happened** — those are two separate facts and the programme tracks them
+separately. The programme in progress builds the `world-graph` kind, contract first.
