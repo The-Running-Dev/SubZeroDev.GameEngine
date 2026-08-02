@@ -91,7 +91,8 @@ evidence; treat this as design work with a strong draft to start from.
 Those eight types are indeed drafted and near-ready. But `WorldGraphKindState` names **eleven**
 fields, and the transitive closure of what §3 must specify is larger than the eight. Measured
 against both repositories, six types in that closure do not exist anywhere, and Sun Trap's own
-two design documents disagree about a seventh.
+two design documents disagree about the field sets of two more (`GuestOpinions` and
+`GuestConditions`).
 
 This is the same class of finding as `plans/36`'s own Finding — where `10-simulation-kind.md`
 §14's table accounted for two of ten types and understated the port by roughly half. It is
@@ -332,10 +333,14 @@ nine. Three one-line edits; they belong here because this unit is what gives `Al
 
 ### 1. Ask Sun Trap; do not resolve their questions unilaterally
 
-The `GuestOpinions` disagreement and the M2 gates are content-design questions, and
-`12-world-graph-kind.md` §17 puts field *detail* with the game. Picking the seven-field list
-because it is already typed would silently overrule `game-design.md`, which is the document
-describing what the game is *for*. Ask, wait, record.
+The `GuestOpinions` and `GuestConditions` disagreements and the M2 gates are content-design
+questions, and `12-world-graph-kind.md` §17 puts field *detail* with the game. Picking the
+shorter list in each case because it is already typed would silently overrule
+`game-design.md`, which is the document describing what the game is *for*. Ask, wait, record.
+
+The consumer test above is not an exception to this. It makes the question *sharper* — a field
+with no system, no reason code and no projection reading it has to justify being in
+`serialize()` output — but the answer is still Sun Trap's to give.
 
 ### 2. Specify the engine-side shape permissively where the answer does not change the seam
 
