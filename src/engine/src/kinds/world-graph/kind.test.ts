@@ -550,6 +550,28 @@ describe("worldGraphKind — validation", () => {
     expect(result.ok).toBe(false);
   });
 
+  it("rejects an authored id containing a dot, which would make §13's paths parse two ways", () => {
+    const dotted = validate(campaignWith({
+      buildingDefinitions: [{
+        ...content.buildingDefinitions[0]!,
+        products: [{ id: "water.sparkling", defaultPriceCents: 120, priceRange: { minCents: 100, maxCents: 200 } }],
+      }],
+    }));
+
+    expect(dotted.ok).toBe(false);
+    expect(dotted.errors.some((error) => error.code === "invalid_identifier")).toBe(true);
+
+    // Every authored id the kind reads, not just product ids.
+    for (const override of [
+      { objectiveDefinitions: [{ id: "stay.open", target: 1 }] },
+      { staffRoleDefinitions: [{ id: "ven.dor", hireCostCents: 200, maxCount: 1 }] },
+      { map: { ...map, zones: [{ id: "zone.main", nameKey: "n", cells: [], serviceRadius: 0, maxOccupancy: null }] } },
+    ]) {
+      const result = validate(campaignWith(override));
+      expect(result.errors.some((error) => error.code === "invalid_identifier"), JSON.stringify(override)).toBe(true);
+    }
+  });
+
   it("rejects duplicate objective ids", () => {
     const result = validate(campaignWith({
       objectiveDefinitions: [{ id: "stay-open", target: 1 }, { id: "stay-open", target: 2 }],

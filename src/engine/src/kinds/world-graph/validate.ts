@@ -44,6 +44,46 @@ function isPositiveInteger(value: number): boolean {
   return Number.isInteger(value) && value > 0;
 }
 
+/**
+ * An authored id must be non-empty and carry no `.`, because §13's `StateChange` paths are
+ * dot-separated: a `productId` of `water.sparkling` makes
+ * `buildings.b:3.pricesCents.water.sparkling` parse two ways. Entity ids need no check —
+ * §9 constructs them as `<prefix>:<ordinal>` — so this binds content only, which is exactly
+ * what a contract cannot assume about.
+ */
+function isPathSafeId(value: string): boolean {
+  return value.length > 0 && !value.includes(".");
+}
+
+function validateIdShapes(content: WorldGraphCampaign): Issue[] {
+  const errors: Issue[] = [];
+
+  const check = (id: string, path: string) => {
+    if (!isPathSafeId(id)) {
+      errors.push({ code: "invalid_identifier", messageKey: "core.reason.invalid_identifier", path });
+    }
+  };
+
+  for (const building of content.buildingDefinitions) {
+    check(building.id, `buildingDefinitions.${building.id}`);
+    for (const product of building.products) {
+      // Also the keys of `Building.pricesCents`, which are these ids.
+      check(product.id, `buildingDefinitions.${building.id}.products.${product.id}`);
+    }
+  }
+  for (const role of content.staffRoleDefinitions) {
+    check(role.id, `staffRoleDefinitions.${role.id}`);
+  }
+  for (const objective of content.objectiveDefinitions) {
+    check(objective.id, `objectiveDefinitions.${objective.id}`);
+  }
+  for (const zone of content.map.zones) {
+    check(zone.id, `map.zones.${zone.id}`);
+  }
+
+  return errors;
+}
+
 function validateFinances(content: WorldGraphCampaign, keys: ReadonlyMap<LocKey, string>): Issue[] {
   const errors: Issue[] = [];
 
@@ -314,6 +354,7 @@ export function validateCampaign(campaign: Campaign, strings: ReadonlyMap<LocKey
   const errors = [
     ...validateFinances(content, strings),
     ...validateTerrain(content),
+    ...validateIdShapes(content),
     ...validateDefinitions(content),
     ...validateReferences(content),
   ];
