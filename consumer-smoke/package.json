@@ -3,14 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "install:engine": "node install-engine.mjs",
     "build": "tsc -p tsconfig.json",
     "smoke": "node dist/smoke.js"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
     "typescript": "^5.6.0"
-  },
-  "dependencies": {
-    "@the-running-dev/game-engine": "file:../src/engine/the-running-dev-game-engine-0.1.0.tgz"
   }
 }

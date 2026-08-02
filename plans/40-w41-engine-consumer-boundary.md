@@ -339,12 +339,38 @@ A tarball cut from a stale `dist/` is the classic packaging defect and it fails 
 the consumer smoke test would pass against yesterday's output. `prepack` makes staleness
 structurally impossible rather than a discipline someone has to remember.
 
-### 5. The version is not bumped in this unit
+### 5. ~~The version is not bumped in this unit~~ — **wrong, corrected during review**
 
-`0.1.0` publishes as-is. The first published version is a delivery event, not a content
-change, and conflating them would make the changelog claim engine behaviour changed when it
-did not. `plans/39`'s **T0** milestone is "W41 merged *and* first package version published"
-— two facts, and this keeps them separable.
+> The original reasoning: *"`0.1.0` publishes as-is. The first published version is a delivery
+> event, not a content change, and conflating them would make the changelog claim engine
+> behaviour changed when it did not."* That argument is fine in the abstract and **was
+> written without checking the tags**, which is what makes it wrong here.
+
+`package.json` had never tracked the release tags:
+
+| Tag | `package.json` at that tag |
+|---|---|
+| `v0.1.0` | `0.0.0` |
+| `v0.2.0` | `0.1.0` |
+| `v0.3.0` | `0.1.0` |
+
+Harmless while the package was `private: true` and never published — the tag was the release
+marker and `ENGINE_VERSION` only stamped replay fixtures. **This unit is what makes it a
+live defect**, because `release-engine-package.yml` triggers on `v*` and `npm publish` ships
+what the *manifest* says, not what the tag says. Cutting `v0.4.0` would publish `0.1.0`; the
+tag after that would fail outright, since a registry refuses to republish an existing
+version. A published version matching no tag also breaks the exact-semver consumption
+contract this whole unit exists to establish.
+
+**Corrected to: `package.json` is set to `0.3.0`, matching the newest existing tag.** Nothing
+had been published, so there was no artefact to collide with and no consumer to disrupt —
+the drift was bookkeeping, and this treats it as such rather than spending a fresh version
+number on a correction. From here, tag and manifest move together; the next release cuts
+`v0.4.0` *and* sets `0.4.0`.
+
+The original decision's point still stands in its narrow form — publishing is a delivery
+event, and `plans/39`'s **T0** keeps "W41 merged" and "first version published" as two
+separate facts. It just did not license leaving the manifest three tags behind.
 
 ---
 
