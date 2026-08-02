@@ -973,8 +973,9 @@ beside its content-side counterpart (`NPCDefinition`) because the two are read t
 constantly, the same reason `JobOpening` (§2.2, runtime) and `JobDefinition` (§7.2, content) are
 described near each other in prose even though they live in different top-level sections. §7.10
 has a *third* category alongside them: `AgentStrategy` is engine-owned code (a function member
-cannot be campaign JSON at all), referenced by campaigns through `AgentState.strategyId` — a
-plain string — never appearing in content itself. Every other subsection here is campaign data
+cannot be campaign JSON at all) and never appears in content — though how a campaign actually
+selects one is itself an open gap, not yet settled by any field this contract declares; §7.10
+records it rather than assuming an answer. Every other subsection here is campaign data
 throughout.
 
 **This is about the campaign wrapper's own identity, not every individual definition's `id`.**
@@ -1579,9 +1580,19 @@ function — it cannot be represented in campaign JSON/YAML at all, so despite u
 it alongside the other content-definition types (§14.9), it is not campaign data and was never
 going to become some. It is **engine-owned code**, the same category `Kind` itself is
 (`06-extensibility.md` §7, "Kinds Stay Engine-Owned"): a fixed, in-repository registry of named
-behaviors (`"aggressive"`, `"cautious"`, …), keyed by `id`. A scenario or campaign references one
-by **id only** — `AgentState.strategyId: string` below is the actual campaign-facing surface;
-`AgentStrategy` itself never appears in content.
+behaviors (`"aggressive"`, `"cautious"`, …), keyed by `id`.
+
+**How a campaign actually selects a strategy is a real, open gap, not settled by this port.**
+`AgentState.strategyId` is *runtime* state, built at `initialState` — not something a campaign
+author writes. Neither `ScenarioDefinition` (§7.8) nor anything else in this contract declares
+how many rivals a scenario has or which strategy each one initializes with; checked directly
+against upstream, and it doesn't specify this either — no `ScenarioDefinition` field, no
+separate agent-configuration type, anywhere in the ~3300-line source. An earlier revision of
+this section claimed `AgentState.strategyId` was "the actual campaign-facing surface," which
+overstated it: a runtime field a campaign never writes cannot be the surface a campaign uses to
+configure anything. **Revisit when** a real scenario needs a rival — the natural home is a new
+`ScenarioDefinition` field (e.g. `rivals: Array<{ strategyId: string }>`), decided against a
+concrete need rather than guessed at here.
 
 ```typescript
 /** Engine-owned, never campaign content — the rival-behavior analogue of `KindRegistry`. */
