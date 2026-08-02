@@ -1,7 +1,7 @@
 # Roadmap Page — Design and Implementation Plan
 
-**Status:** Proposed; design and implementation plan only. No page code is included in this
-change.
+**Status:** Implementing. W42 merged as `5f5f8f5` after this plan was revised, so the public
+page must represent W0–W42 as 44 delivered units and name W43 as the current checkpoint.
 
 **Route:** `/roadmap/`
 

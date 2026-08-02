@@ -94,6 +94,7 @@ const config: Config = {
           value: `<a class="navbar__brand" href="${baseUrl}"><b class="navbar__title text--truncate">Game Engine</b></a>`,
         },
         {type: 'docSidebar', sidebarId: 'docs', position: 'left', label: 'Docs'},
+        {type: 'html', position: 'left', value: '<a class="navbar__item navbar__link" href="/roadmap/">Roadmap</a>'},
       ],
     },
     footer: {style: 'dark', links: []},

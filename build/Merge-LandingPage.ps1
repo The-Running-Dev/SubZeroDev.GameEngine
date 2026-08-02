@@ -85,4 +85,9 @@ if ($docsPageCountAfter -ne $docsPageCountBefore) {
     throw "The merge changed the file count under '$docsSubtree' ($docsPageCountBefore -> $docsPageCountAfter). The landing page must never write into docs/ -- aborting rather than shipping a possibly-corrupted docs tree."
 }
 
+$roadmapPage = Join-Path $DocsOutput 'roadmap/index.html'
+if (-not (Test-Path -LiteralPath $roadmapPage -PathType Leaf)) {
+    throw "The landing build did not leave a static roadmap route at '$roadmapPage'."
+}
+
 Write-Host "[MERGE] Landing page overlaid onto '$DocsOutput'. docs/ untouched ($docsPageCountAfter files)." -ForegroundColor Green

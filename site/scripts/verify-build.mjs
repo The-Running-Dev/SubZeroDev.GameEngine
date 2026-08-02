@@ -1,7 +1,11 @@
 import { access, readFile } from "node:fs/promises";
 
-const html = await readFile(
+const landingHtml = await readFile(
   new URL("../dist/index.html", import.meta.url),
+  "utf8",
+);
+const roadmapHtml = await readFile(
+  new URL("../dist/roadmap/index.html", import.meta.url),
   "utf8",
 );
 
@@ -33,11 +37,31 @@ const requiredTags = [
 ];
 
 for (const tag of requiredTags) {
-  if (!tag.test(html)) {
+  if (!tag.test(landingHtml)) {
     throw new Error(
       `Built HTML is missing required static metadata: ${tag.source}`,
     );
   }
 }
 
-console.log("Built HTML contains the required static social metadata.");
+const roadmapTags = [
+  /<meta\s+name="description"\s+content="What SubZeroDev Game Engine has built, what comes next, and why it became 44 work units\."\s*\/>/,
+  /<meta\s+property="og:url"\s+content="https:\/\/game-engine\.subzerodev\.com\/roadmap\/"\s*\/>/,
+  /<link\s+rel="canonical"\s+href="https:\/\/game-engine\.subzerodev\.com\/roadmap\/"\s*\/>/,
+  /<script type="module" crossorigin src="\/assets\//,
+];
+
+for (const tag of roadmapTags) {
+  if (!tag.test(roadmapHtml))
+    throw new Error(
+      `Built roadmap HTML is missing required metadata: ${tag.source}`,
+    );
+}
+
+if (/\/src\//.test(landingHtml) || /\/src\//.test(roadmapHtml)) {
+  throw new Error("Built HTML references a development-only source path.");
+}
+
+console.log(
+  "Both built HTML entry points contain their required static metadata.",
+);

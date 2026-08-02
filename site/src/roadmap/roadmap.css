@@ -1,0 +1,168 @@
+.roadmap-main {
+  overflow: clip;
+}
+.roadmap-hero,
+.roadmap-section,
+.roadmap-close {
+  margin-inline: auto;
+  padding: var(--page-section-space) var(--page-inline);
+  width: min(100%, calc(var(--measure) + 2rem));
+}
+.roadmap-hero {
+  padding-top: 1.75rem;
+}
+.roadmap-hero h1 {
+  max-width: 48rem;
+}
+.roadmap-deck {
+  color: var(--landing-origin-text);
+  font-size: clamp(1.05rem, 1.7vw, 1.25rem);
+  line-height: 1.6;
+  max-width: 48rem;
+}
+.fact-strip {
+  border-block: 1px solid var(--landing-border-decorative);
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 2rem 0 0;
+  padding: 1rem 0;
+}
+.fact-strip div {
+  min-width: 0;
+}
+.fact-strip dt {
+  color: var(--landing-accent);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+.fact-strip dd {
+  color: var(--landing-muted);
+  font-size: 0.76rem;
+  margin: 0.25rem 0 0;
+  text-transform: uppercase;
+}
+.jump-links,
+.roadmap-links,
+.roadmap-close p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem 1.5rem;
+}
+.jump-links a,
+.roadmap-links a,
+.roadmap-close a {
+  color: var(--landing-accent);
+  text-underline-offset: 0.3em;
+}
+.roadmap-section {
+  border-top: 1px solid var(--landing-border-decorative);
+}
+.section-heading {
+  margin-bottom: 1.75rem;
+}
+.milestones {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.milestone {
+  border-top: 1px solid var(--landing-border-decorative);
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: 10rem minmax(0, 1fr);
+  padding: 1.1rem 0;
+}
+.milestone:last-child {
+  border-bottom: 1px solid var(--landing-border-decorative);
+}
+.milestone-rail {
+  border-left: 1px solid var(--landing-border-strong);
+  display: grid;
+  gap: 0.55rem;
+  padding-left: 1rem;
+  align-content: start;
+}
+.milestone-rail span,
+.milestone-rail b,
+.later b {
+  color: var(--landing-accent);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.07em;
+}
+.milestone-rail b {
+  color: var(--landing-muted);
+}
+.milestone h2,
+.checkpoint h2,
+.later h2 {
+  font-size: clamp(1.3rem, 1.7vw, 1.75rem);
+}
+.milestone > div > p:not(.commentary),
+.checkpoint > p:not(.section-index),
+.later li {
+  color: var(--landing-origin-text);
+  line-height: 1.6;
+  margin-top: 0.8rem;
+}
+.milestone-done .milestone-rail b,
+.milestone-now .milestone-rail b,
+.milestone-next .milestone-rail b {
+  color: var(--landing-accent);
+}
+.checkpoint {
+  background: var(--landing-surface-raised);
+  border: 1px solid rgba(130, 216, 255, 0.25);
+  margin-top: 1.25rem;
+  margin-bottom: 1.25rem;
+  max-width: min(calc(var(--measure) + 2rem), calc(100% - 2rem));
+}
+.checkpoint code {
+  color: var(--landing-accent);
+  overflow-wrap: anywhere;
+}
+.later ul {
+  display: grid;
+  gap: 1rem;
+  list-style: none;
+  margin: 1.5rem 0 0;
+  padding: 0;
+}
+.later b {
+  margin-right: 0.75rem;
+}
+.roadmap-close {
+  background: var(--landing-accent-soft);
+  border-block: 1px solid rgba(130, 216, 255, 0.25);
+  max-width: none;
+  padding-inline: max(
+    var(--page-inline),
+    calc((100% - var(--measure)) / 2 + var(--page-inline))
+  );
+}
+@media (max-width: 700px) {
+  .fact-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .milestone {
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+  }
+  .milestone-rail {
+    border-left: 0;
+    border-top: 1px solid var(--landing-border-strong);
+    display: flex;
+    gap: 1rem;
+    padding: 0.65rem 0 0;
+  }
+  .checkpoint {
+    max-width: none;
+    margin-inline: 0;
+  }
+  .site-header {
+    align-items: flex-start;
+    gap: 1rem;
+  }
+}

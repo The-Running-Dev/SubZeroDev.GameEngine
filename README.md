@@ -5,6 +5,7 @@
 ## Quick Links
 
 - **[Read the docs](https://game-engine.subzerodev.com/docs/)** — specs, architecture, API contracts, in reading order
+- <a href="https://game-engine.subzerodev.com/roadmap/"><strong>Roadmap</strong></a> — what has shipped, what is next, and why the queue is deterministic
 - **[Roadmap & milestones](https://game-engine.subzerodev.com/docs/engine/todo)** — every unit of work, done and remaining
 - **[Changelog](https://game-engine.subzerodev.com/docs/engine/changelog)** — one entry per merged PR, regenerated automatically
 - **[Current status](#status)** — what's built, what's next, right below
@@ -263,8 +264,8 @@ Humans and AI submit the exact same commands.
 
 Equality is important. Especially when they're both about to violate validation rules.
 
-(To be fair, there's no playable campaign yet — the story-graph kind that would make one
-possible is next on the roadmap. Consider this a promise, not a demo.)
+(There are tested engine scenarios now. A polished player-facing game is still later work —
+consider this a promise with a test suite, not a demo.)
 
 An AI agent doesn't get special powers.
 
@@ -354,21 +355,17 @@ The MVP contracts are complete and every MVP-blocking decision has already been 
 [Story Graph](https://game-engine.subzerodev.com/docs/engine/story-graph-kind). The remaining
 work is implementation. Not philosophy.
 
-### Code — the core layer and most of the story-graph kind's mechanics are done (W0–W11)
+### Code — two implemented kinds and a published package (W0–W42)
 
-Deterministic kernel (seeded PCG32, canonical serialization, `createEngine`/`createGame`/
-`submitAction`/projections), the observability channel, the content registry and tiered
-validation, and the in-memory session and profile stores are all built and tested against
-[`04-core.md`](https://game-engine.subzerodev.com/docs/engine/core) — strict TypeScript,
-zero runtime dependencies, and a lint-enforced determinism guard. The story-graph kind's
-typed variables and consequences, the frozen `Condition` evaluator, and the node graph's
-turn/settle resolution are built too.
+The deterministic core, story-graph kind, five Bulgaria arcs, text client, MCP adapter,
+replay oracle, save migration, and simulation kind are built and tested. `v0.4.0` is published
+as `@the-running-dev/game-engine`; a clean consumer test installs the packed artifact rather
+than trusting this checkout. The world-graph runtime-state contract is also complete.
 
-### Next — requirement-gated choices, achievements, and validation (W12–W14)
+### Next — the world-graph content and resolution contracts (W43–W44)
 
-Scene rendering and gated `availableActions`, endings and achievements, then Tier 1/2
-content validation. Then content, clients, and the determinism harness (W15–W19). Full
-sequencing and done-criteria for every unit:
+The third kind is specified before it is built: content definitions, then the deterministic
+tick pipeline. Full sequencing and done-criteria for every unit:
 [TODO.md](https://game-engine.subzerodev.com/docs/engine/todo).
 
 ---
