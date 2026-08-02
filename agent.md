@@ -50,6 +50,31 @@ only when it would have changed a decision.
   only a full read catches (`learn-codebase` once found twelve here, incl. a functional bug
   where `DerivedPath` omitted `world.strangeness`).
 
+## Roadmap Page Maintenance
+
+`/roadmap/` is the standalone Vite page under `site/`, not a Docusaurus document. Its public
+status is intentionally curated in `site/src/roadmap/roadmapData.ts`; do not infer it from the
+README, whose status is deliberately coarse.
+
+- **After a work-unit PR merges or the changelog gains an entry:** update the delivered count,
+  completed chapter grouping, current checkpoint, and evidence URL in `roadmapData.ts`. Count
+  `### [x] W…` headings in `docs/docs/engine/TODO.md`, then explicitly account for any merged
+  units that the ledger has not yet recorded in the `completedBeyondTodo` exception list. Update
+  the page before describing the new unit as delivered anywhere public. Reconcile `README.md`'s
+  coarse status at the same time if it has become misleading, then regenerate
+  `docs/src/pages/index.md` with `build/ConvertTo-DocumentationHomepage.ps1`; never edit that
+  generated file by hand.
+- **For every roadmap change:** check `git log --first-parent` for the representative immutable
+  commit URLs, `TODO.md` for the actual unit state, and the relevant programme plan for the next
+  checkpoint. Do not mark a proposed or branch-only unit as done.
+- **Run locally:** `npm --prefix site run dev -- --host 127.0.0.1 --port 5173`, then visit
+  `http://127.0.0.1:5173/roadmap/`. It is a real multi-page route, emitted as
+  `site/dist/roadmap/index.html`, because GitHub Pages has no SPA fallback.
+- **Verify:** `npm --prefix site run check` and `git diff --check`. The site build test verifies
+  both static HTML entries and the route metadata; `build/Merge-LandingPage.ps1` additionally
+  asserts that the merged documentation artifact contains `roadmap/index.html` without changing
+  `docs/`.
+
 ## Drift Hazards Specific to This Repo
 
 - **`03-story-graph-kind` ↔ `04-core`** drift most: `04` implements `03` as types. When a

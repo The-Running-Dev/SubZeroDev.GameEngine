@@ -1,7 +1,13 @@
-import type { ReactNode } from "react";
 import "./landing.css";
+import "./site.css";
 import "./css/motion.css";
 import { useRevealOnScroll } from "./hooks/useRevealOnScroll";
+import {
+  DocsLink,
+  ExternalLink as RepositoryLink,
+  SiteFooter,
+  SiteHeader,
+} from "./shared";
 
 const docs = "/docs/";
 const repository = "https://github.com/The-Running-Dev/SubZeroDev.GameEngine";
@@ -66,31 +72,6 @@ const capabilities = [
   "Become considerably larger than the original idea.",
 ];
 
-type LinkProps = { href: string; children: ReactNode };
-
-/**
- * Documentation links navigate in place. The docs are where the reader is meant
- * to continue, so opening a tab per link — thirteen of them — is friction, not
- * courtesy. Anyone wanting a tab can still middle-click.
- */
-function DocsLink({ href, children }: LinkProps) {
-  return <a href={href}>{children}</a>;
-}
-
-/**
- * The repository is a genuinely different property, so it opens in a new tab —
- * and says so, since a new window with no warning is disorienting for anyone
- * not watching the viewport.
- */
-function RepositoryLink({ href, children }: LinkProps) {
-  return (
-    <a href={href} target="_blank" rel="noreferrer">
-      {children}
-      <span className="visually-hidden"> (opens in a new tab)</span>
-    </a>
-  );
-}
-
 /**
  * The only anchor on the page used to be the hero's "Scroll. It escalates.",
  * reaching exactly one section further. This is the same device, reused at the
@@ -111,21 +92,7 @@ function App() {
 
   return (
     <>
-      <header className="site-header">
-        <a
-          className="wordmark"
-          href="#top"
-          aria-label="SubZeroDev Game Engine home"
-        >
-          <span>SUBZERODEV</span>
-          <strong>GAME ENGINE</strong>
-        </a>
-        <nav aria-label="Explore the project">
-          <DocsLink href={routes.architecture}>Architecture</DocsLink>
-          <DocsLink href={docs}>Documentation</DocsLink>
-          <RepositoryLink href={repository}>GitHub</RepositoryLink>
-        </nav>
-      </header>
+      <SiteHeader current="home" />
 
       <main>
         <section id="top" className="hero" aria-labelledby="hero-title">
@@ -351,9 +318,8 @@ function App() {
             <span className="commentary-marker" aria-hidden="true">
               *
             </span>
-            This is the spec, not a screenshot. The engine that runs it
-            doesn&apos;t exist yet — but the shape is real, not invented for
-            this page.
+            This is the spec, not a screenshot. The engine now runs it — the
+            shape was real long before this page was.
           </p>
           <DocsLink href={routes.storyGraph}>
             Read the full worked example
@@ -478,8 +444,8 @@ function App() {
             <span className="commentary-marker" aria-hidden="true">
               *
             </span>
-            None of them are playable yet. The engine has to work first. That
-            part is still being written.
+            Tested engine scenarios exist. Polished player-facing games are
+            still later work. The distinction matters.
           </p>
           <ContinueLink to="#continue" />
         </section>
@@ -505,15 +471,7 @@ function App() {
         </section>
       </main>
 
-      <footer>
-        <p>Started because someone asked an LLM the wrong question.</p>
-        <p>Built because nobody stopped asking better ones.</p>
-        <strong>Well... why not?</strong>
-        <small>
-          No inventory systems were harmed during the making of this engine.
-          Probably.
-        </small>
-      </footer>
+      <SiteFooter />
     </>
   );
 }

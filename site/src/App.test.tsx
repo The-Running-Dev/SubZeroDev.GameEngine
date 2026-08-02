@@ -23,6 +23,10 @@ describe("landing page", () => {
     expect(
       screen.getByRole("link", { name: "View the documentation" }),
     ).toHaveAttribute("href", "/docs/");
+    expect(screen.getByRole("link", { name: "Roadmap" })).toHaveAttribute(
+      "href",
+      "/roadmap/",
+    );
   });
 
   it("presents every architecture layer and kind as links without interaction", () => {

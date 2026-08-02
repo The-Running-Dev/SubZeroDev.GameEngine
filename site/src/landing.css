@@ -1,73 +1,13 @@
-:root {
-  --landing-bg: #090a0d;
-  --landing-surface: #101218;
-  --landing-surface-raised: #151821;
-  --landing-text: #f4f5f7;
-  --landing-muted: #a2a9b4;
-  /*
-   * Two border tokens, by job.
-   *
-   * `decorative` is hairline separation nothing depends on seeing. `strong` is
-   * for anything meaning-bearing — diagram connectors, dividers that carry
-   * structure, focus and selection state — and so must clear the 3:1 WCAG
-   * minimum for non-text.
-   *
-   * 0.35 is not arbitrary: over #090a0d it composites to rgb(96,97,99) for
-   * 3.14:1. The previous 0.24 gave rgb(68,69,71) and only 2.06:1, which fails.
-   * Below 0.34 this token cannot meet its own purpose.
-   */
-  --landing-border-decorative: rgba(255, 255, 255, 0.11);
-  --landing-border-strong: rgba(255, 255, 255, 0.35);
-  --landing-accent: #82d8ff;
-  --landing-accent-soft: rgba(130, 216, 255, 0.12);
-  --landing-origin-text: #d8d0c2;
-  --measure: 72rem;
-}
-
 main {
   overflow: clip;
 }
 
-.site-header,
 .section-wide,
 .section-narrow,
-.hero,
-footer {
+.hero {
   margin-inline: auto;
-  padding-inline: 1.5rem;
+  padding-inline: var(--page-inline);
   width: min(100%, calc(var(--measure) + 3rem));
-}
-
-.site-header {
-  align-items: center;
-  display: flex;
-  justify-content: space-between;
-  padding-block: 1.5rem;
-}
-
-.wordmark {
-  display: grid;
-  font-size: 0.68rem;
-  letter-spacing: 0.14em;
-  line-height: 1.25;
-  text-decoration: none;
-}
-.wordmark strong {
-  color: var(--landing-accent);
-  font-size: 0.72rem;
-}
-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-nav a {
-  color: var(--landing-muted);
-  font-size: 0.82rem;
-  text-underline-offset: 0.3em;
-}
-nav a:hover {
-  color: var(--landing-text);
 }
 
 /*
@@ -82,7 +22,7 @@ nav a:hover {
   display: grid;
   min-height: min(16rem, calc(100svh - 5rem));
   align-content: center;
-  padding-block: 2.25rem;
+  padding-block: 1.75rem;
 }
 .eyebrow,
 .section-index {
@@ -214,7 +154,7 @@ h2 {
 }
 
 section {
-  padding-block: clamp(1.75rem, 3.5vw, 2.75rem);
+  padding-block: var(--page-section-space);
   scroll-margin-top: 1.5rem;
 }
 .section-narrow {
@@ -282,7 +222,10 @@ section {
   background: var(--landing-surface);
   border-block: 1px solid var(--landing-border-decorative);
   max-width: none;
-  padding-inline: max(1.5rem, calc((100% - var(--measure)) / 2 + 1.5rem));
+  padding-inline: max(
+    var(--page-inline),
+    calc((100% - var(--measure)) / 2 + var(--page-inline))
+  );
 }
 .architecture-intro p:last-child {
   color: var(--landing-muted);
@@ -494,7 +437,10 @@ section {
   background: var(--landing-surface);
   border-block: 1px solid var(--landing-border-decorative);
   max-width: none;
-  padding-inline: max(1.5rem, calc((100% - var(--measure)) / 2 + 1.5rem));
+  padding-inline: max(
+    var(--page-inline),
+    calc((100% - var(--measure)) / 2 + var(--page-inline))
+  );
 }
 .worlds-lead {
   color: var(--landing-muted);
@@ -541,7 +487,10 @@ section {
   background: var(--landing-accent-soft);
   border-block: 1px solid rgba(130, 216, 255, 0.25);
   max-width: none;
-  padding-inline: max(1.5rem, calc((100% - var(--measure)) / 2 + 1.5rem));
+  padding-inline: max(
+    var(--page-inline),
+    calc((100% - var(--measure)) / 2 + var(--page-inline))
+  );
 }
 .cta > p:not(.section-index) {
   color: var(--landing-muted);
@@ -563,31 +512,7 @@ section {
   font-size: 1.2rem;
   font-weight: 650;
 }
-footer {
-  border-top: 1px solid var(--landing-border-decorative);
-  color: var(--landing-muted);
-  display: grid;
-  gap: 0.3rem;
-  padding-block: 2.25rem;
-}
-footer strong {
-  color: var(--landing-origin-text);
-  font-size: clamp(1.6rem, 2.4vw, 2.1rem);
-  margin-top: 1rem;
-}
-footer small {
-  margin-top: 1.25rem;
-}
-
 @media (max-width: 700px) {
-  .site-header {
-    align-items: flex-start;
-    gap: 1.5rem;
-  }
-  nav {
-    justify-content: flex-end;
-    gap: 0.75rem;
-  }
   /*
    * No mobile override anymore. The old 32rem WAS a true floor -- a bare
    * min-height with no viewport-based escape -- and it left ~194px of dead
