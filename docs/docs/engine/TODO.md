@@ -908,7 +908,7 @@ the four contract units (W32–W35) already used one level up.
       with no new runtime logic — this unit is types only.
 - **Plan:** [`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md)
 
-### [ ] W39 — Simulation Kind: Wiring the "Stable Life" Vertical Slice
+### [ ] W39 — Simulation Kind: Wiring the "Stable Life" Vertical Slice {#w39}
 Fourth build unit — the second half of the W33 split. Wires real logic into whichever
 end-of-week/start-of-week systems and `RESOLVER_TABLE` entries the "Stable Life" scenario
 (W40) actually exercises, against W38's content types — not all twelve stubbed end-of-week
@@ -933,7 +933,7 @@ commits replay-corpus fixtures (`fixtures/replay/`) for its win and loss paths �
 together per `plans/36`'s own original reasoning: the scenario *is* the test subject. Reaches
 this programme's **S3**/**S4** milestones.
 - **Spec:** [10 §14](10-simulation-kind.md#14-validation), [07 §4](07-replay.md#4-the-corpus).
-- **Depends on:** [W39](#w39--simulation-kind-wiring-the-stable-life-vertical-slice).
+- **Depends on:** [W39](#w39).
 - **Status:** Not started.
 - **Done when:** win and loss are both reachable through the text client and MCP identically;
       Tier 1/2 validation rejects the same class of broken fixtures story-graph's W14 did, for
