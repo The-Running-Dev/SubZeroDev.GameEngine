@@ -181,7 +181,7 @@ unreadable. Group them into six human-scale chapters, each with:
 - a work-unit range;
 - a plain-language title;
 - two or three sentences describing the outcome;
-- a visible status label (`SHIPPED` for W0–W40, `NOW` for W41);
+- a visible status label (`SHIPPED` for W0–W31, `PLANNED` for W32–W40, `NOW` for W41);
 - one dry aside where useful;
 - links to the canonical roadmap and a representative merged commit or PR.
 
@@ -191,7 +191,7 @@ unreadable. Group them into six human-scale chapters, each with:
 | The first story survives contact with bureaucracy | W9–W19 | Shipped | Choices, consequences, endings, achievements, a text client, MCP tools, and the completed MVP. | [`dcb7803`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/commit/dcb78038cbe8bb8e002f0651c9551b47ff874bb5) |
 | The past becomes testable | W20–W26 | Shipped | Versions and recorded playthroughs can expose when a future release changes an old outcome. | [`e26fa9d`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/commit/e26fa9dbc9e1a2814443bfff952a15562b608dc8) |
 | Bulgaria expands beyond one municipal office | W27–W31 | Shipped | All five story arcs exist, and old saves can migrate when the engine changes. | [`588567d`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/commit/588567d2d4ff84f7b38a904b62c586b315122f07) |
-| A week of life becomes a machine | W32–W40 | Shipped | The simulation kind and its Stable Life win/loss scenario run through the real engine and replay corpus. | [`9fdf77c`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/commit/9fdf77c63773ea0bc0ffc288fbba0995ee04c3ff) |
+| A week of life becomes a machine | W32–W40 | Planned | The simulation kind is specified, while its engine build and Stable Life win/loss scenario remain outstanding in the canonical TODO ledger. | [`9fdf77c`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/commit/9fdf77c63773ea0bc0ffc288fbba0995ee04c3ff) |
 | The engine gets a front door | W41 | Now | A supported package boundary, tarball consumer test, and release workflow exist. Publication is still pending. | [`db9c62a`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/commit/db9c62aec509ed083179a73ae2ec49b1b53d3d26) |
 
 The chapter copy should link technical nouns only when the link helps a curious reader go deeper.
@@ -535,7 +535,7 @@ check for the real combined artifact.
 
 - [ ] `/roadmap/` is emitted as a real static route and survives the docs/landing merge.
 - [ ] The page uses shared site tokens, typography, header, footer, focus, and link behavior.
-- [ ] W0–W41 are represented as five shipped chapters and one accurate current chapter.
+- [ ] W0–W41 are represented as four shipped chapters, one planned chapter, and one accurate current chapter.
 - [ ] W41 is explicitly merged-but-unpublished until evidence changes.
 - [ ] W42–W49 appear as three plain-language future acts linked to the authoritative programme.
 - [ ] Deferred work is shown without dates, percentages, or invented work-unit numbers.
