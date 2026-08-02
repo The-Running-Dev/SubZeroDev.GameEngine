@@ -97,6 +97,67 @@ jobs:
         working-directory: src/engine
         run: npm test
 
+      - name: Build package
+        if: steps.changed.outputs.changed == 'true'
+        working-directory: src/engine
+        run: npm run build
+
+      - name: Pack package
+        if: steps.changed.outputs.changed == 'true'
+        id: pack-package
+        working-directory: src/engine
+        run: |
+          tarball="$(npm pack --silent)"
+          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
+
+      - name: Inspect tarball
+        if: steps.changed.outputs.changed == 'true'
+        working-directory: src/engine
+        env:
+          TARBALL: ${{ steps.pack-package.outputs.tarball }}
+        run: |
+          if [ -z "$TARBALL" ]; then
+            echo "package step did not produce a tarball path"
+            exit 1
+          fi
+
+          tarball_path="$TARBALL"
+          if [ ! -f "$tarball_path" ]; then
+            echo "package tarball not found: $tarball_path"
+            exit 1
+          fi
+
+          entries="$(tar -tzf "$tarball_path")"
+          if echo "$entries" | grep -qE '(^|/)src/'; then
+            echo "tarball contains source files under src/"
+            exit 1
+          fi
+          if echo "$entries" | grep -qE '(^|/)tsconfig[^/]*\\.json$'; then
+            echo "tarball contains tsconfig JSON files"
+            exit 1
+          fi
+          if echo "$entries" | grep -qE '\\.test\\.(js|mjs|ts|c?js|d\\.ts|js\\.map|mjs\\.map|ts\\.map)$'; then
+            echo "tarball contains test build artifacts"
+            exit 1
+          fi
+          if ! echo "$entries" | grep -q '^package/dist/'; then
+            echo "tarball does not contain dist output"
+            exit 1
+          fi
+
+      - name: Consumer smoke
+        if: steps.changed.outputs.changed == 'true'
+        run: |
+          package_tgz="${{ steps.pack-package.outputs.tarball }}"
+          if [ -z "$package_tgz" ]; then
+            echo "No engine package tarball available for smoke install"
+            exit 1
+          fi
+
+          rm -rf consumer-smoke/node_modules consumer-smoke/package-lock.json consumer-smoke/dist
+          (cd consumer-smoke && npm install --no-audit --no-fund "../src/engine/$package_tgz")
+          (cd consumer-smoke && npm run build && npm run smoke)
+
   # The replay regression oracle's cross-version comparison (07-replay.md §8): on every
   # release tag, run *this* tag's engine against the *previous* tag's own fixture
   # submissions and committed .outcome.json files together — the actual "did this change
