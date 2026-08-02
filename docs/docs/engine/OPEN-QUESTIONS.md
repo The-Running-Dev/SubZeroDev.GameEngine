@@ -42,15 +42,15 @@ answer now lives — so a later reader finds the reasoning without re-opening th
 
 Settled as out of MVP scope. Listed so they resurface deliberately, not by accident.
 
-- **The engine package published *public*, and three documents say private.** `v0.4.0`
+- **The engine package published *public*, while two documents specify private.** `v0.4.0`
   published `@the-running-dev/game-engine` to GitHub Packages on 2026-08-02 with
-  `visibility: public`, verified against the packages API. `plans/39` Decision 4, `plans/40`'s
-  non-goals ("**No public npm publication.** Private GitHub Packages only") and
-  [`TODO.md`](TODO.md) all specify private. Checking why turned up a larger stale premise:
-  **both `SubZeroDev.GameEngine` and `SubZeroDev.SunTrap` are public repositories**, while
-  `TODO.md` still says "All private." Nothing was exposed that was not already public — the
-  engine source has been readable throughout — so this is a contract-versus-reality gap, not
-  an incident.
+  `visibility: public`, verified against the packages API. `plans/39` Decision 4 and
+  `plans/40`'s non-goals ("**No public npm publication.** Private GitHub Packages only")
+  specify private. [`TODO.md`](TODO.md) records that the repositories are public and that
+  the "All private" wording is historical. Checking why turned up a larger stale premise:
+  **both `SubZeroDev.GameEngine` and `SubZeroDev.SunTrap` are public repositories**. Nothing
+  was exposed that was not already public — the engine source has been readable throughout —
+  so this is a contract-versus-reality gap, not an incident.
 
   Two coherent resolutions, and they differ in what they cost. **Accept public** and correct
   the documents: a private package fronting a public repository protects nothing and adds an
