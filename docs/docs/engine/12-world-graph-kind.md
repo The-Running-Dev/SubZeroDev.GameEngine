@@ -956,12 +956,16 @@ listed so the second is not discovered later as a gap.
 > delta subtracts. A `decrement` row whose `value` was the resulting balance would be read by
 > half its consumers as the amount deducted.
 
-> **Every path is entity-scoped, and that is forced rather than stylistic.** 04 §12 types
-> `StateChange.value` as `string | number | boolean`, so no record can carry a collection —
-> a row saying `path: "buildings"` has nothing legal to put in `value`, and "the array
-> changed" is not an audit record a client could render anyway. Appearing and disappearing
-> are therefore written as a boolean on the entity's own path. A `null` assignment is `""`
-> for the same reason: the type has no null.
+> **Every path addresses one scalar field, and a collection is never a path.** That is
+> forced rather than stylistic: 04 §12 types `StateChange.value` as
+> `string | number | boolean`, so a row saying `path: "buildings"` has nothing legal to put
+> in `value`, and "the array changed" is not an audit record a client could render anyway.
+> Two path shapes follow, and there are only two — **singleton** (`tick`,
+> `finances.cashCents`: the kind's own top-level scalars, which belong to no collection) and
+> **entity-scoped** (`<collection>.<entityId>.<field>`: anything reached through one).
+> Appearing and disappearing are entity-scoped like any other field, written as a boolean on
+> `<collection>.<entityId>.exists`. A `null` assignment is `""` for the same reason the
+> collection rule exists: the type has no null.
 
 `reason` is a descriptive code naming *why* the change happened, not a rejection code —
 `simulation`'s `action_eat` and `story-graph`'s `achievement_unlocked` set that precedent,
