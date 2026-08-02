@@ -170,7 +170,8 @@ strings unless a dedicated namespace is stated.**
 
 Two reading conventions:
 
-- **`// MVP-inert`** marks a field the flagship game's own MVP (`mvp.md` §4) puts out of
+- **`// MVP-inert`** marks a field the flagship game's own MVP (Sun Trap's `mvp.md` §4, in
+  its repository — not this repository's [`MVP.md`](MVP.md)) puts out of
   scope. It is specified anyway — the `simulation` precedent is unambiguous, since W32–W35
   ported the whole upstream contract far beyond what "Stable Life" ever used — and marked
   **at the field** so the build units know what may stay inert without it reading as an
@@ -802,9 +803,10 @@ interface WorldGraphView {
     definitionId: string;
     canBuild: boolean;
     /** Every §11 code that would reject a build of this definition *regardless of where*
-     *  it is placed — locked, unaffordable, at its scenario cap. Placement-dependent
-     *  rejections are not knowable without `(x, y, rotation)` and are what
-     *  `previewAction` (§7) is for. */
+     *  it is placed: `building_locked`, `insufficient_funds`, `building_limit_reached`.
+     *  Placement-dependent rejections — bounds, terrain, overlap, reachability — are not
+     *  knowable without `(x, y, rotation)` and are what `previewAction` (§7) is for.
+     *  Every entry is a §11 code; this list never invents one. */
     blockedBy: readonly ReasonCode[];
   }[];
 
@@ -868,6 +870,7 @@ localized message or registry validation fails:
 | `building_not_open` | The operation requires an open building |
 | `price_out_of_range` | Outside the definition's permitted band |
 | `staff_limit_reached` | The scenario caps this role |
+| `building_limit_reached` | The scenario caps this definition — the building-side twin of `staff_limit_reached`, and what `blockedBy` (§10) reports for a definition at its cap |
 | `ticks_not_positive` | `advance_ticks` with `ticks` less than 1 |
 | `tick_limit_reached` | `ticks` exceeds the campaign's per-call cap (§6) |
 
@@ -924,19 +927,28 @@ applied to the first kind with the volume to test it.
 (§4) are single, player-initiated mutations with no volume problem at all, and each returns
 its `StateChange`:
 
-| Action | `path` | `op` |
-|---|---|---|
-| `build` | `finances.cashCents`, `buildings` | `decrement`, `set` |
-| `demolish` | `buildings` | `set` |
-| `hire_staff` / `fire_staff` | `finances.cashCents` (hire only), `staff` | `decrement`, `set` |
-| `assign_staff` | `staff.<id>.assignedBuildingId` / `.assignedZoneId` | `set` |
-| `set_price` | `buildings.<id>.pricesCents.<productId>` | `set` |
-| `open_building` / `close_building` | `buildings.<id>.isOpen` | `set` |
-| `dismiss_alert` | `alerts.<id>.dismissedAtTick` | `set` |
+| Action | `path` | `op` | `value` |
+|---|---|---|---|
+| `build` | `finances.cashCents` | `decrement` | cash after |
+| | `buildings.<buildingId>.exists` | `set` | `true` |
+| `demolish` | `buildings.<buildingId>.exists` | `set` | `false` |
+| `hire_staff` | `finances.cashCents` | `decrement` | cash after |
+| | `staff.<staffId>.exists` | `set` | `true` |
+| `fire_staff` | `staff.<staffId>.exists` | `set` | `false` |
+| `assign_staff` | `staff.<id>.assignedBuildingId` / `.assignedZoneId` | `set` | the id, or `""` |
+| `set_price` | `buildings.<id>.pricesCents.<productId>` | `set` | integer cents |
+| `open_building` / `close_building` | `buildings.<id>.isOpen` | `set` | boolean |
+| `dismiss_alert` | `alerts.<id>.dismissedAtTick` | `set` | the tick |
+
+> **Every path is entity-scoped, and that is forced rather than stylistic.** 04 §12 types
+> `StateChange.value` as `string | number | boolean`, so no record can carry a collection —
+> a row saying `path: "buildings"`, `op: "set"` has nothing legal to put in `value`, and
+> "the array changed" is not an audit record a client could render anyway. Appearing and
+> disappearing are therefore written as a boolean on the entity's own path. A `null`
+> assignment is `""` for the same reason: the type has no null.
 
 `visible: true` for everything a player did deliberately and can see the result of; the
-`buildings`/`staff` collection records are `visible: false`, since the projection already
-carries the roster and a client has no row to render for "the array changed".
+`.exists` records are `visible: false`, since the projection already carries the roster.
 
 ---
 
