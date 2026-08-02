@@ -18,19 +18,29 @@ import type { SimulationReasonCode } from "./reasons.js";
 
 const ACTION_NOT_PLANNED: SimulationReasonCode = "action_not_planned";
 
-export type ActionType =
-  | "work" | "work_overtime"
-  | "search_for_work" | "apply_for_job" | "negotiate_job_terms"
-  | "attend_class" | "study" | "enroll_course" | "withdraw_course"
-  | "shop" | "eat" | "rest" | "exercise" | "socialize" | "travel"
-  | "maintain_item" | "repair_item" | "sell_item"
-  | "pay_bills" | "borrow_money" | "repay_debt" | "deposit_savings" | "invest"
-  | "move_housing"
-  | "start_project" | "work_on_project"
-  | "start_business" | "operate_business"
-  | "accept_opportunity" | "decline_opportunity"
-  | "respond_to_event"
-  | "custom";
+/** Single source of truth for `ActionType` — a `plan.add` whose `actionType` param isn't
+ *  in this list must be rejected before it can reach `RESOLVER_TABLE`, which has no entry
+ *  for anything outside the union (`isActionType` below is what enforces that). */
+export const ACTION_TYPES = [
+  "work", "work_overtime",
+  "search_for_work", "apply_for_job", "negotiate_job_terms",
+  "attend_class", "study", "enroll_course", "withdraw_course",
+  "shop", "eat", "rest", "exercise", "socialize", "travel",
+  "maintain_item", "repair_item", "sell_item",
+  "pay_bills", "borrow_money", "repay_debt", "deposit_savings", "invest",
+  "move_housing",
+  "start_project", "work_on_project",
+  "start_business", "operate_business",
+  "accept_opportunity", "decline_opportunity",
+  "respond_to_event",
+  "custom",
+] as const;
+
+export type ActionType = (typeof ACTION_TYPES)[number];
+
+export function isActionType(value: string): value is ActionType {
+  return (ACTION_TYPES as readonly string[]).includes(value);
+}
 
 export interface GameAction {
   id: string;

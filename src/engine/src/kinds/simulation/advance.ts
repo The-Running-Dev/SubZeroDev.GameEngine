@@ -14,8 +14,8 @@
 
 import type { ActionParams, AdvanceResult, KindContext } from "../../core/kernel/types.js";
 import type { StateChange } from "../../core/kernel/reasons.js";
-import type { ActionType, GameAction } from "./plan.js";
-import { addAction, removeAction, clearPlan } from "./plan.js";
+import type { GameAction } from "./plan.js";
+import { addAction, removeAction, clearPlan, isActionType } from "./plan.js";
 import { RESOLVER_TABLE } from "./resolvers.js";
 import { runStartOfWeek } from "./startOfWeek.js";
 import { runEndOfWeek } from "./endOfWeek.js";
@@ -37,7 +37,7 @@ function requirePlan(state: SimulationKindState): NonNullable<SimulationKindStat
 
 function buildAction(id: string, params: ActionParams | undefined): GameAction | undefined {
   const actionType = params?.["actionType"];
-  if (typeof actionType !== "string") return undefined;
+  if (typeof actionType !== "string" || !isActionType(actionType)) return undefined;
 
   const targetId = params?.["targetId"];
   const rest: Record<string, unknown> = {};
@@ -48,7 +48,7 @@ function buildAction(id: string, params: ActionParams | undefined): GameAction |
 
   return {
     id,
-    type: actionType as ActionType,
+    type: actionType,
     actorId: "player",
     ...(typeof targetId === "string" ? { targetId } : {}),
     parameters: rest,

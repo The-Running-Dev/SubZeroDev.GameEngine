@@ -92,6 +92,13 @@ describe("advance — plan.add", () => {
     expect(result.error?.code).toBe("unknown_action");
     expect(result.state).toBe(state);
   });
+
+  it("rejects with unknown_action when actionType is not a member of ActionType", () => {
+    const state = baseState();
+    const result = advance(state, "plan.add", { actionType: "definitely_not_a_real_action" }, fakeCtx());
+    expect(result.error?.code).toBe("unknown_action");
+    expect(result.state).toBe(state);
+  });
 });
 
 describe("advance — plan.remove", () => {

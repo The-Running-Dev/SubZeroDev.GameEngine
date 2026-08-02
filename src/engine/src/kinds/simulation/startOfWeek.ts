@@ -15,7 +15,9 @@
  * ordering independently verifiable even while most systems are stubs: the two-phase time
  * split is "the kind of rule the determinism harness cannot catch and the replay oracle
  * can" (§3's own callout), and a stream naming each system in order localizes a regression
- * to the phase that moved.
+ * to the phase that moved. `effects` additionally emits `effect.expired` (§11) per expired
+ * effect — expiry's only observability signal, since §6.1 says expiry itself produces no
+ * `StateChange`.
  */
 
 import type { ResolutionEmitter } from "../../core/observability/types.js";
@@ -40,13 +42,24 @@ function timeAdvance(state: SimulationKindState): SimulationKindState {
   };
 }
 
-/** Expire `activeEffects` whose `expiresAtWeek` is at or before the new week — an effect
- *  expiring in week 12 still applied throughout week 12; removal happens at the start of
- *  week 13 (§6.1). Permanent effects (`expiresAtWeek` absent) are never removed here. */
-function effects(state: SimulationKindState): SimulationKindState {
-  const activeEffects = state.activeEffects.filter(
-    (effect) => effect.expiresAtWeek === undefined || effect.expiresAtWeek > state.calendar.currentWeek,
-  );
+const EFFECT_EXPIRED_EVENT = "kind.simulation.effect.expired";
+
+/** Expire `activeEffects` whose `expiresAtWeek` is strictly before the new week — an effect
+ *  expiring in week 12 still applies throughout week 12 (kept while the new week is still
+ *  12), and is only removed once the new week moves past it, at the start of week 13
+ *  (§6.1). Permanent effects (`expiresAtWeek` absent) are never removed here. Emits
+ *  `effect.expired` (§11) per expired effect — the only per-item signal this expiry gets;
+ *  §6.1 is explicit that expiry itself "has nothing to undo" so it produces no
+ *  `StateChange`. */
+function effects(state: SimulationKindState, emit: ResolutionEmitter): SimulationKindState {
+  const activeEffects: typeof state.activeEffects = [];
+  for (const effect of state.activeEffects) {
+    if (effect.expiresAtWeek !== undefined && effect.expiresAtWeek < state.calendar.currentWeek) {
+      emit.emit(EFFECT_EXPIRED_EVENT, "debug", { data: { effectId: effect.id } });
+      continue;
+    }
+    activeEffects.push(effect);
+  }
   return { ...state, activeEffects };
 }
 
@@ -74,7 +87,7 @@ export function runStartOfWeek(state: SimulationKindState, emit: ResolutionEmitt
   let next = timeAdvance(state);
   ranSystem(emit, "time_advance");
 
-  next = effects(next);
+  next = effects(next, emit);
   ranSystem(emit, "effects");
 
   next = timeCommit(next);
