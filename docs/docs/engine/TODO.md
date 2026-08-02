@@ -814,7 +814,7 @@ one reported from elsewhere.
       [§5.1](10-simulation-kind.md#51-resolver-dispatch), [§8.1](10-simulation-kind.md#81-requirements),
       [§15](10-simulation-kind.md#15-what-was-ported-and-what-was-found-along-the-way).
 - **Depends on:** [W34](#x-w34--simulation-kind-content-definition-types).
-- **Status:** Done — PR pending.
+- **Status:** Done — [PR #97](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/97).
 - **Done when:** `ActionType`/`GameAction` are specified with no client-supplied cost fields;
       the resolver dispatch mechanism (`ActionResolver`, `ResolverTable`) is reconciled against
       `KindContext` (04 §3.1) rather than upstream's own bespoke `ResolutionContext`; per-action
