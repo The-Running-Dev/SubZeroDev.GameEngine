@@ -91,6 +91,14 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   (10 §15). The same question arises for `world-graph`, which declines `history`
   on identical grounds ([`12-world-graph-kind.md`](12-world-graph-kind.md)
   §3) — resolve both together or not at all.
+- **`world-graph` W42 contract follow-up questions (Sun Trap).** This contract unit records a
+  provisional runtime-state shape, but four upstream design gates remain open:
+  - entrance coordinate basis (`absolute` vs `building-local`)
+  - rotation set (`0` vs `0 | 90 | 180 | 270`)
+  - provisional tick duration used by `revenueTodayCents` / `expensesTodayCents` boundaries
+  - `GuestOpinions` field count (`7` vs `10`)
+  **Revisit when** companion-repo M2 answers are merged in `content-and-systems.md` and
+  `game-design.md` together with a concrete plan for this unit.
 - **`ChainScope`'s `"profile"` value has nowhere to persist** — a `"profile"`-scoped event
   chain (10 §2.2) is meant to survive past the game it started in and advance on cumulative
   weeks played across every game under one profile, but the only cross-game store this

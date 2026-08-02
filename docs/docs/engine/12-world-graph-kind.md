@@ -4,7 +4,8 @@ sidebar_label: World-Graph Kind
 
 # World-Graph Kind — Contract
 
-**Document status:** Revision 1 — **the seam only.** Field-level content detail lives with
+**Document status:** Revision 2 — **authoritative runtime-state contract.** Field-level
+content detail lives with the game; §17 says exactly what and why.
 the game; §17 says exactly what and why.
 
 **Kind:** `world-graph`
@@ -151,6 +152,304 @@ bite:
 onto an ending before the player acts (04 §3). For this kind that means a scenario whose
 objectives are already satisfied or whose failure condition already holds at tick 0 — a valid
 campaign that Tier 2 should warn about (§15), not a crash.
+
+### 3.2 Runtime-State Type Contract (engine-owned)
+
+The types below are now the complete closure required by §3. **All identifiers are opaque
+strings unless a dedicated namespace is stated.**
+
+```typescript
+interface WorldGraphKindState {
+  tick: number;                                      // authoritative tick counter
+  map: ResortMap;                                    // terrain, zones, spawns, exits, revision
+  finances: Finances;
+
+  buildings: readonly Building[];                    // includes nested Queue + StaffTask
+  constructionSites: readonly ConstructionSite[];
+  guests: readonly Guest[];                          // includes full guest path, need, and condition state
+  staff: readonly Staff[];                           // includes nested StaffTask
+
+  incidents: readonly Incident[];
+  objectives: readonly ObjectiveProgress[];
+  alerts: readonly Alert[];
+
+  nextEntityOrdinal: number;                         // deterministic id source, never `IdSource`
+}
+
+type Position = {
+  x: number;         // integer grid coordinate, same origin as map terrain
+  y: number;         // integer grid coordinate, same origin as map terrain
+};
+
+type TerrainKind = "empty" | "path" | "wall" | "water" | "restricted";
+type MapEdgeKind = "walkable" | "blocked";
+type StaffStatus = "idle" | "to_work" | "working" | "off_duty";
+type GuestLifecycle = "arriving" | "seeking" | "queued" | "served" | "departed" | "removed";
+type BuildingStatus = "construction" | "open" | "closed" | "broken";
+type LoanStatus = "active" | "defaulted" | "repaid";
+type IncidentType = "fire" | "breakdown" | "theft" | "spill" | "litter" | "complaint"
+  | "power" | "weather";
+type IncidentSeverity = "info" | "minor" | "major" | "critical";
+type AlertSeverity = "info" | "warning" | "critical";
+type ObjectiveProgressState = "active" | "met" | "failed";
+type StaffTaskType = "service" | "clean" | "restock" | "build";
+type StaffTaskStatus = "queued" | "assigned" | "in_progress" | "completed" | "cancelled";
+type Rotation = 0 | 90 | 180 | 270;
+type GuestNeedValue = number;      // 0..100, where 0 is fully depleted
+type UtilityScore = number;        // fixed-point integer by design
+type PercentBasis = number;        // integer basis points, where 10000 = 100%
+
+interface ResortMap {
+  width: number;                             // positive integer, map width in tiles
+  height: number;                            // positive integer, map height in tiles
+  revision: number;                          // integer, changes whenever authored map topology changes
+  terrain: readonly TerrainCell[];           // deterministic terrain graph
+  paths: readonly PathCell[];                // explicit path graph edges, derived caches must be recomputed
+  zones: readonly Zone[];                    // zones of operation and policy scope
+  spawnPoints: readonly Position[];           // at least one guest-spawn point required
+  exits: readonly Position[];                // at least one exit point required
+}
+
+interface TerrainCell {
+  x: number;                                // integer [0, width)
+  y: number;                                // integer [0, height)
+  terrain: TerrainKind;                      // walkability and utility context source
+  edge: MapEdgeKind;                        // precomputed if authored edge map exists
+  moveCost: number;                         // non-negative integer travel-cost scale
+}
+
+interface PathCell {
+  from: Position;
+  to: Position;
+  edgeCost: number;                         // non-negative integer; distance-only, no float metrics in state
+  allowed: boolean;                         // if false, this edge is never traversed
+}
+
+interface Zone {
+  id: string;
+  nameKey: string;                          // localization key for projection/debug
+  cells: readonly Position[];               // canonical zone footprint, ordered by id rules
+  serviceRadius: number;                    // integer tile radius from zone centroid
+  maxOccupancy: number | null;              // null = unlimited
+}
+
+interface Building {
+  id: string;                               // `<building>:<ordinal>` from `nextEntityOrdinal`
+  definitionId: string;                     // campaign content contract
+  x: number;                                // integer tile x of anchored origin
+  y: number;                                // integer tile y of anchored origin
+  width: number;                            // integer tile width from definition
+  height: number;                           // integer tile height from definition
+  rotation: Rotation;                       // pending M2 gate — see OPEN-QUESTIONS
+  entrances: readonly Position[];            // pending M2 gate — authored absolute or footprint-relative?
+  status: BuildingStatus;
+  isOpen: boolean;
+  buildStartTick: number;                   // inclusive tick when building entered state
+  wear: number;                             // 0..100, higher is healthier
+  cleanliness: number;                      // 0..100, higher is cleaner
+  queue: Queue;
+  products: readonly string[];              // product ids offered by this building
+  serviceTickSeq: number;                   // deterministic service tie-break source
+}
+
+interface ConstructionSite {
+  id: string;                               // `<construction-site>:<ordinal>` if surfaced
+  definitionId: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: Rotation;                       // must match building rotation shape
+  startedAtTick: number;
+  buildTicksRemaining: number;              // non-negative integer countdown to open
+  totalCostCents: number;                  // must be non-negative integer
+  completedBuildingId: string | null;       // pre-placed id when construction completes
+}
+
+interface Queue {
+  id: string;                               // `<queue>:<ordinal>` from `nextEntityOrdinal`
+  productId: string;
+  guestIds: readonly string[];              // canonical order by guest.id
+  maxLength: number | null;                 // null = unlimited
+  patienceTicks: number;                    // mutable queue patience counter
+  startedAtTick: number;
+}
+
+interface Guest {
+  id: string;                               // `<guest>:<ordinal>`
+  archetypeId: string;                      // content contract
+  lifecycle: GuestLifecycle;
+  tickEntered: number;                      // authoritative timeline event
+  x: number;
+  y: number;
+  path: readonly Position[];                // stateful route, excluding cached distance fields
+  pathIndex: number;                        // index into `path`, non-negative integer
+  drawCount: number;                        // agent-level deterministic draw counter (ticks + system only)
+  targetBuildingId: string | null;           // active target, if currently navigating
+  targetQueueId: string | null;             // queue destination, if queued
+  targetProductId: string | null;           // purchase target, if any
+  targetWaitSeconds: number;                // integer seconds desired tolerance
+  needs: GuestNeeds;
+  conditions: GuestConditions;
+  opinions: GuestOpinions;
+  preferences: GuestPreferences;
+}
+
+interface GuestNeeds {
+  hunger: GuestNeedValue;
+  rest: GuestNeedValue;
+  social: GuestNeedValue;
+  comfort: GuestNeedValue;
+  hygiene: GuestNeedValue;
+  safety: GuestNeedValue;
+}
+
+interface GuestConditions {
+  mood: number;                             // -100..100, sign indicates positive or negative utility trend
+  patienceRemainingTicks: number;            // non-negative integer, decrements while queued/unserved
+  arrivalTick: number;
+  lastServedTick: number | null;
+  spentTicks: number;                       // total lifecycle spend in world
+}
+
+interface GuestOpinions {
+  price: number;
+  variety: number;
+  cleanliness: number;
+  safety: number;
+  attractiveness: number;
+  queues: number;
+  service: number;
+  // M2 gate: Sun Trap documents disagree on whether these are required
+  staffBehaviour: number;
+  accessibility: number;
+  noise: number;
+}
+
+interface GuestPreferences {
+  noiseTolerance: number;                   // -10..10 preference offset
+  spendingCategory: "budget" | "balanced" | "premium";
+  loyaltyMultiplier: number;                 // integer utility scaling band
+}
+
+interface Staff {
+  id: string;                               // `<staff>:<ordinal>`
+  roleId: string;                           // content contract
+  x: number;
+  y: number;
+  status: StaffStatus;
+  assignedBuildingId: string | null;
+  assignedZoneId: string | null;
+  zoneId: string | null;                    // alias for current zone membership at read time
+  drawCount: number;                        // agent-level deterministic draw counter
+  task: StaffTask | null;                   // singular active task
+  tasksCompleted: number;                   // cumulative counter, monotonic
+}
+
+interface StaffTask {
+  id: string;                               // `<staff-task>:<ordinal>` (nested entity id)
+  kind: StaffTaskType;
+  status: StaffTaskStatus;
+  guestId: string | null;
+  queueId: string | null;
+  buildingId: string | null;
+  targetProductId: string | null;
+  startedAtTick: number;
+  endedAtTick: number | null;
+  priority: number;                         // deterministic tie-break source for dispatch
+  effortTicks: number;                      // non-negative integer
+}
+
+interface Finances {
+  cashCents: number;                        // integer cents
+  revenueTodayCents: number;                // integer cents, resets by tick-interval boundary
+  expensesTodayCents: number;               // integer cents, resets by tick-interval boundary
+  revenueTotalCents: number;                // integer cents
+  expensesTotalCents: number;               // integer cents
+  loan: Loan | null;
+}
+
+interface Loan {
+  id: string;
+  principalCents: number;                   // integer cents
+  balanceCents: number;                     // integer cents
+  interestBasisPoints: PercentBasis;         // integer bps
+  accruedInterestCents: number;             // integer cents
+  status: LoanStatus;
+  startedAtTick: number;
+  durationTicks: number;                    // integer, total duration
+  nextPaymentTick: number | null;           // null while settled
+}
+
+interface Incident {
+  id: string;
+  incidentType: IncidentType;
+  severity: IncidentSeverity;
+  buildingId: string | null;
+  guestId: string | null;
+  zoneId: string | null;
+  titleKey: string;
+  descriptionKey: string;
+  startedAtTick: number;
+  expiresAtTick: number | null;
+  resolvedAtTick: number | null;
+}
+
+interface ObjectiveProgress {
+  id: string;                               // objective id (published)
+  state: ObjectiveProgressState;
+  value: number;                            // integer accumulator
+  target: number;                           // integer target threshold
+  updatedAtTick: number;
+}
+
+interface Alert {
+  id: string;                               // `<alert>:<ordinal>`
+  type: string;                             // gameplay-specific alert discriminator
+  severity: AlertSeverity;
+  titleKey: string;
+  messageKey: string;
+  entityId: string | null;                  // owning entity when applicable
+  issuedAtTick: number;
+  dismissedAtTick: number | null;
+}
+```
+
+### 3.3 Questions and Structural Answers (to be confirmed by Sun Trap)
+
+**Pending Sun Trap decisions that remain open for this unit:** building entrance coordinate basis
+and full `GuestOpinions` coverage must be aligned before this contract is treated as final.  
+**Open in `OPEN-QUESTIONS.md`:** building entrances (`absolute` vs `footprint-relative`),
+rotation model (`0` vs `0|90|180|270`), the provisional tick duration used for the
+`today` accumulator boundary, and whether `GuestOpinions` keeps the 7-field list or adds
+three additional factors.
+
+We do define default, reversible handling for the unresolved structural questions:
+
+- **Guest pruning.** Departed/removed guests are pruned from `guests` at the end of the tick
+  batch that finalized that lifecycle state. The contract therefore prevents unbounded
+  serialized growth while preserving historical objective calculations via `ObjectiveProgress`.
+- **`today` accumulator boundary.** `revenueTodayCents` and `expensesTodayCents` reset on each
+  campaign-defined day boundary computed from `tick` and the published `ticksPerMinute`/minutes
+  per day settings. Campaigns that need fractional boundaries can set those settings to 0/0
+  only via validation warning, not in a way that destabilizes determinism.
+
+`queue`, `staff task`, and nested entity collections are not top-level collections. Their ids are
+still derived from `nextEntityOrdinal` at creation.
+
+### 3.4 Canonical collection order
+
+All serialized arrays are iterated in id order for contract behavior, not insertion order:
+
+- `buildings`, `constructionSites`, `guests`, `staff`, `incidents`,
+  `objectives`, and `alerts` are all canonicalized by each element's `id`
+  before any system touch.
+- For each `Building`, `queue.guestIds` is canonical by `guest.id`, and service selection uses
+  the `queue.id` order then `guest.id` within each queue.
+- For each `Staff`, `task` is singularly active in this unit, but if history snapshots are stored in
+  a future extension, they must be canonical by `StaffTask.id`.
+
+This rule is what keeps unrelated entities’ behavior stable under insertion or removal operations.
 
 ---
 
@@ -354,17 +653,68 @@ to drift, the same objection §3 makes to `rng`.
 
 ## 10. Projection
 
-`WorldGraphView` is the `kindView` inside the core's `PlayerView` (04 §9) and
-carries only what the generic surface does not, the rule `StoryGraphView` follows (03 §9).
+`WorldGraphView` is the `kindView` inside the core's `PlayerView` (04 §9), and it carries only what
+the generic surface does not. It does not include:
 
-Never crosses the boundary: the seed and any stream state, future incident weights, hidden
-scenario triggers, undiscovered guest preferences, internal path caches, and per-candidate
-utility components — the last of these available only when a campaign enables a declared
-transparency mode, never by default.
+- seed or any RNG/stream state
+- future incident weights or hidden scenario triggers
+- undiscovered preferences/thresholds
+- internal path caches
+- per-candidate utility breakdowns
 
-Carried, because §7 makes the projection the parameter domain: the build catalogue with
-costs and unlock state, valid-placement information, the staff roster, price ranges,
-queues, finances, objectives, alerts and aggregate analytics.
+```typescript
+interface WorldGraphView {
+  tick: number;
+  finances: {
+    cashCents: number;
+    revenueTodayCents: number;
+    expensesTodayCents: number;
+  };
+
+  map: {
+    width: number;
+    height: number;
+    revision: number;
+    spawnPoints: readonly Position[];
+    exits: readonly Position[];
+    zones: readonly string[];
+    buildingCount: number;
+    guestCount: number;
+    staffCount: number;
+  };
+
+  buildOptions: readonly {
+    definitionId: string;
+    canBuild: boolean;
+    blockedBy: string[];
+  }[];
+
+  buildings: readonly {
+    id: string;
+    definitionId: string;
+    isOpen: boolean;
+    status: BuildingStatus;
+    queueLength: number;
+    cleanliness: number;
+    wear: number;
+  }[];
+
+  staff: readonly {
+    id: string;
+    roleId: string;
+    status: StaffStatus;
+    zoneId: string | null;
+    buildingId: string | null;
+  }[];
+
+  objectives: readonly Pick<ObjectiveProgress, "id" | "state" | "value" | "target">[];
+  alerts: readonly Pick<Alert, "id" | "type" | "severity" | "titleKey" | "messageKey" | "issuedAtTick">[];
+  queuedGuests: number; // across all building queues
+}
+```
+
+`outcome(state)` in §8 is reconciled with this view by using only published objective ids for
+`objectivesMet` and `failureId`, and excluding all other runtime internals.
 
 ---
 
