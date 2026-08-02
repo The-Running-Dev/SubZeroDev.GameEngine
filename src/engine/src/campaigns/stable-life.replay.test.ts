@@ -37,7 +37,6 @@ const REPLAY_PROFILE_ID = "replay-oracle-profile";
 
 const rawOverride = process.env.REPLAY_BASELINE_DIR;
 const CORPUS_DIR = rawOverride ? `${rawOverride.replace(/[/\\]+$/, "")}/` : FIXTURES_DIR;
-const COMPARING_ACROSS_VERSIONS = CORPUS_DIR !== FIXTURES_DIR;
 
 function loadFixture(name: string): ReplayFixture {
   return JSON.parse(readFileSync(`${CORPUS_DIR}${name}.fixture.json`, "utf8")) as ReplayFixture;
@@ -47,10 +46,24 @@ function loadExpectedOutcome(name: string): Outcome {
   return JSON.parse(readFileSync(`${CORPUS_DIR}${name}.outcome.json`, "utf8")) as Outcome;
 }
 
-const STABLE_LIFE_FIXTURE_NAMES = readdirSync(CORPUS_DIR)
-  .filter((f) => f.startsWith("stable-life-") && f.endsWith(".fixture.json"))
-  .map((f) => f.slice(0, -".fixture.json".length))
-  .sort();
+function stableLifeFixtureNames(dir: string): string[] {
+  return readdirSync(dir)
+    .filter((f) => f.startsWith("stable-life-") && f.endsWith(".fixture.json"))
+    .map((f) => f.slice(0, -".fixture.json".length))
+    .sort();
+}
+
+/** Always this commit's own directory, never `CORPUS_DIR` — unlike the `it.each` loop
+ *  below, "this commit shipped a non-empty corpus" is not a claim that gets weaker in
+ *  cross-version mode, so it isn't allowed to skip there. A baseline tag predating this
+ *  corpus (W40) legitimately has none, but that's a fact about the *baseline*, not about
+ *  whether this commit's own corpus regressed to empty — the two must not share one
+ *  skip condition, which is exactly what a prior version of this file got wrong. */
+const CURRENT_STABLE_LIFE_FIXTURE_NAMES = stableLifeFixtureNames(FIXTURES_DIR);
+
+/** Sourced from `CORPUS_DIR`, which is the baseline override in cross-version mode — the
+ *  set actually replayed against below. */
+const STABLE_LIFE_FIXTURE_NAMES = stableLifeFixtureNames(CORPUS_DIR);
 
 function makeContext(): ReplayRunnerContext {
   const built = buildStableLifeCampaign();
@@ -72,10 +85,11 @@ describe("the Stable Life replay corpus (07-replay.md §4)", () => {
   // Non-empty, not an exact name list — matches bureaucracy's own "the corpus is
   // non-empty" test (07 §4): a new stable-life-* fixture needs only its committed
   // .fixture.json/.outcome.json pair, never a test-file edit to be picked up here.
-  // Skipped in cross-version mode: a baseline tag predating this corpus (W40) has no
-  // fixtures at all, and that is a legitimate transition (07 §8), not a regression.
-  it.skipIf(COMPARING_ACROSS_VERSIONS)("the corpus is non-empty", () => {
-    expect(STABLE_LIFE_FIXTURE_NAMES.length).toBeGreaterThan(0);
+  // Never skipped: this checks the current commit's own directory unconditionally, so a
+  // same-commit regression (fixtures accidentally deleted) still fails even when running
+  // in cross-version mode for an unrelated reason.
+  it("this commit's own corpus is non-empty", () => {
+    expect(CURRENT_STABLE_LIFE_FIXTURE_NAMES.length).toBeGreaterThan(0);
   });
 
   it.each(STABLE_LIFE_FIXTURE_NAMES)("%s: matches its committed Outcome", async (name) => {
