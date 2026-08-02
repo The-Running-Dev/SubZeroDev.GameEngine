@@ -571,7 +571,8 @@ in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap) (
 
 **Now has its own programme doc**, the same milestone `simulation` reached with `plans/36`:
 [`plans/39-world-graph-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/39-world-graph-kind-programme.md),
-proposing **W41–W48** (three contract units, five build units), cut once Sun Trap's own
+proposing **W41–W49** (one consumer-boundary unit, three contract units, five build units),
+cut once Sun Trap's own
 design docs (`content-and-systems.md`, `game-design.md`, `mvp.md`, `client-specification.md`)
 existed to size it against — the precondition `plans/33`'s own Decision 3 named as missing
 when it declined a programme doc for this kind.
@@ -583,19 +584,27 @@ when it declined a programme doc for this kind.
       (the encoder, exhaustiveness-guarded). `simulation`'s NPC draws and this kind's tick
       draws already have a reachable home — 04 §3.1's own callout box already documents
       `derive` closing exactly the reachability gap this checkbox describes as still open.
-- [ ] Build the kind per 12: tick pipeline, guest and staff agents, pathfinding, queues,
-      construction, economy, incidents, objectives — **including `previewAction` and the
-      tenth API pairing** ([`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §2), amending 09 §4,
-      `MVP.md` §5 and the MCP surface ([04 §13](04-core.md#13-the-mcp-surface)) together in
-      the same change this kind lands in — its own build unit (W47) per `plans/39`, not
-      scheduled as a separate, earlier checkbox, since both 12 §7 and
-      `OPEN-QUESTIONS.md` §2 are explicit it is deferred until this kind actually needs it.
-- [ ] **Batch invariance is the acceptance test with teeth** ([12 §5](12-world-graph-kind.md#5-batch-invariance--and-the-two-seam-changes-it-forced)): `advance_ticks n`
-      reaches the same world as any split of it, compared as an `Outcome` ([07 §3](07-replay.md#3-what-the-same-outcome-means)) rather
-      than as bytes, since the action logs legitimately differ.
-- [ ] Determinism beyond the seed ([12 §9](12-world-graph-kind.md#9-determinism-beyond-the-seed)): integer arithmetic, no `Math.sqrt` in distance,
-      ties by entity id, canonical iteration order, derived entity ids, no serialized caches.
-- [ ] Its Definition of Done lives with the game, not here.
+- [ ] **W41 proposed — companion-package consumer boundary:** one supported root export,
+      declaration-bearing ESM build, private `@the-running-dev/game-engine` GitHub Package,
+      packed-tarball consumer smoke, required CI and exact-version companion consumption.
+- [ ] **W42 proposed — runtime-state contract:** authoritative map, guest, building, queue,
+      staff, construction and finance shapes.
+- [ ] **W43 proposed — content-definition contract:** archetypes, buildings, products,
+      terrain, incidents, scenarios, objectives, policies and achievements.
+- [ ] **W44 proposed — resolution contract:** the 20-system pipeline, utility scoring,
+      pathfinding costs, queue/service semantics and every deterministic tie-break.
+- [ ] **W45 proposed — kind skeleton and immediate actions:** validation, initial state,
+      projection/outcome, assembly and the eight no-time-passes reducers.
+- [ ] **W46 proposed — deterministic tick pipeline:** fixed-order systems, bounded
+      `advance_ticks`, derived streams and batch invariance.
+- [ ] **W47 proposed — MVP vertical slice:** spawn → walk → queue → buy → litter → clean →
+      objective → win/lose.
+- [ ] **W48 proposed — preview/client parity:** `previewAction` across Engine, session, text
+      and MCP surfaces, with 09 §4 and `MVP.md` §5 amended in the same unit.
+- [ ] **W49 proposed — validation, scenario and replay guard:** canonical MVP fixture,
+      winning/losing replays, release-corpus coverage and a published world-graph package.
+- [ ] **Programme gate:** batch invariance and determinism beyond the seed pass; the third
+      kind is replay-guarded and installable by Sun Trap without a sibling checkout.
 - **Plan:** [`plans/39-world-graph-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/39-world-graph-kind-programme.md)
 
 ### Depth: Finish the Bulgaria Adventure

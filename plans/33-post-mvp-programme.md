@@ -151,7 +151,7 @@ units start rather than after.
 | **W27–W30** | Bulgaria Adventure — remaining four arcs | — (content, no plan file per arc) | Medium, content | — |
 | **W31** | Save migration mechanism (04 §10.2) | — | Medium | — |
 | **W32–W40** | The `simulation` kind — port and build | [`plans/36`](36-simulation-kind-programme.md) | **Large** — its own programme | W25 |
-| **W41–W4x** | The `world-graph` kind — contract and build | [`plans/39`](39-world-graph-kind-programme.md) | **Large** — its own programme | W24; absorbs `previewAction` |
+| **W41–W4x** | The `world-graph` kind — consumer boundary, contract and build | [`plans/39`](39-world-graph-kind-programme.md) | **Large** — its own programme | W24; absorbs `previewAction` |
 | **W4x+** | Content tooling — validator, graph viz, diff, l10n | *when cut* | Large, several units | Kinds it validates |
 
 **The Bulgaria arcs and the migration mechanism are both genuinely un-blocked today** and
@@ -257,7 +257,7 @@ convention held throughout — none were reserved before the unit before them ex
 `plans/39`'s own **W41–W4x** for the world-graph kind is the same convention applied
 forward, not an exception to it: W41 is the real next number now that W40 is the last one
 actually cut, and the range stays open-ended (`W4x`, matching `plans/36`'s own `W27–W3x` row
-above) rather than committing to W48 as fixed before W42 is even cut. Whatever comes after
+above) rather than committing to W49 as fixed before W42 is even cut. Whatever comes after
 world-graph — content tooling or anything else — still takes its number only when cut.
 
 ---
