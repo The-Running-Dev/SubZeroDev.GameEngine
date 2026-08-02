@@ -5,7 +5,7 @@
 ## Quick Links
 
 - **[Read the docs](https://game-engine.subzerodev.com/docs/)** — specs, architecture, API contracts, in reading order
-- **[Roadmap](https://game-engine.subzerodev.com/roadmap/)** — what has shipped, what is next, and why the queue is deterministic
+- <a href="https://game-engine.subzerodev.com/roadmap/"><strong>Roadmap</strong></a> — what has shipped, what is next, and why the queue is deterministic
 - **[Roadmap & milestones](https://game-engine.subzerodev.com/docs/engine/todo)** — every unit of work, done and remaining
 - **[Changelog](https://game-engine.subzerodev.com/docs/engine/changelog)** — one entry per merged PR, regenerated automatically
 - **[Current status](#status)** — what's built, what's next, right below

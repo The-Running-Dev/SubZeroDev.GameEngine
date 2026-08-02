@@ -9,7 +9,7 @@ title: 'Game Engine'
 ## Quick Links
 
 - **[Read the docs](/docs/)** — specs, architecture, API contracts, in reading order
-- **[Roadmap](/roadmap/)** — what has shipped, what is next, and why the queue is deterministic
+- <a href="/roadmap/"><strong>Roadmap</strong></a> — what has shipped, what is next, and why the queue is deterministic
 - **[Roadmap & milestones](/docs/engine/todo)** — every unit of work, done and remaining
 - **[Changelog](/docs/engine/changelog)** — one entry per merged PR, regenerated automatically
 - **[Current status](#status)** — what's built, what's next, right below
