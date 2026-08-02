@@ -135,7 +135,7 @@ describe("worldGraphKind — immediate actions", () => {
     });
 
     expect(result.changes).toEqual([
-      { path: "finances.cashCents", op: "decrement", value: 700, previous: 1_000, reason: "building_placed", visible: true },
+      { path: "finances.cashCents", op: "set", value: 700, previous: 1_000, reason: "building_placed", visible: true },
       { path: "buildings.building:0.exists", op: "set", value: true, reason: "building_placed", visible: false },
     ]);
   });
@@ -149,6 +149,8 @@ describe("worldGraphKind — immediate actions", () => {
 
     for (const change of [...built.changes, ...hired.changes, ...gone.changes]) {
       expect(["string", "number", "boolean"], change.path).toContain(typeof change.value);
+      // `op` is always `set`, because 04 §12 gives increment/decrement no value semantics.
+      expect(change.op, change.path).toBe("set");
     }
   });
 

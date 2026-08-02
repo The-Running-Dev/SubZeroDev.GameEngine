@@ -51,6 +51,12 @@ function accepted(
   };
 }
 
+/**
+ * `op` is always `"set"` and `value` is always the state *after* (12 §13). 04 §12 offers
+ * `increment`/`decrement` but defines no `value` semantics for them — delta or result? — so
+ * a `decrement` row is read two ways by two consumers. 04's own examples and 03 §5 both use
+ * `set` with `value` + `previous`; a consumer wanting the delta subtracts.
+ */
 function change(
   path: string,
   op: StateChange["op"],
@@ -415,7 +421,7 @@ export function advance(
     return accepted(nextState, [
       change(
         "finances.cashCents",
-        "decrement",
+        "set",
         nextState.finances.cashCents,
         "building_placed",
         true,
@@ -532,7 +538,7 @@ export function advance(
     return accepted(nextState, [
       change(
         "finances.cashCents",
-        "decrement",
+        "set",
         nextState.finances.cashCents,
         "staff_hired",
         true,
@@ -820,7 +826,7 @@ export function advance(
     emitEvent(ctx, "kind.world-graph.batch.ended", "debug", { ticks, tick: nextState.tick });
 
     return accepted(nextState, [
-      change("tick", "increment", nextState.tick, "ticks_advanced", true, state.tick),
+      change("tick", "set", nextState.tick, "ticks_advanced", true, state.tick),
     ]);
   }
 
