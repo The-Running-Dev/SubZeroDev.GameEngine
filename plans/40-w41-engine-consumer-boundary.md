@@ -376,24 +376,38 @@ separate facts. It just did not license leaving the manifest three tags behind.
 
 ## Done-When
 
-- [ ] `npm run build` emits **zero** `*.test.*` files and zero `campaigns/` output.
-- [ ] `npm run typecheck` still covers test files (`tsconfig.json` unchanged in that respect).
-- [ ] `src/index.ts` exists, uses only explicit named re-exports, and matches the inventory
-      above.
-- [ ] `npm pack --dry-run` ships `dist/`, `package.json` and `README.md` — **and nothing
+**Merged as [PR #108](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/108).**
+Boxes ticked below were re-verified on `main` at `db9c62a` — locally by a clean
+`npm ci && npm run build && npm pack --dry-run`, and remotely against that commit's own
+workflow run, which shows the three new steps executing rather than merely existing.
+
+- [x] `npm run build` emits **zero** `*.test.*` files and zero `campaigns/` output.
+      Measured: 66 `.js`, 66 `.d.ts`, 66 `.js.map`, no `dist/campaigns/`.
+- [x] `npm run typecheck` still covers test files (`tsconfig.json` unchanged in that respect).
+      `tsconfig.build.json` carries the exclusions; `tsconfig.json` was not touched.
+- [x] `src/index.ts` exists, uses only explicit named re-exports, and matches the inventory
+      above. No `export *` anywhere in it.
+- [x] `npm pack --dry-run` ships `dist/`, `package.json` and `README.md` — **and nothing
       else**: no `src/`, no `*.test.*`, no `tsconfig*.json`. The file count is in the low
-      hundreds rather than 540.
-- [ ] A clean consumer installs the **packed tarball**, imports only
+      hundreds rather than 540. Measured: **200 files, 508.2 kB unpacked** (143.5 kB packed).
+- [x] A clean consumer installs the **packed tarball**, imports only
       `@the-running-dev/game-engine`, and both `tsc --noEmit` and a runtime `createGame`
-      succeed.
-- [ ] The consumer smoke project runs in CI inside the `engine` job's existing change gate.
-- [ ] CI fails if a test artefact appears in the tarball.
-- [ ] A release workflow publishes to GitHub Packages with `packages: write` and no stored
-      credential.
+      succeed. `consumer-smoke/`, via `install-engine.mjs`.
+- [x] The consumer smoke project runs in CI inside the `engine` job's existing change gate.
+- [x] CI fails if a test artefact appears in the tarball. *Inspect tarball* asserts on the
+      absence of `src/`, `tsconfig*.json` and test artefacts.
+- [x] A release workflow publishes to GitHub Packages with `packages: write` and no stored
+      credential. `release-engine-package.yml`, on `v*` and `workflow_dispatch`.
 - [ ] The first version is published, Sun Trap has read access, and the exact coordinate and
-      version are recorded here.
-- [ ] `docs/docs/guide/engine-package.md` describes what shipped, in past tense.
-- [ ] `npm run typecheck && npm run lint && npm test` all pass; the doc gate passes.
+      version are recorded here. **Open — owner-only.** Verified nothing is published; the
+      three existing tags (`v0.1.0`, `v0.2.0`, `v0.3.0`) all predate this workflow, so the
+      first publication is a `v0.4.0` tag push with `package.json` moved to match, per the
+      corrected Decision 5. Record the coordinate here when it lands.
+- [x] `docs/docs/guide/engine-package.md` describes what shipped, in past tense. Corrected
+      afterwards: it named `@0.1.0` (the manifest is `0.3.0`) and claimed present-tense
+      publication that has not happened — both fixed alongside `plans/41`.
+- [x] `npm run typecheck && npm run lint && npm test` all pass; the doc gate passes. All
+      three required checks green on PR #108 and on the `main` merge.
 
 ---
 

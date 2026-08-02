@@ -208,38 +208,64 @@ scratch-directory prototype that proved the whole boundary end to end (packed ta
 clean consumer → `tsc --noEmit` exit 0 → runtime `createGame` exit 0) before any repository
 file was changed.
 
+**Merged:** [PR #108](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/108).
+Everything below is ticked against merged evidence verified on `main` at `db9c62a` — the
+three new CI steps were confirmed running (not merely present) in that commit's own workflow
+run. The two publication boxes are the repository owner's and remain open.
+
 - [x] Cut a focused W41 plan with current package contents and intended public API inventory.
-- [ ] Rename the npm package to the lowercase scoped name `@the-running-dev/game-engine`.
-- [ ] Keep `src/engine/` as the source package; do not relocate it to satisfy stale `packages/` prose.
-- [ ] Add one root public entry point that exports only supported core, registry, session,
+- [x] Rename the npm package to the lowercase scoped name `@the-running-dev/game-engine`.
+- [x] Keep `src/engine/` as the source package; do not relocate it to satisfy stale `packages/` prose.
+- [x] Add one root public entry point that exports only supported core, registry, session,
       projection, client and built-kind symbols.
-- [ ] Add `types` and ESM `import` targets through `package.json#exports`; deep source imports
+- [x] Add `types` and ESM `import` targets through `package.json#exports`; deep source imports
       remain unsupported.
-- [ ] Restrict the packed artefact to runtime output, declarations, package metadata and
+- [x] Restrict the packed artefact to runtime output, declarations, package metadata and
       required documentation; exclude tests, fixtures and source-only internals.
-- [ ] Link package metadata to this repository and configure publication to
+- [x] Link package metadata to this repository and configure publication to
       `https://npm.pkg.github.com`.
-- [ ] Make a clean package build produce complete JavaScript, declarations and source maps.
-- [ ] Add a consumer smoke project that installs the packed tarball and imports only the root
+- [x] Make a clean package build produce complete JavaScript, declarations and source maps.
+- [x] Add a consumer smoke project that installs the packed tarball and imports only the root
       package name.
-- [ ] Make the smoke project construct an engine/registry path and typecheck under Node 24.
-- [ ] Run package build, tarball inspection and consumer smoke in required CI.
-- [ ] Add a tag/manual release workflow with least-privilege `packages: write` permission.
-- [ ] Document developer authentication without committing credentials or tokens.
+- [x] Make the smoke project construct an engine/registry path and typecheck under Node 24.
+- [x] Run package build, tarball inspection and consumer smoke in required CI.
+- [x] Add a tag/manual release workflow with least-privilege `packages: write` permission.
+- [x] Document developer authentication without committing credentials or tokens.
 - [ ] Publish the first private package version and grant Sun Trap Actions read access.
+      **Open, and owner-only.** Verified nothing is published; the three existing tags all
+      predate `release-engine-package.yml`, so publication needs a `v0.4.0` tag push (with
+      `package.json` moved to match, per W41's own corrected Decision 5).
 - [ ] Record the exact package coordinate, version and permissions for Sun Trap's M1 handoff;
-      the companion repository owns its own dependency and CI change.
-- [ ] **Gate:** a clean external consumer installs, imports, typechecks and constructs the
-      engine using only supported exports.
+      the companion repository owns its own dependency and CI change. **Blocked on the box
+      above** — there is no version to record until one exists.
+- [x] **Gate:** a clean external consumer installs, imports, typechecks and constructs the
+      engine using only supported exports. Met by `consumer-smoke/`, which installs the packed
+      tarball rather than linking the source — the distinction Decision 4 turns on.
+
+**T0 is therefore not reached.** W41 is merged; the first version is not published, and T0
+names both.
 
 ### W42 — authoritative runtime-state contract
 
-- [ ] Cut the W42 doc-only plan and inventory every field in Sun Trap §§2–9.
+> **Scope correction, from cutting the plan.** The row in *The Split* above sizes this unit
+> as a port of the eight shapes Sun Trap §§2–9 drafts. Reading the source against
+> `WorldGraphKindState` found **six types named but declared nowhere in either repository** —
+> `TerrainCell`, `PathCell` and `Zone` nested inside the drafted `ResortMap`, plus `Incident`,
+> `ObjectiveProgress` and `Alert` as top-level collections. Finding 2's port/design split is
+> still real but does not partition along the W42/W43 boundary: part of the *state* is
+> undrafted too. **W42 owns all eleven collections**, designing the six, or its own gate below
+> is unreachable by three of them. Reasoning and the consumer-trace rule that keeps the design
+> half honest: [`plans/41-w42-world-graph-runtime-state.md`](41-w42-world-graph-runtime-state.md),
+> Finding 1 and Decision 3.
+
+- [x] Cut the W42 doc-only plan and inventory every field in Sun Trap §§2–9.
 - [ ] Specify map dimensions, tiles, entrances, occupancy and deterministic coordinate rules.
 - [ ] Specify guest identity, position, needs, target, path, inventory, opinions and lifecycle.
 - [ ] Specify building, product, queue and service state without embedding content definitions.
 - [ ] Specify staff role, assignment, position, path, task and lifecycle.
 - [ ] Specify construction, finances, loans, counters and `nextEntityOrdinal` ownership.
+- [ ] Design `Incident`, `ObjectiveProgress` and `Alert` — the three top-level collections no
+      draft covers — with every field traced to a named system, action or reason code.
 - [ ] Define which collections are records, arrays or ordered lists and their canonical order.
 - [ ] Reconcile nullability, units, integer ranges and tick semantics across both repositories.
 - [ ] Define `WorldGraphView` and terminal outcome data without leaking hidden state.

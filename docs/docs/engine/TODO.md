@@ -584,17 +584,37 @@ when it declined a programme doc for this kind.
       (the encoder, exhaustiveness-guarded). `simulation`'s NPC draws and this kind's tick
       draws already have a reachable home — 04 §3.1's own callout box already documents
       `derive` closing exactly the reachability gap this checkbox describes as still open.
-- [ ] **W41 proposed — companion-package consumer boundary:** one supported root export,
-      declaration-bearing ESM build, private `@the-running-dev/game-engine` GitHub Package,
-      packed-tarball consumer smoke, required CI and exact-version companion consumption.
-      **Ready to execute** —
-      [`plans/40-w41-engine-consumer-boundary.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/40-w41-engine-consumer-boundary.md)
-      measures the current package state, inventories the intended public API, and records a
-      prototype that proved the whole boundary end to end before any file changed. Its
-      **Handoff — Start Here** section is the complete brief for picking this up cold, so
-      handing the unit over needs no instructions beyond that link.
-- [ ] **W42 proposed — runtime-state contract:** authoritative map, guest, building, queue,
-      staff, construction and finance shapes.
+- [~] **W41 — companion-package consumer boundary: built and merged, not yet published.**
+      [PR #108](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/108) landed the
+      whole boundary: the package renamed to `@the-running-dev/game-engine`, one root export
+      (`src/engine/src/index.ts`, explicit named re-exports only), `exports` with `types` and
+      `import` targets, `files: ["dist"]` plus a `tsconfig.build.json` that excludes tests and
+      `campaigns/` from the emit, a `consumer-smoke/` project that installs the **packed
+      tarball** rather than linking the source, three new required-CI steps (pack, tarball
+      inspection, consumer smoke — all three verified running green on `main` at `db9c62a`),
+      and `release-engine-package.yml` publishing on a `v*` tag with `packages: write` and no
+      stored credential. Review also corrected a drift this unit made live: `package.json`
+      had never tracked the release tags (`v0.1.0` shipped `0.0.0`; `v0.2.0` and `v0.3.0` both
+      shipped `0.1.0`), harmless while private and unpublished, fatal once `npm publish` ships
+      what the manifest says. Set to `0.3.0`; tag and manifest move together from here.
+      **Two items remain, and both are the repository owner's**: no version has been published
+      (verified — the account has no npm packages, and the three existing tags all predate the
+      release workflow), so Sun Trap has nothing to be granted read access to yet. Publishing
+      is a tag push; the M1 handoff coordinate gets recorded in `plans/40`'s Done-When when it
+      happens.
+      **Plan:** [`plans/40-w41-engine-consumer-boundary.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/40-w41-engine-consumer-boundary.md)
+- [ ] **W42 — runtime-state contract:** authoritative map, guest, building, queue, staff,
+      construction and finance shapes, plus `Incident`/`ObjectiveProgress`/`Alert` and
+      `WorldGraphView`. **Ready to execute** —
+      [`plans/41-w42-world-graph-runtime-state.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/41-w42-world-graph-runtime-state.md).
+      Planning found the programme had sized this unit as a pure port and it is not: **six of
+      the types `WorldGraphKindState` names are declared nowhere in either repository** —
+      `TerrainCell`, `PathCell` and `Zone` nested inside the drafted `ResortMap`, and
+      `Incident`, `ObjectiveProgress` and `Alert` as top-level collections. W42 owns all
+      eleven collections rather than deferring three, or its own gate is unreachable. The plan
+      also decides the `ResortMap` → `WorldMap` rename (12 §1's own argument against themed
+      naming, free now and expensive after W45), drops `Queue.buildingId` as duplication of a
+      containment relationship, and carries five other findings with their evidence.
 - [ ] **W43 proposed — content-definition contract:** archetypes, buildings, products,
       terrain, incidents, scenarios, objectives, policies and achievements.
 - [ ] **W44 proposed — resolution contract:** the 20-system pipeline, utility scoring,
