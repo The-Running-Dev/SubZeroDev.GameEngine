@@ -4,8 +4,8 @@ sidebar_label: World-Graph Kind
 
 # World-Graph Kind — Contract
 
-**Document status:** Revision 1 — **the seam only.** Field-level content detail lives with
-the game; §17 says exactly what and why.
+**Document status:** Revision 2 — **authoritative runtime-state contract.** Field-level
+content detail lives with the game; §17 says exactly what and why.
 
 **Kind:** `world-graph`
 
@@ -97,7 +97,7 @@ What remains is the kind's own:
 interface WorldGraphKindState {
   tick: number;                                   // §4 — the only authoritative clock field
 
-  map: ResortMap;                                 // terrain, zones, spawns, exits, revision
+  map: WorldMap;                                  // terrain, zones, spawns, exits, revision
   finances: Finances;
 
   buildings: readonly Building[];
@@ -112,6 +112,17 @@ interface WorldGraphKindState {
   nextEntityOrdinal: number;                      // §9 — the deterministic id source
 }
 ```
+
+> **The draft's `ResortMap` is named `WorldMap` here.** §1 rejects the name
+> `management-simulation` on the grounds that *a colony sim, an ecosystem model or a
+> transport network would run on this identical kind* — and a type called `ResortMap` in
+> engine-owned code contradicts that argument in the most visible place it could, the state
+> interface. Both built kinds use structural names (`Node`, `Choice`; `ActorState`,
+> `PlayerState`), never themed ones. `Guest`, `Staff` and `Building` **stay**: they name
+> structural roles this kind models — an autonomous visitor that arrives with needs and
+> departs, an employee the player pays and assigns, a placed structure with a footprint —
+> and they read correctly for a colony or a transport network. `Resort` names a *theme*;
+> the other three name *roles*.
 
 > **The clock collapses to `tick`.** The draft's `ResortClock` carries
 > `ticksPerMinute`, `minute`, `hour`, `day` and `paused`, then states that "only `tick` is
@@ -152,6 +163,402 @@ onto an ending before the player acts (04 §3). For this kind that means a scena
 objectives are already satisfied or whose failure condition already holds at tick 0 — a valid
 campaign that Tier 2 should warn about (§15), not a crash.
 
+### 3.2 Runtime-State Type Contract (engine-owned)
+
+The types below are now the complete closure required by §3. **All identifiers are opaque
+strings unless a dedicated namespace is stated — opaque in *meaning*, with exactly one
+constraint on their *shape*: no identifier may contain a `.`.** §13's audit paths are
+dot-separated, so a dot inside an id makes a path parse two ways; the rule is stated at
+Tier 1 in §15 and argued in §13. Nothing else about an id is constrained, and no code may
+infer anything from one.
+
+Two reading conventions:
+
+- **`// MVP-inert`** marks a field the flagship game's own MVP (Sun Trap's `mvp.md` §4, in
+  its repository — not this repository's [`MVP.md`](MVP.md)) puts out of
+  scope. It is specified anyway — the `simulation` precedent is unambiguous, since W32–W35
+  ported the whole upstream contract far beyond what "Stable Life" ever used — and marked
+  **at the field** so the build units know what may stay inert without it reading as an
+  omission. A separate table would drift from the fields it describes.
+- **Every `number` states its scale**, because a bare one is a scale a reader has to guess.
+  Money is integer cents, time is ticks, and anything bounded names its bounds.
+
+```typescript
+interface WorldGraphKindState {
+  tick: number;                                      // authoritative tick counter
+  map: WorldMap;                                     // terrain, zones, spawns, exits, revision
+  finances: Finances;
+
+  buildings: readonly Building[];                    // includes nested Queue + StaffTask
+  constructionSites: readonly ConstructionSite[];
+  guests: readonly Guest[];                          // includes full guest path, need, and condition state
+  staff: readonly Staff[];                           // includes nested StaffTask
+
+  incidents: readonly Incident[];
+  objectives: readonly ObjectiveProgress[];
+  alerts: readonly Alert[];
+
+  nextEntityOrdinal: number;                         // deterministic id source, never `IdSource`
+}
+
+type Position = {
+  x: number;         // integer grid coordinate, same origin as map terrain
+  y: number;         // integer grid coordinate, same origin as map terrain
+};
+
+type TerrainKind = "empty" | "path" | "wall" | "water" | "restricted";
+type MapEdgeKind = "walkable" | "blocked";
+type StaffStatus = "idle" | "to_work" | "working" | "off_duty";
+type GuestLifecycle = "arriving" | "seeking" | "queued" | "served" | "departed" | "removed";
+type BuildingStatus = "construction" | "open" | "closed" | "broken";
+type LoanStatus = "active" | "defaulted" | "repaid";
+type IncidentType = "fire" | "breakdown" | "theft" | "spill" | "litter" | "complaint"
+  | "power" | "weather";
+type IncidentSeverity = "info" | "minor" | "major" | "critical";
+type AlertSeverity = "info" | "warning" | "critical";
+type ObjectiveProgressState = "active" | "met" | "failed";
+type StaffTaskType = "service" | "clean" | "restock" | "build";
+type StaffTaskStatus = "queued" | "assigned" | "in_progress" | "completed" | "cancelled";
+type Rotation = 0 | 90 | 180 | 270;
+type GuestNeedValue = number;      // integer 0..100, where 0 is fully depleted
+type PercentBasis = number;        // integer basis points, where 10000 = 100%
+
+interface WorldMap {
+  width: number;                             // positive integer, map width in tiles
+  height: number;                            // positive integer, map height in tiles
+  revision: number;                          // integer, changes whenever authored map topology changes
+  terrain: readonly TerrainCell[];           // deterministic terrain graph
+  paths: readonly PathCell[];                // explicit path graph edges, derived caches must be recomputed
+  zones: readonly Zone[];                    // zones of operation and policy scope
+  spawnPoints: readonly Position[];           // at least one guest-spawn point required
+  exits: readonly Position[];                // at least one exit point required
+}
+
+interface TerrainCell {
+  x: number;                                // integer [0, width)
+  y: number;                                // integer [0, height)
+  terrain: TerrainKind;                      // walkability and utility context source
+  edge: MapEdgeKind;                        // precomputed if authored edge map exists
+  moveCost: number;                         // non-negative integer travel-cost scale
+}
+
+interface PathCell {
+  from: Position;
+  to: Position;
+  edgeCost: number;                         // non-negative integer; distance-only, no float metrics in state
+  allowed: boolean;                         // if false, this edge is never traversed
+}
+
+interface Zone {
+  id: string;
+  nameKey: string;                          // localization key for projection/debug
+  cells: readonly Position[];               // canonical zone footprint, ordered by id rules
+  serviceRadius: number;                    // integer tile radius from zone centroid
+  maxOccupancy: number | null;              // null = unlimited
+}
+
+interface Building {
+  id: string;                               // `<building>:<ordinal>` from `nextEntityOrdinal`
+  definitionId: string;                     // campaign content contract
+  x: number;                                // integer tile x of anchored origin
+  y: number;                                // integer tile y of anchored origin
+  width: number;                            // integer tile width from definition
+  height: number;                           // integer tile height from definition
+  rotation: Rotation;                       // all four declared; a scenario narrows it at Tier 1
+  status: BuildingStatus;
+  isOpen: boolean;
+  buildStartTick: number;                   // inclusive tick when building entered state
+  wear: number;                             // integer 0..100, higher is healthier
+  cleanliness: number;                      // integer 0..100, higher is cleaner
+  queue: Queue;
+  products: readonly string[];              // product ids offered by this building
+  pricesCents: Readonly<Record<string, number>>;  // product id → integer cents; keys are the ids in `products`
+  serviceTickSeq: number;                   // deterministic service tie-break source
+}
+
+interface ConstructionSite {
+  id: string;                               // `<construction-site>:<ordinal>` if surfaced
+  definitionId: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: Rotation;                       // must match building rotation shape
+  startedAtTick: number;
+  buildTicksRemaining: number;              // non-negative integer countdown to open
+  totalCostCents: number;                  // must be non-negative integer
+  completedBuildingId: string | null;       // pre-placed id when construction completes
+}
+
+interface Queue {
+  id: string;                               // `<queue>:<ordinal>` from `nextEntityOrdinal`
+  productId: string;
+  guestIds: readonly string[];              // canonical order by guest.id
+  maxLength: number | null;                 // null = unlimited
+  patienceTicks: number;                    // mutable queue patience counter
+  startedAtTick: number;
+}
+
+interface Guest {
+  id: string;                               // `<guest>:<ordinal>`
+  archetypeId: string;                      // content contract
+  lifecycle: GuestLifecycle;
+  tickEntered: number;                      // authoritative timeline event
+  x: number;
+  y: number;
+  path: readonly Position[];                // stateful route, excluding cached distance fields
+  pathIndex: number;                        // index into `path`, non-negative integer
+  drawCount: number;                        // agent-level deterministic draw counter (ticks + system only)
+  targetBuildingId: string | null;           // active target, if currently navigating
+  targetQueueId: string | null;             // queue destination, if queued
+  targetProductId: string | null;           // purchase target, if any
+  targetWaitTicks: number;                  // non-negative integer ticks this guest will tolerate waiting
+  needs: GuestNeeds;
+  conditions: GuestConditions;
+  opinions: GuestOpinions;
+  preferences: GuestPreferences;
+}
+
+interface GuestNeeds {
+  hunger: GuestNeedValue;
+  rest: GuestNeedValue;                     // MVP-inert
+  social: GuestNeedValue;                   // MVP-inert
+  comfort: GuestNeedValue;                  // MVP-inert
+  hygiene: GuestNeedValue;
+  safety: GuestNeedValue;                   // MVP-inert
+}
+
+interface GuestConditions {
+  mood: number;                             // integer -100..100, sign is the utility trend
+  patienceRemainingTicks: number;            // non-negative integer, decrements while queued/unserved
+  lastServedTick: number | null;            // null until first served
+  spentTicks: number;                       // non-negative integer, ticks alive in the world
+}
+
+// Every field is an integer -100..100: a slowly-changing impression, not a per-decision score.
+interface GuestOpinions {
+  price: number;
+  variety: number;                          // MVP-inert
+  cleanliness: number;                      // MVP-inert
+  safety: number;                           // MVP-inert
+  attractiveness: number;                   // MVP-inert
+  queues: number;                           // MVP-inert
+  service: number;                          // MVP-inert
+}
+
+interface GuestPreferences {
+  noiseTolerance: number;                   // integer -10..10 preference offset
+  spendingCategory: "budget" | "balanced" | "premium";
+  loyaltyMultiplier: PercentBasis;           // integer bps applied to spend utility; 10000 = neutral
+}
+
+interface Staff {
+  id: string;                               // `<staff>:<ordinal>`
+  roleId: string;                           // content contract
+  x: number;
+  y: number;
+  status: StaffStatus;
+  assignedBuildingId: string | null;
+  assignedZoneId: string | null;            // MVP-inert — the only stored zone membership
+  drawCount: number;                        // agent-level deterministic draw counter
+  task: StaffTask | null;                   // singular active task
+  tasksCompleted: number;                   // cumulative counter, monotonic
+}
+
+interface StaffTask {
+  id: string;                               // `<staff-task>:<ordinal>` (nested entity id)
+  type: StaffTaskType;
+  status: StaffTaskStatus;
+  guestId: string | null;
+  queueId: string | null;
+  buildingId: string | null;
+  targetProductId: string | null;
+  startedAtTick: number;
+  endedAtTick: number | null;
+  priority: number;                         // deterministic tie-break source for dispatch
+  effortTicks: number;                      // non-negative integer
+}
+
+interface Finances {
+  cashCents: number;                        // integer cents
+  revenueTodayCents: number;                // integer cents, resets at each day boundary (§3.3)
+  expensesTodayCents: number;               // integer cents, resets at each day boundary (§3.3)
+  revenueTotalCents: number;                // integer cents
+  expensesTotalCents: number;               // integer cents
+  loan: Loan | null;                        // MVP-inert
+}
+
+interface Loan {
+  id: string;
+  principalCents: number;                   // integer cents
+  balanceCents: number;                     // integer cents
+  interestBasisPoints: PercentBasis;         // integer bps
+  accruedInterestCents: number;             // integer cents
+  status: LoanStatus;
+  startedAtTick: number;
+  durationTicks: number;                    // integer, total duration
+  nextPaymentTick: number | null;           // null while settled
+}
+
+interface Incident {
+  id: string;
+  incidentType: IncidentType;
+  severity: IncidentSeverity;
+  buildingId: string | null;
+  guestId: string | null;
+  zoneId: string | null;
+  titleKey: string;
+  descriptionKey: string;
+  startedAtTick: number;
+  expiresAtTick: number | null;
+  resolvedAtTick: number | null;
+}
+
+interface ObjectiveProgress {
+  id: string;                               // objective id (published)
+  state: ObjectiveProgressState;
+  value: number;                            // integer accumulator
+  target: number;                           // integer target threshold
+  updatedAtTick: number;
+}
+
+interface Alert {
+  id: string;                               // `<alert>:<ordinal>`
+  type: string;                             // gameplay-specific alert discriminator
+  severity: AlertSeverity;
+  titleKey: string;
+  messageKey: string;
+  entityId: string | null;                  // owning entity when applicable
+  issuedAtTick: number;
+  dismissedAtTick: number | null;
+}
+```
+
+### 3.3 Structural Answers, and What Remains the Game's
+
+Five questions the draft left open, all settled here — because each turns out to be an
+application of a rule this contract already owns rather than a question about what the game
+contains — followed by two fields whose *absence* needs saying out loud.
+
+The test that separates them: **would a different answer change what the engine is allowed
+to store, or only what the game contains?** The first is this repository's; the second is
+the game's. Three of these read as content-design questions and were the first kind.
+
+**1 — `Building.entrances` is not runtime state.** An entrance position is *derived*:
+`(x, y)` plus `rotation` plus the definition's authored offsets. §3's clock callout bans
+derived values from serialized state — *they can disagree with what they summarise, and the
+disagreement is unresolvable* — and an absolute `entrances` array is the same defect as the
+persisted `rng` it sat four fields away from. Storing footprint-relative offsets on the
+instance is the third option and is also declined: it copies the definition into every
+placed building, so a definition edit and its instances can diverge.
+
+The **rotation transform is stated here anyway**, even though the offsets themselves are
+W43's, because rotating an integer offset is a determinism concern and leaving it to be
+re-derived per call site is how two call sites end up disagreeing. For a definition of
+width `w` and height `h`, an authored offset `(ox, oy)` relative to the unrotated
+footprint's origin maps to:
+
+```text
+  0°  → (ox,          oy)
+ 90°  → (h - 1 - oy,  ox)
+180°  → (w - 1 - ox,  h - 1 - oy)
+270°  → (oy,          w - 1 - ox)
+```
+
+and the absolute cell is the building's `(x, y)` plus that result. All integer, so the
+transform is exact. The **authored offset shape is W43's**, where a `BuildingDefinition`
+exists to hold it.
+
+**2 — Rotation declares all four values.** `0 | 90 | 180 | 270` costs nothing if a scenario
+only ever authors `0`, and Tier 1 (§15) is where a scenario narrows it. This is the general
+rule for a seam an answer cannot change: **specify permissively, and validate narrowly.**
+
+**3 — Stored opinions are not evaluated opinions.** The game design has guests *evaluate*
+ten factors, including staff behaviour, accessibility and noise; `GuestOpinions` types
+**seven**. That is not a contradiction. Evaluating is something the utility model does at
+decision time from world state, and it does not require the guest to carry a field — a
+guest can weigh noise without storing a `noise` opinion. So `GuestOpinions` is the seven
+slowly-changing impressions a guest *accumulates and carries between decisions*; the other
+three are **evaluation inputs** to the utility model, which is W44's subject, not §3's.
+
+**`GuestConditions` resolves the same way.** The condition vocabulary the game design lists
+— drunkenness, sunburn, headache, nausea, injury, anger, confusion — is *content*: each is
+either an evaluation input or a transient the tick pipeline computes and consumes within
+the batch. What `GuestConditions` stores is the four values a system in §4 actually writes
+between ticks.
+
+**The test that decides membership, and the one to apply to any future addition:** a field
+no system in §4 writes, no reason code in §11 reads and no projection in §10 carries is not
+state. Adding one to `serialize()` output is exactly how the `rng` and `totalTimeCost`
+defects happened. The three extra opinions are carried in
+[`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) with the condition that would admit them.
+
+**4 — Departed guests are pruned.** A guest reaching `"departed"` or `"removed"` is removed
+from `guests` at the end of the tick batch that finalized that lifecycle state. Without
+this, state grows without bound across a scenario — and every departed guest still carries
+`path`, `needs`, `conditions`, `opinions` and `preferences`, so the per-guest cost is not
+small. A serialized save *is* `serialize()` output, which makes unbounded growth a
+correctness concern and not merely a performance one. Nothing is lost that matters:
+objective accumulators live in `ObjectiveProgress`, and per-guest history is an **event**
+(§12), where it is discardable by design.
+
+**5 — The "today" boundary is a pure function of `tick`.** `revenueTodayCents` and
+`expensesTodayCents` are genuine accumulators — today's revenue cannot be recovered from
+cash — so unlike entrances they stay. They reset on **the first tick of a new day**, where
+the day is `floor(tick / ticksPerDay)` and `ticksPerDay` is campaign data, validated
+positive at Tier 1 (§15). No day field is stored, so §3's rule that the clock collapses to
+`tick` alone holds. **The *value* of `ticksPerDay` is balance and belongs to the game; the
+rule does not depend on it.**
+
+**6 — Two fields are deliberately absent, and their absence is the point.** A `Staff.zoneId`
+"current zone at read time" alias would be a derived value beside the stored
+`assignedZoneId` it derives from — banned by the same rule as entrances. A
+`GuestConditions.arrivalTick` would restate `Guest.tickEntered`. Both are the
+duplication defect one level down: *inside* `kindState` rather than against the envelope.
+
+**What genuinely remains the game's** is two things, and neither blocks this contract: what
+an authored entrance offset looks like (W43), and the value of `ticksPerDay` (balance, §17).
+
+`queue`, `staff task`, and nested entity collections are not top-level collections. Their ids are
+still derived from `nextEntityOrdinal` at creation.
+
+> **The three open-keyed records, reconciled against N6.** `Building.pricesCents` — and the
+> `Guest` preference and `Building` inventory records W43 will author — are
+> `Readonly<Record<string, number>>`, which [`02-architecture.md`](02-architecture.md) N6
+> bans as a loose bag. `10 §6.2` already answered this for `ActorState`'s
+> `skills`/`reputation`/`flags`/`counters`, and the argument transfers unchanged: **a record
+> whose keys are declared by validated content is not a loose bag, because Tier 1 closes the
+> key set at load.** `pricesCents`' keys are exactly the ids in `Building.products`, which
+> come from the definition; a key outside that set is a Tier-1 error, not a runtime
+> surprise. Written out rather than assumed, because an unexamined `Record<string, number>`
+> is indistinguishable on the page from the thing N6 bans.
+
+### 3.4 Canonical collection order
+
+All serialized arrays are iterated in id order for contract behavior, not insertion order:
+
+- `buildings`, `constructionSites`, `guests`, `staff`, `incidents`,
+  `objectives`, and `alerts` are all canonicalized by each element's `id`
+  before any system touch.
+- For each `Building`, `queue.guestIds` is canonical by `guest.id`, and service selection uses
+  the `queue.id` order then `guest.id` within each queue.
+- For each `Staff`, `task` is singularly active in this unit, but if history snapshots are stored in
+  a future extension, they must be canonical by `StaffTask.id`.
+
+This rule is what keeps unrelated entities' behavior stable under insertion or removal operations.
+
+**Id order is `(prefix, ordinal)` with the ordinal compared numerically, never
+lexicographically.** `building:10` sorts *after* `building:2`, which a plain string
+comparison gets backwards — and a comparator that gets it backwards is a determinism defect
+that appears only once a scenario runs past nine entities of one prefix, which is precisely
+the kind of bug this document exists to prevent.
+
+**The reducers maintain the order rather than re-sorting for it.** Every collection is
+append-only in allocation order and `nextEntityOrdinal` is monotonic, so insertion order
+*is* id order; removal preserves it. That makes canonical order an invariant to test rather
+than a sort to run on every system pass — a 500-guest sort per tick would be the dominant
+cost in a 360-tick batch.
+
 ---
 
 ## 4. The Turn Is a Tick Batch
@@ -160,10 +567,16 @@ Actions split into two groups, exactly as `simulation`'s do:
 
 ```text
 build · demolish · hire_staff · fire_staff · assign_staff ·
-set_price · open_building · close_building        → mutate the world, no time passes
+set_price · open_building · close_building ·
+dismiss_alert                                      → mutate the world, no time passes
 
 advance_ticks { ticks }                            → run the tick pipeline `ticks` times
 ```
+
+**Nine mutate without advancing time, not eight.** `dismiss_alert` is one of them: §3 makes
+an alert state precisely because it persists until dismissed and dismissal is a player
+action, and §6 has always listed it. An earlier revision of this split omitted it, and the
+undercount spread to two other documents before it was caught.
 
 **The tick pipeline order is normative.** It is fixed, tested, and may not be reordered
 without a version change, for the same reason `simulation`'s two-phase start-of-week
@@ -311,6 +724,12 @@ outcome(state: WorldGraphKindState): {
 }
 ```
 
+**A resolution requires at least one objective.** `resolution` becomes non-`null` when every
+objective in `objectives` has left `"active"` — and a scenario that declares none has
+therefore not won, it has nothing to win. Vacuous truth is the wrong reading here: it would
+make an objective-less campaign `ended` before the player saw a single tick. Such a campaign
+is a sandbox, and §15 warns about it at Tier 2 rather than resolving it.
+
 Published ids only. **Cash, guest counts, satisfaction and the tick it ended on are
 deliberately excluded** — every one changes legitimately under a balance pass, and a
 regression oracle that treated a balance change as a defect would be abandoned within a
@@ -354,17 +773,87 @@ to drift, the same objection §3 makes to `rng`.
 
 ## 10. Projection
 
-`WorldGraphView` is the `kindView` inside the core's `PlayerView` (04 §9) and
-carries only what the generic surface does not, the rule `StoryGraphView` follows (03 §9).
+`WorldGraphView` is the `kindView` inside the core's `PlayerView` (04 §9), and it carries only what
+the generic surface does not. It does not include:
 
-Never crosses the boundary: the seed and any stream state, future incident weights, hidden
-scenario triggers, undiscovered guest preferences, internal path caches, and per-candidate
-utility components — the last of these available only when a campaign enables a declared
-transparency mode, never by default.
+- seed or any RNG/stream state
+- future incident weights or hidden scenario triggers
+- undiscovered preferences/thresholds
+- internal path caches
+- per-candidate utility breakdowns
 
-Carried, because §7 makes the projection the parameter domain: the build catalogue with
-costs and unlock state, valid-placement information, the staff roster, price ranges,
-queues, finances, objectives, alerts and aggregate analytics.
+```typescript
+interface WorldGraphView {
+  tick: number;
+  finances: {
+    cashCents: number;
+    revenueTodayCents: number;
+    expensesTodayCents: number;
+  };
+
+  map: {
+    width: number;
+    height: number;
+    revision: number;
+    spawnPoints: readonly Position[];
+    exits: readonly Position[];
+    zones: readonly string[];
+    buildingCount: number;
+    guestCount: number;
+    staffCount: number;
+  };
+
+  buildOptions: readonly {
+    definitionId: string;
+    canBuild: boolean;
+    /** Every §11 code that would reject a build of this definition *regardless of where*
+     *  it is placed: `building_locked`, `insufficient_funds`, `building_limit_reached`.
+     *  Placement-dependent rejections — bounds, terrain, overlap, reachability — are not
+     *  knowable without `(x, y, rotation)` and are what `previewAction` (§7) is for.
+     *  Every entry is a §11 code; this list never invents one. */
+    blockedBy: readonly ReasonCode[];
+  }[];
+
+  buildings: readonly {
+    id: string;
+    definitionId: string;
+    isOpen: boolean;
+    status: BuildingStatus;
+    queueLength: number;
+    cleanliness: number;
+    wear: number;
+  }[];
+
+  staff: readonly {
+    id: string;
+    roleId: string;
+    status: StaffStatus;
+    zoneId: string | null;        // from `Staff.assignedZoneId` — there is no second, derived one (§3.3)
+    buildingId: string | null;    // from `Staff.assignedBuildingId`
+  }[];
+
+  objectives: readonly Pick<ObjectiveProgress, "id" | "state" | "value" | "target">[];
+  alerts: readonly Pick<Alert, "id" | "type" | "severity" | "titleKey" | "messageKey" | "issuedAtTick">[];
+  queuedGuests: number; // across all building queues
+}
+```
+
+`outcome(state)` in §8 is reconciled with this view by using only published objective ids for
+`objectivesMet` and `failureId`, and excluding all other runtime internals.
+
+**The view repeats nothing the generic surface already carries.** Checked field by field
+against 04 §6's `Scene` and 04 §9's `PlayerView`: `gameId`, `status`, the scene body and the
+action list all live there and appear nowhere above — the sixth check against `CLAUDE.md`'s
+envelope-duplication ledger and the second on the view side, after `StoryGraphView`
+duplicated scene and status fields (03 §9). `tick` is *not* a repeat: the envelope has no
+clock, and §4 makes `tick` this kind's own.
+
+**`buildOptions`, `availableActions` and the reducer must agree.** A definition the reducer
+would reject for a placement-independent reason must be `canBuild: false` here and must
+carry the same code in `blockedBy`; `build` is `available: false` in §7 only when *no*
+definition can be built at all. §7 makes clients render the build menu from this projection,
+so a disagreement is a client showing an option the engine will refuse — the failure mode
+"shown-but-disabled with a reason" exists to prevent.
 
 ---
 
@@ -385,6 +874,7 @@ localized message or registry validation fails:
 | `building_not_open` | The operation requires an open building |
 | `price_out_of_range` | Outside the definition's permitted band |
 | `staff_limit_reached` | The scenario caps this role |
+| `building_limit_reached` | The scenario caps this definition — the building-side twin of `staff_limit_reached`, and what `blockedBy` (§10) reports for a definition at its cap |
 | `ticks_not_positive` | `advance_ticks` with `ticks` less than 1 |
 | `tick_limit_reached` | `ticks` exceeds the campaign's per-call cap (§6) |
 
@@ -400,6 +890,9 @@ Namespaced `kind.world-graph.*` (05 §9), declared as `Kind.eventNames`:
 | Name (after the namespace) | Severity | Emitted at |
 |---|---|---|
 | `batch.started` / `batch.ended` | `debug` | Around an `advance_ticks` batch, with `ticks` |
+| `building.placed` / `building.demolished` | `info` / `debug` | The `build` and `demolish` reducers |
+| `staff.hired` / `staff.fired` / `staff.assigned` | `info` / `debug` / `trace` | The staff reducers |
+| `alert.dismissed` | `trace` | The `dismiss_alert` reducer |
 | `guest.spawned` | `trace` | Guest spawn system |
 | `guest.intent.selected` | `trace` | With the chosen target and winning utility |
 | `guest.path.failed` | `debug` | Target unreachable — the diagnosable failure |
@@ -407,7 +900,7 @@ Namespaced `kind.world-graph.*` (05 §9), declared as `Kind.eventNames`:
 | `guest.served` | `trace` | Service completed, with amount |
 | `guest.departed` | `debug` | With the departure reason |
 | `staff.task.assigned` / `staff.task.completed` | `trace` | Task lifecycle |
-| `building.placed` / `building.status.changed` | `info` / `debug` | Construction and operation |
+| `building.status.changed` | `debug` | `open_building` / `close_building`, and construction completion |
 | `incident.raised` | `info` | Incident system |
 | `objective.progressed` | `debug` | Objective evaluation |
 | `scenario.resolved` | `info` | Win or failure, with the `outcome` ids (§8) |
@@ -433,6 +926,115 @@ client renders 10⁵ rows.
 status transitions, objective progress, scenario resolution. Per-guest and per-tick detail
 is an **event** (§12), where it is discardable by design. This is the boundary 05 §1 draws,
 applied to the first kind with the volume to test it.
+
+**Batch grain is about *which* records, not *whether*.** The nine no-time-passes actions
+(§4) are single, player-initiated mutations with no volume problem at all, and each returns
+its `StateChange`:
+
+| Action | `path` | `value` (`previous`) | `reason` |
+|---|---|---|---|
+| `build` | `finances.cashCents` | cash after (cash before) | `building_placed` |
+| — immediate | `buildings.<buildingId>.exists` | `true` | `building_placed` |
+| — with build time | `constructionSites.<siteId>.exists` | `true` | `construction_started` |
+| `demolish` | `buildings.<buildingId>.exists` | `false` (`true`) | `building_demolished` |
+| `hire_staff` | `finances.cashCents` | cash after (cash before) | `staff_hired` |
+| | `staff.<staffId>.exists` | `true` | `staff_hired` |
+| `fire_staff` | `staff.<staffId>.exists` | `false` (`true`) | `staff_fired` |
+| `assign_staff` | `staff.<id>.assignedBuildingId` / `.assignedZoneId` | the id, or `""` | `staff_assigned` |
+| `set_price` | `buildings.<id>.pricesCents.<productId>` | integer cents (previous cents) | `price_set` |
+| `open_building` / `close_building` | `buildings.<id>.isOpen` | boolean (previous) | `building_opened` / `building_closed` |
+| `dismiss_alert` | `alerts.<id>.dismissedAtTick` | the tick | `alert_dismissed` |
+| `advance_ticks` | `tick` | tick after (tick before) | `ticks_advanced` |
+
+**`build` writes one of two entity rows.** §6 lets it place a building *or* open a
+construction site; which one depends on whether the definition carries a build time, and the
+site's own `buildTicksRemaining` is counted down by the tick pipeline (W46). Both rows are
+listed so the second is not discovered later as a gap.
+
+> **`op` is always `set`, and `value` is always the value after.** 04 §12 offers
+> `increment`/`decrement`, but defines no meaning for `value` when they are used — is it the
+> delta or the result? Its own worked examples only ever use `set` with `value` + `previous`,
+> and 03 §5's variable write is explicit that `op` stays `set` "regardless of which
+> increment/decrement/set operations actually ran". Following that: this kind emits `set`,
+> `value` is the state after, `previous` is the state before, and a consumer wanting the
+> delta subtracts. A `decrement` row whose `value` was the resulting balance would be read by
+> half its consumers as the amount deducted.
+
+> **Every path addresses one scalar field, and a collection is never a path.** That is
+> forced rather than stylistic: 04 §12 types `StateChange.value` as
+> `string | number | boolean`, so a row saying `path: "buildings"` has nothing legal to put
+> in `value`, and "the array changed" is not an audit record a client could render anyway.
+>
+> **A path is the dotted traversal of `WorldGraphKindState` (§3.2) down to the scalar that
+> changed** — which closes the valid set without a second list to maintain. Two shapes follow
+> from the state's own shape, and only two:
+>
+> | Shape | Reaches | Examples |
+> |---|---|---|
+> | **Singleton** | a scalar not held in a collection | `tick`, `finances.cashCents`, `map.revision` |
+> | **Entity-scoped** | `<collection>.<entityId>.<field>` | `buildings.b:3.isOpen`, `alerts.a:9.dismissedAtTick` |
+>
+> `<entityId>` is the entity's own id (§9), never its array index — an index is a property of
+> how the collection is stored, and §3.4's whole point is that storage order is not
+> addressable. A `null` assignment is `""` for the same reason the collection rule exists:
+> the type has no null.
+>
+> **A dotted path is only unambiguous because no id may contain a dot.** §3.2 calls
+> identifiers opaque, and opacity of *meaning* would otherwise imply freedom of *shape*.
+> With a `productId` of `water.sparkling`:
+>
+> ```text
+> buildings.b:3.pricesCents.water.sparkling
+>                           └─ one segment, or two? The path resolves to a price, or to
+>                              nothing, depending entirely on who parsed it.
+> ```
+>
+> So **no path-addressable identifier may contain a `.`** — and that is all of them:
+> authored content ids (building and product definitions, staff roles, objectives, zones),
+> the keys of nested records like `pricesCents`, which *are* product ids, and entity ids.
+> Entity ids satisfy it by construction, since §9 formats them `<prefix>:<ordinal>` and `:`
+> is not a separator here; the rest are checked at Tier 1 (§15). With the rule, the same
+> path is unambiguous:
+>
+> ```text
+> buildings.b:3.pricesCents.sparkling-water   →  buildings[id=b:3].pricesCents["sparkling-water"]
+> ```
+>
+> The alternative — a canonical escaping grammar for segments — buys nothing here: nothing
+> needs a dot inside an id, and every producer and consumer would have to implement the
+> unescaping identically or reintroduce the divergence this rule exists to remove.
+>
+> **`.exists` is the one synthetic leaf, and the only one.** Appearing and disappearing are
+> not fields of any type in §3.2 — an entity that was removed has no field left to carry the
+> news. So `<collection>.<entityId>.exists` is defined as a boolean assertion about
+> *membership*: the traversal resolves the entity, and `.exists` reports whether the
+> collection holds it. Everything else in a path is a real field, and no second synthetic
+> leaf may be added without amending this paragraph — an open set of invented leaves would
+> put the grammar right back where it started.
+>
+> **This is normative, and it is checkable.** 04 §12 types `path` as an unconstrained
+> `string`, so nothing structural stops a producer inventing one; the rule above is what
+> makes divergence a defect rather than a matter of taste. A path is valid iff it resolves
+> against §3.2 — walk it segment by segment, taking `<entityId>` as a lookup by id, and it
+> must land on a scalar. A path that does not resolve is a producer defect, not a consumer's
+> to accommodate, and the check is cheap enough to assert in this kind's own tests. Adding a
+> top-level scalar to `WorldGraphKindState` therefore extends the valid set automatically,
+> which is the point of deriving it rather than listing it — a hand-maintained list of
+> singleton paths would be one more thing to drift from the fields it describes.
+>
+> **Two fields are reachable by that rule and still never audited.** `nextEntityOrdinal` is
+> an id source, not player-facing state — auditing it would emit a row on every creation
+> saying a counter moved. `map.*` changes only when authored topology does (§3.2), which is
+> not something an action does. Stated because "derivable from the state type" would
+> otherwise imply they should appear.
+
+`reason` is a descriptive code naming *why* the change happened, not a rejection code —
+`simulation`'s `action_eat` and `story-graph`'s `achievement_unlocked` set that precedent,
+and like those, these are `StateChange` vocabulary rather than additions to §11's
+`Kind.reasonCodes`, which are what a *rejected* action returns.
+
+`visible: true` for everything a player did deliberately and can see the result of; the
+`.exists` records are `visible: false`, since the projection already carries the roster.
 
 ---
 
@@ -466,11 +1068,27 @@ no entrance, negative capacity are Tier 1; unreachable unlocks, map regions disc
 from every spawn, building categories with no demand, staff roles with no task generator
 are Tier 2.
 
-Three additions this contract requires. At **Tier 1**: the `advance_ticks` cap (§6) must be
-present and positive, and every price band must be a valid integer-cent range. At **Tier
-2**: a scenario already resolved at tick 0 — objectives satisfied or a failure condition met
-before the player acts (§3.1). That is a legal campaign, so it warns rather than fails, but
-it is almost always an authoring error.
+Additions this contract requires. At **Tier 1**: **every authored id this kind reads must be
+non-empty and contain no `.`** — building and product definitions, staff roles, objectives
+and zones today, and guest archetypes, incidents, scenarios and whatever else W43 adds, on
+the same terms and without amending this sentence. The rule is stated over *all* authored
+ids rather than over a list of them, because a list is a second thing to maintain and would
+be wrong the moment W43 lands. §13's paths are dot-separated, so an id carrying a dot makes a
+path parse two ways; it is checked rather than assumed because these ids are content, and
+content is exactly what a contract cannot assume about. Entity ids need no check, since §9
+constructs them. The `advance_ticks` cap (§6) must be present and positive; `ticksPerDay`
+(§3.3) must be present and positive; every price band
+must be a valid integer-cent range containing the definition's default price; a
+pre-placed building (§3.1) must name a real definition, fit inside the map, sit on terrain
+its definition allows, and not overlap another — the same footprint rules the `build`
+reducer enforces, applied to authored placements, because a scenario that loads with a
+building silently dropped or overlapping is worse than one that fails to load.
+
+At **Tier 2**: a scenario already resolved at tick 0 — objectives satisfied or a failure
+condition met before the player acts (§3.1). That is a legal campaign, so it warns rather
+than fails, but it is almost always an authoring error. **A campaign with no objectives at
+all** warns for the mirror-image reason: it can never resolve at all (§8), so it is a
+sandbox — legal, occasionally deliberate, and almost never what an author meant.
 
 > **The draft's "Tier 3 simulation findings" is not validation.** Dominant buildings,
 > infinite-money loops, queue deadlock and unavoidable bankruptcy are **content-balance**
@@ -509,7 +1127,7 @@ in the Fast Lane does for `simulation` (10 §15).
 
 **"Field detail lives with the game" names *design authority*, not a permanent split of the
 TypeScript itself.** The shapes in this table are still engine code once built — `Guest`,
-`Building`, `ResortMap` and the rest compile inside this kind's own package the same way
+`Building`, `WorldMap` and the rest compile inside this kind's own package the same way
 `simulation`'s `ActorState`/content-definition types do (10 §7, §15), not as a second copy
 Sun Trap maintains in parallel. What "lives with the game" is the *content this schema
 carries* — which guest archetype, which drink stand, which map — and the design decisions

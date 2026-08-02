@@ -615,13 +615,18 @@ when it declined a programme doc for this kind.
       result.
       **Plan:** [`plans/40-w41-engine-consumer-boundary.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/40-w41-engine-consumer-boundary.md)
 - [ ] **W42 proposed — runtime-state contract:** authoritative map, guest, building, queue,
-      staff, construction and finance shapes.
+      staff, construction and finance shapes. **Ready to execute** —
+      [`plans/42-w42-world-graph-state-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/42-w42-world-graph-state-contract.md),
+      whose **Handoff — Start Here** section is the complete brief. It also corrects
+      `plans/39`'s sizing of this unit: six types in `WorldGraphKindState`'s closure
+      (`Incident`, `ObjectiveProgress`, `Alert`, `TerrainCell`, `PathCell`, `Zone`) are
+      drafted in neither repository, so this is design work, not a port.
 - [ ] **W43 proposed — content-definition contract:** archetypes, buildings, products,
       terrain, incidents, scenarios, objectives, policies and achievements.
 - [ ] **W44 proposed — resolution contract:** the 20-system pipeline, utility scoring,
       pathfinding costs, queue/service semantics and every deterministic tie-break.
 - [ ] **W45 proposed — kind skeleton and immediate actions:** validation, initial state,
-      projection/outcome, assembly and the eight no-time-passes reducers.
+      projection/outcome, assembly and the nine no-time-passes reducers.
 - [ ] **W46 proposed — deterministic tick pipeline:** fixed-order systems, bounded
       `advance_ticks`, derived streams and batch invariance.
 - [ ] **W47 proposed — MVP vertical slice:** spawn → walk → queue → buy → litter → clean →

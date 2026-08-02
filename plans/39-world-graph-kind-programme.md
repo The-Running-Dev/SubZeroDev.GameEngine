@@ -168,11 +168,17 @@ Split by type cluster with a natural review boundary, the same reasoning `plans/
 its own four-way split: each is reviewable on its own, and W43 in particular needs room to be
 judged as design, not skimmed as a port.
 
+> **W42's "port" framing above is optimistic — corrected when the unit was planned.** Six
+> types in `WorldGraphKindState`'s transitive closure are drafted in neither repository, so
+> W42 is design work too, just with a stronger starting draft than W43's. Full evidence in
+> [`plans/42-w42-world-graph-state-contract.md`](42-w42-world-graph-state-contract.md); the
+> ledger entry for W42 below carries the summary.
+
 ### Build (code, against the completed contract)
 
 | W | Unit | Mirrors |
 |---|---|---|
-| **W45** | State types as code, `initialState`, the eight immediate-mutation actions | `simulation`'s W36, minus the plan concept (Finding 3) |
+| **W45** | State types as code, `initialState`, the nine immediate-mutation actions | `simulation`'s W36, minus the plan concept (Finding 3) |
 | **W46** | The 20-system tick pipeline | `simulation`'s W37 — pipeline + honest stubs, the same discipline |
 | **W47** | The MVP vertical slice: spawn → walk → queue → buy → litter → clean → win/lose | `simulation`'s W39 |
 | **W48** | `previewAction` across `Engine`/`SessionStore`/text client/MCP, plus the ten-operation amendment to `09-clients.md` §4 and `MVP.md` §5 | Not mirrored by `simulation` — genuinely new, cross-cutting (Finding 4) |
@@ -257,7 +263,18 @@ names both.
 
 ### W42 — authoritative runtime-state contract
 
-- [ ] Cut the W42 doc-only plan and inventory every field in Sun Trap §§2–9.
+**Plan:** [`plans/42-w42-world-graph-state-contract.md`](42-w42-world-graph-state-contract.md).
+
+> **That plan corrects this programme's own sizing of W42.** The split table above calls it a
+> port of eight drafted types. Measured against both repositories, **six** further types in
+> `WorldGraphKindState`'s transitive closure — `Incident`, `ObjectiveProgress`, `Alert`,
+> `TerrainCell`, `PathCell`, `Zone` — are defined in *neither*, and Sun Trap's own two design
+> documents disagree about a seventh (`GuestOpinions`: seven typed fields versus ten in
+> `game-design.md` §3.2). W42 is therefore design work with a strong draft to start from, not
+> transcription — the same optimistic sizing `plans/36` Finding 3 caught for `simulation`,
+> which is now the second time it has happened.
+
+- [x] Cut the W42 doc-only plan and inventory every field in Sun Trap §§2–9.
 - [ ] Specify map dimensions, tiles, entrances, occupancy and deterministic coordinate rules.
 - [ ] Specify guest identity, position, needs, target, path, inventory, opinions and lifecycle.
 - [ ] Specify building, product, queue and service state without embedding content definitions.
@@ -298,6 +315,18 @@ names both.
       shape or tie-break.
 
 ### W45 — kind skeleton and immediate actions
+
+> **A reviewed draft of this unit already exists**, on
+> `feature/w45-world-graph-kind-skeleton`. It was written on W42's branch by mistake — that
+> unit is doc-only — and was moved rather than deleted, because reviewing it against the
+> contract is what caught eight divergences and two contract defects (`Building` had no
+> price field for `set_price`; canonical id order compared ordinals lexicographically).
+> [`plans/42`](42-w42-world-graph-state-contract.md)'s Amendment has the account.
+>
+> So this unit **starts by reviewing that branch against the merged W42–W44 contract**, not
+> by writing from scratch. It covers every box below except the tick pipeline, which is W46's
+> and genuinely absent: `advance_ticks` advances the counter and runs none of §4's twenty
+> systems.
 
 - [ ] Cut the W45 code plan against the merged W42–W44 contract.
 - [ ] Add world-graph state/content modules and export their supported symbols publicly.
