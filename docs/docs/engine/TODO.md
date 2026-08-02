@@ -943,7 +943,7 @@ GoalDefinition[]` and `goalFailurePrecedence` — still not the real authoring s
 - **Spec:** [10 §5](10-simulation-kind.md#5-resolution-and-statechange), [§3](10-simulation-kind.md#3-the-turn-is-a-week),
       [§12](10-simulation-kind.md#12-terminal-identity).
 - **Depends on:** [W38](#x-w38--simulation-kind-content-definition-types).
-- **Status:** Done — PR pending.
+- **Status:** Done — [PR #101](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/101).
 - **Done when:** a goal with no `requiredDurationWeeks` completes the first week its
       condition is met; a persistent goal requires that many consecutive satisfied weeks,
       resetting on any miss; `goalFailurePrecedence` resolves a goal whose completion and
