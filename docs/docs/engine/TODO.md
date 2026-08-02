@@ -868,7 +868,7 @@ by temporarily deleting an entry and confirming the compiler catches it.
 - **Spec:** [10 §3](10-simulation-kind.md#3-the-turn-is-a-week), [§5](10-simulation-kind.md#5-resolution-and-statechange),
       [§5.1](10-simulation-kind.md#51-resolver-dispatch).
 - **Depends on:** [W36](#x-w36--simulation-kind-state-variables-and-the-plan).
-- **Status:** Done — PR pending.
+- **Status:** Done — [PR #99](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/99).
 - **Done when:** `initialState` builds week-one state from a synthetic `SimulationCampaign`;
       start-of-week increments the week, resets spent time, and expires effects correctly;
       end-of-week runs all fourteen named systems in the documented order (verified via
