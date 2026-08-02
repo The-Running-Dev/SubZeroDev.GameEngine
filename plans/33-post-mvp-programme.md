@@ -245,13 +245,15 @@ be sizing work against a document that does not exist yet.
 > programme doc, cut once the source material existed to size it against — the same
 > milestone `plans/36` reached for `simulation`.
 
-### 4. No W-numbers are assigned past W27
+### 4. No W-numbers are assigned past W27, except the provisional world-graph range
 
 Tranche B's ordering after the simulation kind depends on decisions not yet made (whether
 Bulgaria content or the world-graph kind comes next, whether migration gets forced early).
-Assigning `W28`–`W40` now would create exactly the renumber-and-rewrite-every-reference
-problem `TODO.md`'s own numbering note warns about. Tranche B units take their numbers when
-they are cut, in the order they are cut, per the existing convention.
+`W28`–`W40` therefore remain unassigned, avoiding exactly the renumber-and-rewrite-every-reference
+problem `TODO.md`'s own numbering note warns about. The `W41`–`W48` range shown for the
+world-graph programme is a provisional, non-binding planning range reserved by that programme,
+not an allocation of intervening W-numbers. Other Tranche B units take their numbers when they
+are cut, in the order they are cut, per the existing convention.
 
 ---
 
