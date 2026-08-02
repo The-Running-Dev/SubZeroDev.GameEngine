@@ -504,7 +504,7 @@ widening `resolution` to three values, and adding `goalsFailed`. Completes §15 
 Upstream"), which accounted for one of `SimulationKindState`'s ten fields before this.
 - **Spec:** [10 §2](10-simulation-kind.md#2-kindstate--what-belongs-here), [§3](10-simulation-kind.md#3-the-turn-is-a-week),
       [§12](10-simulation-kind.md#12-terminal-identity), [§14](10-simulation-kind.md#14-validation),
-      [§15](10-simulation-kind.md#15-what-remains-upstream-and-why).
+      [§15](10-simulation-kind.md#15-what-was-ported-and-what-was-found-along-the-way).
 - **Depends on:** [W24](#x-w24--core-spec-reconciliation).
 - **Status:** Done — [PR #80](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/80).
 - **Done when:** every field `SimulationKindState` names has a row in §15; `outcome()`'s shape
@@ -551,13 +551,14 @@ themselves.
 
 ### Depth: Life in the Fast Lane (The `simulation` Kind)
 
-- [ ] **Specify the kind first, in this repository.** `games/04-engine-specification.md` is
-      an *engine* spec, not a kind spec — roughly half of it (§1–§3, §6, §11, §16–§18, §20)
-      is core material [`04-core.md`](04-core.md) now owns, and the rest is written as a
-      game's engine rather than against the Kind seam. The contract that belongs here is the
-      simulation equivalent of [`03-story-graph-kind.md`](03-story-graph-kind.md), extracted
-      from its §5, §7–§10, §12 and §14 and reconciled with `04` §3, the `GameState`
-      envelope, `Kind.outcome`, and the `kind.simulation.*` event namespace ([05 §9](05-observability.md#9-kind-events)).
+- [x] **Specify the kind first, in this repository.** Done across W25 (seam reconciliation)
+      and the four-unit programme W32–W35 (field-level port). The simulation equivalent of
+      [`03-story-graph-kind.md`](03-story-graph-kind.md) now exists in
+      [`10-simulation-kind.md`](10-simulation-kind.md), reconciled with `04` §3, the
+      `GameState` envelope, `Kind.outcome`, and the `kind.simulation.*` event namespace
+      ([05 §9](05-observability.md#9-kind-events)) — see
+      [`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md)
+      for the full split and findings.
 - [ ] Then build it, per that contract (upstream Phases 1–4 remain a useful build order).
 - [ ] "Stable Life" scenario playable to a win and a loss.
 - [ ] Its Definition of Done: `games/life-in-the-fast-lane.md`.
@@ -722,7 +723,7 @@ sorted-`Record`-iteration rule, both reused by later units. Eight of `Simulation
 fields are now specified in this repository; only `PlayerState` (W28, next) and the `GameAction`
 schema `WeeklyActionPlan.actions` holds (W30) remain.
 - **Spec:** [10 §2](10-simulation-kind.md#2-kindstate--what-belongs-here), [§4.1](10-simulation-kind.md#41-the-weekly-action-plan),
-      [§15](10-simulation-kind.md#15-what-remains-upstream-and-why).
+      [§15](10-simulation-kind.md#15-what-was-ported-and-what-was-found-along-the-way).
 - **Depends on:** [W25](#x-w25--simulation-kind-seam-reconciliation) (the seam must be complete
       before field detail hangs off it, per `plans/36`).
 - **Status:** Done — [PR #94](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/94).
@@ -746,7 +747,7 @@ needs, attributes, education, career, housing, inventory, relationships). `Actor
 over whole, shared verbatim by the player and every rival (`plans/36` Finding 1) — not ported
 "for the player" with rival support deferred. Every field `SimulationKindState` (§2) names now
 has a full shape in this repository.
-- **Spec:** [10 §6](10-simulation-kind.md#6-player-state), [§15](10-simulation-kind.md#15-what-remains-upstream-and-why).
+- **Spec:** [10 §6](10-simulation-kind.md#6-player-state), [§15](10-simulation-kind.md#15-what-was-ported-and-what-was-found-along-the-way).
 - **Depends on:** [W32](#x-w32--simulation-kind-state-types).
 - **Status:** Done — [PR #95](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/95).
 - **Done when:** `ActorState`'s open-keyed `Record` fields (`skills`, `reputation`, `flags`,
@@ -773,7 +774,7 @@ half-away-from-zero after the full chain"). Both plan documents corrected in pla
 upstream section this contract needs except the last unit's own (`ActionType`/`GameAction`,
 `Requirement`, end-of-week ordering) is now specified in this repository.
 - **Spec:** [10 §7](10-simulation-kind.md#7-content-definition-types), [§8](10-simulation-kind.md#8-conditions-and-requirements),
-      [§15](10-simulation-kind.md#15-what-remains-upstream-and-why).
+      [§15](10-simulation-kind.md#15-what-was-ported-and-what-was-found-along-the-way).
 - **Depends on:** [W33](#x-w33--simulation-kind-actor-state).
 - **Status:** Done — [PR #96](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/96).
 - **Done when:** every content type upstream §14.1–§14.9 names has a full shape in this
@@ -785,6 +786,45 @@ upstream section this contract needs except the last unit's own (`ActionType`/`G
       `GameAction`, `ActionOutcome`) are forward-referenced by name; §15's table drops every
       row this unit closes and states that exactly one contract unit remains; no file under
       `src/engine/` changes; `build/Test-Documentation.ps1` passes.
+- **Plan:** [`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md)
+
+### [x] W35 — Simulation Kind: Resolution and Systems
+The fourth and final contract unit of the simulation-kind programme
+([`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md),
+proposed there as W30). Doc-only — ports upstream §9, §10, §12.2–§12.3 and §13.2 into
+`10-simulation-kind.md`: `ActionType`/`GameAction` (§4.2), the resolver dispatch mechanism and
+per-action outcome (§5.1–§5.3, reconciled against `04-core.md`'s already-adopted
+`StateChange`/`ValidationError`/`ValidationWarning` rather than restating upstream's own
+divergent pre-adoption shapes), end-of-week system order and goal/failure precedence (§3), and
+`Requirement`/`RequirementType` (§8.1). Closes **S1** of the programme's milestones — every
+type `SimulationKindState` names, every content definition type, and the mechanics that
+dispatch on both are now specified in this repository; `10-simulation-kind.md` stops being
+"the seam only."
+
+Three reconciliation findings, not plain transcription: this kind's own runtime-validation
+result needed a name (`ActionValidation`) distinct from `04-core.md`'s load-time
+`ValidationResult` — upstream never had to disambiguate the two, having no campaign-validation
+concept of its own to collide with. `ResolutionDebugInfo` (upstream §3.3) is superseded, not
+ported — this platform's `trace`-severity observability channel already serves its purpose, and
+the `metadata.transparency` field it would gate on lives outside `SimulationKindState` entirely.
+And `wrong_location` — load-bearing in `LocationDefinition`'s own prose since W34 — was missing
+from §10's reason-code table, a real gap caught while finishing this unit, not a pre-existing
+one reported from elsewhere.
+- **Spec:** [10 §3](10-simulation-kind.md#3-the-turn-is-a-week), [§4.2](10-simulation-kind.md#42-action-types),
+      [§5.1](10-simulation-kind.md#51-resolver-dispatch), [§8.1](10-simulation-kind.md#81-requirements),
+      [§15](10-simulation-kind.md#15-what-was-ported-and-what-was-found-along-the-way).
+- **Depends on:** [W34](#x-w34--simulation-kind-content-definition-types).
+- **Status:** Done — [PR #97](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/97).
+- **Done when:** `ActionType`/`GameAction` are specified with no client-supplied cost fields;
+      the resolver dispatch mechanism (`ActionResolver`, `ResolverTable`) is reconciled against
+      `KindContext` (04 §3.1) rather than upstream's own bespoke `ResolutionContext`; per-action
+      outcome types reuse `04-core.md`'s `StateChange`/`OutcomeMessage`/`ValidationError`/
+      `ValidationWarning` verbatim rather than restating upstream's divergent versions;
+      end-of-week ordering states plainly that `weekLimit` has no scheduled check anywhere in
+      it, reinforcing rather than merely repeating §12's existing open callout; every stale
+      "§7/§9, once ported" forward reference written across W32–W34 (16+ instances) is fixed to
+      point at a real section; §15 is rewritten from "what remains" to a historical record with
+      no open rows; no file under `src/engine/` changes; `build/Test-Documentation.ps1` passes.
 - **Plan:** [`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md)
 
 ### Breadth: The First Culture Pack
