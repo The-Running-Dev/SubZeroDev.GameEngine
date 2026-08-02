@@ -398,11 +398,19 @@ workflow run, which shows the three new steps executing rather than merely exist
       absence of `src/`, `tsconfig*.json` and test artefacts.
 - [x] A release workflow publishes to GitHub Packages with `packages: write` and no stored
       credential. `release-engine-package.yml`, on `v*` and `workflow_dispatch`.
-- [ ] The first version is published, Sun Trap has read access, and the exact coordinate and
-      version are recorded here. **Open — owner-only.** Verified nothing is published; the
-      three existing tags (`v0.1.0`, `v0.2.0`, `v0.3.0`) all predate this workflow, so the
-      first publication is a `v0.4.0` tag push with `package.json` moved to match, per the
-      corrected Decision 5. Record the coordinate here when it lands.
+- [x] The first version is published, Sun Trap has read access, and the exact coordinate and
+      version are recorded here.
+
+      **Coordinate:** `@the-running-dev/game-engine@0.4.0`, registry
+      `https://npm.pkg.github.com`, linked to this repository. Published 2026-08-02 by
+      `release-engine-package.yml` on the `v0.4.0` tag (`e61c231`), verified against
+      `GET /user/packages/npm/game-engine/versions` rather than inferred from the workflow's
+      exit status. `v0.4.0` is also the first tag whose manifest matches it.
+
+      **Read access needs no grant, because the package published *public*.** That is not what
+      this plan specified — see the visibility entry in
+      [`OPEN-QUESTIONS.md`](../docs/docs/engine/OPEN-QUESTIONS.md). Sun Trap can install it
+      today; whether it *should* be able to without authenticating is the open question.
 - [x] `docs/docs/guide/engine-package.md` describes what shipped, in past tense. Corrected
       afterwards: it named `@0.1.0` (the manifest is `0.3.0`) and claimed present-tense
       publication that has not happened — both fixed alongside `plans/41`.
@@ -422,6 +430,10 @@ workflow run, which shows the three new steps executing rather than merely exist
 - **No monorepo/workspace restructure.** `src/engine/` stays where it is; the `packages/`
   question stays closed as `OPEN-QUESTIONS.md` §2 now records, revisited only when a second
   independently versioned package exists.
-- **No public npm publication.** Private GitHub Packages only.
+- **No public npm publication.** Private GitHub Packages only. **What shipped did not honour
+  this**: `v0.4.0` published with `visibility: public`. Recorded, with both resolutions, in
+  [`OPEN-QUESTIONS.md`](../docs/docs/engine/OPEN-QUESTIONS.md) §2 — left standing here rather
+  than rewritten, because this list is what the unit *intended* and the deviation is worth
+  seeing against it.
 - **No API surface beyond the inventory.** If a companion needs a symbol that is not listed,
   that is a deliberate follow-up diff, not an improvisation during this unit.

@@ -231,19 +231,29 @@ run. The two publication boxes are the repository owner's and remain open.
 - [x] Run package build, tarball inspection and consumer smoke in required CI.
 - [x] Add a tag/manual release workflow with least-privilege `packages: write` permission.
 - [x] Document developer authentication without committing credentials or tokens.
-- [ ] Publish the first private package version and grant Sun Trap Actions read access.
-      **Open, and owner-only.** Verified nothing is published; the three existing tags all
-      predate `release-engine-package.yml`, so publication needs a `v0.4.0` tag push (with
-      `package.json` moved to match, per W41's own corrected Decision 5).
-- [ ] Record the exact package coordinate, version and permissions for Sun Trap's M1 handoff;
-      the companion repository owns its own dependency and CI change. **Blocked on the box
-      above** — there is no version to record until one exists.
+- [x] Publish the first package version and grant Sun Trap Actions read access. Published as
+      `@the-running-dev/game-engine@0.4.0` on the `v0.4.0` tag, 2026-08-02. **No grant was
+      needed: it published public, not private as Decision 4 specified** — see the visibility
+      entry in [`OPEN-QUESTIONS.md`](../docs/docs/engine/OPEN-QUESTIONS.md).
+- [x] Record the exact package coordinate, version and permissions for Sun Trap's M1 handoff;
+      the companion repository owns its own dependency and CI change. Recorded in
+      [`plans/40`](40-w41-engine-consumer-boundary.md)'s Done-When.
 - [x] **Gate:** a clean external consumer installs, imports, typechecks and constructs the
       engine using only supported exports. Met by `consumer-smoke/`, which installs the packed
       tarball rather than linking the source — the distinction Decision 4 turns on.
 
+**T0 is reached.** W41 is merged and `@the-running-dev/game-engine@0.4.0` is published — the
+two facts T0 names. A clean companion can install and construct the engine through one
+supported public surface, which is what the milestone was for. The visibility deviation is
+recorded rather than waved through, and it does not affect installability.
+
+<details>
+<summary>Superseded wording, kept because it dated the milestone</summary>
+
 **T0 is therefore not reached.** W41 is merged; the first version is not published, and T0
 names both.
+
+</details>
 
 ### W42 — authoritative runtime-state contract
 
@@ -389,6 +399,14 @@ GitHub Packages publication and exact semver consumption. The package is linked 
 repository; the Sun Trap repository receives Actions read access. A sibling `file:` link may
 speed local iteration but cannot satisfy either repository's gate, and a Git dependency is
 rejected because it couples consumers to repository layout and package-build side effects.
+
+> **What shipped differs on one point: the package published *public*, not private.** Every
+> other element of this decision held — scoped name, GitHub Packages, declaration-bearing ESM,
+> one root export, exact-semver consumption. The visibility deviation and the two ways to
+> resolve it are recorded in
+> [`OPEN-QUESTIONS.md`](../docs/docs/engine/OPEN-QUESTIONS.md) §2 rather than silently
+> normalised here, because the reasoning above is what a reader would otherwise take as
+> current fact.
 
 ### 5. No shared tick-pipeline substrate, restated, not re-litigated
 
