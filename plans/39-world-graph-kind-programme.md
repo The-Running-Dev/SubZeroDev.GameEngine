@@ -202,7 +202,13 @@ but it may not silently drop them. Check a box only when merged evidence exists.
 
 ### W41 — companion-package consumer boundary
 
-- [ ] Cut a focused W41 plan with current package contents and intended public API inventory.
+**Plan:** [`plans/40-w41-engine-consumer-boundary.md`](40-w41-engine-consumer-boundary.md) —
+current package state measured rather than recalled, the public API inventory, and a
+scratch-directory prototype that proved the whole boundary end to end (packed tarball →
+clean consumer → `tsc --noEmit` exit 0 → runtime `createGame` exit 0) before any repository
+file was changed.
+
+- [x] Cut a focused W41 plan with current package contents and intended public API inventory.
 - [ ] Rename the npm package to the lowercase scoped name `@the-running-dev/game-engine`.
 - [ ] Keep `src/engine/` as the source package; do not relocate it to satisfy stale `packages/` prose.
 - [ ] Add one root public entry point that exports only supported core, registry, session,

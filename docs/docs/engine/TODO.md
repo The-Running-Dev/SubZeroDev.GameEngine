@@ -587,6 +587,9 @@ when it declined a programme doc for this kind.
 - [ ] **W41 proposed — companion-package consumer boundary:** one supported root export,
       declaration-bearing ESM build, private `@the-running-dev/game-engine` GitHub Package,
       packed-tarball consumer smoke, required CI and exact-version companion consumption.
+      Planned in detail — measured current state, the public API inventory, and a prototype
+      that proved the boundary end to end before any file changed:
+      [`plans/40-w41-engine-consumer-boundary.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/40-w41-engine-consumer-boundary.md).
 - [ ] **W42 proposed — runtime-state contract:** authoritative map, guest, building, queue,
       staff, construction and finance shapes.
 - [ ] **W43 proposed — content-definition contract:** archetypes, buildings, products,
