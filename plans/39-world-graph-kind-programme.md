@@ -316,6 +316,18 @@ names both.
 
 ### W45 — kind skeleton and immediate actions
 
+> **A reviewed draft of this unit already exists**, on
+> `feature/w45-world-graph-kind-skeleton`. It was written on W42's branch by mistake — that
+> unit is doc-only — and was moved rather than deleted, because reviewing it against the
+> contract is what caught eight divergences and two contract defects (`Building` had no
+> price field for `set_price`; canonical id order compared ordinals lexicographically).
+> [`plans/42`](42-w42-world-graph-state-contract.md)'s Amendment has the account.
+>
+> So this unit **starts by reviewing that branch against the merged W42–W44 contract**, not
+> by writing from scratch. It covers every box below except the tick pipeline, which is W46's
+> and genuinely absent: `advance_ticks` advances the counter and runs none of §4's twenty
+> systems.
+
 - [ ] Cut the W45 code plan against the merged W42–W44 contract.
 - [ ] Add world-graph state/content modules and export their supported symbols publicly.
 - [ ] Implement total campaign narrowing and Tier 1/Tier 2 validation without unchecked throws.

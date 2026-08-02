@@ -19,7 +19,6 @@ export { nullEmitter, createRecordingEmitter, jsonlEmitter } from "./core/observ
 export { resolveLocKey } from "./core/localization/resolve.js";
 export { storyGraphKind } from "./kinds/story-graph/kind.js";
 export { simulationKind } from "./kinds/simulation/kind.js";
-export { worldGraphKind } from "./kinds/world-graph/kind.js";
 export { ENGINE_VERSION } from "./version.js";
 
 export type { Engine } from "./core/kernel/types.js";
