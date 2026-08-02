@@ -24,10 +24,22 @@ export interface WorldGraphStartingFinances {
 
 export interface WorldGraphCampaign {
   descriptionKey: LocKey;
+  /**
+   * The authored map, carried into `kindState` unchanged by `initialState`.
+   *
+   * Sharing the runtime type is deliberate rather than an oversight: every field of
+   * `WorldMap` is authored, including `revision`, which 12 §3.2 defines as changing when
+   * *authored map topology* changes — no system writes it. A separate authored type would
+   * be the same fields under a second name, and the two would be free to drift.
+   */
   map: WorldMap;
 
   startingFinances: WorldGraphStartingFinances;
   maxAdvanceTicksPerAction: number;
+  /** Ticks in one simulated day. The `revenueTodayCents` / `expensesTodayCents` reset is
+   *  `floor(tick / ticksPerDay)` — a pure function of `tick` and this number, so no day
+   *  field is stored (12 §3.3). The *value* is balance and belongs to the game. */
+  ticksPerDay: number;
 
   buildingDefinitions: readonly WorldGraphBuildingDefinition[];
   staffRoleDefinitions: readonly WorldGraphStaffRoleDefinition[];
@@ -90,8 +102,4 @@ export interface WorldGraphStartingStaff {
   y: number;
   assignedBuildingId?: string | null;
   assignedZoneId?: string | null;
-}
-
-export function isWorldGraphCampaign(value: unknown): value is WorldGraphCampaign {
-  return typeof value === "object" && value !== null && "descriptionKey" in (value as Record<string, unknown>);
 }

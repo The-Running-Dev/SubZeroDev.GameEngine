@@ -91,7 +91,14 @@ export interface Building {
   cleanliness: number;
   queue: Queue;
   products: readonly string[];
-  /** Published by action `set_price` and read by projection. */
+  /**
+   * Product id → integer cents, written by `set_price` and read by projection.
+   *
+   * Not the loose bag `02-architecture.md` N6 bans: the keys are exactly the ids in
+   * `products`, which come from the validated definition, so Tier 1 closes the key set at
+   * load — the argument `10 §6.2` already made for `ActorState`'s `skills`/`counters`
+   * (12 §3.3).
+   */
   pricesCents: Readonly<Record<string, number>>;
   serviceTickSeq: number;
 }
@@ -132,7 +139,9 @@ export interface Guest {
   targetBuildingId: string | null;
   targetQueueId: string | null;
   targetProductId: string | null;
-  targetWaitSeconds: number;
+  /** Non-negative integer *ticks* this guest tolerates waiting. Never seconds: §3 collapses
+   *  the clock to `tick`, and a tick's simulated duration is campaign balance data. */
+  targetWaitTicks: number;
   needs: GuestNeeds;
   conditions: GuestConditions;
   opinions: GuestOpinions;
@@ -149,11 +158,13 @@ export interface GuestNeeds {
 }
 
 export interface GuestConditions {
+  /** Integer -100..100; the sign is the utility trend. */
   mood: number;
   patienceRemainingTicks: number;
-  arrivalTick: number;
   lastServedTick: number | null;
   spentTicks: number;
+  // No `arrivalTick`: `Guest.tickEntered` already records it, and two fields for one fact
+  // are free to disagree (12 §3.3).
 }
 
 export interface GuestOpinions {
@@ -179,8 +190,10 @@ export interface Staff {
   y: number;
   status: StaffStatus;
   assignedBuildingId: string | null;
+  /** The only stored zone membership. A second, derived `zoneId` "current zone at read
+   *  time" would be a derived value beside the field it derives from — banned by the same
+   *  rule that removed `Building.entrances` (12 §3.3). */
   assignedZoneId: string | null;
-  zoneId: string | null;
   drawCount: number;
   task: StaffTask | null;
   tasksCompleted: number;

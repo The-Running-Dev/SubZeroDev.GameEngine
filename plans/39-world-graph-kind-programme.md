@@ -178,7 +178,7 @@ judged as design, not skimmed as a port.
 
 | W | Unit | Mirrors |
 |---|---|---|
-| **W45** | State types as code, `initialState`, the eight immediate-mutation actions | `simulation`'s W36, minus the plan concept (Finding 3) |
+| **W45** | State types as code, `initialState`, the nine immediate-mutation actions | `simulation`'s W36, minus the plan concept (Finding 3) |
 | **W46** | The 20-system tick pipeline | `simulation`'s W37 — pipeline + honest stubs, the same discipline |
 | **W47** | The MVP vertical slice: spawn → walk → queue → buy → litter → clean → win/lose | `simulation`'s W39 |
 | **W48** | `previewAction` across `Engine`/`SessionStore`/text client/MCP, plus the ten-operation amendment to `09-clients.md` §4 and `MVP.md` §5 | Not mirrored by `simulation` — genuinely new, cross-cutting (Finding 4) |

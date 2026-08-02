@@ -91,14 +91,25 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   (10 §15). The same question arises for `world-graph`, which declines `history`
   on identical grounds ([`12-world-graph-kind.md`](12-world-graph-kind.md)
   §3) — resolve both together or not at all.
-- **`world-graph` W42 contract follow-up questions (Sun Trap).** This contract unit records a
-  provisional runtime-state shape, but four upstream design gates remain open:
-  - entrance coordinate basis (`absolute` vs `building-local`)
-  - rotation set (`0` vs `0 | 90 | 180 | 270`)
-  - provisional tick duration used by `revenueTodayCents` / `expensesTodayCents` boundaries
-  - `GuestOpinions` field count (`7` vs `10`)
-  **Revisit when** companion-repo M2 answers are merged in `content-and-systems.md` and
-  `game-design.md` together with a concrete plan for this unit.
+- **`world-graph`'s three evaluated-but-unstored guest opinions.** The game design has guests
+  evaluate ten factors; `GuestOpinions` ([`12-world-graph-kind.md`](12-world-graph-kind.md)
+  §3.2) stores **seven**. *Staff behaviour*, *accessibility* and *noise* are treated as
+  evaluation inputs the utility model reads from world state at decision time (§3.3), not as
+  impressions a guest carries between decisions — a guest can weigh noise without storing a
+  `noise` opinion. **Revisit when** W44's utility model names a system that *writes* one of
+  the three between ticks. That is the condition that would make it state; until one exists,
+  a field no system writes, no reason code reads and no projection carries is not state, and
+  adding it to `serialize()` output is how the `rng` and `totalTimeCost` defects happened.
+  The same test retires the condition vocabulary (drunkenness, sunburn, confusion and the
+  rest) to content: each is an evaluation input or a within-batch transient.
+- **`ticksPerDay`'s value is Sun Trap's, and only its value.** The "today" accumulator
+  boundary is `floor(tick / ticksPerDay)` (§3.3), a pure function of `tick` and campaign
+  data, so the rule needed no answer from the game. **Revisit when** the companion confirms
+  the number — which changes balance and no contract. Two other gates once filed here as
+  blocking are settled in the contract itself: rotation declares all four values and Tier 1
+  narrows it, and `Building.entrances` left runtime state as a derived value, leaving only
+  the *authored offset shape* open — and that is W43's, where a `BuildingDefinition` exists
+  to hold it.
 - **`ChainScope`'s `"profile"` value has nowhere to persist** — a `"profile"`-scoped event
   chain (10 §2.2) is meant to survive past the game it started in and advance on cumulative
   weeks played across every game under one profile, but the only cross-game store this

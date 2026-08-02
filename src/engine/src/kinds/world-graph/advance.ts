@@ -1,10 +1,12 @@
 /**
  * World-graph kind — `Kind.advance` (12-world-graph-kind.md §4, §6).
  *
- * Conservative world-graph reducer for non-temporal actions. The tick pipeline itself is W44.
+ * The nine no-time-passes reducers. The tick pipeline itself is W46: `advance_ticks`
+ * currently advances the counter and nothing else.
  */
 
 import type { ActionParams, AdvanceResult, KindContext } from "../../core/kernel/types.js";
+import type { StateChange } from "../../core/kernel/reasons.js";
 import { resolveStatus } from "./outcome.js";
 import type {
   WorldGraphCampaign,
@@ -33,6 +35,33 @@ function rejected(
     messages: visible ? [{ key: messageKey, visible: true }] : [],
     error: { code, messageKey },
   };
+}
+
+/** Every accepted action returns through here, so `status` always reflects the state
+ *  being returned rather than the one the reducer started from. */
+function accepted(
+  state: WorldGraphKindState,
+  changes: StateChange[],
+): AdvanceResult<WorldGraphKindState> {
+  return {
+    state,
+    status: resolveStatus(state),
+    changes,
+    messages: [],
+  };
+}
+
+function change(
+  path: string,
+  op: StateChange["op"],
+  value: string | number | boolean,
+  reason: string,
+  visible: boolean,
+  previous?: string | number | boolean,
+): StateChange {
+  return previous === undefined
+    ? { path, op, value, reason, visible }
+    : { path, op, value, previous, reason, visible };
 }
 
 function asRecord(value: ActionParams | undefined): Record<string, string | number | boolean> | undefined {
@@ -81,6 +110,18 @@ function terrainAt(map: WorldGraphKindState["map"], x: number, y: number): { ter
   return map.terrain.find((cell) => cell.x === x && cell.y === y);
 }
 
+function footprintInBounds(
+  map: WorldGraphKindState["map"],
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): boolean {
+  return inBounds(map.width, map.height, x, y) && inBounds(map.width, map.height, x + width - 1, y + height - 1);
+}
+
+/** Bounds are checked separately by the caller, so this reports terrain alone — the two
+ *  have distinct reason codes (§11) and folding them loses the one the player needs. */
 function buildPlacementTerrainOk(
   map: WorldGraphKindState["map"],
   definition: WorldGraphBuildingDefinition,
@@ -91,9 +132,6 @@ function buildPlacementTerrainOk(
 ): boolean {
   for (let cx = x; cx < x + width; cx += 1) {
     for (let cy = y; cy < y + height; cy += 1) {
-      if (!inBounds(map.width, map.height, cx, cy)) {
-        return false;
-      }
       const cell = terrainAt(map, cx, cy);
       if (!cell || !definition.allowedTerrain.includes(cell.terrain as never) || !isWalkable(cell.terrain)) {
         return false;
@@ -274,11 +312,18 @@ export function advance(
     if (definition.maxCount !== null) {
       const existing = state.buildings.filter((building) => building.definitionId === definition.id).length;
       if (existing >= definition.maxCount) {
-        return rejected(state, "action_not_available", "world-graph.reason.unknown_entity");
+        // The scenario caps this definition — `action_not_available` from the base set
+        // (§11), not `unknown_entity`: the definition exists, the player just may not have
+        // another one.
+        return rejected(state, "action_not_available", "core.reason.action_not_available");
       }
     }
 
     const { width, height } = rotatedDimensions(definition, rotation);
+
+    if (!footprintInBounds(state.map, x, y, width, height)) {
+      return rejected(state, "placement_out_of_bounds", "world-graph.reason.placement_out_of_bounds");
+    }
 
     if (!buildPlacementTerrainOk(state.map, definition, x, y, width, height)) {
       return rejected(state, "placement_terrain_unsuitable", "world-graph.reason.placement_terrain_unsuitable");
@@ -340,12 +385,17 @@ export function advance(
 
     emitEvent(ctx, "kind.world-graph.building.placed", "info", { buildingId });
 
-    return {
-      state: nextState,
-      status: resolveStatus(nextState),
-      changes: [],
-      messages: [],
-    };
+    return accepted(nextState, [
+      change(
+        "finances.cashCents",
+        "decrement",
+        nextState.finances.cashCents,
+        "building_placed",
+        true,
+        state.finances.cashCents,
+      ),
+      change("buildings", "set", buildingId, "building_placed", false),
+    ]);
   }
 
   if (actionId === "demolish") {
@@ -359,10 +409,12 @@ export function advance(
       return rejected(state, "unknown_action", "core.reason.unknown_action");
     }
 
-    const exists = state.buildings.some((building) => building.id === buildingId);
-    if (!exists) {
+    const target = state.buildings.find((building) => building.id === buildingId);
+    if (!target) {
       return rejected(state, "unknown_entity", "world-graph.reason.unknown_entity");
     }
+
+    const queueId = target.queue.id;
 
     const nextState: WorldGraphKindState = {
       ...state,
@@ -372,17 +424,36 @@ export function advance(
           ? { ...member, assignedBuildingId: null, status: "off_duty", task: null }
           : member,
       ),
-      alerts: state.alerts.filter((alert) => alert.entityId !== buildingId),
+      // Guests navigating to the building, or standing in its queue, would otherwise hold
+      // references to an entity that no longer exists.
+      guests: state.guests.map((guest) =>
+        guest.targetBuildingId === buildingId || guest.targetQueueId === queueId
+          ? {
+              ...guest,
+              lifecycle: guest.lifecycle === "queued" ? "seeking" : guest.lifecycle,
+              targetBuildingId: null,
+              targetQueueId: null,
+              targetProductId: null,
+              path: [],
+              pathIndex: 0,
+            }
+          : guest,
+      ),
+      // Alerts are dismissed, never deleted: an alert persists until the player dismisses
+      // it (§3), and silently dropping an undismissed one destroys a record the player
+      // never saw.
+      alerts: state.alerts.map((alert) =>
+        alert.entityId === buildingId && alert.dismissedAtTick === null
+          ? { ...alert, dismissedAtTick: state.tick }
+          : alert,
+      ),
     };
 
     emitEvent(ctx, "kind.world-graph.building.demolished", "debug", { buildingId });
 
-    return {
-      state: nextState,
-      status: resolveStatus(nextState),
-      changes: [],
-      messages: [],
-    };
+    return accepted(nextState, [
+      change("buildings", "set", buildingId, "building_demolished", false),
+    ]);
   }
 
   if (actionId === "hire_staff") {
@@ -421,7 +492,6 @@ export function advance(
           status: "off_duty",
           assignedBuildingId: null,
           assignedZoneId: null,
-          zoneId: null,
           drawCount: 0,
           task: null,
           tasksCompleted: 0,
@@ -435,12 +505,17 @@ export function advance(
 
     emitEvent(ctx, "kind.world-graph.staff.hired", "info", { staffId, roleId });
 
-    return {
-      state: nextState,
-      status: resolveStatus(nextState),
-      changes: [],
-      messages: [],
-    };
+    return accepted(nextState, [
+      change(
+        "finances.cashCents",
+        "decrement",
+        nextState.finances.cashCents,
+        "staff_hired",
+        true,
+        state.finances.cashCents,
+      ),
+      change("staff", "set", staffId, "staff_hired", false),
+    ]);
   }
 
   if (actionId === "fire_staff") {
@@ -463,12 +538,9 @@ export function advance(
 
     emitEvent(ctx, "kind.world-graph.staff.fired", "debug", { staffId });
 
-    return {
-      state: nextState,
-      status: resolveStatus(nextState),
-      changes: [],
-      messages: [],
-    };
+    return accepted(nextState, [
+      change("staff", "set", staffId, "staff_fired", false),
+    ]);
   }
 
   if (actionId === "assign_staff") {
@@ -490,11 +562,19 @@ export function advance(
     if (buildingId !== undefined && !state.buildings.some((building) => building.id === buildingId)) {
       return rejected(state, "unknown_entity", "world-graph.reason.unknown_entity");
     }
+    // `unknown_entity` names zones in its own message, so an unchecked zone id would store
+    // a dangling reference the reason code claims to prevent.
+    if (zoneId !== undefined && !state.map.zones.some((zone) => zone.id === zoneId)) {
+      return rejected(state, "unknown_entity", "world-graph.reason.unknown_entity");
+    }
 
     const staff = state.staff.find((entry) => entry.id === staffId);
     if (!staff) {
       return rejected(state, "unknown_entity", "world-graph.reason.unknown_entity");
     }
+
+    const nextBuildingAssignment = buildingId ?? null;
+    const nextZoneAssignment = zoneId ?? null;
 
     const nextState: WorldGraphKindState = {
       ...state,
@@ -502,9 +582,8 @@ export function advance(
         entry.id === staff.id
           ? {
               ...entry,
-              assignedBuildingId: buildingId ?? null,
-              assignedZoneId: zoneId ?? null,
-              zoneId: zoneId ?? entry.zoneId,
+              assignedBuildingId: nextBuildingAssignment,
+              assignedZoneId: nextZoneAssignment,
             }
           : entry,
       ),
@@ -516,12 +595,24 @@ export function advance(
       zoneId: zoneId ?? "",
     });
 
-    return {
-      state: nextState,
-      status: resolveStatus(nextState),
-      changes: [],
-      messages: [],
-    };
+    return accepted(nextState, [
+      change(
+        `staff.${staffId}.assignedBuildingId`,
+        "set",
+        nextBuildingAssignment ?? "",
+        "staff_assigned",
+        true,
+        staff.assignedBuildingId ?? "",
+      ),
+      change(
+        `staff.${staffId}.assignedZoneId`,
+        "set",
+        nextZoneAssignment ?? "",
+        "staff_assigned",
+        true,
+        staff.assignedZoneId ?? "",
+      ),
+    ]);
   }
 
   if (actionId === "set_price") {
@@ -558,29 +649,37 @@ export function advance(
     if (priceCents < product.priceRange.minCents || priceCents > product.priceRange.maxCents) {
       return rejected(state, "price_out_of_range", "world-graph.reason.price_out_of_range");
     }
-    if (building.pricesCents[productId] === priceCents) {
-      return { state, status: resolveStatus(state), changes: [], messages: [] };
+
+    const previousPrice = building.pricesCents[productId];
+    if (previousPrice === priceCents) {
+      return accepted(state, []);
     }
 
-    return {
-      state: {
-        ...state,
-        buildings: state.buildings.map((entry) =>
-          entry.id === building.id
-            ? {
-                ...entry,
-                pricesCents: {
-                  ...entry.pricesCents,
-                  [productId]: priceCents,
-                },
-              }
-            : entry,
-        ),
-      },
-      status: resolveStatus(state),
-      changes: [],
-      messages: [],
+    const nextState: WorldGraphKindState = {
+      ...state,
+      buildings: state.buildings.map((entry) =>
+        entry.id === building.id
+          ? {
+              ...entry,
+              pricesCents: {
+                ...entry.pricesCents,
+                [productId]: priceCents,
+              },
+            }
+          : entry,
+      ),
     };
+
+    return accepted(nextState, [
+      change(
+        `buildings.${buildingId}.pricesCents.${productId}`,
+        "set",
+        priceCents,
+        "price_set",
+        true,
+        previousPrice,
+      ),
+    ]);
   }
 
   if (actionId === "open_building" || actionId === "close_building") {
@@ -600,7 +699,7 @@ export function advance(
       return rejected(state, "unknown_entity", "world-graph.reason.unknown_entity");
     }
     if (building.isOpen === open) {
-      return { state, status: resolveStatus(state), changes: [], messages: [] };
+      return accepted(state, []);
     }
 
     const nextState: WorldGraphKindState = {
@@ -621,12 +720,16 @@ export function advance(
       open,
     });
 
-    return {
-      state: nextState,
-      status: resolveStatus(nextState),
-      changes: [],
-      messages: [],
-    };
+    return accepted(nextState, [
+      change(
+        `buildings.${buildingId}.isOpen`,
+        "set",
+        open,
+        open ? "building_opened" : "building_closed",
+        true,
+        building.isOpen,
+      ),
+    ]);
   }
 
   if (actionId === "dismiss_alert") {
@@ -649,6 +752,9 @@ export function advance(
     if (alert === undefined) {
       return rejected(state, "unknown_entity", "world-graph.reason.unknown_entity");
     }
+    if (alert.dismissedAtTick !== null) {
+      return accepted(state, []);
+    }
 
     alerts[index] = {
       ...alert,
@@ -657,15 +763,9 @@ export function advance(
 
     emitEvent(ctx, "kind.world-graph.alert.dismissed", "trace", { alertId });
 
-    return {
-      state: {
-        ...state,
-        alerts,
-      },
-      status: resolveStatus(state),
-      changes: [],
-      messages: [],
-    };
+    return accepted({ ...state, alerts }, [
+      change(`alerts.${alertId}.dismissedAtTick`, "set", state.tick, "alert_dismissed", true),
+    ]);
   }
 
   if (actionId === "advance_ticks") {
@@ -684,21 +784,20 @@ export function advance(
         : rejected(state, "ticks_not_positive", "world-graph.reason.ticks_not_positive");
     }
 
+    emitEvent(ctx, "kind.world-graph.batch.started", "debug", { ticks, tick: state.tick });
+
+    // W46 runs the 20-system pipeline here. Until it does, the batch is the counter alone —
+    // which satisfies batch invariance (§5) vacuously rather than demonstrating it.
     const nextState: WorldGraphKindState = {
       ...state,
       tick: state.tick + ticks,
     };
 
-    emitEvent(ctx, "kind.world-graph.ticks.advanced", "debug", {
-      ticks,
-    });
+    emitEvent(ctx, "kind.world-graph.batch.ended", "debug", { ticks, tick: nextState.tick });
 
-    return {
-      state: nextState,
-      status: resolveStatus(nextState),
-      changes: [],
-      messages: [],
-    };
+    return accepted(nextState, [
+      change("tick", "increment", nextState.tick, "ticks_advanced", true, state.tick),
+    ]);
   }
 
   return rejected(state, "unknown_action", "core.reason.unknown_action");

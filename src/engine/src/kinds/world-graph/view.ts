@@ -17,26 +17,48 @@ function mapZones(map: WorldGraphKindState["map"]): readonly string[] {
   return map.zones.map((zone) => zone.id);
 }
 
+/**
+ * Every reason the `build` reducer would reject this definition **regardless of where it is
+ * placed** (12 §10). Placement-dependent rejections — bounds, terrain, overlap,
+ * reachability — are not knowable without `(x, y, rotation)` and are what `previewAction`
+ * (§7) exists for.
+ *
+ * Exported because `availableActions` answers the same question about the verb, and two
+ * copies of this predicate would be free to disagree with each other and with the reducer.
+ */
+export function buildBlockers(
+  state: WorldGraphKindState,
+  definition: CampaignShape["buildingDefinitions"][number],
+): string[] {
+  const blockedBy: string[] = [];
+
+  if (definition.unlockAfterTick !== undefined && definition.unlockAfterTick > state.tick) {
+    blockedBy.push("building_locked");
+  }
+
+  if (definition.costCents > state.finances.cashCents) {
+    blockedBy.push("insufficient_funds");
+  }
+
+  if (definition.maxCount !== null) {
+    const existing = state.buildings.filter((building) => building.definitionId === definition.id).length;
+    if (existing >= definition.maxCount) {
+      blockedBy.push("action_not_available");
+    }
+  }
+
+  return blockedBy;
+}
+
 function buildOptions(state: WorldGraphKindState, campaign: CampaignShape): WorldGraphView["buildOptions"] {
-  const options = campaign.buildingDefinitions.map((definition) => {
-    const blockedBy: string[] = [];
-    const locked = definition.unlockAfterTick !== undefined && definition.unlockAfterTick > state.tick;
-    if (locked) {
-      blockedBy.push("world-graph.reason.building_locked");
-    }
-
-    if (definition.costCents > state.finances.cashCents) {
-      blockedBy.push("world-graph.reason.insufficient_funds");
-    }
-
+  return campaign.buildingDefinitions.map((definition) => {
+    const blockedBy = buildBlockers(state, definition);
     return {
       definitionId: definition.id,
       canBuild: blockedBy.length === 0,
       blockedBy,
     };
   });
-
-  return options;
 }
 
 function mapBuildings(buildings: readonly Building[]): WorldGraphView["buildings"] {
@@ -56,7 +78,8 @@ function mapStaff(state: WorldGraphKindState): WorldGraphView["staff"] {
     id: member.id,
     roleId: member.roleId,
     status: member.status,
-    zoneId: member.zoneId,
+    // From `assignedZoneId`; there is no second, derived membership field (12 §3.3).
+    zoneId: member.assignedZoneId,
     buildingId: member.assignedBuildingId,
   }));
 }

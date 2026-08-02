@@ -16,6 +16,10 @@ function isPositiveInteger(value: number): boolean {
   return Number.isInteger(value) && value > 0;
 }
 
+function isNonNegativeInteger(value: number): boolean {
+  return Number.isInteger(value) && value >= 0;
+}
+
 function defaultFinances(content: WorldGraphCampaign["startingFinances"]): WorldGraphKindState["finances"] {
   return {
     cashCents: content.cashCents,
@@ -109,6 +113,9 @@ export function initialState(campaign: Campaign): InitialStateResult<WorldGraphK
   const buildings: Building[] = [];
   for (const placement of startingBuildings) {
     const definition = content.buildingDefinitions.find((entry) => entry.id === placement.definitionId);
+    // Unreachable for a validated campaign: Tier 1 rejects a placement whose definition is
+    // missing or malformed (12 §15), precisely so a scenario cannot load with a building
+    // silently absent. Kept as a total-function guard, not as a policy.
     if (!definition) {
       continue;
     }
@@ -133,12 +140,13 @@ export function initialState(campaign: Campaign): InitialStateResult<WorldGraphK
       return {
         id: staffId,
         roleId: entry.roleId,
-        x: isPositiveInteger(entry.x) ? entry.x : 0,
-        y: isPositiveInteger(entry.y) ? entry.y : 0,
+        // `0` is a legal tile coordinate, so the guard is non-negative, not positive.
+        // Tier 1 (`validate.ts`) rejects anything outside the map before this runs.
+        x: isNonNegativeInteger(entry.x) ? entry.x : 0,
+        y: isNonNegativeInteger(entry.y) ? entry.y : 0,
         status: "off_duty" as const,
         assignedBuildingId: entry.assignedBuildingId ?? null,
         assignedZoneId: entry.assignedZoneId ?? null,
-        zoneId: null,
         drawCount: 0,
         task: null,
         tasksCompleted: 0,

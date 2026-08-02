@@ -23,7 +23,10 @@ export function resolveOutcome(state: { readonly objectives: readonly ObjectiveP
   const failureId = state.objectives.find(isObjectiveFailed)?.id ?? null;
   const hasActiveObjective = state.objectives.some((objective) => objective.state === "active");
 
-  if (hasActiveObjective) {
+  // A resolution requires at least one objective (12 §8). Reading "none active" as a win
+  // would make an objective-less campaign `ended` before the player saw a tick; such a
+  // campaign is a sandbox, and validation warns about it at Tier 2 instead.
+  if (state.objectives.length === 0 || hasActiveObjective) {
     return {
       resolution: null,
       objectivesMet,

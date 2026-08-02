@@ -626,7 +626,7 @@ when it declined a programme doc for this kind.
 - [ ] **W44 proposed — resolution contract:** the 20-system pipeline, utility scoring,
       pathfinding costs, queue/service semantics and every deterministic tie-break.
 - [ ] **W45 proposed — kind skeleton and immediate actions:** validation, initial state,
-      projection/outcome, assembly and the eight no-time-passes reducers.
+      projection/outcome, assembly and the nine no-time-passes reducers.
 - [ ] **W46 proposed — deterministic tick pipeline:** fixed-order systems, bounded
       `advance_ticks`, derived streams and batch invariance.
 - [ ] **W47 proposed — MVP vertical slice:** spawn → walk → queue → buy → litter → clean →

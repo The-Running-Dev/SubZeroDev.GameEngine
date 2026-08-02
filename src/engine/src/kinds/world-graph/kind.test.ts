@@ -5,7 +5,7 @@ import type { EngineHost } from "../../core/composition/types.js";
 import type { Campaign, ContentRegistry } from "../../core/registry/types.js";
 import type { WorldGraphCampaign } from "./campaign.js";
 import { worldGraphKind } from "./kind.js";
-import type { WorldGraphKindState } from "./state.js";
+import type { WorldGraphKindState, WorldGraphView } from "./state.js";
 
 const map = {
   width: 4,
@@ -29,6 +29,7 @@ const content: WorldGraphCampaign = {
   map,
   startingFinances: { cashCents: 1_000 },
   maxAdvanceTicksPerAction: 3,
+  ticksPerDay: 96,
   buildingDefinitions: [{
     id: "drink-stand",
     width: 1,
@@ -50,9 +51,13 @@ const campaign: Campaign = {
   content,
 };
 
-function makeEngine() {
+function campaignWith(overrides: Partial<WorldGraphCampaign>): Campaign {
+  return { ...campaign, content: { ...content, ...overrides } };
+}
+
+function makeEngine(from: Campaign = campaign) {
   const registry: ContentRegistry = {
-    campaigns: new Map([[campaign.id, campaign]]),
+    campaigns: new Map([[from.id, from]]),
     strings: new Map(),
   };
   const host: EngineHost = {
@@ -63,14 +68,18 @@ function makeEngine() {
   return createEngine(host);
 }
 
-function createdWorld() {
-  const created = makeEngine().createGame({ campaignId: campaign.id });
+function createdWorld(from: Campaign = campaign) {
+  const created = makeEngine(from).createGame({ campaignId: from.id });
   if (!created.ok || created.value === undefined) throw new Error("expected a new world");
   return created.value;
 }
 
 function kindState(state: { kindState: unknown }): WorldGraphKindState {
   return state.kindState as WorldGraphKindState;
+}
+
+function validate(from: Campaign, strings: ReadonlyMap<string, string> = new Map([["world.description", "d"]])) {
+  return worldGraphKind.validateCampaign(from, strings);
 }
 
 describe("worldGraphKind — immediate actions", () => {
@@ -86,7 +95,14 @@ describe("worldGraphKind — immediate actions", () => {
     const engine = makeEngine();
     const action = engine.availableActions(createdWorld()).find((entry) => entry.id === "build");
 
-    expect(action).toMatchObject({ available: true });
+    expect(action).toMatchObject({ available: true, labelKey: "world-graph.action.build" });
+  });
+
+  it("gives every verb its own label key", () => {
+    const engine = makeEngine();
+    const labels = engine.availableActions(createdWorld()).map((entry) => entry.labelKey);
+
+    expect(new Set(labels).size).toBe(labels.length);
   });
 
   it("builds without advancing time and allocates unique nested entity ids", () => {
@@ -109,6 +125,21 @@ describe("worldGraphKind — immediate actions", () => {
     expect(state.finances.cashCents).toBe(700);
   });
 
+  it("returns a StateChange for the cash spent and the building placed", () => {
+    const engine = makeEngine();
+    const result = engine.submitAction(createdWorld(), "build", {
+      definitionId: "drink-stand",
+      x: 1,
+      y: 1,
+      rotation: 0,
+    });
+
+    expect(result.changes).toEqual([
+      { path: "finances.cashCents", op: "decrement", value: 700, previous: 1_000, reason: "building_placed", visible: true },
+      { path: "buildings", op: "set", value: "building:0", reason: "building_placed", visible: false },
+    ]);
+  });
+
   it("rejects an unaffordable build without changing state or appending an action", () => {
     const engine = makeEngine();
     const initial = createdWorld();
@@ -126,6 +157,108 @@ describe("worldGraphKind — immediate actions", () => {
     expect(result.ok).toBe(false);
     expect(result.errors[0]?.code).toBe("insufficient_funds");
     expect(poor.actionLog).toEqual([]);
+  });
+
+  it("separates an out-of-bounds placement from an unsuitable one", () => {
+    const engine = makeEngine();
+    const outside = engine.submitAction(createdWorld(), "build", {
+      definitionId: "drink-stand",
+      x: 4,
+      y: 4,
+      rotation: 0,
+    });
+
+    expect(outside.errors[0]?.code).toBe("placement_out_of_bounds");
+    expect(outside.errors[0]?.messageKey).toBe("world-graph.reason.placement_out_of_bounds");
+  });
+
+  it("reports a definition at its scenario cap as action_not_available, not unknown_entity", () => {
+    const capped = campaignWith({
+      buildingDefinitions: [{ ...content.buildingDefinitions[0]!, maxCount: 1 }],
+    });
+    const engine = makeEngine(capped);
+    const first = engine.submitAction(createdWorld(capped), "build", { definitionId: "drink-stand", x: 1, y: 1, rotation: 0 });
+    if (!first.ok || first.value === undefined) throw new Error("expected a placed building");
+    const second = engine.submitAction(first.value, "build", { definitionId: "drink-stand", x: 2, y: 2, rotation: 0 });
+
+    expect(second.ok).toBe(false);
+    expect(second.errors[0]).toMatchObject({
+      code: "action_not_available",
+      messageKey: "core.reason.action_not_available",
+    });
+  });
+
+  it("publishes the capped definition as blocked in the projection too", () => {
+    const capped = campaignWith({
+      buildingDefinitions: [{ ...content.buildingDefinitions[0]!, maxCount: 1 }],
+    });
+    const engine = makeEngine(capped);
+    const built = engine.submitAction(createdWorld(capped), "build", { definitionId: "drink-stand", x: 1, y: 1, rotation: 0 });
+    if (!built.ok || built.value === undefined) throw new Error("expected a placed building");
+
+    const view = engine.view(built.value, "player").kindView as WorldGraphView;
+    expect(view.buildOptions[0]).toMatchObject({ canBuild: false, blockedBy: ["action_not_available"] });
+    expect(engine.availableActions(built.value).find((entry) => entry.id === "build")).toMatchObject({
+      available: false,
+      reasonKey: "core.reason.action_not_available",
+    });
+  });
+
+  it("rejects an assignment to a zone the map does not declare", () => {
+    const engine = makeEngine();
+    const hired = engine.submitAction(createdWorld(), "hire_staff", { roleId: "vendor" });
+    if (!hired.ok || hired.value === undefined) throw new Error("expected hired staff");
+    const result = engine.submitAction(hired.value, "assign_staff", { staffId: "staff:0", zoneId: "zone:nowhere" });
+
+    expect(result.ok).toBe(false);
+    expect(result.errors[0]?.code).toBe("unknown_entity");
+  });
+
+  it("demolishing detaches guests and dismisses its alerts rather than deleting them", () => {
+    const engine = makeEngine();
+    const built = engine.submitAction(createdWorld(), "build", { definitionId: "drink-stand", x: 1, y: 1, rotation: 0 });
+    if (!built.ok || built.value === undefined) throw new Error("expected a placed building");
+
+    const queueId = kindState(built.value).buildings[0]!.queue.id;
+    const withGuest = {
+      ...built.value,
+      kindState: {
+        ...kindState(built.value),
+        guests: [{
+          id: "guest:9",
+          archetypeId: "day-tripper",
+          lifecycle: "queued" as const,
+          tickEntered: 0,
+          x: 0,
+          y: 0,
+          path: [],
+          pathIndex: 0,
+          drawCount: 0,
+          targetBuildingId: "building:0",
+          targetQueueId: queueId,
+          targetProductId: "water",
+          targetWaitTicks: 10,
+          needs: { hunger: 50, rest: 50, social: 50, comfort: 50, hygiene: 50, safety: 50 },
+          conditions: { mood: 0, patienceRemainingTicks: 10, lastServedTick: null, spentTicks: 0 },
+          opinions: { price: 0, variety: 0, cleanliness: 0, safety: 0, attractiveness: 0, queues: 0, service: 0 },
+          preferences: { noiseTolerance: 0, spendingCategory: "balanced" as const, loyaltyMultiplier: 10_000 },
+        }],
+      },
+    };
+
+    const gone = engine.submitAction(withGuest, "demolish", { buildingId: "building:0" });
+    if (!gone.ok || gone.value === undefined) throw new Error("expected a demolished building");
+    const state = kindState(gone.value);
+
+    expect(state.buildings).toEqual([]);
+    expect(state.guests[0]).toMatchObject({
+      lifecycle: "seeking",
+      targetBuildingId: null,
+      targetQueueId: null,
+      targetProductId: null,
+    });
+    expect(state.alerts).toHaveLength(1);
+    expect(state.alerts[0]?.dismissedAtTick).toBe(0);
   });
 
   it("runs each immediate reducer without advancing the tick", () => {
@@ -154,6 +287,117 @@ describe("worldGraphKind — immediate actions", () => {
     expect(state.staff).toEqual([]);
     expect(state.alerts[0]?.dismissedAtTick).toBe(0);
   });
+
+  it("keeps every collection in id order, with ordinals compared numerically", () => {
+    // Enough buildings to push an ordinal past 9, where a lexicographic comparison would
+    // put `building:10` before `building:2` (12 §3.4).
+    const rich = campaignWith({ startingFinances: { cashCents: 100_000 } });
+    const engine = makeEngine(rich);
+    let state = createdWorld(rich);
+    const cells = [
+      [0, 1], [1, 1], [2, 1], [3, 1],
+      [0, 2], [1, 2], [2, 2], [3, 2],
+      [0, 3], [1, 3], [2, 3], [3, 3],
+    ] as const;
+    for (const [x, y] of cells) {
+      const result = engine.submitAction(state, "build", { definitionId: "drink-stand", x, y, rotation: 0 });
+      if (!result.ok || result.value === undefined) throw new Error("expected a placed building");
+      state = result.value;
+    }
+
+    const ids = kindState(state).buildings.map((building) => building.id);
+    const ordinals = ids.map((id) => Number(id.split(":")[1]));
+
+    expect(ordinals.at(-1)).toBeGreaterThan(9);
+    expect(ordinals).toEqual([...ordinals].sort((a, b) => a - b));
+    // The trap the numeric rule exists for: a string sort disagrees with this order.
+    expect(ids).not.toEqual([...ids].sort());
+  });
+});
+
+describe("worldGraphKind — status and outcome", () => {
+  it("stays active when a campaign declares no objectives", () => {
+    const sandbox = campaignWith({ objectiveDefinitions: [] });
+    const created = createdWorld(sandbox);
+
+    expect(created.status).toBe("active");
+    expect(worldGraphKind.outcome(kindState(created))).toMatchObject({ resolution: null });
+  });
+
+  it("warns at Tier 2 about a campaign that can never resolve", () => {
+    const result = validate(campaignWith({ objectiveDefinitions: [] }));
+
+    expect(result.ok).toBe(true);
+    expect(result.warnings[0]?.path).toBe("objectiveDefinitions");
+  });
+
+  it("warns at Tier 2 about a campaign already resolved at tick 0", () => {
+    const result = validate(campaignWith({ objectiveDefinitions: [{ id: "free", target: 0 }] }));
+
+    expect(result.ok).toBe(true);
+    expect(result.warnings[0]?.path).toBe("objectiveDefinitions");
+  });
+});
+
+describe("worldGraphKind — validation", () => {
+  it("accepts the reference campaign with no errors", () => {
+    expect(validate(campaign).ok).toBe(true);
+  });
+
+  it("rejects a non-positive ticksPerDay", () => {
+    const result = validate(campaignWith({ ticksPerDay: 0 }));
+
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((error) => error.path === "ticksPerDay")).toBe(true);
+  });
+
+  it("rejects a default price outside its own band", () => {
+    const result = validate(campaignWith({
+      buildingDefinitions: [{
+        ...content.buildingDefinitions[0]!,
+        products: [{ id: "water", defaultPriceCents: 500, priceRange: { minCents: 100, maxCents: 200 } }],
+      }],
+    }));
+
+    expect(result.ok).toBe(false);
+  });
+
+  it("rejects a pre-placed building that leaves the map", () => {
+    const result = validate(campaignWith({
+      startingBuildings: [{ definitionId: "drink-stand", x: 9, y: 9, rotation: 0 }],
+    }));
+
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((error) => error.path === "startingBuildings.0.position")).toBe(true);
+  });
+
+  it("rejects two pre-placed buildings sharing a tile", () => {
+    const result = validate(campaignWith({
+      startingBuildings: [
+        { definitionId: "drink-stand", x: 1, y: 1, rotation: 0 },
+        { definitionId: "drink-stand", x: 1, y: 1, rotation: 0 },
+      ],
+    }));
+
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((error) => error.path === "startingBuildings.1.overlap")).toBe(true);
+  });
+
+  it("rejects a pre-placed building whose definition does not exist", () => {
+    const result = validate(campaignWith({
+      startingBuildings: [{ definitionId: "no-such-thing", x: 1, y: 1, rotation: 0 }],
+    }));
+
+    expect(result.ok).toBe(false);
+  });
+
+  it("rejects duplicate objective ids", () => {
+    const result = validate(campaignWith({
+      objectiveDefinitions: [{ id: "stay-open", target: 1 }, { id: "stay-open", target: 2 }],
+    }));
+
+    expect(result.ok).toBe(false);
+  });
 });
 
 describe("worldGraphKind — advance_ticks", () => {
@@ -168,5 +412,17 @@ describe("worldGraphKind — advance_ticks", () => {
     const tooMany = engine.submitAction(createdWorld(), "advance_ticks", { ticks: 4 });
     expect(tooMany.ok).toBe(false);
     expect(tooMany.errors[0]?.code).toBe("tick_limit_reached");
+  });
+
+  it("reaches the same kindState however the batch is split (§5)", () => {
+    const engine = makeEngine();
+    const split = engine.submitAction(
+      engine.submitAction(createdWorld(), "advance_ticks", { ticks: 1 }).value!,
+      "advance_ticks",
+      { ticks: 2 },
+    );
+    const whole = engine.submitAction(createdWorld(), "advance_ticks", { ticks: 3 });
+
+    expect(kindState(split.value!)).toEqual(kindState(whole.value!));
   });
 });
