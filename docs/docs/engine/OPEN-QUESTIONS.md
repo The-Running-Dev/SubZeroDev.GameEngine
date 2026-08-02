@@ -42,6 +42,27 @@ answer now lives — so a later reader finds the reasoning without re-opening th
 
 Settled as out of MVP scope. Listed so they resurface deliberately, not by accident.
 
+- **The engine package published *public*, and the plans specify private.** `v0.4.0`
+  published `@the-running-dev/game-engine` to GitHub Packages on 2026-08-02 with
+  `visibility: public`, verified against the packages API. Two plan documents still specify
+  otherwise, each now carrying a pointer to this entry: `plans/39` Decision 4 ("a private
+  GitHub Packages npm package") and `plans/40`'s non-goals ("**No public npm publication.**
+  Private GitHub Packages only").
+
+  Checking why turned up a larger stale premise: **both `SubZeroDev.GameEngine` and
+  `SubZeroDev.SunTrap` are public repositories.** [`TODO.md`](TODO.md) described all
+  companions as private until the same change that added this entry corrected it. Nothing was
+  exposed that was not already public — the engine source has been readable throughout — so
+  this is a contract-versus-reality gap, not an incident.
+
+  Two coherent resolutions, and they differ in what they cost. **Accept public** and correct
+  the documents: a private package fronting a public repository protects nothing and adds an
+  authentication step to Sun Trap's CI for no benefit. **Or make it private** through the
+  package's own settings — there is no REST API for visibility — and grant Sun Trap read
+  access, which W41's ledger then needs reopened.
+
+  **Revisit when:** Sun Trap's M1 actually consumes the package, since that is the first
+  moment the authentication difference is felt rather than theorised.
 - **Provisional simulation numbers** — drift rates, scenario economics, `demandBand`
   thresholds, housing-quality formula, travel costs. Need a balancing pass once the sim
   harness runs. ([`TODO.md`](TODO.md) → Known open items; simulation kind.)

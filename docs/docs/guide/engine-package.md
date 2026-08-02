@@ -65,11 +65,20 @@ comparison (07 §8) runs the corpus against the previous tag.
 
 ## Companion Consumption
 
-The package is `@the-running-dev/game-engine`, **configured for** private publication to
-GitHub Packages. The boundary is built and gated, but **no version has been published yet** —
-there is no installable registry artefact today. `release-engine-package.yml` runs on a `v*`
-tag push, and the tags that exist all predate it. The first publication ships whatever
+The package is `@the-running-dev/game-engine`, published to GitHub Packages. The first
+version, **`0.4.0`, went out on 2026-08-02** from the `v0.4.0` tag, and it is installable
+today.
+
+`release-engine-package.yml` runs on a `v*` tag push and ships whatever
 `src/engine/package.json` says at that tag, so the manifest version and the tag move together.
+`v0.4.0` is the first tag where they do — `v0.1.0` shipped `0.0.0`, and `v0.2.0` and `v0.3.0`
+both shipped `0.1.0`, harmless only because nothing was published from them.
+
+> **On visibility.** The package published **public**, while the plans behind it specify a
+> private one. Which of the two is wrong is an open question
+> ([`OPEN-QUESTIONS.md`](/docs/engine/open-questions) §2): both repositories are public, so a
+> private package would protect nothing, but the decision has not been taken. Until it is, the
+> install below needs no authentication — and that is a fact about today, not a guarantee.
 
 Companion projects consume it by registry from a tarball built and published in
 `release-engine-package.yml`, not by source-tree `file:` links — a `file:` link resolves
@@ -78,20 +87,24 @@ broken. The package has one declaration-bearing ESM root export, defined at
 `src/engine/src/index.ts` and reached through `exports["."]` in `package.json`; deep paths
 into `dist/` are deliberately unresolvable rather than merely discouraged.
 
-Once a version exists, consume it with:
+Consume it with:
 
 ```bash
 npm config set @the-running-dev:registry https://npm.pkg.github.com
-npm install @the-running-dev/game-engine
+npm install @the-running-dev/game-engine@0.4.0
 ```
 
-GitHub Packages requires an auth token tied to a repo that grants that package read access.
-The engine repository's release workflow publishes with `GITHUB_TOKEN`; companion workflows
-should use a repository-scoped token with package read permission.
+Pin the exact version rather than a range. The whole point of the boundary is that a companion
+records which engine it was proven against.
+
+The engine repository's release workflow publishes with `GITHUB_TOKEN` and stores no
+credential. A consumer needs no token while the package is public; if it is made private
+(see the visibility note above), companion workflows will need a repository-scoped token with
+package read permission.
 
 ## Where the work is going
 
-[TODO](/docs/engine/todo) breaks the work into ordered units. The MVP and replay oracle are
-done. The companion consumer boundary above is **merged and gated in CI, but its first
-publication has not happened** — those are two separate facts and the programme tracks them
-separately. The programme in progress builds the `world-graph` kind, contract first.
+[TODO](/docs/engine/todo) breaks the work into ordered units. The MVP, the replay oracle and
+the companion consumer boundary above are done — the last of those including its first
+published version, which the programme tracked as a separate fact from the boundary being
+merged. The programme in progress builds the `world-graph` kind, contract first.

@@ -48,7 +48,8 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
       [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife) and
       [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap), and
       the hosting layer [SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform).
-      All private.
+      This repository and Sun Trap are **public** — verified 2026-08-02, when the engine
+      package's own visibility raised the question. This line previously said "All private."
 - [x] **Seeded PRNG (PCG32)** + `deriveStream` substreams, serializable state.
       `src/engine/src/core/determinism/pcg32.ts` — verified bit-identical to the reference vectors.
 - [x] **Canonical serialization** (sorted keys, rejects non-finite).
@@ -590,7 +591,7 @@ when it declined a programme doc for this kind.
       (the encoder, exhaustiveness-guarded). `simulation`'s NPC draws and this kind's tick
       draws already have a reachable home — 04 §3.1's own callout box already documents
       `derive` closing exactly the reachability gap this checkbox describes as still open.
-- [~] **W41 — companion-package consumer boundary: built and merged, not yet published.**
+- [x] **W41 — companion-package consumer boundary: built, merged, and published.**
       [PR #108](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/108) landed the
       whole boundary: the package renamed to `@the-running-dev/game-engine`, one root export
       (`src/engine/src/index.ts`, explicit named re-exports only), `exports` with `types` and
@@ -603,11 +604,15 @@ when it declined a programme doc for this kind.
       had never tracked the release tags (`v0.1.0` shipped `0.0.0`; `v0.2.0` and `v0.3.0` both
       shipped `0.1.0`), harmless while private and unpublished, fatal once `npm publish` ships
       what the manifest says. Set to `0.3.0`; tag and manifest move together from here.
-      **Two items remain, and both are the repository owner's**: no version has been published
-      (verified — the account has no npm packages, and the three existing tags all predate the
-      release workflow), so Sun Trap has nothing to be granted read access to yet. Publishing
-      is a tag push; the M1 handoff coordinate gets recorded in `plans/40`'s Done-When when it
-      happens.
+      **Now complete.** `@the-running-dev/game-engine@0.4.0` published on the `v0.4.0` tag
+      (2026-08-02), verified against the packages API rather than inferred from the workflow's
+      exit status; the coordinate is recorded in `plans/40`'s Done-When, and milestone **T0**
+      is reached. One deviation, recorded rather than waved through: it published **public**
+      where `plans/39` and `plans/40` specify private. That also surfaced a stale claim in
+      this file's own introduction, which described every companion repository as private when
+      this one and Sun Trap are public — corrected in the same change
+      ([`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §2). No read-access grant was needed as a
+      result.
       **Plan:** [`plans/40-w41-engine-consumer-boundary.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/40-w41-engine-consumer-boundary.md)
 - [ ] **W42 proposed — runtime-state contract:** authoritative map, guest, building, queue,
       staff, construction and finance shapes. **Ready to execute** —
