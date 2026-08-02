@@ -63,7 +63,27 @@ This is what the replay regression oracle's `capturedUnder` reads
 `ENGINE_VERSION` that was current when its outcome was recorded, and the oracle's release-tag
 comparison (07 §8) runs the corpus against the previous tag.
 
+## Companion Consumption
+
+The package is not a supported cross-repository dependency yet: it is still named
+`game-engine`, marked `private`, and has no public export map or publication workflow.
+Companion repositories must not make deep imports from `src/` or treat a sibling checkout as
+their CI contract.
+
+The decided delivery target is a private GitHub Packages npm package named
+`@the-running-dev/game-engine`, published from the existing `src/engine/` directory. It will
+provide one declaration-bearing ESM root export, be linked to this repository, and be consumed
+by exact semver plus a committed lockfile. GitHub Actions in an explicitly granted companion
+repository will install it with package-read permission; release publication will use this
+repository's short-lived `GITHUB_TOKEN`, not a committed credential.
+
+The first unit in the [world-graph programme](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/39-world-graph-kind-programme.md)
+implements and proves that boundary with a packed-tarball consumer smoke test before any
+companion game relies on it. Local `file:` links may remain a developer convenience, but they
+do not satisfy the consumer gate because they are mutable and depend on checkout layout.
+
 ## Where the work is going
 
-[TODO](/docs/engine/todo) breaks the MVP into ordered units. The MVP itself (W0–W19) is done;
-the replay regression oracle (W20–W23) is the current work.
+[TODO](/docs/engine/todo) breaks the work into ordered units. The MVP and replay oracle are
+done; the next proposed programme starts with the companion consumer boundary and then builds
+the `world-graph` kind.

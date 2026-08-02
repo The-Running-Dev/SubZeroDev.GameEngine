@@ -1,7 +1,7 @@
 # The `world-graph` Kind — Programme
 
 **Units:** [`docs/docs/engine/TODO.md`](../docs/docs/engine/TODO.md) — *Depth: Sun Trap*.
-Proposed as **W41–W48**, numbers assigned when each is cut.
+Proposed as **W41–W49**, numbers assigned when each is cut.
 
 **Scope:** Umbrella plan for the third engine-owned kind: finishing its contract in this
 repository, then building it against that contract. Records how the work splits and why,
@@ -99,7 +99,7 @@ into an ordinary build unit unremarked. It touches `Engine`, `SessionStore`, the
 and the MCP server (confirmed absent from all four by direct search), plus `09-clients.md`
 §4's coverage checklist and `MVP.md` §5, which `12-world-graph-kind.md` §7 requires change
 "in one change, not three." That is real, cross-cutting surface area — kept as its own build
-unit here (B4) rather than folded silently into validation/corpus (B5), so its own review
+unit here (W48) rather than folded silently into validation/corpus (W49), so its own review
 doesn't have to compete with an unrelated concern for attention.
 
 ### 5. The tick-substrate deferral's own "revisit when" condition is now met — and the answer is still "not yet"
@@ -108,21 +108,32 @@ doesn't have to compete with an unrelated concern for attention.
 substrate with a stated trigger: *"revisit when the second tick-driven kind is
 implemented."* This programme is that kind, cut before implementation, not after — the
 condition names *implemented*, not merely scheduled. The call stands unchanged: extract
-nothing until this kind's own tick pipeline (B2) is real code and a second, independent data
+nothing until this kind's own tick pipeline (W46) is real code and a second, independent data
 point exists to generalize from. Restated here rather than silently re-applied, since the
 trigger being *close* is exactly the situation `OPEN-QUESTIONS.md` itself asks to be
 recorded, not just remembered.
 
-### 6. Package consumability is real, but does not block this programme
+### 6. Package consumability is the programme's entry unit, not a postscript
 
-Auditing the engine's own consumability (`src/engine/package.json`'s `"private": true`, no
-export barrel, no publish workflow — every existing campaign, `story-graph` and
-`simulation` alike, has been proven entirely with fixtures committed inside this repository,
-never consumed cross-repo) found a genuine gap peer review surfaced. It does not block
-*this* programme: `SubZeroDev.SunTrap/docs/docs/product/mvp.md` §0 states plainly that
-"nothing here starts until that kind exists," so Sun Trap will not attempt to consume this
-package before the Build phase below produces something to consume. **Explicit non-goal**,
-below — revisited when Sun Trap is actually ready to write real campaign code, not before.
+Auditing the engine's own consumability found a genuine gap: `src/engine/package.json` is
+`"private": true`, has no export map or public barrel, and has no publish workflow. Every
+existing campaign and kind has therefore been proven only by fixtures inside this repository,
+never by a real companion consumer. Sun Trap's implementation programme now makes that gap
+an explicit M1 gate before its world-graph work.
+
+The mechanism is decided here rather than deferred: keep the current `src/engine/` source
+layout and publish **`@the-running-dev/game-engine` as a private npm package in GitHub
+Packages**, linked to this repository. Companion CI installs an exact semver through the npm
+registry with package read access; local sibling links may be convenient experiments but are
+never acceptance evidence. GitHub Packages requires a scoped, lowercase npm name, supports a
+repository-linked private package, and permits a separately granted companion repository to
+read it with `GITHUB_TOKEN`. That makes a Git reference or a mutable `file:` dependency
+unnecessary and gives both repositories one immutable boundary.
+
+This does not require world-graph code to exist first. W41 proves the public surface with the
+already-built core and kinds; later units add world-graph exports as those symbols become
+real. It is therefore safe infrastructure before the contract units, not an exception to
+contract-first implementation.
 
 ### 7. A small doc defect, fixed alongside this plan: `tick_limit_exceeded` vs `tick_limit_reached`
 
@@ -136,32 +147,192 @@ plan; too small to hold up behind a full unit.
 
 ## The Split
 
+### Consumer boundary (before kind contract and code)
+
+| W | Unit | Scope |
+|---|---|---|
+| **W41** | Companion-package consumer boundary | Public root entry point and export map; declaration-bearing ESM artefact; private GitHub Packages publication; packed-tarball consumer smoke test; CI build/publish gates; companion authentication and exact-version contract |
+
+This is infrastructure around already-built code, not world-graph implementation. It can
+land before the kind contract without violating Decision 1.
+
 ### Contract (doc-only, must complete before any code)
 
 | W | Unit | Source | Scope |
 |---|---|---|---|
-| **W41** | State types | `content-and-systems.md` §§2–9 | `ResortMap`, `Guest`, `Building`, `Queue`, `Staff`, `ConstructionSite`, `Finances`, `Loan` — ported into `12-world-graph-kind.md` §3, replacing today's top-level-only sketch |
-| **W42** | Content-definition types | `game-design.md` (needs, opinions, adjacency, placement, incidents), `content-and-systems.md` §10's one-paragraph list | `GuestArchetypeDefinition`, `BuildingDefinition`, `StaffRoleDefinition`, `ProductDefinition`, `ScenarioDefinition`, `ObjectiveDefinition`, `IncidentDefinition`, `TerrainDefinition`, `PolicyDefinition`, `AchievementDefinition` — genuinely new design, not transcription (Finding 2) |
-| **W43** | Resolution and systems detail | `12-world-graph-kind.md` §4, §9, `content-and-systems.md` §§8–9 | The 20-system tick-pipeline order restated against real types; utility-scoring and pathfinding cost-model shapes; tie-breaking rules already normative in §9, restated alongside the functions that implement them |
+| **W42** | State types | `content-and-systems.md` §§2–9 | `ResortMap`, `Guest`, `Building`, `Queue`, `Staff`, `ConstructionSite`, `Finances`, `Loan` — ported into `12-world-graph-kind.md` §3, replacing today's top-level-only sketch |
+| **W43** | Content-definition types | `game-design.md` (needs, opinions, adjacency, placement, incidents), `content-and-systems.md` §10's one-paragraph list | `GuestArchetypeDefinition`, `BuildingDefinition`, `StaffRoleDefinition`, `ProductDefinition`, `ScenarioDefinition`, `ObjectiveDefinition`, `IncidentDefinition`, `TerrainDefinition`, `PolicyDefinition`, `AchievementDefinition` — genuinely new design, not transcription (Finding 2) |
+| **W44** | Resolution and systems detail | `12-world-graph-kind.md` §4, §9, `content-and-systems.md` §§8–9 | The 20-system tick-pipeline order restated against real types; utility-scoring and pathfinding cost-model shapes; tie-breaking rules already normative in §9, restated alongside the functions that implement them |
 
 Split by type cluster with a natural review boundary, the same reasoning `plans/36` gave for
-its own four-way split: each is reviewable on its own, and W42 in particular needs room to be
+its own four-way split: each is reviewable on its own, and W43 in particular needs room to be
 judged as design, not skimmed as a port.
 
 ### Build (code, against the completed contract)
 
 | W | Unit | Mirrors |
 |---|---|---|
-| **W44** | State types as code, `initialState`, the eight immediate-mutation actions | `simulation`'s W36, minus the plan concept (Finding 3) |
-| **W45** | The 20-system tick pipeline | `simulation`'s W37 — pipeline + honest stubs, the same discipline |
-| **W46** | The MVP vertical slice: spawn → walk → queue → buy → litter → clean → win/lose | `simulation`'s W39 |
-| **W47** | `previewAction` across `Engine`/`SessionStore`/text client/MCP, plus the ten-operation amendment to `09-clients.md` §4 and `MVP.md` §5 | Not mirrored by `simulation` — genuinely new, cross-cutting (Finding 4) |
-| **W48** | Validation, the MVP scenario, replay corpus | `simulation`'s W40 |
+| **W45** | State types as code, `initialState`, the eight immediate-mutation actions | `simulation`'s W36, minus the plan concept (Finding 3) |
+| **W46** | The 20-system tick pipeline | `simulation`'s W37 — pipeline + honest stubs, the same discipline |
+| **W47** | The MVP vertical slice: spawn → walk → queue → buy → litter → clean → win/lose | `simulation`'s W39 |
+| **W48** | `previewAction` across `Engine`/`SessionStore`/text client/MCP, plus the ten-operation amendment to `09-clients.md` §4 and `MVP.md` §5 | Not mirrored by `simulation` — genuinely new, cross-cutting (Finding 4) |
+| **W49** | Validation, the MVP scenario, replay corpus | `simulation`'s W40 |
 
 Five build units against three contract units — one more on each side than `simulation`'s
 3-and-3, for reasons Findings 2 and 4 already state: content-definition types are real
 design work here, not transcription, and `previewAction` is real cross-cutting surface area
-`simulation` never had to touch.
+`simulation` never had to touch. W41 is a delivery unit around the whole engine rather than
+a sixth kind build unit.
+
+---
+
+## Checkable Delivery Ledger
+
+This is the programme-level source of truth. A unit may expand these items in its own plan,
+but it may not silently drop them. Check a box only when merged evidence exists.
+
+### Baseline — evidenced before implementation
+
+- [x] Sun Trap has an implementation programme and an MVP boundary to size against.
+- [x] `tick_limit_reached` is the single canonical tick-cap reason code in the contract.
+- [x] Engine-owned mechanical types versus game-owned concrete values is explicit in §17.
+- [x] `KindContext.derive` and the `tick`/`agent` stream variants already exist.
+- [x] The current package gap and current package layout have been audited.
+- [x] The companion delivery mechanism is decided: private GitHub Packages npm artefact.
+
+### W41 — companion-package consumer boundary
+
+- [ ] Cut a focused W41 plan with current package contents and intended public API inventory.
+- [ ] Rename the npm package to the lowercase scoped name `@the-running-dev/game-engine`.
+- [ ] Keep `src/engine/` as the source package; do not relocate it to satisfy stale `packages/` prose.
+- [ ] Add one root public entry point that exports only supported core, registry, session,
+      projection, client and built-kind symbols.
+- [ ] Add `types` and ESM `import` targets through `package.json#exports`; deep source imports
+      remain unsupported.
+- [ ] Restrict the packed artefact to runtime output, declarations, package metadata and
+      required documentation; exclude tests, fixtures and source-only internals.
+- [ ] Link package metadata to this repository and configure publication to
+      `https://npm.pkg.github.com`.
+- [ ] Make a clean package build produce complete JavaScript, declarations and source maps.
+- [ ] Add a consumer smoke project that installs the packed tarball and imports only the root
+      package name.
+- [ ] Make the smoke project construct an engine/registry path and typecheck under Node 24.
+- [ ] Run package build, tarball inspection and consumer smoke in required CI.
+- [ ] Add a tag/manual release workflow with least-privilege `packages: write` permission.
+- [ ] Document developer authentication without committing credentials or tokens.
+- [ ] Publish the first private package version and grant Sun Trap Actions read access.
+- [ ] Record the exact package coordinate, version and permissions for Sun Trap's M1 handoff;
+      the companion repository owns its own dependency and CI change.
+- [ ] **Gate:** a clean external consumer installs, imports, typechecks and constructs the
+      engine using only supported exports.
+
+### W42 — authoritative runtime-state contract
+
+- [ ] Cut the W42 doc-only plan and inventory every field in Sun Trap §§2–9.
+- [ ] Specify map dimensions, tiles, entrances, occupancy and deterministic coordinate rules.
+- [ ] Specify guest identity, position, needs, target, path, inventory, opinions and lifecycle.
+- [ ] Specify building, product, queue and service state without embedding content definitions.
+- [ ] Specify staff role, assignment, position, path, task and lifecycle.
+- [ ] Specify construction, finances, loans, counters and `nextEntityOrdinal` ownership.
+- [ ] Define which collections are records, arrays or ordered lists and their canonical order.
+- [ ] Reconcile nullability, units, integer ranges and tick semantics across both repositories.
+- [ ] Define `WorldGraphView` and terminal outcome data without leaking hidden state.
+- [ ] **Gate:** every runtime field read by a planned system has one authoritative type and
+      one documented owner.
+
+### W43 — content-definition contract
+
+- [ ] Cut the W43 doc-only design plan; do not treat this unit as a mechanical port.
+- [ ] Separate authoring/source definitions from validated runtime content where necessary.
+- [ ] Define terrain, scenery, building, product, staff-role and guest-archetype definitions.
+- [ ] Define scenario, objective, incident, policy and achievement definitions.
+- [ ] Define stable ids, cross-reference rules, localization/text ownership and defaults.
+- [ ] Define footprint rotations, entrances, placement constraints and adjacency effects.
+- [ ] Define need curves, utility inputs, patience, budgets, service rates and litter effects.
+- [ ] Mark fields required for the MVP versus valid post-MVP extension points.
+- [ ] Add worked minimum-valid and representative-invalid content examples.
+- [ ] **Gate:** the MVP scenario can be authored without an untyped extension object or a
+      duplicate Sun Trap interface.
+
+### W44 — resolution and systems contract
+
+- [ ] Cut the W44 doc-only plan and freeze the named 20-system order.
+- [ ] Define each system's inputs, outputs, no-op conditions and emitted state changes/events.
+- [ ] Define utility scoring, integer scaling, tie-breaking and unreachable-target behaviour.
+- [ ] Define A* neighbourhood, cost model, heuristic, canonical open-set ordering and cache rule.
+- [ ] Define queue admission, abandonment, service ordering and simultaneous-event semantics.
+- [ ] Define staff task selection, movement, work completion and deterministic tie-breaks.
+- [ ] Define construction, finance, incident, objective and terminal-check timing.
+- [ ] Define batch-invariance comparison and action-log differences that are intentionally ignored.
+- [ ] Reconcile reason-code and event-name registries with every action and rejection path.
+- [ ] **Gate:** no implementation unit needs to invent a state field, ordering rule, formula
+      shape or tie-break.
+
+### W45 — kind skeleton and immediate actions
+
+- [ ] Cut the W45 code plan against the merged W42–W44 contract.
+- [ ] Add world-graph state/content modules and export their supported symbols publicly.
+- [ ] Implement total campaign narrowing and Tier 1/Tier 2 validation without unchecked throws.
+- [ ] Implement deterministic `initialState`, projection, outcome and reason/event registries.
+- [ ] Assemble and register the production `worldGraphKind`.
+- [ ] Implement build/demolish, hire/fire, assign, set-price and open/close reducers.
+- [ ] Derive entity ids only from the seed-safe ordinal rule; never from array length or time.
+- [ ] Add synthetic minimum campaign fixtures owned by this repository.
+- [ ] Test every immediate action's success, rejection and no-time-passes invariant.
+- [ ] **Gate:** `createGame` produces a valid deterministic tick-zero world and all immediate
+      actions pass through the real engine seam.
+
+### W46 — deterministic tick pipeline
+
+- [ ] Cut the W46 code plan with one function/module owner for each normative system.
+- [ ] Implement bounded `advance_ticks` and `tick_limit_reached` rejection.
+- [ ] Execute all 20 systems in fixed order, using explicit honest no-ops where scope is deferred.
+- [ ] Derive per-tick/per-agent random streams without carrying hidden generator state.
+- [ ] Enforce canonical entity iteration and deterministic id/tie ordering.
+- [ ] Keep pathfinding caches derived and unserialized.
+- [ ] Emit state changes and events in deterministic causal order.
+- [ ] Add one-tick, multi-tick and split-batch equivalence tests.
+- [ ] Run the complete determinism, lint, typecheck and replay suites.
+- [ ] **Gate:** any partition of the same tick count reaches the same defined Outcome.
+
+### W47 — playable MVP vertical slice
+
+- [ ] Cut the W47 code plan around one end-to-end guest journey.
+- [ ] Implement spawn/entry and deterministic need evolution.
+- [ ] Implement target utility selection and pathfinding to a reachable building.
+- [ ] Implement movement, queue join, patience and abandonment.
+- [ ] Implement service, purchase, stock/capacity and finance transfer.
+- [ ] Implement litter generation, cleanliness effects and staff cleaning work.
+- [ ] Implement the minimum construction/economy hooks required by the slice.
+- [ ] Implement objective progress plus win and financial-loss transitions.
+- [ ] Test the causal chain at system seams as well as end to end.
+- [ ] **Gate:** the synthetic MVP can win and lose through `createGame`/`submitAction`.
+
+### W48 — preview and client parity
+
+- [ ] Cut the W48 cross-cutting plan and inventory every affected client/session surface.
+- [ ] Implement `previewAction` by calling the authoritative action path and discarding state.
+- [ ] Guarantee preview appends no action log entry, persists no session and consumes no state.
+- [ ] Add the operation to `Engine`, `SessionStore`, text client and MCP surfaces together.
+- [ ] Amend `09-clients.md`, `MVP.md` and the MCP operation count in the same unit.
+- [ ] Test preview/submit parity for accepted and rejected parameterized actions.
+- [ ] Test concurrency/version behaviour so preview cannot masquerade as a committed write.
+- [ ] **Gate:** clients can validate placement without duplicating a mechanical rule.
+
+### W49 — validation, scenario and replay guard
+
+- [ ] Cut the W49 hardening plan and enumerate every contract invariant as a test target.
+- [ ] Complete Tier 1 source validation and Tier 2 semantic/cross-reference validation.
+- [ ] Reject malformed maps, references, ranges, caps and impossible starts without throwing.
+- [ ] Author the canonical engine-owned MVP scenario fixture from Sun Trap's MVP contract.
+- [ ] Record a deterministic winning replay and a deterministic losing replay.
+- [ ] Add batch-partition, save/restore and preview/no-mutation replay cases.
+- [ ] Add the world-graph fixtures to the release-tag comparison corpus.
+- [ ] Prove canonical serialization and replay equality across a clean build.
+- [ ] Run package consumer smoke again with the world-graph public exports.
+- [ ] Publish and pin the first engine version that carries the completed world-graph kind.
+- [ ] **Gate:** the third kind is playable, guarded by the replay oracle and consumable by
+      Sun Trap as an immutable package version.
 
 ---
 
@@ -173,29 +344,32 @@ design work here, not transcription, and `previewAction` is real cross-cutting s
 `story-graph`, for exactly the reason that makes contract-first matter: `Guest`/`Staff`
 fields are referenced pervasively across pathfinding, utility scoring, queueing and service
 — there is no prefix of that type graph safe to build against before it is settled.
+W41 changes package delivery around already-built code and therefore does not interleave
+world-graph implementation with its contract.
 
 ### 2. Runtime state and content-definition types are two separate contract units, not one
 
-Finding 2 is the reason: state types (W41) are a port with an existing, near-ready draft;
-content-definition types (W42) are new design work grounded in prose, not code. Conflating
+Finding 2 is the reason: state types (W42) are a port with an existing, near-ready draft;
+content-definition types (W43) are new design work grounded in prose, not code. Conflating
 them would let the easy half's readiness disguise the hard half's actual size — precisely
 the risk `plans/36`'s own Finding 3 flagged for a different reason (an incomplete upstream
 table understating simulation's port by half). Keeping them apart keeps each honestly sized.
 
-### 3. `previewAction` is its own build unit (W47), per Finding 4
+### 3. `previewAction` is its own build unit (W48), per Finding 4
 
 `plans/33` folded it into "the world-graph build" as a whole, not into any one unit within
 it. Given it touches four surfaces outside the kind itself (`Engine`, `SessionStore`, text
 client, MCP) plus two Definition-of-Done documents, it earns independent review rather than
-riding along inside W46 or W48.
+riding along inside W47 or W49.
 
-### 4. Package consumability is an explicit non-goal of this programme
+### 4. The companion boundary is a private GitHub Packages npm package
 
-Finding 6. Sun Trap's own MVP document defers starting until this kind exists in code, so
-there is no consumer waiting on a publish mechanism during W41–W48. Revisit when Sun Trap
-is actually about to write real campaign code against this kind — a decision with its own
-tradeoffs (a `file:`/workspace link for development versus a published package) that
-deserves being made against a concrete need, not speculated about here.
+Finding 6. W41 keeps the existing source layout and makes the delivery boundary explicit:
+`@the-running-dev/game-engine`, declaration-bearing ESM, one supported root export, private
+GitHub Packages publication and exact semver consumption. The package is linked to this
+repository; the Sun Trap repository receives Actions read access. A sibling `file:` link may
+speed local iteration but cannot satisfy either repository's gate, and a Git dependency is
+rejected because it couples consumers to repository layout and package-build side effects.
 
 ### 5. No shared tick-pipeline substrate, restated, not re-litigated
 
@@ -214,10 +388,11 @@ happens to touch that paragraph next.
 
 | # | Reached when | Meaning |
 |---|---|---|
-| **T1 — The contract is whole** | W43 merged | Every type `WorldGraphKindState` and its content-definition surface names is specified in this repository. `12-world-graph-kind.md` stops being "the seam only" |
-| **T2 — A tick batch resolves** | W45 merged | The loop runs: mutate, `advance_ticks`, twenty systems, next tick. Batch invariance (§5) has a test with teeth |
-| **T3 — Sun Trap's MVP plays** | W48 merged | The MVP scenario (`SubZeroDev.SunTrap/docs/docs/product/mvp.md` §3) is winnable and losable through the replay oracle — the same honest scope this repo already recorded for `simulation`'s own S3 (`plans/36`): proven through `createGame`/`submitAction`, not yet through a client, since W47 (`previewAction`) lands the missing session operation but a full client-facing projection is a further, later unit exactly the way it was for `simulation` |
-| **T4 — Guarded** | W48's fixtures in the corpus | The replay oracle covers a third kind |
+| **T0 — Consumable** | W41 merged and first package version published | A clean companion can install and construct the existing engine through one supported, immutable public surface |
+| **T1 — The contract is whole** | W44 merged | Every type `WorldGraphKindState` and its content-definition surface names is specified in this repository. `12-world-graph-kind.md` stops being "the seam only" |
+| **T2 — A tick batch resolves** | W46 merged | The loop runs: mutate, `advance_ticks`, twenty systems, next tick. Batch invariance (§5) has a test with teeth |
+| **T3 — Sun Trap's MVP plays** | W49 merged | The MVP scenario (`SubZeroDev.SunTrap/docs/docs/product/mvp.md` §3) is winnable and losable through the replay oracle — proven through `createGame`/`submitAction`, the same honest scope this repository used for `simulation` |
+| **T4 — Guarded and deliverable** | W49's fixtures are in the corpus and its package version is published | The replay oracle covers a third kind, and Sun Trap can pin the exact version that passed it |
 
 ---
 
@@ -227,12 +402,13 @@ happens to touch that paragraph next.
   exist (`plans/33` Finding 1). If a unit finds otherwise, that is a core unit with its own
   plan, not a change smuggled into this kind.
 - **No shared tick substrate.** Decision 5.
-- **No package publication mechanism.** Decision 4.
+- **No second delivery mechanism.** Git URLs and sibling `file:` links are not parallel
+  supported channels; Decision 4 names the one release boundary.
 - **No Sun Trap repository changes.** This plan is scoped to `SubZeroDev.GameEngine`; Sun
   Trap's own scaffold, balance harness, and visual client are that repository's own
   decisions to sequence, informed by this plan but not directed by it.
 - **No re-porting of core material.** `04-core.md`'s conventions (randomness, projection,
   the frozen `Condition` set, save/migration) stay reused, not re-derived, the same rule
   `10-simulation-kind.md` follows and `CLAUDE.md`'s envelope-duplication ledger tracks.
-- **No W-numbers treated as fixed.** W41–W48 are proposed. They are assigned when each unit
+- **No W-numbers treated as fixed.** W41–W49 are proposed. They are assigned when each unit
   is cut, per `TODO.md`'s positional-numbering note.

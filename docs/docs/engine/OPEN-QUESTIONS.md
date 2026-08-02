@@ -47,12 +47,18 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   harness runs. ([`TODO.md`](TODO.md) → Known open items; simulation kind.)
 - **`wisdom` attribute has no consumer** — needs one to earn its place
   (`games/04-engine-specification.md` §8.4).
-- **`packages/` vs `src/engine/` naming** — the simulation docs
-  (`games/05-text-client.md` header, `games/04` §20)
-  describe an aspirational `packages/` monorepo; the code is `src/engine/`
-  ([Engine Package](/docs/guide/engine-package)). The resort draft proposed `packages/` a
-  third time (12 §17 declines to restate it), so this is now three documents against one
-  layout. Reconcile when the layout is actually built out.
+- **`packages/` vs `src/engine/` naming, and companion delivery — decided for W41.** The
+  simulation docs (`games/05-text-client.md` header, `games/04` §20) describe an
+  aspirational `packages/` monorepo; the built package is `src/engine/`
+  ([Engine Package](/docs/guide/engine-package)). Keep the built layout. W41 in
+  [`plans/39`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/39-world-graph-kind-programme.md)
+  makes it a private GitHub Packages npm artefact named
+  `@the-running-dev/game-engine`, with one root export, declarations, exact semver
+  consumption and a packed-tarball consumer smoke test. A sibling `file:` link is allowed
+  only as local convenience, never CI or release evidence; Git dependencies are rejected
+  because they expose repository layout and build side effects as the delivery contract.
+  **Revisit when** a second independently versioned package actually exists and makes a
+  monorepo/workspace layout useful rather than aspirational.
 - **`history` in the simulation kind's state** — the upstream model carries
   `history: HistoryEntry[]`, a narrative record of what happened. That overlaps
   `StateChange[]`, which `advance` already returns (04 §12), and the event stream
