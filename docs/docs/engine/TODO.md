@@ -827,6 +827,26 @@ one reported from elsewhere.
       no open rows; no file under `src/engine/` changes; `build/Test-Documentation.ps1` passes.
 - **Plan:** [`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md)
 
+### [x] W36 — Simulation Kind: State, Variables, and the Plan
+First **build** unit of the simulation-kind programme (`plans/36-simulation-kind-programme.md`,
+proposed there as W31, mirroring story-graph's W9). `SimulationKindState` and every nested
+runtime-state type (`src/engine/src/kinds/simulation/state.ts`, `actor.ts`) as real TypeScript,
+plus `ActionType`/`GameAction`/`WeeklyActionPlan` and pure `plan.add`/`remove`/`clear` reducers
+(`plan.ts`) — standalone functions, not wired into `Kind.advance` yet, the same precedent W9
+set for `applyConsequences`. `removeAction` rejects an out-of-range index as a genuine runtime
+rejection (`action_not_planned`), not a throw — a stale client index is ordinary play, unlike
+W9's undeclared-variable case.
+- **Spec:** [10 §2](10-simulation-kind.md#2-kindstate--what-belongs-here), [§4.1](10-simulation-kind.md#41-the-weekly-action-plan),
+      [§4.2](10-simulation-kind.md#42-action-types), [§6](10-simulation-kind.md#6-player-state).
+- **Depends on:** [W35](#x-w35--simulation-kind-resolution-and-systems).
+- **Status:** Done — [PR #98](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/98).
+- **Done when:** every field `SimulationKindState`/`ActorState` names in the contract has a
+      real TypeScript type; `addAction`/`clearPlan` never mutate their input plan;
+      `removeAction` rejects a negative index, an index equal to the plan's length, and a
+      non-integer index, all with `action_not_planned`; no `Kind.advance`/`kernel/engine.ts`
+      wiring exists yet; `npm run typecheck && npm run lint && npm test` all pass.
+- **Plan:** [`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md)
+
 ### Breadth: The First Culture Pack
 
 - [ ] Bulgaria culture pack over the simulation kind — Jones-in-Bulgaria content,
