@@ -839,7 +839,7 @@ W9's undeclared-variable case.
 - **Spec:** [10 §2](10-simulation-kind.md#2-kindstate--what-belongs-here), [§4.1](10-simulation-kind.md#41-the-weekly-action-plan),
       [§4.2](10-simulation-kind.md#42-action-types), [§6](10-simulation-kind.md#6-player-state).
 - **Depends on:** [W35](#x-w35--simulation-kind-resolution-and-systems).
-- **Status:** Done — PR pending.
+- **Status:** Done — [PR #98](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/98).
 - **Done when:** every field `SimulationKindState`/`ActorState` names in the contract has a
       real TypeScript type; `addAction`/`clearPlan` never mutate their input plan;
       `removeAction` rejects a negative index, an index equal to the plan's length, and a
