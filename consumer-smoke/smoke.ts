@@ -38,7 +38,7 @@ function assertCampaignContentCastThrows(kinds: KindRegistry, authoredText: read
     assert.match(
       message,
       /Object\.keys|cannot convert .*? object|campaign\.content/i,
-      "Known malformed campaign cast failure should still surface — docs: docs/docs/engine/OPEN-QUESTIONS.md §3",
+      "Known malformed campaign cast failure should still surface (see OPEN-QUESTIONS §3)",
     );
   }
 

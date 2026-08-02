@@ -34,10 +34,6 @@ jobs:
         working-directory: src/engine
         run: npm ci
 
-      - name: Build package
-        working-directory: src/engine
-        run: npm run build
-
       - name: Publish package
         working-directory: src/engine
         env:

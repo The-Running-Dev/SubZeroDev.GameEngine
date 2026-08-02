@@ -19,7 +19,9 @@
  */
 
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
 const enginePath = fileURLToPath(new URL("../src/engine", import.meta.url));
 const here = fileURLToPath(new URL(".", import.meta.url));
@@ -41,6 +43,12 @@ if (!npmCli) {
 }
 
 const runNpm = (args, options) => execFileSync(process.execPath, [npmCli, ...args], options);
+
+const typeScriptBin = join(enginePath, "node_modules", ".bin", process.platform === "win32" ? "tsc.cmd" : "tsc");
+if (!existsSync(typeScriptBin)) {
+  console.log("Installing engine dependencies (clean checkout path)...");
+  runNpm(["ci"], { cwd: enginePath, stdio: "inherit" });
+}
 
 const tarball = runNpm(["pack", "--silent"], { cwd: enginePath, encoding: "utf8" }).trim();
 

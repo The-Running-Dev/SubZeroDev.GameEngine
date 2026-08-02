@@ -97,11 +97,6 @@ jobs:
         working-directory: src/engine
         run: npm test
 
-      - name: Build package
-        if: steps.changed.outputs.changed == 'true'
-        working-directory: src/engine
-        run: npm run build
-
       - name: Pack package
         if: steps.changed.outputs.changed == 'true'
         id: pack-package
@@ -155,7 +150,7 @@ jobs:
           fi
 
           rm -rf consumer-smoke/node_modules consumer-smoke/package-lock.json consumer-smoke/dist
-          (cd consumer-smoke && npm install --no-audit --no-fund "../src/engine/$package_tgz")
+          (cd consumer-smoke && npm run install:engine)
           (cd consumer-smoke && npm run build && npm run smoke)
 
   # The replay regression oracle's cross-version comparison (07-replay.md §8): on every
