@@ -11,18 +11,21 @@
  * missing one.
  *
  * Most systems here need content types (`JobDefinition`, `CourseDefinition`,
- * `HousingDefinition`, `EventDefinition`, `GoalDefinition`, `AchievementDefinition`, …)
- * that don't exist until the content-definition-types build unit — each is an explicit,
- * documented stub rather than silently doing nothing. `needs` (drift) and `opportunities`
- * (expiry only) are real logic: both are mechanics this contract already fully specifies
- * without needing a single content type. Every system emits `kind.simulation.system.ran`
- * at `trace` (§11), the same ordering-verification technique `startOfWeek.ts` uses.
+ * `HousingDefinition`, `EventDefinition`, `AchievementDefinition`, …) that this unit
+ * deliberately doesn't wire — the "Stable Life" vertical slice (`plans/36`'s W39) needs
+ * only enough real logic to prove a goal can be won and lost, not full mechanical depth;
+ * each unwired system is an explicit, documented stub rather than silently doing nothing.
+ * `needs` (drift), `opportunities` (expiry only), and now `goals`/`failure` are real logic.
+ * Every system emits `kind.simulation.system.ran` at `trace` (§11), the same
+ * ordering-verification technique `startOfWeek.ts` uses.
  */
 
 import type { ResolutionEmitter } from "../../core/observability/types.js";
 import type { StateChange } from "../../core/kernel/reasons.js";
 import type { NeedKey } from "./actor.js";
-import type { SimulationKindState } from "./state.js";
+import type { GoalDefinition, GoalFailurePrecedence } from "./content.js";
+import { evaluateSimulationCondition } from "./conditions.js";
+import type { GoalState, SimulationKindState } from "./state.js";
 
 const SYSTEM_NAME = "kind.simulation.system.ran";
 
@@ -132,14 +135,82 @@ function headline(state: SimulationKindState): SimulationKindState {
   return state;
 }
 
-/** **Stub.** Evaluating `GoalState.satisfiedThisWeek` needs `GoalDefinition.conditions`. */
-function goals(state: SimulationKindState): SimulationKindState {
-  return state;
+function goalDef(goalDefs: readonly GoalDefinition[], id: string): GoalDefinition | undefined {
+  return goalDefs.find((def) => def.id === id);
 }
 
-/** **Stub.** Needs `GoalDefinition.failureConditions`. */
-function failure(state: SimulationKindState): SimulationKindState {
-  return state;
+/**
+ * Real logic. Evaluates each active `GoalState`'s `GoalDefinition.conditions` (§7.8) —
+ * persistent per §2.4: `consecutiveWeeksSatisfied` increments on a satisfied week and
+ * resets to zero the moment it isn't (no partial credit), `status` becomes `"completed"`
+ * once that counter reaches `requiredDurationWeeks` (default 1 — satisfied once is enough
+ * unless a goal says otherwise).
+ *
+ * **Precedence with `failure` lives here, not there.** The end-of-week order fixes `goals`
+ * before `failure` (§3) — that fixed order is what makes `goalFailurePrecedence` (upstream
+ * §12.3) a completion-side decision: `"goals_win"` (default) completes a goal this week
+ * even if its failure condition also tripped, leaving nothing for `failure` to catch;
+ * `"failure_wins"` defers instead, so the still-active goal falls through to `failure`
+ * below. Neither mode needs the systems to run in a different order.
+ */
+function goals(
+  state: SimulationKindState,
+  goalDefs: readonly GoalDefinition[],
+  precedence: GoalFailurePrecedence,
+): SimulationKindState {
+  const nextGoals: GoalState[] = state.goals.map((goal) => {
+    if (goal.status !== "active") return goal;
+    const def = goalDef(goalDefs, goal.definitionId);
+    if (!def) return goal;
+
+    const met = evaluateSimulationCondition(def.conditions, state);
+    if (!met) return { ...goal, satisfiedThisWeek: false, consecutiveWeeksSatisfied: 0 };
+
+    const failed = def.failureConditions !== undefined
+      && evaluateSimulationCondition(def.failureConditions, state);
+    if (failed && precedence === "failure_wins") {
+      return { ...goal, satisfiedThisWeek: false, consecutiveWeeksSatisfied: 0 };
+    }
+
+    const consecutiveWeeksSatisfied = goal.consecutiveWeeksSatisfied + 1;
+    const firstSatisfiedWeek = goal.firstSatisfiedWeek ?? state.calendar.currentWeek;
+    const required = def.requiredDurationWeeks ?? 1;
+
+    if (consecutiveWeeksSatisfied >= required) {
+      return {
+        ...goal,
+        status: "completed",
+        satisfiedThisWeek: true,
+        consecutiveWeeksSatisfied,
+        firstSatisfiedWeek,
+        completedWeek: state.calendar.currentWeek,
+      };
+    }
+    return { ...goal, satisfiedThisWeek: true, consecutiveWeeksSatisfied, firstSatisfiedWeek };
+  });
+
+  return { ...state, goals: nextGoals };
+}
+
+/**
+ * Real logic. Catches whatever `goals` (above) left `"active"` with a tripped
+ * `failureConditions` — under `"goals_win"` (default), that's any goal that failed without
+ * also completing; under `"failure_wins"`, it's a goal `goals` deliberately deferred
+ * because both conditions tripped the same week.
+ */
+function failure(state: SimulationKindState, goalDefs: readonly GoalDefinition[]): SimulationKindState {
+  const nextGoals: GoalState[] = state.goals.map((goal) => {
+    if (goal.status !== "active") return goal;
+    const def = goalDef(goalDefs, goal.definitionId);
+    if (!def?.failureConditions) return goal;
+
+    const failed = evaluateSimulationCondition(def.failureConditions, state);
+    if (!failed) return goal;
+
+    return { ...goal, status: "failed", failedWeek: state.calendar.currentWeek };
+  });
+
+  return { ...state, goals: nextGoals };
 }
 
 /** **Stub.** Needs `AchievementDefinition.condition`. */
@@ -150,6 +221,8 @@ function achievements(state: SimulationKindState): SimulationKindState {
 export function runEndOfWeek(
   state: SimulationKindState,
   emit: ResolutionEmitter,
+  goalDefs: readonly GoalDefinition[],
+  goalFailurePrecedence: GoalFailurePrecedence,
 ): { state: SimulationKindState; changes: StateChange[] } {
   let next = employment(state);
   ranSystem(emit, "employment");
@@ -185,10 +258,10 @@ export function runEndOfWeek(
   next = headline(next);
   ranSystem(emit, "headline");
 
-  next = goals(next);
+  next = goals(next, goalDefs, goalFailurePrecedence);
   ranSystem(emit, "goals");
 
-  next = failure(next);
+  next = failure(next, goalDefs);
   ranSystem(emit, "failure");
 
   next = achievements(next);

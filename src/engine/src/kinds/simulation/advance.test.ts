@@ -3,6 +3,7 @@ import { advance } from "./advance.js";
 import { initialState } from "./initial.js";
 import { SIMULATION_REASON_CODES } from "./reasons.js";
 import type { SimulationCampaign } from "./campaign.js";
+import type { GoalDefinition } from "./content.js";
 import type { SimulationKindState } from "./state.js";
 import type {
   AvailableAction,
@@ -44,6 +45,8 @@ const simulationCampaign: SimulationCampaign = {
   startingPlayer: player,
   startingEconomy: economy,
   startingWorld: world,
+  goals: [],
+  goalFailurePrecedence: "goals_win",
 };
 
 const campaign: Campaign = { id: "test-sim", kindId: "simulation", version: "1.0.0", titleKey: "sim.title", content: simulationCampaign };
@@ -155,6 +158,79 @@ describe("advance — end_week", () => {
     const withAction = advance(baseState(), "plan.add", { actionType: "apply_for_job" }, fakeCtx()).state;
     const result = advance(withAction, "end_week", undefined, fakeCtx());
     expect(result.error).toBeUndefined();
+  });
+
+  it("resolves a planned eat action through the real eatResolver, restoring satiety", () => {
+    const withAction = advance(baseState(), "plan.add", { actionType: "eat" }, fakeCtx()).state;
+    const result = advance(withAction, "end_week", undefined, fakeCtx());
+    // Starting satiety 80, +25 eat (clamped to 100), then -4 needs drift = 96.
+    expect(result.state.player.needs.satiety).toBe(96);
+  });
+
+  it("resolves a planned rest action through the real restResolver, restoring energy and relieving stress", () => {
+    const withAction = advance(baseState(), "plan.add", { actionType: "rest" }, fakeCtx()).state;
+    const result = advance(withAction, "end_week", undefined, fakeCtx());
+    // Starting energy 80, +20 rest, -3 needs drift = 97.
+    expect(result.state.player.needs.energy).toBe(97);
+    // Starting stress 20, -5 rest, +2 needs drift = 17.
+    expect(result.state.player.needs.stress).toBe(17);
+  });
+});
+
+describe("advance — end_week ends the game when every goal resolves", () => {
+  const happinessGoal: GoalDefinition = {
+    id: "goal-happy",
+    labelKey: "goal.happy",
+    descriptionKey: "goal.happy.description",
+    category: "happiness",
+    conditions: { field: "player.needs.happiness", operator: "greater_or_equal", value: 60 },
+  };
+
+  function campaignWithGoal(goal: GoalDefinition): SimulationCampaign {
+    return { ...simulationCampaign, goals: [goal] };
+  }
+
+  function ctxWithCampaign(content: SimulationCampaign): KindContext {
+    return { ...fakeCtx(), campaign: { ...campaign, content } };
+  }
+
+  it("status stays active while the goal is still active", () => {
+    const content: SimulationCampaign = {
+      ...campaignWithGoal(happinessGoal),
+      startingPlayer: { ...player, needs: { ...player.needs, happiness: 40 } },
+    };
+    const ctx = ctxWithCampaign(content);
+    const state = initialState({ ...campaign, content }).state;
+    const result = advance(state, "end_week", undefined, ctx);
+    expect(result.status).toBe("active");
+  });
+
+  it("status becomes ended and error stays undefined once the goal completes", () => {
+    const highHappiness: GoalDefinition = happinessGoal;
+    const content: SimulationCampaign = {
+      ...campaignWithGoal(highHappiness),
+      startingPlayer: { ...player, needs: { ...player.needs, happiness: 90 } },
+    };
+    const ctx = ctxWithCampaign(content);
+    const state = initialState({ ...campaign, content }).state;
+    const result = advance(state, "end_week", undefined, ctx);
+    expect(result.status).toBe("ended");
+    expect(result.error).toBeUndefined();
+  });
+
+  it("status becomes ended once the goal's failureConditions trip", () => {
+    const goalWithFailure: GoalDefinition = {
+      ...happinessGoal,
+      failureConditions: { field: "player.needs.happiness", operator: "less_than", value: 10 },
+    };
+    const content: SimulationCampaign = {
+      ...campaignWithGoal(goalWithFailure),
+      startingPlayer: { ...player, needs: { ...player.needs, happiness: 5 } },
+    };
+    const ctx = ctxWithCampaign(content);
+    const state = initialState({ ...campaign, content }).state;
+    const result = advance(state, "end_week", undefined, ctx);
+    expect(result.status).toBe("ended");
   });
 });
 

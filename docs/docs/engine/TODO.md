@@ -908,20 +908,50 @@ the four contract units (W32–W35) already used one level up.
       with no new runtime logic — this unit is types only.
 - **Plan:** [`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md)
 
-### [ ] W39 — Simulation Kind: Wiring the "Stable Life" Vertical Slice {#w39}
-Fourth build unit — the second half of the W33 split. Wires real logic into whichever
-end-of-week/start-of-week systems and `RESOLVER_TABLE` entries the "Stable Life" scenario
-(W40) actually exercises, against W38's content types — not all twelve stubbed end-of-week
-systems or all thirty `ActionType`s. The rest stay honest, documented stubs, the same
-discipline W37 already established for systems that had no content types yet; here the types
-exist, but not every system needs to go live for one scenario to be winnable and losable.
-- **Spec:** [10 §5](10-simulation-kind.md#5-resolution-and-statechange), [§3](10-simulation-kind.md#3-the-turn-is-a-week).
+### [x] W39 — Simulation Kind: Wiring the "Stable Life" Vertical Slice {#w39}
+Fourth build unit — the second half of the W33 split. Wires real logic into exactly the
+systems and `RESOLVER_TABLE` entries a goal-driven win/loss loop needs, against W38's
+content types — not all twelve stubbed end-of-week systems or all thirty `ActionType`s.
+Real now: `goals` and `failure` (evaluate `GoalDefinition.conditions`/`failureConditions`
+via a new `conditions.ts`, tracking `GoalState`'s persistent-goal fields per §2.4 —
+`consecutiveWeeksSatisfied` resets to zero on any unsatisfied week, `status` becomes
+`"completed"` once it reaches `requiredDurationWeeks`, default 1); `eat`/`rest` (the two
+resolvers give the player any way to counter `needs` drift at all — without them no
+needs-based goal could ever be won); `Kind.outcome` (`outcome.ts`, §12's terminal-identity
+shape); and `advance.ts`'s `end_week` now reports `status: "ended"` once `outcome()`
+resolves non-null. Everything else (`employment`, `education`, `housing`, `finance_*`,
+`inventory`, `relationships`, `opportunities`' offer/revoke, `events`, `headline`,
+`achievements`) stays an honest, documented stub — the same discipline W37 established.
+
+**This is deliberately a smaller loop than the real game's own "Stable Life," not a first
+pass at the whole thing.** The real scenario (`games/03-game-design.md` §16.3 in the
+companion `SubZeroDev.GameOfLife` repo) needs six completion criteria across employment,
+education, housing and finance together — wiring all of that is its own multi-unit depth
+effort, not this unit's job. This mirrors story-graph's own W15 Bureaucracy-campaign
+precedent: the engine repo proves the mechanism with a synthetic fixture; the real,
+full-depth flagship content is a companion-repo concern layered on afterward.
+
+Two acknowledged, documented gaps carried from `outcome.ts`: `week_limit_reached` is never
+returned (`state` alone carries no `weekLimit` to compare against, and §12 itself calls the
+precedence question upstream-unresolved), and a mixed multi-goal outcome (some completed,
+some failed) resolves conservatively to `"failed"` — verified only against this unit's own
+single-goal tests, not a settled rule.
+
+`SimulationCampaign` (`campaign.ts`) gained exactly two fields for this: `goals: readonly
+GoalDefinition[]` and `goalFailurePrecedence` — still not the real authoring surface
+(`ScenarioDefinition` integration is W40's job), just what this unit's own wiring needs.
+- **Spec:** [10 §5](10-simulation-kind.md#5-resolution-and-statechange), [§3](10-simulation-kind.md#3-the-turn-is-a-week),
+      [§12](10-simulation-kind.md#12-terminal-identity).
 - **Depends on:** [W38](#x-w38--simulation-kind-content-definition-types).
-- **Status:** Not started.
-- **Done when:** the scenario built in W40 can be won and lost purely through real system/
-      resolver logic wired here — no stub carries load-bearing weight for its own outcome;
-      every system and resolver this unit leaves stubbed is still individually documented,
-      matching W37's own convention; `npm run typecheck && npm run lint && npm test` all pass.
+- **Status:** Done — [PR #101](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/101).
+- **Done when:** a goal with no `requiredDurationWeeks` completes the first week its
+      condition is met; a persistent goal requires that many consecutive satisfied weeks,
+      resetting on any miss; `goalFailurePrecedence` resolves a goal whose completion and
+      failure conditions trip the same week (`"goals_win"`, the default, completes it
+      anyway; `"failure_wins"` fails it instead); `eat`/`rest` restore the needs they target,
+      clamped; `advance`'s `end_week` reports `status: "ended"` once `outcome()` resolves;
+      every stub is still individually documented; `npm run typecheck && npm run lint &&
+      npm test` all pass (669 tests, was 644).
 - **Plan:** [`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md)
 
 ### [ ] W40 — Simulation Kind: The "Stable Life" Scenario, Validation, and Corpus

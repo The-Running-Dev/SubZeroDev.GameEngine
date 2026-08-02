@@ -4,12 +4,13 @@
  * Contract: `10-simulation-kind.md` §4, §5.
  *
  * `plan.add`/`plan.remove`/`plan.clear` wrap `plan.ts`'s pure reducers; `end_week`
- * resolves every planned action through the stub `RESOLVER_TABLE` (`resolvers.ts`), runs
- * the end-of-week pipeline (`endOfWeek.ts`), then the next week's start-of-week pipeline
- * (`startOfWeek.ts`), and hands the player a fresh, empty plan for the week that just
- * started. `status` never becomes `"ended"` here — goal/failure evaluation is stubbed
- * (§15), so nothing in this unit's own logic can end a game yet; that's honest given what
- * actually runs, not an oversight.
+ * resolves every planned action through `RESOLVER_TABLE` (`resolvers.ts`, mostly still
+ * stubs — §5's own callout), runs the end-of-week pipeline (`endOfWeek.ts`), then the next
+ * week's start-of-week pipeline (`startOfWeek.ts`), and hands the player a fresh, empty
+ * plan for the week that just started. `status` becomes `"ended"` when `outcome.ts`'s own
+ * read of the resulting state resolves to a non-`null` `resolution` — real now that
+ * `goals`/`failure` (`endOfWeek.ts`) are wired, where before nothing in this unit's own
+ * logic could end a game.
  */
 
 import type { ActionParams, AdvanceResult, KindContext } from "../../core/kernel/types.js";
@@ -19,6 +20,8 @@ import { addAction, removeAction, clearPlan, isActionType } from "./plan.js";
 import { RESOLVER_TABLE } from "./resolvers.js";
 import { runStartOfWeek } from "./startOfWeek.js";
 import { runEndOfWeek } from "./endOfWeek.js";
+import { outcome as computeOutcome } from "./outcome.js";
+import type { SimulationCampaign } from "./campaign.js";
 import type { SimulationKindState } from "./state.js";
 
 function rejected(state: SimulationKindState, code: string, messageKey: string): AdvanceResult<SimulationKindState> {
@@ -106,16 +109,19 @@ export function advance(
         changes.push(...outcome.changes);
       }
 
-      const endOfWeekResult = runEndOfWeek(working, ctx.emit);
+      const content = ctx.campaign.content as SimulationCampaign;
+      const endOfWeekResult = runEndOfWeek(working, ctx.emit, content.goals, content.goalFailurePrecedence);
       const nextWeek = runStartOfWeek(endOfWeekResult.state, ctx.emit);
       const finalState: SimulationKindState = {
         ...nextWeek,
         plan: { week: nextWeek.calendar.currentWeek, actions: [] },
       };
 
+      const result = computeOutcome(finalState);
+
       return {
         state: finalState,
-        status: "active",
+        status: result.resolution === null ? "active" : "ended",
         changes: [...changes, ...endOfWeekResult.changes],
         messages: [],
       };
