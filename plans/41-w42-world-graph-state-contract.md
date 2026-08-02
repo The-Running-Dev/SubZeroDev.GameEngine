@@ -39,10 +39,23 @@ section says why each choice was made; if you think one is wrong, say so and sto
 `docs/docs/engine/OPEN-QUESTIONS.md`. If you find yourself editing `src/engine/`, stop — that
 is W45.
 
+### Where to work
+
+**Commit onto `feature/w42-world-graph-state-contract` — the branch this plan is already on.
+Do not create a new branch.** That branch exists to carry this unit end to end: the plan
+first, the contract edits on top, one PR at the end covering both. If `git branch --show-current`
+says anything else, switch before you start.
+
+This differs from the previous unit deliberately. W41 was planned and implemented as two
+separate PRs; this one is a single branch, so the plan and what it produced stay reviewable
+together.
+
 ### Working rules that are easy to violate here
 
-- **Stage by explicit named path.** Never `git add -A`, `git add .`, or a bare directory.
-- **Branch off `main`; do not merge.** Open the PR, report check outcomes, leave the merge to
+- **Stage by explicit named path.** Never `git add -A`, `git add .`, or a bare directory —
+  and be aware other work may be in flight on adjacent branches in this repository.
+- **Do not merge, and do not open the PR until the unit is done.** The branch accumulates;
+  the PR comes once *Done-When* is satisfied. Report check outcomes and leave the merge to
   the repository owner.
 - **Verify with the doc gate**, from the repository root, and do not claim it passed if it
   did not run:
