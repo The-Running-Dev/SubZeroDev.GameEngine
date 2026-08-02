@@ -880,7 +880,7 @@ by temporarily deleting an entry and confirming the compiler catches it.
       607).
 - **Plan:** [`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md)
 
-### [ ] W38 — Simulation Kind: Content-Definition Types
+### [x] W38 — Simulation Kind: Content-Definition Types
 Third build unit of the simulation-kind programme — but no longer the single unit
 `plans/36-simulation-kind-programme.md` originally proposed as W33. That unit assumed
 story-graph's own precedent — *author content against already-coded types* — held here; it
@@ -900,7 +900,7 @@ that's W39's job, against a settled type surface, the same "contract before code
 the four contract units (W32–W35) already used one level up.
 - **Spec:** [10 §7](10-simulation-kind.md#7-content-definition-types), [§7.1](10-simulation-kind.md#71-modifiers-and-rewards)–[§7.10](10-simulation-kind.md#710-agents--engine-owned-strategy-definition-and-runtime-state).
 - **Depends on:** [W37](#x-w37--simulation-kind-the-week).
-- **Status:** Not started.
+- **Status:** Done — [PR #100](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/100).
 - **Done when:** every type §7 names that isn't already runtime state in `state.ts`/`actor.ts`
       exists in `content.ts`; `AvailabilityRule.condition` (currently `unknown`, deferred per
       its own comment) is narrowed to the real core `Condition` type now that this unit has a
@@ -916,7 +916,7 @@ systems or all thirty `ActionType`s. The rest stay honest, documented stubs, the
 discipline W37 already established for systems that had no content types yet; here the types
 exist, but not every system needs to go live for one scenario to be winnable and losable.
 - **Spec:** [10 §5](10-simulation-kind.md#5-resolution-and-statechange), [§3](10-simulation-kind.md#3-the-turn-is-a-week).
-- **Depends on:** [W38](#w38--simulation-kind-content-definition-types).
+- **Depends on:** [W38](#x-w38--simulation-kind-content-definition-types).
 - **Status:** Not started.
 - **Done when:** the scenario built in W40 can be won and lost purely through real system/
       resolver logic wired here — no stub carries load-bearing weight for its own outcome;
