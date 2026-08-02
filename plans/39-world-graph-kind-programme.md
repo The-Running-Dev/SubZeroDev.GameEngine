@@ -171,7 +171,7 @@ judged as design, not skimmed as a port.
 > **W42's "port" framing above is optimistic — corrected when the unit was planned.** Six
 > types in `WorldGraphKindState`'s transitive closure are drafted in neither repository, so
 > W42 is design work too, just with a stronger starting draft than W43's. Full evidence in
-> [`plans/41-w42-world-graph-state-contract.md`](41-w42-world-graph-state-contract.md); the
+> [`plans/42-w42-world-graph-state-contract.md`](42-w42-world-graph-state-contract.md); the
 > ledger entry for W42 below carries the summary.
 
 ### Build (code, against the completed contract)
@@ -253,7 +253,7 @@ names both.
 
 ### W42 — authoritative runtime-state contract
 
-**Plan:** [`plans/41-w42-world-graph-state-contract.md`](41-w42-world-graph-state-contract.md).
+**Plan:** [`plans/42-w42-world-graph-state-contract.md`](42-w42-world-graph-state-contract.md).
 
 > **That plan corrects this programme's own sizing of W42.** The split table above calls it a
 > port of eight drafted types. Measured against both repositories, **six** further types in

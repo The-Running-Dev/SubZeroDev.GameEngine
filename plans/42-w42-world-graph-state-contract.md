@@ -33,9 +33,12 @@ Paste this to start the unit. It carries only what an agent cannot read off the 
 to work, and that nothing is waiting on an answer. Everything else it needs is below.
 
 ```text
-Implement W42 on branch feature/w42-world-graph-state-contract. It is already synced
-with main — do not rebase. Start with plans/41-w42-world-graph-state-contract.md; its
-"Handoff — Start Here" section is your brief.
+Implement W42 on branch feature/w42-world-graph-state-contract. Start with
+plans/42-w42-world-graph-state-contract.md; its "Handoff — Start Here" section is your
+brief.
+
+First, check whether the branch is current: if `git log origin/main..HEAD` shows main
+has moved ahead, merge origin/main into the branch before starting. Do not rebase.
 
 Nothing blocks: all four Sun Trap gates are resolved in the plan's Decisions. Sequence
 step 2 sends a message that informs rather than asks — do not wait for a reply.
@@ -45,6 +48,12 @@ docs/docs/engine/OPEN-QUESTIONS.md, and — for the reducer-count fix in step 9 
 docs/docs/engine/TODO.md and plans/39-world-graph-kind-programme.md. Do not open the PR
 until Done-When is satisfied.
 ```
+
+> **Why the prompt asks rather than asserts.** It used to say "it is already synced with
+> main — do not rebase," which was true when written and false twice within the same day,
+> because another branch kept merging. A claim about a moving branch has a shelf life; an
+> instruction to *check* does not. The same reasoning applies to any figure or state a prompt
+> hard-codes.
 
 **Read in this order:** [`CLAUDE.md`](../CLAUDE.md) (project conventions — they override your
 defaults), [`agent.md`](../agent.md), `docs/docs/engine/12-world-graph-kind.md` in full

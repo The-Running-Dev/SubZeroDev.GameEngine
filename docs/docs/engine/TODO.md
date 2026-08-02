@@ -611,7 +611,7 @@ when it declined a programme doc for this kind.
       **Plan:** [`plans/40-w41-engine-consumer-boundary.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/40-w41-engine-consumer-boundary.md)
 - [ ] **W42 proposed — runtime-state contract:** authoritative map, guest, building, queue,
       staff, construction and finance shapes. **Ready to execute** —
-      [`plans/41-w42-world-graph-state-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/41-w42-world-graph-state-contract.md),
+      [`plans/42-w42-world-graph-state-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/42-w42-world-graph-state-contract.md),
       whose **Handoff — Start Here** section is the complete brief. It also corrects
       `plans/39`'s sizing of this unit: six types in `WorldGraphKindState`'s closure
       (`Incident`, `ObjectiveProgress`, `Alert`, `TerrainCell`, `PathCell`, `Zone`) are
