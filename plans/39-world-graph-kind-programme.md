@@ -168,6 +168,12 @@ Split by type cluster with a natural review boundary, the same reasoning `plans/
 its own four-way split: each is reviewable on its own, and W43 in particular needs room to be
 judged as design, not skimmed as a port.
 
+> **W42's "port" framing above is optimistic — corrected when the unit was planned.** Six
+> types in `WorldGraphKindState`'s transitive closure are drafted in neither repository, so
+> W42 is design work too, just with a stronger starting draft than W43's. Full evidence in
+> [`plans/41-w42-world-graph-state-contract.md`](41-w42-world-graph-state-contract.md); the
+> ledger entry for W42 below carries the summary.
+
 ### Build (code, against the completed contract)
 
 | W | Unit | Mirrors |
@@ -234,7 +240,18 @@ file was changed.
 
 ### W42 — authoritative runtime-state contract
 
-- [ ] Cut the W42 doc-only plan and inventory every field in Sun Trap §§2–9.
+**Plan:** [`plans/41-w42-world-graph-state-contract.md`](41-w42-world-graph-state-contract.md).
+
+> **That plan corrects this programme's own sizing of W42.** The split table above calls it a
+> port of eight drafted types. Measured against both repositories, **six** further types in
+> `WorldGraphKindState`'s transitive closure — `Incident`, `ObjectiveProgress`, `Alert`,
+> `TerrainCell`, `PathCell`, `Zone` — are defined in *neither*, and Sun Trap's own two design
+> documents disagree about a seventh (`GuestOpinions`: seven typed fields versus ten in
+> `game-design.md` §3.2). W42 is therefore design work with a strong draft to start from, not
+> transcription — the same optimistic sizing `plans/36` Finding 3 caught for `simulation`,
+> which is now the second time it has happened.
+
+- [x] Cut the W42 doc-only plan and inventory every field in Sun Trap §§2–9.
 - [ ] Specify map dimensions, tiles, entrances, occupancy and deterministic coordinate rules.
 - [ ] Specify guest identity, position, needs, target, path, inventory, opinions and lifecycle.
 - [ ] Specify building, product, queue and service state without embedding content definitions.
