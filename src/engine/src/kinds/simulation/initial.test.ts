@@ -4,6 +4,7 @@ import type { SimulationCampaign } from "./campaign.js";
 import type { Campaign } from "../../core/registry/types.js";
 import type { CalendarState, EconomyState, WorldState } from "./state.js";
 import type { PlayerState } from "./actor.js";
+import type { GoalDefinition } from "./content.js";
 
 const startingCalendar: CalendarState = {
   currentWeek: 1,
@@ -65,12 +66,24 @@ const startingWorld: WorldState = {
   flags: {},
 };
 
+const goalDefinitions: GoalDefinition[] = [
+  {
+    id: "goal-happy",
+    labelKey: "goal.happy",
+    descriptionKey: "goal.happy.description",
+    category: "happiness",
+    conditions: { field: "player.needs.happiness", operator: "greater_or_equal", value: 60 },
+  },
+];
+
 const simulationCampaign: SimulationCampaign = {
   descriptionKey: "sim.description",
   startingCalendar,
   startingPlayer,
   startingEconomy,
   startingWorld,
+  goals: goalDefinitions,
+  goalFailurePrecedence: "goals_win",
 };
 
 const campaign: Campaign = {
@@ -90,18 +103,36 @@ describe("initialState", () => {
     expect(result.state.world).toEqual(startingWorld);
   });
 
-  it("starts every list field empty", () => {
+  it("starts every list field with no campaign-independent entries empty", () => {
     const result = initialState(campaign);
     expect(result.state.activeEffects).toEqual([]);
     expect(result.state.activeOpportunities).toEqual([]);
     expect(result.state.scheduledEvents).toEqual([]);
     expect(result.state.pendingEventResponses).toEqual([]);
+  });
+
+  it("seeds no goals for a campaign that declares none", () => {
+    const noGoalsCampaign: SimulationCampaign = { ...simulationCampaign, goals: [] };
+    const result = initialState({ ...campaign, content: noGoalsCampaign });
     expect(result.state.goals).toEqual([]);
   });
 
   it("starts with a real, empty plan for the campaign's own starting week — never null", () => {
     const result = initialState(campaign);
     expect(result.state.plan).toEqual({ week: 1, actions: [] });
+  });
+
+  it("seeds one active GoalState per campaign GoalDefinition", () => {
+    const result = initialState(campaign);
+    expect(result.state.goals).toEqual([
+      {
+        definitionId: "goal-happy",
+        status: "active",
+        satisfiedThisWeek: false,
+        consecutiveWeeksSatisfied: 0,
+        progressNotes: [],
+      },
+    ]);
   });
 
   it("status is always active", () => {

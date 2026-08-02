@@ -6,17 +6,22 @@
  *
  * **Deliberately minimal, not the real authoring surface.** The real content-definition
  * types (`ScenarioDefinition`, `BackgroundDefinition`, and the rest of `10-simulation-kind.md`
- * §7) are the third build unit's job (`plans/36-simulation-kind-programme.md`), not this
- * one — `initialState` (`initial.ts`) needs *something* to build week-one state from now, so
- * this campaign shape declares the starting state directly, as plain data, rather than
- * deriving it from a scenario/background indirection that doesn't exist yet. Identity
- * fields (`id`/`version`/`titleKey`) live on the core `Campaign` envelope, not here — the
- * same envelope-duplication rule `StoryGraphCampaign` already follows.
+ * §7) now exist (`content.ts`, W38), but assembling this shape *around* `ScenarioDefinition`
+ * — starting backgrounds, housing, inventory, week limits — is W40's job (the scenario is
+ * the content-authoring pass; this unit is wiring). `goals`/`goalFailurePrecedence` are the
+ * two fields added here, and only those: the `goals`/`failure` end-of-week systems
+ * (`endOfWeek.ts`) need a `GoalDefinition` to evaluate a `GoalState` against, and `goals`'
+ * own precedence rule to resolve a goal whose completion and failure conditions both trip
+ * the same week (§13.2 upstream, echoed in `content.ts`'s `GoalFailurePrecedence` doc
+ * comment). Identity fields (`id`/`version`/`titleKey`) live on the core `Campaign`
+ * envelope, not here — the same envelope-duplication rule `StoryGraphCampaign` already
+ * follows.
  */
 
 import type { LocKey } from "../../core/localization/types.js";
 import type { CalendarState, EconomyState, WorldState } from "./state.js";
 import type { PlayerState } from "./actor.js";
+import type { GoalDefinition, GoalFailurePrecedence } from "./content.js";
 
 export interface SimulationCampaign {
   descriptionKey: LocKey;
@@ -24,4 +29,7 @@ export interface SimulationCampaign {
   startingPlayer: PlayerState;
   startingEconomy: EconomyState;
   startingWorld: WorldState;
+
+  goals: readonly GoalDefinition[];
+  goalFailurePrecedence: GoalFailurePrecedence;
 }

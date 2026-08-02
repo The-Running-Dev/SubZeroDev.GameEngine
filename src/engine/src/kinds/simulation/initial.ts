@@ -12,7 +12,7 @@
 import type { Campaign } from "../../core/registry/types.js";
 import type { InitialStateResult } from "../../core/kernel/types.js";
 import type { SimulationCampaign } from "./campaign.js";
-import type { SimulationKindState } from "./state.js";
+import type { GoalState, SimulationKindState } from "./state.js";
 
 /**
  * `plan` starts as a real, empty plan for the campaign's own starting week — not `null`.
@@ -26,6 +26,19 @@ import type { SimulationKindState } from "./state.js";
  * with fewer parameters than `Kind.initialState` declares still satisfies it
  * structurally, so there is no unused parameter to carry just for the interface match.
  */
+/** One `GoalState` per `GoalDefinition` the campaign declares, all `"active"` — the
+ *  `goals`/`failure` end-of-week systems (`endOfWeek.ts`) are what moves a goal off this
+ *  starting state, never `initialState` itself. */
+function startingGoals(goals: SimulationCampaign["goals"]): GoalState[] {
+  return goals.map((goal) => ({
+    definitionId: goal.id,
+    status: "active",
+    satisfiedThisWeek: false,
+    consecutiveWeeksSatisfied: 0,
+    progressNotes: [],
+  }));
+}
+
 export function initialState(campaign: Campaign): InitialStateResult<SimulationKindState> {
   const content = campaign.content as SimulationCampaign;
 
@@ -40,7 +53,7 @@ export function initialState(campaign: Campaign): InitialStateResult<SimulationK
     scheduledEvents: [],
     pendingEventResponses: [],
 
-    goals: [],
+    goals: startingGoals(content.goals),
     plan: { week: content.startingCalendar.currentWeek, actions: [] },
   };
 
