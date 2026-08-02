@@ -151,8 +151,8 @@ units start rather than after.
 | **W27–W30** | Bulgaria Adventure — remaining four arcs | — (content, no plan file per arc) | Medium, content | — |
 | **W31** | Save migration mechanism (04 §10.2) | — | Medium | — |
 | **W32–W40** | The `simulation` kind — port and build | [`plans/36`](36-simulation-kind-programme.md) | **Large** — its own programme | W25 |
-| **W41–W4x** | The `world-graph` kind — consumer boundary, contract and build | [`plans/39`](39-world-graph-kind-programme.md) | **Large** — its own programme | W24; absorbs `previewAction` |
-| **W4x+** | Content tooling — validator, graph viz, diff, l10n | *when cut* | Large, several units | Kinds it validates |
+| **W41–W49 proposed** | The `world-graph` kind — consumer boundary, contract and build | [`plans/39`](39-world-graph-kind-programme.md) | **Large** — its own programme | W24; absorbs `previewAction` |
+| **After world-graph** | Content tooling — validator, graph viz, diff, l10n | *when cut* | Large, several units | Kinds it validates |
 
 **The Bulgaria arcs and the migration mechanism are both genuinely un-blocked today** and
 could be pulled into Tranche A if the appetite is for content or for closing a known gap
@@ -254,29 +254,20 @@ time has since been cut, in this order: Bulgaria's four arcs (**W27–W30**), sa
 (**W31**), and the simulation kind's own nine units (**W32–W40**, `plans/36`). The
 convention held throughout — none were reserved before the unit before them existed.
 
-`plans/39`'s own **W41–W49** for the world-graph kind is the same convention applied forward,
-not an exception to it — and this table's own **W41–W4x** for the same programme is not a
-disagreement with that, even though the two look like different ranges side by side.
+`plans/39`'s **W41–W49** for the world-graph kind is the same convention applied forward,
+not an exception to it. The tranche table now repeats that current proposal so the umbrella
+and sub-programme do not present different ranges, but **"proposed" is not "assigned."**
 
-**A sub-programme proposing a full, specific split internally, while this umbrella table
-keeps the same programme open-ended, is not new here — it already happened once, and the
-proposal already turned out wrong.** `plans/36`'s own header proposed simulation's contract-
-and-build split as **W27–W33**, a full eight-unit range, the same way `plans/39` now proposes
-**W41–W49** for world-graph. This table showed that programme as **W27–W3x** throughout, not
-the specific W27–W33 it was proposing internally. The vagueness was load-bearing, not
-hedging: Bulgaria's four arcs and save migration were cut *first* (W27–W31), which the
-original W27–W33 proposal had no way to anticipate, and simulation's real units landed at
-**W32–W40** — nine units, one more than proposed, at numbers eight higher than its own
-header once guessed. Had this table committed to W27–W33 the way it was tempted to, every
-later reference would have needed rewriting the moment Bulgaria and migration were cut ahead
-of it — exactly the renumber-and-rewrite problem this decision exists to avoid.
+The distinction already mattered once. `plans/36`'s header proposed simulation's contract-
+and-build split as **W27–W33**. Bulgaria's four arcs and save migration were cut first
+(W27–W31), and simulation's real units landed at **W32–W40** — nine units, one more than
+proposed and at later numbers. That proposal was still useful decomposition; it simply did
+not reserve the labels.
 
-World-graph's own **W41–W49** is `plans/39`'s honest best guess, sized against real source
-material the same way W27–W33 was — and, on this table's own demonstrated track record, just
-as likely to shift once something is actually cut. `plans/39`'s header already says so
-("numbers assigned when each is cut"); this table's **W41–W4x** says the same thing at the
-programme level, not a stale holdover this PR forgot to update. Whatever comes after
-world-graph — content tooling or anything else — still takes its number only when cut.
+World-graph's **W41–W49** is therefore the current decomposition, sized against real source
+material, not a reservation. W41 is the real next number; W42–W49 are assigned only as those
+units are cut and may shift if intervening work appears. Whatever follows world-graph —
+content tooling or anything else — takes its number only when it is cut.
 
 ---
 
