@@ -236,11 +236,20 @@ and marks it optional for the base game.
 |---|---|---|
 | **S1 — The contract is whole** | W30 merged | Every type `SimulationKindState` names is specified in this repository. `10-simulation-kind.md` stops being "the seam only" |
 | **S2 — A week resolves** | W32 merged | The loop runs: plan, `end_week`, systems, next week. Determinism harness passes on it |
-| **S3 — Stable Life plays** | W40 merged | Win and loss both reachable through the text client and MCP identically. Programme milestone **M7** |
+| **S3 — Stable Life plays** | W40 merged | Win and loss both reachable — **through the replay oracle** (`createGame`/`submitAction`), not yet the text client or MCP; see the callout below. Programme milestone **M7**, partially |
 | **S4 — Guarded** | W40's fixtures in the corpus | The replay oracle covers a second kind; the two-phase time-ordering rule has a regression test with teeth |
 
 (S3/S4 were "W33 merged" before the split above — W38/W39 are prerequisites W33 never named as
 its own steps, not new milestones in their own right.)
+
+**S3's own "through the text client and MCP identically" wording predates W40's actual
+scope decision.** `kinds/simulation/kind.ts`'s `scene`/`availableActions`/`project` are
+placeholders — §9 (Projection) is still prose-only in the contract, with no
+`SimulationView`/`PublicWorldState` shape to implement against, and building one is its own
+future unit (story-graph's own equivalent, W16/W17, came after its turn loop already
+worked, not bundled into validation/content). W40 proves win/loss through the replay
+oracle instead, which is what its own actual consumer needs. **Revisit when** a client
+projection unit lands — that is what closes S3 in full, not a W40 follow-up.
 
 `life-in-the-fast-lane.md`'s DoD adds one criterion this programme does **not** deliver — "at
 least one culture pack loads and swaps content without an engine change." That is content

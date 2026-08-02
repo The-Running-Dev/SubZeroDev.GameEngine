@@ -1,0 +1,14 @@
+{
+  "name": "stable-life-win",
+  "config": { "campaignId": "stable-life", "seed": "stable-life-win-seed" },
+  "campaignVersion": "1.0.0",
+  "capturedUnder": "0.1.0",
+  "submissions": [
+    { "actionId": "plan.add", "params": { "actionType": "rest" } },
+    { "actionId": "end_week" },
+    { "actionId": "plan.add", "params": { "actionType": "rest" } },
+    { "actionId": "end_week" },
+    { "actionId": "plan.add", "params": { "actionType": "rest" } },
+    { "actionId": "end_week" }
+  ]
+}

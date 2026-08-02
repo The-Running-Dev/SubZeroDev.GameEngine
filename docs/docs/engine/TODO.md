@@ -954,22 +954,55 @@ GoalDefinition[]` and `goalFailurePrecedence` — still not the real authoring s
       npm test` all pass (669 tests, was 644).
 - **Plan:** [`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md)
 
-### [ ] W40 — Simulation Kind: The "Stable Life" Scenario, Validation, and Corpus
+### [x] W40 — Simulation Kind: The "Stable Life" Scenario, Validation, and Corpus
 Fifth build unit — the third and last piece of the W33 split, mirroring story-graph's
 W14+W15+W22 combined (the original mirror `plans/36` gave W33 as a whole), now that W38/W39
-give it real types and real logic to author and validate against. Authors the actual "Stable
-Life" `SimulationCampaign` content, Tier 1/2 `validateCampaign` for the simulation kind, and
-commits replay-corpus fixtures (`fixtures/replay/`) for its win and loss paths — folded
-together per `plans/36`'s own original reasoning: the scenario *is* the test subject. Reaches
-this programme's **S3**/**S4** milestones.
+give it real types and real logic to author and validate against. Authors the "Stable Life"
+fixture `SimulationCampaign` (`campaigns/stable-life.ts` — one goal, "Well Rested": maintain
+`player.needs.energy` at or above 70 for two consecutive weeks, failing outright below 40),
+Tier 1/2 `validateCampaign` for the simulation kind (`kinds/simulation/validate.ts`), the
+real `Kind<SimulationKindState>` assembly (`kinds/simulation/kind.ts`, mirroring
+`kinds/story-graph/kind.ts`'s own role), and commits replay-corpus fixtures
+(`fixtures/replay/stable-life-{win,loss}.*.json`) for both paths — folded together per
+`plans/36`'s own original reasoning: the scenario *is* the test subject. Reaches this
+programme's **S3**/**S4** milestones — with one criterion honestly short, below.
+
+**Validation is scoped to what `SimulationCampaign` actually carries** (`goals`,
+`goalFailurePrecedence`) — not §14's full list across every content-definition type, most
+of which this campaign shape has no field for yet. `kinds/simulation/validate.ts`'s own
+header names exactly what's checked (goal id uniqueness, `LocKey` resolution) and defers
+the rest to whichever future unit adds the collection each check needs.
+
+**Two committed fixtures, both captured by running the real engine once, not hand-typed:**
+`stable-life-win` (three weeks of `rest`, completing the goal — two consecutive satisfied
+weeks, not one, is the actual proof of `endOfWeek.ts`'s persistence tracking) and
+`stable-life-loss` (four weeks of nothing, tripping `failureConditions`). Fixing these
+fixtures also surfaced a real, previously-latent bug: `bulgaria-bureaucracy.replay.test.ts`
+(W22) enumerated *every* `*.fixture.json` in the shared `fixtures/replay/` directory,
+having never anticipated a second kind landing fixtures beside its own — it then tried to
+replay `stable-life-*` through the story-graph-only registry and failed with
+`campaign_withdrawn`. Fixed by prefix-filtering both suites (`bureaucracy-`/`stable-life-`)
+and wiring `stable-life.replay.test.ts` into `ci.yml`'s release-tag-replay job alongside
+bureaucracy's, with the same `skipIf`-style guard for a baseline tag that predates this
+corpus entirely.
+
+**Honest scope gap: win/loss are not reachable through the text client or MCP.** The
+original "Done when" below asked for that; `scene`/`availableActions`/`project`
+(`kinds/simulation/kind.ts`) are placeholders, because §9 (Projection) is still prose-only
+in the contract — no `SimulationView`/`PublicWorldState` shape exists to implement against.
+This unit's actual consumer, the replay oracle, never calls those three methods (only
+`createGame`/`submitAction`), so it doesn't need them — but a text-client/MCP playthrough
+does, and that's a real, separate future unit (story-graph's own equivalent, W16/W17, came
+*after* its turn loop already worked, not bundled into W14/W15). Recorded here rather than
+quietly dropped from the criteria.
 - **Spec:** [10 §14](10-simulation-kind.md#14-validation), [07 §4](07-replay.md#4-the-corpus).
 - **Depends on:** [W39](#w39).
-- **Status:** Not started.
-- **Done when:** win and loss are both reachable through the text client and MCP identically;
-      Tier 1/2 validation rejects the same class of broken fixtures story-graph's W14 did, for
-      this kind's own content; at least one win fixture and one loss fixture are committed
-      under `fixtures/replay/` and pass the replay oracle; `npm run typecheck && npm run lint
-      && npm test` all pass.
+- **Status:** Done — PR pending.
+- **Done when:** Tier 1/2 validation rejects a duplicate goal id and an unresolved `LocKey`
+      for this kind's own content; one win fixture and one loss fixture are committed under
+      `fixtures/replay/` and pass the replay oracle, including the release-tag-replay CI job;
+      `npm run typecheck && npm run lint && npm test` all pass (677 tests, was 669). Win/loss
+      through the text client and MCP is **not** met — see the gap noted above.
 - **Plan:** [`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md)
 
 ### Breadth: The First Culture Pack
