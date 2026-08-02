@@ -99,7 +99,7 @@ type BasisPoints = number;   // integer; 250 === 2.50%
 ```
 
 Both are simulation-kind primitives — no other kind has a money concept — reused by every
-later section that needs them, including §6 (Player State) once ported.
+later section that needs them, including §6 (Player State) and §7 (Content Definition Types).
 
 **A second recurring rule: `Record<string, T>` iteration that affects state must use sorted
 keys.** `Record` key order follows insertion order, which after a `serialize`/`deserialize`
@@ -110,8 +110,8 @@ iteration for display is exempt. This is a real, upstream-inherited requirement 
 `04-core.md` does not yet state generically — flagged here because this kind is the first with
 `Record`-typed state fields whose iteration order is load-bearing, not because it is settled
 that the rule belongs only here. Applies below to `WorldState.eventCooldowns` and
-`EconomyState.sectorDemand`/`marketPrices` (§2.5), and will apply to `PlayerState.skills`/
-`reputation`/`counters` once §6 is ported.
+`EconomyState.sectorDemand`/`marketPrices` (§2.5), and to `PlayerState.skills`/`reputation`/
+`counters` (§6.2).
 
 ### 2.1 Calendar State
 
@@ -144,7 +144,7 @@ would prejudge that.
 
 ```typescript
 interface WorldState {
-  npcs: NPCState[];                          // §7 once ported (upstream §14.6)
+  npcs: NPCState[];                          // §7.7
   locations: LocationState[];
 
   jobMarket: JobMarketState;
@@ -155,7 +155,7 @@ interface WorldState {
   strangenessBase: number;                   // 0–100; the derived value below adds modifiers
   headlinePool: HeadlinePoolState;
 
-  agents: AgentState[];                      // rivals; empty in open_life mode. §7 once ported (upstream §14.9)
+  agents: AgentState[];                      // rivals; empty in open_life mode. §7.10
 
   flags: Record<string, boolean>;
 }
@@ -205,18 +205,17 @@ rival compete for.
 `Infinity` cannot survive a save/load round trip in this engine, whether or not `JSON.stringify`
 would silently coerce it to `null` first. Absence-means-unbounded is not invented for this: it
 is the same pattern upstream's own `CourseDefinition.seatsAvailable`/`HousingDefinition.
-unitsAvailable` already use for an identical "uncapped" concept (§7 once ported, upstream
-§14.2–§14.3) — `JobOpening` is the one place upstream reached for a literal infinity instead of
-its own more common convention.
+unitsAvailable` (§7.3, §7.4) already use for an identical "uncapped" concept — `JobOpening` is
+the one place upstream reached for a literal infinity instead of its own more common convention.
 
 #### World Strangeness
 
-Content (once §7 is ported) gates events and headlines on a **derived** strangeness value, not
-the raw `strangenessBase` above — so a `Modifier` (upstream §13.3, deferred with the rest of
-content mechanics) can push it, and so the raw number never leaks into a projection. The player
-is meant to notice the drift, not read the dial. `strangenessBase` itself rises on a curve with
-elapsed weeks; the curve's shape is content-balance material, out of scope here the same way §7
-(Base and Derived Values, upstream) is out of scope for this unit.
+Content gates events and headlines on a **derived** strangeness value, not the raw
+`strangenessBase` above — so a `Modifier` (§7.1) can push it, and so the raw number never leaks
+into a projection. The player is meant to notice the drift, not read the dial.
+`strangenessBase` itself rises on a curve with elapsed weeks; the curve's shape is
+content-balance material, out of scope here the same way §6.1's derived-value formulae are
+content-balance material rather than part of the mechanism itself.
 
 #### Chain Scope — and an Item This Raises
 
@@ -246,7 +245,7 @@ interface StatusEffect {
   sourceId: string;
   sourceKind: "item" | "housing" | "trait" | "event" | "job" | "course" | "system";
 
-  modifiers: Modifier[];         // §7 once ported (upstream §13.3)
+  modifiers: Modifier[];         // §7.1
 
   appliedWeek: number;
   expiresAtWeek?: number;        // absent = permanent while source persists
@@ -300,7 +299,7 @@ the concrete reason code is named once §10 (Reason Codes) has a real caller to 
 #### Opportunity Lifecycle
 
 **Generation**, three paths, all producing an `Opportunity` from an `OpportunityDefinition`
-(§7 once ported, upstream §14.8):
+(§7.9):
 
 | Path | Trigger |
 |---|---|
@@ -325,7 +324,7 @@ opportunities from the eligible pool. Revoking and expiring before offering mean
 this week becomes available to re-offer this week rather than next.
 
 **Why explicit decline exists.** Letting an offer lapse and refusing it to someone's face are
-different acts once NPCs remember things (§7 once ported, upstream §14.6) — turning down a
+different acts once NPCs remember things (§7.7) — turning down a
 manager's offer is a relationship event; forgetting to answer is a different one. Without a
 distinct decline path the engine cannot tell them apart.
 
@@ -499,14 +498,13 @@ re-validating from scratch.
 ```typescript
 interface WeeklyActionPlan {
   readonly week: number;
-  readonly actions: readonly GameAction[];   // §7 once ported (upstream §9) — the action schema itself
+  readonly actions: readonly GameAction[];   // deferred to the final contract unit (upstream §9) — the action schema itself
 }
 ```
 
 Sized against upstream §9.1, minus the two fields §2's callout box already excludes —
 `totalTimeCost`/`totalMoneyCostCents` are computed on read, never stored, for the same reason
-every other derived value in this kind is (§2.5's `demandBand`, and §7's derived-value layer
-once ported).
+every other derived value in this kind is (§2.5's `demandBand`, and §6.1's derived-value layer).
 
 Upstream also carries a `finalized` flag with no setter and no defined effect — dropped here
 entirely, not merely unstated. `plan.clear`/`plan.add`/`plan.remove` mutate nothing in place
@@ -641,7 +639,7 @@ type PlayerState = ActorState;
 ```
 
 `SimulationKindState.player: PlayerState` (§2) is this same shape; a rival is
-`AgentState.actor: ActorState` (§7 once ported, upstream §14.9) — identical fields, run through
+`AgentState.actor: ActorState` (§7.10) — identical fields, run through
 identical resolvers. Porting "player state" narrowly and adding rival support later was
 considered and rejected: it would produce a shape that has to be re-derived the moment a rival
 exists, rather than one written correctly once.
@@ -665,7 +663,7 @@ same way it will for every other content-id reference in this kind. `counters` i
 filled two ways: **automatically**, incrementing `counters[change.reason]` for every emitted
 `StateChange` (the reason-code vocabulary is already a taxonomy of things that happen, so
 statistics like "times evicted" or "checks failed" come free), and **explicitly**, from a
-`"counter"`-type `Reward` (§7 once ported) for statistics that are not state changes in their
+`"counter"`-type `Reward` (§7.1) for statistics that are not state changes in their
 own right. Both paths write through typed code, never through a client-supplied key.
 
 **All four are subject to the sorted-iteration rule (§2).** `counters` is the newest and the
@@ -683,14 +681,14 @@ interface ActorIdentity {
   actorId: string;          // "player" or a rival's agent id
   name: string;
   age: number;
-  backgroundId: string;     // §7 once ported (upstream §14.8) — BackgroundDefinition
+  backgroundId: string;     // §7.9 — BackgroundDefinition
 }
 
 type PlayerIdentity = ActorIdentity;
 ```
 
 `actorId` is load-bearing, not decorative: relationships are held per actor (§6.11) and NPCs
-remember things about specific actors (§7 once ported, upstream §14.6), so every actor must be
+remember things about specific actors (§7.7), so every actor must be
 individually addressable.
 
 ### 6.4 Finances
@@ -782,7 +780,7 @@ interface EducationState {
 }
 
 interface CourseEnrollment {
-  courseId: string;               // §7 once ported (upstream §14.2) — CourseDefinition
+  courseId: string;               // §7.3 — CourseDefinition
   startedWeek: number;
   weeksCompleted: number;
 
@@ -831,7 +829,7 @@ interface CareerState {
 }
 
 interface Employment {
-  jobId: string;                 // §7 once ported (upstream §14.1) — JobDefinition
+  jobId: string;                 // §7.2 — JobDefinition
   employerId: string;
   startedWeek: number;
 
@@ -872,13 +870,13 @@ const JOB_TIER_RANK: Record<JobTier, number> = {
 `JobTier` is ranked for the same reason `CredentialLevel` is ordered (§6.7): a career goal or
 job requirement reading "skilled or better" needs an ordering, not just a tag. `career.
 effectivePerformance` (§6.1's `DerivedPath`) is computed from `Employment.performance` plus
-whatever `PerformanceFactor`s (§7 once ported, upstream §14.1) apply — never stored itself.
+whatever `PerformanceFactor`s (§7.2) apply — never stored itself.
 
 ### 6.9 Housing
 
 ```typescript
 interface HousingState {
-  definitionId: string;           // §7 once ported (upstream §14.3) — HousingDefinition
+  definitionId: string;           // §7.4 — HousingDefinition
   movedInWeek: number;
 
   ownership: "renting" | "owned" | "mortgaged" | "staying_with_someone";
@@ -892,7 +890,7 @@ interface HousingState {
   missedPayments: number;
   evictionStage: EvictionStage;
 
-  landlordNpcId?: string;        // §7 once ported (upstream §14.6) — NPCState
+  landlordNpcId?: string;        // §7.7 — NPCState
 }
 
 type EvictionStage =
@@ -915,7 +913,7 @@ content-balance material, the same status `TODO.md`'s *Known Open Items* already
 ```typescript
 interface InventoryItem {
   instanceId: string;
-  definitionId: string;          // §7 once ported (upstream §14.4) — ItemDefinition
+  definitionId: string;          // §7.5 — ItemDefinition
 
   quantity: number;
   acquiredWeek: number;
@@ -936,7 +934,7 @@ climber" rival strategy, upstream design, is unimplementable any other way).
 
 ```typescript
 interface RelationshipState {
-  npcId: string;                  // §7 once ported (upstream §14.6) — NPCState
+  npcId: string;                  // §7.7 — NPCState
   category: "professional" | "personal" | "transactional" | "adversarial";
 
   affinity: number;
@@ -951,7 +949,7 @@ interface RelationshipState {
 ```
 
 The affective dimensions (`affinity`/`trust`/`respect`/`resentment`) live here, on the actor —
-`NPCState` (§7 once ported) holds only what genuinely belongs to the NPC itself: its role,
+`NPCState` (§7.7) holds only what genuinely belongs to the NPC itself: its role,
 availability and memories, none of which differ per observer.
 
 ---
@@ -969,9 +967,22 @@ story-graph campaigns are. A simulation campaign is `kindId: "simulation"` plus 
 conforming to this kind's schema — the same core/kind/campaign split (architecture §1), with
 no new loading mechanism.
 
-Identity fields — `id`, `version`, `titleKey` — live on the core `Campaign` envelope and
-**not** in the kind's content types, the correction already applied to
-`StoryGraphCampaign` (04 §10.1).
+**Two subsections (§7.7, §7.10) are the exception, by design, not drift.** `NPCState` and
+`AgentState` are runtime state (already forward-referenced from `WorldState`, §2.2), not
+campaign data — placed beside their content-side counterpart (`NPCDefinition`,
+`AgentStrategy`) because the two are read together constantly, the same reason
+`JobOpening` (§2.2, runtime) and `JobDefinition` (§7.2, content) are described near each other
+in prose even though they live in different top-level sections. Every other subsection here is
+campaign data throughout.
+
+**This is about the campaign wrapper's own identity, not every individual definition's `id`.**
+A campaign-level `id`/`version`/`titleKey` — the simulation-kind analogue of
+`StoryGraphCampaign` — lives on the core `Campaign` envelope and would be the envelope-
+duplication defect (04 §10.1) to restate here. Each *individual* content definition below
+still needs its own `id`, the same way `03-story-graph-kind.md`'s own `Choice`,
+`AchievementDefinition` and every node do: a campaign declares many jobs, many events, many
+goals, and each needs to be addressable on its own terms. `JobDefinition.id` names one job
+among many a campaign declares; it is not the campaign's own identity.
 
 Every type below references `Requirement`/`RequirementType` (upstream §13.2) and `GameAction`'s
 own schema (upstream §9) by name — neither is ported yet, deferred to the last contract unit
@@ -1311,7 +1322,16 @@ immediately within end-of-week processing (§12.2, deferred, W30). `ConditionalO
 forward-references `ActionOutcome`'s own `degree` field — action resolution's shape, deferred to
 the same unit that defines it.
 
-### 7.7 NPCs
+### 7.7 NPCs — Definition and Runtime State
+
+**Two of the three types below are not campaign data.** `NPCDefinition` is; `NPCState` and
+`NPCMemory` are runtime state (`WorldState.npcs`, §2.2) that a `Kind.advance` reducer creates
+and mutates as a game plays — the same content/state split every other section of this contract
+draws (`JobDefinition` vs. `JobOpening`, §2.2 vs. §7.2, is the same pair). Placed together here
+rather than split across §2 and §7 because the two are read together constantly (an NPC's
+current role and memories are meaningless without its definition's `defaultRole`/tags to compare
+against), and `WorldState.npcs: NPCState[]` (§2.2) already forward-referenced this exact section
+before either type existed in this repository.
 
 ```typescript
 interface NPCDefinition {
@@ -1532,7 +1552,11 @@ design: geography is a real budget line, not a solved-away convenience. An actio
 not in the current location's `actionTypes` fails with `wrong_location` (§10, once that reason
 code has a real dispatcher to attach it to — W30).
 
-### 7.10 Agents
+### 7.10 Agents — Definition and Runtime State
+
+Same pairing as §7.7: `AgentStrategy` is campaign data (a strategy a scenario assigns to a
+rival); `AgentState` is runtime state (`WorldState.agents`, §2.2) built from it at game start
+and mutated every week thereafter.
 
 ```typescript
 interface AgentStrategy {
@@ -1688,16 +1712,43 @@ outcome in the game.
 ## 14. Validation
 
 `Kind.validateCampaign(campaign, strings)` (04 §11) is where this is implemented — pure,
-total, run once at registry construction, before the registry is frozen.
+total, run once at registry construction, before the registry is frozen. Tiered the way
+03 §11 and 12 §15 already are.
 
-**Deferred, the way §2 defers `history`, rather than left unraised.** Concrete Tier 1/Tier
-2 rules need the content types §7 defers to §15 — a job/course/housing id can't be checked
-for referential integrity before the type naming those ids exists. Once it does, the shape
-follows 03 §11 and 12 §15's precedent directly: Tier 1 (hard fail) for duplicate ids,
-dangling references between content types (a job naming a `requiredCredentialId` that
-doesn't exist), missing `LocKey`s, and out-of-range declared values; Tier 2 (warning) for
-unreachable content (a goal no scenario's `goalIds` ever names) and non-fatal authoring
-smells. **Revisit when** §15's content-type port lands.
+**Tier 1 — load-time, hard fail:**
+
+- No two definitions of the same content type share an `id` (`JobDefinition`, `CourseDefinition`,
+  `HousingDefinition`, `ItemDefinition`, `EventDefinition`, `NPCDefinition`, `GoalDefinition`,
+  `ScenarioDefinition`, `DifficultyDefinition`, `OpportunityDefinition`,
+  `AchievementDefinition`, `HeadlineDefinition`, `EmployerDefinition`, `LocationDefinition`,
+  `BackgroundDefinition`, `TraitDefinition`, `SkillDefinition` — §7.2–§7.10, each independently).
+- Every reference to another definition's `id` resolves: `PromotionPath.toJobId` →
+  `JobDefinition`; `ScenarioDefinition.startingBackgroundIds`/`startingHousingId`/
+  `startingLocationId`/`goalIds`/`startingInventory[].definitionId` → their respective
+  definitions; `EmployerDefinition.jobIds`/`npcIds` → `JobDefinition`/`NPCDefinition`;
+  `LocationDefinition.connections` → `LocationDefinition` (the adjacency graph, §7.9);
+  `OpportunityDefinition.targetId` → whichever definition type its own `kind` names
+  (`job_offer` → `JobDefinition`, `course_place` → `CourseDefinition`, and so on).
+- Every `LocKey` field (`titleKey`, `descriptionKey`, `nameKey`, `labelKey`, `textKey`) resolves
+  in the registry's string table (04 §10.1).
+- A `Modifier.target`/addressing path naming an array collection uses the collection's natural
+  key, never a numeric index (§7.1) — a numeric path segment is rejected outright.
+- A `Modifier` targeting a `DerivedPath` (§6.1) fails with `read_only_field` — the same rule
+  §6.1 itself states, checked here because this is where a concrete `target` string first
+  exists to check.
+
+**Tier 2 — load-time, warning:**
+
+- Unreachable content: a `GoalDefinition` no `ScenarioDefinition.goalIds` ever names; a
+  `JobDefinition`/`HousingDefinition`/`ItemDefinition` no scenario's starting state, no
+  `EmployerDefinition`, and no `Reward`/opportunity ever references.
+- An `AchievementDefinition.condition` (§7.9) referencing a counter or flag key nothing in the
+  campaign's content ever writes — satisfiable only by chance, not by design.
+
+**Referential integrity for `Requirement`/`RequirementType` and `GameAction`'s own schema is not
+stated here** — both are deferred to the final contract unit (§15) alongside the systems that
+dispatch on them, the same reason `03-story-graph-kind.md` §11 doesn't validate `Condition`
+operators it didn't itself define.
 
 ---
 
