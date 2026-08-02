@@ -166,7 +166,11 @@ campaign that Tier 2 should warn about (§15), not a crash.
 ### 3.2 Runtime-State Type Contract (engine-owned)
 
 The types below are now the complete closure required by §3. **All identifiers are opaque
-strings unless a dedicated namespace is stated.**
+strings unless a dedicated namespace is stated — opaque in *meaning*, with exactly one
+constraint on their *shape*: no identifier may contain a `.`.** §13's audit paths are
+dot-separated, so a dot inside an id makes a path parse two ways; the rule is stated at
+Tier 1 in §15 and argued in §13. Nothing else about an id is constrained, and no code may
+infer anything from one.
 
 Two reading conventions:
 
@@ -975,6 +979,31 @@ listed so the second is not discovered later as a gap.
 > addressable. A `null` assignment is `""` for the same reason the collection rule exists:
 > the type has no null.
 >
+> **A dotted path is only unambiguous because no id may contain a dot.** §3.2 calls
+> identifiers opaque, and opacity of *meaning* would otherwise imply freedom of *shape*.
+> With a `productId` of `water.sparkling`:
+>
+> ```text
+> buildings.b:3.pricesCents.water.sparkling
+>                           └─ one segment, or two? The path resolves to a price, or to
+>                              nothing, depending entirely on who parsed it.
+> ```
+>
+> So **no path-addressable identifier may contain a `.`** — and that is all of them:
+> authored content ids (building and product definitions, staff roles, objectives, zones),
+> the keys of nested records like `pricesCents`, which *are* product ids, and entity ids.
+> Entity ids satisfy it by construction, since §9 formats them `<prefix>:<ordinal>` and `:`
+> is not a separator here; the rest are checked at Tier 1 (§15). With the rule, the same
+> path is unambiguous:
+>
+> ```text
+> buildings.b:3.pricesCents.sparkling-water   →  buildings[id=b:3].pricesCents["sparkling-water"]
+> ```
+>
+> The alternative — a canonical escaping grammar for segments — buys nothing here: nothing
+> needs a dot inside an id, and every producer and consumer would have to implement the
+> unescaping identically or reintroduce the divergence this rule exists to remove.
+>
 > **`.exists` is the one synthetic leaf, and the only one.** Appearing and disappearing are
 > not fields of any type in §3.2 — an entity that was removed has no field left to carry the
 > news. So `<collection>.<entityId>.exists` is defined as a boolean assertion about
@@ -1039,8 +1068,13 @@ no entrance, negative capacity are Tier 1; unreachable unlocks, map regions disc
 from every spawn, building categories with no demand, staff roles with no task generator
 are Tier 2.
 
-Additions this contract requires. At **Tier 1**: the `advance_ticks` cap (§6) must be
-present and positive; `ticksPerDay` (§3.3) must be present and positive; every price band
+Additions this contract requires. At **Tier 1**: every authored id this kind reads — building
+and product definitions, staff roles, objectives, zones — must be non-empty and **contain no
+`.`**, because §13's `StateChange` paths are dot-separated and an id carrying a dot makes a
+path parse two ways. It is checked here rather than assumed because these ids are content,
+and content is exactly what a contract cannot assume about; entity ids need no check, since
+§9 constructs them. The `advance_ticks` cap (§6) must be present and positive; `ticksPerDay`
+(§3.3) must be present and positive; every price band
 must be a valid integer-cent range containing the definition's default price; a
 pre-placed building (§3.1) must name a real definition, fit inside the map, sit on terrain
 its definition allows, and not overlap another — the same footprint rules the `build`
