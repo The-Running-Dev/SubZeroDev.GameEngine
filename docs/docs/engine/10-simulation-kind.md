@@ -4,8 +4,11 @@ sidebar_label: Simulation Kind
 
 # Simulation Kind — Contract
 
-**Document status:** Revision 1 — **the seam only.** Field-level content detail is still
-upstream; §15 says exactly what and why.
+**Document status:** Revision 2 — **the contract is whole.** Every type `SimulationKindState`
+(§2) names, the content definition types a real campaign will declare, and the resolution
+mechanics that dispatch on them are all specified in this repository. §15 records what was
+ported, in what order, and the findings each pass surfaced — no field-level detail remains
+upstream as a gap in this contract's shape.
 
 **Kind:** `simulation`
 
@@ -18,8 +21,8 @@ upstream; §15 says exactly what and why.
 > projection, reason codes, events and terminal identity.
 >
 > It is **not** a port of that document. Roughly half of it is core material `04-core` now
-> owns, and the half that is kind-specific runs to ~50 KB of field detail that this contract
-> deliberately does not restate — see §15.
+> owns and is cited, not re-derived, from here; the kind-specific half is restated in full
+> below — see §15 for what was ported, in what order, and why.
 
 ---
 
@@ -457,6 +460,50 @@ events         present responses deferred from last week
 > player is quietly granted or robbed of time units with nothing to show it. This is the
 > kind of rule the determinism harness cannot catch and the replay oracle (07) can.
 
+**End-of-week ordering is equally normative** (upstream §12.2), run once `end_week` has
+resolved every planned action (§5):
+
+```text
+employment          education          finance_income     inventory
+housing              finance_reconcile  needs               relationships
+opportunities        events             headline            goals
+failure              achievements       history
+```
+
+Order is stable and covered by test, the same as start-of-week. `headline` runs after `events`
+so a week's headline can reference the strangeness level that week's own events just moved.
+`achievements` runs second-to-last because an achievement condition may depend on anything
+earlier in the pass, including a counter a `goals`/`failure` system just incremented.
+
+> **Why finance runs twice.** `finance_income` (wages in, scheduled expenses out) must run
+> *before* `housing`, so rent is payable from this week's own wages; `finance_reconcile`
+> (overdue balances, late fees, eviction advancement) must run *after* `housing`, so it can see
+> rent that just went unpaid. A single combined `finance` pass satisfies only one of the two —
+> rent charged before wages arrive produces false overdrafts for a solvent player, while
+> reconciling before housing means eviction escalation lags its own trigger by a full week.
+> Splitting the pass is the only ordering that satisfies both.
+
+**`history` appears in this list as a system name, not as adopted state.** §2 already declines
+`history: HistoryEntry[]` as a `SimulationKindState` field — the position in this ordering is
+upstream's own, restated for completeness of the list, not evidence the field is coming.
+
+**`weekLimit` is conspicuously absent from this order, and that is the concrete form of §12's
+own open item.** No system here checks a scenario's `weekLimit` against the current week —
+searched the full ordering, upstream never schedules that check anywhere in `END_WEEK_SYSTEM_ORDER`.
+§12's terminal-identity callout already flagged `week_limit_reached`'s precedence against
+`goals_met` as unresolved upstream; this list is the evidence for that claim, not a new one —
+there is no step here for a future implementation to hook a resolution into without inventing
+one upstream itself never named.
+
+**Goals run before failure — a per-scenario tie-break, not a fixed rule.**
+`ScenarioDefinition.goalFailurePrecedence: GoalFailurePrecedence` (§7.8, declared there
+alongside the type it's shaped by) defaults to `"goals_win"`. When a completion condition and a
+failure condition are both satisfied at the end of the same week, the default exists because
+the alternative produces the worst available ending — reaching every goal while also being
+evicted, reported as a loss — and punishes a player for a race they could not see coming.
+`"failure_wins"` exists for a scenario that wants survival to matter more than achievement, an
+authored difficulty choice rather than a global rule.
+
 **`initialState(campaign, ctx): InitialStateResult<KState>`** (04 §4) builds the calendar
 at week one with a full time budget, the player and world state the campaign declares, and
 an empty plan. `status` is always `"active"`: unlike `story-graph`, where an authored chain
@@ -498,7 +545,7 @@ re-validating from scratch.
 ```typescript
 interface WeeklyActionPlan {
   readonly week: number;
-  readonly actions: readonly GameAction[];   // deferred to the final contract unit (upstream §9) — the action schema itself
+  readonly actions: readonly GameAction[];   // §4.2
 }
 ```
 
@@ -513,8 +560,55 @@ entirely, not merely unstated. `plan.clear`/`plan.add`/`plan.remove` mutate noth
 makes. A client wanting a confirmation prompt owns that prompt as presentation, not state.
 
 `GameAction`'s own shape (`ActionType`, `targetId`, `parameters`) is upstream §9, not §9.1 —
-out of scope for this unit, ported alongside action resolution
-(`plans/36-simulation-kind-programme.md`'s **W30**).
+ported in §4.2, alongside action resolution.
+
+### 4.2 Action Types
+
+```typescript
+type ActionType =
+  | "work" | "work_overtime"
+  | "search_for_work" | "apply_for_job" | "negotiate_job_terms"
+  | "attend_class" | "study" | "enroll_course" | "withdraw_course"
+  | "shop" | "eat" | "rest" | "exercise" | "socialize" | "travel"
+  | "maintain_item" | "repair_item" | "sell_item"
+  | "pay_bills" | "borrow_money" | "repay_debt" | "deposit_savings" | "invest"
+  | "move_housing"
+  | "start_project" | "work_on_project"
+  | "start_business" | "operate_business"
+  | "accept_opportunity" | "decline_opportunity"
+  | "respond_to_event"
+  | "custom";
+
+interface GameAction {
+  id: string;
+  type: ActionType;
+  actorId: string;               // §6.3 — "player" or a rival's agent id
+
+  targetId?: string;
+  parameters: Record<string, unknown>;
+}
+```
+
+`ActionType` is a closed union, not `string` — the same reason `DerivedPath` (§6.1) is: an open
+string type would make "is this action supported" a runtime question, and a `ResolverTable`
+(§5.1) keyed by it could not be checked for completeness at compile time.
+
+**`timeCost` and money cost are never fields here.** Both are always engine-derived (§5.2),
+never client-supplied — trusting a client's own figure would mean a client (or a future natural-
+language adapter translating intent into `"custom"`) chooses its own costs, which contradicts
+the core principle that a client never manipulates authoritative state (04 §1). Fourteen
+zero-cost job applications a week is exactly the failure mode a client-supplied cost would
+allow.
+
+**`"custom"` is the escape hatch for adapter-translated intent** (upstream §15.1, out of scope
+for this contract) **and has no resolver** (§5.1) — a `GameAction` reaching resolution with
+`type: "custom"` fails with `action_not_available`. An adapter must translate natural-language
+intent into a concrete `ActionType` *before* submission; there is no route around the
+`ResolverTable` for it to take, because there is no entry in the table to route to.
+
+`plan.add`'s own `{ actionType, targetId?, … }` params (this section's table, above) map
+directly onto `GameAction.type`/`targetId`/`parameters` — assembling a plan is choosing which
+`GameAction`s it will hold, one `plan.add` at a time.
 
 ---
 
@@ -532,7 +626,109 @@ A rejected action returns a `ValidationError` with its reason code, leaves state
 and does **not** advance the log (04 §4) — so `seq` repeats on the next attempt, with the
 consequences 05 §5 and 07 §3.1 describe.
 
----
+**What follows is internal to this kind's own `end_week` resolution — not part of the Kind
+seam.** `Kind.advance` (04 §4) returns exactly one `AdvanceResult` per `submitAction` call; the
+types below describe how *one* `end_week` call resolves the *several* `GameAction`s a plan can
+hold before it produces that single result. `04-core.md`'s `StateChange`/`OutcomeMessage`
+(§12) and `ValidationError`/`ValidationWarning` (§11) are reused throughout, unchanged — this
+kind does not restate its own version of any of them, unlike upstream, whose own §10.2/§10.4
+shapes predate and diverge from what the core later adopted (extra fields, extra `StateChange`
+operations no reducer here uses). Porting upstream's versions verbatim would reintroduce
+exactly the two-sources-of-truth problem the envelope-duplication rule exists to prevent, one
+level down from state into result types.
+
+### 5.1 Resolver Dispatch
+
+```typescript
+interface ActionResolver {
+  readonly type: ActionType;                                          // §4.2
+
+  canExecute(state: SimulationKindState, action: GameAction, ctx: KindContext): ActionValidation;
+  calculate(state: SimulationKindState, action: GameAction, ctx: KindContext): ActionOutcome;
+  apply(state: SimulationKindState, outcome: ActionOutcome): SimulationKindState;
+}
+
+type ResolverTable = Record<Exclude<ActionType, "custom">, ActionResolver>;
+```
+
+`Record` over the closed union means **a missing resolver is a compile error, not a runtime
+surprise** — adding a member to `ActionType` without writing its resolver fails the build,
+which is the behavior a union content files reference by name should have. `"custom"` is
+excluded deliberately and has no resolver (§4.2).
+
+Reconciled against 04 §3.1's `KindContext` rather than upstream's own bespoke
+`ResolutionContext { registry, week, rng, derived }` — `KindContext` already carries
+`registry`/`rng`/`derive` (`ctx.rng` *is* this action's substream); `week` is
+`state.calendar.currentWeek` (§2.1), not a value the context needs to carry separately; and
+`derived` is the `DerivedValueResolver` (§6.1), reachable the same way this kind reaches
+anything else it defined rather than through a second, parallel context object upstream
+invented before the real one existed.
+
+### 5.2 The Resolution Pipeline
+
+```text
+receive action
+→ validate action schema
+→ validate actor, target, prerequisites, location
+→ calculate time cost                          ← engine-derived, never client-supplied (§4.2)
+→ validate available time
+→ calculate money cost                         ← engine-derived, never client-supplied (§4.2)
+→ validate money, inventory
+→ calculate modifiers (§7.1)
+→ perform a seeded random roll if required      (ctx.rng, §13)
+→ produce an outcome
+→ apply state changes via typed reducers
+→ emit StateChange audit records
+→ trigger dependent effects
+```
+
+One step from upstream's own pipeline is dropped rather than restated: **"record history"** —
+consistent with `history` staying unadopted (§2) for the same reason it's absent from the
+end-of-week order (§3).
+
+### 5.3 Per-Action Outcome
+
+```typescript
+/** This kind's own runtime-validation result — distinct from 04-core's `ValidationResult`
+ *  (04 §11), which is load-time *campaign* validation. Named differently on purpose: the two
+ *  are not the same concept, and upstream's identical name for both was never disambiguated
+ *  because upstream has no load-time campaign-validation concept of its own to collide with. */
+interface ActionValidation {
+  valid: boolean;
+  errors: ValidationError[];      // 04 §11, reused
+  warnings: ValidationWarning[];  // 04 §11, reused
+
+  calculatedTimeCost?: number;
+  calculatedMoneyCostCents?: Cents;
+}
+
+interface ActionOutcome {
+  actionId: string;
+  success: boolean;
+
+  degree: "critical_failure" | "failure" | "partial" | "success" | "critical";
+
+  reason: ReasonCode;
+
+  changes: StateChange[];             // 04 §12, reused
+  generatedEvents: string[];
+  generatedOpportunities: string[];
+  messages: OutcomeMessage[];         // 04 §12, reused
+}
+```
+
+`degree` is why `ConditionalOutcome.onDegree` (§7.6) can branch an event's outcome on more than
+pass/fail — a `"partial"` success and a `"critical"` one are different results content can
+react to differently, not merely different flavors of the same success.
+
+**`ResolutionDebugInfo` (upstream §3.3) is not ported.** It exists upstream to answer "why did
+this action turn out this way," gated on a `metadata.transparency` field — but `metadata` lives
+on the session-store record in this repository (§2, "outside replayable state"), not in
+`SimulationKindState`, so there is no field here for it to gate on. This platform already has a
+mechanism for exactly upstream's stated purpose — development, testing, balancing — that upstream
+didn't have: a `trace`-severity event on the observability channel (05-observability.md), which
+this kind already uses for `system.ran` (§11) for the identical reason (localizing a regression
+to the phase that moved). Superseded, not merely absent.
 
 ## 6. Player State
 
@@ -571,7 +767,7 @@ interface DerivedValueResolver {
 }
 ```
 
-`DerivedPath` is a closed union — the same reason `ActionType` is (§9, once ported): it is what
+`DerivedPath` is a closed union — the same reason `ActionType` is (§4.2): it is what
 lets Tier 1 validation (§14) reject a `Modifier` targeting a derived field at load time, rather
 than discovering it at runtime. A path can name a value with no literal stored counterpart
 (`career.effectivePerformance`, `calendar.energyRecoveryRate`) precisely because it is
@@ -905,7 +1101,7 @@ type EvictionStage =
 `quality` (§6.1's `player.housing.quality`) is derived and read-only, never stored: writing to
 it fails Tier 1 validation the same way any other `DerivedPath` write does. Its formula —
 `clamp(round((comfort + safety) / 2) − round(damage × 0.6), 0, 100)`, against
-`HousingDefinition` fields not yet ported (§7) — is carried from upstream as provisional
+`HousingDefinition`'s `comfort`/`safety` fields (§7.4) — is carried from upstream as provisional
 content-balance material, the same status `TODO.md`'s *Known Open Items* already gives it.
 
 ### 6.10 Inventory
@@ -987,10 +1183,8 @@ still needs its own `id`, the same way `03-story-graph-kind.md`'s own `Choice`,
 goals, and each needs to be addressable on its own terms. `JobDefinition.id` names one job
 among many a campaign declares; it is not the campaign's own identity.
 
-Every type below references `Requirement`/`RequirementType` (upstream §13.2) and `GameAction`'s
-own schema (upstream §9) by name — neither is ported yet, deferred to the last contract unit
-(`plans/36`'s W30, "Resolution and systems") alongside end-of-week ordering, which several of
-these types also reference.
+Every type below references `Requirement`/`RequirementType` (§8.1) and `GameAction`'s own
+schema (§4.2) by name.
 
 ### 7.1 Modifiers and Rewards
 
@@ -1098,7 +1292,7 @@ interface JobDefinition {
   schedule: JobSchedule;
   compensation: JobCompensation;
 
-  requirements: Requirement[];  // §13.2, deferred (W30)
+  requirements: Requirement[];  // §8.1
   performance: JobPerformanceRules;
 
   promotionPaths: PromotionPath[];
@@ -1142,7 +1336,7 @@ interface PromotionPath {
   toJobId: string;
   minimumWeeksInRole: number;
   minimumPerformance: number;
-  requirements: Requirement[];    // §13.2, deferred (W30)
+  requirements: Requirement[];    // §8.1
   contested: boolean;
   baseChance: number;
 }
@@ -1175,7 +1369,7 @@ interface CourseDefinition {
   difficulty: number;
 
   seatsAvailable?: number;        // absent = uncapped
-  requirements: Requirement[];    // §13.2, deferred (W30)
+  requirements: Requirement[];    // §8.1
   rewards: Reward[];              // §7.1
   awardsCredential?: CredentialLevel;  // §6.7
 
@@ -1219,7 +1413,7 @@ interface HousingDefinition {
   maintenanceRisk: number;
   unitsAvailable?: number;        // absent = uncapped
 
-  requirements: Requirement[];    // §13.2, deferred (W30)
+  requirements: Requirement[];    // §8.1
   tags: string[];
 }
 ```
@@ -1246,7 +1440,7 @@ interface ItemDefinition {
   durability?: number;
   maintenanceRules?: MaintenanceRule[];
 
-  requirements: Requirement[];     // §13.2, deferred (W30)
+  requirements: Requirement[];     // §8.1
   tags: string[];
 }
 
@@ -1291,7 +1485,7 @@ interface EventChoice {
   timeCost?: number;
   moneyCostCents?: Cents;
 
-  requirements?: Requirement[];    // §13.2, deferred (W30)
+  requirements?: Requirement[];    // §8.1
   check?: CheckDefinition;
 
   outcomes: ConditionalOutcome[];
@@ -1299,7 +1493,7 @@ interface EventChoice {
 
 interface ConditionalOutcome {
   condition?: Condition;           // §8
-  onDegree?: ActionOutcome["degree"][];  // §9/§10, deferred (W30)
+  onDegree?: ActionOutcome["degree"][];  // §5.3
   weight?: number;
   outcome: EventOutcome;
 }
@@ -1339,9 +1533,8 @@ interface CheckModifier {
 
 An event whose selected choice's outcome is non-empty (has choices at all) defers to the
 following week via `PendingEventResponse` (§2.3); an event with only `automaticOutcome` resolves
-immediately within end-of-week processing (§12.2, deferred, W30). `ConditionalOutcome.onDegree`
-forward-references `ActionOutcome`'s own `degree` field — action resolution's shape, deferred to
-the same unit that defines it.
+immediately within end-of-week processing (§3's end-of-week order). `ConditionalOutcome.onDegree`
+references `ActionOutcome`'s own `degree` field (§5.3).
 
 ### 7.7 NPCs — Definition and Runtime State
 
@@ -1486,7 +1679,7 @@ interface OpportunityDefinition {
   durationWeeks: number;           // how long the offer stands once made
   weight: number;                  // pool selection — hidden, never projected
   conditions?: Condition;          // §8 — eligibility to be offered at all
-  requirements?: Requirement[];    // §13.2, deferred (W30) — what accepting demands
+  requirements?: Requirement[];    // §8.1 — what accepting demands
 
   terms?: Record<string, unknown>;
   acceptRewards?: Reward[];        // §7.1
@@ -1533,7 +1726,7 @@ interface LocationDefinition {
 
   connections: string[];           // adjacent location ids — the map graph
   travelTimeUnits: number;         // cost to enter this location from an adjacent one
-  actionTypes: ActionType[];       // §9, deferred (W30) — what can be done here
+  actionTypes: ActionType[];       // §4.2 — what can be done here
 
   unlockedBy?: Condition;          // §8
 }
@@ -1570,8 +1763,7 @@ interface SkillDefinition {
 location's `travelTimeUnits`, and it is valid only when the target appears in the current
 location's `connections`. A multi-hop journey costs multiple actions and multiple time units by
 design: geography is a real budget line, not a solved-away convenience. An action whose type is
-not in the current location's `actionTypes` fails with `wrong_location` (§10, once that reason
-code has a real dispatcher to attach it to — W30).
+not in the current location's `actionTypes` fails with `wrong_location` (§10).
 
 ### 7.10 Agents — Engine-Owned Strategy, Definition, and Runtime State
 
@@ -1598,7 +1790,7 @@ concrete need rather than guessed at here.
 /** Engine-owned, never campaign content — the rival-behavior analogue of `KindRegistry`. */
 interface AgentStrategy {
   id: string;
-  selectActions(view: PublicWorldState, agent: AgentState): GameAction[];  // §9, deferred (W30)
+  selectActions(view: PublicWorldState, agent: AgentState): GameAction[];  // §4.2
 }
 
 interface AgentState {
@@ -1632,11 +1824,31 @@ Reused verbatim from the core's frozen operator set (04 §18), which originated 
 are out unless a concrete campaign need justifies each individually — the bar 04 §18 sets
 deliberately high, and this kind is the one most likely to test it.
 
-**This section's scope is conditions only** (upstream §13.1). `Requirement`/`RequirementType`
-(upstream §13.2) are deferred alongside `GameAction`'s own schema and end-of-week ordering —
-§7's content types already reference `Requirement` by name; see §15. `Modifier` and `Reward`
-(upstream §13.3–§13.4) are simulation mechanics, not condition operators, and are ported in
-**§7.1**, not here.
+`Modifier` and `Reward` (upstream §13.3–§13.4) are simulation mechanics, not condition
+operators, and are ported in **§7.1**, not here.
+
+### 8.1 Requirements
+
+```typescript
+interface Requirement {
+  type: RequirementType;
+  condition: Condition;         // 04 §18
+  failureCode: ReasonCode;
+  messageKey: LocKey;
+}
+
+type RequirementType =
+  | "skill" | "attribute" | "credential" | "item" | "money"
+  | "relationship" | "location" | "event_completed" | "need"
+  | "job_tier" | "age" | "flag";
+```
+
+Every content type §7 references `Requirement[]` from (`JobDefinition`, `CourseDefinition`,
+`HousingDefinition`, `ItemDefinition`, `EventChoice`, `PromotionPath`, `OpportunityDefinition`)
+was forward-referencing this exact shape. `RequirementType` names *what kind* of check a
+requirement is — the condition tree itself (`04 §18`) already expresses the comparison; this
+enum is what lets a validator or a client render "you need Attribute: Discipline 60" as a
+labeled category rather than a bare expression.
 
 ---
 
@@ -1663,6 +1875,7 @@ message or registry validation fails:
 | `action_not_planned` | `plan.remove` names an index the plan does not have |
 | `plan_empty` | `end_week` with nothing planned, where the campaign forbids it |
 | `week_limit_reached` | The scenario's week cap is exhausted |
+| `wrong_location` | An action's type is not in the current location's `actionTypes` (§7.9), or a `travel` target is not in `connections` |
 
 Reused from the base set: `unknown_action`, `requirement_unmet`, `session_ended`.
 
@@ -1784,42 +1997,61 @@ total, run once at registry construction, before the registry is frozen. Tiered 
 - An `AchievementDefinition.condition` (§7.9) referencing a counter or flag key nothing in the
   campaign's content ever writes — satisfiable only by chance, not by design.
 
-**Referential integrity for `Requirement`/`RequirementType` and `GameAction`'s own schema is not
-stated here** — both are deferred to the final contract unit (§15) alongside the systems that
-dispatch on them, the same reason `03-story-graph-kind.md` §11 doesn't validate `Condition`
-operators it didn't itself define.
+**Concrete Tier 1/2 rules for `Requirement` (§8.1) and `GameAction`/`ActionType` (§4.2)
+themselves are not enumerated here.** Both are now specified, closing the reason this list
+used to defer them — what's left is writing the actual checks (a `Requirement.type` matching
+what its `condition` targets; a `plan.add`'s declared `ActionType` resolving in the
+`ResolverTable`, §5.1) against real `Kind.validateCampaign` code, which belongs to the build
+phase this contract precedes, not to another doc-only pass.
 
 ---
 
-## 15. What Remains Upstream, and Why
+## 15. What Was Ported, and What Was Found Along the Way
 
-This is the seam, not the whole kind. Still to be brought over from
-`games/04-engine-specification.md`, in the order that unblocks the most:
+**Nothing remains upstream as a gap in this contract's shape.** This section used to be "What
+Remains Upstream" — a table of sections still to bring over. `plans/36-simulation-kind-
+programme.md`'s four contract units (proposed there as W27–W30, assigned real numbers as each
+was cut: **W32, W33, W34, and this one**) closed it a piece at a time:
 
-Everything left is one unit — `plans/36-simulation-kind-programme.md`'s **W30**, "Resolution and
-systems":
-
-| Upstream | Holds | Why not yet |
+| Unit | Upstream | Ported as |
 |---|---|---|
-| §9 | `ActionType`, `GameAction` | The action schema `WeeklyActionPlan.actions` (§4.1) holds. Needs the resolver dispatch it's ported alongside, so a reader isn't handed a schema with nothing that executes it |
-| §13.2 | `Requirement`, `RequirementType` | Referenced by name throughout §7's content types; ties to action/requirement validation, ported with resolution rather than standing alone |
-| §12.2–§12.3 | End-of-week system order, goal precedence | Normative and short; needs `GameAction`/`Requirement` above, since the systems it orders dispatch on both |
+| W32 | §5.1, §5.3–§5.6, §9.1 | §2.1–§2.5 (`CalendarState`, `WorldState`, effects/opportunities/scheduled events, `GoalState`, `EconomyState`), §4.1 (`WeeklyActionPlan`'s own shape) |
+| W33 | §7, §8.1–§8.9 | §6.1–§6.11 (base/derived values, `ActorState` and its nine areas) |
+| W34 | §13.3–§13.4, §14.1–§14.9 | §7.1–§7.10 (`Modifier`/`Reward`, every content definition type) |
+| This unit | §9, §10, §12.2–§12.3, §13.2 | §4.2 (`ActionType`, `GameAction`), §5.1–§5.3 (resolver dispatch, the pipeline, per-action outcome), §3 (end-of-week order, goal/failure precedence), §8.1 (`Requirement`) |
 
-**Every other row this table used to carry is closed.** `§5.1`, `§5.3–§5.6`, `§7`, `§8.1–§8.9`,
-`§13.3–§13.4` and `§14.1–§14.9` are all ported (§2.1–§2.5, §4.1, §6.1–§6.11, §7.1–§7.10) — every
-field `SimulationKindState` (§2) names now has a full shape specified in this repository, so
-does the base/derived-value layer they read through, and so does every content definition type
-a real campaign will need to declare.
+Every field `SimulationKindState` (§2) names has a full shape. Every content definition type a
+real campaign will need to declare is specified (§7). The mechanics that dispatch actions
+against both are specified (§5). What remains genuinely upstream — §1–§4, §6, §11, §13.1,
+§16–§18, §20 — is core material `04-core` already owns, cited here rather than re-derived,
+exactly as it was before this programme started.
 
-Two findings came out of this pass rather than being plain transcription. `ActorState` comes
-over whole, shared verbatim by the player and every rival (§6.2) — porting "player state" alone
-and adding rival support later was considered and rejected
-(`plans/36-simulation-kind-programme.md` Finding 1). And `plans/36`'s own Finding 2 needed
-correcting, not just applying: it claimed upstream specifies no rounding rule for
-`Modifier.operation: "multiply"` against this kind's integer-cents money, and upstream in fact
-does — checked directly against the primary source while drafting §7.1, and the correction is
-recorded in `plans/32` and `plans/36` themselves, not only here.
+**Findings this pass surfaced, not merely transcription:**
 
-**Nothing above changes this contract's shape** — each is detail hanging off a seam this
-document fixes. What it does mean is that the upstream sections stay authoritative for those
-areas until ported, which is exactly what `04-core`'s *Reused, not re-derived* note says.
+- `ActorState` comes over whole, shared verbatim by the player and every rival (§6.2) — porting
+  "player state" alone and adding rival support later was considered and rejected
+  (`plans/36-simulation-kind-programme.md` Finding 1).
+- `plans/36`'s own Finding 2 needed correcting, not just applying: it claimed upstream specifies
+  no rounding rule for `Modifier.operation: "multiply"` against this kind's integer-cents money,
+  and upstream in fact does — checked directly against the primary source while drafting §7.1,
+  and the correction is recorded in `plans/32` and `plans/36` themselves, not only here.
+- `AgentStrategy` (§7.10) is engine-owned code, not campaign data, despite upstream listing it
+  alongside the content-definition types — a function member cannot be campaign JSON. How a
+  campaign actually selects a rival's strategy is a genuine open gap, upstream included, not
+  settled here.
+- This kind's own runtime-validation result needed a name distinct from 04-core's
+  `ValidationResult` (§5.3) — the two are different concepts upstream never had to
+  disambiguate, having no load-time campaign-validation concept of its own.
+- `ResolutionDebugInfo` (upstream §3.3) is superseded, not ported: this platform's
+  `trace`-severity observability channel (05-observability.md) already serves the purpose it
+  existed for, and `metadata.transparency` — the field it would gate on — lives outside
+  `SimulationKindState` entirely (§2).
+- `ChainScope`'s `"profile"` value (§2.2) has nowhere to persist yet, and `Reward`'s own payload
+  (§7.1) stays untyped exactly as upstream leaves it — both recorded as open rather than
+  resolved, the same as `history`'s own status throughout this document.
+
+**Nothing above changes what the seam looked like before this programme** — every finding is
+detail hanging off it, or a genuine gap named rather than guessed at. What has changed is that
+the upstream document is no longer where a reader has to go to find the shape of this kind's
+own state and content; it is here, and upstream stays cited as provenance, exactly as
+`04-core`'s own *Reused, not re-derived* note describes.
