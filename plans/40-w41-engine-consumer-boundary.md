@@ -339,35 +339,75 @@ A tarball cut from a stale `dist/` is the classic packaging defect and it fails 
 the consumer smoke test would pass against yesterday's output. `prepack` makes staleness
 structurally impossible rather than a discipline someone has to remember.
 
-### 5. The version is not bumped in this unit
+### 5. ~~The version is not bumped in this unit~~ — **wrong, corrected during review**
 
-`0.1.0` publishes as-is. The first published version is a delivery event, not a content
-change, and conflating them would make the changelog claim engine behaviour changed when it
-did not. `plans/39`'s **T0** milestone is "W41 merged *and* first package version published"
-— two facts, and this keeps them separable.
+> The original reasoning: *"`0.1.0` publishes as-is. The first published version is a delivery
+> event, not a content change, and conflating them would make the changelog claim engine
+> behaviour changed when it did not."* That argument is fine in the abstract and **was
+> written without checking the tags**, which is what makes it wrong here.
+
+`package.json` had never tracked the release tags:
+
+| Tag | `package.json` at that tag |
+|---|---|
+| `v0.1.0` | `0.0.0` |
+| `v0.2.0` | `0.1.0` |
+| `v0.3.0` | `0.1.0` |
+
+Harmless while the package was `private: true` and never published — the tag was the release
+marker and `ENGINE_VERSION` only stamped replay fixtures. **This unit is what makes it a
+live defect**, because `release-engine-package.yml` triggers on `v*` and `npm publish` ships
+what the *manifest* says, not what the tag says. Cutting `v0.4.0` would publish `0.1.0`; the
+tag after that would fail outright, since a registry refuses to republish an existing
+version. A published version matching no tag also breaks the exact-semver consumption
+contract this whole unit exists to establish.
+
+**Corrected to: `package.json` is set to `0.3.0`, matching the newest existing tag.** Nothing
+had been published, so there was no artefact to collide with and no consumer to disrupt —
+the drift was bookkeeping, and this treats it as such rather than spending a fresh version
+number on a correction. From here, tag and manifest move together; the next release cuts
+`v0.4.0` *and* sets `0.4.0`.
+
+The original decision's point still stands in its narrow form — publishing is a delivery
+event, and `plans/39`'s **T0** keeps "W41 merged" and "first version published" as two
+separate facts. It just did not license leaving the manifest three tags behind.
 
 ---
 
 ## Done-When
 
-- [ ] `npm run build` emits **zero** `*.test.*` files and zero `campaigns/` output.
-- [ ] `npm run typecheck` still covers test files (`tsconfig.json` unchanged in that respect).
-- [ ] `src/index.ts` exists, uses only explicit named re-exports, and matches the inventory
-      above.
-- [ ] `npm pack --dry-run` ships `dist/`, `package.json` and `README.md` — **and nothing
+**Merged as [PR #108](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/108).**
+Boxes ticked below were re-verified on `main` at `db9c62a` — locally by a clean
+`npm ci && npm run build && npm pack --dry-run`, and remotely against that commit's own
+workflow run, which shows the three new steps executing rather than merely existing.
+
+- [x] `npm run build` emits **zero** `*.test.*` files and zero `campaigns/` output.
+      Measured: 66 `.js`, 66 `.d.ts`, 66 `.js.map`, no `dist/campaigns/`.
+- [x] `npm run typecheck` still covers test files (`tsconfig.json` unchanged in that respect).
+      `tsconfig.build.json` carries the exclusions; `tsconfig.json` was not touched.
+- [x] `src/index.ts` exists, uses only explicit named re-exports, and matches the inventory
+      above. No `export *` anywhere in it.
+- [x] `npm pack --dry-run` ships `dist/`, `package.json` and `README.md` — **and nothing
       else**: no `src/`, no `*.test.*`, no `tsconfig*.json`. The file count is in the low
-      hundreds rather than 540.
-- [ ] A clean consumer installs the **packed tarball**, imports only
+      hundreds rather than 540. Measured: **200 files, 508.2 kB unpacked** (143.5 kB packed).
+- [x] A clean consumer installs the **packed tarball**, imports only
       `@the-running-dev/game-engine`, and both `tsc --noEmit` and a runtime `createGame`
-      succeed.
-- [ ] The consumer smoke project runs in CI inside the `engine` job's existing change gate.
-- [ ] CI fails if a test artefact appears in the tarball.
-- [ ] A release workflow publishes to GitHub Packages with `packages: write` and no stored
-      credential.
+      succeed. `consumer-smoke/`, via `install-engine.mjs`.
+- [x] The consumer smoke project runs in CI inside the `engine` job's existing change gate.
+- [x] CI fails if a test artefact appears in the tarball. *Inspect tarball* asserts on the
+      absence of `src/`, `tsconfig*.json` and test artefacts.
+- [x] A release workflow publishes to GitHub Packages with `packages: write` and no stored
+      credential. `release-engine-package.yml`, on `v*` and `workflow_dispatch`.
 - [ ] The first version is published, Sun Trap has read access, and the exact coordinate and
-      version are recorded here.
-- [ ] `docs/docs/guide/engine-package.md` describes what shipped, in past tense.
-- [ ] `npm run typecheck && npm run lint && npm test` all pass; the doc gate passes.
+      version are recorded here. **Open — owner-only.** Verified nothing is published; the
+      three existing tags (`v0.1.0`, `v0.2.0`, `v0.3.0`) all predate this workflow, so the
+      first publication is a `v0.4.0` tag push with `package.json` moved to match, per the
+      corrected Decision 5. Record the coordinate here when it lands.
+- [x] `docs/docs/guide/engine-package.md` describes what shipped, in past tense. Corrected
+      afterwards: it named `@0.1.0` (the manifest is `0.3.0`) and claimed present-tense
+      publication that has not happened — both fixed alongside `plans/41`.
+- [x] `npm run typecheck && npm run lint && npm test` all pass; the doc gate passes. All
+      three required checks green on PR #108 and on the `main` merge.
 
 ---
 
