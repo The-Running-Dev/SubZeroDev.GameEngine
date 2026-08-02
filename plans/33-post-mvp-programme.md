@@ -254,10 +254,28 @@ time has since been cut, in this order: Bulgaria's four arcs (**W27–W30**), sa
 (**W31**), and the simulation kind's own nine units (**W32–W40**, `plans/36`). The
 convention held throughout — none were reserved before the unit before them existed.
 
-`plans/39`'s own **W41–W4x** for the world-graph kind is the same convention applied
-forward, not an exception to it: W41 is the real next number now that W40 is the last one
-actually cut, and the range stays open-ended (`W4x`, matching `plans/36`'s own `W27–W3x` row
-above) rather than committing to W49 as fixed before W42 is even cut. Whatever comes after
+`plans/39`'s own **W41–W49** for the world-graph kind is the same convention applied forward,
+not an exception to it — and this table's own **W41–W4x** for the same programme is not a
+disagreement with that, even though the two look like different ranges side by side.
+
+**A sub-programme proposing a full, specific split internally, while this umbrella table
+keeps the same programme open-ended, is not new here — it already happened once, and the
+proposal already turned out wrong.** `plans/36`'s own header proposed simulation's contract-
+and-build split as **W27–W33**, a full eight-unit range, the same way `plans/39` now proposes
+**W41–W49** for world-graph. This table showed that programme as **W27–W3x** throughout, not
+the specific W27–W33 it was proposing internally. The vagueness was load-bearing, not
+hedging: Bulgaria's four arcs and save migration were cut *first* (W27–W31), which the
+original W27–W33 proposal had no way to anticipate, and simulation's real units landed at
+**W32–W40** — nine units, one more than proposed, at numbers eight higher than its own
+header once guessed. Had this table committed to W27–W33 the way it was tempted to, every
+later reference would have needed rewriting the moment Bulgaria and migration were cut ahead
+of it — exactly the renumber-and-rewrite problem this decision exists to avoid.
+
+World-graph's own **W41–W49** is `plans/39`'s honest best guess, sized against real source
+material the same way W27–W33 was — and, on this table's own demonstrated track record, just
+as likely to shift once something is actually cut. `plans/39`'s header already says so
+("numbers assigned when each is cut"); this table's **W41–W4x** says the same thing at the
+programme level, not a stale holdover this PR forgot to update. Whatever comes after
 world-graph — content tooling or anything else — still takes its number only when cut.
 
 ---
