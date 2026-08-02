@@ -151,7 +151,7 @@ units start rather than after.
 | **W27–W3x** | The `simulation` kind — port and build | [`plans/36`](36-simulation-kind-programme.md) | **Large** — its own programme | W25 |
 | **W3x+** | Bulgaria Adventure — remaining four arcs | *when cut* | Medium, content | — |
 | **W3x+** | Save migration mechanism (04 §10.2) | *when cut* | Medium | — |
-| **W3x+** | The `world-graph` kind (Sun Trap) | *when cut* | **Large** | W24; absorbs `previewAction` |
+| **W41–W48** | The `world-graph` kind — contract and build | [`plans/39`](39-world-graph-kind-programme.md) | **Large** — its own programme | W24; absorbs `previewAction` |
 | **W3x+** | Content tooling — validator, graph viz, diff, l10n | *when cut* | Large, several units | Kinds it validates |
 
 **The Bulgaria arcs and the migration mechanism are both genuinely un-blocked today** and
@@ -236,6 +236,14 @@ line counts make a defensible unit split possible today. The world-graph kind's 
 (maps, scenarios, balance, client) lives in `SubZeroDev.SunTrap` and is design-only with no
 code; `12-world-graph-kind.md` §17 explicitly leaves it there. Splitting that build now would
 be sizing work against a document that does not exist yet.
+
+> **Superseded.** `SubZeroDev.SunTrap` has since written that document —
+> `docs/docs/design/content-and-systems.md`, `game-design.md`, `mvp.md` and
+> `client-specification.md`, around 980 lines together, sized similarly to `simulation`'s own
+> pre-port source. The precondition this decision names no longer holds.
+> [`plans/39-world-graph-kind-programme.md`](39-world-graph-kind-programme.md) is that
+> programme doc, cut once the source material existed to size it against — the same
+> milestone `plans/36` reached for `simulation`.
 
 ### 4. No W-numbers are assigned past W27
 
