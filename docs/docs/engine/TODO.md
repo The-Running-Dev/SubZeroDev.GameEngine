@@ -847,6 +847,39 @@ W9's undeclared-variable case.
       wiring exists yet; `npm run typecheck && npm run lint && npm test` all pass.
 - **Plan:** [`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md)
 
+### [x] W37 — Simulation Kind: The Week
+Second build unit of the simulation-kind programme (`plans/36-simulation-kind-programme.md`,
+proposed there as W32, mirroring story-graph's W11+W12 combined). `Kind.initialState`,
+`Kind.advance` (`plan.add`/`remove`/`clear`/`end_week`), the resolver dispatch table, and
+the full 4-step start-of-week + 14-step end-of-week system pipeline, all real and wired
+through `createEngine`/`submitAction` for the first time.
+
+Most end-of-week systems (`employment`, `education`, `housing`, `finance_*`, `opportunities`'
+offer/revoke, `events`, `headline`, `goals`, `failure`, `achievements`) are explicit,
+individually-documented stubs — each needs a content type (`JobDefinition`,
+`CourseDefinition`, …) that doesn't exist until the content-definition-types build unit, a
+genuine dependency this unit's own research surfaced rather than one story-graph's W11/W12
+ever had to solve (its "content" — the node graph — already existed by then). `needs` drift
+and opportunity expiry are real logic; every stub is documented at its own definition site,
+not silently doing nothing. The `ResolverTable` (`resolvers.ts`) uses one shared stub
+resolver for all 30 `ActionType`s, built as a real object literal (not `Object.fromEntries` +
+a cast) specifically so TypeScript's own exhaustiveness check has teeth — verified directly
+by temporarily deleting an entry and confirming the compiler catches it.
+- **Spec:** [10 §3](10-simulation-kind.md#3-the-turn-is-a-week), [§5](10-simulation-kind.md#5-resolution-and-statechange),
+      [§5.1](10-simulation-kind.md#51-resolver-dispatch).
+- **Depends on:** [W36](#x-w36--simulation-kind-state-variables-and-the-plan).
+- **Status:** Done — [PR #99](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/99).
+- **Done when:** `initialState` builds week-one state from a synthetic `SimulationCampaign`;
+      start-of-week increments the week, resets spent time, and expires effects correctly;
+      end-of-week runs all fourteen named systems in the documented order (verified via
+      `kind.simulation.system.ran`'s own emitted order, since most systems are stubs and
+      can't be distinguished by their state effects alone); needs drift clamps to `0–100`
+      and emits one `StateChange` per touched need; a real `createEngine`/`submitAction`
+      round trip runs `plan.add` then `end_week` and lands on the next week with a fresh,
+      empty plan; `npm run typecheck && npm run lint && npm test` all pass (641 tests, was
+      607).
+- **Plan:** [`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md)
+
 ### Breadth: The First Culture Pack
 
 - [ ] Bulgaria culture pack over the simulation kind — Jones-in-Bulgaria content,
