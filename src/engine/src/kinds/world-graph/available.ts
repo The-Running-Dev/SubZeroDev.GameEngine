@@ -65,7 +65,7 @@ export function availableActions(state: WorldGraphKindState, ctx: KindContext): 
       : "world-graph.reason.insufficient_funds";
 
   return [
-    action("build", buildAffordable || unlocked.length === 0 ? false : true, buildAvailableReason),
+    action("build", buildAffordable, buildAvailableReason),
     action("demolish", state.buildings.length > 0, state.buildings.length > 0 ? undefined : "world-graph.reason.unknown_entity"),
     action("hire_staff", hasRoleCapacity(state, campaign), hasRoleCapacity(state, campaign) ? undefined : "world-graph.reason.staff_limit_reached"),
     action("fire_staff", state.staff.length > 0, state.staff.length > 0 ? undefined : "world-graph.reason.unknown_entity"),

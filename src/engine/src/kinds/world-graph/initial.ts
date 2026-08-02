@@ -116,7 +116,7 @@ export function initialState(campaign: Campaign): InitialStateResult<WorldGraphK
     if (!isPositiveInteger(definition.width) || !isPositiveInteger(definition.height)) {
       continue;
     }
-    if (!isPositiveInteger(definition.costCents)) {
+    if (!Number.isInteger(definition.costCents) || definition.costCents < 0) {
       continue;
     }
 

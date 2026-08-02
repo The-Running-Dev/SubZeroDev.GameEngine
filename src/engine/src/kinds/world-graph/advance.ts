@@ -227,10 +227,6 @@ function nextBuildingId(nextEntityOrdinal: number): string {
   return `building:${nextEntityOrdinal}`;
 }
 
-function nextQueueId(nextEntityOrdinal: number): string {
-  return `queue:${nextEntityOrdinal}`;
-}
-
 function nextStaffId(nextEntityOrdinal: number): string {
   return `staff:${nextEntityOrdinal}`;
 }
@@ -322,7 +318,7 @@ export function advance(
           serviceTickSeq: 0,
         },
       ],
-      nextEntityOrdinal: state.nextEntityOrdinal + 2,
+      nextEntityOrdinal: state.nextEntityOrdinal + 3,
       finances: {
         ...state.finances,
         cashCents: state.finances.cashCents - definition.costCents,
@@ -330,7 +326,7 @@ export function advance(
       alerts: [
         ...state.alerts,
         {
-          id: nextQueueId(state.nextEntityOrdinal + 2),
+          id: `alert:${state.nextEntityOrdinal + 2}`,
           type: "construction",
           severity: "info",
           titleKey: "world-graph.alert.building.placed.title",
@@ -693,7 +689,7 @@ export function advance(
       tick: state.tick + ticks,
     };
 
-    emitEvent(ctx, "kind.world-graph.scenario.resolved", "debug", {
+    emitEvent(ctx, "kind.world-graph.ticks.advanced", "debug", {
       ticks,
     });
 

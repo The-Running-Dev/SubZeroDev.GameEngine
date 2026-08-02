@@ -26,6 +26,7 @@ export const worldGraphKind: Kind<WorldGraphKindState> = {
   eventNames: [
     "kind.world-graph.building.placed",
     "kind.world-graph.building.demolished",
+    "kind.world-graph.building.status.changed",
     "kind.world-graph.staff.hired",
     "kind.world-graph.staff.fired",
     "kind.world-graph.staff.assigned",
