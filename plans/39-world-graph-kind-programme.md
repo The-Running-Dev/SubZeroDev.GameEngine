@@ -275,20 +275,22 @@ names both.
 > which is now the second time it has happened.
 
 - [x] Cut the W42 doc-only plan and inventory every field in Sun Trap §§2–9.
-- [ ] Specify map dimensions, tiles, entrances, occupancy and deterministic coordinate rules.
-- [ ] Specify guest identity, position, needs, target, path, inventory, opinions and lifecycle.
-- [ ] Specify building, product, queue and service state without embedding content definitions.
-- [ ] Specify staff role, assignment, position, path, task and lifecycle.
-- [ ] Specify construction, finances, loans, counters and `nextEntityOrdinal` ownership.
-- [ ] Define which collections are records, arrays or ordered lists and their canonical order.
-- [ ] Reconcile nullability, units, integer ranges and tick semantics across both repositories.
-- [ ] Define `WorldGraphView` and terminal outcome data without leaking hidden state.
-- [ ] **Gate:** every runtime field read by a planned system has one authoritative type and
+- [x] Specify map dimensions, tiles, entrances, occupancy and deterministic coordinate rules.
+- [x] Specify guest identity, position, needs, target, path, inventory, opinions and lifecycle.
+- [x] Specify building, product, queue and service state without embedding content definitions.
+- [x] Specify staff role, assignment, position, path, task and lifecycle.
+- [x] Specify construction, finances, loans, counters and `nextEntityOrdinal` ownership.
+- [x] Define which collections are records, arrays or ordered lists and their canonical order.
+- [x] Reconcile nullability, units, integer ranges and tick semantics across both repositories.
+- [x] Define `WorldGraphView` and terminal outcome data without leaking hidden state.
+- [x] **Gate:** every runtime field read by a planned system has one authoritative type and
       one documented owner.
 
 ### W43 — content-definition contract
 
-- [ ] Cut the W43 doc-only design plan; do not treat this unit as a mechanical port.
+**Plan:** [`plans/43-w43-world-graph-content-contract.md`](43-w43-world-graph-content-contract.md).
+
+- [x] Cut the W43 doc-only design plan; do not treat this unit as a mechanical port.
 - [ ] Separate authoring/source definitions from validated runtime content where necessary.
 - [ ] Define terrain, scenery, building, product, staff-role and guest-archetype definitions.
 - [ ] Define scenario, objective, incident, policy and achievement definitions.
