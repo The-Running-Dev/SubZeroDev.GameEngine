@@ -608,8 +608,9 @@ when it declined a programme doc for this kind.
       (2026-08-02), verified against the packages API rather than inferred from the workflow's
       exit status; the coordinate is recorded in `plans/40`'s Done-When, and milestone **T0**
       is reached. One deviation, recorded rather than waved through: it published **public**
-      where three documents specify private, which also surfaced that both companion
-      repositories are public and the "All private" line below is stale
+      where `plans/39` and `plans/40` specify private. That also surfaced a stale claim in
+      this file's own introduction, which described every companion repository as private when
+      this one and Sun Trap are public — corrected in the same change
       ([`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §2). No read-access grant was needed as a
       result.
       **Plan:** [`plans/40-w41-engine-consumer-boundary.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/40-w41-engine-consumer-boundary.md)

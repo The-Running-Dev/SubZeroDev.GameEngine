@@ -430,6 +430,10 @@ workflow run, which shows the three new steps executing rather than merely exist
 - **No monorepo/workspace restructure.** `src/engine/` stays where it is; the `packages/`
   question stays closed as `OPEN-QUESTIONS.md` §2 now records, revisited only when a second
   independently versioned package exists.
-- **No public npm publication.** Private GitHub Packages only.
+- **No public npm publication.** Private GitHub Packages only. **What shipped did not honour
+  this**: `v0.4.0` published with `visibility: public`. Recorded, with both resolutions, in
+  [`OPEN-QUESTIONS.md`](../docs/docs/engine/OPEN-QUESTIONS.md) §2 — left standing here rather
+  than rewritten, because this list is what the unit *intended* and the deviation is worth
+  seeing against it.
 - **No API surface beyond the inventory.** If a companion needs a symbol that is not listed,
   that is a deliberate follow-up diff, not an improvisation during this unit.
