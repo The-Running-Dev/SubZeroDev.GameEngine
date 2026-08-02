@@ -1042,7 +1042,13 @@ condition. Array-typed state is addressed **by its natural key, never by index**
 Index addressing is forbidden: array order is not part of the state contract (§2's canonical
 iteration rule already establishes why insertion order cannot be load-bearing), so
 `relationships.0.affinity` would target a different NPC after any reordering and silently
-corrupt a save. Tier 1 validation (§14) rejects a numeric path segment.
+corrupt a save. Tier 1 validation (§14) rejects a numeric path segment — which is why an id
+used as one of these natural keys may not be all-digits: `04-core.md` §17's identifier
+character set (`[a-z0-9_-]`) permits one, but an id of `"123"` would then be indistinguishable
+from the rejected index `123`. Content declaring `npcId`/`instanceId`/`courseId`/`id` for an
+entity ever addressed this way needs at least one non-digit character; Tier 1 validation checks
+this specifically for ids used as a natural key, not as a blanket rule over every id in the
+kind.
 
 ```typescript
 interface Reward {
@@ -1061,6 +1067,18 @@ type RewardType =
 
 `RewardType` is the entire outcome vocabulary of this kind, in one closed union — every way a
 job, course, event or achievement can change an actor's state funnels through it.
+
+**`Reward`'s own payload is provisional, ported as upstream declares it, not resolved here.**
+`target`/`value` are optional and untyped (`unknown`) across every `RewardType` — upstream never
+narrows what a `"money"` reward's `value` is versus what a `"modifier"` reward's is, and this
+port does not invent that narrowing on upstream's behalf. A discriminated union keyed by `type`
+(`{ type: "money"; cents: Cents }`, `{ type: "item"; definitionId: string; quantity: number }`,
+and so on) is the more precise shape and was considered — declined here because designing
+thirteen concrete payload shapes with no resolver implementation to validate them against risks
+inventing a contract this port has no way to check, the same reasoning `Modifier`'s multiply
+semantics (above) were resolved by *checking the primary source* rather than guessing. **Revisit
+when** `Reward` gains a real dispatcher — naturally the final contract unit (§15), alongside
+`GameAction`'s own resolution.
 
 ### 7.2 Jobs
 
