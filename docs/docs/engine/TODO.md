@@ -880,6 +880,68 @@ by temporarily deleting an entry and confirming the compiler catches it.
       607).
 - **Plan:** [`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md)
 
+### [x] W38 — Simulation Kind: Content-Definition Types
+Third build unit of the simulation-kind programme — but no longer the single unit
+`plans/36-simulation-kind-programme.md` originally proposed as W33. That unit assumed
+story-graph's own precedent — *author content against already-coded types* — held here; it
+doesn't, since this kind's content-definition types (contract §7) were deferred to the
+doc-only contract phase (W34) rather than built as code the way story-graph's were across
+W9–W13. `plans/36` now splits W33 into W38–W40; see that document's own callout under *Build*
+for the reasoning. This unit is the first: port contract §7 to
+`src/engine/src/kinds/simulation/content.ts` — `Reward`, `JobDefinition` (+6 nested types), `CourseDefinition`,
+`HousingDefinition`, `ItemDefinition` (+1 nested), `EventDefinition` (+5 nested),
+`NPCDefinition`, `GoalDefinition`/`ScenarioDefinition`/`DifficultyDefinition`,
+`OpportunityDefinition`/`AchievementDefinition`/`HeadlineDefinition`/`EmployerDefinition`/
+`LocationDefinition`/`BackgroundDefinition`/`TraitDefinition`/`SkillDefinition`, and
+`AgentStrategy`. `NPCState`/`AgentState`/`NPCMemory`/`NPCRelationship`/`AvailabilityRule`/
+`Modifier` already exist (`state.ts`, W36) as runtime state — this unit ports only their
+content-side counterparts, and everything else §7 names. No system/resolver wiring here —
+that's W39's job, against a settled type surface, the same "contract before code" discipline
+the four contract units (W32–W35) already used one level up.
+- **Spec:** [10 §7](10-simulation-kind.md#7-content-definition-types), [§7.1](10-simulation-kind.md#71-modifiers-and-rewards)–[§7.10](10-simulation-kind.md#710-agents--engine-owned-strategy-definition-and-runtime-state).
+- **Depends on:** [W37](#x-w37--simulation-kind-the-week).
+- **Status:** Done — [PR #100](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/100).
+- **Done when:** every type §7 names that isn't already runtime state in `state.ts`/`actor.ts`
+      exists in `content.ts`; `AvailabilityRule.condition` — `unknown` since W36, deferred per
+      its own comment there — is narrowed to the real core `Condition` type, this unit's
+      natural import point for it; `npm run typecheck && npm run lint && npm test` all pass
+      with no new runtime logic — this unit is types only.
+- **Plan:** [`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md)
+
+### [ ] W39 — Simulation Kind: Wiring the "Stable Life" Vertical Slice {#w39}
+Fourth build unit — the second half of the W33 split. Wires real logic into whichever
+end-of-week/start-of-week systems and `RESOLVER_TABLE` entries the "Stable Life" scenario
+(W40) actually exercises, against W38's content types — not all twelve stubbed end-of-week
+systems or all thirty `ActionType`s. The rest stay honest, documented stubs, the same
+discipline W37 already established for systems that had no content types yet; here the types
+exist, but not every system needs to go live for one scenario to be winnable and losable.
+- **Spec:** [10 §5](10-simulation-kind.md#5-resolution-and-statechange), [§3](10-simulation-kind.md#3-the-turn-is-a-week).
+- **Depends on:** [W38](#x-w38--simulation-kind-content-definition-types).
+- **Status:** Not started.
+- **Done when:** the scenario built in W40 can be won and lost purely through real system/
+      resolver logic wired here — no stub carries load-bearing weight for its own outcome;
+      every system and resolver this unit leaves stubbed is still individually documented,
+      matching W37's own convention; `npm run typecheck && npm run lint && npm test` all pass.
+- **Plan:** [`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md)
+
+### [ ] W40 — Simulation Kind: The "Stable Life" Scenario, Validation, and Corpus
+Fifth build unit — the third and last piece of the W33 split, mirroring story-graph's
+W14+W15+W22 combined (the original mirror `plans/36` gave W33 as a whole), now that W38/W39
+give it real types and real logic to author and validate against. Authors the actual "Stable
+Life" `SimulationCampaign` content, Tier 1/2 `validateCampaign` for the simulation kind, and
+commits replay-corpus fixtures (`fixtures/replay/`) for its win and loss paths — folded
+together per `plans/36`'s own original reasoning: the scenario *is* the test subject. Reaches
+this programme's **S3**/**S4** milestones.
+- **Spec:** [10 §14](10-simulation-kind.md#14-validation), [07 §4](07-replay.md#4-the-corpus).
+- **Depends on:** [W39](#w39).
+- **Status:** Not started.
+- **Done when:** win and loss are both reachable through the text client and MCP identically;
+      Tier 1/2 validation rejects the same class of broken fixtures story-graph's W14 did, for
+      this kind's own content; at least one win fixture and one loss fixture are committed
+      under `fixtures/replay/` and pass the replay oracle; `npm run typecheck && npm run lint
+      && npm test` all pass.
+- **Plan:** [`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md)
+
 ### Breadth: The First Culture Pack
 
 - [ ] Bulgaria culture pack over the simulation kind — Jones-in-Bulgaria content,

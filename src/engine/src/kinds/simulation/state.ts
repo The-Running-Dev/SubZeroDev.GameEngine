@@ -6,12 +6,13 @@
  * Pure type declarations plus the one pure helper (`demandBand`) the contract names
  * alongside `EconomyState` — no resolution logic here. `NPCState`/`AgentState` (§7.7,
  * §7.10 in the contract) are runtime state too, not campaign content, despite their
- * content-side counterparts living in the future content-definition-types unit — see
- * `actor.ts`, which holds them alongside `ActorState` for the same reason the contract
- * places them together.
+ * content-side counterparts (`NPCDefinition`, `AgentStrategy`) living in `content.ts` —
+ * placed here for the same reason the contract itself keeps runtime state and content
+ * together in §7.7/§7.10 rather than splitting across sections.
  */
 
 import type { LocKey } from "../../core/localization/types.js";
+import type { Condition } from "../../core/condition/types.js";
 import type { ActorState, PlayerState } from "./actor.js";
 import type { WeeklyActionPlan } from "./plan.js";
 
@@ -229,10 +230,7 @@ export interface AvailabilityRule {
   locationId?: string;
   fromWeek?: number;
   toWeek?: number;
-  /** `Condition`, deferred to whichever unit actually evaluates availability — kept as
-   *  `unknown` here rather than importing the core `Condition` type for a field nothing
-   *  in this unit reads. */
-  condition?: unknown;
+  condition?: Condition;
 }
 
 export interface NPCMemory {
