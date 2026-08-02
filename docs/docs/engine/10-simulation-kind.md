@@ -967,13 +967,15 @@ story-graph campaigns are. A simulation campaign is `kindId: "simulation"` plus 
 conforming to this kind's schema — the same core/kind/campaign split (architecture §1), with
 no new loading mechanism.
 
-**Two subsections (§7.7, §7.10) are the exception, by design, not drift.** `NPCState` and
-`AgentState` are runtime state (already forward-referenced from `WorldState`, §2.2), not
-campaign data — placed beside their content-side counterpart (`NPCDefinition`,
-`AgentStrategy`) because the two are read together constantly, the same reason
-`JobOpening` (§2.2, runtime) and `JobDefinition` (§7.2, content) are described near each other
-in prose even though they live in different top-level sections. Every other subsection here is
-campaign data throughout.
+**Two subsections (§7.7, §7.10) are the exception, by design, not drift.** `NPCState` is
+runtime state (already forward-referenced from `WorldState`, §2.2), not campaign data — placed
+beside its content-side counterpart (`NPCDefinition`) because the two are read together
+constantly, the same reason `JobOpening` (§2.2, runtime) and `JobDefinition` (§7.2, content) are
+described near each other in prose even though they live in different top-level sections. §7.10
+has a *third* category alongside them: `AgentStrategy` is engine-owned code (a function member
+cannot be campaign JSON at all), referenced by campaigns through `AgentState.strategyId` — a
+plain string — never appearing in content itself. Every other subsection here is campaign data
+throughout.
 
 **This is about the campaign wrapper's own identity, not every individual definition's `id`.**
 A campaign-level `id`/`version`/`titleKey` — the simulation-kind analogue of
@@ -993,7 +995,7 @@ these types also reference.
 
 ```typescript
 interface Modifier {
-  target: string;                 // must resolve to a writable base path (§6.1's DerivedPath, or a stored field)
+  target: string;                 // must resolve to a writable *stored* field — never a §6.1 DerivedPath (§14: read_only_field)
   operation: "add" | "subtract" | "multiply" | "set";
   value: number;
   durationWeeks?: number;
@@ -1570,13 +1572,19 @@ design: geography is a real budget line, not a solved-away convenience. An actio
 not in the current location's `actionTypes` fails with `wrong_location` (§10, once that reason
 code has a real dispatcher to attach it to — W30).
 
-### 7.10 Agents — Definition and Runtime State
+### 7.10 Agents — Engine-Owned Strategy, Definition, and Runtime State
 
-Same pairing as §7.7: `AgentStrategy` is campaign data (a strategy a scenario assigns to a
-rival); `AgentState` is runtime state (`WorldState.agents`, §2.2) built from it at game start
-and mutated every week thereafter.
+**A third category, not the same pairing as §7.7.** `AgentStrategy.selectActions` is a
+function — it cannot be represented in campaign JSON/YAML at all, so despite upstream listing
+it alongside the other content-definition types (§14.9), it is not campaign data and was never
+going to become some. It is **engine-owned code**, the same category `Kind` itself is
+(`06-extensibility.md` §7, "Kinds Stay Engine-Owned"): a fixed, in-repository registry of named
+behaviors (`"aggressive"`, `"cautious"`, …), keyed by `id`. A scenario or campaign references one
+by **id only** — `AgentState.strategyId: string` below is the actual campaign-facing surface;
+`AgentStrategy` itself never appears in content.
 
 ```typescript
+/** Engine-owned, never campaign content — the rival-behavior analogue of `KindRegistry`. */
 interface AgentStrategy {
   id: string;
   selectActions(view: PublicWorldState, agent: AgentState): GameAction[];  // §9, deferred (W30)
@@ -1747,8 +1755,10 @@ total, run once at registry construction, before the registry is frozen. Tiered 
   `LocationDefinition.connections` → `LocationDefinition` (the adjacency graph, §7.9);
   `OpportunityDefinition.targetId` → whichever definition type its own `kind` names
   (`job_offer` → `JobDefinition`, `course_place` → `CourseDefinition`, and so on).
-- Every `LocKey` field (`titleKey`, `descriptionKey`, `nameKey`, `labelKey`, `textKey`) resolves
-  in the registry's string table (04 §10.1).
+- Every field typed `LocKey`, anywhere in a content definition — not an enumerated list of field
+  *names*, which this section's own types alone already use eight of (`titleKey`,
+  `descriptionKey`, `nameKey`, `labelKey`, `textKey`, `messageKey`, `displayNameKey`, `label`) —
+  resolves in the registry's string table (04 §10.1).
 - A `Modifier.target`/addressing path naming an array collection uses the collection's natural
   key, never a numeric index (§7.1) — a numeric path segment is rejected outright.
 - A `Modifier` targeting a `DerivedPath` (§6.1) fails with `read_only_field` — the same rule
