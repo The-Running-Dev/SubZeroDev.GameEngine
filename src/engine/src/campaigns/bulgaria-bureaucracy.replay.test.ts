@@ -52,13 +52,21 @@ function loadExpectedOutcome(name: string): Outcome {
   return JSON.parse(readFileSync(`${CORPUS_DIR}${name}.outcome.json`, "utf8")) as Outcome;
 }
 
-/** Every `*.fixture.json` in the corpus, by name — new fixtures need no test-file edit to
- *  be picked up, only the committed pair of files (07 §4). In cross-version mode this is
- *  the *previous* tag's own fixture set, not the current commit's — a fixture added since
- *  then simply isn't enumerated here at all, and one removed since then still is, because
- *  both come from the same snapshot the outcomes do. */
+/** Every `bureaucracy-*.fixture.json` in the corpus, by name — new fixtures need no
+ *  test-file edit to be picked up, only the committed pair of files (07 §4). In
+ *  cross-version mode this is the *previous* tag's own fixture set, not the current
+ *  commit's — a fixture added since then simply isn't enumerated here at all, and one
+ *  removed since then still is, because both come from the same snapshot the outcomes do.
+ *
+ *  **The `bureaucracy-` prefix is load-bearing, not decorative, since W40.**
+ *  `fixtures/replay/` is one shared, flat directory across every kind's own corpus — W22
+ *  never anticipated a second kind landing fixtures beside its own. Filtering only by
+ *  `.fixture.json` picked up `simulation`'s `stable-life-*` fixtures too, which then failed
+ *  here with `unrunnable: campaign_withdrawn` (this registry only knows `story-graph`).
+ *  `stable-life.replay.test.ts` mirrors this same prefix filter for its own corpus, so the
+ *  two coexist in one directory without enumerating each other's fixtures. */
 const FIXTURE_NAMES = readdirSync(CORPUS_DIR)
-  .filter((f) => f.endsWith(".fixture.json"))
+  .filter((f) => f.startsWith("bureaucracy-") && f.endsWith(".fixture.json"))
   .map((f) => f.slice(0, -".fixture.json".length))
   .sort();
 

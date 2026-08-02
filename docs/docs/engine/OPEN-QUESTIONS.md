@@ -189,8 +189,19 @@ so they are not forgotten.
   `PlayerView` do not (turn, visible stats, achievements, ending); scene text and the
   choice list are the core's. Revisit if a client proves it needs a self-contained
   kind payload. See [`03-story-graph-kind.md`](03-story-graph-kind.md) §9.
-
----
+- **Every kind — `campaign.content as <KindCampaign>` is an unguarded cast, repo-wide.**
+  `Campaign.content` is `unknown` by design (04 §2), and every kind reads it via a bare
+  `as` cast with no runtime shape check — `story-graph`'s `validate.ts`/`advance.ts`/
+  `scene.ts`/`settle.ts`/`view.ts` and `simulation`'s `advance.ts`/`initial.ts`/
+  `validate.ts` all do this identically. Malformed content (cross-version data, a hand-
+  edited fixture) would throw during registry construction rather than surface as a
+  structured `ValidationResult`, which is arguably not "total" per `validation/types.ts`'s
+  own header comment. Flagged during W40's review (PR #102) against one file
+  (`kinds/simulation/validate.ts`); declined there specifically because fixing one cast
+  in isolation would be inconsistent with every other cast of the identical shape — this
+  is a decision about the convention itself, not a bug in one kind. **Revisit when**
+  someone decides whether every kind's content-reading code should guard the shape before
+  casting (and if so, where the guard belongs — once in the registry, or once per kind).
 
 *Add to this register whenever a decision is deferred or an assumption is made — rather than
 leaving it in a commit message or a chat, where the next person will not find it.*

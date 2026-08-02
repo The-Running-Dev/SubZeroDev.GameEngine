@@ -180,9 +180,14 @@ jobs:
             echo "has_fixtures=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # stable-life.replay.test.ts (simulation kind, W40) joins bureaucracy's own suite
+      # here -- both read from the same REPLAY_BASELINE_DIR, and both degrade to zero
+      # test cases rather than a failure when the baseline tag predates their own corpus
+      # (has_fixtures above only guards "the corpus exists at all", not "every kind's own
+      # slice of it exists yet" -- v0.1.0-to-just-after-W40 is exactly that transition).
       - name: Run the corpus against the previous tag's fixtures and outcomes
         if: steps.previous.outputs.found == 'true' && steps.extract.outputs.has_fixtures == 'true'
         working-directory: src/engine
         env:
           REPLAY_BASELINE_DIR: /tmp/replay-baseline
-        run: npx vitest run src/campaigns/bulgaria-bureaucracy.replay.test.ts
+        run: npx vitest run src/campaigns/bulgaria-bureaucracy.replay.test.ts src/campaigns/stable-life.replay.test.ts

@@ -19,12 +19,14 @@ import type { LocKey } from "../../core/localization/types.js";
 
 export const SIMULATION_REASON_CODES = [
   "action_not_planned",
+  "duplicate_id",
 ] as const;
 
 export type SimulationReasonCode = (typeof SIMULATION_REASON_CODES)[number];
 
 const SIMULATION_REASON_TEXT: Readonly<Record<SimulationReasonCode, string>> = {
   action_not_planned: "That plan entry no longer exists.",
+  duplicate_id: "This campaign uses the same id twice where ids must be unique.",
 };
 
 /** `simulation.reason.<code>` → its shipped default-English message, for every code. */
