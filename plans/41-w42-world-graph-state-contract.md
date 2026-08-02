@@ -8,9 +8,10 @@ W42 checkbox.
 names, fully specified, reconciled against `SubZeroDev.SunTrap`'s own draft and against this
 engine's determinism and envelope rules. **Doc-only. No code, no `src/engine` change.**
 
-**Depends on:** Nothing in this repository. Four decisions **owned by Sun Trap** bear on it —
-see *Blocked On Someone Else's Decisions* — and two of them must land before this unit can
-finish honestly.
+**Depends on:** Nothing. Four decisions owned by Sun Trap were thought to bear on it, two of
+them blocking — **none of them does.** Three are settled by rules this contract already owns,
+and the fourth is W43's. See *The Four Gates, and Why None of Them Blocks*. This unit can be
+executed end to end today.
 
 **Programme:** [`plans/39-world-graph-kind-programme.md`](39-world-graph-kind-programme.md),
 the first of three contract units.
@@ -190,7 +191,8 @@ growth is a determinism-adjacent correctness concern, not merely a performance o
 and hour are *derived on read* from `ticksPerMinute`. So "today" is a derived boundary applied
 to a stored accumulator, and nothing states which tick resets it. That is precisely the
 disagreement-between-a-value-and-what-it-summarises that §3's own clock rule exists to
-prevent.
+prevent. **Answered in Decision 7** — the accumulators stay, and the boundary is defined
+without needing the tick duration Sun Trap has not confirmed.
 
 ### Four more defects, in the draft and in this contract
 
@@ -253,24 +255,26 @@ should preserve rather than revisit them:
 
 ---
 
-## Blocked On Someone Else's Decisions
+## The Four Gates, and Why None of Them Blocks
 
-Sun Trap's implementation programme lists four decision gates "Before M2", **none currently
-checked**, and two of them determine field shapes this unit must specify:
+Sun Trap's implementation programme lists four decision gates "Before M2", **all four still
+unchecked** (verified directly). An earlier revision of this plan treated two as blocking. On
+re-reading, they are not — because each turns out to be a question this contract's own rules
+already answer, not a question about what the game should be.
 
-| Sun Trap gate | What it decides here |
+| Sun Trap gate | Status here |
 |---|---|
-| "Decide how building entrances are authored" | `Building.entrances: readonly Position[]` — authored absolutely, or as footprint-relative offsets rotated with the building? |
-| "Decide whether MVP building rotation is `0` only or all four contract rotations" | Whether `Footprint.rotation` is the full `0 \| 90 \| 180 \| 270` union or MVP-narrowed |
-| "Confirm one tick's provisional simulated duration" | Bears on the `revenueTodayCents` reset boundary above |
-| "Fix the authored content-id convention" | W43's problem, not this unit's |
+| "Decide how building entrances are authored" | **Settled — Decision 5.** Absolute entrances are a derived value; §3's own rule bans those from state. The field leaves `Building` entirely, which makes the authoring question W43's |
+| "Decide whether MVP building rotation is `0` only or all four contract rotations" | **Settled — Decision 2.** Declare all four; Tier 1 narrows per scenario. The answer cannot change the seam |
+| "Confirm one tick's provisional simulated duration" | **Settled — Decision 7.** The *number* is balance and stays Sun Trap's; the *reset rule* is a pure function of `tick` and campaign data, so the boundary is definable without it |
+| "Fix the authored content-id convention" | W43's problem, and always was |
 
-**These are Sun Trap's to answer, not this repository's** — `plans/39`'s non-goals are
-explicit that this programme does not direct the companion. The unit's job is to *ask them
-precisely*, and to specify the type so that the engine-side shape is correct under either
-answer where that is possible (rotation: declare all four, let content and Tier 1 validation
-narrow) and to block only where it genuinely is not (entrances: absolute versus relative
-changes what the field means, and guessing wrong makes every placement test wrong).
+**This is not overruling the companion.** `plans/39`'s non-goals hold: field *detail* and
+balance stay Sun Trap's. What moved is the boundary — three of these read as content-design
+questions and are actually applications of rules the engine already owns (derived values stay
+out of state; the seam is specified permissively where an answer cannot change it). Deciding
+them here is this repository doing its own job, not answering for the game. Where a genuine
+game-design answer is still wanted it is recorded as a question, not as a blocker.
 
 ---
 
@@ -280,11 +284,14 @@ changes what the field means, and guessing wrong makes every placement test wron
 specify: the eight drafted types, the six undefined ones, and every nested type they reach.
 Confirm nothing else is transitively required.
 
-**2 — Raise the questions with Sun Trap in one pass.** The `GuestOpinions` 7-vs-10 and
-`GuestConditions` 6-vs-7 disagreements (one question, not two), the two structural questions,
-and the four M2 gates. One message — they are all "what did you mean" questions and answering
-them together is cheaper for the person answering. Apply the consumer test when asking, so
-each is answerable rather than open-ended. Record answers in this plan.
+**2 — Write to Sun Trap once, to inform rather than to ask.** Nothing here waits on a reply
+(*The Four Gates*). Send one message stating what was concluded and why: entrances leave
+runtime state as derived (Decision 5), the opinion and condition "disagreements" resolve as
+stored-versus-evaluated (Decision 6), the day boundary is defined without the tick duration
+(Decision 7), and rotation is declared permissively (Decision 2). Two things genuinely remain
+theirs — what an authored entrance offset looks like (W43) and the value of `ticksPerDay`
+(balance). **Do not block on the reply.** If one arrives and contradicts a decision, that is a
+follow-up commit, not a reason to stall.
 
 **3 — Port the eight drafted types into §3**, adjusted only where an engine rule requires it,
 with each adjustment stated rather than silently applied. Four adjustments are already known
@@ -331,23 +338,34 @@ nine. Three one-line edits; they belong here because this unit is what gives `Al
 
 ## Decisions
 
-### 1. Ask Sun Trap; do not resolve their questions unilaterally
+### 1. Separate what is genuinely the game's from what only looks like it
 
-The `GuestOpinions` and `GuestConditions` disagreements and the M2 gates are content-design
-questions, and `12-world-graph-kind.md` §17 puts field *detail* with the game. Picking the
-shorter list in each case because it is already typed would silently overrule
-`game-design.md`, which is the document describing what the game is *for*. Ask, wait, record.
+`12-world-graph-kind.md` §17 puts field *detail* and balance with the game, and `plans/39`'s
+non-goals say this programme does not direct the companion. That still holds. What an earlier
+revision of this plan got wrong was the *scope* of it: four questions were filed as Sun Trap's
+and two as blocking, when three of them turn out to be applications of rules this contract
+already owns — derived values stay out of state, and a seam is specified permissively where an
+answer cannot change it. Decisions 5, 6 and 7 settle those.
 
-The consumer test above is not an exception to this. It makes the question *sharper* — a field
-with no system, no reason code and no projection reading it has to justify being in
-`serialize()` output — but the answer is still Sun Trap's to give.
+The test to apply before filing anything as theirs: **would a different answer change what the
+engine is allowed to store, or only what the game contains?** The first is this repository's;
+the second is Sun Trap's. Entrances read like the second and were the first. `ticksPerDay`'s
+*value* is genuinely the second.
+
+So the rule is not "ask about everything," and it is not "decide everything." It is: decide
+what the contract's rules decide, ask about what is genuinely content, and never let the two
+be confused — in either direction.
 
 ### 2. Specify the engine-side shape permissively where the answer does not change the seam
 
 Rotation is the clean case: declaring `0 | 90 | 180 | 270` costs nothing if the MVP only ever
-authors `0`, and Tier 1 validation is where a scenario narrows it. Entrances are the opposite
-case — absolute versus footprint-relative changes what the field *means*, so it blocks. Apply
-the distinction deliberately rather than treating every open question as equally blocking.
+authors `0`, and Tier 1 validation is where a scenario narrows it.
+
+Entrances looked like the opposite case and were filed as blocking on exactly that reading —
+absolute versus footprint-relative changes what the field *means*. Decision 5 dissolves it
+instead: the field is derived and leaves state altogether, so neither answer applies. Apply
+this distinction deliberately rather than treating every open question as equally blocking —
+and check first whether the field should exist at all, which is the cheaper question.
 
 ### 3. The six undefined types are designed here, not deferred to W45
 
@@ -376,7 +394,60 @@ a kind, its fixtures and its replay corpus. It is also not Sun Trap's call to ma
 the game design authority over field *detail*, not over what this repository names its own
 engine-owned types.
 
-### 5. `history` stays out, restated not reopened
+### 5. `Building.entrances` is removed from runtime state
+
+The gate asked whether entrances are authored absolutely or as footprint-relative offsets. The
+contract answers a prior question first: **an entrance position is derived** — `position` +
+`footprint.rotation` + the definition's authored offsets — and §3's own clock callout bans
+derived values from serialized state, *"they can disagree with what they summarise, and the
+disagreement is unresolvable."* An absolute `entrances` array is the same defect as the
+persisted `rng` it sits four fields away from.
+
+So the field leaves `Building`. Authored offsets live on `BuildingDefinition` (**W43**), are
+footprint-relative, and are rotated on read. State the rotation transform in §3 anyway, even
+though the offsets themselves are W43's: rotating an integer offset is a determinism concern,
+and leaving it to be re-derived per call site is how two call sites end up disagreeing.
+
+Storing relative offsets on the instance is the third option and is also declined — it copies
+the definition into every placed building, so a definition edit and its instances can diverge.
+
+**This is what unblocks the unit.** The remaining question — what an authored offset looks
+like — is real, and it is W43's, where a `BuildingDefinition` exists to hold it.
+
+### 6. Stored opinions are not evaluated opinions
+
+`game-design.md` §3.2 says guests *evaluate* price, variety, cleanliness, safety,
+attractiveness, queue length, service quality, staff behaviour, accessibility and noise.
+`content-and-systems.md` §4 types **seven** of those as `GuestOpinions`. Read as a
+contradiction, it needs Sun Trap to adjudicate. Read carefully, **it is not one**: evaluating
+is something the utility model does at decision time from world state, and it does not require
+the guest to carry a field. A guest can weigh noise without storing a `noise` opinion.
+
+So: `GuestOpinions` is the drafted **seven** — the slowly-changing impressions a guest
+accumulates and carries between decisions. The other three are **evaluation inputs** to the
+utility model, which is **W44**'s subject, not §3's. Same for `GuestConditions`: the drafted
+six are state; `confusion` is either an evaluation input or a transient the pipeline computes.
+
+Both documents are then right about different things, which is a better outcome than one of
+them losing. Record the three-plus-one in `OPEN-QUESTIONS.md` with the condition that would
+admit them to state: a system in §4 that *writes* the value between ticks. Until then, a field
+no system writes is not state — see the consumer test in *Current State*.
+
+Still worth telling Sun Trap what was concluded and why. As information, not as a gate.
+
+### 7. The "today" boundary is a pure function of `tick`, so the tick duration does not gate it
+
+`Finances.revenueTodayCents` / `expensesTodayCents` are genuine accumulators — today's revenue
+cannot be recovered from cash — so unlike entrances they stay. What was missing is *when* they
+reset, and the gate assumed that needed the confirmed simulated duration of a tick.
+
+It does not. The reset is **the first tick of a new day**, where the day is
+`floor(tick / ticksPerDay)` and `ticksPerDay` is campaign data. That is a pure function of
+`tick` plus the campaign, needs no stored day field, and keeps §3's rule that the clock
+collapses to `tick` alone. The *value* of `ticksPerDay` is balance and stays Sun Trap's; the
+rule does not depend on it.
+
+### 8. `history` stays out, restated not reopened
 
 §3 already declines a `history` field, for the reason `10-simulation-kind.md` §2 gives —
 it overlaps `StateChange[]` and the event stream, and three records of the same events is what
@@ -390,8 +461,14 @@ conspicuous; it is deliberate.
 - [ ] §3 specifies every type `WorldGraphKindState` names, and every type those reach.
 - [ ] The six previously-undefined types (`Incident`, `ObjectiveProgress`, `Alert`,
       `TerrainCell`, `PathCell`, `Zone`) each have a full shape and a stated purpose.
-- [ ] The `GuestOpinions` 7-vs-10 and `GuestConditions` 6-vs-7 disagreements are resolved by
-      Sun Trap's answer, and §3 records which document was authoritative and why.
+- [ ] `GuestOpinions` is the seven stored impressions and `GuestConditions` the six, with §3
+      stating the stored-versus-evaluated distinction that makes both Sun Trap documents right
+      (Decision 6); the three extra opinions and `confusion` are in `OPEN-QUESTIONS.md` with
+      the condition that would admit them — a §4 system that writes the value.
+- [ ] `Building` has no `entrances` field, §3 states the rotation transform for authored
+      offsets, and the authoring shape is forward-referenced to W43 (Decision 5).
+- [ ] The `revenueTodayCents` / `expensesTodayCents` reset is defined as the first tick of a
+      new day via `floor(tick / ticksPerDay)`, with no stored day field (Decision 7).
 - [ ] `ResortMap` appears nowhere in the document; `WorldMap` does (Decision 4).
 - [ ] `Queue` has no `buildingId`, and `Guest.queueId` still resolves.
 - [ ] The three open-keyed records (`Guest.preferences`, `Building.pricesCents`,
@@ -401,8 +478,6 @@ conspicuous; it is deliberate.
 - [ ] `dismiss_alert` appears in §4's action split, and `plans/39`'s W45 row and `TODO.md`'s
       W45 bullet say nine reducers rather than eight.
 - [ ] Guest pruning is answered in the contract, with the unbounded-growth reasoning stated.
-- [ ] The `revenueTodayCents` / `expensesTodayCents` reset boundary is defined against the
-      tick-only clock.
 - [ ] Every collection's canonical iteration order is stated, and the nested-entity cases
       (`Queue`, `StaffTask`) are called out explicitly.
 - [ ] `WorldGraphView` is declared, reconciled against §8's existing `outcome()` shape, and
@@ -431,7 +506,9 @@ conspicuous; it is deliberate.
   cost model and tie-break rules are W44 — even though this unit will be tempted, because
   specifying `Guest.intent` invites specifying how an intent is chosen. State the shape; leave
   the algorithm.
-- **No changes to `SubZeroDev.SunTrap`.** Questions go to that repository as questions; its
-  answers are its own commits.
+- **No changes to `SubZeroDev.SunTrap`.** What goes to that repository is the Sequence step 2
+  message — what this contract concluded and why, plus the two things still genuinely theirs
+  (the authored entrance-offset shape, and `ticksPerDay`'s value). Its answers, and any edit
+  retiring `content-and-systems.md` §§2–9 in favour of this contract, are its own commits.
 - **No balance numbers.** Need decay rates, patience thresholds, utility weights and prices
   are balance, revisited every playtest (§17), and belong to the game.
