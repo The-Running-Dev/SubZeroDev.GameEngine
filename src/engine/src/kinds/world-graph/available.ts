@@ -74,15 +74,7 @@ function buildability(
   const firstBlocker = perDefinition.flat()[0];
   return firstBlocker === undefined
     ? { available: false, reasonKey: "world-graph.reason.unknown_entity" }
-    : { available: false, reasonKey: messageKeyFor(firstBlocker) };
-}
-
-/** `action_not_available` is a base code, so its message lives under `core.reason.*`
- *  (§11's "reused from the base set"); everything else this kind blocks on is its own. */
-function messageKeyFor(code: string): string {
-  return code === "action_not_available"
-    ? "core.reason.action_not_available"
-    : `world-graph.reason.${code}`;
+    : { available: false, reasonKey: `world-graph.reason.${firstBlocker}` };
 }
 
 export function availableActions(state: WorldGraphKindState, ctx: KindContext): AvailableAction[] {

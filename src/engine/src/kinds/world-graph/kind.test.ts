@@ -136,8 +136,35 @@ describe("worldGraphKind — immediate actions", () => {
 
     expect(result.changes).toEqual([
       { path: "finances.cashCents", op: "decrement", value: 700, previous: 1_000, reason: "building_placed", visible: true },
-      { path: "buildings", op: "set", value: "building:0", reason: "building_placed", visible: false },
+      { path: "buildings.building:0.exists", op: "set", value: true, reason: "building_placed", visible: false },
     ]);
+  });
+
+  it("carries only primitives in StateChange.value, as 04 §12 requires", () => {
+    const engine = makeEngine();
+    const built = engine.submitAction(createdWorld(), "build", { definitionId: "drink-stand", x: 1, y: 1, rotation: 0 });
+    if (!built.ok || built.value === undefined) throw new Error("expected a placed building");
+    const hired = engine.submitAction(built.value, "hire_staff", { roleId: "vendor" });
+    const gone = engine.submitAction(hired.value!, "demolish", { buildingId: "building:0" });
+
+    for (const change of [...built.changes, ...hired.changes, ...gone.changes]) {
+      expect(["string", "number", "boolean"], change.path).toContain(typeof change.value);
+    }
+  });
+
+  it("records a purchase as an expense, not only as cash leaving", () => {
+    const engine = makeEngine();
+    const built = engine.submitAction(createdWorld(), "build", { definitionId: "drink-stand", x: 1, y: 1, rotation: 0 });
+    if (!built.ok || built.value === undefined) throw new Error("expected a placed building");
+    const hired = engine.submitAction(built.value, "hire_staff", { roleId: "vendor" });
+    if (!hired.ok || hired.value === undefined) throw new Error("expected hired staff");
+
+    const finances = kindState(hired.value).finances;
+    expect(finances.cashCents).toBe(500);
+    expect(finances.expensesTodayCents).toBe(500);
+    expect(finances.expensesTotalCents).toBe(500);
+    // The accumulators and the cash movement that produced them must agree.
+    expect(1_000 - finances.cashCents).toBe(finances.expensesTotalCents);
   });
 
   it("rejects an unaffordable build without changing state or appending an action", () => {
@@ -172,7 +199,7 @@ describe("worldGraphKind — immediate actions", () => {
     expect(outside.errors[0]?.messageKey).toBe("world-graph.reason.placement_out_of_bounds");
   });
 
-  it("reports a definition at its scenario cap as action_not_available, not unknown_entity", () => {
+  it("reports a definition at its scenario cap with its own code, not unknown_entity", () => {
     const capped = campaignWith({
       buildingDefinitions: [{ ...content.buildingDefinitions[0]!, maxCount: 1 }],
     });
@@ -183,8 +210,8 @@ describe("worldGraphKind — immediate actions", () => {
 
     expect(second.ok).toBe(false);
     expect(second.errors[0]).toMatchObject({
-      code: "action_not_available",
-      messageKey: "core.reason.action_not_available",
+      code: "building_limit_reached",
+      messageKey: "world-graph.reason.building_limit_reached",
     });
   });
 
@@ -197,11 +224,51 @@ describe("worldGraphKind — immediate actions", () => {
     if (!built.ok || built.value === undefined) throw new Error("expected a placed building");
 
     const view = engine.view(built.value, "player").kindView as WorldGraphView;
-    expect(view.buildOptions[0]).toMatchObject({ canBuild: false, blockedBy: ["action_not_available"] });
+    expect(view.buildOptions[0]).toMatchObject({ canBuild: false, blockedBy: ["building_limit_reached"] });
     expect(engine.availableActions(built.value).find((entry) => entry.id === "build")).toMatchObject({
       available: false,
-      reasonKey: "core.reason.action_not_available",
+      reasonKey: "world-graph.reason.building_limit_reached",
     });
+  });
+
+  it("places a building on the terrain its definition declares, walkable or not", () => {
+    // A pier over water: the footprint is unwalkable, and the guests reach its edge.
+    const water = campaignWith({
+      map: {
+        ...map,
+        terrain: map.terrain.map((cell) => (cell.x === 3 && cell.y === 0 ? { ...cell, terrain: "water" as const } : cell)),
+      },
+      buildingDefinitions: [{ ...content.buildingDefinitions[0]!, allowedTerrain: ["water"] }],
+    });
+    const result = makeEngine(water).submitAction(createdWorld(water), "build", {
+      definitionId: "drink-stand",
+      x: 3,
+      y: 0,
+      rotation: 0,
+    });
+
+    expect(result.errors[0]?.code).toBeUndefined();
+    expect(result.ok).toBe(true);
+  });
+
+  it("still rejects a placement no guest can walk up to", () => {
+    // Water everywhere but the spawn, so the pier has no walkable neighbour.
+    const marooned = campaignWith({
+      map: {
+        ...map,
+        terrain: map.terrain.map((cell) => (cell.x === 0 && cell.y === 0 ? cell : { ...cell, terrain: "water" as const })),
+      },
+      buildingDefinitions: [{ ...content.buildingDefinitions[0]!, allowedTerrain: ["water"] }],
+    });
+    const result = makeEngine(marooned).submitAction(createdWorld(marooned), "build", {
+      definitionId: "drink-stand",
+      x: 3,
+      y: 3,
+      rotation: 0,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.errors[0]?.code).toBe("placement_unreachable");
   });
 
   it("rejects an assignment to a zone the map does not declare", () => {
@@ -322,6 +389,22 @@ describe("worldGraphKind — status and outcome", () => {
 
     expect(created.status).toBe("active");
     expect(worldGraphKind.outcome(kindState(created))).toMatchObject({ resolution: null });
+  });
+
+  it("ends on a failed objective without waiting for the others to settle", () => {
+    const created = createdWorld();
+    const failing = {
+      ...kindState(created),
+      objectives: [
+        { id: "stay-open", state: "failed" as const, value: 0, target: 1, updatedAtTick: 4 },
+        { id: "still-going", state: "active" as const, value: 0, target: 9, updatedAtTick: 4 },
+      ],
+    };
+
+    expect(worldGraphKind.outcome(failing)).toMatchObject({
+      resolution: "failed",
+      failureId: "stay-open",
+    });
   });
 
   it("warns at Tier 2 about a campaign that can never resolve", () => {

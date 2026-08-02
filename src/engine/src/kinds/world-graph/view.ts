@@ -43,7 +43,7 @@ export function buildBlockers(
   if (definition.maxCount !== null) {
     const existing = state.buildings.filter((building) => building.definitionId === definition.id).length;
     if (existing >= definition.maxCount) {
-      blockedBy.push("action_not_available");
+      blockedBy.push("building_limit_reached");
     }
   }
 

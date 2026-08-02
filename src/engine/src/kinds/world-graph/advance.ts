@@ -120,8 +120,16 @@ function footprintInBounds(
   return inBounds(map.width, map.height, x, y) && inBounds(map.width, map.height, x + width - 1, y + height - 1);
 }
 
-/** Bounds are checked separately by the caller, so this reports terrain alone — the two
- *  have distinct reason codes (§11) and folding them loses the one the player needs. */
+/**
+ * Bounds are checked separately by the caller, so this reports terrain alone — the two have
+ * distinct reason codes (§11) and folding them loses the one the player needs.
+ *
+ * `allowedTerrain` is the whole rule. An additional hard-coded walkable check would make a
+ * definition that declares `water` or `restricted` unplaceable on the terrain it declares,
+ * which reads as the definition being ignored rather than enforced — a pier over water is
+ * the ordinary case, not an edge one. Whether *guests* can get there is a separate
+ * question, answered by `reachableFromSpawn` with its own reason code.
+ */
 function buildPlacementTerrainOk(
   map: WorldGraphKindState["map"],
   definition: WorldGraphBuildingDefinition,
@@ -133,7 +141,7 @@ function buildPlacementTerrainOk(
   for (let cx = x; cx < x + width; cx += 1) {
     for (let cy = y; cy < y + height; cy += 1) {
       const cell = terrainAt(map, cx, cy);
-      if (!cell || !definition.allowedTerrain.includes(cell.terrain as never) || !isWalkable(cell.terrain)) {
+      if (!cell || !definition.allowedTerrain.includes(cell.terrain as never)) {
         return false;
       }
     }
@@ -162,6 +170,16 @@ function overlapsExisting(
   return false;
 }
 
+/**
+ * A guest reaches a building's **edge**, not its interior — so this walks the walkable graph
+ * from every spawn point and asks whether it ever lands orthogonally adjacent to the
+ * footprint. The footprint's own cells are excluded from the walk: once placed, the building
+ * occupies them, and a route *through* the building it is trying to reach is not a route.
+ *
+ * That distinction only became load-bearing when `allowedTerrain` stopped being intersected
+ * with walkability — a pier on water has no walkable cell of its own, and reachability must
+ * still be answerable for it.
+ */
 function reachableFromSpawn(
   map: WorldGraphKindState["map"],
   x: number,
@@ -169,23 +187,30 @@ function reachableFromSpawn(
   width: number,
   height: number,
 ): boolean {
-  const walkable = new Set<string>();
-  for (const cell of map.terrain) {
-    if (isWalkable(cell.terrain)) {
-      walkable.add(`${cell.x},${cell.y}`);
-    }
-  }
-
   if (map.spawnPoints.length === 0) {
     return false;
   }
 
-  const targetCells = new Set<string>();
+  const footprint = new Set<string>();
   for (let cx = x; cx < x + width; cx += 1) {
     for (let cy = y; cy < y + height; cy += 1) {
-      targetCells.add(`${cx},${cy}`);
+      footprint.add(`${cx},${cy}`);
     }
   }
+
+  const walkable = new Set<string>();
+  for (const cell of map.terrain) {
+    if (isWalkable(cell.terrain) && !footprint.has(`${cell.x},${cell.y}`)) {
+      walkable.add(`${cell.x},${cell.y}`);
+    }
+  }
+
+  const neighbours = (cell: { x: number; y: number }) => [
+    { x: cell.x + 1, y: cell.y },
+    { x: cell.x - 1, y: cell.y },
+    { x: cell.x, y: cell.y + 1 },
+    { x: cell.x, y: cell.y - 1 },
+  ];
 
   const queue: Array<{ x: number; y: number }> = [...map.spawnPoints];
   const visited = new Set<string>(queue.map((cell) => `${cell.x},${cell.y}`));
@@ -196,18 +221,11 @@ function reachableFromSpawn(
       break;
     }
 
-    if (targetCells.has(`${current.x},${current.y}`)) {
+    if (neighbours(current).some((cell) => footprint.has(`${cell.x},${cell.y}`))) {
       return true;
     }
 
-    const next = [
-      { x: current.x + 1, y: current.y },
-      { x: current.x - 1, y: current.y },
-      { x: current.x, y: current.y + 1 },
-      { x: current.x, y: current.y - 1 },
-    ];
-
-    for (const nextCell of next) {
+    for (const nextCell of neighbours(current)) {
       const key = `${nextCell.x},${nextCell.y}`;
       if (!walkable.has(key) || visited.has(key)) {
         continue;
@@ -273,6 +291,21 @@ function advanceTicksInRange(campaign: WorldGraphCampaign, ticks: number): boole
   return ticks > 0 && ticks <= campaign.maxAdvanceTicksPerAction;
 }
 
+/**
+ * Cash out is an expense. Subtracting `cashCents` without recording it leaves the
+ * accumulators disagreeing with the cash movement that produced them — and unlike cash,
+ * today's spend cannot be recovered afterwards, which is why §3.3 keeps the accumulators
+ * at all.
+ */
+function spend(finances: WorldGraphKindState["finances"], amountCents: number): WorldGraphKindState["finances"] {
+  return {
+    ...finances,
+    cashCents: finances.cashCents - amountCents,
+    expensesTodayCents: finances.expensesTodayCents + amountCents,
+    expensesTotalCents: finances.expensesTotalCents + amountCents,
+  };
+}
+
 export function advance(
   state: WorldGraphKindState,
   actionId: string,
@@ -312,10 +345,7 @@ export function advance(
     if (definition.maxCount !== null) {
       const existing = state.buildings.filter((building) => building.definitionId === definition.id).length;
       if (existing >= definition.maxCount) {
-        // The scenario caps this definition — `action_not_available` from the base set
-        // (§11), not `unknown_entity`: the definition exists, the player just may not have
-        // another one.
-        return rejected(state, "action_not_available", "core.reason.action_not_available");
+        return rejected(state, "building_limit_reached", "world-graph.reason.building_limit_reached");
       }
     }
 
@@ -364,10 +394,7 @@ export function advance(
         },
       ],
       nextEntityOrdinal: state.nextEntityOrdinal + 3,
-      finances: {
-        ...state.finances,
-        cashCents: state.finances.cashCents - definition.costCents,
-      },
+      finances: spend(state.finances, definition.costCents),
       alerts: [
         ...state.alerts,
         {
@@ -394,7 +421,7 @@ export function advance(
         true,
         state.finances.cashCents,
       ),
-      change("buildings", "set", buildingId, "building_placed", false),
+      change(`buildings.${buildingId}.exists`, "set", true, "building_placed", false),
     ]);
   }
 
@@ -452,7 +479,7 @@ export function advance(
     emitEvent(ctx, "kind.world-graph.building.demolished", "debug", { buildingId });
 
     return accepted(nextState, [
-      change("buildings", "set", buildingId, "building_demolished", false),
+      change(`buildings.${buildingId}.exists`, "set", false, "building_demolished", false, true),
     ]);
   }
 
@@ -497,10 +524,7 @@ export function advance(
           tasksCompleted: 0,
         },
       ],
-      finances: {
-        ...state.finances,
-        cashCents: state.finances.cashCents - role.hireCostCents,
-      },
+      finances: spend(state.finances, role.hireCostCents),
     };
 
     emitEvent(ctx, "kind.world-graph.staff.hired", "info", { staffId, roleId });
@@ -514,7 +538,7 @@ export function advance(
         true,
         state.finances.cashCents,
       ),
-      change("staff", "set", staffId, "staff_hired", false),
+      change(`staff.${staffId}.exists`, "set", true, "staff_hired", false),
     ]);
   }
 
@@ -539,7 +563,7 @@ export function advance(
     emitEvent(ctx, "kind.world-graph.staff.fired", "debug", { staffId });
 
     return accepted(nextState, [
-      change("staff", "set", staffId, "staff_fired", false),
+      change(`staff.${staffId}.exists`, "set", false, "staff_fired", false, true),
     ]);
   }
 

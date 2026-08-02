@@ -19,6 +19,7 @@ export const WORLD_GRAPH_REASON_CODES = [
   "building_not_open",
   "price_out_of_range",
   "staff_limit_reached",
+  "building_limit_reached",
   "ticks_not_positive",
   "tick_limit_reached",
 ] as const;
@@ -36,6 +37,7 @@ const WORLD_GRAPH_REASON_TEXT: Readonly<Record<WorldGraphReasonCode, string>> = 
   building_not_open: "That building must be open to perform this action.",
   price_out_of_range: "That price is outside the allowed range for this product.",
   staff_limit_reached: "This role has reached its campaign limit.",
+  building_limit_reached: "You've already built as many of these as this scenario allows.",
   ticks_not_positive: "AdvanceTicks requires a positive integer.",
   tick_limit_reached: "AdvanceTicks exceeds the campaign's per-action batch cap.",
 };

@@ -23,6 +23,17 @@ export function resolveOutcome(state: { readonly objectives: readonly ObjectiveP
   const failureId = state.objectives.find(isObjectiveFailed)?.id ?? null;
   const hasActiveObjective = state.objectives.some((objective) => objective.state === "active");
 
+  // Failure is immediate and does not wait for the rest of the board to settle. A run that
+  // has already failed but reports `resolution: null` is an active game carrying a
+  // non-null `failureId` — a state the player can keep acting in after losing.
+  if (failureId !== null) {
+    return {
+      resolution: "failed",
+      objectivesMet,
+      failureId,
+    };
+  }
+
   // A resolution requires at least one objective (12 §8). Reading "none active" as a win
   // would make an objective-less campaign `ended` before the player saw a tick; such a
   // campaign is a sandbox, and validation warns about it at Tier 2 instead.
@@ -35,7 +46,7 @@ export function resolveOutcome(state: { readonly objectives: readonly ObjectiveP
   }
 
   return {
-    resolution: failureId === null ? "objectives_met" : "failed",
+    resolution: "objectives_met",
     objectivesMet,
     failureId,
   };
