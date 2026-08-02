@@ -69,11 +69,13 @@ function makeContext(): ReplayRunnerContext {
 }
 
 describe("the Stable Life replay corpus (07-replay.md §4)", () => {
-  // Skipped in cross-version mode: a baseline tag predating this corpus (W40) has neither
-  // fixture, and that is a legitimate transition (07 §8), not a regression — the it.each
-  // below simply runs zero cases against such a baseline, which is not itself a failure.
-  it.skipIf(COMPARING_ACROSS_VERSIONS)("both fixtures are present", () => {
-    expect(STABLE_LIFE_FIXTURE_NAMES).toEqual(["stable-life-loss", "stable-life-win"]);
+  // Non-empty, not an exact name list — matches bureaucracy's own "the corpus is
+  // non-empty" test (07 §4): a new stable-life-* fixture needs only its committed
+  // .fixture.json/.outcome.json pair, never a test-file edit to be picked up here.
+  // Skipped in cross-version mode: a baseline tag predating this corpus (W40) has no
+  // fixtures at all, and that is a legitimate transition (07 §8), not a regression.
+  it.skipIf(COMPARING_ACROSS_VERSIONS)("the corpus is non-empty", () => {
+    expect(STABLE_LIFE_FIXTURE_NAMES.length).toBeGreaterThan(0);
   });
 
   it.each(STABLE_LIFE_FIXTURE_NAMES)("%s: matches its committed Outcome", async (name) => {
