@@ -927,25 +927,46 @@ applied to the first kind with the volume to test it.
 (§4) are single, player-initiated mutations with no volume problem at all, and each returns
 its `StateChange`:
 
-| Action | `path` | `op` | `value` |
+| Action | `path` | `value` (`previous`) | `reason` |
 |---|---|---|---|
-| `build` | `finances.cashCents` | `decrement` | cash after |
-| | `buildings.<buildingId>.exists` | `set` | `true` |
-| `demolish` | `buildings.<buildingId>.exists` | `set` | `false` |
-| `hire_staff` | `finances.cashCents` | `decrement` | cash after |
-| | `staff.<staffId>.exists` | `set` | `true` |
-| `fire_staff` | `staff.<staffId>.exists` | `set` | `false` |
-| `assign_staff` | `staff.<id>.assignedBuildingId` / `.assignedZoneId` | `set` | the id, or `""` |
-| `set_price` | `buildings.<id>.pricesCents.<productId>` | `set` | integer cents |
-| `open_building` / `close_building` | `buildings.<id>.isOpen` | `set` | boolean |
-| `dismiss_alert` | `alerts.<id>.dismissedAtTick` | `set` | the tick |
+| `build` | `finances.cashCents` | cash after (cash before) | `building_placed` |
+| — immediate | `buildings.<buildingId>.exists` | `true` | `building_placed` |
+| — with build time | `constructionSites.<siteId>.exists` | `true` | `construction_started` |
+| `demolish` | `buildings.<buildingId>.exists` | `false` (`true`) | `building_demolished` |
+| `hire_staff` | `finances.cashCents` | cash after (cash before) | `staff_hired` |
+| | `staff.<staffId>.exists` | `true` | `staff_hired` |
+| `fire_staff` | `staff.<staffId>.exists` | `false` (`true`) | `staff_fired` |
+| `assign_staff` | `staff.<id>.assignedBuildingId` / `.assignedZoneId` | the id, or `""` | `staff_assigned` |
+| `set_price` | `buildings.<id>.pricesCents.<productId>` | integer cents (previous cents) | `price_set` |
+| `open_building` / `close_building` | `buildings.<id>.isOpen` | boolean (previous) | `building_opened` / `building_closed` |
+| `dismiss_alert` | `alerts.<id>.dismissedAtTick` | the tick | `alert_dismissed` |
+| `advance_ticks` | `tick` | tick after (tick before) | `ticks_advanced` |
+
+**`build` writes one of two entity rows.** §6 lets it place a building *or* open a
+construction site; which one depends on whether the definition carries a build time, and the
+site's own `buildTicksRemaining` is counted down by the tick pipeline (W46). Both rows are
+listed so the second is not discovered later as a gap.
+
+> **`op` is always `set`, and `value` is always the value after.** 04 §12 offers
+> `increment`/`decrement`, but defines no meaning for `value` when they are used — is it the
+> delta or the result? Its own worked examples only ever use `set` with `value` + `previous`,
+> and 03 §5's variable write is explicit that `op` stays `set` "regardless of which
+> increment/decrement/set operations actually ran". Following that: this kind emits `set`,
+> `value` is the state after, `previous` is the state before, and a consumer wanting the
+> delta subtracts. A `decrement` row whose `value` was the resulting balance would be read by
+> half its consumers as the amount deducted.
 
 > **Every path is entity-scoped, and that is forced rather than stylistic.** 04 §12 types
 > `StateChange.value` as `string | number | boolean`, so no record can carry a collection —
-> a row saying `path: "buildings"`, `op: "set"` has nothing legal to put in `value`, and
-> "the array changed" is not an audit record a client could render anyway. Appearing and
-> disappearing are therefore written as a boolean on the entity's own path. A `null`
-> assignment is `""` for the same reason: the type has no null.
+> a row saying `path: "buildings"` has nothing legal to put in `value`, and "the array
+> changed" is not an audit record a client could render anyway. Appearing and disappearing
+> are therefore written as a boolean on the entity's own path. A `null` assignment is `""`
+> for the same reason: the type has no null.
+
+`reason` is a descriptive code naming *why* the change happened, not a rejection code —
+`simulation`'s `action_eat` and `story-graph`'s `achievement_unlocked` set that precedent,
+and like those, these are `StateChange` vocabulary rather than additions to §11's
+`Kind.reasonCodes`, which are what a *rejected* action returns.
 
 `visible: true` for everything a player did deliberately and can see the result of; the
 `.exists` records are `visible: false`, since the projection already carries the roster.
