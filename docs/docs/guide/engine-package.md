@@ -65,11 +65,11 @@ comparison (07 §8) runs the corpus against the previous tag.
 
 ## Companion Consumption
 
-The package is `@the-running-dev/game-engine`, published privately to GitHub Packages. The
-boundary is built and gated; **no version has been published yet** — `release-engine-package.yml`
-runs on a `v*` tag push, and the tags that exist all predate it. The first publication ships
-whatever `src/engine/package.json` says at that tag, so the manifest version and the tag move
-together.
+The package is `@the-running-dev/game-engine`, configured for private publication to GitHub
+Packages. The boundary is built and gated; **no version has been published yet** —
+`release-engine-package.yml` runs on a `v*` tag push, and the tags that exist all predate it. The
+first publication ships whatever `src/engine/package.json` says at that tag, so the manifest
+version and the tag move together.
 
 Companion projects consume it by registry from a tarball built and published in
 `release-engine-package.yml`, not by source-tree `file:` links — a `file:` link resolves
@@ -92,5 +92,5 @@ should use a repository-scoped token with package read permission.
 ## Where the work is going
 
 [TODO](/docs/engine/todo) breaks the work into ordered units. The MVP and replay oracle are
-done, and so is the companion consumer boundary above; the programme in progress builds the
-`world-graph` kind, contract first.
+done, and the companion consumer boundary above is merged and gated; first publication is still
+pending. The programme in progress builds the `world-graph` kind, contract first.
