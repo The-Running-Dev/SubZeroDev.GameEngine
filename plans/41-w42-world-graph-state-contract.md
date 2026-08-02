@@ -34,10 +34,12 @@ defaults), [`agent.md`](../agent.md), `docs/docs/engine/12-world-graph-kind.md` 
 **Then work the *Sequence* below until every *Done-When* box is satisfied.** The *Decisions*
 section says why each choice was made; if you think one is wrong, say so and stop.
 
-**This is a doc-only unit.** The only files that change are
-`docs/docs/engine/12-world-graph-kind.md` and, if a genuinely open question surfaces,
-`docs/docs/engine/OPEN-QUESTIONS.md`. If you find yourself editing `src/engine/`, stop — that
-is W45.
+**This is a doc-only unit.** The files that change are
+`docs/docs/engine/12-world-graph-kind.md`; `docs/docs/engine/OPEN-QUESTIONS.md` if a genuinely
+open question surfaces; and `docs/docs/engine/TODO.md` plus
+[`plans/39-world-graph-kind-programme.md`](39-world-graph-kind-programme.md) for the
+eight-versus-nine reducer correction in Sequence step 9, and for nothing else. If you find
+yourself editing `src/engine/`, stop — that is W45.
 
 ### Where to work
 
@@ -158,6 +160,19 @@ is the more specific and defers to the engine contract on disagreement, but it d
 precedence over `game-design.md` — so this is a real question for the unit to put to Sun Trap
 rather than silently resolve by picking the shorter list.
 
+**`GuestConditions` disagrees the same way, and is easy to miss because the gap is one field.**
+`content-and-systems.md` §4 types **six** — drunkenness, sunburn, headache, nausea, injury,
+anger. `game-design.md` §3.1 lists **seven** potential conditions: those six plus *confusion*.
+Same shape of disagreement, same silence in both directions. Put it in the same question, not
+a second one.
+
+> **One test does cut through both, and it is worth applying before asking.** A field that no
+> system in §4 updates, no reason code in §11 reads and no projection in §10 carries is not
+> state — adding it to `serialize()` output is how the `rng` and `totalTimeCost` defects
+> happened. If the extra opinions and *confusion* fail that test today, say so when asking:
+> the question becomes "is a system coming for these, or are they design vocabulary?", which
+> is far easier to answer than "seven or ten?".
+
 ### Two structural questions the draft does not answer
 
 **1. Do departed guests ever leave the array?** `GuestLifecycle` includes `"departed"` and
@@ -175,6 +190,52 @@ and hour are *derived on read* from `ticksPerMinute`. So "today" is a derived bo
 to a stored accumulator, and nothing states which tick resets it. That is precisely the
 disagreement-between-a-value-and-what-it-summarises that §3's own clock rule exists to
 prevent.
+
+### Four more defects, in the draft and in this contract
+
+Found while reconciling W41's status against the same two documents. None blocks on Sun Trap;
+all four are this repository's to fix.
+
+**1. `Queue` records its containment twice.** `content-and-systems.md` §5 nests
+`queue: Queue` **inside** `Building`, and `Queue` declares both its own `id` (`"q:<ordinal>"`)
+and `buildingId: string`. A queue nested in `b:3` whose `buildingId` says `b:7` is
+representable and nothing can adjudicate it — the same objection §3 already makes to a
+persisted `rng` and `10 §2` makes to `totalTimeCost`, one level down: duplication *inside*
+`kindState` rather than against the envelope.
+
+Drop `buildingId`; keep `Queue.id`, because `Guest.queueId` needs a referent and §9's ordinal
+rule names queues. Lifting queues into a twelfth top-level collection is the other available
+fix and is worse — a queue has no independent lifecycle, so it would buy a referential-
+integrity check and nothing else. `Guest.queueId` is **not** the same problem: a guest is not
+contained by a queue, so the reference is the only record of the relationship.
+
+**2. `dismiss_alert` is missing from §4's action split, and the undercount has spread.** §4
+lists eight actions that mutate without advancing time; §6's table lists **nine** — the same
+eight plus `dismiss_alert`, which §3's own `alerts` callout requires ("an alert persists until
+dismissed and dismissal is a player action"). §4 is the stale one. The undercount has since
+been copied into `plans/39`'s W45 row and `TODO.md`'s W45 bullet ("the eight no-time-passes
+reducers"). This unit is where it gets fixed, because this unit is what gives `Alert` a type
+for `dismiss_alert` to operate on.
+
+**3. Three open-keyed records need the N6 reconciliation, not a copy-paste.**
+`Guest.preferences`, `Building.pricesCents` and `Building.inventory` are all
+`Readonly<Record<string, number>>`, and `02-architecture.md` N6 bans the loose bag. `10 §6.2`
+already answered this for `ActorState`'s `skills`/`reputation`/`flags`/`counters`: a record
+whose **keys are declared by validated content** is not a loose bag, because Tier 1 closes the
+key set at load. That argument transfers here — product ids and archetype preference keys are
+content-declared — but it has to be *written*. An unexamined `Record<string, number>` is
+indistinguishable on the page from the thing N6 bans. Reuse `10 §6.2`'s wording rather than
+re-deriving it.
+
+**4. Most of these fields are out of the MVP, and nothing says which.** `mvp.md` §3 scopes
+guests to two needs (thirst, toilet) and one opinion (price); §4 puts groups, loans, staff
+fatigue, multiple archetypes and complex inventory out of scope. The drafted types carry all
+of it — seven needs, seven opinions, `Guest.groupId`, `Finances.loans`, `Staff.fatigue`.
+
+Specify all of them: the `simulation` precedent is unambiguous, since W32–W35 ported the whole
+upstream contract far beyond what "Stable Life" ever used. But **mark the MVP-inert ones at
+the field**, so W45–W47 know what may stay inert without it reading as an omission. At the
+field, not in a separate table that will drift from the fields it describes.
 
 ### What is already correctly reconciled — do not re-litigate
 
@@ -218,13 +279,17 @@ changes what the field means, and guessing wrong makes every placement test wron
 specify: the eight drafted types, the six undefined ones, and every nested type they reach.
 Confirm nothing else is transitively required.
 
-**2 — Raise the seven questions with Sun Trap in one pass.** The `GuestOpinions` 7-vs-10
-disagreement, the two structural questions, and the four M2 gates. One message, not seven —
-they are all "what did you mean" questions and answering them together is cheaper for the
-person answering. Record answers in this plan.
+**2 — Raise the questions with Sun Trap in one pass.** The `GuestOpinions` 7-vs-10 and
+`GuestConditions` 6-vs-7 disagreements (one question, not two), the two structural questions,
+and the four M2 gates. One message — they are all "what did you mean" questions and answering
+them together is cheaper for the person answering. Apply the consumer test when asking, so
+each is answerable rather than open-ended. Record answers in this plan.
 
 **3 — Port the eight drafted types into §3**, adjusted only where an engine rule requires it,
-with each adjustment stated rather than silently applied.
+with each adjustment stated rather than silently applied. Four adjustments are already known
+and decided: `ResortMap` → `WorldMap` (Decision 4 — do it on this pass), `Queue.buildingId`
+dropped, the three open-keyed records reconciled against N6 in `10 §6.2`'s wording, and
+MVP-inert fields marked at the field.
 
 **4 — Design the six undefined types.** `Incident`, `ObjectiveProgress`, `Alert`,
 `TerrainCell`, `PathCell`, `Zone`. Ground each in what already references it — `Alert` in
@@ -240,6 +305,12 @@ guest pruning and the `revenueTodayCents` boundary.
 `outcome()`'s return shape; check it against the now-specified `ObjectiveProgress` and
 reconcile if they disagree.
 
+Check the view field by field against 04 §6's `Scene` and 04 §9's `PlayerView` before calling
+it done. `CLAUDE.md`'s envelope-duplication ledger has five entries and **entry 3 is a view** —
+`StoryGraphView` duplicating scene and status fields — so this is the first view written since
+that lesson was recorded, and the ledger's own note says the defect "recurs on the *view* side
+too."
+
 **7 — State the collection rules.** Which collections are arrays versus records, and their
 canonical iteration order, per §9's "iteration order is canonical, not insertion order" and
 "every tie has an explicit rule, and the rule is the entity id." Note explicitly that `Queue`
@@ -248,6 +319,12 @@ than in top-level collections — true in the draft and easy to lose.
 
 **8 — Update §3's status line.** "Revision 1 — the seam only" stops being accurate the moment
 this merges; say what it now is.
+
+**9 — Land the `dismiss_alert` correction and its two copies.** Add `dismiss_alert` to §4's
+action split, and fix `plans/39`'s W45 row and `TODO.md`'s W45 bullet from eight reducers to
+nine. Three one-line edits; they belong here because this unit is what gives `Alert` a type.
+`TODO.md` and `plans/39` are the only files outside `12-world-graph-kind.md` and
+`OPEN-QUESTIONS.md` this unit may touch, and only for this.
 
 ---
 
@@ -275,7 +352,26 @@ implementation unit settle them. That is exactly what `plans/39` Decision 1 forb
 `unknown` in W36 and had to be narrowed later in W38, and the intervening code was written
 against a type that could not be checked. Design them now, while the cost is a paragraph.
 
-### 4. `history` stays out, restated not reopened
+### 4. `ResortMap` is renamed `WorldMap` — and this one cannot wait
+
+`12-world-graph-kind.md` §1 rejects the name `management-simulation` on the explicit grounds
+that *"a colony sim, an ecosystem model or a transport network would run on this identical
+kind."* A type called `ResortMap` in engine-owned code contradicts that argument in the most
+visible place it could — the state interface. Both built kinds use structural names (`Node`,
+`Choice`; `ActorState`, `PlayerState`), never themed ones.
+
+`Guest`, `Staff` and `Building` **stay.** They name structural roles this kind actually
+models — an autonomous visitor who arrives with needs and departs, an employee the player pays
+and assigns, a placed structure with a footprint — and they read correctly for a colony or a
+transport network. `Resort` names a *theme*; the other three name *roles*.
+
+**Do this on the first pass, not as a follow-up.** Right now it is a find-and-replace in one
+document. After §3 is written it is a rewrite of the section; after W45 it is a change across
+a kind, its fixtures and its replay corpus. It is also not Sun Trap's call to make — §17 gives
+the game design authority over field *detail*, not over what this repository names its own
+engine-owned types.
+
+### 5. `history` stays out, restated not reopened
 
 §3 already declines a `history` field, for the reason `10-simulation-kind.md` §2 gives —
 it overlaps `StateChange[]` and the event stream, and three records of the same events is what
@@ -289,14 +385,25 @@ conspicuous; it is deliberate.
 - [ ] §3 specifies every type `WorldGraphKindState` names, and every type those reach.
 - [ ] The six previously-undefined types (`Incident`, `ObjectiveProgress`, `Alert`,
       `TerrainCell`, `PathCell`, `Zone`) each have a full shape and a stated purpose.
-- [ ] The `GuestOpinions` 7-vs-10 disagreement is resolved by Sun Trap's answer, and §3
-      records which document was authoritative and why.
+- [ ] The `GuestOpinions` 7-vs-10 and `GuestConditions` 6-vs-7 disagreements are resolved by
+      Sun Trap's answer, and §3 records which document was authoritative and why.
+- [ ] `ResortMap` appears nowhere in the document; `WorldMap` does (Decision 4).
+- [ ] `Queue` has no `buildingId`, and `Guest.queueId` still resolves.
+- [ ] The three open-keyed records (`Guest.preferences`, `Building.pricesCents`,
+      `Building.inventory`) carry the N6 reconciliation in `10 §6.2`'s wording, not a fresh
+      derivation.
+- [ ] MVP-inert fields are marked at the field, per `mvp.md` §4.
+- [ ] `dismiss_alert` appears in §4's action split, and `plans/39`'s W45 row and `TODO.md`'s
+      W45 bullet say nine reducers rather than eight.
 - [ ] Guest pruning is answered in the contract, with the unbounded-growth reasoning stated.
 - [ ] The `revenueTodayCents` / `expensesTodayCents` reset boundary is defined against the
       tick-only clock.
 - [ ] Every collection's canonical iteration order is stated, and the nested-entity cases
       (`Queue`, `StaffTask`) are called out explicitly.
-- [ ] `WorldGraphView` is declared, and reconciled against §8's existing `outcome()` shape.
+- [ ] `WorldGraphView` is declared, reconciled against §8's existing `outcome()` shape, and
+      checked field by field against 04 §6's `Scene` and 04 §9's `PlayerView` so it repeats
+      neither — the sixth check against `CLAUDE.md`'s envelope-duplication ledger, and the
+      second on the view side.
 - [ ] Every integer/units/range/nullability question in the ported types is answered — no
       bare `number` whose scale a reader has to guess.
 - [ ] §3's "the seam only" status line is updated.
