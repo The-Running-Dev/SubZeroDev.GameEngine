@@ -67,7 +67,17 @@ therefore wrong. Rivals are not a feature layered on top; they are the same stat
 through the same systems, and a "player-only" port would produce a shape that has to be
 re-derived when rivals arrive. **Actor state comes over whole, once.**
 
-### 2. `Modifier.operation: "multiply"` collides with integer-cents money, and upstream does not say how
+### 2. `Modifier.operation: "multiply"` against integer-cents money, and what upstream actually says
+
+> **Corrected during W34 (content-definition-types port).** This finding originally claimed
+> "upstream specifies no rounding rule" — checked directly against
+> `games/04-engine-specification.md` §13.3 while writing the port, and that claim is wrong:
+> the line immediately after `Modifier`'s own type declaration reads *"`multiply` uses
+> `value / 100` as a percentage against integer bases, rounded half-away-from-zero after the
+> full chain."* That sentence is present in the initial commit of the upstream repository —
+> it did not appear after this finding was written, this finding simply missed it. Left below
+> with a strikethrough-free correction rather than silently rewritten, per this repo's own
+> discipline of recording what was found wrong and how, not just fixing it quietly.
 
 Upstream §13.3 defines `operation: "add" | "subtract" | "multiply" | "set"` with a
 `value: number`, against a `target` that "must resolve to a writable base path" — which
@@ -75,15 +85,16 @@ includes money paths. `10-simulation-kind.md` §6 states **money is integer cent
 point in state**, and `src/engine/eslint.config.js` bans the non-bit-stable `Math.*` functions
 outright.
 
-A `multiply` by a non-integer against integer cents produces a non-integer, and **upstream
-specifies no rounding rule**. Two runs that round differently diverge, which is precisely the
-class of defect the determinism harness exists to catch — except that here it would be baked
-into the content model rather than introduced by a bug.
-
-This needs deciding *before* `Modifier` is ported, not during. Options: basis points with
-explicit integer division (upstream already defines `BasisPoints` at line 173, which suggests
-this was the intent and `multiply` is vestigial), or dropping `multiply` from the operation set.
-**Recommendation:** basis points with a stated rounding rule, since the type already exists.
+A `multiply` by a non-integer against integer cents produces a non-integer — ~~and upstream
+specifies no rounding rule~~ **upstream does specify one: `value/100` as a percentage, rounded
+half-away-from-zero once, after combining every `multiply` modifier in the chain (not after
+each one).** The real remaining question is narrower than this finding originally posed: not
+*whether* a rule exists, but whether `value: number`'s dual meaning (a raw amount for
+`add`/`subtract`/`set`, a basis-points-shaped percentage for `multiply`) should be typed more
+precisely than upstream's single `number` field, or restated as-is with the distinction only in
+prose. **Resolved in the port:** kept as `value: number` matching upstream exactly — this repo
+already carries dual-meaning content fields elsewhere without a discriminated type (e.g.
+`StateChange.value`), and `operation` is itself the discriminant a reader needs.
 
 ### 3. The kind cannot be built incrementally against a half-ported contract
 
@@ -164,10 +175,11 @@ and each is resolved in a named unit rather than left to discover.
 
 Finding 1. A player-only port produces a shape that must be re-derived.
 
-### 3. Decide `Modifier`'s arithmetic before porting it, in W29
+### 3. State `Modifier`'s arithmetic precisely when porting it, in W29
 
-Finding 2. Porting `multiply` as written imports a determinism hazard into the content model,
-where it is far more expensive to remove than to decline now.
+Finding 2, as corrected. Upstream already specifies the rounding rule (round-half-away-from-zero,
+once, after the full `multiply` chain) — this unit's job is to restate it precisely rather than
+invent one, not to resolve an open determinism hazard that turned out not to exist.
 
 ### 4. Do not extract a shared tick-pipeline substrate in this programme
 
