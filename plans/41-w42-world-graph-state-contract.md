@@ -27,6 +27,25 @@ the specification half of that; W45 is the code half.
 This section is the whole brief for whoever executes this unit, including an agent starting
 cold.
 
+### The prompt
+
+Paste this to start the unit. It carries only what an agent cannot read off the branch — where
+to work, and that nothing is waiting on an answer. Everything else it needs is below.
+
+```text
+Implement W42 on branch feature/w42-world-graph-state-contract. It is already synced
+with main — do not rebase. Start with plans/41-w42-world-graph-state-contract.md; its
+"Handoff — Start Here" section is your brief.
+
+Nothing blocks: all four Sun Trap gates are resolved in the plan's Decisions. Sequence
+step 2 sends a message that informs rather than asks — do not wait for a reply.
+
+Doc-only. The only files that may change are docs/docs/engine/12-world-graph-kind.md,
+docs/docs/engine/OPEN-QUESTIONS.md, and — for the reducer-count fix in step 9 only —
+docs/docs/engine/TODO.md and plans/39-world-graph-kind-programme.md. Do not open the PR
+until Done-When is satisfied.
+```
+
 **Read in this order:** [`CLAUDE.md`](../CLAUDE.md) (project conventions — they override your
 defaults), [`agent.md`](../agent.md), `docs/docs/engine/12-world-graph-kind.md` in full
 (especially §3, §5, §9 and §17), then `SubZeroDev.SunTrap/docs/docs/design/content-and-systems.md`
