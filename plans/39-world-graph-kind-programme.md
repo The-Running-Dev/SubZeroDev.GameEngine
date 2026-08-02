@@ -247,25 +247,12 @@ names both.
 
 ### W42 — authoritative runtime-state contract
 
-> **Scope correction, from cutting the plan.** The row in *The Split* above sizes this unit
-> as a port of the eight shapes Sun Trap §§2–9 drafts. Reading the source against
-> `WorldGraphKindState` found **six types named but declared nowhere in either repository** —
-> `TerrainCell`, `PathCell` and `Zone` nested inside the drafted `ResortMap`, plus `Incident`,
-> `ObjectiveProgress` and `Alert` as top-level collections. Finding 2's port/design split is
-> still real but does not partition along the W42/W43 boundary: part of the *state* is
-> undrafted too. **W42 owns all eleven collections**, designing the six, or its own gate below
-> is unreachable by three of them. Reasoning and the consumer-trace rule that keeps the design
-> half honest: [`plans/41-w42-world-graph-runtime-state.md`](41-w42-world-graph-runtime-state.md),
-> Finding 1 and Decision 3.
-
-- [x] Cut the W42 doc-only plan and inventory every field in Sun Trap §§2–9.
+- [ ] Cut the W42 doc-only plan and inventory every field in Sun Trap §§2–9.
 - [ ] Specify map dimensions, tiles, entrances, occupancy and deterministic coordinate rules.
 - [ ] Specify guest identity, position, needs, target, path, inventory, opinions and lifecycle.
 - [ ] Specify building, product, queue and service state without embedding content definitions.
 - [ ] Specify staff role, assignment, position, path, task and lifecycle.
 - [ ] Specify construction, finances, loans, counters and `nextEntityOrdinal` ownership.
-- [ ] Design `Incident`, `ObjectiveProgress` and `Alert` — the three top-level collections no
-      draft covers — with every field traced to a named system, action or reason code.
 - [ ] Define which collections are records, arrays or ordered lists and their canonical order.
 - [ ] Reconcile nullability, units, integer ranges and tick semantics across both repositories.
 - [ ] Define `WorldGraphView` and terminal outcome data without leaking hidden state.

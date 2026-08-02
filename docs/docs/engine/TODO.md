@@ -603,18 +603,8 @@ when it declined a programme doc for this kind.
       is a tag push; the M1 handoff coordinate gets recorded in `plans/40`'s Done-When when it
       happens.
       **Plan:** [`plans/40-w41-engine-consumer-boundary.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/40-w41-engine-consumer-boundary.md)
-- [ ] **W42 — runtime-state contract:** authoritative map, guest, building, queue, staff,
-      construction and finance shapes, plus `Incident`/`ObjectiveProgress`/`Alert` and
-      `WorldGraphView`. **Ready to execute** —
-      [`plans/41-w42-world-graph-runtime-state.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/41-w42-world-graph-runtime-state.md).
-      Planning found the programme had sized this unit as a pure port and it is not: **six of
-      the types `WorldGraphKindState` names are declared nowhere in either repository** —
-      `TerrainCell`, `PathCell` and `Zone` nested inside the drafted `ResortMap`, and
-      `Incident`, `ObjectiveProgress` and `Alert` as top-level collections. W42 owns all
-      eleven collections rather than deferring three, or its own gate is unreachable. The plan
-      also decides the `ResortMap` → `WorldMap` rename (12 §1's own argument against themed
-      naming, free now and expensive after W45), drops `Queue.buildingId` as duplication of a
-      containment relationship, and carries five other findings with their evidence.
+- [ ] **W42 proposed — runtime-state contract:** authoritative map, guest, building, queue,
+      staff, construction and finance shapes.
 - [ ] **W43 proposed — content-definition contract:** archetypes, buildings, products,
       terrain, incidents, scenarios, objectives, policies and achievements.
 - [ ] **W44 proposed — resolution contract:** the 20-system pipeline, utility scoring,
