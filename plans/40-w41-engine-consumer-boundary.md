@@ -22,6 +22,63 @@ closes it, and this unit implements that decision.
 
 ---
 
+## Handoff — Start Here
+
+This section is the whole brief for whoever executes this unit, including an agent starting
+cold. Everything it needs is in this repository; nothing depends on a chat transcript.
+
+**Read in this order:** [`CLAUDE.md`](../CLAUDE.md) (project conventions — they override your
+defaults), [`agent.md`](../agent.md) (lessons learned the hard way here), then the rest of
+this plan.
+
+**Then work the *Sequence* below (8 steps) until every *Done-When* box (11) is satisfied.**
+The *Decisions* section says why each choice was made. If you believe one is wrong, say so
+and stop — do not quietly substitute a different design.
+
+**Trust, but re-verify.** *Current State (measured, not recalled)* and *The Prototype* were
+verified against the working tree, so you need not re-derive them. Do re-run anything you are
+about to depend on.
+
+### Working rules that are easy to violate here
+
+- **Stage by explicit named path.** Never `git add -A`, `git add .`, or a bare directory.
+  `.gitignore`'s own comment records the near-miss this rule exists to prevent.
+- **Branch off `main`; do not merge.** Open the PR, report the check outcomes, leave the
+  merge to the repository owner. Auto-merge is deliberately not used.
+- **Three required checks:** `engine`, `Documentation links and terminology`,
+  `Verify Documentation Build`.
+- **Run before pushing**, and never claim a gate passed that did not run:
+  ```bash
+  cd src/engine && npm run typecheck && npm run lint && npm test
+  ./build/Test-Documentation.ps1     # from the repository root
+  ```
+- **`npm test` must report 57 files / 677 tests.** If you see 114 / 1354, `dist/` is present
+  and vitest is double-collecting — that is the defect step 1 fixes, not a real result.
+- **The determinism guard is not negotiable.** `eslint.config.js` bans `Math.random`, the
+  non-bit-stable `Math.*` functions and `Date.now` under `src/`. Do not work around it.
+
+### Two ways to do this wrong
+
+Both look like reasonable simplifications and both silently destroy the point of the unit.
+
+1. **Excluding tests in `tsconfig.json` instead of adding `tsconfig.build.json`.** It is the
+   obvious one-line fix for test files in `dist/`, and it also stops *typechecking* the
+   tests — losing coverage silently while appearing to succeed. The build and the typecheck
+   must diverge: `tsconfig.build.json` excludes tests, `tsconfig.json` keeps covering them.
+2. **Pointing the smoke test at the source instead of the packed tarball.** A `file:`
+   dependency or workspace link resolves through `src/`, so it passes while `exports`,
+   `files` and the declaration emit are all still broken — proving nothing about the artefact
+   that ships. If the smoke test passes on its first run without a tarball having been built,
+   it is not testing anything.
+
+### Out of scope — do not do these
+
+Any `world-graph` code or contract edit (that is W42 onward); any fix to the unguarded
+`campaign.content as X` cast (see *Explicitly Not In Scope* for why); any change to the
+`SubZeroDev.SunTrap` repository.
+
+---
+
 ## Why This Is Now Actionable, and Why It Is Interesting
 
 Every campaign this engine has ever proven — Bureaucracy, the four Bulgaria arcs, Stable
@@ -131,7 +188,7 @@ and a smoke source importing **only** the root specifier.
 
 | Check | Result |
 |---|---|
-| Tarball | **219 files, 584 kB** unpacked (vs. 540 files / 2.2 MB today) |
+| Tarball | **219 files, 584 kB** unpacked (vs. 540 files / 2.2 MB today). The real one is one file larger — the prototype staging directory had no `README.md`, and npm force-includes it (step 5) |
 | Consumer `tsc --noEmit` | **exit 0** — values *and* types resolve from the root specifier |
 | Consumer runtime | **exit 0** — `createGame` returned `ok: true`, session store constructed |
 | `ENGINE_VERSION` | reported the packaged version, proving the boundary read survives packing |
@@ -222,8 +279,20 @@ failure mode this unit exists to prevent. Assert the throw-instead-of-`Validatio
 finding is still the known behaviour, linking `OPEN-QUESTIONS.md` §3.
 
 **5 — Wire CI.** Inside the existing `engine` job, after `Test`, add `Build package`,
-`Inspect tarball` (fail if any `*.test.*` is present), and `Consumer smoke`. Same
-`if: steps.changed.outputs.changed == 'true'` gate as every other step.
+`Inspect tarball`, and `Consumer smoke`. Same `if: steps.changed.outputs.changed == 'true'`
+gate as every other step.
+
+`Inspect tarball` asserts on the *absence* of what must not ship — any `*.test.*`, any
+`src/`, any `tsconfig*.json` — rather than on an exact allowlist.
+
+> **`files: ["dist"]` does not mean "only `dist`".** npm force-includes `package.json`, the
+> README and a LICENSE regardless of `files`; there is no way to exclude them and no reason
+> to want to. Verified directly: a scratch package with `files: ["dist"]` plus a `README.md`
+> and a stray file packs `dist/`, `package.json` **and `README.md`** — the stray is dropped,
+> the README is not. `src/engine/README.md` exists, so it will ship, and a package with no
+> README is worse than one with it. An allowlist gate written as "`dist/` and `package.json`
+> only" would therefore be unsatisfiable — which is exactly what an earlier draft of this
+> plan's own Done-When said before review caught it.
 
 **6 — Add the release workflow.** A separate workflow on `v*` tags (or
 `workflow_dispatch`), `permissions: { contents: read, packages: write }`, publishing with the
@@ -285,8 +354,9 @@ did not. `plans/39`'s **T0** milestone is "W41 merged *and* first package versio
 - [ ] `npm run typecheck` still covers test files (`tsconfig.json` unchanged in that respect).
 - [ ] `src/index.ts` exists, uses only explicit named re-exports, and matches the inventory
       above.
-- [ ] `npm pack --dry-run` ships `dist/` and `package.json` only, and the file count is in
-      the low hundreds rather than 540.
+- [ ] `npm pack --dry-run` ships `dist/`, `package.json` and `README.md` — **and nothing
+      else**: no `src/`, no `*.test.*`, no `tsconfig*.json`. The file count is in the low
+      hundreds rather than 540.
 - [ ] A clean consumer installs the **packed tarball**, imports only
       `@the-running-dev/game-engine`, and both `tsc --noEmit` and a runtime `createGame`
       succeed.
