@@ -18,10 +18,10 @@ export type RoadmapChapter = {
 const repo = "https://github.com/The-Running-Dev/SubZeroDev.GameEngine";
 const commit = (hash: string) => `${repo}/commit/${hash}`;
 
-// TODO owns W0–W40 (including W3a). W41–W44 merged after its ledger format stopped
+// TODO owns W0–W40 (including W3a). W41–W46 merged after its ledger format stopped
 // carrying completed headings; keep that exceptional evidence explicit rather than pretending
 // the prose is a uniform machine-readable database.
-const completedBeyondTodo = ["W41", "W42", "W43", "W44"] as const;
+const completedBeyondTodo = ["W41", "W42", "W43", "W44", "W45", "W46"] as const;
 export const completedWorkUnitCount =
   (todo.match(/^### \[x\] W[\w]+/gm) ?? []).length + completedBeyondTodo.length;
 
@@ -144,41 +144,56 @@ export const shippedChapters: readonly RoadmapChapter[] = [
       },
     ],
   },
-];
-
-export const nextActs: readonly RoadmapChapter[] = [
   {
-    id: "move",
+    id: "world-ticks",
     workUnits: "W45–W46",
-    status: "now",
-    title: "Make the resort move",
+    status: "done",
+    title: "The resort gets a deterministic clock",
     summary:
-      "W45’s kind foundation is merged; W46’s deterministic tick runner is in review, not yet delivered.",
+      "The kind foundation and 20-system tick pipeline are merged: time advances in bounded, replayable batches before the playable loop arrives.",
     links: [
       {
-        label: "W46 draft PR",
-        href: `${repo}/pull/128`,
+        label: "W45 evidence",
+        href: commit("c6662bb6b638e70348a133f8c028b2e18f26963c"),
         kind: "repository",
       },
       {
-        label: "World-graph contract",
-        href: `${repo}/blob/main/design/20-contract.md`,
+        label: "W46 evidence",
+        href: commit("6301a497cc956c4e47df584c7b0b9d3c0455b71c"),
         kind: "repository",
       },
     ],
   },
+];
+
+export const nextActs: readonly RoadmapChapter[] = [
   {
     id: "play",
-    workUnits: "W47–W48",
-    status: "next",
+    workUnits: "W47",
+    status: "now",
     title: "Give the resort a playable loop",
     summary:
-      "Build actions, ticks, guests, queues, service, litter, cleaning, and previews.",
+      "Turn the deterministic clock into one complete guest journey: spawn, walk, queue, buy, litter, clean, then win or lose.",
     links: [
       {
         label: "World-graph contract",
         href: "/docs/engine/world-graph-kind",
         kind: "site",
+      },
+    ],
+  },
+  {
+    id: "preview",
+    workUnits: "W48",
+    status: "next",
+    title: "Let every client preview an action",
+    summary:
+      "Add preview parity across the engine, session store, text client, and MCP without changing saved state.",
+    links: [
+      {
+        label: "World-graph programme",
+        href: `${repo}/blob/main/plans/39-world-graph-kind-programme.md`,
+        kind: "repository",
       },
     ],
   },
@@ -198,3 +213,17 @@ export const nextActs: readonly RoadmapChapter[] = [
     ],
   },
 ];
+
+const currentActCandidate = nextActs.find(
+  (chapter) => chapter.status === "now",
+);
+
+if (currentActCandidate === undefined) {
+  throw new Error("The roadmap must define one current act.");
+}
+
+export const currentAct: RoadmapChapter = currentActCandidate;
+
+export const futureActs = nextActs.filter(
+  (chapter) => chapter.status === "next",
+);
