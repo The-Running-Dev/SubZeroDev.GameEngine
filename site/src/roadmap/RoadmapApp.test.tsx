@@ -13,7 +13,7 @@ describe("roadmap page", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
       `How a Quick Question Became ${completedWorkUnitCount} Work Units.`,
     );
-    expect(screen.getAllByText("DONE")).toHaveLength(7);
+    expect(screen.getAllByText("DONE")).toHaveLength(8);
     expect(screen.getAllByText("NOW")).toHaveLength(1);
     expect(screen.getAllByText("NEXT")).toHaveLength(2);
     expect(screen.getAllByText("LATER")).toHaveLength(3);
@@ -28,10 +28,11 @@ describe("roadmap page", () => {
       "W32–W40",
       "W41–W42",
       "W43–W44",
+      "W45–W46",
     ]);
     expect(nextActs.map((chapter) => chapter.workUnits)).toEqual([
-      "W45–W46",
-      "W47–W48",
+      "W47",
+      "W48",
       "W49",
     ]);
     expect(nextActs.every((chapter) => chapter.status !== "done")).toBe(true);
