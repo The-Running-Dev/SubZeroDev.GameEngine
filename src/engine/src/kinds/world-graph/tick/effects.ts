@@ -7,6 +7,7 @@ import type {
 } from "../content.js";
 import type { Building, Guest, WorldGraphKindState } from "../state.js";
 import type { TickChanges } from "./changes.js";
+import type { WorldGraphSystemId } from "./order.js";
 import type { TickRandom } from "./random.js";
 
 interface EffectContext {
@@ -14,6 +15,9 @@ interface EffectContext {
   readonly content: WorldGraphCampaign;
   readonly random: TickRandom;
   readonly changes: TickChanges;
+  readonly system: WorldGraphSystemId;
+  readonly reason: string;
+  readonly currentIncidentId?: string;
 }
 
 export interface AppliedEffects {
@@ -31,7 +35,7 @@ const clamp = (value: number, minimum: number, maximum: number): number => (
   value < minimum ? minimum : value > maximum ? maximum : value
 );
 
-function guestTargets(state: WorldGraphKindState, selector: GuestSelector): readonly Guest[] {
+function guestTargets(state: WorldGraphKindState, selector: GuestSelector, currentIncidentId?: string): readonly Guest[] {
   const active = state.guests.filter((guest) => guest.lifecycle !== "departed" && guest.lifecycle !== "removed");
   if (selector.kind === "all") return active;
   if (selector.kind === "archetype") return active.filter((guest) => guest.archetypeId === selector.archetypeId);
@@ -41,16 +45,24 @@ function guestTargets(state: WorldGraphKindState, selector: GuestSelector): read
       .flatMap((building) => building.queue.guestIds));
     return active.filter((guest) => ids.has(guest.id));
   }
-  // Scenario and policy effects have neither service nor incident occurrence context.
+  if (selector.kind === "current_incident_guest" && currentIncidentId !== undefined) {
+    const guestId = state.incidents.find((incident) => incident.id === currentIncidentId)?.guestId;
+    return guestId === null || guestId === undefined ? [] : active.filter((guest) => guest.id === guestId);
+  }
+  // Scenario/policy effects have no incident context; this interpreter has no service context.
   return [];
 }
 
-function buildingTargets(state: WorldGraphKindState, selector: BuildingSelector): readonly Building[] {
+function buildingTargets(state: WorldGraphKindState, selector: BuildingSelector, currentIncidentId?: string): readonly Building[] {
   if (selector.kind === "all") return state.buildings;
   if (selector.kind === "definition") {
     return state.buildings.filter((building) => building.definitionId === selector.buildingDefinitionId);
   }
-  // Scenario and policy effects have neither service nor incident occurrence context.
+  if (selector.kind === "current_incident_building" && currentIncidentId !== undefined) {
+    const buildingId = state.incidents.find((incident) => incident.id === currentIncidentId)?.buildingId;
+    return buildingId === null || buildingId === undefined ? [] : state.buildings.filter((building) => building.id === buildingId);
+  }
+  // Scenario/policy effects have no incident context; this interpreter has no service context.
   return [];
 }
 
@@ -81,7 +93,7 @@ function withGuestMeter(guest: Guest, meter: GuestMeterKind, definitionId: strin
  * Applies one system's authored effect list without invoking another effect or system.
  * Numeric effects are grouped by their owning scalar, checked, and clamped once.
  */
-export function applyScenarioEffects(
+export function applyWorldEffects(
   source: WorldGraphKindState,
   effects: readonly WorldEffect[],
   context: EffectContext,
@@ -116,7 +128,7 @@ export function applyScenarioEffects(
       return;
     }
     if (effect.kind === "guest_meter_delta") {
-      for (const guest of guestTargets(source, effect.guests)) {
+      for (const guest of guestTargets(source, effect.guests, context.currentIncidentId)) {
         const key = `${guest.id}\u0000${effect.meter}\u0000${effect.definitionId}`;
         const group = guestMeters.get(key) ?? {
           guestId: guest.id, meter: effect.meter, definitionId: effect.definitionId, delta: 0, effects: [],
@@ -128,7 +140,7 @@ export function applyScenarioEffects(
       return;
     }
     if (effect.kind === "building_meter_delta") {
-      for (const building of buildingTargets(source, effect.buildings)) {
+      for (const building of buildingTargets(source, effect.buildings, context.currentIncidentId)) {
         const key = `${building.id}\u0000${effect.meter}`;
         const group = buildingMeters.get(key) ?? {
           buildingId: building.id, meter: effect.meter, delta: 0, effects: [],
@@ -146,7 +158,7 @@ export function applyScenarioEffects(
         ? [...state.unlockedContent, effect.content].sort((left, right) => left.kind.localeCompare(right.kind) || left.id.localeCompare(right.id))
         : state.unlockedContent.filter((entry) => entry.kind !== effect.content.kind || entry.id !== effect.content.id);
       state = { ...state, unlockedContent };
-      context.changes.record("scenario", `unlockedContent.${effect.content.kind}.${effect.content.id}.exists`, effect.kind === "unlock", "scenario_effect", false, exists);
+      context.changes.record(context.system, `unlockedContent.${effect.content.kind}.${effect.content.id}.exists`, effect.kind === "unlock", context.reason, false, exists);
       applied[effectIndex] = true;
       return;
     }
@@ -157,25 +169,32 @@ export function applyScenarioEffects(
         ? [...state.activePolicyIds, effect.policyId].sort((left, right) => left.localeCompare(right))
         : state.activePolicyIds.filter((id) => id !== effect.policyId);
       state = { ...state, activePolicyIds };
-      context.changes.record("scenario", `activePolicyIds.${effect.policyId}.exists`, effect.active, "scenario_effect", false, exists);
+      context.changes.record(context.system, `activePolicyIds.${effect.policyId}.exists`, effect.active, context.reason, false, exists);
       applied[effectIndex] = true;
       return;
     }
     if (effect.kind === "start_incident") {
       const definition = context.content.incidents.find((entry) => entry.id === effect.incidentDefinitionId);
       if (!definition) throw new Error(`Validated incident definition missing: ${effect.incidentDefinitionId}`);
-      if (effect.target.kind === "current_guest" || effect.target.kind === "current_building") return;
+      const currentIncident = context.currentIncidentId === undefined
+        ? undefined : state.incidents.find((incident) => incident.id === context.currentIncidentId);
+      const targetGuest = effect.target.kind === "current_guest" && currentIncident?.guestId
+        ? state.guests.find((guest) => guest.id === currentIncident.guestId) : undefined;
+      const targetBuilding = effect.target.kind === "current_building" && currentIncident?.buildingId
+        ? state.buildings.find((building) => building.id === currentIncident.buildingId) : undefined;
+      if (effect.target.kind === "current_guest" && !targetGuest) return;
+      if (effect.target.kind === "current_building" && !targetBuilding) return;
       const duration = definition.durationTicks === null ? null
         : definition.durationTicks.min === definition.durationTicks.max ? definition.durationTicks.min
-          : context.random.tickRng("scenario").nextInt(definition.durationTicks.min, definition.durationTicks.max);
+          : context.random.tickRng(context.system).nextInt(definition.durationTicks.min, definition.durationTicks.max);
       const id = `incident:${state.nextEntityOrdinal}`;
       const incident = {
         id,
         definitionId: effect.incidentDefinitionId,
-        buildingId: null,
-        guestId: null,
+        buildingId: targetBuilding?.id ?? null,
+        guestId: targetGuest?.id ?? null,
         zoneId: effect.target.kind === "zone" ? effect.target.zoneId : null,
-        position: null,
+        position: targetGuest === undefined ? null : { x: targetGuest.x, y: targetGuest.y },
         amount: effect.amount,
         startedAtTick: context.processingTick,
         expiresAtTick: duration === null ? null : safeAdd(context.processingTick, duration, `incident ${id} expiry`),
@@ -183,15 +202,19 @@ export function applyScenarioEffects(
       };
       const nextEntityOrdinal = safeAdd(state.nextEntityOrdinal, 1, "nextEntityOrdinal");
       state = { ...state, incidents: [...state.incidents, incident], nextEntityOrdinal };
-      context.changes.record("scenario", `incidents.${id}.exists`, true, "scenario_effect", false, false);
-      context.changes.record("scenario", "nextEntityOrdinal", state.nextEntityOrdinal, "scenario_effect", false, state.nextEntityOrdinal - 1);
+      context.changes.record(context.system, `incidents.${id}.exists`, true, context.reason, false, false);
+      context.changes.record(context.system, "nextEntityOrdinal", state.nextEntityOrdinal, context.reason, false, state.nextEntityOrdinal - 1);
       applied[effectIndex] = true;
       return;
     }
     if (effect.kind !== "resolve_incident") return;
     const matching = effect.incidents === "all_active"
       ? state.incidents.filter((incident) => incident.definitionId === effect.incidentDefinitionId && incident.resolvedAtTick === null)
-      : [];
+      : state.incidents.filter((incident) => (
+        incident.id === context.currentIncidentId
+        && incident.definitionId === effect.incidentDefinitionId
+        && incident.resolvedAtTick === null
+      ));
     if (matching.length === 0) return;
     const ids = new Set(matching.map((incident) => incident.id));
     state = {
@@ -200,7 +223,7 @@ export function applyScenarioEffects(
         ? { ...incident, resolvedAtTick: context.processingTick } : incident),
     };
     for (const incident of matching) {
-      context.changes.record("scenario", `incidents.${incident.id}.resolvedAtTick`, context.processingTick, "scenario_effect", false, incident.resolvedAtTick ?? -1);
+      context.changes.record(context.system, `incidents.${incident.id}.resolvedAtTick`, context.processingTick, context.reason, false, incident.resolvedAtTick ?? -1);
     }
     applied[effectIndex] = true;
   });
@@ -209,7 +232,7 @@ export function applyScenarioEffects(
     const value = safeAdd(state.finances.cashCents, finance.delta, "finances.cashCents");
     const previous = state.finances.cashCents;
     state = { ...state, finances: { ...state.finances, cashCents: value } };
-    context.changes.record("scenario", "finances.cashCents", value, "scenario_effect", true, previous);
+    context.changes.record(context.system, "finances.cashCents", value, context.reason, true, previous);
     finance.effects.forEach((index) => { applied[index] = true; });
   }
 
@@ -218,7 +241,7 @@ export function applyScenarioEffects(
     const previous = state.counters[counter];
     const value = safeAdd(previous, group.delta, `counters.${counter}`);
     state = { ...state, counters: { ...state.counters, [counter]: value } };
-    context.changes.record("scenario", `counters.${counter}`, value, "scenario_effect", false, previous);
+    context.changes.record(context.system, `counters.${counter}`, value, context.reason, false, previous);
     group.effects.forEach((index) => { applied[index] = true; });
   }
 
@@ -231,7 +254,7 @@ export function applyScenarioEffects(
       objectives: state.objectives.map((objective) => objective.id === objectiveId
         ? { ...objective, value, updatedAtTick: context.processingTick } : objective),
     };
-    context.changes.record("scenario", `objectives.${objectiveId}.value`, value, "scenario_effect", false, previous.value);
+    context.changes.record(context.system, `objectives.${objectiveId}.value`, value, context.reason, false, previous.value);
     group.effects.forEach((index) => { applied[index] = true; });
   }
 
@@ -244,7 +267,7 @@ export function applyScenarioEffects(
     const value = clamp(safeAdd(previous, group.delta, `guest meter ${group.guestId}`), range.minimum, range.maximum);
     if (value === previous) continue;
     state = { ...state, guests: state.guests.map((entry) => entry.id === group.guestId ? withGuestMeter(entry, group.meter, group.definitionId, value) : entry) };
-    context.changes.record("scenario", `guests.${group.guestId}.${group.meter}.${group.definitionId}`, value, "scenario_effect", false, previous);
+    context.changes.record(context.system, `guests.${group.guestId}.${group.meter}.${group.definitionId}`, value, context.reason, false, previous);
     group.effects.forEach((index) => { applied[index] = true; });
   }
 
@@ -255,7 +278,7 @@ export function applyScenarioEffects(
     const value = clamp(safeAdd(previous, group.delta, `building meter ${group.buildingId}`), 0, 100);
     if (value === previous) continue;
     state = { ...state, buildings: state.buildings.map((entry) => entry.id === group.buildingId ? { ...entry, [group.meter]: value } : entry) };
-    context.changes.record("scenario", `buildings.${group.buildingId}.${group.meter}`, value, "scenario_effect", false, previous);
+    context.changes.record(context.system, `buildings.${group.buildingId}.${group.meter}`, value, context.reason, false, previous);
     group.effects.forEach((index) => { applied[index] = true; });
   }
 

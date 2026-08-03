@@ -35,6 +35,7 @@ export const worldGraphKind: Kind<WorldGraphKindState> = {
     "kind.world-graph.batch.started",
     "kind.world-graph.batch.ended",
     "kind.world-graph.scenario.effect.applied",
+    "kind.world-graph.incident.resolved",
     "kind.world-graph.tick.finalized",
   ],
   initialState: (campaign, ctx) => initialState(campaign, ctx),

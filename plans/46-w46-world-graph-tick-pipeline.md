@@ -4,7 +4,9 @@
 `advance_ticks` rejection with a bounded batch runner around one atomic tick, call all 20
 contract systems in fixed order, establish disposable tick scratch and deterministic stream
 helpers, aggregate batch-grain changes, implement scenario scheduling and tick-finalization,
-and leave W47-owned mechanics as explicit tested no-ops. No playable Sun Trap slice yet.
+and leave W47-owned mechanics as explicit tested no-ops except for the narrow system-16
+duration-expiry lifecycle required by system 1's admitted `start_incident` effect. No playable
+Sun Trap slice yet.
 
 **Depends on:** the merged W43/W44 contract chain
 ([PR #119](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/119) and
@@ -34,7 +36,8 @@ not supersede it.
 > Cut a new `feature/w46-world-graph-tick-pipeline` branch from the then-current `main`.
 > Replace W45's deliberate `advance_ticks` rejection with the bounded outer loop and the
 > exact 20-system order in `12-world-graph-kind.md` §4. Implement system 1's scheduled,
-> policy, and day-boundary mechanics and system 20's cleanup/tick commit; keep systems 2-19
+> policy, and day-boundary mechanics, the minimum system-16 expiry resolver required by
+> effect-started incidents, and system 20's cleanup/tick commit; keep systems 2-15 and 17-19
 > as individually named, tested, event-free no-ops until W47 supplies the MVP causal slice.
 > Add deterministic tick/agent stream helpers, disposable scratch, batch-grain change
 > aggregation, and split-batch tests with real cleanup and scheduled-effect boundaries. Do
@@ -127,9 +130,10 @@ W46 nevertheless cannot be another fake clock. Two systems are fully real:
   tick increment.
 
 Those bookends create meaningful day, effect, cleanup, retention, and terminal-stop
-boundaries for batch-invariance tests. Systems 2-19 remain explicit no-ops until W47 replaces
-the subset needed for the MVP. Their calls and ordering are real even when their mutations
-are not.
+boundaries for batch-invariance tests. Systems 2-15 and 17-19 remain explicit no-ops until W47
+replaces the subset needed for the MVP. System 16 resolves only duration expiry for incidents
+that system 1 effects already admit, including their authored `onResolve` effects; W47 still
+owns condition-driven resolution and random rolls. Every call and ordering boundary is real.
 
 ### 2. The system list needs one executable owner
 
@@ -199,7 +203,7 @@ the guest-service causal chain.
 
 W46 proves runner order, frame isolation, scratch disposal, stream derivation, effect order,
 change aggregation, finalization, emitter isolation, save boundaries, and split batches. W47
-replaces stubs and adds mutation/order/event tests for systems 2-19 plus A*, utility, queue,
+replaces stubs, completes system 16, and adds mutation/order/event tests for systems 2-19 plus A*, utility, queue,
 service, staff, finance, incident, objective, and failure fixtures.
 
 Claiming the whole §15.3 matrix in W46 would either pull W47 forward or produce tests that
@@ -226,7 +230,7 @@ W45 should leave action parsing and immediate reducers outside the time pipeline
 | `systems/scenario.ts` | Real system 1: boundary reset, snapshot conditions, scheduled changes, policies |
 | `systems/guests.ts` | Named systems 2-8, explicit W47 no-ops in this unit |
 | `systems/staff.ts` | Named systems 9-11, explicit W47 no-ops in this unit |
-| `systems/world.ts` | Named systems 12-16, explicit W47 no-ops in this unit |
+| `systems/world.ts` | Named systems 12-15 as W47 no-ops; system 16 resolves duration expiry only |
 | `systems/resolution.ts` | Named systems 17-19, explicit W47 no-ops in this unit |
 | `systems/finalize.ts` | Real system 20: cleanup, retention, assertions, tick commit |
 | `systems/index.ts` | The sole ordered tuple, with no root-package export |
@@ -297,12 +301,17 @@ Conditions do not observe earlier effects from the same system. Effects cannot r
 emit effects or invoke a system. Random non-constant incident durations, if admitted by the
 merged contract, use the one `scenario` tick handle in effect/target order.
 
-### 5. Systems 2-19 are explicit, individually replaceable W47 stubs
+### 5. Systems 2-15 and 17-19 are explicit, individually replaceable W47 stubs
 
-Each function carries its stable id and contract section, returns the frame unchanged, and
+Each deferred function carries its stable id and contract section, returns the frame unchanged, and
 does not request RNG, allocate ids, emit events, or record changes. A table-driven test calls
 each function with non-empty representative state and proves reference identity and zero
 side channels.
+
+System 16 is the one reviewed exception: system 1 already admits duration-bearing
+`start_incident` effects, so it resolves occurrences whose `expiresAtTick` is due, writes
+`resolvedAtTick` before applying authored `onResolve` effects, and emits `incident.resolved`.
+It does not roll incidents or evaluate resolution conditions; those remain W47.
 
 The production tuple still calls every function in contract order. W47 replaces function
 bodies in place and adds their declared event names only when a producer exists. No generic
@@ -367,8 +376,9 @@ W46 adds these names to `Kind.eventNames` if W45 did not already reserve them:
 - `kind.world-graph.scenario.effect.applied`;
 - `kind.world-graph.tick.finalized`.
 
-Systems 2-19 emit nothing and do not add their future names. Tick events use system and
-comparator order. `batch.started`/`batch.ended` are filtered when comparing partitioned
+Deferred systems emit nothing and do not add their future names. The minimal system-16
+resolver adds `kind.world-graph.incident.resolved`. Tick events use system and comparator
+order. `batch.started`/`batch.ended` are filtered when comparing partitioned
 event streams; every other W46 event must agree.
 
 ### 10. No public surface or core abstraction is added
@@ -418,7 +428,8 @@ authorize extracting one in this PR.
 
 ### Stub frontier and system order
 
-- Systems 2-19 each have a focused identity/no-side-channel test and an explicit W47 marker.
+- Systems 2-15 and 17-19 each have a focused identity/no-side-channel test and an explicit
+  W47 marker; system 16 proves duration resolution is one-shot and applies resolve effects.
 - The tuple is compile-time checked against the closed id union; a focused test rejects a
   missing or duplicate phase entry.
 - Injected test systems prove actual call order without a production `system.ran` event.
@@ -467,8 +478,8 @@ authorize extracting one in this PR.
    aggregator with focused tests.
 5. Implement system 1 and its effect interpreter against the merged W43/W45 content and
    condition types.
-6. Add explicit named system 2-19 stubs grouped by ownership and prove their identity/no-side-
-   channel behavior.
+6. Add explicit named system 2-15 and 17-19 stubs grouped by ownership and prove their
+   identity/no-side-channel behavior; add the narrow system-16 duration resolver.
 7. Implement system 20 cleanup, retention, reference assertions, tick event, and tick change.
 8. Assemble the bounded outer loop, terminal stop, batch diagnostics, and final status.
 9. Add split-batch, emitter/cache isolation, save-boundary, and real-engine integration tests.
@@ -491,8 +502,9 @@ authorize extracting one in this PR.
       and `ctx.seq` are unused by the pipeline.
 - [ ] System 1 implements boundary reset, condition snapshots, scheduled changes, policies,
       effect order, grouped arithmetic, events, and changes.
-- [ ] Systems 2-19 are individually named, invoked, documented, tested no-ops with no false
-      events, changes, draws, or allocations.
+- [ ] Systems 2-15 and 17-19 are individually named, invoked, documented, tested no-ops with
+      no false events, changes, draws, or allocations; system 16 resolves admitted duration
+      incidents without pulling forward W47 rolls or condition mechanics.
 - [ ] System 20 performs per-tick cleanup/retention, asserts reference integrity, and is the
       only tick writer.
 - [ ] Batch diagnostics distinguish requested from processed ticks and never affect state.

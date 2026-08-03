@@ -152,7 +152,7 @@ describe("world-graph W46 system order and boundaries", () => {
     const stubs = [
       guestSpawn, guestNeeds, guestService, queues, guestIntent, guestPath, guestMove,
       taskGenerate, taskAssign, staffWork, construction, buildings, cleanlinessWear,
-      finance, incidents, objectives, failure, alerts,
+      finance, objectives, failure, alerts,
     ];
     stubs.forEach((stub) => expect(stub(frame)).toBe(frame));
     expect(derive).not.toHaveBeenCalled();
@@ -244,6 +244,33 @@ describe("world-graph W46 scenario effects", () => {
   });
 });
 
+describe("world-graph W46 incident expiry", () => {
+  it("resolves duration incidents once and applies authored resolve effects before finalization", () => {
+    const initial = state();
+    const expiring = {
+      ...initial,
+      incidents: initial.incidents.map((incident) => ({ ...incident, expiresAtTick: 0 })),
+    };
+    const baseContent = content();
+    const withResolveEffect = {
+      ...baseContent,
+      incidents: baseContent.incidents.map((definition) => ({
+        ...definition,
+        onResolve: [{ kind: "finance_delta" as const, field: "cashCents" as const, cents: 5 }],
+      })),
+    };
+    const recording = resolutionEmitter();
+    const result = runWorldGraphTick(expiring, withResolveEffect, {
+      derive: () => rngHandle(), emit: recording.emit,
+    }, new BatchChanges(), [
+      { id: "incidents", run: incidents }, { id: "tick-finalize", run: tickFinalize },
+    ]);
+    expect(result.incidents[0]?.resolvedAtTick).toBe(0);
+    expect(result.finances).toMatchObject({ cashCents: 105, revenueTotalCents: 70, expensesTotalCents: 80 });
+    expect(recording.events.filter((event) => event.name === "kind.world-graph.incident.resolved")).toHaveLength(1);
+  });
+});
+
 describe("world-graph W46 batch changes", () => {
   it("coalesces scalars first-before/final-after, omits net zero, and sorts by causal system", () => {
     const changes = new BatchChanges();
@@ -265,6 +292,17 @@ describe("world-graph W46 batch changes", () => {
     expect(changes.finish()).toEqual([
       { path: "incidents.incident:4.exists", op: "set", previous: false, value: true, reason: "effect", visible: false },
       { path: "incidents.incident:4.exists", op: "set", previous: true, value: false, reason: "effect", visible: false },
+    ]);
+  });
+
+  it("coalesces one batch scalar across systems and retains its first causal system", () => {
+    const changes = new BatchChanges();
+    changes.record("scenario", "shared", 2, "effect", false, 1);
+    changes.record("finance", "shared", 3, "effect", true, 2);
+    changes.record("guest-spawn", "other", 1, "effect", false, 0);
+    expect(changes.finish()).toEqual([
+      { path: "shared", op: "set", previous: 1, value: 3, reason: "effect", visible: true },
+      { path: "other", op: "set", previous: 0, value: 1, reason: "effect", visible: false },
     ]);
   });
 });

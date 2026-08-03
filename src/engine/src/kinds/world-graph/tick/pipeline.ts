@@ -4,7 +4,7 @@ import { evaluateCondition } from "../conditions.js";
 import type { WorldGraphCampaign } from "../content.js";
 import type { WorldGraphKindState } from "../state.js";
 import type { TickChanges } from "./changes.js";
-import { applyScenarioEffects } from "./effects.js";
+import { applyWorldEffects } from "./effects.js";
 import { WORLD_GRAPH_SYSTEM_IDS, type WorldGraphSystemId } from "./order.js";
 import { createTickRandom, type TickRandom } from "./random.js";
 import { createTickScratch, type TickScratch } from "./scratch.js";
@@ -70,11 +70,13 @@ export const scenario: WorldGraphSystem = (frame) => {
     ...scheduled.flatMap(({ change }) => change.effects),
     ...policies.flatMap((policy) => policy.whileActive),
   ];
-  const result = applyScenarioEffects(state, effects, {
+  const result = applyWorldEffects(state, effects, {
     processingTick: frame.processingTick,
     content: frame.content,
     random: frame.random,
     changes: frame.changes,
+    system: "scenario",
+    reason: "scenario_effect",
   });
   effects.forEach((effect, index) => {
     if (!result.applied[index]) return;
@@ -113,8 +115,40 @@ export const buildings: WorldGraphSystem = (frame) => frame;
 export const cleanlinessWear: WorldGraphSystem = (frame) => frame;
 /** System 15 (`finance`): W47 implementation boundary. */
 export const finance: WorldGraphSystem = (frame) => frame;
-/** System 16 (`incidents`): W47 implementation boundary. */
-export const incidents: WorldGraphSystem = (frame) => frame;
+/** System 16: W46 resolves duration expiry; W47 adds rolls and condition-driven resolution. */
+export const incidents: WorldGraphSystem = (frame) => {
+  const expiring = frame.state.incidents.filter((incident) => (
+    incident.resolvedAtTick === null
+    && incident.expiresAtTick !== null
+    && incident.expiresAtTick <= frame.processingTick
+  ));
+  let state = frame.state;
+  for (const incident of expiring) {
+    const current = state.incidents.find((entry) => entry.id === incident.id);
+    if (!current || current.resolvedAtTick !== null) continue;
+    state = {
+      ...state,
+      incidents: state.incidents.map((entry) => entry.id === incident.id
+        ? { ...entry, resolvedAtTick: frame.processingTick } : entry),
+    };
+    frame.changes.record("incidents", `incidents.${incident.id}.resolvedAtTick`, frame.processingTick, "incident_resolved", false, -1);
+    const definition = frame.content.incidents.find((entry) => entry.id === current.definitionId);
+    if (!definition) throw new Error(`Validated incident definition missing: ${current.definitionId}`);
+    state = applyWorldEffects(state, definition.onResolve, {
+      processingTick: frame.processingTick,
+      content: frame.content,
+      random: frame.random,
+      changes: frame.changes,
+      system: "incidents",
+      reason: "incident_resolved",
+      currentIncidentId: incident.id,
+    }).state;
+    frame.emit.emit("kind.world-graph.incident.resolved", "info", {
+      data: { incidentId: current.id, definitionId: current.definitionId, tick: frame.processingTick },
+    });
+  }
+  return { ...frame, state };
+};
 /** System 17 (`objectives`): W47 implementation boundary. */
 export const objectives: WorldGraphSystem = (frame) => frame;
 /** System 18 (`failure`): W47 implementation boundary. */
