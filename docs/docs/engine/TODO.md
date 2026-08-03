@@ -614,16 +614,24 @@ when it declined a programme doc for this kind.
       ([`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §2). No read-access grant was needed as a
       result.
       **Plan:** [`plans/40-w41-engine-consumer-boundary.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/40-w41-engine-consumer-boundary.md)
-- [ ] **W42 proposed — runtime-state contract:** authoritative map, guest, building, queue,
-      staff, construction and finance shapes. **Ready to execute** —
+- [x] **W42 — runtime-state contract: merged in
+      [PR #116](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/116).** Authoritative
+      map, guest, building, queue, staff, construction and finance shapes now live in
+      [`12-world-graph-kind.md`](12-world-graph-kind.md) §3. The plan remains the evidence trail:
       [`plans/42-w42-world-graph-state-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/42-w42-world-graph-state-contract.md),
-      whose **Handoff — Start Here** section is the complete brief. It also corrects
-      `plans/39`'s sizing of this unit: six types in `WorldGraphKindState`'s closure
+      including the correction to `plans/39`'s original sizing: six types in
+      `WorldGraphKindState`'s closure
       (`Incident`, `ObjectiveProgress`, `Alert`, `TerrainCell`, `PathCell`, `Zone`) are
       drafted in neither repository, so this is design work, not a port.
-- [ ] **W43 proposed — content-definition contract:** archetypes, buildings, products,
-      terrain, incidents, scenarios, objectives, policies and achievements.
-- [ ] **W44 proposed — resolution contract:** the 20-system pipeline, utility scoring,
+- [ ] **W43 in review — content-definition contract:** maps, archetypes, buildings, products,
+      terrain, incidents, scenarios, objectives, policies and achievements. The complete
+      source/runtime schema, W42 reconciliation, validation tiers, and worked fixtures are
+      in [PR #119](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/119); merge
+      remains the delivery gate. The execution brief and evidence checklist live in
+      [`plans/43-w43-world-graph-content-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/43-w43-world-graph-content-contract.md),
+      whose **Handoff — Start Here** section remains the contract boundary.
+- [ ] **W44 next after W43 merges — resolution contract:** the 20-system pipeline, utility
+      scoring,
       pathfinding costs, queue/service semantics and every deterministic tie-break.
 - [ ] **W45 proposed — kind skeleton and immediate actions:** validation, initial state,
       projection/outcome, assembly and the nine no-time-passes reducers.
