@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 7333978a16279022a1a39e7d20829497548d4bfe1f89dfb760a3e85abaf3d993 -->
+<!-- design-digest: 2f7d6f52a77504f80e7e09632ff73f7da81956d7c5e41fef23a720d287b34e3b -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -33,9 +33,11 @@ assertable invariants are in the
 - `simulation` has state, content definitions, weekly resolution, validation, a registered kind,
   and Stable Life winning/losing replay fixtures. Its projection and text/MCP parity are not yet
   complete, so treat it as an engine/replay integration rather than a player-facing client path.
-- `world-graph` has a settled core seam, stream support, and a published consumer package
-  boundary. Its concrete runtime/content/resolution contracts and implementation are planned in
-  W42–W49; it is not a usable registered kind yet.
+- `world-graph` has a settled core seam, runtime-state closure, campaign-content contract,
+  stream support, and a published consumer package boundary. The contract specifies a
+  source-to-runtime build step with a canonical map catalog and typed definitions for terrain,
+  scenery, buildings, products, agents, scenarios, rules, and achievements. Implementing that
+  build step begins in W45; it is not a usable registered kind yet.
 - Content packs and privacy-safe session capture are specified but not implemented. Capture is
   intentionally gated on the hosting layer.
 
@@ -268,10 +270,12 @@ invariance: advancing N ticks in one call must reach the same kind state as ever
 partition totaling N ticks.
 
 The core already supplies `KindContext.derive`, tick streams, agent streams, and the package
-consumer boundary. The concrete world runtime-state closure, content definitions, 20-system
-pipeline, pathfinding/queue semantics, reducers, projection, scenario, and release fixtures are
-still planned. Until W42–W49 land, do not register a placeholder world kind or infer missing
-types from the game repository.
+consumer boundary. The runtime-state and campaign-content **contract** is settled: it specifies
+that a scenario selects a map from the campaign-owned catalog and that a pure builder validates
+and materializes typed definitions before play begins. W45 must implement that pipeline. The
+20-system pipeline, pathfinding/queue semantics, reducers, projection, scenario fixture, and
+release fixtures remain planned. Until W44–W49 land, do not register a placeholder world kind or
+infer resolution behavior from the game repository.
 
 ## Saves and migrations
 

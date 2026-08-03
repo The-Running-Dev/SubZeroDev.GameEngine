@@ -3909,8 +3909,8 @@ sidebar_label: World-Graph Kind
 
 # World-Graph Kind — Contract
 
-**Document status:** Revision 2 — **authoritative runtime-state contract.** Field-level
-content detail lives with the game; §17 says exactly what and why.
+**Document status:** Revision 3 — **authoritative runtime-state and campaign-content
+contract.** Concrete content and balance live with the game; §17 says exactly what and why.
 
 **Kind:** `world-graph`
 
@@ -4012,7 +4012,13 @@ interface WorldGraphKindState {
 
   incidents: readonly Incident[];
   objectives: readonly ObjectiveProgress[];
+  failures: readonly FailureProgress[];
   alerts: readonly Alert[];
+
+  counters: WorldCounters;
+  unlockedContent: readonly ContentReference[];
+  activePolicyIds: readonly string[];
+  unlockedAchievementIds: readonly string[];
 
   nextEntityOrdinal: number;                      // §9 — the deterministic id source
 }
@@ -4033,7 +4039,7 @@ interface WorldGraphKindState {
 > `ticksPerMinute`, `minute`, `hour`, `day` and `paused`, then states that "only `tick` is
 > authoritative. Other values may be derived." Derived values do not belong in serialized
 > state — they can disagree with what they summarise, and the disagreement is unresolvable
-> (the rule 10 §2 applied to `totalTimeCost`). `ticksPerMinute` is campaign data; the rest
+> (the rule 10 §2 applied to `totalTimeCost`). `ticksPerDay` is campaign data; the rest
 > are computed on read. **`paused` is a client concern** — the engine advances only when
 > told to (§4), so there is nothing for the engine to pause.
 
@@ -4048,17 +4054,22 @@ interface WorldGraphKindState {
 
 ### 3.1 `initialState`
 
-`Kind.initialState(campaign, ctx)` (04 §3) builds the starting world from campaign data: the
-authored map, starting cash, the scenario's unlocked definitions, any pre-placed buildings,
-and `tick: 0`.
+`Kind.initialState(campaign, ctx)` (04 §3) resolves `WorldGraphCampaign.startScenarioId`,
+resolves that scenario's `mapId`, materializes the selected `MapDefinition` as `WorldMap`,
+then applies starting cash, unlocks, active policies, pre-placed buildings/scenery, zeroed
+counters, objective/failure progress, empty achievement unlocks, `map.revision: 0`, and
+`tick: 0`. The conversion is deterministic:
+terrain cells are emitted in row-major `(y, x)` order; derived grid edges use W44's fixed
+neighbour order; scenario placements are allocated in their authored order.
 
 Two rules the seam already implies, stated because a spatial kind is the first place they
 bite:
 
-- **Pre-placed buildings take ids from `nextEntityOrdinal` like any other** (§9), assigned in
-  authored order. A scenario that pre-places three buildings starts with
-  `nextEntityOrdinal: 3` and ids that are a pure function of the campaign — never of load
-  order or a host id source.
+- **Pre-placed buildings and scenery take ids from `nextEntityOrdinal` like any other**
+  (§9), assigned in authored order: all `buildingPlacements`, then all
+  `sceneryPlacements`. A scenario with three buildings and two scenery placements starts
+  with `nextEntityOrdinal: 5`; ids are a pure function of the campaign, never load order or
+  a host id source.
 - **Any randomness in setup draws from `ctx.derive({ kind: "tick", tick: 0, system })`**, not
   from `ctx.rng`. `initialState` is not an action and has no `seq`; keying setup by tick 0
   keeps §5's rule — *this kind never touches the action stream* — true without exception.
@@ -4101,7 +4112,13 @@ interface WorldGraphKindState {
 
   incidents: readonly Incident[];
   objectives: readonly ObjectiveProgress[];
+  failures: readonly FailureProgress[];
   alerts: readonly Alert[];
+
+  counters: WorldCounters;
+  unlockedContent: readonly ContentReference[];
+  activePolicyIds: readonly string[];              // MVP-inert
+  unlockedAchievementIds: readonly string[];       // MVP-inert; authoritative in-game mirror
 
   nextEntityOrdinal: number;                         // deterministic id source, never `IdSource`
 }
@@ -4111,40 +4128,36 @@ type Position = {
   y: number;         // integer grid coordinate, same origin as map terrain
 };
 
-type TerrainKind = "empty" | "path" | "wall" | "water" | "restricted";
-type MapEdgeKind = "walkable" | "blocked";
 type StaffStatus = "idle" | "to_work" | "working" | "off_duty";
 type GuestLifecycle = "arriving" | "seeking" | "queued" | "served" | "departed" | "removed";
 type BuildingStatus = "construction" | "open" | "closed" | "broken";
 type LoanStatus = "active" | "defaulted" | "repaid";
-type IncidentType = "fire" | "breakdown" | "theft" | "spill" | "litter" | "complaint"
-  | "power" | "weather";
 type IncidentSeverity = "info" | "minor" | "major" | "critical";
 type AlertSeverity = "info" | "warning" | "critical";
 type ObjectiveProgressState = "active" | "met" | "failed";
+type FailureProgressState = "active" | "triggered";
 type StaffTaskType = "service" | "clean" | "restock" | "build";
 type StaffTaskStatus = "queued" | "assigned" | "in_progress" | "completed" | "cancelled";
 type Rotation = 0 | 90 | 180 | 270;
-type GuestNeedValue = number;      // integer 0..100, where 0 is fully depleted
+type GuestNeedValue = number;      // integer within the referenced NeedDefinition range
 type PercentBasis = number;        // integer basis points, where 10000 = 100%
 
 interface WorldMap {
   width: number;                             // positive integer, map width in tiles
   height: number;                            // positive integer, map height in tiles
-  revision: number;                          // integer, changes whenever authored map topology changes
+  revision: number;                          // non-negative integer; changes whenever walkability changes
   terrain: readonly TerrainCell[];           // deterministic terrain graph
   paths: readonly PathCell[];                // explicit path graph edges, derived caches must be recomputed
   zones: readonly Zone[];                    // zones of operation and policy scope
   spawnPoints: readonly Position[];           // at least one guest-spawn point required
   exits: readonly Position[];                // at least one exit point required
+  scenery: readonly Scenery[];               // scenario-authored placements, materialized at setup
 }
 
 interface TerrainCell {
   x: number;                                // integer [0, width)
   y: number;                                // integer [0, height)
-  terrain: TerrainKind;                      // walkability and utility context source
-  edge: MapEdgeKind;                        // precomputed if authored edge map exists
-  moveCost: number;                         // non-negative integer travel-cost scale
+  terrainId: string;                        // TerrainDefinition id; traits/cost stay in campaign content
 }
 
 interface PathCell {
@@ -4156,10 +4169,20 @@ interface PathCell {
 
 interface Zone {
   id: string;
-  nameKey: string;                          // localization key for projection/debug
-  cells: readonly Position[];               // canonical zone footprint, ordered by id rules
+  nameKey: LocKey;                          // localization key for projection/debug
+  cells: readonly Position[];               // canonical zone footprint, row-major by (y, x)
   serviceRadius: number;                    // integer tile radius from zone centroid
   maxOccupancy: number | null;              // null = unlimited
+}
+
+interface Scenery {
+  id: string;                               // `<scenery>:<ordinal>` from `nextEntityOrdinal`
+  definitionId: string;                     // SceneryDefinition id
+  x: number;                                // integer tile x of anchored origin
+  y: number;                                // integer tile y of anchored origin
+  width: number;                            // positive integer tile width after rotation
+  height: number;                           // positive integer tile height after rotation
+  rotation: Rotation;
 }
 
 interface Building {
@@ -4178,6 +4201,7 @@ interface Building {
   queue: Queue;
   products: readonly string[];              // product ids offered by this building
   pricesCents: Readonly<Record<string, number>>;  // product id → integer cents; keys are the ids in `products`
+  inventory: Readonly<Record<string, number | null>>; // product id → units; null = unlimited
   serviceTickSeq: number;                   // deterministic service tie-break source
 }
 
@@ -4197,7 +4221,6 @@ interface ConstructionSite {
 
 interface Queue {
   id: string;                               // `<queue>:<ordinal>` from `nextEntityOrdinal`
-  productId: string;
   guestIds: readonly string[];              // canonical order by guest.id
   maxLength: number | null;                 // null = unlimited
   patienceTicks: number;                    // mutable queue patience counter
@@ -4214,47 +4237,19 @@ interface Guest {
   path: readonly Position[];                // stateful route, excluding cached distance fields
   pathIndex: number;                        // index into `path`, non-negative integer
   drawCount: number;                        // agent-level deterministic draw counter (ticks + system only)
+  cashCents: number;                        // non-negative integer cents
   targetBuildingId: string | null;           // active target, if currently navigating
   targetQueueId: string | null;             // queue destination, if queued
   targetProductId: string | null;           // purchase target, if any
   targetWaitTicks: number;                  // non-negative integer ticks this guest will tolerate waiting
-  needs: GuestNeeds;
-  conditions: GuestConditions;
-  opinions: GuestOpinions;
-  preferences: GuestPreferences;
-}
-
-interface GuestNeeds {
-  hunger: GuestNeedValue;
-  rest: GuestNeedValue;                     // MVP-inert
-  social: GuestNeedValue;                   // MVP-inert
-  comfort: GuestNeedValue;                  // MVP-inert
-  hygiene: GuestNeedValue;
-  safety: GuestNeedValue;                   // MVP-inert
-}
-
-interface GuestConditions {
-  mood: number;                             // integer -100..100, sign is the utility trend
+  needs: Readonly<Record<string, GuestNeedValue>>; // NeedDefinition id → declared-scale value
+  conditions: Readonly<Record<string, number>>;    // GuestConditionDefinition id → declared-scale value
+  opinions: Readonly<Record<string, number>>;      // OpinionDefinition id → declared-scale value
+  preferences: Readonly<Record<string, number>>;   // PreferenceDefinition id → declared-scale value
+  satisfaction: number;                     // integer 0..100
   patienceRemainingTicks: number;            // non-negative integer, decrements while queued/unserved
   lastServedTick: number | null;            // null until first served
   spentTicks: number;                       // non-negative integer, ticks alive in the world
-}
-
-// Every field is an integer -100..100: a slowly-changing impression, not a per-decision score.
-interface GuestOpinions {
-  price: number;
-  variety: number;                          // MVP-inert
-  cleanliness: number;                      // MVP-inert
-  safety: number;                           // MVP-inert
-  attractiveness: number;                   // MVP-inert
-  queues: number;                           // MVP-inert
-  service: number;                          // MVP-inert
-}
-
-interface GuestPreferences {
-  noiseTolerance: number;                   // integer -10..10 preference offset
-  spendingCategory: "budget" | "balanced" | "premium";
-  loyaltyMultiplier: PercentBasis;           // integer bps applied to spend utility; 10000 = neutral
 }
 
 interface Staff {
@@ -4277,6 +4272,7 @@ interface StaffTask {
   guestId: string | null;
   queueId: string | null;
   buildingId: string | null;
+  incidentId: string | null;
   targetProductId: string | null;
   startedAtTick: number;
   endedAtTick: number | null;
@@ -4307,13 +4303,11 @@ interface Loan {
 
 interface Incident {
   id: string;
-  incidentType: IncidentType;
+  definitionId: string;                     // IncidentDefinition id
   severity: IncidentSeverity;
   buildingId: string | null;
   guestId: string | null;
   zoneId: string | null;
-  titleKey: string;
-  descriptionKey: string;
   startedAtTick: number;
   expiresAtTick: number | null;
   resolvedAtTick: number | null;
@@ -4322,8 +4316,16 @@ interface Incident {
 interface ObjectiveProgress {
   id: string;                               // objective id (published)
   state: ObjectiveProgressState;
-  value: number;                            // integer accumulator
+  value: number;                            // W44's canonical integer projection of progress
   target: number;                           // integer target threshold
+  satisfiedSinceTick: number | null;         // null until the completion condition becomes true
+  updatedAtTick: number;
+}
+
+interface FailureProgress {
+  id: string;                               // failure-definition id (published)
+  state: FailureProgressState;
+  satisfiedSinceTick: number | null;         // null until the failure condition becomes true
   updatedAtTick: number;
 }
 
@@ -4331,11 +4333,22 @@ interface Alert {
   id: string;                               // `<alert>:<ordinal>`
   type: string;                             // gameplay-specific alert discriminator
   severity: AlertSeverity;
-  titleKey: string;
-  messageKey: string;
+  titleKey: LocKey;
+  messageKey: LocKey;
   entityId: string | null;                  // owning entity when applicable
   issuedAtTick: number;
   dismissedAtTick: number | null;
+}
+
+interface WorldCounters {
+  guestsEntered: number;                     // non-negative monotonic count
+  guestsDeparted: number;                    // non-negative monotonic count
+  guestsDissatisfied: number;                // non-negative monotonic count
+  servicesCompleted: number;                 // non-negative monotonic count
+  buildingsCompleted: number;                // non-negative monotonic count
+  incidentsRaised: number;                   // non-negative monotonic count
+  litterCreated: number;                     // non-negative monotonic units
+  litterCleaned: number;                     // non-negative monotonic units
 }
 ```
 
@@ -4358,9 +4371,9 @@ instance is the third option and is also declined: it copies the definition into
 placed building, so a definition edit and its instances can diverge.
 
 The **rotation transform is stated here anyway**, even though the offsets themselves are
-W43's, because rotating an integer offset is a determinism concern and leaving it to be
-re-derived per call site is how two call sites end up disagreeing. For a definition of
-width `w` and height `h`, an authored offset `(ox, oy)` relative to the unrotated
+content (§14.3), because rotating an integer offset is a determinism concern and leaving it
+to be re-derived per call site is how two call sites end up disagreeing. For a definition
+of width `w` and height `h`, an authored offset `(ox, oy)` relative to the unrotated
 footprint's origin maps to:
 
 ```text
@@ -4371,32 +4384,26 @@ footprint's origin maps to:
 ```
 
 and the absolute cell is the building's `(x, y)` plus that result. All integer, so the
-transform is exact. The **authored offset shape is W43's**, where a `BuildingDefinition`
-exists to hold it.
+transform is exact. §14.3 defines `EntranceOffset`, and `BuildingDefinition` owns the values.
 
 **2 — Rotation declares all four values.** `0 | 90 | 180 | 270` costs nothing if a scenario
 only ever authors `0`, and Tier 1 (§15) is where a scenario narrows it. This is the general
 rule for a seam an answer cannot change: **specify permissively, and validate narrowly.**
 
-**3 — Stored opinions are not evaluated opinions.** The game design has guests *evaluate*
-ten factors, including staff behaviour, accessibility and noise; `GuestOpinions` types
-**seven**. That is not a contradiction. Evaluating is something the utility model does at
-decision time from world state, and it does not require the guest to carry a field — a
-guest can weigh noise without storing a `noise` opinion. So `GuestOpinions` is the seven
-slowly-changing impressions a guest *accumulates and carries between decisions*; the other
-three are **evaluation inputs** to the utility model, which is W44's subject, not §3's.
+**3 — Guest meters are content-declared records, not fixed engine vocabularies.** Sun Trap's
+MVP needs `thirst` and `toilet`, while the W42 draft hard-coded neither; its wider design
+also names conditions and opinions another campaign may never use. `Guest.needs`,
+`conditions`, `opinions`, and `preferences` are therefore records whose keys are declared
+by the four definition catalogs in §14. A guest archetype supplies every initial key/value;
+Tier 1 rejects missing, extra, or out-of-range keys. The mechanical fields every campaign
+shares — satisfaction, patience, service time, cash, targets — remain explicit fields on
+`Guest`.
 
-**`GuestConditions` resolves the same way.** The condition vocabulary the game design lists
-— drunkenness, sunburn, headache, nausea, injury, anger, confusion — is *content*: each is
-either an evaluation input or a transient the tick pipeline computes and consumes within
-the batch. What `GuestConditions` stores is the four values a system in §4 actually writes
-between ticks.
-
-**The test that decides membership, and the one to apply to any future addition:** a field
-no system in §4 writes, no reason code in §11 reads and no projection in §10 carries is not
-state. Adding one to `serialize()` output is exactly how the `rng` and `totalTimeCost`
-defects happened. The three extra opinions are carried in
-[`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) with the condition that would admit them.
+This does not turn evaluation into state. Staff behaviour, accessibility, noise, travel
+cost, and queue length remain decision-time inputs W44 computes from the world. Only a meter
+a system carries across ticks belongs in one of the four records. The membership test still
+holds: a value no system writes, no condition reads, and no projection exposes does not earn
+a serialized key merely because one game design names it.
 
 **4 — Departed guests are pruned.** A guest reaching `"departed"` or `"removed"` is removed
 from `guests` at the end of the tick batch that finalized that lifecycle state. Without
@@ -4418,33 +4425,37 @@ rule does not depend on it.**
 **6 — Two fields are deliberately absent, and their absence is the point.** A `Staff.zoneId`
 "current zone at read time" alias would be a derived value beside the stored
 `assignedZoneId` it derives from — banned by the same rule as entrances. A
-`GuestConditions.arrivalTick` would restate `Guest.tickEntered`. Both are the
+`Guest.arrivalTick` alias would restate `Guest.tickEntered`. Both are the
 duplication defect one level down: *inside* `kindState` rather than against the envelope.
 
-**What genuinely remains the game's** is two things, and neither blocks this contract: what
-an authored entrance offset looks like (W43), and the value of `ticksPerDay` (balance, §17).
+**What genuinely remains the game's** is the concrete content: which entrance offsets,
+need/opinion vocabularies, prices, curves, and `ticksPerDay` value it authors. §14 owns the
+shape and validation; §17 leaves the values and balance with the game.
 
 `queue`, `staff task`, and nested entity collections are not top-level collections. Their ids are
 still derived from `nextEntityOrdinal` at creation.
 
-> **The three open-keyed records, reconciled against N6.** `Building.pricesCents` — and the
-> `Guest` preference and `Building` inventory records W43 will author — are
-> `Readonly<Record<string, number>>`, which [`02-architecture.md`](02-architecture.md) N6
+> **The open-keyed records, reconciled against N6.** `Building.pricesCents`/`inventory` and
+> `Guest.needs`/`conditions`/`opinions`/`preferences` are `Readonly<Record<...>>`, which
+> [`02-architecture.md`](02-architecture.md) N6
 > bans as a loose bag. `10 §6.2` already answered this for `ActorState`'s
 > `skills`/`reputation`/`flags`/`counters`, and the argument transfers unchanged: **a record
 > whose keys are declared by validated content is not a loose bag, because Tier 1 closes the
-> key set at load.** `pricesCents`' keys are exactly the ids in `Building.products`, which
-> come from the definition; a key outside that set is a Tier-1 error, not a runtime
-> surprise. Written out rather than assumed, because an unexamined `Record<string, number>`
-> is indistinguishable on the page from the thing N6 bans.
+> key set at load.** Building record keys are exactly `Building.products`; guest record keys
+> are exactly those in the archetype profiles, which must resolve in their definition
+> catalogs. A key outside either set is Tier 1, not a runtime surprise. Written out rather
+> than assumed, because an unexamined `Record<string, number>` is indistinguishable on the
+> page from the thing N6 bans.
 
 ### 3.4 Canonical collection order
 
 All serialized arrays are iterated in id order for contract behavior, not insertion order:
 
 - `buildings`, `constructionSites`, `guests`, `staff`, `incidents`,
-  `objectives`, and `alerts` are all canonicalized by each element's `id`
+  `objectives`, `failures`, and `alerts` are all canonicalized by each element's `id`
   before any system touch.
+- `map.scenery` is canonical by its derived entity id; `unlockedContent` is canonical by
+  `(kind, id)`; `activePolicyIds` and `unlockedAchievementIds` are lexicographic by id.
 - For each `Building`, `queue.guestIds` is canonical by `guest.id`, and service selection uses
   the `queue.id` order then `guest.id` within each queue.
 - For each `Staff`, `task` is singularly active in this unit, but if history snapshots are stored in
@@ -4458,11 +4469,12 @@ comparison gets backwards — and a comparator that gets it backwards is a deter
 that appears only once a scenario runs past nine entities of one prefix, which is precisely
 the kind of bug this document exists to prevent.
 
-**The reducers maintain the order rather than re-sorting for it.** Every collection is
-append-only in allocation order and `nextEntityOrdinal` is monotonic, so insertion order
-*is* id order; removal preserves it. That makes canonical order an invariant to test rather
-than a sort to run on every system pass — a 500-guest sort per tick would be the dominant
-cost in a 360-tick batch.
+**The reducers maintain the order rather than re-sorting for it.** Every entity collection
+governed by `nextEntityOrdinal` appends in allocation order, so insertion order *is* id
+order and removal preserves it. Content-reference and published-id arrays insert in their
+declared canonical order; removing or toggling an entry preserves that order. Canonical
+order is therefore an invariant to test rather than a sort to run on every system pass — a
+500-guest sort per tick would be the dominant cost in a 360-tick batch.
 
 ---
 
@@ -4629,11 +4641,12 @@ outcome(state: WorldGraphKindState): {
 }
 ```
 
-**A resolution requires at least one objective.** `resolution` becomes non-`null` when every
-objective in `objectives` has left `"active"` — and a scenario that declares none has
-therefore not won, it has nothing to win. Vacuous truth is the wrong reading here: it would
-make an objective-less campaign `ended` before the player saw a single tick. Such a campaign
-is a sandbox, and §15 warns about it at Tier 2 rather than resolving it.
+**A win requires at least one objective and every one must be `"met"`.** A triggered
+`FailureProgress` produces `"failed"` and its published id; a scenario that declares no
+objectives has nothing to win. Vacuous truth is the wrong reading—it would end a sandbox
+before the player saw one tick—so §15 warns instead. If the last objective becomes met on the
+same tick a failure triggers, W44 owns the explicit precedence rule; W43 supplies both typed
+facts and does not settle their evaluation order early.
 
 Published ids only. **Cash, guest counts, satisfaction and the tick it ended on are
 deliberately excluded** — every one changes legitimately under a balance pass, and a
@@ -4945,13 +4958,683 @@ and like those, these are `StateChange` vocabulary rather than additions to §11
 
 ## 14. Content, Definitions, and Packs
 
-Guest archetypes, staff roles, buildings, products, terrain, scenery, incidents, scenarios,
-objectives, policies and achievements are **campaign data**, loaded through the content
-registry (04 §10.1) exactly as story-graph campaigns are.
+Everything in this section is **campaign data**, loaded through the core content registry
+(04 §10.1). It is the complete data language W45 implements; a campaign needs no
+game-specific TypeScript and no extension object.
 
-Identity fields — `id`, `version`, `titleKey` — live on the core `Campaign` envelope and
-**not** in this kind's content types, the correction already applied twice (04 §10.1,
-10 §7).
+### 14.1 Source and runtime campaign roots
+
+The source/runtime split is the one 04 §10.1 already owns. `AuthoredDefinitionText` carries
+inline English at the authoring boundary; `RuntimeDefinitionText` carries only `LocKey`s.
+Every `*DefinitionSource` below is the corresponding generic definition specialized with
+the former, and every runtime `*Definition` specializes it with the latter.
+
+```typescript
+interface AuthoredDefinitionText {
+  name: AuthoredText;
+  description: AuthoredText;
+}
+
+interface RuntimeDefinitionText {
+  nameKey: LocKey;
+  descriptionKey: LocKey;
+}
+
+interface WorldGraphCampaignSource {
+  startScenarioId: string;
+  ticksPerDay: number;                         // positive integer; balance value
+  maxTicksPerAction: number;                   // positive integer synchronous-work cap
+
+  maps: readonly MapDefinitionSource[];        // MVP-required
+  terrain: readonly TerrainDefinitionSource[]; // MVP-required
+  scenery?: readonly SceneryDefinitionSource[]; // default [] — MVP-inert
+  needs: readonly NeedDefinitionSource[];      // MVP-required
+  guestConditions?: readonly GuestConditionDefinitionSource[]; // default [] — MVP-inert
+  opinions: readonly OpinionDefinitionSource[]; // MVP-required (price in the MVP)
+  preferences?: readonly PreferenceDefinitionSource[]; // default [] — MVP-inert
+  products: readonly ProductDefinitionSource[]; // MVP-required
+  buildings: readonly BuildingDefinitionSource[]; // MVP-required
+  guestArchetypes: readonly GuestArchetypeDefinitionSource[]; // MVP-required
+  staffRoles: readonly StaffRoleDefinitionSource[]; // MVP-required
+  incidents: readonly IncidentDefinitionSource[]; // MVP-required (litter in the MVP)
+  objectives: readonly ObjectiveDefinitionSource[]; // MVP-required
+  failures: readonly FailureDefinitionSource[]; // MVP-required
+  policies?: readonly PolicyDefinitionSource[]; // default [] — MVP-inert
+  achievements?: readonly AchievementDefinitionSource[]; // default [] — MVP-inert
+  scenarios: readonly ScenarioDefinitionSource[]; // MVP-required
+}
+
+interface WorldGraphCampaign {
+  // Runtime form: every collection is present and contains LocKeys only.
+  // Campaign.id/kindId/version/titleKey remain on the core Campaign envelope.
+  startScenarioId: string;
+  ticksPerDay: number;
+  maxTicksPerAction: number;
+
+  maps: readonly MapDefinition[];
+  terrain: readonly TerrainDefinition[];
+  scenery: readonly SceneryDefinition[];
+  needs: readonly NeedDefinition[];
+  guestConditions: readonly GuestConditionDefinition[];
+  opinions: readonly OpinionDefinition[];
+  preferences: readonly PreferenceDefinition[];
+  products: readonly ProductDefinition[];
+  buildings: readonly BuildingDefinition[];
+  guestArchetypes: readonly GuestArchetypeDefinition[];
+  staffRoles: readonly StaffRoleDefinition[];
+  incidents: readonly IncidentDefinition[];
+  objectives: readonly ObjectiveDefinition[];
+  failures: readonly FailureDefinition[];
+  policies: readonly PolicyDefinition[];
+  achievements: readonly AchievementDefinition[];
+  scenarios: readonly ScenarioDefinition[];
+}
+```
+
+`WorldGraphCampaign` is the `content` inside the core `Campaign` envelope. Its lack of a
+campaign id is deliberate; the ids on the nested definitions are equally deliberate. Each
+is unique only within its own catalog and is what runtime state and other definitions use as
+a foreign key.
+
+### 14.2 Shared integer, reference, condition, and effect language
+
+No type below addresses state with a free-form path. Numeric facts use the closed
+`WorldMetric` union; booleans use the closed leaves of `WorldCondition`; writes use
+`WorldEffect`. W44 owns evaluation order, aggregation, rounding, and competing-effect
+precedence, not the vocabulary.
+
+```typescript
+interface IntegerRange {
+  min: number;                                  // inclusive integer lower bound
+  max: number;                                  // inclusive integer upper bound; max >= min
+}
+
+interface IntegerCurvePoint {
+  input: number;
+  output: number;
+}
+
+interface IntegerCurve {
+  interpolation: "step" | "linear";
+  points: readonly IntegerCurvePoint[];         // >= 1, strictly increasing input
+}
+
+type ComparisonOperator = "eq" | "ne" | "lt" | "lte" | "gt" | "gte";
+type AggregateOperation = "min" | "max" | "average" | "sum";
+type GuestMeterKind = "need" | "condition" | "opinion" | "preference";
+type WorldCounterKey = keyof WorldCounters;
+type FinanceMetricField =
+  | "cashCents" | "revenueTodayCents" | "expensesTodayCents"
+  | "revenueTotalCents" | "expensesTotalCents";
+
+type ContentReference =
+  | { kind: "map"; id: string }
+  | { kind: "terrain"; id: string }
+  | { kind: "scenery"; id: string }
+  | { kind: "need"; id: string }
+  | { kind: "guest_condition"; id: string }
+  | { kind: "opinion"; id: string }
+  | { kind: "preference"; id: string }
+  | { kind: "product"; id: string }
+  | { kind: "building"; id: string }
+  | { kind: "guest_archetype"; id: string }
+  | { kind: "staff_role"; id: string }
+  | { kind: "incident"; id: string }
+  | { kind: "objective"; id: string }
+  | { kind: "failure"; id: string }
+  | { kind: "policy"; id: string }
+  | { kind: "scenario"; id: string };
+
+type WorldMetric =
+  | { kind: "tick" }
+  | { kind: "day" }
+  | { kind: "finance"; field: FinanceMetricField }
+  | { kind: "counter"; counter: WorldCounterKey }
+  | { kind: "objective_progress"; objectiveId: string }
+  | {
+      kind: "entity_count";
+      entity: "building" | "guest" | "staff";
+      definitionId: string | null;              // null = every definition in that catalog
+    }
+  | {
+      kind: "guest_meter";
+      meter: GuestMeterKind;
+      definitionId: string;
+      aggregate: AggregateOperation;
+      archetypeId: string | null;                // null = every active guest
+    }
+  | {
+      kind: "building_metric";
+      metric: "cleanliness" | "wear" | "queue_length" | "inventory";
+      aggregate: AggregateOperation;
+      buildingDefinitionId: string | null;       // null = every placed building
+      productId: string | null;                  // required only for inventory
+    }
+  | {
+      kind: "incident_count";
+      incidentDefinitionId: string | null;
+      state: "active" | "resolved";
+    };
+
+type WorldCondition =
+  | { kind: "constant"; value: boolean }
+  | { kind: "all"; conditions: readonly WorldCondition[] }
+  | { kind: "any"; conditions: readonly WorldCondition[] }
+  | { kind: "not"; condition: WorldCondition }
+  | { kind: "compare"; metric: WorldMetric; op: ComparisonOperator; value: number }
+  | { kind: "objective_state"; objectiveId: string; state: ObjectiveProgressState }
+  | { kind: "content_unlocked"; content: ContentReference }
+  | { kind: "policy_active"; policyId: string }
+  | { kind: "incident_active"; incidentDefinitionId: string };
+
+type GuestSelector =
+  | { kind: "all" }
+  | { kind: "archetype"; archetypeId: string }
+  | { kind: "current_service_guest" }
+  | { kind: "current_incident_guest" }
+  | { kind: "building_queue"; buildingDefinitionId: string };
+
+type IncidentTarget =
+  | { kind: "none" }
+  | { kind: "current_guest" }
+  | { kind: "current_building" }
+  | { kind: "zone"; zoneId: string };
+
+type WorldEffect =
+  | { kind: "finance_delta"; field: "cashCents"; cents: number }
+  | { kind: "counter_increment"; counter: WorldCounterKey; amount: number } // non-negative integer
+  | { kind: "unlock" | "lock"; content: ContentReference }
+  | { kind: "objective_progress"; objectiveId: string; delta: number }
+  | {
+      kind: "guest_meter_delta";
+      meter: GuestMeterKind;
+      definitionId: string;
+      delta: number;
+      guests: GuestSelector;
+    }
+  | { kind: "start_incident"; incidentDefinitionId: string; target: IncidentTarget }
+  | { kind: "resolve_incident"; incidentDefinitionId: string }
+  | { kind: "set_policy_active"; policyId: string; active: boolean };
+```
+
+Every `number` in §14 is an integer. `*Cents` fields are cents, `*Ticks` fields are ticks,
+`*Tiles` fields are grid tiles, meter values use their referenced definition range, curve
+inputs/outputs use the field that owns the curve, and utility/weight/delta fields are signed
+integer scoring units unless a narrower comment says otherwise. `counter_increment.amount` is a
+non-negative integer: it is the only effect that writes `WorldCounters`, so counters never
+decrease or become negative.
+
+`resolve_incident` is definition-targeted because campaign data cannot name a runtime occurrence
+id. When it executes, it resolves **every active** `Incident` whose `definitionId` matches, in
+lexicographic `Incident.id` order, and applies that definition's `onResolve` effects once per
+resolved occurrence. No match is a no-op. This fixes target selection; W44 still owns when an
+effect executes and how competing effects compose.
+
+All meters use the range on their referenced definition. `average` is an exact rational
+during comparison—W44 states the cross-multiplication/rounding rule—so no floating-point
+value enters state. Empty `all`/`any`, an aggregate selector that cannot match any reachable
+definition, or a metric whose dependent id does not resolve is Tier 1 rather than an
+implicit identity value. W44 defines the result when a valid selector temporarily has no
+runtime entities—for example, cleanliness before the player builds anything.
+
+### 14.3 Maps, terrain, scenery, placement, and adjacency
+
+`WorldGraphCampaign.maps` is the sole authored-map catalog. A scenario stores `mapId`; it
+does not embed a map. `initialState` expands the selected map's default terrain plus sparse
+overrides into the complete `WorldMap.terrain`, materializes its topology, then applies the
+scenario placements (§3.1).
+
+```typescript
+interface MapDefinitionBase<TText> {
+  id: string;
+  text: TText;
+  width: number;                                  // positive integer tiles
+  height: number;                                 // positive integer tiles
+  defaultTerrainId: string;
+  terrainOverrides: readonly TerrainOverride[];   // unique positions, row-major
+  topology: MapTopology;
+  zones: readonly ZoneDefinitionBase<TText>[];
+  spawnPoints: readonly Position[];               // >= 1, row-major
+  exits: readonly Position[];                     // >= 1, row-major
+  tags: readonly string[];
+}
+
+interface TerrainOverride {
+  position: Position;
+  terrainId: string;
+}
+
+type MapTopology =
+  | { kind: "orthogonal_grid" }
+  | { kind: "explicit"; edges: readonly MapEdgeDefinition[] };
+
+interface MapEdgeDefinition {
+  from: Position;
+  to: Position;
+  edgeCost: number;                              // non-negative integer path-cost units
+  allowed: boolean;
+}
+
+interface ZoneDefinitionBase<TText> {
+  id: string;                                    // unique within this map
+  text: TText;
+  cells: readonly Position[];                    // non-empty, row-major
+  serviceRadius: number;                         // non-negative integer tiles
+  maxOccupancy: number | null;                   // null = unlimited; otherwise >= 0
+}
+
+interface TerrainDefinitionBase<TText> {
+  id: string;
+  text: TText;
+  walkable: boolean;
+  buildable: boolean;
+  moveCost: number;                              // non-negative integer path-cost units
+  tags: readonly string[];
+}
+
+interface FootprintDefinition {
+  width: number;                                 // positive integer tiles, unrotated
+  height: number;                                // positive integer tiles, unrotated
+}
+
+interface EntranceOffset {
+  x: number;                                     // integer relative to unrotated origin
+  y: number;                                     // immediately outside one footprint edge
+}
+
+type PlacementRule =
+  | { kind: "terrain"; terrainIds: readonly string[] }
+  | { kind: "adjacent_to_terrain"; terrainIds: readonly string[]; minimumEdges: number }
+  | { kind: "zone"; zoneIds: readonly string[]; mode: "inside" | "outside" }
+  | {
+      kind: "distance_from_zone";
+      zoneIds: readonly string[];
+      minimumTiles: number;
+      maximumTiles: number | null;               // null = no upper bound
+    };
+
+type AdjacencyTarget =
+  | { kind: "building"; definitionIds: readonly string[] | null }
+  | { kind: "guest"; archetypeIds: readonly string[] | null };
+
+interface AdjacencyEffect {
+  target: AdjacencyTarget;
+  metric: "attractiveness" | "need_drift" | "incident_risk" | "service_demand" | "noise";
+  radiusTiles: number;                            // positive integer Chebyshev radius
+  delta: number;                                  // integer utility/basis-point input by metric
+}
+
+interface SceneryDefinitionBase<TText> {
+  id: string;
+  text: TText;
+  footprint: FootprintDefinition;
+  allowedRotations: readonly Rotation[];
+  placementRules: readonly PlacementRule[];
+  adjacencyEffects: readonly AdjacencyEffect[];
+  tags: readonly string[];
+}
+```
+
+Bounds and non-overlap are universal placement rules and are not repeated as authorable
+switches. A `BuildingDefinition` additionally requires at least one entrance. Each entrance
+is the walkable approach cell immediately outside the unrotated footprint (§3.3); the exact
+integer rotation transform there is reused unchanged.
+
+### 14.4 Products, buildings, queues, service, and litter
+
+The `operation.kind` union is engine mechanical: systems branch on it. `tags` are content
+classification only and may never select a resolver.
+
+```typescript
+interface PriceBand {
+  minimumCents: number;                           // non-negative integer cents
+  maximumCents: number;                           // >= minimumCents
+  defaultCents: number;                           // inclusive within the band
+}
+
+interface ProductDefinitionBase<TText> {
+  id: string;
+  text: TText;
+  unitCostCents: number;                           // non-negative integer cents
+  price: PriceBand;
+  effects: readonly WorldEffect[];
+  litter: {
+    incidentDefinitionId: string;
+    unitsPerService: number;                       // non-negative integer litter units
+  } | null;
+  tags: readonly string[];
+}
+
+interface ServiceProduct {
+  productId: string;
+  serviceTicks: number | null;                     // null = operation base; otherwise positive
+  initialUnits: number | null;                     // null = unlimited
+  capacity: number | null;                         // null = unlimited; otherwise >= initialUnits
+}
+
+interface StaffRequirement {
+  roleId: string;
+  count: number;                                   // positive integer
+}
+
+type BuildingOperation =
+  | {
+      kind: "service";
+      products: readonly ServiceProduct[];         // empty permits non-product service (toilet)
+      queueMaxLength: number | null;                // null = unlimited
+      baseServiceTicks: number;                     // positive integer; product may override
+      staffRequirements: readonly StaffRequirement[];
+      effects: readonly WorldEffect[];              // applied on every completed service
+    }
+  | {
+      kind: "waste";
+      capacity: number | null;                      // null = unlimited
+      acceptedIncidentDefinitionIds: readonly string[]; // IncidentDefinition ids
+    }
+  | { kind: "decorative" }
+  | { kind: "support"; generatedTaskKinds: readonly StaffTaskType[] };
+
+interface BuildingDefinitionBase<TText> {
+  id: string;
+  text: TText;
+  footprint: FootprintDefinition;
+  entrances: readonly EntranceOffset[];             // >= 1
+  allowedRotations: readonly Rotation[];             // non-empty, unique
+  constructionCostCents: number;                     // non-negative integer cents
+  constructionTicks: number;                         // 0 = immediate MVP construction
+  operatingCostCentsPerDay: number;                  // non-negative integer cents
+  initialWear: number;                               // integer 0..100
+  initialCleanliness: number;                        // integer 0..100
+  placementRules: readonly PlacementRule[];
+  adjacencyEffects: readonly AdjacencyEffect[];
+  operation: BuildingOperation;
+  tags: readonly string[];
+}
+```
+
+One placed building owns one stable shared queue; a guest's `targetProductId` says what that
+guest will buy. That is why W43 removes W42's single `Queue.productId`: it contradicted a
+building definition with several products. `Building.products`, `pricesCents`, and
+`inventory` are materialized from `operation.products`; the three key sets must be equal.
+
+### 14.5 Guest vocabularies, archetypes, and staff roles
+
+Needs, conditions, opinions, and preferences are definitions because campaigns declare the
+keys; their ranges are contract data because validation and clamping need them. A guest
+archetype must supply exactly one initial profile entry for every key it uses.
+
+```typescript
+interface MeterDefinitionBase<TText> {
+  id: string;
+  text: TText;
+  minimum: number;
+  maximum: number;                                // integer, >= minimum
+}
+
+interface NeedDefinitionBase<TText> extends MeterDefinitionBase<TText> {
+  criticalBelow: number;                          // inclusive within range
+  satisfiedAtOrAbove: number;                     // inclusive and >= criticalBelow
+}
+
+type GuestConditionDefinitionBase<TText> = MeterDefinitionBase<TText>;
+
+interface OpinionDefinitionBase<TText> extends MeterDefinitionBase<TText> {
+  neutral: number;                                // inclusive within range
+}
+
+type PreferenceDefinitionBase<TText> = MeterDefinitionBase<TText>;
+
+interface NeedProfile {
+  needId: string;
+  initial: IntegerRange;
+  driftByCurrentValue: IntegerCurve;              // current value → integer delta per tick
+}
+
+interface MeterProfile {
+  definitionId: string;
+  initial: IntegerRange;
+}
+
+interface GuestArchetypeDefinitionBase<TText> {
+  id: string;
+  text: TText;
+  cashCents: IntegerRange;                         // non-negative integer cents
+  stayTicks: IntegerRange;                         // positive integer ticks
+  patienceTicks: IntegerRange;                     // non-negative integer ticks
+  initialSatisfaction: IntegerRange;               // integers 0..100
+  needs: readonly NeedProfile[];                   // MVP-required: thirst + toilet
+  conditions: readonly MeterProfile[];
+  opinions: readonly MeterProfile[];               // MVP-required: price
+  preferences: readonly MeterProfile[];
+  priceResistance: IntegerCurve;                   // price delta cents → utility delta
+  travelUtilityPerCost: number;                    // integer utility units per path-cost unit
+  queueUtilityPerTick: number;                     // integer utility units per wait tick
+  attractivenessUtilityPerPoint: number;           // integer utility units per point
+  tags: readonly string[];
+}
+
+interface StaffWorkRate {
+  taskType: StaffTaskType;
+  effortPerTick: number;                           // positive integer effort units
+}
+
+interface StaffRoleDefinitionBase<TText> {
+  id: string;
+  text: TText;
+  hireCostCents: number;                            // non-negative integer cents
+  wageCentsPerDay: number;                          // non-negative integer cents
+  moveTicksPerTile: number;                         // positive integer ticks
+  supportedTaskKinds: readonly StaffTaskType[];
+  workRates: readonly StaffWorkRate[];              // exactly one per supported task
+  tags: readonly string[];
+}
+```
+
+Inclusive `IntegerRange` draws during setup use the tick-0 stream (§3.1). W44 defines the
+integer curve evaluator and utility composition; W43 merely makes every input typed and
+scaled. `StaffTaskType` remains a closed engine union because dispatch selects a resolver by
+it; campaigns extend roles and rates by id, not the resolver vocabulary.
+
+### 14.6 Scenarios, objectives, failures, incidents, policies, and achievements
+
+Scenario placement arrays are the one catalog-adjacent collection whose authored order is
+semantic: it allocates deterministic entity ids (§3.1). They therefore remain in authored
+order rather than sorting by definition id.
+
+```typescript
+interface BuildingPlacement {
+  definitionId: string;
+  x: number;
+  y: number;
+  rotation: Rotation;
+  open: boolean;
+}
+
+interface SceneryPlacement {
+  definitionId: string;
+  x: number;
+  y: number;
+  rotation: Rotation;
+}
+
+interface ScenarioGuestPoolEntry {
+  archetypeId: string;
+  weight: number;                                // positive integer relative weight
+}
+
+interface ScenarioGuestSpawning {
+  everyTicks: number;                             // positive integer ticks
+  maxActiveGuests: number;                        // positive integer
+  pool: readonly ScenarioGuestPoolEntry[];        // non-empty, unique archetype ids
+}
+
+interface DefinitionLimit {
+  definitionId: string;
+  maximum: number;                                // non-negative integer
+}
+
+interface ScenarioDefinitionBase<TText> {
+  id: string;
+  text: TText;
+  mapId: string;
+  startingCashCents: number;                       // integer cents
+  unlockedContent: readonly ContentReference[];
+  activePolicyIds: readonly string[];              // MVP-inert
+  buildingPlacements: readonly BuildingPlacement[];
+  sceneryPlacements: readonly SceneryPlacement[];  // MVP-inert
+  guestSpawning: ScenarioGuestSpawning;
+  objectiveIds: readonly string[];
+  failureIds: readonly string[];
+  timeLimitTicks: number | null;                   // null = no deadline
+  timeLimitFailureId: string | null;               // paired with timeLimitTicks; targets failureIds
+  buildingLimits: readonly DefinitionLimit[];
+  staffLimits: readonly DefinitionLimit[];
+  tags: readonly string[];
+}
+
+interface ObjectiveDefinitionBase<TText> {
+  id: string;
+  text: TText;
+  completion: WorldCondition;
+  progressMetric: WorldMetric;
+  target: number;
+  requiredDurationTicks: number;                   // positive integer; 1 = immediate
+  onCompleted: readonly WorldEffect[];
+  tags: readonly string[];
+}
+
+interface FailureDefinitionBase<TText> {
+  id: string;
+  text: TText;
+  condition: WorldCondition;
+  requiredDurationTicks: number;                   // positive integer; 1 = immediate
+  onTriggered: readonly WorldEffect[];
+  tags: readonly string[];
+}
+
+type IncidentKind =
+  | "litter" | "spill" | "breakdown" | "fire" | "security" | "weather" | "scripted";
+
+interface IncidentDefinitionBase<TText> {
+  id: string;
+  text: TText;
+  kind: IncidentKind;                              // engine-mechanical resolver family
+  severity: IncidentSeverity;
+  triggerCondition: WorldCondition | null;         // null = started only by an effect
+  selectionWeight: number;                         // non-negative integer; 0 disables rolling
+  cooldownTicks: number;                           // non-negative integer
+  durationTicks: IntegerRange | null;               // null = no automatic expiry
+  resolutionCondition: WorldCondition | null;
+  resolverTaskType: StaffTaskType | null;
+  onStart: readonly WorldEffect[];
+  onResolve: readonly WorldEffect[];
+  tags: readonly string[];
+}
+
+interface PolicyDefinitionBase<TText> {
+  id: string;
+  text: TText;
+  availableWhen: WorldCondition;
+  activationCostCents: number;                      // non-negative integer cents
+  deactivationCostCents: number;                    // non-negative integer cents
+  whileActive: readonly WorldEffect[];
+  tags: readonly string[];
+}
+
+interface AchievementDefinitionBase<TText> {
+  id: string;
+  text: TText;
+  condition: WorldCondition;
+  hidden: boolean;
+  scope: "profile";                                // v1; mirrored after a successful action
+  tags: readonly string[];
+}
+```
+
+Achievement unlocks land in `unlockedAchievementIds` first and are mirrored to the core
+`ProfileStore` after the successful action, exactly as story-graph does (03 §7). Resolution
+never reads the profile. Policies are fully typed but MVP-inert; a scenario may start one
+active, while player policy actions remain a future unit. The named runtime consumers are:
+scenery adjacency in guest-intent/incident inputs, active-policy effects in scheduled
+scenario changes, and achievement conditions after objective/failure updates. W44 fixes
+their exact position and precedence; empty MVP catalogs make those paths honest no-ops.
+
+### 14.7 Source/runtime aliases
+
+The aliases below are normative, not illustrative shorthand: they guarantee every nested
+definition has one source shape and one runtime shape without duplicating the mechanical
+fields between two declarations.
+
+```typescript
+type MapDefinitionSource = MapDefinitionBase<AuthoredDefinitionText>;
+type MapDefinition = MapDefinitionBase<RuntimeDefinitionText>;
+type TerrainDefinitionSource = TerrainDefinitionBase<AuthoredDefinitionText>;
+type TerrainDefinition = TerrainDefinitionBase<RuntimeDefinitionText>;
+type SceneryDefinitionSource = SceneryDefinitionBase<AuthoredDefinitionText>;
+type SceneryDefinition = SceneryDefinitionBase<RuntimeDefinitionText>;
+type NeedDefinitionSource = NeedDefinitionBase<AuthoredDefinitionText>;
+type NeedDefinition = NeedDefinitionBase<RuntimeDefinitionText>;
+type GuestConditionDefinitionSource = GuestConditionDefinitionBase<AuthoredDefinitionText>;
+type GuestConditionDefinition = GuestConditionDefinitionBase<RuntimeDefinitionText>;
+type OpinionDefinitionSource = OpinionDefinitionBase<AuthoredDefinitionText>;
+type OpinionDefinition = OpinionDefinitionBase<RuntimeDefinitionText>;
+type PreferenceDefinitionSource = PreferenceDefinitionBase<AuthoredDefinitionText>;
+type PreferenceDefinition = PreferenceDefinitionBase<RuntimeDefinitionText>;
+type ProductDefinitionSource = ProductDefinitionBase<AuthoredDefinitionText>;
+type ProductDefinition = ProductDefinitionBase<RuntimeDefinitionText>;
+type BuildingDefinitionSource = BuildingDefinitionBase<AuthoredDefinitionText>;
+type BuildingDefinition = BuildingDefinitionBase<RuntimeDefinitionText>;
+type GuestArchetypeDefinitionSource = GuestArchetypeDefinitionBase<AuthoredDefinitionText>;
+type GuestArchetypeDefinition = GuestArchetypeDefinitionBase<RuntimeDefinitionText>;
+type StaffRoleDefinitionSource = StaffRoleDefinitionBase<AuthoredDefinitionText>;
+type StaffRoleDefinition = StaffRoleDefinitionBase<RuntimeDefinitionText>;
+type ScenarioDefinitionSource = ScenarioDefinitionBase<AuthoredDefinitionText>;
+type ScenarioDefinition = ScenarioDefinitionBase<RuntimeDefinitionText>;
+type ObjectiveDefinitionSource = ObjectiveDefinitionBase<AuthoredDefinitionText>;
+type ObjectiveDefinition = ObjectiveDefinitionBase<RuntimeDefinitionText>;
+type FailureDefinitionSource = FailureDefinitionBase<AuthoredDefinitionText>;
+type FailureDefinition = FailureDefinitionBase<RuntimeDefinitionText>;
+type IncidentDefinitionSource = IncidentDefinitionBase<AuthoredDefinitionText>;
+type IncidentDefinition = IncidentDefinitionBase<RuntimeDefinitionText>;
+type PolicyDefinitionSource = PolicyDefinitionBase<AuthoredDefinitionText>;
+type PolicyDefinition = PolicyDefinitionBase<RuntimeDefinitionText>;
+type AchievementDefinitionSource = AchievementDefinitionBase<AuthoredDefinitionText>;
+type AchievementDefinition = AchievementDefinitionBase<RuntimeDefinitionText>;
+```
+
+### 14.8 Build defaults and canonical order
+
+The pure builder lifts every `AuthoredText`, rejects conflicting key/text pairs, and returns
+`BuiltCampaign`. It applies exactly five defaults: omitted `scenery`, `guestConditions`,
+`preferences`, `policies`, and `achievements` become explicit empty runtime arrays. There
+are no other omitted-field conventions; absence elsewhere is represented by `null`.
+
+Catalogs are sorted lexicographically by definition id. Duplicate nested definition-id
+lists, tags, rotation lists, and scenario unlocks are rejected, then the accepted values are
+sorted; map positions and terrain overrides are row-major `(y, x)`; explicit edges sort by
+`(from.y, from.x, to.y, to.x)`; curve points sort by `input`. Effects, `all`/`any` children,
+and scenario placements preserve authored order: effects will gain order/precedence
+semantics in W44, condition evaluation is side-effect-free, and placements allocate ids.
+Runtime content remains arrays and plain objects—ephemeral indexes may be built by W45 but
+are neither campaign data nor saved state.
+
+### 14.9 W42 reconciliation
+
+These are the only §3 changes W43 makes:
+
+| W42 surface | W43 correction | Why content requires it |
+|---|---|---|
+| `TerrainCell.terrain/edge/moveCost` | `terrainId`; traits and base cost move to `TerrainDefinition` | Terrain is campaign vocabulary; three copied traits could drift from their definition |
+| fixed guest need/opinion/preference shapes | four content-declared records; add guest cash and satisfaction | The MVP requires thirst, toilet, price opinion, and a spendable budget without recompiling the kind |
+| `Incident.incidentType` plus copied text | `definitionId`; localized text and resolver kind live on `IncidentDefinition` | Runtime stores occurrence state, not a second definition |
+| no scenery runtime consumer | `WorldMap.scenery` with derived ids | Adjacency-affecting scenario placements must reach tick systems and projection |
+| no litter-cleanup task target | `StaffTask.incidentId` | The MVP cleaner must resolve the litter incident that generated its task |
+| no inventory state; single-product queue | content-closed `Building.inventory`; one shared queue, product selected by the guest | Product definitions admit multiple products while the MVP may use unlimited stock |
+| no progression/achievement/policy state | `unlockedContent`, `activePolicyIds`, `unlockedAchievementIds` | Effects and starting policy data need deterministic persisted consumers |
+| departed guests are pruned with no cumulative facts | closed `WorldCounters` | Objective/failure conditions must retain published aggregates without retaining every guest |
+| objectives lack duration state; failures have none | objective `satisfiedSinceTick` plus `FailureProgress[]` | Sustained objective/failure conditions must survive save/load and split tick batches |
+
+Everything else in §3 remains W42's state contract.
 
 **The draft's open question on packs is closed.** Its §10 says "the merge strategy is not
 yet decided"; [`11-content-packs.md`](11-content-packs.md) decides it — campaigns replace
@@ -4967,33 +5650,69 @@ its own.
 runs at registry construction, before the registry is frozen, and it is pure and total —
 no simulation, no search, no I/O.
 
-The draft's Tier 1 and Tier 2 lists map onto the tiered validator (04 §11) unchanged:
-duplicate ids, missing references, invalid footprints, missing localization, buildings with
-no entrance, negative capacity are Tier 1; unreachable unlocks, map regions disconnected
-from every spawn, building categories with no demand, staff roles with no task generator
-are Tier 2.
+Validation paths address source/runtime fields exactly as written in §14: catalog array
+index, then nested field (for example `buildings[0].entrances[1].x`). A validator may add
+details, but it may not replace a precise path with an unstructured message.
 
-Additions this contract requires. At **Tier 1**: **every authored id this kind reads must be
-non-empty and contain no `.`** — building and product definitions, staff roles, objectives
-and zones today, and guest archetypes, incidents, scenarios and whatever else W43 adds, on
-the same terms and without amending this sentence. The rule is stated over *all* authored
-ids rather than over a list of them, because a list is a second thing to maintain and would
-be wrong the moment W43 lands. §13's paths are dot-separated, so an id carrying a dot makes a
-path parse two ways; it is checked rather than assumed because these ids are content, and
-content is exactly what a contract cannot assume about. Entity ids need no check, since §9
-constructs them. The `advance_ticks` cap (§6) must be present and positive; `ticksPerDay`
-(§3.3) must be present and positive; every price band
-must be a valid integer-cent range containing the definition's default price; a
-pre-placed building (§3.1) must name a real definition, fit inside the map, sit on terrain
-its definition allows, and not overlap another — the same footprint rules the `build`
-reducer enforces, applied to authored placements, because a scenario that loads with a
-building silently dropped or overlapping is worse than one that fails to load.
+**Tier 1 — load-time hard failure:**
 
-At **Tier 2**: a scenario already resolved at tick 0 — objectives satisfied or a failure
-condition met before the player acts (§3.1). That is a legal campaign, so it warns rather
-than fails, but it is almost always an authoring error. **A campaign with no objectives at
-all** warns for the mirror-image reason: it can never resolve at all (§8), so it is a
-sandbox — legal, occasionally deliberate, and almost never what an author meant.
+- The root narrows to `WorldGraphCampaign`; `ticksPerDay` and `maxTicksPerAction` are positive
+  integers; `startScenarioId` resolves.
+- Every authored id the kind reads is non-empty and contains no `.`. Definition ids are
+  unique within their catalog; map-local zone ids are unique within their map. Tags and
+  referenced-id lists contain no duplicates.
+- Every `RuntimeDefinitionText` key resolves in the registry string table. At the source
+  boundary, duplicate `AuthoredText.key` values must carry byte-identical text; a conflict
+  is a hard builder error before kind validation.
+- Every foreign key resolves in its declared namespace: maps → terrain; scenarios → map,
+  placements, unlocks, policies, objectives, failures, and guest pool; buildings → terrain,
+  products, roles, incidents, zones, and adjacency targets; archetypes → meter catalogs;
+  conditions/effects/metrics → their typed target catalogs.
+- Every number is an integer and within its documented range. Ranges are ordered; curve
+  inputs are unique and strictly increasing; price defaults lie inside their bands; stock
+  capacity contains finite initial stock; costs/capacities/weights are non-negative or
+  positive exactly where §14 says.
+- Map dimensions are positive; every coordinate is in bounds; terrain overrides are unique;
+  every spawn and exit is walkable; zone cells are non-empty and unique; explicit edges have
+  in-bounds endpoints and no duplicate directed `(from, to)` pair.
+- Footprints are positive; rotations are unique and supported; every building has an
+  entrance exactly one orthogonal cell outside one unrotated edge; placement rules have
+  non-empty target ids and valid distance bounds.
+- Scenario placements reference real definitions, fit the selected map after rotation,
+  satisfy terrain/zone rules, do not overlap, and leave each building with at least one
+  walkable approach cell. Building placements are checked by the same pure geometry used by
+  `build`, never a scenario-only approximation.
+- Building service product ids are unique; their materialized product/price/inventory key
+  sets agree. A non-product service may have an empty product list; any other empty list or
+  unresolved staff requirement is invalid.
+- An archetype declares unique meter entries, every initial range fits its meter definition,
+  and runtime guest records have exactly those keys. A staff role has one positive work rate
+  for every supported task and no extra rate.
+- `WorldCondition`/`WorldEffect` discriminators and payloads match. `all`/`any` are non-empty;
+  expression depth is at most 32; finance metrics select numeric fields; inventory metrics
+  name a product; aggregate and selector references resolve. Counter-increment amounts are
+  non-negative, and every incident-definition reference — including start/resolve effects,
+  litter, and waste acceptance — resolves in the `IncidentDefinition` catalog. No arbitrary
+  state path exists to validate or execute.
+- Objectives/failures have positive duration; objective progress metrics can be compared to
+  their targets; incident ranges, cooldowns, weights, target modes, task kinds, and policy
+  costs satisfy their declared domains.
+- A scenario's time limit is null or positive and `timeLimitFailureId` is null iff the limit
+  is null; otherwise it resolves within that scenario's `failureIds`. Its guest pool is
+  non-empty with unique archetypes and positive weights, and definition limits are unique
+  and non-negative.
+
+**Tier 2 — load-time warning:**
+
+- A scenario already resolves at tick 0, or declares no objectives (a legal sandbox).
+- A map region is disconnected from every spawn/exit, or a placed building has no reachable
+  spawn even though a geometric approach cell exists.
+- A definition is unreachable from every scenario through starting content, unlock effects,
+  incident effects, objective/failure effects, or another reachable definition.
+- A building service has no guest need/opinion demand; a staff role has no task source; an
+  incident has neither expiry, resolution condition, nor supported resolver task.
+- An achievement or policy condition references a counter/meter no reachable effect or
+  system can change.
 
 > **The draft's "Tier 3 simulation findings" is not validation.** Dominant buildings,
 > infinite-money loops, queue deadlock and unavoidable bankruptcy are **content-balance**
@@ -5001,6 +5720,386 @@ sandbox — legal, occasionally deliberate, and almost never what an author mean
 > validation tier would put a long-running search inside registry construction, which 04
 > §10.1 requires to be pure and total. They belong to the balance harness, which is a game
 > concern (§17).
+
+### 15.1 Smallest valid Sun Trap-shaped source
+
+This fixture is deliberately tiny and its numbers are illustrative, not recommended
+balance. It proves the schema can author the flagship slice without `unknown`: one map,
+thirst/toilet, price opinion, drink/toilet/waste buildings, a drink, a cleaner, litter, one
+objective, and cash/cleanliness/deadline failure paths. The five omitted post-MVP catalogs
+exercise the builder defaults in §14.8.
+
+```typescript
+const minimalMvpSource: WorldGraphCampaignSource = {
+  startScenarioId: "beach-mvp",
+  ticksPerDay: 360,
+  maxTicksPerAction: 360,
+  maps: [{
+    id: "small-beach",
+    text: {
+      name: { key: "world.map.small-beach.name", text: "Small beach" },
+      description: { key: "world.map.small-beach.description", text: "One quiet strip of sand." },
+    },
+    width: 8,
+    height: 5,
+    defaultTerrainId: "sand",
+    terrainOverrides: [],
+    topology: { kind: "orthogonal_grid" },
+    zones: [],
+    spawnPoints: [{ x: 0, y: 2 }],
+    exits: [{ x: 7, y: 2 }],
+    tags: ["mvp"],
+  }],
+  terrain: [{
+    id: "sand",
+    text: {
+      name: { key: "world.terrain.sand.name", text: "Sand" },
+      description: { key: "world.terrain.sand.description", text: "Walkable, buildable beach." },
+    },
+    walkable: true,
+    buildable: true,
+    moveCost: 10,
+    tags: ["beach"],
+  }],
+  needs: [
+    {
+      id: "thirst",
+      text: {
+        name: { key: "world.need.thirst.name", text: "Thirst" },
+        description: { key: "world.need.thirst.description", text: "Need for a drink." },
+      },
+      minimum: 0,
+      maximum: 100,
+      criticalBelow: 20,
+      satisfiedAtOrAbove: 70,
+    },
+    {
+      id: "toilet",
+      text: {
+        name: { key: "world.need.toilet.name", text: "Toilet" },
+        description: { key: "world.need.toilet.description", text: "Need for facilities." },
+      },
+      minimum: 0,
+      maximum: 100,
+      criticalBelow: 20,
+      satisfiedAtOrAbove: 70,
+    },
+  ],
+  opinions: [{
+    id: "price",
+    text: {
+      name: { key: "world.opinion.price.name", text: "Price" },
+      description: { key: "world.opinion.price.description", text: "Perceived value for money." },
+    },
+    minimum: -100,
+    maximum: 100,
+    neutral: 0,
+  }],
+  products: [{
+    id: "soft-drink",
+    text: {
+      name: { key: "world.product.soft-drink.name", text: "Soft drink" },
+      description: { key: "world.product.soft-drink.description", text: "Cold and technically refreshing." },
+    },
+    unitCostCents: 100,
+    price: { minimumCents: 100, maximumCents: 1000, defaultCents: 500 },
+    effects: [{
+      kind: "guest_meter_delta",
+      meter: "need",
+      definitionId: "thirst",
+      delta: 25,
+      guests: { kind: "current_service_guest" },
+    }],
+    litter: { incidentDefinitionId: "litter", unitsPerService: 1 },
+    tags: ["drink"],
+  }],
+  buildings: [
+    {
+      id: "drink-stand",
+      text: {
+        name: { key: "world.building.drink-stand.name", text: "Drink stand" },
+        description: { key: "world.building.drink-stand.description", text: "Sells one dependable drink." },
+      },
+      footprint: { width: 1, height: 1 },
+      entrances: [{ x: -1, y: 0 }],
+      allowedRotations: [0],
+      constructionCostCents: 5000,
+      constructionTicks: 0,
+      operatingCostCentsPerDay: 100,
+      initialWear: 100,
+      initialCleanliness: 100,
+      placementRules: [{ kind: "terrain", terrainIds: ["sand"] }],
+      adjacencyEffects: [],
+      operation: {
+        kind: "service",
+        products: [{ productId: "soft-drink", serviceTicks: 2, initialUnits: null, capacity: null }],
+        queueMaxLength: 8,
+        baseServiceTicks: 2,
+        staffRequirements: [],
+        effects: [],
+      },
+      tags: ["drink"],
+    },
+    {
+      id: "toilet-block",
+      text: {
+        name: { key: "world.building.toilet-block.name", text: "Toilet block" },
+        description: { key: "world.building.toilet-block.description", text: "A triumph of municipal plumbing." },
+      },
+      footprint: { width: 1, height: 1 },
+      entrances: [{ x: -1, y: 0 }],
+      allowedRotations: [0],
+      constructionCostCents: 4000,
+      constructionTicks: 0,
+      operatingCostCentsPerDay: 50,
+      initialWear: 100,
+      initialCleanliness: 100,
+      placementRules: [{ kind: "terrain", terrainIds: ["sand"] }],
+      adjacencyEffects: [],
+      operation: {
+        kind: "service",
+        products: [],
+        queueMaxLength: 8,
+        baseServiceTicks: 2,
+        staffRequirements: [],
+        effects: [{
+          kind: "guest_meter_delta",
+          meter: "need",
+          definitionId: "toilet",
+          delta: 25,
+          guests: { kind: "current_service_guest" },
+        }],
+      },
+      tags: ["toilet"],
+    },
+    {
+      id: "waste-point",
+      text: {
+        name: { key: "world.building.waste-point.name", text: "Waste point" },
+        description: { key: "world.building.waste-point.description", text: "Somewhere for the evidence." },
+      },
+      footprint: { width: 1, height: 1 },
+      entrances: [{ x: -1, y: 0 }],
+      allowedRotations: [0],
+      constructionCostCents: 1000,
+      constructionTicks: 0,
+      operatingCostCentsPerDay: 0,
+      initialWear: 100,
+      initialCleanliness: 100,
+      placementRules: [{ kind: "terrain", terrainIds: ["sand"] }],
+      adjacencyEffects: [],
+      operation: { kind: "waste", capacity: null, acceptedIncidentDefinitionIds: ["litter"] },
+      tags: ["waste"],
+    },
+  ],
+  guestArchetypes: [{
+    id: "day-guest",
+    text: {
+      name: { key: "world.guest.day-guest.name", text: "Day guest" },
+      description: { key: "world.guest.day-guest.description", text: "Arrives optimistic and solvent." },
+    },
+    cashCents: { min: 1000, max: 2000 },
+    stayTicks: { min: 120, max: 240 },
+    patienceTicks: { min: 20, max: 40 },
+    initialSatisfaction: { min: 50, max: 50 },
+    needs: [
+      {
+        needId: "thirst",
+        initial: { min: 40, max: 70 },
+        driftByCurrentValue: {
+          interpolation: "step",
+          points: [{ input: 0, output: -1 }, { input: 100, output: -1 }],
+        },
+      },
+      {
+        needId: "toilet",
+        initial: { min: 40, max: 70 },
+        driftByCurrentValue: {
+          interpolation: "step",
+          points: [{ input: 0, output: -1 }, { input: 100, output: -1 }],
+        },
+      },
+    ],
+    conditions: [],
+    opinions: [{ definitionId: "price", initial: { min: 0, max: 0 } }],
+    preferences: [],
+    priceResistance: {
+      interpolation: "linear",
+      points: [{ input: 0, output: 0 }, { input: 1000, output: -100 }],
+    },
+    travelUtilityPerCost: -1,
+    queueUtilityPerTick: -2,
+    attractivenessUtilityPerPoint: 1,
+    tags: ["mvp"],
+  }],
+  staffRoles: [{
+    id: "cleaner",
+    text: {
+      name: { key: "world.staff.cleaner.name", text: "Cleaner" },
+      description: { key: "world.staff.cleaner.description", text: "Restores order one incident at a time." },
+    },
+    hireCostCents: 1000,
+    wageCentsPerDay: 500,
+    moveTicksPerTile: 1,
+    supportedTaskKinds: ["clean"],
+    workRates: [{ taskType: "clean", effortPerTick: 1 }],
+    tags: ["mvp"],
+  }],
+  incidents: [{
+    id: "litter",
+    text: {
+      name: { key: "world.incident.litter.name", text: "Litter" },
+      description: { key: "world.incident.litter.description", text: "A cup has completed the easy part of its journey." },
+    },
+    kind: "litter",
+    severity: "minor",
+    triggerCondition: null,
+    selectionWeight: 0,
+    cooldownTicks: 0,
+    durationTicks: null,
+    resolutionCondition: null,
+    resolverTaskType: "clean",
+    onStart: [{ kind: "counter_increment", counter: "litterCreated", amount: 1 }],
+    onResolve: [{ kind: "counter_increment", counter: "litterCleaned", amount: 1 }],
+    tags: ["mvp"],
+  }],
+  objectives: [{
+    id: "revenue-and-clean",
+    text: {
+      name: { key: "world.objective.revenue-and-clean.name", text: "Profitable cleanliness" },
+      description: { key: "world.objective.revenue-and-clean.description", text: "Earn revenue without losing the beach." },
+    },
+    completion: {
+      kind: "all",
+      conditions: [
+        { kind: "compare", metric: { kind: "finance", field: "revenueTotalCents" }, op: "gte", value: 100000 },
+        {
+          kind: "compare",
+          metric: {
+            kind: "building_metric",
+            metric: "cleanliness",
+            aggregate: "average",
+            buildingDefinitionId: null,
+            productId: null,
+          },
+          op: "gte",
+          value: 50,
+        },
+      ],
+    },
+    progressMetric: { kind: "finance", field: "revenueTotalCents" },
+    target: 100000,
+    requiredDurationTicks: 1,
+    onCompleted: [],
+    tags: ["mvp"],
+  }],
+  failures: [
+    {
+      id: "bankrupt",
+      text: {
+        name: { key: "world.failure.bankrupt.name", text: "Bankrupt" },
+        description: { key: "world.failure.bankrupt.description", text: "Cash fell below the emergency threshold." },
+      },
+      condition: { kind: "compare", metric: { kind: "finance", field: "cashCents" }, op: "lt", value: 0 },
+      requiredDurationTicks: 1,
+      onTriggered: [],
+      tags: ["mvp"],
+    },
+    {
+      id: "filthy-beach",
+      text: {
+        name: { key: "world.failure.filthy-beach.name", text: "Beach closed" },
+        description: { key: "world.failure.filthy-beach.description", text: "Cleanliness remained at zero." },
+      },
+      condition: {
+        kind: "compare",
+        metric: {
+          kind: "building_metric",
+          metric: "cleanliness",
+          aggregate: "average",
+          buildingDefinitionId: null,
+          productId: null,
+        },
+        op: "lte",
+        value: 0,
+      },
+      requiredDurationTicks: 20,
+      onTriggered: [],
+      tags: ["mvp"],
+    },
+    {
+      id: "deadline-missed",
+      text: {
+        name: { key: "world.failure.deadline-missed.name", text: "Deadline missed" },
+        description: { key: "world.failure.deadline-missed.description", text: "Day 2 ended before the objective was met." },
+      },
+      condition: { kind: "compare", metric: { kind: "tick" }, op: "gte", value: 720 },
+      requiredDurationTicks: 1,
+      onTriggered: [],
+      tags: ["mvp"],
+    },
+  ],
+  scenarios: [{
+    id: "beach-mvp",
+    text: {
+      name: { key: "world.scenario.beach-mvp.name", text: "Opening day" },
+      description: { key: "world.scenario.beach-mvp.description", text: "Build small, serve quickly, clean afterward." },
+    },
+    mapId: "small-beach",
+    startingCashCents: 20000,
+    unlockedContent: [
+      { kind: "product", id: "soft-drink" },
+      { kind: "building", id: "drink-stand" },
+      { kind: "building", id: "toilet-block" },
+      { kind: "building", id: "waste-point" },
+      { kind: "staff_role", id: "cleaner" },
+    ],
+    activePolicyIds: [],
+    buildingPlacements: [],
+    sceneryPlacements: [],
+    guestSpawning: {
+      everyTicks: 10,
+      maxActiveGuests: 20,
+      pool: [{ archetypeId: "day-guest", weight: 1 }],
+    },
+    objectiveIds: ["revenue-and-clean"],
+    failureIds: ["bankrupt", "deadline-missed", "filthy-beach"],
+    timeLimitTicks: 720,
+    timeLimitFailureId: "deadline-missed",
+    buildingLimits: [],
+    staffLimits: [{ definitionId: "cleaner", maximum: 4 }],
+    tags: ["mvp"],
+  }],
+};
+```
+
+### 15.2 Representative invalid source
+
+Apply these replacements together to `minimalMvpSource`; the result remains JSON-shaped but
+must fail before registry freeze. The exact paths make the fixture useful as a validator
+test rather than merely an example of bad prose.
+
+```typescript
+const representativeInvalidReplacements = [
+  { path: "maps[0].id", value: "small.beach" },
+  { path: "scenarios[0].mapId", value: "missing-map" },
+  { path: "buildings[0].entrances[0]", value: { x: 0, y: 0 } },
+  { path: "products[0].price.maximumCents", value: 50 },
+  { path: "guestArchetypes[0].cashCents", value: { min: 2000, max: 1000 } },
+  { path: "buildings[0].text.name.key", value: "world.product.soft-drink.name" },
+] as const;
+```
+
+Expected Tier-1 paths and findings:
+
+| Path | Finding |
+|---|---|
+| `maps[0].id` | authored id contains `.`, which makes §13 paths ambiguous |
+| `scenarios[0].mapId` | unresolved `MapDefinition` reference |
+| `buildings[0].entrances[0]` | entrance is inside the 1×1 footprint, not an approach cell |
+| `products[0].price.maximumCents` | maximum is below minimum/default |
+| `guestArchetypes[0].cashCents` | inclusive integer range is reversed |
+| `buildings[0].text.name.key` | same `AuthoredText.key` as the product name, different text |
 
 ---
 
@@ -5017,31 +6116,25 @@ portable: a fixture recorded from a client running at 4× compares equal to the 
 
 ## 17. What Remains in the Game Repository
 
-This is the seam, not the game. **Sun Trap** — its vision, design, guest and building field
-detail, client specification, MVP, roadmap and balance harness — lives in
+This is the kind contract, not the game. **Sun Trap** — its vision, concrete content,
+client specification, MVP, roadmap and balance harness — lives in
 [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap), exactly as Life
 in the Fast Lane does for `simulation` (10 §15).
 
 | Lives with the game | Why not here |
 |---|---|
-| Guest, staff, building, queue and construction field detail | Content schema, not seam. §3 fixes where it lives; the fields themselves are game material |
-| The tick duration, utility formula weights, price elasticity | Balance, revisited every playtest |
-| Map authoring, scenarios, objectives, incidents | Campaign data |
+| Concrete guest archetypes, roles, buildings, products, maps, scenarios, objectives and incidents | Campaign instances authored against §14; another game supplies different values without changing the kind |
+| `ticksPerDay`, prices, curve points, utility weights and elasticity | Balance, revisited every playtest |
 | The visual client and its renderer choice | 09 already fixes the client contract; the renderer is a game decision |
 | The balance harness (§15) | Searches for dominant strategies — a game tool, not an engine gate |
 
-**"Field detail lives with the game" names *design authority*, not a permanent split of the
-TypeScript itself.** The shapes in this table are still engine code once built — `Guest`,
-`Building`, `WorldMap` and the rest compile inside this kind's own package the same way
-`simulation`'s `ActorState`/content-definition types do (10 §7, §15), not as a second copy
-Sun Trap maintains in parallel. What "lives with the game" is the *content this schema
-carries* — which guest archetype, which drink stand, which map — and the design decisions
-behind field values, exactly as 10 §15 states for `simulation`. `SubZeroDev.SunTrap/docs/
-docs/design/content-and-systems.md` already writes its own state shapes to this contract's
-rules and defers to it on every disagreement — that draft is source material this kind's own
-build ports from and then owns, the same relationship upstream's engine specification had to
-`10-simulation-kind.md` before it was ported (`plans/39-world-graph-kind-programme.md`).
+**The TypeScript shapes live here.** `Guest`, `Building`, `WorldMap`,
+`WorldGraphCampaignSource`, and every definition in §14 compile inside the engine-owned kind
+the same way `simulation`'s state and content types do (10 §7, §15). Sun Trap does not keep a
+second interface copy. Its existing `content-and-systems.md` draft was primary design input;
+where it now disagrees, this contract is authoritative by that draft's own stated rule.
 
-**Nothing above changes this contract's shape.** Each is detail hanging off a seam this
-document fixes — the same relationship, and the same reasoning, as 10 §15.
+What remains with the game is the data carried by the schema and the balance decisions
+behind it. That is the same contract/content split as every other kind, not a special
+ownership exception for spatial games.
 <!-- human-doc:end -->

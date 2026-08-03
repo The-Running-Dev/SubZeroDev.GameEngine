@@ -40,7 +40,29 @@
 
 ## 14. Content, Definitions, and Packs
 
+### 14.1 Source and runtime campaign roots
+
+### 14.2 Shared integer, reference, condition, and effect language
+
+### 14.3 Maps, terrain, scenery, placement, and adjacency
+
+### 14.4 Products, buildings, queues, service, and litter
+
+### 14.5 Guest vocabularies, archetypes, and staff roles
+
+### 14.6 Scenarios, objectives, failures, incidents, policies, and achievements
+
+### 14.7 Source/runtime aliases
+
+### 14.8 Build defaults and canonical order
+
+### 14.9 W42 reconciliation
+
 ## 15. Validation
+
+### 15.1 Smallest valid Sun Trap-shaped source
+
+### 15.2 Representative invalid source
 
 ## 16. Replay
 
