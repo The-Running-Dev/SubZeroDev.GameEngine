@@ -171,13 +171,26 @@ function referenceErrors(content: WorldGraphCampaign): ValidationError[] {
     if (definition.footprint.width <= 0 || definition.footprint.height <= 0) errors.push(error("invalid_footprint", `content.buildings[${index}].footprint`));
     if (definition.entrances.length === 0 || definition.allowedRotations.length === 0) errors.push(error("invalid_building_geometry", `content.buildings[${index}]`));
     if (definition.constructionCostCents < 0) errors.push(error("invalid_cost", `content.buildings[${index}].constructionCostCents`));
+    if (definition.operatingCostCentsPerDay < 0) errors.push(error("invalid_cost", `content.buildings[${index}].operatingCostCentsPerDay`));
     if (definition.operation.kind === "service") {
-      definition.operation.products.forEach((entry, productIndex) => requireId(ids.products, entry.productId, `content.buildings[${index}].operation.products[${productIndex}].productId`));
+      definition.operation.products.forEach((entry, productIndex) => {
+        requireId(ids.products, entry.productId, `content.buildings[${index}].operation.products[${productIndex}].productId`);
+        if (entry.initialUnits !== null && entry.initialUnits < 0) errors.push(error("invalid_inventory", `content.buildings[${index}].operation.products[${productIndex}].initialUnits`));
+        if (entry.capacity !== null && entry.capacity < 0) errors.push(error("invalid_inventory", `content.buildings[${index}].operation.products[${productIndex}].capacity`));
+        if (entry.initialUnits !== null && entry.capacity !== null && entry.initialUnits > entry.capacity) errors.push(error("invalid_inventory", `content.buildings[${index}].operation.products[${productIndex}].initialUnits`));
+      });
       definition.operation.staffRequirements.forEach((entry, roleIndex) => requireId(ids.staffRoles, entry.roleId, `content.buildings[${index}].operation.staffRequirements[${roleIndex}].roleId`));
     }
   });
+  content.products.forEach((definition, index) => {
+    if (definition.unitCostCents < 0) errors.push(error("invalid_cost", `content.products[${index}].unitCostCents`));
+  });
   content.staffRoles.forEach((definition, index) => {
     if (definition.hireCostCents < 0) errors.push(error("invalid_cost", `content.staffRoles[${index}].hireCostCents`));
+    if (definition.wageCentsPerDay < 0) errors.push(error("invalid_cost", `content.staffRoles[${index}].wageCentsPerDay`));
+    definition.workRates.forEach((rate, rateIndex) => {
+      if (rate.effortPerTick <= 0) errors.push(error("invalid_work_rate", `content.staffRoles[${index}].workRates[${rateIndex}].effortPerTick`));
+    });
   });
   content.guestArchetypes.forEach((entry, index) => {
     entry.needs.forEach((profile, profileIndex) => requireId(ids.needs, profile.needId, `content.guestArchetypes[${index}].needs[${profileIndex}].needId`));

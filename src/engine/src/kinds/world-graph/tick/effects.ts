@@ -18,6 +18,8 @@ interface EffectContext {
   readonly system: WorldGraphSystemId;
   readonly reason: string;
   readonly currentIncidentId?: string;
+  readonly currentServiceGuestId?: string;
+  readonly currentServiceBuildingId?: string;
 }
 
 export interface AppliedEffects {
@@ -35,7 +37,7 @@ const clamp = (value: number, minimum: number, maximum: number): number => (
   value < minimum ? minimum : value > maximum ? maximum : value
 );
 
-function guestTargets(state: WorldGraphKindState, selector: GuestSelector, currentIncidentId?: string): readonly Guest[] {
+function guestTargets(state: WorldGraphKindState, selector: GuestSelector, currentIncidentId?: string, currentServiceGuestId?: string): readonly Guest[] {
   const active = state.guests.filter((guest) => guest.lifecycle !== "departed" && guest.lifecycle !== "removed");
   if (selector.kind === "all") return active;
   if (selector.kind === "archetype") return active.filter((guest) => guest.archetypeId === selector.archetypeId);
@@ -49,11 +51,12 @@ function guestTargets(state: WorldGraphKindState, selector: GuestSelector, curre
     const guestId = state.incidents.find((incident) => incident.id === currentIncidentId)?.guestId;
     return guestId === null || guestId === undefined ? [] : active.filter((guest) => guest.id === guestId);
   }
+  if (selector.kind === "current_service_guest" && currentServiceGuestId !== undefined) return active.filter((guest) => guest.id === currentServiceGuestId);
   // Scenario/policy effects have no incident context; this interpreter has no service context.
   return [];
 }
 
-function buildingTargets(state: WorldGraphKindState, selector: BuildingSelector, currentIncidentId?: string): readonly Building[] {
+function buildingTargets(state: WorldGraphKindState, selector: BuildingSelector, currentIncidentId?: string, currentServiceBuildingId?: string): readonly Building[] {
   if (selector.kind === "all") return state.buildings;
   if (selector.kind === "definition") {
     return state.buildings.filter((building) => building.definitionId === selector.buildingDefinitionId);
@@ -62,6 +65,7 @@ function buildingTargets(state: WorldGraphKindState, selector: BuildingSelector,
     const buildingId = state.incidents.find((incident) => incident.id === currentIncidentId)?.buildingId;
     return buildingId === null || buildingId === undefined ? [] : state.buildings.filter((building) => building.id === buildingId);
   }
+  if (selector.kind === "current_service_building" && currentServiceBuildingId !== undefined) return state.buildings.filter((building) => building.id === currentServiceBuildingId);
   // Scenario/policy effects have no incident context; this interpreter has no service context.
   return [];
 }
@@ -128,7 +132,7 @@ export function applyWorldEffects(
       return;
     }
     if (effect.kind === "guest_meter_delta") {
-      for (const guest of guestTargets(source, effect.guests, context.currentIncidentId)) {
+      for (const guest of guestTargets(source, effect.guests, context.currentIncidentId, context.currentServiceGuestId)) {
         const key = `${guest.id}\u0000${effect.meter}\u0000${effect.definitionId}`;
         const group = guestMeters.get(key) ?? {
           guestId: guest.id, meter: effect.meter, definitionId: effect.definitionId, delta: 0, effects: [],
@@ -140,7 +144,7 @@ export function applyWorldEffects(
       return;
     }
     if (effect.kind === "building_meter_delta") {
-      for (const building of buildingTargets(source, effect.buildings, context.currentIncidentId)) {
+      for (const building of buildingTargets(source, effect.buildings, context.currentIncidentId, context.currentServiceBuildingId)) {
         const key = `${building.id}\u0000${effect.meter}`;
         const group = buildingMeters.get(key) ?? {
           buildingId: building.id, meter: effect.meter, delta: 0, effects: [],

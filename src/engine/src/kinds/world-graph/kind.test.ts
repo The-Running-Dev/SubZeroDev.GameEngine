@@ -122,19 +122,35 @@ describe("world-graph W45 source and validation", () => {
     expect(worldGraphKind.validateCampaign(built.campaign, built.strings)).toMatchObject({ ok: true, errors: [] });
   });
 
-  it("rejects negative building and hiring costs before a reducer can spend them", () => {
+  it("rejects negative atomic, recurring, inventory, and work-rate inputs", () => {
     const built = envelope();
+    const base = runtime().content;
     const invalid = {
       ...built.campaign,
       content: {
-        ...runtime().content,
-        buildings: runtime().content.buildings.map((entry) => ({ ...entry, constructionCostCents: -1 })),
-        staffRoles: runtime().content.staffRoles.map((entry) => ({ ...entry, hireCostCents: -1 })),
+        ...base,
+        products: base.products.map((entry) => ({ ...entry, unitCostCents: -1 })),
+        buildings: base.buildings.map((entry) => ({
+          ...entry, constructionCostCents: -1, operatingCostCentsPerDay: -1,
+          operation: entry.operation.kind === "service" ? {
+            ...entry.operation,
+            products: entry.operation.products.map((product) => ({ ...product, initialUnits: -1 })),
+          } : entry.operation,
+        })),
+        staffRoles: base.staffRoles.map((entry) => ({
+          ...entry, hireCostCents: -1, wageCentsPerDay: -1,
+          workRates: entry.workRates.map((rate) => ({ ...rate, effortPerTick: -1 })),
+        })),
       },
     };
     expect(worldGraphKind.validateCampaign(invalid, built.strings).errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "invalid_cost", path: "content.products[0].unitCostCents" }),
       expect.objectContaining({ code: "invalid_cost", path: "content.buildings[0].constructionCostCents" }),
+      expect.objectContaining({ code: "invalid_cost", path: "content.buildings[0].operatingCostCentsPerDay" }),
+      expect.objectContaining({ code: "invalid_inventory", path: "content.buildings[0].operation.products[0].initialUnits" }),
       expect.objectContaining({ code: "invalid_cost", path: "content.staffRoles[0].hireCostCents" }),
+      expect.objectContaining({ code: "invalid_cost", path: "content.staffRoles[0].wageCentsPerDay" }),
+      expect.objectContaining({ code: "invalid_work_rate", path: "content.staffRoles[0].workRates[0].effortPerTick" }),
     ]));
   });
 
@@ -184,9 +200,134 @@ describe("world-graph W45 engine seam", () => {
     const result = runtimeEngine.submitAction(game, "advance_ticks", { ticks: 2 });
     expect(result.ok).toBe(true);
     expect(stateOf(result.value!)).toMatchObject({ tick: 2 });
-    expect(result.changes).toEqual([expect.objectContaining({ path: "tick", previous: 0, value: 2, reason: "ticks_advanced" })]);
+    expect(result.changes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ path: "guests.guest:0.exists", reason: "guest_spawned" }),
+      expect.objectContaining({ path: "tick", previous: 0, value: 2, reason: "ticks_advanced" }),
+    ]));
     expect(runtimeEngine.submitAction(game, "advance_ticks", { ticks: 0 }).errors[0]?.code).toBe("ticks_not_positive");
     expect(runtimeEngine.submitAction(game, "advance_ticks", { ticks: 11 }).errors[0]?.code).toBe("tick_limit_reached");
+  });
+
+  it("delivers the MVP causal chain through createGame and submitAction", () => {
+    const base = runtime().content;
+    const content: WorldGraphCampaign = {
+      ...base,
+      products: base.products.map((product) => ({ ...product, price: { ...product.price, defaultCents: 100 }, litter: { incidentDefinitionId: "litter", unitsPerService: 1 } })),
+      objectives: base.objectives.map((objective) => ({ ...objective, completion: { kind: "compare" as const, metric: { kind: "counter" as const, counter: "litterCleaned" as const }, op: "gte" as const, value: 1 }, progressMetric: { kind: "counter" as const, counter: "litterCleaned" as const }, target: 1 })),
+      scenarios: base.scenarios.map((scenario) => ({ ...scenario, buildingPlacements: [{ definitionId: "kiosk", x: 1, y: 1, rotation: 0 as const, open: true }], guestSpawning: { everyTicks: 1, maxActiveGuests: 1, pool: [{ archetypeId: "guest", weight: 1 }] } })),
+    };
+    const recording = createRecordingEmitter();
+    const runtimeEngine = engine(content).withEmitter(recording);
+    const created = runtimeEngine.createGame({ campaignId: "world-test" });
+    expect(created.ok).toBe(true);
+    const hired = runtimeEngine.submitAction(created.value!, "hire_staff", { definitionId: "cleaner" });
+    expect(hired.ok).toBe(true);
+    const advanced = runtimeEngine.submitAction(hired.value!, "advance_ticks", { ticks: 10 });
+    expect(advanced.ok).toBe(true);
+    const state = stateOf(advanced.value!);
+    expect(state.counters).toMatchObject({ servicesCompleted: 1, litterCreated: 1, litterCleaned: 1 });
+    expect(state.resolution).toMatchObject({ resolution: "objectives_met", objectiveIds: ["earn"], failureId: null });
+    expect(advanced.changes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ path: expect.stringMatching(/^incidents\..+\.resolvedAtTick$/), reason: "incident_resolved" }),
+    ]));
+    expect(recording.events.some((entry) => entry.name === "kind.world-graph.incident.resolved")).toBe(true);
+  });
+
+  it("releases a served guest so the active cap can admit the next journey", () => {
+    const base = runtime().content;
+    const content: WorldGraphCampaign = {
+      ...base,
+      products: base.products.map((product) => ({ ...product, price: { ...product.price, defaultCents: 100 } })),
+      objectives: base.objectives.map((objective) => ({
+        ...objective,
+        completion: { kind: "compare", metric: { kind: "counter", counter: "guestsEntered" }, op: "gte", value: 2 },
+        progressMetric: { kind: "counter", counter: "guestsEntered" },
+        target: 2,
+      })),
+      scenarios: base.scenarios.map((scenario) => ({
+        ...scenario,
+        buildingPlacements: [{ definitionId: "kiosk", x: 1, y: 1, rotation: 0, open: true }],
+        guestSpawning: { everyTicks: 1, maxActiveGuests: 1, pool: [{ archetypeId: "guest", weight: 1 }] },
+      })),
+    };
+    const runtimeEngine = engine(content);
+    const created = runtimeEngine.createGame({ campaignId: "world-test" });
+    expect(created.ok).toBe(true);
+    const advanced = runtimeEngine.submitAction(created.value!, "advance_ticks", { ticks: 10 });
+    expect(advanced.ok).toBe(true);
+    const state = stateOf(advanced.value!);
+    expect(state.counters).toMatchObject({ guestsEntered: 2, guestsDeparted: 1, servicesCompleted: 1 });
+    expect(state.resolution).toMatchObject({ resolution: "objectives_met", objectiveIds: ["earn"] });
+  });
+
+  it("reaches the declared financial loss through submitAction", () => {
+    const base = runtime().content;
+    const content: WorldGraphCampaign = {
+      ...base,
+      scenarios: base.scenarios.map((scenario) => ({
+        ...scenario, startingCashCents: 0,
+        scheduledChanges: [{ dueTick: 0, priority: 0, condition: { kind: "constant", value: true }, effects: [{ kind: "finance_delta", field: "cashCents", cents: -1 }] }],
+      })),
+    };
+    const runtimeEngine = engine(content);
+    const created = runtimeEngine.createGame({ campaignId: "world-test" });
+    expect(created.ok).toBe(true);
+    const advanced = runtimeEngine.submitAction(created.value!, "advance_ticks", { ticks: 1 });
+    expect(advanced.ok).toBe(true);
+    expect(stateOf(advanced.value!).resolution).toMatchObject({ resolution: "failed", failureId: "bankrupt" });
+  });
+
+  it("keeps objective completion effects out of the same-tick failure snapshot", () => {
+    const base = runtime().content;
+    const content: WorldGraphCampaign = {
+      ...base,
+      objectives: base.objectives.map((objective) => ({
+        ...objective,
+        completion: { kind: "constant", value: true }, progressMetric: null,
+        target: 1, requiredDurationTicks: 2,
+        onCompleted: [{ kind: "finance_delta", field: "cashCents", cents: -1 }],
+      })),
+      scenarios: base.scenarios.map((scenario) => ({
+        ...scenario, startingCashCents: 0, resolutionPrecedence: "failure_wins",
+      })),
+    };
+    const runtimeEngine = engine(content);
+    const created = runtimeEngine.createGame({ campaignId: "world-test" });
+    expect(created.ok).toBe(true);
+    const advanced = runtimeEngine.submitAction(created.value!, "advance_ticks", { ticks: 2 });
+    expect(advanced.ok).toBe(true);
+    expect(stateOf(advanced.value!)).toMatchObject({
+      finances: { cashCents: -1 },
+      failures: [{ id: "bankrupt", state: "active" }],
+      resolution: { resolution: "objectives_met", failureId: null },
+    });
+  });
+
+  it("triggers the declared failure at the exact scenario time limit", () => {
+    const base = runtime().content;
+    const content: WorldGraphCampaign = {
+      ...base,
+      objectives: base.objectives.map((objective) => ({
+        ...objective, completion: { kind: "constant", value: false }, progressMetric: null,
+      })),
+      failures: base.failures.map((failure) => ({
+        ...failure, condition: { kind: "constant", value: false },
+      })),
+      scenarios: base.scenarios.map((scenario) => ({
+        ...scenario, timeLimitTicks: 1, timeLimitFailureId: "bankrupt",
+      })),
+    };
+    const runtimeEngine = engine(content);
+    const created = runtimeEngine.createGame({ campaignId: "world-test" });
+    expect(created.ok).toBe(true);
+    const advanced = runtimeEngine.submitAction(created.value!, "advance_ticks", { ticks: 1 });
+    expect(advanced.ok).toBe(true);
+    expect(stateOf(advanced.value!)).toMatchObject({
+      tick: 1,
+      objectives: [{ id: "earn", state: "failed" }],
+      failures: [{ id: "bankrupt", state: "triggered" }],
+      resolution: { resolution: "failed", failureId: "bankrupt" },
+    });
   });
 
   it("builds immediately with exact ids, charge, revision, event and product state", () => {
