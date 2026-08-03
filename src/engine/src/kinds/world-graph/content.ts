@@ -81,7 +81,7 @@ export type IncidentTarget =
 
 export type WorldEffect =
   | { readonly kind: "finance_delta"; readonly field: "cashCents"; readonly cents: number }
-  | { readonly kind: "counter_delta"; readonly counter: WorldCounterKey; readonly delta: number }
+  | { readonly kind: "counter_increment"; readonly counter: WorldCounterKey; readonly amount: number }
   | { readonly kind: "unlock" | "lock"; readonly content: ContentReference }
   | { readonly kind: "objective_progress"; readonly objectiveId: string; readonly delta: number }
   | { readonly kind: "guest_meter_delta"; readonly meter: GuestMeterKind; readonly definitionId: string; readonly delta: number; readonly guests: GuestSelector }

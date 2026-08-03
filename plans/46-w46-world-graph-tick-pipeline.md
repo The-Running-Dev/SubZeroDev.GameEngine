@@ -17,10 +17,10 @@ initial-state, immediate-action, and public-export code.
 W46. This reaches T2: a tick batch resolves honestly. W47 owns the playable
 spawn-to-resolution vertical slice.
 
-**Status:** W46 planning record and reconciled W45 implementation in
-[PR #125](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/125). The PR includes
-the W45 engine source plus associated roadmap/status reconciliation; it does not implement W46
-or mark W46 delivered. The canonical runtime contract is `design/20-contract.md`'s marked
+**Status:** Implemented and ready to merge in
+[PR #128](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/128); W46 becomes a
+delivered roadmap unit when that PR reaches `main`. The planning record was reconciled with W45
+in [PR #125](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/125). The canonical runtime contract is `design/20-contract.md`'s marked
 `engine/12-world-graph-kind.md` block; this file records implementation sequencing and does
 not supersede it.
 

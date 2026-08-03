@@ -363,11 +363,12 @@ as `@the-running-dev/game-engine`; a clean consumer test installs the packed art
 than trusting this checkout. The world-graph runtime-state, content, resolution, and immediate-action
 foundation are also merged.
 
-### Current — deterministic world-graph ticks (W46, in review)
+### Current — deterministic world-graph ticks (W46, implemented)
 
-The third kind's deterministic tick pipeline is now under review in
-[PR #128](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/128). The playable
-guest-to-resolution loop remains the next slice. Full sequencing and done-criteria for every unit:
+The third kind's deterministic tick pipeline is implemented and ready to merge in
+[PR #128](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/128). It becomes a
+delivered roadmap unit when that PR reaches `main`; the playable guest-to-resolution loop
+remains the next slice. Full sequencing and done-criteria for every unit:
 [TODO.md](https://game-engine.subzerodev.com/docs/engine/todo).
 
 ---

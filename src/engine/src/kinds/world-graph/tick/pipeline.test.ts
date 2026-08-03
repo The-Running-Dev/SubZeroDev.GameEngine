@@ -1,0 +1,270 @@
+import { describe, expect, it, vi } from "vitest";
+import type { RngHandle, StreamId } from "../../../core/determinism/types.js";
+import type { ResolutionEmitter } from "../../../core/observability/types.js";
+import type { WorldEffect, WorldGraphCampaign } from "../content.js";
+import type { WorldGraphKindState } from "../state.js";
+import { BatchChanges } from "./changes.js";
+import { WORLD_GRAPH_SYSTEM_IDS } from "./order.js";
+import {
+  alerts,
+  buildings,
+  cleanlinessWear,
+  construction,
+  failure,
+  finance,
+  guestIntent,
+  guestMove,
+  guestNeeds,
+  guestPath,
+  guestService,
+  guestSpawn,
+  incidents,
+  objectives,
+  queues,
+  runWorldGraphTick,
+  scenario,
+  staffWork,
+  taskAssign,
+  taskGenerate,
+  tickFinalize,
+  WORLD_GRAPH_SYSTEMS,
+  type WorldGraphSystem,
+  type WorldGraphTickFrame,
+} from "./pipeline.js";
+import { createTickRandom } from "./random.js";
+import { createTickScratch } from "./scratch.js";
+
+function rngHandle(): RngHandle {
+  let next = 0;
+  return {
+    nextInt: (minimum, maximum) => minimum + ((next += 1) % (maximum - minimum + 1)),
+    nextPercent: () => (next += 1) % 100,
+    pick: <T>(items: readonly T[]) => items[(next += 1) % items.length]!,
+    weightedPick: <T>(items: readonly { readonly item: T; readonly weight: number }[]) => items[(next += 1) % items.length]!.item,
+  };
+}
+
+function resolutionEmitter(): { readonly emit: ResolutionEmitter; readonly events: { readonly name: string }[] } {
+  const events: { readonly name: string }[] = [];
+  return {
+    events,
+    emit: { emit: (name) => { events.push({ name }); } },
+  };
+}
+
+function state(): WorldGraphKindState {
+  return {
+    tick: 0,
+    map: {
+      width: 2, height: 1, revision: 0,
+      terrain: [{ x: 0, y: 0, terrainId: "sand" }, { x: 1, y: 0, terrainId: "sand" }],
+      paths: [], zones: [{ id: "beach", nameKey: "zone.beach", cells: [{ x: 0, y: 0 }], serviceRadius: 1, maxOccupancy: null }],
+      spawnPoints: [{ x: 0, y: 0 }], exits: [{ x: 1, y: 0 }], scenery: [],
+    },
+    finances: {
+      cashCents: 100, revenueTodayCents: 7, expensesTodayCents: 8,
+      revenueTotalCents: 70, expensesTotalCents: 80, loan: null,
+    },
+    buildings: [{
+      id: "building:0", definitionId: "kiosk", x: 0, y: 0, width: 1, height: 1, rotation: 0,
+      status: "open", buildStartTick: 0, wear: 75, cleanliness: 50,
+      queue: { id: "queue:1", guestIds: ["guest:2"], serviceStartedAtTick: null },
+      pricesCents: {}, inventory: {},
+    }],
+    constructionSites: [],
+    guests: [{
+      id: "guest:2", archetypeId: "visitor", lifecycle: "queued", tickEntered: 0,
+      stayDurationTicks: 10, x: 0, y: 0, path: [], pathIndex: 0, drawCount: 4, cashCents: 20,
+      intent: { kind: "seek_service", buildingId: "building:0", productId: null, selectedAtTick: 0 },
+      needs: { thirst: 50 }, conditions: {}, opinions: {}, preferences: {}, satisfaction: 50,
+      patienceCapacityTicks: 5, patienceRemainingTicks: 5, lastServedTick: null, spentTicks: 0,
+    }],
+    staff: [],
+    incidents: [{
+      id: "incident:3", definitionId: "litter", buildingId: null, guestId: null, zoneId: null,
+      position: null, amount: 1, startedAtTick: 0, expiresAtTick: null, resolvedAtTick: null,
+    }],
+    objectives: [{ id: "earn", state: "active", value: 1, target: 10, satisfiedSinceTick: null, updatedAtTick: 0 }],
+    failures: [], alerts: [], resolution: null,
+    counters: {
+      guestsEntered: 0, guestsDeparted: 0, guestsDissatisfied: 0, servicesCompleted: 0,
+      buildingsCompleted: 0, incidentsRaised: 0, litterCreated: 0, litterCleaned: 0,
+    },
+    unlockedContent: [{ kind: "building", id: "kiosk" }],
+    activePolicyIds: [], unlockedAchievementIds: [], nextEntityOrdinal: 4,
+  };
+}
+
+function content(effects: readonly WorldEffect[] = []): WorldGraphCampaign {
+  return {
+    startScenarioId: "opening", ticksPerDay: 10, maxTicksPerAction: 10,
+    maps: [], terrain: [], scenery: [],
+    needs: [{ id: "thirst", minimum: 0, maximum: 100 }],
+    guestConditions: [], opinions: [], preferences: [], products: [],
+    buildings: [], guestArchetypes: [], staffRoles: [],
+    incidents: [{ id: "litter", cooldownTicks: 0, durationTicks: { min: 2, max: 2 } }],
+    objectives: [], failures: [], policies: [], achievements: [],
+    scenarios: [{
+      id: "opening", scheduledChanges: [{
+        dueTick: 0, priority: 1, condition: { kind: "constant", value: true }, effects,
+      }],
+      activePolicyIds: [],
+    }],
+  } as unknown as WorldGraphCampaign;
+}
+
+describe("world-graph W46 system order and boundaries", () => {
+  it("owns every canonical id once in exact contract order", () => {
+    expect(WORLD_GRAPH_SYSTEMS.map(({ id }) => id)).toEqual([
+      "scenario", "guest-spawn", "guest-needs", "guest-service", "queues",
+      "guest-intent", "guest-path", "guest-move", "task-generate", "task-assign",
+      "staff-work", "construction", "buildings", "cleanliness-wear", "finance",
+      "incidents", "objectives", "failure", "alerts", "tick-finalize",
+    ]);
+    expect(new Set(WORLD_GRAPH_SYSTEMS.map(({ id }) => id)).size).toBe(20);
+  });
+
+  it("runs the injected tuple in order with one immutable processing tick", () => {
+    const calls: string[] = [];
+    const systems = WORLD_GRAPH_SYSTEM_IDS.map((id) => ({
+      id,
+      run: ((frame: WorldGraphTickFrame) => {
+        calls.push(`${id}:${frame.processingTick}`);
+        return id === "tick-finalize" ? { ...frame, state: { ...frame.state, tick: frame.processingTick + 1 } } : frame;
+      }) satisfies WorldGraphSystem,
+    }));
+    const changes = new BatchChanges();
+    const recording = resolutionEmitter();
+    const result = runWorldGraphTick(state(), content(), { derive: () => rngHandle(), emit: recording.emit }, changes, systems);
+    expect(result.tick).toBe(1);
+    expect(calls).toEqual(WORLD_GRAPH_SYSTEM_IDS.map((id) => `${id}:0`));
+  });
+
+  it("keeps every W47-owned system an identity, event-free, draw-free stub", () => {
+    const derive = vi.fn(() => rngHandle());
+    const recording = resolutionEmitter();
+    const changes = { record: vi.fn() };
+    const scratch = createTickScratch();
+    const frame: WorldGraphTickFrame = {
+      processingTick: 0, content: content(), emit: recording.emit,
+      random: createTickRandom(0, derive, scratch), scratch, changes, state: state(),
+    };
+    const stubs = [
+      guestSpawn, guestNeeds, guestService, queues, guestIntent, guestPath, guestMove,
+      taskGenerate, taskAssign, staffWork, construction, buildings, cleanlinessWear,
+      finance, incidents, objectives, failure, alerts,
+    ];
+    stubs.forEach((stub) => expect(stub(frame)).toBe(frame));
+    expect(derive).not.toHaveBeenCalled();
+    expect(changes.record).not.toHaveBeenCalled();
+    expect(recording.events).toEqual([]);
+  });
+
+  it("passes no raw KindContext through a system frame", () => {
+    const frameKeys: string[][] = [];
+    const inspect: WorldGraphSystem = (frame) => {
+      frameKeys.push(Object.keys(frame).sort());
+      return frame;
+    };
+    runWorldGraphTick(state(), content(), { derive: () => rngHandle(), emit: resolutionEmitter().emit }, new BatchChanges(), [
+      { id: "scenario", run: inspect }, { id: "tick-finalize", run: tickFinalize },
+    ]);
+    expect(frameKeys[0]).toEqual(["changes", "content", "emit", "processingTick", "random", "scratch", "state"]);
+  });
+});
+
+describe("world-graph W46 derived randomness", () => {
+  it("memoizes one continuing tick handle and derives agent draws from stored counters", () => {
+    const streams: StreamId[] = [];
+    const handles: RngHandle[] = [];
+    const derive = (stream: StreamId): RngHandle => {
+      streams.push(stream);
+      const handle = rngHandle();
+      handles.push(handle);
+      return handle;
+    };
+    const random = createTickRandom(7, derive, createTickScratch());
+    expect(random.tickRng("scenario")).toBe(random.tickRng("scenario"));
+    expect(streams).toEqual([{ kind: "tick", tick: 7, system: "scenario" }]);
+    const draw = random.drawAgent({ id: "guest:2", drawCount: 4 }, (rng) => rng.nextInt(1, 9));
+    expect(draw).toMatchObject({ drawCount: 5 });
+    expect(streams[1]).toEqual({ kind: "agent", agentId: "guest:2", seq: 4 });
+    expect(handles).toHaveLength(2);
+  });
+
+  it("does not report an increment when an agent draw throws", () => {
+    const random = createTickRandom(0, () => rngHandle(), createTickScratch());
+    expect(() => random.drawAgent({ id: "guest:2", drawCount: 4 }, () => { throw new Error("draw failed"); })).toThrow("draw failed");
+  });
+});
+
+describe("world-graph W46 scenario effects", () => {
+  it("applies every effect family, groups/clamps meters once, and keeps grants out of revenue", () => {
+    const effects: WorldEffect[] = [
+      { kind: "finance_delta", field: "cashCents", cents: 25 },
+      { kind: "counter_increment", counter: "incidentsRaised", amount: 2 },
+      { kind: "unlock", content: { kind: "product", id: "water" } },
+      { kind: "lock", content: { kind: "building", id: "kiosk" } },
+      { kind: "objective_progress", objectiveId: "earn", delta: 3 },
+      { kind: "guest_meter_delta", meter: "need", definitionId: "thirst", delta: 60, guests: { kind: "all" } },
+      { kind: "guest_meter_delta", meter: "need", definitionId: "thirst", delta: -20, guests: { kind: "all" } },
+      { kind: "building_meter_delta", meter: "cleanliness", delta: -70, buildings: { kind: "all" } },
+      { kind: "start_incident", incidentDefinitionId: "litter", target: { kind: "none" }, amount: 2 },
+      { kind: "resolve_incident", incidentDefinitionId: "litter", incidents: "all_active" },
+      { kind: "set_policy_active", policyId: "discount", active: true },
+    ];
+    const initial = state();
+    const recording = resolutionEmitter();
+    const changes = new BatchChanges();
+    const result = runWorldGraphTick(initial, content(effects), { derive: () => rngHandle(), emit: recording.emit }, changes, [
+      { id: "scenario", run: scenario }, { id: "tick-finalize", run: tickFinalize },
+    ]);
+    expect(result.finances).toMatchObject({ cashCents: 125, revenueTotalCents: 70, expensesTotalCents: 80 });
+    expect(result.counters.incidentsRaised).toBe(2);
+    expect(result.unlockedContent).toContainEqual({ kind: "product", id: "water" });
+    expect(result.objectives[0]).toMatchObject({ value: 4, updatedAtTick: 0 });
+    expect(result.guests[0]?.needs.thirst).toBe(90);
+    expect(result.buildings[0]?.cleanliness).toBe(0);
+    expect(result.incidents).toHaveLength(2);
+    expect(result.incidents.every((incident) => incident.resolvedAtTick === 0)).toBe(true);
+    expect(result.activePolicyIds).toEqual(["discount"]);
+    expect(recording.events.filter((event) => event.name === "kind.world-graph.scenario.effect.applied")).toHaveLength(effects.length);
+  });
+
+  it("does not emit applied for a context selector that has no scenario context", () => {
+    const effects: WorldEffect[] = [{
+      kind: "guest_meter_delta", meter: "need", definitionId: "thirst", delta: 1,
+      guests: { kind: "current_service_guest" },
+    }];
+    const recording = resolutionEmitter();
+    runWorldGraphTick(state(), content(effects), { derive: () => rngHandle(), emit: recording.emit }, new BatchChanges(), [
+      { id: "scenario", run: scenario }, { id: "tick-finalize", run: tickFinalize },
+    ]);
+    expect(recording.events.some((event) => event.name === "kind.world-graph.scenario.effect.applied")).toBe(false);
+  });
+});
+
+describe("world-graph W46 batch changes", () => {
+  it("coalesces scalars first-before/final-after, omits net zero, and sorts by causal system", () => {
+    const changes = new BatchChanges();
+    changes.record("tick-finalize", "a", 2, "tick", true, 1);
+    changes.record("scenario", "z", 2, "effect", false, 1);
+    changes.record("scenario", "z", 3, "effect", true, 2);
+    changes.record("scenario", "net", 2, "effect", false, 1);
+    changes.record("scenario", "net", 1, "effect", false, 2);
+    expect(changes.finish()).toEqual([
+      { path: "z", op: "set", previous: 1, value: 3, reason: "effect", visible: true },
+      { path: "a", op: "set", previous: 1, value: 2, reason: "tick", visible: true },
+    ]);
+  });
+
+  it("keeps membership create/remove transitions as separate causal rows", () => {
+    const changes = new BatchChanges();
+    changes.record("scenario", "incidents.incident:4.exists", true, "effect", false, false);
+    changes.record("scenario", "incidents.incident:4.exists", false, "effect", false, true);
+    expect(changes.finish()).toEqual([
+      { path: "incidents.incident:4.exists", op: "set", previous: false, value: true, reason: "effect", visible: false },
+      { path: "incidents.incident:4.exists", op: "set", previous: true, value: false, reason: "effect", visible: false },
+    ]);
+  });
+});

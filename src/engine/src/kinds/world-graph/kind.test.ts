@@ -137,6 +137,34 @@ describe("world-graph W45 source and validation", () => {
       expect.objectContaining({ code: "invalid_cost", path: "content.staffRoles[0].hireCostCents" }),
     ]));
   });
+
+  it("rejects negative and legacy counter effects before a tick can run", () => {
+    const built = envelope();
+    const base = runtime().content;
+    const invalidEffects = [
+      { kind: "counter_increment", counter: "guestsEntered", amount: -1 },
+      { kind: "counter_delta", counter: "guestsEntered", delta: 1 },
+    ] as unknown as WorldGraphCampaign["scenarios"][number]["scheduledChanges"][number]["effects"];
+    const invalid = {
+      ...built.campaign,
+      content: {
+        ...base,
+        scenarios: base.scenarios.map((entry) => ({
+          ...entry,
+          scheduledChanges: [{
+            dueTick: 0,
+            priority: 0,
+            condition: { kind: "constant" as const, value: true },
+            effects: invalidEffects,
+          }],
+        })),
+      },
+    };
+    expect(worldGraphKind.validateCampaign(invalid, built.strings).errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "invalid_counter_increment", path: "content.scenarios[0].scheduledChanges[0].effects[0].amount" }),
+      expect.objectContaining({ code: "invalid_effect", path: "content.scenarios[0].scheduledChanges[0].effects[1].kind" }),
+    ]));
+  });
 });
 
 describe("world-graph W45 engine seam", () => {
