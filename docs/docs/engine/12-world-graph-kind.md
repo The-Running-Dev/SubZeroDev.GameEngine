@@ -6,8 +6,9 @@ sidebar_label: World-Graph Kind
 
 # World-Graph Kind — Contract
 
-**Document status:** Revision 3 — **authoritative runtime-state and campaign-content
-contract.** Concrete content and balance live with the game; §17 says exactly what and why.
+**Document status:** Revision 4 — **authoritative runtime-state, campaign-content, and
+resolution contract.** Concrete content and balance live with the game; §17 says exactly
+what and why.
 
 **Kind:** `world-graph`
 
@@ -111,6 +112,7 @@ interface WorldGraphKindState {
   objectives: readonly ObjectiveProgress[];
   failures: readonly FailureProgress[];
   alerts: readonly Alert[];
+  resolution: WorldResolution | null;              // immutable once system 18 sets it
 
   counters: WorldCounters;
   unlockedContent: readonly ContentReference[];
@@ -154,19 +156,20 @@ interface WorldGraphKindState {
 `Kind.initialState(campaign, ctx)` (04 §3) resolves `WorldGraphCampaign.startScenarioId`,
 resolves that scenario's `mapId`, materializes the selected `MapDefinition` as `WorldMap`,
 then applies starting cash, unlocks, active policies, pre-placed buildings/scenery, zeroed
-counters, objective/failure progress, empty achievement unlocks, `map.revision: 0`, and
-`tick: 0`. The conversion is deterministic:
+counters, objective/failure progress, empty achievement unlocks, `map.revision: 0`,
+`resolution: null`, and `tick: 0`. Queues start empty with no service clock, and no guest or
+staff exists before later actions/systems create one. The conversion is deterministic:
 terrain cells are emitted in row-major `(y, x)` order; derived grid edges use W44's fixed
 neighbour order; scenario placements are allocated in their authored order.
 
 Two rules the seam already implies, stated because a spatial kind is the first place they
 bite:
 
-- **Pre-placed buildings and scenery take ids from `nextEntityOrdinal` like any other**
-  (§9), assigned in authored order: all `buildingPlacements`, then all
-  `sceneryPlacements`. A scenario with three buildings and two scenery placements starts
-  with `nextEntityOrdinal: 5`; ids are a pure function of the campaign, never load order or
-  a host id source.
+- **Pre-placed buildings, their queues, and scenery take ids from `nextEntityOrdinal` like
+  any other** (§9), assigned in authored order: building then queue for every
+  `buildingPlacement`, followed by all `sceneryPlacements`. A scenario with three buildings
+  and two scenery placements starts with `nextEntityOrdinal: 8`; ids are a pure function of
+  the campaign, never load order or a host id source.
 - **Any randomness in setup draws from `ctx.derive({ kind: "tick", tick: 0, system })`**, not
   from `ctx.rng`. `initialState` is not an action and has no `seq`; keying setup by tick 0
   keeps §5's rule — *this kind never touches the action stream* — true without exception.
@@ -174,7 +177,9 @@ bite:
 `InitialStateResult.status` may be `"ended"` at creation, exactly as `story-graph` may settle
 onto an ending before the player acts (04 §3). For this kind that means a scenario whose
 objectives are already satisfied or whose failure condition already holds at tick 0 — a valid
-campaign that Tier 2 should warn about (§15), not a crash.
+campaign that Tier 2 should warn about (§15), not a crash. Setup evaluates both sets against
+the same initialized state, applies `resolutionPrecedence`, and stores the same immutable
+`WorldResolution` system 18 would; it does not run the tick pipeline.
 
 ### 3.2 Runtime-State Type Contract (engine-owned)
 
@@ -202,7 +207,7 @@ interface WorldGraphKindState {
   map: WorldMap;                                     // terrain, zones, spawns, exits, revision
   finances: Finances;
 
-  buildings: readonly Building[];                    // includes nested Queue + StaffTask
+  buildings: readonly Building[];                    // includes nested Queue
   constructionSites: readonly ConstructionSite[];
   guests: readonly Guest[];                          // includes full guest path, need, and condition state
   staff: readonly Staff[];                           // includes nested StaffTask
@@ -211,6 +216,7 @@ interface WorldGraphKindState {
   objectives: readonly ObjectiveProgress[];
   failures: readonly FailureProgress[];
   alerts: readonly Alert[];
+  resolution: WorldResolution | null;                // immutable once system 18 sets it
 
   counters: WorldCounters;
   unlockedContent: readonly ContentReference[];
@@ -227,17 +233,31 @@ type Position = {
 
 type StaffStatus = "idle" | "to_work" | "working" | "off_duty";
 type GuestLifecycle = "arriving" | "seeking" | "queued" | "served" | "departed" | "removed";
-type BuildingStatus = "construction" | "open" | "closed" | "broken";
+type BuildingStatus = "open" | "closed" | "broken";
 type LoanStatus = "active" | "defaulted" | "repaid";
 type IncidentSeverity = "info" | "minor" | "major" | "critical";
 type AlertSeverity = "info" | "warning" | "critical";
+type AlertType = "incident_active" | "building_broken" | "scenario_resolved";
 type ObjectiveProgressState = "active" | "met" | "failed";
 type FailureProgressState = "active" | "triggered";
 type StaffTaskType = "service" | "clean" | "restock" | "build";
-type StaffTaskStatus = "queued" | "assigned" | "in_progress" | "completed" | "cancelled";
+type StaffTaskStatus = "assigned" | "in_progress" | "completed" | "cancelled";
 type Rotation = 0 | 90 | 180 | 270;
 type GuestNeedValue = number;      // integer within the referenced NeedDefinition range
 type PercentBasis = number;        // integer basis points, where 10000 = 100%
+type GuestDepartureReason =
+  | "stay_complete" | "unaffordable" | "unreachable" | "dissatisfied"
+  | "unsafe" | "critical_need" | "ejected" | "scenario";
+
+type GuestIntent =
+  | {
+      kind: "seek_service";
+      buildingId: string;
+      productId: string | null;              // null for a non-product service
+      selectedAtTick: number;
+    }
+  | { kind: "leave"; exit: Position; reason: GuestDepartureReason; selectedAtTick: number }
+  | { kind: "wait"; untilTick: number; selectedAtTick: number };
 
 interface WorldMap {
   width: number;                             // positive integer, map width in tiles
@@ -290,20 +310,17 @@ interface Building {
   width: number;                            // integer tile width from definition
   height: number;                           // integer tile height from definition
   rotation: Rotation;                       // all four declared; a scenario narrows it at Tier 1
-  status: BuildingStatus;
-  isOpen: boolean;
+  status: BuildingStatus;                    // sole open/closed/broken authority
   buildStartTick: number;                   // inclusive tick when building entered state
   wear: number;                             // integer 0..100, higher is healthier
   cleanliness: number;                      // integer 0..100, higher is cleaner
   queue: Queue;
-  products: readonly string[];              // product ids offered by this building
-  pricesCents: Readonly<Record<string, number>>;  // product id → integer cents; keys are the ids in `products`
+  pricesCents: Readonly<Record<string, number>>;  // product id → integer cents; definition-closed keys
   inventory: Readonly<Record<string, number | null>>; // product id → units; null = unlimited
-  serviceTickSeq: number;                   // deterministic service tie-break source
 }
 
 interface ConstructionSite {
-  id: string;                               // `<construction-site>:<ordinal>` if surfaced
+  id: string;                               // `<construction-site>:<ordinal>`
   definitionId: string;
   x: number;
   y: number;
@@ -311,17 +328,15 @@ interface ConstructionSite {
   height: number;
   rotation: Rotation;                       // must match building rotation shape
   startedAtTick: number;
-  buildTicksRemaining: number;              // non-negative integer countdown to open
-  totalCostCents: number;                  // must be non-negative integer
-  completedBuildingId: string | null;       // pre-placed id when construction completes
+  workRemaining: number;                    // non-negative integer builder-effort units
+  completedBuildingId: string;              // reserved when the site is created
+  completedQueueId: string;                 // reserved with the building id
 }
 
 interface Queue {
   id: string;                               // `<queue>:<ordinal>` from `nextEntityOrdinal`
-  guestIds: readonly string[];              // canonical order by guest.id
-  maxLength: number | null;                 // null = unlimited
-  patienceTicks: number;                    // mutable queue patience counter
-  startedAtTick: number;
+  guestIds: readonly string[];              // semantic FIFO arrival order; never globally sorted
+  serviceStartedAtTick: number | null;       // clock for current head; null when no service runs
 }
 
 interface Guest {
@@ -329,21 +344,20 @@ interface Guest {
   archetypeId: string;                      // content contract
   lifecycle: GuestLifecycle;
   tickEntered: number;                      // authoritative timeline event
+  stayDurationTicks: number;                // positive sampled archetype stay duration
   x: number;
   y: number;
   path: readonly Position[];                // stateful route, excluding cached distance fields
   pathIndex: number;                        // index into `path`, non-negative integer
-  drawCount: number;                        // agent-level deterministic draw counter (ticks + system only)
+  drawCount: number;                        // next agent-stream sequence number
   cashCents: number;                        // non-negative integer cents
-  targetBuildingId: string | null;           // active target, if currently navigating
-  targetQueueId: string | null;             // queue destination, if queued
-  targetProductId: string | null;           // purchase target, if any
-  targetWaitTicks: number;                  // non-negative integer ticks this guest will tolerate waiting
+  intent: GuestIntent;                      // one authoritative destination/fallback choice
   needs: Readonly<Record<string, GuestNeedValue>>; // NeedDefinition id → declared-scale value
   conditions: Readonly<Record<string, number>>;    // GuestConditionDefinition id → declared-scale value
   opinions: Readonly<Record<string, number>>;      // OpinionDefinition id → declared-scale value
   preferences: Readonly<Record<string, number>>;   // PreferenceDefinition id → declared-scale value
   satisfaction: number;                     // integer 0..100
+  patienceCapacityTicks: number;             // sampled non-negative per-queue patience
   patienceRemainingTicks: number;            // non-negative integer, decrements while queued/unserved
   lastServedTick: number | null;            // null until first served
   spentTicks: number;                       // non-negative integer, ticks alive in the world
@@ -355,6 +369,9 @@ interface Staff {
   x: number;
   y: number;
   status: StaffStatus;
+  path: readonly Position[];                // committed route, same persistence rule as Guest.path
+  pathIndex: number;                        // non-negative index into path
+  moveProgressTicks: number;                // ticks accrued toward the next edge
   assignedBuildingId: string | null;
   assignedZoneId: string | null;            // MVP-inert — the only stored zone membership
   drawCount: number;                        // agent-level deterministic draw counter
@@ -369,13 +386,20 @@ interface StaffTask {
   guestId: string | null;
   queueId: string | null;
   buildingId: string | null;
+  constructionSiteId: string | null;
   incidentId: string | null;
   targetProductId: string | null;
   startedAtTick: number;
   endedAtTick: number | null;
   priority: number;                         // deterministic tie-break source for dispatch
-  effortTicks: number;                      // non-negative integer
+  effortRemaining: number | null;           // null = continuing service duty; otherwise work units
 }
+
+// Runtime invariant by type:
+// service → buildingId + queueId, null effort
+// clean   → incidentId, finite effort
+// restock → buildingId + targetProductId, finite effort
+// build   → constructionSiteId, finite effort
 
 interface Finances {
   cashCents: number;                        // integer cents
@@ -401,10 +425,11 @@ interface Loan {
 interface Incident {
   id: string;
   definitionId: string;                     // IncidentDefinition id
-  severity: IncidentSeverity;
   buildingId: string | null;
   guestId: string | null;
   zoneId: string | null;
+  position: Position | null;                // durable target when no surviving entity owns it
+  amount: number;                           // positive integer occurrence units; litter uses this
   startedAtTick: number;
   expiresAtTick: number | null;
   resolvedAtTick: number | null;
@@ -428,13 +453,22 @@ interface FailureProgress {
 
 interface Alert {
   id: string;                               // `<alert>:<ordinal>`
-  type: string;                             // gameplay-specific alert discriminator
+  type: AlertType;                          // closed system-19 family
+  semanticKey: string;                      // engine-derived dedup key; never player/authored text
   severity: AlertSeverity;
   titleKey: LocKey;
   messageKey: LocKey;
   entityId: string | null;                  // owning entity when applicable
   issuedAtTick: number;
   dismissedAtTick: number | null;
+  clearedAtTick: number | null;             // source condition no longer active
+}
+
+interface WorldResolution {
+  resolution: "objectives_met" | "failed";
+  objectiveIds: readonly string[];          // objectives met at terminal, definition-id order
+  failureId: string | null;                 // non-null exactly for failed resolution
+  resolvedAtTick: number;                   // processing tick that system 18 resolved
 }
 
 interface WorldCounters {
@@ -503,8 +537,9 @@ holds: a value no system writes, no condition reads, and no projection exposes d
 a serialized key merely because one game design names it.
 
 **4 — Departed guests are pruned.** A guest reaching `"departed"` or `"removed"` is removed
-from `guests` at the end of the tick batch that finalized that lifecycle state. Without
-this, state grows without bound across a scenario — and every departed guest still carries
+from `guests` by system 20 of the tick that finalized that lifecycle state. API batch
+boundaries are irrelevant (§5). Without this, state grows without bound across a scenario —
+and every departed guest still carries
 `path`, `needs`, `conditions`, `opinions` and `preferences`, so the per-guest cost is not
 small. A serialized save *is* `serialize()` output, which makes unbounded growth a
 correctness concern and not merely a performance one. Nothing is lost that matters:
@@ -538,8 +573,9 @@ still derived from `nextEntityOrdinal` at creation.
 > bans as a loose bag. `10 §6.2` already answered this for `ActorState`'s
 > `skills`/`reputation`/`flags`/`counters`, and the argument transfers unchanged: **a record
 > whose keys are declared by validated content is not a loose bag, because Tier 1 closes the
-> key set at load.** Building record keys are exactly `Building.products`; guest record keys
-> are exactly those in the archetype profiles, which must resolve in their definition
+> key set at load.** Building record keys are exactly the placed definition's service
+> product ids (empty for non-service operations); guest record keys are exactly those in
+> the archetype profiles, which must resolve in their definition
 > catalogs. A key outside either set is Tier 1, not a runtime surprise. Written out rather
 > than assumed, because an unexamined `Record<string, number>` is indistinguishable on the
 > page from the thing N6 bans.
@@ -553,12 +589,13 @@ All serialized arrays are iterated in id order for contract behavior, not insert
   before any system touch.
 - `map.scenery` is canonical by its derived entity id; `unlockedContent` is canonical by
   `(kind, id)`; `activePolicyIds` and `unlockedAchievementIds` are lexicographic by id.
-- For each `Building`, `queue.guestIds` is canonical by `guest.id`, and service selection uses
-  the `queue.id` order then `guest.id` within each queue.
+- For each `Building`, `queue.guestIds` is semantic FIFO order. Same-tick arrivals append by
+  guest entity id; removal preserves survivors and rejoining appends at the tail.
 - For each `Staff`, `task` is singularly active in this unit, but if history snapshots are stored in
   a future extension, they must be canonical by `StaffTask.id`.
 
-This rule is what keeps unrelated entities' behavior stable under insertion or removal operations.
+This rule keeps unrelated entities stable under insertion/removal while preserving the one
+collection whose order is itself gameplay state.
 
 **Id order is `(prefix, ordinal)` with the ordinal compared numerically, never
 lexicographically.** `building:10` sorts *after* `building:2`, which a plain string
@@ -592,66 +629,402 @@ an alert state precisely because it persists until dismissed and dismissal is a 
 action, and §6 has always listed it. An earlier revision of this split omitted it, and the
 undercount spread to two other documents before it was caught.
 
-**The tick pipeline order is normative.** It is fixed, tested, and may not be reordered
-without a version change, for the same reason `simulation`'s two-phase start-of-week
-ordering is normative (10 §3): a reordering that is wrong fails silently.
+### 4.1 One atomic tick
+
+**The pipeline order is normative.** At the beginning of every loop iteration:
+
+```typescript
+const processingTick = state.tick;
+```
+
+Systems 1–19 read that immutable value. System 20 performs cleanup and sets
+`state.tick = processingTick + 1` exactly once. No system reads the requested batch size,
+`ctx.seq`, or whether a previous API call processed the preceding tick. A terminal result
+does not interrupt the tick: systems 19 and 20 still run, then the outer loop stops before
+starting another iteration.
+
+Initial `tick: 0` therefore means zero completed ticks and tick 0 is next. Day `d` begins
+when `floor(processingTick / ticksPerDay) === d` and
+`processingTick % ticksPerDay === 0`; system 1 resets the daily accumulators before any
+new-tick amount is recorded.
 
 ```text
- 1  apply scheduled scenario changes      11  perform staff work
- 2  spawn guests                          12  update construction
- 3  update guest needs and conditions     13  update buildings
- 4  resolve guests being served           14  update cleanliness and wear
- 5  update queues                         15  charge operating costs and wages
- 6  select new guest intents              16  roll incidents
- 7  path guests                           17  update objectives
- 8  move guests                           18  evaluate failure
- 9  generate staff tasks                  19  raise alerts
-10  assign staff tasks                    20  increment tick
+ 1  scenario             11  staff-work
+ 2  guest-spawn          12  construction
+ 3  guest-needs          13  buildings
+ 4  guest-service        14  cleanliness-wear
+ 5  queues               15  finance
+ 6  guest-intent         16  incidents
+ 7  guest-path           17  objectives
+ 8  guest-move           18  failure
+ 9  task-generate        19  alerts
+10  task-assign          20  tick-finalize
 ```
+
+### 4.2 Tick scratch and complete comparators
+
+`TickScratch` is a disposable value initialized for one tick. It may carry validated
+content indexes, path/distance caches keyed by `map.revision`, transient `TaskCandidate`s,
+typed service/construction/finance/cleanliness deltas, and batch-change aggregation
+metadata. It is never serialized, projected, or read by `outcome()`. Disabling every cache
+must leave state, changes, messages, events, and outcome identical.
+
+The following comparators are the only canonical orders systems may use:
+
+| Domain | Complete comparator |
+|---|---|
+| Runtime entity | prefix lexicographic, then numeric ordinal |
+| Definition | validated id, ordinal-code-unit lexicographic |
+| Position | row-major `(y, x)` |
+| Queue | persisted FIFO arrival position; same-tick admissions by runtime entity id |
+| Utility candidate | utility descending, building entity id, product id (`null` first) |
+| Task candidate | priority descending, path cost ascending, task-kind order, target entity id or position, source definition id, required role id (`null` first), slot ordinal |
+| A* open node | `f`, `h`, `g` ascending, then position row-major |
+| Equal-cost A* parent | predecessor position row-major |
+| Scheduled effect | due tick, priority descending, source definition id, authored change index, authored effect index |
+
+The task-kind order is `service`, `clean`, `restock`, `build`. A definition id is not an
+entity id, and a coordinate has no id; “ties use entity id” is therefore not a complete
+rule and is superseded by this registry.
+
+### 4.3 System 1 — `scenario`
+
+**Reads:** `processingTick`, the selected scenario's scheduled changes, active policies,
+and their conditions. **Writes:** daily finance resets and typed effects. **Order:** reset
+daily accumulators first at a day boundary; snapshot conditions against system-entry state;
+then apply due changes by the scheduled-effect comparator. Finally apply active policies by
+definition id, with `whileActive` effects in authored order. Effects never change another
+condition snapshot in this system. **No-op:** no boundary, due change, or active-policy tick effect.
+**Records:** `scenario.effect.applied`; scalar effects join the batch `StateChange`
+aggregator under `scenario_effect`.
+
+### 4.4 System 2 — `guest-spawn`
+
+**Reads:** the scenario spawn rule, active guest count, spawn points, and archetype pool.
+**Writes:** new guests, `guestsEntered`, and `nextEntityOrdinal`. **Order:** one spawn rule
+per scenario; spawn points row-major and pool entries by archetype id before weighted
+selection. The only RNG is `tick:${processingTick}:guest-spawn`. A successful spawn gets
+the next entity id; cash, stay, patience, satisfaction, and ranged meters then draw in field
+order from `agent:${guestId}:${drawCount}`, incrementing after each draw. It starts with a
+`lifecycle: "arriving"` and a `wait` intent expiring now. Failed capacity/schedule checks
+allocate nothing and draw
+nothing. **No-op:** terminal state, non-spawn tick, or active cap reached. **Records:**
+`guest.spawned`; membership change is hidden and batch-aggregated.
+
+### 4.5 System 3 — `guest-needs`
+
+**Reads:** active guests, meter definitions/profiles, and active typed effects. **Writes:**
+meter values, `spentTicks`, satisfaction, queued patience, and a typed leave/wait intent
+when a configured threshold is crossed. **Order:** guests by entity id; meter kinds in
+`need`, `condition`, `opinion`, `preference` order; definition ids within each kind. Sum all
+deltas for one meter, then clamp once. Queued patience decrements before system 4, never
+below zero. Reaching `stayDurationTicks` selects leave with `stay_complete` unless the guest
+is already in a service that completes in system 4; that completion wins, then system 5
+materializes leave. An arriving guest becomes `seeking` after its first update. **No-op:**
+no non-terminal guests. **Records:** trace-only
+`guest.meter.changed`; no per-meter `StateChange`.
+
+### 4.6 System 4 — `guest-service`
+
+**Reads:** buildings, FIFO queue heads, `serviceStartedAtTick`, head intents, prices,
+inventory, product/service definitions, and staff requirements. **Writes:** guest/building
+cash and stock, finance totals, product effects, service/litter incidents, counters, and
+guest lifecycle. **Order:** buildings by entity id. A positive-duration service started at
+tick `s` completes on the first tick where
+`processingTick - s >= serviceDurationTicks`; it cannot finish where it starts. At
+completion revalidate the same guest, product, price, stock, and staff facts atomically. A
+staff requirement counts only staff at the building with a valid `service` duty task; an
+assignment alone is not labor. A
+product sale subtracts price from guest cash, adds price minus unit cost to world cash,
+adds price to revenue, adds unit cost to expenses, and decrements finite stock. Litter is a
+durable incident occurrence at the guest position with the serving building id; its amount
+increments `litterCreated` exactly once. **No-op:**
+no due valid head. **Records:** `guest.served` and `incident.raised`; finance changes are
+batch-aggregated, agent detail is event-only.
+
+### 4.7 System 5 — `queues`
+
+**Reads:** queues, guest intents/positions/patience, entrances, service eligibility, and
+the pure utility evaluator from §9. **Writes:** FIFO membership, lifecycle, abandonment
+intent, and `serviceStartedAtTick`. **Order:** buildings by entity id; preserve surviving
+FIFO order; guests reaching one entrance in the same tick are admitted by entity id.
+First remove the head completed by system 4 and every invalid member. Next abandon still-
+queued guests whose patience is zero or whose best eligible alternative exceeds the current
+candidate by `switchThresholdUtility`. Then admit arrivals up to capacity and start the
+head clock only when the building can serve; clear an existing clock whenever its head or
+service eligibility changes, so resumed service starts a full new duration. Completion on
+the tick patience reaches zero wins because system 4 ran first. Admission resets
+`patienceRemainingTicks` to the guest's sampled capacity. A served guest becomes `seeking`
+with `wait.untilTick = processingTick` so system 6 must choose again, unless its
+stay/threshold state requires leave. Abandonment uses the same immediate wait intent;
+rejoining always appends. **No-op:** no queue mutation or start. **Records:**
+`queue.joined`, `queue.abandoned`, `service.started`; membership detail is event-only.
+
+### 4.8 System 6 — `guest-intent`
+
+**Reads:** seeking guests, content, finances, buildings, queues, incidents, and canonical
+path costs. **Writes:** the single `Guest.intent`; a changed destination clears the
+committed path and resets its index. **Order:** guests by entity id; candidates use §9's
+eligibility, component, and comparator rules. Queued and currently served guests are not
+rescored. If no candidate survives, materialize the archetype's typed fallback. Any
+content-declared random choice uses `agent:${guest.id}:${guest.drawCount}` and increments
+the counter immediately; deterministic scoring consumes no draw. **No-op:** no guest needs
+a decision. **Records:** `guest.intent.selected` with optional trace components; no audit
+row.
+
+### 4.9 System 7 — `guest-path`
+
+**Reads:** service/leave intents, committed paths, map revision, dynamic footprints, and
+definition entrances. **Writes:** `Guest.path` and `pathIndex`. **Order:** guests by id;
+goals row-major; A* follows §9. A changed target has no old path to preserve. A path made
+invalid by a map revision remains committed only until canonical replanning succeeds; on
+failure it is cleared and the archetype fallback is materialized. **No-op:** waiting,
+queued, served, already-at-goal, or still-valid path. **Records:**
+`guest.path.committed` or `guest.path.failed` for an actual attempted commitment.
+
+### 4.10 System 8 — `guest-move`
+
+**Reads:** guest paths and lifecycle. **Writes:** position, path index, and departure
+lifecycle. **Order:** guests by id. An eligible guest moves at most one directed edge per
+tick; overlap is allowed in v1. Reaching a service entrance makes the guest eligible for
+system 5 on the next tick—it does not enqueue here because queues already ran. Reaching an
+exit under a leave intent marks `departed`, increments departure counters, and leaves
+pruning to system 20. **No-op:** no movable guest. **Records:** `guest.moved` at trace and
+`guest.departed` at debug; no per-edge audit row.
+
+### 4.11 System 9 — `task-generate`
+
+**Reads:** unresolved staff-resolvable incidents, finite inventory, queue demand,
+construction sites, role capabilities, and path costs. **Writes:** canonical transient
+`TaskCandidate`s in scratch only. A candidate has task kind, typed target, priority,
+required effort (`null` for continuing service duty), path cost, source definition id,
+required role id, and slot ordinal; it has no entity id. Service demand creates one
+candidate for each missing `(roleId, slot)` from `StaffRequirement.count`. Priority comes
+directly from the owning service operation, service
+product, building definition, or incident definition—systems add no hidden weighting.
+Finite effort is incident amount for clean, missing units to capacity for restock, and site
+work remaining for build. `path cost` in the comparator is calculated from the currently
+considered staff member; it is scratch, not candidate state shared across staff.
+**Order:** generate by the task tuple with path omitted; system 10 inserts the current
+staff's path cost and applies the complete comparator. **No-op:** no demand or compatible role.
+**Records:** optional `task.candidate.generated` trace; no state, event at normal levels, or
+`StateChange`.
+
+### 4.12 System 10 — `task-assign`
+
+**Reads:** staff, valid existing tasks, and scratch candidates. **Writes:** new persisted
+tasks, staff paths/status, and `nextEntityOrdinal`. **Order:** preserve valid assignments;
+when service demand shrinks, preserve the lowest staff ids up to each role count and cancel
+the rest;
+canonically replan a preserved task whose committed path was invalidated, cancelling it if
+the target is now unreachable; then idle staff by id greedily take their highest compatible
+candidate. Remove a candidate
+after assignment. Only assignment allocates a task id. Plan the canonical staff path at
+the same moment; unreachable candidates were ineligible in system 9. **No-op:** no
+assignment, replan, or cancellation. **Records:** `staff.task.assigned`; hidden membership
+audit only; invalid preserved work emits `staff.task.cancelled`.
+
+### 4.13 System 11 — `staff-work`
+
+**Reads:** assigned tasks, role work/movement rates, committed paths, and targets.
+**Writes:** staff position/path/status, task effort/status, incident resolution, and typed
+work deltas for systems 12–14. **Order:** staff by id. Away from target, increment
+`moveProgressTicks`; when it reaches `moveTicksPerTile`, traverse one edge and reset it.
+At target, subtract the role's positive `effortPerTick` once, clamped at zero. A `null`
+effort is continuing service duty and remains valid while its queue demand exists. Missing
+targets cancel deterministically. Cleaning first writes its incident's `resolvedAtTick`, then
+applies `onResolve` effects; the occurrence is retained but no longer active during that list.
+Only building-meter deltas defer to system 14; construction/restock deltas wait for their
+owning systems.
+**No-op:** off-duty or taskless staff. **Records:** task moved/completed/cancelled events;
+no per-work-unit audit.
+
+### 4.14 System 12 — `construction`
+
+**Reads:** sites and builder deltas. **Writes:** remaining work, completed buildings/queues,
+site removal, building counters, and `map.revision`. **Order:** sites by id; apply all
+builder work, clamp once, then complete zero-effort sites in that order. Completion uses
+the building and queue ids reserved when the site was created, so completion timing cannot
+renumber later entities. The new building materializes definition defaults, and the site is
+removed. Immediate-MVP construction bypasses sites in the `build` reducer. **No-op:** no
+site receives work. **Records:** `construction.progressed`/`construction.completed` and
+batch-grain entity/status changes.
+
+### 4.15 System 13 — `buildings`
+
+**Reads:** building operations and restock work. **Writes:** finite inventory
+and non-wear operational status allowed by typed operation data. **Order:** buildings by id,
+then product id. Restock moves units up to capacity; product unit cost is recognized exactly
+once, atomically at service in system 4, not again here. Definitions with no restock source,
+decorative and unsupported post-MVP operations are honest no-ops. This system never serves
+guests or applies cleanliness/wear. **No-op:** no typed production/restock/status delta.
+**Records:** `building.status.changed` and batch-grain scalar changes only when a public
+status changes.
+
+### 4.16 System 14 — `cleanliness-wear`
+
+**Reads:** service, litter/incident, staff, policy, and typed effect deltas in scratch.
+**Writes:** building cleanliness/wear, litter occurrence amounts, and broken/closure status.
+**Order:** buildings by id; for each meter apply sources in `service`, `litter`, `incident`,
+`staff`, `policy` order, sum, then clamp once to 0..100. Incident amounts are
+updated by incident id. A zero amount resolves the occurrence; transition effects run once.
+Cleaning increments `litterCleaned` by the amount removed, independently of definition
+effects.
+Wear reaching zero changes an open/closed building to `broken`; cleanliness alone never
+inventively closes a building—the scenario may fail on it through content. **No-op:** no
+delta. **Records:** `building.meter.changed` and `incident.resolved`; batch audit only
+for status transitions, not noisy meter steps.
+
+### 4.17 System 15 — `finance`
+
+**Reads:** staff roles, open buildings, loan state, and `ticksPerDay`.
+**Writes:** cash and expense totals plus enabled loan fields. **Order:** wages by staff id,
+building operating costs by building id, then the one loan. Passive
+rates use §9.4 cumulative proration. The MVP loan is `null`; no synthetic loan behavior is
+invented. **No-op:** no due amount. **Records:** `finance.charged`; coalesced scalar audit
+rows use first-before/final-after values.
+
+### 4.18 System 16 — `incidents`
+
+**Reads:** definitions, active/retained occurrences, trigger/resolution conditions, roll
+scopes, and post-finance state. **Writes:** incident resolutions, new occurrences, grouped
+effects, counters, and entity ids. **Order:** first resolve active occurrences by id when
+`expiresAtTick <= processingTick` or their resolution condition is true. For each, write
+`resolvedAtTick: processingTick` before applying its resolve effects once, so it is retained
+but no longer active during that list. Then visit scopes in world, zone id, then building id
+order; eligible definitions are by id.
+An active occurrence, or a retained occurrence with
+`processingTick < startedAtTick + cooldownTicks`, makes the same definition/scope
+ineligible.
+For each declared scope, draw chance and then weighted choice only from
+`tick:${processingTick}:incidents`; no eligible scope consumes no draw. Allocate selected
+occurrences in resolved scope order, then apply their grouped start effects before system 17.
+Effect-started incidents from earlier systems are not rolled again. **No-op:** no eligible
+resolution or successful roll. **Records:** `incident.resolved` and `incident.raised`.
+
+### 4.19 System 17 — `objectives`
+
+**Reads:** every objective and one immutable post-system-16 metric/condition snapshot shared
+with system 18. **Writes:** progress value,
+`satisfiedSinceTick`, state, completion effects, and timestamps. **Order:** evaluate every
+objective against the snapshot first; then commit transitions/effects by definition id.
+For a non-null `progressMetric`, the evaluator projects an integer value; exact rational
+averages compare by cross multiplication and project by truncation toward zero. A null
+metric preserves the value changed by ordered `objective_progress` effects. Tier 1 forbids
+those effects from targeting metric-driven objectives. A duration of `n` is met on
+the `n`th consecutive true tick, counting the current tick as one; false clears the start.
+Completion effects run once. **No-op:** no changed value/condition/state. **Records:**
+`objective.progressed`/`objective.met`; batch audit is coalesced per objective scalar.
+
+### 4.20 System 18 — `failure`
+
+**Reads:** all failure definitions/progress, objective states, scenario precedence, and the
+same immutable post-system-16 snapshot as system 17. Objective completion effects do not
+retroactively alter this tick's failure facts.
+**Writes:** failure duration/state, unresolved objective terminal states, and immutable
+`WorldResolution`. **Order:** failures by
+definition id. Update all failure durations against the same system-entry state, then form
+success (at least one objective and all met) and failure candidates. A scenario time limit
+adds `timeLimitFailureId` when `processingTick + 1 >= timeLimitTicks`, so exactly the
+declared number of ticks completes before the deadline fires; that referenced progress row
+becomes `triggered` even when its own condition is false. If success and failure both
+exist, apply `resolutionPrecedence`; multiple failures choose definition-id first. On a
+failed result, mark every still-active objective `failed` after capturing the already-met
+ids. Apply every newly triggered failure's `onTriggered` effects once in definition order,
+even when `objectives_win` selects the terminal identity; then persist resolution once and
+never rewrite it. Do not stop systems 19–20. **No-op:** no
+progress or terminal change. **Records:** `failure.progressed`, `failure.triggered`, and
+`scenario.resolved`; resolution identity is a visible batch audit.
+
+### 4.21 System 19 — `alerts`
+
+**Reads:** post-resolution incidents, finance, buildings, objectives, failures,
+achievements, and current alerts. **Writes:** newly unlocked achievement ids, new alerts,
+and `clearedAtTick`. **Order:** first evaluate still-locked achievements by definition id
+against the post-resolution state and insert unlocks canonically; profile mirroring occurs
+only after the whole action succeeds. Then process alert semantic keys and existing alert
+ids. A semantic key is derived only from a closed alert family plus published ids; it
+contains no player/authored text. Mark a source no longer active as cleared; create only a
+newly active key not represented by an uncleared alert. Alert delivery never feeds another
+system. **No-op:** no achievement or active-set transition. **Records:**
+`achievement.unlocked`, `alert.raised`, and `alert.cleared`; alert creation/removal audits
+are hidden.
+
+The closed keys are `incident:<incidentId>`, `building-broken:<buildingId>`, and one
+`scenario-resolved`. Incident alerts reuse the definition's name/description keys; the
+other two use kind-owned `world-graph.alert.<type>.title|message` strings validated with
+the kind's built-in content. No balance threshold is smuggled into alert derivation.
+
+### 4.22 System 20 — `tick-finalize`
+
+**Reads:** lifecycle, queues, tasks, resolved incidents, cleared/dismissed alerts, and
+`processingTick`. **Writes:** referential cleanup and the sole tick increment. **Order:**
+entity collections by id; queue survivors retain FIFO order. Remove departed/removed guests
+now, not at API-batch end; clear their queue references; clear completed/cancelled nested
+tasks. Retain a resolved incident until
+`max(resolvedAtTick + 1, startedAtTick + cooldownTicks)`, then prune it; this preserves both
+one following audit tick and cooldown memory without a second state table. Retain a cleared
+or dismissed alert while its timestamp is greater than or equal to `processingTick`; prune
+it once the timestamp is smaller. This makes both lifecycle fields observable across a save
+boundary without retaining alert history. Assert no queue/task reference dangles, then
+set `tick = processingTick + 1`. **No-op:** cleanup may be empty, but the tick increment is
+unconditional. **Records:** `tick.finalized`; only the coalesced tick audit is returned.
+
+### 4.23 Worked causal trace
+
+The minimum W43 fixture takes several ticks; arrows are not permission to collapse phases:
+
+```text
+t0  guest-spawn creates guest → guest-needs drifts thirst → guest-intent selects stand
+    → guest-path commits A* → guest-move advances one edge → tick-finalize commits t1
+t1+ guest-move eventually reaches entrance
+next queues admits FIFO and starts service
+later guest-service transfers cents, applies drink effect, and creates litter incident
+    → queues removes served head → task-generate derives clean task
+    → task-assign gives it to cleaner → staff-work begins route
+later staff-work resolves litter → cleanliness-wear applies recovery
+    → objectives updates the shared post-incident facts → failure resolves if terminal
+    → alerts reflects the result → tick-finalize commits and only then stops the batch
+```
+
+If the final objective and `bankrupt` both become true on the same tick, system 17 records
+the objective, system 18 records the failure, and the scenario's
+`resolutionPrecedence` selects exactly one immutable result. Under `objectives_win`, outcome
+is `objectives_met` with all published objective ids and `failureId: null`; under
+`failure_wins`, it is `failed` with the lexicographically first triggered failure id. Both
+facts remain in progress state for audit; only terminal identity is singular.
 
 ---
 
 ## 5. Batch Invariance — and the Two Seam Changes It Forced
 
-This is the load-bearing property of the kind, and the reason this document required
-changes to `04-core` at all.
+> **Batch invariance.** For any `a, b ≥ 0`, starting from identical kind state, campaign,
+> and seed, `advance_ticks (a + b)` and `advance_ticks a` followed by `advance_ticks b`
+> finish with deeply equal canonical `WorldGraphKindState`.
 
-> **Batch invariance.** For any `a, b ≥ 0`, submitting `advance_ticks a` then
-> `advance_ticks b` produces the **same `kindState`** as submitting `advance_ticks (a + b)`.
+This is a kind-state property, not byte identity: the envelope action logs legitimately
+differ. It is also stronger than `Outcome` equality—two worlds can share terminal ids while
+cash, queues, paths, counters, or cleanup differ. W46 therefore compares the complete
+canonical kind state after removing only the envelope action log; the replay oracle's
+`Outcome` comparison remains an additional cross-version assertion.
 
-It is what makes "presentation speed must not affect results" true — a claim the draft
-asserted twice and could not have satisfied.
+Four rules make the property hold:
 
-**It is a `kindState` property, not a byte property.** The two runs differ in `actionLog`,
-so `serialize()` legitimately differs. The instrument that tests it is the replay oracle's
-`Outcome` comparison ([`07-replay.md`](07-replay.md) §3), not the byte-identity harness
-(04 §14) — which is exactly the distinction 07 exists to draw.
+1. A batch is only the loop in §4.1; no system observes its requested length.
+2. Cleanup occurs in `tick-finalize`, never after the outer loop.
+3. This kind draws nothing from `ctx.rng` and never references `ctx.seq`.
+4. World draws use `ctx.derive({ kind: "tick", tick: processingTick, system })`; agent
+   draws use `ctx.derive({ kind: "agent", agentId, seq: drawCount })` and increment the
+   stored counter immediately.
 
-**Under the previous contract it could not hold.** Every draw came from `ctx.rng`, the
-handle on `action:${seq}` (04 §8). So `advance_ticks 60` drew from one stream and sixty
-`advance_ticks 1` drew from sixty different ones. Same inputs, different world.
+The last two rely on the already-built seam changes: `KindContext.derive` (04 §3.1) and
+`StreamId`'s `tick` variant (04 §8). `derive` closes over the seed and persists nothing, so
+`{ seed, actionLog }` remains the complete replay input.
 
-Three rules make it hold, and the first is structural rather than disciplinary:
-
-1. **This kind draws nothing from `ctx.rng`.** The action stream is unused. No draw may
-   reference `ctx.seq`.
-2. **World-level draws are keyed by simulated time** —
-   `ctx.derive({ kind: "tick", tick, system })` for guest spawning, incident rolls and
-   weather. `system` names the drawing system so two systems on the same tick stay
-   independent.
-3. **Agent-level draws are keyed by the agent** —
-   `ctx.derive({ kind: "agent", agentId, seq })`, where `seq` is that agent's *own* draw
-   counter, stored on the agent and incremented per draw. Never the action seq.
-
-**The two changes to `04-core`:**
-
-| Change | Why it is not special pleading |
-|---|---|
-| `KindContext.derive(streamId)` (04 §3.1) | §8 defined `agent` and `system` stream variants that **no kind could reach** — `ctx.rng` was the only handle. `simulation` has the same gap today for its NPC draws |
-| `StreamId` gains `{ kind: "tick"; tick; system }` (04 §8) | The encoding was already open by design; this adds the one keying a time-advancing kind needs |
-
-Neither persists anything. `derive` closes over the seed, so `{ seed, actionLog }` remains
-the complete replay input.
+Events are compared separately. Tick/entity events are identical across partitions;
+`batch.started` and `batch.ended` legitimately differ because they diagnose API calls.
+`StateChange[]` may also be partitioned differently because each call returns its own batch
+audit. Neither difference may reach final kind state.
 
 ---
 
@@ -674,6 +1047,13 @@ the complete replay input.
 Every one is a `submitAction` appending one `LoggedAction`. All parameters are **declared
 ids, integers, or enumerated rotations** — none is free text, which keeps
 [`08-session-capture.md`](08-session-capture.md) §3.2's refusal rule cheap to satisfy.
+
+Allocation is part of action semantics. Immediate build reserves building then queue id;
+timed build reserves site, future building, then future queue id in that order. Both build
+paths increment `map.revision` when the footprint becomes blocked. Hiring creates one staff
+entity at the row-major first exit with an empty committed path, zero movement progress, and
+no task. Demolition/fire cancel dangling queue/task/assignment references in the same
+reducer; they never wait for a tick to restore referential integrity.
 
 **`ticks` is bounded.** `submitAction` is synchronous and pure, so an unbounded tick count
 is an unbounded pure computation inside one call. The cap is campaign data, Tier 1
@@ -735,15 +1115,23 @@ outcome(state: WorldGraphKindState): {
   resolution: "objectives_met" | "failed" | null;   // null while active
   objectivesMet: readonly string[];                  // published objective ids
   failureId: string | null;                          // published failure-condition id
+} {
+  const terminal = state.resolution;
+  return {
+    resolution: terminal?.resolution ?? null,
+    objectivesMet: terminal?.objectiveIds ?? [],
+    failureId: terminal?.failureId ?? null,
+  };
 }
 ```
 
 **A win requires at least one objective and every one must be `"met"`.** A triggered
 `FailureProgress` produces `"failed"` and its published id; a scenario that declares no
 objectives has nothing to win. Vacuous truth is the wrong reading—it would end a sandbox
-before the player saw one tick—so §15 warns instead. If the last objective becomes met on the
-same tick a failure triggers, W44 owns the explicit precedence rule; W43 supplies both typed
-facts and does not settle their evaluation order early.
+before the player saw one tick—so §15 warns instead. System 18 applies the scenario's
+`resolutionPrecedence` when success and failure become true together and stores one
+`WorldResolution`. `outcome()` reads that immutable fact; it never reconstructs a possibly
+different winner from progress arrays after the fact.
 
 Published ids only. **Cash, guest counts, satisfaction and the tick it ended on are
 deliberately excluded** — every one changes legitimately under a balance pass, and a
@@ -766,13 +1154,9 @@ functions; this states the positive rule those bans imply.
 **No `Math.sqrt` in distance.** Comparisons use squared Euclidean, Manhattan or Chebyshev
 distance — all integer, all order-preserving for the comparisons that matter.
 
-**Every tie has an explicit rule, and the rule is the entity id.** Utility ties, path
-neighbour order, queue position, staff task priority. The draft's own §2.4 names this as a
-top risk; naming the tiebreaker once, here, is what discharges it.
-
-**Iteration order is canonical, not insertion order.** Entity collections are iterated in
-id order regardless of how they are stored, so an insertion or removal never perturbs an
-unrelated entity's behaviour.
+**Every tie uses §4.2's complete comparator.** Entity id is only one domain; positions,
+definitions, FIFO arrivals, A* nodes, and transient task candidates have their own complete
+tuples. Iteration order is likewise canonical except where FIFO/authored order is semantic.
 
 **Entity ids are derived, never supplied.** Guests, staff, buildings, sites, queues and
 tasks take ids from `nextEntityOrdinal` in `kindState`, formatted `<prefix>:<ordinal>`.
@@ -783,6 +1167,144 @@ and `seed` come from `IdSource` precisely because they are inputs; these are not
 **Derived caches are never serialized.** Path caches and distance fields keyed by
 `map.revision` are recomputed, not persisted — a cache in serialized state is a field free
 to drift, the same objection §3 makes to `rng`.
+
+### 9.1 Utility eligibility and score
+
+Eligibility is a filter before arithmetic. A candidate is absent—not assigned a very
+negative score—when its content is locked, building is not `open`, queue is full, guest
+cannot afford the price, product is not offered/in stock, a typed condition rejects it, or
+no canonical path reaches an entrance. The path-cost query uses the same A* rules as §9.3;
+it may share scratch cache but not a second reachability rule.
+
+For each survivor evaluate these signed integer components in order:
+
+```text
+need urgency
+ preference match
+ social relevance
+ quality
+ attractiveness
+- price resistance
+- travel cost
+- queue penalty
+- safety concern
+```
+
+- **Need urgency** is the greatest `NeedProfile.utilityByCurrentValue` output among need
+  deltas the service can satisfy; a service satisfying none contributes zero.
+- **Preference match** sums matching preference meter values for definitions whose
+  `targetTags` intersect product/building tags, then multiplies once by
+  `preferenceUtilityPerPoint`.
+- **Social relevance** is exactly zero in v1 because groups are not represented; adding
+  groups must add a typed input before this component can become non-zero.
+- **Quality** is truncation-toward-zero of `(cleanliness + wear) / 2`, multiplied by
+  `qualityUtilityPerPoint`.
+- **Attractiveness** is the canonically summed applicable adjacency input multiplied by
+  `attractivenessUtilityPerPoint`.
+- **Price resistance** is the non-negative `priceResistance` curve output at the actual
+  integer-cent price.
+- **Travel cost** is canonical path cost multiplied by non-negative
+  `travelPenaltyPerCost`.
+- **Queue penalty** is estimated wait ticks multiplied by non-negative
+  `queuePenaltyPerTick`. Estimated wait is the sum of remaining head service time and the
+  declared duration for each guest ahead; unlimited capacity does not mean zero wait.
+- **Safety concern** sums active incident severity points within the building footprint or
+  entrance cells (`info: 0`, `minor: 1`, `major: 10`, `critical: 100`), then multiplies by
+  `safetyPenaltyPerPoint`. The severity ladder is engine-mechanical and code-owned.
+
+Each curve/multiplication boundary rounds once; the final sum is not normalized or rounded.
+Checked safe-integer addition is mandatory. Tier 1 derives worst-case bounds from validated
+meter ranges, curves, map path bounds, queue caps, prices, and incident severity points and
+rejects a campaign whose candidate score can leave JavaScript's safe-integer range.
+
+The highest score wins by the utility comparator. A queued guest switches only when
+`alternativeUtility - currentUtility > switchThresholdUtility`; equality stays put. With
+the current queued candidate, eligibility ignores queue capacity for that guest but still
+checks closure, product, affordability, stock, and reachability.
+With
+no candidate, `fallback.kind: "leave"` selects the row-major nearest equal-cost exit, while
+`"wait"` stores `untilTick = processingTick + ticks` and cannot create an implicit retry
+inside the current tick. The optional decision trace reports components in the order above
+and is trace event data, never state or projection.
+
+### 9.2 Curves, multiplication, and rounding
+
+Step curves select the point with greatest `input <= x`, clamping outside the authored
+domain to the nearest endpoint. Linear interpolation between `(x0, y0)` and `(x1, y1)` is
+evaluated as one exact rational:
+
+```text
+y0 + ((y1 - y0) * (x - x0)) / (x1 - x0)
+```
+
+and rounded once **half away from zero**. Signed fixed-point multiplication follows the
+same rule after the complete product; intermediate rounding is forbidden. Implementations
+may use `bigint` for scratch numerators/products, but the checked result returned to state
+or scoring is a safe integer `number`. This is deterministic integer arithmetic, not
+serialized BigInt state.
+
+Conditions read one immutable system-entry snapshot. `all`/`any` children evaluate in
+authored order without short-circuiting (useful for identical traces even though leaves are
+pure); `not` evaluates its one child. Integer metrics compare directly. Rational averages
+compare by cross multiplication, never division. An unavailable aggregate follows §14.2.
+`tick` is `processingTick`; `day` is `floor(processingTick / ticksPerDay)`; entity counts
+include persisted buildings/staff and guests not marked departed/removed; queue length is
+persisted FIFO length; incident state uses the active/retained meanings in §14.10.
+
+Effects apply in their owning system's declared order and select runtime targets by the
+relevant canonical comparator. Ordered `unlock`/`lock` or policy writes to the same id use
+last-write-wins. Each producing system groups numeric deltas by target/scalar, sums, then
+clamps once before it exits; systems 1, 4, and 11 explicitly defer building-meter deltas to
+system 14 so policy/service/litter/staff sources compose there. Systems after 14 apply their own
+group locally—effects never wait for the next tick without persisted state.
+Finance/counter/objective deltas use checked addition. An effect cannot emit another effect
+or call a system recursively. If starting an incident must sample
+a non-constant duration range, it draws from the owning system's
+`tick:${processingTick}:<stable-system-id>` handle in effect/target order; a constant range
+and `null` duration consume no draw.
+
+### 9.3 Canonical A*
+
+Nodes are `Position`s. Outgoing neighbours are allowed authored `PathCell`s whose `from`
+matches the current node, ordered by destination row-major. The destination terrain must be
+walkable. Building and construction-site footprint cells are blocked; entrance approach
+cells remain outside footprints and are valid goals. Guest overlap does not block a cell.
+
+```text
+stepCost(current, next) = edge.edgeCost + terrain(next).moveCost
+```
+
+Both terms are non-negative and Tier 1 requires every traversable sum to be positive. The
+heuristic is Manhattan distance to the nearest goal multiplied by the campaign's minimum
+traversable step cost, so it is admissible. If a future contract admits a zero minimum, the
+heuristic is zero and the search is Dijkstra; it may never silently overestimate.
+
+Open nodes and equal-cost parents use §4.2. A closed node reopens only for smaller `g`;
+equal `g` replaces its parent only for a row-major-smaller predecessor. Multiple entrances
+are goals and equal total cost chooses row-major. The returned committed path includes the
+start at index 0 and chosen goal at the final index. Unreachable returns a typed failure,
+not an empty successful path.
+
+A cache key is `(map.revision, start, orderedGoals, movementProfile)`, where v1 profiles are
+the literal `guest` and `staff` (speed never changes route cost). It may memoize the
+canonical answer only; cache enabled/disabled must return the same path and events. A map
+mutation increments `revision`, invalidating all old keys without serializing a cache.
+
+### 9.4 Exact passive-rate proration
+
+For non-negative integer `amountPerPeriod`, positive `ticksPerPeriod`, and zero-based
+`processingTick`, the amount due is:
+
+```text
+floor(amountPerPeriod * (processingTick + 1) / ticksPerPeriod)
+- floor(amountPerPeriod * processingTick / ticksPerPeriod)
+```
+
+This applies to wages and passive operating cost. It distributes remainder cents
+deterministically and sums to exactly `amountPerPeriod` at every period boundary without a
+persisted remainder. Implementations evaluate the cumulative products as exact scratch
+integers (or by an algebraically equivalent quotient/remainder form), then safe-check the
+per-tick result. Product sales and restock costs remain atomic integer-cent transfers.
 
 ---
 
@@ -832,7 +1354,6 @@ interface WorldGraphView {
   buildings: readonly {
     id: string;
     definitionId: string;
-    isOpen: boolean;
     status: BuildingStatus;
     queueLength: number;
     cleanliness: number;
@@ -904,25 +1425,41 @@ Namespaced `kind.world-graph.*` (05 §9), declared as `Kind.eventNames`:
 
 | Name (after the namespace) | Severity | Emitted at |
 |---|---|---|
-| `batch.started` / `batch.ended` | `debug` | Around an `advance_ticks` batch, with `ticks` |
+| `batch.started` / `batch.ended` | `debug` | Around `advance_ticks`, with requested and actually processed ticks |
 | `building.placed` / `building.demolished` | `info` / `debug` | The `build` and `demolish` reducers |
 | `staff.hired` / `staff.fired` / `staff.assigned` | `info` / `debug` / `trace` | The staff reducers |
 | `alert.dismissed` | `trace` | The `dismiss_alert` reducer |
-| `guest.spawned` | `trace` | Guest spawn system |
-| `guest.intent.selected` | `trace` | With the chosen target and winning utility |
-| `guest.path.failed` | `debug` | Target unreachable — the diagnosable failure |
-| `guest.queue.abandoned` | `trace` | Patience exceeded or a better option appeared |
-| `guest.served` | `trace` | Service completed, with amount |
-| `guest.departed` | `debug` | With the departure reason |
-| `staff.task.assigned` / `staff.task.completed` | `trace` | Task lifecycle |
-| `building.status.changed` | `debug` | `open_building` / `close_building`, and construction completion |
-| `incident.raised` | `info` | Incident system |
-| `objective.progressed` | `debug` | Objective evaluation |
+| `scenario.effect.applied` | `debug` | System 1 applied one scheduled/policy effect |
+| `guest.spawned` / `guest.meter.changed` | `trace` | Systems 2–3 |
+| `guest.served` / `service.started` | `trace` | Systems 4–5 |
+| `queue.joined` / `queue.abandoned` | `trace` | FIFO membership changes in system 5 |
+| `guest.intent.selected` | `trace` | System 6, with optional ordered component trace |
+| `guest.path.committed` / `guest.path.failed` | `trace` / `debug` | System 7 attempted a commitment |
+| `guest.moved` / `guest.departed` | `trace` / `debug` | System 8 |
+| `task.candidate.generated` | `trace` | Optional system-9 diagnostic; never state |
+| `staff.task.assigned` / `staff.task.completed` / `staff.task.cancelled` | `trace` | Systems 10–11 |
+| `staff.moved` | `trace` | System 11 traversed one edge |
+| `construction.progressed` / `construction.completed` | `trace` / `info` | System 12 |
+| `building.status.changed` / `building.meter.changed` | `debug` / `trace` | Systems 13–14 and immediate reducers |
+| `finance.charged` | `debug` | System 15 coalesced one charge family |
+| `incident.raised` / `incident.resolved` | `info` / `debug` | Systems 4, 11, 14, or 16 own the transition |
+| `objective.progressed` / `objective.met` | `debug` / `info` | System 17 |
+| `failure.progressed` / `failure.triggered` | `debug` / `info` | System 18 |
 | `scenario.resolved` | `info` | Win or failure, with the `outcome` ids (§8) |
+| `achievement.unlocked` | `info` | System 19, before alert derivation |
+| `alert.raised` / `alert.cleared` | `debug` / `trace` | System 19 active-set transition |
+| `tick.finalized` | `trace` | System 20, after cleanup and increment |
 
 **`guest.path.failed` earns its place.** A resort where guests silently cannot reach a
 building looks identical to one where they do not want to — the failure is invisible in the
 projection and obvious in the stream.
+
+Events emit in system order, then the owning comparator order. World draws use only the
+stable system ids in §4. A system derives at most one tick handle per tick and threads that
+handle through all its draws in declared order; deriving the same id twice would restart the
+stream and is forbidden. Agent draws increment their stored counter immediately. A no-op or
+rejected candidate consumes no draw unless its content type explicitly declares a trial. No
+event feeds a later system.
 
 > **Volume is real here and severity is how it is managed.** A 360-tick batch with 500
 > guests emits on the order of 10⁵ `trace` events. That is acceptable only because 05 §2
@@ -942,6 +1479,13 @@ status transitions, objective progress, scenario resolution. Per-guest and per-t
 is an **event** (§12), where it is discardable by design. This is the boundary 05 §1 draws,
 applied to the first kind with the volume to test it.
 
+Within one `advance_ticks` call, aggregate by resolved scalar path plus reason. `previous`
+is the first value before the batch and `value` is the final value after it; omit the row
+when they are equal and no membership transition occurred. Creation/removal `.exists`
+records remain separate transitions. Sort returned rows by first causal system, then path,
+then reason. Different batch partitions may therefore return different audit arrays; §5
+requires their final kind state, not their per-call presentation records, to agree.
+
 **Batch grain is about *which* records, not *whether*.** The nine no-time-passes actions
 (§4) are single, player-initiated mutations with no volume problem at all, and each returns
 its `StateChange`:
@@ -957,13 +1501,15 @@ its `StateChange`:
 | `fire_staff` | `staff.<staffId>.exists` | `false` (`true`) | `staff_fired` |
 | `assign_staff` | `staff.<id>.assignedBuildingId` / `.assignedZoneId` | the id, or `""` | `staff_assigned` |
 | `set_price` | `buildings.<id>.pricesCents.<productId>` | integer cents (previous cents) | `price_set` |
-| `open_building` / `close_building` | `buildings.<id>.isOpen` | boolean (previous) | `building_opened` / `building_closed` |
+| `open_building` / `close_building` | `buildings.<id>.status` | `"open"` / `"closed"` (previous) | `building_opened` / `building_closed` |
 | `dismiss_alert` | `alerts.<id>.dismissedAtTick` | the tick | `alert_dismissed` |
 | `advance_ticks` | `tick` | tick after (tick before) | `ticks_advanced` |
+| — terminal | `resolution.resolution` | `"objectives_met"` / `"failed"` (`""`) | `scenario_resolved` |
+| — achievement | `unlockedAchievementIds.<id>.exists` | `true` | `achievement_unlocked` |
 
 **`build` writes one of two entity rows.** §6 lets it place a building *or* open a
-construction site; which one depends on whether the definition carries a build time, and the
-site's own `buildTicksRemaining` is counted down by the tick pipeline (W46). Both rows are
+construction site; which one depends on whether the definition carries required construction
+work, and system 12 applies builder work to the site's `workRemaining`. Both rows are
 listed so the second is not discovered later as a gap.
 
 > **`op` is always `set`, and `value` is always the value after.** 04 §12 offers
@@ -987,12 +1533,13 @@ listed so the second is not discovered later as a gap.
 > | Shape | Reaches | Examples |
 > |---|---|---|
 > | **Singleton** | a scalar not held in a collection | `tick`, `finances.cashCents`, `map.revision` |
-> | **Entity-scoped** | `<collection>.<entityId>.<field>` | `buildings.b:3.isOpen`, `alerts.a:9.dismissedAtTick` |
+> | **Member-scoped** | `<collection>.<memberId>.<field>` or `.exists` | `buildings.b:3.status`, `unlockedAchievementIds.first-sale.exists` |
 >
-> `<entityId>` is the entity's own id (§9), never its array index — an index is a property of
-> how the collection is stored, and §3.4's whole point is that storage order is not
-> addressable. A `null` assignment is `""` for the same reason the collection rule exists:
-> the type has no null.
+> `<memberId>` is the entity's own id (§9), or the string value in a canonical id set such
+> as `unlockedAchievementIds`; it is never an array index. An index is a property of how the
+> collection is stored, and §3.4's whole point is that storage order is not addressable. A
+> `null` assignment is `""` for the same reason the collection rule exists: the type has no
+> null.
 >
 > **A dotted path is only unambiguous because no id may contain a dot.** §3.2 calls
 > identifiers opaque, and opacity of *meaning* would otherwise imply freedom of *shape*.
@@ -1020,12 +1567,11 @@ listed so the second is not discovered later as a gap.
 > unescaping identically or reintroduce the divergence this rule exists to remove.
 >
 > **`.exists` is the one synthetic leaf, and the only one.** Appearing and disappearing are
-> not fields of any type in §3.2 — an entity that was removed has no field left to carry the
-> news. So `<collection>.<entityId>.exists` is defined as a boolean assertion about
-> *membership*: the traversal resolves the entity, and `.exists` reports whether the
-> collection holds it. Everything else in a path is a real field, and no second synthetic
-> leaf may be added without amending this paragraph — an open set of invented leaves would
-> put the grammar right back where it started.
+> not fields of any type in §3.2 — a removed entity or string-set member has no field left
+> to carry the news. So `<collection>.<memberId>.exists` is a boolean assertion about
+> membership: resolve an entity by its id or an id-set entry by its value, then report
+> whether the collection holds it. Everything else in a path is a real field, and no second
+> synthetic leaf may be added without amending this paragraph.
 >
 > **This is normative, and it is checkable.** 04 §12 types `path` as an unconstrained
 > `string`, so nothing structural stops a producer inventing one; the rule above is what
@@ -1037,11 +1583,11 @@ listed so the second is not discovered later as a gap.
 > which is the point of deriving it rather than listing it — a hand-maintained list of
 > singleton paths would be one more thing to drift from the fields it describes.
 >
-> **Two fields are reachable by that rule and still never audited.** `nextEntityOrdinal` is
+> **One field is reachable by that rule and still never audited.** `nextEntityOrdinal` is
 > an id source, not player-facing state — auditing it would emit a row on every creation
-> saying a counter moved. `map.*` changes only when authored topology does (§3.2), which is
-> not something an action does. Stated because "derivable from the state type" would
-> otherwise imply they should appear.
+> saying a counter moved. Stated because "derivable from the state type" would otherwise
+> imply it should appear. `map.revision` is different: build, completion, and demolition
+> mutate dynamic blockage and audit that scalar when it changes.
 
 `reason` is a descriptive code naming *why* the change happened, not a rejection code —
 `simulation`'s `action_eat` and `story-graph`'s `achievement_unlocked` set that precedent,
@@ -1137,8 +1683,8 @@ a foreign key.
 
 No type below addresses state with a free-form path. Numeric facts use the closed
 `WorldMetric` union; booleans use the closed leaves of `WorldCondition`; writes use
-`WorldEffect`. W44 owns evaluation order, aggregation, rounding, and competing-effect
-precedence, not the vocabulary.
+`WorldEffect`. §§4 and 9 own evaluation order, aggregation, rounding, and competing-effect
+precedence.
 
 ```typescript
 interface IntegerRange {
@@ -1210,7 +1756,7 @@ type WorldMetric =
   | {
       kind: "incident_count";
       incidentDefinitionId: string | null;
-      state: "active" | "resolved";
+      state: "active" | "resolved";              // resolved = retained cooldown/audit window
     };
 
 type WorldCondition =
@@ -1231,6 +1777,12 @@ type GuestSelector =
   | { kind: "current_incident_guest" }
   | { kind: "building_queue"; buildingDefinitionId: string };
 
+type BuildingSelector =
+  | { kind: "all" }
+  | { kind: "definition"; buildingDefinitionId: string }
+  | { kind: "current_service_building" }
+  | { kind: "current_incident_building" };
+
 type IncidentTarget =
   | { kind: "none" }
   | { kind: "current_guest" }
@@ -1249,30 +1801,54 @@ type WorldEffect =
       delta: number;
       guests: GuestSelector;
     }
-  | { kind: "start_incident"; incidentDefinitionId: string; target: IncidentTarget }
-  | { kind: "resolve_incident"; incidentDefinitionId: string }
+  | {
+      kind: "building_meter_delta";
+      meter: "cleanliness" | "wear";
+      delta: number;
+      buildings: BuildingSelector;
+    }
+  | {
+      kind: "start_incident";
+      incidentDefinitionId: string;
+      target: IncidentTarget;
+      amount: number;                             // positive occurrence units
+    }
+  | {
+      kind: "resolve_incident";
+      incidentDefinitionId: string;
+      incidents: "current" | "all_active";
+    }
   | { kind: "set_policy_active"; policyId: string; active: boolean };
 ```
 
 Every `number` in §14 is an integer. `*Cents` fields are cents, `*Ticks` fields are ticks,
 `*Tiles` fields are grid tiles, meter values use their referenced definition range, curve
 inputs/outputs use the field that owns the curve, and utility/weight/delta fields are signed
-integer scoring units unless a narrower comment says otherwise. `counter_increment.amount` is a
-non-negative integer: it is the only effect that writes `WorldCounters`, so counters never
-decrease or become negative.
+integer scoring units unless a narrower comment says otherwise.
 
-`resolve_incident` is definition-targeted because campaign data cannot name a runtime occurrence
-id. When it executes, it resolves **every active** `Incident` whose `definitionId` matches, in
-lexicographic `Incident.id` order, and applies that definition's `onResolve` effects once per
-resolved occurrence. No match is a no-op. This fixes target selection; W44 still owns when an
-effect executes and how competing effects compose.
+`counter_increment.amount` is a non-negative integer: it is the only effect that writes
+`WorldCounters`, so counters never decrease or become negative. `resolve_incident` is
+definition-targeted because campaign data cannot name a runtime occurrence id. It resolves
+every matching active occurrence in lexicographic `Incident.id` order, applying the matched
+definition's `onResolve` effects once per resolved occurrence; no match is a no-op. The
+`incidents` selector limits that set to the current occurrence or all active occurrences.
+An incident-owned `onStart` or `onResolve` effect evaluates with that occurrence's id as its
+only `current` incident context. Every resolver writes `resolvedAtTick: processingTick`
+before its `onResolve` list, so the retained occurrence is not active during that list.
+In that context, `incidents: "current"` selects that one occurrence only if it is still active
+and has the requested definition; thus it is a deterministic no-op in its own `onResolve`
+list or when the definition differs.
+`incidents: "current"` is Tier 1 invalid in every other effect owner (product, building,
+scheduled scenario change, policy, objective, or failure), because none supplies an incident
+occurrence. `incidents: "all_active"` needs no such context.
 
 All meters use the range on their referenced definition. `average` is an exact rational
-during comparison—W44 states the cross-multiplication/rounding rule—so no floating-point
+during comparison—§9.2 states the cross-multiplication/rounding rule—so no floating-point
 value enters state. Empty `all`/`any`, an aggregate selector that cannot match any reachable
 definition, or a metric whose dependent id does not resolve is Tier 1 rather than an
-implicit identity value. W44 defines the result when a valid selector temporarily has no
-runtime entities—for example, cleanliness before the player builds anything.
+implicit identity value. §9.2 defines the result when a valid selector temporarily has no
+runtime entities: `sum`/`entity_count` yield zero; `min`, `max`, and `average` are
+unavailable, so a comparison using them is false and objective progress projects as zero.
 
 ### 14.3 Maps, terrain, scenery, placement, and adjacency
 
@@ -1377,6 +1953,11 @@ switches. A `BuildingDefinition` additionally requires at least one entrance. Ea
 is the walkable approach cell immediately outside the unrotated footprint (§3.3); the exact
 integer rotation transform there is reused unchanged.
 
+`orthogonal_grid` materializes a directed edge from each row-major origin to every in-bounds
+orthogonal neighbour, destinations row-major, with `edgeCost: 0` and `allowed: true`.
+Terrain supplies the positive traversable cost required by §9.3. An explicit topology owns
+both directions separately; authoring `a → b` never implies `b → a`.
+
 ### 14.4 Products, buildings, queues, service, and litter
 
 The `operation.kind` union is engine mechanical: systems branch on it. `tags` are content
@@ -1407,6 +1988,7 @@ interface ServiceProduct {
   serviceTicks: number | null;                     // null = operation base; otherwise positive
   initialUnits: number | null;                     // null = unlimited
   capacity: number | null;                         // null = unlimited; otherwise >= initialUnits
+  restockTaskPriority: number;                     // signed integer candidate priority
 }
 
 interface StaffRequirement {
@@ -1421,6 +2003,7 @@ type BuildingOperation =
       queueMaxLength: number | null;                // null = unlimited
       baseServiceTicks: number;                     // positive integer; product may override
       staffRequirements: readonly StaffRequirement[];
+      staffingTaskPriority: number;                 // signed integer candidate priority
       effects: readonly WorldEffect[];              // applied on every completed service
     }
   | {
@@ -1438,7 +2021,8 @@ interface BuildingDefinitionBase<TText> {
   entrances: readonly EntranceOffset[];             // >= 1
   allowedRotations: readonly Rotation[];             // non-empty, unique
   constructionCostCents: number;                     // non-negative integer cents
-  constructionTicks: number;                         // 0 = immediate MVP construction
+  constructionWork: number;                          // effort units; 0 = immediate MVP construction
+  constructionTaskPriority: number;                  // signed integer candidate priority
   operatingCostCentsPerDay: number;                  // non-negative integer cents
   initialWear: number;                               // integer 0..100
   initialCleanliness: number;                        // integer 0..100
@@ -1449,10 +2033,12 @@ interface BuildingDefinitionBase<TText> {
 }
 ```
 
-One placed building owns one stable shared queue; a guest's `targetProductId` says what that
-guest will buy. That is why W43 removes W42's single `Queue.productId`: it contradicted a
-building definition with several products. `Building.products`, `pricesCents`, and
-`inventory` are materialized from `operation.products`; the three key sets must be equal.
+One placed building owns one stable shared queue; its head guest's `seek_service` intent says
+what that guest will buy. That is why W43 removes W42's single `Queue.productId`: it
+contradicted a building definition with several products. `pricesCents` and `inventory` are
+materialized from `operation.products`; both key sets must equal the definition's product-id
+set. Non-service buildings materialize those records empty; their structural queue can
+never become a utility/service candidate.
 
 ### 14.5 Guest vocabularies, archetypes, and staff roles
 
@@ -1479,12 +2065,15 @@ interface OpinionDefinitionBase<TText> extends MeterDefinitionBase<TText> {
   neutral: number;                                // inclusive within range
 }
 
-type PreferenceDefinitionBase<TText> = MeterDefinitionBase<TText>;
+interface PreferenceDefinitionBase<TText> extends MeterDefinitionBase<TText> {
+  targetTags: readonly string[];                    // non-empty tags scored by §9.1
+}
 
 interface NeedProfile {
   needId: string;
   initial: IntegerRange;
   driftByCurrentValue: IntegerCurve;              // current value → integer delta per tick
+  utilityByCurrentValue: IntegerCurve;            // current value → non-negative urgency
 }
 
 interface MeterProfile {
@@ -1503,10 +2092,15 @@ interface GuestArchetypeDefinitionBase<TText> {
   conditions: readonly MeterProfile[];
   opinions: readonly MeterProfile[];               // MVP-required: price
   preferences: readonly MeterProfile[];
-  priceResistance: IntegerCurve;                   // price delta cents → utility delta
-  travelUtilityPerCost: number;                    // integer utility units per path-cost unit
-  queueUtilityPerTick: number;                     // integer utility units per wait tick
+  priceResistance: IntegerCurve;                   // actual price cents → non-negative penalty
+  preferenceUtilityPerPoint: number;               // non-negative utility per meter point
+  qualityUtilityPerPoint: number;                  // non-negative utility per quality point
   attractivenessUtilityPerPoint: number;           // integer utility units per point
+  travelPenaltyPerCost: number;                    // non-negative penalty per path-cost unit
+  queuePenaltyPerTick: number;                     // non-negative penalty per estimated wait tick
+  safetyPenaltyPerPoint: number;                   // non-negative penalty per severity point
+  switchThresholdUtility: number;                  // non-negative strict improvement required
+  fallback: { kind: "leave" } | { kind: "wait"; ticks: number }; // wait ticks positive
   tags: readonly string[];
 }
 
@@ -1527,10 +2121,11 @@ interface StaffRoleDefinitionBase<TText> {
 }
 ```
 
-Inclusive `IntegerRange` draws during setup use the tick-0 stream (§3.1). W44 defines the
-integer curve evaluator and utility composition; W43 merely makes every input typed and
-scaled. `StaffTaskType` remains a closed engine union because dispatch selects a resolver by
-it; campaigns extend roles and rates by id, not the resolver vocabulary.
+Scenario setup draws use the named tick-0 setup stream (§3.1). Guest archetype ranges are
+materialized only after system 2 allocates a guest id, then draw from that guest's own stream
+in the fixed order named by §4.4. `StaffTaskType` remains a closed engine union because
+dispatch selects a resolver by it; campaigns extend roles and rates by id, not the resolver
+vocabulary.
 
 ### 14.6 Scenarios, objectives, failures, incidents, policies, and achievements
 
@@ -1570,6 +2165,15 @@ interface DefinitionLimit {
   maximum: number;                                // non-negative integer
 }
 
+interface ScheduledScenarioChange {
+  dueTick: number;                                  // non-negative processing tick
+  priority: number;                                 // signed integer; higher applies first
+  condition: WorldCondition;
+  effects: readonly WorldEffect[];                  // authored order
+}
+
+type ResolutionPrecedence = "objectives_win" | "failure_wins";
+
 interface ScenarioDefinitionBase<TText> {
   id: string;
   text: TText;
@@ -1577,6 +2181,7 @@ interface ScenarioDefinitionBase<TText> {
   startingCashCents: number;                       // integer cents
   unlockedContent: readonly ContentReference[];
   activePolicyIds: readonly string[];              // MVP-inert
+  scheduledChanges: readonly ScheduledScenarioChange[];
   buildingPlacements: readonly BuildingPlacement[];
   sceneryPlacements: readonly SceneryPlacement[];  // MVP-inert
   guestSpawning: ScenarioGuestSpawning;
@@ -1584,6 +2189,7 @@ interface ScenarioDefinitionBase<TText> {
   failureIds: readonly string[];
   timeLimitTicks: number | null;                   // null = no deadline
   timeLimitFailureId: string | null;               // paired with timeLimitTicks; targets failureIds
+  resolutionPrecedence: ResolutionPrecedence;
   buildingLimits: readonly DefinitionLimit[];
   staffLimits: readonly DefinitionLimit[];
   tags: readonly string[];
@@ -1593,7 +2199,7 @@ interface ObjectiveDefinitionBase<TText> {
   id: string;
   text: TText;
   completion: WorldCondition;
-  progressMetric: WorldMetric;
+  progressMetric: WorldMetric | null;              // null = effect-driven persisted progress
   target: number;
   requiredDurationTicks: number;                   // positive integer; 1 = immediate
   onCompleted: readonly WorldEffect[];
@@ -1612,17 +2218,22 @@ interface FailureDefinitionBase<TText> {
 type IncidentKind =
   | "litter" | "spill" | "breakdown" | "fire" | "security" | "weather" | "scripted";
 
+type IncidentRollScope = "world" | "zone" | "building";
+
 interface IncidentDefinitionBase<TText> {
   id: string;
   text: TText;
   kind: IncidentKind;                              // engine-mechanical resolver family
   severity: IncidentSeverity;
   triggerCondition: WorldCondition | null;         // null = started only by an effect
+  rollScope: IncidentRollScope;
+  rollChanceBasisPoints: number;                   // integer 0..10000 per scope/tick
   selectionWeight: number;                         // non-negative integer; 0 disables rolling
   cooldownTicks: number;                           // non-negative integer
   durationTicks: IntegerRange | null;               // null = no automatic expiry
   resolutionCondition: WorldCondition | null;
   resolverTaskType: StaffTaskType | null;
+  resolverTaskPriority: number | null;               // null iff resolverTaskType is null
   onStart: readonly WorldEffect[];
   onResolve: readonly WorldEffect[];
   tags: readonly string[];
@@ -1709,11 +2320,12 @@ are no other omitted-field conventions; absence elsewhere is represented by `nul
 Catalogs are sorted lexicographically by definition id. Duplicate nested definition-id
 lists, tags, rotation lists, and scenario unlocks are rejected, then the accepted values are
 sorted; map positions and terrain overrides are row-major `(y, x)`; explicit edges sort by
-`(from.y, from.x, to.y, to.x)`; curve points sort by `input`. Effects, `all`/`any` children,
-and scenario placements preserve authored order: effects will gain order/precedence
-semantics in W44, condition evaluation is side-effect-free, and placements allocate ids.
-Runtime content remains arrays and plain objects—ephemeral indexes may be built by W45 but
-are neither campaign data nor saved state.
+`(from.y, from.x, to.y, to.x)`; curve points sort by `input`; scheduled changes sort by
+§4.2 while retaining authored indexes as final ties. Effects, `all`/`any` children, and
+scenario placements preserve authored order: effects have §9.2 order semantics, condition
+children are trace-stable, and placements allocate ids. Runtime content remains arrays and
+plain objects—ephemeral indexes may be built by W45 but are neither campaign data nor saved
+state.
 
 ### 14.9 W42 reconciliation
 
@@ -1732,6 +2344,32 @@ These are the only §3 changes W43 makes:
 | objectives lack duration state; failures have none | objective `satisfiedSinceTick` plus `FailureProgress[]` | Sustained objective/failure conditions must survive save/load and split tick batches |
 
 Everything else in §3 remains W42's state contract.
+
+### 14.10 W44 reconciliation
+
+The executable system audit found these durable facts absent or duplicated after W43. They
+are the only W44 state/content corrections; A* open sets, task candidates, indexes, deltas,
+and aggregation buffers remain scratch (§4.2).
+
+| Pre-W44 surface | W44 correction | System proof |
+|---|---|---|
+| queue globally sorted by guest id; ambiguous `startedAtTick` plus queue patience | semantic FIFO and nullable `serviceStartedAtTick`; patience remains per guest | systems 4–5 must preserve arrival/rejoin order and resume one head service after save/load |
+| three nullable guest target ids plus wait ticks | one closed `GuestIntent` union | systems 5–8 require exactly one service/leave/wait destination, not contradictory nullable combinations |
+| staff has position but no route | persisted `path`, `pathIndex`, `moveProgressTicks` | system 11 must resume slow movement after save/load without teleporting or rerouting |
+| task effort always numeric | `effortRemaining: number | null` | finite clean/restock/build work differs from continuing service duty |
+| site completion may allocate later ids; tick-named construction effort | reserved building/queue ids and `workRemaining`; content uses `constructionWork` | system 12 completion order may not renumber entities; builders supply effort, not elapsed time |
+| `Building.status` plus derived `isOpen` | `status` is sole authority; construction sites are not buildings | systems 4, 5, 13, and actions cannot disagree about openness |
+| copied queue capacity, product-id list, incident severity, and site cost | resolve immutable definitions; runtime retains only mutable records/occurrence facts | no W44 system writes the copies, so they could only drift from their authoritative content/action result |
+| litter occurrence has no durable position/amount | `Incident.position` and positive `amount` | systems 4, 9, 11, and 14 need one replayable spatial cleanup target |
+| terminal identity reconstructed from mutable progress | immutable `WorldResolution` | system 18 must persist simultaneous precedence and published failure identity once |
+| alerts cannot distinguish cleared from dismissed or deduplicate a recurrence | engine-derived `semanticKey` and `clearedAtTick` | system 19 needs a bounded, replayable active-set lifecycle |
+| pipeline names scheduled effects, utility inputs, incident rolls, and simultaneous resolution without content fields | scheduled changes, resolution precedence, urgency/fallback/penalty inputs, roll scope/chance, and building-meter effects | systems 1, 6, 14, 16, and 18 otherwise invent campaign rules in code |
+
+Resolved incidents remain through at least the following tick and through their declared
+cooldown, which makes `incident_count(state: "resolved")` a retained recent/cooldown-window
+metric; cumulative cross-scenario facts use `WorldCounters`. Cleared/dismissed alerts remain
+through the first completed tick after their timestamp, then are removed at system 20. Those
+retention meanings are engine mechanics, not hidden cache behavior.
 
 **The draft's open question on packs is closed.** Its §10 says "the merge strategy is not
 yet decided"; [`11-content-packs.md`](11-content-packs.md) decides it — campaigns replace
@@ -1771,7 +2409,8 @@ details, but it may not replace a precise path with an unstructured message.
   positive exactly where §14 says.
 - Map dimensions are positive; every coordinate is in bounds; terrain overrides are unique;
   every spawn and exit is walkable; zone cells are non-empty and unique; explicit edges have
-  in-bounds endpoints and no duplicate directed `(from, to)` pair.
+  in-bounds endpoints and no duplicate directed `(from, to)` pair. Every traversable
+  `edgeCost + destination.moveCost` is positive, and worst-case simple path cost is safe.
 - Footprints are positive; rotations are unique and supported; every building has an
   entrance exactly one orthogonal cell outside one unrotated edge; placement rules have
   non-empty target ids and valid distance bounds.
@@ -1779,25 +2418,31 @@ details, but it may not replace a precise path with an unstructured message.
   satisfy terrain/zone rules, do not overlap, and leave each building with at least one
   walkable approach cell. Building placements are checked by the same pure geometry used by
   `build`, never a scenario-only approximation.
-- Building service product ids are unique; their materialized product/price/inventory key
-  sets agree. A non-product service may have an empty product list; any other empty list or
-  unresolved staff requirement is invalid.
+- Building service product ids are unique; each runtime building's price/inventory key sets
+  equal its definition's product-id set. A non-product service may have an empty product
+  list; any other empty list or
+  unresolved staff requirement is invalid. Task priorities are integers;
+  `resolverTaskPriority` is null iff `resolverTaskType` is null.
 - An archetype declares unique meter entries, every initial range fits its meter definition,
-  and runtime guest records have exactly those keys. A staff role has one positive work rate
-  for every supported task and no extra rate.
+  and runtime guest records have exactly those keys. Urgency and price-resistance curves
+  have non-negative outputs; penalty/threshold/fallback fields satisfy §14; the derived
+  worst-case utility score is safe. A staff role has one positive work rate for every
+  supported task and no extra rate.
 - `WorldCondition`/`WorldEffect` discriminators and payloads match. `all`/`any` are non-empty;
   expression depth is at most 32; finance metrics select numeric fields; inventory metrics
-  name a product; aggregate and selector references resolve. Counter-increment amounts are
-  non-negative, and every incident-definition reference — including start/resolve effects,
-  litter, and waste acceptance — resolves in the `IncidentDefinition` catalog. No arbitrary
+  name a product; aggregate and selector references resolve. Context selectors occur only
+  where that context exists—for example, `current_incident_building` and
+  `resolve_incident.incidents: "current"` in an incident occurrence's effects. No arbitrary
   state path exists to validate or execute.
-- Objectives/failures have positive duration; objective progress metrics can be compared to
-  their targets; incident ranges, cooldowns, weights, target modes, task kinds, and policy
-  costs satisfy their declared domains.
+- Objectives/failures have positive duration; non-null objective progress metrics can be
+  compared to their targets, and progress effects target only null-metric objectives;
+  incident ranges, cooldowns, weights, roll scope/chance, target modes, task
+  kinds, and policy costs satisfy their declared domains.
 - A scenario's time limit is null or positive and `timeLimitFailureId` is null iff the limit
   is null; otherwise it resolves within that scenario's `failureIds`. Its guest pool is
   non-empty with unique archetypes and positive weights, and definition limits are unique
-  and non-negative.
+  and non-negative. Scheduled due ticks are non-negative, effects are non-empty, and
+  `resolutionPrecedence` is recognized.
 
 **Tier 2 — load-time warning:**
 
@@ -1921,7 +2566,8 @@ const minimalMvpSource: WorldGraphCampaignSource = {
       entrances: [{ x: -1, y: 0 }],
       allowedRotations: [0],
       constructionCostCents: 5000,
-      constructionTicks: 0,
+      constructionWork: 0,
+      constructionTaskPriority: 0,
       operatingCostCentsPerDay: 100,
       initialWear: 100,
       initialCleanliness: 100,
@@ -1929,10 +2575,17 @@ const minimalMvpSource: WorldGraphCampaignSource = {
       adjacencyEffects: [],
       operation: {
         kind: "service",
-        products: [{ productId: "soft-drink", serviceTicks: 2, initialUnits: null, capacity: null }],
+        products: [{
+          productId: "soft-drink",
+          serviceTicks: 2,
+          initialUnits: null,
+          capacity: null,
+          restockTaskPriority: 0,
+        }],
         queueMaxLength: 8,
         baseServiceTicks: 2,
         staffRequirements: [],
+        staffingTaskPriority: 0,
         effects: [],
       },
       tags: ["drink"],
@@ -1947,7 +2600,8 @@ const minimalMvpSource: WorldGraphCampaignSource = {
       entrances: [{ x: -1, y: 0 }],
       allowedRotations: [0],
       constructionCostCents: 4000,
-      constructionTicks: 0,
+      constructionWork: 0,
+      constructionTaskPriority: 0,
       operatingCostCentsPerDay: 50,
       initialWear: 100,
       initialCleanliness: 100,
@@ -1959,6 +2613,7 @@ const minimalMvpSource: WorldGraphCampaignSource = {
         queueMaxLength: 8,
         baseServiceTicks: 2,
         staffRequirements: [],
+        staffingTaskPriority: 0,
         effects: [{
           kind: "guest_meter_delta",
           meter: "need",
@@ -1979,7 +2634,8 @@ const minimalMvpSource: WorldGraphCampaignSource = {
       entrances: [{ x: -1, y: 0 }],
       allowedRotations: [0],
       constructionCostCents: 1000,
-      constructionTicks: 0,
+      constructionWork: 0,
+      constructionTaskPriority: 0,
       operatingCostCentsPerDay: 0,
       initialWear: 100,
       initialCleanliness: 100,
@@ -2007,6 +2663,10 @@ const minimalMvpSource: WorldGraphCampaignSource = {
           interpolation: "step",
           points: [{ input: 0, output: -1 }, { input: 100, output: -1 }],
         },
+        utilityByCurrentValue: {
+          interpolation: "linear",
+          points: [{ input: 0, output: 100 }, { input: 100, output: 0 }],
+        },
       },
       {
         needId: "toilet",
@@ -2015,6 +2675,10 @@ const minimalMvpSource: WorldGraphCampaignSource = {
           interpolation: "step",
           points: [{ input: 0, output: -1 }, { input: 100, output: -1 }],
         },
+        utilityByCurrentValue: {
+          interpolation: "linear",
+          points: [{ input: 0, output: 100 }, { input: 100, output: 0 }],
+        },
       },
     ],
     conditions: [],
@@ -2022,11 +2686,16 @@ const minimalMvpSource: WorldGraphCampaignSource = {
     preferences: [],
     priceResistance: {
       interpolation: "linear",
-      points: [{ input: 0, output: 0 }, { input: 1000, output: -100 }],
+      points: [{ input: 0, output: 0 }, { input: 1000, output: 100 }],
     },
-    travelUtilityPerCost: -1,
-    queueUtilityPerTick: -2,
+    preferenceUtilityPerPoint: 1,
+    qualityUtilityPerPoint: 1,
     attractivenessUtilityPerPoint: 1,
+    travelPenaltyPerCost: 1,
+    queuePenaltyPerTick: 2,
+    safetyPenaltyPerPoint: 10,
+    switchThresholdUtility: 10,
+    fallback: { kind: "leave" },
     tags: ["mvp"],
   }],
   staffRoles: [{
@@ -2051,13 +2720,30 @@ const minimalMvpSource: WorldGraphCampaignSource = {
     kind: "litter",
     severity: "minor",
     triggerCondition: null,
+    rollScope: "world",
+    rollChanceBasisPoints: 0,
     selectionWeight: 0,
     cooldownTicks: 0,
     durationTicks: null,
     resolutionCondition: null,
     resolverTaskType: "clean",
-    onStart: [{ kind: "counter_increment", counter: "litterCreated", amount: 1 }],
-    onResolve: [{ kind: "counter_increment", counter: "litterCleaned", amount: 1 }],
+    resolverTaskPriority: 100,
+    onStart: [
+      {
+        kind: "building_meter_delta",
+        meter: "cleanliness",
+        delta: -5,
+        buildings: { kind: "current_incident_building" },
+      },
+    ],
+    onResolve: [
+      {
+        kind: "building_meter_delta",
+        meter: "cleanliness",
+        delta: 5,
+        buildings: { kind: "current_incident_building" },
+      },
+    ],
     tags: ["mvp"],
   }],
   objectives: [{
@@ -2152,6 +2838,7 @@ const minimalMvpSource: WorldGraphCampaignSource = {
       { kind: "staff_role", id: "cleaner" },
     ],
     activePolicyIds: [],
+    scheduledChanges: [],
     buildingPlacements: [],
     sceneryPlacements: [],
     guestSpawning: {
@@ -2163,6 +2850,7 @@ const minimalMvpSource: WorldGraphCampaignSource = {
     failureIds: ["bankrupt", "deadline-missed", "filthy-beach"],
     timeLimitTicks: 720,
     timeLimitFailureId: "deadline-missed",
+    resolutionPrecedence: "objectives_win",
     buildingLimits: [],
     staffLimits: [{ definitionId: "cleaner", maximum: 4 }],
     tags: ["mvp"],
@@ -2198,6 +2886,31 @@ Expected Tier-1 paths and findings:
 | `guestArchetypes[0].cashCents` | inclusive integer range is reversed |
 | `buildings[0].text.name.key` | same `AuthoredText.key` as the product name, different text |
 
+### 15.3 Resolution verification matrix for W46/W47
+
+- One focused test per system covers mutation, no-op, comparator order, events, and changes.
+- Deep canonical state equality covers `advance(a + b)` against `advance(a)` then
+  `advance(b)` across departure cleanup, day reset, service/construction completion,
+  incident roll, and terminal boundaries.
+- Cache-on/cache-off and `recordingEmitter`/`nullEmitter` runs produce identical state;
+  tick/entity events also match across batch partitions while batch diagnostics may differ.
+- Canonicalized content input may be shuffled without effect; FIFO queue arrays may not,
+  because their order is state.
+- A* fixtures cover equal paths/parents, multiple entrances, directed edges, blocked
+  footprints, unreachable goals, and map-revision invalidation.
+- Queue fixtures cover simultaneous arrival, abandonment, close/reopen, rejoin, capacity,
+  and save/load during service.
+- Utility fixtures cover every component, every eligibility exclusion, negative totals,
+  exact ties, fallback, switch threshold, rational/curve rounding, and safe-integer bounds.
+- Staff fixtures cover competing staff/tasks, persisted slow movement, target removal,
+  continuing service duty, cancellation, and completion order.
+- Finance fixtures prove cumulative proration sums exactly at period boundaries under every
+  batch partition.
+- Objective/failure fixtures cover both precedence values, the exact time-limit boundary,
+  progress duration, and immutable terminal identity.
+- Save/load fixtures cut between every adjacent system-owned durable handoff represented in
+  state: queue service, staff movement/work, incident cleanup, and terminal finalize.
+
 ---
 
 ## 16. Replay
@@ -2207,7 +2920,8 @@ A `ReplayFixture` (07 §2) records `submissions` including every `advance_ticks`
 
 Batch invariance (§5) is the **stronger** property, and it is what makes captured sessions
 portable: a fixture recorded from a client running at 4× compares equal to the same play at
-1×, because the comparison is over `Outcome`, not bytes.
+1× by deep canonical kind-state equality. `Outcome` equality is asserted as well, but cannot
+substitute for the state comparison because it intentionally omits balance-sensitive facts.
 
 ---
 

@@ -133,10 +133,10 @@ export const nextActs: readonly RoadmapChapter[] = [
     status: "now",
     title: "Describe the resort",
     summary:
-      "Settle the world’s content and the order in which it changes. W43 is the current unmerged contract unit.",
+      "Settle the world’s content and the order in which it changes. W44 is the current unmerged contract unit.",
     links: [
       {
-        label: "World-graph content contract",
+        label: "World-graph contract",
         href: `${repo}/blob/main/design/20-contract.md`,
         kind: "repository",
       },
