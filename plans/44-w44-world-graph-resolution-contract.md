@@ -88,7 +88,7 @@ These are contract gaps, not implementation discoveries:
 | Gap | Evidence | Consequence if deferred |
 |---|---|---|
 | Queue order is canonicalized by guest id | §3.4 | A guest that leaves and rejoins can jump ahead because its entity id is old; stable queue order is semantic state, not storage order |
-| Service has no unambiguous in-progress record | `Queue.startedAtTick` is unexplained; no serving guest field exists | Systems 4 and 5 cannot agree who is being served or when service completes |
+| Service had no unambiguous in-progress record | The pre-W44 queue start clock was ambiguous; no serving guest field existed | Systems 4 and 5 could not agree who was being served or when service completed |
 | Staff have position but no path/path index | `Staff` lacks the fields `Guest` has | System 11 cannot move spatial staff reproducibly or resume after save/load |
 | Litter has no runtime representation | No litter/waste collection or map amount exists | The MVP's serve → litter → cleaner chain cannot be represented or replayed |
 | Failure identity has no guaranteed stored source | `outcome()` promises `failureId`, while W42 has only objective progress | A non-objective failure can end the game without leaving a published id in state |
@@ -192,8 +192,8 @@ others. Rejoining appends at the tail.
 
 The merged state contract must carry one unambiguous service clock for the current head —
 either a named `serviceStartedAtTick` plus head-by-position semantics, or an equivalent typed
-service record. W44 chooses one and removes/renames the ambiguous `startedAtTick`; it does not
-add both a head id and a duplicate queue position. Service starts in system 5 at
+service record. W44 chooses the former and removes the ambiguous legacy queue clock; it does
+not add both a head id and a duplicate queue position. Service starts in system 5 at
 `processingTick` and, for positive integer `serviceDurationTicks`, completes in system 4 of
 the first tick where
 `processingTick - serviceStartedAtTick >= serviceDurationTicks`. It never completes in the
