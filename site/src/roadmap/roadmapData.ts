@@ -213,3 +213,13 @@ export const nextActs: readonly RoadmapChapter[] = [
     ],
   },
 ];
+
+const currentActCandidate = nextActs.find(
+  (chapter) => chapter.status === "now",
+);
+
+if (currentActCandidate === undefined) {
+  throw new Error("The roadmap must define one current act.");
+}
+
+export const currentAct: RoadmapChapter = currentActCandidate;

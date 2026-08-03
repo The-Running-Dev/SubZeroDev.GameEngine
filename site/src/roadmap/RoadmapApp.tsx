@@ -1,6 +1,7 @@
 import { ExternalLink, SiteFooter, SiteHeader } from "../shared";
 import {
   completedWorkUnitCount,
+  currentAct,
   nextActs,
   shippedChapters,
   type RoadmapChapter,
@@ -96,26 +97,10 @@ export default function RoadmapApp() {
         </section>
         <section id="now" className="roadmap-section checkpoint">
           <p className="section-index">02 / NOW</p>
-          <h2>The Door Is Open. Somebody Has to Describe the Resort.</h2>
-          <p>
-            W41 is complete: the package boundary is merged, the clean-consumer
-            gate passes, and <code>@the-running-dev/game-engine@0.4.0</code> is
-            published. W42's runtime-state contract and W43–W44's world-graph
-            content and systems contracts are also shipped. W45's kind
-            foundation is merged; W46's deterministic tick pipeline is now in
-            review. The playable guest loop remains next. A contract is a
-            description, not a program.
-          </p>
+          <h2>{currentAct.title}</h2>
+          <p>{currentAct.summary}</p>
+          <Links chapter={currentAct} />
           <p className="roadmap-links">
-            <ExternalLink href="https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/108">
-              W41 merged PR
-            </ExternalLink>
-            <ExternalLink href="https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/39-world-graph-kind-programme.md">
-              World-graph programme
-            </ExternalLink>
-            <ExternalLink href="https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/128">
-              W46 draft PR
-            </ExternalLink>
             <a href="/docs/engine/todo">Canonical task ledger</a>
           </p>
         </section>

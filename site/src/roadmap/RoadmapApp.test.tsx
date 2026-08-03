@@ -1,8 +1,9 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import RoadmapApp from "./RoadmapApp";
 import {
   completedWorkUnitCount,
+  currentAct,
   nextActs,
   shippedChapters,
 } from "./roadmapData";
@@ -17,6 +18,14 @@ describe("roadmap page", () => {
     expect(screen.getAllByText("NOW")).toHaveLength(1);
     expect(screen.getAllByText("NEXT")).toHaveLength(2);
     expect(screen.getAllByText("LATER")).toHaveLength(3);
+    const checkpoint = screen.getByText("02 / NOW").closest("section");
+    expect(checkpoint).not.toBeNull();
+    expect(
+      within(checkpoint as HTMLElement).getByRole("heading", {
+        level: 2,
+        name: currentAct.title,
+      }),
+    ).toBeVisible();
   });
 
   it("keeps shipped work chronological and future work explicitly future", () => {
@@ -36,6 +45,7 @@ describe("roadmap page", () => {
       "W49",
     ]);
     expect(nextActs.every((chapter) => chapter.status !== "done")).toBe(true);
+    expect(currentAct.workUnits).toBe("W47");
     expect(shippedChapters[0]?.links[0]?.href).toMatch(
       /^https:\/\/github\.com\/The-Running-Dev\/SubZeroDev\.GameEngine\/commit\/[0-9a-f]{40}$/,
     );
