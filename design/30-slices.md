@@ -630,12 +630,13 @@ when it declined a programme doc for this kind.
       `WorldGraphKindState`'s closure
       (`Incident`, `ObjectiveProgress`, `Alert`, `TerrainCell`, `PathCell`, `Zone`) are
       drafted in neither repository, so this is design work, not a port.
-- [ ] **W43 in review — content-definition contract:** maps, archetypes, buildings, products,
-      terrain, incidents, scenarios, objectives, policies and achievements. The complete
-      source/runtime schema, W42 reconciliation, validation tiers, and worked fixtures are
-      in `design/20-contract.md`'s `engine/12-world-graph-kind.md` block and its generated
-      reader copy. [PR #119](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/119)
-      remains the delivery gate. The execution record and evidence checklist live in
+- [x] **W43 — content-definition contract: merged in
+      [PR #119](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/119).** Maps,
+      archetypes, buildings, products, terrain, incidents, scenarios, objectives, policies,
+      and achievements now have their complete source/runtime schema, W42 reconciliation,
+      validation tiers, and worked fixtures in `design/20-contract.md`'s
+      `engine/12-world-graph-kind.md` block and its generated reader copy. The execution
+      record and evidence checklist live in
       [`plans/43-w43-world-graph-content-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/43-w43-world-graph-content-contract.md),
       which is historical rather than a second contract authority.
 - [ ] **W44 in review — resolution contract:** the 20-system pipeline, utility scoring,
