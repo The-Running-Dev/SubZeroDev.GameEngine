@@ -6,7 +6,7 @@ import type { Building, Guest, Position, StaffTask, WorldGraphKindState } from "
 import { canonicalPath, rotateOffset } from "../spatial.js";
 import type { TickChanges } from "./changes.js";
 import { applyWorldEffects } from "./effects.js";
-import { compareRuntimeEntityId, WORLD_GRAPH_SYSTEM_IDS, type WorldGraphSystemId } from "./order.js";
+import { compareDefinitionId, compareRuntimeEntityId, WORLD_GRAPH_SYSTEM_IDS, type WorldGraphSystemId } from "./order.js";
 import { createTickRandom, type TickRandom } from "./random.js";
 import { createTickScratch, type TickScratch } from "./scratch.js";
 
@@ -67,7 +67,7 @@ function entrances(building: Building, content: WorldGraphCampaign): readonly Po
 function serviceProduct(building: Building, productId: string | null, content: WorldGraphCampaign): { readonly definition: BuildingDefinition; readonly product: ProductDefinition; readonly serviceTicks: number } | null {
   const buildingDefinition = definition(content.buildings, building.definitionId, "building definition");
   if (building.status !== "open" || buildingDefinition.operation.kind !== "service") return null;
-  const offered = buildingDefinition.operation.products.filter((entry) => productId === null || entry.productId === productId).sort((left, right) => left.productId.localeCompare(right.productId))[0];
+  const offered = buildingDefinition.operation.products.filter((entry) => productId === null || entry.productId === productId).sort((left, right) => compareDefinitionId(left.productId, right.productId))[0];
   if (!offered) return null;
   return { definition: buildingDefinition, product: definition(content.products, offered.productId, "product"), serviceTicks: offered.serviceTicks ?? buildingDefinition.operation.baseServiceTicks };
 }
@@ -115,7 +115,7 @@ export const scenario: WorldGraphSystem = (frame) => {
     ));
   const policies = frame.content.policies
     .filter((policy) => source.activePolicyIds.includes(policy.id))
-    .sort((left, right) => left.id.localeCompare(right.id));
+    .sort((left, right) => compareDefinitionId(left.id, right.id));
   const effects = [
     ...scheduled.flatMap(({ change }) => change.effects),
     ...policies.flatMap((policy) => policy.whileActive),
@@ -143,7 +143,7 @@ export const guestSpawn: WorldGraphSystem = (frame) => {
   if (frame.state.resolution || frame.processingTick % scenarioDefinition.guestSpawning.everyTicks !== 0 || frame.state.guests.filter(activeGuest).length >= scenarioDefinition.guestSpawning.maxActiveGuests) return frame;
   const spawn = [...frame.state.map.spawnPoints].sort(positionOrder)[0];
   if (!spawn) return frame;
-  const pool = [...scenarioDefinition.guestSpawning.pool].sort((left, right) => left.archetypeId.localeCompare(right.archetypeId));
+  const pool = [...scenarioDefinition.guestSpawning.pool].sort((left, right) => compareDefinitionId(left.archetypeId, right.archetypeId));
   const archetypeId = frame.random.tickRng("guest-spawn").weightedPick(pool.map((entry) => ({ item: entry.archetypeId, weight: entry.weight })));
   const archetype = definition(frame.content.guestArchetypes, archetypeId, "guest archetype");
   const id = `guest:${frame.state.nextEntityOrdinal}`;
@@ -247,13 +247,13 @@ function candidate(state: WorldGraphKindState, content: WorldGraphCampaign, gues
     const preferences = archetype.preferences.filter((profile) => definition(content.preferences, profile.definitionId, "preference").targetTags.some((tag) => product.tags.includes(tag) || definition(content.buildings, building.definitionId, "building definition").tags.includes(tag))).reduce((sum, profile) => sum + (guest.preferences[profile.definitionId] ?? 0), 0) * archetype.preferenceUtilityPerPoint;
     return { productId: product.id, score: urgency + quality + preferences - curve(archetype.priceResistance, price) - ((path.length - 1) * archetype.travelPenaltyPerCost) - (building.queue.guestIds.length * archetype.queuePenaltyPerTick) };
   }).filter((entry): entry is { readonly productId: string; readonly score: number } => entry !== null);
-  return values.sort((left, right) => right.score - left.score || left.productId.localeCompare(right.productId))[0] ?? null;
+  return values.sort((left, right) => right.score - left.score || compareDefinitionId(left.productId, right.productId))[0] ?? null;
 }
 /** System 6: choose the highest reachable, affordable service candidate. */
 export const guestIntent: WorldGraphSystem = (frame) => {
   const guests = frame.state.guests.map((guest) => {
     if (guest.lifecycle !== "seeking" || (guest.intent.kind === "wait" && guest.intent.untilTick > frame.processingTick)) return guest;
-    const choices = frame.state.buildings.map((building) => ({ building, choice: candidate(frame.state, frame.content, guest, building) })).filter((entry): entry is { readonly building: Building; readonly choice: { readonly productId: string; readonly score: number } } => entry.choice !== null).sort((left, right) => right.choice.score - left.choice.score || compareRuntimeEntityId(left.building.id, right.building.id) || left.choice.productId.localeCompare(right.choice.productId));
+    const choices = frame.state.buildings.map((building) => ({ building, choice: candidate(frame.state, frame.content, guest, building) })).filter((entry): entry is { readonly building: Building; readonly choice: { readonly productId: string; readonly score: number } } => entry.choice !== null).sort((left, right) => right.choice.score - left.choice.score || compareRuntimeEntityId(left.building.id, right.building.id) || compareDefinitionId(left.choice.productId, right.choice.productId));
     if (choices.length) return { ...guest, intent: { kind: "seek_service" as const, buildingId: choices[0]!.building.id, productId: choices[0]!.choice.productId, selectedAtTick: frame.processingTick }, path: [], pathIndex: 0 };
     const archetype = definition(frame.content.guestArchetypes, guest.archetypeId, "guest archetype");
     return archetype.fallback.kind === "leave" ? { ...guest, intent: leaveIntent(frame.state, frame.content, guest, frame.processingTick, "unreachable"), path: [], pathIndex: 0 } : { ...guest, intent: { kind: "wait" as const, untilTick: frame.processingTick + archetype.fallback.ticks, selectedAtTick: frame.processingTick } };
@@ -293,7 +293,8 @@ export const taskGenerate: WorldGraphSystem = (frame) => {
 };
 export const taskAssign: WorldGraphSystem = (frame) => {
   let state = frame.state;
-  const candidates = [...frame.scratch.taskCandidates].sort((left, right) => right.priority - left.priority || left.type.localeCompare(right.type) || (left.incidentId ?? left.buildingId ?? "").localeCompare(right.incidentId ?? right.buildingId ?? "") || left.slot - right.slot);
+  const taskOrder = { service: 0, clean: 1, restock: 2, build: 3 } as const;
+  const candidates = [...frame.scratch.taskCandidates].sort((left, right) => right.priority - left.priority || taskOrder[left.type] - taskOrder[right.type] || compareRuntimeEntityId(left.incidentId ?? left.buildingId ?? "", right.incidentId ?? right.buildingId ?? "") || left.slot - right.slot);
   for (const member of [...state.staff].sort((left, right) => compareRuntimeEntityId(left.id, right.id))) {
     if (member.task !== null || member.status === "off_duty") continue;
     let candidateIndex = -1;
@@ -302,6 +303,7 @@ export const taskAssign: WorldGraphSystem = (frame) => {
       const candidate = candidates[index]!;
       const role = definition(frame.content.staffRoles, member.roleId, "staff role");
       if (!role.supportedTaskKinds.includes(candidate.type) || (candidate.requiredRoleId !== null && candidate.requiredRoleId !== member.roleId)) continue;
+      if (candidate.type === "service" && member.assignedBuildingId !== candidate.buildingId) continue;
       const incident = candidate.incidentId === null ? undefined : state.incidents.find((entry) => entry.id === candidate.incidentId);
       const targetBuildingId = incident?.buildingId ?? candidate.buildingId;
       const targetBuilding = targetBuildingId === null ? undefined : state.buildings.find((building) => building.id === targetBuildingId);
@@ -347,7 +349,7 @@ export const staffWork: WorldGraphSystem = (frame) => {
         state = { ...state, staff: state.staff.map((entry) => entry.id === member.id ? { ...entry, task: { ...entry.task!, status: "cancelled", endedAtTick: frame.processingTick } } : entry) };
         continue;
       }
-      const rate = role.workRates.find((entry) => entry.taskType === "clean")?.effortPerTick ?? 0;
+      const rate = Math.max(0, role.workRates.find((entry) => entry.taskType === "clean")?.effortPerTick ?? 0);
       const removed = Math.min(incident.amount, rate);
       const remaining = Math.max(0, incident.amount - rate);
       state = { ...state, incidents: state.incidents.map((entry) => entry.id === incident.id ? { ...entry, amount: remaining, resolvedAtTick: remaining === 0 ? frame.processingTick : null } : entry), staff: state.staff.map((entry) => entry.id === member.id ? { ...entry, status: remaining === 0 ? "idle" : "working", tasksCompleted: remaining === 0 ? entry.tasksCompleted + 1 : entry.tasksCompleted, task: remaining === 0 ? { ...entry.task!, status: "completed", endedAtTick: frame.processingTick } : { ...entry.task!, status: "in_progress", effortRemaining: remaining } } : entry), counters: { ...state.counters, litterCleaned: state.counters.litterCleaned + removed } };
@@ -371,6 +373,7 @@ export const cleanlinessWear: WorldGraphSystem = (frame) => {
 export const finance: WorldGraphSystem = (frame) => {
   const due = (amount: number): number => Math.floor((amount * (frame.processingTick + 1)) / frame.content.ticksPerDay) - Math.floor((amount * frame.processingTick) / frame.content.ticksPerDay);
   const expenses = frame.state.staff.reduce((sum, member) => sum + due(definition(frame.content.staffRoles, member.roleId, "staff role").wageCentsPerDay), 0) + frame.state.buildings.filter((building) => building.status === "open").reduce((sum, building) => sum + due(definition(frame.content.buildings, building.definitionId, "building definition").operatingCostCentsPerDay), 0);
+  if (expenses < 0) throw new Error("Validated world-graph recurring costs cannot be negative");
   return expenses === 0 ? frame : { ...frame, state: { ...frame.state, finances: { ...frame.state.finances, cashCents: frame.state.finances.cashCents - expenses, expensesTodayCents: frame.state.finances.expensesTodayCents + expenses, expensesTotalCents: frame.state.finances.expensesTotalCents + expenses } } };
 };
 /** System 16: W46 resolves duration expiry; W47 adds rolls and condition-driven resolution. */
@@ -413,7 +416,7 @@ export const objectives: WorldGraphSystem = (frame) => {
   frame.scratch.objectiveFailureSnapshot.state = snapshot;
   const evaluations = [...snapshot.objectives]
     .filter((progress) => progress.state === "active")
-    .sort((left, right) => left.id.localeCompare(right.id))
+    .sort((left, right) => compareDefinitionId(left.id, right.id))
     .map((progress) => {
       const item = definition(frame.content.objectives, progress.id, "objective");
       const value = item.progressMetric === null ? progress.value : (evaluateMetric(item.progressMetric, snapshot, frame.content) ?? 0);
@@ -439,7 +442,7 @@ export const failure: WorldGraphSystem = (frame) => {
     && frame.processingTick + 1 >= scenarioDefinition.timeLimitTicks;
   const evaluations = [...snapshot.failures]
     .filter((progress) => progress.state !== "triggered")
-    .sort((left, right) => left.id.localeCompare(right.id))
+    .sort((left, right) => compareDefinitionId(left.id, right.id))
     .map((progress) => {
       const item = definition(frame.content.failures, progress.id, "failure");
       const forced = timeLimitReached && scenarioDefinition.timeLimitFailureId === progress.id;

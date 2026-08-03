@@ -4,7 +4,7 @@ import type { ResolutionEmitter } from "../../../core/observability/types.js";
 import type { WorldEffect, WorldGraphCampaign } from "../content.js";
 import type { WorldGraphKindState } from "../state.js";
 import { BatchChanges } from "./changes.js";
-import { WORLD_GRAPH_SYSTEM_IDS } from "./order.js";
+import { compareDefinitionId, WORLD_GRAPH_SYSTEM_IDS } from "./order.js";
 import {
   alerts,
   buildings,
@@ -119,6 +119,10 @@ function content(effects: readonly WorldEffect[] = []): WorldGraphCampaign {
 }
 
 describe("world-graph W46 system order and boundaries", () => {
+  it("orders definition ids by ordinal code units rather than host locale", () => {
+    expect(["ä", "z"].sort(compareDefinitionId)).toEqual(["z", "ä"]);
+  });
+
   it("owns every canonical id once in exact contract order", () => {
     expect(WORLD_GRAPH_SYSTEMS.map(({ id }) => id)).toEqual([
       "scenario", "guest-spawn", "guest-needs", "guest-service", "queues",
@@ -271,6 +275,41 @@ describe("world-graph W46 system order and boundaries", () => {
     });
     expect(result.state.staff[0]?.task).toMatchObject({ type: "clean", incidentId: "incident:3" });
     expect(result.state.staff[0]?.path).toEqual([{ x: 1, y: 0 }]);
+  });
+
+  it("assigns service duty only to staff stationed at that building", () => {
+    const initial = state();
+    const dutyContent = {
+      ...content(),
+      terrain: [{ id: "sand", walkable: true, moveCost: 1 }],
+      buildings: [{ id: "kiosk", footprint: { width: 1, height: 1 }, entrances: [{ x: 1, y: 0 }] }],
+      staffRoles: [{ id: "vendor", supportedTaskKinds: ["service"] }],
+    } as unknown as WorldGraphCampaign;
+    const unassigned: WorldGraphKindState = {
+      ...initial,
+      staff: [{
+        id: "staff:4", roleId: "vendor", x: 1, y: 0, status: "idle",
+        path: [], pathIndex: 0, moveProgressTicks: 0, assignedBuildingId: null,
+        assignedZoneId: null, drawCount: 0, task: null, tasksCompleted: 0,
+      }],
+      nextEntityOrdinal: 5,
+    };
+    const assign = (stateValue: WorldGraphKindState): WorldGraphKindState => {
+      const scratch = createTickScratch();
+      scratch.taskCandidates.push({
+        type: "service", priority: 1, effort: null, buildingId: "building:0",
+        incidentId: null, constructionSiteId: null, productId: null,
+        requiredRoleId: "vendor", slot: 0,
+      });
+      return taskAssign({
+        processingTick: 0, content: dutyContent, emit: resolutionEmitter().emit,
+        random: createTickRandom(0, () => rngHandle(), scratch), scratch,
+        changes: new BatchChanges(), state: stateValue,
+      }).state;
+    };
+    expect(assign(unassigned).staff[0]?.task).toBeNull();
+    const assigned = { ...unassigned, staff: unassigned.staff.map((member) => ({ ...member, assignedBuildingId: "building:0" })) };
+    expect(assign(assigned).staff[0]?.task).toMatchObject({ type: "service", buildingId: "building:0" });
   });
 
   it("honors staff movement rate and counts every cleaned litter unit", () => {

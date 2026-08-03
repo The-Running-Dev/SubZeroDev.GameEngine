@@ -26,6 +26,9 @@ export type WorldGraphSystemId = typeof WORLD_GRAPH_SYSTEM_IDS[number];
 
 const compareText = (left: string, right: string): number => left < right ? -1 : left > right ? 1 : 0;
 
+/** Validated definition ids use ordinal code-unit order, never the host locale. */
+export const compareDefinitionId = compareText;
+
 /** Prefix lexicographic, then numeric ordinal — `incident:2` precedes `incident:10`. */
 export function compareRuntimeEntityId(left: string, right: string): number {
   const leftSeparator = left.lastIndexOf(":");

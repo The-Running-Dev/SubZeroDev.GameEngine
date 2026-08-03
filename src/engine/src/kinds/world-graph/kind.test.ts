@@ -122,19 +122,35 @@ describe("world-graph W45 source and validation", () => {
     expect(worldGraphKind.validateCampaign(built.campaign, built.strings)).toMatchObject({ ok: true, errors: [] });
   });
 
-  it("rejects negative building and hiring costs before a reducer can spend them", () => {
+  it("rejects negative atomic, recurring, inventory, and work-rate inputs", () => {
     const built = envelope();
+    const base = runtime().content;
     const invalid = {
       ...built.campaign,
       content: {
-        ...runtime().content,
-        buildings: runtime().content.buildings.map((entry) => ({ ...entry, constructionCostCents: -1 })),
-        staffRoles: runtime().content.staffRoles.map((entry) => ({ ...entry, hireCostCents: -1 })),
+        ...base,
+        products: base.products.map((entry) => ({ ...entry, unitCostCents: -1 })),
+        buildings: base.buildings.map((entry) => ({
+          ...entry, constructionCostCents: -1, operatingCostCentsPerDay: -1,
+          operation: entry.operation.kind === "service" ? {
+            ...entry.operation,
+            products: entry.operation.products.map((product) => ({ ...product, initialUnits: -1 })),
+          } : entry.operation,
+        })),
+        staffRoles: base.staffRoles.map((entry) => ({
+          ...entry, hireCostCents: -1, wageCentsPerDay: -1,
+          workRates: entry.workRates.map((rate) => ({ ...rate, effortPerTick: -1 })),
+        })),
       },
     };
     expect(worldGraphKind.validateCampaign(invalid, built.strings).errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "invalid_cost", path: "content.products[0].unitCostCents" }),
       expect.objectContaining({ code: "invalid_cost", path: "content.buildings[0].constructionCostCents" }),
+      expect.objectContaining({ code: "invalid_cost", path: "content.buildings[0].operatingCostCentsPerDay" }),
+      expect.objectContaining({ code: "invalid_inventory", path: "content.buildings[0].operation.products[0].initialUnits" }),
       expect.objectContaining({ code: "invalid_cost", path: "content.staffRoles[0].hireCostCents" }),
+      expect.objectContaining({ code: "invalid_cost", path: "content.staffRoles[0].wageCentsPerDay" }),
+      expect.objectContaining({ code: "invalid_work_rate", path: "content.staffRoles[0].workRates[0].effortPerTick" }),
     ]));
   });
 
