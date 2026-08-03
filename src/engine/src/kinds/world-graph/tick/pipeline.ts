@@ -71,6 +71,17 @@ function serviceProduct(building: Building, productId: string | null, content: W
   if (!offered) return null;
   return { definition: buildingDefinition, product: definition(content.products, offered.productId, "product"), serviceTicks: offered.serviceTicks ?? buildingDefinition.operation.baseServiceTicks };
 }
+function hasServiceLabor(state: WorldGraphKindState, buildingId: string, buildingDefinition: BuildingDefinition): boolean {
+  if (buildingDefinition.operation.kind !== "service") return false;
+  return buildingDefinition.operation.staffRequirements.every((requirement) => state.staff.filter((member) => (
+    member.roleId === requirement.roleId
+    && member.assignedBuildingId === buildingId
+    && member.status === "working"
+    && member.task?.type === "service"
+    && member.task.status === "in_progress"
+    && member.task.buildingId === buildingId
+  )).length >= requirement.count);
+}
 function pathTo(mapState: WorldGraphKindState, content: WorldGraphCampaign, guest: Guest, goals: readonly Position[]): readonly Position[] | null {
   return canonicalPath(mapState.map, content.terrain, { x: guest.x, y: guest.y }, goals, mapState.buildings, mapState.constructionSites);
 }
@@ -179,11 +190,13 @@ export const guestService: WorldGraphSystem = (frame) => {
     if (!guest || building.queue.serviceStartedAtTick === null || guest.intent.kind !== "seek_service") continue;
     const offer = serviceProduct(building, guest.intent.productId, frame.content);
     if (!offer || frame.processingTick - building.queue.serviceStartedAtTick < offer.serviceTicks) continue;
+    const operation = offer.definition.operation;
+    if (operation.kind !== "service") continue;
     const price = building.pricesCents[offer.product.id]; const stock = building.inventory[offer.product.id];
-    const staffed = offer.definition.operation.kind === "service" && offer.definition.operation.staffRequirements.every((requirement) => state.staff.filter((member) => member.roleId === requirement.roleId && member.assignedBuildingId === building.id && member.task?.type === "service" && member.task.status !== "cancelled").length >= requirement.count);
+    const staffed = hasServiceLabor(state, building.id, offer.definition);
     if (price === undefined || price > guest.cashCents || stock === undefined || stock === 0 || !staffed) continue;
     state = { ...state, guests: state.guests.map((entry) => entry.id === guest.id ? { ...entry, lifecycle: "served", cashCents: entry.cashCents - price, lastServedTick: frame.processingTick } : entry), buildings: state.buildings.map((entry) => entry.id === building.id ? { ...entry, inventory: stock === null ? entry.inventory : { ...entry.inventory, [offer.product.id]: stock - 1 } } : entry), finances: { ...state.finances, cashCents: state.finances.cashCents + price - offer.product.unitCostCents, revenueTodayCents: state.finances.revenueTodayCents + price, revenueTotalCents: state.finances.revenueTotalCents + price, expensesTodayCents: state.finances.expensesTodayCents + offer.product.unitCostCents, expensesTotalCents: state.finances.expensesTotalCents + offer.product.unitCostCents }, counters: { ...state.counters, servicesCompleted: state.counters.servicesCompleted + 1 } };
-    state = applyWorldEffects(state, [...offer.definition.operation.effects, ...offer.product.effects], { processingTick: frame.processingTick, content: frame.content, random: frame.random, changes: frame.changes, system: "guest-service", reason: "guest_served", currentServiceGuestId: guest.id, currentServiceBuildingId: building.id }).state;
+    state = applyWorldEffects(state, [...operation.effects, ...offer.product.effects], { processingTick: frame.processingTick, content: frame.content, random: frame.random, changes: frame.changes, system: "guest-service", reason: "guest_served", currentServiceGuestId: guest.id, currentServiceBuildingId: building.id }).state;
     if (offer.product.litter) {
       const incidentId = `incident:${state.nextEntityOrdinal}`;
       state = { ...state, incidents: [...state.incidents, { id: incidentId, definitionId: offer.product.litter.incidentDefinitionId, buildingId: building.id, guestId: null, zoneId: null, position: { x: guest.x, y: guest.y }, amount: offer.product.litter.unitsPerService, startedAtTick: frame.processingTick, expiresAtTick: null, resolvedAtTick: null }], nextEntityOrdinal: state.nextEntityOrdinal + 1, counters: { ...state.counters, incidentsRaised: state.counters.incidentsRaised + 1, litterCreated: state.counters.litterCreated + offer.product.litter.unitsPerService } };
@@ -214,7 +227,7 @@ export const queues: WorldGraphSystem = (frame) => {
     }
     const head = state.guests.find((guest) => guest.id === ids[0]);
     const headOffer = head?.intent.kind === "seek_service" ? serviceProduct(building, head.intent.productId, frame.content) : null;
-    const canServe = headOffer !== null && head !== undefined && (headOffer.definition.operation.kind !== "service" || headOffer.definition.operation.staffRequirements.every((requirement) => state.staff.filter((staff) => staff.roleId === requirement.roleId && staff.assignedBuildingId === building.id && staff.task?.type === "service" && staff.task.status !== "cancelled").length >= requirement.count));
+    const canServe = headOffer !== null && head !== undefined && hasServiceLabor(state, building.id, headOffer.definition);
     const headChanged = previousHeadId !== (ids[0] ?? null);
     const clock = canServe ? (headChanged ? frame.processingTick : building.queue.serviceStartedAtTick ?? frame.processingTick) : null;
     state = { ...state, buildings: state.buildings.map((entry) => entry.id === building.id ? { ...entry, queue: { ...entry.queue, guestIds: ids, serviceStartedAtTick: clock } } : entry) };
