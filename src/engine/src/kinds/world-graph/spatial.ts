@@ -159,12 +159,15 @@ export function canonicalPath(
   if (!traversable(map, terrain, blocked, start) || orderedGoals.length === 0) return null;
 
   const open: Array<{ position: Position; cost: number }> = [{ position: start, cost: 0 }];
+  const settled = new Set<string>();
   const cost = new Map([[key(start), 0]]);
   const parent = new Map<string, Position>();
   while (open.length > 0) {
     open.sort((a, b) => a.cost - b.cost || comparePosition(a.position, b.position));
     const current = open.shift();
     if (!current || current.cost !== cost.get(key(current.position))) continue;
+    if (settled.has(key(current.position))) continue;
+    settled.add(key(current.position));
     if (goalKeys.has(key(current.position))) {
       const result: Position[] = [current.position];
       let cursor = current.position;
@@ -203,6 +206,7 @@ export function checkBuildingPlacement(
   buildings: readonly Building[],
   sites: readonly ConstructionSite[],
 ): PlacementResult {
+  if (!definition.allowedRotations.includes(rotation)) return { ok: false, reason: "placement_terrain_unsuitable" };
   const size = rotatedDimensions(definition.footprint.width, definition.footprint.height, rotation);
   const cells = footprintCells(x, y, size.width, size.height);
   if (!cells.every((cell) => inBounds(map.width, map.height, cell))) return { ok: false, reason: "placement_out_of_bounds" };

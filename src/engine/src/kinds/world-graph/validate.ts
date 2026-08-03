@@ -123,8 +123,17 @@ function referenceErrors(content: WorldGraphCampaign): ValidationError[] {
     });
     if (map.spawnPoints.length === 0) errors.push(error("missing_spawn", `content.maps[${mapIndex}].spawnPoints`));
     if (map.exits.length === 0) errors.push(error("missing_exit", `content.maps[${mapIndex}].exits`));
+    const terrainById = new Map(content.terrain.map((entry) => [entry.id, entry]));
+    for (const [kind, points] of [["spawnPoints", map.spawnPoints], ["exits", map.exits]] as const) {
+      points.forEach((point, index) => {
+        if (point.x < 0 || point.y < 0 || point.x >= map.width || point.y >= map.height) errors.push(error("position_out_of_bounds", `content.maps[${mapIndex}].${kind}[${index}]`));
+        else if (!terrainById.get(map.terrainOverrides.find((entry) => entry.position.x === point.x && entry.position.y === point.y)?.terrainId ?? map.defaultTerrainId)?.walkable) errors.push(error("position_not_walkable", `content.maps[${mapIndex}].${kind}[${index}]`));
+      });
+    }
+    if (map.topology.kind === "explicit") map.topology.edges.forEach((edge, index) => { if (edge.allowed && edge.edgeCost <= 0) errors.push(error("invalid_traversal_cost", `content.maps[${mapIndex}].topology.edges[${index}].edgeCost`)); });
   });
   content.buildings.forEach((definition, index) => {
+    if (definition.constructionCostCents < 0) errors.push(error("invalid_cost", `content.buildings[${index}].constructionCostCents`));
     if (definition.footprint.width <= 0 || definition.footprint.height <= 0) errors.push(error("invalid_footprint", `content.buildings[${index}].footprint`));
     if (definition.entrances.length === 0 || definition.allowedRotations.length === 0) errors.push(error("invalid_building_geometry", `content.buildings[${index}]`));
     if (definition.operation.kind === "service") {
@@ -132,6 +141,7 @@ function referenceErrors(content: WorldGraphCampaign): ValidationError[] {
       definition.operation.staffRequirements.forEach((entry, roleIndex) => requireId(ids.staffRoles, entry.roleId, `content.buildings[${index}].operation.staffRequirements[${roleIndex}].roleId`));
     }
   });
+  content.staffRoles.forEach((entry, index) => { if (entry.hireCostCents < 0) errors.push(error("invalid_cost", `content.staffRoles[${index}].hireCostCents`)); });
   content.guestArchetypes.forEach((entry, index) => {
     entry.needs.forEach((profile, profileIndex) => requireId(ids.needs, profile.needId, `content.guestArchetypes[${index}].needs[${profileIndex}].needId`));
     entry.conditions.forEach((profile, profileIndex) => requireId(ids.guestConditions, profile.definitionId, `content.guestArchetypes[${index}].conditions[${profileIndex}].definitionId`));
