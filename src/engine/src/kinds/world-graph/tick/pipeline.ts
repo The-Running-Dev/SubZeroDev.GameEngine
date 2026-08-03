@@ -5,7 +5,7 @@ import type { WorldGraphCampaign } from "../content.js";
 import type { WorldGraphKindState } from "../state.js";
 import type { TickChanges } from "./changes.js";
 import { applyWorldEffects } from "./effects.js";
-import { WORLD_GRAPH_SYSTEM_IDS, type WorldGraphSystemId } from "./order.js";
+import { compareRuntimeEntityId, WORLD_GRAPH_SYSTEM_IDS, type WorldGraphSystemId } from "./order.js";
 import { createTickRandom, type TickRandom } from "./random.js";
 import { createTickScratch, type TickScratch } from "./scratch.js";
 
@@ -121,7 +121,7 @@ export const incidents: WorldGraphSystem = (frame) => {
     incident.resolvedAtTick === null
     && incident.expiresAtTick !== null
     && incident.expiresAtTick <= frame.processingTick
-  ));
+  )).sort((left, right) => compareRuntimeEntityId(left.id, right.id));
   let state = frame.state;
   for (const incident of expiring) {
     const current = state.incidents.find((entry) => entry.id === incident.id);
@@ -131,7 +131,7 @@ export const incidents: WorldGraphSystem = (frame) => {
       incidents: state.incidents.map((entry) => entry.id === incident.id
         ? { ...entry, resolvedAtTick: frame.processingTick } : entry),
     };
-    frame.changes.record("incidents", `incidents.${incident.id}.resolvedAtTick`, frame.processingTick, "incident_resolved", false, -1);
+    frame.changes.record("incidents", `incidents.${incident.id}.resolvedAtTick`, frame.processingTick, "incident_resolved", false);
     const definition = frame.content.incidents.find((entry) => entry.id === current.definitionId);
     if (!definition) throw new Error(`Validated incident definition missing: ${current.definitionId}`);
     state = applyWorldEffects(state, definition.onResolve, {

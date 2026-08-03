@@ -7,7 +7,7 @@ import type {
 } from "../content.js";
 import type { Building, Guest, WorldGraphKindState } from "../state.js";
 import type { TickChanges } from "./changes.js";
-import type { WorldGraphSystemId } from "./order.js";
+import { compareRuntimeEntityId, type WorldGraphSystemId } from "./order.js";
 import type { TickRandom } from "./random.js";
 
 interface EffectContext {
@@ -208,13 +208,13 @@ export function applyWorldEffects(
       return;
     }
     if (effect.kind !== "resolve_incident") return;
-    const matching = effect.incidents === "all_active"
+    const matching = (effect.incidents === "all_active"
       ? state.incidents.filter((incident) => incident.definitionId === effect.incidentDefinitionId && incident.resolvedAtTick === null)
       : state.incidents.filter((incident) => (
         incident.id === context.currentIncidentId
         && incident.definitionId === effect.incidentDefinitionId
         && incident.resolvedAtTick === null
-      ));
+      ))).sort((left, right) => compareRuntimeEntityId(left.id, right.id));
     if (matching.length === 0) return;
     const ids = new Set(matching.map((incident) => incident.id));
     state = {
@@ -223,7 +223,7 @@ export function applyWorldEffects(
         ? { ...incident, resolvedAtTick: context.processingTick } : incident),
     };
     for (const incident of matching) {
-      context.changes.record(context.system, `incidents.${incident.id}.resolvedAtTick`, context.processingTick, context.reason, false, incident.resolvedAtTick ?? -1);
+      context.changes.record(context.system, `incidents.${incident.id}.resolvedAtTick`, context.processingTick, context.reason, false);
     }
     applied[effectIndex] = true;
   });

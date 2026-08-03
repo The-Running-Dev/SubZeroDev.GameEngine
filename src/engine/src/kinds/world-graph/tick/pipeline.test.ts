@@ -44,11 +44,16 @@ function rngHandle(): RngHandle {
   };
 }
 
-function resolutionEmitter(): { readonly emit: ResolutionEmitter; readonly events: { readonly name: string }[] } {
-  const events: { readonly name: string }[] = [];
+interface RecordedResolutionEvent {
+  readonly name: string;
+  readonly data?: Readonly<Record<string, string | number | boolean>>;
+}
+
+function resolutionEmitter(): { readonly emit: ResolutionEmitter; readonly events: RecordedResolutionEvent[] } {
+  const events: RecordedResolutionEvent[] = [];
   return {
     events,
-    emit: { emit: (name) => { events.push({ name }); } },
+    emit: { emit: (name, _severity, detail) => { events.push(detail?.data === undefined ? { name } : { name, data: detail.data }); } },
   };
 }
 
@@ -229,6 +234,9 @@ describe("world-graph W46 scenario effects", () => {
     expect(result.incidents.every((incident) => incident.resolvedAtTick === 0)).toBe(true);
     expect(result.activePolicyIds).toEqual(["discount"]);
     expect(recording.events.filter((event) => event.name === "kind.world-graph.scenario.effect.applied")).toHaveLength(effects.length);
+    const resolvedChanges = changes.finish().filter((change) => change.path.endsWith(".resolvedAtTick"));
+    expect(resolvedChanges.length).toBeGreaterThan(0);
+    resolvedChanges.forEach((change) => { expect(change).not.toHaveProperty("previous"); });
   });
 
   it("does not emit applied for a context selector that has no scenario context", () => {
@@ -247,9 +255,13 @@ describe("world-graph W46 scenario effects", () => {
 describe("world-graph W46 incident expiry", () => {
   it("resolves duration incidents once and applies authored resolve effects before finalization", () => {
     const initial = state();
+    const incident = initial.incidents[0]!;
     const expiring = {
       ...initial,
-      incidents: initial.incidents.map((incident) => ({ ...incident, expiresAtTick: 0 })),
+      incidents: [
+        { ...incident, id: "incident:10", expiresAtTick: 0 },
+        { ...incident, id: "incident:2", expiresAtTick: 0 },
+      ],
     };
     const baseContent = content();
     const withResolveEffect = {
@@ -260,14 +272,21 @@ describe("world-graph W46 incident expiry", () => {
       })),
     };
     const recording = resolutionEmitter();
+    const changes = new BatchChanges();
     const result = runWorldGraphTick(expiring, withResolveEffect, {
       derive: () => rngHandle(), emit: recording.emit,
-    }, new BatchChanges(), [
+    }, changes, [
       { id: "incidents", run: incidents }, { id: "tick-finalize", run: tickFinalize },
     ]);
     expect(result.incidents[0]?.resolvedAtTick).toBe(0);
-    expect(result.finances).toMatchObject({ cashCents: 105, revenueTotalCents: 70, expensesTotalCents: 80 });
-    expect(recording.events.filter((event) => event.name === "kind.world-graph.incident.resolved")).toHaveLength(1);
+    expect(result.incidents[1]?.resolvedAtTick).toBe(0);
+    expect(result.finances).toMatchObject({ cashCents: 110, revenueTotalCents: 70, expensesTotalCents: 80 });
+    expect(recording.events
+      .filter((event) => event.name === "kind.world-graph.incident.resolved")
+      .map((event) => event.data?.incidentId)).toEqual(["incident:2", "incident:10"]);
+    for (const change of changes.finish().filter((entry) => entry.path.endsWith(".resolvedAtTick"))) {
+      expect(change).not.toHaveProperty("previous");
+    }
   });
 });
 
