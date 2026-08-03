@@ -741,6 +741,14 @@ if ($TreatWarningsAsErrors -and $warningFindings.Count -gt 0) {
     throw "Documentation checks failed with $($warningFindings.Count) warning(s) (-TreatWarningsAsErrors)."
 }
 
+$humanDocumentationCheck = Join-Path $repositoryRoot 'build' 'ConvertTo-HumanDocumentation.ps1'
+if (Test-Path -LiteralPath $humanDocumentationCheck -PathType Leaf) {
+    & $humanDocumentationCheck -Check
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Generated human documentation differs from the canonical design documents.'
+    }
+}
+
 if ($warningFindings.Count -gt 0) {
     Write-Host (
         "Documentation checks passed across $($documentationFiles.Count) Markdown file(s), " +

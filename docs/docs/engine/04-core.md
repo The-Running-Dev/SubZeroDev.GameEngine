@@ -2,6 +2,8 @@
 sidebar_label: Core Specification
 ---
 
+<!-- Generated from design/20-contract.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
+
 # Core Specification
 
 **Document status:** Revision 1 — the platform core, as types

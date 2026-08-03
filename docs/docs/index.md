@@ -8,8 +8,9 @@ One deterministic core. Three kinds of game. Every new game is content, not code
 the bet, and [the front page](/) makes the case for it.
 
 The **Game Engine** is a deterministic, game-agnostic narrative-game platform. This is its
-documentation, in the order the sidebar presents it. The project's front page — what it is,
-where the code lives — is [the site root](/).
+generated human documentation, in the order the sidebar presents it. Canonical agent inputs live
+under `design/`; the project's front page — what it is, where the code lives — is
+[the site root](/).
 
 ## Orientation
 
@@ -39,8 +40,8 @@ section number.
 | [World-Graph Kind](engine/12-world-graph-kind.md) | The third kind: a tick batch as a turn, spatial verbs, and the batch-invariance property that keeps presentation speed out of the results |
 
 **The Core** comes first deliberately: `04` implements `03` as types, and the core is the
-shorter way in. The two drift apart more easily than anything else here — an edit to one that
-is not mirrored in the other is this project's most common defect.
+shorter way in. The two drift apart more easily than anything else here — a canonical edit to
+one that is not reconciled in `design/20-contract.md` is this project's most common defect.
 
 ## Delivery
 
@@ -49,7 +50,7 @@ What ships first, in what order, and what is still undecided.
 | Document | Holds |
 |---|---|
 | [MVP](engine/MVP.md) | The smallest slice that proves the platform, and its Definition of Done |
-| [TODO](engine/TODO.md) | The MVP as ordered units of work (W0–W19), with contract references and done-criteria |
+| [TODO](engine/TODO.md) | The complete W-numbered delivery ledger, with contract references and done-criteria |
 | [Open Questions](engine/OPEN-QUESTIONS.md) | Living register of unknowns and deferred decisions; §1 is a decision log |
 
 ## Working on It
@@ -58,5 +59,6 @@ Not specifications — how to build, run, and check what the specifications desc
 
 | Document | Holds |
 |---|---|
+| [Developer Guide](guide.md) | Sequential integration guide generated from the canonical brief, design, and contract |
 | [Engine Package](guide/engine-package.md) | The npm package: layout, commands, the determinism guard |
 | [Documentation Site](guide/documentation-site.md) | Previewing this site, what is generated, and the two link checks |

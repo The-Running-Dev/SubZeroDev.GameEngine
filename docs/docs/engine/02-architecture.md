@@ -1,6 +1,8 @@
 ---
 ---
 
+<!-- Generated from design/10-design.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
+
 # Architecture
 
 **Document status:** Revision 1 — architecture settled; content model written (§4 →

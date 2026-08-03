@@ -2,6 +2,8 @@
 sidebar_label: Replay
 ---
 
+<!-- Generated from design/10-design.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
+
 # Replay — The Regression Oracle
 
 **Document status:** Revision 1 — new contract, post-MVP
