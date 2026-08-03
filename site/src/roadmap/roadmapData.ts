@@ -18,10 +18,10 @@ export type RoadmapChapter = {
 const repo = "https://github.com/The-Running-Dev/SubZeroDev.GameEngine";
 const commit = (hash: string) => `${repo}/commit/${hash}`;
 
-// TODO owns W0–W40 (including W3a). W41 and W42 merged after its ledger format stopped
+// TODO owns W0–W40 (including W3a). W41–W44 merged after its ledger format stopped
 // carrying completed headings; keep that exceptional evidence explicit rather than pretending
 // the prose is a uniform machine-readable database.
-const completedBeyondTodo = ["W41", "W42"] as const;
+const completedBeyondTodo = ["W41", "W42", "W43", "W44"] as const;
 export const completedWorkUnitCount =
   (todo.match(/^### \[x\] W[\w]+/gm) ?? []).length + completedBeyondTodo.length;
 
@@ -124,16 +124,36 @@ export const shippedChapters: readonly RoadmapChapter[] = [
       },
     ],
   },
+  {
+    id: "world-contract",
+    workUnits: "W43–W44",
+    status: "done",
+    title: "The resort gets its world-graph contract",
+    summary:
+      "The third kind now has its content definitions, runtime contract, deterministic resolution rules, and systems boundary.",
+    links: [
+      {
+        label: "W43 evidence",
+        href: commit("e3000745deb08fe687c11c79e31046337fe4354e"),
+        kind: "repository",
+      },
+      {
+        label: "W44 evidence",
+        href: commit("5eca57b9dc50b939fe55d7ef7a06edac9f38c346"),
+        kind: "repository",
+      },
+    ],
+  },
 ];
 
 export const nextActs: readonly RoadmapChapter[] = [
   {
-    id: "describe",
-    workUnits: "W43–W44",
+    id: "move",
+    workUnits: "W45–W46",
     status: "now",
-    title: "Describe the resort",
+    title: "Make the resort move",
     summary:
-      "Settle the world’s content and the order in which it changes. W44 is the current unmerged contract unit.",
+      "W45’s kind foundation is reconciled; W46 plans the deterministic tick runner that follows it.",
     links: [
       {
         label: "World-graph contract",
@@ -143,10 +163,10 @@ export const nextActs: readonly RoadmapChapter[] = [
     ],
   },
   {
-    id: "move",
-    workUnits: "W45–W48",
+    id: "play",
+    workUnits: "W47–W48",
     status: "next",
-    title: "Make the resort move",
+    title: "Give the resort a playable loop",
     summary:
       "Build actions, ticks, guests, queues, service, litter, cleaning, and previews.",
     links: [
