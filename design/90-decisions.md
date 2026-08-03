@@ -1,9 +1,19 @@
+# Decisions
+
+> Canonical decision and open-item register for the agent-kit workflow. Settled architectural
+> decisions are recorded in `10-design.md`; this file owns their indexed resolution history,
+> deferred items, and judgement calls that may need revisiting.
+
+## Open
+
+Open work remains indexed in the embedded register below. `/track` must not duplicate items that
+already name their owning plan, specification section, or GitHub issue.
+
+<!-- human-doc:start path="engine/OPEN-QUESTIONS.md" -->
 ---
 sidebar_label: Open Questions
 slug: open-questions
 ---
-
-<!-- Generated from design/90-decisions.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
 
 # Open Questions & Known Concerns
 
@@ -253,3 +263,4 @@ so they are not forgotten.
 
 *Add to this register whenever a decision is deferred or an assumption is made — rather than
 leaving it in a commit message or a chat, where the next person will not find it.*
+<!-- human-doc:end -->

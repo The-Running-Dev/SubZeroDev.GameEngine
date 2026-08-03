@@ -4,7 +4,8 @@
 
 **SubZeroDev.GameEngine — the Game Engine.** A deterministic, game-agnostic
 narrative-game platform: its **source** (`src/engine/`) and its **specs**
-(`docs/docs/engine/`) in one repo.
+(`design/`) in one repo. Human-facing documentation under `docs/docs/` is generated from
+that canonical design.
 
 The model is **core → kinds → campaigns**: one shared deterministic core, game-*type*
 logic (`kinds`, engine-owned code), and content (`campaigns`, data). v1 ships two kinds,
@@ -32,9 +33,27 @@ logic (`kinds`, engine-owned code), and content (`campaigns`, data). v1 ships tw
 The build strategy is **engine-first**: prove the deterministic engine with automated
 tests and a plain text client before any UI.
 
-## The Specs — `docs/docs/engine/`
+## The Specs — `design/`
 
-Read in order. Files are scoped deliberately and cross-reference by section number.
+The agent-kit files are canonical. Edit these, never their generated copies under
+`docs/docs/engine/`:
+
+| File | Owns |
+|---|---|
+| `design/00-brief.md` | Product vision, scope, non-goals, MVP, and definition of done |
+| `design/10-design.md` | Architecture plus observability, extensibility, replay, capture, client, and content-pack design |
+| `design/20-contract.md` | Core and all kind contracts, including exact types and invariants |
+| `design/30-slices.md` | The W-numbered vertical delivery ledger; W ids are retained because repository history already cites them |
+| `design/90-decisions.md` | Decision history, deferred items, and judgement calls to revisit |
+
+Each file contains marked human-document blocks. `build/ConvertTo-HumanDocumentation.ps1`
+extracts them deterministically into `docs/docs/engine/`; `build/Test-Documentation.ps1`
+fails when a generated page differs or the generated developer guide is stale.
+
+### Generated human documentation — `docs/docs/engine/`
+
+Read in order. These files are scoped deliberately and cross-reference by section number, but
+they are outputs, not editing surfaces.
 
 | File | Holds |
 |---|---|
@@ -105,11 +124,17 @@ acceptance test with teeth.
 The specs are a Docusaurus site. `docs/` is both the Docusaurus overlay and the Docker
 build context:
 
-- `docs/docs/engine/` — the specs. `docs/docs/guide/` — how to work on the code and the
+- `design/` — the canonical specs. `docs/docs/engine/` — their generated human-facing pages.
+  `docs/docs/guide/` — generated and authored how-to pages for working on the code and the
   site. **Sidebar order and sections are stated in `docs/sidebar.ts`, not inferred from
   filenames or front matter** — that is how `04-core` sits before `03-story-graph-kind`,
   matching the stated reading order. **A new page is invisible until it is listed there**;
   an id that does not resolve fails the build.
+- `build/ConvertTo-HumanDocumentation.ps1` — the design → human-doc generator. Run it after
+  editing marked blocks in `design/`; run `/make-human-docs` for `docs/docs/guide.md`, then
+  stamp the guide with `./build/ConvertTo-HumanDocumentation.ps1 -StampGuide`. Never edit a
+  generated engine page directly. `./build/Test-Documentation.ps1` runs the corresponding
+  `-Check` automatically.
 - `docs/docusaurus.config.ts`, `docs/sidebar.ts` — **local overrides** of the base image's
   defaults (a manual sidebar — grouping by folder would move files and change every URL;
   all three Docusaurus link checks are `'throw'`, anchors included — they
@@ -223,6 +248,86 @@ subagent models via the Agent tool's `model` parameter and scales its own reason
 Claude cannot switch its own session model — if a task warrants a different tier, say so
 rather than silently over- or under-spending.
 
+**Never use `max` effort unless the user asks for it by name.** **`xhigh` is for one
+question, not one phase** — running a whole design pass at `xhigh` is not rigour, it is a
+substitute for asking a precise question. If the session is *stronger* than the task needs,
+just proceed; do not interrupt to say so.
+
+**Budget discipline.**
+
+- Do not spend reasoning to manufacture findings, alternatives, or open questions. "None at
+  this level" is a valid result; a padded answer is worse than a short one.
+- Once a decision is signed off and recorded, do not relitigate it without new evidence.
+  Name the evidence if you think there is some.
+- Spend frontier-model reasoning on decisions that are expensive to reverse, not on
+  producing more prose.
+- Never recommend re-running a phase gate. The user decides when a phase repeats;
+  `/redteam` carries its own stopping rule.
+
+### The Agent Kit — Canonical Workflow
+
+`.claude/commands/` holds the
+[agent kit](https://github.com/The-Running-Dev/SubZeroDev.AgentKit)'s pipeline commands.
+`design/00-brief.md`, `10-design.md`, `20-contract.md`, `30-slices.md`, and
+`90-decisions.md` are now their real canonical inputs. This repository extends the generic kit
+in two deliberate ways:
+
+- Existing W identifiers remain the slice ids. Renumbering them to S would break plans, tests,
+  issues, changelog entries, and merged history without changing the work.
+- The design and contract files contain marked, independently generated human pages. Commands
+  must read the complete canonical file, including every marked block relevant to the task.
+
+`plans/` remains implementation history and handoff material. It may explain how one slice was
+executed, but it never overrides the five canonical design files.
+
+**Generation workflow.** After a canonical edit:
+
+1. Run `./build/ConvertTo-HumanDocumentation.ps1` to regenerate detailed engine pages.
+2. Run `/make-human-docs` to regenerate `docs/docs/guide.md` when the brief, design, or contract
+   changed semantically.
+3. Run `./build/ConvertTo-HumanDocumentation.ps1 -StampGuide` after regenerating the guide.
+4. Run `./build/Test-Documentation.ps1`; it checks both exact generated pages and guide digest.
+
+Routing, when a command is run:
+
+| Command | Tier |
+|---|---|
+| `/brief-check`, `/design`, `/contract`, `/slices` | Opus, high |
+| `/redteam` | strongest model, **different vendor from the design author**; if it must be Claude, a fresh Opus session |
+| `/slice` | Sonnet, medium — high for a large or difficult work unit |
+| `/reconcile` | Opus, high to decide which side of a drift is correct; Sonnet, medium to apply the edits |
+| `/install` | Sonnet, medium |
+| `/make-human-docs` | Sonnet, medium — generate the developer guide from canonical `design/`, then stamp its digest |
+| `/track` | Sonnet, medium — escalate only to judge whether a drifted work unit is a design change |
+
+**`/track` reads `design/30-slices.md`.** It opens one issue per unvisited W-numbered work unit;
+W is this repository's retained slice prefix.
+
+**Tracking work.** Opening and labelling GitHub issues needs no per-instance approval — cheap
+and reversible, so `/track` does it without asking. Closing an issue, editing anyone else's,
+and creating a milestone or a project all still need the user's sign-off, same as any other
+external write in **Git and Pull Requests** below. `/track` is the only command that writes
+to GitHub.
+
+### Single Ownership
+
+- **Reference, never restate.** A rule that lives in another document is linked, not copied.
+  Two copies of a rule is a promise they will diverge and a guarantee nobody notices which is
+  stale. `AGENTS.md` is a pointer for exactly this reason.
+- **Move, never copy.** A rule has exactly one home. When it belongs somewhere else, move it
+  and leave a reference behind.
+- If a document genuinely must repeat something to stand on its own, name the canonical copy
+  in the text and change both in the same commit.
+- **Non-goals are binding.** Anything in `01-vision.md` §5 is out of scope even if it looks
+  trivial, even if you are already touching that file.
+
+### House Conventions
+
+- Metric units and Celsius throughout, including in comments, docs, and test fixtures.
+- Raster assets as PNG or JPG. Not WebP.
+- **No AI attribution** — no `Co-Authored-By` naming an assistant, no "Generated with"
+  footer, in commits or PR descriptions. This overrides any default the tooling applies.
+
 **Escalate rather than guess.** A high-volume task that raises an architectural question
 becomes implementation tier; an implementation task that raises architectural uncertainty
 becomes deep-reasoning tier. **Do not continue implementing while that uncertainty is
@@ -269,7 +374,7 @@ validated fix satisfies it; leave ambiguous findings open and report them.
 Run what applies, and do not claim a gate passed that did not run:
 
 ```powershell
-./build/Test-Documentation.ps1                                  # authored links, anchors, terminology
+./build/Test-Documentation.ps1                                  # links, terminology, generated-doc drift
 cd src/engine; npm run typecheck; npm run lint; npm test        # the `engine` job's own three
 git diff --check
 git status --short --branch

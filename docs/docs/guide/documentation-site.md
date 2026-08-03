@@ -27,20 +27,39 @@ image. This page covers building and checking it.
 > had drifted from it; the installed version additionally regenerates the README-derived
 > site root on every run, which is why the local copy was dropped rather than reconciled.
 
-## What is authored, and what is generated
+## What is canonical, authored, and generated
 
-Everything under `docs/docs/` is authored directly. **Exactly one page on the site is
-generated:**
+The engine specifications are canonical under `design/`, not under the site tree. Marked blocks
+in the five agent-kit files generate the detailed pages under `docs/docs/engine/`:
+
+```powershell
+./build/ConvertTo-HumanDocumentation.ps1
+```
+
+The generated [Developer Guide](/docs/guide) is a sequential synthesis produced by
+`/make-human-docs`. After regeneration, stamp it against the canonical design digest:
+
+```powershell
+./build/ConvertTo-HumanDocumentation.ps1 -StampGuide
+```
+
+`build/Test-Documentation.ps1` runs the generator's `-Check` mode. A direct edit to a generated
+engine page fails byte-for-byte; a canonical design edit makes the guide fail as stale until it
+is regenerated and stamped.
+
+Two other page classes remain:
 
 - **The site root**, `docs/src/pages/index.md`, is generated from the repository's
   `README.md`. **Do not edit it** — edit the README. Absolute
   `https://game-engine.subzerodev.com/…` links in the README are rewritten to site-relative
   ones as it is generated, which is what lets one file read correctly both on the code host
-  and here. It is the only entry in `.config/DocumentationRules.psd1`'s `GeneratedFiles`, and
+  and here. It remains the entry in `.config/DocumentationRules.psd1`'s `GeneratedFiles`, and
   the gate fails the build if the committed copy and the generator disagree.
+- **The `/docs/` landing page and the two focused working guides** are authored human pages.
+  They link generated material but do not restate engine contracts.
 
-The `/docs/` landing page is *not* generated, despite sitting next to it in the tree — it is
-ordinary authored content listing the specs in reading order. Edit it freely.
+Never edit `docs/docs/engine/*.md` or `docs/docs/guide.md` directly. Edit the owning canonical
+design block and regenerate them.
 
 The root being a real page rather than a redirect is what allows the strict link checking
 below: a redirect file serves a request but never satisfies a route checker.
@@ -52,7 +71,7 @@ disjoint: each covers ground the other cannot reach, and they agree in between.
 
 | Check | Only it covers | Both cover |
 |---|---|---|
-| `build/Test-Documentation.ps1` | Markdown outside the site — `README.md`, `CLAUDE.md`, `agent.md`, `plans/` — plus terminology and generated-file drift | Relative links and their `#anchors` inside `docs/docs/` |
+| `build/Test-Documentation.ps1` | Markdown outside the site — `README.md`, `CLAUDE.md`, `agent.md`, `design/`, `plans/` — plus terminology and generated-file drift | Relative links and their `#anchors` inside `docs/docs/` |
 | The Docusaurus production build | Site routes, and **site-absolute** targets like `/docs/engine/core`, which the gate skips by design | |
 
 `onBrokenLinks`, `onBrokenMarkdownLinks`, and `onBrokenAnchors` are all `throw`, so a renamed
@@ -80,10 +99,10 @@ checkout.
 mention. That is what makes a bare path navigable without inventing a route that does not
 exist.
 
-## The tooling is vendored, not forked
+## Template tooling and the project-owned generator
 
-`build/` and `.config/` are installed from
-[the documentation template](https://github.com/The-Running-Dev/Docusaurus-Template) and kept
-**byte-identical** to it. Fixes go upstream first and arrive here on the next sync; nothing in
-`build/` is edited locally. That is what keeps re-running the installer safe — it has nothing
-to reconcile.
+The base documentation tooling and `.config/` are installed from
+[the documentation template](https://github.com/The-Running-Dev/Docusaurus-Template). The
+agent-kit migration adds one project-owned extension:
+`build/ConvertTo-HumanDocumentation.ps1`, invoked by the local documentation gate. Keep that
+extension when refreshing the template tooling; generic template fixes still go upstream first.

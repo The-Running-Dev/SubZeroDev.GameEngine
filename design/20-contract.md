@@ -1,0 +1,5047 @@
+# Contract
+
+> Canonical agent-kit contract for SubZeroDev.GameEngine. The marked blocks below are the single
+> source for the generated core and kind-contract pages under `docs/docs/engine/`.
+
+## Types
+
+The game-agnostic public types and seam are owned by [Core Specification](#core-specification).
+Kind-owned types are owned by the Story-Graph, Simulation, and World-Graph blocks.
+
+## Persisted schemas
+
+Owned by Core Specification and the persistence sections of each kind contract.
+
+## Public signatures
+
+Owned by Core Specification. Kind implementations cross the core only through the `Kind` seam;
+kind-internal signatures remain in their respective blocks.
+
+## Error semantics
+
+Core reason codes and validation errors are owned by Core Specification. Each kind adds only its
+registered reason-code vocabulary.
+
+## Invariants
+
+Determinism, envelope ownership, projection, migration, validation, and identifier invariants are
+owned by Core Specification; kind-specific turn and state invariants are owned by each kind block.
+
+<!-- human-doc:start path="engine/04-core.md" -->
+---
+sidebar_label: Core Specification
+---
+
+# Core Specification
+
+**Document status:** Revision 1 — the platform core, as types
+
+**Reading order:** logically the core *underlies* the kinds; the filename is `04` only to
+avoid renumbering. Read after [`02-architecture.md`](02-architecture.md), before or
+alongside [`03-story-graph-kind.md`](03-story-graph-kind.md) — which is the order the
+sidebar presents, stated in `docs/sidebar.ts` rather than taken from the filename prefix.
+
+> **Scope of this document**
+>
+> The game-agnostic core, defined as types: the `GameState` envelope, the **Kind
+> interface** (the seam every kind implements), the platform engine API, the session
+> store, generic scenes/actions, projection, the content registry, tiered validation,
+> reason codes, randomness, serialization/save/migration, the determinism harness, and
+> the MCP tool schemas.
+>
+> `02-architecture` made the decisions; this turns each into a type. Named ≠ defined ≠
+> buildable — that lesson, from `games/`, applied
+> to the platform.
+
+**Reused, not re-derived.** The seeded RNG (`RngState`, PCG32, `deriveStream`) and
+canonical serialization are already built and verified in `src/engine/src/core/`
+([Engine Package](/docs/guide/engine-package)), and were
+first specified in `games/04-engine-specification.md` §3, §2.1. This document references
+them and does not restate the algorithms.
+
+> **What `games/04-engine-specification.md` is, and is not.** It is a 104 KB engine
+> specification in the companion game project,
+> [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife) — the
+> document **this one was derived from**. It is cited throughout these specs, and every such
+> citation is **provenance, not authority**.
+>
+> For anything the core owns — the engine API, randomness, save and serialization, testing,
+> package layout, conditions, projections — **this document supersedes it.** Where the two
+> disagree, this one is correct, and the older text should be read as the draft that led
+> here rather than as a second opinion.
+>
+> It remains authoritative for exactly one thing: the **`simulation` kind's own** content and
+> resolution model (its §5, §7–§10, §12, §14). That kind is engine-owned code
+> (architecture §1) and will need a contract in *this* repository against the Kind seam
+> (§3), the way [`03-story-graph-kind.md`](03-story-graph-kind.md) is one. Until that exists,
+> the upstream sections are where its rules live — and they are written as a game's engine
+> spec, not as a kind, so they do not yet plug into §3.
+
+---
+
+## 1. The Two Layers of "Engine"
+
+Two things get called "the engine." They are different, and the split is load-bearing.
+
+- **The pure engine** — a set of pure functions. `f(state, action) → new state`. No
+  I/O, no session, no clock. Testable, replayable, deterministic. This is what the Kind
+  interface and the reducers live in.
+- **The session store** — a thin stateful layer *above* the pure engine that holds
+  serialized state blobs by id, so a client can `resume` (architecture §2). It does I/O;
+  it holds no game logic.
+
+The platform API (§7) is the session store's surface. Clients talk to it; it calls the
+pure engine.
+
+### 1.1 Internal Modules
+
+The core is one public surface but several internal modules, each a single
+responsibility. This is code organization, not new API — a peer-review recommendation to
+keep the growing core maintainable. The `src/engine/src/core/` layout mirrors it.
+
+| Module | Owns | Section |
+|---|---|---|
+| `kernel` | the `GameState` envelope, the `Engine`, `submitAction` | §2, §4 |
+| `session` | the session store, save/load handles, the profile store | §7, §7.1 |
+| `persistence` | canonical serialize/deserialize, `SaveEnvelope`, migration | §10 |
+| `projection` | the `project` mechanism, audiences | §9 |
+| `validation` | the tiered validator, `ValidationResult` | §11 |
+| `registry` | the content registry, campaign resolution | §10.1 |
+| `localization` | `LocKey` resolution against string tables | §12, §17 |
+| `determinism` | the RNG handle, streams, the harness | §8, §14 |
+| `observability` | the `Emitter`, `EngineEvent`, sinks | [`05-observability.md`](05-observability.md) |
+| `composition` | the host roots and the port interfaces | [`06-extensibility.md`](06-extensibility.md) |
+
+Kinds (`kinds/`) and clients (`clients/`, `mcp/`) sit above; the dependency arrow points
+only downward — a core module never imports a kind or client.
+
+---
+
+## 2. The `GameState` Envelope
+
+The core owns a **kind-agnostic envelope** and treats each kind's own state as an
+opaque payload inside it. This is the single most important type in the platform: it is
+what `advance`, `serialize`, and the session store operate on.
+
+```typescript
+type KindId = "story-graph" | "simulation" | "world-graph";
+
+interface GameState {
+  formatVersion: number;         // the shape of THIS envelope — see §10.2
+  gameId: string;                // from the IdSource port (06 §5.1); opaque to the core
+
+  kindId: KindId;
+  campaignId: string;
+  campaignVersion: string;       // the published version this game runs (§10)
+
+  seed: string;                  // the only randomness state — streams derive from it (§8)
+
+  status: GameStatus;            // active | ended | abandoned
+  kindState: unknown;            // the kind's own state — opaque to the core
+
+  actionLog: LoggedAction[];     // ordered player actions — the replay spine (§9)
+}
+
+type GameStatus = "active" | "ended" | "abandoned";
+
+interface LoggedAction {
+  seq: number;                   // 0-based, monotonic
+  actionId: string;              // the action the player submitted
+  params?: Readonly<Record<string, string | number | boolean>>;
+}
+```
+
+**What lives here vs in `kindState`.** The envelope holds everything a game has
+*regardless of kind*: identity, campaign reference, seed, status, and the action
+log. A kind's own concepts — current node, variables, turn counter, week number,
+needs — live in `kindState`, opaque to the core.
+
+> **No persisted RNG state.** Randomness is *derived*, not carried: every stream is a
+> pure function of `(seed, streamId)` (§8), so the envelope stores the seed and nothing
+> else. A persisted generator state would be written every action and read by nothing —
+> a serialized field free to drift from the derivable truth, taking byte-identical
+> replay with it. `{ seed, actionLog }` is the complete replay input.
+
+> **Why `kindState: unknown`.** The core must not depend on any kind. Typing the
+> field as `unknown` (not a union of kind states) keeps the dependency arrow pointing
+> the right way — kinds depend on the core, never the reverse. Each kind casts its
+> own `kindState` internally, guarded by `kindId`. This is the platform equivalent of
+> the simulation kind's "engine imports no client" rule (games/04-engine-specification.md §20.1).
+
+> **Determinism note.** No wall-clock (`createdAt`/`updatedAt`) lives in `GameState` —
+> that would make byte-identical replay impossible. Timestamps, if a host wants them,
+> live in the session-store record (§7), outside the replayable state. The determinism
+> guard in `src/engine/eslint.config.js` enforces no `Date.now`.
+
+---
+
+## 3. The Kind Interface — The Seam
+
+A **kind** is engine-owned code that teaches the core how one category of game
+plays. Every kind implements this interface; the core drives it without knowing
+which kind it is.
+
+```typescript
+interface Kind<KState> {
+  readonly id: KindId;
+  readonly version: string;                      // manually maintained semver (§10.2, W31)
+  readonly reasonCodes: readonly ReasonCode[];   // codes this kind adds to the base set (§12)
+  readonly eventNames: readonly EventName[];     // events this kind may emit (05 §9)
+
+  /** Build the starting kind-state for a fresh game of this campaign. */
+  initialState(campaign: Campaign, ctx: KindContext): InitialStateResult<KState>;
+
+  /** What the player can do right now — generic actions for the current scene (§6). */
+  availableActions(state: KState, ctx: KindContext): AvailableAction[];
+
+  /** Render the current situation into a generic scene body (§6). */
+  scene(state: KState, ctx: KindContext): SceneBody;
+
+  /** Resolve one player action. Pure: same (state, action, params, ctx) → same result. */
+  advance(
+    state: KState,
+    actionId: string,
+    params: ActionParams | undefined,
+    ctx: KindContext,
+  ): AdvanceResult<KState>;
+
+  /** Narrow kind-state to the visible projection for an audience (§9). */
+  project(state: KState, audience: ProjectionAudience, ctx: KindContext): unknown;
+
+  /**
+   * Tiered content validation of a campaign of this kind (§11). `strings` is the
+   * registry's built string table — checking a `LocKey` resolves, or that rendered text
+   * interpolates only a declared, visible variable, needs the table itself, not just the
+   * kind's opaque `content`.
+   */
+  validateCampaign(campaign: Campaign, strings: ReadonlyMap<LocKey, string>): ValidationResult;
+
+  /**
+   * A minimal, cross-version-stable terminal identity — published ids only, never
+   * values ([`07-replay.md`](07-replay.md) §3.3).
+   */
+  outcome(state: KState): unknown;
+
+  /**
+   * Migrates a `KState` produced under an older `version` forward, when this kind's own
+   * state shape changed (§10.2). Optional — most version bumps don't change the shape a
+   * save references. Invoked only at the save-load boundary (`SessionStore`), never by
+   * `advance`; a missing function on a version mismatch fails the load rather than
+   * silently handing this version a state it wasn't written to read.
+   */
+  migrateState?(oldState: unknown, fromVersion: string): CommandResult<KState>;
+}
+
+interface AdvanceResult<KState> {
+  state: KState;                 // the new kind-state
+  status: "active" | "ended";    // advance never yields "abandoned" — that is session-only (§7)
+  changes: StateChange[];        // audit records (§12) — for history and transparency
+  messages: OutcomeMessage[];    // player-facing, localized (§12)
+  error?: ValidationError;       // set iff the action was rejected; state is unchanged
+}
+
+interface InitialStateResult<KState> {
+  state: KState;                 // the starting kind-state
+  status: "active" | "ended";    // a kind that settles at start may already be ended
+  changes: StateChange[];
+  messages: OutcomeMessage[];
+}
+```
+
+> **Why `initialState` returns a result, not a bare `KState`.** A kind that settles at
+> start (story-graph, 03 §8.2) can land on an ending before the player acts — a valid
+> campaign (§11, Tier 2 warns). The core cannot discover this by inspecting `kindState`,
+> which is `unknown` to it by design (§2), so the kind must *say so*. `InitialStateResult`
+> is deliberately `AdvanceResult` minus `error`: a campaign is pre-validated before the
+> registry is frozen, so starting a game cannot fail the way an action can.
+
+> **Why `advance` receives `params`.** `submitAction` writes `params` into the replay log
+> (§2), so anything they affect must be reachable from the kind — otherwise the log
+> carries data that provably cannot change replay. The story-graph kind declares no
+> parameters (an action *is* a choice id) and returns a `ValidationError` if a non-empty
+> `params` object arrives. Undocumented parameters are never silently ignored.
+
+`advance` is where a kind's whole ruleset lives. For the story-graph kind it is
+`submitChoice → settle` ([`03-story-graph-kind.md`](03-story-graph-kind.md) §8.2); for
+the simulation kind it is the weekly resolution (`games/04-engine-specification.md`). The core calls it and
+never looks inside.
+
+> **One action model, three kinds.** The core's action is a string `actionId` plus
+> optional params. For the story-graph kind an action *is* a choice id, and it declares no
+> params at all. For the simulation kind, actions map to its richer verbs (submit a plan,
+> end the week). For the world-graph kind they are richer still — `build` carries a
+> definition, a position and a rotation; `advance_ticks` carries a tick count
+> ([`12-world-graph-kind.md`](12-world-graph-kind.md) §6). The core does not care — it
+> forwards the `actionId` and the kind interprets it. This is what lets one API (§7) and
+> one MCP surface (§13) serve all three, and the spread from *no params* to *four* is the
+> evidence that the model scales rather than merely fitting the two it was drawn from.
+
+### 3.1 KindContext
+
+Everything a kind needs to resolve, supplied by the core:
+
+```typescript
+interface KindContext {
+  readonly registry: ContentRegistry;   // §10 — the campaign and shared content
+  readonly campaign: Campaign;           // this game's campaign, resolved
+  readonly rng: RngHandle;               // handle on this resolution's own stream (§8)
+  readonly derive: (streamId: StreamId) => RngHandle;   // any other stream, same seed (§8)
+  readonly seq: number;                  // current action sequence number
+  readonly emit: ResolutionEmitter;      // this resolution's event handle (05 §4)
+}
+```
+
+The kind draws randomness only from `ctx.rng` — a handle on the stream derived for
+*this* resolution from `(seed, streamId)` — or from `ctx.derive`, for the streams that are
+keyed by something other than the action. Either way the handle is discarded when `advance`
+returns; nothing is written back, because the next resolution derives its own stream
+from the seed again (§8). The kind stays pure and every draw stays reproducible.
+
+> **Why `derive` exists.** §8 defines four `StreamId` variants, but only a kind is ever in a
+> position to use three of them — the core cannot know that a draw belongs to *this guest's
+> fifth decision* rather than to the action in flight. Without `derive`, `ctx.rng` was the
+> only reachable stream and those variants were unreachable by construction. `derive` closes
+> over the game's `seed` and nothing else: it is pure, it persists nothing, and
+> `{ seed, actionLog }` remains the complete replay input. The kind that forced this is
+> `world-graph`, whose correctness depends on draws keyed by simulated time rather
+> than by how a client batched its requests
+> ([`12-world-graph-kind.md`](12-world-graph-kind.md) §5).
+
+`ctx.emit` is the same shape for the same reasons: a handle scoped to this resolution,
+used and discarded, carrying nothing back into state. It reports what the kind is doing to
+whatever sink the host attached, and `emit` returns `void` precisely so that nothing about
+the sink can reach the game ([`05-observability.md`](05-observability.md) §2). Removing
+every event must leave `serialize()` byte-identical — the determinism harness asserts it
+(§14).
+
+---
+
+## 4. Registration and the Pure Engine
+
+Kinds are registered at engine construction — a fixed, engine-owned set (architecture
+§1). A missing kind is a construction error, not a runtime surprise.
+
+```typescript
+type KindRegistry = Readonly<Record<KindId, Kind<unknown>>>;
+
+function createEngine(
+  registry: ContentRegistry,
+  kinds: KindRegistry,
+  emitter?: Emitter,             // observability sink; defaults to nullEmitter (05 §4)
+): Engine;
+```
+
+> **Superseded by `06-extensibility.md` §4–§5.1.** The three-positional-argument form
+> above predates the `IdSource` port, which closed a real gap this signature left open
+> (`gameId` and `seed` had no named source). The current, implemented signature is
+> `createEngine(host: EngineHost): Engine`, with `EngineHost { kinds, registry, ids?,
+> emitter? }` — the same "provenance, not authority" relationship this document has with
+> `games/04-engine-specification.md` above, just one level down.
+
+The **pure engine** exposes kind-agnostic operations over the envelope. It resolves the
+kind by `state.kindId`, derives the RNG handle, delegates, and reassembles the envelope:
+
+```typescript
+interface Engine {
+  createGame(config: NewGameConfig): CommandResult<GameState>;
+  scene(state: GameState): Scene;                       // §6
+  view(state: GameState, audience: ProjectionAudience): PlayerView;   // §9
+  availableActions(state: GameState): AvailableAction[];
+  submitAction(state: GameState, actionId: string, params?: ActionParams): ActionResult;
+  serialize(state: GameState): string;                  // §10 (canonical)
+  deserialize(data: string): CommandResult<GameState>;
+  migrate(data: string): CommandResult<GameState>;      // §10
+}
+```
+
+`submitAction` is the whole loop, in the core:
+
+```text
+submitAction(state, actionId, params):
+  1. kind = kinds[state.kindId];  seq = state.actionLog.length   // 0-based, monotonic
+  2. handle = rngHandleFor(state.seed, { kind:"action", seq })   // §8 — derived, not carried
+  3. emit = resolutionEmitter(emitter, state.gameId, seq)        // 05 §4 — ordinal starts at 0
+  4. result = kind.advance(state.kindState, actionId, params, { registry, campaign, rng: handle, seq, emit })
+  5. if result.error → return { ok:false, errors:[result.error] }, state unchanged  // ActionResult.errors is a list (§12)
+  6. newState = {
+       ...state,
+       kindState: result.state,
+       status: result.status,
+       actionLog: [...state.actionLog, { seq, actionId, params }],
+     }
+  7. return { ok:true, value:newState, errors:[], warnings:[],
+              changes:result.changes, messages:result.messages }
+```
+
+> **A rejected action does not advance `seq`.** Step 5 returns without appending, so the
+> next attempt computes the same `seq` from the same log length. That is deliberate — the
+> log is the replay spine and a refused action is not part of it — but it means two rejected
+> attempts emit events with identical `(gameId, seq, ordinal)`. Observability states that
+> limit rather than papering over it, and disambiguates at the boundary
+> ([`05-observability.md`](05-observability.md) §5, §6).
+
+Immutability is unconditional (games/04-engine-specification.md §11.3): every operation returns a new envelope.
+
+**`createGame`** assembles the envelope and delegates the start to the kind:
+
+```text
+createGame(config):
+  0. gameId = ids.newGameId()                                // 06 §5.1 — the IdSource port
+  1. campaign = registry.campaigns[config.campaignId]        // kind = campaign.kindId
+  2. seed = config.seed ?? ids.newSeed()                     // 06 §5.1 — recorded in the envelope
+  3. startHandle = rngHandleFor(seed, { kind:"system", system:"start", seq:0 })   // §8
+  4. startEmit = resolutionEmitter(emitter, gameId, 0)            // 05 §4 — seq 0, ordinal 0
+  5. init = kind.initialState(campaign, { registry, campaign, rng: startHandle, seq: 0, emit: startEmit })
+     // a kind that settles at start (story-graph, 03 §8.2) draws its initial
+     // random transitions from startHandle, and reports "ended" if it settled to one
+  6. return the envelope { kindId: campaign.kindId, campaignId: campaign.id,
+       campaignVersion: campaign.version, seed,
+       status: init.status, kindState: init.state, actionLog: [] }
+     // init.changes / init.messages ride out on the CommandResult
+```
+
+The start resolution uses `seq: 0` for both the RNG stream and the emitter, matching the
+first action's numbering; the two never collide because the *stream* is `system:"start"`
+rather than `action` (below), and because the emitter's ordinal restarts per resolution.
+
+The **start** stream (`system:"start"`) is deliberately distinct from the per-action
+streams `submitAction` uses (`{ kind:"action", seq }`), so a start-of-game random draw
+can never collide with an action's — the initial `settle` is reproducible on its own stream.
+
+---
+
+## 5. Configuration
+
+```typescript
+interface NewGameConfig {
+  campaignId: string;
+  seed?: string;                 // omitted → the store generates one and records it
+  audience?: ProjectionAudience; // default "player"
+}
+```
+
+The kind is not named here — it is a property of the campaign (`Campaign.kindId`),
+resolved from the registry. A client starts a game by campaign; whether that campaign
+is a story graph or a simulation is invisible to it.
+
+---
+
+## 6. Scenes and Actions (Generic)
+
+The unified surface every client renders. A kind projects its current situation into
+this shape; a story graph and a simulation both produce a `Scene`.
+
+```typescript
+interface Scene {
+  gameId: string;
+  status: GameStatus;
+  body: SceneBody;               // kind-rendered
+  actions: AvailableAction[];
+  view: PlayerView;              // the projection (§9), bundled for convenience
+}
+
+interface SceneBody {
+  textKey: LocKey;
+  text: string;                  // rendered, with visible-state params substituted
+}
+
+interface AvailableAction {
+  id: string;                    // the actionId to submit
+  labelKey: LocKey;
+  available: boolean;            // requirements met
+  reasonKey?: LocKey;            // present iff not available — Transparent Consequences
+}
+
+type ActionParams = Readonly<Record<string, string | number | boolean>>;
+```
+
+For the story-graph kind, an `AvailableAction` is a node choice; `available`/`reasonKey`
+come from its requirement gate (03 §4). The generic shape is a superset — a kind with
+richer actions carries params.
+
+---
+
+## 7. The Session Store and the Platform API
+
+The pure engine is stateless. The **session store** is the thin stateful layer clients
+actually call. It maps the architecture's §10 API onto the pure engine, keyed by
+`sessionId`.
+
+The surface splits cleanly into **queries** (read-only, no state change) and
+**commands** (advance or persist). This is a documentation convention for clarity — not
+CQRS the pattern: there is one state model, no separate read store, no event bus. Just a
+useful line between "look" and "change."
+
+```typescript
+interface SessionStore {
+  // ── Queries (read-only) ──────────────────────────────
+  listCampaigns(): CampaignSummary[];
+  getScene(sessionId: string): Promise<Scene>;
+  getView(sessionId: string): Promise<PlayerView>;
+  getStrings(sessionId: string): Promise<StringTable>;   // resolve LocKeys — below
+
+  // ── Commands (advance or persist) ────────────────────
+  createSession(config: CreateSessionConfig): Promise<SessionHandle>;   // profileId lives here
+  resumeSession(sessionId: string): Promise<Scene>;
+  submitAction(sessionId: string, actionId: string, params?: ActionParams): Promise<SessionActionResult>;
+  saveGame(sessionId: string): Promise<SaveHandle>;                  // named/manual save
+  loadGame(saveId: string): Promise<SessionHandle>;
+}
+
+interface SessionHandle { sessionId: string; scene: Scene; }
+interface SaveHandle { saveId: string; savedAtSeq: number; }
+interface CampaignSummary { campaignId: string; kindId: KindId; titleKey: LocKey; }
+
+interface CreateSessionConfig extends NewGameConfig {
+  profileId?: string;            // omitted → anonymous session; see §7.1
+}
+
+/** What a client gets back from an action. Never the envelope. */
+interface SessionActionResult {
+  ok: boolean;
+  scene?: Scene;                 // the new scene, on success — a projection (§9)
+  errors: ValidationError[];
+  warnings: ValidationWarning[];
+  changes: StateChange[];        // audit records, `visible`-gated (§12)
+  messages: OutcomeMessage[];
+}
+
+type StringTable = Readonly<Record<LocKey, string>>;
+```
+
+> **`submitAction` returns `SessionActionResult`, not `ActionResult`.** `ActionResult`
+> extends `CommandResult<GameState>` (§12) — its success value is **the envelope**, seed and
+> action log and opaque `kindState` included. That type is correct for the *pure engine*
+> (§4), whose caller is the store; handing it to a client would put raw state on the other
+> side of the projection boundary and make §9 a convention rather than a guarantee. The
+> store unwraps it and returns a `Scene`.
+
+> **`createSession` takes `CreateSessionConfig`.** It previously took `NewGameConfig`, which
+> carries no `profileId` — leaving `CreateSessionConfig` defined and unreachable, and no way
+> for a client to start the profiled session MVP §5 requires for cross-session achievements.
+> `profileId` stays off `NewGameConfig` and out of `GameState` (§7.1); it is a *session*
+> input, which is exactly what this type is for.
+
+> **Why `getStrings` is a store operation.** Every client-facing type carries `LocKey`s —
+> `Scene.actions[].labelKey`, `CampaignSummary.titleKey`, `OutcomeMessage.key`,
+> `ValidationError` — and a client that may call nothing but this store (09 §2) otherwise has
+> no way to render any of them. Resolving them *inside* the DTOs was the alternative and is
+> worse: it would bake a locale into the projection and lose the property that clients never
+> string-match English (§12). The table is keyed by the campaign and locale the session was
+> created with; a locale switch is a new session, which is all the MVP's single locale needs.
+
+**The store persists the envelope (§2) and nothing else about play.** Wall-clock
+timestamps, owner ids, and other host metadata live on the store's record, outside the
+replayable `GameState`. This is the boundary that keeps determinism intact while still
+supporting "resume on another device" (architecture §2).
+
+`createSession` generates and records a seed when the config omits one, so a resumed or
+replayed session is always reproducible.
+
+### 7.1 The Profile Store
+
+Achievements must outlive a game (MVP §5, 03 §7), but nothing durable may sit inside
+`GameState`. So the profile is a **second store beside the session store**, at the same
+layer — stateful, I/O-doing, and invisible to the pure engine.
+
+```typescript
+interface PlayerProfile {
+  formatVersion: 1;
+  profileId: string;
+  achievements: readonly AchievementRecord[];
+}
+
+interface AchievementRecord {
+  campaignId: string;            // achievement ids are only unique within a campaign
+  achievementId: string;
+}
+
+type ProfileWarningCode = "profile_missing" | "profile_corrupt" | "profile_write_failed";
+interface ProfileWarning { code: ProfileWarningCode; profileId: string; }
+
+interface ProfileLoadResult { profile: PlayerProfile; warnings: readonly ProfileWarning[]; }
+interface ProfileSaveResult { ok: boolean; warnings: readonly ProfileWarning[]; }
+
+interface ProfileStore {
+  load(profileId: string): Promise<ProfileLoadResult>;
+  save(profile: PlayerProfile): Promise<ProfileSaveResult>;
+}
+```
+
+Rules, all of them determinism-preserving:
+
+- **Profile identity is a session concern.** `profileId` lives on `CreateSessionConfig`
+  and the store's record — never on `NewGameConfig`, never on `GameState`. The pure
+  engine has no idea profiles exist.
+- **Nothing in resolution reads a profile.** A kind unlocks into its own `kindState`
+  (03 §7) and emits an `achievement_unlocked` `StateChange` (§12). *After* a successful
+  action, the session store idempotently upserts those records through the
+  `ProfileStore`. Profile contents and write outcomes never feed back into `advance`.
+- **Anonymous by default.** No `profileId` → no read, no write; achievements persist only
+  for that game. Cross-session persistence is opt-in.
+- **Degradation is a warning, never a failure.** Missing or corrupt loads return an empty
+  `formatVersion: 1` profile plus `profile_missing` / `profile_corrupt`. A failed write
+  returns `profile_write_failed` and **does not** roll back the completed game action —
+  the game is authoritative, the profile is a mirror.
+
+---
+
+## 8. Randomness
+
+Fully specified and built. The core owns the seeded PCG32 generator
+(`src/engine/src/core/determinism/pcg32.ts`, verified bit-identical
+to reference vectors) and hands each resolution a **scoped handle** derived from
+`(seed, streamId)` via `deriveStream`.
+
+**Randomness is derived, never carried.** `deriveStream(seed, streamId)` is a pure
+function: the same pair always yields the same generator, and different `streamId`s are
+independent. So a resolution takes a fresh handle, draws from it, and drops it — there
+is no generator state to thread through the envelope (§2), and replay needs only
+`{ seed, actionLog }`.
+
+```typescript
+type StreamId =
+  | { kind: "action"; seq: number }
+  | { kind: "system"; system: string; seq: number }
+  | { kind: "agent"; agentId: string; seq: number }
+  | { kind: "tick"; tick: number; system: string };
+
+interface RngHandle {
+  nextInt(minInclusive: number, maxInclusive: number): number;
+  nextPercent(): number;
+  pick<T>(items: readonly T[]): T;
+  weightedPick<T>(items: readonly { item: T; weight: number }[]): T;
+}
+```
+
+`RngHandle` exposes no `toState()`: nothing reads it back. (`Pcg32.toState` remains on
+the primitive, for tests and for reference-vector verification.)
+
+**Stream-id encoding is part of the contract.** `deriveStream` hashes a *string*, so the
+`StreamId` → string mapping is normative — change it and every seeded outcome changes.
+It is exactly:
+
+```text
+{ kind:"action", seq }             → `action:${seq}`
+{ kind:"system", system, seq }     → `system:${system}:${seq}`
+{ kind:"agent",  agentId, seq }    → `agent:${agentId}:${seq}`
+{ kind:"tick",   tick, system }    → `tick:${tick}:${system}`
+```
+
+Substreams (games/04-engine-specification.md §3.2) mean adding a draw in one place never renumbers another, and
+a rival kind's draws never perturb the player's. The MVP uses the `action` stream for
+play plus one `system` stream, `system:"start"`, for `createGame`'s initial `settle`
+(§4); the machinery for more is already there.
+
+> **What goes in `agent.seq` is normative, and it is not the action seq.** It is the
+> *agent's own* draw counter, stored on that agent in `kindState` and incremented per draw.
+> Keying it to the action would make an agent's randomness depend on how many actions
+> preceded it, which is precisely what a per-agent stream exists to avoid.
+
+> **The `tick` variant is for world-level draws in a kind whose turn advances simulated
+> time** — guest spawning, incident rolls, weather. Keying them by `tick` rather than by
+> `seq` is what makes a batch of ticks produce the same result as the same ticks taken
+> singly; `12-world-graph-kind.md` §5 states the property and why it is
+> load-bearing. `system` here names the drawing system, not a `StreamId` variant, so two
+> systems drawing on the same tick stay independent.
+
+> **`weightedPick` constrains content.** The built implementation requires every weight
+> to be a **positive integer** and throws otherwise. That makes it a load-time content
+> rule, not a runtime surprise — Tier 1 validation enforces it (03 §11).
+
+---
+
+## 9. Projection
+
+Clients receive a **projection**, never raw state (architecture §7). The core runs
+the mechanism; the kind supplies the narrowing.
+
+```typescript
+type ProjectionAudience = "player" | "ai";
+
+interface PlayerView {
+  gameId: string;
+  status: GameStatus;
+  kindView: unknown;             // kind-narrowed — e.g. StoryGraphView (03 §9)
+}
+
+// Engine.view(state, audience):
+//   kind = kinds[state.kindId]
+//   return { gameId, status, kindView: kind.project(state.kindState, audience, ctx) }
+```
+
+The core guarantees the envelope's own hidden fields (`seed`, `actionLog`,
+`kindState` raw) never reach a client except through `kind.project`, which is
+responsible for excluding the kind's hidden state (03 §9 lists the story-graph
+exclusions). The `ai` audience is the rival/AI view; widening it is a difficulty
+setting, declared and visible (games/04-engine-specification.md §6.1) — never granted by accident.
+
+> **Why `ai` and not `agent`.** "Agent" was doing two incompatible jobs across these
+> specs: an *AI player* here, and a *simulated entity* in `StreamId`
+> (`{ kind: "agent"; agentId }`, §8) and throughout
+> [`12-world-graph-kind.md`](12-world-graph-kind.md), where guests and staff are agents. A
+> spatial kind full of autonomous entities made the collision unavoidable, so the audience
+> took the new name and `agent` now means exactly one thing: an entity the simulation
+> owns. Renamed before any code existed, which is the only cheap time to do it.
+
+---
+
+## 10. Content, Saves, Migration
+
+### 10.1 Content Registry
+
+```typescript
+interface ContentRegistry {
+  readonly campaigns: ReadonlyMap<string, Campaign>;
+  readonly strings: ReadonlyMap<LocKey, string>;     // built form — see the authoring boundary below
+}
+
+interface Campaign {
+  id: string;
+  kindId: KindId;
+  version: string;
+  titleKey: LocKey;
+  content: unknown;              // kind-specific — e.g. StoryGraphCampaign (03 §1)
+}
+```
+
+> **Content excludes envelope identity.** A kind's `content` (e.g. `StoryGraphCampaign`,
+> 03 §1) holds only kind-specific data — it does **not** repeat `id`, `kindId`, `version`,
+> or `titleKey`, which live on `Campaign` here. Authored inline strings are lifted into
+> `registry.strings` at build time (the authoring boundary below), so `content` carries no
+> per-campaign string table at runtime. Same anti-drift rule as `kindState` (§15).
+
+The registry is frozen and pre-validated (§11) before the engine sees it. The engine
+performs no I/O; a loader package builds the registry from files (architecture §1).
+
+#### The Authoring → Registry Boundary
+
+"Built from files" is a *typed* step, not a hand-wave. Authors write player-facing text
+inline (03 §12); the runtime sees only `LocKey`s. Two types and one pure function make
+that a contract:
+
+```typescript
+interface AuthoredText { key: LocKey; text: string; }
+
+interface BuiltCampaign {
+  campaign: Campaign;                          // runtime form — LocKeys only
+  strings: ReadonlyMap<LocKey, string>;        // lifted out of the source
+}
+```
+
+Each kind declares a **source type** paired with its runtime type — for the flagship,
+`StoryGraphCampaignSource` mirrors `StoryGraphCampaign` (03 §1) with every player-facing
+field typed `AuthoredText` instead of `LocKey`. A **pure builder** validates the source,
+replaces each `AuthoredText` with its key, and returns `BuiltCampaign`. Repeated identical
+key/text pairs deduplicate; the same key with *different* text is a hard error.
+
+Registry assembly then validates every built campaign (§11), merges the protected core
+strings (§12) with kind and campaign strings, and freezes both maps.
+
+> **Parsing and files live outside the engine.** YAML/JSON decoding and filesystem access
+> belong to an outer adapter that feeds `unknown` into source-schema validation. The engine
+> package never reads a file — that is what makes "the engine performs no I/O" checkable.
+> **The MVP ships one locale, English**; additional locales are post-MVP and need no type
+> change, only more string tables.
+
+### 10.2 Save Envelope and Migration
+
+Carried from games/04-engine-specification.md §16. A save wraps the `GameState` envelope with the metadata needed
+to load it safely.
+
+```typescript
+interface SaveEnvelope {
+  saveFormatVersion: number;     // shape of THIS envelope
+  serializationVersion: number;  // version of the canonical serializer that wrote `state`
+  engineVersion: string;
+  kindId: KindId;
+  kindVersion: string;           // a kind's code can change independently of the engine
+  campaignId: string;
+  campaignVersion: string;       // the published version this save was made under
+  replayCompatible: boolean;
+  checksum: string;
+  state: GameState;
+}
+```
+
+The four version fields exist because the four things they track change independently:
+the save wrapper's shape, the serializer, the engine, and a kind's code can each move
+without the others. **Compression and host-side metadata (playtime, title, thumbnail) are
+deliberately absent** — compression has no consumer yet, and host metadata belongs on the
+session-store record (§7), outside the replayable `GameState`, so it can never perturb
+byte-identical replay.
+
+**Built during W31** (`SessionStore.saveGame`/`loadGame`, `core/persistence/envelope.ts`),
+closing what had been a specified-but-unbuilt mechanism since W3. Not every field gates a
+load the same way:
+
+- **`saveFormatVersion` / `serializationVersion` mismatch** fails loudly
+  (`save_requires_migration`, §12) — this unit introduces both, so neither has a real
+  prior value to migrate from yet; a future unit earns that logic only once one of them
+  actually moves.
+- **`engineVersion` mismatch** never gates a load by itself — recorded for provenance
+  only, per this section's own reasoning that it changes independently of the others.
+- **`kindVersion` / `campaignVersion` mismatch** is the actual migration: `Kind.migrateState`
+  (§3) runs first for a kind-state shape change, then `Campaign.migrateState` for a
+  content-id rename — a shape change is a precondition for content remapping to address
+  the right fields. Either axis missing its migration function when a mismatch is present
+  fails loudly the same way; a registered migration that itself fails does too
+  (`migration_failed`, §12).
+- **A successful migration** sets `replayCompatible: false`, sticky forward — once a
+  lineage has passed through a migrated load, it never becomes replay-compatible again,
+  even across further saves that need no further migration.
+
+Migration functions are engine-or-content-owned, never a host-supplied port: a port may
+supply anything that cannot change `serialize()` output
+([`06-extensibility.md`](06-extensibility.md) §6), and remapping old ids is definitionally
+a change to it. Proven in `core/persistence/envelope.test.ts` against a synthetic
+kind/campaign, not a real campaign republish — every shipped campaign is still at
+`1.0.0`, so there is nothing real to migrate from yet either (`plans/38-save-migration-programme.md`).
+
+> **`saveFormatVersion` vs `GameState.formatVersion` — different things.**
+> `saveFormatVersion` versions *this wrapper*; `GameState.formatVersion` (§2) versions the
+> **envelope inside it**. They are separate because `Engine.serialize` / `deserialize`
+> round-trip a bare `GameState` with no wrapper at all (§4) — the determinism harness
+> (§14) and the golden files compare exactly that string. Without its own stamp, a
+> standalone serialized envelope would carry no version information. Both move
+> independently; a loader reading a `SaveEnvelope` checks both.
+
+**The migration hazard, made concrete (architecture §8).** A save records the
+`campaignVersion` it ran. Loading it against a *different* published version runs
+migration, which must map old ids forward (a story-graph node id that was renamed) or
+**fail loudly** — never strand the player on content that no longer exists. A migrated
+save is `replayCompatible: false`: its action log can no longer be guaranteed to
+regenerate its history, because the rules changed.
+
+### 10.3 Why Not Event Sourcing
+
+The design carries an action log, deterministic replay, and byte-identical state — the
+ingredients of event sourcing. It stops deliberately short of adopting it as the
+**persistence model**.
+
+Pure event sourcing makes current state a *derived projection*: `state = replay(log)`,
+and you persist the log, not the state. That collides head-on with the migration rule
+above. A migrated save is **not** replay-compatible — its log can no longer regenerate
+its state across a rule change — so under pure event sourcing a migrated save would be
+unloadable. Instead the core persists *current state* (the envelope) **and** keeps
+the log: you get event sourcing's benefits where they pay off — the determinism harness
+(§14) and bug reproduction replay from `{ seed, actionLog }` within one version — without
+its cost, which is loads that break the moment the rules move. This hybrid is a choice,
+not a gap.
+
+---
+
+## 11. Tiered Validation
+
+Every campaign is validated before the registry is frozen. The core runs the
+tiers; the kind supplies the checks via `validateCampaign`.
+
+```typescript
+interface ValidationResult {
+  ok: boolean;                   // false iff any Tier-1 error
+  errors: ValidationError[];     // Tier 1 — hard fail
+  warnings: ValidationWarning[]; // Tier 2 — load but flag
+}
+
+interface ValidationError {
+  code: ReasonCode;
+  messageKey: LocKey;
+  path?: string;                 // where in the campaign
+  details?: Readonly<Record<string, string | number>>;
+}
+interface ValidationWarning { code: ReasonCode; messageKey: LocKey; path?: string; }
+```
+
+- **Tier 1 — load-time, hard fail:** referential integrity, schema conformance, declared
+  variables, path validity, duplicate ids, missing string keys. (Story-graph's Tier 1 is
+  03 §11.)
+- **Tier 2 — load-time, warning:** unreachable content, unexpected cycles, and
+  `no_reachable_choice` — a campaign that settles straight to an ending with no choice
+  node reachable from the start. It loads and plays (§3, `InitialStateResult.status` reports
+  `"ended"` immediately); the warning tells an author their campaign is non-interactive
+  without forbidding a deliberate vignette or a single-scene test fixture.
+- **Tier 3 — simulation-time (§14):** unwinnable campaigns, dead-end states — found by
+  running, not reading. Not part of load.
+
+Why tiered: "the engine validates AI-authored content" (architecture §9) is only a
+safety property once you say *what validation is* and *what is decidable when*. AI output
+is data; all data goes through the same tiers, whatever produced it.
+
+---
+
+## 12. Reason Codes, State Changes, Messages
+
+Kind-agnostic base vocabulary; kinds extend it (`Kind.reasonCodes`). Clients never
+string-match English (games/04-engine-specification.md §2.3).
+
+```typescript
+type LocKey = string;            // key into the string table; stable, additive, never renamed
+type ReasonCode = string;        // stable, machine-readable; additive, never renamed
+
+const BASE_REASON_CODES = [
+  "action_not_available", "unknown_action", "requirement_unmet",
+  "session_ended", "read_only_field", "check_succeeded", "check_failed",
+] as const;
+```
+
+**The core ships their strings.** Every base code has a default-English message under a
+**reserved `core.reason.*` namespace** (`core.reason.unknown_action`, …), shipped with the
+engine. Registry construction (§10.1) merges core strings with kind and campaign strings
+and **rejects any attempt to write into `core.reason.*`** — a campaign cannot restyle what
+an engine-level error says, because clients and tooling depend on those meanings being
+stable. Kinds own the strings for codes *they* add (`Kind.reasonCodes`); campaigns own
+their narrative strings. **Validation fails if any registered reason code has no localized
+message** — that is what makes "clients never string-match English" enforceable rather than
+aspirational.
+
+```typescript
+
+interface StateChange {
+  path: string;                  // audit record, not a write path (games/04-engine-specification.md §10.4)
+  op: "set" | "increment" | "decrement";
+  value: string | number | boolean;
+  previous?: string | number | boolean;
+  reason: ReasonCode;
+  visible: boolean;
+}
+
+interface OutcomeMessage {
+  key: LocKey;
+  params?: Readonly<Record<string, string | number>>;
+  tone?: "neutral" | "positive" | "negative" | "absurd";
+  visible: boolean;
+}
+
+interface CommandResult<T> { ok: boolean; value?: T; errors: ValidationError[]; warnings: ValidationWarning[]; }
+interface ActionResult extends CommandResult<GameState> { changes: StateChange[]; messages: OutcomeMessage[]; }
+```
+
+`StateChange` is an **audit record emitted by typed reducers**, never the mutation
+mechanism — the discipline the simulation kind arrived at (games/04-engine-specification.md §10.4). It feeds
+history and the transparency requirement; `visible` gates what a client may show.
+
+> **`StateChange` is not logging.** It is a domain record: localized, returned in
+> `AdvanceResult`, persisted by what the store keeps, and shown to players. Operational
+> logging and tracing is a **separate channel** that is emitted to a sink, never returned,
+> never localized, and free to be discarded entirely with no behavioural difference —
+> [`05-observability.md`](05-observability.md) §1 draws the line and §2 explains why
+> merging the two would break determinism.
+
+**Two `StateChange` shapes are conventions this platform invented rather than derived from
+the ancestor**, both real in code and load-bearing before either was written down here —
+[`03-story-graph-kind.md`](03-story-graph-kind.md) §7's `achievement_unlocked` and §5's
+`consequence_applied`. Restated exactly as the code emits them, kind-agnostic in structure
+even though the two examples are both story-graph's:
+
+```typescript
+// An achievement unlock (03 §7). The path reuses the condition-field name (§18) an
+// `achieved.<id>` check already reads, so unlocking and querying agree on one name.
+{ path: `achieved.${achievementId}`, op: "set", value: true,
+  reason: "achievement_unlocked", visible: true }
+
+// A variable write from resolving consequences (03 §5). One coalesced change per
+// touched variable per batch, not one per typed op — `op` is always "set" regardless of
+// which increment/decrement/set operations actually ran, because 03 §5's clamp-after-
+// all-effects rule means an intermediate op has no individually meaningful audit value.
+// `previous` is the pre-batch value; `visible` mirrors the variable's own declaration.
+{ path: `var.${name}`, op: "set", value: <final value>, previous: <pre-batch value>,
+  reason: "consequence_applied", visible: <declaration's own `visible`> }
+```
+
+Both are conventions, not requirements — a future kind may need a different shape for an
+analogous concept, provided it documents that shape here the same way. What they fix is the
+*pattern*: an audit record's `path` names the thing that changed using the same string a
+`Condition` would read to check it, and `reason` identifies *why* using a stable code a
+kind-agnostic session store (or a client) can switch on without string-matching prose.
+
+**Kind-owned reason codes carry their own `messageKey` namespace, distinct from event
+names.** A kind's `Kind.reasonCodes` need a localized message the same way the base set
+does (above), and the convention is `<kindId>.reason.<code>` — no `kind.` wrapper, unlike
+[`05-observability.md`](05-observability.md) §9's *event* namespace,
+`kind.<kindId>.<event>`. The two are easy to conflate because they differ only by one
+segment, which is exactly why this needs stating rather than assuming: a reason-code
+message key and an event name are different vocabularies serving different consumers
+(one renders to a player, one traces a resolution), and neither is a namespace *for* the
+other. `story-graph.reason.unknown_condition_field`
+(`kinds/story-graph/reasons.ts`) is the shipping example — a code this kind adds for a
+condition-evaluation failure with no analogue in the base set, so it has no home but a
+kind-owned namespace.
+
+---
+
+## 13. The MCP Surface
+
+The tool table itself — args, returns, one tool per session-store operation — moved to
+[`SubZeroDev.Platform`](https://github.com/The-Running-Dev/SubZeroDev.Platform)'s
+[`mcp-tool-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform/blob/main/docs/docs/mcp-tool-contract.md):
+it's a hosting-facing contract, not core engine material, even though `McpTools` (implemented
+in `src/engine/src/mcp/server.ts`; see [Engine Package](/docs/guide/engine-package)) wraps this
+repo's own session store (§7) with no runtime
+dependency, tested end to end against it (`TODO.md` W17). Architecture §10 still holds:
+no game logic in the adapter, no AI-specific path.
+
+---
+
+## 14. Determinism Harness
+
+The acceptance test with teeth (MVP §5, games/04-engine-specification.md §18.4): a `{ config, actionLog }`
+fixture replays to a **byte-identical** `serialize()`.
+
+```typescript
+interface PlaythroughFixture {
+  name: string;
+  config: NewGameConfig;         // includes a fixed seed
+  actionLog: LoggedAction[];
+}
+
+// runner: createGame(config) → for each logged action, submitAction → serialize final state
+```
+
+- **Golden files** — committed fixtures with expected `serialize()` output; a one-byte
+  diff catches an unintended behaviour change across the whole engine.
+- **Property tests** — N random seeds, each run twice, outputs compared; catches
+  non-determinism on paths no fixture touches.
+- **Sink independence** — every fixture replays twice, once with `nullEmitter` and once
+  with `recordingEmitter`, and both `serialize()` outputs must be byte-identical. This is
+  what makes observability ([`05-observability.md`](05-observability.md) §2) safe to have
+  inside a deterministic core: it catches a kind that branches on emission, which no
+  state-only golden file would notice.
+- **Stream reproducibility** — the same fixture under `recordingEmitter` twice yields the
+  identical event sequence, so the event stream is itself a golden-fileable artifact
+  (05 §5).
+
+Canonical serialization (§10, built) and seeded RNG (§8, built and reference-verified)
+are the two properties that make byte-identical achievable at all.
+
+> **This harness compares a build against itself.** It cannot answer *did this change alter
+> a game that already exists* — a change that alters every game identically is perfectly
+> deterministic and runs green here. That question needs a different comparison, against a
+> *previous* build, and a projection that survives an intended serialization change.
+> [`07-replay.md`](07-replay.md) specifies it.
+
+---
+
+## 15. How the Story-Graph Kind Plugs In
+
+Concrete mapping — and the reconciliation this document forces on
+[`03-story-graph-kind.md`](03-story-graph-kind.md).
+
+| Core concept | Story-graph realization |
+|---|---|
+| `GameState.kindState` | `StoryGraphKindState` — current node, variables, turn, visit counts, unlocked achievements, ending id |
+| `Kind.advance(actionId)` | `submitChoice → settle` (03 §8.2); `actionId` is the choice id |
+| `AvailableAction` | a node choice, gated by `showWhen` / `requirements` (03 §4) |
+| `SceneBody` | the node's `textKey`, interpolated (03 §3.1) |
+| `Kind.project` | `StoryGraphView` (03 §9) — turn, visible stats, unlocked achievements, ending; hides non-visible variables and visit counts. Scene text and choices are the generic `Scene`, not repeated here |
+| `Kind.validateCampaign` | 03 §11 |
+| `RngHandle.weightedPick` | random-transition node resolution (03 §3) |
+
+> **Reconciliation (done in 03).** Writing this seam exposed that `03`'s state
+> duplicated envelope-owned fields — `version`, `campaignId`, `campaignVersion`, `seed`,
+> `status`, and the choice log. Those belong to the `GameState` envelope (§2),
+> not the kind. `03` §8.1 now defines `StoryGraphKindState` as the kind-specific subset
+> only:
+>
+> ```typescript
+> interface StoryGraphKindState {
+>   currentNodeId: string;
+>   variables: Record<string, VarValue>;
+>   turn: number;                        // kind-maintained (settle advances it)
+>   visitedCounts: Record<string, number>;
+>   unlockedAchievements: string[];
+>   endingId?: string;
+> }
+> ```
+>
+> The choice log becomes the envelope's generic `actionLog`; `turn` stays on the kind
+> because a "turn" is kind-specific (a node transition here, a week in the simulation
+> kind).
+
+---
+
+## 16. What This Unblocks
+
+With the seam typed and every MVP-blocking gap decided
+([`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §1), the build runs against real contracts:
+
+1. The pure `Engine` (§4) — `createGame`, `submitAction`, `scene`, `view`, serialize.
+2. The `SessionStore` (§7) and the `ProfileStore` beside it (§7.1).
+3. The registry and its authoring builder (§10.1).
+4. The story-graph `Kind` implementation (§3, §15) against
+   [`03-story-graph-kind.md`](03-story-graph-kind.md).
+5. The determinism harness (§14) — now that fixtures have a type.
+6. The MCP server (§13) and text client — thin adapters over `SessionStore`.
+
+Nothing above is speculative: every type here is exercised by the MVP
+([`MVP.md`](MVP.md)). [`TODO.md`](TODO.md) sequences it as units of work W0–W19.
+
+---
+
+## 17. Identifier Conventions
+
+One fixed shape for every id, so validation, tooling, debugging, and authoring can rely
+on it. A peer-review recommendation, adopted before content scales.
+
+| Kind of id | Shape | Example |
+|---|---|---|
+| Campaign | `kebab-case` | `bulgaria-bureaucracy` |
+| Node | `snake_case` | `government_office` |
+| Choice | `snake_case`, unique within its node | `begin_again` |
+| Variable | `snake_case` | `office_visits` |
+| Achievement | `snake_case` | `it_builds_character` |
+| Ending | `snake_case` | `it_builds_character` |
+| `LocKey` (localization) | dotted, `type.id[.field]` | `event.pipe_disaster.title`, `choice.wait`, `stat.money` |
+| Reason code | `snake_case` verb/state | `requirement_unmet` |
+
+Rules: ids are stable once published (a rename is a migration, §10.2); ids are ASCII
+`[a-z0-9_-]` only; `LocKey`s namespace by content type so string tables stay navigable.
+Tier-1 validation (§11) enforces the character set and uniqueness.
+
+## 18. Frozen Primitives
+
+Two shared primitives are held **deliberately small**, because these are the surfaces
+that grow without bound if left open (a peer-review caution taken up-front).
+
+**The Condition operator set is closed.** The comparison operators
+(`equals`, `not_equals`, `less_than`, `less_or_equal`, `greater_than`, `greater_or_equal`,
+`in`, `not_in`, `contains`, `has_tag`, `has_flag`) plus the tree combinators
+(`all`/`any`/`not`) and quantifiers (`exists`/`count`) are the whole surface — shared with
+the simulation kind (games/04-engine-specification.md §13.1). Tempting additions — `between`, `matches`,
+arithmetic, `inventory()` / `relationship()` / `distance()` helpers, nested expressions —
+are **out** unless a concrete campaign need justifies each one individually. Every
+operator is permanent maintenance: a new one must be validated, evaluated, projected,
+migrated, and taught to every tool. The bar to add is high on purpose.
+
+The shape itself, as ported into this repository (`core/condition/types.ts`):
+
+```typescript
+type ComparisonOperator =
+  "equals" | "not_equals" | "less_than" | "less_or_equal" |
+  "greater_than" | "greater_or_equal" | "in" | "not_in" | "contains" |
+  "has_tag" | "has_flag";
+
+interface ComparisonCondition { field: string; operator: ComparisonOperator; value: unknown; }
+interface AllCondition { all: Condition[]; }
+interface AnyCondition { any: Condition[]; }
+interface NotCondition { not: Condition; }
+interface ExistsCondition { exists: { collection: string; where: Condition }; }
+
+// count's own comparison is always two numbers (a match total against `value`) — only
+// the six ordering/equality operators, never the array/string-shaped ones, which would
+// type-check but always throw at evaluation.
+type CountComparisonOperator =
+  "equals" | "not_equals" | "less_than" | "less_or_equal" | "greater_than" | "greater_or_equal";
+interface CountCondition {
+  count: { collection: string; where: Condition };
+  operator: CountComparisonOperator;
+  value: number;
+}
+
+type Condition =
+  ComparisonCondition | AllCondition | AnyCondition | NotCondition |
+  ExistsCondition | CountCondition;
+
+// What a caller supplies to the evaluator, which knows nothing itself about `var.*`,
+// story nodes, or any other kind's field vocabulary.
+interface ConditionResolver {
+  field(path: string): unknown;
+  collection(name: string): readonly ConditionResolver[];
+}
+```
+
+**One field of the ancestor's shape did not port.** `games/04-engine-specification.md`
+§13.1's `Condition` also carries a `CollectionSelector` — a closed union of
+simulation-kind paths (`player.inventory`, `world.npcs`, …). None of those are
+kind-agnostic, so `collection` here is a plain `string`, and which strings are legal is
+entirely up to whichever kind resolves them (`kinds/story-graph/conditions.ts` for the one
+kind that exists today). The ancestor citation above stays as provenance — per
+`CLAUDE.md`, every `games/…` citation is provenance, not a second authority — but this
+section, not that document, is now where the shape itself lives.
+
+**Reason codes are additive, never renamed** (§12) — saves and replay logs reference
+them, so a rename breaks old data.
+<!-- human-doc:end -->
+
+<!-- human-doc:start path="engine/03-story-graph-kind.md" -->
+---
+sidebar_label: Story-Graph Kind
+---
+
+# Story-Graph Kind — Content Model
+
+**Document status:** Revision 1 — first build deliverable
+
+**Kind:** `story-graph`
+
+**Implementation language:** TypeScript (shared core with the simulation kind)
+
+> **Scope of this document**
+>
+> The concrete content types for the flagship kind: the campaign, its typed variables,
+> nodes, choices, requirements, consequences, endings, and achievements — plus the
+> runtime state, how a turn resolves, and the projection. Ends with a worked example of
+> the MVP's Bureaucracy arc.
+>
+> - The architecture this obeys: [`02-architecture.md`](02-architecture.md)
+> - Reused verbatim from the core: the `Condition` tree, `LocKey` and `ReasonCode` are
+>   **defined** in [`04-core.md`](04-core.md). `RngState` is the exception — 04 §8 states the
+>   contract and deliberately does not restate the algorithm, which lives in
+>   `src/engine/src/core/determinism/` ([Engine Package](/docs/guide/engine-package)) and
+>   originated in `games/04-engine-specification.md` §3
+> - The game this builds: `games/bulgaria-adventure.md`
+> - What ships first: [`MVP.md`](MVP.md)
+
+This kind reuses the core wherever it can. Types marked *(core)* are defined
+in the engine specification and not re-derived here.
+
+---
+
+## 1. The Campaign
+
+A story-graph campaign is **data** (§1 of the architecture). It declares everything the
+engine needs to run it; the engine never recompiles to load one.
+
+```typescript
+interface StoryGraphCampaign {
+  // The RUNTIME form: LocKeys only. Authors write `StoryGraphCampaignSource`, whose
+  // player-facing fields are `AuthoredText`; a pure builder lifts the strings out and
+  // produces this plus a string table (04 §10.1). §12 below is written in source form.
+  //
+  // This is the `content` inside the core's `Campaign` envelope (04 §10.1).
+  // Envelope-owned identity — id, kindId, version, titleKey — lives on `Campaign`,
+  // NOT here, so it cannot drift (the same rule as kindState, §8.1).
+  descriptionKey: LocKey;
+
+  variables: VariableSchema;    // §2 — every variable, typed, declared up front
+  nodes: Record<string, Node>;  // §3 — keyed by node id
+  startNodeId: string;
+
+  achievements: AchievementDefinition[];   // §7
+}
+```
+
+`id`, `version`, `kind`, and `titleKey` are **not** fields here — they belong to the
+core `Campaign` envelope (04 §10.1), which wraps this content. Authors still write
+strings inline in the authoring form; the build lifts them into the
+registry's shared `strings` map (04 §10.1), so no per-campaign string table travels at
+runtime.
+
+Load-time validation (§11) checks that `startNodeId` exists, every `goto` resolves,
+every variable referenced is declared, and every `LocKey` is present.
+
+---
+
+## 2. Variable Schema — Fully Typed (N6)
+
+Every variable a campaign uses is declared here with a type and an initial value.
+Reading or writing an undeclared variable is a **load-time error**. Writing a value of
+the wrong type is a load-time error. This is the discipline decided in the
+architecture's §3.2 — the loose bag is banned.
+
+```typescript
+type VarType = "bool" | "int" | "enum";
+
+interface VariableDecl {
+  type: VarType;
+  initial: boolean | number | string;
+
+  values?: string[];        // enum only — the allowed values
+  min?: number;             // int only — clamp floor
+  max?: number;             // int only — clamp ceiling
+
+  visible?: boolean;        // surfaced to the player as a stat (§9)
+  labelKey?: LocKey;        // required when visible
+}
+
+type VariableSchema = Record<string, VariableDecl>;
+
+type VarValue = boolean | number | string;
+```
+
+> **⚑ Judgement call — no `string` free-type.** The architecture listed `string` as a
+> variable type. Free strings are a determinism and validation hazard (unbounded, no
+> load-time check on values) and no story-graph mechanic needs them — narrative text is
+> `LocKey`s, not variables. `enum` covers "one of a fixed set." Dropped `string` for
+> the MVP; add it back only if a campaign genuinely needs free text in state.
+
+**Player statistics are not a separate system.** A variable marked `visible: true` is a
+stat — it appears in the projection (§9) and the client's stats panel. That is the
+whole of the "Player Stats" requirement.
+
+**Relationships and money are ordinary variables.** A campaign that tracks the
+landlord's opinion declares `int` `landlord_affinity`; one that tracks cash declares
+`int` `money`. The story-graph kind imposes no relationship or currency model
+(architecture §6.3).
+
+---
+
+## 3. Nodes — The Single Content Type (N7)
+
+A node is a scene: display text, plus what happens after it. The "what happens" is a
+discriminated union — the only content type in this kind.
+
+```typescript
+type Node = ChoiceNode | RandomNode | AutoNode | EndingNode;
+
+interface NodeBase {
+  id: string;
+  textKey: LocKey;              // may interpolate visible variables — see §3.1
+}
+
+interface ChoiceNode extends NodeBase {
+  kind: "choice";
+  choices: Choice[];           // the player picks one
+}
+
+interface RandomNode extends NodeBase {
+  kind: "random";              // engine picks, seeded — the only place RNG enters
+  transitions: RandomTransition[];
+}
+
+interface AutoNode extends NodeBase {
+  kind: "auto";                // no player input; one transition, taken immediately
+  effects?: Consequence[];
+  goto: string;
+}
+
+interface EndingNode extends NodeBase {
+  kind: "ending";              // terminal — the game ends here
+  endingId: string;
+  outcome?: "win" | "loss" | "neutral";   // default "neutral"
+}
+```
+
+Random and auto nodes are **pass-through**: the player never sits on one. After any
+transition the engine *settles* — resolving auto/random nodes in turn — until it lands
+on a choice or an ending (§8). So "a random event" is a `random` node the engine
+resolves and moves past; "an event not reached by a choice" is an `auto`/choice node a
+`goto` sends you to.
+
+### 3.1 Text Interpolation
+
+A node's `textKey` string may reference **visible** variables: `"Your bank account
+contains {money}."` The engine substitutes the current value at render time from the
+visible-variable set (§9). Referencing a non-visible or undeclared variable in text is
+a load-time error — a hidden variable must not leak through prose.
+
+---
+
+## 4. Choices and Transitions
+
+```typescript
+interface Choice {
+  id: string;
+  labelKey: LocKey;
+
+  showWhen?: Condition;        // omit the choice entirely if unmet (secret paths)
+  requirements?: Condition;    // show but disable, with a reason, if unmet
+  requirementFailKey?: LocKey;
+
+  effects?: Consequence[];     // §5 — typed operations, applied on selection
+  goto: string;                // target node id — required, validated
+}
+
+interface RandomTransition {
+  weight: number;              // relative; positive integer — seeded weightedPick (04 §8)
+  effects?: Consequence[];
+  goto: string;
+}
+```
+
+Two gates, deliberately distinct:
+
+- **`showWhen`** decides whether the choice *appears at all*. Use it for secrets — an
+  option that shouldn't exist until the player has the key. Default: always shown.
+- **`requirements`** decides whether a *shown* choice is *selectable*. If unmet, the
+  client renders it disabled with `requirementFailKey` as the reason — the Transparent
+  Consequences principle. This is the common case.
+
+A `goto` may target the choice's own node — that is how the Bureaucracy loop works
+(§12). Cycles are legal here and are a Tier 2 warning, not an error (architecture §9).
+
+---
+
+## 5. Consequences — Typed Effects
+
+A choice or transition mutates state only through typed operations on **declared**
+variables. There is no arbitrary path write — the audit-record discipline from the
+simulation kind's §10.4, carried over.
+
+```typescript
+type Consequence =
+  | { op: "set"; var: string; value: VarValue }
+  | { op: "increment"; var: string; by: number }   // int only
+  | { op: "decrement"; var: string; by: number };   // int only
+```
+
+Validation checks: `var` is declared; the op suits its type (`increment`/`decrement`
+require `int`; `set` value matches the declared type / enum values). `int` writes clamp
+to the variable's `min`/`max` after applying. Clamping happens once, after all of a
+transition's consequences apply — the same rule as the simulation kind's needs (§3.3
+there), so a `+5` then `-5` nets to zero rather than clipping.
+
+> **Turn advance is automatic, not a consequence.** The **kind** increments the built-in
+> `turn` by 1 on every transition, including settle pass-throughs (§8.2). It cannot be
+> the core's job: `turn` lives inside `kindState`, which the core treats as opaque
+> (`unknown`, [`04-core.md`](04-core.md) §2). A campaign wanting a time *skip* declares
+> its own `int` and advances it — the built-in `turn` stays a faithful transition count.
+
+> **Achievements have no `unlock` consequence.** They are conditions (§7), evaluated
+> after every turn. To fire one at a narrative moment, set a variable there and let the
+> achievement's condition read it. One mechanism, uniform with the simulation kind.
+> *(⚑ If authors find this verbose, a direct `unlock` op can be added later — noted,
+> not built.)*
+
+---
+
+## 6. Requirements and Conditions
+
+Requirements reuse the core's **`Condition` tree verbatim** — `all` / `any` /
+`not` / comparisons / `exists` / `count`
+(`games/04-engine-specification.md` §13.1). That
+operator set is **frozen** ([`04-core.md`](04-core.md) §18) — this kind adds no
+operators, only a field namespace. A condition's `field` resolves against this kind's
+state:
+
+```text
+var.<name>            a declared variable's current value
+turn                  the built-in transition counter
+visited.<nodeId>      how many times a node has become current — counts every entry,
+                      including the start node and settle pass-throughs (0 if never; §8.2)
+achieved.<id>         whether an achievement is unlocked (bool)
+ending                the endingId once ended (else absent)
+```
+
+Every `field` is checked at load time against the schema and node set (§11). This is
+the *only* stringly-typed surface left in the kind, so it is the one that gets rigorous
+path validation — exactly as the simulation kind found (§4.3 there).
+
+Example — the "certificate expired again" gate:
+
+```yaml
+requirements:
+  all:
+    - { field: var.documents_collected, operator: equals, value: true }
+    - { field: var.certificate_fresh,   operator: equals, value: true }
+```
+
+---
+
+## 7. Achievements
+
+Ported from the simulation kind, scoped to conditions over this kind's state.
+
+```typescript
+interface AchievementDefinition {
+  id: string;
+  nameKey: LocKey;             // "It Builds Character", not "First Ending"
+  descriptionKey: LocKey;
+  condition: Condition;        // over var.* / achieved.* / ending
+  hidden: boolean;             // if true, not listed until unlocked
+}
+```
+
+Evaluated after every turn (§8). Each fires **exactly once**, and the unlock lands in
+**two places with different jobs**:
+
+- **In-game, authoritative:** `StoryGraphKindState.unlockedAchievements` (§8.1). This is
+  deterministic state — it must be, because `achieved.<id>` is a readable condition field
+  (§6), so an unlock can gate a later choice. It replays from seed + action log like
+  everything else in `kindState`.
+- **Cross-session, non-authoritative:** a durable `PlayerProfile` mirror in the core's
+  `ProfileStore` ([`04-core.md`](04-core.md) §7.1), upserted by the session store *after*
+  a successful action — never by `advance`, which is pure and does no I/O. Nothing in
+  resolution ever reads it, so it cannot perturb determinism. A missing or corrupt profile
+  degrades to "no achievements," never a broken game; a failed write is a warning that
+  does not roll back the game action.
+
+The kind's part of the bargain is small: unlock into `kindState` and emit an
+`achievement_unlocked` `StateChange` (04 §12). The store does the rest. Records are keyed
+`campaignId + achievementId`, because an achievement id is only unique within its campaign
+(04 §17).
+
+---
+
+## 8. Runtime State and the Turn
+
+### 8.1 State
+
+The story-graph kind's state is the **kind-specific subset only** — it is the
+`kindState` inside the core's `GameState` envelope
+([`04-core.md`](04-core.md) §2). Everything kind-agnostic — `gameId`, `seed`,
+`campaignId`, `campaignVersion`, `status`, and the action log — lives on the
+envelope, not here. Duplicating them (as an earlier draft of this section did) would put
+the same field in two places and drift.
+
+```typescript
+interface StoryGraphKindState {
+  currentNodeId: string;
+  variables: Record<string, VarValue>;
+  turn: number;                            // kind-maintained; settle advances it (§8.2)
+  visitedCounts: Record<string, number>;   // nodeId → times entered (every entry; §8.2)
+  unlockedAchievements: string[];
+  endingId?: string;                        // set when an EndingNode is reached
+}
+```
+
+- **`status`** (`active` / `ended`) is the envelope's, reported by `advance`'s
+  `AdvanceResult.status` (04 §3). The kind sets `endingId` here; the core flips
+  status to `ended`.
+- **The choice log** is the envelope's generic `actionLog` (04 §2): each `LoggedAction`
+  carries the `choiceId` as its `actionId`. There is no separate `LoggedChoice`.
+- **`turn`** stays here because a "turn" is kind-specific — a node transition in this
+  kind, a week in the simulation kind.
+
+`variables` and `visitedCounts` are subject to the core's sorted-iteration rule
+([`04-core.md`](04-core.md) §8 / games/04 §2.2) — a `Record` iterated in a
+state-affecting way is sorted first, or a save/load round trip can diverge.
+
+### 8.2 The Turn: `submitChoice` → Settle
+
+The story-graph kind has exactly **one player action** — submit a choice — with no plan
+and no multi-action week (the model that led the simulation kind to drop `executeAction`,
+05 §6).
+
+Throughout, **enter(nodeId)** sets `currentNodeId = nodeId` **and** does
+`visitedCounts[nodeId] += 1` — so *every* entry counts, including settle pass-throughs
+and the initial start node (§8.1).
+
+```text
+submitChoice(state, choiceId, params):
+  0. reject if params is non-empty → unexpected_params (this kind takes none, 04 §3)
+  1. resolve the current node (must be a ChoiceNode) and the named choice
+  2. reject if the choice is unavailable: showWhen false, or requirements unmet
+     → return ValidationError with the reason (§8.3), no state change
+  3. apply the choice's effects (typed consequences, §5), then clamp
+  4. the core appends `{ actionId: choiceId }` to the envelope's actionLog
+  5. transition: turn += 1, enter(choice.goto)
+  6. SETTLE (below)
+  7. evaluate achievements; append any newly-satisfied to unlockedAchievements
+     and emit a StateChange for each (durable profile writes happen outside
+     `advance`, which is pure — §7)
+  8. return the new scene (§9), or the ending if status === "ended"
+```
+
+**Settle** — the pass-through resolution of non-choice nodes:
+
+```text
+settle(state):
+  loop (guard: max SETTLE_STEPS, default 64):
+    node = current node
+    if node.kind == "choice"  → stop; the player acts next
+    if node.kind == "ending"  → status = "ended", endingId = node.endingId; stop
+    if node.kind == "auto"     → apply effects, clamp; turn += 1; enter(node.goto)
+    if node.kind == "random"   → weightedPick a transition from the current RNG handle
+                                 (the triggering action's stream, or system:"start" at
+                                 createGame — 04 §4/§8);
+                                 apply its effects, clamp; turn += 1; enter(its goto)
+  if the guard trips → engine error (a content cycle of auto/random nodes with no exit;
+     Tier 2 validation warns on such cycles, the guard is the runtime backstop)
+```
+
+`createGame` **enters** `startNodeId` (so `visitedCounts[startNodeId]` becomes 1) and
+runs `settle` once — drawing any start random transitions from the `system:"start"` RNG
+stream (04 §4, §8) — so the first scene the player sees is already a choice or an ending.
+`initialState` reports which: it returns an `InitialStateResult` (04 §3) whose `status` is
+`"ended"` when the start settled onto an `EndingNode`. That is a **valid** campaign — a
+vignette or a test fixture — and validation flags it `no_reachable_choice` at Tier 2 (§11),
+not as an error.
+
+### 8.3 Reason Codes
+
+The codes this kind adds to the base set (`Kind.reasonCodes`, 04 §3, §12). Each needs a
+localized message or registry validation fails (04 §12):
+
+| Code | When |
+|---|---|
+| `not_a_choice_node` | an action arrived while the current node is not a `ChoiceNode` — should be unreachable after settle |
+| `unexpected_params` | a non-empty `params` object; this kind declares none |
+| `settle_guard_tripped` | `SETTLE_STEPS` exceeded — an auto/random cycle with no exit (§8.2) |
+
+Reused from the base set: `unknown_action` (no such choice id on the current node),
+`requirement_unmet` (shown but gated — carries `requirementFailKey` as its message),
+`session_ended` (an action against an ended game).
+
+> **A hidden choice is `unknown_action`, not `action_not_available`.** Submitting a choice
+> whose `showWhen` fails returns exactly what a nonexistent choice id returns. The two
+> cases are deliberately indistinguishable: a distinct code would let a client probe ids
+> and confirm that a secret path exists, which is the one thing `showWhen` is for (§4, §9).
+
+**Determinism.** Every random transition draws from the seeded RNG (core §3).
+Given the same seed and the same action log, `settle` makes the same picks — so the
+whole game replays byte-for-byte (§10). This is the concrete meaning of "deterministic"
+for this kind.
+
+### 8.4 Events
+
+The operational events this kind emits, declared as `Kind.eventNames`
+([`04-core.md`](04-core.md) §3) and namespaced `kind.story-graph.*`
+([`05-observability.md`](05-observability.md) §9). They are emitted through `ctx.emit`
+(04 §3.1), never returned, and never localized — a `StateChange` (§5) is what the *player*
+is owed, and these are what a developer or a content author needs instead.
+
+| Name (after `kind.story-graph.`) | Severity | Emitted at | `data` |
+|---|---|---|---|
+| `choice.submitted` | `debug` | §8.2 step 1, after the choice resolves | `nodeId`, `choiceId` |
+| `choice.rejected` | `info` | §8.2 step 2 | `choiceId`; `reason` set (§8.3) |
+| `requirement.evaluated` | `trace` | §8.2 step 2, once per requirement | `choiceId`, `satisfied` |
+| `consequence.applied` | `debug` | §8.2 steps 3 and 5, per typed effect | `variable`, `op`, `clamped` |
+| `node.entered` | `debug` | every `enter(nodeId)` — §8.2 | `nodeId`, `nodeKind`, `visitCount` |
+| `settle.step` | `trace` | each iteration of the settle loop | `step`, `nodeId`, `nodeKind` |
+| `random.picked` | `debug` | a `random` node chose a transition | `nodeId`, `goto`, `weight` |
+| `settle.guard_tripped` | `error` | `SETTLE_STEPS` exceeded | `nodeId`; `reason` set |
+| `achievement.unlocked` | `info` | §8.2 step 7 | `achievementId` |
+| `ending.reached` | `info` | settle landed on an `EndingNode` | `endingId` |
+
+Two of these carry most of the value, for the two audiences the events exist to serve:
+
+- **`requirement.evaluated`** is the author's answer to *why was my choice greyed out*.
+  It fires per requirement rather than per choice, so a compound condition (§6) reports
+  which clause failed — something the single `requirement_unmet` reason code (§8.3)
+  deliberately cannot say, because the player is not owed the campaign's internals.
+- **`random.picked`** is the developer's answer to *why did this replay diverge*. Paired
+  with `node.entered` and `visitCount`, a stream diff localizes a determinism failure to
+  one transition, instead of to a `serialize()` byte offset.
+
+> **`visitCount` on `node.entered`, and why it is worth logging.** Every entry counts,
+> including settle pass-throughs and the initial start node (§8.2) — a rule that is easy to
+> state and easy to get subtly wrong, since the Bureaucracy loop's `office_visits ≥ 3` gate
+> (§12) depends on it. Emitting the count at each entry makes an off-by-one visible at the
+> step that caused it rather than several turns later, when a gate fails to open.
+
+### 8.5 Terminal Identity
+
+`Kind.outcome` ([`04-core.md`](04-core.md) §3) returns this kind's terminal identity for the
+replay oracle ([`07-replay.md`](07-replay.md) §3.3):
+
+```typescript
+outcome(state: StoryGraphKindState): { endingId: string | null }
+```
+
+`endingId` when the game has settled onto an `EndingNode` (§8.2), `null` while it is still
+active. Nothing else — not `turn`, not variable values, not `visitedCounts`.
+
+> **Why so little.** The oracle compares games across engine versions, and anything that a
+> content rebalance may legitimately change would report as a regression. An ending id is a
+> published id, stable by the same rule that governs every other id (04 §17), so it survives
+> a rebalance and a serialization change alike. `turn` and variables do not, which is why
+> they are excluded here even though they are more informative in a debugger.
+
+---
+
+## 9. Projection — What a Client Sees
+
+Clients receive a projection, never raw state (architecture §7). For the story-graph
+kind:
+
+`StoryGraphView` is the `kindView` inside the core's `PlayerView`
+([`04-core.md`](04-core.md) §9), and it carries **only what the generic surface does not**.
+The scene text is `Scene.body`, the choice list is `Scene.actions`, and `gameId`/`status`
+are on `Scene` / `PlayerView` already (04 §6, §9) — repeating any of them here would put
+one value in two places, the drift this kind has already been bitten by twice
+(§8.1, §1).
+
+```typescript
+interface StoryGraphView {
+  turn: number;
+  stats: VisibleStat[];            // visible: true variables, with their labels
+  unlockedAchievements: string[];  // unlocked — including hidden ones, from the moment they unlock (§7)
+  ending?: { endingId: string; outcome: "win" | "loss" | "neutral" };
+}
+
+interface VisibleStat {
+  var: string;                    // the declared variable name
+  labelKey: LocKey;               // required by §2 when visible
+  value: VarValue;
+}
+```
+
+The choices a player may pick are the core's `AvailableAction[]` (04 §6), produced by
+this kind's `availableActions`: `showWhen`-failing choices are **omitted entirely**, and
+a shown-but-ungated choice carries `available: false` with `reasonKey` =
+`requirementFailKey` (§4). There is no separate story-graph choice type.
+
+**Excluded from the projection:** non-visible variables, `visitedCounts`, the action log,
+achievement conditions, and any hidden achievement not yet unlocked. A `showWhen`-hidden
+choice is omitted entirely — the client cannot know a secret path exists. This is what
+stops a client (or an AI agent over MCP) from seeing state the player shouldn't.
+
+---
+
+## 10. Determinism, Save, Versioning
+
+All three are core mechanisms; the story-graph kind only supplies its state shape.
+
+- **Save** = the serialized core `GameState` envelope (which carries
+  `campaignVersion`, `seed`, `actionLog`, and this kind's `kindState`), in a
+  `SaveEnvelope` ([`04-core.md`](04-core.md) §10.2).
+- **Determinism harness** — a `{ config, actionLog }` fixture
+  ([`04-core.md`](04-core.md) §14) replays to a
+  byte-identical `serialize()`, via the golden-file + property tests of §18.4 there.
+- **Versioning / migration** — a save records the `campaignVersion` it was made under.
+  Loading against a *different* published version runs migration, which must map old
+  node ids forward or fail loudly rather than strand the player on a node that no longer
+  exists (architecture §8). A migrated save is marked not-replay-compatible.
+
+---
+
+## 11. Validation, Story-Graph-Specific
+
+Tiered as in the architecture §9.
+
+**Tier 1 — load-time, hard fail:**
+
+- `startNodeId` exists; every `goto` and every random `transition.goto` resolves to a
+  real node.
+- Every variable in a consequence, condition, or text interpolation is declared.
+- Every consequence op suits its variable's type; every `set` value is in range / a
+  valid enum member.
+- Every `LocKey` is present in `strings`.
+- No node id, choice id, achievement id, or variable name is duplicated.
+- A `visible: true` variable has a `labelKey`; text interpolates only visible variables.
+- Every `RandomTransition.weight` is a **positive integer**, and every `random` node has
+  at least one transition — `weightedPick` throws otherwise (04 §8), so this is a
+  load-time rule, not a runtime crash.
+
+**Tier 2 — load-time, warning:**
+
+- Unreachable nodes — no path from `startNodeId` reaches them (the source's "detect dead
+  branches").
+- A `choice`/`auto`/`random` cycle with no exit to a choice or ending (would trip the
+  settle guard at runtime).
+- A campaign with no reachable ending.
+- `no_reachable_choice` — no `ChoiceNode` is reachable from `startNodeId`, so the campaign
+  settles straight to an ending and the player never acts (§8.2). Valid but
+  non-interactive (04 §11).
+
+**Tier 3 — simulation-time (§18.5 there):** a choice whose `requirements` no reachable
+state can satisfy; an ending no path reaches.
+
+---
+
+## 12. Worked Example — The MVP Bureaucracy Arc
+
+This is the concrete MVP content ([`MVP.md`](MVP.md)): ~6 nodes, typed variables, a
+requirement-gated retry, a loop with visit counts, a seeded random node, and the
+"It Builds Character" achievement. Authoring form (the build step derives the string
+table — [`04-core.md`](04-core.md) §10.1).
+
+```yaml
+id: bulgaria-bureaucracy
+version: "0.1.0"
+kind: story-graph
+title: "Bulgaria — The Bureaucracy Arc"
+startNodeId: municipality
+
+variables:
+  documents_collected: { type: bool, initial: false }
+  certificate_fresh:   { type: bool, initial: true }
+  patience:            { type: int,  initial: 10, min: 0, max: 10, visible: true, labelKey: stat.patience }
+  office_visits:       { type: int,  initial: 0,  min: 0 }
+  builds_character:    { type: bool, initial: false }
+
+achievements:
+  - id: it_builds_character
+    nameKey: ach.builds_character.name        # "It Builds Character"
+    descriptionKey: ach.builds_character.desc
+    condition: { field: var.builds_character, operator: equals, value: true }
+    hidden: true
+
+nodes:
+  municipality:
+    kind: choice
+    textKey: node.municipality.text            # arrive 08:03; "Closed until 11:30"
+    choices:
+      - id: wait
+        labelKey: choice.wait
+        effects: [ { op: decrement, var: patience, by: 2 } ]
+        goto: clerk_review
+      - id: coffee
+        labelKey: choice.coffee                # meet the mayor's cousin
+        effects: [ { op: set, var: documents_collected, value: true } ]
+        goto: clerk_review
+
+  clerk_review:
+    kind: random                               # she smiles... or she doesn't
+    textKey: node.clerk_review.text
+    transitions:
+      - weight: 3
+        effects: [ { op: set, var: certificate_fresh, value: false } ]
+        goto: expired                          # a certificate is now over three months old
+      - weight: 1
+        goto: room_14                          # you are sent onward
+
+  expired:
+    kind: choice
+    textKey: node.expired.text
+    choices:
+      - id: begin_again
+        labelKey: choice.begin_again
+        effects: [ { op: decrement, var: patience, by: 3 } ]
+        goto: municipality                     # the loop
+      - id: question_reality
+        labelKey: choice.question_reality
+        requirements: { field: var.patience, operator: less_or_equal, value: 3 }
+        requirementFailKey: req.too_much_patience
+        goto: reward                           # only the truly worn-down may pass
+
+  room_14:
+    kind: auto
+    textKey: node.room_14.text                 # Room 14 sends you to Room 6
+    effects: [ { op: increment, var: office_visits, by: 1 } ]
+    goto: room_6
+
+  room_6:
+    kind: choice
+    textKey: node.room_6.text                  # everything happens in Room 14
+    choices:
+      - id: continue_cycle
+        labelKey: choice.continue_cycle
+        effects: [ { op: increment, var: office_visits, by: 1 } ]
+        goto: room_14                          # the other loop
+      - id: go_home
+        labelKey: choice.go_home
+        requirements: { field: var.office_visits, operator: greater_or_equal, value: 3 }
+        requirementFailKey: req.not_yet_broken
+        goto: reward
+
+  reward:
+    kind: auto
+    textKey: node.reward.text                  # €300 and 28 years of legal responsibility
+    effects: [ { op: set, var: builds_character, value: true } ]
+    goto: ending_character
+
+  ending_character:
+    kind: ending
+    textKey: node.ending.text
+    endingId: it_builds_character
+    outcome: neutral
+```
+
+What this exercises, one-to-one against the MVP Definition of Done:
+
+- **Typed variables** (bool/int), visible stat (`patience`), clamping (`min`/`max`).
+- **Requirement-gated choices** with reasons (`question_reality`, `go_home`).
+- **A loop** via self-referential `goto` and **visit counts** (`office_visits >= 3`).
+- **A seeded random node** (`clerk_review`) — reproducible from the seed.
+- **An achievement** firing once from a variable set at the reward.
+- **Two clients** run this identically; **projection** hides `certificate_fresh`,
+  `office_visits`, `builds_character`, the visit counts, and the seed.
+
+---
+
+## 13. Judgement Calls
+
+| § | Call | Revisit when |
+|---|---|---|
+| §2 | Dropped `string` variable type; `enum` covers fixed sets | A campaign needs free text in state |
+| §5 | No `unlock` consequence; achievements are conditions over a set variable | Authoring proves it verbose |
+| §5 | Built-in `turn` is a pure transition count; time skips are author variables | A kind-level clock is wanted |
+| §8.2 | `SETTLE_STEPS` guard default 64 | Profiling or a legitimately deep auto-chain |
+| §3 | Four node kinds (choice/random/auto/ending); `auto` is arguably a one-transition `random` | Simplification pass finds `auto` redundant |
+| §6/§8.2 | `visited` counts *every* entry (settle pass-throughs + start node), so it works on auto/random nodes | Authors want "times rested here" only |
+<!-- human-doc:end -->
+
+<!-- human-doc:start path="engine/10-simulation-kind.md" -->
+---
+sidebar_label: Simulation Kind
+---
+
+# Simulation Kind — Contract
+
+**Document status:** Revision 2 — **the contract is whole.** Every type `SimulationKindState`
+(§2) names, the content definition types a real campaign will declare, and the resolution
+mechanics that dispatch on them are all specified in this repository. §15 records what was
+ported, in what order, and the findings each pass surfaced — no field-level detail remains
+upstream as a gap in this contract's shape.
+
+**Kind:** `simulation`
+
+> **Scope of this document**
+>
+> The second engine-owned kind, expressed against the Kind seam
+> ([`04-core.md`](04-core.md) §3) the way
+> [`03-story-graph-kind.md`](03-story-graph-kind.md) is. It reconciles the model in
+> `games/04-engine-specification.md` with the `GameState` envelope, the one-action model,
+> projection, reason codes, events and terminal identity.
+>
+> It is **not** a port of that document. Roughly half of it is core material `04-core` now
+> owns and is cited, not re-derived, from here; the kind-specific half is restated in full
+> below — see §15 for what was ported, in what order, and why.
+
+---
+
+## 1. What This Kind Is
+
+A weekly-tick life simulation: the player plans a week's actions, ends the week, and the
+engine resolves them, then runs its systems. Where `story-graph`'s unit of play is *one
+choice*, this kind's is *one week*.
+
+That difference is the entire reason the Kind seam exists (architecture §1, N2). Everything
+below is the consequence of expressing it through `04` §3 rather than through a bespoke
+engine.
+
+---
+
+## 2. `KindState` — What Belongs Here
+
+**The upstream `GameState` is not this kind's state.** It was written before the envelope
+existed and carries seven fields the core now owns. Reproducing it verbatim would be the
+envelope-duplication defect `CLAUDE.md` names as this project's recurring one — already
+caught three times, in 03 §8.1, 04 §10.1 and 03 §9 — the last on the *view* side.
+
+| Upstream field | Where it belongs now |
+|---|---|
+| `version` | `GameState.formatVersion` — the envelope (04 §2) |
+| `gameId` | The envelope, from the `IdSource` port (06 §5.1) |
+| `seed` | The envelope — the *only* randomness state |
+| `status` | The envelope — but narrowed. Upstream's `GameStatus` is `"active" \| "completed" \| "failed" \| "abandoned"`; the envelope's is `"active" \| "ended" \| "abandoned"` (04 §2). `completed` and `failed` both map to `ended` — **the core has no concept of winning**, the same resolution [`12-world-graph-kind.md`](12-world-graph-kind.md) §8 gives the identical upstream conflict. The win/loss/week-limit distinction lives in `outcome()` (§12), not here |
+| `actionLog` | The envelope — the replay spine |
+| `metadata` | The session-store record, outside replayable state (04 §7) |
+| **`rng: RngState`** | **Nowhere.** 04 §2 bans persisted generator state outright: streams derive from `(seed, streamId)`, so a stored `RngState` is a field written every action and read by nothing, free to drift from the derivable truth |
+
+What remains is the kind's own:
+
+```typescript
+interface SimulationKindState {
+  calendar: CalendarState;                     // §2.1
+  player: PlayerState;                         // §6
+  economy: EconomyState;                       // §2.5
+  world: WorldState;                           // §2.2
+
+  activeEffects: StatusEffect[];                // §2.3
+  activeOpportunities: Opportunity[];           // §2.3
+  scheduledEvents: ScheduledEvent[];            // §2.3
+  pendingEventResponses: PendingEventResponse[]; // §2.3
+
+  goals: GoalState[];                          // §2.4
+  plan: WeeklyActionPlan | null;               // §4.1 — the week being assembled
+}
+```
+
+> **Two upstream fields are deliberately absent, and both need a decision before this
+> contract is complete.**
+>
+> **`history: HistoryEntry[]`** — a narrative record of what happened. That is very close to
+> what `StateChange[]` already returns from `advance` (04 §12) and to what the event stream
+> carries (05). Three overlapping records of the same events is exactly the duplication rule
+> §2 exists to prevent, so `history` is not adopted until it is established what it holds
+> that `StateChange` does not. Recorded in [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md).
+>
+> **`WeeklyActionPlan.totalTimeCost` / `totalMoneyCostCents`** — marked "engine-computed"
+> upstream. Derived values do not belong in serialized state: they can disagree with the
+> actions they summarise, and a disagreement is unresolvable. They are computed on read (§4.1).
+
+The rest of this section restates every field type `SimulationKindState` names above, except
+`PlayerState` (§6, deferred) — the field-level port `plans/36-simulation-kind-programme.md`
+calls **W27** (assigned as a real `W` number when this unit is cut), sized against upstream
+§5.1, §5.3–§5.6.
+
+Two primitives recur across several of these types and are introduced once, here, rather than
+per-field: **money is integer cents**, and **rates are integer basis points**, matching
+upstream §2.1 and already stated as this kind's own rule in §6 below.
+
+```typescript
+type Cents = number;         // integer; 1234 === $12.34
+type BasisPoints = number;   // integer; 250 === 2.50%
+```
+
+Both are simulation-kind primitives — no other kind has a money concept — reused by every
+later section that needs them, including §6 (Player State) and §7 (Content Definition Types).
+
+**A second recurring rule: `Record<string, T>` iteration that affects state must use sorted
+keys.** `Record` key order follows insertion order, which after a `serialize`/`deserialize`
+round trip follows the order of keys in the JSON text — so an iteration whose *result* depends
+on order (weighted selection, decay, a scan that stops at the first match) can diverge between
+a fresh game and a loaded one even though the two states are logically identical. Read-only
+iteration for display is exempt. This is a real, upstream-inherited requirement (§2.2) that
+`04-core.md` does not yet state generically — flagged here because this kind is the first with
+`Record`-typed state fields whose iteration order is load-bearing, not because it is settled
+that the rule belongs only here. Applies below to `WorldState.eventCooldowns` and
+`EconomyState.sectorDemand`/`marketPrices` (§2.5), and to `PlayerState.skills`/`reputation`/
+`counters` (§6.2).
+
+### 2.1 Calendar State
+
+```typescript
+interface CalendarState {
+  currentWeek: number;
+  currentYear: number;
+  season?: "spring" | "summer" | "autumn" | "winter";
+
+  totalTimeUnits: number;
+  committedTimeUnits: number;
+  spentTimeUnits: number;
+}
+```
+
+Invariant, checked after every mutation (upstream §5.1):
+
+```text
+0 ≤ committedTimeUnits + spentTimeUnits ≤ totalTimeUnits
+availableTimeUnits = totalTimeUnits − committedTimeUnits − spentTimeUnits
+```
+
+Upstream fixes `totalTimeUnits`' starting value at a bare constant (`WEEKLY_TIME_UNITS = 14`).
+Not restated as a constant here: `totalTimeUnits` already lives in mutable state, not as a
+fixed rule, and whether a scenario may start a game with a different weekly budget is a
+`ScenarioDefinition` question for §7 once content types are ported — stating 14 as fixed now
+would prejudge that.
+
+### 2.2 World State
+
+```typescript
+interface WorldState {
+  npcs: NPCState[];                          // §7.7
+  locations: LocationState[];
+
+  jobMarket: JobMarketState;
+  eventCooldowns: Record<string, number>;     // eventId → week last fired. Sorted-iteration rule applies (above)
+  firedUniqueEvents: string[];
+  chainStates: EventChainState[];
+
+  strangenessBase: number;                   // 0–100; the derived value below adds modifiers
+  headlinePool: HeadlinePoolState;
+
+  agents: AgentState[];                      // rivals; empty in open_life mode. §7.10
+
+  flags: Record<string, boolean>;
+}
+
+interface HeadlinePoolState {
+  remainingIds: string[];        // shuffled, drawn from the front
+  shownThisWeek?: string;
+  cyclesCompleted: number;
+}
+
+interface LocationState {
+  definitionId: string;
+  discovered: boolean;
+  accessible: boolean;
+}
+
+interface JobMarketState {
+  openings: JobOpening[];
+}
+
+interface JobOpening {
+  jobId: string;
+  contested: boolean;
+  positionsAvailable?: number;   // absent = uncontested, unbounded
+  postedWeek: number;
+  expiresAtWeek?: number;
+}
+
+interface EventChainState {
+  chainId: string;
+  scope: ChainScope;
+  currentStep: number;
+  startedWeek: number;
+  active: boolean;
+}
+
+type ChainScope = "game" | "profile";
+```
+
+`JobOpening.contested`/`positionsAvailable` implement the scarcity model §7 will need (upstream
+§14.1, §14.3): `entry`/`skilled` postings are uncontested with unbounded positions, while
+`professional`/`senior` roles and promotion slots carry real, finite counts the player and a
+rival compete for.
+
+**`positionsAvailable` is optional here, not `Number.POSITIVE_INFINITY` as upstream states it.**
+`canonicalStringify` (`core/persistence/canonical.ts`) rejects any non-finite number outright —
+`Infinity` cannot survive a save/load round trip in this engine, whether or not `JSON.stringify`
+would silently coerce it to `null` first. Absence-means-unbounded is not invented for this: it
+is the same pattern upstream's own `CourseDefinition.seatsAvailable`/`HousingDefinition.
+unitsAvailable` (§7.3, §7.4) already use for an identical "uncapped" concept — `JobOpening` is
+the one place upstream reached for a literal infinity instead of its own more common convention.
+
+#### World Strangeness
+
+Content gates events and headlines on a **derived** strangeness value, not the raw
+`strangenessBase` above — so a `Modifier` (§7.1) can push it, and so the raw number never leaks
+into a projection. The player is meant to notice the drift, not read the dial.
+`strangenessBase` itself rises on a curve with elapsed weeks; the curve's shape is
+content-balance material, out of scope here the same way §6.1's derived-value formulae are
+content-balance material rather than part of the mechanism itself.
+
+#### Chain Scope — and an Item This Raises
+
+Scope is declared per chain, not globally, because event chains are not all the same kind of
+thing: a `"game"`-scoped chain cannot survive past this game (an eviction ladder should not
+follow a new character into their next life), while a `"profile"`-scoped chain is meant to
+outlive any single game and advance on cumulative weeks played across every game under one
+profile.
+
+**This is a real, unresolved item, not a restatement.** A `"profile"`-scoped `EventChainState`
+needs somewhere to live that is *not* `GameState`/`SimulationKindState` — by definition, since
+it must survive past the game that's ending. The only persistent, cross-game store this
+platform has is `PlayerProfile` (04 §7.1: `{ formatVersion, profileId, achievements }`), and it
+has no field for arbitrary kind-declared profile-scoped data today. Whether `PlayerProfile`
+gains one, and what a kind-agnostic core does with a shape it cannot introspect, is a design
+question for whichever unit first needs a `"profile"`-scoped chain to actually persist — not
+this one. Until then, `ChainScope` is specified as a closed union of two values (matching
+upstream) with the second value's storage genuinely unimplemented, the same honest-gap pattern
+`history` already uses in this document. Recorded in
+[`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) alongside it.
+
+### 2.3 Effects, Opportunities, and Scheduled Events
+
+```typescript
+interface StatusEffect {
+  id: string;
+  sourceId: string;
+  sourceKind: "item" | "housing" | "trait" | "event" | "job" | "course" | "system";
+
+  modifiers: Modifier[];         // §7.1
+
+  appliedWeek: number;
+  expiresAtWeek?: number;        // absent = permanent while source persists
+  stacking: "refresh" | "stack";
+  descriptionKey: LocKey;
+  visible: boolean;
+}
+
+interface Opportunity {
+  id: string;                    // unique per occurrence
+  definitionId: string;
+  kind: OpportunityKind;
+  targetId: string;
+
+  offeredWeek: number;
+  expiresAtWeek: number;
+
+  terms?: Record<string, unknown>;
+}
+
+type OpportunityKind =
+  | "job_offer" | "promotion" | "course_place"
+  | "housing" | "business" | "social";
+
+interface ScheduledEvent {
+  id: string;
+  eventId: string;
+  scheduledWeek: number;
+  createdWeek: number;
+
+  chainId?: string;
+  chainStep?: number;
+  payload?: Record<string, unknown>;
+}
+
+interface PendingEventResponse {
+  id: string;
+  eventId: string;
+  rolledWeek: number;          // week N — when it fired
+  presentWeek: number;         // week N+1 — when the player answers
+  availableChoiceIds: string[];
+}
+```
+
+`PendingEventResponse` implements the deferred-event model (upstream §11.5): events roll at the
+end of week N; those needing a decision queue here and are presented at the start of week N+1
+(the `events` entry in §12.1's start-of-week order), where their time cost competes against a
+fresh budget. `end_week` (§4) refuses to resolve while `pendingEventResponses` is non-empty —
+the concrete reason code is named once §10 (Reason Codes) has a real caller to attach it to.
+
+#### Opportunity Lifecycle
+
+**Generation**, three paths, all producing an `Opportunity` from an `OpportunityDefinition`
+(§7.9):
+
+| Path | Trigger |
+|---|---|
+| Rolled | An end-of-week system draws from the eligible pool, weighted, from the world stream |
+| Action | An action's own outcome — negotiating well produces an offer |
+| Event or reward | An event outcome, or a `Reward` of type `"opportunity"` (§7) |
+
+`expiresAtWeek` is set from the definition's `durationWeeks`.
+
+**Resolution.** An open opportunity leaves `activeOpportunities` exactly one way:
+
+| Outcome | Cause |
+|---|---|
+| Accepted | An `accept_opportunity` action |
+| Declined | A `decline_opportunity` action |
+| Expired | `expiresAtWeek` passed |
+| Revoked | A contested position filled by a rival |
+
+**End-of-week ordering, within the `opportunities` system (§12.2):** revoke anything whose
+target position was just filled, then expire anything past `expiresAtWeek`, then offer new
+opportunities from the eligible pool. Revoking and expiring before offering means a slot freed
+this week becomes available to re-offer this week rather than next.
+
+**Why explicit decline exists.** Letting an offer lapse and refusing it to someone's face are
+different acts once NPCs remember things (§7.7) — turning down a
+manager's offer is a relationship event; forgetting to answer is a different one. Without a
+distinct decline path the engine cannot tell them apart.
+
+**Revocation is deliberate, not a bug.** If holding an unexpired offer reserved the slot, a
+contested position could never actually be taken by a rival, and the scarcity model (§2.2)
+would be decorative. The offer evaporates instead, with a visible message.
+
+#### Scheduled Event Lifecycle
+
+**Creation.** An event outcome's own `scheduledEvents: Array<{ eventId, inWeeks }>` (§7 once
+ported) produces a `ScheduledEvent` with `scheduledWeek = currentWeek + inWeeks`, inheriting
+`chainId`/`chainStep` from the event that scheduled it.
+
+**Firing**, within the `events` system, in this order: take every `ScheduledEvent` where
+`scheduledWeek <= currentWeek` and fire each one **unconditionally** — ignoring weight,
+cooldown, uniqueness and its own conditions, since it was already committed to when scheduled —
+queue any with choices as a `PendingEventResponse` for next week, then roll random eligible
+events by weight as normal. Firing scheduled events before rolling random ones matters for the
+same reason revoke-before-offer does above.
+
+Re-checking eligibility at fire time was considered and rejected: it lets a multi-week chain
+break silently in the middle (a three-week-out hearing whose triggering condition drifted in
+week two just never fires, with nothing recording why), which is a worse failure than an
+event firing on a stale premise.
+
+**Cancellation.** An event outcome's `endsChain: true` cancels every pending `ScheduledEvent`
+sharing that `chainId`. This is the intended way to stop a sequence — paying off arrears ends
+an eviction chain, which cancels the scheduled hearing — and it is explicit and inspectable,
+not implicit.
+
+> **Deliberate limitation, carried from upstream.** A `ScheduledEvent` with no `chainId` has no
+> cancellation path: it fires regardless of anything that happens between scheduling and
+> firing. Content that wants a scheduled event to be cancellable must put it in a chain.
+
+### 2.4 Goal State
+
+```typescript
+interface GoalState {
+  definitionId: string;
+  status: "active" | "completed" | "failed";
+
+  satisfiedThisWeek: boolean;
+  consecutiveWeeksSatisfied: number;
+  requiredDurationWeeks?: number;
+
+  firstSatisfiedWeek?: number;
+  completedWeek?: number;
+  failedWeek?: number;
+
+  progressNotes: GoalProgressNote[];
+}
+
+interface GoalProgressNote {
+  conditionIndex: number;
+  satisfied: boolean;
+  currentValue: unknown;
+  targetValue: unknown;
+}
+```
+
+`consecutiveWeeksSatisfied` resets to zero on any unsatisfied week — no partial credit for a
+goal that requires a sustained condition, which is what makes a duration requirement
+anti-exploit rather than decorative.
+
+`progressNotes` exists for the Transparent Consequences principle — a client can show *which*
+clause of a compound goal (§8, `Condition`'s `all`/`any` tree) is currently unmet, not just that
+the goal isn't done yet.
+
+### 2.5 Economy State
+
+```typescript
+interface EconomyState {
+  inflation: BasisPoints;
+  unemploymentRate: BasisPoints;
+  interestRate: BasisPoints;
+
+  sectorDemand: Record<string, number>;      // exact value — hidden. Sorted-iteration rule applies (above)
+  marketPrices: Record<string, Cents>;       // sorted-iteration rule applies (above)
+
+  publishedIndicators: string[];   // which keys the player is allowed to see
+  flags: Record<string, boolean>;
+}
+
+type DemandBand = "cold" | "steady" | "hot";
+
+function demandBand(value: number): DemandBand;   // <35 cold, 35–65 steady, >65 hot
+```
+
+**Sector demand is banded in projection, never the raw value.** The exact number is a direct
+input to job-availability rolls, and exposing it would let a player optimise against the
+formula directly. But hiding *which* industries are hiring entirely would make every education
+decision a blind guess — the opposite of Transparent Consequences. So a projection exposes
+`demandBand(value)` and never `value`: a player learns that logistics is hot and retail is
+cold, never that logistics is exactly 71.
+
+`publishedIndicators` controls the rest — inflation, unemployment and interest are ordinary
+published facts by default; a scenario may withhold them.
+
+The `35`/`65` band thresholds are carried from upstream as provisional, the same status
+`TODO.md`'s *Known Open Items* already gives the simulation kind's other unbalanced numbers —
+tune once real demand distributions exist to tune against.
+
+---
+
+## 3. The Turn Is a Week
+
+`story-graph` resolves one choice per action. This kind assembles a plan across several
+actions and then resolves the whole week at once:
+
+```text
+plan.add / plan.remove / plan.clear     → mutate the pending plan, no week advance
+end_week                                → resolve the plan, then run end-of-week systems,
+                                          then start the next week
+```
+
+**Start-of-week ordering is normative and its two-phase time handling is load-bearing**
+(upstream §12.1):
+
+```text
+time_advance   increment week, reset spent time units
+effects        expire activeEffects past expiresAtWeek
+time_commit    recompute committed time from job and course commitments
+events         present responses deferred from last week
+```
+
+> **Why time is split across two phases.** The week must increment *before* expiry, because
+> `expiresAtWeek` is compared against the new week number — but commitments must be
+> recomputed *after* it, because an expiring "reduced hours" effect changes what those
+> commitments are. Collapsing them forces one to be wrong, and the failure is silent: the
+> player is quietly granted or robbed of time units with nothing to show it. This is the
+> kind of rule the determinism harness cannot catch and the replay oracle (07) can.
+
+**End-of-week ordering is equally normative** (upstream §12.2), run once `end_week` has
+resolved every planned action (§5):
+
+```text
+employment          education          finance_income     inventory
+housing              finance_reconcile  needs               relationships
+opportunities        events             headline            goals
+failure              achievements       history
+```
+
+Order is stable and covered by test, the same as start-of-week. `headline` runs after `events`
+so a week's headline can reference the strangeness level that week's own events just moved.
+`achievements` runs second-to-last because an achievement condition may depend on anything
+earlier in the pass, including a counter a `goals`/`failure` system just incremented.
+
+> **Why finance runs twice.** `finance_income` (wages in, scheduled expenses out) must run
+> *before* `housing`, so rent is payable from this week's own wages; `finance_reconcile`
+> (overdue balances, late fees, eviction advancement) must run *after* `housing`, so it can see
+> rent that just went unpaid. A single combined `finance` pass satisfies only one of the two —
+> rent charged before wages arrive produces false overdrafts for a solvent player, while
+> reconciling before housing means eviction escalation lags its own trigger by a full week.
+> Splitting the pass is the only ordering that satisfies both.
+
+**`history` appears in this list as a system name, not as adopted state.** §2 already declines
+`history: HistoryEntry[]` as a `SimulationKindState` field — the position in this ordering is
+upstream's own, restated for completeness of the list, not evidence the field is coming.
+
+**`weekLimit` is conspicuously absent from this order, and that is the concrete form of §12's
+own open item.** No system here checks a scenario's `weekLimit` against the current week —
+searched the full ordering, upstream never schedules that check anywhere in `END_WEEK_SYSTEM_ORDER`.
+§12's terminal-identity callout already flagged `week_limit_reached`'s precedence against
+`goals_met` as unresolved upstream; this list is the evidence for that claim, not a new one —
+there is no step here for a future implementation to hook a resolution into without inventing
+one upstream itself never named.
+
+**Goals run before failure — a per-scenario tie-break, not a fixed rule.**
+`ScenarioDefinition.goalFailurePrecedence: GoalFailurePrecedence` (§7.8, declared there
+alongside the type it's shaped by) defaults to `"goals_win"`. When a completion condition and a
+failure condition are both satisfied at the end of the same week, the default exists because
+the alternative produces the worst available ending — reaching every goal while also being
+evicted, reported as a loss — and punishes a player for a race they could not see coming.
+`"failure_wins"` exists for a scenario that wants survival to matter more than achievement, an
+authored difficulty choice rather than a global rule.
+
+**`initialState(campaign, ctx): InitialStateResult<KState>`** (04 §4) builds the calendar
+at week one with a full time budget, the player and world state the campaign declares, and
+an empty plan. `status` is always `"active"`: unlike `story-graph`, where an authored chain
+can settle straight to an ending before the player ever acts, this kind has no path from
+`initialState` to a terminal state — every `outcome()` value besides `null` (§12) requires
+at least one `end_week`, and week one has not run yet. `InitialStateResult` exists so a kind
+can report an immediate terminal state (04 §4: `KState` is opaque to the core, "so the kind
+must *say so*"); this kind simply never needs to.
+
+---
+
+## 4. Actions — One Model, Richer Verbs
+
+04 §3 states the core's action is a string `actionId` plus optional `params`, and anticipates
+this kind mapping "richer verbs" onto it. Here is that mapping, which did not previously
+exist:
+
+| `actionId` | `params` | Effect |
+|---|---|---|
+| `plan.add` | `{ actionType, targetId?, … }` | Append to the pending plan |
+| `plan.remove` | `{ index }` | Remove one planned action |
+| `plan.clear` | — | Empty the plan |
+| `end_week` | — | Resolve the plan and advance (§3) |
+
+**Every one is a `submitAction` and appends one `LoggedAction`** (04 §2). Assembling a plan
+is therefore replayable at the same grain as playing it — which matters, because a plan the
+player built and revised is part of how the week turned out.
+
+**This kind declares `params`**, unlike `story-graph` which rejects any (03 §8.2). That makes
+it the first kind for which `08-session-capture` §3.2's rule has teeth: capture keeps only
+*declared* parameters, and every parameter above is a declared id or an integer index — none
+is free text.
+
+**Plans are immutable.** Every edit produces a new plan; preview is free and never requires
+re-validating from scratch.
+
+### 4.1 The Weekly Action Plan
+
+```typescript
+interface WeeklyActionPlan {
+  readonly week: number;
+  readonly actions: readonly GameAction[];   // §4.2
+}
+```
+
+Sized against upstream §9.1, minus the two fields §2's callout box already excludes —
+`totalTimeCost`/`totalMoneyCostCents` are computed on read, never stored, for the same reason
+every other derived value in this kind is (§2.5's `demandBand`, and §6.1's derived-value layer).
+
+Upstream also carries a `finalized` flag with no setter and no defined effect — dropped here
+entirely, not merely unstated. `plan.clear`/`plan.add`/`plan.remove` mutate nothing in place
+(immutability, above); `end_week` consuming a plan already *is* the commit point, so a second
+"are you sure" flag inside replayable state would duplicate a decision the action model already
+makes. A client wanting a confirmation prompt owns that prompt as presentation, not state.
+
+`GameAction`'s own shape (`ActionType`, `targetId`, `parameters`) is upstream §9, not §9.1 —
+ported in §4.2, alongside action resolution.
+
+### 4.2 Action Types
+
+```typescript
+type ActionType =
+  | "work" | "work_overtime"
+  | "search_for_work" | "apply_for_job" | "negotiate_job_terms"
+  | "attend_class" | "study" | "enroll_course" | "withdraw_course"
+  | "shop" | "eat" | "rest" | "exercise" | "socialize" | "travel"
+  | "maintain_item" | "repair_item" | "sell_item"
+  | "pay_bills" | "borrow_money" | "repay_debt" | "deposit_savings" | "invest"
+  | "move_housing"
+  | "start_project" | "work_on_project"
+  | "start_business" | "operate_business"
+  | "accept_opportunity" | "decline_opportunity"
+  | "respond_to_event"
+  | "custom";
+
+interface GameAction {
+  id: string;
+  type: ActionType;
+  actorId: string;               // §6.3 — "player" or a rival's agent id
+
+  targetId?: string;
+  parameters: Record<string, unknown>;
+}
+```
+
+`ActionType` is a closed union, not `string` — the same reason `DerivedPath` (§6.1) is: an open
+string type would make "is this action supported" a runtime question, and a `ResolverTable`
+(§5.1) keyed by it could not be checked for completeness at compile time.
+
+**`timeCost` and money cost are never fields here.** Both are always engine-derived (§5.2),
+never client-supplied — trusting a client's own figure would mean a client (or a future natural-
+language adapter translating intent into `"custom"`) chooses its own costs, which contradicts
+the core principle that a client never manipulates authoritative state (04 §1). Fourteen
+zero-cost job applications a week is exactly the failure mode a client-supplied cost would
+allow.
+
+**`"custom"` is the escape hatch for adapter-translated intent** (upstream §15.1, out of scope
+for this contract) **and has no resolver** (§5.1) — a `GameAction` reaching resolution with
+`type: "custom"` fails with `action_not_available`. An adapter must translate natural-language
+intent into a concrete `ActionType` *before* submission; there is no route around the
+`ResolverTable` for it to take, because there is no entry in the table to route to.
+
+`plan.add`'s own `{ actionType, targetId?, … }` params (this section's table, above) map
+directly onto `GameAction.type`/`targetId`/`parameters` — assembling a plan is choosing which
+`GameAction`s it will hold, one `plan.add` at a time.
+
+---
+
+## 5. Resolution and `StateChange`
+
+The pipeline dispatches per action type, validates, applies, and emits audit records
+(upstream §10.0–§10.4). Two rules carry over unchanged because the core already adopted
+them from here:
+
+- **`StateChange` is an audit record emitted by typed reducers, never the mutation
+  mechanism** (04 §12 — which cites this kind's §10.4 as its origin).
+- **Immutability is unconditional**: every operation returns a new state.
+
+A rejected action returns a `ValidationError` with its reason code, leaves state unchanged,
+and does **not** advance the log (04 §4) — so `seq` repeats on the next attempt, with the
+consequences 05 §5 and 07 §3.1 describe.
+
+**What follows is internal to this kind's own `end_week` resolution — not part of the Kind
+seam.** `Kind.advance` (04 §4) returns exactly one `AdvanceResult` per `submitAction` call; the
+types below describe how *one* `end_week` call resolves the *several* `GameAction`s a plan can
+hold before it produces that single result. `04-core.md`'s `StateChange`/`OutcomeMessage`
+(§12) and `ValidationError`/`ValidationWarning` (§11) are reused throughout, unchanged — this
+kind does not restate its own version of any of them, unlike upstream, whose own §10.2/§10.4
+shapes predate and diverge from what the core later adopted (extra fields, extra `StateChange`
+operations no reducer here uses). Porting upstream's versions verbatim would reintroduce
+exactly the two-sources-of-truth problem the envelope-duplication rule exists to prevent, one
+level down from state into result types.
+
+### 5.1 Resolver Dispatch
+
+```typescript
+interface ActionResolver {
+  readonly type: ActionType;                                          // §4.2
+
+  canExecute(state: SimulationKindState, action: GameAction, ctx: KindContext): ActionValidation;
+  calculate(state: SimulationKindState, action: GameAction, ctx: KindContext): ActionOutcome;
+  apply(state: SimulationKindState, outcome: ActionOutcome): SimulationKindState;
+}
+
+type ResolverTable = Record<Exclude<ActionType, "custom">, ActionResolver>;
+```
+
+`Record` over the closed union means **a missing resolver is a compile error, not a runtime
+surprise** — adding a member to `ActionType` without writing its resolver fails the build,
+which is the behavior a union content files reference by name should have. `"custom"` is
+excluded deliberately and has no resolver (§4.2).
+
+Reconciled against 04 §3.1's `KindContext` rather than upstream's own bespoke
+`ResolutionContext { registry, week, rng, derived }` — `KindContext` already carries
+`registry`/`rng`/`derive` (`ctx.rng` *is* this action's substream); `week` is
+`state.calendar.currentWeek` (§2.1), not a value the context needs to carry separately; and
+`derived` is the `DerivedValueResolver` (§6.1), reachable the same way this kind reaches
+anything else it defined rather than through a second, parallel context object upstream
+invented before the real one existed.
+
+### 5.2 The Resolution Pipeline
+
+```text
+receive action
+→ validate action schema
+→ validate actor, target, prerequisites, location
+→ calculate time cost                          ← engine-derived, never client-supplied (§4.2)
+→ validate available time
+→ calculate money cost                         ← engine-derived, never client-supplied (§4.2)
+→ validate money, inventory
+→ calculate modifiers (§7.1)
+→ perform a seeded random roll if required      (ctx.rng, §13)
+→ produce an outcome
+→ apply state changes via typed reducers
+→ emit StateChange audit records
+→ trigger dependent effects
+```
+
+One step from upstream's own pipeline is dropped rather than restated: **"record history"** —
+consistent with `history` staying unadopted (§2) for the same reason it's absent from the
+end-of-week order (§3).
+
+### 5.3 Per-Action Outcome
+
+```typescript
+/** This kind's own runtime-validation result — distinct from 04-core's `ValidationResult`
+ *  (04 §11), which is load-time *campaign* validation. Named differently on purpose: the two
+ *  are not the same concept, and upstream's identical name for both was never disambiguated
+ *  because upstream has no load-time campaign-validation concept of its own to collide with. */
+interface ActionValidation {
+  valid: boolean;
+  errors: ValidationError[];      // 04 §11, reused
+  warnings: ValidationWarning[];  // 04 §11, reused
+
+  calculatedTimeCost?: number;
+  calculatedMoneyCostCents?: Cents;
+}
+
+interface ActionOutcome {
+  actionId: string;
+  success: boolean;
+
+  degree: "critical_failure" | "failure" | "partial" | "success" | "critical";
+
+  reason: ReasonCode;
+
+  changes: StateChange[];             // 04 §12, reused
+  generatedEvents: string[];
+  generatedOpportunities: string[];
+  messages: OutcomeMessage[];         // 04 §12, reused
+}
+```
+
+`degree` is why `ConditionalOutcome.onDegree` (§7.6) can branch an event's outcome on more than
+pass/fail — a `"partial"` success and a `"critical"` one are different results content can
+react to differently, not merely different flavors of the same success.
+
+**`ResolutionDebugInfo` (upstream §3.3) is not ported.** It exists upstream to answer "why did
+this action turn out this way," gated on a `metadata.transparency` field — but `metadata` lives
+on the session-store record in this repository (§2, "outside replayable state"), not in
+`SimulationKindState`, so there is no field here for it to gate on. This platform already has a
+mechanism for exactly upstream's stated purpose — development, testing, balancing — that upstream
+didn't have: a `trace`-severity event on the observability channel (05-observability.md), which
+this kind already uses for `system.ran` (§11) for the identical reason (localizing a regression
+to the phase that moved). Superseded, not merely absent.
+
+## 6. Player State
+
+Nine areas: identity, finances, needs, attributes, education, career, housing, inventory,
+relationships (upstream §8.1–§8.9), plus the base/derived-value layer they read through
+(upstream §7). Both are ported below — the field-level port
+`plans/36-simulation-kind-programme.md` calls **W28** (assigned as a real `W` number when this
+unit is cut), sized against upstream §7 and §8.1–§8.9.
+
+- **Money is integer cents; rates are integer basis points** — `Cents`/`BasisPoints` (§2),
+  used throughout finances, career and housing below.
+- **Derived values are computed, never stored** (§6.1) — for the reason in §2: a stored
+  derived value can disagree with what it's derived from, and the disagreement is
+  unresolvable.
+
+### 6.1 Base and Derived Values
+
+**State stores base values. Modifiers never write to state.** A derived value is computed on
+read by applying every active modifier over the base — the fix for a defect upstream's earlier
+revisions had: a modifier that *sets* a need to a fixed value for three weeks has nothing to
+restore when it expires, if the base was overwritten rather than layered over.
+
+```typescript
+type DerivedPath =
+  | `player.needs.${NeedKey}`                     // §6.5
+  | `player.attributes.${keyof AttributeState}`    // §6.6
+  | `player.skills.${string}`
+  | "player.housing.quality"                       // §6.9
+  | "player.career.effectivePerformance"           // §6.8
+  | "calendar.energyRecoveryRate"
+  | "world.strangeness";                           // §2.2
+
+interface DerivedValueResolver {
+  resolve(path: DerivedPath, base: number, effects: StatusEffect[]): number;
+  isReadOnly(path: string): boolean;
+}
+```
+
+`DerivedPath` is a closed union — the same reason `ActionType` is (§4.2): it is what
+lets Tier 1 validation (§14) reject a `Modifier` targeting a derived field at load time, rather
+than discovering it at runtime. A path can name a value with no literal stored counterpart
+(`career.effectivePerformance`, `calendar.energyRecoveryRate`) precisely because it is
+derived — computing it does not require anything to have been written down first.
+
+**Application order is fixed:**
+
+```text
+1. base value
+2. all `add` and `subtract` modifiers, summed
+3. all `multiply` modifiers, multiplied
+4. `set` overrides, highest priority wins; ties broken by earliest appliedWeek
+5. clamp to the field's declared range
+```
+
+**Stacking** is governed by `StatusEffect.stacking` (§2.3): a second effect from the same
+`sourceId` with `"refresh"` replaces the first and resets its expiry; `"stack"` adds a second,
+independent layer. Two different sources always stack.
+
+**Expiry** is removal from `activeEffects` at the *start* of the week following
+`expiresAtWeek` (the `effects` entry in §3's start-of-week order) — an effect expiring in week
+12 still applies throughout week 12. Because nothing was ever overwritten, expiry has nothing
+to undo; the derived value simply recomputes against a shorter effect list.
+
+Derived paths are read-only: a `Modifier` or content effect targeting one is a Tier 1
+validation error (`read_only_field`, already a base reason code).
+
+> **Provisional, not settled.** Resolving a derived value on every access costs against a
+> performance budget this contract does not itself set a number for. The assumed mitigation is
+> memoizing per week per path, invalidated when `activeEffects` changes — carried from
+> upstream as the intended strategy, not yet measured against anything real in this repository.
+> If it turns out wrong, the caching strategy changes; the layer model above does not.
+
+### 6.2 The Shared Actor Shape
+
+**The player and every rival share one shape.** A rival obeying different mechanics than the
+player would be undetectable drift, not a feature — the only way to guarantee identical rules
+structurally is for both to run the same state through the same systems.
+
+```typescript
+interface ActorState {
+  identity: ActorIdentity;          // §6.3
+  currentLocationId: string;
+  finances: FinancialState;         // §6.4
+  needs: NeedState;                 // §6.5
+  attributes: AttributeState;       // §6.6
+
+  education: EducationState;        // §6.7
+  career: CareerState;              // §6.8
+  housing: HousingState;            // §6.9
+
+  inventory: InventoryItem[];       // §6.10
+  relationships: RelationshipState[]; // §6.11
+
+  skills: Record<string, number>;
+  traits: string[];
+  reputation: Record<string, number>;
+
+  flags: Record<string, boolean>;
+  counters: Record<string, number>;  // hidden — never appears in a projection
+}
+
+/** The player is an actor. Alias kept for readability at call sites. */
+type PlayerState = ActorState;
+```
+
+`SimulationKindState.player: PlayerState` (§2) is this same shape; a rival is
+`AgentState.actor: ActorState` (§7.10) — identical fields, run through
+identical resolvers. Porting "player state" narrowly and adding rival support later was
+considered and rejected: it would produce a shape that has to be re-derived the moment a rival
+exists, rather than one written correctly once.
+
+**Needs, skills, attributes and reputation values are integers in `0–100`**, matching this
+kind's numeric-representation rule (§2.1's `Cents`/`BasisPoints` sit beside this same rule
+upstream). Not a type-level constraint — `number` cannot express a bounded integer range in
+TypeScript — so it is enforced the same way every other declared range in this kind is: Tier 1
+validation once the relevant content type exists to declare the bound against (§14), and typed
+reducers that clamp on write, never a raw assignment.
+
+**`skills`, `reputation`, `flags` and `counters` are open-keyed `Record`s, not a violation of
+"the loose bag is banned" (`02-architecture.md` N6).** N6's own reasoning names what it
+protects against: *this kind's* typed-reducer discipline (§5 — `StateChange` is emitted only by
+typed reducers, never an arbitrary mutation), which is the mechanism story-graph's
+`VariableSchema` (03 §2) exists to bring to a campaign-authored variable bag that has no such
+reducers of its own. Every key entering these `Record`s arrives through a resolver that already
+knows the id is real — a reward granting a skill, an achievement condition reading a counter —
+and once content types are ported (§7), Tier 1 validation (§14) checks referential integrity the
+same way it will for every other content-id reference in this kind. `counters` in particular is
+filled two ways: **automatically**, incrementing `counters[change.reason]` for every emitted
+`StateChange` (the reason-code vocabulary is already a taxonomy of things that happen, so
+statistics like "times evicted" or "checks failed" come free), and **explicitly**, from a
+`"counter"`-type `Reward` (§7.1) for statistics that are not state changes in their
+own right. Both paths write through typed code, never through a client-supplied key.
+
+**All four are subject to the sorted-iteration rule (§2).** `counters` is the newest and the
+easiest to forget, because the automatic path writes to it from inside every reducer rather
+than from one obvious call site.
+
+`counters` never appears in a projection, for the same reason `luck` (§6.6) and `resentment`
+(§6.11) do not: a player who can see the count knows they are being measured, which defeats
+the point of measuring it.
+
+### 6.3 Identity
+
+```typescript
+interface ActorIdentity {
+  actorId: string;          // "player" or a rival's agent id
+  name: string;
+  age: number;
+  backgroundId: string;     // §7.9 — BackgroundDefinition
+}
+
+type PlayerIdentity = ActorIdentity;
+```
+
+`actorId` is load-bearing, not decorative: relationships are held per actor (§6.11) and NPCs
+remember things about specific actors (§7.7), so every actor must be
+individually addressable.
+
+### 6.4 Finances
+
+```typescript
+interface FinancialState {
+  cashCents: Cents;
+  savingsCents: Cents;
+  debtCents: Cents;
+
+  weeklyIncomeCents: Cents;
+  weeklyExpensesCents: Cents;
+
+  overdueBalanceCents: Cents;
+  creditScore?: number;
+
+  accounts: FinancialAccount[];
+}
+
+interface FinancialAccount {
+  id: string;
+  kind: "checking" | "savings" | "credit_card" | "loan" | "investment";
+  label: LocKey;
+
+  balanceCents: Cents;            // negative = owed
+  interestRate: BasisPoints;      // per annum
+
+  minimumPaymentCents?: Cents;
+  paymentDueWeek?: number;
+
+  openedWeek: number;
+  closedWeek?: number;
+}
+```
+
+### 6.5 Needs
+
+```typescript
+interface NeedState {
+  health: number;
+  energy: number;
+  happiness: number;
+  stress: number;
+  satiety: number;
+}
+
+type NeedKey = keyof NeedState;
+
+const NEED_POLARITY: Record<NeedKey, "higher_is_better" | "lower_is_better"> = {
+  health:    "higher_is_better",
+  energy:    "higher_is_better",
+  happiness: "higher_is_better",
+  satiety:   "higher_is_better",
+  stress:    "lower_is_better",
+};
+```
+
+`NEED_POLARITY` exists so generic code — a "most urgent need" helper, rival need-scoring, goal
+evaluation — cannot get direction wrong for `stress`, the one need where higher is worse.
+Content-balance material (drift rates, clamp semantics) is out of scope here — already named
+provisional in `TODO.md`'s *Known Open Items*.
+
+### 6.6 Attributes
+
+```typescript
+interface AttributeState {
+  intelligence: number;
+  discipline: number;
+  charisma: number;
+  creativity: number;
+  resilience: number;
+  wisdom: number;
+  luck: number;      // hidden — never appears in a projection
+}
+```
+
+`wisdom` has no consumer specified anywhere in this contract or upstream — already tracked in
+`TODO.md`'s *Known Open Items* ("`wisdom` attribute has no consumer... needs one to earn its
+place"), not repeated as a second open item here.
+
+### 6.7 Education
+
+```typescript
+interface EducationState {
+  enrollments: CourseEnrollment[];
+  credentials: Credential[];
+  completedCourseIds: string[];
+  failedCourseIds: string[];
+}
+
+interface CourseEnrollment {
+  courseId: string;               // §7.3 — CourseDefinition
+  startedWeek: number;
+  weeksCompleted: number;
+
+  attendedUnits: number;
+  studyUnits: number;
+  missedSessions: number;
+
+  tuitionPaidCents: Cents;
+  tuitionOutstandingCents: Cents;
+
+  retainedProgress: number;      // 0–100, carried from a prior failed attempt
+  status: "active" | "completed" | "failed" | "withdrawn";
+}
+
+interface Credential {
+  id: string;
+  courseId: string;
+  awardedWeek: number;
+  level: CredentialLevel;
+  labelKey: LocKey;
+}
+
+type CredentialLevel =
+  | "none"
+  | "school"
+  | "certificate"
+  | "diploma"
+  | "degree"
+  | "postgraduate";
+```
+
+`CredentialLevel` is ordered, which is what makes a scenario requirement like "certificate or
+better" directly expressible rather than needing an enumerated list of acceptable values.
+
+### 6.8 Career
+
+```typescript
+interface CareerState {
+  currentEmployment?: Employment;
+  history: EmploymentRecord[];
+
+  totalWeeksEmployed: number;
+  pendingApplications: JobApplication[];
+
+  highestTierAchieved: JobTier;
+}
+
+interface Employment {
+  jobId: string;                 // §7.2 — JobDefinition
+  employerId: string;
+  startedWeek: number;
+
+  performance: number;           // 0–100
+  attendanceRatio: number;       // 0–100, rolling
+  warnings: number;
+  probationUntilWeek?: number;
+
+  weeklyPayCents: Cents;
+  weeksAtCurrentPay: number;
+}
+
+interface EmploymentRecord {
+  jobId: string;
+  employerId: string;
+  tier: JobTier;
+  startedWeek: number;
+  endedWeek: number;
+  endReason: ReasonCode;
+  finalPerformance: number;
+}
+
+interface JobApplication {
+  jobId: string;
+  submittedWeek: number;
+  resolvesWeek: number;
+  contested: boolean;
+  outcome?: "pending" | "offered" | "rejected" | "position_filled";
+}
+
+type JobTier = "entry" | "skilled" | "professional" | "senior";
+
+const JOB_TIER_RANK: Record<JobTier, number> = {
+  entry: 0, skilled: 1, professional: 2, senior: 3,
+};
+```
+
+`JobTier` is ranked for the same reason `CredentialLevel` is ordered (§6.7): a career goal or
+job requirement reading "skilled or better" needs an ordering, not just a tag. `career.
+effectivePerformance` (§6.1's `DerivedPath`) is computed from `Employment.performance` plus
+whatever `PerformanceFactor`s (§7.2) apply — never stored itself.
+
+### 6.9 Housing
+
+```typescript
+interface HousingState {
+  definitionId: string;           // §7.4 — HousingDefinition
+  movedInWeek: number;
+
+  ownership: "renting" | "owned" | "mortgaged" | "staying_with_someone";
+
+  damage: number;                // 0–100, mutable
+  weeklyCostCents: Cents;
+  depositPaidCents: Cents;
+
+  rentDueWeek: number;
+  overdueRentCents: Cents;
+  missedPayments: number;
+  evictionStage: EvictionStage;
+
+  landlordNpcId?: string;        // §7.7 — NPCState
+}
+
+type EvictionStage =
+  | "none"
+  | "warning"
+  | "penalty"
+  | "formal_notice"
+  | "hearing_scheduled"
+  | "evicted";
+```
+
+`quality` (§6.1's `player.housing.quality`) is derived and read-only, never stored: writing to
+it fails Tier 1 validation the same way any other `DerivedPath` write does. Its formula —
+`clamp(round((comfort + safety) / 2) − round(damage × 0.6), 0, 100)`, against
+`HousingDefinition`'s `comfort`/`safety` fields (§7.4) — is carried from upstream as provisional
+content-balance material, the same status `TODO.md`'s *Known Open Items* already gives it.
+
+### 6.10 Inventory
+
+```typescript
+interface InventoryItem {
+  instanceId: string;
+  definitionId: string;          // §7.5 — ItemDefinition
+
+  quantity: number;
+  acquiredWeek: number;
+  purchasePriceCents: Cents;
+
+  condition: number;             // 0–100
+  weeksSinceMaintenance: number;
+  broken: boolean;
+}
+```
+
+### 6.11 Relationships
+
+**A relationship is held by the actor, not by the NPC.** Each actor carries their own record of
+how a given NPC regards them — the player and a rival can hold different, independent
+relationships with the same NPC, which is what a competitive life sim needs (an NPC "social
+climber" rival strategy, upstream design, is unimplementable any other way).
+
+```typescript
+interface RelationshipState {
+  npcId: string;                  // §7.7 — NPCState
+  category: "professional" | "personal" | "transactional" | "adversarial";
+
+  affinity: number;
+  trust: number;
+  respect: number;
+  resentment: number;      // hidden — never appears in a projection
+
+  knownSinceWeek: number;
+  lastInteractionWeek?: number;
+  interactionCount: number;
+}
+```
+
+The affective dimensions (`affinity`/`trust`/`respect`/`resentment`) live here, on the actor —
+`NPCState` (§7.7) holds only what genuinely belongs to the NPC itself: its role,
+availability and memories, none of which differ per observer.
+
+---
+
+## 7. Content Definition Types
+
+Jobs, courses, housing, items, events, NPCs, goals, scenarios, agents (upstream §14.1–§14.9),
+plus `Modifier` and `Reward` (upstream §13.3–§13.4) — simulation mechanics hanging off
+`Condition`, not condition operators, so they belong here rather than in §8. Ported below —
+the field-level port `plans/36-simulation-kind-programme.md` calls **W29** (assigned as a real
+`W` number when this unit is cut), sized against upstream §13.3–§13.4 and §14.1–§14.9.
+
+These are **campaign data**, loaded through the content registry (04 §10.1) exactly as
+story-graph campaigns are. A simulation campaign is `kindId: "simulation"` plus data
+conforming to this kind's schema — the same core/kind/campaign split (architecture §1), with
+no new loading mechanism.
+
+**Two subsections (§7.7, §7.10) are the exception, by design, not drift.** `NPCState` is
+runtime state (already forward-referenced from `WorldState`, §2.2), not campaign data — placed
+beside its content-side counterpart (`NPCDefinition`) because the two are read together
+constantly, the same reason `JobOpening` (§2.2, runtime) and `JobDefinition` (§7.2, content) are
+described near each other in prose even though they live in different top-level sections. §7.10
+has a *third* category alongside them: `AgentStrategy` is engine-owned code (a function member
+cannot be campaign JSON at all) and never appears in content — though how a campaign actually
+selects one is itself an open gap, not yet settled by any field this contract declares; §7.10
+records it rather than assuming an answer. Every other subsection here is campaign data
+throughout.
+
+**This is about the campaign wrapper's own identity, not every individual definition's `id`.**
+A campaign-level `id`/`version`/`titleKey` — the simulation-kind analogue of
+`StoryGraphCampaign` — lives on the core `Campaign` envelope and would be the envelope-
+duplication defect (04 §10.1) to restate here. Each *individual* content definition below
+still needs its own `id`, the same way `03-story-graph-kind.md`'s own `Choice`,
+`AchievementDefinition` and every node do: a campaign declares many jobs, many events, many
+goals, and each needs to be addressable on its own terms. `JobDefinition.id` names one job
+among many a campaign declares; it is not the campaign's own identity.
+
+Every type below references `Requirement`/`RequirementType` (§8.1) and `GameAction`'s own
+schema (§4.2) by name.
+
+### 7.1 Modifiers and Rewards
+
+```typescript
+interface Modifier {
+  target: string;                 // must resolve to a writable *stored* field — never a §6.1 DerivedPath (§14: read_only_field)
+  operation: "add" | "subtract" | "multiply" | "set";
+  value: number;
+  durationWeeks?: number;
+  sourceId: string;
+  priority?: number;              // `set` conflict resolution; default 0
+}
+```
+
+Application order, stacking and expiry are §6.1's — this is the content shape that produces the
+`StatusEffect.modifiers` (§2.3) `resolve` reads.
+
+**`multiply`'s arithmetic, stated precisely.** `value` is basis-points-shaped: `value/100` is
+the percentage change, so `value: 250` means "+2.50%" (a factor of `1.0250`), matching this
+kind's `BasisPoints` convention (§2) exactly even though the field itself is typed `number`
+here, not `BasisPoints` — `operation` is the discriminant a reader (and a validator) needs, the
+same way `StateChange.value`'s meaning already depends on `StateChange.op` elsewhere in this
+platform. Several `multiply` modifiers targeting the same path compose by multiplying their
+exact factors together — never by rounding after each one — and **round-half-away-from-zero
+applies exactly once, after the full chain is combined**, matching this kind's numeric
+convention (§2) of stating a rounding rule at the point of use. Rounding after each step instead
+of once at the end would let modifier *order* change the result of an operation §6.1 already
+declares order-independent ("all `multiply` modifiers, multiplied" — a product, not a fold with
+an intermediate rounding step), which would be a second, silent source of divergence beyond
+whatever `add`/`subtract`/`set` already contribute.
+
+> **A claim in `plans/36-simulation-kind-programme.md`'s own Finding 2 needed correcting while
+> writing this section.** That finding — reasonably, given it's exactly the kind of hazard this
+> kind's determinism story cares about — flagged `multiply` against integer-cents money as
+> having "no rounding rule specified" upstream. Checked directly against the primary source
+> while drafting this port: upstream *does* specify one, in the sentence immediately following
+> `Modifier`'s own declaration. The finding missed it; the correction is recorded in `plans/32`
+> and `plans/36` themselves, not just here, since a wrong claim about a primary source is worth
+> fixing where it was made, not only where it was next read.
+
+**Addressing collection members.** Several state collections are arrays rather than `Record`s
+(§2, §6), and content needs to target one member — the landlord's affinity, one item's
+condition. Array-typed state is addressed **by its natural key, never by index**:
+
+| Collection | Key | Example target |
+|---|---|---|
+| `player.relationships` | `npcId` | `player.relationships.npc-landlord.affinity` |
+| `player.inventory` | `instanceId` | `player.inventory.item-0041.condition` |
+| `player.education.enrollments` | `courseId` | `player.education.enrollments.crs-bookkeeping.studyUnits` |
+| `world.npcs` | `id` | `world.npcs.npc-landlord.currentRole` |
+
+Index addressing is forbidden: array order is not part of the state contract (§2's canonical
+iteration rule already establishes why insertion order cannot be load-bearing), so
+`relationships.0.affinity` would target a different NPC after any reordering and silently
+corrupt a save. Tier 1 validation (§14) rejects a numeric path segment — which is why an id
+used as one of these natural keys may not be all-digits: `04-core.md` §17's identifier
+character set (`[a-z0-9_-]`) permits one, but an id of `"123"` would then be indistinguishable
+from the rejected index `123`. Content declaring `npcId`/`instanceId`/`courseId`/`id` for an
+entity ever addressed this way needs at least one non-digit character; Tier 1 validation checks
+this specifically for ids used as a natural key, not as a blanket rule over every id in the
+kind.
+
+```typescript
+interface Reward {
+  type: RewardType;
+  target?: string;
+  value?: unknown;
+  parameters?: Record<string, unknown>;
+}
+
+type RewardType =
+  | "credential" | "skill" | "attribute" | "money" | "item"
+  | "reputation" | "relationship" | "unlock_location"
+  | "unlock_course" | "opportunity" | "flag" | "modifier"
+  | "counter";        // increments ActorState.counters (§6.2)
+```
+
+`RewardType` is the entire outcome vocabulary of this kind, in one closed union — every way a
+job, course, event or achievement can change an actor's state funnels through it.
+
+**`Reward`'s own payload is provisional, ported as upstream declares it, not resolved here.**
+`target`/`value` are optional and untyped (`unknown`) across every `RewardType` — upstream never
+narrows what a `"money"` reward's `value` is versus what a `"modifier"` reward's is, and this
+port does not invent that narrowing on upstream's behalf. A discriminated union keyed by `type`
+(`{ type: "money"; cents: Cents }`, `{ type: "item"; definitionId: string; quantity: number }`,
+and so on) is the more precise shape and was considered — declined here because designing
+thirteen concrete payload shapes with no resolver implementation to validate them against risks
+inventing a contract this port has no way to check, the same reasoning `Modifier`'s multiply
+semantics (above) were resolved by *checking the primary source* rather than guessing. **Revisit
+when** `Reward` gains a real dispatcher — naturally the final contract unit (§15), alongside
+`GameAction`'s own resolution.
+
+### 7.2 Jobs
+
+```typescript
+interface JobDefinition {
+  id: string;
+  titleKey: LocKey;
+  descriptionKey: LocKey;
+
+  employerId: string;          // EmployerDefinition, §7.9
+  careerPathId: string;
+  tier: JobTier;                // §6.8
+
+  schedule: JobSchedule;
+  compensation: JobCompensation;
+
+  requirements: Requirement[];  // §8.1
+  performance: JobPerformanceRules;
+
+  promotionPaths: PromotionPath[];
+  terminationRules: TerminationRule[];
+
+  contested: boolean;
+  positionsAvailable?: number;    // required when contested. Never Infinity — absent = uncontested (§2.2)
+
+  tags: string[];
+}
+
+interface JobSchedule {
+  weeklyTimeCost: number;
+  flexibility: number;
+  requiredDays?: string[];
+  shiftTypes?: string[];
+  remoteEligible?: boolean;
+}
+
+interface JobCompensation {
+  baseWeeklyPayCents: Cents;
+  performanceBonusCents?: Cents;
+  commissionRate?: BasisPoints;
+  overtimeRate?: BasisPoints;
+  benefits?: string[];
+}
+
+interface JobPerformanceRules {
+  factors: PerformanceFactor[];
+  weeklyDriftToward: number;      // performance regresses toward this baseline
+  minimumAcceptable: number;
+}
+
+interface PerformanceFactor {
+  source: "skill" | "attribute" | "need" | "relationship" | "item" | "housing";
+  key: string;
+  weight: number;                 // may be negative, e.g. stress
+}
+
+interface PromotionPath {
+  toJobId: string;
+  minimumWeeksInRole: number;
+  minimumPerformance: number;
+  requirements: Requirement[];    // §8.1
+  contested: boolean;
+  baseChance: number;
+}
+
+interface TerminationRule {
+  code: ReasonCode;
+  condition: Condition;
+  warningsBeforeTermination: number;
+  severanceWeeks?: number;
+  messageKey: LocKey;
+}
+```
+
+`JobOpening.positionsAvailable` (§2.2) already established the "optional, absent = unbounded"
+rule this type's own `positionsAvailable?: number` follows — stated once there, applied
+consistently here rather than re-derived.
+
+### 7.3 Courses
+
+```typescript
+interface CourseDefinition {
+  id: string;
+  nameKey: LocKey;
+  descriptionKey: LocKey;
+  providerId: string;
+
+  tuitionCents: Cents;
+  durationWeeks: number;
+  weeklyTimeCost: number;
+  difficulty: number;
+
+  seatsAvailable?: number;        // absent = uncapped
+  requirements: Requirement[];    // §8.1
+  rewards: Reward[];              // §7.1
+  awardsCredential?: CredentialLevel;  // §6.7
+
+  failureRules: CourseFailureRules;
+  tags: string[];
+}
+
+interface CourseFailureRules {
+  minimumAttendanceRatio: number;
+  minimumStudyUnitsPerWeek: number;
+  maximumMissedSessions: number;
+  tuitionGraceWeeks: number;
+  maximumStress?: number;
+  progressRetainedOnFailure: number;   // 0–100
+}
+```
+
+### 7.4 Housing
+
+```typescript
+interface HousingDefinition {
+  id: string;
+  nameKey: LocKey;
+  descriptionKey: LocKey;
+
+  upfrontCostCents: Cents;
+  weeklyCostCents: Cents;
+  depositCents?: Cents;
+
+  capacity: number;
+  comfort: number;
+  safety: number;
+  prestige: number;
+  storage: number;
+
+  commuteModifier: number;
+  energyRecoveryModifier: number;
+  happinessModifier: number;
+  healthModifier: number;
+
+  maintenanceRisk: number;
+  unitsAvailable?: number;        // absent = uncapped
+
+  requirements: Requirement[];    // §8.1
+  tags: string[];
+}
+```
+
+`comfort`/`safety`/`damage` feed `player.housing.quality` (§6.1, §6.9) — the derived, read-only
+value this kind computes rather than stores.
+
+### 7.5 Items
+
+```typescript
+interface ItemDefinition {
+  id: string;
+  nameKey: LocKey;
+  descriptionKey: LocKey;
+  category: string;
+
+  purchasePriceCents: Cents;
+  baseResaleValueCents: Cents;
+  weeklyCostCents?: Cents;
+
+  effects: Modifier[];             // §7.1
+  stacking: "refresh" | "stack";
+
+  durability?: number;
+  maintenanceRules?: MaintenanceRule[];
+
+  requirements: Requirement[];     // §8.1
+  tags: string[];
+}
+
+interface MaintenanceRule {
+  intervalWeeks: number;
+  costCents: Cents;
+  timeCost: number;
+  skillCheck?: CheckDefinition;     // §7.6
+  conditionLossIfSkipped: number;
+  breakageChanceAtZeroCondition: number;
+}
+```
+
+### 7.6 Events
+
+```typescript
+interface EventDefinition {
+  id: string;
+  category: string;
+  titleKey: LocKey;
+  descriptionKey: LocKey;
+
+  weight: number;
+  conditions: Condition;           // §8
+
+  cooldownWeeks?: number;
+  unique?: boolean;
+
+  choices?: EventChoice[];
+  automaticOutcome?: EventOutcome;
+
+  chainId?: string;
+  chainStep?: number;
+
+  tags: string[];
+}
+
+interface EventChoice {
+  id: string;
+  labelKey: LocKey;
+
+  timeCost?: number;
+  moneyCostCents?: Cents;
+
+  requirements?: Requirement[];    // §8.1
+  check?: CheckDefinition;
+
+  outcomes: ConditionalOutcome[];
+}
+
+interface ConditionalOutcome {
+  condition?: Condition;           // §8
+  onDegree?: ActionOutcome["degree"][];  // §5.3
+  weight?: number;
+  outcome: EventOutcome;
+}
+
+interface EventOutcome {
+  effects: Modifier[];             // §7.1
+  rewards?: Reward[];              // §7.1
+  messages: OutcomeMessage[];      // 04 §12
+
+  generatedEvents?: string[];
+  scheduledEvents?: Array<{ eventId: string; inWeeks: number }>;    // §2.3
+  generatedOpportunities?: string[];                                // §2.3
+
+  advancesChain?: boolean;
+  endsChain?: boolean;             // §2.3
+}
+
+interface CheckDefinition {
+  skill?: string;
+  attribute?: keyof AttributeState;   // §6.6
+  difficulty: number;
+
+  modifiers?: CheckModifier[];
+  criticalSuccessMargin?: number;
+  criticalFailureMargin?: number;
+
+  minimumChance?: number;         // default 5
+  maximumChance?: number;         // default 95
+}
+
+interface CheckModifier {
+  source: "skill" | "attribute" | "need" | "reputation" | "relationship" | "item";
+  key: string;
+  weight: number;
+}
+```
+
+An event whose selected choice's outcome is non-empty (has choices at all) defers to the
+following week via `PendingEventResponse` (§2.3); an event with only `automaticOutcome` resolves
+immediately within end-of-week processing (§3's end-of-week order). `ConditionalOutcome.onDegree`
+references `ActionOutcome`'s own `degree` field (§5.3).
+
+### 7.7 NPCs — Definition and Runtime State
+
+**Two of the three types below are not campaign data.** `NPCDefinition` is; `NPCState` and
+`NPCMemory` are runtime state (`WorldState.npcs`, §2.2) that a `Kind.advance` reducer creates
+and mutates as a game plays — the same content/state split every other section of this contract
+draws (`JobDefinition` vs. `JobOpening`, §2.2 vs. §7.2, is the same pair). Placed together here
+rather than split across §2 and §7 because the two are read together constantly (an NPC's
+current role and memories are meaningless without its definition's `defaultRole`/tags to compare
+against), and `WorldState.npcs: NPCState[]` (§2.2) already forward-referenced this exact section
+before either type existed in this repository.
+
+```typescript
+interface NPCDefinition {
+  id: string;
+  nameKey: LocKey;
+  descriptionKey: LocKey;
+
+  defaultRole: string;
+  initialRelationship: NPCRelationship;
+  availability: AvailabilityRule[];
+
+  tags: string[];
+}
+
+interface NPCState {
+  id: string;
+  definitionId: string;
+
+  memories: NPCMemory[];
+
+  currentRole: string;
+  availability: AvailabilityRule[];
+
+  flags: Record<string, boolean>;
+}
+
+/** The affective dimensions, structurally — held by actors (§6.11), not by NPCs. An NPC's own
+ *  `initialRelationship` (above) is the seed an actor's own RelationshipState starts from, not
+ *  a relationship the NPC itself carries. */
+interface NPCRelationship {
+  affinity: number;
+  trust: number;
+  respect: number;
+  resentment: number;    // hidden — never appears in a projection
+}
+
+interface NPCMemory {
+  id: string;
+  aboutActorId: string;      // whom this memory concerns — §6.3's actorId
+  eventId?: string;
+  week: number;
+
+  category: string;
+  magnitude: number;
+
+  descriptionKey: LocKey;
+  expiresAtWeek?: number;
+}
+
+interface AvailabilityRule {
+  locationId?: string;        // §7.9
+  fromWeek?: number;
+  toWeek?: number;
+  condition?: Condition;      // §8
+}
+```
+
+`WorldState.npcs: NPCState[]` (§2.2) forward-referenced this shape; it lands here. `NPCState`
+holds only what genuinely belongs to the NPC — role, availability, memories — never the
+affective dimensions, which `RelationshipState` (§6.11) already established live per-actor: the
+same NPC can respect the player and resent a rival simultaneously.
+
+### 7.8 Goals, Scenarios, and Difficulty
+
+```typescript
+interface GoalDefinition {
+  id: string;
+  labelKey: LocKey;
+  descriptionKey: LocKey;
+  category: string;
+
+  conditions: Condition;              // §8
+  requiredDurationWeeks?: number;
+  failureConditions?: Condition;      // §8
+
+  rewards?: Reward[];                 // §7.1
+}
+
+interface ScenarioDefinition {
+  id: string;
+  nameKey: LocKey;
+  descriptionKey: LocKey;
+
+  startingBackgroundIds: string[];    // §7.9
+  startingCashCents: Cents;
+  startingHousingId: string;          // §7.4
+  startingLocationId: string;         // §7.9
+  startingInventory: Array<{ definitionId: string; quantity: number }>;
+
+  goalIds: string[];
+  weekLimit?: number;
+  mode: GameMode;
+
+  goalFailurePrecedence: GoalFailurePrecedence;   // default "goals_win"
+}
+
+type GameMode = "classic" | "open_life" | "challenge";
+type GoalFailurePrecedence = "goals_win" | "failure_wins";
+
+interface DifficultyDefinition {
+  id: string;
+  labelKey: LocKey;
+
+  economyModifiers: Modifier[];        // §7.1
+  needDriftModifiers: Modifier[];      // §7.1
+  checkDifficultyOffset: number;
+
+  rivalInformationAccess: "standard" | "enhanced";
+  rivalStartingAdvantages: Modifier[];  // §7.1
+}
+```
+
+`GoalFailurePrecedence` and its default are already load-bearing in §12 (Terminal Identity) and
+flagged there as provisional against `week_limit_reached`'s own precedence — restating the type
+here does not resolve that; §12's own callout stands. Every rival advantage is declared on
+`DifficultyDefinition` and nowhere else, which is what makes an "any advantage must be explicit"
+audit possible at all: a rival that is simply better at something the definition doesn't name
+would be undetectable drift, the same class of risk §6.2 raised for actor-state parity.
+
+### 7.9 Supporting Definitions
+
+```typescript
+interface OpportunityDefinition {
+  id: string;
+  kind: OpportunityKind;           // §2.3
+  targetId: string;                // jobId, courseId, housingId, npcId — by kind
+
+  nameKey: LocKey;
+  descriptionKey: LocKey;
+
+  durationWeeks: number;           // how long the offer stands once made
+  weight: number;                  // pool selection — hidden, never projected
+  conditions?: Condition;          // §8 — eligibility to be offered at all
+  requirements?: Requirement[];    // §8.1 — what accepting demands
+
+  terms?: Record<string, unknown>;
+  acceptRewards?: Reward[];        // §7.1
+  contested: boolean;              // may be revoked when the position is filled (§2.3)
+
+  tags: string[];
+}
+
+interface AchievementDefinition {
+  id: string;
+  nameKey: LocKey;                // player-facing flavour, not a mechanical description
+  descriptionKey: LocKey;
+
+  condition: Condition;           // §8 — typically over counters, §6.2
+  hidden: boolean;                // true = not listed until unlocked
+
+  scope: "profile";                // v1: always profile-scoped
+}
+
+interface HeadlineDefinition {
+  id: string;
+  textKey: LocKey;
+
+  minStrangeness?: number;         // §2.2
+  maxStrangeness?: number;
+  conditions?: Condition;          // §8
+
+  tags: string[];
+}
+
+interface EmployerDefinition {
+  id: string;
+  nameKey: LocKey;
+  sector: string;
+  reputation: number;              // hidden
+  jobIds: string[];                // §7.2
+  npcIds: string[];                // §7.7
+}
+
+interface LocationDefinition {
+  id: string;
+  nameKey: LocKey;
+  descriptionKey: LocKey;
+
+  connections: string[];           // adjacent location ids — the map graph
+  travelTimeUnits: number;         // cost to enter this location from an adjacent one
+  actionTypes: ActionType[];       // §4.2 — what can be done here
+
+  unlockedBy?: Condition;          // §8
+}
+
+interface BackgroundDefinition {
+  id: string;
+  nameKey: LocKey;
+  descriptionKey: LocKey;
+  startingAttributes: AttributeState;    // §6.6
+  startingSkills: Record<string, number>;
+  startingCredentials: CredentialLevel[]; // §6.7
+  startingTraits: string[];
+  startingCashModifierCents: Cents;
+}
+
+interface TraitDefinition {
+  id: string;
+  nameKey: LocKey;
+  descriptionKey: LocKey;
+  effects: Modifier[];              // §7.1
+  conflictsWith: string[];
+}
+
+interface SkillDefinition {
+  id: string;
+  nameKey: LocKey;
+  category: string;
+  decayPerWeek: number;
+}
+```
+
+**`travel`'s map is an explicit adjacency graph, not pathfinding.** `travel` moves to an
+*adjacent* location only — its `targetId` is a location id, its derived time cost is that
+location's `travelTimeUnits`, and it is valid only when the target appears in the current
+location's `connections`. A multi-hop journey costs multiple actions and multiple time units by
+design: geography is a real budget line, not a solved-away convenience. An action whose type is
+not in the current location's `actionTypes` fails with `wrong_location` (§10).
+
+### 7.10 Agents — Engine-Owned Strategy, Definition, and Runtime State
+
+**A third category, not the same pairing as §7.7.** `AgentStrategy.selectActions` is a
+function — it cannot be represented in campaign JSON/YAML at all, so despite upstream listing
+it alongside the other content-definition types (§14.9), it is not campaign data and was never
+going to become some. It is **engine-owned code**, the same category `Kind` itself is
+(`06-extensibility.md` §7, "Kinds Stay Engine-Owned"): a fixed, in-repository registry of named
+behaviors (`"aggressive"`, `"cautious"`, …), keyed by `id`.
+
+**How a campaign actually selects a strategy is a real, open gap, not settled by this port.**
+`AgentState.strategyId` is *runtime* state, built at `initialState` — not something a campaign
+author writes. Neither `ScenarioDefinition` (§7.8) nor anything else in this contract declares
+how many rivals a scenario has or which strategy each one initializes with; checked directly
+against upstream, and it doesn't specify this either — no `ScenarioDefinition` field, no
+separate agent-configuration type, anywhere in the ~3300-line source. An earlier revision of
+this section claimed `AgentState.strategyId` was "the actual campaign-facing surface," which
+overstated it: a runtime field a campaign never writes cannot be the surface a campaign uses to
+configure anything. **Revisit when** a real scenario needs a rival — the natural home is a new
+`ScenarioDefinition` field (e.g. `rivals: Array<{ strategyId: string }>`), decided against a
+concrete need rather than guessed at here.
+
+```typescript
+/** Engine-owned, never campaign content — the rival-behavior analogue of `KindRegistry`. */
+interface AgentStrategy {
+  id: string;
+  selectActions(view: PublicWorldState, agent: AgentState): GameAction[];  // §4.2
+}
+
+interface AgentState {
+  id: string;
+  strategyId: string;
+  displayNameKey: LocKey;
+
+  actor: ActorState;              // §6.2 — identical shape to the player
+  goals: GoalState[];             // §2.4
+
+  planningDepth: number;
+  strategy: Record<string, unknown>;   // hidden — never projected
+}
+```
+
+`WorldState.agents: AgentState[]` (§2.2) forward-referenced this shape; it lands here, closing
+the last forward reference `plans/36`'s "actor state comes over whole" finding (§6.2) named. The
+rival runs `ActorState` unmodified — the same code path the player's own actions resolve
+through — so `strategy`/`planningDepth` are the *only* fields this type adds beyond an ordinary
+actor, and both are hidden from every projection. `AgentStrategy.selectActions`'s own
+`PublicWorldState` parameter is a projection type (§9, once fully specified) — an agent decides
+from the same visible information a client would see, never from the hidden state a
+`DerivedValueResolver` (§6.1) or a resolver itself can read.
+
+---
+
+## 8. Conditions and Requirements
+
+Reused verbatim from the core's frozen operator set (04 §18), which originated here
+(upstream §13.1). This kind adds no operators. `between`, arithmetic, and helper functions
+are out unless a concrete campaign need justifies each individually — the bar 04 §18 sets
+deliberately high, and this kind is the one most likely to test it.
+
+`Modifier` and `Reward` (upstream §13.3–§13.4) are simulation mechanics, not condition
+operators, and are ported in **§7.1**, not here.
+
+### 8.1 Requirements
+
+```typescript
+interface Requirement {
+  type: RequirementType;
+  condition: Condition;         // 04 §18
+  failureCode: ReasonCode;
+  messageKey: LocKey;
+}
+
+type RequirementType =
+  | "skill" | "attribute" | "credential" | "item" | "money"
+  | "relationship" | "location" | "event_completed" | "need"
+  | "job_tier" | "age" | "flag";
+```
+
+Every content type §7 references `Requirement[]` from (`JobDefinition`, `CourseDefinition`,
+`HousingDefinition`, `ItemDefinition`, `EventChoice`, `PromotionPath`, `OpportunityDefinition`)
+was forward-referencing this exact shape. `RequirementType` names *what kind* of check a
+requirement is — the condition tree itself (`04 §18`) already expresses the comparison; this
+enum is what lets a validator or a client render "you need Attribute: Discipline 60" as a
+labeled category rather than a bare expression.
+
+---
+
+## 9. Projection
+
+`SimulationView` is the `kindView` inside the core's `PlayerView` (04 §9) and carries **only
+what the generic surface does not** — the rule `StoryGraphView` follows (03 §9).
+
+Hidden world state, unrevealed opportunities and NPC internals never cross the boundary. As
+09 §6 puts it, the projection is what makes "the client cannot leak what the player should
+not see" structural rather than a matter of client discipline.
+
+---
+
+## 10. Reason Codes
+
+Codes this kind adds to the base set (`Kind.reasonCodes`, 04 §3, §12). Each needs a localized
+message or registry validation fails:
+
+| Code | When |
+|---|---|
+| `insufficient_time` | The plan exceeds available time units |
+| `insufficient_funds` | The plan's cost exceeds available money |
+| `action_not_planned` | `plan.remove` names an index the plan does not have |
+| `plan_empty` | `end_week` with nothing planned, where the campaign forbids it |
+| `week_limit_reached` | The scenario's week cap is exhausted |
+| `wrong_location` | An action's type is not in the current location's `actionTypes` (§7.9), or a `travel` target is not in `connections` |
+
+Reused from the base set: `unknown_action`, `requirement_unmet`, `session_ended`.
+
+Each code's `messageKey` lives under `simulation.reason.<code>` (04 §12), the
+`<kindId>.reason.*` convention — not to be confused with 05 §9's `kind.<kindId>.*` *event*
+namespace, §11 below.
+
+---
+
+## 11. Events
+
+Namespaced `kind.simulation.*` (05 §9), declared as `Kind.eventNames`:
+
+| Name (after `kind.simulation.`) | Severity | Emitted at |
+|---|---|---|
+| `plan.changed` | `debug` | Any `plan.*` action |
+| `week.started` | `info` | After start-of-week systems (§3) |
+| `system.ran` | `trace` | Once per system, in order |
+| `action.resolved` | `debug` | Per planned action during `end_week` |
+| `effect.expired` | `debug` | An `activeEffect` passed `expiresAtWeek` |
+| `goal.achieved` | `info` | A goal's completion condition met |
+| `goal.failed` | `info` | A goal's failure condition met |
+| `week.ended` | `info` | End of resolution |
+
+`system.ran` earns its place: the two-phase time ordering in §3 is the rule most likely to
+regress silently, and a stream that names each system in order localizes such a regression to
+the phase that moved.
+
+---
+
+## 12. Terminal Identity
+
+`Kind.outcome` (04 §3) returns this kind's terminal identity for the replay oracle
+(07 §3.3):
+
+```typescript
+outcome(state: SimulationKindState): {
+  resolution: "goals_met" | "failed" | "week_limit_reached" | null;  // null while active
+  goalsMet: readonly string[];      // completed GoalDefinition ids, sorted
+  goalsFailed: readonly string[];   // failed GoalDefinition ids, sorted
+}
+```
+
+This kind has **no ending concept** — nothing upstream resembles `story-graph`'s `Ending`
+type — so unlike that kind's `{ endingId: string | null }`, terminal identity here is
+`resolution` plus which goals landed on which side. `resolution` carries three non-null
+values, not two: `week_limit_reached` is a genuine third terminal path this kind already
+names as a reason code (§10), distinct from tripping a failure condition. `goalsFailed`
+exists because `goalFailurePrecedence` (upstream §12.3) can default a game to `goals_met`
+*while* other goals failed — without it, that playthrough and a clean sweep would produce
+identical outcomes. `failureId` is deliberately absent: unlike `world-graph`, whose failure
+conditions are independent of its objectives, this kind's failures hang off goals, so the
+failing goal is already in `goalsFailed` — naming *which one* ended the game when several
+fail in the same week would expose iteration order, not a fact about the game.
+
+Published ids only — never money, needs, or week counts, all of which a balance pass changes
+legitimately and none of which a regression oracle should treat as a defect (07 §3.4).
+
+> **This shape fixes the three terminal *values*, not yet their precedence.** Upstream
+> §12.2's `END_WEEK_SYSTEM_ORDER` runs `goals` before `failure` and names no week-limit
+> check at all; §12.3's `goalFailurePrecedence` resolves only the goals-vs-failure tie.
+> Whether a week that simultaneously exhausts `weekLimit` *and* resolves every goal reports
+> `week_limit_reached` or `goals_met` is genuinely open — not merely undocumented here, but
+> unresolved in the upstream source this section would port from. §15 already lists
+> §12.2–§12.3 as not-yet-ported end-of-week material; this is the concrete reason that
+> matters for `outcome()` specifically; treat `week_limit_reached`'s precedence against the
+> other two as provisional until that lands, the same as `history`'s status in §2.
+
+---
+
+## 13. Determinism
+
+Every random draw comes from `ctx.rng`, the handle derived for this resolution from
+`(seed, streamId)` (04 §3.1, §8). Nothing is written back; the envelope stores the seed and
+nothing else.
+
+**Substreams matter more here than in `story-graph`.** A week's resolution draws in several
+systems, and substreams mean adding a draw in one never renumbers another (04 §8, from
+upstream §3.2). Without that, inserting one event roll would silently change every later
+outcome in the game.
+
+---
+
+## 14. Validation
+
+`Kind.validateCampaign(campaign, strings)` (04 §11) is where this is implemented — pure,
+total, run once at registry construction, before the registry is frozen. Tiered the way
+03 §11 and 12 §15 already are.
+
+**Tier 1 — load-time, hard fail:**
+
+- No two definitions of the same content type share an `id` (`JobDefinition`, `CourseDefinition`,
+  `HousingDefinition`, `ItemDefinition`, `EventDefinition`, `NPCDefinition`, `GoalDefinition`,
+  `ScenarioDefinition`, `DifficultyDefinition`, `OpportunityDefinition`,
+  `AchievementDefinition`, `HeadlineDefinition`, `EmployerDefinition`, `LocationDefinition`,
+  `BackgroundDefinition`, `TraitDefinition`, `SkillDefinition` — §7.2–§7.10, each independently).
+- Every reference to another definition's `id` resolves: `PromotionPath.toJobId` →
+  `JobDefinition`; `ScenarioDefinition.startingBackgroundIds`/`startingHousingId`/
+  `startingLocationId`/`goalIds`/`startingInventory[].definitionId` → their respective
+  definitions; `EmployerDefinition.jobIds`/`npcIds` → `JobDefinition`/`NPCDefinition`;
+  `LocationDefinition.connections` → `LocationDefinition` (the adjacency graph, §7.9);
+  `OpportunityDefinition.targetId` → whichever definition type its own `kind` names
+  (`job_offer` → `JobDefinition`, `course_place` → `CourseDefinition`, and so on).
+- Every field typed `LocKey`, anywhere in a content definition — not an enumerated list of field
+  *names*, which this section's own types alone already use eight of (`titleKey`,
+  `descriptionKey`, `nameKey`, `labelKey`, `textKey`, `messageKey`, `displayNameKey`, `label`) —
+  resolves in the registry's string table (04 §10.1).
+- A `Modifier.target`/addressing path naming an array collection uses the collection's natural
+  key, never a numeric index (§7.1) — a numeric path segment is rejected outright.
+- A `Modifier` targeting a `DerivedPath` (§6.1) fails with `read_only_field` — the same rule
+  §6.1 itself states, checked here because this is where a concrete `target` string first
+  exists to check.
+
+**Tier 2 — load-time, warning:**
+
+- Unreachable content: a `GoalDefinition` no `ScenarioDefinition.goalIds` ever names; a
+  `JobDefinition`/`HousingDefinition`/`ItemDefinition` no scenario's starting state, no
+  `EmployerDefinition`, and no `Reward`/opportunity ever references.
+- An `AchievementDefinition.condition` (§7.9) referencing a counter or flag key nothing in the
+  campaign's content ever writes — satisfiable only by chance, not by design.
+
+**Concrete Tier 1/2 rules for `Requirement` (§8.1) and `GameAction`/`ActionType` (§4.2)
+themselves are not enumerated here.** Both are now specified, closing the reason this list
+used to defer them — what's left is writing the actual checks (a `Requirement.type` matching
+what its `condition` targets; a `plan.add`'s declared `ActionType` resolving in the
+`ResolverTable`, §5.1) against real `Kind.validateCampaign` code, which belongs to the build
+phase this contract precedes, not to another doc-only pass.
+
+---
+
+## 15. What Was Ported, and What Was Found Along the Way
+
+**Nothing remains upstream as a gap in this contract's shape.** This section used to be "What
+Remains Upstream" — a table of sections still to bring over. `plans/36-simulation-kind-
+programme.md`'s four contract units (proposed there as W27–W30, assigned real numbers as each
+was cut: **W32, W33, W34, and this one**) closed it a piece at a time:
+
+| Unit | Upstream | Ported as |
+|---|---|---|
+| W32 | §5.1, §5.3–§5.6, §9.1 | §2.1–§2.5 (`CalendarState`, `WorldState`, effects/opportunities/scheduled events, `GoalState`, `EconomyState`), §4.1 (`WeeklyActionPlan`'s own shape) |
+| W33 | §7, §8.1–§8.9 | §6.1–§6.11 (base/derived values, `ActorState` and its nine areas) |
+| W34 | §13.3–§13.4, §14.1–§14.9 | §7.1–§7.10 (`Modifier`/`Reward`, every content definition type) |
+| This unit | §9, §10, §12.2–§12.3, §13.2 | §4.2 (`ActionType`, `GameAction`), §5.1–§5.3 (resolver dispatch, the pipeline, per-action outcome), §3 (end-of-week order, goal/failure precedence), §8.1 (`Requirement`) |
+
+Every field `SimulationKindState` (§2) names has a full shape. Every content definition type a
+real campaign will need to declare is specified (§7). The mechanics that dispatch actions
+against both are specified (§5). What remains genuinely upstream — §1–§4, §6, §11, §13.1,
+§16–§18, §20 — is core material `04-core` already owns, cited here rather than re-derived,
+exactly as it was before this programme started.
+
+**Findings this pass surfaced, not merely transcription:**
+
+- `ActorState` comes over whole, shared verbatim by the player and every rival (§6.2) — porting
+  "player state" alone and adding rival support later was considered and rejected
+  (`plans/36-simulation-kind-programme.md` Finding 1).
+- `plans/36`'s own Finding 2 needed correcting, not just applying: it claimed upstream specifies
+  no rounding rule for `Modifier.operation: "multiply"` against this kind's integer-cents money,
+  and upstream in fact does — checked directly against the primary source while drafting §7.1,
+  and the correction is recorded in `plans/32` and `plans/36` themselves, not only here.
+- `AgentStrategy` (§7.10) is engine-owned code, not campaign data, despite upstream listing it
+  alongside the content-definition types — a function member cannot be campaign JSON. How a
+  campaign actually selects a rival's strategy is a genuine open gap, upstream included, not
+  settled here.
+- This kind's own runtime-validation result needed a name distinct from 04-core's
+  `ValidationResult` (§5.3) — the two are different concepts upstream never had to
+  disambiguate, having no load-time campaign-validation concept of its own.
+- `ResolutionDebugInfo` (upstream §3.3) is superseded, not ported: this platform's
+  `trace`-severity observability channel (05-observability.md) already serves the purpose it
+  existed for, and `metadata.transparency` — the field it would gate on — lives outside
+  `SimulationKindState` entirely (§2).
+- `ChainScope`'s `"profile"` value (§2.2) has nowhere to persist yet, and `Reward`'s own payload
+  (§7.1) stays untyped exactly as upstream leaves it — both recorded as open rather than
+  resolved, the same as `history`'s own status throughout this document.
+
+**Nothing above changes what the seam looked like before this programme** — every finding is
+detail hanging off it, or a genuine gap named rather than guessed at. What has changed is that
+the upstream document is no longer where a reader has to go to find the shape of this kind's
+own state and content; it is here, and upstream stays cited as provenance, exactly as
+`04-core`'s own *Reused, not re-derived* note describes.
+<!-- human-doc:end -->
+
+<!-- human-doc:start path="engine/12-world-graph-kind.md" -->
+---
+sidebar_label: World-Graph Kind
+---
+
+# World-Graph Kind — Contract
+
+**Document status:** Revision 2 — **authoritative runtime-state contract.** Field-level
+content detail lives with the game; §17 says exactly what and why.
+
+**Kind:** `world-graph`
+
+**Reading order:** after [`04-core.md`](04-core.md) §3 (the seam) and
+[`10-simulation-kind.md`](10-simulation-kind.md), which this most closely resembles.
+
+> **Scope of this document**
+>
+> The third engine-owned kind, expressed against the Kind seam. It reconciles a spatial,
+> many-agent, tick-driven world with the `GameState` envelope, the
+> one-action model, projection, reason codes, events and terminal identity.
+>
+> It is **not** a game design. The flagship game built on this kind — **Sun Trap** — lives
+> in [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap), the way
+> Life in the Fast Lane lives in
+> [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife) — §17.
+
+---
+
+## 1. What This Kind Is
+
+**A navigable world with autonomous inhabitants.** The player shapes the world — placing,
+pricing, staffing — and never commands the inhabitants; they route themselves across it and
+act on their own preferences. The world advances in fixed ticks through an ordered system
+pipeline.
+
+Where `story-graph`'s unit of play is *one choice* and `simulation`'s is *one week*, this
+kind's is **a batch of ticks the caller chooses**.
+
+> **`world-graph` and `story-graph` are not related, despite the names.** Both name the
+> structure their `advance` walks, which is the naming convention — but a story graph is
+> **authored**: its edges are choices a writer wrote, and traversal is the player picking
+> one. A world graph is **navigated**: its edges are adjacency, and traversal is
+> pathfinding by entities the player does not control. Sharing a suffix means they answer
+> the same question about themselves, not that they share a mechanism. They share no code.
+
+> **Why not `management-simulation`, the name the draft proposed.** It fails §1a twice.
+> *Management* is a theme, and §1a says themes are campaigns — a colony sim, an ecosystem
+> model or a transport network would run on this identical kind and none of them is
+> management. And the `-simulation` suffix implies a specialization of the `simulation`
+> kind, which it is not: they are siblings with entirely different `advance` bodies.
+
+---
+
+## 2. Why It Is a Kind
+
+Applied against the test in [`02-architecture.md`](02-architecture.md) §1a, and it reaches
+step 3 — but **not** for the reason the original draft gave.
+
+The draft argued from state: spatial maps, hundreds of agents, queues, pathfinding,
+construction. Every one of those is `kindState`, which is `unknown` to the core (04 §2), and
+§1a's table disqualifies state richness explicitly. Had that argument been accepted, it
+would equally have licensed a separate kind per resort theme.
+
+What actually qualifies it is **code the campaign tier cannot carry**: A\* pathfinding and
+guest utility scoring. Putting those behind a data-driven switch is the universal rules DSL
+architecture N2 rejected. So one kind — and every hotel, theme park, nightclub district and
+festival ground after it is a **campaign** of that kind.
+
+> **Its closest relative is `simulation`, not `story-graph`.** Both are *mutate pending
+> configuration, then resolve a block of simulated time through an ordered pipeline*. They
+> differ by the size of the block, which §1a's table says is a parameter, not a model. That
+> shared archetype is why every seam change this kind forced (§5) turned out to be one
+> `simulation` needed too.
+
+---
+
+## 3. `KindState` — What Belongs Here
+
+**The draft's `ResortGameState` is not this kind's state.** It was written as a standalone
+engine's envelope and carries six fields the core owns, plus one the core bans. Reproducing
+it would be the envelope-duplication defect `CLAUDE.md` names as this project's recurring
+one — this is its **fifth** occurrence, after 03 §8.1, 04 §10.1, 03 §9 and 10 §2.
+`CLAUDE.md` carries the full ledger.
+
+| Draft field | Where it belongs now |
+|---|---|
+| `version` | `GameState.formatVersion` — the envelope (04 §2) |
+| `gameId` | The envelope, from the `IdSource` port (06 §5.1) |
+| `seed` | The envelope — the *only* randomness state |
+| `status` | The envelope — and its union is wrong; see §8 |
+| `commandLog` | `GameState.actionLog` — the replay spine |
+| `metadata` | The session-store record, outside replayable state (04 §7) |
+| **`rng: RngState`** | **Nowhere.** 04 §2 bans persisted generator state: streams derive from `(seed, streamId)`, so a stored `RngState` is written every action, read by nothing, and free to drift from the derivable truth |
+
+What remains is the kind's own:
+
+```typescript
+interface WorldGraphKindState {
+  tick: number;                                   // §4 — the only authoritative clock field
+
+  map: WorldMap;                                  // terrain, zones, spawns, exits, revision
+  finances: Finances;
+
+  buildings: readonly Building[];
+  constructionSites: readonly ConstructionSite[];
+  guests: readonly Guest[];
+  staff: readonly Staff[];
+
+  incidents: readonly Incident[];
+  objectives: readonly ObjectiveProgress[];
+  alerts: readonly Alert[];
+
+  nextEntityOrdinal: number;                      // §9 — the deterministic id source
+}
+```
+
+> **The draft's `ResortMap` is named `WorldMap` here.** §1 rejects the name
+> `management-simulation` on the grounds that *a colony sim, an ecosystem model or a
+> transport network would run on this identical kind* — and a type called `ResortMap` in
+> engine-owned code contradicts that argument in the most visible place it could, the state
+> interface. Both built kinds use structural names (`Node`, `Choice`; `ActorState`,
+> `PlayerState`), never themed ones. `Guest`, `Staff` and `Building` **stay**: they name
+> structural roles this kind models — an autonomous visitor that arrives with needs and
+> departs, an employee the player pays and assigns, a placed structure with a footprint —
+> and they read correctly for a colony or a transport network. `Resort` names a *theme*;
+> the other three name *roles*.
+
+> **The clock collapses to `tick`.** The draft's `ResortClock` carries
+> `ticksPerMinute`, `minute`, `hour`, `day` and `paused`, then states that "only `tick` is
+> authoritative. Other values may be derived." Derived values do not belong in serialized
+> state — they can disagree with what they summarise, and the disagreement is unresolvable
+> (the rule 10 §2 applied to `totalTimeCost`). `ticksPerMinute` is campaign data; the rest
+> are computed on read. **`paused` is a client concern** — the engine advances only when
+> told to (§4), so there is nothing for the engine to pause.
+
+> **`history` is not adopted**, for the reason 10 §2 gives: it overlaps `StateChange[]`
+> (04 §12) and the event stream (05). Three records of the same events is what the
+> duplication rule exists to prevent. Carried in
+> [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) alongside the same question for `simulation`.
+
+> **`alerts` is retained and is genuinely state**, because an alert persists until
+> dismissed and dismissal is a player action. It is not a duplicate of `OutcomeMessage`,
+> which is per-resolution and not persisted.
+
+### 3.1 `initialState`
+
+`Kind.initialState(campaign, ctx)` (04 §3) builds the starting world from campaign data: the
+authored map, starting cash, the scenario's unlocked definitions, any pre-placed buildings,
+and `tick: 0`.
+
+Two rules the seam already implies, stated because a spatial kind is the first place they
+bite:
+
+- **Pre-placed buildings take ids from `nextEntityOrdinal` like any other** (§9), assigned in
+  authored order. A scenario that pre-places three buildings starts with
+  `nextEntityOrdinal: 3` and ids that are a pure function of the campaign — never of load
+  order or a host id source.
+- **Any randomness in setup draws from `ctx.derive({ kind: "tick", tick: 0, system })`**, not
+  from `ctx.rng`. `initialState` is not an action and has no `seq`; keying setup by tick 0
+  keeps §5's rule — *this kind never touches the action stream* — true without exception.
+
+`InitialStateResult.status` may be `"ended"` at creation, exactly as `story-graph` may settle
+onto an ending before the player acts (04 §3). For this kind that means a scenario whose
+objectives are already satisfied or whose failure condition already holds at tick 0 — a valid
+campaign that Tier 2 should warn about (§15), not a crash.
+
+### 3.2 Runtime-State Type Contract (engine-owned)
+
+The types below are now the complete closure required by §3. **All identifiers are opaque
+strings unless a dedicated namespace is stated — opaque in *meaning*, with exactly one
+constraint on their *shape*: no identifier may contain a `.`.** §13's audit paths are
+dot-separated, so a dot inside an id makes a path parse two ways; the rule is stated at
+Tier 1 in §15 and argued in §13. Nothing else about an id is constrained, and no code may
+infer anything from one.
+
+Two reading conventions:
+
+- **`// MVP-inert`** marks a field the flagship game's own MVP (Sun Trap's `mvp.md` §4, in
+  its repository — not this repository's [`MVP.md`](MVP.md)) puts out of
+  scope. It is specified anyway — the `simulation` precedent is unambiguous, since W32–W35
+  ported the whole upstream contract far beyond what "Stable Life" ever used — and marked
+  **at the field** so the build units know what may stay inert without it reading as an
+  omission. A separate table would drift from the fields it describes.
+- **Every `number` states its scale**, because a bare one is a scale a reader has to guess.
+  Money is integer cents, time is ticks, and anything bounded names its bounds.
+
+```typescript
+interface WorldGraphKindState {
+  tick: number;                                      // authoritative tick counter
+  map: WorldMap;                                     // terrain, zones, spawns, exits, revision
+  finances: Finances;
+
+  buildings: readonly Building[];                    // includes nested Queue + StaffTask
+  constructionSites: readonly ConstructionSite[];
+  guests: readonly Guest[];                          // includes full guest path, need, and condition state
+  staff: readonly Staff[];                           // includes nested StaffTask
+
+  incidents: readonly Incident[];
+  objectives: readonly ObjectiveProgress[];
+  alerts: readonly Alert[];
+
+  nextEntityOrdinal: number;                         // deterministic id source, never `IdSource`
+}
+
+type Position = {
+  x: number;         // integer grid coordinate, same origin as map terrain
+  y: number;         // integer grid coordinate, same origin as map terrain
+};
+
+type TerrainKind = "empty" | "path" | "wall" | "water" | "restricted";
+type MapEdgeKind = "walkable" | "blocked";
+type StaffStatus = "idle" | "to_work" | "working" | "off_duty";
+type GuestLifecycle = "arriving" | "seeking" | "queued" | "served" | "departed" | "removed";
+type BuildingStatus = "construction" | "open" | "closed" | "broken";
+type LoanStatus = "active" | "defaulted" | "repaid";
+type IncidentType = "fire" | "breakdown" | "theft" | "spill" | "litter" | "complaint"
+  | "power" | "weather";
+type IncidentSeverity = "info" | "minor" | "major" | "critical";
+type AlertSeverity = "info" | "warning" | "critical";
+type ObjectiveProgressState = "active" | "met" | "failed";
+type StaffTaskType = "service" | "clean" | "restock" | "build";
+type StaffTaskStatus = "queued" | "assigned" | "in_progress" | "completed" | "cancelled";
+type Rotation = 0 | 90 | 180 | 270;
+type GuestNeedValue = number;      // integer 0..100, where 0 is fully depleted
+type PercentBasis = number;        // integer basis points, where 10000 = 100%
+
+interface WorldMap {
+  width: number;                             // positive integer, map width in tiles
+  height: number;                            // positive integer, map height in tiles
+  revision: number;                          // integer, changes whenever authored map topology changes
+  terrain: readonly TerrainCell[];           // deterministic terrain graph
+  paths: readonly PathCell[];                // explicit path graph edges, derived caches must be recomputed
+  zones: readonly Zone[];                    // zones of operation and policy scope
+  spawnPoints: readonly Position[];           // at least one guest-spawn point required
+  exits: readonly Position[];                // at least one exit point required
+}
+
+interface TerrainCell {
+  x: number;                                // integer [0, width)
+  y: number;                                // integer [0, height)
+  terrain: TerrainKind;                      // walkability and utility context source
+  edge: MapEdgeKind;                        // precomputed if authored edge map exists
+  moveCost: number;                         // non-negative integer travel-cost scale
+}
+
+interface PathCell {
+  from: Position;
+  to: Position;
+  edgeCost: number;                         // non-negative integer; distance-only, no float metrics in state
+  allowed: boolean;                         // if false, this edge is never traversed
+}
+
+interface Zone {
+  id: string;
+  nameKey: string;                          // localization key for projection/debug
+  cells: readonly Position[];               // canonical zone footprint, ordered by id rules
+  serviceRadius: number;                    // integer tile radius from zone centroid
+  maxOccupancy: number | null;              // null = unlimited
+}
+
+interface Building {
+  id: string;                               // `<building>:<ordinal>` from `nextEntityOrdinal`
+  definitionId: string;                     // campaign content contract
+  x: number;                                // integer tile x of anchored origin
+  y: number;                                // integer tile y of anchored origin
+  width: number;                            // integer tile width from definition
+  height: number;                           // integer tile height from definition
+  rotation: Rotation;                       // all four declared; a scenario narrows it at Tier 1
+  status: BuildingStatus;
+  isOpen: boolean;
+  buildStartTick: number;                   // inclusive tick when building entered state
+  wear: number;                             // integer 0..100, higher is healthier
+  cleanliness: number;                      // integer 0..100, higher is cleaner
+  queue: Queue;
+  products: readonly string[];              // product ids offered by this building
+  pricesCents: Readonly<Record<string, number>>;  // product id → integer cents; keys are the ids in `products`
+  serviceTickSeq: number;                   // deterministic service tie-break source
+}
+
+interface ConstructionSite {
+  id: string;                               // `<construction-site>:<ordinal>` if surfaced
+  definitionId: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: Rotation;                       // must match building rotation shape
+  startedAtTick: number;
+  buildTicksRemaining: number;              // non-negative integer countdown to open
+  totalCostCents: number;                  // must be non-negative integer
+  completedBuildingId: string | null;       // pre-placed id when construction completes
+}
+
+interface Queue {
+  id: string;                               // `<queue>:<ordinal>` from `nextEntityOrdinal`
+  productId: string;
+  guestIds: readonly string[];              // canonical order by guest.id
+  maxLength: number | null;                 // null = unlimited
+  patienceTicks: number;                    // mutable queue patience counter
+  startedAtTick: number;
+}
+
+interface Guest {
+  id: string;                               // `<guest>:<ordinal>`
+  archetypeId: string;                      // content contract
+  lifecycle: GuestLifecycle;
+  tickEntered: number;                      // authoritative timeline event
+  x: number;
+  y: number;
+  path: readonly Position[];                // stateful route, excluding cached distance fields
+  pathIndex: number;                        // index into `path`, non-negative integer
+  drawCount: number;                        // agent-level deterministic draw counter (ticks + system only)
+  targetBuildingId: string | null;           // active target, if currently navigating
+  targetQueueId: string | null;             // queue destination, if queued
+  targetProductId: string | null;           // purchase target, if any
+  targetWaitTicks: number;                  // non-negative integer ticks this guest will tolerate waiting
+  needs: GuestNeeds;
+  conditions: GuestConditions;
+  opinions: GuestOpinions;
+  preferences: GuestPreferences;
+}
+
+interface GuestNeeds {
+  hunger: GuestNeedValue;
+  rest: GuestNeedValue;                     // MVP-inert
+  social: GuestNeedValue;                   // MVP-inert
+  comfort: GuestNeedValue;                  // MVP-inert
+  hygiene: GuestNeedValue;
+  safety: GuestNeedValue;                   // MVP-inert
+}
+
+interface GuestConditions {
+  mood: number;                             // integer -100..100, sign is the utility trend
+  patienceRemainingTicks: number;            // non-negative integer, decrements while queued/unserved
+  lastServedTick: number | null;            // null until first served
+  spentTicks: number;                       // non-negative integer, ticks alive in the world
+}
+
+// Every field is an integer -100..100: a slowly-changing impression, not a per-decision score.
+interface GuestOpinions {
+  price: number;
+  variety: number;                          // MVP-inert
+  cleanliness: number;                      // MVP-inert
+  safety: number;                           // MVP-inert
+  attractiveness: number;                   // MVP-inert
+  queues: number;                           // MVP-inert
+  service: number;                          // MVP-inert
+}
+
+interface GuestPreferences {
+  noiseTolerance: number;                   // integer -10..10 preference offset
+  spendingCategory: "budget" | "balanced" | "premium";
+  loyaltyMultiplier: PercentBasis;           // integer bps applied to spend utility; 10000 = neutral
+}
+
+interface Staff {
+  id: string;                               // `<staff>:<ordinal>`
+  roleId: string;                           // content contract
+  x: number;
+  y: number;
+  status: StaffStatus;
+  assignedBuildingId: string | null;
+  assignedZoneId: string | null;            // MVP-inert — the only stored zone membership
+  drawCount: number;                        // agent-level deterministic draw counter
+  task: StaffTask | null;                   // singular active task
+  tasksCompleted: number;                   // cumulative counter, monotonic
+}
+
+interface StaffTask {
+  id: string;                               // `<staff-task>:<ordinal>` (nested entity id)
+  type: StaffTaskType;
+  status: StaffTaskStatus;
+  guestId: string | null;
+  queueId: string | null;
+  buildingId: string | null;
+  targetProductId: string | null;
+  startedAtTick: number;
+  endedAtTick: number | null;
+  priority: number;                         // deterministic tie-break source for dispatch
+  effortTicks: number;                      // non-negative integer
+}
+
+interface Finances {
+  cashCents: number;                        // integer cents
+  revenueTodayCents: number;                // integer cents, resets at each day boundary (§3.3)
+  expensesTodayCents: number;               // integer cents, resets at each day boundary (§3.3)
+  revenueTotalCents: number;                // integer cents
+  expensesTotalCents: number;               // integer cents
+  loan: Loan | null;                        // MVP-inert
+}
+
+interface Loan {
+  id: string;
+  principalCents: number;                   // integer cents
+  balanceCents: number;                     // integer cents
+  interestBasisPoints: PercentBasis;         // integer bps
+  accruedInterestCents: number;             // integer cents
+  status: LoanStatus;
+  startedAtTick: number;
+  durationTicks: number;                    // integer, total duration
+  nextPaymentTick: number | null;           // null while settled
+}
+
+interface Incident {
+  id: string;
+  incidentType: IncidentType;
+  severity: IncidentSeverity;
+  buildingId: string | null;
+  guestId: string | null;
+  zoneId: string | null;
+  titleKey: string;
+  descriptionKey: string;
+  startedAtTick: number;
+  expiresAtTick: number | null;
+  resolvedAtTick: number | null;
+}
+
+interface ObjectiveProgress {
+  id: string;                               // objective id (published)
+  state: ObjectiveProgressState;
+  value: number;                            // integer accumulator
+  target: number;                           // integer target threshold
+  updatedAtTick: number;
+}
+
+interface Alert {
+  id: string;                               // `<alert>:<ordinal>`
+  type: string;                             // gameplay-specific alert discriminator
+  severity: AlertSeverity;
+  titleKey: string;
+  messageKey: string;
+  entityId: string | null;                  // owning entity when applicable
+  issuedAtTick: number;
+  dismissedAtTick: number | null;
+}
+```
+
+### 3.3 Structural Answers, and What Remains the Game's
+
+Five questions the draft left open, all settled here — because each turns out to be an
+application of a rule this contract already owns rather than a question about what the game
+contains — followed by two fields whose *absence* needs saying out loud.
+
+The test that separates them: **would a different answer change what the engine is allowed
+to store, or only what the game contains?** The first is this repository's; the second is
+the game's. Three of these read as content-design questions and were the first kind.
+
+**1 — `Building.entrances` is not runtime state.** An entrance position is *derived*:
+`(x, y)` plus `rotation` plus the definition's authored offsets. §3's clock callout bans
+derived values from serialized state — *they can disagree with what they summarise, and the
+disagreement is unresolvable* — and an absolute `entrances` array is the same defect as the
+persisted `rng` it sat four fields away from. Storing footprint-relative offsets on the
+instance is the third option and is also declined: it copies the definition into every
+placed building, so a definition edit and its instances can diverge.
+
+The **rotation transform is stated here anyway**, even though the offsets themselves are
+W43's, because rotating an integer offset is a determinism concern and leaving it to be
+re-derived per call site is how two call sites end up disagreeing. For a definition of
+width `w` and height `h`, an authored offset `(ox, oy)` relative to the unrotated
+footprint's origin maps to:
+
+```text
+  0°  → (ox,          oy)
+ 90°  → (h - 1 - oy,  ox)
+180°  → (w - 1 - ox,  h - 1 - oy)
+270°  → (oy,          w - 1 - ox)
+```
+
+and the absolute cell is the building's `(x, y)` plus that result. All integer, so the
+transform is exact. The **authored offset shape is W43's**, where a `BuildingDefinition`
+exists to hold it.
+
+**2 — Rotation declares all four values.** `0 | 90 | 180 | 270` costs nothing if a scenario
+only ever authors `0`, and Tier 1 (§15) is where a scenario narrows it. This is the general
+rule for a seam an answer cannot change: **specify permissively, and validate narrowly.**
+
+**3 — Stored opinions are not evaluated opinions.** The game design has guests *evaluate*
+ten factors, including staff behaviour, accessibility and noise; `GuestOpinions` types
+**seven**. That is not a contradiction. Evaluating is something the utility model does at
+decision time from world state, and it does not require the guest to carry a field — a
+guest can weigh noise without storing a `noise` opinion. So `GuestOpinions` is the seven
+slowly-changing impressions a guest *accumulates and carries between decisions*; the other
+three are **evaluation inputs** to the utility model, which is W44's subject, not §3's.
+
+**`GuestConditions` resolves the same way.** The condition vocabulary the game design lists
+— drunkenness, sunburn, headache, nausea, injury, anger, confusion — is *content*: each is
+either an evaluation input or a transient the tick pipeline computes and consumes within
+the batch. What `GuestConditions` stores is the four values a system in §4 actually writes
+between ticks.
+
+**The test that decides membership, and the one to apply to any future addition:** a field
+no system in §4 writes, no reason code in §11 reads and no projection in §10 carries is not
+state. Adding one to `serialize()` output is exactly how the `rng` and `totalTimeCost`
+defects happened. The three extra opinions are carried in
+[`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) with the condition that would admit them.
+
+**4 — Departed guests are pruned.** A guest reaching `"departed"` or `"removed"` is removed
+from `guests` at the end of the tick batch that finalized that lifecycle state. Without
+this, state grows without bound across a scenario — and every departed guest still carries
+`path`, `needs`, `conditions`, `opinions` and `preferences`, so the per-guest cost is not
+small. A serialized save *is* `serialize()` output, which makes unbounded growth a
+correctness concern and not merely a performance one. Nothing is lost that matters:
+objective accumulators live in `ObjectiveProgress`, and per-guest history is an **event**
+(§12), where it is discardable by design.
+
+**5 — The "today" boundary is a pure function of `tick`.** `revenueTodayCents` and
+`expensesTodayCents` are genuine accumulators — today's revenue cannot be recovered from
+cash — so unlike entrances they stay. They reset on **the first tick of a new day**, where
+the day is `floor(tick / ticksPerDay)` and `ticksPerDay` is campaign data, validated
+positive at Tier 1 (§15). No day field is stored, so §3's rule that the clock collapses to
+`tick` alone holds. **The *value* of `ticksPerDay` is balance and belongs to the game; the
+rule does not depend on it.**
+
+**6 — Two fields are deliberately absent, and their absence is the point.** A `Staff.zoneId`
+"current zone at read time" alias would be a derived value beside the stored
+`assignedZoneId` it derives from — banned by the same rule as entrances. A
+`GuestConditions.arrivalTick` would restate `Guest.tickEntered`. Both are the
+duplication defect one level down: *inside* `kindState` rather than against the envelope.
+
+**What genuinely remains the game's** is two things, and neither blocks this contract: what
+an authored entrance offset looks like (W43), and the value of `ticksPerDay` (balance, §17).
+
+`queue`, `staff task`, and nested entity collections are not top-level collections. Their ids are
+still derived from `nextEntityOrdinal` at creation.
+
+> **The three open-keyed records, reconciled against N6.** `Building.pricesCents` — and the
+> `Guest` preference and `Building` inventory records W43 will author — are
+> `Readonly<Record<string, number>>`, which [`02-architecture.md`](02-architecture.md) N6
+> bans as a loose bag. `10 §6.2` already answered this for `ActorState`'s
+> `skills`/`reputation`/`flags`/`counters`, and the argument transfers unchanged: **a record
+> whose keys are declared by validated content is not a loose bag, because Tier 1 closes the
+> key set at load.** `pricesCents`' keys are exactly the ids in `Building.products`, which
+> come from the definition; a key outside that set is a Tier-1 error, not a runtime
+> surprise. Written out rather than assumed, because an unexamined `Record<string, number>`
+> is indistinguishable on the page from the thing N6 bans.
+
+### 3.4 Canonical collection order
+
+All serialized arrays are iterated in id order for contract behavior, not insertion order:
+
+- `buildings`, `constructionSites`, `guests`, `staff`, `incidents`,
+  `objectives`, and `alerts` are all canonicalized by each element's `id`
+  before any system touch.
+- For each `Building`, `queue.guestIds` is canonical by `guest.id`, and service selection uses
+  the `queue.id` order then `guest.id` within each queue.
+- For each `Staff`, `task` is singularly active in this unit, but if history snapshots are stored in
+  a future extension, they must be canonical by `StaffTask.id`.
+
+This rule is what keeps unrelated entities' behavior stable under insertion or removal operations.
+
+**Id order is `(prefix, ordinal)` with the ordinal compared numerically, never
+lexicographically.** `building:10` sorts *after* `building:2`, which a plain string
+comparison gets backwards — and a comparator that gets it backwards is a determinism defect
+that appears only once a scenario runs past nine entities of one prefix, which is precisely
+the kind of bug this document exists to prevent.
+
+**The reducers maintain the order rather than re-sorting for it.** Every collection is
+append-only in allocation order and `nextEntityOrdinal` is monotonic, so insertion order
+*is* id order; removal preserves it. That makes canonical order an invariant to test rather
+than a sort to run on every system pass — a 500-guest sort per tick would be the dominant
+cost in a 360-tick batch.
+
+---
+
+## 4. The Turn Is a Tick Batch
+
+Actions split into two groups, exactly as `simulation`'s do:
+
+```text
+build · demolish · hire_staff · fire_staff · assign_staff ·
+set_price · open_building · close_building ·
+dismiss_alert                                      → mutate the world, no time passes
+
+advance_ticks { ticks }                            → run the tick pipeline `ticks` times
+```
+
+**Nine mutate without advancing time, not eight.** `dismiss_alert` is one of them: §3 makes
+an alert state precisely because it persists until dismissed and dismissal is a player
+action, and §6 has always listed it. An earlier revision of this split omitted it, and the
+undercount spread to two other documents before it was caught.
+
+**The tick pipeline order is normative.** It is fixed, tested, and may not be reordered
+without a version change, for the same reason `simulation`'s two-phase start-of-week
+ordering is normative (10 §3): a reordering that is wrong fails silently.
+
+```text
+ 1  apply scheduled scenario changes      11  perform staff work
+ 2  spawn guests                          12  update construction
+ 3  update guest needs and conditions     13  update buildings
+ 4  resolve guests being served           14  update cleanliness and wear
+ 5  update queues                         15  charge operating costs and wages
+ 6  select new guest intents              16  roll incidents
+ 7  path guests                           17  update objectives
+ 8  move guests                           18  evaluate failure
+ 9  generate staff tasks                  19  raise alerts
+10  assign staff tasks                    20  increment tick
+```
+
+---
+
+## 5. Batch Invariance — and the Two Seam Changes It Forced
+
+This is the load-bearing property of the kind, and the reason this document required
+changes to `04-core` at all.
+
+> **Batch invariance.** For any `a, b ≥ 0`, submitting `advance_ticks a` then
+> `advance_ticks b` produces the **same `kindState`** as submitting `advance_ticks (a + b)`.
+
+It is what makes "presentation speed must not affect results" true — a claim the draft
+asserted twice and could not have satisfied.
+
+**It is a `kindState` property, not a byte property.** The two runs differ in `actionLog`,
+so `serialize()` legitimately differs. The instrument that tests it is the replay oracle's
+`Outcome` comparison ([`07-replay.md`](07-replay.md) §3), not the byte-identity harness
+(04 §14) — which is exactly the distinction 07 exists to draw.
+
+**Under the previous contract it could not hold.** Every draw came from `ctx.rng`, the
+handle on `action:${seq}` (04 §8). So `advance_ticks 60` drew from one stream and sixty
+`advance_ticks 1` drew from sixty different ones. Same inputs, different world.
+
+Three rules make it hold, and the first is structural rather than disciplinary:
+
+1. **This kind draws nothing from `ctx.rng`.** The action stream is unused. No draw may
+   reference `ctx.seq`.
+2. **World-level draws are keyed by simulated time** —
+   `ctx.derive({ kind: "tick", tick, system })` for guest spawning, incident rolls and
+   weather. `system` names the drawing system so two systems on the same tick stay
+   independent.
+3. **Agent-level draws are keyed by the agent** —
+   `ctx.derive({ kind: "agent", agentId, seq })`, where `seq` is that agent's *own* draw
+   counter, stored on the agent and incremented per draw. Never the action seq.
+
+**The two changes to `04-core`:**
+
+| Change | Why it is not special pleading |
+|---|---|
+| `KindContext.derive(streamId)` (04 §3.1) | §8 defined `agent` and `system` stream variants that **no kind could reach** — `ctx.rng` was the only handle. `simulation` has the same gap today for its NPC draws |
+| `StreamId` gains `{ kind: "tick"; tick; system }` (04 §8) | The encoding was already open by design; this adds the one keying a time-advancing kind needs |
+
+Neither persists anything. `derive` closes over the seed, so `{ seed, actionLog }` remains
+the complete replay input.
+
+---
+
+## 6. Actions — One Model, Spatial Verbs
+
+04 §3's action is a string `actionId` plus optional `params`. The mapping:
+
+| `actionId` | `params` | Effect |
+|---|---|---|
+| `build` | `{ definitionId, x, y, rotation }` | Place a building or open a construction site |
+| `demolish` | `{ buildingId }` | Remove a building |
+| `hire_staff` | `{ definitionId }` | Add a staff member |
+| `fire_staff` | `{ staffId }` | Remove a staff member |
+| `assign_staff` | `{ staffId, zoneId? , buildingId? }` | Change an assignment |
+| `set_price` | `{ buildingId, productId, priceCents }` | Set one price |
+| `open_building` / `close_building` | `{ buildingId }` | Toggle operation |
+| `dismiss_alert` | `{ alertId }` | Clear a persisted alert (§3) |
+| `advance_ticks` | `{ ticks }` | Run the pipeline (§4) |
+
+Every one is a `submitAction` appending one `LoggedAction`. All parameters are **declared
+ids, integers, or enumerated rotations** — none is free text, which keeps
+[`08-session-capture.md`](08-session-capture.md) §3.2's refusal rule cheap to satisfy.
+
+**`ticks` is bounded.** `submitAction` is synchronous and pure, so an unbounded tick count
+is an unbounded pure computation inside one call. The cap is campaign data, Tier 1
+validated, and exceeding it is `tick_limit_reached` (§11) — a rejection, not a truncation,
+because a silently shortened batch would break §5.
+
+---
+
+## 7. Scene, Available Actions, and the Parameter Problem
+
+`AvailableAction` (04 §6) is `{ id, labelKey, available, reasonKey }`. **It carries no
+parameter schema**, and for this kind that is load-bearing: enumerating `build` × every
+definition × every map cell × four rotations is combinatorial.
+
+So the seam splits cleanly:
+
+- **`availableActions` returns the verbs** in §6, each with `available` and a `reasonKey` —
+  `build` is unavailable with `insufficient_funds` when nothing is affordable.
+- **The parameter domain is projection** (§10): the build catalogue with costs and unlock
+  state, the staff roster, the price ranges. A client renders a build menu from the
+  projection, not from `availableActions`.
+- **`scene` renders a status summary** — tick, cash, guest count, objective progress — as
+  a `SceneBody`, the generic surface every client can show without knowing this kind.
+
+**One session operation is missing, and this kind is the first to need it.** A spatial
+placement must be checkable before it is committed. Today the only check is to submit and
+rely on rejection leaving state unchanged (04 §4 step 5) — correct, but it routes a read
+through a write path, and clients hold projections rather than state (09 §1) so they cannot
+call the pure engine themselves.
+
+```typescript
+previewAction(sessionId: string, actionId: string, params?: ActionParams)
+  : Promise<SessionActionResult>;      // runs kind.advance, discards the state
+```
+
+It **cannot drift from the real rules** because it is literally the same `advance` call with
+the result discarded — which is why a separate `validateCommand` of the sort the draft
+proposed is rejected: that is a second copy of the ruleset.
+
+> **Consequence, stated rather than smuggled in.** This makes the API coverage checklist
+> ([`09-clients.md`](09-clients.md) §4) ten operations and ten MCP tools rather than nine
+> and nine. That checklist is an MVP Definition-of-Done item and this kind is post-MVP, so
+> **09 is not amended now**; the pairing is added when this kind is built. Recorded in
+> [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §2.
+
+---
+
+## 8. Status, Win, Loss, and Terminal Identity
+
+The draft's `"active" | "completed" | "failed" | "abandoned"` conflicts with the envelope's
+`GameStatus = "active" | "ended" | "abandoned"` (04 §2). `completed` and `failed` do not
+exist at the envelope level, and should not: **the core has no concept of winning.**
+
+Both map to `ended`. The win/loss distinction is **terminal identity**, which is what
+`Kind.outcome` is for ([`07-replay.md`](07-replay.md) §3.3):
+
+```typescript
+outcome(state: WorldGraphKindState): {
+  resolution: "objectives_met" | "failed" | null;   // null while active
+  objectivesMet: readonly string[];                  // published objective ids
+  failureId: string | null;                          // published failure-condition id
+}
+```
+
+**A resolution requires at least one objective.** `resolution` becomes non-`null` when every
+objective in `objectives` has left `"active"` — and a scenario that declares none has
+therefore not won, it has nothing to win. Vacuous truth is the wrong reading here: it would
+make an objective-less campaign `ended` before the player saw a single tick. Such a campaign
+is a sandbox, and §15 warns about it at Tier 2 rather than resolving it.
+
+Published ids only. **Cash, guest counts, satisfaction and the tick it ended on are
+deliberately excluded** — every one changes legitimately under a balance pass, and a
+regression oracle that treated a balance change as a defect would be abandoned within a
+month (07 §3.4).
+
+---
+
+## 9. Determinism Beyond the Seed
+
+`story-graph` and `simulation` get determinism almost free: few draws, small state, no
+geometry. This kind does not, and the rules below are the contract.
+
+**Integer arithmetic only.** Utility scores, path costs, condition and cleanliness values,
+and all money are integers — fixed-point where a fraction is needed, with the scaling
+factor part of the content contract. The determinism guard in `src/engine/eslint.config.js`
+([Engine Package](/docs/guide/engine-package)) already bans the non-bit-stable `Math.*`
+functions; this states the positive rule those bans imply.
+
+**No `Math.sqrt` in distance.** Comparisons use squared Euclidean, Manhattan or Chebyshev
+distance — all integer, all order-preserving for the comparisons that matter.
+
+**Every tie has an explicit rule, and the rule is the entity id.** Utility ties, path
+neighbour order, queue position, staff task priority. The draft's own §2.4 names this as a
+top risk; naming the tiebreaker once, here, is what discharges it.
+
+**Iteration order is canonical, not insertion order.** Entity collections are iterated in
+id order regardless of how they are stored, so an insertion or removal never perturbs an
+unrelated entity's behaviour.
+
+**Entity ids are derived, never supplied.** Guests, staff, buildings, sites, queues and
+tasks take ids from `nextEntityOrdinal` in `kindState`, formatted `<prefix>:<ordinal>`.
+They may **not** come from the `IdSource` port — 06 §2's rule is that a host may supply
+anything that *cannot change `serialize()` output*, and entity ids are serialized. `gameId`
+and `seed` come from `IdSource` precisely because they are inputs; these are not.
+
+**Derived caches are never serialized.** Path caches and distance fields keyed by
+`map.revision` are recomputed, not persisted — a cache in serialized state is a field free
+to drift, the same objection §3 makes to `rng`.
+
+---
+
+## 10. Projection
+
+`WorldGraphView` is the `kindView` inside the core's `PlayerView` (04 §9), and it carries only what
+the generic surface does not. It does not include:
+
+- seed or any RNG/stream state
+- future incident weights or hidden scenario triggers
+- undiscovered preferences/thresholds
+- internal path caches
+- per-candidate utility breakdowns
+
+```typescript
+interface WorldGraphView {
+  tick: number;
+  finances: {
+    cashCents: number;
+    revenueTodayCents: number;
+    expensesTodayCents: number;
+  };
+
+  map: {
+    width: number;
+    height: number;
+    revision: number;
+    spawnPoints: readonly Position[];
+    exits: readonly Position[];
+    zones: readonly string[];
+    buildingCount: number;
+    guestCount: number;
+    staffCount: number;
+  };
+
+  buildOptions: readonly {
+    definitionId: string;
+    canBuild: boolean;
+    /** Every §11 code that would reject a build of this definition *regardless of where*
+     *  it is placed: `building_locked`, `insufficient_funds`, `building_limit_reached`.
+     *  Placement-dependent rejections — bounds, terrain, overlap, reachability — are not
+     *  knowable without `(x, y, rotation)` and are what `previewAction` (§7) is for.
+     *  Every entry is a §11 code; this list never invents one. */
+    blockedBy: readonly ReasonCode[];
+  }[];
+
+  buildings: readonly {
+    id: string;
+    definitionId: string;
+    isOpen: boolean;
+    status: BuildingStatus;
+    queueLength: number;
+    cleanliness: number;
+    wear: number;
+  }[];
+
+  staff: readonly {
+    id: string;
+    roleId: string;
+    status: StaffStatus;
+    zoneId: string | null;        // from `Staff.assignedZoneId` — there is no second, derived one (§3.3)
+    buildingId: string | null;    // from `Staff.assignedBuildingId`
+  }[];
+
+  objectives: readonly Pick<ObjectiveProgress, "id" | "state" | "value" | "target">[];
+  alerts: readonly Pick<Alert, "id" | "type" | "severity" | "titleKey" | "messageKey" | "issuedAtTick">[];
+  queuedGuests: number; // across all building queues
+}
+```
+
+`outcome(state)` in §8 is reconciled with this view by using only published objective ids for
+`objectivesMet` and `failureId`, and excluding all other runtime internals.
+
+**The view repeats nothing the generic surface already carries.** Checked field by field
+against 04 §6's `Scene` and 04 §9's `PlayerView`: `gameId`, `status`, the scene body and the
+action list all live there and appear nowhere above — the sixth check against `CLAUDE.md`'s
+envelope-duplication ledger and the second on the view side, after `StoryGraphView`
+duplicated scene and status fields (03 §9). `tick` is *not* a repeat: the envelope has no
+clock, and §4 makes `tick` this kind's own.
+
+**`buildOptions`, `availableActions` and the reducer must agree.** A definition the reducer
+would reject for a placement-independent reason must be `canBuild: false` here and must
+carry the same code in `blockedBy`; `build` is `available: false` in §7 only when *no*
+definition can be built at all. §7 makes clients render the build menu from this projection,
+so a disagreement is a client showing an option the engine will refuse — the failure mode
+"shown-but-disabled with a reason" exists to prevent.
+
+---
+
+## 11. Reason Codes
+
+Codes this kind adds to the base set (`Kind.reasonCodes`, 04 §3, §12). Each needs a
+localized message or registry validation fails:
+
+| Code | When |
+|---|---|
+| `insufficient_funds` | Cost exceeds available cash |
+| `placement_overlaps` | Footprint intersects an existing building or site |
+| `placement_terrain_unsuitable` | Terrain does not satisfy the definition's requirement |
+| `placement_out_of_bounds` | Footprint leaves the map |
+| `placement_unreachable` | No walkable path from any spawn to any entrance |
+| `building_locked` | The scenario has not unlocked this definition |
+| `unknown_entity` | A `params` id names no building, staff member, zone or alert |
+| `building_not_open` | The operation requires an open building |
+| `price_out_of_range` | Outside the definition's permitted band |
+| `staff_limit_reached` | The scenario caps this role |
+| `building_limit_reached` | The scenario caps this definition — the building-side twin of `staff_limit_reached`, and what `blockedBy` (§10) reports for a definition at its cap |
+| `ticks_not_positive` | `advance_ticks` with `ticks` less than 1 |
+| `tick_limit_reached` | `ticks` exceeds the campaign's per-call cap (§6) |
+
+Reused from the base set: `unknown_action`, `requirement_unmet`, `session_ended`,
+`action_not_available`.
+
+---
+
+## 12. Events
+
+Namespaced `kind.world-graph.*` (05 §9), declared as `Kind.eventNames`:
+
+| Name (after the namespace) | Severity | Emitted at |
+|---|---|---|
+| `batch.started` / `batch.ended` | `debug` | Around an `advance_ticks` batch, with `ticks` |
+| `building.placed` / `building.demolished` | `info` / `debug` | The `build` and `demolish` reducers |
+| `staff.hired` / `staff.fired` / `staff.assigned` | `info` / `debug` / `trace` | The staff reducers |
+| `alert.dismissed` | `trace` | The `dismiss_alert` reducer |
+| `guest.spawned` | `trace` | Guest spawn system |
+| `guest.intent.selected` | `trace` | With the chosen target and winning utility |
+| `guest.path.failed` | `debug` | Target unreachable — the diagnosable failure |
+| `guest.queue.abandoned` | `trace` | Patience exceeded or a better option appeared |
+| `guest.served` | `trace` | Service completed, with amount |
+| `guest.departed` | `debug` | With the departure reason |
+| `staff.task.assigned` / `staff.task.completed` | `trace` | Task lifecycle |
+| `building.status.changed` | `debug` | `open_building` / `close_building`, and construction completion |
+| `incident.raised` | `info` | Incident system |
+| `objective.progressed` | `debug` | Objective evaluation |
+| `scenario.resolved` | `info` | Win or failure, with the `outcome` ids (§8) |
+
+**`guest.path.failed` earns its place.** A resort where guests silently cannot reach a
+building looks identical to one where they do not want to — the failure is invisible in the
+projection and obvious in the stream.
+
+> **Volume is real here and severity is how it is managed.** A 360-tick batch with 500
+> guests emits on the order of 10⁵ `trace` events. That is acceptable only because 05 §2
+> guarantees dropping every event changes nothing: a host runs `nullEmitter` normally and
+> raises the level to diagnose. No event may be load-bearing.
+
+---
+
+## 13. `StateChange` at Batch Grain
+
+`advance_ticks 360` cannot return a `StateChange` per guest transaction — `StateChange` is
+a player-facing audit record whose `visible` flag gates client display (04 §12), and no
+client renders 10⁵ rows.
+
+**So `StateChange` carries batch-grain audit only**: money aggregated per category, building
+status transitions, objective progress, scenario resolution. Per-guest and per-tick detail
+is an **event** (§12), where it is discardable by design. This is the boundary 05 §1 draws,
+applied to the first kind with the volume to test it.
+
+**Batch grain is about *which* records, not *whether*.** The nine no-time-passes actions
+(§4) are single, player-initiated mutations with no volume problem at all, and each returns
+its `StateChange`:
+
+| Action | `path` | `value` (`previous`) | `reason` |
+|---|---|---|---|
+| `build` | `finances.cashCents` | cash after (cash before) | `building_placed` |
+| — immediate | `buildings.<buildingId>.exists` | `true` | `building_placed` |
+| — with build time | `constructionSites.<siteId>.exists` | `true` | `construction_started` |
+| `demolish` | `buildings.<buildingId>.exists` | `false` (`true`) | `building_demolished` |
+| `hire_staff` | `finances.cashCents` | cash after (cash before) | `staff_hired` |
+| | `staff.<staffId>.exists` | `true` | `staff_hired` |
+| `fire_staff` | `staff.<staffId>.exists` | `false` (`true`) | `staff_fired` |
+| `assign_staff` | `staff.<id>.assignedBuildingId` / `.assignedZoneId` | the id, or `""` | `staff_assigned` |
+| `set_price` | `buildings.<id>.pricesCents.<productId>` | integer cents (previous cents) | `price_set` |
+| `open_building` / `close_building` | `buildings.<id>.isOpen` | boolean (previous) | `building_opened` / `building_closed` |
+| `dismiss_alert` | `alerts.<id>.dismissedAtTick` | the tick | `alert_dismissed` |
+| `advance_ticks` | `tick` | tick after (tick before) | `ticks_advanced` |
+
+**`build` writes one of two entity rows.** §6 lets it place a building *or* open a
+construction site; which one depends on whether the definition carries a build time, and the
+site's own `buildTicksRemaining` is counted down by the tick pipeline (W46). Both rows are
+listed so the second is not discovered later as a gap.
+
+> **`op` is always `set`, and `value` is always the value after.** 04 §12 offers
+> `increment`/`decrement`, but defines no meaning for `value` when they are used — is it the
+> delta or the result? Its own worked examples only ever use `set` with `value` + `previous`,
+> and 03 §5's variable write is explicit that `op` stays `set` "regardless of which
+> increment/decrement/set operations actually ran". Following that: this kind emits `set`,
+> `value` is the state after, `previous` is the state before, and a consumer wanting the
+> delta subtracts. A `decrement` row whose `value` was the resulting balance would be read by
+> half its consumers as the amount deducted.
+
+> **Every path addresses one scalar field, and a collection is never a path.** That is
+> forced rather than stylistic: 04 §12 types `StateChange.value` as
+> `string | number | boolean`, so a row saying `path: "buildings"` has nothing legal to put
+> in `value`, and "the array changed" is not an audit record a client could render anyway.
+>
+> **A path is the dotted traversal of `WorldGraphKindState` (§3.2) down to the scalar that
+> changed** — which closes the valid set without a second list to maintain. Two shapes follow
+> from the state's own shape, and only two:
+>
+> | Shape | Reaches | Examples |
+> |---|---|---|
+> | **Singleton** | a scalar not held in a collection | `tick`, `finances.cashCents`, `map.revision` |
+> | **Entity-scoped** | `<collection>.<entityId>.<field>` | `buildings.b:3.isOpen`, `alerts.a:9.dismissedAtTick` |
+>
+> `<entityId>` is the entity's own id (§9), never its array index — an index is a property of
+> how the collection is stored, and §3.4's whole point is that storage order is not
+> addressable. A `null` assignment is `""` for the same reason the collection rule exists:
+> the type has no null.
+>
+> **A dotted path is only unambiguous because no id may contain a dot.** §3.2 calls
+> identifiers opaque, and opacity of *meaning* would otherwise imply freedom of *shape*.
+> With a `productId` of `water.sparkling`:
+>
+> ```text
+> buildings.b:3.pricesCents.water.sparkling
+>                           └─ one segment, or two? The path resolves to a price, or to
+>                              nothing, depending entirely on who parsed it.
+> ```
+>
+> So **no path-addressable identifier may contain a `.`** — and that is all of them:
+> authored content ids (building and product definitions, staff roles, objectives, zones),
+> the keys of nested records like `pricesCents`, which *are* product ids, and entity ids.
+> Entity ids satisfy it by construction, since §9 formats them `<prefix>:<ordinal>` and `:`
+> is not a separator here; the rest are checked at Tier 1 (§15). With the rule, the same
+> path is unambiguous:
+>
+> ```text
+> buildings.b:3.pricesCents.sparkling-water   →  buildings[id=b:3].pricesCents["sparkling-water"]
+> ```
+>
+> The alternative — a canonical escaping grammar for segments — buys nothing here: nothing
+> needs a dot inside an id, and every producer and consumer would have to implement the
+> unescaping identically or reintroduce the divergence this rule exists to remove.
+>
+> **`.exists` is the one synthetic leaf, and the only one.** Appearing and disappearing are
+> not fields of any type in §3.2 — an entity that was removed has no field left to carry the
+> news. So `<collection>.<entityId>.exists` is defined as a boolean assertion about
+> *membership*: the traversal resolves the entity, and `.exists` reports whether the
+> collection holds it. Everything else in a path is a real field, and no second synthetic
+> leaf may be added without amending this paragraph — an open set of invented leaves would
+> put the grammar right back where it started.
+>
+> **This is normative, and it is checkable.** 04 §12 types `path` as an unconstrained
+> `string`, so nothing structural stops a producer inventing one; the rule above is what
+> makes divergence a defect rather than a matter of taste. A path is valid iff it resolves
+> against §3.2 — walk it segment by segment, taking `<entityId>` as a lookup by id, and it
+> must land on a scalar. A path that does not resolve is a producer defect, not a consumer's
+> to accommodate, and the check is cheap enough to assert in this kind's own tests. Adding a
+> top-level scalar to `WorldGraphKindState` therefore extends the valid set automatically,
+> which is the point of deriving it rather than listing it — a hand-maintained list of
+> singleton paths would be one more thing to drift from the fields it describes.
+>
+> **Two fields are reachable by that rule and still never audited.** `nextEntityOrdinal` is
+> an id source, not player-facing state — auditing it would emit a row on every creation
+> saying a counter moved. `map.*` changes only when authored topology does (§3.2), which is
+> not something an action does. Stated because "derivable from the state type" would
+> otherwise imply they should appear.
+
+`reason` is a descriptive code naming *why* the change happened, not a rejection code —
+`simulation`'s `action_eat` and `story-graph`'s `achievement_unlocked` set that precedent,
+and like those, these are `StateChange` vocabulary rather than additions to §11's
+`Kind.reasonCodes`, which are what a *rejected* action returns.
+
+`visible: true` for everything a player did deliberately and can see the result of; the
+`.exists` records are `visible: false`, since the projection already carries the roster.
+
+---
+
+## 14. Content, Definitions, and Packs
+
+Guest archetypes, staff roles, buildings, products, terrain, scenery, incidents, scenarios,
+objectives, policies and achievements are **campaign data**, loaded through the content
+registry (04 §10.1) exactly as story-graph campaigns are.
+
+Identity fields — `id`, `version`, `titleKey` — live on the core `Campaign` envelope and
+**not** in this kind's content types, the correction already applied twice (04 §10.1,
+10 §7).
+
+**The draft's open question on packs is closed.** Its §10 says "the merge strategy is not
+yet decided"; [`11-content-packs.md`](11-content-packs.md) decides it — campaigns replace
+wholesale, strings replace per key, dependencies are exact-version and acyclic, and
+`campaignVersion` becomes a digest of the resolution. This kind needs no pack mechanism of
+its own.
+
+---
+
+## 15. Validation
+
+`Kind.validateCampaign(campaign, strings)` (04 §3) is where all of this is implemented. It
+runs at registry construction, before the registry is frozen, and it is pure and total —
+no simulation, no search, no I/O.
+
+The draft's Tier 1 and Tier 2 lists map onto the tiered validator (04 §11) unchanged:
+duplicate ids, missing references, invalid footprints, missing localization, buildings with
+no entrance, negative capacity are Tier 1; unreachable unlocks, map regions disconnected
+from every spawn, building categories with no demand, staff roles with no task generator
+are Tier 2.
+
+Additions this contract requires. At **Tier 1**: **every authored id this kind reads must be
+non-empty and contain no `.`** — building and product definitions, staff roles, objectives
+and zones today, and guest archetypes, incidents, scenarios and whatever else W43 adds, on
+the same terms and without amending this sentence. The rule is stated over *all* authored
+ids rather than over a list of them, because a list is a second thing to maintain and would
+be wrong the moment W43 lands. §13's paths are dot-separated, so an id carrying a dot makes a
+path parse two ways; it is checked rather than assumed because these ids are content, and
+content is exactly what a contract cannot assume about. Entity ids need no check, since §9
+constructs them. The `advance_ticks` cap (§6) must be present and positive; `ticksPerDay`
+(§3.3) must be present and positive; every price band
+must be a valid integer-cent range containing the definition's default price; a
+pre-placed building (§3.1) must name a real definition, fit inside the map, sit on terrain
+its definition allows, and not overlap another — the same footprint rules the `build`
+reducer enforces, applied to authored placements, because a scenario that loads with a
+building silently dropped or overlapping is worse than one that fails to load.
+
+At **Tier 2**: a scenario already resolved at tick 0 — objectives satisfied or a failure
+condition met before the player acts (§3.1). That is a legal campaign, so it warns rather
+than fails, but it is almost always an authoring error. **A campaign with no objectives at
+all** warns for the mirror-image reason: it can never resolve at all (§8), so it is a
+sandbox — legal, occasionally deliberate, and almost never what an author meant.
+
+> **The draft's "Tier 3 simulation findings" is not validation.** Dominant buildings,
+> infinite-money loops, queue deadlock and unavoidable bankruptcy are **content-balance**
+> findings from a simulation harness, not load-time checks over a campaign. Calling them a
+> validation tier would put a long-running search inside registry construction, which 04
+> §10.1 requires to be pure and total. They belong to the balance harness, which is a game
+> concern (§17).
+
+---
+
+## 16. Replay
+
+A `ReplayFixture` (07 §2) records `submissions` including every `advance_ticks` with its
+`ticks` parameter, so replay reproduces the exact batching and is exact.
+
+Batch invariance (§5) is the **stronger** property, and it is what makes captured sessions
+portable: a fixture recorded from a client running at 4× compares equal to the same play at
+1×, because the comparison is over `Outcome`, not bytes.
+
+---
+
+## 17. What Remains in the Game Repository
+
+This is the seam, not the game. **Sun Trap** — its vision, design, guest and building field
+detail, client specification, MVP, roadmap and balance harness — lives in
+[SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap), exactly as Life
+in the Fast Lane does for `simulation` (10 §15).
+
+| Lives with the game | Why not here |
+|---|---|
+| Guest, staff, building, queue and construction field detail | Content schema, not seam. §3 fixes where it lives; the fields themselves are game material |
+| The tick duration, utility formula weights, price elasticity | Balance, revisited every playtest |
+| Map authoring, scenarios, objectives, incidents | Campaign data |
+| The visual client and its renderer choice | 09 already fixes the client contract; the renderer is a game decision |
+| The balance harness (§15) | Searches for dominant strategies — a game tool, not an engine gate |
+
+**"Field detail lives with the game" names *design authority*, not a permanent split of the
+TypeScript itself.** The shapes in this table are still engine code once built — `Guest`,
+`Building`, `WorldMap` and the rest compile inside this kind's own package the same way
+`simulation`'s `ActorState`/content-definition types do (10 §7, §15), not as a second copy
+Sun Trap maintains in parallel. What "lives with the game" is the *content this schema
+carries* — which guest archetype, which drink stand, which map — and the design decisions
+behind field values, exactly as 10 §15 states for `simulation`. `SubZeroDev.SunTrap/docs/
+docs/design/content-and-systems.md` already writes its own state shapes to this contract's
+rules and defers to it on every disagreement — that draft is source material this kind's own
+build ports from and then owns, the same relationship upstream's engine specification had to
+`10-simulation-kind.md` before it was ported (`plans/39-world-graph-kind-programme.md`).
+
+**Nothing above changes this contract's shape.** Each is detail hanging off a seam this
+document fixes — the same relationship, and the same reasoning, as 10 §15.
+<!-- human-doc:end -->

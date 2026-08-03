@@ -2,6 +2,8 @@
 sidebar_label: World-Graph Kind
 ---
 
+<!-- Generated from design/20-contract.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
+
 # World-Graph Kind — Contract
 
 **Document status:** Revision 3 — **authoritative runtime-state and campaign-content
