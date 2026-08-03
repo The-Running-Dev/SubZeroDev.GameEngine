@@ -5733,6 +5733,12 @@ definition-targeted because campaign data cannot name a runtime occurrence id. I
 every matching active occurrence in lexicographic `Incident.id` order, applying the matched
 definition's `onResolve` effects once per resolved occurrence; no match is a no-op. The
 `incidents` selector limits that set to the current occurrence or all active occurrences.
+An incident-owned `onStart` or `onResolve` effect evaluates with that occurrence's id as its
+only `current` incident context. In that context, `incidents: "current"` selects that one
+occurrence if it is active and has the requested definition; otherwise it is a no-op.
+`incidents: "current"` is Tier 1 invalid in every other effect owner (product, building,
+scheduled scenario change, policy, objective, or failure), because none supplies an incident
+occurrence. `incidents: "all_active"` needs no such context.
 
 All meters use the range on their referenced definition. `average` is an exact rational
 during comparison—§9.2 states the cross-multiplication/rounding rule—so no floating-point
@@ -6323,8 +6329,9 @@ details, but it may not replace a precise path with an unstructured message.
 - `WorldCondition`/`WorldEffect` discriminators and payloads match. `all`/`any` are non-empty;
   expression depth is at most 32; finance metrics select numeric fields; inventory metrics
   name a product; aggregate and selector references resolve. Context selectors occur only
-  where that context exists—for example, `current_incident_building` in incident effects.
-  No arbitrary state path exists to validate or execute.
+  where that context exists—for example, `current_incident_building` and
+  `resolve_incident.incidents: "current"` in an incident occurrence's effects. No arbitrary
+  state path exists to validate or execute.
 - Objectives/failures have positive duration; non-null objective progress metrics can be
   compared to their targets, and progress effects target only null-metric objectives;
   incident ranges, cooldowns, weights, roll scope/chance, target modes, task
