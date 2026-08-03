@@ -161,7 +161,7 @@ land before the kind contract without violating Decision 1.
 | W | Unit | Source | Scope |
 |---|---|---|---|
 | **W42** | State types | `content-and-systems.md` §§2–9 | `ResortMap`, `Guest`, `Building`, `Queue`, `Staff`, `ConstructionSite`, `Finances`, `Loan` — ported into `12-world-graph-kind.md` §3, replacing today's top-level-only sketch |
-| **W43** | Content-definition types | `game-design.md` (needs, opinions, adjacency, placement, incidents), `content-and-systems.md` §10's one-paragraph list | `GuestArchetypeDefinition`, `BuildingDefinition`, `StaffRoleDefinition`, `ProductDefinition`, `ScenarioDefinition`, `ObjectiveDefinition`, `IncidentDefinition`, `TerrainDefinition`, `PolicyDefinition`, `AchievementDefinition` — genuinely new design, not transcription (Finding 2) |
+| **W43** | Content-definition types | `game-design.md` (needs, opinions, adjacency, placement, incidents), `content-and-systems.md` §10's one-paragraph list | `MapDefinition`, `GuestArchetypeDefinition`, `BuildingDefinition`, `StaffRoleDefinition`, `ProductDefinition`, `ScenarioDefinition`, `ObjectiveDefinition`, `IncidentDefinition`, `TerrainDefinition`, `PolicyDefinition`, `AchievementDefinition` — genuinely new design, not transcription (Finding 2) |
 | **W44** | Resolution and systems detail | `12-world-graph-kind.md` §4, §9, `content-and-systems.md` §§8–9 | The 20-system tick-pipeline order restated against real types; utility-scoring and pathfinding cost-model shapes; tie-breaking rules already normative in §9, restated alongside the functions that implement them |
 
 Split by type cluster with a natural review boundary, the same reasoning `plans/36` gave for
@@ -275,43 +275,48 @@ names both.
 > which is now the second time it has happened.
 
 - [x] Cut the W42 doc-only plan and inventory every field in Sun Trap §§2–9.
-- [ ] Specify map dimensions, tiles, entrances, occupancy and deterministic coordinate rules.
-- [ ] Specify guest identity, position, needs, target, path, inventory, opinions and lifecycle.
-- [ ] Specify building, product, queue and service state without embedding content definitions.
-- [ ] Specify staff role, assignment, position, path, task and lifecycle.
-- [ ] Specify construction, finances, loans, counters and `nextEntityOrdinal` ownership.
-- [ ] Define which collections are records, arrays or ordered lists and their canonical order.
-- [ ] Reconcile nullability, units, integer ranges and tick semantics across both repositories.
-- [ ] Define `WorldGraphView` and terminal outcome data without leaking hidden state.
-- [ ] **Gate:** every runtime field read by a planned system has one authoritative type and
+- [x] Specify map dimensions, tiles, entrances, occupancy and deterministic coordinate rules.
+- [x] Specify guest identity, position, needs, target, path, inventory, opinions and lifecycle.
+- [x] Specify building, product, queue and service state without embedding content definitions.
+- [x] Specify staff role, assignment, position, path, task and lifecycle.
+- [x] Specify construction, finances, loans, counters and `nextEntityOrdinal` ownership.
+- [x] Define which collections are records, arrays or ordered lists and their canonical order.
+- [x] Reconcile nullability, units, integer ranges and tick semantics across both repositories.
+- [x] Define `WorldGraphView` and terminal outcome data without leaking hidden state.
+- [x] **Gate:** every runtime field read by a planned system has one authoritative type and
       one documented owner.
 
 ### W43 — content-definition contract
 
-- [ ] Cut the W43 doc-only design plan; do not treat this unit as a mechanical port.
-- [ ] Separate authoring/source definitions from validated runtime content where necessary.
-- [ ] Define terrain, scenery, building, product, staff-role and guest-archetype definitions.
-- [ ] Define scenario, objective, incident, policy and achievement definitions.
-- [ ] Define stable ids, cross-reference rules, localization/text ownership and defaults.
-- [ ] Define footprint rotations, entrances, placement constraints and adjacency effects.
-- [ ] Define need curves, utility inputs, patience, budgets, service rates and litter effects.
-- [ ] Mark fields required for the MVP versus valid post-MVP extension points.
-- [ ] Add worked minimum-valid and representative-invalid content examples.
-- [ ] **Gate:** the MVP scenario can be authored without an untyped extension object or a
+**Execution record:** [`plans/43-w43-world-graph-content-contract.md`](43-w43-world-graph-content-contract.md).
+**Canonical contract:** `design/20-contract.md`'s `engine/12-world-graph-kind.md` block.
+**Status:** Merged in [PR #119](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/119).
+W44 is in review in [PR #120](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/120).
+
+- [x] Cut the W43 doc-only design plan; do not treat this unit as a mechanical port.
+- [x] Separate authoring/source definitions from validated runtime content where necessary.
+- [x] Define the campaign-owned map catalog plus terrain, scenery, building, product,
+      staff-role and guest-archetype definitions.
+- [x] Define scenario, objective, incident, policy and achievement definitions.
+- [x] Define stable ids, cross-reference rules, localization/text ownership and defaults.
+- [x] Define footprint rotations, entrances, placement constraints and adjacency effects.
+- [x] Define need curves, utility inputs, patience, budgets, service rates and litter effects.
+- [x] Mark fields required for the MVP versus valid post-MVP extension points.
+- [x] Add worked minimum-valid and representative-invalid content examples.
+- [x] **Gate:** the MVP scenario can be authored without an untyped extension object or a
       duplicate Sun Trap interface.
 
 ### W44 — resolution and systems contract
 
-- [ ] Cut the W44 doc-only plan and freeze the named 20-system order.
-- [ ] Define each system's inputs, outputs, no-op conditions and emitted state changes/events.
-- [ ] Define utility scoring, integer scaling, tie-breaking and unreachable-target behaviour.
-- [ ] Define A* neighbourhood, cost model, heuristic, canonical open-set ordering and cache rule.
-- [ ] Define queue admission, abandonment, service ordering and simultaneous-event semantics.
-- [ ] Define staff task selection, movement, work completion and deterministic tie-breaks.
-- [ ] Define construction, finance, incident, objective and terminal-check timing.
-- [ ] Define batch-invariance comparison and action-log differences that are intentionally ignored.
-- [ ] Reconcile reason-code and event-name registries with every action and rejection path.
-- [ ] **Gate:** no implementation unit needs to invent a state field, ordering rule, formula
+**Execution record:** [`plans/44-w44-world-graph-resolution-contract.md`](44-w44-world-graph-resolution-contract.md).
+**Canonical contract:** `design/20-contract.md`'s `engine/12-world-graph-kind.md` block.
+**Status:** In review — [PR #120](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/120).
+
+- [x] Freeze the named 20-system order and define each system's contract.
+- [x] Define utility scoring, A* pathfinding, queues/service, staff work, construction,
+      finance, incidents, objectives, terminal timing, and deterministic tie-breaks.
+- [x] Define batch-invariance comparison and reconcile reason/event registries.
+- [x] **Gate:** no implementation unit needs to invent a state field, ordering rule, formula
       shape or tie-break.
 
 ### W45 — kind skeleton and immediate actions

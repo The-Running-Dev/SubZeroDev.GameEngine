@@ -2,6 +2,8 @@
 sidebar_label: Clients
 ---
 
+<!-- Generated from design/10-design.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
+
 # Clients — The Contract
 
 **Document status:** Revision 1 — new contract, MVP scope

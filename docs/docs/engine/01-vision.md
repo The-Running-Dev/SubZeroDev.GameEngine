@@ -1,6 +1,8 @@
 ---
 ---
 
+<!-- Generated from design/00-brief.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
+
 # Vision
 
 **Document status:** Revision 1 — architecture settled

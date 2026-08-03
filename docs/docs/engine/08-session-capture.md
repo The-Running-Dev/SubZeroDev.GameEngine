@@ -2,6 +2,8 @@
 sidebar_label: Session Capture
 ---
 
+<!-- Generated from design/10-design.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
+
 # Session Capture — Turning a Played Session Into a Fixture
 
 **Document status:** Revision 1 — new contract, post-MVP, gated on the hosting layer

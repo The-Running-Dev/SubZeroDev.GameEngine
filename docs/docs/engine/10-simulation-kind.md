@@ -2,6 +2,8 @@
 sidebar_label: Simulation Kind
 ---
 
+<!-- Generated from design/20-contract.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
+
 # Simulation Kind — Contract
 
 **Document status:** Revision 2 — **the contract is whole.** Every type `SimulationKindState`
