@@ -326,6 +326,10 @@ plan and its contract execution; public delivery status waits for merge.
 
 ### W45 — kind skeleton and immediate actions
 
+**Status:** In review —
+[PR #124](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/124), containing the
+plan and implementation together; public delivery status waits for merge.
+
 > **A reviewed draft of this unit already exists**, on
 > `feature/w45-world-graph-kind-skeleton`. It was written on W42's branch by mistake — that
 > unit is doc-only — and was moved rather than deleted, because reviewing it against the
@@ -338,16 +342,16 @@ plan and its contract execution; public delivery status waits for merge.
 > and genuinely absent: `advance_ticks` advances the counter and runs none of §4's twenty
 > systems.
 
-- [ ] Cut the W45 code plan against the merged W42–W44 contract.
-- [ ] Add world-graph state/content modules and export their supported symbols publicly.
-- [ ] Implement total campaign narrowing and Tier 1/Tier 2 validation without unchecked throws.
-- [ ] Implement deterministic `initialState`, projection, outcome and reason/event registries.
-- [ ] Assemble and register the production `worldGraphKind`.
-- [ ] Implement build/demolish, hire/fire, assign, set-price and open/close reducers.
-- [ ] Derive entity ids only from the seed-safe ordinal rule; never from array length or time.
-- [ ] Add synthetic minimum campaign fixtures owned by this repository.
-- [ ] Test every immediate action's success, rejection and no-time-passes invariant.
-- [ ] **Gate:** `createGame` produces a valid deterministic tick-zero world and all immediate
+- [x] Cut the W45 code plan against the merged W42–W44 contract.
+- [x] Add world-graph state/content modules and export their supported symbols publicly.
+- [x] Implement total campaign narrowing and Tier 1/Tier 2 validation without unchecked throws.
+- [x] Implement deterministic `initialState`, projection, outcome and reason/event registries.
+- [x] Assemble and register the production `worldGraphKind`.
+- [x] Implement build/demolish, hire/fire, assign, set-price and open/close reducers.
+- [x] Derive entity ids only from the seed-safe ordinal rule; never from array length or time.
+- [x] Add synthetic minimum campaign fixtures owned by this repository.
+- [x] Test every immediate action's success, rejection and no-time-passes invariant.
+- [x] **Gate:** `createGame` produces a valid deterministic tick-zero world and all immediate
       actions pass through the real engine seam.
 
 ### W46 — deterministic tick pipeline

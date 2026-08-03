@@ -1,312 +1,268 @@
-/**
- * World-graph kind — runtime state and shared structural types.
- *
- * This file captures the `WorldGraphKindState` shape plus all nested runtime entities
- * from `12-world-graph-kind.md` so `initialState`, reducers, validation and projection
- * use a single, shared type graph.
- */
+import type { LocKey } from "../../core/localization/types.js";
+import type { ReasonCode } from "../../core/kernel/reasons.js";
+import type { ContentReference } from "./content.js";
 
-export type Position = {
-  x: number;
-  y: number;
-};
-
-export type TerrainKind = "empty" | "path" | "wall" | "water" | "restricted";
-export type MapEdgeKind = "walkable" | "blocked";
+export type Position = { readonly x: number; readonly y: number };
+export type Rotation = 0 | 90 | 180 | 270;
 export type StaffStatus = "idle" | "to_work" | "working" | "off_duty";
 export type GuestLifecycle = "arriving" | "seeking" | "queued" | "served" | "departed" | "removed";
-export type BuildingStatus = "construction" | "open" | "closed" | "broken";
+export type BuildingStatus = "open" | "closed" | "broken";
 export type LoanStatus = "active" | "defaulted" | "repaid";
-export type IncidentType = "fire" | "breakdown" | "theft" | "spill" | "litter" | "complaint" | "power" | "weather";
 export type IncidentSeverity = "info" | "minor" | "major" | "critical";
 export type AlertSeverity = "info" | "warning" | "critical";
+export type AlertType = "incident_active" | "building_broken" | "scenario_resolved";
 export type ObjectiveProgressState = "active" | "met" | "failed";
+export type FailureProgressState = "active" | "triggered";
 export type StaffTaskType = "service" | "clean" | "restock" | "build";
-export type StaffTaskStatus = "queued" | "assigned" | "in_progress" | "completed" | "cancelled";
-export type Rotation = 0 | 90 | 180 | 270;
+export type StaffTaskStatus = "assigned" | "in_progress" | "completed" | "cancelled";
+export type GuestDepartureReason =
+  | "stay_complete" | "unaffordable" | "unreachable" | "dissatisfied"
+  | "unsafe" | "critical_need" | "ejected" | "scenario";
+
+export type GuestIntent =
+  | { readonly kind: "seek_service"; readonly buildingId: string; readonly productId: string | null; readonly selectedAtTick: number }
+  | { readonly kind: "leave"; readonly exit: Position; readonly reason: GuestDepartureReason; readonly selectedAtTick: number }
+  | { readonly kind: "wait"; readonly untilTick: number; readonly selectedAtTick: number };
 
 export interface WorldGraphKindState {
-  tick: number;
-  map: WorldMap;
-  finances: Finances;
-
-  buildings: readonly Building[];
-  constructionSites: readonly ConstructionSite[];
-  guests: readonly Guest[];
-  staff: readonly Staff[];
-
-  incidents: readonly Incident[];
-  objectives: readonly ObjectiveProgress[];
-  alerts: readonly Alert[];
-
-  nextEntityOrdinal: number;
-}
-
-export interface TerrainCell {
-  x: number;
-  y: number;
-  terrain: TerrainKind;
-  edge: MapEdgeKind;
-  moveCost: number;
-}
-
-export interface PathCell {
-  from: Position;
-  to: Position;
-  edgeCost: number;
-  allowed: boolean;
-}
-
-export interface Zone {
-  id: string;
-  nameKey: string;
-  cells: readonly Position[];
-  serviceRadius: number;
-  maxOccupancy: number | null;
+  readonly tick: number;
+  readonly map: WorldMap;
+  readonly finances: Finances;
+  readonly buildings: readonly Building[];
+  readonly constructionSites: readonly ConstructionSite[];
+  readonly guests: readonly Guest[];
+  readonly staff: readonly Staff[];
+  readonly incidents: readonly Incident[];
+  readonly objectives: readonly ObjectiveProgress[];
+  readonly failures: readonly FailureProgress[];
+  readonly alerts: readonly Alert[];
+  readonly resolution: WorldResolution | null;
+  readonly counters: WorldCounters;
+  readonly unlockedContent: readonly ContentReference[];
+  readonly activePolicyIds: readonly string[];
+  readonly unlockedAchievementIds: readonly string[];
+  readonly nextEntityOrdinal: number;
 }
 
 export interface WorldMap {
-  width: number;
-  height: number;
-  revision: number;
-  terrain: readonly TerrainCell[];
-  paths: readonly PathCell[];
-  zones: readonly Zone[];
-  spawnPoints: readonly Position[];
-  exits: readonly Position[];
+  readonly width: number;
+  readonly height: number;
+  readonly revision: number;
+  readonly terrain: readonly TerrainCell[];
+  readonly paths: readonly PathCell[];
+  readonly zones: readonly Zone[];
+  readonly spawnPoints: readonly Position[];
+  readonly exits: readonly Position[];
+  readonly scenery: readonly Scenery[];
+}
+
+export interface TerrainCell { readonly x: number; readonly y: number; readonly terrainId: string }
+export interface PathCell { readonly from: Position; readonly to: Position; readonly edgeCost: number; readonly allowed: boolean }
+export interface Zone {
+  readonly id: string;
+  readonly nameKey: LocKey;
+  readonly cells: readonly Position[];
+  readonly serviceRadius: number;
+  readonly maxOccupancy: number | null;
+}
+export interface Scenery {
+  readonly id: string;
+  readonly definitionId: string;
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+  readonly rotation: Rotation;
 }
 
 export interface Building {
-  id: string;
-  definitionId: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  rotation: Rotation;
-  status: BuildingStatus;
-  isOpen: boolean;
-  buildStartTick: number;
-  wear: number;
-  cleanliness: number;
-  queue: Queue;
-  products: readonly string[];
-  /**
-   * Product id → integer cents, written by `set_price` and read by projection.
-   *
-   * Not the loose bag `02-architecture.md` N6 bans: the keys are exactly the ids in
-   * `products`, which come from the validated definition, so Tier 1 closes the key set at
-   * load — the argument `10 §6.2` already made for `ActorState`'s `skills`/`counters`
-   * (12 §3.3).
-   */
-  pricesCents: Readonly<Record<string, number>>;
-  serviceTickSeq: number;
+  readonly id: string;
+  readonly definitionId: string;
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+  readonly rotation: Rotation;
+  readonly status: BuildingStatus;
+  readonly buildStartTick: number;
+  readonly wear: number;
+  readonly cleanliness: number;
+  readonly queue: Queue;
+  readonly pricesCents: Readonly<Record<string, number>>;
+  readonly inventory: Readonly<Record<string, number | null>>;
 }
 
 export interface ConstructionSite {
-  id: string;
-  definitionId: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  rotation: Rotation;
-  startedAtTick: number;
-  buildTicksRemaining: number;
-  totalCostCents: number;
-  completedBuildingId: string | null;
+  readonly id: string;
+  readonly definitionId: string;
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+  readonly rotation: Rotation;
+  readonly startedAtTick: number;
+  readonly workRemaining: number;
+  readonly completedBuildingId: string;
+  readonly completedQueueId: string;
 }
 
 export interface Queue {
-  id: string;
-  productId: string;
-  guestIds: readonly string[];
-  maxLength: number | null;
-  patienceTicks: number;
-  startedAtTick: number;
+  readonly id: string;
+  readonly guestIds: readonly string[];
+  readonly serviceStartedAtTick: number | null;
 }
 
 export interface Guest {
-  id: string;
-  archetypeId: string;
-  lifecycle: GuestLifecycle;
-  tickEntered: number;
-  x: number;
-  y: number;
-  path: readonly Position[];
-  pathIndex: number;
-  drawCount: number;
-  targetBuildingId: string | null;
-  targetQueueId: string | null;
-  targetProductId: string | null;
-  /** Non-negative integer *ticks* this guest tolerates waiting. Never seconds: §3 collapses
-   *  the clock to `tick`, and a tick's simulated duration is campaign balance data. */
-  targetWaitTicks: number;
-  needs: GuestNeeds;
-  conditions: GuestConditions;
-  opinions: GuestOpinions;
-  preferences: GuestPreferences;
-}
-
-export interface GuestNeeds {
-  hunger: number;
-  rest: number;
-  social: number;
-  comfort: number;
-  hygiene: number;
-  safety: number;
-}
-
-export interface GuestConditions {
-  /** Integer -100..100; the sign is the utility trend. */
-  mood: number;
-  patienceRemainingTicks: number;
-  lastServedTick: number | null;
-  spentTicks: number;
-  // No `arrivalTick`: `Guest.tickEntered` already records it, and two fields for one fact
-  // are free to disagree (12 §3.3).
-}
-
-export interface GuestOpinions {
-  price: number;
-  variety: number;
-  cleanliness: number;
-  safety: number;
-  attractiveness: number;
-  queues: number;
-  service: number;
-}
-
-export interface GuestPreferences {
-  noiseTolerance: number;
-  spendingCategory: "budget" | "balanced" | "premium";
-  loyaltyMultiplier: number;
+  readonly id: string;
+  readonly archetypeId: string;
+  readonly lifecycle: GuestLifecycle;
+  readonly tickEntered: number;
+  readonly stayDurationTicks: number;
+  readonly x: number;
+  readonly y: number;
+  readonly path: readonly Position[];
+  readonly pathIndex: number;
+  readonly drawCount: number;
+  readonly cashCents: number;
+  readonly intent: GuestIntent;
+  readonly needs: Readonly<Record<string, number>>;
+  readonly conditions: Readonly<Record<string, number>>;
+  readonly opinions: Readonly<Record<string, number>>;
+  readonly preferences: Readonly<Record<string, number>>;
+  readonly satisfaction: number;
+  readonly patienceCapacityTicks: number;
+  readonly patienceRemainingTicks: number;
+  readonly lastServedTick: number | null;
+  readonly spentTicks: number;
 }
 
 export interface Staff {
-  id: string;
-  roleId: string;
-  x: number;
-  y: number;
-  status: StaffStatus;
-  assignedBuildingId: string | null;
-  /** The only stored zone membership. A second, derived `zoneId` "current zone at read
-   *  time" would be a derived value beside the field it derives from — banned by the same
-   *  rule that removed `Building.entrances` (12 §3.3). */
-  assignedZoneId: string | null;
-  drawCount: number;
-  task: StaffTask | null;
-  tasksCompleted: number;
+  readonly id: string;
+  readonly roleId: string;
+  readonly x: number;
+  readonly y: number;
+  readonly status: StaffStatus;
+  readonly path: readonly Position[];
+  readonly pathIndex: number;
+  readonly moveProgressTicks: number;
+  readonly assignedBuildingId: string | null;
+  readonly assignedZoneId: string | null;
+  readonly drawCount: number;
+  readonly task: StaffTask | null;
+  readonly tasksCompleted: number;
 }
 
 export interface StaffTask {
-  id: string;
-  type: StaffTaskType;
-  status: StaffTaskStatus;
-  guestId: string | null;
-  queueId: string | null;
-  buildingId: string | null;
-  targetProductId: string | null;
-  startedAtTick: number;
-  endedAtTick: number | null;
-  priority: number;
-  effortTicks: number;
+  readonly id: string;
+  readonly type: StaffTaskType;
+  readonly status: StaffTaskStatus;
+  readonly guestId: string | null;
+  readonly queueId: string | null;
+  readonly buildingId: string | null;
+  readonly constructionSiteId: string | null;
+  readonly incidentId: string | null;
+  readonly targetProductId: string | null;
+  readonly startedAtTick: number;
+  readonly endedAtTick: number | null;
+  readonly priority: number;
+  readonly effortRemaining: number | null;
 }
 
 export interface Finances {
-  cashCents: number;
-  revenueTodayCents: number;
-  expensesTodayCents: number;
-  revenueTotalCents: number;
-  expensesTotalCents: number;
-  loan: Loan | null;
+  readonly cashCents: number;
+  readonly revenueTodayCents: number;
+  readonly expensesTodayCents: number;
+  readonly revenueTotalCents: number;
+  readonly expensesTotalCents: number;
+  readonly loan: Loan | null;
 }
-
 export interface Loan {
-  id: string;
-  principalCents: number;
-  balanceCents: number;
-  interestBasisPoints: number;
-  accruedInterestCents: number;
-  status: LoanStatus;
-  startedAtTick: number;
-  durationTicks: number;
-  nextPaymentTick: number | null;
+  readonly id: string;
+  readonly principalCents: number;
+  readonly balanceCents: number;
+  readonly interestBasisPoints: number;
+  readonly accruedInterestCents: number;
+  readonly status: LoanStatus;
+  readonly startedAtTick: number;
+  readonly durationTicks: number;
+  readonly nextPaymentTick: number | null;
 }
-
 export interface Incident {
-  id: string;
-  incidentType: IncidentType;
-  severity: IncidentSeverity;
-  buildingId: string | null;
-  guestId: string | null;
-  zoneId: string | null;
-  titleKey: string;
-  descriptionKey: string;
-  startedAtTick: number;
-  expiresAtTick: number | null;
-  resolvedAtTick: number | null;
+  readonly id: string;
+  readonly definitionId: string;
+  readonly buildingId: string | null;
+  readonly guestId: string | null;
+  readonly zoneId: string | null;
+  readonly position: Position | null;
+  readonly amount: number;
+  readonly startedAtTick: number;
+  readonly expiresAtTick: number | null;
+  readonly resolvedAtTick: number | null;
 }
-
 export interface ObjectiveProgress {
-  id: string;
-  state: ObjectiveProgressState;
-  value: number;
-  target: number;
-  updatedAtTick: number;
+  readonly id: string;
+  readonly state: ObjectiveProgressState;
+  readonly value: number;
+  readonly target: number;
+  readonly satisfiedSinceTick: number | null;
+  readonly updatedAtTick: number;
 }
-
+export interface FailureProgress {
+  readonly id: string;
+  readonly state: FailureProgressState;
+  readonly satisfiedSinceTick: number | null;
+  readonly updatedAtTick: number;
+}
 export interface Alert {
-  id: string;
-  type: string;
-  severity: AlertSeverity;
-  titleKey: string;
-  messageKey: string;
-  entityId: string | null;
-  issuedAtTick: number;
-  dismissedAtTick: number | null;
+  readonly id: string;
+  readonly type: AlertType;
+  readonly semanticKey: string;
+  readonly severity: AlertSeverity;
+  readonly titleKey: LocKey;
+  readonly messageKey: LocKey;
+  readonly entityId: string | null;
+  readonly issuedAtTick: number;
+  readonly dismissedAtTick: number | null;
+  readonly clearedAtTick: number | null;
+}
+export interface WorldResolution {
+  readonly resolution: "objectives_met" | "failed";
+  readonly objectiveIds: readonly string[];
+  readonly failureId: string | null;
+  readonly resolvedAtTick: number;
+}
+export interface WorldCounters {
+  readonly guestsEntered: number;
+  readonly guestsDeparted: number;
+  readonly guestsDissatisfied: number;
+  readonly servicesCompleted: number;
+  readonly buildingsCompleted: number;
+  readonly incidentsRaised: number;
+  readonly litterCreated: number;
+  readonly litterCleaned: number;
 }
 
 export interface WorldGraphView {
-  tick: number;
-  finances: {
-    cashCents: number;
-    revenueTodayCents: number;
-    expensesTodayCents: number;
+  readonly tick: number;
+  readonly finances: Pick<Finances, "cashCents" | "revenueTodayCents" | "expensesTodayCents">;
+  readonly map: {
+    readonly width: number; readonly height: number; readonly revision: number;
+    readonly spawnPoints: readonly Position[]; readonly exits: readonly Position[];
+    readonly zones: readonly string[]; readonly buildingCount: number;
+    readonly guestCount: number; readonly staffCount: number;
   };
-  map: {
-    width: number;
-    height: number;
-    revision: number;
-    spawnPoints: readonly Position[];
-    exits: readonly Position[];
-    zones: readonly string[];
-    buildingCount: number;
-    guestCount: number;
-    staffCount: number;
-  };
-  buildOptions: readonly {
-    definitionId: string;
-    canBuild: boolean;
-    blockedBy: readonly string[];
+  readonly buildOptions: readonly {
+    readonly definitionId: string; readonly canBuild: boolean; readonly blockedBy: readonly ReasonCode[];
   }[];
-  buildings: readonly {
-    id: string;
-    definitionId: string;
-    isOpen: boolean;
-    status: BuildingStatus;
-    queueLength: number;
-    cleanliness: number;
-    wear: number;
+  readonly buildings: readonly {
+    readonly id: string; readonly definitionId: string; readonly status: BuildingStatus;
+    readonly queueLength: number; readonly cleanliness: number; readonly wear: number;
   }[];
-  staff: readonly {
-    id: string;
-    roleId: string;
-    status: StaffStatus;
-    zoneId: string | null;
-    buildingId: string | null;
+  readonly staff: readonly {
+    readonly id: string; readonly roleId: string; readonly status: StaffStatus;
+    readonly zoneId: string | null; readonly buildingId: string | null;
   }[];
-  objectives: readonly Pick<ObjectiveProgress, "id" | "state" | "value" | "target">[];
-  alerts: readonly Pick<Alert, "id" | "type" | "severity" | "titleKey" | "messageKey" | "issuedAtTick">[];
-  queuedGuests: number;
+  readonly objectives: readonly Pick<ObjectiveProgress, "id" | "state" | "value" | "target">[];
+  readonly alerts: readonly Pick<Alert, "id" | "type" | "severity" | "titleKey" | "messageKey" | "issuedAtTick">[];
+  readonly queuedGuests: number;
 }

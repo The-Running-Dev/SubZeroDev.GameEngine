@@ -636,8 +636,11 @@ when it declined a programme doc for this kind.
       [PR #120](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/120), including
       the design plan and stacked on W43 for an exact review diff; merge remains the T1
       delivery gate.
-- [ ] **W45 proposed — kind skeleton and immediate actions:** validation, initial state,
-      projection/outcome, assembly and the nine no-time-passes reducers.
+- [ ] **W45 in review — kind skeleton and immediate actions:** the source/runtime builder,
+      total validation, shared spatial substrate, deterministic initial state, read surfaces,
+      production assembly, package exports, and nine no-time-passes reducers are in
+      [PR #124](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/124), stacked on
+      W44; merge remains the delivery gate.
 - [ ] **W46 proposed — deterministic tick pipeline:** fixed-order systems, bounded
       `advance_ticks`, derived streams and batch invariance.
 - [ ] **W47 proposed — MVP vertical slice:** spawn → walk → queue → buy → litter → clean →

@@ -3,14 +3,29 @@ import {
   buildCampaign,
   buildContentRegistry,
   buildValidatedContentRegistry,
+  buildWorldGraphCampaign,
   createEngine,
   storyGraphKind,
   simulationKind,
+  worldGraphKind,
   type Campaign,
   type Engine,
   type KindRegistry,
   type LocKey,
+  type WorldGraphCampaign,
+  type WorldGraphCampaignSource,
+  type WorldGraphKindState,
+  type WorldGraphOutcome,
+  type WorldGraphView,
 } from "@the-running-dev/game-engine";
+
+type WorldGraphPublicTypes = [
+  WorldGraphCampaignSource,
+  WorldGraphCampaign,
+  WorldGraphKindState,
+  WorldGraphView,
+  WorldGraphOutcome,
+];
 
 function expectOk<T>(result: { ok: boolean; value?: T }, context: string): T {
   assert.equal(result.ok, true, context);
@@ -49,9 +64,7 @@ function runEngineSmoke(): void {
   const kinds: KindRegistry = {
     "story-graph": storyGraphKind,
     simulation: simulationKind,
-    // No world-graph implementation is shipped yet; this project intentionally
-    // reuses simulationKind as a placeholder for tarball smoke-path verification.
-    "world-graph": simulationKind,
+    "world-graph": worldGraphKind,
   };
 
   const authoredText: readonly { key: LocKey; text: string }[] = [
@@ -108,6 +121,10 @@ function runEngineSmoke(): void {
 
   const created = expectOk(engine.createGame({ campaignId: "smoke-campaign" }), "createGame should succeed for a valid smoke campaign");
   assert.equal(created.status, "active");
+  assert.equal(worldGraphKind.id, "world-graph");
+  assert.equal(typeof buildWorldGraphCampaign, "function");
+  const publicTypesResolve = <T extends WorldGraphPublicTypes>(): T | undefined => undefined;
+  assert.equal(publicTypesResolve(), undefined);
   assertCampaignContentCastThrows(kinds, authoredText);
 }
 

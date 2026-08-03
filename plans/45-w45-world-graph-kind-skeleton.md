@@ -6,20 +6,19 @@ content boundary and total validation, materialize deterministic tick-zero state
 the production kind, expose its supported package surface, and implement the nine actions
 that do not pass time. The 20-system tick pipeline remains W46.
 
-**Depends on:** W42's merged runtime-state contract (PR #116), the W43 plan and execution
-([PR #119](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/119) and
-[PR #121](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/121)), and the W44
-plan and execution ([PR #120](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/120)
-and [PR #122](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/122)). Execute
-only after all four open prerequisites have merged and `main` contains the complete W42–W44
-contract.
+**Depends on:** W42's merged runtime-state contract (PR #116), the consolidated W43 contract
+([PR #119](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/119)), and the
+consolidated W44 contract
+([PR #120](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/120)). This PR is
+stacked on #120 so its review diff contains only W45 planning and implementation.
 
 **Programme:** [`plans/39-world-graph-kind-programme.md`](39-world-graph-kind-programme.md),
 W45. This is the kind skeleton and immediate-action unit. W46 owns elapsed-time behavior.
 
-**Status:** Planning only. This file records the measured draft, salvage boundary, module
-ownership, reducer semantics, verification matrix, and merge handoff. It changes no engine
-source.
+**Status:** Implemented and in review in
+[PR #124](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/124). This file is
+retained as the implementation contract and verification record; merge remains the delivery
+gate.
 
 ---
 
@@ -27,9 +26,9 @@ source.
 
 ### The prompt
 
-> Execute W45 from `plans/45-w45-world-graph-kind-skeleton.md` after PRs #119–#122 have
-> merged. Continue on the preserved `feature/w45-world-graph-kind-skeleton` branch: merge
-> the then-current `main` into it without rebasing or rewriting its published history. Treat
+> Execute W45 from `plans/45-w45-world-graph-kind-skeleton.md` after #119 and #120 have
+> merged. Preserve the published `feature/w45-world-graph-kind-skeleton` history by merging
+> it into the implementation branch rather than rebasing or rewriting it. Treat
 > the existing code as tested salvage, not as the contract. Align it to the merged
 > `12-world-graph-kind.md`; implement the content builder, total validator, deterministic
 > initial state, projection/outcome, production assembly, public exports, and nine
@@ -191,13 +190,12 @@ base `action_not_available` reason. W46 replaces that deliberate rejection with 
 
 ## Decisions
 
-### 1. Continue the preserved execution branch; do not transplant its commits
+### 1. Preserve the execution history in the consolidated PR
 
-After the prerequisite chain merges, merge current `main` into
-`feature/w45-world-graph-kind-skeleton`. Do not rebase, force-push, cherry-pick the useful
-commits onto a fresh branch, or delete the old work. Its history explains why W42 contract
-corrections happened and is already published. The execution PR then targets `main` and
-shows the final net code diff; the plan PR remains independent.
+Merge the published `feature/w45-world-graph-kind-skeleton` history into #124's branch. Do
+not rebase, force-push, cherry-pick only the useful commits, or delete the old work. Its
+history explains why W42 contract corrections happened. #124 contains the plan and final
+implementation together and targets #120 for an exact W45 review diff.
 
 ### 2. Split by ownership, not by one file per interface
 
@@ -432,34 +430,34 @@ resolving it against the returned state or the one synthetic `.exists` membershi
 
 ## Done-When
 
-- [ ] The existing W45 branch is merged forward from current `main` without rewritten
+- [x] The existing W45 branch is merged forward from current `main` without rewritten
       published history, and its old green baseline is recorded before reconciliation.
-- [ ] Runtime state and content source/runtime types match the merged W42–W44 contract with
+- [x] Runtime state and content source/runtime types match the merged W42–W44 contract with
       no removed alias/copy remaining.
-- [ ] `buildWorldGraphCampaign` lifts localization, applies exactly five defaults, and
+- [x] `buildWorldGraphCampaign` lifts localization, applies exactly five defaults, and
       canonicalizes only the collections §14.8 names.
-- [ ] Validation is pure, total over `Campaign.content: unknown`, path-specific, and covers
+- [x] Validation is pure, total over `Campaign.content: unknown`, path-specific, and covers
       every §15 Tier-1/Tier-2 family without simulation or I/O.
-- [ ] One shared spatial implementation serves topology materialization, placement,
+- [x] One shared spatial implementation serves topology materialization, placement,
       validation, reachability, and later W46 path consumers.
-- [ ] `initialState` resolves scenario/map content, allocates every initial id exactly,
+- [x] `initialState` resolves scenario/map content, allocates every initial id exactly,
       initializes the complete state closure, and persists correct tick-zero resolution.
-- [ ] Projection, scene, action availability, and outcome match §§7–10 and leak no hidden or
+- [x] Projection, scene, action availability, and outcome match §§7–10 and leak no hidden or
       duplicated envelope state.
-- [ ] All nine no-time-passes reducers use final content/state authority, exact allocation,
+- [x] All nine no-time-passes reducers use final content/state authority, exact allocation,
       complete reference cleanup, declared events, and resolvable audit paths.
-- [ ] No accepted immediate action changes `tick`, draws randomness, invokes a system, or
+- [x] No accepted immediate action changes `tick`, draws randomness, invokes a system, or
       reads the caller's action sequence.
-- [ ] `advance_ticks` cannot succeed until W46 supplies the complete one-tick pipeline.
-- [ ] The production `worldGraphKind`, authoring builder, and supported types are explicit
+- [x] `advance_ticks` cannot succeed until W46 supplies the complete one-tick pipeline.
+- [x] The production `worldGraphKind`, authoring builder, and supported types are explicit
       root exports and pass the packed-tarball consumer test.
-- [ ] The engine-owned minimum campaign reaches `createGame` and every immediate action
+- [x] The engine-owned minimum campaign reaches `createGame` and every immediate action
       through the validated registry and real engine seam.
-- [ ] Rejected actions preserve object/state/action-log identity and allocate/emit nothing;
+- [x] Rejected actions preserve object/state/action-log identity and allocate/emit nothing;
       accepted no-ops emit no false mutation.
-- [ ] The retained draft helpers/tests are individually reconciled; no old test survives
+- [x] The retained draft helpers/tests are individually reconciled; no old test survives
       solely by asserting superseded behavior.
-- [ ] Programme/TODO ledgers show W45 accurately, while public delivery remains unchanged
+- [x] Programme/TODO ledgers show W45 accurately, while public delivery remains unchanged
       until the implementation merges.
 - [ ] Engine typecheck, lint, tests, build, packed-artifact smoke, documentation gate,
       `git diff --check`, and all three required PR checks pass.
