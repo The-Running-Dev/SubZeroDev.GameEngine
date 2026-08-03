@@ -102,9 +102,9 @@ export default function RoadmapApp() {
             gate passes, and <code>@the-running-dev/game-engine@0.4.0</code> is
             published. W42's runtime-state contract and W43–W44's world-graph
             content and systems contracts are also shipped. W45's kind
-            foundation is merged; W46's deterministic tick pipeline is now in
-            review. The playable guest loop remains next. A contract is a
-            description, not a program.
+            foundation and W46's deterministic tick pipeline are merged. W47 is
+            the next slice: one playable guest journey from spawn to win or
+            lose. A contract is a description, not a program.
           </p>
           <p className="roadmap-links">
             <ExternalLink href="https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/108">
@@ -113,8 +113,8 @@ export default function RoadmapApp() {
             <ExternalLink href="https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/39-world-graph-kind-programme.md">
               World-graph programme
             </ExternalLink>
-            <ExternalLink href="https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/128">
-              W46 draft PR
+            <ExternalLink href="https://github.com/The-Running-Dev/SubZeroDev.GameEngine/commit/6301a497cc956c4e47df584c7b0b9d3c0455b71c">
+              W46 evidence
             </ExternalLink>
             <a href="/docs/engine/todo">Canonical task ledger</a>
           </p>
