@@ -338,8 +338,8 @@ original implementation review.
 
 **Planning record:** [`plans/46-w46-world-graph-tick-pipeline.md`](46-w46-world-graph-tick-pipeline.md).
 **Canonical contract:** `design/20-contract.md`'s `engine/12-world-graph-kind.md` block.
-**Status:** Planned in [PR #125](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/125);
-execution follows W45's merge.
+**Status:** Execution is in review in [PR #128](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/128).
+W46 is not delivered until that PR merges.
 
 - [ ] Cut the W46 code plan with one function/module owner for each normative system.
 - [ ] Implement bounded `advance_ticks` and `tick_limit_reached` rejection.

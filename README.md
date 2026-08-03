@@ -355,17 +355,19 @@ The MVP contracts are complete and every MVP-blocking decision has already been 
 [Story Graph](https://game-engine.subzerodev.com/docs/engine/story-graph-kind). The remaining
 work is implementation. Not philosophy.
 
-### Code — two implemented kinds and a published package (W0–W42)
+### Code — two implemented kinds, a published package, and the world-graph foundation (W0–W45)
 
 The deterministic core, story-graph kind, five Bulgaria arcs, text client, MCP adapter,
 replay oracle, save migration, and simulation kind are built and tested. `v0.4.0` is published
 as `@the-running-dev/game-engine`; a clean consumer test installs the packed artifact rather
-than trusting this checkout. The world-graph runtime-state contract is also complete.
+than trusting this checkout. The world-graph runtime-state, content, resolution, and immediate-action
+foundation are also merged.
 
-### Next — the world-graph content and resolution contracts (W43–W44)
+### Current — deterministic world-graph ticks (W46, in review)
 
-The third kind is specified before it is built: content definitions, then the deterministic
-tick pipeline. Full sequencing and done-criteria for every unit:
+The third kind's deterministic tick pipeline is now under review in
+[PR #128](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/128). The playable
+guest-to-resolution loop remains the next slice. Full sequencing and done-criteria for every unit:
 [TODO.md](https://game-engine.subzerodev.com/docs/engine/todo).
 
 ---
