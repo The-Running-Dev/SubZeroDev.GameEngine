@@ -308,9 +308,10 @@ stacked on this exact contract and remains merge-dependent.
 
 ### W44 — resolution and systems contract
 
-**Status:** Design complete on the stacked branch; the separate plan remains
-[PR #120](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/120), and public
-delivery status waits for merge.
+**Status:** In review —
+[PR #122](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/122), executing the
+separate [plan PR #120](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/120);
+public delivery status waits for merge.
 
 - [x] Cut the W44 doc-only plan and freeze the named 20-system order.
 - [x] Define each system's inputs, outputs, no-op conditions and emitted state changes/events.
