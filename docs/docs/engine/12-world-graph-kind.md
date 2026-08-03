@@ -1239,7 +1239,7 @@ type IncidentTarget =
 
 type WorldEffect =
   | { kind: "finance_delta"; field: "cashCents"; cents: number }
-  | { kind: "counter_delta"; counter: WorldCounterKey; delta: number }
+  | { kind: "counter_increment"; counter: WorldCounterKey; amount: number } // non-negative integer
   | { kind: "unlock" | "lock"; content: ContentReference }
   | { kind: "objective_progress"; objectiveId: string; delta: number }
   | {
@@ -1257,7 +1257,15 @@ type WorldEffect =
 Every `number` in §14 is an integer. `*Cents` fields are cents, `*Ticks` fields are ticks,
 `*Tiles` fields are grid tiles, meter values use their referenced definition range, curve
 inputs/outputs use the field that owns the curve, and utility/weight/delta fields are signed
-integer scoring units unless a narrower comment says otherwise.
+integer scoring units unless a narrower comment says otherwise. `counter_increment.amount` is a
+non-negative integer: it is the only effect that writes `WorldCounters`, so counters never
+decrease or become negative.
+
+`resolve_incident` is definition-targeted because campaign data cannot name a runtime occurrence
+id. When it executes, it resolves **every active** `Incident` whose `definitionId` matches, in
+lexicographic `Incident.id` order, and applies that definition's `onResolve` effects once per
+resolved occurrence. No match is a no-op. This fixes target selection; W44 still owns when an
+effect executes and how competing effects compose.
 
 All meters use the range on their referenced definition. `average` is an exact rational
 during comparison—W44 states the cross-multiplication/rounding rule—so no floating-point
@@ -1418,7 +1426,7 @@ type BuildingOperation =
   | {
       kind: "waste";
       capacity: number | null;                      // null = unlimited
-      acceptedIncidentIds: readonly string[];
+      acceptedIncidentDefinitionIds: readonly string[]; // IncidentDefinition ids
     }
   | { kind: "decorative" }
   | { kind: "support"; generatedTaskKinds: readonly StaffTaskType[] };
@@ -1779,8 +1787,10 @@ details, but it may not replace a precise path with an unstructured message.
   for every supported task and no extra rate.
 - `WorldCondition`/`WorldEffect` discriminators and payloads match. `all`/`any` are non-empty;
   expression depth is at most 32; finance metrics select numeric fields; inventory metrics
-  name a product; aggregate and selector references resolve. No arbitrary state path exists
-  to validate or execute.
+  name a product; aggregate and selector references resolve. Counter-increment amounts are
+  non-negative, and every incident-definition reference — including start/resolve effects,
+  litter, and waste acceptance — resolves in the `IncidentDefinition` catalog. No arbitrary
+  state path exists to validate or execute.
 - Objectives/failures have positive duration; objective progress metrics can be compared to
   their targets; incident ranges, cooldowns, weights, target modes, task kinds, and policy
   costs satisfy their declared domains.
@@ -1975,7 +1985,7 @@ const minimalMvpSource: WorldGraphCampaignSource = {
       initialCleanliness: 100,
       placementRules: [{ kind: "terrain", terrainIds: ["sand"] }],
       adjacencyEffects: [],
-      operation: { kind: "waste", capacity: null, acceptedIncidentIds: ["litter"] },
+      operation: { kind: "waste", capacity: null, acceptedIncidentDefinitionIds: ["litter"] },
       tags: ["waste"],
     },
   ],
@@ -2046,8 +2056,8 @@ const minimalMvpSource: WorldGraphCampaignSource = {
     durationTicks: null,
     resolutionCondition: null,
     resolverTaskType: "clean",
-    onStart: [{ kind: "counter_delta", counter: "litterCreated", delta: 1 }],
-    onResolve: [{ kind: "counter_delta", counter: "litterCleaned", delta: 1 }],
+    onStart: [{ kind: "counter_increment", counter: "litterCreated", amount: 1 }],
+    onResolve: [{ kind: "counter_increment", counter: "litterCleaned", amount: 1 }],
     tags: ["mvp"],
   }],
   objectives: [{
