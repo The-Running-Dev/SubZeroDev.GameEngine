@@ -5,6 +5,7 @@ import { build, demolish } from "./actions/build.js";
 import { rejected } from "./actions/common.js";
 import { assignStaff, fireStaff, hireStaff } from "./actions/staff.js";
 import type { WorldGraphKindState } from "./state.js";
+import { advanceTicks } from "./tick/batch.js";
 
 /** W45 owns only immediate reducers. W46 replaces the deliberate `advance_ticks` guard. */
 export function advance(
@@ -24,7 +25,7 @@ export function advance(
     case "open_building": return setBuildingOpen(state, params, ctx, true);
     case "close_building": return setBuildingOpen(state, params, ctx, false);
     case "dismiss_alert": return dismissAlert(state, params, ctx);
-    case "advance_ticks": return rejected(state, "core.reason.action_not_available");
+    case "advance_ticks": return advanceTicks(state, params, ctx);
     default: return rejected(state, "core.reason.unknown_action");
   }
 }

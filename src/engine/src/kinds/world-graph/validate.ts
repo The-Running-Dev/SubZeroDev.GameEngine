@@ -1,7 +1,7 @@
 import type { Campaign } from "../../core/registry/types.js";
 import type { LocKey } from "../../core/localization/types.js";
 import type { ValidationError, ValidationResult, ValidationWarning } from "../../core/validation/types.js";
-import type { WorldCondition, WorldGraphCampaign } from "./content.js";
+import type { WorldCondition, WorldEffect, WorldGraphCampaign } from "./content.js";
 import { checkBuildingPlacement, materializeMap } from "./spatial.js";
 import type { Building } from "./state.js";
 
@@ -101,6 +101,49 @@ function conditionErrors(condition: WorldCondition, path: string, errors: Valida
     if (!Array.isArray(condition.conditions) || condition.conditions.length === 0) errors.push(error("invalid_condition", `${path}.conditions`));
     else condition.conditions.forEach((child, index) => conditionErrors(child, `${path}.conditions[${index}]`, errors, depth + 1));
   } else if (condition.kind === "not") conditionErrors(condition.condition, `${path}.condition`, errors, depth + 1);
+}
+
+function effectErrors(effect: WorldEffect, path: string, errors: ValidationError[]): void {
+  if (!object(effect) || typeof effect.kind !== "string") {
+    errors.push(error("invalid_effect", path));
+    return;
+  }
+  const kinds = new Set([
+    "finance_delta", "counter_increment", "unlock", "lock", "objective_progress",
+    "guest_meter_delta", "building_meter_delta", "start_incident", "resolve_incident",
+    "set_policy_active",
+  ]);
+  if (!kinds.has(effect.kind)) {
+    errors.push(error("invalid_effect", `${path}.kind`));
+    return;
+  }
+  if (effect.kind === "counter_increment" && (!safeInteger(effect.amount) || effect.amount < 0)) {
+    errors.push(error("invalid_counter_increment", `${path}.amount`));
+  }
+}
+
+function catalogEffectErrors(content: WorldGraphCampaign, errors: ValidationError[]): void {
+  const check = (effects: readonly WorldEffect[], path: string): void => {
+    if (!Array.isArray(effects)) {
+      errors.push(error("invalid_effect", path));
+      return;
+    }
+    effects.forEach((effect, index) => effectErrors(effect, `${path}[${index}]`, errors));
+  };
+  content.products.forEach((entry, index) => check(entry.effects, `content.products[${index}].effects`));
+  content.buildings.forEach((entry, index) => {
+    if (entry.operation.kind === "service") check(entry.operation.effects, `content.buildings[${index}].operation.effects`);
+  });
+  content.objectives.forEach((entry, index) => check(entry.onCompleted, `content.objectives[${index}].onCompleted`));
+  content.failures.forEach((entry, index) => check(entry.onTriggered, `content.failures[${index}].onTriggered`));
+  content.incidents.forEach((entry, index) => {
+    check(entry.onStart, `content.incidents[${index}].onStart`);
+    check(entry.onResolve, `content.incidents[${index}].onResolve`);
+  });
+  content.policies.forEach((entry, index) => check(entry.whileActive, `content.policies[${index}].whileActive`));
+  content.scenarios.forEach((entry, scenarioIndex) => entry.scheduledChanges.forEach((change, changeIndex) => (
+    check(change.effects, `content.scenarios[${scenarioIndex}].scheduledChanges[${changeIndex}].effects`)
+  )));
 }
 
 function referenceErrors(content: WorldGraphCampaign): ValidationError[] {
@@ -206,6 +249,7 @@ export function validateCampaign(campaign: Campaign, strings: ReadonlyMap<LocKey
   try {
     const content = campaign.content as WorldGraphCampaign;
     errors.push(...textErrors(content, strings), ...referenceErrors(content), ...placementErrors(content));
+    catalogEffectErrors(content, errors);
     const warnings = graphWarnings(content);
     return { ok: errors.length === 0, errors, warnings };
   } catch {

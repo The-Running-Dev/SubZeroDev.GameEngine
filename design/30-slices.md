@@ -647,7 +647,8 @@ when it declined a programme doc for this kind.
       reader copy. Its execution record is
       [`plans/44-w44-world-graph-resolution-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/44-w44-world-graph-resolution-contract.md),
       which is historical rather than a second contract authority.
-- [ ] **W45 in review — kind skeleton and immediate actions:** the source/runtime builder,
+- [x] **W45 — kind skeleton and immediate actions: merged in
+      [PR #125](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/125).** The source/runtime builder,
       total validation, shared spatial substrate, deterministic initial state, read surfaces,
       production assembly, package exports, and nine no-time-passes reducers are reconciled
       in [PR #125](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/125), with
@@ -655,8 +656,10 @@ when it declined a programme doc for this kind.
       the original implementation review. The execution record is
       [`plans/45-w45-world-graph-kind-skeleton.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/45-w45-world-graph-kind-skeleton.md),
       which is historical rather than a second contract authority.
-- [ ] **W46 planned — deterministic tick pipeline:** fixed-order systems, bounded
-      `advance_ticks`, derived streams and batch invariance. Its implementation plan is
+- [ ] **W46 implemented — deterministic tick pipeline:** fixed-order systems, bounded
+      `advance_ticks`, derived streams and batch invariance are implemented and ready to
+      merge in [PR #128](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/128).
+      It becomes delivered when that PR reaches `main`. Its implementation plan is
       [`plans/46-w46-world-graph-tick-pipeline.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/46-w46-world-graph-tick-pipeline.md);
       it follows the canonical world-graph contract and does not supersede it.
 - [ ] **W47 proposed — MVP vertical slice:** spawn → walk → queue → buy → litter → clean →

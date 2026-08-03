@@ -153,8 +153,13 @@ export const nextActs: readonly RoadmapChapter[] = [
     status: "now",
     title: "Make the resort move",
     summary:
-      "W45’s kind foundation is reconciled; W46 plans the deterministic tick runner that follows it.",
+      "W45’s kind foundation is merged; W46’s deterministic tick runner is in review, not yet delivered.",
     links: [
+      {
+        label: "W46 draft PR",
+        href: `${repo}/pull/128`,
+        kind: "repository",
+      },
       {
         label: "World-graph contract",
         href: `${repo}/blob/main/design/20-contract.md`,

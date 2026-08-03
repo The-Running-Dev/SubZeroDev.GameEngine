@@ -137,6 +137,34 @@ describe("world-graph W45 source and validation", () => {
       expect.objectContaining({ code: "invalid_cost", path: "content.staffRoles[0].hireCostCents" }),
     ]));
   });
+
+  it("rejects negative and legacy counter effects before a tick can run", () => {
+    const built = envelope();
+    const base = runtime().content;
+    const invalidEffects = [
+      { kind: "counter_increment", counter: "guestsEntered", amount: -1 },
+      { kind: "counter_delta", counter: "guestsEntered", delta: 1 },
+    ] as unknown as WorldGraphCampaign["scenarios"][number]["scheduledChanges"][number]["effects"];
+    const invalid = {
+      ...built.campaign,
+      content: {
+        ...base,
+        scenarios: base.scenarios.map((entry) => ({
+          ...entry,
+          scheduledChanges: [{
+            dueTick: 0,
+            priority: 0,
+            condition: { kind: "constant" as const, value: true },
+            effects: invalidEffects,
+          }],
+        })),
+      },
+    };
+    expect(worldGraphKind.validateCampaign(invalid, built.strings).errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "invalid_counter_increment", path: "content.scenarios[0].scheduledChanges[0].effects[0].amount" }),
+      expect.objectContaining({ code: "invalid_effect", path: "content.scenarios[0].scheduledChanges[0].effects[1].kind" }),
+    ]));
+  });
 });
 
 describe("world-graph W45 engine seam", () => {
@@ -149,13 +177,16 @@ describe("world-graph W45 engine seam", () => {
     expect(state.failures).toHaveLength(1);
   });
 
-  it("keeps advance_ticks advertised but unavailable without changing state or log", () => {
+  it("advances bounded batches without using the action RNG stream", () => {
     const game = create();
     const runtimeEngine = engine();
-    expect(runtimeEngine.availableActions(game).find((entry) => entry.id === "advance_ticks")).toMatchObject({ available: false, reasonKey: "core.reason.action_not_available" });
-    const result = runtimeEngine.submitAction(game, "advance_ticks", { ticks: 1 });
-    expect(result).toMatchObject({ ok: false, errors: [{ code: "action_not_available" }] });
-    expect(game.actionLog).toEqual([]);
+    expect(runtimeEngine.availableActions(game).find((entry) => entry.id === "advance_ticks")).toMatchObject({ available: true });
+    const result = runtimeEngine.submitAction(game, "advance_ticks", { ticks: 2 });
+    expect(result.ok).toBe(true);
+    expect(stateOf(result.value!)).toMatchObject({ tick: 2 });
+    expect(result.changes).toEqual([expect.objectContaining({ path: "tick", previous: 0, value: 2, reason: "ticks_advanced" })]);
+    expect(runtimeEngine.submitAction(game, "advance_ticks", { ticks: 0 }).errors[0]?.code).toBe("ticks_not_positive");
+    expect(runtimeEngine.submitAction(game, "advance_ticks", { ticks: 11 }).errors[0]?.code).toBe("tick_limit_reached");
   });
 
   it("builds immediately with exact ids, charge, revision, event and product state", () => {
