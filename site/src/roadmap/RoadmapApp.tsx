@@ -2,7 +2,7 @@ import { ExternalLink, SiteFooter, SiteHeader } from "../shared";
 import {
   completedWorkUnitCount,
   currentAct,
-  nextActs,
+  futureActs,
   shippedChapters,
   type RoadmapChapter,
 } from "./roadmapData";
@@ -110,7 +110,7 @@ export default function RoadmapApp() {
             Next: Open the Resort. Regret the Resort.
           </h2>
           <ol className="milestones">
-            {nextActs.map((chapter) => (
+            {futureActs.map((chapter) => (
               <Milestone key={chapter.id} chapter={chapter} />
             ))}
           </ol>

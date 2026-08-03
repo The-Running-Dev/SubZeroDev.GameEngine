@@ -4,6 +4,7 @@ import RoadmapApp from "./RoadmapApp";
 import {
   completedWorkUnitCount,
   currentAct,
+  futureActs,
   nextActs,
   shippedChapters,
 } from "./roadmapData";
@@ -15,7 +16,6 @@ describe("roadmap page", () => {
       `How a Quick Question Became ${completedWorkUnitCount} Work Units.`,
     );
     expect(screen.getAllByText("DONE")).toHaveLength(8);
-    expect(screen.getAllByText("NOW")).toHaveLength(1);
     expect(screen.getAllByText("NEXT")).toHaveLength(2);
     expect(screen.getAllByText("LATER")).toHaveLength(3);
     const checkpoint = screen.getByText("02 / NOW").closest("section");
@@ -26,6 +26,14 @@ describe("roadmap page", () => {
         name: currentAct.title,
       }),
     ).toBeVisible();
+    const future = screen.getByText("03 / NEXT").closest("section");
+    expect(future).not.toBeNull();
+    expect(
+      within(future as HTMLElement).queryByRole("heading", {
+        level: 2,
+        name: currentAct.title,
+      }),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps shipped work chronological and future work explicitly future", () => {
@@ -46,6 +54,10 @@ describe("roadmap page", () => {
     ]);
     expect(nextActs.every((chapter) => chapter.status !== "done")).toBe(true);
     expect(currentAct.workUnits).toBe("W47");
+    expect(futureActs.map((chapter) => chapter.workUnits)).toEqual([
+      "W48",
+      "W49",
+    ]);
     expect(shippedChapters[0]?.links[0]?.href).toMatch(
       /^https:\/\/github\.com\/The-Running-Dev\/SubZeroDev\.GameEngine\/commit\/[0-9a-f]{40}$/,
     );

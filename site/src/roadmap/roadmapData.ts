@@ -223,3 +223,7 @@ if (currentActCandidate === undefined) {
 }
 
 export const currentAct: RoadmapChapter = currentActCandidate;
+
+export const futureActs = nextActs.filter(
+  (chapter) => chapter.status === "next",
+);
