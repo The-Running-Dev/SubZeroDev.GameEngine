@@ -601,12 +601,14 @@ comparison gets backwards — and a comparator that gets it backwards is a deter
 that appears only once a scenario runs past nine entities of one prefix, which is precisely
 the kind of bug this document exists to prevent.
 
-**The reducers maintain the order rather than re-sorting for it.** Every entity collection
-governed by `nextEntityOrdinal` appends in allocation order, so insertion order *is* id
-order and removal preserves it. Content-reference and published-id arrays insert in their
-declared canonical order; removing or toggling an entry preserves that order. Canonical
-order is therefore an invariant to test rather than a sort to run on every system pass — a
-500-guest sort per tick would be the dominant cost in a 360-tick batch.
+**The reducers maintain the order rather than re-sorting for it.** Entity collections governed
+by `nextEntityOrdinal` append in allocation order when an entity materializes immediately.
+A timed construction that materializes a previously reserved id inserts the completed
+building at its canonical id-sorted position (an ordered insertion, not a full sort), so
+insertion order remains id order and removal preserves it. Content-reference and published-id
+arrays insert in their declared canonical order; removing or toggling an entry preserves that
+order. Canonical order is therefore an invariant to test rather than a sort to run on every
+system pass — a 500-guest sort per tick would be the dominant cost in a 360-tick batch.
 
 ---
 
@@ -1529,7 +1531,7 @@ listed so the second is not discovered later as a gap.
 > | Shape | Reaches | Examples |
 > |---|---|---|
 > | **Singleton** | a scalar not held in a collection | `tick`, `finances.cashCents`, `map.revision` |
-> | **Member-scoped** | `<collection>.<memberId>.<field>` or `.exists` | `buildings.b:3.status`, `unlockedAchievementIds.first-sale.exists` |
+> | **Member-scoped** | `<collection>.<memberId>.<field>` or `.exists` | `buildings.building:3.status`, `unlockedAchievementIds.first-sale.exists` |
 >
 > `<memberId>` is the entity's own id (§9), or the string value in a canonical id set such
 > as `unlockedAchievementIds`; it is never an array index. An index is a property of how the
@@ -1542,7 +1544,7 @@ listed so the second is not discovered later as a gap.
 > With a `productId` of `water.sparkling`:
 >
 > ```text
-> buildings.b:3.pricesCents.water.sparkling
+> buildings.building:3.pricesCents.water.sparkling
 >                           └─ one segment, or two? The path resolves to a price, or to
 >                              nothing, depending entirely on who parsed it.
 > ```
@@ -1555,7 +1557,7 @@ listed so the second is not discovered later as a gap.
 > path is unambiguous:
 >
 > ```text
-> buildings.b:3.pricesCents.sparkling-water   →  buildings[id=b:3].pricesCents["sparkling-water"]
+> buildings.building:3.pricesCents.sparkling-water   →  buildings[id=building:3].pricesCents["sparkling-water"]
 > ```
 >
 > The alternative — a canonical escaping grammar for segments — buys nothing here: nothing
