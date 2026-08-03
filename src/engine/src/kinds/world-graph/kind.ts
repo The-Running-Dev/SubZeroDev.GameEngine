@@ -23,7 +23,7 @@ export const worldGraphKind: Kind<WorldGraphKindState> = {
   id: "world-graph",
   version: "1.0.0",
   reasonCodes: WORLD_GRAPH_REASON_CODES,
-  /** W45 declares only immediate-action events it can actually emit. */
+  /** W46 adds only the tick events with real producers. */
   eventNames: [
     "kind.world-graph.building.placed",
     "kind.world-graph.building.demolished",
@@ -32,6 +32,10 @@ export const worldGraphKind: Kind<WorldGraphKindState> = {
     "kind.world-graph.staff.fired",
     "kind.world-graph.staff.assigned",
     "kind.world-graph.alert.dismissed",
+    "kind.world-graph.batch.started",
+    "kind.world-graph.batch.ended",
+    "kind.world-graph.scenario.effect.applied",
+    "kind.world-graph.tick.finalized",
   ],
   initialState: (campaign, ctx) => initialState(campaign, ctx),
   availableActions: (state, ctx): AvailableAction[] => availableActions(state, ctx),

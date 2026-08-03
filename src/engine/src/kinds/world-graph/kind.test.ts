@@ -149,13 +149,16 @@ describe("world-graph W45 engine seam", () => {
     expect(state.failures).toHaveLength(1);
   });
 
-  it("keeps advance_ticks advertised but unavailable without changing state or log", () => {
+  it("advances bounded batches without using the action RNG stream", () => {
     const game = create();
     const runtimeEngine = engine();
-    expect(runtimeEngine.availableActions(game).find((entry) => entry.id === "advance_ticks")).toMatchObject({ available: false, reasonKey: "core.reason.action_not_available" });
-    const result = runtimeEngine.submitAction(game, "advance_ticks", { ticks: 1 });
-    expect(result).toMatchObject({ ok: false, errors: [{ code: "action_not_available" }] });
-    expect(game.actionLog).toEqual([]);
+    expect(runtimeEngine.availableActions(game).find((entry) => entry.id === "advance_ticks")).toMatchObject({ available: true });
+    const result = runtimeEngine.submitAction(game, "advance_ticks", { ticks: 2 });
+    expect(result.ok).toBe(true);
+    expect(stateOf(result.value!)).toMatchObject({ tick: 2 });
+    expect(result.changes).toEqual([expect.objectContaining({ path: "tick", previous: 0, value: 2, reason: "ticks_advanced" })]);
+    expect(runtimeEngine.submitAction(game, "advance_ticks", { ticks: 0 }).errors[0]?.code).toBe("ticks_not_positive");
+    expect(runtimeEngine.submitAction(game, "advance_ticks", { ticks: 11 }).errors[0]?.code).toBe("tick_limit_reached");
   });
 
   it("builds immediately with exact ids, charge, revision, event and product state", () => {

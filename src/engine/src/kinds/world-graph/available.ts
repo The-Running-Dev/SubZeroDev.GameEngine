@@ -46,7 +46,7 @@ export function availableActions(state: WorldGraphKindState, ctx: KindContext): 
     action("open_building", state.buildings.some((entry) => entry.status === "closed"), "world-graph.reason.unknown_entity"),
     action("close_building", state.buildings.some((entry) => entry.status === "open"), "world-graph.reason.unknown_entity"),
     action("dismiss_alert", state.alerts.some((entry) => entry.dismissedAtTick === null && entry.clearedAtTick === null), "world-graph.reason.unknown_entity"),
-    action("advance_ticks", false, "core.reason.action_not_available"),
+    action("advance_ticks", true),
   ];
 }
 
