@@ -5,8 +5,8 @@ Generates the human-facing engine documentation from the canonical agent-kit des
 .DESCRIPTION
 The canonical documents under design/ contain marked human-document blocks. This script
 extracts those blocks into docs/docs/engine/, adds a generated-file notice after front matter,
-and stamps or verifies the generated developer guide against a digest of the five canonical
-design documents.
+and stamps or verifies the generated developer guide against a digest of the canonical files
+that /make-human-docs reads.
 
 .PARAMETER Check
 Compare generated output and the guide digest without writing files.
@@ -38,6 +38,12 @@ $canonicalFiles = @(
     '20-contract.md'
     '30-slices.md'
     '90-decisions.md'
+)
+
+$guideInputFiles = @(
+    '00-brief.md'
+    '10-design.md'
+    '20-contract.md'
 )
 
 function ConvertTo-Lf {
@@ -97,7 +103,7 @@ function Get-HumanBlocks {
 
 function Get-DesignDigest {
     $builder = [Text.StringBuilder]::new()
-    foreach ($name in $canonicalFiles) {
+    foreach ($name in $guideInputFiles) {
         $path = Join-Path $designRoot $name
         if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
             throw "Canonical design file is missing: $path"
@@ -130,7 +136,6 @@ function Get-CompatibilityPointer {
 
     foreach ($heading in $headings) {
         [void] $builder.Append($heading.Value).Append("`n`n")
-        [void] $builder.Append("Canonical content: [$($Document.SourceName)]($($Document.SourceName)).`n`n")
     }
 
     return $builder.ToString().TrimEnd("`n") + "`n"
@@ -149,8 +154,10 @@ if ($duplicate) {
 }
 
 $failures = [Collections.Generic.List[string]]::new()
+$expectedOutputPaths = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 foreach ($document in $generated) {
     $outputPath = Join-Path $humanRoot $document.RelativePath
+    [void] $expectedOutputPaths.Add([IO.Path]::GetFullPath($outputPath))
     $expected = (ConvertTo-Lf -Text $document.Content).TrimEnd("`n") + "`n"
 
     if ($Check) {
@@ -172,9 +179,11 @@ foreach ($document in $generated) {
     Write-Host "[HUMAN-DOCS] Generated $($document.RelativePath) from design/$($document.SourceName)"
 }
 
+$expectedPointerPaths = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 foreach ($document in $generated) {
     $pointerName = [IO.Path]::GetFileName($document.RelativePath)
     $pointerPath = Join-Path $designRoot $pointerName
+    [void] $expectedPointerPaths.Add([IO.Path]::GetFullPath($pointerPath))
     $expected = Get-CompatibilityPointer -Document $document
 
     if ($Check) {
@@ -191,6 +200,38 @@ foreach ($document in $generated) {
 
     [IO.File]::WriteAllText($pointerPath, $expected, $utf8NoBom)
     Write-Host "[HUMAN-DOCS] Generated compatibility pointer design/$pointerName"
+}
+
+$generatedDocumentNotice = '<!-- Generated from design/'
+foreach ($file in Get-ChildItem -LiteralPath $humanRoot -Recurse -File -Filter '*.md') {
+    $firstLine = Get-Content -LiteralPath $file.FullName -TotalCount 1
+    if ($firstLine.StartsWith($generatedDocumentNotice, [StringComparison]::Ordinal) -and
+        -not $expectedOutputPaths.Contains([IO.Path]::GetFullPath($file.FullName))) {
+        $relativePath = [IO.Path]::GetRelativePath($repositoryRoot, $file.FullName)
+        if ($Check) {
+            $failures.Add("Obsolete generated document: $relativePath")
+        }
+        else {
+            Remove-Item -LiteralPath $file.FullName
+            Write-Host "[HUMAN-DOCS] Removed obsolete generated document $relativePath"
+        }
+    }
+}
+
+$compatibilityPointerNotice = '<!-- Generated compatibility pointer. Do not edit directly. -->'
+foreach ($file in Get-ChildItem -LiteralPath $designRoot -File -Filter '*.md') {
+    $firstLine = Get-Content -LiteralPath $file.FullName -TotalCount 1
+    if ($firstLine -eq $compatibilityPointerNotice -and
+        -not $expectedPointerPaths.Contains([IO.Path]::GetFullPath($file.FullName))) {
+        $relativePath = [IO.Path]::GetRelativePath($repositoryRoot, $file.FullName)
+        if ($Check) {
+            $failures.Add("Obsolete generated compatibility pointer: $relativePath")
+        }
+        else {
+            Remove-Item -LiteralPath $file.FullName
+            Write-Host "[HUMAN-DOCS] Removed obsolete generated compatibility pointer $relativePath"
+        }
+    }
 }
 
 $digest = Get-DesignDigest
@@ -224,10 +265,7 @@ else {
 }
 
 if ($failures.Count -gt 0) {
-    foreach ($failure in $failures) {
-        Write-Error $failure
-    }
-    exit 1
+    throw "Human-documentation generation failed:`n$($failures -join "`n")"
 }
 
 if ($Check) {

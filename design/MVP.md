@@ -4,24 +4,12 @@
 
 # MVP
 
-Canonical content: [00-brief.md](00-brief.md).
-
 ## 1. The MVP in One Sentence
-
-Canonical content: [00-brief.md](00-brief.md).
 
 ## 2. Why Story-Graph, Not Jones
 
-Canonical content: [00-brief.md](00-brief.md).
-
 ## 3. In Scope
-
-Canonical content: [00-brief.md](00-brief.md).
 
 ## 4. Out of Scope (Explicitly)
 
-Canonical content: [00-brief.md](00-brief.md).
-
 ## 5. Definition of Done — The MVP
-
-Canonical content: [00-brief.md](00-brief.md).

@@ -743,9 +743,11 @@ if ($TreatWarningsAsErrors -and $warningFindings.Count -gt 0) {
 
 $humanDocumentationCheck = Join-Path $repositoryRoot 'build' 'ConvertTo-HumanDocumentation.ps1'
 if (Test-Path -LiteralPath $humanDocumentationCheck -PathType Leaf) {
-    & $humanDocumentationCheck -Check
-    if (-not $?) {
-        throw 'Generated human documentation differs from the canonical design documents.'
+    try {
+        & $humanDocumentationCheck -Check
+    }
+    catch {
+        throw "Generated human documentation differs from the canonical design documents: $($_.Exception.Message)"
     }
 }
 
