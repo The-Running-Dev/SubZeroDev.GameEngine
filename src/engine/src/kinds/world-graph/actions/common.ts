@@ -35,6 +35,7 @@ export function change(path: string, value: string | number | boolean, reason: s
 }
 
 export function spend(state: WorldGraphKindState, amountCents: number): WorldGraphKindState["finances"] {
+  if (!Number.isSafeInteger(amountCents) || amountCents < 0) throw new Error(`Invalid world-graph expense: ${amountCents}`);
   return {
     ...state.finances,
     cashCents: state.finances.cashCents - amountCents,

@@ -121,6 +121,22 @@ describe("world-graph W45 source and validation", () => {
     const built = envelope();
     expect(worldGraphKind.validateCampaign(built.campaign, built.strings)).toMatchObject({ ok: true, errors: [] });
   });
+
+  it("rejects negative building and hiring costs before a reducer can spend them", () => {
+    const built = envelope();
+    const invalid = {
+      ...built.campaign,
+      content: {
+        ...runtime().content,
+        buildings: runtime().content.buildings.map((entry) => ({ ...entry, constructionCostCents: -1 })),
+        staffRoles: runtime().content.staffRoles.map((entry) => ({ ...entry, hireCostCents: -1 })),
+      },
+    };
+    expect(worldGraphKind.validateCampaign(invalid, built.strings).errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "invalid_cost", path: "content.buildings[0].constructionCostCents" }),
+      expect.objectContaining({ code: "invalid_cost", path: "content.staffRoles[0].hireCostCents" }),
+    ]));
+  });
 });
 
 describe("world-graph W45 engine seam", () => {
@@ -233,6 +249,23 @@ describe("world-graph W45 engine seam", () => {
     expect(limitedEngine.submitAction(limitedGame, "build", { definitionId: "kiosk", x: 2, y: 1, rotation: 0 }).errors[0]?.code).toBe("building_limit_reached");
     expect(limitedEngine.submitAction(limitedGame, "hire_staff", { definitionId: "cleaner" }).errors[0]?.code).toBe("staff_limit_reached");
     expect(stateOf(limitedGame)).toMatchObject({ tick: 0, nextEntityOrdinal: 0 });
+  });
+
+  it("advertises only actions that can be parameterized and explains an unaffordable hire", () => {
+    const content = runtime().content;
+    const emptyServiceBuildings = content.buildings.map((entry) => ({
+      ...entry,
+      operation: entry.operation.kind === "service" ? { ...entry.operation, products: [] } : entry.operation,
+    }));
+    const emptyServiceEngine = engine({ buildings: emptyServiceBuildings });
+    const emptyServiceGame = emptyServiceEngine.submitAction(create({ buildings: emptyServiceBuildings }), "build", { definitionId: "kiosk", x: 2, y: 1, rotation: 0 }).value!;
+    expect(emptyServiceEngine.availableActions(emptyServiceGame).find((entry) => entry.id === "set_price")).toMatchObject({ available: false });
+
+    const poorScenarios = content.scenarios.map((entry) => ({ ...entry, startingCashCents: 100 }));
+    expect(engine({ scenarios: poorScenarios }).availableActions(create({ scenarios: poorScenarios })).find((entry) => entry.id === "hire_staff")).toMatchObject({
+      available: false,
+      reasonKey: "world-graph.reason.insufficient_funds",
+    });
   });
 
   it("projects only the contract view and reads terminal identity only from resolution", () => {

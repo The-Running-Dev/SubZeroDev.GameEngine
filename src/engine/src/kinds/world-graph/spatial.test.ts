@@ -40,4 +40,9 @@ describe("world-graph spatial substrate", () => {
     expect(checkBuildingPlacement(map, [terrain], building, 2, 1, 0, [], [])).toMatchObject({ ok: false, reason: "placement_out_of_bounds" });
     expect(checkBuildingPlacement(map, [terrain], building, 1, 0, 0, [], [])).toMatchObject({ ok: true, entrances: [{ x: 0, y: 0 }] });
   });
+
+  it("rejects rotations that the definition does not allow in every placement path", () => {
+    const map = materializeMap(mapDefinition);
+    expect(checkBuildingPlacement(map, [terrain], { ...building, allowedRotations: [0] }, 1, 0, 90, [], [])).toMatchObject({ ok: false, reason: "placement_terrain_unsuitable" });
+  });
 });

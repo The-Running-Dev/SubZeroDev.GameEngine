@@ -100,10 +100,10 @@ export default function RoadmapApp() {
           <p>
             W41 is complete: the package boundary is merged, the clean-consumer
             gate passes, and <code>@the-running-dev/game-engine@0.4.0</code> is
-            published. W42's runtime-state contract is also shipped. W43, the
-            content-definition contract, is next and not merged. Nothing of the
-            world-graph kind runs yet. A contract is a description, not a
-            program.
+            published. W42's runtime-state contract and W43–W44's world-graph
+            content and systems contracts are also shipped. W45's kind
+            foundation is reconciled; W46 is next to make its tick pipeline
+            real. A contract is a description, not a program.
           </p>
           <p className="roadmap-links">
             <ExternalLink href="https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/108">

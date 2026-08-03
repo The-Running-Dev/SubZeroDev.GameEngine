@@ -127,10 +127,14 @@ function referenceErrors(content: WorldGraphCampaign): ValidationError[] {
   content.buildings.forEach((definition, index) => {
     if (definition.footprint.width <= 0 || definition.footprint.height <= 0) errors.push(error("invalid_footprint", `content.buildings[${index}].footprint`));
     if (definition.entrances.length === 0 || definition.allowedRotations.length === 0) errors.push(error("invalid_building_geometry", `content.buildings[${index}]`));
+    if (definition.constructionCostCents < 0) errors.push(error("invalid_cost", `content.buildings[${index}].constructionCostCents`));
     if (definition.operation.kind === "service") {
       definition.operation.products.forEach((entry, productIndex) => requireId(ids.products, entry.productId, `content.buildings[${index}].operation.products[${productIndex}].productId`));
       definition.operation.staffRequirements.forEach((entry, roleIndex) => requireId(ids.staffRoles, entry.roleId, `content.buildings[${index}].operation.staffRequirements[${roleIndex}].roleId`));
     }
+  });
+  content.staffRoles.forEach((definition, index) => {
+    if (definition.hireCostCents < 0) errors.push(error("invalid_cost", `content.staffRoles[${index}].hireCostCents`));
   });
   content.guestArchetypes.forEach((entry, index) => {
     entry.needs.forEach((profile, profileIndex) => requireId(ids.needs, profile.needId, `content.guestArchetypes[${index}].needs[${profileIndex}].needId`));

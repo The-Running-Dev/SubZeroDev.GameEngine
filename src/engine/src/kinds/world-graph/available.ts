@@ -24,15 +24,22 @@ export function availableActions(state: WorldGraphKindState, ctx: KindContext): 
   const firstBuildReason = buildReasons.flat()[0] ?? "unknown_entity";
   const hasBuildings = state.buildings.length > 0;
   const hasStaff = state.staff.length > 0;
-  const hireable = content.staffRoles.some((role) => {
+  const affordableRoleExists = content.staffRoles.some((role) => {
     const limit = scenario.staffLimits.find((entry) => entry.definitionId === role.id)?.maximum;
-    return role.hireCostCents <= state.finances.cashCents && (limit === undefined || state.staff.filter((entry) => entry.roleId === role.id).length < limit);
+    return (limit === undefined || state.staff.filter((entry) => entry.roleId === role.id).length < limit) && role.hireCostCents <= state.finances.cashCents;
   });
-  const priceable = state.buildings.some((building) => building.status === "open" && content.buildings.find((entry) => entry.id === building.definitionId)?.operation.kind === "service");
+  const roleBelowLimitExists = content.staffRoles.some((role) => {
+    const limit = scenario.staffLimits.find((entry) => entry.definitionId === role.id)?.maximum;
+    return limit === undefined || state.staff.filter((entry) => entry.roleId === role.id).length < limit;
+  });
+  const priceable = state.buildings.some((building) => {
+    const definition = content.buildings.find((entry) => entry.id === building.definitionId);
+    return building.status === "open" && definition?.operation.kind === "service" && definition.operation.products.length > 0;
+  });
   return [
     action("build", buildable, `world-graph.reason.${firstBuildReason}`),
     action("demolish", hasBuildings, "world-graph.reason.unknown_entity"),
-    action("hire_staff", hireable, "world-graph.reason.staff_limit_reached"),
+    action("hire_staff", affordableRoleExists, roleBelowLimitExists ? "world-graph.reason.insufficient_funds" : "world-graph.reason.staff_limit_reached"),
     action("fire_staff", hasStaff, "world-graph.reason.unknown_entity"),
     action("assign_staff", hasStaff, "world-graph.reason.unknown_entity"),
     action("set_price", priceable, "world-graph.reason.building_not_open"),

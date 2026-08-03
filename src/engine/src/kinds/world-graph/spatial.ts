@@ -132,12 +132,12 @@ function ruleAllows(
 }
 
 function traversable(
-  map: WorldMap,
   terrain: ReadonlyMap<string, TerrainDefinition>,
+  terrainByCell: ReadonlyMap<string, string>,
   blocked: ReadonlySet<string>,
   position: Position,
 ): boolean {
-  const terrainId = terrainIndex(map).get(key(position));
+  const terrainId = terrainByCell.get(key(position));
   return !blocked.has(key(position)) && terrainId !== undefined && terrain.get(terrainId)?.walkable === true;
 }
 
@@ -154,9 +154,9 @@ export function canonicalPath(
   const terrainByCell = terrainIndex(map);
   const blocked = occupiedCells(buildings, sites);
   for (const position of additionallyBlocked) blocked.add(key(position));
-  const orderedGoals = [...goals].filter((goal) => traversable(map, terrain, blocked, goal)).sort(comparePosition);
+  const orderedGoals = [...goals].filter((goal) => traversable(terrain, terrainByCell, blocked, goal)).sort(comparePosition);
   const goalKeys = new Set(orderedGoals.map(key));
-  if (!traversable(map, terrain, blocked, start) || orderedGoals.length === 0) return null;
+  if (!traversable(terrain, terrainByCell, blocked, start) || orderedGoals.length === 0) return null;
 
   const open: Array<{ position: Position; cost: number }> = [{ position: start, cost: 0 }];
   const cost = new Map([[key(start), 0]]);
@@ -178,7 +178,7 @@ export function canonicalPath(
       .filter((edge) => edge.allowed && key(edge.from) === key(current.position))
       .sort((a, b) => comparePosition(a.to, b.to));
     for (const edge of outgoing) {
-      if (!traversable(map, terrain, blocked, edge.to)) continue;
+      if (!traversable(terrain, terrainByCell, blocked, edge.to)) continue;
       const terrainId = terrainByCell.get(key(edge.to));
       const nextCost = current.cost + edge.edgeCost + (terrainId === undefined ? 0 : terrain.get(terrainId)?.moveCost ?? 0);
       const previous = cost.get(key(edge.to));
@@ -203,6 +203,7 @@ export function checkBuildingPlacement(
   buildings: readonly Building[],
   sites: readonly ConstructionSite[],
 ): PlacementResult {
+  if (!definition.allowedRotations.includes(rotation)) return { ok: false, reason: "placement_terrain_unsuitable" };
   const size = rotatedDimensions(definition.footprint.width, definition.footprint.height, rotation);
   const cells = footprintCells(x, y, size.width, size.height);
   if (!cells.every((cell) => inBounds(map.width, map.height, cell))) return { ok: false, reason: "placement_out_of_bounds" };
