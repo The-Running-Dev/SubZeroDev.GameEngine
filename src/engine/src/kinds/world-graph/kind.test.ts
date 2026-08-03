@@ -261,6 +261,59 @@ describe("world-graph W45 engine seam", () => {
     expect(stateOf(advanced.value!).resolution).toMatchObject({ resolution: "failed", failureId: "bankrupt" });
   });
 
+  it("keeps objective completion effects out of the same-tick failure snapshot", () => {
+    const base = runtime().content;
+    const content: WorldGraphCampaign = {
+      ...base,
+      objectives: base.objectives.map((objective) => ({
+        ...objective,
+        completion: { kind: "constant", value: true }, progressMetric: null,
+        target: 1, requiredDurationTicks: 2,
+        onCompleted: [{ kind: "finance_delta", field: "cashCents", cents: -1 }],
+      })),
+      scenarios: base.scenarios.map((scenario) => ({
+        ...scenario, startingCashCents: 0, resolutionPrecedence: "failure_wins",
+      })),
+    };
+    const runtimeEngine = engine(content);
+    const created = runtimeEngine.createGame({ campaignId: "world-test" });
+    expect(created.ok).toBe(true);
+    const advanced = runtimeEngine.submitAction(created.value!, "advance_ticks", { ticks: 2 });
+    expect(advanced.ok).toBe(true);
+    expect(stateOf(advanced.value!)).toMatchObject({
+      finances: { cashCents: -1 },
+      failures: [{ id: "bankrupt", state: "active" }],
+      resolution: { resolution: "objectives_met", failureId: null },
+    });
+  });
+
+  it("triggers the declared failure at the exact scenario time limit", () => {
+    const base = runtime().content;
+    const content: WorldGraphCampaign = {
+      ...base,
+      objectives: base.objectives.map((objective) => ({
+        ...objective, completion: { kind: "constant", value: false }, progressMetric: null,
+      })),
+      failures: base.failures.map((failure) => ({
+        ...failure, condition: { kind: "constant", value: false },
+      })),
+      scenarios: base.scenarios.map((scenario) => ({
+        ...scenario, timeLimitTicks: 1, timeLimitFailureId: "bankrupt",
+      })),
+    };
+    const runtimeEngine = engine(content);
+    const created = runtimeEngine.createGame({ campaignId: "world-test" });
+    expect(created.ok).toBe(true);
+    const advanced = runtimeEngine.submitAction(created.value!, "advance_ticks", { ticks: 1 });
+    expect(advanced.ok).toBe(true);
+    expect(stateOf(advanced.value!)).toMatchObject({
+      tick: 1,
+      objectives: [{ id: "earn", state: "failed" }],
+      failures: [{ id: "bankrupt", state: "triggered" }],
+      resolution: { resolution: "failed", failureId: "bankrupt" },
+    });
+  });
+
   it("builds immediately with exact ids, charge, revision, event and product state", () => {
     const recording = createRecordingEmitter();
     const runtimeEngine = engine().withEmitter(recording);

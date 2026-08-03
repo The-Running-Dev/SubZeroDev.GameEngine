@@ -327,14 +327,30 @@ export const staffWork: WorldGraphSystem = (frame) => {
   let state = frame.state;
   for (const member of [...state.staff].sort((left, right) => compareRuntimeEntityId(left.id, right.id))) {
     if (!member.task || member.status === "off_duty") continue;
-    if (member.pathIndex < member.path.length - 1) { state = { ...state, staff: state.staff.map((entry) => entry.id === member.id ? { ...entry, x: entry.path[entry.pathIndex + 1]!.x, y: entry.path[entry.pathIndex + 1]!.y, pathIndex: entry.pathIndex + 1, status: "to_work" } : entry) }; continue; }
+    const role = definition(frame.content.staffRoles, member.roleId, "staff role");
+    if (member.pathIndex < member.path.length - 1) {
+      const moveProgressTicks = member.moveProgressTicks + 1;
+      const move = moveProgressTicks >= role.moveTicksPerTile;
+      const position = move ? member.path[member.pathIndex + 1]! : member;
+      state = { ...state, staff: state.staff.map((entry) => entry.id === member.id ? {
+        ...entry, x: position.x, y: position.y,
+        pathIndex: move ? entry.pathIndex + 1 : entry.pathIndex,
+        moveProgressTicks: move ? 0 : moveProgressTicks,
+        status: "to_work",
+      } : entry) };
+      continue;
+    }
     if (member.task.type === "service") { state = { ...state, staff: state.staff.map((entry) => entry.id === member.id ? { ...entry, status: "working", task: { ...entry.task!, status: "in_progress" } } : entry) }; continue; }
     if (member.task.type === "clean" && member.task.incidentId) {
       const incident = state.incidents.find((entry) => entry.id === member.task!.incidentId);
-      if (!incident || incident.resolvedAtTick !== null) continue;
-      const rate = definition(frame.content.staffRoles, member.roleId, "staff role").workRates.find((entry) => entry.taskType === "clean")?.effortPerTick ?? 0;
+      if (!incident || incident.resolvedAtTick !== null) {
+        state = { ...state, staff: state.staff.map((entry) => entry.id === member.id ? { ...entry, task: { ...entry.task!, status: "cancelled", endedAtTick: frame.processingTick } } : entry) };
+        continue;
+      }
+      const rate = role.workRates.find((entry) => entry.taskType === "clean")?.effortPerTick ?? 0;
+      const removed = Math.min(incident.amount, rate);
       const remaining = Math.max(0, incident.amount - rate);
-      state = { ...state, incidents: state.incidents.map((entry) => entry.id === incident.id ? { ...entry, amount: remaining, resolvedAtTick: remaining === 0 ? frame.processingTick : null } : entry), staff: state.staff.map((entry) => entry.id === member.id ? { ...entry, status: remaining === 0 ? "idle" : "working", task: remaining === 0 ? { ...entry.task!, status: "completed", endedAtTick: frame.processingTick } : { ...entry.task!, status: "in_progress", effortRemaining: remaining } } : entry), counters: remaining === 0 ? { ...state.counters, litterCleaned: state.counters.litterCleaned + incident.amount } : state.counters };
+      state = { ...state, incidents: state.incidents.map((entry) => entry.id === incident.id ? { ...entry, amount: remaining, resolvedAtTick: remaining === 0 ? frame.processingTick : null } : entry), staff: state.staff.map((entry) => entry.id === member.id ? { ...entry, status: remaining === 0 ? "idle" : "working", tasksCompleted: remaining === 0 ? entry.tasksCompleted + 1 : entry.tasksCompleted, task: remaining === 0 ? { ...entry.task!, status: "completed", endedAtTick: frame.processingTick } : { ...entry.task!, status: "in_progress", effortRemaining: remaining } } : entry), counters: { ...state.counters, litterCleaned: state.counters.litterCleaned + removed } };
       if (remaining === 0) {
         frame.changes.record("staff-work", `incidents.${incident.id}.resolvedAtTick`, frame.processingTick, "incident_resolved", false);
         state = applyWorldEffects(state, definition(frame.content.incidents, incident.definitionId, "incident definition").onResolve, { processingTick: frame.processingTick, content: frame.content, random: frame.random, changes: frame.changes, system: "staff-work", reason: "incident_resolved", currentIncidentId: incident.id }).state;
@@ -393,14 +409,21 @@ export const incidents: WorldGraphSystem = (frame) => {
 };
 /** System 17: evaluate duration-qualified objective progress against this tick's world. */
 export const objectives: WorldGraphSystem = (frame) => {
+  const snapshot = frame.state;
+  frame.scratch.objectiveFailureSnapshot.state = snapshot;
+  const evaluations = [...snapshot.objectives]
+    .filter((progress) => progress.state === "active")
+    .sort((left, right) => left.id.localeCompare(right.id))
+    .map((progress) => {
+      const item = definition(frame.content.objectives, progress.id, "objective");
+      const value = item.progressMetric === null ? progress.value : (evaluateMetric(item.progressMetric, snapshot, frame.content) ?? 0);
+      const satisfied = evaluateCondition(item.completion, snapshot, frame.content);
+      const since = satisfied ? (progress.satisfiedSinceTick ?? frame.processingTick) : null;
+      const met = satisfied && since !== null && frame.processingTick - since + 1 >= item.requiredDurationTicks;
+      return { progress, item, value, since, met };
+    });
   let state = frame.state;
-  for (const progress of [...state.objectives].sort((left, right) => left.id.localeCompare(right.id))) {
-    if (progress.state !== "active") continue;
-    const item = definition(frame.content.objectives, progress.id, "objective");
-    const value = item.progressMetric === null ? progress.value : (evaluateMetric(item.progressMetric, state, frame.content) ?? 0);
-    const satisfied = evaluateCondition(item.completion, state, frame.content);
-    const since = satisfied ? (progress.satisfiedSinceTick ?? frame.processingTick) : null;
-    const met = satisfied && since !== null && frame.processingTick - since + 1 >= item.requiredDurationTicks;
+  for (const { progress, item, value, since, met } of evaluations) {
     const next = { ...progress, value, satisfiedSinceTick: since, updatedAtTick: frame.processingTick, state: met ? "met" as const : "active" as const };
     state = { ...state, objectives: state.objectives.map((entry) => entry.id === progress.id ? next : entry) };
     if (met) state = applyWorldEffects(state, item.onCompleted, { processingTick: frame.processingTick, content: frame.content, random: frame.random, changes: frame.changes, system: "objectives", reason: "objective_met" }).state;
@@ -410,13 +433,24 @@ export const objectives: WorldGraphSystem = (frame) => {
 /** System 18: retain the first terminal identity selected by the scenario precedence. */
 export const failure: WorldGraphSystem = (frame) => {
   if (frame.state.resolution) return frame;
+  const snapshot = frame.scratch.objectiveFailureSnapshot.state ?? frame.state;
+  const scenarioDefinition = definition(frame.content.scenarios, frame.content.startScenarioId, "scenario");
+  const timeLimitReached = scenarioDefinition.timeLimitTicks !== null
+    && frame.processingTick + 1 >= scenarioDefinition.timeLimitTicks;
+  const evaluations = [...snapshot.failures]
+    .filter((progress) => progress.state !== "triggered")
+    .sort((left, right) => left.id.localeCompare(right.id))
+    .map((progress) => {
+      const item = definition(frame.content.failures, progress.id, "failure");
+      const forced = timeLimitReached && scenarioDefinition.timeLimitFailureId === progress.id;
+      const satisfied = forced || evaluateCondition(item.condition, snapshot, frame.content);
+      const since = satisfied ? (progress.satisfiedSinceTick ?? frame.processingTick) : null;
+      const fires = forced || (satisfied && since !== null && frame.processingTick - since + 1 >= item.requiredDurationTicks);
+      return { progress, item, since, fires };
+    });
   let state = frame.state;
-  const triggered: string[] = [];
-  for (const progress of [...state.failures].sort((left, right) => left.id.localeCompare(right.id))) {
-    if (progress.state === "triggered") { triggered.push(progress.id); continue; }
-    const item = definition(frame.content.failures, progress.id, "failure"); const satisfied = evaluateCondition(item.condition, state, frame.content);
-    const since = satisfied ? (progress.satisfiedSinceTick ?? frame.processingTick) : null;
-    const fires = satisfied && since !== null && frame.processingTick - since + 1 >= item.requiredDurationTicks;
+  const triggered = state.failures.filter((progress) => progress.state === "triggered").map((progress) => progress.id);
+  for (const { progress, item, since, fires } of evaluations) {
     state = { ...state, failures: state.failures.map((entry) => entry.id === progress.id ? { ...entry, satisfiedSinceTick: since, updatedAtTick: frame.processingTick, state: fires ? "triggered" as const : "active" as const } : entry) };
     if (fires) { triggered.push(progress.id); state = applyWorldEffects(state, item.onTriggered, { processingTick: frame.processingTick, content: frame.content, random: frame.random, changes: frame.changes, system: "failure", reason: "failure_triggered" }).state; }
   }
@@ -424,9 +458,12 @@ export const failure: WorldGraphSystem = (frame) => {
   const success = state.objectives.length > 0 && met.length === state.objectives.length;
   const failureId = triggered.sort()[0] ?? null;
   if (success || failureId !== null) {
-    const scenarioDefinition = definition(frame.content.scenarios, frame.content.startScenarioId, "scenario");
     const win = success && (failureId === null || scenarioDefinition.resolutionPrecedence === "objectives_win");
-    state = { ...state, resolution: { resolution: win ? "objectives_met" : "failed", objectiveIds: met, failureId: win ? null : failureId, resolvedAtTick: frame.processingTick } };
+    state = {
+      ...state,
+      objectives: win ? state.objectives : state.objectives.map((progress) => progress.state === "active" ? { ...progress, state: "failed", updatedAtTick: frame.processingTick } : progress),
+      resolution: { resolution: win ? "objectives_met" : "failed", objectiveIds: met, failureId: win ? null : failureId, resolvedAtTick: frame.processingTick },
+    };
   }
   return { ...frame, state };
 };

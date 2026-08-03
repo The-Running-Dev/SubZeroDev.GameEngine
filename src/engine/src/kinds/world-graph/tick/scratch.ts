@@ -1,11 +1,12 @@
 import type { RngHandle } from "../../../core/determinism/types.js";
-import type { StaffTaskType } from "../state.js";
+import type { StaffTaskType, WorldGraphKindState } from "../state.js";
 import type { WorldGraphSystemId } from "./order.js";
 
 /** Disposable storage owned by exactly one atomic tick. */
 export interface TickScratch {
   readonly tickRngHandles: Map<WorldGraphSystemId, RngHandle>;
   readonly taskCandidates: TickTaskCandidate[];
+  readonly objectiveFailureSnapshot: { state: WorldGraphKindState | null };
 }
 
 export interface TickTaskCandidate {
@@ -21,5 +22,5 @@ export interface TickTaskCandidate {
 }
 
 export function createTickScratch(): TickScratch {
-  return { tickRngHandles: new Map(), taskCandidates: [] };
+  return { tickRngHandles: new Map(), taskCandidates: [], objectiveFailureSnapshot: { state: null } };
 }

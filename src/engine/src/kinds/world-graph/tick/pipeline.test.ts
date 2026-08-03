@@ -273,6 +273,56 @@ describe("world-graph W46 system order and boundaries", () => {
     expect(result.state.staff[0]?.path).toEqual([{ x: 1, y: 0 }]);
   });
 
+  it("honors staff movement rate and counts every cleaned litter unit", () => {
+    const initial = state();
+    const workContent = {
+      ...content(),
+      staffRoles: [{
+        id: "cleaner", moveTicksPerTile: 2,
+        workRates: [{ taskType: "clean", effortPerTick: 2 }],
+      }],
+      incidents: [{ ...content().incidents[0], id: "litter", onResolve: [] }],
+    } as unknown as WorldGraphCampaign;
+    let workState: WorldGraphKindState = {
+      ...initial,
+      incidents: initial.incidents.map((incident) => ({ ...incident, amount: 5 })),
+      staff: [{
+        id: "staff:4", roleId: "cleaner", x: 0, y: 0, status: "to_work",
+        path: [{ x: 0, y: 0 }, { x: 1, y: 0 }], pathIndex: 0,
+        moveProgressTicks: 0, assignedBuildingId: null, assignedZoneId: null,
+        drawCount: 0, tasksCompleted: 0,
+        task: {
+          id: "task:5", type: "clean", status: "assigned", guestId: null,
+          queueId: null, buildingId: null, constructionSiteId: null,
+          incidentId: "incident:3", targetProductId: null, startedAtTick: 0,
+          endedAtTick: null, priority: 1, effortRemaining: 5,
+        },
+      }],
+    };
+    const runWork = (tick: number): void => {
+      const scratch = createTickScratch();
+      workState = staffWork({
+        processingTick: tick, content: workContent, emit: resolutionEmitter().emit,
+        random: createTickRandom(tick, () => rngHandle(), scratch), scratch,
+        changes: new BatchChanges(), state: workState,
+      }).state;
+    };
+
+    runWork(0);
+    expect(workState.staff[0]).toMatchObject({ x: 0, pathIndex: 0, moveProgressTicks: 1 });
+    runWork(1);
+    expect(workState.staff[0]).toMatchObject({ x: 1, pathIndex: 1, moveProgressTicks: 0 });
+    runWork(2);
+    expect(workState).toMatchObject({ incidents: [{ amount: 3 }], counters: { litterCleaned: 2 } });
+    runWork(3);
+    runWork(4);
+    expect(workState).toMatchObject({
+      incidents: [{ amount: 0, resolvedAtTick: 4 }],
+      counters: { litterCleaned: 5 },
+      staff: [{ tasksCompleted: 1, task: { status: "completed" } }],
+    });
+  });
+
   it("passes no raw KindContext through a system frame", () => {
     const frameKeys: string[][] = [];
     const inspect: WorldGraphSystem = (frame) => {
