@@ -626,7 +626,7 @@ when it declined a programme doc for this kind.
 - [ ] **W43 in review — content-definition contract:** maps, archetypes, buildings, products,
       terrain, incidents, scenarios, objectives, policies and achievements. The complete
       source/runtime schema, W42 reconciliation, validation tiers, and worked fixtures are
-      in [PR #121](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/121); merge
+      in [PR #119](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/119); merge
       remains the delivery gate. The execution brief and evidence checklist live in
       [`plans/43-w43-world-graph-content-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/43-w43-world-graph-content-contract.md),
       whose **Handoff — Start Here** section remains the contract boundary.

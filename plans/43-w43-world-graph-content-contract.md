@@ -14,7 +14,7 @@ W43. This is the second of three contract units; W44 still owns system order, pa
 utility arithmetic, queue/service timing, and deterministic resolution.
 
 **Status:** Execution complete in
-[PR #121](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/121). The contract
+[PR #119](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/119). The contract
 now lives in `12-world-graph-kind.md` §§3 and 14–17; merge remains the delivery gate.
 
 ---
