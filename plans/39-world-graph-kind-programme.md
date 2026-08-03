@@ -291,16 +291,16 @@ names both.
 **Plan:** [`plans/43-w43-world-graph-content-contract.md`](43-w43-world-graph-content-contract.md).
 
 - [x] Cut the W43 doc-only design plan; do not treat this unit as a mechanical port.
-- [ ] Separate authoring/source definitions from validated runtime content where necessary.
-- [ ] Define the campaign-owned map catalog plus terrain, scenery, building, product,
+- [x] Separate authoring/source definitions from validated runtime content where necessary.
+- [x] Define the campaign-owned map catalog plus terrain, scenery, building, product,
       staff-role and guest-archetype definitions.
-- [ ] Define scenario, objective, incident, policy and achievement definitions.
-- [ ] Define stable ids, cross-reference rules, localization/text ownership and defaults.
-- [ ] Define footprint rotations, entrances, placement constraints and adjacency effects.
-- [ ] Define need curves, utility inputs, patience, budgets, service rates and litter effects.
-- [ ] Mark fields required for the MVP versus valid post-MVP extension points.
-- [ ] Add worked minimum-valid and representative-invalid content examples.
-- [ ] **Gate:** the MVP scenario can be authored without an untyped extension object or a
+- [x] Define scenario, objective, incident, policy and achievement definitions.
+- [x] Define stable ids, cross-reference rules, localization/text ownership and defaults.
+- [x] Define footprint rotations, entrances, placement constraints and adjacency effects.
+- [x] Define need curves, utility inputs, patience, budgets, service rates and litter effects.
+- [x] Mark fields required for the MVP versus valid post-MVP extension points.
+- [x] Add worked minimum-valid and representative-invalid content examples.
+- [x] **Gate:** the MVP scenario can be authored without an untyped extension object or a
       duplicate Sun Trap interface.
 
 ### W44 — resolution and systems contract

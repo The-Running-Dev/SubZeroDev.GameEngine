@@ -1,7 +1,8 @@
 # W43 — The World-Graph Content-Definition Contract
 
-**Scope:** Plan the doc-only contract unit that turns §14's list of content nouns into the
-complete, typed campaign schema the `world-graph` kind will build against. No engine code.
+**Scope:** Design and deliver the doc-only contract that turns §14's list of content nouns
+into the complete, typed campaign schema the `world-graph` kind will build against. No
+engine code.
 
 **Depends on:** W42's merged runtime-state contract
 ([PR #116](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/116)); the core
@@ -12,8 +13,8 @@ authoring-to-registry boundary in `04-core.md` §10.1; Sun Trap's `game-design.m
 W43. This is the second of three contract units; W44 still owns system order, pathfinding,
 utility arithmetic, queue/service timing, and deterministic resolution.
 
-**Status:** Planning only. This file decides the boundary, sequence, and review gates. The
-contract changes themselves belong to the W43 execution change.
+**Status:** Execution complete on the review branch. The contract now lives in
+`12-world-graph-kind.md` §§3 and 14–17; merge remains the delivery gate.
 
 ---
 
@@ -322,32 +323,32 @@ queue deadlock, and unavoidable bankruptcy are harness findings, not W43 Tier 3.
 
 ## Done-When
 
-- [ ] `12-world-graph-kind.md` §14 declares the complete source and runtime campaign shapes.
-- [ ] Every definition in the Required Type Inventory is fully typed or explicitly replaced
+- [x] `12-world-graph-kind.md` §14 declares the complete source and runtime campaign shapes.
+- [x] Every definition in the Required Type Inventory is fully typed or explicitly replaced
       by a named, typed equivalent.
-- [ ] `WorldGraphCampaign` owns one canonical `MapDefinition` catalog;
+- [x] `WorldGraphCampaign` owns one canonical `MapDefinition` catalog;
       `ScenarioDefinition.mapId` resolves into it; and `initialState` has one documented,
       deterministic conversion from the selected definition plus scenario placements to
       mutable `WorldMap` state.
-- [ ] Campaign envelope identity is distinguished from nested definition identity.
-- [ ] Source text, runtime `LocKey`s, default materialization, and canonical order follow
+- [x] Campaign envelope identity is distinguished from nested definition identity.
+- [x] Source text, runtime `LocKey`s, default materialization, and canonical order follow
       `04-core.md` §10.1 with no second loader model.
-- [ ] Terrain, incidents, and guest needs are reconciled against W42; the MVP can represent
+- [x] Terrain, incidents, and guest needs are reconciled against W42; the MVP can represent
       thirst and toilet without an engine code change per campaign.
-- [ ] Building entrance offsets have one coordinate meaning and use W42's rotation transform.
-- [ ] Conditions, effects, placement rules, and adjacency inputs are discriminated unions,
+- [x] Building entrance offsets have one coordinate meaning and use W42's rotation transform.
+- [x] Conditions, effects, placement rules, and adjacency inputs are discriminated unions,
       not string expressions or extension bags.
-- [ ] Every numeric field states units, scale, range, and null/optional meaning.
-- [ ] MVP-required and post-MVP fields are distinguishable at their definitions.
-- [ ] The minimum-valid example can author the Sun Trap slice: map, one archetype, drink
+- [x] Every numeric field states units, scale, range, and null/optional meaning.
+- [x] MVP-required and post-MVP fields are distinguishable at their definitions.
+- [x] The minimum-valid example can author the Sun Trap slice: map, one archetype, drink
       stand, toilet/trash point, drink, cleaner, litter, objective, and failure.
-- [ ] The invalid example demonstrates malformed id/reference, localization, footprint/
+- [x] The invalid example demonstrates malformed id/reference, localization, footprint/
       entrance, and range failures with exact validation paths.
-- [ ] Every necessary §3 amendment is listed in the W43 reconciliation table; unrelated W42
+- [x] Every necessary §3 amendment is listed in the W43 reconciliation table; unrelated W42
       state is unchanged.
-- [ ] §15 contains checkable Tier 1/Tier 2 rules for every new type and reference.
-- [ ] `plans/39` and `TODO.md` mark W43 planned/ready and leave W44 as next after execution.
-- [ ] `./build/Test-Documentation.ps1` passes and `git diff --check` is clean; no
+- [x] §15 contains checkable Tier 1/Tier 2 rules for every new type and reference.
+- [x] `plans/39` and `TODO.md` record W43 in review and leave W44 as next after merge.
+- [x] `./build/Test-Documentation.ps1` passes and `git diff --check` is clean; no
       `src/engine/` file changed.
 
 ---
