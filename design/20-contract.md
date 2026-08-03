@@ -4735,9 +4735,10 @@ work deltas for systems 12–14. **Order:** staff by id. Away from target, incre
 `moveProgressTicks`; when it reaches `moveTicksPerTile`, traverse one edge and reset it.
 At target, subtract the role's positive `effortPerTick` once, clamped at zero. A `null`
 effort is continuing service duty and remains valid while its queue demand exists. Missing
-targets cancel deterministically. Cleaning resolves its incident and applies `onResolve`
-effects now, deferring only building-meter deltas to system 14; construction/restock deltas
-wait for their owning systems.
+targets cancel deterministically. Cleaning first writes its incident's `resolvedAtTick`, then
+applies `onResolve` effects; the occurrence is retained but no longer active during that list.
+Only building-meter deltas defer to system 14; construction/restock deltas wait for their
+owning systems.
 **No-op:** off-duty or taskless staff. **Records:** task moved/completed/cancelled events;
 no per-work-unit audit.
 
@@ -4791,9 +4792,10 @@ rows use first-before/final-after values.
 **Reads:** definitions, active/retained occurrences, trigger/resolution conditions, roll
 scopes, and post-finance state. **Writes:** incident resolutions, new occurrences, grouped
 effects, counters, and entity ids. **Order:** first resolve active occurrences by id when
-`expiresAtTick <= processingTick` or their resolution condition is true, applying resolve
-effects once. Then visit scopes in world, zone id, then building id order; eligible
-definitions are by id.
+`expiresAtTick <= processingTick` or their resolution condition is true. For each, write
+`resolvedAtTick: processingTick` before applying its resolve effects once, so it is retained
+but no longer active during that list. Then visit scopes in world, zone id, then building id
+order; eligible definitions are by id.
 An active occurrence, or a retained occurrence with
 `processingTick < startedAtTick + cooldownTicks`, makes the same definition/scope
 ineligible.
@@ -5734,8 +5736,11 @@ every matching active occurrence in lexicographic `Incident.id` order, applying 
 definition's `onResolve` effects once per resolved occurrence; no match is a no-op. The
 `incidents` selector limits that set to the current occurrence or all active occurrences.
 An incident-owned `onStart` or `onResolve` effect evaluates with that occurrence's id as its
-only `current` incident context. In that context, `incidents: "current"` selects that one
-occurrence if it is active and has the requested definition; otherwise it is a no-op.
+only `current` incident context. Every resolver writes `resolvedAtTick: processingTick`
+before its `onResolve` list, so the retained occurrence is not active during that list.
+In that context, `incidents: "current"` selects that one occurrence only if it is still active
+and has the requested definition; thus it is a deterministic no-op in its own `onResolve`
+list or when the definition differs.
 `incidents: "current"` is Tier 1 invalid in every other effect owner (product, building,
 scheduled scenario change, policy, objective, or failure), because none supplies an incident
 occurrence. `incidents: "all_active"` needs no such context.
