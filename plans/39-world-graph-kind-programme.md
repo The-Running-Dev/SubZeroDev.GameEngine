@@ -288,10 +288,11 @@ names both.
 
 ### W43 — content-definition contract
 
-**Plan:** [`plans/43-w43-world-graph-content-contract.md`](43-w43-world-graph-content-contract.md).
+**Execution record:** [`plans/43-w43-world-graph-content-contract.md`](43-w43-world-graph-content-contract.md).
+**Canonical contract:** `design/20-contract.md`'s `engine/12-world-graph-kind.md` block.
 **Status:** In review —
-[PR #119](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/119); W44 is
-stacked on this exact contract and remains merge-dependent.
+[PR #119](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/119); W44 is in review
+in [PR #120](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/120).
 
 - [x] Cut the W43 doc-only design plan; do not treat this unit as a mechanical port.
 - [x] Separate authoring/source definitions from validated runtime content where necessary.
@@ -308,19 +309,14 @@ stacked on this exact contract and remains merge-dependent.
 
 ### W44 — resolution and systems contract
 
-**Status:** In review —
-[PR #120](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/120), containing the
-plan and its contract execution; public delivery status waits for merge.
+**Execution record:** [`plans/44-w44-world-graph-resolution-contract.md`](44-w44-world-graph-resolution-contract.md).
+**Canonical contract:** `design/20-contract.md`'s `engine/12-world-graph-kind.md` block.
+**Status:** In review — [PR #120](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/120).
 
-- [x] Cut the W44 doc-only plan and freeze the named 20-system order.
-- [x] Define each system's inputs, outputs, no-op conditions and emitted state changes/events.
-- [x] Define utility scoring, integer scaling, tie-breaking and unreachable-target behaviour.
-- [x] Define A* neighbourhood, cost model, heuristic, canonical open-set ordering and cache rule.
-- [x] Define queue admission, abandonment, service ordering and simultaneous-event semantics.
-- [x] Define staff task selection, movement, work completion and deterministic tie-breaks.
-- [x] Define construction, finance, incident, objective and terminal-check timing.
-- [x] Define batch-invariance comparison and action-log differences that are intentionally ignored.
-- [x] Reconcile reason-code and event-name registries with every action and rejection path.
+- [x] Freeze the named 20-system order and define each system's contract.
+- [x] Define utility scoring, A* pathfinding, queues/service, staff work, construction,
+      finance, incidents, objectives, terminal timing, and deterministic tie-breaks.
+- [x] Define batch-invariance comparison and reconcile reason/event registries.
 - [x] **Gate:** no implementation unit needs to invent a state field, ordering rule, formula
       shape or tie-break.
 
@@ -361,8 +357,7 @@ plan and its contract execution; public delivery status waits for merge.
 - [ ] Emit state changes and events in deterministic causal order.
 - [ ] Add one-tick, multi-tick and split-batch equivalence tests.
 - [ ] Run the complete determinism, lint, typecheck and replay suites.
-- [ ] **Gate:** any partition of the same tick count reaches deeply equal canonical kind
-      state; Outcome equality remains an additional assertion.
+- [ ] **Gate:** any partition of the same tick count reaches the same defined Outcome.
 
 ### W47 — playable MVP vertical slice
 

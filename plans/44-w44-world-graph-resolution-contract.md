@@ -14,31 +14,31 @@ planning branch.
 **Programme:** [`plans/39-world-graph-kind-programme.md`](39-world-graph-kind-programme.md),
 W44. This is the third and final contract unit. W45 is the first code unit.
 
-**Status:** Planning only. This file decides the resolution frame, algorithms, correction
-budget, sequence, and review gates. It does not change `12-world-graph-kind.md` or any engine
-source.
+**Status:** Execution complete in
+[PR #120](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/120). Its canonical
+home is the marked `engine/12-world-graph-kind.md` block in `design/20-contract.md`; the
+generated reader copy is `docs/docs/engine/12-world-graph-kind.md`. This plan is execution
+history, not a second source of truth.
 
 ---
 
-## Handoff — Start Here
+## Historical Handoff — Completed
 
 ### The prompt
 
-> Execute W44 from `plans/44-w44-world-graph-resolution-contract.md` after the W43 content
-> contract has merged. Keep the change doc-only. Expand `docs/docs/engine/12-world-graph-
-> kind.md` §§4, 5, 9, 11, 12, and 13 into the executable resolution contract this plan
-> requires. Reconcile only state/content fields proven necessary by the system audit. Do not
-> write files under `src/engine/`, start W45, or extract a shared core pipeline.
+> This completed W44 pass was doc-only. Its 20-system pipeline, algorithms, reconciliation,
+> events, and verification rules are canonical in `design/20-contract.md`. Do not treat this
+> record as an alternate editing surface, begin W45, or extract a shared core pipeline from it.
 
 ### Where to work
 
-- **Primary contract:** `docs/docs/engine/12-world-graph-kind.md`, especially §§3–5 and
-  §§9–13.
+- **Primary contract:** `design/20-contract.md`'s `engine/12-world-graph-kind.md` block,
+  especially §§3–5 and §§9–13.
 - **Merged content dependency:** the W43 additions to §14 and any narrow §3 reconciliation.
 - **Core rules to reuse:** `04-core.md` §§3.1, 8, 12, and 14; `05-observability.md` for event
   isolation and names.
 - **Programme ledger:** `plans/39-world-graph-kind-programme.md` and
-  `docs/docs/engine/TODO.md`.
+  `design/30-slices.md`'s generated `engine/TODO.md` block.
 - **Game sources, read-only:** Sun Trap's `game-design.md` §§3–14,
   `content-and-systems.md` §§8–9, and `mvp.md`.
 - **Precedent, not a mechanical template:** `10-simulation-kind.md` §§3 and 5. Its

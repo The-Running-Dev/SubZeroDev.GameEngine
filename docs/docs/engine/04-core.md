@@ -2,6 +2,8 @@
 sidebar_label: Core Specification
 ---
 
+<!-- Generated from design/20-contract.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
+
 # Core Specification
 
 **Document status:** Revision 1 — the platform core, as types
@@ -944,9 +946,9 @@ kind-owned namespace.
 The tool table itself — args, returns, one tool per session-store operation — moved to
 [`SubZeroDev.Platform`](https://github.com/The-Running-Dev/SubZeroDev.Platform)'s
 [`mcp-tool-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform/blob/main/docs/docs/mcp-tool-contract.md):
-it's a hosting-facing contract, not core engine material, even though `McpTools`
-([`src/engine/src/mcp/server.ts`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/src/engine/src/mcp/server.ts))
-implements it here, wrapping this repo's own session store (§7) with no runtime
+it's a hosting-facing contract, not core engine material, even though `McpTools` (implemented
+in `src/engine/src/mcp/server.ts`; see [Engine Package](/docs/guide/engine-package)) wraps this
+repo's own session store (§7) with no runtime
 dependency, tested end to end against it (`TODO.md` W17). Architecture §10 still holds:
 no game logic in the adapter, no AI-specific path.
 

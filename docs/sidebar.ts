@@ -59,7 +59,7 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Working on It',
       collapsed: false,
-      items: ['guide/engine-package', 'guide/documentation-site'],
+      items: ['guide', 'guide/engine-package', 'guide/documentation-site'],
     },
   ],
 };

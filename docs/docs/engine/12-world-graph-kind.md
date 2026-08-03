@@ -2,6 +2,8 @@
 sidebar_label: World-Graph Kind
 ---
 
+<!-- Generated from design/20-contract.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
+
 # World-Graph Kind — Contract
 
 **Document status:** Revision 4 — **authoritative runtime-state, campaign-content, and
@@ -1787,7 +1789,7 @@ type IncidentTarget =
 
 type WorldEffect =
   | { kind: "finance_delta"; field: "cashCents"; cents: number }
-  | { kind: "counter_delta"; counter: WorldCounterKey; delta: number }
+  | { kind: "counter_increment"; counter: WorldCounterKey; amount: number } // non-negative integer
   | { kind: "unlock" | "lock"; content: ContentReference }
   | { kind: "objective_progress"; objectiveId: string; delta: number }
   | {
@@ -1821,6 +1823,13 @@ Every `number` in §14 is an integer. `*Cents` fields are cents, `*Ticks` fields
 `*Tiles` fields are grid tiles, meter values use their referenced definition range, curve
 inputs/outputs use the field that owns the curve, and utility/weight/delta fields are signed
 integer scoring units unless a narrower comment says otherwise.
+
+`counter_increment.amount` is a non-negative integer: it is the only effect that writes
+`WorldCounters`, so counters never decrease or become negative. `resolve_incident` is
+definition-targeted because campaign data cannot name a runtime occurrence id. It resolves
+every matching active occurrence in lexicographic `Incident.id` order, applying the matched
+definition's `onResolve` effects once per resolved occurrence; no match is a no-op. The
+`incidents` selector limits that set to the current occurrence or all active occurrences.
 
 All meters use the range on their referenced definition. `average` is an exact rational
 during comparison—§9.2 states the cross-multiplication/rounding rule—so no floating-point
@@ -1989,7 +1998,7 @@ type BuildingOperation =
   | {
       kind: "waste";
       capacity: number | null;                      // null = unlimited
-      acceptedIncidentIds: readonly string[];
+      acceptedIncidentDefinitionIds: readonly string[]; // IncidentDefinition ids
     }
   | { kind: "decorative" }
   | { kind: "support"; generatedTaskKinds: readonly StaffTaskType[] };
@@ -2620,7 +2629,7 @@ const minimalMvpSource: WorldGraphCampaignSource = {
       initialCleanliness: 100,
       placementRules: [{ kind: "terrain", terrainIds: ["sand"] }],
       adjacencyEffects: [],
-      operation: { kind: "waste", capacity: null, acceptedIncidentIds: ["litter"] },
+      operation: { kind: "waste", capacity: null, acceptedIncidentDefinitionIds: ["litter"] },
       tags: ["waste"],
     },
   ],

@@ -58,7 +58,7 @@ README, whose status is deliberately coarse.
 
 - **After a work-unit PR merges or the changelog gains an entry:** update the delivered count,
   completed chapter grouping, current checkpoint, and evidence URL in `roadmapData.ts`. Count
-  `### [x] W…` headings in `docs/docs/engine/TODO.md`, then explicitly account for any merged
+  `### [x] W…` headings in `design/30-slices.md`, then explicitly account for any merged
   units that the ledger has not yet recorded in the `completedBeyondTodo` exception list. Update
   the page before describing the new unit as delivered anywhere public. Reconcile `README.md`'s
   coarse status at the same time if it has become misleading, then regenerate
@@ -103,7 +103,7 @@ README, whose status is deliberately coarse.
 
 ## Open Concerns & Assumptions
 
-- **Spec-level unknowns** live in [`OPEN-QUESTIONS.md`](docs/docs/engine/OPEN-QUESTIONS.md).
+- **Spec-level unknowns** live in [`design/90-decisions.md`](design/90-decisions.md).
   Its §1 is now a **decision log** — all eight MVP-blocking gaps (including `PlayerProfile`,
   long the sharpest) are resolved and written into the contracts. Nothing MVP-blocking is
   open; add new gaps there as full entries.
@@ -137,8 +137,8 @@ README, whose status is deliberately coarse.
 
 ## Orientation in One Paragraph
 
-This repo = the **Game Engine**: source (`src/engine/`, Phase 1 core started) + specs
-(`docs/docs/engine/`). A game-agnostic **core** + **kinds** (engine-owned code) +
+This repo = the **Game Engine**: source (`src/engine/`, Phase 1 core started) + canonical specs
+(`design/`), with generated human docs under `docs/docs/engine/`. A game-agnostic **core** + **kinds** (engine-owned code) +
 **campaigns** (data); v1 ships two kinds, `story-graph` (flagship, the MVP) and
 `simulation`. A "campaign" is a kind + its data; a "culture pack" reskins a simulation
 campaign. The flagship game (Life in the Fast Lane) is the companion
@@ -148,4 +148,4 @@ Sun Trap, sits on the `world-graph` kind in
 is [SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform). Build
 order: core → story-graph kind → minimal Bulgaria adventure → text client + MCP = MVP.
 Then depth (the simulation kind / Jones), then breadth (`world-graph` / Sun Trap).
-Contracts: `04-core.md` (types), `02-architecture.md` (decisions).
+Contracts: `design/20-contract.md` (types), `design/10-design.md` (decisions).
