@@ -290,8 +290,8 @@ names both.
 
 **Plan:** [`plans/43-w43-world-graph-content-contract.md`](43-w43-world-graph-content-contract.md).
 **Status:** In review —
-[PR #119](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/119); W44 remains next
-after merge.
+[PR #119](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/119); W44 is
+stacked on this exact contract and remains merge-dependent.
 
 - [x] Cut the W43 doc-only design plan; do not treat this unit as a mechanical port.
 - [x] Separate authoring/source definitions from validated runtime content where necessary.
@@ -308,16 +308,20 @@ after merge.
 
 ### W44 — resolution and systems contract
 
-- [ ] Cut the W44 doc-only plan and freeze the named 20-system order.
-- [ ] Define each system's inputs, outputs, no-op conditions and emitted state changes/events.
-- [ ] Define utility scoring, integer scaling, tie-breaking and unreachable-target behaviour.
-- [ ] Define A* neighbourhood, cost model, heuristic, canonical open-set ordering and cache rule.
-- [ ] Define queue admission, abandonment, service ordering and simultaneous-event semantics.
-- [ ] Define staff task selection, movement, work completion and deterministic tie-breaks.
-- [ ] Define construction, finance, incident, objective and terminal-check timing.
-- [ ] Define batch-invariance comparison and action-log differences that are intentionally ignored.
-- [ ] Reconcile reason-code and event-name registries with every action and rejection path.
-- [ ] **Gate:** no implementation unit needs to invent a state field, ordering rule, formula
+**Status:** In review —
+[PR #120](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/120), containing the
+plan and its contract execution; public delivery status waits for merge.
+
+- [x] Cut the W44 doc-only plan and freeze the named 20-system order.
+- [x] Define each system's inputs, outputs, no-op conditions and emitted state changes/events.
+- [x] Define utility scoring, integer scaling, tie-breaking and unreachable-target behaviour.
+- [x] Define A* neighbourhood, cost model, heuristic, canonical open-set ordering and cache rule.
+- [x] Define queue admission, abandonment, service ordering and simultaneous-event semantics.
+- [x] Define staff task selection, movement, work completion and deterministic tie-breaks.
+- [x] Define construction, finance, incident, objective and terminal-check timing.
+- [x] Define batch-invariance comparison and action-log differences that are intentionally ignored.
+- [x] Reconcile reason-code and event-name registries with every action and rejection path.
+- [x] **Gate:** no implementation unit needs to invent a state field, ordering rule, formula
       shape or tie-break.
 
 ### W45 — kind skeleton and immediate actions
@@ -357,7 +361,8 @@ after merge.
 - [ ] Emit state changes and events in deterministic causal order.
 - [ ] Add one-tick, multi-tick and split-batch equivalence tests.
 - [ ] Run the complete determinism, lint, typecheck and replay suites.
-- [ ] **Gate:** any partition of the same tick count reaches the same defined Outcome.
+- [ ] **Gate:** any partition of the same tick count reaches deeply equal canonical kind
+      state; Outcome equality remains an additional assertion.
 
 ### W47 — playable MVP vertical slice
 

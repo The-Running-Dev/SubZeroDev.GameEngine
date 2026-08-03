@@ -630,9 +630,12 @@ when it declined a programme doc for this kind.
       remains the delivery gate. The execution brief and evidence checklist live in
       [`plans/43-w43-world-graph-content-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/43-w43-world-graph-content-contract.md),
       whose **Handoff — Start Here** section remains the contract boundary.
-- [ ] **W44 next after W43 merges — resolution contract:** the 20-system pipeline, utility
-      scoring,
-      pathfinding costs, queue/service semantics and every deterministic tie-break.
+- [ ] **W44 in review — resolution contract:** the 20-system pipeline, utility scoring,
+      canonical pathfinding, queue/service and staff-task semantics, simultaneous terminal
+      precedence, and deep batch invariance are in
+      [PR #120](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/120), including
+      the design plan and stacked on W43 for an exact review diff; merge remains the T1
+      delivery gate.
 - [ ] **W45 proposed — kind skeleton and immediate actions:** validation, initial state,
       projection/outcome, assembly and the nine no-time-passes reducers.
 - [ ] **W46 proposed — deterministic tick pipeline:** fixed-order systems, bounded
