@@ -68,8 +68,8 @@ export function assignStaff(state: WorldGraphKindState, raw: Parameters<typeof p
     } : entry),
   };
   emit(ctx, "staff.assigned", "trace", { staffId, ...(buildingId === null ? {} : { buildingId }), ...(zoneId === null ? {} : { zoneId }) });
-  return accepted(next, [
-    change(`staff.${staffId}.assignedBuildingId`, buildingId ?? "", "staff_assigned", false, target.assignedBuildingId ?? ""),
-    change(`staff.${staffId}.assignedZoneId`, zoneId ?? "", "staff_assigned", false, target.assignedZoneId ?? ""),
-  ]);
+  const changes = [];
+  if (target.assignedBuildingId !== buildingId) changes.push(change(`staff.${staffId}.assignedBuildingId`, buildingId, "staff_assigned", false, target.assignedBuildingId));
+  if (target.assignedZoneId !== zoneId) changes.push(change(`staff.${staffId}.assignedZoneId`, zoneId, "staff_assigned", false, target.assignedZoneId));
+  return accepted(next, changes);
 }
