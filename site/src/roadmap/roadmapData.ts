@@ -136,8 +136,8 @@ export const nextActs: readonly RoadmapChapter[] = [
       "Settle the world’s content and the order in which it changes. W43 is the current unmerged contract unit.",
     links: [
       {
-        label: "W43 contract plan",
-        href: `${repo}/blob/main/plans/43-w43-world-graph-content-contract.md`,
+        label: "World-graph content contract",
+        href: `${repo}/blob/main/design/20-contract.md`,
         kind: "repository",
       },
     ],

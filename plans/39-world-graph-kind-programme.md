@@ -288,7 +288,8 @@ names both.
 
 ### W43 — content-definition contract
 
-**Plan:** [`plans/43-w43-world-graph-content-contract.md`](43-w43-world-graph-content-contract.md).
+**Execution record:** [`plans/43-w43-world-graph-content-contract.md`](43-w43-world-graph-content-contract.md).
+**Canonical contract:** `design/20-contract.md`'s `engine/12-world-graph-kind.md` block.
 **Status:** In review —
 [PR #119](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/119); W44 remains next
 after merge.

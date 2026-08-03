@@ -14,29 +14,30 @@ W43. This is the second of three contract units; W44 still owns system order, pa
 utility arithmetic, queue/service timing, and deterministic resolution.
 
 **Status:** Execution complete in
-[PR #119](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/119). The contract
-now lives in `12-world-graph-kind.md` §§3 and 14–17; merge remains the delivery gate.
+[PR #119](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/119). Its canonical
+home is the marked `engine/12-world-graph-kind.md` block in `design/20-contract.md`; the
+generated reader copy is `docs/docs/engine/12-world-graph-kind.md`. Merge remains the
+delivery gate. This plan is execution history, not a second source of truth.
 
 ---
 
-## Handoff — Start Here
+## Historical Handoff — Completed
 
 ### The prompt
 
-> Execute W43 from `plans/43-w43-world-graph-content-contract.md`. Keep it doc-only. Replace
-> the noun list in `docs/docs/engine/12-world-graph-kind.md` §14 with the source/runtime
-> campaign types, definition types, reference rules, validation rules, and worked examples
-> this plan requires. Make only the narrowly necessary §3 corrections exposed by the content
-> contract. Do not design W44's formulas or write files under `src/engine/`.
+> This completed W43 pass was doc-only. Its source/runtime campaign types, reference rules,
+> validation rules, worked examples, and narrowly necessary §3 corrections are now canonical
+> in `design/20-contract.md`. Do not treat this record as an alternate editing surface, and do
+> not use it to design W44's formulas or change files under `src/engine/`.
 
 ### Where to work
 
-- **Primary contract:** `docs/docs/engine/12-world-graph-kind.md`, especially §§3, 14, 15,
-  and 17.
-- **Core boundary to reuse:** `docs/docs/engine/04-core.md` §10.1. Do not invent a second
+- **Primary contract:** `design/20-contract.md`'s `engine/12-world-graph-kind.md` block,
+  especially §§3, 14, 15, and 17.
+- **Core boundary to reuse:** `design/20-contract.md`'s `engine/04-core.md` block §10.1. Do not invent a second
   loader or localization model.
 - **Programme ledger:** this plan plus `plans/39-world-graph-kind-programme.md` and
-  `docs/docs/engine/TODO.md`.
+  `design/30-slices.md`'s generated `engine/TODO.md` block.
 - **Primary game sources, read-only:**
   `SubZeroDev.SunTrap/docs/docs/design/game-design.md`,
   `docs/docs/design/content-and-systems.md`, and `docs/docs/product/mvp.md`.
