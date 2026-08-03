@@ -289,6 +289,9 @@ names both.
 ### W43 — content-definition contract
 
 **Plan:** [`plans/43-w43-world-graph-content-contract.md`](43-w43-world-graph-content-contract.md).
+**Status:** In review —
+[PR #121](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/121); W44 remains next
+after merge.
 
 - [x] Cut the W43 doc-only design plan; do not treat this unit as a mechanical port.
 - [x] Separate authoring/source definitions from validated runtime content where necessary.

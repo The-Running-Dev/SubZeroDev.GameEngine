@@ -13,8 +13,9 @@ authoring-to-registry boundary in `04-core.md` §10.1; Sun Trap's `game-design.m
 W43. This is the second of three contract units; W44 still owns system order, pathfinding,
 utility arithmetic, queue/service timing, and deterministic resolution.
 
-**Status:** Execution complete on the review branch. The contract now lives in
-`12-world-graph-kind.md` §§3 and 14–17; merge remains the delivery gate.
+**Status:** Execution complete in
+[PR #121](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/121). The contract
+now lives in `12-world-graph-kind.md` §§3 and 14–17; merge remains the delivery gate.
 
 ---
 
