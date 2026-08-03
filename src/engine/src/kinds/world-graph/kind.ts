@@ -23,7 +23,7 @@ export const worldGraphKind: Kind<WorldGraphKindState> = {
   id: "world-graph",
   version: "1.0.0",
   reasonCodes: WORLD_GRAPH_REASON_CODES,
-  /** W46 adds only the tick events with real producers. */
+  /** W47 exposes events from the delivered causal systems. */
   eventNames: [
     "kind.world-graph.building.placed",
     "kind.world-graph.building.demolished",
@@ -35,6 +35,8 @@ export const worldGraphKind: Kind<WorldGraphKindState> = {
     "kind.world-graph.batch.started",
     "kind.world-graph.batch.ended",
     "kind.world-graph.scenario.effect.applied",
+    "kind.world-graph.guest.spawned",
+    "kind.world-graph.guest.served",
     "kind.world-graph.incident.resolved",
     "kind.world-graph.tick.finalized",
   ],

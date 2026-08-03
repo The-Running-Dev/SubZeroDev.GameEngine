@@ -1,8 +1,9 @@
 import type { KindContext } from "../../../core/kernel/types.js";
 import { assertReferentialIntegrity } from "../actions/common.js";
-import { evaluateCondition } from "../conditions.js";
-import type { WorldGraphCampaign } from "../content.js";
-import type { WorldGraphKindState } from "../state.js";
+import { evaluateCondition, evaluateMetric } from "../conditions.js";
+import type { BuildingDefinition, IntegerCurve, ProductDefinition, WorldGraphCampaign } from "../content.js";
+import type { Building, Guest, Position, StaffTask, WorldGraphKindState } from "../state.js";
+import { canonicalPath, rotateOffset } from "../spatial.js";
 import type { TickChanges } from "./changes.js";
 import { applyWorldEffects } from "./effects.js";
 import { compareRuntimeEntityId, WORLD_GRAPH_SYSTEM_IDS, type WorldGraphSystemId } from "./order.js";
@@ -39,6 +40,44 @@ function scalar(
   visible = false,
 ): void {
   if (previous !== value) frame.changes.record(system, path, value, reason, visible, previous);
+}
+
+const positionOrder = (left: Position, right: Position): number => left.y - right.y || left.x - right.x;
+const samePosition = (left: Position, right: Position): boolean => left.x === right.x && left.y === right.y;
+const activeGuest = (guest: Guest): boolean => guest.lifecycle !== "departed" && guest.lifecycle !== "removed";
+const definition = <T extends { readonly id: string }>(items: readonly T[], id: string, label: string): T => {
+  const item = items.find((entry) => entry.id === id);
+  if (!item) throw new Error(`Validated world-graph ${label} missing: ${id}`);
+  return item;
+};
+function curve(curveDefinition: IntegerCurve, value: number): number {
+  const points = [...curveDefinition.points].sort((left, right) => left.input - right.input);
+  const before = points.filter((point) => point.input <= value).at(-1) ?? points[0];
+  const after = points.find((point) => point.input >= value) ?? points.at(-1);
+  if (!before || !after || curveDefinition.interpolation === "step" || before.input === after.input) return before?.output ?? 0;
+  const numerator = (after.output - before.output) * (value - before.input);
+  const denominator = after.input - before.input;
+  const rounded = numerator < 0 ? -Math.floor((-numerator * 2 + denominator) / (denominator * 2)) : Math.floor((numerator * 2 + denominator) / (denominator * 2));
+  return before.output + rounded;
+}
+function entrances(building: Building, content: WorldGraphCampaign): readonly Position[] {
+  const item = definition(content.buildings, building.definitionId, "building definition");
+  return item.entrances.map((offset) => rotateOffset(offset, item.footprint.width, item.footprint.height, building.rotation)).map((offset) => ({ x: building.x + offset.x, y: building.y + offset.y })).sort(positionOrder);
+}
+function serviceProduct(building: Building, productId: string | null, content: WorldGraphCampaign): { readonly definition: BuildingDefinition; readonly product: ProductDefinition; readonly serviceTicks: number } | null {
+  const buildingDefinition = definition(content.buildings, building.definitionId, "building definition");
+  if (building.status !== "open" || buildingDefinition.operation.kind !== "service") return null;
+  const offered = buildingDefinition.operation.products.filter((entry) => productId === null || entry.productId === productId).sort((left, right) => left.productId.localeCompare(right.productId))[0];
+  if (!offered) return null;
+  return { definition: buildingDefinition, product: definition(content.products, offered.productId, "product"), serviceTicks: offered.serviceTicks ?? buildingDefinition.operation.baseServiceTicks };
+}
+function pathTo(mapState: WorldGraphKindState, content: WorldGraphCampaign, guest: Guest, goals: readonly Position[]): readonly Position[] | null {
+  return canonicalPath(mapState.map, content.terrain, { x: guest.x, y: guest.y }, goals, mapState.buildings, mapState.constructionSites);
+}
+function leaveIntent(state: WorldGraphKindState, content: WorldGraphCampaign, guest: Guest, tick: number, reason: Guest["intent"] extends never ? never : "stay_complete" | "unaffordable" | "unreachable" | "dissatisfied" | "unsafe" | "critical_need" | "scenario"): Guest["intent"] {
+  const exit = [...state.map.exits].map((candidateExit) => ({ candidateExit, path: pathTo(state, content, guest, [candidateExit]) })).filter((entry): entry is { readonly candidateExit: Position; readonly path: readonly Position[] } => entry.path !== null).sort((left, right) => (left.path.length - right.path.length) || positionOrder(left.candidateExit, right.candidateExit))[0]?.candidateExit;
+  if (!exit) throw new Error("Validated world-graph map has no exit");
+  return { kind: "leave", exit, reason, selectedAtTick: tick };
 }
 
 /** System 1: day boundaries, scheduled changes, and active policy effects. */
@@ -87,34 +126,205 @@ export const scenario: WorldGraphSystem = (frame) => {
   return { ...frame, state: result.state };
 };
 
-/** System 2 (`guest-spawn`): W47 implementation boundary. */
-export const guestSpawn: WorldGraphSystem = (frame) => frame;
-/** System 3 (`guest-needs`): W47 implementation boundary. */
-export const guestNeeds: WorldGraphSystem = (frame) => frame;
-/** System 4 (`guest-service`): W47 implementation boundary. */
-export const guestService: WorldGraphSystem = (frame) => frame;
-/** System 5 (`queues`): W47 implementation boundary. */
-export const queues: WorldGraphSystem = (frame) => frame;
-/** System 6 (`guest-intent`): W47 implementation boundary. */
-export const guestIntent: WorldGraphSystem = (frame) => frame;
-/** System 7 (`guest-path`): W47 implementation boundary. */
-export const guestPath: WorldGraphSystem = (frame) => frame;
-/** System 8 (`guest-move`): W47 implementation boundary. */
-export const guestMove: WorldGraphSystem = (frame) => frame;
-/** System 9 (`task-generate`): W47 implementation boundary. */
-export const taskGenerate: WorldGraphSystem = (frame) => frame;
-/** System 10 (`task-assign`): W47 implementation boundary. */
-export const taskAssign: WorldGraphSystem = (frame) => frame;
-/** System 11 (`staff-work`): W47 implementation boundary. */
-export const staffWork: WorldGraphSystem = (frame) => frame;
-/** System 12 (`construction`): W47 implementation boundary. */
+/** System 2: deterministic arrival sampling from the scenario's ordered pool. */
+export const guestSpawn: WorldGraphSystem = (frame) => {
+  const scenarioDefinition = definition(frame.content.scenarios, frame.content.startScenarioId, "scenario");
+  if (frame.state.resolution || frame.processingTick % scenarioDefinition.guestSpawning.everyTicks !== 0 || frame.state.guests.filter(activeGuest).length >= scenarioDefinition.guestSpawning.maxActiveGuests) return frame;
+  const spawn = [...frame.state.map.spawnPoints].sort(positionOrder)[0];
+  if (!spawn) return frame;
+  const pool = [...scenarioDefinition.guestSpawning.pool].sort((left, right) => left.archetypeId.localeCompare(right.archetypeId));
+  const archetypeId = frame.random.tickRng("guest-spawn").weightedPick(pool.map((entry) => ({ item: entry.archetypeId, weight: entry.weight })));
+  const archetype = definition(frame.content.guestArchetypes, archetypeId, "guest archetype");
+  const id = `guest:${frame.state.nextEntityOrdinal}`;
+  let drawCount = 0;
+  const draw = (range: { readonly min: number; readonly max: number }): number => { const result = frame.random.drawAgent({ id, drawCount }, (rng) => rng.nextInt(range.min, range.max)); drawCount = result.drawCount; return result.value; };
+  const cashCents = draw(archetype.cashCents);
+  const stayDurationTicks = draw(archetype.stayTicks);
+  const patienceCapacityTicks = draw(archetype.patienceTicks);
+  const satisfaction = draw(archetype.initialSatisfaction);
+  const needs = Object.fromEntries(archetype.needs.map((entry) => [entry.needId, draw(entry.initial)]));
+  const conditions = Object.fromEntries(archetype.conditions.map((entry) => [entry.definitionId, draw(entry.initial)]));
+  const opinions = Object.fromEntries(archetype.opinions.map((entry) => [entry.definitionId, draw(entry.initial)]));
+  const preferences = Object.fromEntries(archetype.preferences.map((entry) => [entry.definitionId, draw(entry.initial)]));
+  const guest: Guest = {
+    id, archetypeId, lifecycle: "arriving", tickEntered: frame.processingTick, stayDurationTicks,
+    x: spawn.x, y: spawn.y, path: [], pathIndex: 0, drawCount, cashCents,
+    intent: { kind: "wait", untilTick: frame.processingTick, selectedAtTick: frame.processingTick },
+    needs, conditions, opinions, preferences, satisfaction, patienceCapacityTicks, patienceRemainingTicks: 0, lastServedTick: null, spentTicks: 0,
+  };
+  const state = { ...frame.state, guests: [...frame.state.guests, guest], counters: { ...frame.state.counters, guestsEntered: frame.state.counters.guestsEntered + 1 }, nextEntityOrdinal: frame.state.nextEntityOrdinal + 1 };
+  frame.changes.record("guest-spawn", `guests.${id}.exists`, true, "guest_spawned", false, false);
+  frame.emit.emit("kind.world-graph.guest.spawned", "debug", { data: { guestId: id, archetypeId } });
+  return { ...frame, state };
+};
+/** System 3: evolve meters and make threshold departures explicit. */
+export const guestNeeds: WorldGraphSystem = (frame) => {
+  const guests = frame.state.guests.map((guest) => {
+    if (!activeGuest(guest)) return guest;
+    const archetype = definition(frame.content.guestArchetypes, guest.archetypeId, "guest archetype");
+    const needs = { ...guest.needs };
+    for (const profile of archetype.needs) needs[profile.needId] = Math.max(definition(frame.content.needs, profile.needId, "need").minimum, Math.min(definition(frame.content.needs, profile.needId, "need").maximum, needs[profile.needId]! + curve(profile.driftByCurrentValue, needs[profile.needId]!)));
+    const patience = guest.lifecycle === "queued" ? Math.max(0, guest.patienceRemainingTicks - 1) : guest.patienceRemainingTicks;
+    const critical = archetype.needs.some((profile) => needs[profile.needId]! <= definition(frame.content.needs, profile.needId, "need").criticalBelow);
+    const expired = guest.spentTicks + 1 >= guest.stayDurationTicks;
+    return { ...guest, lifecycle: guest.lifecycle === "arriving" ? "seeking" : guest.lifecycle, needs, spentTicks: guest.spentTicks + 1, patienceRemainingTicks: patience, ...(expired || critical ? { intent: leaveIntent(frame.state, frame.content, guest, frame.processingTick, expired ? "stay_complete" : "critical_need"), path: [], pathIndex: 0 } : {}) };
+  });
+  return { ...frame, state: { ...frame.state, guests } };
+};
+/** System 4: complete due FIFO services as one atomic sale. */
+export const guestService: WorldGraphSystem = (frame) => {
+  let state = frame.state;
+  for (const building of [...state.buildings].sort((left, right) => compareRuntimeEntityId(left.id, right.id))) {
+    const headId = building.queue.guestIds[0]; const guest = state.guests.find((entry) => entry.id === headId);
+    if (!guest || building.queue.serviceStartedAtTick === null || guest.intent.kind !== "seek_service") continue;
+    const offer = serviceProduct(building, guest.intent.productId, frame.content);
+    if (!offer || frame.processingTick - building.queue.serviceStartedAtTick < offer.serviceTicks) continue;
+    const price = building.pricesCents[offer.product.id]; const stock = building.inventory[offer.product.id];
+    const staffed = offer.definition.operation.kind === "service" && offer.definition.operation.staffRequirements.every((requirement) => state.staff.filter((member) => member.roleId === requirement.roleId && member.assignedBuildingId === building.id && member.task?.type === "service" && member.task.status !== "cancelled").length >= requirement.count);
+    if (price === undefined || price > guest.cashCents || stock === undefined || stock === 0 || !staffed) continue;
+    state = { ...state, guests: state.guests.map((entry) => entry.id === guest.id ? { ...entry, lifecycle: "served", cashCents: entry.cashCents - price, lastServedTick: frame.processingTick } : entry), buildings: state.buildings.map((entry) => entry.id === building.id ? { ...entry, inventory: stock === null ? entry.inventory : { ...entry.inventory, [offer.product.id]: stock - 1 } } : entry), finances: { ...state.finances, cashCents: state.finances.cashCents + price - offer.product.unitCostCents, revenueTodayCents: state.finances.revenueTodayCents + price, revenueTotalCents: state.finances.revenueTotalCents + price, expensesTodayCents: state.finances.expensesTodayCents + offer.product.unitCostCents, expensesTotalCents: state.finances.expensesTotalCents + offer.product.unitCostCents }, counters: { ...state.counters, servicesCompleted: state.counters.servicesCompleted + 1 } };
+    state = applyWorldEffects(state, [...offer.definition.operation.effects, ...offer.product.effects], { processingTick: frame.processingTick, content: frame.content, random: frame.random, changes: frame.changes, system: "guest-service", reason: "guest_served", currentServiceGuestId: guest.id, currentServiceBuildingId: building.id }).state;
+    if (offer.product.litter) {
+      const incidentId = `incident:${state.nextEntityOrdinal}`;
+      state = { ...state, incidents: [...state.incidents, { id: incidentId, definitionId: offer.product.litter.incidentDefinitionId, buildingId: building.id, guestId: guest.id, zoneId: null, position: { x: guest.x, y: guest.y }, amount: offer.product.litter.unitsPerService, startedAtTick: frame.processingTick, expiresAtTick: null, resolvedAtTick: null }], nextEntityOrdinal: state.nextEntityOrdinal + 1, counters: { ...state.counters, incidentsRaised: state.counters.incidentsRaised + 1, litterCreated: state.counters.litterCreated + offer.product.litter.unitsPerService } };
+    }
+    frame.emit.emit("kind.world-graph.guest.served", "info", { data: { guestId: guest.id, buildingId: building.id } });
+  }
+  return { ...frame, state };
+};
+/** System 5: preserve FIFO membership, admit arrivals, and restart clocks on change. */
+export const queues: WorldGraphSystem = (frame) => {
+  let state = frame.state;
+  for (const building of [...state.buildings].sort((left, right) => compareRuntimeEntityId(left.id, right.id))) {
+    const offer = serviceProduct(building, null, frame.content);
+    const capacity = offer?.definition.operation.kind === "service" ? offer.definition.operation.queueMaxLength : null;
+    let ids = building.queue.guestIds.filter((id) => { const guest = state.guests.find((entry) => entry.id === id); return guest?.lifecycle === "queued"; });
+    const served = state.guests.filter((guest) => guest.lifecycle === "served" && ids.includes(guest.id));
+    if (served.length) state = { ...state, guests: state.guests.map((guest) => served.some((entry) => entry.id === guest.id) ? { ...guest, lifecycle: "seeking", intent: { kind: "wait", untilTick: frame.processingTick, selectedAtTick: frame.processingTick }, path: [], pathIndex: 0 } : guest) };
+    ids = ids.filter((id) => !served.some((guest) => guest.id === id));
+    const abandon = ids.filter((id) => state.guests.find((guest) => guest.id === id)?.patienceRemainingTicks === 0);
+    if (abandon.length) state = { ...state, guests: state.guests.map((guest) => abandon.includes(guest.id) ? { ...guest, lifecycle: "seeking", intent: { kind: "wait", untilTick: frame.processingTick, selectedAtTick: frame.processingTick }, path: [], pathIndex: 0 } : guest) };
+    ids = ids.filter((id) => !abandon.includes(id));
+    const arrivals = state.guests.filter((guest) => guest.lifecycle === "seeking" && guest.intent.kind === "seek_service" && guest.intent.buildingId === building.id && entrances(building, frame.content).some((entry) => samePosition(entry, guest))).sort((left, right) => compareRuntimeEntityId(left.id, right.id));
+    for (const guest of arrivals) {
+      if (capacity !== null && ids.length >= capacity) break;
+      ids.push(guest.id);
+      state = { ...state, guests: state.guests.map((entry) => entry.id === guest.id ? { ...entry, lifecycle: "queued", patienceRemainingTicks: entry.patienceCapacityTicks } : entry) };
+    }
+    const head = state.guests.find((guest) => guest.id === ids[0]);
+    const headOffer = head?.intent.kind === "seek_service" ? serviceProduct(building, head.intent.productId, frame.content) : null;
+    const canServe = headOffer !== null && head !== undefined && (headOffer.definition.operation.kind !== "service" || headOffer.definition.operation.staffRequirements.every((requirement) => state.staff.filter((staff) => staff.roleId === requirement.roleId && staff.assignedBuildingId === building.id && staff.task?.type === "service" && staff.task.status !== "cancelled").length >= requirement.count));
+    const clock = canServe ? (building.queue.serviceStartedAtTick ?? frame.processingTick) : null;
+    state = { ...state, buildings: state.buildings.map((entry) => entry.id === building.id ? { ...entry, queue: { ...entry.queue, guestIds: ids, serviceStartedAtTick: clock } } : entry) };
+  }
+  return { ...frame, state };
+};
+function candidate(state: WorldGraphKindState, content: WorldGraphCampaign, guest: Guest, building: Building): { readonly productId: string; readonly score: number } | null {
+  const operation = definition(content.buildings, building.definitionId, "building definition").operation;
+  if (operation.kind !== "service" || building.status !== "open") return null;
+  const values = operation.products.map((entry) => {
+    const product = definition(content.products, entry.productId, "product"); const price = building.pricesCents[product.id]; const stock = building.inventory[product.id];
+    const path = pathTo(state, content, guest, entrances(building, content));
+    if (price === undefined || price > guest.cashCents || stock === 0 || path === null) return null;
+    const archetype = definition(content.guestArchetypes, guest.archetypeId, "guest archetype");
+    const urgency = Math.max(0, ...archetype.needs.map((profile) => curve(profile.utilityByCurrentValue, guest.needs[profile.needId] ?? 0)));
+    const quality = Math.trunc((building.cleanliness + building.wear) / 2) * archetype.qualityUtilityPerPoint;
+    const preferences = archetype.preferences.filter((profile) => definition(content.preferences, profile.definitionId, "preference").targetTags.some((tag) => product.tags.includes(tag) || definition(content.buildings, building.definitionId, "building definition").tags.includes(tag))).reduce((sum, profile) => sum + (guest.preferences[profile.definitionId] ?? 0), 0) * archetype.preferenceUtilityPerPoint;
+    return { productId: product.id, score: urgency + quality + preferences - curve(archetype.priceResistance, price) - ((path.length - 1) * archetype.travelPenaltyPerCost) - (building.queue.guestIds.length * archetype.queuePenaltyPerTick) };
+  }).filter((entry): entry is { readonly productId: string; readonly score: number } => entry !== null);
+  return values.sort((left, right) => right.score - left.score || left.productId.localeCompare(right.productId))[0] ?? null;
+}
+/** System 6: choose the highest reachable, affordable service candidate. */
+export const guestIntent: WorldGraphSystem = (frame) => {
+  const guests = frame.state.guests.map((guest) => {
+    if (guest.lifecycle !== "seeking" || (guest.intent.kind === "wait" && guest.intent.untilTick > frame.processingTick)) return guest;
+    const choices = frame.state.buildings.map((building) => ({ building, choice: candidate(frame.state, frame.content, guest, building) })).filter((entry): entry is { readonly building: Building; readonly choice: { readonly productId: string; readonly score: number } } => entry.choice !== null).sort((left, right) => right.choice.score - left.choice.score || compareRuntimeEntityId(left.building.id, right.building.id) || left.choice.productId.localeCompare(right.choice.productId));
+    if (choices.length) return { ...guest, intent: { kind: "seek_service" as const, buildingId: choices[0]!.building.id, productId: choices[0]!.choice.productId, selectedAtTick: frame.processingTick }, path: [], pathIndex: 0 };
+    const archetype = definition(frame.content.guestArchetypes, guest.archetypeId, "guest archetype");
+    return archetype.fallback.kind === "leave" ? { ...guest, intent: leaveIntent(frame.state, frame.content, guest, frame.processingTick, "unreachable"), path: [], pathIndex: 0 } : { ...guest, intent: { kind: "wait" as const, untilTick: frame.processingTick + archetype.fallback.ticks, selectedAtTick: frame.processingTick } };
+  });
+  return { ...frame, state: { ...frame.state, guests } };
+};
+/** Systems 7–8: commit and traverse one canonical path edge per tick. */
+export const guestPath: WorldGraphSystem = (frame) => ({ ...frame, state: { ...frame.state, guests: frame.state.guests.map((guest) => {
+  if (!activeGuest(guest) || guest.lifecycle === "queued" || guest.lifecycle === "served" || guest.intent.kind === "wait") return guest;
+  const goals = guest.intent.kind === "leave" ? [guest.intent.exit] : entrances(definition(frame.state.buildings, guest.intent.buildingId, "building"), frame.content);
+  if (guest.path.length > 0 && samePosition(guest.path.at(-1)!, goals[0]!)) return guest;
+  const path = pathTo(frame.state, frame.content, guest, goals);
+  return path === null ? { ...guest, intent: leaveIntent(frame.state, frame.content, guest, frame.processingTick, "unreachable"), path: [], pathIndex: 0 } : { ...guest, path, pathIndex: 0 };
+}) } });
+export const guestMove: WorldGraphSystem = (frame) => {
+  let departed = 0;
+  const guests = frame.state.guests.map((guest) => {
+    if (!activeGuest(guest) || guest.pathIndex >= guest.path.length - 1 || guest.lifecycle === "queued" || guest.lifecycle === "served") return guest;
+    const position = guest.path[guest.pathIndex + 1]!; const next = { ...guest, x: position.x, y: position.y, pathIndex: guest.pathIndex + 1 };
+    if (next.intent.kind === "leave" && samePosition(position, next.intent.exit)) { departed += 1; return { ...next, lifecycle: "departed" as const }; }
+    return next;
+  });
+  return { ...frame, state: { ...frame.state, guests, counters: departed ? { ...frame.state.counters, guestsDeparted: frame.state.counters.guestsDeparted + departed } : frame.state.counters } };
+};
+/** Systems 9–11: derive, assign and execute the MVP's service/cleaning work. */
+export const taskGenerate: WorldGraphSystem = (frame) => {
+  for (const incident of frame.state.incidents.filter((entry) => entry.resolvedAtTick === null).sort((left, right) => compareRuntimeEntityId(left.id, right.id))) {
+    const incidentDefinition = definition(frame.content.incidents, incident.definitionId, "incident definition");
+    if (incidentDefinition.resolverTaskType === "clean" && incidentDefinition.resolverTaskPriority !== null) frame.scratch.taskCandidates.push({ type: "clean", priority: incidentDefinition.resolverTaskPriority, effort: incident.amount, buildingId: incident.buildingId, incidentId: incident.id, constructionSiteId: null, productId: null, requiredRoleId: null, slot: 0 });
+  }
+  for (const building of frame.state.buildings) {
+    const operation = definition(frame.content.buildings, building.definitionId, "building definition").operation;
+    if (operation.kind !== "service" || building.queue.guestIds.length === 0) continue;
+    for (const requirement of operation.staffRequirements) for (let slot = 0; slot < requirement.count; slot += 1) frame.scratch.taskCandidates.push({ type: "service", priority: operation.staffingTaskPriority, effort: null, buildingId: building.id, incidentId: null, constructionSiteId: null, productId: null, requiredRoleId: requirement.roleId, slot });
+  }
+  return frame;
+};
+export const taskAssign: WorldGraphSystem = (frame) => {
+  let state = frame.state;
+  const candidates = [...frame.scratch.taskCandidates].sort((left, right) => right.priority - left.priority || left.type.localeCompare(right.type) || (left.incidentId ?? left.buildingId ?? "").localeCompare(right.incidentId ?? right.buildingId ?? "") || left.slot - right.slot);
+  for (const member of [...state.staff].sort((left, right) => compareRuntimeEntityId(left.id, right.id))) {
+    if (member.task !== null || member.status === "off_duty") continue;
+    const candidateIndex = candidates.findIndex((candidate) => {
+      const role = definition(frame.content.staffRoles, member.roleId, "staff role");
+      return role.supportedTaskKinds.includes(candidate.type) && (candidate.requiredRoleId === null || candidate.requiredRoleId === member.roleId);
+    });
+    if (candidateIndex < 0) continue;
+    const candidate = candidates.splice(candidateIndex, 1)[0]!;
+    const target = candidate.incidentId === null ? state.buildings.find((building) => building.id === candidate.buildingId) : state.incidents.find((incident) => incident.id === candidate.incidentId);
+    const goal = target && "position" in target ? target.position : target && "x" in target ? { x: target.x, y: target.y } : null;
+    const path = goal === null ? [] : canonicalPath(state.map, frame.content.terrain, member, [goal], state.buildings, state.constructionSites) ?? [];
+    const task: StaffTask = { id: `task:${state.nextEntityOrdinal}`, type: candidate.type, status: "assigned", guestId: null, queueId: null, buildingId: candidate.buildingId, constructionSiteId: candidate.constructionSiteId, incidentId: candidate.incidentId, targetProductId: candidate.productId, startedAtTick: frame.processingTick, endedAtTick: null, priority: candidate.priority, effortRemaining: candidate.effort };
+    state = { ...state, staff: state.staff.map((entry) => entry.id === member.id ? { ...entry, task, path, pathIndex: 0, status: "to_work" } : entry), nextEntityOrdinal: state.nextEntityOrdinal + 1 };
+  }
+  return { ...frame, state };
+};
+export const staffWork: WorldGraphSystem = (frame) => {
+  let state = frame.state;
+  for (const member of [...state.staff].sort((left, right) => compareRuntimeEntityId(left.id, right.id))) {
+    if (!member.task || member.status === "off_duty") continue;
+    if (member.pathIndex < member.path.length - 1) { state = { ...state, staff: state.staff.map((entry) => entry.id === member.id ? { ...entry, x: entry.path[entry.pathIndex + 1]!.x, y: entry.path[entry.pathIndex + 1]!.y, pathIndex: entry.pathIndex + 1, status: "to_work" } : entry) }; continue; }
+    if (member.task.type === "service") { state = { ...state, staff: state.staff.map((entry) => entry.id === member.id ? { ...entry, status: "working", task: { ...entry.task!, status: "in_progress" } } : entry) }; continue; }
+    if (member.task.type === "clean" && member.task.incidentId) {
+      const incident = state.incidents.find((entry) => entry.id === member.task!.incidentId);
+      if (!incident || incident.resolvedAtTick !== null) continue;
+      const rate = definition(frame.content.staffRoles, member.roleId, "staff role").workRates.find((entry) => entry.taskType === "clean")?.effortPerTick ?? 0;
+      const remaining = Math.max(0, incident.amount - rate);
+      state = { ...state, incidents: state.incidents.map((entry) => entry.id === incident.id ? { ...entry, amount: remaining, resolvedAtTick: remaining === 0 ? frame.processingTick : null } : entry), staff: state.staff.map((entry) => entry.id === member.id ? { ...entry, status: remaining === 0 ? "idle" : "working", task: remaining === 0 ? { ...entry.task!, status: "completed", endedAtTick: frame.processingTick } : { ...entry.task!, status: "in_progress", effortRemaining: remaining } } : entry), counters: remaining === 0 ? { ...state.counters, litterCleaned: state.counters.litterCleaned + incident.amount } : state.counters };
+      if (remaining === 0) state = applyWorldEffects(state, definition(frame.content.incidents, incident.definitionId, "incident definition").onResolve, { processingTick: frame.processingTick, content: frame.content, random: frame.random, changes: frame.changes, system: "staff-work", reason: "incident_resolved", currentIncidentId: incident.id }).state;
+    }
+  }
+  return { ...frame, state };
+};
 export const construction: WorldGraphSystem = (frame) => frame;
-/** System 13 (`buildings`): W47 implementation boundary. */
 export const buildings: WorldGraphSystem = (frame) => frame;
-/** System 14 (`cleanliness-wear`): W47 implementation boundary. */
-export const cleanlinessWear: WorldGraphSystem = (frame) => frame;
-/** System 15 (`finance`): W47 implementation boundary. */
-export const finance: WorldGraphSystem = (frame) => frame;
+export const cleanlinessWear: WorldGraphSystem = (frame) => {
+  const buildingDeltas = new Map<string, number>();
+  for (const incident of frame.state.incidents.filter((entry) => entry.resolvedAtTick === null && entry.buildingId !== null)) buildingDeltas.set(incident.buildingId!, (buildingDeltas.get(incident.buildingId!) ?? 0) - incident.amount);
+  if (buildingDeltas.size === 0) return frame;
+  return { ...frame, state: { ...frame.state, buildings: frame.state.buildings.map((building) => buildingDeltas.has(building.id) ? { ...building, cleanliness: Math.max(0, Math.min(100, building.cleanliness + buildingDeltas.get(building.id)!)) } : building) } };
+};
+export const finance: WorldGraphSystem = (frame) => {
+  const due = (amount: number): number => Math.floor((amount * (frame.processingTick + 1)) / frame.content.ticksPerDay) - Math.floor((amount * frame.processingTick) / frame.content.ticksPerDay);
+  const expenses = frame.state.staff.reduce((sum, member) => sum + due(definition(frame.content.staffRoles, member.roleId, "staff role").wageCentsPerDay), 0) + frame.state.buildings.filter((building) => building.status === "open").reduce((sum, building) => sum + due(definition(frame.content.buildings, building.definitionId, "building definition").operatingCostCentsPerDay), 0);
+  return expenses === 0 ? frame : { ...frame, state: { ...frame.state, finances: { ...frame.state.finances, cashCents: frame.state.finances.cashCents - expenses, expensesTodayCents: frame.state.finances.expensesTodayCents + expenses, expensesTotalCents: frame.state.finances.expensesTotalCents + expenses } } };
+};
 /** System 16: W46 resolves duration expiry; W47 adds rolls and condition-driven resolution. */
 export const incidents: WorldGraphSystem = (frame) => {
   const expiring = frame.state.incidents.filter((incident) => (
@@ -149,10 +359,45 @@ export const incidents: WorldGraphSystem = (frame) => {
   }
   return { ...frame, state };
 };
-/** System 17 (`objectives`): W47 implementation boundary. */
-export const objectives: WorldGraphSystem = (frame) => frame;
-/** System 18 (`failure`): W47 implementation boundary. */
-export const failure: WorldGraphSystem = (frame) => frame;
+/** System 17: evaluate duration-qualified objective progress against this tick's world. */
+export const objectives: WorldGraphSystem = (frame) => {
+  let state = frame.state;
+  for (const progress of [...state.objectives].sort((left, right) => left.id.localeCompare(right.id))) {
+    if (progress.state !== "active") continue;
+    const item = definition(frame.content.objectives, progress.id, "objective");
+    const value = item.progressMetric === null ? progress.value : (evaluateMetric(item.progressMetric, state, frame.content) ?? 0);
+    const satisfied = evaluateCondition(item.completion, state, frame.content);
+    const since = satisfied ? (progress.satisfiedSinceTick ?? frame.processingTick) : null;
+    const met = satisfied && since !== null && frame.processingTick - since + 1 >= item.requiredDurationTicks;
+    const next = { ...progress, value, satisfiedSinceTick: since, updatedAtTick: frame.processingTick, state: met ? "met" as const : "active" as const };
+    state = { ...state, objectives: state.objectives.map((entry) => entry.id === progress.id ? next : entry) };
+    if (met) state = applyWorldEffects(state, item.onCompleted, { processingTick: frame.processingTick, content: frame.content, random: frame.random, changes: frame.changes, system: "objectives", reason: "objective_met" }).state;
+  }
+  return { ...frame, state };
+};
+/** System 18: retain the first terminal identity selected by the scenario precedence. */
+export const failure: WorldGraphSystem = (frame) => {
+  if (frame.state.resolution) return frame;
+  let state = frame.state;
+  const triggered: string[] = [];
+  for (const progress of [...state.failures].sort((left, right) => left.id.localeCompare(right.id))) {
+    if (progress.state === "triggered") { triggered.push(progress.id); continue; }
+    const item = definition(frame.content.failures, progress.id, "failure"); const satisfied = evaluateCondition(item.condition, state, frame.content);
+    const since = satisfied ? (progress.satisfiedSinceTick ?? frame.processingTick) : null;
+    const fires = satisfied && since !== null && frame.processingTick - since + 1 >= item.requiredDurationTicks;
+    state = { ...state, failures: state.failures.map((entry) => entry.id === progress.id ? { ...entry, satisfiedSinceTick: since, updatedAtTick: frame.processingTick, state: fires ? "triggered" as const : "active" as const } : entry) };
+    if (fires) { triggered.push(progress.id); state = applyWorldEffects(state, item.onTriggered, { processingTick: frame.processingTick, content: frame.content, random: frame.random, changes: frame.changes, system: "failure", reason: "failure_triggered" }).state; }
+  }
+  const met = state.objectives.filter((entry) => entry.state === "met").map((entry) => entry.id).sort();
+  const success = state.objectives.length > 0 && met.length === state.objectives.length;
+  const failureId = triggered.sort()[0] ?? null;
+  if (success || failureId !== null) {
+    const scenarioDefinition = definition(frame.content.scenarios, frame.content.startScenarioId, "scenario");
+    const win = success && (failureId === null || scenarioDefinition.resolutionPrecedence === "objectives_win");
+    state = { ...state, resolution: { resolution: win ? "objectives_met" : "failed", objectiveIds: met, failureId: win ? null : failureId, resolvedAtTick: frame.processingTick } };
+  }
+  return { ...frame, state };
+};
 /** System 19 (`alerts`): W47 implementation boundary. */
 export const alerts: WorldGraphSystem = (frame) => frame;
 
