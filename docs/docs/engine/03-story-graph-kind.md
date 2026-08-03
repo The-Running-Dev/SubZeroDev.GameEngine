@@ -2,6 +2,8 @@
 sidebar_label: Story-Graph Kind
 ---
 
+<!-- Generated from design/20-contract.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
+
 # Story-Graph Kind — Content Model
 
 **Document status:** Revision 1 — first build deliverable

@@ -1,8 +1,13 @@
+# Slices
+
+> Canonical delivery ledger for the agent-kit workflow. This repository retains its established
+> W identifiers because plans, tests, issues, changelog entries, and merged history already cite
+> them. In this repository a W-numbered work unit is the agent kit's vertical slice.
+
+<!-- human-doc:start path="engine/TODO.md" -->
 ---
 slug: todo
 ---
-
-<!-- Generated from design/30-slices.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
 
 # TODO
 
@@ -1136,3 +1141,4 @@ quietly dropped from the criteria.
     [1](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/3#discussion_r3660515997),
     [2](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/3#discussion_r3660516002),
     [3](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/3#discussion_r3660516006).
+<!-- human-doc:end -->
