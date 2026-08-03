@@ -128,12 +128,12 @@ export const shippedChapters: readonly RoadmapChapter[] = [
 
 export const nextActs: readonly RoadmapChapter[] = [
   {
-    id: "describe",
-    workUnits: "W43–W44",
+    id: "move",
+    workUnits: "W45–W46",
     status: "now",
-    title: "Describe the resort",
+    title: "Make the resort move",
     summary:
-      "Settle the world’s content and the order in which it changes. W44 is the current unmerged contract unit.",
+      "W45’s kind foundation is reconciled; W46 plans the deterministic tick runner that follows it.",
     links: [
       {
         label: "World-graph contract",
@@ -143,10 +143,10 @@ export const nextActs: readonly RoadmapChapter[] = [
     ],
   },
   {
-    id: "move",
-    workUnits: "W45–W48",
+    id: "play",
+    workUnits: "W47–W48",
     status: "next",
-    title: "Make the resort move",
+    title: "Give the resort a playable loop",
     summary:
       "Build actions, ticks, guests, queues, service, litter, cleaning, and previews.",
     links: [

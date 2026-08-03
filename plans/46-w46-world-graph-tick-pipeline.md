@@ -6,22 +6,21 @@ contract systems in fixed order, establish disposable tick scratch and determini
 helpers, aggregate batch-grain changes, implement scenario scheduling and tick-finalization,
 and leave W47-owned mechanics as explicit tested no-ops. No playable Sun Trap slice yet.
 
-**Depends on:** the complete W43/W44 contract chain
-([PR #119](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/119),
-[PR #120](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/120),
-[PR #121](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/121), and
-[PR #122](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/122)), W45's plan
-([PR #124](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/124)), and the
-subsequent merged W45 implementation. Execute only after `main` contains the final W42-W45
-state, content, spatial, validation, initial-state, immediate-action, and public-export code.
+**Depends on:** the merged W43/W44 contract chain
+([PR #119](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/119) and
+[PR #120](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/120)) and W45's
+reconciled implementation in [PR #125](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/125).
+Execute only after `main` contains the final W42-W45 state, content, spatial, validation,
+initial-state, immediate-action, and public-export code.
 
 **Programme:** [`plans/39-world-graph-kind-programme.md`](39-world-graph-kind-programme.md),
 W46. This reaches T2: a tick batch resolves honestly. W47 owns the playable
 spawn-to-resolution vertical slice.
 
-**Status:** Planning only. This file records the measured starting point, real/stub boundary,
-module ownership, tick frame, stream and audit rules, verification matrix, and execution
-handoff. It changes no engine source or delivery status.
+**Status:** Planning record in [PR #125](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/125).
+The canonical runtime contract is `design/20-contract.md`'s marked
+`engine/12-world-graph-kind.md` block; this file records implementation sequencing and does
+not supersede it. It changes no engine source or delivery status.
 
 ---
 
@@ -42,8 +41,8 @@ handoff. It changes no engine source or delivery status.
 
 ### Where to work
 
-- **Authoritative contract:** `docs/docs/engine/12-world-graph-kind.md`, especially §§4-6,
-  9, 11-13, and 15.3.
+- **Authoritative contract:** `design/20-contract.md`'s `engine/12-world-graph-kind.md`
+  block, especially §§4-6, 9, 11-13, and 15.3.
 - **W45 result:** the merged `src/engine/src/kinds/world-graph/` modules and their minimum
   campaign fixture. Re-audit actual names after merge; this plan does not assume the current
   preserved draft survives unchanged.
@@ -54,7 +53,7 @@ handoff. It changes no engine source or delivery status.
   `endOfWeek.ts`, and `startOfWeek.ts`. Their useful discipline is an ordered pipeline with
   explicit stubs; their weekly mechanics and generic shape are not portable.
 - **Programme ledgers:** `plans/39-world-graph-kind-programme.md` and
-  `docs/docs/engine/TODO.md`.
+  `design/30-slices.md`'s generated `engine/TODO.md` block.
 
 ### Working rules that are easy to violate here
 

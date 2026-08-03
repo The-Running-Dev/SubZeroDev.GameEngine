@@ -291,7 +291,7 @@ names both.
 **Execution record:** [`plans/43-w43-world-graph-content-contract.md`](43-w43-world-graph-content-contract.md).
 **Canonical contract:** `design/20-contract.md`'s `engine/12-world-graph-kind.md` block.
 **Status:** Merged in [PR #119](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/119).
-W44 is in review in [PR #120](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/120).
+W44 is merged in [PR #120](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/120).
 
 - [x] Cut the W43 doc-only design plan; do not treat this unit as a mechanical port.
 - [x] Separate authoring/source definitions from validated runtime content where necessary.
@@ -310,7 +310,7 @@ W44 is in review in [PR #120](https://github.com/The-Running-Dev/SubZeroDev.Game
 
 **Execution record:** [`plans/44-w44-world-graph-resolution-contract.md`](44-w44-world-graph-resolution-contract.md).
 **Canonical contract:** `design/20-contract.md`'s `engine/12-world-graph-kind.md` block.
-**Status:** In review — [PR #120](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/120).
+**Status:** Merged in [PR #120](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/120).
 
 - [x] Freeze the named 20-system order and define each system's contract.
 - [x] Define utility scoring, A* pathfinding, queues/service, staff work, construction,
@@ -321,31 +321,25 @@ W44 is in review in [PR #120](https://github.com/The-Running-Dev/SubZeroDev.Game
 
 ### W45 — kind skeleton and immediate actions
 
-> **A reviewed draft of this unit already exists**, on
-> `feature/w45-world-graph-kind-skeleton`. It was written on W42's branch by mistake — that
-> unit is doc-only — and was moved rather than deleted, because reviewing it against the
-> contract is what caught eight divergences and two contract defects (`Building` had no
-> price field for `set_price`; canonical id order compared ordinals lexicographically).
-> [`plans/42`](42-w42-world-graph-state-contract.md)'s Amendment has the account.
->
-> So this unit **starts by reviewing that branch against the merged W42–W44 contract**, not
-> by writing from scratch. It covers every box below except the tick pipeline, which is W46's
-> and genuinely absent: `advance_ticks` advances the counter and runs none of §4's twenty
-> systems.
+**Execution record:** [`plans/45-w45-world-graph-kind-skeleton.md`](45-w45-world-graph-kind-skeleton.md).
+**Canonical contract:** `design/20-contract.md`'s `engine/12-world-graph-kind.md` block.
+**Status:** Implemented and reconciled in [PR #125](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/125);
+[PR #124](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/124) remains the
+original implementation review.
 
-- [ ] Cut the W45 code plan against the merged W42–W44 contract.
-- [ ] Add world-graph state/content modules and export their supported symbols publicly.
-- [ ] Implement total campaign narrowing and Tier 1/Tier 2 validation without unchecked throws.
-- [ ] Implement deterministic `initialState`, projection, outcome and reason/event registries.
-- [ ] Assemble and register the production `worldGraphKind`.
-- [ ] Implement build/demolish, hire/fire, assign, set-price and open/close reducers.
-- [ ] Derive entity ids only from the seed-safe ordinal rule; never from array length or time.
-- [ ] Add synthetic minimum campaign fixtures owned by this repository.
-- [ ] Test every immediate action's success, rejection and no-time-passes invariant.
-- [ ] **Gate:** `createGame` produces a valid deterministic tick-zero world and all immediate
+- [x] Implement the world-graph state/content modules, public symbols, validation, initial
+      state, read surfaces, production assembly, and nine no-time-passes reducers.
+- [x] Derive ids only from the seed-safe ordinal rule and add engine-owned minimum fixtures.
+- [x] Test immediate-action success, rejection, and no-time-passes behavior.
+- [x] **Gate:** `createGame` produces a valid deterministic tick-zero world and all immediate
       actions pass through the real engine seam.
 
 ### W46 — deterministic tick pipeline
+
+**Planning record:** [`plans/46-w46-world-graph-tick-pipeline.md`](46-w46-world-graph-tick-pipeline.md).
+**Canonical contract:** `design/20-contract.md`'s `engine/12-world-graph-kind.md` block.
+**Status:** Planned in [PR #125](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/125);
+execution follows W45's merge.
 
 - [ ] Cut the W46 code plan with one function/module owner for each normative system.
 - [ ] Implement bounded `advance_ticks` and `tick_limit_reached` rejection.

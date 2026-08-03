@@ -36,8 +36,9 @@ assertable invariants are in the
 - `world-graph` has a settled core seam, runtime-state, campaign-content, and resolution
   contract, stream support, and a published consumer package boundary. The contract specifies a
   source-to-runtime build step and a deterministic 20-system tick pipeline, including utility,
-  routing, queues, staff, finance, incidents, and terminal precedence. W45 onward implements
-  those contracts; it is not a usable registered kind yet.
+  routing, queues, staff, finance, incidents, and terminal precedence. W45’s kind foundation
+  is implemented but not merged; W46 onward implements the tick runner and its fixtures, so it
+  is not a usable registered kind yet.
 - Content packs and privacy-safe session capture are specified but not implemented. Capture is
   intentionally gated on the hosting layer.
 
@@ -275,7 +276,8 @@ a scenario selects a map from the campaign-owned catalog; a pure builder validat
 materializes typed definitions before play; and one atomic tick runs the fixed 20-system
 pipeline with explicit ordering, pathfinding, queue/service, staff-work, finance, incident, and
 terminal semantics. W45 must implement the builder and immediate actions; W46 onward implement
-the pipeline and its fixtures. Until those units land, do not register a placeholder world kind
+the pipeline and its fixtures. W45 is reconciled for review but remains unmerged; W46 must
+follow it with the pipeline. Until those units land, do not register a placeholder world kind
 or infer runtime behavior from the game repository.
 
 ## Saves and migrations

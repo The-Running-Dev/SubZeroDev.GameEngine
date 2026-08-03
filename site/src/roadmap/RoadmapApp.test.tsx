@@ -29,8 +29,8 @@ describe("roadmap page", () => {
       "W41–W42",
     ]);
     expect(nextActs.map((chapter) => chapter.workUnits)).toEqual([
-      "W43–W44",
-      "W45–W48",
+      "W45–W46",
+      "W47–W48",
       "W49",
     ]);
     expect(nextActs.every((chapter) => chapter.status !== "done")).toBe(true);
