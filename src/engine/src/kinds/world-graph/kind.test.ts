@@ -208,8 +208,35 @@ describe("world-graph W45 engine seam", () => {
     const advanced = runtimeEngine.submitAction(hired.value!, "advance_ticks", { ticks: 10 });
     expect(advanced.ok).toBe(true);
     const state = stateOf(advanced.value!);
-    expect(state.counters).toMatchObject({ guestsEntered: 1, servicesCompleted: 1, litterCreated: 1, litterCleaned: 1 });
+    expect(state.counters).toMatchObject({ servicesCompleted: 1, litterCreated: 1, litterCleaned: 1 });
     expect(state.resolution).toMatchObject({ resolution: "objectives_met", objectiveIds: ["earn"], failureId: null });
+  });
+
+  it("releases a served guest so the active cap can admit the next journey", () => {
+    const base = runtime().content;
+    const content: WorldGraphCampaign = {
+      ...base,
+      products: base.products.map((product) => ({ ...product, price: { ...product.price, defaultCents: 100 } })),
+      objectives: base.objectives.map((objective) => ({
+        ...objective,
+        completion: { kind: "compare", metric: { kind: "counter", counter: "guestsEntered" }, op: "gte", value: 2 },
+        progressMetric: { kind: "counter", counter: "guestsEntered" },
+        target: 2,
+      })),
+      scenarios: base.scenarios.map((scenario) => ({
+        ...scenario,
+        buildingPlacements: [{ definitionId: "kiosk", x: 1, y: 1, rotation: 0, open: true }],
+        guestSpawning: { everyTicks: 1, maxActiveGuests: 1, pool: [{ archetypeId: "guest", weight: 1 }] },
+      })),
+    };
+    const runtimeEngine = engine(content);
+    const created = runtimeEngine.createGame({ campaignId: "world-test" });
+    expect(created.ok).toBe(true);
+    const advanced = runtimeEngine.submitAction(created.value!, "advance_ticks", { ticks: 10 });
+    expect(advanced.ok).toBe(true);
+    const state = stateOf(advanced.value!);
+    expect(state.counters).toMatchObject({ guestsEntered: 2, guestsDeparted: 1, servicesCompleted: 1 });
+    expect(state.resolution).toMatchObject({ resolution: "objectives_met", objectiveIds: ["earn"] });
   });
 
   it("reaches the declared financial loss through submitAction", () => {

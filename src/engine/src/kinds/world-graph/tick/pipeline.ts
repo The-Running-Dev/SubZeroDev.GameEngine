@@ -186,7 +186,7 @@ export const guestService: WorldGraphSystem = (frame) => {
     state = applyWorldEffects(state, [...offer.definition.operation.effects, ...offer.product.effects], { processingTick: frame.processingTick, content: frame.content, random: frame.random, changes: frame.changes, system: "guest-service", reason: "guest_served", currentServiceGuestId: guest.id, currentServiceBuildingId: building.id }).state;
     if (offer.product.litter) {
       const incidentId = `incident:${state.nextEntityOrdinal}`;
-      state = { ...state, incidents: [...state.incidents, { id: incidentId, definitionId: offer.product.litter.incidentDefinitionId, buildingId: building.id, guestId: guest.id, zoneId: null, position: { x: guest.x, y: guest.y }, amount: offer.product.litter.unitsPerService, startedAtTick: frame.processingTick, expiresAtTick: null, resolvedAtTick: null }], nextEntityOrdinal: state.nextEntityOrdinal + 1, counters: { ...state.counters, incidentsRaised: state.counters.incidentsRaised + 1, litterCreated: state.counters.litterCreated + offer.product.litter.unitsPerService } };
+      state = { ...state, incidents: [...state.incidents, { id: incidentId, definitionId: offer.product.litter.incidentDefinitionId, buildingId: building.id, guestId: null, zoneId: null, position: { x: guest.x, y: guest.y }, amount: offer.product.litter.unitsPerService, startedAtTick: frame.processingTick, expiresAtTick: null, resolvedAtTick: null }], nextEntityOrdinal: state.nextEntityOrdinal + 1, counters: { ...state.counters, incidentsRaised: state.counters.incidentsRaised + 1, litterCreated: state.counters.litterCreated + offer.product.litter.unitsPerService } };
     }
     frame.emit.emit("kind.world-graph.guest.served", "info", { data: { guestId: guest.id, buildingId: building.id } });
   }
@@ -198,10 +198,10 @@ export const queues: WorldGraphSystem = (frame) => {
   for (const building of [...state.buildings].sort((left, right) => compareRuntimeEntityId(left.id, right.id))) {
     const offer = serviceProduct(building, null, frame.content);
     const capacity = offer?.definition.operation.kind === "service" ? offer.definition.operation.queueMaxLength : null;
-    let ids = building.queue.guestIds.filter((id) => { const guest = state.guests.find((entry) => entry.id === id); return guest?.lifecycle === "queued"; });
-    const served = state.guests.filter((guest) => guest.lifecycle === "served" && ids.includes(guest.id));
+    const existingIds = building.queue.guestIds;
+    const served = state.guests.filter((guest) => guest.lifecycle === "served" && existingIds.includes(guest.id));
     if (served.length) state = { ...state, guests: state.guests.map((guest) => served.some((entry) => entry.id === guest.id) ? { ...guest, lifecycle: "seeking", intent: { kind: "wait", untilTick: frame.processingTick, selectedAtTick: frame.processingTick }, path: [], pathIndex: 0 } : guest) };
-    ids = ids.filter((id) => !served.some((guest) => guest.id === id));
+    let ids = existingIds.filter((id) => { const guest = state.guests.find((entry) => entry.id === id); return guest?.lifecycle === "queued"; });
     const abandon = ids.filter((id) => state.guests.find((guest) => guest.id === id)?.patienceRemainingTicks === 0);
     if (abandon.length) state = { ...state, guests: state.guests.map((guest) => abandon.includes(guest.id) ? { ...guest, lifecycle: "seeking", intent: { kind: "wait", untilTick: frame.processingTick, selectedAtTick: frame.processingTick }, path: [], pathIndex: 0 } : guest) };
     ids = ids.filter((id) => !abandon.includes(id));
