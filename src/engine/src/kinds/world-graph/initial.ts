@@ -73,7 +73,9 @@ export function initialState(campaign: Campaign, ctx: KindContext): InitialState
   const scenery: Scenery[] = [];
   for (const placement of scenario.sceneryPlacements) {
     const definition = invariant(content.scenery.find((entry) => entry.id === placement.definitionId), `scenery ${placement.definitionId}`);
+    if (!definition.allowedRotations.includes(placement.rotation)) throw new Error(`Validated world-graph scenery rotation failed: ${definition.id}`);
     const size = scenerySize(definition, placement.rotation);
+    if (placement.x < 0 || placement.y < 0 || placement.x + size.width > map.width || placement.y + size.height > map.height) throw new Error(`Validated world-graph scenery bounds failed: ${definition.id}`);
     scenery.push({ id: `scenery:${nextOrdinal}`, definitionId: definition.id, x: placement.x, y: placement.y, width: size.width, height: size.height, rotation: placement.rotation });
     nextOrdinal += 1;
   }
