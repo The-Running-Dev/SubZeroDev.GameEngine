@@ -151,6 +151,69 @@ describe("world-graph W46 system order and boundaries", () => {
       finance, objectives, failure, alerts]).toHaveLength(17);
   });
 
+  it("restarts service timing when a completed head leaves the FIFO", () => {
+    const initial = state();
+    const first = { ...initial.guests[0]!, lifecycle: "served" as const };
+    const second = { ...initial.guests[0]!, id: "guest:4", lifecycle: "queued" as const };
+    const serviceContent = {
+      ...content(),
+      products: [{ id: "water" }],
+      buildings: [{
+        id: "kiosk", footprint: { width: 1, height: 1 }, entrances: [{ x: 1, y: 0 }],
+        operation: { kind: "service", products: [{ productId: "water", serviceTicks: 2 }], queueMaxLength: 5, baseServiceTicks: 2, staffRequirements: [] },
+      }],
+    } as unknown as WorldGraphCampaign;
+    const queueState = {
+      ...initial,
+      guests: [first, second],
+      buildings: initial.buildings.map((building) => ({
+        ...building,
+        queue: { ...building.queue, guestIds: [first.id, second.id], serviceStartedAtTick: 1 },
+      })),
+    };
+    const scratch = createTickScratch();
+    const result = queues({
+      processingTick: 5, content: serviceContent, emit: resolutionEmitter().emit,
+      random: createTickRandom(5, () => rngHandle(), scratch), scratch,
+      changes: new BatchChanges(), state: queueState,
+    });
+    expect(result.state.guests.find((guest) => guest.id === first.id)?.lifecycle).toBe("seeking");
+    expect(result.state.buildings[0]?.queue).toMatchObject({ guestIds: [second.id], serviceStartedAtTick: 5 });
+  });
+
+  it("routes a locationless building incident to an entrance before assigning clean work", () => {
+    const initial = state();
+    const taskContent = {
+      ...content(),
+      terrain: [{ id: "sand", walkable: true, moveCost: 1 }],
+      buildings: [{ id: "kiosk", footprint: { width: 1, height: 1 }, entrances: [{ x: 1, y: 0 }] }],
+      staffRoles: [{ id: "cleaner", supportedTaskKinds: ["clean"] }],
+    } as unknown as WorldGraphCampaign;
+    const staffState = {
+      ...initial,
+      staff: [{
+        id: "staff:4", roleId: "cleaner", x: 1, y: 0, status: "idle" as const,
+        path: [], pathIndex: 0, moveProgressTicks: 0, assignedBuildingId: null,
+        assignedZoneId: null, drawCount: 0, task: null, tasksCompleted: 0,
+      }],
+      incidents: initial.incidents.map((incident) => ({ ...incident, buildingId: "building:0", position: null })),
+      nextEntityOrdinal: 5,
+    };
+    const scratch = createTickScratch();
+    scratch.taskCandidates.push({
+      type: "clean", priority: 1, effort: 1, buildingId: "building:0",
+      incidentId: "incident:3", constructionSiteId: null, productId: null,
+      requiredRoleId: null, slot: 0,
+    });
+    const result = taskAssign({
+      processingTick: 0, content: taskContent, emit: resolutionEmitter().emit,
+      random: createTickRandom(0, () => rngHandle(), scratch), scratch,
+      changes: new BatchChanges(), state: staffState,
+    });
+    expect(result.state.staff[0]?.task).toMatchObject({ type: "clean", incidentId: "incident:3" });
+    expect(result.state.staff[0]?.path).toEqual([{ x: 1, y: 0 }]);
+  });
+
   it("passes no raw KindContext through a system frame", () => {
     const frameKeys: string[][] = [];
     const inspect: WorldGraphSystem = (frame) => {

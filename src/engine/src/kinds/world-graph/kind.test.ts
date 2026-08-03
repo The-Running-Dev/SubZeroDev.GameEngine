@@ -200,7 +200,8 @@ describe("world-graph W45 engine seam", () => {
       objectives: base.objectives.map((objective) => ({ ...objective, completion: { kind: "compare" as const, metric: { kind: "counter" as const, counter: "litterCleaned" as const }, op: "gte" as const, value: 1 }, progressMetric: { kind: "counter" as const, counter: "litterCleaned" as const }, target: 1 })),
       scenarios: base.scenarios.map((scenario) => ({ ...scenario, buildingPlacements: [{ definitionId: "kiosk", x: 1, y: 1, rotation: 0 as const, open: true }], guestSpawning: { everyTicks: 1, maxActiveGuests: 1, pool: [{ archetypeId: "guest", weight: 1 }] } })),
     };
-    const runtimeEngine = engine(content);
+    const recording = createRecordingEmitter();
+    const runtimeEngine = engine(content).withEmitter(recording);
     const created = runtimeEngine.createGame({ campaignId: "world-test" });
     expect(created.ok).toBe(true);
     const hired = runtimeEngine.submitAction(created.value!, "hire_staff", { definitionId: "cleaner" });
@@ -210,6 +211,10 @@ describe("world-graph W45 engine seam", () => {
     const state = stateOf(advanced.value!);
     expect(state.counters).toMatchObject({ servicesCompleted: 1, litterCreated: 1, litterCleaned: 1 });
     expect(state.resolution).toMatchObject({ resolution: "objectives_met", objectiveIds: ["earn"], failureId: null });
+    expect(advanced.changes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ path: expect.stringMatching(/^incidents\..+\.resolvedAtTick$/), reason: "incident_resolved" }),
+    ]));
+    expect(recording.events.some((entry) => entry.name === "kind.world-graph.incident.resolved")).toBe(true);
   });
 
   it("releases a served guest so the active cap can admit the next journey", () => {

@@ -199,6 +199,7 @@ export const queues: WorldGraphSystem = (frame) => {
     const offer = serviceProduct(building, null, frame.content);
     const capacity = offer?.definition.operation.kind === "service" ? offer.definition.operation.queueMaxLength : null;
     const existingIds = building.queue.guestIds;
+    const previousHeadId = existingIds[0] ?? null;
     const served = state.guests.filter((guest) => guest.lifecycle === "served" && existingIds.includes(guest.id));
     if (served.length) state = { ...state, guests: state.guests.map((guest) => served.some((entry) => entry.id === guest.id) ? { ...guest, lifecycle: "seeking", intent: { kind: "wait", untilTick: frame.processingTick, selectedAtTick: frame.processingTick }, path: [], pathIndex: 0 } : guest) };
     let ids = existingIds.filter((id) => { const guest = state.guests.find((entry) => entry.id === id); return guest?.lifecycle === "queued"; });
@@ -214,7 +215,8 @@ export const queues: WorldGraphSystem = (frame) => {
     const head = state.guests.find((guest) => guest.id === ids[0]);
     const headOffer = head?.intent.kind === "seek_service" ? serviceProduct(building, head.intent.productId, frame.content) : null;
     const canServe = headOffer !== null && head !== undefined && (headOffer.definition.operation.kind !== "service" || headOffer.definition.operation.staffRequirements.every((requirement) => state.staff.filter((staff) => staff.roleId === requirement.roleId && staff.assignedBuildingId === building.id && staff.task?.type === "service" && staff.task.status !== "cancelled").length >= requirement.count));
-    const clock = canServe ? (building.queue.serviceStartedAtTick ?? frame.processingTick) : null;
+    const headChanged = previousHeadId !== (ids[0] ?? null);
+    const clock = canServe ? (headChanged ? frame.processingTick : building.queue.serviceStartedAtTick ?? frame.processingTick) : null;
     state = { ...state, buildings: state.buildings.map((entry) => entry.id === building.id ? { ...entry, queue: { ...entry.queue, guestIds: ids, serviceStartedAtTick: clock } } : entry) };
   }
   return { ...frame, state };
@@ -281,17 +283,30 @@ export const taskAssign: WorldGraphSystem = (frame) => {
   const candidates = [...frame.scratch.taskCandidates].sort((left, right) => right.priority - left.priority || left.type.localeCompare(right.type) || (left.incidentId ?? left.buildingId ?? "").localeCompare(right.incidentId ?? right.buildingId ?? "") || left.slot - right.slot);
   for (const member of [...state.staff].sort((left, right) => compareRuntimeEntityId(left.id, right.id))) {
     if (member.task !== null || member.status === "off_duty") continue;
-    const candidateIndex = candidates.findIndex((candidate) => {
+    let candidateIndex = -1;
+    let path: readonly Position[] | null = null;
+    for (let index = 0; index < candidates.length; index += 1) {
+      const candidate = candidates[index]!;
       const role = definition(frame.content.staffRoles, member.roleId, "staff role");
-      return role.supportedTaskKinds.includes(candidate.type) && (candidate.requiredRoleId === null || candidate.requiredRoleId === member.roleId);
-    });
+      if (!role.supportedTaskKinds.includes(candidate.type) || (candidate.requiredRoleId !== null && candidate.requiredRoleId !== member.roleId)) continue;
+      const incident = candidate.incidentId === null ? undefined : state.incidents.find((entry) => entry.id === candidate.incidentId);
+      const targetBuildingId = incident?.buildingId ?? candidate.buildingId;
+      const targetBuilding = targetBuildingId === null ? undefined : state.buildings.find((building) => building.id === targetBuildingId);
+      const targetZone = incident?.zoneId === null || incident?.zoneId === undefined ? undefined : state.map.zones.find((zone) => zone.id === incident.zoneId);
+      const goals = incident?.position !== null && incident?.position !== undefined ? [incident.position]
+        : targetBuilding !== undefined ? entrances(targetBuilding, frame.content)
+          : targetZone === undefined ? [] : [...targetZone.cells].sort(positionOrder);
+      if (goals.length === 0) continue;
+      const candidatePath = canonicalPath(state.map, frame.content.terrain, { x: member.x, y: member.y }, goals, state.buildings, state.constructionSites);
+      if (candidatePath === null) continue;
+      candidateIndex = index;
+      path = candidatePath;
+      break;
+    }
     if (candidateIndex < 0) continue;
     const candidate = candidates.splice(candidateIndex, 1)[0]!;
-    const target = candidate.incidentId === null ? state.buildings.find((building) => building.id === candidate.buildingId) : state.incidents.find((incident) => incident.id === candidate.incidentId);
-    const goal = target && "position" in target ? target.position : target && "x" in target ? { x: target.x, y: target.y } : null;
-    const path = goal === null ? [] : canonicalPath(state.map, frame.content.terrain, member, [goal], state.buildings, state.constructionSites) ?? [];
     const task: StaffTask = { id: `task:${state.nextEntityOrdinal}`, type: candidate.type, status: "assigned", guestId: null, queueId: null, buildingId: candidate.buildingId, constructionSiteId: candidate.constructionSiteId, incidentId: candidate.incidentId, targetProductId: candidate.productId, startedAtTick: frame.processingTick, endedAtTick: null, priority: candidate.priority, effortRemaining: candidate.effort };
-    state = { ...state, staff: state.staff.map((entry) => entry.id === member.id ? { ...entry, task, path, pathIndex: 0, status: "to_work" } : entry), nextEntityOrdinal: state.nextEntityOrdinal + 1 };
+    state = { ...state, staff: state.staff.map((entry) => entry.id === member.id ? { ...entry, task, path: path!, pathIndex: 0, status: "to_work" } : entry), nextEntityOrdinal: state.nextEntityOrdinal + 1 };
   }
   return { ...frame, state };
 };
@@ -307,7 +322,11 @@ export const staffWork: WorldGraphSystem = (frame) => {
       const rate = definition(frame.content.staffRoles, member.roleId, "staff role").workRates.find((entry) => entry.taskType === "clean")?.effortPerTick ?? 0;
       const remaining = Math.max(0, incident.amount - rate);
       state = { ...state, incidents: state.incidents.map((entry) => entry.id === incident.id ? { ...entry, amount: remaining, resolvedAtTick: remaining === 0 ? frame.processingTick : null } : entry), staff: state.staff.map((entry) => entry.id === member.id ? { ...entry, status: remaining === 0 ? "idle" : "working", task: remaining === 0 ? { ...entry.task!, status: "completed", endedAtTick: frame.processingTick } : { ...entry.task!, status: "in_progress", effortRemaining: remaining } } : entry), counters: remaining === 0 ? { ...state.counters, litterCleaned: state.counters.litterCleaned + incident.amount } : state.counters };
-      if (remaining === 0) state = applyWorldEffects(state, definition(frame.content.incidents, incident.definitionId, "incident definition").onResolve, { processingTick: frame.processingTick, content: frame.content, random: frame.random, changes: frame.changes, system: "staff-work", reason: "incident_resolved", currentIncidentId: incident.id }).state;
+      if (remaining === 0) {
+        frame.changes.record("staff-work", `incidents.${incident.id}.resolvedAtTick`, frame.processingTick, "incident_resolved", false);
+        state = applyWorldEffects(state, definition(frame.content.incidents, incident.definitionId, "incident definition").onResolve, { processingTick: frame.processingTick, content: frame.content, random: frame.random, changes: frame.changes, system: "staff-work", reason: "incident_resolved", currentIncidentId: incident.id }).state;
+        frame.emit.emit("kind.world-graph.incident.resolved", "info", { data: { incidentId: incident.id, definitionId: incident.definitionId, tick: frame.processingTick } });
+      }
     }
   }
   return { ...frame, state };
