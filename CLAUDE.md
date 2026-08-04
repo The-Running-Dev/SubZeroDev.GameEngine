@@ -334,6 +334,7 @@ Routing, when a command is run:
 | `/slice` | Sonnet, medium — high for a large or difficult work unit |
 | `/reconcile` | Opus, high to decide which side of a drift is correct; Sonnet, medium to apply the edits |
 | `/install` | Sonnet, medium |
+| `/install-all` | Sonnet, medium — escalate only to judge whether a per-repo hard stop is actually safe to resolve; never to resolve it unattended |
 | `/make-human-docs` | Sonnet, medium — generate the developer guide from canonical `design/`, then stamp its digest |
 | `/track` | Sonnet, medium — escalate only to judge whether a drifted work unit is a design change |
 | `/verify` | Sonnet, medium — escalate to deep reasoning only to diagnose a failure, never to run the gates |
