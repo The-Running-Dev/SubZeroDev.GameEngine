@@ -12,7 +12,9 @@ Open a pull request for the work on the current branch.
 
 ```powershell
 git status --short --branch
-git log --oneline @{u}..HEAD
+$upstream = git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>$null
+if (-not $upstream) { throw "Current branch has no configured upstream; push it and set its upstream before opening a PR." }
+git log --oneline '@{u}..HEAD'
 git diff --check
 ```
 
