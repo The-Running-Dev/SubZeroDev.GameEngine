@@ -22,7 +22,7 @@ Out of scope: <the adjacent thing an agent will be tempted to also do>
 
 Rules:
 - Acceptance criteria must be checkable without judgement. "Handles errors gracefully" is not a criterion. "Returns `NotFound` and leaves the record untouched when the id does not exist" is.
-- **Every criterion carries a stable id** — `W42.1`, `W42.2`. The id is what `/track` matches on, so drift detection compares ids rather than prose and a reworded criterion stops reading as a new one.
+- **Every criterion carries a stable id** — `W42.1`, `W42.2`. The id is what `/track` uses to pair criteria; it then distinguishes harmless rewording from a material change to the required behavior.
 - **Ids are never reused and never renumbered.** Removing `W42.2` leaves a gap; the next criterion is `W42.4`. Renumbering silently rewrites what an existing issue's checkbox refers to, which is the one failure this scheme exists to prevent. Consistent with this repository's existing positional unit numbering (`W3a`) — same rule, one level down.
 - `Delivers:` is the only line written for a non-implementer. If it reads as a label rather than a sentence, the issue narrative will too — fix it here, where the slice set is reviewed, rather than letting `/track` invent prose.
 - Every slice needs an explicit `Out of scope` line. This is the single most effective constraint on an implementing agent.
