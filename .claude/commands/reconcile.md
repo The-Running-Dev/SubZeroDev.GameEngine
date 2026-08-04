@@ -29,7 +29,13 @@ If `docs/docs/guide.md` (or `guide.md`) exists, compare it against the design an
 ## Lessons
 Things that cost time and would cost it again. Each one must name what it actually cost — a lesson with no cost attached is a preference, and preferences go in `AGENTS.md`, not `agent.md`. Propose these for `agent.md`; do not append them yourself. If nothing here would have changed a decision, say "none" rather than padding.
 
-Then wait. I decide which direction each drift resolves — the code changing to match the doc, or the doc changing to match the code. Do not assume the code is right just because it runs.
+## Then ask — do not stop at the report
+
+**A reconciliation ends in a decision, not a report** (`AGENTS.md`, *Working with me*). Having listed the drift, close by asking me to resolve it — one divergence at a time, each with a recommendation and what the alternatives cost.
+
+For each: which direction you recommend — the code changing to match the doc, or the doc changing to match the code — **and why that one**. Do not assume the code is right just because it runs; a passing test proves the code does what it does, not that it does what was agreed.
+
+If a section found nothing, say "none" and move on. Do not manufacture a fork to have something to ask about.
 
 Once I have decided, apply the edits and append the decision-log entries. Nothing else.
 

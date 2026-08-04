@@ -5442,7 +5442,7 @@ listed so the second is not discovered later as a gap.
 > | Shape | Reaches | Examples |
 > |---|---|---|
 > | **Singleton** | a scalar not held in a collection | `tick`, `finances.cashCents`, `map.revision` |
-> | **Member-scoped** | `<collection>.<memberId>.<field>` or `.exists` | `buildings.b:3.status`, `unlockedAchievementIds.first-sale.exists` |
+> | **Member-scoped** | `<collection>.<memberId>.<field>` or `.exists` | `buildings.building:3.status`, `unlockedAchievementIds.first-sale.exists` |
 >
 > `<memberId>` is the entity's own id (§9), or the string value in a canonical id set such
 > as `unlockedAchievementIds`; it is never an array index. An index is a property of how the
@@ -5455,7 +5455,7 @@ listed so the second is not discovered later as a gap.
 > With a `productId` of `water.sparkling`:
 >
 > ```text
-> buildings.b:3.pricesCents.water.sparkling
+> buildings.building:3.pricesCents.water.sparkling
 >                           └─ one segment, or two? The path resolves to a price, or to
 >                              nothing, depending entirely on who parsed it.
 > ```
@@ -5468,7 +5468,7 @@ listed so the second is not discovered later as a gap.
 > path is unambiguous:
 >
 > ```text
-> buildings.b:3.pricesCents.sparkling-water   →  buildings[id=b:3].pricesCents["sparkling-water"]
+> buildings.building:3.pricesCents.sparkling-water   →  buildings[id=building:3].pricesCents["sparkling-water"]
 > ```
 >
 > The alternative — a canonical escaping grammar for segments — buys nothing here: nothing
