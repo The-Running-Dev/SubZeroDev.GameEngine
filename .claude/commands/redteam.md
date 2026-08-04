@@ -46,5 +46,6 @@ Rules:
 - One invocation authorizes **exactly one complete pass**. At most one pass per materially changed design revision.
 - **Never automatically recommend or start another pass.** Repeat only when I ask and the design has materially changed since the last one.
 - After a pass, stop. Present findings **one at a time** for adjudication, and classify each as I rule on it: **defect**, **accepted risk**, **brief conflict**, or **not sustained**.
+- **Recommend a classification for each, but never a fix.** The general rule is that a reconciliation ends in a decision rather than a report (`AGENTS.md`, *Working with me*); this command is the one place it is narrowed. Naming a fix invites me to accept your framing of the problem — naming a *severity and category* does not.
 - **A known-and-retained decision is not a new defect.** It becomes one only if new evidence shows it contradicts a higher-precedence source, or creates a consequence not already recorded. Name that evidence or consequence — without one, it is the same finding again.
 - For a local correction, verify the correction. Do not reread and re-attack the whole design because wording changed.
