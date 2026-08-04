@@ -96,51 +96,53 @@ async function main(): Promise<void> {
   const rl = readline.createInterface({ input, output });
   const ask = makeAsker(rl);
 
-  console.log("SubZeroDev.GameEngine — interactive CLI play-test harness\n");
-  console.log(client.listCampaigns().text);
-  console.log();
+  try {
+    console.log("SubZeroDev.GameEngine — interactive CLI play-test harness\n");
+    console.log(client.listCampaigns().text);
+    console.log();
 
-  const campaignInput = (await ask(`Campaign id to play [${BULGARIA_BUREAUCRACY_CAMPAIGN_ID}]: `))?.trim();
-  const campaignId = campaignInput || BULGARIA_BUREAUCRACY_CAMPAIGN_ID;
-  const seedInput = (await ask("Seed (blank for random): "))?.trim();
+    const campaignInput = (await ask(`Campaign id to play [${BULGARIA_BUREAUCRACY_CAMPAIGN_ID}]: `))?.trim();
+    const campaignId = campaignInput || BULGARIA_BUREAUCRACY_CAMPAIGN_ID;
+    const seedInput = (await ask("Seed (blank for random): "))?.trim();
 
-  const created = await client.createSession(seedInput ? { campaignId, seed: seedInput } : { campaignId });
-  let sessionId = created.value.sessionId;
-  console.log(`\nSession ${sessionId}\n`);
-  console.log(created.text);
+    const created = await client.createSession(seedInput ? { campaignId, seed: seedInput } : { campaignId });
+    let sessionId = created.value.sessionId;
+    console.log(`\nSession ${sessionId}\n`);
+    console.log(created.text);
 
-  console.log('\nType an action id (optionally "id key=value ..."), or: view | save | load <id> | quit\n');
+    console.log('\nType an action id (optionally "id key=value ..."), or: view | save | load <id> | quit\n');
 
-  for (;;) {
-    const line = await ask("> ");
-    if (line === null) break;
-    const raw = line.trim();
-    if (!raw) continue;
-    if (raw === "quit" || raw === "exit") break;
+    for (;;) {
+      const line = await ask("> ");
+      if (line === null) break;
+      const raw = line.trim();
+      if (!raw) continue;
+      if (raw === "quit" || raw === "exit") break;
 
-    if (raw === "view") {
-      console.log(`\n${(await client.getView(sessionId)).text}\n`);
-      continue;
+      if (raw === "view") {
+        console.log(`\n${(await client.getView(sessionId)).text}\n`);
+        continue;
+      }
+
+      if (raw === "save") {
+        console.log(`\n${(await client.saveGame(sessionId)).text}\n`);
+        continue;
+      }
+
+      if (raw.startsWith("load ")) {
+        const loaded = await client.loadGame(raw.slice("load ".length).trim());
+        sessionId = loaded.value.sessionId;
+        console.log(`\n${loaded.text}\n`);
+        continue;
+      }
+
+      const [actionId, ...paramTokens] = raw.split(/\s+/);
+      const result = await client.submitAction(sessionId, actionId!, parseParams(paramTokens));
+      console.log(`\n${result.text}\n`);
     }
-
-    if (raw === "save") {
-      console.log(`\n${(await client.saveGame(sessionId)).text}\n`);
-      continue;
-    }
-
-    if (raw.startsWith("load ")) {
-      const loaded = await client.loadGame(raw.slice("load ".length).trim());
-      sessionId = loaded.value.sessionId;
-      console.log(`\n${loaded.text}\n`);
-      continue;
-    }
-
-    const [actionId, ...paramTokens] = raw.split(/\s+/);
-    const result = await client.submitAction(sessionId, actionId!, parseParams(paramTokens));
-    console.log(`\n${result.text}\n`);
+  } finally {
+    rl.close();
   }
-
-  rl.close();
 }
 
 main().catch((err: unknown) => {
