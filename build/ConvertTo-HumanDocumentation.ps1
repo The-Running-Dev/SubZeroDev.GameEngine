@@ -154,7 +154,7 @@ function Get-CompatibilityPointer {
 
     $taskBullets = [regex]::Matches(
         $source,
-        '^\s*-\s+\[([ x])\]\s+\*\*(W\d+[a-z]?)(?:\s+proposed)?\s+—\s+(.+?)(?:\*\*)?\s*$',
+        '^\s*-\s+\[([ xX~])\]\s+\*\*(W\d+[a-z]?)(?:\s+proposed)?\s+—\s+(.+?)(?:\*\*)?\s*$',
         [Text.RegularExpressions.RegexOptions]::Multiline
     )
     foreach ($task in $taskBullets) {
@@ -163,7 +163,7 @@ function Get-CompatibilityPointer {
             continue
         }
 
-        $status = $task.Groups[1].Value
+        $status = $task.Groups[1].Value.ToLowerInvariant()
         $title = ($task.Groups[3].Value -replace '\*\*', '').Trim()
         $anchor = $workUnit.ToLowerInvariant()
         [void] $builder.Append("### [$status] $workUnit — $title {#$anchor}`n`n")
