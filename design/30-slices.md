@@ -662,8 +662,11 @@ when it declined a programme doc for this kind.
       `main` at `6301a49`. Its implementation plan is
       [`plans/46-w46-world-graph-tick-pipeline.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/46-w46-world-graph-tick-pipeline.md);
       it follows the canonical world-graph contract and does not supersede it.
-- [ ] **W47 proposed — MVP vertical slice:** spawn → walk → queue → buy → litter → clean →
-      objective → win/lose.
+- [x] **W47 — MVP vertical slice:** the synthetic guest journey — spawn → walk → queue →
+      buy → litter → clean → objective → win/lose — is delivered in
+      [PR #131](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/131), merged
+      to `main` at `2390750`. It follows the canonical world-graph contract and does not
+      supersede it.
 - [ ] **W48 proposed — preview/client parity:** `previewAction` across Engine, session, text
       and MCP surfaces, with 09 §4 and `MVP.md` §5 amended in the same unit.
 - [ ] **W49 proposed — validation, scenario and replay guard:** canonical MVP fixture,
