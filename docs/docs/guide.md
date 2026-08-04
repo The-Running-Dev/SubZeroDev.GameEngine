@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: adea6dfbf579994e9b0c69fab31858579e7e74cb59d2c04e25263264694ae363 -->
+<!-- design-digest: ba2f82dd0774f30b25e18f57835689a1ba458c0b046f8a22320405a187118980 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
