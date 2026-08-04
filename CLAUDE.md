@@ -299,7 +299,10 @@ Two distinctions that are easy to get wrong:
 - **Do not report a cost you did not measure.** A model is not given its own token counts or
   elapsed time, so any figure it states about its own run is an estimate presented as a
   measurement. `tools/Measure-Session.ps1` reads the real per-call usage from the session
-  transcript, and runs as a `SessionEnd` hook. Use it, or say nothing.
+  transcript, and runs as a `SessionEnd` hook. It measures **Claude Code sessions only** —
+  Codex writes a different schema this has no reader for, and Copilot records no token usage
+  at all. Use it, or say nothing — under either of those, *say nothing* is the whole
+  instruction.
 
 ### The Agent Kit — Canonical Workflow
 
@@ -376,6 +379,23 @@ entitled to.
 **Compaction is a boundary you did not choose.** If a session compacts mid-unit, report it — the
 unit was mis-sized, and the work after the compaction was done against a summary of the contract
 rather than the contract itself.
+
+**End a response that lands on a fresh-session boundary with a banner, not a footnote.** A
+boundary buried in the last sentence of a report gets carried into the next reply of the same
+session out of habit, which is the exact failure the boundary exists to prevent. Set it off
+visibly — a horizontal rule and a bold line is enough — naming: the boundary just crossed, the
+next command, and its tier from the routing table above. For example:
+
+```
+---
+**Session boundary.** This context should not carry into `/track`.
+Next: `/track`, fresh session, `sonnet`/`medium`.
+---
+```
+
+Do not run the next command yourself. Ending a session may be the next step, and a command that
+starts work cannot also tell the user to start a new one for it — that restriction is unchanged,
+only how visibly the handoff is stated.
 
 ### Single Ownership
 
