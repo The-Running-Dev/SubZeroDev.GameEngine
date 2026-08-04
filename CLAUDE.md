@@ -351,12 +351,16 @@ defines: a human-first narrative, `### Done when` checkboxes, and a fenced `<!--
 block that `/track` regenerates but never overwrites outside the fence. Existing checked units
 predate this and are not retrofitted or reopened.
 
-**Tracking work.** Opening and labelling GitHub issues needs no per-instance approval — cheap
-and reversible, so `/track` does it without asking. Closing an issue, editing anyone else's,
-and creating a milestone or a project all still need the user's sign-off, same as any other
-external write in **Git and Pull Requests** below. **Resolving or replying to a review thread
-is not covered by this carve-out either** — the exception is for opening issues and nothing
-else. `/track` is the only command that writes to GitHub.
+**Tracking work.** Opening, labelling, closing, commenting on, and editing an issue — including
+one opened by someone else — needs no per-instance approval in a repository the user owns;
+issues are cheap and reversible. Creating a milestone or a project is carved out the same way;
+deleting either is not, since that direction is not cheaply reversible. Writing to a repository
+the user does not own is never carved out. **Resolving or replying to a review thread is not
+covered by this carve-out** — a pull request's review threads are a different object and stay
+authorized regardless, same as any other external write in **Git and Pull Requests** below.
+`/track` owns every GitHub write it can make idempotent; closing an issue and ticking a
+checkbox are the exceptions — the command that observes the work done (`/track`, `/slice`)
+does those directly, in the same run, rather than waiting for a sync pass.
 
 **Session boundaries.** Routing above says which model runs a command. This says **when a session
 must end.** A boundary exists wherever carrying context would corrupt the next step's judgement, or
@@ -376,6 +380,23 @@ entitled to.
 **Compaction is a boundary you did not choose.** If a session compacts mid-unit, report it — the
 unit was mis-sized, and the work after the compaction was done against a summary of the contract
 rather than the contract itself.
+
+**End a response that lands on a fresh-session boundary with a banner, not a footnote.** A
+boundary buried in the last sentence of a report gets carried into the next reply of the same
+session out of habit, which is the exact failure the boundary exists to prevent. Set it off
+visibly — a horizontal rule and a bold line is enough — naming: the boundary just crossed, the
+next command, and its tier from the routing table above. For example:
+
+```
+---
+**Session boundary.** This context should not carry into `/track`.
+Next: `/track`, fresh session, Sonnet, medium.
+---
+```
+
+Do not run the next command yourself. Ending a session may be the next step, and a command that
+starts work cannot also tell the user to start a new one for it — that restriction is unchanged,
+only how visibly the handoff is stated.
 
 ### Single Ownership
 
@@ -418,6 +439,11 @@ in CI, with nothing saying why.
 **Never force-push or rewrite published history.** `main` blocks it (`non_fast_forward`);
 feature branches do not, so it is discipline rather than enforcement. If a pushed commit
 needs changing, add a follow-up commit.
+
+**`/slice` may push the branch it creates and open its PR as a draft, without asking** —
+carved out of the authorization rule the same as an issue: a draft blocks no one and requests
+no review, so opening one carries the same reversibility argument. Marking that PR ready for
+review, and merging it, are not carved out and stay `/pr`'s and the user's respectively.
 
 **Do not enable auto-merge.** Open the PR, report the check outcomes, and leave the merge to
 the user. (Auto-merge is enabled at the repository level and `required_approving_review_count`
