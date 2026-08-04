@@ -27,7 +27,11 @@ only when it would have changed a decision.
   — so ask, don't assume.
 - **Verify, don't assert.** Running the PCG32 code in Node caught a golden-test vector
   written from memory (`5cae1c8b` → actually `cbed606e`). Assert only what you have checked;
-  report failures plainly.
+  report failures plainly. **A *negative* result needs a second method before it becomes a
+  finding** — `gh api "…/contents/design/30-slices.md?ref=main"` returned `Not Found` for
+  three files that exist (the query string does not survive PowerShell's argument handling),
+  and a 404 is indistinguishable from a real one. `git ls-tree origin/main` settled it. Same
+  shape as the grep lesson below: absence is silent, so confirm it twice.
 - **Search the concept, not the phrasing you just edited.** Striking a requirement from seven
   places, `grep 'without client-side'` returned clean — it cannot match *"or client-side
   JavaScript"*, and six stale statements survived a check reported as thorough (PR #23; review
