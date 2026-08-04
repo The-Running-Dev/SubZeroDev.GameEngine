@@ -209,13 +209,13 @@ describe("same-session concurrency", () => {
     const store = makeStore({ recordSink: sink });
     const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
 
-    const [preview, submitted] = await Promise.all([
-      store.previewAction(sessionId, "increment"),
+    const [submitted, preview] = await Promise.all([
       store.submitAction(sessionId, "increment"),
+      store.previewAction(sessionId, "increment"),
     ]);
 
-    expect(preview.scene?.body.text).toBe("counter=1");
     expect(submitted.scene?.body.text).toBe("counter=1");
+    expect(preview.scene?.body.text).toBe("counter=2");
     expect((await store.getScene(sessionId)).body.text).toBe("counter=1");
     expect(records).toEqual([1]);
   });

@@ -18,7 +18,7 @@ export type RoadmapChapter = {
 const repo = "https://github.com/The-Running-Dev/SubZeroDev.GameEngine";
 const commit = (hash: string) => `${repo}/commit/${hash}`;
 
-// TODO owns W0–W40 (including W3a). W41–W47 merged after its ledger format stopped
+// TODO owns W0–W40 (including W3a). W41–W48 merged after its ledger format stopped
 // carrying completed headings; keep that exceptional evidence explicit rather than pretending
 // the prose is a uniform machine-readable database.
 const completedBeyondTodo = [
@@ -29,6 +29,7 @@ const completedBeyondTodo = [
   "W45",
   "W46",
   "W47",
+  "W48",
 ] as const;
 export const completedWorkUnitCount =
   (todo.match(/^### \[x\] W[\w]+/gm) ?? []).length + completedBeyondTodo.length;
@@ -187,28 +188,28 @@ export const shippedChapters: readonly RoadmapChapter[] = [
       },
     ],
   },
-];
-
-export const nextActs: readonly RoadmapChapter[] = [
   {
     id: "preview",
     workUnits: "W48",
-    status: "now",
+    status: "done",
     title: "Let every client preview an action",
     summary:
-      "Add preview parity across the engine, session store, text client, and MCP without changing saved state.",
+      "Every client can preview the authoritative action path without changing saved state or duplicating kind rules.",
     links: [
       {
-        label: "World-graph programme",
-        href: `${repo}/blob/main/plans/39-world-graph-kind-programme.md`,
+        label: "W48 evidence",
+        href: commit("c8bf587271f915f2022e77b06bd866ed0d9c2fc6"),
         kind: "repository",
       },
     ],
   },
+];
+
+export const nextActs: readonly RoadmapChapter[] = [
   {
     id: "prove",
     workUnits: "W49",
-    status: "next",
+    status: "now",
     title: "Prove the resort can succeed or collapse",
     summary:
       "Validate it, record a win and loss, add replay protection, and publish a version Sun Trap can install.",

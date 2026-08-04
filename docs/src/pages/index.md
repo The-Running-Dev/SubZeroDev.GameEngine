@@ -367,12 +367,12 @@ as `@the-running-dev/game-engine`; a clean consumer test installs the packed art
 than trusting this checkout. The world-graph runtime-state, content, resolution, immediate-action
 foundation, deterministic tick pipeline, and playable guest journey are also merged.
 
-### Current — preview every world-graph action (W48)
+### Current — validate and replay-guard world graph (W49)
 
-The playable world-graph vertical slice landed in
-[PR #131](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/131). Next, W48 lets
-every client preview an authoritative action through the engine, session store, text client,
-and MCP without changing saved state. Full sequencing and done-criteria for every unit:
+Preview parity across the engine, session store, text client, and MCP is delivered in
+[PR #133](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/133). W49 now closes
+the world-graph programme with source validation, a canonical scenario, winning and losing
+replays, release-corpus protection, and a published package. Full sequencing and done-criteria:
 [TODO.md](/docs/engine/todo).
 
 ---

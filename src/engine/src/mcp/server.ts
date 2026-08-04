@@ -1,11 +1,11 @@
 /**
  * MCP server — the same operations as tools (`TODO.md` W17).
  *
- * Contract: [SubZeroDev.Platform's `mcp-tool-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform/blob/main/docs/docs/mcp-tool-contract.md)
- * — the ten-tool table, verbatim, plus "the MCP server is a client like the text
- * client — a thin adapter over the same store, holding no game logic." Moved there from
- * `04-core.md` §13 / `09-clients.md` §7 (both still stubs pointing at it): a hosting-facing
- * contract, not core engine material, even though this file is what implements it.
+ * Contract: `09-clients.md` §4's ten-operation mapping. The broader hosting contract lives in
+ * [SubZeroDev.Platform's `mcp-tool-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform/blob/main/docs/docs/mcp-tool-contract.md):
+ * "the MCP server is a client like the text client — a thin adapter over the same store,
+ * holding no game logic." That hosting contract is not core engine material, even though
+ * this file implements the engine-side tool façade.
  * `09-clients.md` still applies unchanged otherwise: an agent calling these tools is a
  * player, sees the identical projection, and gets the same `unknown_action` for a hidden
  * choice a human client would.

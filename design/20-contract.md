@@ -473,7 +473,7 @@ The pure engine is stateless. The **session store** is the thin stateful layer c
 actually call. It maps the architecture's §10 API onto the pure engine, keyed by
 `sessionId`.
 
-The surface splits cleanly into **queries** (read-only, no state change) and
+The surface splits cleanly into **queries** (read-only, no persisted state change) and
 **commands** (advance or persist). This is a documentation convention for clarity — not
 CQRS the pattern: there is one state model, no separate read store, no event bus. Just a
 useful line between "look" and "change."
@@ -485,12 +485,12 @@ interface SessionStore {
   getScene(sessionId: string): Promise<Scene>;
   getView(sessionId: string): Promise<PlayerView>;
   getStrings(sessionId: string): Promise<StringTable>;   // resolve LocKeys — below
+  previewAction(sessionId: string, actionId: string, params?: ActionParams): Promise<SessionActionResult>; // resolves prospectively, then discards
 
   // ── Commands (advance or persist) ────────────────────
   createSession(config: CreateSessionConfig): Promise<SessionHandle>;   // profileId lives here
   resumeSession(sessionId: string): Promise<Scene>;
   submitAction(sessionId: string, actionId: string, params?: ActionParams): Promise<SessionActionResult>;
-  previewAction(sessionId: string, actionId: string, params?: ActionParams): Promise<SessionActionResult>;
   saveGame(sessionId: string): Promise<SaveHandle>;                  // named/manual save
   loadGame(saveId: string): Promise<SessionHandle>;
 }

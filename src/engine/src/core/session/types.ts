@@ -70,16 +70,18 @@ export interface SessionStore {
   /** Resolves `LocKey`s. Without this a compliant client cannot render a single label. */
   getStrings(sessionId: string): Promise<StringTable>;
 
-  // Commands
-  createSession(config: CreateSessionConfig): Promise<SessionHandle>;
-  resumeSession(sessionId: string): Promise<Scene>;
-  submitAction(
+  // Prospective query (resolves, projects, and discards)
+  /** Runs an action against the current session without persisting its prospective state. */
+  previewAction(
     sessionId: string,
     actionId: string,
     params?: ActionParams,
   ): Promise<SessionActionResult>;
-  /** Runs an action against the current session without persisting its prospective state. */
-  previewAction(
+
+  // Commands
+  createSession(config: CreateSessionConfig): Promise<SessionHandle>;
+  resumeSession(sessionId: string): Promise<Scene>;
+  submitAction(
     sessionId: string,
     actionId: string,
     params?: ActionParams,
