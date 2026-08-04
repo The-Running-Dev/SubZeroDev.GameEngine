@@ -12,14 +12,43 @@ Work the review comments on pull request **$1** — the current branch's PR if n
 `gh pr view --json reviewRequests,latestReviews` **does not show conversation threads.** An automated reviewer can leave threads that block merge and appear nowhere in that listing — this has cost real time, and it is why the query is written out here:
 
 ```bash
-gh api graphql -f query='
-{ repository(owner:"OWNER", name:"REPO") {
+gh api graphql --paginate -f query='
+query($endCursor:String) {
+  repository(owner:"OWNER", name:"REPO") {
     pullRequest(number:N) {
-      reviewThreads(first:100) { nodes {
-        id isResolved isOutdated path line
-        comments(first:10) { nodes { author { login } body } }
-      } } } } }'
+      reviewThreads(first:100, after:$endCursor) {
+        nodes { id isResolved isOutdated path line
+          comments(first:100) {
+            nodes { author { login } body }
+            pageInfo { hasNextPage endCursor }
+          }
+        }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+}'
 ```
+
+`--paginate` follows the `reviewThreads` cursor. For every returned thread whose
+`comments.pageInfo.hasNextPage` is true, fetch the remaining comment pages separately:
+
+```bash
+gh api graphql --paginate -F threadId=THREAD_ID -f query='
+query($threadId:ID!, $endCursor:String) {
+  node(id:$threadId) {
+    ... on PullRequestReviewThread {
+      comments(first:100, after:$endCursor) {
+        nodes { author { login } body }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+}'
+```
+
+Collect every page from both commands before classifying or counting; never treat a
+first page as exhaustive.
 
 Count unresolved threads before you start and say the number. If `required_review_thread_resolution` is on, that count *is* the merge blocker.
 
@@ -35,7 +64,12 @@ Produce one scannable table — every thread, one row. **Volume from a bot is no
 | **Already decided** | Contradicts a recorded decision | Reply, link the decision-log entry or ADR. Do not relitigate |
 | **Ambiguous** | Two readings are both defensible | **Bring to me individually.** Do not guess |
 
-Act on the four clear classes without further prompting. **Bring only the ambiguous ones for sign-off, one at a time** — that is proportionate: a twenty-comment automated review must not become twenty round trips, but nothing debatable gets resolved on your judgement alone.
+Classify and make local fixes for the four clear classes without further prompting.
+**Posting a reply or resolving a thread is an external write and requires the
+authorization specified by repository guidance; obtain that authorization before either
+action.** Bring ambiguous classifications for sign-off, one at a time — that is
+proportionate: a twenty-comment automated review must not become twenty round trips, but
+nothing debatable gets resolved on your judgement alone.
 
 ## Order of operations
 

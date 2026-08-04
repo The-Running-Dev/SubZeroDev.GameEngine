@@ -68,8 +68,9 @@ For each `### [ ] W<n> — <name>` in the marked delivery ledger in `design/30-s
 
 - Search existing issues, **open and closed**, for a title beginning `W<n> —`. A closed issue means the slice is done — do not reopen it and do not open a second one.
 - If none exists, open one in the shape above. `Delivers:` (or the ledger bullet's lead sentence, for units with no `Delivers:` line) becomes the narrative; the done-criteria become the `Done when` checkboxes; contract references, dependencies, and out-of-scope go in the agent block.
-- If one exists, **compare criterion ids, not prose**, where the slice carries stable ids (`W<n>.<m>`). Read them from the issue's checkboxes and from the slice's `Acceptance:` lines:
-  - **Ids match** — nothing to report, even if the wording differs. Reworded criteria are the common case and are not drift.
+- If one exists, pair criteria by their stable ids (`W<n>.<m>`), then compare the paired requirements. Read ids and text from the issue's checkboxes and from the slice's `Acceptance:` lines:
+  - **Ids match and the requirement is behaviorally equivalent** — nothing to report. Harmless editorial rewording is not drift.
+  - **A paired requirement materially changes the required behavior** — report the criterion id and both texts as semantic drift; do not silently retain the obsolete `Done when` requirement.
   - **An id is in the doc but not the issue** — a criterion was added after the issue was opened. Report it.
   - **An id is in the issue but not the doc** — a criterion was removed or, worse, renumbered. Report it and say which; a renumber means an existing checkbox now refers to something else.
   - For a unit with no stable ids (predating this scheme), fall back to comparing done-criteria prose and **report the difference — do not edit the issue.**
