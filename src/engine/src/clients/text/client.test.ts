@@ -12,6 +12,8 @@ import {
   BULGARIA_BUREAUCRACY_CAMPAIGN_ID,
 } from "../../campaigns/bulgaria-bureaucracy.js";
 import { buildStoryGraphCampaign } from "../../kinds/story-graph/source.js";
+import { buildStableLifeCampaign, STABLE_LIFE_CAMPAIGN_ID } from "../../campaigns/stable-life.js";
+import { simulationKind } from "../../kinds/simulation/kind.js";
 
 // The scan-verified seed whose first weighted pick at clerk_review (3 expired : 1 room_14)
 // lands on room_14 — see plans/22-w15-bureaucracy-campaign-and-broken-fixtures.md.
@@ -150,6 +152,99 @@ describe("TextClient — the API coverage checklist (09-clients.md §4)", () => 
 
     const continued = await client.submitAction(loaded.value.sessionId, "continue_cycle");
     expect(continued.value.ok).toBe(true);
+  });
+});
+
+function makeSimulationClient(): TextClient {
+  const built = buildStableLifeCampaign();
+  if (!built.ok || !built.value) throw new Error("expected the Stable Life fixture campaign to build");
+  const kinds = { simulation: simulationKind } as unknown as KindRegistry;
+  const registryResult = buildValidatedContentRegistry([built.value], kinds);
+  if (!registryResult.ok || !registryResult.value) throw new Error("expected the Stable Life fixture campaign to validate");
+
+  const engine = createEngine({ kinds, registry: registryResult.value });
+  const store: SessionStore = createInMemorySessionStore({ engine, registry: registryResult.value });
+  return new TextClient(store);
+}
+
+// A simulation column (W50) — the checklist's own ten operations, proven a second time
+// against a kind whose actions carry declared `params` (`plan.add`'s `actionType`), not
+// just against story-graph's zero-param `submitAction`.
+describe("TextClient — the API coverage checklist, simulation kind (09-clients.md §4, W50)", () => {
+  it("sim.1. listCampaigns — includes the Stable Life campaign", () => {
+    const client = makeSimulationClient();
+    const { value } = client.listCampaigns();
+    expect(value.some((c) => c.campaignId === STABLE_LIFE_CAMPAIGN_ID && c.kindId === "simulation")).toBe(true);
+  });
+
+  it("sim.2. createSession — starts Stable Life; text renders the real status scene", async () => {
+    const client = makeSimulationClient();
+    const { value, text } = await client.createSession({ campaignId: STABLE_LIFE_CAMPAIGN_ID, seed: "sim-client-seed" });
+    expect(value.sessionId).toBeTruthy();
+    expect(text).toContain("Week 1");
+  });
+
+  it("sim.3. resumeSession — returns the current scene unchanged, no side effect", async () => {
+    const client = makeSimulationClient();
+    const created = await client.createSession({ campaignId: STABLE_LIFE_CAMPAIGN_ID, seed: "sim-client-seed" });
+    const resumed = await client.resumeSession(created.value.sessionId);
+    expect(resumed.value).toEqual(created.value.scene);
+  });
+
+  it("sim.4. getScene — matches what createSession returned", async () => {
+    const client = makeSimulationClient();
+    const created = await client.createSession({ campaignId: STABLE_LIFE_CAMPAIGN_ID, seed: "sim-client-seed" });
+    const { value } = await client.getScene(created.value.sessionId);
+    expect(value).toEqual(created.value.scene);
+  });
+
+  it("sim.5. getView — carries the real SimulationView; a declared field renders in the opaque JSON", async () => {
+    const client = makeSimulationClient();
+    const created = await client.createSession({ campaignId: STABLE_LIFE_CAMPAIGN_ID, seed: "sim-client-seed" });
+    const { value, text } = await client.getView(created.value.sessionId);
+    const kindView = value.kindView as { calendar: { currentWeek: number } };
+    expect(kindView.calendar.currentWeek).toBe(1);
+    expect(text).toContain('"currentWeek": 1');
+  });
+
+  it("sim.6. getStrings — resolves the same table the store returns; the scene template key is present", async () => {
+    const client = makeSimulationClient();
+    const created = await client.createSession({ campaignId: STABLE_LIFE_CAMPAIGN_ID, seed: "sim-client-seed" });
+    const strings = await client.getStrings(created.value.sessionId);
+    expect(strings["stable-life.scene.status"]).toContain("Week {week}");
+  });
+
+  it("sim.7. submitAction — plan.add carries its declared actionType param through to the new scene", async () => {
+    const client = makeSimulationClient();
+    const created = await client.createSession({ campaignId: STABLE_LIFE_CAMPAIGN_ID, seed: "sim-client-seed" });
+    const result = await client.submitAction(created.value.sessionId, "plan.add", { actionType: "rest" });
+    expect(result.value.ok).toBe(true);
+  });
+
+  it("sim.8. previewAction — renders the prospective result without changing the session", async () => {
+    const client = makeSimulationClient();
+    const created = await client.createSession({ campaignId: STABLE_LIFE_CAMPAIGN_ID, seed: "sim-client-seed" });
+    const preview = await client.previewAction(created.value.sessionId, "plan.add", { actionType: "rest" });
+    expect(preview.value.ok).toBe(true);
+    expect((await client.getScene(created.value.sessionId)).value).toEqual(created.value.scene);
+  });
+
+  it("sim.9. saveGame — produces a save id", async () => {
+    const client = makeSimulationClient();
+    const created = await client.createSession({ campaignId: STABLE_LIFE_CAMPAIGN_ID, seed: "sim-client-seed" });
+    const { value } = await client.saveGame(created.value.sessionId);
+    expect(value.saveId).toBeTruthy();
+  });
+
+  it("sim.10. loadGame — a fresh session from the save renders the same scene the save point was at", async () => {
+    const client = makeSimulationClient();
+    const created = await client.createSession({ campaignId: STABLE_LIFE_CAMPAIGN_ID, seed: "sim-client-seed" });
+    await client.submitAction(created.value.sessionId, "plan.add", { actionType: "rest" });
+    const sceneAfterAdd = await client.getScene(created.value.sessionId);
+    const saved = await client.saveGame(created.value.sessionId);
+
+    const loaded = await client.loadGame(saved.value.saveId);
+    expect(loaded.value.scene).toEqual(sceneAfterAdd.value);
   });
 });
 

@@ -11,6 +11,13 @@
  * read of the resulting state resolves to a non-`null` `resolution` — real now that
  * `goals`/`failure` (`endOfWeek.ts`) are wired, where before nothing in this unit's own
  * logic could end a game.
+ *
+ * Emits four of §11's eight events directly: `plan.changed` (debug) after any successful
+ * `plan.*` action, `action.resolved` (debug) per planned action resolved during `end_week`,
+ * and `week.ended` (info) once `end_week`'s own resolution completes — after
+ * `runEndOfWeek`/`runStartOfWeek` have each emitted their own (`system.ran`/`effect.expired`
+ * from both, `week.started` from `startOfWeek.ts`, `goal.achieved`/`goal.failed` from
+ * `endOfWeek.ts`), so the full per-`end_week` stream is emitted in §3's own order.
  */
 
 import type { ActionParams, AdvanceResult, KindContext } from "../../core/kernel/types.js";
@@ -23,6 +30,10 @@ import { runEndOfWeek } from "./endOfWeek.js";
 import { outcome as computeOutcome } from "./outcome.js";
 import type { SimulationCampaign } from "./campaign.js";
 import type { SimulationKindState } from "./state.js";
+
+const PLAN_CHANGED_EVENT = "kind.simulation.plan.changed";
+const ACTION_RESOLVED_EVENT = "kind.simulation.action.resolved";
+const WEEK_ENDED_EVENT = "kind.simulation.week.ended";
 
 function rejected(state: SimulationKindState, code: string, messageKey: string): AdvanceResult<SimulationKindState> {
   return { state, status: "active", changes: [], messages: [], error: { code, messageKey } };
@@ -71,6 +82,7 @@ export function advance(
         return rejected(state, "unknown_action", "core.reason.unknown_action");
       }
       const plan = addAction(requirePlan(state), action);
+      ctx.emit.emit(PLAN_CHANGED_EVENT, "debug", { data: { actionId: "plan.add" } });
       return { state: { ...state, plan }, status: "active", changes: [], messages: [] };
     }
 
@@ -81,11 +93,13 @@ export function advance(
         const err = result.errors[0]!;
         return rejected(state, err.code, err.messageKey);
       }
+      ctx.emit.emit(PLAN_CHANGED_EVENT, "debug", { data: { actionId: "plan.remove" } });
       return { state: { ...state, plan: result.value }, status: "active", changes: [], messages: [] };
     }
 
     case "plan.clear": {
       const plan = clearPlan(requirePlan(state));
+      ctx.emit.emit(PLAN_CHANGED_EVENT, "debug", { data: { actionId: "plan.clear" } });
       return { state: { ...state, plan }, status: "active", changes: [], messages: [] };
     }
 
@@ -107,10 +121,15 @@ export function advance(
         const outcome = resolver.calculate(working, action, ctx);
         working = resolver.apply(working, outcome);
         changes.push(...outcome.changes);
+        ctx.emit.emit(ACTION_RESOLVED_EVENT, "debug", {
+          data: { actionId: action.id, actionType: action.type, degree: outcome.degree },
+        });
       }
 
       const content = ctx.campaign.content as SimulationCampaign;
       const endOfWeekResult = runEndOfWeek(working, ctx.emit, content.goals, content.goalFailurePrecedence);
+      ctx.emit.emit(WEEK_ENDED_EVENT, "info", { data: { week: working.calendar.currentWeek } });
+
       const nextWeek = runStartOfWeek(endOfWeekResult.state, ctx.emit);
       const finalState: SimulationKindState = {
         ...nextWeek,

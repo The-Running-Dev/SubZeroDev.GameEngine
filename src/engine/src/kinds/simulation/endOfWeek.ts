@@ -17,7 +17,9 @@
  * each unwired system is an explicit, documented stub rather than silently doing nothing.
  * `needs` (drift), `opportunities` (expiry only), and now `goals`/`failure` are real logic.
  * Every system emits `kind.simulation.system.ran` at `trace` (§11), the same
- * ordering-verification technique `startOfWeek.ts` uses.
+ * ordering-verification technique `startOfWeek.ts` uses. `goals`/`failure` additionally
+ * emit `goal.achieved`/`goal.failed` (§11, `info`) per goal transitioning this week —
+ * `week.ended` itself is `advance.ts`'s own emit, once, after this whole pipeline returns.
  */
 
 import type { ResolutionEmitter } from "../../core/observability/types.js";
@@ -28,6 +30,8 @@ import { evaluateSimulationCondition } from "./conditions.js";
 import type { GoalState, SimulationKindState } from "./state.js";
 
 const SYSTEM_NAME = "kind.simulation.system.ran";
+const GOAL_ACHIEVED_EVENT = "kind.simulation.goal.achieved";
+const GOAL_FAILED_EVENT = "kind.simulation.goal.failed";
 
 function ranSystem(emit: ResolutionEmitter, system: string): void {
   emit.emit(SYSTEM_NAME, "trace", { data: { system, phase: "end_of_week" } });
@@ -157,6 +161,7 @@ function goals(
   state: SimulationKindState,
   goalDefs: readonly GoalDefinition[],
   precedence: GoalFailurePrecedence,
+  emit: ResolutionEmitter,
 ): SimulationKindState {
   const nextGoals: GoalState[] = state.goals.map((goal) => {
     if (goal.status !== "active") return goal;
@@ -177,6 +182,7 @@ function goals(
     const required = def.requiredDurationWeeks ?? 1;
 
     if (consecutiveWeeksSatisfied >= required) {
+      emit.emit(GOAL_ACHIEVED_EVENT, "info", { data: { goalId: goal.definitionId } });
       return {
         ...goal,
         status: "completed",
@@ -198,7 +204,7 @@ function goals(
  * also completing; under `"failure_wins"`, it's a goal `goals` deliberately deferred
  * because both conditions tripped the same week.
  */
-function failure(state: SimulationKindState, goalDefs: readonly GoalDefinition[]): SimulationKindState {
+function failure(state: SimulationKindState, goalDefs: readonly GoalDefinition[], emit: ResolutionEmitter): SimulationKindState {
   const nextGoals: GoalState[] = state.goals.map((goal) => {
     if (goal.status !== "active") return goal;
     const def = goalDef(goalDefs, goal.definitionId);
@@ -207,6 +213,7 @@ function failure(state: SimulationKindState, goalDefs: readonly GoalDefinition[]
     const failed = evaluateSimulationCondition(def.failureConditions, state);
     if (!failed) return goal;
 
+    emit.emit(GOAL_FAILED_EVENT, "info", { data: { goalId: goal.definitionId } });
     return { ...goal, status: "failed", failedWeek: state.calendar.currentWeek };
   });
 
@@ -258,10 +265,10 @@ export function runEndOfWeek(
   next = headline(next);
   ranSystem(emit, "headline");
 
-  next = goals(next, goalDefs, goalFailurePrecedence);
+  next = goals(next, goalDefs, goalFailurePrecedence, emit);
   ranSystem(emit, "goals");
 
-  next = failure(next, goalDefs);
+  next = failure(next, goalDefs, emit);
   ranSystem(emit, "failure");
 
   next = achievements(next);
