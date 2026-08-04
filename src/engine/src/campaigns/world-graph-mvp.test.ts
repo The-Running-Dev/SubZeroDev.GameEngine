@@ -98,9 +98,23 @@ describe("world-graph MVP campaign", () => {
     const beforePreview = await store.getView(created.sessionId);
     const preview = await store.previewAction(created.sessionId, "advance_ticks", { ticks: 1 });
     expect(preview.ok).toBe(true);
+    // A preview that silently no-opped would satisfy `ok` alone, and the non-mutation
+    // assertions below would pass vacuously.
+    expect(preview.changes.length).toBeGreaterThan(0);
     expect(await store.getView(created.sessionId)).toEqual(beforePreview);
-    expect((await store.saveGame(created.sessionId)).savedAtSeq).toBe(0);
 
+    // Through the store, not just the envelope: loadGame re-serializes through the engine,
+    // round-trips the saved audience and carries replayCompatible forward (store.ts), none
+    // of which buildSaveEnvelope/resolveSaveEnvelope above exercises.
+    const saved = await store.saveGame(created.sessionId);
+    expect(saved.savedAtSeq).toBe(0);
+    const loaded = await store.loadGame(saved.saveId);
+    expect(loaded.scene).toEqual(created.scene);
+    const loadedAdvance = await store.submitAction(loaded.sessionId, "advance_ticks", { ticks: 1 });
+    const controlAdvance = await store.submitAction(created.sessionId, "advance_ticks", { ticks: 1 });
+    expect(loadedAdvance.ok).toBe(true);
+    expect(controlAdvance.ok).toBe(true);
+    expect(await store.getView(loaded.sessionId)).toEqual(await store.getView(created.sessionId));
   });
 
   it("keeps malformed authored data blocking while semantic warnings remain loadable", () => {
