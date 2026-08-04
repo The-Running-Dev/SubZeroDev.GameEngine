@@ -385,25 +385,28 @@ execution record.
 
 ### W49 — validation, scenario and replay guard
 
-- **Status:** In progress. [PR #134](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/134)
+- **Status:** Delivered. [PR #134](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/134)
   delivered the canonical fixture and validation; [PR #136](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/136)
-  delivered win/loss replays and release-corpus coverage. The canonical delivery ledger is
-  [`design/30-slices.md`](../design/30-slices.md); this checklist is historical execution
-  evidence rather than a second status authority.
+  delivered win/loss replays and release-corpus coverage; and
+  [PR #138](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/138) delivered
+  session parity, clean-build serialization, and consumer-smoke evidence. The canonical
+  delivery ledger is [`design/30-slices.md`](../design/30-slices.md); this checklist is
+  historical execution evidence rather than a second status authority.
 
 - [x] Cut the W49 hardening plan and enumerate every contract invariant as a test target.
 - [x] Complete Tier 1 source validation and Tier 2 semantic/cross-reference validation.
 - [x] Reject malformed maps, references, ranges, caps and impossible starts without throwing.
 - [x] Author the canonical engine-owned MVP scenario fixture from Sun Trap's MVP contract.
 - [x] Record a deterministic winning replay and a deterministic losing replay.
-- [ ] Add batch-partition, save/restore and preview/no-mutation replay cases.
+- [x] Add batch-partition, save/restore and preview/no-mutation replay cases.
 - [x] Add the world-graph fixtures to the release-tag comparison corpus.
-- [ ] Prove canonical serialization and replay equality across a clean build.
-- [ ] Run package consumer smoke again with the world-graph public exports.
+- [x] Prove canonical serialization and replay equality across a clean build.
+- [x] Run package consumer smoke again with the world-graph public exports.
 - [ ] Publish and pin the first engine version that carries the completed world-graph kind
       (external release action after the engineering evidence is complete).
-- [ ] **Gate:** the third kind is playable, guarded by the replay oracle and consumable by
-      Sun Trap as an immutable package version.
+- [ ] **T4 gate:** the third kind is playable, guarded by the replay oracle and consumable by
+      Sun Trap as an immutable package version. This is a release gate, not W49's engineering
+      completion criterion.
 
 ---
 
@@ -470,7 +473,7 @@ happens to touch that paragraph next.
 | **T0 — Consumable** | W41 merged and first package version published | A clean companion can install and construct the existing engine through one supported, immutable public surface |
 | **T1 — The contract is whole** | W44 merged | Every type `WorldGraphKindState` and its content-definition surface names is specified in this repository. `12-world-graph-kind.md` stops being "the seam only" |
 | **T2 — A tick batch resolves** | W46 merged | The loop runs: mutate, `advance_ticks`, twenty systems, next tick. Batch invariance (§5) has a test with teeth |
-| **T3 — Sun Trap's MVP plays** | W49 merged | The MVP scenario (`SubZeroDev.SunTrap/docs/docs/product/mvp.md` §3) is winnable and losable through the replay oracle — proven through `createGame`/`submitAction`, the same honest scope this repository used for `simulation` |
+| **T3 — Sun Trap's MVP plays** | W49 merged | Reached: the MVP scenario (`SubZeroDev.SunTrap/docs/docs/product/mvp.md` §3) is winnable and losable through the replay oracle — proven through `createGame`/`submitAction`, the same honest scope this repository used for `simulation` |
 | **T4 — Guarded and deliverable** | W49's fixtures are in the corpus and its package version is published | The replay oracle covers a third kind, and Sun Trap can pin the exact version that passed it |
 
 ---

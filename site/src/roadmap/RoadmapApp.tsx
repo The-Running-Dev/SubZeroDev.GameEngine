@@ -101,7 +101,9 @@ export default function RoadmapApp() {
           <p>{currentAct.summary}</p>
           <Links chapter={currentAct} />
           <p className="roadmap-links">
-            <a href={`/docs/engine/todo#${currentAct.workUnits.toLowerCase()}`}>
+            <a
+              href={`/docs/engine/todo#${currentAct.ledgerAnchor ?? currentAct.workUnits.toLowerCase()}`}
+            >
               Canonical task ledger
             </a>
           </p>
