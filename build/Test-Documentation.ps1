@@ -174,7 +174,30 @@ function Get-DocumentationFile {
             Get-Item -LiteralPath $resolved
         }
         elseif (Test-Path -LiteralPath $resolved -PathType Container) {
-            Get-ChildItem -LiteralPath $resolved -Filter '*.md' -Recurse -File
+            # Filtering after Get-ChildItem -Recurse has already walked every
+            # excluded dependency and build tree. Traverse explicitly so the
+            # exclusion policy avoids that work instead of merely hiding its
+            # results.
+            $directories = [System.Collections.Generic.Stack[string]]::new()
+            $directories.Push($resolved)
+
+            while ($directories.Count -gt 0) {
+                $directory = $directories.Pop()
+
+                Get-ChildItem -LiteralPath $directory -Filter '*.md' -File
+
+                foreach ($child in Get-ChildItem -LiteralPath $directory -Directory) {
+                    $relativeChildPath = Get-RelativeDocumentationPath `
+                        -FullPath $child.FullName `
+                        -Root $Root
+
+                    if (-not (Test-ExcludedDocumentationPath `
+                            -RelativePath $relativeChildPath `
+                            -Settings $Settings)) {
+                        $directories.Push($child.FullName)
+                    }
+                }
+            }
         }
         else {
             throw [System.IO.FileNotFoundException]::new(
