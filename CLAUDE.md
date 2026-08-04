@@ -276,6 +276,31 @@ just proceed; do not interrupt to say so.
 - Never recommend re-running a phase gate. The user decides when a phase repeats;
   `/redteam` carries its own stopping rule.
 
+**What should stop being model work.** The tiers above decide *which* model does a job. This
+decides whether a model should be doing it at all.
+
+| | Work | Where it belongs |
+|---|---|---|
+| 🟢 **Necessary** | Architecture, contracts, root-cause analysis, design tradeoffs, adjudicating findings | A model, at the tier above |
+| 🟡 **Maybe avoidable** | Regenerating context already established, duplicate repository scans, rewriting boilerplate | A model, but the repetition is a signal — say so |
+| 🔴 **Definitely avoidable** | Formatting, mechanical text transformation, arithmetic over files, counting, collecting metrics | Code. It should leave the model entirely |
+
+A red item is a defect in the tooling, not in the run. Noticing one is worth a line; performing it
+repeatedly and never saying so is the failure. When a red item recurs, add it to the open register
+in `design/90-decisions.md` so `/track` can turn it into an issue — that is the existing path, and
+there is no separate mechanism for this. This repository has already taken that route once:
+`build/ConvertTo-HumanDocumentation.ps1` exists because regenerating human pages by hand was red.
+
+Two distinctions that are easy to get wrong:
+
+- **The mechanical half of a task is red; the judgement half is not.** Opening an issue is an API
+  call, but deciding what warrants one is not. Writing a PR description is a template, but which
+  merge convention governs is not. Do not classify a whole command by its cheapest step.
+- **Do not report a cost you did not measure.** A model is not given its own token counts or
+  elapsed time, so any figure it states about its own run is an estimate presented as a
+  measurement. `tools/Measure-Session.ps1` reads the real per-call usage from the session
+  transcript, and runs as a `SessionEnd` hook. Use it, or say nothing.
+
 ### The Agent Kit — Canonical Workflow
 
 `.claude/commands/` holds the
@@ -314,6 +339,8 @@ Routing, when a command is run:
 | `/verify` | Sonnet, medium — escalate to deep reasoning only to diagnose a failure, never to run the gates |
 | `/pr` | Sonnet, medium |
 | `/resolve` | Sonnet, medium — escalate to judge a contested finding, not to triage the obvious ones |
+| `/refine` | Sonnet, medium — never escalates; an architectural ask is routed to the command that owns it, not refined |
+| `/kit-help` | Haiku, low — orientation from file existence and a tracker listing; escalate only where the repository's state matches no stage |
 
 **`/track` reads `design/30-slices.md`.** It opens one issue per unvisited W-numbered work unit;
 W is this repository's retained slice prefix. New units carry stable per-criterion ids
@@ -329,6 +356,25 @@ and creating a milestone or a project all still need the user's sign-off, same a
 external write in **Git and Pull Requests** below. **Resolving or replying to a review thread
 is not covered by this carve-out either** — the exception is for opening issues and nothing
 else. `/track` is the only command that writes to GitHub.
+
+**Session boundaries.** Routing above says which model runs a command. This says **when a session
+must end.** A boundary exists wherever carrying context would corrupt the next step's judgement, or
+wherever the next step must read the tree rather than remember it. The artifact is the handoff, not
+the conversation — a stage that writes one has already handed over everything the next stage is
+entitled to.
+
+| Boundary | Rule | Why |
+|---|---|---|
+| `/design` → `/redteam` | **Fresh session, and a different vendor.** | A model recognises its own output distribution and defends it. Fresh context on the same model is already the weak form; the same session is not a review at all. |
+| Any stage that writes a canonical `design/` file → the next | Fresh. | The next stage's input is the committed file. A session that also remembers the arguments behind it will design against the arguments. |
+| `/slices` → `/slice` | Fresh, and **one work unit per session**. | A unit that does not fit one session without compaction is too large — that is a `/slices` defect, so say so rather than pressing on. |
+| `/slice` → `/verify` → `/pr` → `/resolve` | **Same session.** | These act on the branch and worktree the unit just produced, and `/pr` must carry `/verify`'s did-not-run list into the description **verbatim**. A fresh session would restate it from a summary, which is the fabricated gate result **Validation** below exists to prevent. |
+| merge → `/track` | Fresh. | `/track` reads the tracker and `design/` as they now stand. The session that just implemented the unit holds an opinion about whether it is done, and doneness is the user's mark, not an agent's. |
+| implementation → `/reconcile` | Fresh. | It compares the tree against the canonical documents. The session that wrote the code carries what it *intended* to write, which is the one thing the comparison must not be given. |
+
+**Compaction is a boundary you did not choose.** If a session compacts mid-unit, report it — the
+unit was mis-sized, and the work after the compaction was done against a summary of the contract
+rather than the contract itself.
 
 ### Single Ownership
 
