@@ -15,7 +15,26 @@ import { TextClient } from "../../clients/text/client.js";
 import { worldGraphMvpSource } from "../../campaigns/world-graph-mvp.js";
 
 const text = (key: string, value: string): AuthoredText => ({ key, text: value });
-const source: WorldGraphCampaignSource = worldGraphMvpSource;
+const source: WorldGraphCampaignSource = {
+  ...worldGraphMvpSource,
+  products: worldGraphMvpSource.products.map((product) => ({
+    ...product,
+    price: { ...product.price, defaultCents: 150 },
+    litter: null,
+  })),
+  objectives: worldGraphMvpSource.objectives.map((objective) => ({
+    ...objective,
+    completion: { kind: "compare", metric: { kind: "finance", field: "revenueTotalCents" }, op: "gte", value: 1000 },
+    progressMetric: { kind: "finance", field: "revenueTotalCents" },
+    target: 1000,
+  })),
+  scenarios: worldGraphMvpSource.scenarios.map((scenario) => ({
+    ...scenario,
+    scheduledChanges: [],
+    buildingPlacements: [],
+    guestSpawning: { everyTicks: 5, maxActiveGuests: 10, pool: [{ archetypeId: "guest", weight: 1 }] },
+  })),
+};
 
 function runtime(overrides: Partial<WorldGraphCampaign> = {}): { content: WorldGraphCampaign; authoredText: readonly AuthoredText[] } {
   const built = buildWorldGraphCampaign(source);
@@ -215,7 +234,7 @@ describe("world-graph W45 engine seam", () => {
     expect(advanced.ok).toBe(true);
     const state = stateOf(advanced.value!);
     expect(state.counters).toMatchObject({ servicesCompleted: 1, litterCreated: 1, litterCleaned: 1 });
-    expect(state.resolution).toMatchObject({ resolution: "objectives_met", objectiveIds: ["earn"], failureId: null });
+    expect(state.resolution).toMatchObject({ resolution: "objectives_met", objectiveIds: ["clean-litter"], failureId: null });
     expect(advanced.changes).toEqual(expect.arrayContaining([
       expect.objectContaining({ path: expect.stringMatching(/^incidents\..+\.resolvedAtTick$/), reason: "incident_resolved" }),
     ]));
@@ -246,7 +265,7 @@ describe("world-graph W45 engine seam", () => {
     expect(advanced.ok).toBe(true);
     const state = stateOf(advanced.value!);
     expect(state.counters).toMatchObject({ guestsEntered: 2, guestsDeparted: 1, servicesCompleted: 1 });
-    expect(state.resolution).toMatchObject({ resolution: "objectives_met", objectiveIds: ["earn"] });
+    expect(state.resolution).toMatchObject({ resolution: "objectives_met", objectiveIds: ["clean-litter"] });
   });
 
   it("reaches the declared financial loss through submitAction", () => {
@@ -313,7 +332,7 @@ describe("world-graph W45 engine seam", () => {
     expect(advanced.ok).toBe(true);
     expect(stateOf(advanced.value!)).toMatchObject({
       tick: 1,
-      objectives: [{ id: "earn", state: "failed" }],
+      objectives: [{ id: "clean-litter", state: "failed" }],
       failures: [{ id: "bankrupt", state: "triggered" }],
       resolution: { resolution: "failed", failureId: "bankrupt" },
     });

@@ -1,0 +1,10 @@
+{
+  "finalStatus": "ended",
+  "acceptedActions": 2,
+  "decisions": [
+    { "index": 0, "seq": 0, "actionId": "hire_staff", "accepted": true },
+    { "index": 1, "seq": 1, "actionId": "advance_ticks", "accepted": true }
+  ],
+  "achievements": [],
+  "terminal": { "resolution": "objectives_met", "objectivesMet": ["clean-litter"], "failureId": null }
+}
