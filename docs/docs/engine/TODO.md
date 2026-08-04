@@ -571,6 +571,11 @@ themselves.
       projection is not implemented, so neither path is playable through the text client or
       MCP yet. That is separate from the engine/replay milestone and remains part of the full
       game Definition of Done below.
+- [ ] **From a proven loop to a played game — W50–W57 below.** W36–W40 proved the kind
+      through the engine seam and the replay oracle; it is still not playable by a person,
+      and eleven of §3's fifteen end-of-week systems, twenty-eight of §4.2's thirty
+      `ActionType`s, §6.1's derived-value layer and §9's projection are all specified and
+      unbuilt. Those eight units are that gap, sliced.
 - [ ] Its Definition of Done: `games/life-in-the-fast-lane.md`.
 
 ### Depth: Sun Trap (The `world-graph` Kind)
@@ -1113,21 +1118,538 @@ quietly dropped from the criteria.
       through the text client and MCP is **not** met — see the gap noted above.
 - **Plan:** [`plans/36-simulation-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/36-simulation-kind-programme.md)
 
+### Depth: Life in the Fast Lane Becomes Playable
+
+Eight units taking the `simulation` kind from *proven through the replay oracle* to *played by
+a person*. W36–W40 built the state, the week pipeline, the content types and a minimal
+goal-driven loop; everything below is contract that exists and code that does not.
+
+**Ordered so the riskiest assumption goes first.** The platform's central claim is that a
+client is a projection of the session store (09 §1) — and one of three kinds currently cannot
+be projected at all, which W40 recorded honestly rather than dropping. W50 tests that claim.
+W51 comes second because the derived-value layer is what every unit after it reads through,
+and its rounding rule is the most replay-sensitive line in the kind.
+
+### [ ] W50 — Simulation Kind: Projection and Client Parity {#w50}
+
+**Delivers:** Makes Life in the Fast Lane something a person can actually play. Today the
+simulation kind runs only inside the replay harness — a game starts, a week is planned and
+ended, and nothing can show you the result, because `scene`, `availableActions` and `project`
+are placeholders returning empty values. This unit fixes what a client is allowed to see and
+builds it, so the "Stable Life" scenario can be won and lost through the text client and
+through MCP.
+
+W40 named this gap in its own done-criteria rather than quietly meeting a weaker bar.
+[10 §9](10-simulation-kind.md#9-projection) is prose-only: it states the rule — `SimulationView`
+carries **only what the generic surface does not**, the rule
+[03 §9](03-story-graph-kind.md#9-projection--what-a-client-sees) already follows — but declares
+no shape. `PublicWorldState`, which
+[§7.10](10-simulation-kind.md#710-agents--engine-owned-strategy-definition-and-runtime-state)'s
+`AgentStrategy.selectActions` takes as its first parameter, is referenced in the contract and
+declared nowhere at all.
+
+**This unit amends §9 in the same change that implements it**, the precedent W48 set when it
+amended [09 §4](09-clients.md#4-the-api-coverage-checklist) and
+`MVP.md` §5 alongside `previewAction`. That is deliberate and narrow: §9's *rule* is settled,
+and what is missing is the field list it implies — not a design decision. If drafting the shape
+turns out to require one, that is `/contract`'s call, not this unit's.
+
+**The envelope-duplication ledger is the live risk, and it has bitten the view side before** —
+entry 3, `StoryGraphView` duplicating scene and status fields. `SimulationView` has ten
+`SimulationKindState` fields to choose from, next to a `GameState` envelope and a generic
+`Scene`/`PlayerView` that already carry identity, status and turn.
+- **Spec:** [10 §9](10-simulation-kind.md#9-projection),
+      [§2](10-simulation-kind.md#2-kindstate--what-belongs-here),
+      [§4](10-simulation-kind.md#4-actions--one-model-richer-verbs),
+      [§10](10-simulation-kind.md#10-reason-codes), [§11](10-simulation-kind.md#11-events);
+      [03 §9](03-story-graph-kind.md#9-projection--what-a-client-sees) (the rule to follow);
+      [04 §6](04-core.md#6-scenes-and-actions-generic), [§9](04-core.md#9-projection);
+      [09 §4](09-clients.md#4-the-api-coverage-checklist),
+      [§6](09-clients.md#6-projection-is-not-optional).
+- **Touches:** `design/20-contract.md` (the `engine/10-simulation-kind.md` block, §9 and §11);
+      `src/engine/src/kinds/simulation/` — new `view.ts`, `scene.ts`, `available.ts`, and
+      `kind.ts`'s three placeholders; `src/engine/src/clients/text/render.ts`;
+      `src/engine/src/mcp/server.ts`; `design/10-design.md` (09 §4's checklist).
+- **Depends on:** [W40](#x-w40--simulation-kind-the-stable-life-scenario-validation-and-corpus).
+- **Status:** Not started.
+- **Done when:**
+  - W50.1 Contract §9 declares `SimulationView` and `PublicWorldState` as complete TypeScript
+        interfaces with every field named, and `AgentStrategy.selectActions` (§7.10) resolves
+        against the declared `PublicWorldState` rather than an undeclared name.
+  - W50.2 No `SimulationView` field repeats one the `GameState` envelope, the generic `Scene`,
+        or `PlayerView` already carries — asserted by a test that names the envelope fields and
+        checks each is absent, not by review.
+  - W50.3 `project` never emits `seed`, `actionLog`, raw `kindState`, `AgentState.strategy`,
+        `RelationshipState.resentment`, or an unrevealed `Opportunity`, for either audience;
+        each is asserted by name, and the `ai` audience is not wider than `player`.
+  - W50.4 `availableActions` returns `plan.add`, `plan.remove`, `plan.clear` and `end_week`
+        with the params §4 declares for each; where the campaign forbids an empty plan,
+        `end_week` renders disabled with `plan_empty` rather than being hidden.
+  - W50.5 `scene` renders from registry strings only; a `LocKey` it references but the registry
+        does not resolve fails registry construction rather than rendering a raw key at play.
+  - W50.6 Playing `stable-life` to its committed win through the text client and through MCP,
+        under the same seed and the same counting `IdSource`, produces **byte-identical**
+        `serialize()` output — 09 §1's proof, now exercised for the first kind whose actions
+        carry declared `params`.
+  - W50.7 [09 §4](09-clients.md#4-the-api-coverage-checklist)'s coverage checklist has a
+        simulation column complete for all ten operations, each ticked against a named passing
+        test rather than an assertion of intent.
+  - W50.8 All eight events [§11](10-simulation-kind.md#11-events) declares are emitted at the
+        points that section names and listed in `Kind.eventNames`; a golden event stream for a
+        full `stable-life` win covers their order, and a name outside `kind.simulation.*` fails.
+- **Out of scope:** wiring any additional resolver or end-of-week system — the projection shows
+      what the kind already computes, and W51–W57 add behaviour behind it. Also out of scope:
+      a rival agent actually running. `PublicWorldState` is declared here because
+      `AgentStrategy` cannot typecheck without it, not because this unit builds agents — how a
+      scenario configures rivals is an open gap §7.10 states outright.
+
+### [ ] W51 — Simulation Kind: Derived Values, Modifiers, and Effects {#w51}
+
+**Delivers:** Makes a status effect or a trait actually change what the player can do — a
+"reduced hours" effect really lowers the time available that week, a bonus really shifts a
+cost — instead of every number in the game being the raw stored one.
+
+[§6.1](10-simulation-kind.md#61-base-and-derived-values)'s base/derived layer is the substrate
+every resolver and every end-of-week system in W52–W57 reads through, and none of it exists:
+`DerivedPath`, `DerivedValueResolver`, application order, stacking and expiry are absent from
+`src/engine/src/kinds/simulation/` entirely.
+[§7.1](10-simulation-kind.md#71-modifiers-and-rewards)'s `Modifier`/`Reward` application is
+likewise unbuilt — including the `multiply` rounding rule W34 checked against the primary
+source and corrected two plan documents over (basis-points `value`, round half-away-from-zero
+**once** after the full chain), which is the single most replay-sensitive line in this kind.
+
+A substrate on its own is not a vertical slice, so this one is paired with the place it is
+already observable without any new content: start-of-week `time_commit`
+([§3](10-simulation-kind.md#3-the-turn-is-a-week)), whose two-phase split exists precisely so
+an expiring effect changes committed time correctly. That makes the unit provable end to end
+rather than a layer added on faith.
+- **Spec:** [10 §6.1](10-simulation-kind.md#61-base-and-derived-values),
+      [§7.1](10-simulation-kind.md#71-modifiers-and-rewards),
+      [§2.3](10-simulation-kind.md#23-effects-opportunities-and-scheduled-events),
+      [§3](10-simulation-kind.md#3-the-turn-is-a-week),
+      [§13](10-simulation-kind.md#13-determinism).
+- **Touches:** `src/engine/src/kinds/simulation/` — new `derived.ts` and `modifiers.ts`, plus
+      `startOfWeek.ts`, `endOfWeek.ts`, `state.ts`; `src/engine/fixtures/replay/`.
+- **Depends on:** [W50](#w50).
+- **Status:** Not started.
+- **Done when:**
+  - W51.1 Every `DerivedPath` §6.1 names resolves through `DerivedValueResolver`; a path that
+        is not a declared derived path fails at load with its path, not at read.
+  - W51.2 Modifier application follows §6.1's stated order and stacking rule: two modifiers
+        touching the same path produce the identical result in either registration order,
+        proven by a test that applies them both ways round.
+  - W51.3 `Modifier.operation: "multiply"` against integer `Cents` rounds half-away-from-zero
+        exactly once after the full chain — a test shows a three-multiply chain differing from
+        three separately-rounded multiplies, so the rule is proven rather than assumed.
+  - W51.4 An `activeEffect` reducing committed time changes the budget in `time_commit` and
+        not in `time_advance`; a fixture where that effect expires the same week shows the
+        un-reduced budget, proving the two phases have not been collapsed.
+  - W51.5 A derived value is visible through `SimulationView` (W50) and never persisted —
+        `serialize()` output contains base values only, asserted over the canonical string.
+  - W51.6 A replay fixture covering an effect applying and expiring is committed and passes
+        the oracle; the determinism harness's sink-independence and byte-identity checks pass.
+- **Out of scope:** the content that grants effects. Jobs, courses and items arrive with their
+      own units; this one proves the mechanism against a hand-authored effect on the existing
+      "Stable Life" fixture, the same way W39 proved goals against a single synthetic goal.
+
+### [ ] W52 — Simulation Kind: The Scenario Campaign and Full Validation {#w52}
+
+**Delivers:** Replaces the hand-assembled test fixture with a real authored scenario — a
+starting background, home, job, location, inventory and week cap that a content author writes
+— and makes the loader reject a broken one with a path to the mistake instead of failing at
+play.
+
+`SimulationCampaign` carries five starting-state blobs plus `goals` and
+`goalFailurePrecedence`, and its own header says it is "deliberately minimal, not the real
+authoring surface." Every [§7](10-simulation-kind.md#7-content-definition-types) content
+collection exists as a type and has nowhere to live. There is no source/runtime split for this
+kind at all — `story-graph` and `world-graph` each have one — so
+[04 §10.1](04-core.md#101-content-registry)'s authoring boundary is asserted for two kinds and
+proven for two of three. And [§14](10-simulation-kind.md#14-validation)'s Tier 1 list names
+seventeen content types whose ids must be unique and whose cross-references must resolve;
+what is implemented is goal-id uniqueness and one `LocKey`.
+- **Spec:** [10 §7.8](10-simulation-kind.md#78-goals-scenarios-and-difficulty),
+      [§7.9](10-simulation-kind.md#79-supporting-definitions),
+      [§14](10-simulation-kind.md#14-validation);
+      [04 §10.1](04-core.md#101-content-registry), [§11](04-core.md#11-tiered-validation),
+      [§17](04-core.md#17-identifier-conventions).
+- **Touches:** `src/engine/src/kinds/simulation/` — `campaign.ts`, `validate.ts`, `initial.ts`,
+      and a new `source.ts`; `src/engine/src/campaigns/stable-life.ts` and new broken fixtures
+      beside it.
+- **Depends on:** [W50](#w50).
+- **Status:** Not started.
+- **Done when:**
+  - W52.1 `SimulationCampaignSource` → `SimulationCampaign` is a pure builder performing no
+        file or network I/O, and every §7 collection §14 validates has a field on the runtime
+        root.
+  - W52.2 `initialState` builds week one from a `ScenarioDefinition` — starting backgrounds,
+        housing, location, inventory and week cap — rather than from five literal state blobs.
+  - W52.3 Each of §14's Tier 1 checks fails with a path: a duplicate id within every one of
+        the seventeen content types independently, and each named cross-reference
+        (`PromotionPath.toJobId`, `ScenarioDefinition.startingBackgroundIds`,
+        `startingHousingId`, `startingLocationId`, `goalIds`,
+        `startingInventory[].definitionId`) pointing at an id that does not exist.
+  - W52.4 Each of §14's Tier 2 checks warns and still loads, reported rather than swallowed.
+  - W52.5 A deliberately broken campaign fixture exists per Tier 1 family — the same
+        instrument W15 built for `story-graph` — and each produces its expected tier and path.
+  - W52.6 The re-authored "Stable Life" campaign reaches its committed win and loss fixtures
+        byte-identically; if a fixture legitimately changes, it is regenerated by the
+        deliberate per-fixture command ([07 §7](07-replay.md#7-intended-change-versus-regression))
+        and named in the PR — never an automatic sweep.
+- **Out of scope:** making any newly authorable content *do* anything. A `JobDefinition` this
+      unit lets an author write and the validator accept is still resolved by `stubResolver`
+      until W53. This is the authoring and loading surface, not behaviour.
+
+### [ ] W53 — Simulation Kind: Employment and Income {#w53}
+
+**Delivers:** The player can look for work, apply for a job, negotiate its terms and then
+actually work it — and be paid for it at the end of the week.
+- **Spec:** [10 §7.2](10-simulation-kind.md#72-jobs),
+      [§7.9](10-simulation-kind.md#79-supporting-definitions) (employers),
+      [§6.8](10-simulation-kind.md#68-career), [§3](10-simulation-kind.md#3-the-turn-is-a-week)
+      (`employment`, `finance_income`), [§5.1](10-simulation-kind.md#51-resolver-dispatch)–[§5.3](10-simulation-kind.md#53-per-action-outcome),
+      [§10](10-simulation-kind.md#10-reason-codes).
+- **Touches:** `src/engine/src/kinds/simulation/` — `resolvers.ts`, `endOfWeek.ts`,
+      `reasons.ts`; `src/engine/src/campaigns/stable-life.ts`;
+      `src/engine/fixtures/replay/`.
+- **Depends on:** [W51](#w51), [W52](#w52).
+- **Status:** Not started.
+- **Done when:**
+  - W53.1 `work`, `work_overtime`, `search_for_work`, `apply_for_job` and
+        `negotiate_job_terms` each have a real `ActionResolver` — `canExecute`, `calculate`,
+        `apply` — and none of the five is `stubResolver`.
+  - W53.2 Time and money cost are computed by `calculate` from state and content; a plan
+        exceeding the week's time units is rejected with `insufficient_time`, leaving state
+        byte-identical and the action log unadvanced.
+  - W53.3 `apply_for_job` against a job whose requirements are unmet is rejected with
+        `requirement_unmet`; an employment action whose type is not in the current location's
+        `actionTypes` is rejected with `wrong_location`.
+  - W53.4 The `employment` system advances `Employment.performance` and any `PromotionPath` it
+        satisfies; `finance_income` pays wages **before** `housing` runs, proven by a fixture
+        whose rent is payable only out of that same week's wages.
+  - W53.5 Every random draw comes from `ctx.rng`; adding a draw to one resolver does not shift
+        another's results, proven by a substream test rather than asserted from §13.
+  - W53.6 A replay fixture covering a full search → apply → hire → first paycheque arc is
+        committed and passes the oracle.
+- **Out of scope:** education, housing costs, debt and possessions — W54 to W56. A job's
+      training requirement may name a `CourseDefinition` id the validator resolves, but taking
+      the course is W54's work.
+
+### [ ] W54 — Simulation Kind: Education and Skills {#w54}
+
+**Delivers:** The player can enrol on a course, attend it, study for it, and come out with a
+skill that changes which jobs they can hold — or withdraw and lose the fees.
+- **Spec:** [10 §7.3](10-simulation-kind.md#73-courses),
+      [§7.9](10-simulation-kind.md#79-supporting-definitions) (skills),
+      [§6.7](10-simulation-kind.md#67-education),
+      [§3](10-simulation-kind.md#3-the-turn-is-a-week) (`education`),
+      [§8.1](10-simulation-kind.md#81-requirements).
+- **Touches:** `src/engine/src/kinds/simulation/` — `resolvers.ts`, `endOfWeek.ts`,
+      `startOfWeek.ts`; `src/engine/src/campaigns/stable-life.ts`;
+      `src/engine/fixtures/replay/`.
+- **Depends on:** [W53](#w53).
+- **Status:** Not started.
+- **Done when:**
+  - W54.1 `enroll_course`, `attend_class`, `study` and `withdraw_course` each have a real
+        resolver, and none is `stubResolver`.
+  - W54.2 Enrolling adds a course commitment that start-of-week `time_commit` includes in
+        committed time, and withdrawing removes it the same week — exercised by a fixture in
+        which one course ends the week another begins.
+  - W54.3 The `education` system advances progress only for courses attended that week, and
+        awards the course's skill exactly once on completion however many weeks follow.
+  - W54.4 A skill awarded here satisfies a `JobDefinition` requirement W53 built, proven by a
+        fixture where `apply_for_job` is rejected before the course and accepted after it.
+  - W54.5 Enrolling without the fee is rejected with `insufficient_funds`; enrolling twice on
+        the same course is rejected and leaves the existing enrolment untouched.
+  - W54.6 A replay fixture covering enrol → attend → complete → qualify is committed and
+        passes the oracle.
+- **Out of scope:** careers beyond what W53 built, and rival actors studying — agents are
+      unbuilt for the reason W50's *Out of scope* records.
+
+### [ ] W55 — Simulation Kind: Housing, Debt, and Reconciliation {#w55}
+
+**Delivers:** Rent, bills, borrowing and eviction — the half of the week that happens whether
+the player plans for it or not.
+
+This is where the contract's most carefully argued ordering rule lands.
+[§3](10-simulation-kind.md#3-the-turn-is-a-week) splits finance into `finance_income` before
+`housing` and `finance_reconcile` after it, and states exactly what each single-pass
+alternative breaks: rent charged before wages arrive produces false overdrafts for a solvent
+player, while reconciling before housing lags eviction escalation by a full week. W53 built
+the first of the three; this unit builds the other two, and is the first that can prove the
+split was necessary rather than merely argued.
+- **Spec:** [10 §7.4](10-simulation-kind.md#74-housing),
+      [§6.4](10-simulation-kind.md#64-finances), [§6.9](10-simulation-kind.md#69-housing),
+      [§3](10-simulation-kind.md#3-the-turn-is-a-week) (`housing`, `finance_reconcile`),
+      [§10](10-simulation-kind.md#10-reason-codes).
+- **Touches:** `src/engine/src/kinds/simulation/` — `resolvers.ts`, `endOfWeek.ts`;
+      `src/engine/src/campaigns/stable-life.ts`; `src/engine/fixtures/replay/`.
+- **Depends on:** [W53](#w53).
+- **Status:** Not started.
+- **Done when:**
+  - W55.1 `move_housing`, `pay_bills`, `borrow_money`, `repay_debt`, `deposit_savings` and
+        `invest` each have a real resolver, and none is `stubResolver`.
+  - W55.2 `housing` levies `HousingDefinition.weeklyCostCents` after `finance_income` has paid
+        wages: a fixture whose only income arrives that week pays rent successfully, and the
+        same inputs with the two systems' order swapped overdraw — the ordering is proven by
+        outcome, not by reading the list.
+  - W55.3 `finance_reconcile` applies late fees and advances eviction only against balances
+        `housing` charged this week; a first missed rent advances eviction by exactly one step.
+  - W55.4 Every money value is integer `Cents`; no floating-point money value appears in
+        `serialize()` output, checked over the canonical string rather than by inspection.
+  - W55.5 `move_housing` to a home the player cannot afford is rejected with
+        `insufficient_funds` and leaves the current housing untouched.
+  - W55.6 Two replay fixtures are committed and pass: one reaching eviction, one avoiding it
+        by a single week's wages.
+- **Out of scope:** items and their upkeep (W56), and any economy-wide drift in prices or
+      wages — `EconomyState` moves only where a system this unit builds moves it.
+
+### [ ] W56 — Simulation Kind: Possessions, Places, and People {#w56}
+
+**Delivers:** Shopping, keeping what you own working, getting around town, and having a social
+life — the actions that make a week feel like a life rather than a spreadsheet.
+- **Spec:** [10 §7.5](10-simulation-kind.md#75-items),
+      [§7.7](10-simulation-kind.md#77-npcs--definition-and-runtime-state),
+      [§7.9](10-simulation-kind.md#79-supporting-definitions) (locations),
+      [§6.5](10-simulation-kind.md#65-needs), [§6.10](10-simulation-kind.md#610-inventory),
+      [§6.11](10-simulation-kind.md#611-relationships),
+      [§3](10-simulation-kind.md#3-the-turn-is-a-week) (`inventory`),
+      [§10](10-simulation-kind.md#10-reason-codes) (`wrong_location`).
+- **Touches:** `src/engine/src/kinds/simulation/` — `resolvers.ts`, `endOfWeek.ts`;
+      `src/engine/src/campaigns/stable-life.ts`; `src/engine/fixtures/replay/`.
+- **Depends on:** [W55](#w55).
+- **Status:** Not started.
+- **Done when:**
+  - W56.1 `shop`, `maintain_item`, `repair_item`, `sell_item`, `travel`, `socialize` and
+        `exercise` each have a real resolver, and none is `stubResolver`.
+  - W56.2 Both halves of `wrong_location` are covered: `travel` to a location absent from the
+        current location's `connections` is rejected with it, and so is any action whose type
+        is absent from the current location's `actionTypes`.
+  - W56.3 The `inventory` system applies per-item condition decay, and an item at zero
+        condition stops contributing its modifiers rather than being removed from inventory.
+  - W56.4 `socialize` moves the named `RelationshipState` and is rejected when that NPC is not
+        present at the current location. The `relationships` end-of-week system stays an
+        explicit, documented stub — no weekly relationship rule exists in the contract to
+        implement (see *Known Open Items Carried In*).
+  - W56.5 `exercise` moves the needs §6.5 names, clamped to `0–100` the same way W39's
+        `eat`/`rest` are, emitting one `StateChange` per touched need.
+  - W56.6 A replay fixture covering buy → use → decay → repair → sell is committed and passes.
+- **Out of scope:** events that fire *because* of a relationship or a possession — that is
+      W57's `events` system. Also out of scope: writing the missing weekly-relationship rule,
+      which is `/contract`'s, not a slice's.
+
+### [ ] W57 — Simulation Kind: Events, Opportunities, Headlines, and Achievements {#w57}
+
+**Delivers:** The world starts acting on the player — random events arrive and demand a
+response, opportunities appear and expire, the weekly headline reflects what actually
+happened, and achievements unlock and persist across sessions.
+
+Closes the last of [§3](10-simulation-kind.md#3-the-turn-is-a-week)'s stubbed systems and
+[§2.3](10-simulation-kind.md#23-effects-opportunities-and-scheduled-events)'s two lifecycles.
+Ordering is load-bearing again and stated: `headline` runs after `events` so a week's headline
+can reference the strangeness that week's own events moved; `achievements` runs second-to-last
+so a condition can depend on a counter `goals`/`failure` just incremented; and §2.3's revoke
+and expire both run before offer.
+
+**This unit is blocked on one contract decision and must not start without it.**
+[§12](10-simulation-kind.md#12-terminal-identity)'s callout states that whether a week which
+simultaneously exhausts `weekLimit` *and* resolves every goal reports `week_limit_reached` or
+`goals_met` is genuinely unresolved — not undocumented here, but unresolved in the upstream
+source — and §3 confirms `END_WEEK_SYSTEM_ORDER` has no slot for the check at all.
+`week_limit_reached` is one of `outcome()`'s three non-null values and is currently
+unreachable. Route that to `/contract` first; do not guess an ordering, and do not invent a
+system position upstream never named.
+- **Spec:** [10 §7.6](10-simulation-kind.md#76-events),
+      [§7.9](10-simulation-kind.md#79-supporting-definitions) (opportunities, achievements,
+      headlines), [§2.3](10-simulation-kind.md#23-effects-opportunities-and-scheduled-events),
+      [§3](10-simulation-kind.md#3-the-turn-is-a-week),
+      [§11](10-simulation-kind.md#11-events), [§12](10-simulation-kind.md#12-terminal-identity);
+      [04 §7.1](04-core.md#71-the-profile-store).
+- **Touches:** `src/engine/src/kinds/simulation/` — `resolvers.ts`, `endOfWeek.ts`,
+      `startOfWeek.ts`, `outcome.ts`; `src/engine/src/campaigns/stable-life.ts`;
+      `src/engine/fixtures/replay/`.
+- **Depends on:** [W56](#w56), **and** a contract decision on §12's `week_limit_reached`
+      precedence callout.
+- **Status:** Not started — blocked on the contract decision above.
+- **Done when:**
+  - W57.1 `respond_to_event`, `accept_opportunity` and `decline_opportunity` each have a real
+        resolver, and `"custom"` still reaches resolution nowhere — a `GameAction` typed
+        `"custom"` fails, with no route around the `ResolverTable`.
+  - W57.2 The `events` system fires scheduled and seeded random events in the order §2.3
+        states, and a deferred `PendingEventResponse` is presented by the *next* week's
+        start-of-week `events` phase, never the same week it was deferred in.
+  - W57.3 The `opportunities` system runs revoke and expire before offer (§2.3); an
+        opportunity offered and expired within one week is never visible in `SimulationView`.
+  - W57.4 `headline` reads world strangeness after `events` has moved it, proven by a fixture
+        whose headline changes only because an event fired that week.
+  - W57.5 `achievements` evaluates `AchievementDefinition.condition` after `goals`/`failure`,
+        unlocks exactly once across repeated weeks, and upserts through `ProfileStore` so the
+        unlock survives a new session with the same `profileId`.
+  - W57.6 `week_limit_reached` is reachable and returned by `outcome()` under the precedence
+        the contract decision fixed, with its own committed replay fixture — the third terminal
+        path, previously unreachable by construction.
+  - W57.7 No end-of-week system in §3's list remains a stub except `relationships` and
+        `history`, each still documented at its own definition site with its reason.
+- **Out of scope:** rival agents.
+      [§7.10](10-simulation-kind.md#710-agents--engine-owned-strategy-definition-and-runtime-state)
+      states plainly that how a scenario configures rivals is an open gap — no
+      `ScenarioDefinition` field names them, and upstream declares none either — so agents stay
+      unbuilt until that is decided.
+
+### Breadth: Content Packs, Experiments, and Locales
+
+Three units against contracts that are fully specified and entirely unbuilt.
+[`11-content-packs.md`](11-content-packs.md) is the customization story
+[`02-architecture.md`](02-architecture.md) §4a promised and 04 §10.1 cannot express; the locale
+unit is the cheapest available test of a claim 04 §10.1 makes and nothing currently checks.
+
+### [ ] W58 — Content Pack Resolution and Content Identity {#w58}
+
+**Delivers:** Lets a game be assembled from several content packs — a base campaign plus, say,
+a culture pack that restyles its text — and makes a save record exactly which mix it was
+played against, so replaying one player's game never silently runs it against another's
+content.
+
+The fold is the easy half. **The load-bearing part is
+[§6](11-content-packs.md#6-identity-and-why-determinism-needs-it)'s identity argument:** two
+players on the same `campaignVersion` with different packs resolved are playing different
+games, and the envelope had no way to say so. The resolution is that `resolvePacks` stamps
+every campaign's `version` with a `ResolutionId` digest over the ordered `{id, version}` list —
+which adds no envelope field and makes [07 §6](07-replay.md#6-the-runner-and-its-verdicts)'s
+`unrunnable: campaign_version_missing` reachable for the reason it was written.
+
+`ContentRegistry` gains exactly one field. That is the whole change to 04 §10.1, and a second
+one is a signal this unit has grown a design decision it should route rather than absorb.
+- **Spec:** [11 §2](11-content-packs.md#2-what-a-pack-is),
+      [§3](11-content-packs.md#3-resolution),
+      [§4](11-content-packs.md#4-the-one-change-to-contentregistry),
+      [§5](11-content-packs.md#5-dependencies),
+      [§6](11-content-packs.md#6-identity-and-why-determinism-needs-it),
+      [§7](11-content-packs.md#7-validation); [04 §10.1](04-core.md#101-content-registry),
+      [§11](04-core.md#11-tiered-validation); [07 §6](07-replay.md#6-the-runner-and-its-verdicts).
+- **Touches:** `src/engine/src/core/registry/` — `types.ts`, `build.ts`, and a new `packs.ts`;
+      `src/engine/src/core/validation/tiered.ts`.
+- **Depends on:** nothing engine-side.
+- **Status:** Not started.
+- **Done when:**
+  - W58.1 `resolvePacks` is pure and total — no file or network I/O, and it returns either a
+        registry or a complete list of conflicts, never a partial registry.
+  - W58.2 A later pack replaces a campaign wholesale by `campaign.id` and never field-merges
+        it; a later pack replaces a string per key. A two-pack campaign collision yields
+        exactly one of the two campaigns, asserted directly rather than by absence of a merge.
+  - W58.3 `dependsOn` is topologically sorted before the fold; a cycle fails, and two packs
+        requiring different versions of a third fails rather than picking one.
+  - W58.4 The same ordered `{id, version}` list produces the same `ResolutionId` across
+        processes, and the same list in a different order produces a different one.
+  - W58.5 Every campaign `resolvePacks` produces carries the `ResolutionId` as its
+        `Campaign.version`, and `GameState` gains no field.
+  - W58.6 Loading a replay fixture whose `campaignVersion` no longer resolves returns
+        `unrunnable` with `campaign_version_missing` — not `diverged`.
+  - W58.7 Each of §7's three checks fires: Tier 1 for a `kindId` mismatch, an unresolvable
+        `dependsOn` and a cycle; Tier 1 for a campaign id colliding *within* one pack; Tier 2
+        for a pack overriding a campaign or string no earlier pack supplied.
+  - W58.8 Every existing single-campaign registry test passes unmodified, and the campaigns
+        W15–W40 committed still serialize byte-identically.
+- **Out of scope:** experiment gates (W59); pack discovery and distribution, partial or lazy
+      loading, community trust, and per-locale pack splitting —
+      [§8](11-content-packs.md#8-what-is-deferred) defers all four by name.
+
+### [ ] W59 — Experiment Gates and the `ExperimentSource` Port {#w59}
+
+**Delivers:** Turns A/B tests and feature flags into one mechanism rather than two — a pack is
+simply in the set or not, decided before resolution — and gives a host the seam that decides
+which variant a player is in.
+
+[§5a](11-content-packs.md#5a-experiment-gates)'s design is deliberately small:
+`applyExperimentGates` filters the pack array *before* `resolvePacks` sees it, so nothing about
+the fold's signature or purity changes and it never learns gates exist. `ExperimentSource` is
+the last unbuilt port in [06 §5](06-extensibility.md#5-the-port-catalogue)'s catalogue — W1's
+`src/engine/src/core/composition/types.ts` predates that design and declares `IdSource`,
+`Clock`, `EngineHost` and a `SessionHost` with no `experiments` field.
+
+The safety property is worth restating because it is easy to lose in implementation: a gated
+pack is included only when `assignments[gate.experimentId] === gate.variant`, which is never
+true for `null` ("not enrolled") or a missing key — so "no `ExperimentSource` supplied" is safe
+by construction rather than by luck of which default string someone picked.
+- **Spec:** [11 §5a](11-content-packs.md#5a-experiment-gates);
+      [06 §4](06-extensibility.md#4-the-composition-root),
+      [§5.5](06-extensibility.md#experimentsource).
+- **Touches:** `src/engine/src/core/composition/types.ts`;
+      `src/engine/src/core/registry/packs.ts`; `src/engine/src/core/session/store.ts`.
+- **Depends on:** [W58](#w58).
+- **Status:** Not started.
+- **Done when:**
+  - W59.1 `ExperimentSource` is declared in `composition/types.ts` and `SessionHost` gains an
+        optional `experiments`, with a working default meaning "no experiments running".
+  - W59.2 An ungated pack is always included; a gated pack is included only on an exact
+        variant match and excluded for `null`, for a missing key, and for a different variant
+        — each asserted as its own case.
+  - W59.3 With no `ExperimentSource` supplied, every gated pack is excluded and every ungated
+        pack included; no gated pack reaches a registry by default.
+  - W59.4 `resolvePacks`' signature, purity and W58 tests are unchanged, and a test asserts it
+        never receives a gated-out pack.
+  - W59.5 Assignments resolve once per session — one call per distinct `experimentId` across
+        the candidate packs, keyed by `profileId` where present and `seed` otherwise — proven
+        by a counting `ExperimentSource` rather than asserted.
+  - W59.6 Two sessions in different variants produce different `campaignVersion`s through
+        W58's existing digest, with no further mechanism added.
+- **Out of scope:** bucketing algorithms, rollout percentages, sticky-session semantics beyond
+      `bucketKey`, and outcome measurement — §5a and §8 place all four outside this contract.
+
+### [ ] W60 — A Second Locale, End to End {#w60}
+
+**Delivers:** Proves the platform is not accidentally English-only — the same campaign plays
+through in a second language with the engine unchanged, and a missing translation is caught at
+load rather than shown to a player as a raw key.
+
+[04 §10.1](04-core.md#101-content-registry) states the authoring→registry types already support
+more than one locale and that the MVP ships English only, so this is string tables plus tooling
+with no type change. **No test currently makes that claim**, and it is a small vertical slice
+that would find out cheaply: the protected `core.reason.*` merge, `LocKey` resolution, the text
+client's rendering and the MCP surface all sit on the path.
+- **Spec:** [04 §10.1](04-core.md#101-content-registry),
+      [§12](04-core.md#12-reason-codes-state-changes-messages),
+      [§17](04-core.md#17-identifier-conventions);
+      [09 §5](09-clients.md#5-reason-codes-and-messages).
+- **Touches:** `src/engine/src/core/localization/resolve.ts`;
+      `src/engine/src/core/registry/build.ts` and `strings.ts`;
+      `src/engine/src/campaigns/`; `src/engine/src/clients/text/render.ts`.
+- **Depends on:** nothing engine-side.
+- **Status:** Not started.
+- **Done when:**
+  - W60.1 One shipped campaign has a complete second-locale string table and the registry
+        builds for both locales with no change to any type in `core/registry/types.ts`.
+  - W60.2 A key present in English and absent in the second locale fails Tier 1 with the key's
+        path — never a silent fallback to English, never a raw key rendered at play.
+  - W60.3 `core.reason.*` messages resolve in the second locale, and a campaign attempting to
+        override one is still rejected.
+  - W60.4 The same seed and the same choices under either locale produce byte-identical
+        `serialize()` output — locale is presentation and reaches no persisted state.
+  - W60.5 The text client and the MCP surface both render the second locale from the registry,
+        and neither contains a translated string in its own source.
+- **Out of scope:** string-table extraction, translation workflow and coverage reporting —
+      those belong to the *Content Tooling* workstream below. Per-locale content packs are
+      [11 §8](11-content-packs.md#8-what-is-deferred)'s deferral, not this unit's.
+
 ### Breadth: The First Culture Pack
 
 - [ ] Bulgaria culture pack over the simulation kind — Jones-in-Bulgaria content,
-      no engine change ([`02-architecture.md`](02-architecture.md) §4a).
+      no engine change ([`02-architecture.md`](02-architecture.md) §4a). Needs
+      [W58](#w58) for the pack mechanism and [W50](#w50)–[W57](#w57) for a simulation game
+      worth reskinning; not sliced until both land.
 
 ### Breadth: The Platform
 
 - [ ] More clients (web, Discord).
-- [ ] **Additional locales.** The MVP ships English only; the authoring→registry types
-      already support more ([04 §10.1](04-core.md#101-content-registry)), so this is string tables plus tooling, no type
-      change.
+- [ ] **Additional locales — sliced as [W60](#w60).** The MVP ships English only; the
+      authoring→registry types already support more
+      ([04 §10.1](04-core.md#101-content-registry)), so this is string tables plus tooling,
+      no type change.
 - [ ] AI-assisted authoring (content only; engine validates).
 - [ ] The hosted service — only once all of the above works
       ([`neaas-platform-vision.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform)).
-- [ ] Content packs, per [`11-content-packs.md`](11-content-packs.md) — `resolvePacks` as a
+- [ ] Content packs — **sliced as [W58](#w58) and [W59](#w59)** — per
+      [`11-content-packs.md`](11-content-packs.md): `resolvePacks` as a
       pure ordered fold; campaigns replace wholesale, strings per key; exact-version
       dependencies with no range solving; `campaignVersion` stamped with the `ResolutionId`
       so a game records the content it actually ran against; experiment gates (§5a) as the
@@ -1163,6 +1685,22 @@ quietly dropped from the criteria.
       for the original reasoning.
 - [ ] `wisdom` attribute has no consumer in the simulation kind — needs one to earn its
       place (`games/04-engine-specification.md` §8.4).
+- [ ] **Four simulation `ActionType`s have no content-definition type to resolve against.**
+      `start_project`, `work_on_project`, `start_business` and `operate_business` are members
+      of [10 §4.2](10-simulation-kind.md#42-action-types)'s closed union, so `ResolverTable`'s
+      completeness check compels a resolver for each — but
+      [§7](10-simulation-kind.md#7-content-definition-types) declares no `ProjectDefinition` or
+      `BusinessDefinition`, and nothing in §7.2–§7.10 covers them. They are the only four of
+      the thirty that no unit W53–W57 can implement. **Revisit when** a scenario needs one:
+      either §7 gains the definitions or the union loses the members, and deciding that is
+      `/contract`'s work, not a slice's. Found while slicing W53–W57.
+- [ ] **The simulation `relationships` end-of-week system has no rule to implement.**
+      [10 §3](10-simulation-kind.md#3-the-turn-is-a-week) names it in `END_WEEK_SYSTEM_ORDER`
+      and [§6.11](10-simulation-kind.md#611-relationships) gives `RelationshipState` its full
+      shape, but no weekly movement rule for it is stated anywhere in the contract — the stub's
+      own comment in `src/engine/src/kinds/simulation/endOfWeek.ts` has said so since W37.
+      W56 builds `socialize` against the shape and leaves the system a documented stub for
+      exactly this reason. **Revisit when** the rule is written, which is `/contract`'s work.
 - [ ] Provisional numbers across the simulation kind (drift rates, scenario economics,
       `demandBand` thresholds, housing-quality formula, travel costs) need a balancing
       pass once the sim harness runs.
