@@ -116,6 +116,16 @@ describe("McpTools — the API coverage checklist (09-clients.md §4)", () => {
     expect(result).not.toHaveProperty("actionLog");
   });
 
+  it("preview_action — returns the prospective scene without changing the session", async () => {
+    const tools = makeTools();
+    const created = await tools.start_game({ campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, seed: SEED });
+    const preview = await tools.preview_action({ sessionId: created.sessionId, actionId: "wait" });
+
+    expect(preview.ok).toBe(true);
+    expect(preview.scene?.body.text).toContain("Room 6 informs you");
+    expect(await tools.get_scene({ sessionId: created.sessionId })).toEqual(created.scene);
+  });
+
   it("save_game — narrows the store's SaveHandle to { saveId } only", async () => {
     const tools = makeTools();
     const created = await tools.start_game({ campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, seed: SEED });

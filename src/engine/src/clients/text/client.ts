@@ -1,7 +1,7 @@
 /**
  * Text client — the proving instrument (09-clients.md, `TODO.md` W16).
  *
- * Contract: `09-clients.md` §2 — the nine-operation surface, and nothing else. `TextClient`
+ * Contract: `09-clients.md` §2 — the ten-operation surface, and nothing else. `TextClient`
  * mirrors it 1:1, in the same order the table lists them, calling `SessionStore` and
  * handing the result to `render.ts`. It never imports the pure engine, a kind, or the
  * registry (04 §1.1's dependency arrow; enforced by `eslint.config.js`'s client-boundary
@@ -76,6 +76,12 @@ export class TextClient {
 
   async submitAction(sessionId: string, actionId: string, params?: ActionParams): Promise<Rendered<SessionActionResult>> {
     const value = await this.store.submitAction(sessionId, actionId, params);
+    const strings = await this.store.getStrings(sessionId);
+    return { value, text: renderActionResult(value, strings) };
+  }
+
+  async previewAction(sessionId: string, actionId: string, params?: ActionParams): Promise<Rendered<SessionActionResult>> {
+    const value = await this.store.previewAction(sessionId, actionId, params);
     const strings = await this.store.getStrings(sessionId);
     return { value, text: renderActionResult(value, strings) };
   }

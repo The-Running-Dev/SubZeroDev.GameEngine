@@ -320,6 +320,7 @@ interface Engine {
   view(state: GameState, audience: ProjectionAudience): PlayerView;   // §9
   availableActions(state: GameState): AvailableAction[];
   submitAction(state: GameState, actionId: string, params?: ActionParams): ActionResult;
+  previewAction(state: GameState, actionId: string, params?: ActionParams): ActionResult;
   serialize(state: GameState): string;                  // §10 (canonical)
   deserialize(data: string): CommandResult<GameState>;
   migrate(data: string): CommandResult<GameState>;      // §10
@@ -344,6 +345,11 @@ submitAction(state, actionId, params):
   7. return { ok:true, value:newState, errors:[], warnings:[],
               changes:result.changes, messages:result.messages }
 ```
+
+`previewAction` runs that same path against a null emitter. Its successful `value` is a
+prospective state for rendering only: the caller must project it and discard it, never
+persist it. The input state remains unchanged and preview emits no action lifecycle event,
+so it cannot masquerade as a committed command.
 
 > **A rejected action does not advance `seq`.** Step 5 returns without appending, so the
 > next attempt computes the same `seq` from the same log length. That is deliberate — the
@@ -456,6 +462,7 @@ interface SessionStore {
   createSession(config: CreateSessionConfig): Promise<SessionHandle>;   // profileId lives here
   resumeSession(sessionId: string): Promise<Scene>;
   submitAction(sessionId: string, actionId: string, params?: ActionParams): Promise<SessionActionResult>;
+  previewAction(sessionId: string, actionId: string, params?: ActionParams): Promise<SessionActionResult>;
   saveGame(sessionId: string): Promise<SaveHandle>;                  // named/manual save
   loadGame(saveId: string): Promise<SessionHandle>;
 }

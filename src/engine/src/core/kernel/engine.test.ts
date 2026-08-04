@@ -227,6 +227,27 @@ describe("submitAction", () => {
   });
 });
 
+describe("previewAction", () => {
+  it.each([
+    ["accepted", "increment", { amount: 2 }],
+    ["rejected", "nope", { requestedBy: "preview" }],
+  ])("matches submitAction's %s result for parameterized actions", (_outcome, actionId, params) => {
+    const recorder = createRecordingEmitter();
+    const engine = createEngine(makeHost({ emitter: recorder }));
+    const state = engine.createGame({ campaignId: "test-campaign" }).value as GameState;
+    const before = engine.serialize(state);
+
+    const preview = engine.previewAction(state, actionId, params);
+    const submitted = engine.submitAction(state, actionId, params);
+
+    expect(preview).toEqual(submitted);
+    expect(engine.serialize(state)).toBe(before);
+    expect(recorder.events.filter((event) => event.name.startsWith("core.action.")).map((event) => event.name)).toEqual(
+      [`core.action.${preview.ok ? "accepted" : "rejected"}`],
+    );
+  });
+});
+
 describe("read paths (scene, availableActions, view)", () => {
   it("scene, availableActions, and view derive ctx from a system:view stream distinct from the action stream", () => {
     const rollingKind = makeTestKind({

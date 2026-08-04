@@ -2130,6 +2130,7 @@ arrow in 04 §1.1 points downward and clients are above everything.
 | `createSession(config)` | Command | `SessionHandle` |
 | `resumeSession(sessionId)` | Command | `Scene` |
 | `submitAction(sessionId, actionId, params?)` | Command | `SessionActionResult` |
+| `previewAction(sessionId, actionId, params?)` | Query | `SessionActionResult` |
 | `saveGame(sessionId)` | Command | `SaveHandle` |
 | `loadGame(saveId)` | Command | `SessionHandle` |
 
@@ -2193,8 +2194,9 @@ one column per MVP client:
 | 5 | `getView` | ☑ | `get_state` ☑ |
 | 6 | `getStrings` | ☑ | `get_strings` ☑ |
 | 7 | `submitAction` | ☑ | `choose` ☑ |
-| 8 | `saveGame` | ☑ | `save_game` ☑ |
-| 9 | `loadGame` | ☑ | `load_game` ☑ |
+| 8 | `previewAction` | ☑ | `preview_action` ☑ |
+| 9 | `saveGame` | ☑ | `save_game` ☑ |
+| 10 | `loadGame` | ☑ | `load_game` ☑ |
 
 **Evidence**, one test per box, both driving the real client rather than the store directly:
 
@@ -2207,10 +2209,11 @@ one column per MVP client:
 | 5 | `"5. getView — value carries the real StoryGraphView; text is the opaque JSON rendering"` | `"get_state — returns the real StoryGraphView through PlayerView"` |
 | 6 | `"6. getStrings — resolves the same table the store returns; a known key is present"` | `"get_strings — resolves LocKeys through the registry"` |
 | 7 | `"7. submitAction — success renders the new scene; a gated choice renders unavailable with its real reason"` | `"choose — submitAction under the MCP name; carries the new Scene, never the envelope"` |
-| 8 | `"8. saveGame — produces a save id; text confirms it"` | `"save_game — narrows the store's SaveHandle to { saveId } only"` |
-| 9 | `"9. loadGame — a fresh session from the save renders the same scene the save point was at"` | `"load_game — a fresh session from the save renders the same scene the save point was at"` |
+| 8 | `"8. previewAction — renders the prospective scene without changing the session"` | `"preview_action — returns the prospective scene without committing it"` |
+| 9 | `"9. saveGame — produces a save id; text confirms it"` | `"save_game — narrows the store's SaveHandle to { saveId } only"` |
+| 10 | `"10. loadGame — a fresh session from the save renders the same scene the save point was at"` | `"load_game — a fresh session from the save renders the same scene the save point was at"` |
 
-The text-client suite numbers its `it` blocks 1–9 to match this table's rows directly; the MCP
+The text-client suite numbers its `it` blocks 1–10 to match this table's rows directly; the MCP
 suite's own top-level `describe` names itself after this section (`"McpTools — the API coverage
 checklist (09-clients.md §4)"`). Neither test drives `SessionStore` directly — both go through
 the real client, which is what this checklist requires.
@@ -2284,8 +2287,8 @@ The text client is the MVP's **proving instrument** (MVP §3), which gives it on
 no other client has: it must drive **every** operation in §4, because it is the thing that
 demonstrates the API is complete.
 
-A web client may reasonably use seven of the nine — one that autosaves on every action need
-never call `saveGame` or `loadGame` explicitly. The text client using seven would mean two
+A web client may reasonably use eight of the ten — one that autosaves on every action need
+never call `saveGame` or `loadGame` explicitly. The text client using eight would mean two
 operations ship unproven.
 
 ---

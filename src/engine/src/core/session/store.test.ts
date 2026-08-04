@@ -199,6 +199,27 @@ describe("save / load round trip", () => {
 });
 
 describe("same-session concurrency", () => {
+  it("previewAction shares the session queue but never persists state or consumes an attempt", async () => {
+    const records: number[] = [];
+    const sink: EmittedRecordSink = {
+      write: (record) => {
+        if (record.event.name === "core.action.accepted") records.push(record.attempt);
+      },
+    };
+    const store = makeStore({ recordSink: sink });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+
+    const [preview, submitted] = await Promise.all([
+      store.previewAction(sessionId, "increment"),
+      store.submitAction(sessionId, "increment"),
+    ]);
+
+    expect(preview.scene?.body.text).toBe("counter=1");
+    expect(submitted.scene?.body.text).toBe("counter=1");
+    expect((await store.getScene(sessionId)).body.text).toBe("counter=1");
+    expect(records).toEqual([1]);
+  });
+
   it("two concurrent submitAction calls against the same session apply both actions — no lost update", async () => {
     const store = makeStore();
     const { sessionId } = await store.createSession({ campaignId: "test-campaign" });

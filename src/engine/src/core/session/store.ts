@@ -387,6 +387,31 @@ export function createInMemorySessionStore(options: InMemorySessionStoreOptions)
       });
     },
 
+    async previewAction(sessionId: string, actionId: string, params?: ActionParams): Promise<SessionActionResult> {
+      const record = getSession(sessionId);
+
+      // Shares the session queue with submissions so the preview cannot evaluate one version
+      // while a neighbouring command persists another. It deliberately does not increment
+      // attemptCounter, write record.blob, or touch profile persistence.
+      return runExclusive(sessionLocks, sessionId, async () => {
+        const state = mustDeserialize(engine, record.blob);
+        const result = engine.previewAction(state, actionId, params);
+
+        if (result.ok && result.value) {
+          return {
+            ok: true,
+            scene: engine.scene(result.value),
+            errors: result.errors,
+            warnings: result.warnings,
+            changes: result.changes,
+            messages: result.messages,
+          };
+        }
+
+        return { ok: false, errors: result.errors, warnings: result.warnings, changes: result.changes, messages: result.messages };
+      });
+    },
+
     async saveGame(sessionId: string): Promise<SaveHandle> {
       const record = getSession(sessionId);
       return runExclusive(sessionLocks, sessionId, () =>

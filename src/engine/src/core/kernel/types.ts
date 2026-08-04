@@ -227,6 +227,8 @@ export interface Engine {
   view(state: GameState, audience: ProjectionAudience): PlayerView;
   availableActions(state: GameState): AvailableAction[];
   submitAction(state: GameState, actionId: string, params?: ActionParams): ActionResult;
+  /** Runs the authoritative action path without emitting an externally observable commit. */
+  previewAction(state: GameState, actionId: string, params?: ActionParams): ActionResult;
   serialize(state: GameState): string;
   deserialize(data: string): CommandResult<GameState>;
   migrate(data: string): CommandResult<GameState>;
