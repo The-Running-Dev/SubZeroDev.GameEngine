@@ -64,7 +64,7 @@ export default function RoadmapApp() {
               <dd>merged work units</dd>
             </div>
             <div>
-              <dt>2</dt>
+              <dt>3</dt>
               <dd>implemented kinds</dd>
             </div>
             <div>
@@ -73,7 +73,7 @@ export default function RoadmapApp() {
             </div>
             <div>
               <dt>1</dt>
-              <dd>third kind in the queue</dd>
+              <dd>world-graph kind completed</dd>
             </div>
           </dl>
           <p className="commentary">The queue is deterministic.</p>

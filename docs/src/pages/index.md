@@ -8,12 +8,12 @@ title: 'Game Engine'
 
 ## Quick Links
 
-- **[Read the docs](/docs/)** — specs, architecture, API contracts, in reading order
-- <a href="/roadmap/"><strong>Roadmap</strong></a> — what has shipped, what is next, and why the queue is deterministic
-- **[Roadmap & milestones](/docs/engine/todo)** — every unit of work, done and remaining
-- **[Changelog](/docs/engine/changelog)** — one entry per merged PR, regenerated automatically
+- **[Read the docs](//docs/)** — specs, architecture, API contracts, in reading order
+- <a href="//roadmap/"><strong>Roadmap</strong></a> — what has shipped, what is next, and why the queue is deterministic
+- **[Roadmap & milestones](//docs/engine/todo)** — every unit of work, done and remaining
+- **[Changelog](//docs/engine/changelog)** — one entry per merged PR, regenerated automatically
 - **[Current status](#status)** — what's built, what's next, right below
-- **[Engine source](/docs/guide/engine-package)** — `src/engine/`: TypeScript strict, vitest, zero runtime dependencies
+- **[Engine source](//docs/guide/engine-package)** — `src/engine/`: TypeScript strict, vitest, zero runtime dependencies
 
 ## Why This Exists
 
@@ -346,36 +346,40 @@ Future Us will probably appreciate the effort. Present Us certainly will.
 
 > This section is a coarse snapshot, kept short on purpose. The living, unit-by-unit
 > breakdown — done, in progress, not started — lives in one place:
-> **[TODO.md](/docs/engine/todo)**. Nothing here
+> **[TODO.md](//docs/engine/todo)**. Nothing here
 > duplicates it, so nothing here can drift from it.
 
 ### Specifications — done
 
 The MVP contracts are complete and every MVP-blocking decision has already been made
-([OPEN-QUESTIONS.md §1](/docs/engine/open-questions#1-mvp-relevant-gaps--all-resolved)):
-[Vision](/docs/engine/vision),
-[Architecture](/docs/engine/architecture),
-[Core](/docs/engine/core),
-[Story Graph](/docs/engine/story-graph-kind). The remaining
+([OPEN-QUESTIONS.md §1](//docs/engine/open-questions#1-mvp-relevant-gaps--all-resolved)):
+[Vision](//docs/engine/vision),
+[Architecture](//docs/engine/architecture),
+[Core](//docs/engine/core),
+[Story Graph](//docs/engine/story-graph-kind). The remaining
 work is implementation. Not philosophy.
 
-### Code — two implemented kinds, a published package, and a playable world-graph slice (W0–W47)
+### Code — two implemented kinds, a published package, and a replay-guarded world graph (W0–W49)
 
 The deterministic core, story-graph kind, five Bulgaria arcs, text client, MCP adapter,
 replay oracle, save migration, and simulation kind are built and tested. `v0.4.0` is published
 as `@the-running-dev/game-engine`; a clean consumer test installs the packed artifact rather
 than trusting this checkout. The world-graph runtime-state, content, resolution, immediate-action
-foundation, deterministic tick pipeline, and playable guest journey are also merged.
+foundation, deterministic tick pipeline, playable guest journey, validation, and replay guard
+are also merged.
 
-### Current — finish the world-graph replay guard (W49)
+### Current — publish the completed world-graph kind (T4)
 
 Preview parity across the engine, session store, text client, and MCP is delivered in
 [PR #133](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/133). W49's canonical
 scenario and validation landed in [PR #134](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/134);
 its deterministic win/loss replay pairs and release-corpus coverage landed in
 [PR #136](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/136). Session-parity
-replays, clean-build serialization evidence, and a consumer-smoke rerun remain. Full sequencing
-and done-criteria: [TODO.md](/docs/engine/todo).
+replays, clean-build serialization evidence, and a consumer-smoke rerun landed in
+[PR #138](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/138). The remaining
+T4 release gate is an immutable package version carrying this completed work, so Sun Trap can
+pin it without a sibling checkout. Full sequencing and done-criteria:
+[TODO.md](//docs/engine/todo).
 
 ---
 
@@ -421,15 +425,15 @@ Excellent — both are valid reasons to keep reading.
 
 Start here:
 
-1. [Vision](/docs/engine/vision) — why the platform exists
-2. [Architecture](/docs/engine/architecture) — every settled decision
-3. [Core](/docs/engine/core) — the platform as types
-4. [Story Graph](/docs/engine/story-graph-kind)
-5. [Simulation](/docs/engine/simulation-kind)
-6. [World Graph](/docs/engine/world-graph-kind)
-7. [Content Packs](/docs/engine/content-packs)
-8. [MVP](/docs/engine/mvp)
-9. [TODO](/docs/engine/todo)
+1. [Vision](//docs/engine/vision) — why the platform exists
+2. [Architecture](//docs/engine/architecture) — every settled decision
+3. [Core](//docs/engine/core) — the platform as types
+4. [Story Graph](//docs/engine/story-graph-kind)
+5. [Simulation](//docs/engine/simulation-kind)
+6. [World Graph](//docs/engine/world-graph-kind)
+7. [Content Packs](//docs/engine/content-packs)
+8. [MVP](//docs/engine/mvp)
+9. [TODO](//docs/engine/todo)
 
 Then decide whether the idea is brilliant...
 
@@ -443,10 +447,10 @@ Either way, you've understood it.
 
 | Path | What |
 |---|---|
-| [`docs/docs/engine/`](/docs/engine/vision) | The specs — `01-vision`, `02-architecture`, `04-core` (the API/types), `03-story-graph-kind`, `MVP`, `TODO`, `OPEN-QUESTIONS` |
-| [`src/engine/`](/docs/guide/engine-package) | The implementation (TypeScript strict, vitest, determinism-guard eslint) |
+| [`docs/docs/engine/`](//docs/engine/vision) | The specs — `01-vision`, `02-architecture`, `04-core` (the API/types), `03-story-graph-kind`, `MVP`, `TODO`, `OPEN-QUESTIONS` |
+| [`src/engine/`](//docs/guide/engine-package) | The implementation (TypeScript strict, vitest, determinism-guard eslint) |
 | `docs/` | The specs are a Docusaurus site; `docs/docs/` is its content root |
-| [`docs.ps1`](/docs/guide/documentation-site#previewing-locally) | Build & serve the docs site |
+| [`docs.ps1`](//docs/guide/documentation-site#previewing-locally) | Build & serve the docs site |
 
 ## Build the Docs Site
 
@@ -475,8 +479,8 @@ not left to review.
 
 ---
 
-**Documentation:** **[game-engine.subzerodev.com](/)** —
+**Documentation:** **[game-engine.subzerodev.com](//)** —
 the site root, which publishes this README. The specs are rendered and cross-linked under
-**[/docs](/docs/)**.
+**[/docs](//docs/)**.
 
 [View the documentation](/docs/)
