@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { buildValidatedContentRegistry } from "../core/validation/tiered.js";
 import { createEngine } from "../core/kernel/engine.js";
+import { createInMemorySessionStore } from "../core/session/store.js";
+import { buildSaveEnvelope, resolveSaveEnvelope, serializeSaveEnvelope } from "../core/persistence/envelope.js";
 import type { EngineHost } from "../core/composition/types.js";
 import type { KindRegistry } from "../core/kernel/types.js";
 import type { WorldGraphCampaign } from "../kinds/world-graph/content.js";
@@ -18,7 +20,7 @@ function makeEngine() {
     kinds,
     ids: { newGameId: () => "game:world-graph-mvp", newSeed: () => "seed:world-graph-mvp" },
   };
-  return { built: built.value, engine: createEngine(host) };
+  return { built: built.value, engine: createEngine(host), kinds, registry: result.value };
 }
 
 describe("world-graph MVP campaign", () => {
@@ -60,6 +62,59 @@ describe("world-graph MVP campaign", () => {
     const lost = loss.engine.submitAction(advancedLoss.value, "advance_ticks", { ticks: 1 });
     expect(lost.value).toMatchObject({ status: "ended" });
     expect(lost.value!.kindState).toMatchObject({ resolution: { resolution: "failed", objectiveIds: [], failureId: "bankrupt" } });
+  });
+
+  it("keeps batch partitions, saved sessions, and previews replay-equivalent", async () => {
+    const direct = makeEngine();
+    const start = direct.engine.createGame({ campaignId: direct.built.campaign.id, seed: "world-graph-parity" });
+    if (!start.ok || !start.value) throw new Error("expected parity fixture to start");
+    const oneBatch = direct.engine.submitAction(start.value, "advance_ticks", { ticks: 10 });
+    const firstPartition = direct.engine.submitAction(start.value, "advance_ticks", { ticks: 3 });
+    if (!firstPartition.ok || !firstPartition.value) throw new Error("expected first partition to advance");
+    const splitBatch = direct.engine.submitAction(firstPartition.value, "advance_ticks", { ticks: 7 });
+    if (!oneBatch.ok || !oneBatch.value || !splitBatch.ok || !splitBatch.value) throw new Error("expected parity batches to advance");
+    expect(splitBatch.value.kindState).toEqual(oneBatch.value.kindState);
+
+    const hiredDirect = direct.engine.submitAction(start.value, "hire_staff", { definitionId: "cleaner" });
+    if (!hiredDirect.ok || !hiredDirect.value) throw new Error("expected save fixture cleaner hire to succeed");
+    const saveBlob = serializeSaveEnvelope(buildSaveEnvelope({
+      state: hiredDirect.value,
+      kind: direct.kinds["world-graph"],
+      campaign: direct.built.campaign,
+      replayCompatible: true,
+    }));
+    const resolved = resolveSaveEnvelope(saveBlob, direct.kinds, direct.registry);
+    if (!resolved.ok) throw new Error(`expected world-graph save to resolve: ${resolved.code}`);
+    const restoredAdvance = direct.engine.submitAction(resolved.state, "advance_ticks", { ticks: 10 });
+    const uninterruptedAdvance = direct.engine.submitAction(hiredDirect.value, "advance_ticks", { ticks: 10 });
+    if (!restoredAdvance.ok || !restoredAdvance.value || !uninterruptedAdvance.ok || !uninterruptedAdvance.value) {
+      throw new Error("expected restored and uninterrupted sessions to advance");
+    }
+    expect(direct.engine.serialize(restoredAdvance.value)).toBe(direct.engine.serialize(uninterruptedAdvance.value));
+
+    const session = makeEngine();
+    const store = createInMemorySessionStore({ engine: session.engine, registry: session.registry });
+    const created = await store.createSession({ campaignId: session.built.campaign.id, seed: "world-graph-session-parity" });
+    const beforePreview = await store.getView(created.sessionId);
+    const preview = await store.previewAction(created.sessionId, "advance_ticks", { ticks: 1 });
+    expect(preview.ok).toBe(true);
+    // A preview that silently no-opped would satisfy `ok` alone, and the non-mutation
+    // assertions below would pass vacuously.
+    expect(preview.changes.length).toBeGreaterThan(0);
+    expect(await store.getView(created.sessionId)).toEqual(beforePreview);
+
+    // Through the store, not just the envelope: loadGame re-serializes through the engine,
+    // round-trips the saved audience and carries replayCompatible forward (store.ts), none
+    // of which buildSaveEnvelope/resolveSaveEnvelope above exercises.
+    const saved = await store.saveGame(created.sessionId);
+    expect(saved.savedAtSeq).toBe(0);
+    const loaded = await store.loadGame(saved.saveId);
+    expect(loaded.scene).toEqual(created.scene);
+    const loadedAdvance = await store.submitAction(loaded.sessionId, "advance_ticks", { ticks: 1 });
+    const controlAdvance = await store.submitAction(created.sessionId, "advance_ticks", { ticks: 1 });
+    expect(loadedAdvance.ok).toBe(true);
+    expect(controlAdvance.ok).toBe(true);
+    expect(await store.getView(loaded.sessionId)).toEqual(await store.getView(created.sessionId));
   });
 
   it("keeps malformed authored data blocking while semantic warnings remain loadable", () => {
