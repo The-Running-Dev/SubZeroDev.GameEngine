@@ -21,6 +21,7 @@ export { storyGraphKind } from "./kinds/story-graph/kind.js";
 export { simulationKind } from "./kinds/simulation/kind.js";
 export { worldGraphKind } from "./kinds/world-graph/kind.js";
 export { buildWorldGraphCampaign } from "./kinds/world-graph/source.js";
+export { buildWorldGraphMvpCampaign, WORLD_GRAPH_MVP_CAMPAIGN_ID } from "./campaigns/world-graph-mvp.js";
 export { ENGINE_VERSION } from "./version.js";
 
 export type { Engine } from "./core/kernel/types.js";
