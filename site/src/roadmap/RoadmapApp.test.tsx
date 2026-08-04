@@ -15,8 +15,8 @@ describe("roadmap page", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
       `How a Quick Question Became ${completedWorkUnitCount} Work Units.`,
     );
-    expect(screen.getAllByText("DONE")).toHaveLength(8);
-    expect(screen.getAllByText("NEXT")).toHaveLength(2);
+    expect(screen.getAllByText("DONE")).toHaveLength(9);
+    expect(screen.getAllByText("NEXT")).toHaveLength(1);
     expect(screen.getAllByText("LATER")).toHaveLength(3);
     const checkpoint = screen.getByText("02 / NOW").closest("section");
     expect(checkpoint).not.toBeNull();
@@ -46,18 +46,15 @@ describe("roadmap page", () => {
       "W41–W42",
       "W43–W44",
       "W45–W46",
+      "W47",
     ]);
     expect(nextActs.map((chapter) => chapter.workUnits)).toEqual([
-      "W47",
       "W48",
       "W49",
     ]);
     expect(nextActs.every((chapter) => chapter.status !== "done")).toBe(true);
-    expect(currentAct.workUnits).toBe("W47");
-    expect(futureActs.map((chapter) => chapter.workUnits)).toEqual([
-      "W48",
-      "W49",
-    ]);
+    expect(currentAct.workUnits).toBe("W48");
+    expect(futureActs.map((chapter) => chapter.workUnits)).toEqual(["W49"]);
     expect(shippedChapters[0]?.links[0]?.href).toMatch(
       /^https:\/\/github\.com\/The-Running-Dev\/SubZeroDev\.GameEngine\/commit\/[0-9a-f]{40}$/,
     );

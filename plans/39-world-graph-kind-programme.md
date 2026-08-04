@@ -354,16 +354,21 @@ W46 is not delivered until that PR merges.
 
 ### W47 — playable MVP vertical slice
 
-- [ ] Cut the W47 code plan around one end-to-end guest journey.
-- [ ] Implement spawn/entry and deterministic need evolution.
-- [ ] Implement target utility selection and pathfinding to a reachable building.
-- [ ] Implement movement, queue join, patience and abandonment.
-- [ ] Implement service, purchase, stock/capacity and finance transfer.
-- [ ] Implement litter generation, cleanliness effects and staff cleaning work.
-- [ ] Implement the minimum construction/economy hooks required by the slice.
-- [ ] Implement objective progress plus win and financial-loss transitions.
-- [ ] Test the causal chain at system seams as well as end to end.
-- [ ] **Gate:** the synthetic MVP can win and lose through `createGame`/`submitAction`.
+**Status:** Delivered in [PR #131](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/131),
+merged to `main` at `2390750`. The canonical delivery ledger is
+[`design/30-slices.md`](../design/30-slices.md); this checklist remains the programme's
+execution record.
+
+- [x] Cut the W47 code plan around one end-to-end guest journey.
+- [x] Implement spawn/entry and deterministic need evolution.
+- [x] Implement target utility selection and pathfinding to a reachable building.
+- [x] Implement movement, queue join, patience and abandonment.
+- [x] Implement service, purchase, stock/capacity and finance transfer.
+- [x] Implement litter generation, cleanliness effects and staff cleaning work.
+- [x] Implement the minimum construction/economy hooks required by the slice.
+- [x] Implement objective progress plus win and financial-loss transitions.
+- [x] Test the causal chain at system seams as well as end to end.
+- [x] **Gate:** the synthetic MVP can win and lose through `createGame`/`submitAction`.
 
 ### W48 — preview and client parity
 

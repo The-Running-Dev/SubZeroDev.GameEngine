@@ -18,10 +18,18 @@ export type RoadmapChapter = {
 const repo = "https://github.com/The-Running-Dev/SubZeroDev.GameEngine";
 const commit = (hash: string) => `${repo}/commit/${hash}`;
 
-// TODO owns W0–W40 (including W3a). W41–W46 merged after its ledger format stopped
+// TODO owns W0–W40 (including W3a). W41–W47 merged after its ledger format stopped
 // carrying completed headings; keep that exceptional evidence explicit rather than pretending
 // the prose is a uniform machine-readable database.
-const completedBeyondTodo = ["W41", "W42", "W43", "W44", "W45", "W46"] as const;
+const completedBeyondTodo = [
+  "W41",
+  "W42",
+  "W43",
+  "W44",
+  "W45",
+  "W46",
+  "W47",
+] as const;
 export const completedWorkUnitCount =
   (todo.match(/^### \[x\] W[\w]+/gm) ?? []).length + completedBeyondTodo.length;
 
@@ -164,28 +172,28 @@ export const shippedChapters: readonly RoadmapChapter[] = [
       },
     ],
   },
+  {
+    id: "world-play",
+    workUnits: "W47",
+    status: "done",
+    title: "The resort gets a playable loop",
+    summary:
+      "One guest can now spawn, walk, queue, buy, litter, clean, and carry the resort to a win or loss through the real deterministic pipeline.",
+    links: [
+      {
+        label: "W47 evidence",
+        href: commit("23907505b64042b9dbc744ba4edac0c53122c673"),
+        kind: "repository",
+      },
+    ],
+  },
 ];
 
 export const nextActs: readonly RoadmapChapter[] = [
   {
-    id: "play",
-    workUnits: "W47",
-    status: "now",
-    title: "Give the resort a playable loop",
-    summary:
-      "Turn the deterministic clock into one complete guest journey: spawn, walk, queue, buy, litter, clean, then win or lose.",
-    links: [
-      {
-        label: "World-graph contract",
-        href: "/docs/engine/world-graph-kind",
-        kind: "site",
-      },
-    ],
-  },
-  {
     id: "preview",
     workUnits: "W48",
-    status: "next",
+    status: "now",
     title: "Let every client preview an action",
     summary:
       "Add preview parity across the engine, session store, text client, and MCP without changing saved state.",
