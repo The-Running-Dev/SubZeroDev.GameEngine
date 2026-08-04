@@ -107,6 +107,7 @@ export function advance(
       const plan = requirePlan(state);
       let working = state;
       const changes: StateChange[] = [];
+      const resolvedEvents: Array<{ actionId: string; actionType: string; degree: string }> = [];
 
       for (const action of plan.actions) {
         if (action.type === "custom") {
@@ -121,9 +122,11 @@ export function advance(
         const outcome = resolver.calculate(working, action, ctx);
         working = resolver.apply(working, outcome);
         changes.push(...outcome.changes);
-        ctx.emit.emit(ACTION_RESOLVED_EVENT, "debug", {
-          data: { actionId: action.id, actionType: action.type, degree: outcome.degree },
-        });
+        resolvedEvents.push({ actionId: action.id, actionType: action.type, degree: outcome.degree });
+      }
+
+      for (const event of resolvedEvents) {
+        ctx.emit.emit(ACTION_RESOLVED_EVENT, "debug", { data: event });
       }
 
       const content = ctx.campaign.content as SimulationCampaign;
