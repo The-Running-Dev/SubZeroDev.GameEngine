@@ -470,9 +470,8 @@ foreach ($file in ($files | Sort-Object LastWriteTime)) {
         }
     }
 
-    $shortId = if ($session.Id.Length -gt 8) { $session.Id.Substring(0, 8) } else { $session.Id }
     $reportSessions.Add([pscustomobject]@{
-        Id      = $shortId
+        Id      = $session.Id
         Started = $session.Started
         Span    = $session.Span
         Active  = $session.Active
@@ -492,8 +491,9 @@ if ($Human) {
     $header = '{0,-28} {1,6} {2,10} {3,12} {4,13} {5,10}' -f 'Segment', 'calls', 'input', 'cache_new', 'cache_read', 'output'
 
     foreach ($session in $reportSessions) {
+        $displayId = if ($session.Id.Length -gt 8) { $session.Id.Substring(0, 8) } else { $session.Id }
         ''
-        "Session {0}   {1}" -f $session.Id, $session.Models
+        "Session {0}   {1}" -f $displayId, $session.Models
         "  started {0:yyyy-MM-dd HH:mm}   span {1:hh\:mm\:ss}   active {2:hh\:mm\:ss} (gaps over {3} min excluded)" -f
             $session.Started, $session.Span, $session.Active, $IdleThresholdMinutes
         ''

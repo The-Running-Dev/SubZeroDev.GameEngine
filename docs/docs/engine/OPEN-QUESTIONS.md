@@ -70,6 +70,14 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   harness runs. ([`TODO.md`](TODO.md) → Known open items; simulation kind.)
 - **`wisdom` attribute has no consumer** — needs one to earn its place
   (`games/04-engine-specification.md` §8.4).
+- **`end_week`'s `plan_empty` gate is declared but not wired — W50.4.** §10 names
+  `plan_empty` for "`end_week` with nothing planned, where the campaign forbids it," and
+  `availableActions` (`src/engine/src/kinds/simulation/available.ts`) always returns
+  `end_week` with `available: true`. `SimulationCampaign` declares no toggle to condition a
+  disablement branch on, and `stable-life` never forbids an empty plan, so wiring the gate
+  now would be dead code exercised by no scenario. **Revisit when** a campaign actually
+  needs to forbid an empty-plan `end_week` — the natural home is a new
+  `SimulationCampaign`/`ScenarioDefinition` field, decided against that concrete need.
 - **`packages/` vs `src/engine/` naming, and companion delivery — decided for W41.** The
   simulation docs (`games/05-text-client.md` header, `games/04` §20) describe an
   aspirational `packages/` monorepo; the built package is `src/engine/`
