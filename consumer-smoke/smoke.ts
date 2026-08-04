@@ -4,6 +4,7 @@ import {
   buildContentRegistry,
   buildValidatedContentRegistry,
   buildWorldGraphCampaign,
+  buildWorldGraphMvpCampaign,
   createEngine,
   storyGraphKind,
   simulationKind,
@@ -123,6 +124,17 @@ function runEngineSmoke(): void {
   assert.equal(created.status, "active");
   assert.equal(worldGraphKind.id, "world-graph");
   assert.equal(typeof buildWorldGraphCampaign, "function");
+  const worldGraphCampaign = expectOk(buildWorldGraphMvpCampaign(), "world-graph MVP campaign should build");
+  const worldGraphRegistry = expectOk(
+    buildValidatedContentRegistry([worldGraphCampaign], kinds),
+    "world-graph MVP registry should validate",
+  );
+  const worldGraphEngine = createEngine({ kinds, registry: worldGraphRegistry });
+  const worldGraphGame = expectOk(
+    worldGraphEngine.createGame({ campaignId: worldGraphCampaign.campaign.id, seed: "consumer-smoke-world-graph" }),
+    "world-graph MVP should construct through the package boundary",
+  );
+  assert.equal(worldGraphGame.kindId, "world-graph");
   const publicTypesResolve = <T extends WorldGraphPublicTypes>(): T | undefined => undefined;
   assert.equal(publicTypesResolve(), undefined);
   assertCampaignContentCastThrows(kinds, authoredText);
