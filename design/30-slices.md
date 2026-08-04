@@ -689,16 +689,18 @@ when it declined a programme doc for this kind.
       [PR #133](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/133).
 <a id="w49"></a>
 
-- [~] **W49 — validation, scenario and replay guard:** the canonical engine-owned MVP
+- [x] **W49 — validation, scenario and replay guard:** the canonical engine-owned MVP
       fixture and its Tier 1/Tier 2 validation landed in
       [PR #134](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/134); deterministic
       winning and losing replay pairs and release-corpus coverage landed in
       [PR #136](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/136).
       Session-parity replay cases, a clean-build serialization proof, and a consumer-smoke
-      rerun remain before the programme gate can close. Package version selection and
-      publication are external release actions, not evidence this unit can claim.
-- [ ] **Programme gate:** batch invariance and determinism beyond the seed pass; the third
-      kind is replay-guarded and installable by Sun Trap without a sibling checkout.
+      rerun landed in [PR #138](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/138).
+      W49's engineering scope is complete. Package version selection and publication remain
+      external release actions, not evidence this unit claims.
+- [ ] **T4 programme gate:** batch invariance and determinism beyond the seed pass; an
+      immutable package version must carry the replay-guarded third kind so Sun Trap can
+      install it without a sibling checkout.
 - **Plan:** [`plans/39-world-graph-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/39-world-graph-kind-programme.md)
 
 ### Depth: Finish the Bulgaria Adventure

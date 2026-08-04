@@ -4,6 +4,7 @@ export type RoadmapStatus = "done" | "now" | "next" | "later";
 export type RoadmapChapter = {
   id: string;
   workUnits: string;
+  ledgerAnchor?: string;
   status: RoadmapStatus;
   title: string;
   summary: string;
@@ -18,7 +19,7 @@ export type RoadmapChapter = {
 const repo = "https://github.com/The-Running-Dev/SubZeroDev.GameEngine";
 const commit = (hash: string) => `${repo}/commit/${hash}`;
 
-// TODO owns W0–W40 (including W3a). W41–W48 merged after its ledger format stopped
+// TODO owns W0–W40 (including W3a). W41–W49 merged after its ledger format stopped
 // carrying completed headings; keep that exceptional evidence explicit rather than pretending
 // the prose is a uniform machine-readable database.
 const completedBeyondTodo = [
@@ -30,6 +31,7 @@ const completedBeyondTodo = [
   "W46",
   "W47",
   "W48",
+  "W49",
 ] as const;
 export const completedWorkUnitCount =
   (todo.match(/^### \[x\] W[\w]+/gm) ?? []).length + completedBeyondTodo.length;
@@ -203,25 +205,41 @@ export const shippedChapters: readonly RoadmapChapter[] = [
       },
     ],
   },
+  {
+    id: "world-guard",
+    workUnits: "W49",
+    status: "done",
+    title: "The resort can prove a win or collapse",
+    summary:
+      "The canonical scenario validates, wins and loses deterministically, survives session and preview parity checks, and is protected by the replay corpus.",
+    links: [
+      {
+        label: "W49 evidence",
+        href: commit("6e3d38e77d0e34686dc4e0956b2ff01da9b8af3d"),
+        kind: "repository",
+      },
+    ],
+  },
 ];
 
 export const nextActs: readonly RoadmapChapter[] = [
   {
-    id: "prove",
-    workUnits: "W49",
+    id: "world-release",
+    workUnits: "T4",
+    ledgerAnchor: "w49",
     status: "now",
-    title: "Finish proving the resort can succeed or collapse",
+    title: "Publish the completed world-graph kind",
     summary:
-      "The canonical scenario, validation, and win/loss replay guard are in. Session-parity evidence and a clean consumer rerun remain before a release can be cut.",
+      "Engineering proof is complete; publish an immutable package version that carries it so Sun Trap can pin the replay-guarded kind without a sibling checkout.",
     links: [
       {
-        label: "W49 ledger",
+        label: "T4 ledger",
         href: "/docs/engine/todo#w49",
         kind: "site",
       },
       {
-        label: "W49 replay evidence",
-        href: commit("904d601"),
+        label: "W49 evidence",
+        href: commit("6e3d38e77d0e34686dc4e0956b2ff01da9b8af3d"),
         kind: "repository",
       },
       {
