@@ -11,6 +11,10 @@ describe("world-graph MVP campaign", () => {
     const built = buildWorldGraphMvpCampaign();
     expect(built.ok).toBe(true);
     if (!built.ok || !built.value) throw new Error("expected world-graph fixture to build");
+    expect([...built.value.strings.keys()].every((key) => {
+      const segments = key.split(".");
+      return segments.length >= 2 && segments.length <= 3;
+    })).toBe(true);
     const result = buildValidatedContentRegistry([built.value], { "world-graph": worldGraphKind } as unknown as KindRegistry);
     expect(result).toMatchObject({ ok: true, errors: [], warnings: [] });
     if (!result.ok || !result.value) throw new Error("expected world-graph fixture registry");

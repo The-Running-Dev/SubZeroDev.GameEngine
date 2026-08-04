@@ -94,7 +94,7 @@ describe("world-graph W45 source and validation", () => {
     expect(built.content.preferences).toEqual([]);
     expect(built.content.policies).toEqual([]);
     expect(built.content.achievements).toEqual([]);
-    expect(built.content.maps[0]?.text.nameKey).toBe("world.map.beach.name");
+    expect(built.content.maps[0]?.text.nameKey).toBe("world-graph-mvp.map-beach.name");
   });
 
   it("is total over malformed unknown roots and nested definitions", () => {
