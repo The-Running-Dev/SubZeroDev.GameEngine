@@ -7,8 +7,8 @@
  * `sessionId`, never authoritative state, which is what preserves "the engine owns the
  * truth" while still allowing resume on another device.
  *
- * This surface is also the client contract's whole vocabulary (09 §4): nine operations,
- * nine MCP tools, one-to-one — so "no AI-specific path" is checkable by counting.
+ * This surface is also the client contract's whole vocabulary (09 §4): ten operations,
+ * ten MCP tools, one-to-one — so "no AI-specific path" is checkable by counting.
  */
 
 import type { LocKey, StringTable } from "../localization/types.js";
@@ -69,6 +69,14 @@ export interface SessionStore {
   getView(sessionId: string): Promise<PlayerView>;
   /** Resolves `LocKey`s. Without this a compliant client cannot render a single label. */
   getStrings(sessionId: string): Promise<StringTable>;
+
+  // Prospective query (resolves, projects, and discards)
+  /** Runs an action against the current session without persisting its prospective state. */
+  previewAction(
+    sessionId: string,
+    actionId: string,
+    params?: ActionParams,
+  ): Promise<SessionActionResult>;
 
   // Commands
   createSession(config: CreateSessionConfig): Promise<SessionHandle>;

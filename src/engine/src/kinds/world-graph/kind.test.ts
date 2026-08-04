@@ -10,6 +10,8 @@ import { worldGraphKind } from "./kind.js";
 import { buildWorldGraphCampaign } from "./source.js";
 import type { WorldGraphKindState, WorldGraphView } from "./state.js";
 import { WORLD_GRAPH_REASON_MESSAGES } from "./reasons.js";
+import { createInMemorySessionStore } from "../../core/session/store.js";
+import { TextClient } from "../../clients/text/client.js";
 
 const text = (key: string, value: string): AuthoredText => ({ key, text: value });
 const definitionText = (id: string) => ({
@@ -88,6 +90,19 @@ function engine(overrides: Partial<WorldGraphCampaign> = {}) {
   return createEngine(host);
 }
 
+function textClient(overrides: Partial<WorldGraphCampaign> = {}): TextClient {
+  const builtEnvelope = envelope(overrides);
+  const built = { campaign: builtEnvelope.campaign, strings: builtEnvelope.strings };
+  const registryResult = buildContentRegistry([built], [WORLD_GRAPH_REASON_MESSAGES]);
+  if (!registryResult.ok || !registryResult.value) throw new Error("fixture registry failed");
+  const runtimeEngine = createEngine({
+    registry: registryResult.value,
+    kinds: { "world-graph": worldGraphKind } as unknown as KindRegistry,
+    ids: { newGameId: () => "game:world-client", newSeed: () => "seed:world-client" },
+  });
+  return new TextClient(createInMemorySessionStore({ engine: runtimeEngine, registry: registryResult.value }));
+}
+
 function create(overrides: Partial<WorldGraphCampaign> = {}) {
   const created = engine(overrides).createGame({ campaignId: "world-test" });
   if (!created.ok || !created.value) throw new Error("expected world to start");
@@ -97,6 +112,27 @@ function create(overrides: Partial<WorldGraphCampaign> = {}) {
 const stateOf = (value: { readonly kindState: unknown }): WorldGraphKindState => value.kindState as WorldGraphKindState;
 
 describe("world-graph W45 source and validation", () => {
+  it("previews accepted and rejected parameterized placement through the text client without persisting either", async () => {
+    const client = textClient();
+    const created = await client.createSession({ campaignId: "world-test" });
+    const accepted = await client.previewAction(created.value.sessionId, "build", {
+      definitionId: "kiosk", x: 2, y: 1, rotation: 0,
+    });
+    const rejected = await client.previewAction(created.value.sessionId, "build", {
+      definitionId: "kiosk", x: 5, y: 1, rotation: 0,
+    });
+
+    expect(accepted.value.ok).toBe(true);
+    expect(accepted.value.changes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ path: "buildings.building:0.exists", reason: "building_placed" }),
+    ]));
+    expect(rejected.value.ok).toBe(false);
+    expect(rejected.value.errors[0]?.code).toBe("placement_out_of_bounds");
+    const persisted = (await client.getView(created.value.sessionId)).value.kindView as WorldGraphView;
+    expect(persisted.map).toMatchObject({ revision: 0, buildingCount: 0 });
+    expect(persisted.finances.cashCents).toBe(2_000);
+  });
+
   it("lifts text, applies exactly the five defaults, and canonicalizes catalogs", () => {
     const built = buildWorldGraphCampaign({ ...source, terrain: [...source.terrain].reverse() });
     expect(built.authoredText).toHaveLength(24);

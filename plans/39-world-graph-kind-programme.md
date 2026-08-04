@@ -372,14 +372,15 @@ execution record.
 
 ### W48 — preview and client parity
 
-- [ ] Cut the W48 cross-cutting plan and inventory every affected client/session surface.
-- [ ] Implement `previewAction` by calling the authoritative action path and discarding state.
-- [ ] Guarantee preview appends no action log entry, persists no session and consumes no state.
-- [ ] Add the operation to `Engine`, `SessionStore`, text client and MCP surfaces together.
-- [ ] Amend `09-clients.md`, `MVP.md` and the MCP operation count in the same unit.
-- [ ] Test preview/submit parity for accepted and rejected parameterized actions.
-- [ ] Test concurrency/version behaviour so preview cannot masquerade as a committed write.
-- [ ] **Gate:** clients can validate placement without duplicating a mechanical rule.
+- [x] Inventory every affected client/session surface in the W48 cross-cutting unit.
+- [x] Implement `previewAction` by calling the authoritative action path and discarding state.
+- [x] Guarantee preview appends no action log entry, persists no session and consumes no state.
+- [x] Add the operation to `Engine`, `SessionStore`, text client and MCP surfaces together.
+- [x] Amend `09-clients.md`, `MVP.md` and the engine-side MCP operation count in the same unit;
+      the companion hosting-contract mirror is indexed in `OPEN-QUESTIONS.md` §2.
+- [x] Test preview/submit parity for accepted and rejected parameterized actions.
+- [x] Test concurrency/version behaviour so preview cannot masquerade as a committed write.
+- [x] **Gate:** clients can validate placement without duplicating a mechanical rule.
 
 ### W49 — validation, scenario and replay guard
 

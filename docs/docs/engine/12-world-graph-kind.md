@@ -1095,9 +1095,8 @@ proposed is rejected: that is a second copy of the ruleset.
 
 > **Consequence, stated rather than smuggled in.** This makes the API coverage checklist
 > ([`09-clients.md`](09-clients.md) §4) ten operations and ten MCP tools rather than nine
-> and nine. That checklist is an MVP Definition-of-Done item and this kind is post-MVP, so
-> **09 is not amended now**; the pairing is added when this kind is built. Recorded in
-> [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §2.
+> and nine. The W48 client-parity unit adds that pairing to 09 and MVP together with this
+> operation, so the public surface, its clients, and its proof remain one contract.
 
 ---
 

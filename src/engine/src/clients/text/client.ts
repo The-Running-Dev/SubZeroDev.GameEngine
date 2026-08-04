@@ -1,7 +1,7 @@
 /**
  * Text client — the proving instrument (09-clients.md, `TODO.md` W16).
  *
- * Contract: `09-clients.md` §2 — the nine-operation surface, and nothing else. `TextClient`
+ * Contract: `09-clients.md` §2 — the ten-operation surface, and nothing else. `TextClient`
  * mirrors it 1:1, in the same order the table lists them, calling `SessionStore` and
  * handing the result to `render.ts`. It never imports the pure engine, a kind, or the
  * registry (04 §1.1's dependency arrow; enforced by `eslint.config.js`'s client-boundary
@@ -55,9 +55,17 @@ export class TextClient {
   /** Returns the table itself, not `Rendered<StringTable>` — every other operation's
    *  `text` is what a human reads on a screen; a raw key→string map isn't a screen, it's
    *  the resource every other render call resolves against (including this client's own,
-   *  internally, for the other eight). */
+   *  internally, for the other nine). */
   getStrings(sessionId: string): Promise<StringTable> {
     return this.store.getStrings(sessionId);
+  }
+
+  // ── Prospective query ──
+
+  async previewAction(sessionId: string, actionId: string, params?: ActionParams): Promise<Rendered<SessionActionResult>> {
+    const value = await this.store.previewAction(sessionId, actionId, params);
+    const strings = await this.store.getStrings(sessionId);
+    return { value, text: renderActionResult(value, strings) };
   }
 
   // ── Commands ──

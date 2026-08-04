@@ -132,17 +132,12 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   specifying a mechanism generically now, with exactly one (still-hypothetical) consumer,
   would be the same one-built-instance-is-not-a-pattern reasoning this register already
   applies to `createSessionLayer` and the tick-pipeline substrate.
-- **`previewAction`, and the tenth API operation it implies** — a spatial kind must be able
-  to check a parameterized action before committing it, and the only check available today
-  is to submit and rely on rejection leaving state unchanged (04 §4). That routes a read
-  through a write path, and clients hold projections rather than state (09 §1), so they
-  cannot call the pure engine themselves. 12 §7 specifies `previewAction` as *the same*
-  `advance` call with the result discarded — it cannot drift, which is why a separate
-  validator was rejected. **The consequence is that [`09-clients.md`](09-clients.md) §4's
-  coverage checklist becomes ten operations and ten MCP tools rather than nine and nine.**
-  That checklist is an MVP Definition-of-Done item and this kind is post-MVP, so 09 is
-  deliberately **not** amended yet. **Revisit when** the `world-graph` kind is
-  built — and amend 09, `MVP.md` §5 and the MCP surface (04 §13) in one change, not three.
+- **The hosted MCP contract still needs its W48 mirror.** The engine-side contract and façade
+  now expose ten operations, including `preview_action`, but SubZeroDev.Platform's
+  `mcp-tool-contract.md` still lists the original nine. The engine repository cannot make a
+  companion-repository edit in the same commit. **Revisit before the hosted MCP server
+  publishes W48:** add `preview_action` with the same arguments and `SessionActionResult`
+  return shape, preserving the one-operation/one-tool mapping from 09 §4.
 - **A shared simulation substrate for tick-driven kinds** — `simulation` and
   `world-graph` are the same archetype: mutate pending configuration, then resolve
   a block of simulated time through an ordered system pipeline (12 §2). Both hand-roll that

@@ -320,6 +320,7 @@ interface Engine {
   view(state: GameState, audience: ProjectionAudience): PlayerView;   // §9
   availableActions(state: GameState): AvailableAction[];
   submitAction(state: GameState, actionId: string, params?: ActionParams): ActionResult;
+  previewAction(state: GameState, actionId: string, params?: ActionParams): ActionResult;
   serialize(state: GameState): string;                  // §10 (canonical)
   deserialize(data: string): CommandResult<GameState>;
   migrate(data: string): CommandResult<GameState>;      // §10
@@ -344,6 +345,11 @@ submitAction(state, actionId, params):
   7. return { ok:true, value:newState, errors:[], warnings:[],
               changes:result.changes, messages:result.messages }
 ```
+
+`previewAction` runs that same path against a null emitter. Its successful `value` is a
+prospective state for rendering only: the caller must project it and discard it, never
+persist it. The input state remains unchanged and preview emits no action lifecycle event,
+so it cannot masquerade as a committed command.
 
 > **A rejected action does not advance `seq`.** Step 5 returns without appending, so the
 > next attempt computes the same `seq` from the same log length. That is deliberate — the
@@ -439,7 +445,7 @@ The pure engine is stateless. The **session store** is the thin stateful layer c
 actually call. It maps the architecture's §10 API onto the pure engine, keyed by
 `sessionId`.
 
-The surface splits cleanly into **queries** (read-only, no state change) and
+The surface splits cleanly into **queries** (read-only, no persisted state change) and
 **commands** (advance or persist). This is a documentation convention for clarity — not
 CQRS the pattern: there is one state model, no separate read store, no event bus. Just a
 useful line between "look" and "change."
@@ -451,6 +457,7 @@ interface SessionStore {
   getScene(sessionId: string): Promise<Scene>;
   getView(sessionId: string): Promise<PlayerView>;
   getStrings(sessionId: string): Promise<StringTable>;   // resolve LocKeys — below
+  previewAction(sessionId: string, actionId: string, params?: ActionParams): Promise<SessionActionResult>; // resolves prospectively, then discards
 
   // ── Commands (advance or persist) ────────────────────
   createSession(config: CreateSessionConfig): Promise<SessionHandle>;   // profileId lives here

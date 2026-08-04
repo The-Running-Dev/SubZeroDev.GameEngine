@@ -355,7 +355,8 @@ The plain proving instrument, over `SessionStore` only.
 - **Depends on:** [W7](#x-w7--session-store), [W12](#x-w12--scene-actions-projection-reason-codes).
 - **Status:** Done — [PR #63](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/63).
 - **Done when:** the **API coverage checklist** ([09 §4](09-clients.md#4-the-api-coverage-checklist)) is complete for the text-client
-      column — all nine operations exercised by automated tests, not by inspection; it
+      column — all nine operations that existed when W16 shipped exercised by automated
+      tests, not by inspection (W48 later adds and proves the tenth); it
       imports nothing from `kinds/` and never reads a persisted `GameState`; requirement
       failures render from reason codes, never matched English; an unknown reason code
       renders rather than crashing ([09 §5](09-clients.md#5-reason-codes-and-messages)).
@@ -667,8 +668,9 @@ when it declined a programme doc for this kind.
       [PR #131](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/131), merged
       to `main` at `2390750`. It follows the canonical world-graph contract and does not
       supersede it.
-- [ ] **W48 proposed — preview/client parity:** `previewAction` across Engine, session, text
-      and MCP surfaces, with 09 §4 and `MVP.md` §5 amended in the same unit.
+- [x] **W48 — preview/client parity:** `previewAction` across Engine, session, text and MCP
+      surfaces, with 09 §4 and `MVP.md` §5 amended in the same unit, is delivered in
+      [PR #133](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/133).
 - [ ] **W49 proposed — validation, scenario and replay guard:** canonical MVP fixture,
       winning/losing replays, release-corpus coverage and a published world-graph package.
 - [ ] **Programme gate:** batch invariance and determinism beyond the seed pass; the third

@@ -108,6 +108,16 @@ describe("TextClient — the API coverage checklist (09-clients.md §4)", () => 
     expect(goHome.text).toContain("Congratulations");
   });
 
+  it("8. previewAction — renders the prospective scene without changing the session", async () => {
+    const client = makeClient();
+    const created = await client.createSession({ campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, seed: SEEDED_ROOM_14_SEED });
+    const preview = await client.previewAction(created.value.sessionId, "wait");
+
+    expect(preview.value.ok).toBe(true);
+    expect(preview.text).toContain("Room 6 informs you");
+    expect((await client.getScene(created.value.sessionId)).value).toEqual(created.value.scene);
+  });
+
   it("submitAction — an unknown action id renders the real resolved core.reason.unknown_action text", async () => {
     const client = makeClient();
     const created = await client.createSession({ campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, seed: SEEDED_ROOM_14_SEED });
@@ -117,7 +127,7 @@ describe("TextClient — the API coverage checklist (09-clients.md §4)", () => 
     expect(text).toBe("That action isn't recognized.");
   });
 
-  it("8. saveGame — produces a save id; text confirms it", async () => {
+  it("9. saveGame — produces a save id; text confirms it", async () => {
     const client = makeClient();
     const created = await client.createSession({ campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, seed: SEEDED_ROOM_14_SEED });
     await client.submitAction(created.value.sessionId, "wait");
@@ -126,7 +136,7 @@ describe("TextClient — the API coverage checklist (09-clients.md §4)", () => 
     expect(text).toContain(value.saveId);
   });
 
-  it("9. loadGame — a fresh session from the save renders the same scene the save point was at", async () => {
+  it("10. loadGame — a fresh session from the save renders the same scene the save point was at", async () => {
     const client = makeClient();
     const created = await client.createSession({ campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, seed: SEEDED_ROOM_14_SEED });
     await client.submitAction(created.value.sessionId, "wait");

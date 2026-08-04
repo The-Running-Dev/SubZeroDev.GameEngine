@@ -375,9 +375,9 @@ platform. Jones is the next milestone, on a core this slice already proves.
       automated test through the text client *and* through its MCP tool, one-to-one, with no
       tool that is not an operation and no client-side workaround for a missing one.
       — `src/engine/src/clients/text/client.test.ts`: `describe("TextClient — the API coverage
-      checklist (09-clients.md §4)")`, nine numbered tests; `src/engine/src/mcp/server.test.ts`:
+      checklist (09-clients.md §4)")`, ten numbered tests; `src/engine/src/mcp/server.test.ts`:
       `describe("McpTools — the API coverage checklist (09-clients.md §4)")`, the
-      matching nine.
+      matching ten.
 - [x] The client contract's own proof: the same arc, seed, **counting `IdSource`** and
       choices driven through both clients serialize **identically** (09 §1). The id source
       is part of the fixture, not an afterthought — `gameId` is serialized and random by

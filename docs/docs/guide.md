@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 16fa709d7ee8387e615c59fd9d91cd2aea2422e2ad6af9094da59957ead2d644 -->
+<!-- design-digest: adea6dfbf579994e9b0c69fab31858579e7e74cb59d2c04e25263264694ae363 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -152,6 +152,16 @@ sequenceDiagram
 Different sessions may resolve concurrently. Commands for the same `sessionId` must be
 serialized by the service/store so the second command reads the first command's committed state.
 A query returns a projection of one complete stored revision, never a half-written result.
+
+### Previewing an action
+
+Clients may call `previewAction(sessionId, actionId, params?)` before submitting an action. It
+uses the same authoritative resolution path as submission, but projects the prospective result
+and discards its state: it never writes a session or profile, consumes a command attempt, adds to
+the action log, or emits an action lifecycle event. Same-session previews share the command
+queue, so they cannot present a result for a revision that a neighbouring submission has already
+replaced. The text client and MCP `preview_action` tool expose the same operation; neither
+duplicates placement or other kind rules.
 
 ### Profiles are optional mirrors
 

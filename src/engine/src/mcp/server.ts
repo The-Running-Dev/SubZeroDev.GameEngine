@@ -1,11 +1,11 @@
 /**
  * MCP server — the same operations as tools (`TODO.md` W17).
  *
- * Contract: [SubZeroDev.Platform's `mcp-tool-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform/blob/main/docs/docs/mcp-tool-contract.md)
- * — the nine-tool table, verbatim, plus "the MCP server is a client like the text
- * client — a thin adapter over the same store, holding no game logic." Moved there from
- * `04-core.md` §13 / `09-clients.md` §7 (both still stubs pointing at it): a hosting-facing
- * contract, not core engine material, even though this file is what implements it.
+ * Contract: `09-clients.md` §4's ten-operation mapping. The broader hosting contract lives in
+ * [SubZeroDev.Platform's `mcp-tool-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform/blob/main/docs/docs/mcp-tool-contract.md):
+ * "the MCP server is a client like the text client — a thin adapter over the same store,
+ * holding no game logic." That hosting contract is not core engine material, even though
+ * this file implements the engine-side tool façade.
  * `09-clients.md` still applies unchanged otherwise: an agent calling these tools is a
  * player, sees the identical projection, and gets the same `unknown_action` for a hidden
  * choice a human client would.
@@ -16,7 +16,7 @@
  *
  * `McpTools`' keys are the literal wire-level tool identifiers the contract assigns
  * (snake_case by contract, not a TypeScript style choice) — the object's own shape is
- * the "nine tools, nine operations, one-to-one" checklist made structural.
+ * the "ten tools, ten operations, one-to-one" checklist made structural.
  */
 
 import type { ActionParams, Scene } from "../core/kernel/types.js";
@@ -42,11 +42,12 @@ export interface McpTools {
   get_state(args: { sessionId: string }): Promise<PlayerView>;
   get_strings(args: { sessionId: string }): Promise<StringTable>;
   choose(args: { sessionId: string; actionId: string; params?: ActionParams }): Promise<SessionActionResult>;
+  preview_action(args: { sessionId: string; actionId: string; params?: ActionParams }): Promise<SessionActionResult>;
   save_game(args: { sessionId: string }): Promise<{ saveId: string }>;
   load_game(args: { saveId: string }): Promise<{ sessionId: string; scene: Scene }>;
 }
 
-/** Builds the nine tools over `store`. Every handler is a direct delegation — the
+/** Builds the ten tools over `store`. Every handler is a direct delegation — the
  *  adapter contributes nothing but the tool's documented name and shape. */
 export function createMcpTools(store: SessionStore): McpTools {
   return {
@@ -63,6 +64,7 @@ export function createMcpTools(store: SessionStore): McpTools {
     get_state: (args) => store.getView(args.sessionId),
     get_strings: (args) => store.getStrings(args.sessionId),
     choose: (args) => store.submitAction(args.sessionId, args.actionId, args.params),
+    preview_action: (args) => store.previewAction(args.sessionId, args.actionId, args.params),
     // Narrowed to { saveId } — the contract names this as the tool's own documented
     // return shape, dropping SaveHandle's savedAtSeq rather than passing it through.
     save_game: async (args) => {

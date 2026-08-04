@@ -33,9 +33,19 @@ function makeTestKind(overrides?: Partial<Kind<TestKindState>>): Kind<TestKindSt
     }),
     availableActions: (): AvailableAction[] => [{ id: "increment", labelKey: "test.increment", available: true }],
     scene: (state): SceneBody => ({ textKey: "test.scene", text: `counter=${state.counter}` }),
-    advance: (state, actionId): AdvanceResult<TestKindState> => {
+    advance: (state, actionId, params): AdvanceResult<TestKindState> => {
       if (actionId === "increment") {
-        return { state: { counter: state.counter + 1 }, status: "active", changes: [], messages: [] };
+        if (params?.amount !== undefined && typeof params.amount !== "number") {
+          return {
+            state,
+            status: "active",
+            changes: [],
+            messages: [],
+            error: { code: "invalid_test_params", messageKey: "core.reason.unknown_action" },
+          };
+        }
+        const amount = typeof params?.amount === "number" ? params.amount : 1;
+        return { state: { counter: state.counter + amount }, status: "active", changes: [], messages: [] };
       }
       if (actionId === "end") {
         return { state, status: "ended", changes: [], messages: [] };
@@ -224,6 +234,29 @@ describe("submitAction", () => {
     const result = engine.submitAction(created.value as GameState, "nope");
     expect(result.ok).toBe(false);
     expect(result.errors[0]?.code).toBe("unknown_action");
+  });
+});
+
+describe("previewAction", () => {
+  it.each([
+    ["accepted", "increment", { amount: 2 }],
+    ["rejected", "increment", { amount: "not-a-number" }],
+  ])("matches submitAction's %s result for parameterized actions", (outcome, actionId, params) => {
+    const recorder = createRecordingEmitter();
+    const engine = createEngine(makeHost({ emitter: recorder }));
+    const state = engine.createGame({ campaignId: "test-campaign" }).value as GameState;
+    const before = engine.serialize(state);
+
+    const preview = engine.previewAction(state, actionId, params);
+    const submitted = engine.submitAction(state, actionId, params);
+
+    expect(preview).toEqual(submitted);
+    expect(preview.ok).toBe(outcome === "accepted");
+    if (outcome === "accepted") expect(preview.value?.kindState).toEqual({ counter: 2 });
+    expect(engine.serialize(state)).toBe(before);
+    expect(recorder.events.filter((event) => event.name.startsWith("core.action.")).map((event) => event.name)).toEqual(
+      [`core.action.${preview.ok ? "accepted" : "rejected"}`],
+    );
   });
 });
 

@@ -230,6 +230,20 @@ function submitAction(
   return { ok: true, value: newState, errors: [], warnings: [], changes: result.changes, messages: result.messages };
 }
 
+/**
+ * Runs the exact submission path while suppressing its observational channel. The caller may
+ * inspect the prospective state to project a result, but must not persist it; this function
+ * never mutates its input and the null emitter prevents a preview from looking committed.
+ */
+function previewAction(
+  host: EngineHost,
+  state: GameState,
+  actionId: string,
+  params?: ActionParams,
+): ActionResult {
+  return submitAction({ ...host, emitter: nullEmitter }, state, actionId, params);
+}
+
 // ---------------------------------------------------------------------------
 // Read-only projections: scene, availableActions, view (04 §6, §9)
 // ---------------------------------------------------------------------------
@@ -438,6 +452,7 @@ export function createEngine(host: EngineHost): Engine {
     view: (state, audience) => view(host, state, audience),
     availableActions: (state) => availableActions(host, state),
     submitAction: (state, actionId, params) => submitAction(host, state, actionId, params),
+    previewAction: (state, actionId, params) => previewAction(host, state, actionId, params),
     serialize: (state) => serializeState(state),
     deserialize: (data) => deserializeState(host, data),
     migrate: (data) => migrateState(host, data),
