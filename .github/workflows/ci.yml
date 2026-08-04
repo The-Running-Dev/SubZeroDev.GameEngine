@@ -236,8 +236,9 @@ jobs:
             echo "has_fixtures=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # stable-life.replay.test.ts (simulation kind, W40) joins bureaucracy's own suite
-      # here -- both read from the same REPLAY_BASELINE_DIR, and both degrade to zero
+      # stable-life.replay.test.ts (simulation kind, W40) and
+      # world-graph-mvp.replay.test.ts (world-graph kind, W49) join bureaucracy's own suite
+      # here -- all read from the same REPLAY_BASELINE_DIR, and all degrade to zero
       # test cases rather than a failure when the baseline tag predates their own corpus
       # (has_fixtures above only guards "the corpus exists at all", not "every kind's own
       # slice of it exists yet" -- v0.1.0-to-just-after-W40 is exactly that transition).
@@ -246,4 +247,4 @@ jobs:
         working-directory: src/engine
         env:
           REPLAY_BASELINE_DIR: /tmp/replay-baseline
-        run: npx vitest run src/campaigns/bulgaria-bureaucracy.replay.test.ts src/campaigns/stable-life.replay.test.ts
+        run: npx vitest run src/campaigns/bulgaria-bureaucracy.replay.test.ts src/campaigns/stable-life.replay.test.ts src/campaigns/world-graph-mvp.replay.test.ts

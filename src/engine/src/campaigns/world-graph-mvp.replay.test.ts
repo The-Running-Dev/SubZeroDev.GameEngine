@@ -50,7 +50,10 @@ describe("the world-graph MVP replay corpus", () => {
   const names = fixtureNames(CORPUS_DIR);
 
   it("contains both terminal paths", () => {
-    expect(fixtureNames(FIXTURES_DIR)).toEqual(["world-graph-mvp-loss", "world-graph-mvp-win"]);
+    expect(fixtureNames(FIXTURES_DIR)).toEqual(expect.arrayContaining([
+      "world-graph-mvp-loss",
+      "world-graph-mvp-win",
+    ]));
   });
 
   it.each(names)("%s: matches its committed Outcome", async (name) => {

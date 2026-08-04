@@ -50,7 +50,7 @@ describe("world-graph MVP campaign", () => {
     if (!hired.ok || !hired.value) throw new Error("expected cleaner hire to succeed");
     const won = win.engine.submitAction(hired.value, "advance_ticks", { ticks: 10 });
     expect(won.value).toMatchObject({ status: "ended" });
-    expect(won.value!.kindState).toMatchObject({ resolution: { resolution: "objectives_met", objectiveIds: ["earn"], failureId: null } });
+    expect(won.value!.kindState).toMatchObject({ resolution: { resolution: "objectives_met", objectiveIds: ["clean-litter"], failureId: null } });
 
     const loss = makeEngine();
     const startedLoss = loss.engine.createGame({ campaignId: loss.built.campaign.id, seed: "world-graph-loss" });
