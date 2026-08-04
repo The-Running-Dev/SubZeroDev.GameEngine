@@ -22,7 +22,7 @@
     "prepack": "npm run build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint src",
+    "lint": "eslint src scripts",
     "demo": "tsx scripts/demo-cli.ts"
   },
   "exports": {
