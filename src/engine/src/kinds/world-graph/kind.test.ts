@@ -15,7 +15,26 @@ import { TextClient } from "../../clients/text/client.js";
 import { worldGraphMvpSource } from "../../campaigns/world-graph-mvp.js";
 
 const text = (key: string, value: string): AuthoredText => ({ key, text: value });
-const source: WorldGraphCampaignSource = worldGraphMvpSource;
+const source: WorldGraphCampaignSource = {
+  ...worldGraphMvpSource,
+  products: worldGraphMvpSource.products.map((product) => ({
+    ...product,
+    price: { ...product.price, defaultCents: 150 },
+    litter: null,
+  })),
+  objectives: worldGraphMvpSource.objectives.map((objective) => ({
+    ...objective,
+    completion: { kind: "compare", metric: { kind: "finance", field: "revenueTotalCents" }, op: "gte", value: 1000 },
+    progressMetric: { kind: "finance", field: "revenueTotalCents" },
+    target: 1000,
+  })),
+  scenarios: worldGraphMvpSource.scenarios.map((scenario) => ({
+    ...scenario,
+    scheduledChanges: [],
+    buildingPlacements: [],
+    guestSpawning: { everyTicks: 5, maxActiveGuests: 10, pool: [{ archetypeId: "guest", weight: 1 }] },
+  })),
+};
 
 function runtime(overrides: Partial<WorldGraphCampaign> = {}): { content: WorldGraphCampaign; authoredText: readonly AuthoredText[] } {
   const built = buildWorldGraphCampaign(source);

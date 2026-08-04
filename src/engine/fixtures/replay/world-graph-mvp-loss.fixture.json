@@ -1,0 +1,10 @@
+{
+  "name": "world-graph-mvp-loss",
+  "config": { "campaignId": "world-graph-mvp", "seed": "world-graph-mvp-loss-seed" },
+  "campaignVersion": "1.0.0",
+  "capturedUnder": "0.4.0",
+  "submissions": [
+    { "actionId": "advance_ticks", "params": { "ticks": 10 } },
+    { "actionId": "advance_ticks", "params": { "ticks": 1 } }
+  ]
+}
