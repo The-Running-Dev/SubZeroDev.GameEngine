@@ -1857,11 +1857,155 @@ labeled category rather than a bare expression.
 ## 9. Projection
 
 `SimulationView` is the `kindView` inside the core's `PlayerView` (04 §9) and carries **only
-what the generic surface does not** — the rule `StoryGraphView` follows (03 §9).
+what the generic surface does not** — the rule `StoryGraphView` follows (03 §9). Identity,
+`gameId` and `status` live on `Scene`/`PlayerView` already (04 §6, §9); repeating any of them
+here is exactly the drift the envelope-duplication ledger (`CLAUDE.md`) tracks.
 
 Hidden world state, unrevealed opportunities and NPC internals never cross the boundary. As
 09 §6 puts it, the projection is what makes "the client cannot leak what the player should
-not see" structural rather than a matter of client discipline.
+not see" structural rather than a matter of client discipline. Never emitted, for either
+`ProjectionAudience`: `seed`, `actionLog`, raw `kindState`, `AgentState.strategy`,
+`RelationshipState.resentment`, `AttributeState.luck`, `ActorState.counters`, or an
+unrevealed `Opportunity`. `ai` is never wider than `player` — this kind draws no distinction
+between the two audiences yet, the same choice `story-graph`'s own `project` made (03 §9).
+
+**`AvailableAction` (04 §6) carries no parameter schema** — the same reason `world-graph`
+splits the seam this way (12 §7): `availableActions` returns the four verbs §4 names, each
+with `available`/`reasonKey`; the *domain* those verbs' `params` (§4's own table) draw from —
+which `ActionType`s are currently offerable, and the plan itself, so a client can compute a
+valid `plan.remove` index — is projection, in `SimulationView.plan` below.
+
+```typescript
+interface SimulationView {
+  calendar: {
+    currentWeek: number;
+    currentYear: number;
+    season?: "spring" | "summer" | "autumn" | "winter";
+    totalTimeUnits: number;
+    committedTimeUnits: number;
+    availableTimeUnits: number;    // derived: total − committed − spent (§2.1) — never stored
+  };
+
+  identity: ActorIdentity;          // §6.3 — luck-free; ActorIdentity itself carries no hidden field
+  currentLocationId: string;
+  finances: FinancialState;         // §6.4 — no field of this type is hidden
+  needs: NeedState;                 // §6.5
+  attributes: Omit<AttributeState, "luck">;   // §6.6 — luck is hidden
+  education: EducationState;        // §6.7
+  career: CareerState;              // §6.8
+  housing: HousingState;            // §6.9
+  inventory: InventoryItem[];       // §6.10
+  relationships: VisibleRelationship[];   // §6.11, resentment stripped
+
+  skills: Record<string, number>;
+  traits: string[];
+  reputation: Record<string, number>;
+  // `flags`/`counters` withheld — `counters` is explicitly hidden (§6.2); `flags` is an
+  // internal scripting bag with no declared player-facing meaning, the same default this
+  // kind gives `world.flags`/`economy.flags` below. Revisit if a real campaign needs one
+  // read back.
+
+  activeEffects: VisibleStatusEffect[];        // §2.3 — only `visible: true` effects, modifiers stripped
+  activeOpportunities: VisibleOpportunity[];   // §2.3 — offered-and-unexpired only; `terms` stripped
+  pendingEventResponses: PendingEventResponse[]; // §2.3 — no field of this type is hidden
+
+  goals: VisibleGoal[];             // §2.4 — every field but nothing beyond it; no hidden field exists
+
+  plan: {
+    week: number;
+    actions: readonly GameAction[];             // §4.2 — the parameter domain for `plan.remove`'s index
+    availableActionTypes: readonly ActionType[]; // §4.2 minus "custom" — the domain for `plan.add`'s actionType
+  };
+
+  world: {
+    locations: PublicLocationState[];      // §2.2 — `LocationState` as-is; nothing hidden
+    jobMarket: { openings: PublicJobOpening[] };  // §2.2's `JobOpening`, `postedWeek` stripped (internal bookkeeping)
+    economy: PublicEconomyView;            // §2.5
+  };
+}
+
+interface VisibleRelationship {
+  npcId: string;
+  category: "professional" | "personal" | "transactional" | "adversarial";
+  affinity: number;
+  trust: number;
+  respect: number;                // resentment excluded (§6.11 — hidden)
+  knownSinceWeek: number;
+  lastInteractionWeek?: number;
+  interactionCount: number;
+}
+
+interface VisibleStatusEffect {
+  id: string;
+  sourceKind: "item" | "housing" | "trait" | "event" | "job" | "course" | "system";
+  descriptionKey: LocKey;
+  expiresAtWeek?: number;          // modifiers, sourceId, stacking withheld — mechanism, not narration
+}
+
+interface VisibleOpportunity {
+  id: string;
+  kind: OpportunityKind;
+  targetId: string;
+  offeredWeek: number;
+  expiresAtWeek: number;           // `terms` withheld — undocumented, resolver-internal payload (§2.3)
+}
+
+interface VisibleGoal {
+  definitionId: string;
+  status: "active" | "completed" | "failed";
+  satisfiedThisWeek: boolean;
+  consecutiveWeeksSatisfied: number;
+  requiredDurationWeeks?: number;
+  progressNotes: GoalProgressNote[];   // §2.4 — the Transparent Consequences field, unfiltered
+}
+
+interface PublicLocationState {
+  definitionId: string;
+  discovered: boolean;
+  accessible: boolean;
+}
+
+interface PublicJobOpening {
+  jobId: string;
+  contested: boolean;
+  positionsAvailable?: number;
+  expiresAtWeek?: number;
+}
+
+/** Sector demand is **banded, never the raw value** (§2.5 — exposing the exact number would
+ *  let a player optimise against the job-availability formula directly). Inflation,
+ *  unemployment and interest are each present only when their key is in
+ *  `EconomyState.publishedIndicators` — withheld by default is wrong; §2.5 states the
+ *  opposite default ("ordinary published facts by default; a scenario may withhold them"),
+ *  so a scenario declaring no `publishedIndicators` gets none, not all three. */
+interface PublicEconomyView {
+  sectorDemand: Record<string, DemandBand>;
+  marketPrices: Record<string, Cents>;
+  indicators: Partial<Record<"inflation" | "unemploymentRate" | "interestRate", BasisPoints>>;
+}
+```
+
+**§7.10's forward reference resolves here.** `AgentStrategy.selectActions(view: PublicWorldState,
+agent: AgentState)` takes the shape below — the same information any client's `SimulationView`
+carries about the *world*, never an actor's own private state (an agent decides "from the same
+visible information a client would see," §7.10):
+
+```typescript
+interface PublicWorldState {
+  calendar: SimulationView["calendar"];
+  locations: PublicLocationState[];
+  jobMarket: { openings: PublicJobOpening[] };
+  economy: PublicEconomyView;
+}
+```
+
+Deliberately smaller than `SimulationView` — it carries no actor's finances, needs, or plan
+(a rival's own state is `AgentState.actor`, read directly by whatever calls
+`selectActions`, not re-derived from this type). **Not yet exercised at runtime**: no unit
+before this one wires a rival agent into `end_week`'s resolution (§7.10's own callout —
+"how a campaign actually selects a strategy is a real, open gap"), so `PublicWorldState` is
+declared to close the undeclared-name gap `AgentStrategy` left, not because a caller
+constructs one yet.
 
 ---
 

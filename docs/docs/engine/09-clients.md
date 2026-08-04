@@ -121,18 +121,25 @@ checklist."* This is that checklist.
 real client**, not by inspection and not by a unit test of the store. One row per operation,
 one column per MVP client:
 
-| # | Operation | Text client (W16) | MCP tool (W17) |
-|---|---|---|---|
-| 1 | `listCampaigns` | ☑ | `list_campaigns` ☑ |
-| 2 | `createSession` | ☑ | `start_game` ☑ |
-| 3 | `resumeSession` | ☑ | `continue_game` ☑ |
-| 4 | `getScene` | ☑ | `get_scene` ☑ |
-| 5 | `getView` | ☑ | `get_state` ☑ |
-| 6 | `getStrings` | ☑ | `get_strings` ☑ |
-| 7 | `submitAction` | ☑ | `choose` ☑ |
-| 8 | `previewAction` | ☑ | `preview_action` ☑ |
-| 9 | `saveGame` | ☑ | `save_game` ☑ |
-| 10 | `loadGame` | ☑ | `load_game` ☑ |
+| # | Operation | Text client (W16) | MCP tool (W17) | Simulation kind (W50) |
+|---|---|---|---|---|
+| 1 | `listCampaigns` | ☑ | `list_campaigns` ☑ | ☑ |
+| 2 | `createSession` | ☑ | `start_game` ☑ | ☑ |
+| 3 | `resumeSession` | ☑ | `continue_game` ☑ | ☑ |
+| 4 | `getScene` | ☑ | `get_scene` ☑ | ☑ |
+| 5 | `getView` | ☑ | `get_state` ☑ | ☑ |
+| 6 | `getStrings` | ☑ | `get_strings` ☑ | ☑ |
+| 7 | `submitAction` | ☑ | `choose` ☑ | ☑ |
+| 8 | `previewAction` | ☑ | `preview_action` ☑ | ☑ |
+| 9 | `saveGame` | ☑ | `save_game` ☑ | ☑ |
+| 10 | `loadGame` | ☑ | `load_game` ☑ | ☑ |
+
+**The "Simulation kind" column is not a third client** — it is the same two clients
+(text, MCP), driven a second time against a kind whose actions carry declared `params`
+(`plan.add`'s `actionType`), the first kind for which that distinction is real
+(`story-graph` rejects any `params` — 03 §8.2). It exists to prove the checklist generalizes
+past the one kind (`story-graph`) every other row above was proven against, not to add an
+eleventh operation.
 
 **Evidence**, one test per box, both driving the real client rather than the store directly:
 
@@ -153,6 +160,28 @@ The text-client suite numbers its `it` blocks 1–10 to match this table's rows 
 suite's own top-level `describe` names itself after this section (`"McpTools — the API coverage
 checklist (09-clients.md §4)"`). Neither test drives `SessionStore` directly — both go through
 the real client, which is what this checklist requires.
+
+**Simulation-kind evidence** (W50), same ten rows, `"sim.N."`-numbered `it` blocks in the same
+two files, under `describe("… simulation kind (09-clients.md §4, W50)")`:
+
+| # | Text client | MCP tool |
+|---|---|---|
+| 1 | `"sim.1. listCampaigns — includes the Stable Life campaign"` | `"sim.1. list_campaigns — includes the Stable Life campaign summary"` |
+| 2 | `"sim.2. createSession — starts Stable Life; text renders the real status scene"` | `"sim.2. start_game — returns { sessionId, scene } for Stable Life"` |
+| 3 | `"sim.3. resumeSession — returns the current scene unchanged, no side effect"` | `"sim.3. continue_game — returns the current scene unchanged, no side effect"` |
+| 4 | `"sim.4. getScene — matches what createSession returned"` | `"sim.4. get_scene — matches what start_game returned for the same session"` |
+| 5 | `"sim.5. getView — carries the real SimulationView; a declared field renders in the opaque JSON"` | `"sim.5. get_state — returns the real SimulationView through PlayerView"` |
+| 6 | `"sim.6. getStrings — resolves the same table the store returns; the scene template key is present"` | `"sim.6. get_strings — resolves LocKeys through the registry"` |
+| 7 | `"sim.7. submitAction — plan.add carries its declared actionType param through to the new scene"` | `"sim.7. choose — plan.add's declared actionType param reaches the kind through the MCP name"` |
+| 8 | `"sim.8. previewAction — renders the prospective result without changing the session"` | `"sim.8. preview_action — returns the prospective result without committing it"` |
+| 9 | `"sim.9. saveGame — produces a save id"` | `"sim.9. save_game — narrows the store's SaveHandle to { saveId } only"` |
+| 10 | `"sim.10. loadGame — a fresh session from the save renders the same scene the save point was at"` | `"sim.10. load_game — a fresh session from the save renders the same scene the save point was at"` |
+
+`campaigns/stable-life.client-parity.test.ts` additionally exercises 09 §1's own invariant —
+same seed, same counting `IdSource`, played to the committed win through the text client and
+through MCP independently — asserting identical `Scene`/`PlayerView` at every step, plus a
+client-free replay of the identical action log reaching the identical, golden-filed
+`serialize()` output on repeat.
 
 **The mapping is one-to-one, and that is the point.** Every store operation has exactly one
 MCP tool, and there is no tool that is not an operation. That is what *"no AI-specific path"*

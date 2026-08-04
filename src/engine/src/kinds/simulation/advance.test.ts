@@ -47,6 +47,8 @@ const simulationCampaign: SimulationCampaign = {
   startingWorld: world,
   goals: [],
   goalFailurePrecedence: "goals_win",
+  sceneTemplateKey: "sim.scene.status",
+  actionLabelKeys: { planAdd: "sim.action.plan-add", planRemove: "sim.action.plan-remove", planClear: "sim.action.plan-clear", endWeek: "sim.action.end-week" },
 };
 
 const campaign: Campaign = { id: "test-sim", kindId: "simulation", version: "1.0.0", titleKey: "sim.title", content: simulationCampaign };
@@ -249,7 +251,16 @@ describe("simulation kind — through the real engine (integration)", () => {
       id: "simulation",
       version: "1.0.0",
       reasonCodes: [...SIMULATION_REASON_CODES],
-      eventNames: ["kind.simulation.system.ran"],
+      eventNames: [
+        "kind.simulation.plan.changed",
+        "kind.simulation.week.started",
+        "kind.simulation.system.ran",
+        "kind.simulation.action.resolved",
+        "kind.simulation.effect.expired",
+        "kind.simulation.goal.achieved",
+        "kind.simulation.goal.failed",
+        "kind.simulation.week.ended",
+      ],
       initialState: (c): InitialStateResult<SimulationKindState> => initialState(c),
       availableActions: (): AvailableAction[] => [],
       scene: (): SceneBody => ({ textKey: "sim.scene", text: "" }),

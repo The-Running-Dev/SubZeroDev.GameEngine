@@ -84,6 +84,8 @@ const simulationCampaign: SimulationCampaign = {
   startingWorld,
   goals: goalDefinitions,
   goalFailurePrecedence: "goals_win",
+  sceneTemplateKey: "sim.scene.status",
+  actionLabelKeys: { planAdd: "sim.action.plan-add", planRemove: "sim.action.plan-remove", planClear: "sim.action.plan-clear", endWeek: "sim.action.end-week" },
 };
 
 const campaign: Campaign = {

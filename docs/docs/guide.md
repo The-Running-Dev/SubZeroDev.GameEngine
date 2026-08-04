@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: ba2f82dd0774f30b25e18f57835689a1ba458c0b046f8a22320405a187118980 -->
+<!-- design-digest: 8655e8fd13493fb3e3ea862fcd086c938206fe92b49cf864238f21fe83cd3a0b -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -31,8 +31,9 @@ assertable invariants are in the
 - `story-graph` is complete through content, projection, text client, and MCP. The Bulgaria
   Bureaucracy arc and four additional arcs provide real fixtures.
 - `simulation` has state, content definitions, weekly resolution, validation, a registered kind,
-  and Stable Life winning/losing replay fixtures. Its projection and text/MCP parity are not yet
-  complete, so treat it as an engine/replay integration rather than a player-facing client path.
+  a full player projection (`SimulationView`), and Stable Life winning/losing replay fixtures.
+  Text-client and MCP parity now match `story-graph`'s row of the API coverage checklist, one
+  for one.
 - `world-graph` has a settled core seam, runtime-state, campaign-content, and resolution
   contract, stream support, and a published consumer package boundary. The contract specifies a
   source-to-runtime build step and a deterministic 20-system tick pipeline, including utility,
@@ -267,12 +268,23 @@ Important constraints:
   a concrete supported action before submission.
 - Opportunities explicitly distinguish acceptance, decline, expiry, and revocation.
 - Scheduled events fire once committed; cancellation requires an explicit shared chain id.
-- Hidden exact economy values may project as bands, not raw optimization inputs.
+- Hidden exact economy values project as bands, not raw optimization inputs.
 
-The Stable Life fixtures prove winning and losing engine/replay paths. Do not advertise full text
-or MCP simulation play until projection/API parity lands. Do not rely on an answer for a week that
-simultaneously reaches its limit and another terminal condition; that precedence is explicitly
-unsettled and excluded from supported scenarios.
+The player view (`SimulationView`) carries the calendar, identity, finances, needs, attributes,
+education, career, housing, inventory, and relationships — with `luck` and relationship
+`resentment` stripped, `flags`/`counters` withheld entirely, status effects reduced to their
+visible fields, opportunities limited to what is currently offered and unexpired, and sector
+demand exposed only as a band (`cold`/`steady`/`hot`), never the raw value that job-availability
+rolls read. It also carries the pending plan itself, plus the domain a client needs to build one:
+every currently-offerable action type (for `plan.add`) and the plan's own action list (so a client
+can compute a valid `plan.remove` index). A separate, narrower `PublicWorldState` shape exists for
+rival-agent strategy selection — the same world information a client's projection carries, with no
+actor's own private state — but no unit yet wires a rival agent into `end_week`'s resolution, so
+nothing constructs one at runtime yet.
+
+The Stable Life fixtures prove winning and losing engine/replay paths. Do not rely on an answer
+for a week that simultaneously reaches its limit and another terminal condition; that precedence
+is explicitly unsettled and excluded from supported scenarios.
 
 ## World-graph integration status
 

@@ -38,6 +38,13 @@ function makeCampaign(content: Partial<SimulationCampaign> = {}): Campaign {
       startingWorld,
       goals: [],
       goalFailurePrecedence: "goals_win",
+      sceneTemplateKey: "sim.scene.status",
+      actionLabelKeys: {
+        planAdd: "sim.action.plan-add",
+        planRemove: "sim.action.plan-remove",
+        planClear: "sim.action.plan-clear",
+        endWeek: "sim.action.end-week",
+      },
       ...content,
     } satisfies SimulationCampaign,
   };
@@ -47,6 +54,11 @@ const VALID_STRINGS = new Map<string, string>([
   ["sim.description", "A description"],
   ["goal.label", "A goal"],
   ["goal.description", "A goal description"],
+  ["sim.scene.status", "Week {week}."],
+  ["sim.action.plan-add", "Add to plan"],
+  ["sim.action.plan-remove", "Remove from plan"],
+  ["sim.action.plan-clear", "Clear plan"],
+  ["sim.action.end-week", "End week"],
 ]);
 
 describe("validateCampaign", () => {
@@ -82,6 +94,31 @@ describe("validateCampaign", () => {
     expect(result.ok).toBe(false);
     expect(result.errors).toContainEqual(
       expect.objectContaining({ code: "missing_string_key", path: "goal.missing_label" }),
+    );
+  });
+
+  it("rejects a sceneTemplateKey with no authored string (§9 — fails registry construction, never a raw key at play)", () => {
+    const campaign = makeCampaign({ sceneTemplateKey: "sim.scene.missing" });
+    const result = validateCampaign(campaign, VALID_STRINGS);
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ code: "missing_string_key", path: "sim.scene.missing" }),
+    );
+  });
+
+  it("rejects an actionLabelKeys entry with no authored string", () => {
+    const campaign = makeCampaign({
+      actionLabelKeys: {
+        planAdd: "sim.action.missing",
+        planRemove: "sim.action.plan-remove",
+        planClear: "sim.action.plan-clear",
+        endWeek: "sim.action.end-week",
+      },
+    });
+    const result = validateCampaign(campaign, VALID_STRINGS);
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ code: "missing_string_key", path: "sim.action.missing" }),
     );
   });
 

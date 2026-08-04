@@ -17,13 +17,15 @@
  * can" (§3's own callout), and a stream naming each system in order localizes a regression
  * to the phase that moved. `effects` additionally emits `effect.expired` (§11) per expired
  * effect — expiry's only observability signal, since §6.1 says expiry itself produces no
- * `StateChange`.
+ * `StateChange`. `week.started` (§11, `info`) is emitted once, after all four systems run —
+ * "after start-of-week systems" is what §11's own table says.
  */
 
 import type { ResolutionEmitter } from "../../core/observability/types.js";
 import type { SimulationKindState } from "./state.js";
 
 const SYSTEM_NAME = "kind.simulation.system.ran";
+const WEEK_STARTED_EVENT = "kind.simulation.week.started";
 
 function ranSystem(emit: ResolutionEmitter, system: string): void {
   emit.emit(SYSTEM_NAME, "trace", { data: { system, phase: "start_of_week" } });
@@ -95,6 +97,8 @@ export function runStartOfWeek(state: SimulationKindState, emit: ResolutionEmitt
 
   next = events(next);
   ranSystem(emit, "events");
+
+  emit.emit(WEEK_STARTED_EVENT, "info", { data: { week: next.calendar.currentWeek } });
 
   return next;
 }

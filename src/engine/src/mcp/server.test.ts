@@ -5,11 +5,13 @@ import { createEngine } from "../core/kernel/engine.js";
 import { createInMemorySessionStore } from "../core/session/store.js";
 import { buildValidatedContentRegistry } from "../core/validation/tiered.js";
 import { storyGraphKind } from "../kinds/story-graph/kind.js";
+import { simulationKind } from "../kinds/simulation/kind.js";
 import { createCountingIds } from "../core/determinism/counting-ids.js";
 import type { KindRegistry } from "../core/kernel/types.js";
 import type { SessionStore } from "../core/session/types.js";
 import type { IdSource } from "../core/composition/types.js";
 import { buildBulgariaBureaucracyCampaign, BULGARIA_BUREAUCRACY_CAMPAIGN_ID } from "../campaigns/bulgaria-bureaucracy.js";
+import { buildStableLifeCampaign, STABLE_LIFE_CAMPAIGN_ID } from "../campaigns/stable-life.js";
 
 // The scan-verified seed whose first weighted pick at clerk_review (3 expired : 1 room_14)
 // lands on room_14 — see plans/22-w15-bureaucracy-campaign-and-broken-fixtures.md.
@@ -144,6 +146,101 @@ describe("McpTools — the API coverage checklist (09-clients.md §4)", () => {
     const loaded = await tools.load_game({ saveId: saved.saveId });
     expect(loaded.sessionId).not.toBe(created.sessionId);
     expect(loaded.scene).toEqual(sceneAfterWait);
+  });
+});
+
+function buildSimulationStore(): SessionStore {
+  const built = buildStableLifeCampaign();
+  if (!built.ok || !built.value) throw new Error("expected the Stable Life fixture campaign to build");
+  const kinds = { simulation: simulationKind } as unknown as KindRegistry;
+  const registryResult = buildValidatedContentRegistry([built.value], kinds);
+  if (!registryResult.ok || !registryResult.value) throw new Error("expected the Stable Life fixture campaign to validate");
+
+  const engine = createEngine({ kinds, registry: registryResult.value });
+  return createInMemorySessionStore({ engine, registry: registryResult.value });
+}
+
+function makeSimulationTools(): McpTools {
+  return createMcpTools(buildSimulationStore());
+}
+
+// A simulation column (W50) — the same ten operations, proven against a kind whose
+// actions carry declared `params`, mirroring the text-client suite's own "sim.N" numbering.
+describe("McpTools — the API coverage checklist, simulation kind (09-clients.md §4, W50)", () => {
+  it("sim.1. list_campaigns — includes the Stable Life campaign summary", () => {
+    const tools = makeSimulationTools();
+    const campaigns = tools.list_campaigns({});
+    expect(campaigns).toContainEqual({ campaignId: STABLE_LIFE_CAMPAIGN_ID, kindId: "simulation", titleKey: "stable-life.campaign.title" });
+  });
+
+  it("sim.2. start_game — returns { sessionId, scene } for Stable Life", async () => {
+    const tools = makeSimulationTools();
+    const result = await tools.start_game({ campaignId: STABLE_LIFE_CAMPAIGN_ID, seed: "sim-mcp-seed" });
+    expect(result.sessionId).toBeTruthy();
+    expect(result.scene.actions.map((a) => a.id).sort()).toEqual(["end_week", "plan.add", "plan.clear", "plan.remove"]);
+  });
+
+  it("sim.3. continue_game — returns the current scene unchanged, no side effect", async () => {
+    const tools = makeSimulationTools();
+    const created = await tools.start_game({ campaignId: STABLE_LIFE_CAMPAIGN_ID, seed: "sim-mcp-seed" });
+    const resumed = await tools.continue_game({ sessionId: created.sessionId });
+    expect(resumed).toEqual(created.scene);
+  });
+
+  it("sim.4. get_scene — matches what start_game returned for the same session", async () => {
+    const tools = makeSimulationTools();
+    const created = await tools.start_game({ campaignId: STABLE_LIFE_CAMPAIGN_ID, seed: "sim-mcp-seed" });
+    const scene = await tools.get_scene({ sessionId: created.sessionId });
+    expect(scene).toEqual(created.scene);
+  });
+
+  it("sim.5. get_state — returns the real SimulationView through PlayerView", async () => {
+    const tools = makeSimulationTools();
+    const created = await tools.start_game({ campaignId: STABLE_LIFE_CAMPAIGN_ID, seed: "sim-mcp-seed" });
+    const view = await tools.get_state({ sessionId: created.sessionId });
+    const kindView = view.kindView as { calendar: { currentWeek: number } };
+    expect(kindView.calendar.currentWeek).toBe(1);
+  });
+
+  it("sim.6. get_strings — resolves LocKeys through the registry", async () => {
+    const tools = makeSimulationTools();
+    const created = await tools.start_game({ campaignId: STABLE_LIFE_CAMPAIGN_ID, seed: "sim-mcp-seed" });
+    const strings = await tools.get_strings({ sessionId: created.sessionId });
+    expect(strings["stable-life.scene.status"]).toContain("Week {week}");
+  });
+
+  it("sim.7. choose — plan.add's declared actionType param reaches the kind through the MCP name", async () => {
+    const tools = makeSimulationTools();
+    const created = await tools.start_game({ campaignId: STABLE_LIFE_CAMPAIGN_ID, seed: "sim-mcp-seed" });
+    const result = await tools.choose({ sessionId: created.sessionId, actionId: "plan.add", params: { actionType: "rest" } });
+    expect(result.ok).toBe(true);
+    expect(result).not.toHaveProperty("kindState");
+  });
+
+  it("sim.8. preview_action — returns the prospective result without committing it", async () => {
+    const tools = makeSimulationTools();
+    const created = await tools.start_game({ campaignId: STABLE_LIFE_CAMPAIGN_ID, seed: "sim-mcp-seed" });
+    const preview = await tools.preview_action({ sessionId: created.sessionId, actionId: "plan.add", params: { actionType: "rest" } });
+    expect(preview.ok).toBe(true);
+    expect(await tools.get_scene({ sessionId: created.sessionId })).toEqual(created.scene);
+  });
+
+  it("sim.9. save_game — narrows the store's SaveHandle to { saveId } only", async () => {
+    const tools = makeSimulationTools();
+    const created = await tools.start_game({ campaignId: STABLE_LIFE_CAMPAIGN_ID, seed: "sim-mcp-seed" });
+    const saved = await tools.save_game({ sessionId: created.sessionId });
+    expect(Object.keys(saved)).toEqual(["saveId"]);
+  });
+
+  it("sim.10. load_game — a fresh session from the save renders the same scene the save point was at", async () => {
+    const tools = makeSimulationTools();
+    const created = await tools.start_game({ campaignId: STABLE_LIFE_CAMPAIGN_ID, seed: "sim-mcp-seed" });
+    await tools.choose({ sessionId: created.sessionId, actionId: "plan.add", params: { actionType: "rest" } });
+    const sceneAfterAdd = await tools.get_scene({ sessionId: created.sessionId });
+    const saved = await tools.save_game({ sessionId: created.sessionId });
+
+    const loaded = await tools.load_game({ saveId: saved.saveId });
+    expect(loaded.scene).toEqual(sceneAfterAdd);
   });
 });
 

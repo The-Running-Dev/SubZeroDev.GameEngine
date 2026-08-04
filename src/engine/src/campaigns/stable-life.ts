@@ -38,6 +38,14 @@ const GOAL_DESCRIPTION: AuthoredText = {
   key: "stable-life.goal.well-rested.description",
   text: "Keep your energy at 70 or above for two weeks running.",
 };
+const SCENE_TEMPLATE: AuthoredText = {
+  key: "stable-life.scene.status",
+  text: "Week {week} of Year {year}. Cash: ${cash}. Health {health} · Energy {energy} · Happiness {happiness} · Stress {stress} · Satiety {satiety}.",
+};
+const ACTION_PLAN_ADD_LABEL: AuthoredText = { key: "stable-life.action.plan-add.label", text: "Add to plan" };
+const ACTION_PLAN_REMOVE_LABEL: AuthoredText = { key: "stable-life.action.plan-remove.label", text: "Remove from plan" };
+const ACTION_PLAN_CLEAR_LABEL: AuthoredText = { key: "stable-life.action.plan-clear.label", text: "Clear plan" };
+const ACTION_END_WEEK_LABEL: AuthoredText = { key: "stable-life.action.end-week.label", text: "End week" };
 
 const wellRestedGoal: GoalDefinition = {
   id: "goal-well-rested",
@@ -128,6 +136,13 @@ const stableLifeContent: SimulationCampaign = {
   startingWorld,
   goals: [wellRestedGoal],
   goalFailurePrecedence: "goals_win",
+  sceneTemplateKey: SCENE_TEMPLATE.key,
+  actionLabelKeys: {
+    planAdd: ACTION_PLAN_ADD_LABEL.key,
+    planRemove: ACTION_PLAN_REMOVE_LABEL.key,
+    planClear: ACTION_PLAN_CLEAR_LABEL.key,
+    endWeek: ACTION_END_WEEK_LABEL.key,
+  },
 };
 
 /**
@@ -144,5 +159,15 @@ export function buildStableLifeCampaign(): CommandResult<BuiltCampaign> {
     titleKey: TITLE.key,
     content: stableLifeContent,
   };
-  return buildCampaign(campaign, [TITLE, DESCRIPTION, GOAL_LABEL, GOAL_DESCRIPTION]);
+  return buildCampaign(campaign, [
+    TITLE,
+    DESCRIPTION,
+    GOAL_LABEL,
+    GOAL_DESCRIPTION,
+    SCENE_TEMPLATE,
+    ACTION_PLAN_ADD_LABEL,
+    ACTION_PLAN_REMOVE_LABEL,
+    ACTION_PLAN_CLEAR_LABEL,
+    ACTION_END_WEEK_LABEL,
+  ]);
 }
