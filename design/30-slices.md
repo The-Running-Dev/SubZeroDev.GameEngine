@@ -689,8 +689,14 @@ when it declined a programme doc for this kind.
       [PR #133](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/133).
 <a id="w49"></a>
 
-- [ ] **W49 proposed — validation, scenario and replay guard:** canonical MVP fixture,
-      winning/losing replays, release-corpus coverage and a published world-graph package.
+- [~] **W49 — validation, scenario and replay guard:** the canonical engine-owned MVP
+      fixture and its Tier 1/Tier 2 validation landed in
+      [PR #134](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/134); deterministic
+      winning and losing replay pairs and release-corpus coverage landed in
+      [PR #136](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/136).
+      Session-parity replay cases, a clean-build serialization proof, and a consumer-smoke
+      rerun remain before the programme gate can close. Package version selection and
+      publication are external release actions, not evidence this unit can claim.
 - [ ] **Programme gate:** batch invariance and determinism beyond the seed pass; the third
       kind is replay-guarded and installable by Sun Trap without a sibling checkout.
 - **Plan:** [`plans/39-world-graph-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/39-world-graph-kind-programme.md)

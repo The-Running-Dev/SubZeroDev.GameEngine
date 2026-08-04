@@ -136,4 +136,4 @@
 
 ### [x] W48 — preview/client parity: `previewAction` across Engine, session, text and MCP {#w48}
 
-### [ ] W49 — validation, scenario and replay guard: canonical MVP fixture, {#w49}
+### [~] W49 — validation, scenario and replay guard: the canonical engine-owned MVP {#w49}
