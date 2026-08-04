@@ -96,7 +96,8 @@ async function main(): Promise<void> {
   const rl = readline.createInterface({ input, output });
   const ask = makeAsker(rl);
 
-  console.log("SubZeroDev.GameEngine — interactive CLI play-test harness\n");
+  try {
+    console.log("SubZeroDev.GameEngine — interactive CLI play-test harness\n");
   console.log(client.listCampaigns().text);
   console.log();
 
@@ -140,7 +141,9 @@ async function main(): Promise<void> {
     console.log(`\n${result.text}\n`);
   }
 
-  rl.close();
+  } finally {
+    rl.close();
+  }
 }
 
 main().catch((err: unknown) => {
