@@ -112,6 +112,32 @@
 
 ### [x] W40 — Simulation Kind: The "Stable Life" Scenario, Validation, and Corpus
 
+### Depth: Life in the Fast Lane Becomes Playable
+
+### [ ] W50 — Simulation Kind: Projection and Client Parity {#w50}
+
+### [ ] W51 — Simulation Kind: Derived Values, Modifiers, and Effects {#w51}
+
+### [ ] W52 — Simulation Kind: The Scenario Campaign and Full Validation {#w52}
+
+### [ ] W53 — Simulation Kind: Employment and Income {#w53}
+
+### [ ] W54 — Simulation Kind: Education and Skills {#w54}
+
+### [ ] W55 — Simulation Kind: Housing, Debt, and Reconciliation {#w55}
+
+### [ ] W56 — Simulation Kind: Possessions, Places, and People {#w56}
+
+### [ ] W57 — Simulation Kind: Events, Opportunities, Headlines, and Achievements {#w57}
+
+### Breadth: Content Packs, Experiments, and Locales
+
+### [ ] W58 — Content Pack Resolution and Content Identity {#w58}
+
+### [ ] W59 — Experiment Gates and the `ExperimentSource` Port {#w59}
+
+### [ ] W60 — A Second Locale, End to End {#w60}
+
 ### Breadth: The First Culture Pack
 
 ### Breadth: The Platform
