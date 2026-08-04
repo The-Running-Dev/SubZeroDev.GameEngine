@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildValidatedContentRegistry } from "../core/validation/tiered.js";
 import { createEngine } from "../core/kernel/engine.js";
 import { createInMemorySessionStore } from "../core/session/store.js";
+import { buildSaveEnvelope, resolveSaveEnvelope, serializeSaveEnvelope } from "../core/persistence/envelope.js";
 import type { EngineHost } from "../core/composition/types.js";
 import type { KindRegistry } from "../core/kernel/types.js";
 import type { WorldGraphCampaign } from "../kinds/world-graph/content.js";
@@ -19,7 +20,7 @@ function makeEngine() {
     kinds,
     ids: { newGameId: () => "game:world-graph-mvp", newSeed: () => "seed:world-graph-mvp" },
   };
-  return { built: built.value, engine: createEngine(host), registry: result.value };
+  return { built: built.value, engine: createEngine(host), kinds, registry: result.value };
 }
 
 describe("world-graph MVP campaign", () => {
@@ -73,10 +74,23 @@ describe("world-graph MVP campaign", () => {
     const splitBatch = direct.engine.submitAction(firstPartition.value, "advance_ticks", { ticks: 7 });
     if (!oneBatch.ok || !oneBatch.value || !splitBatch.ok || !splitBatch.value) throw new Error("expected parity batches to advance");
     expect(splitBatch.value.kindState).toEqual(oneBatch.value.kindState);
-    const serialized = direct.engine.serialize(oneBatch.value);
-    const deserialized = direct.engine.deserialize(serialized);
-    if (!deserialized.ok || !deserialized.value) throw new Error("expected canonical world-graph state to deserialize");
-    expect(direct.engine.serialize(deserialized.value)).toBe(serialized);
+
+    const hiredDirect = direct.engine.submitAction(start.value, "hire_staff", { definitionId: "cleaner" });
+    if (!hiredDirect.ok || !hiredDirect.value) throw new Error("expected save fixture cleaner hire to succeed");
+    const saveBlob = serializeSaveEnvelope(buildSaveEnvelope({
+      state: hiredDirect.value,
+      kind: direct.kinds["world-graph"],
+      campaign: direct.built.campaign,
+      replayCompatible: true,
+    }));
+    const resolved = resolveSaveEnvelope(saveBlob, direct.kinds, direct.registry);
+    if (!resolved.ok) throw new Error(`expected world-graph save to resolve: ${resolved.code}`);
+    const restoredAdvance = direct.engine.submitAction(resolved.state, "advance_ticks", { ticks: 10 });
+    const uninterruptedAdvance = direct.engine.submitAction(hiredDirect.value, "advance_ticks", { ticks: 10 });
+    if (!restoredAdvance.ok || !restoredAdvance.value || !uninterruptedAdvance.ok || !uninterruptedAdvance.value) {
+      throw new Error("expected restored and uninterrupted sessions to advance");
+    }
+    expect(direct.engine.serialize(restoredAdvance.value)).toBe(direct.engine.serialize(uninterruptedAdvance.value));
 
     const session = makeEngine();
     const store = createInMemorySessionStore({ engine: session.engine, registry: session.registry });
@@ -87,19 +101,6 @@ describe("world-graph MVP campaign", () => {
     expect(await store.getView(created.sessionId)).toEqual(beforePreview);
     expect((await store.saveGame(created.sessionId)).savedAtSeq).toBe(0);
 
-    const hired = await store.submitAction(created.sessionId, "hire_staff", { definitionId: "cleaner" });
-    expect(hired.ok).toBe(true);
-    const saved = await store.saveGame(created.sessionId);
-    const loaded = await store.loadGame(saved.saveId);
-    const restored = await store.submitAction(loaded.sessionId, "advance_ticks", { ticks: 10 });
-    expect(restored.ok).toBe(true);
-
-    const control = makeEngine();
-    const controlStore = createInMemorySessionStore({ engine: control.engine, registry: control.registry });
-    const controlCreated = await controlStore.createSession({ campaignId: control.built.campaign.id, seed: "world-graph-session-parity" });
-    await controlStore.submitAction(controlCreated.sessionId, "hire_staff", { definitionId: "cleaner" });
-    await controlStore.submitAction(controlCreated.sessionId, "advance_ticks", { ticks: 10 });
-    expect(await store.getView(loaded.sessionId)).toEqual(await controlStore.getView(controlCreated.sessionId));
   });
 
   it("keeps malformed authored data blocking while semantic warnings remain loadable", () => {

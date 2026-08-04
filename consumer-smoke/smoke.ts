@@ -129,12 +129,35 @@ function runEngineSmoke(): void {
     buildValidatedContentRegistry([worldGraphCampaign], kinds),
     "world-graph MVP registry should validate",
   );
-  const worldGraphEngine = createEngine({ kinds, registry: worldGraphRegistry });
-  const worldGraphGame = expectOk(
-    worldGraphEngine.createGame({ campaignId: worldGraphCampaign.campaign.id, seed: "consumer-smoke-world-graph" }),
-    "world-graph MVP should construct through the package boundary",
-  );
-  assert.equal(worldGraphGame.kindId, "world-graph");
+  const runWorldGraphReplay = (): string => {
+    const worldGraphEngine = createEngine({
+      kinds,
+      registry: worldGraphRegistry,
+      ids: {
+        newGameId: () => "game:consumer-smoke-world-graph",
+        newSeed: () => "seed:consumer-smoke-world-graph",
+      },
+    });
+    const worldGraphGame = expectOk(
+      worldGraphEngine.createGame({ campaignId: worldGraphCampaign.campaign.id, seed: "consumer-smoke-world-graph" }),
+      "world-graph MVP should construct through the package boundary",
+    );
+    assert.equal(worldGraphGame.kindId, "world-graph");
+    const hired = expectOk(
+      worldGraphEngine.submitAction(worldGraphGame, "hire_staff", { definitionId: "cleaner" }),
+      "world-graph MVP should hire through the package boundary",
+    );
+    const completed = expectOk(
+      worldGraphEngine.submitAction(hired, "advance_ticks", { ticks: 10 }),
+      "world-graph MVP should resolve through the package boundary",
+    );
+    assert.equal(completed.status, "ended");
+    const serialized = worldGraphEngine.serialize(completed);
+    const restored = expectOk(worldGraphEngine.deserialize(serialized), "world-graph MVP should deserialize through the package boundary");
+    assert.equal(worldGraphEngine.serialize(restored), serialized);
+    return serialized;
+  };
+  assert.equal(runWorldGraphReplay(), runWorldGraphReplay(), "packed world-graph replays should be byte-identical");
   const publicTypesResolve = <T extends WorldGraphPublicTypes>(): T | undefined => undefined;
   assert.equal(publicTypesResolve(), undefined);
   assertCampaignContentCastThrows(kinds, authoredText);
