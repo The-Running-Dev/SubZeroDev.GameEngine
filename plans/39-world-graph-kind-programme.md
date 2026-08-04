@@ -338,19 +338,20 @@ original implementation review.
 
 **Planning record:** [`plans/46-w46-world-graph-tick-pipeline.md`](46-w46-world-graph-tick-pipeline.md).
 **Canonical contract:** `design/20-contract.md`'s `engine/12-world-graph-kind.md` block.
-**Status:** Execution is in review in [PR #128](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/128).
-W46 is not delivered until that PR merges.
+**Status:** Delivered in [PR #128](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/128).
+The canonical delivery ledger is [`design/30-slices.md`](../design/30-slices.md); this
+checklist remains the programme's execution record.
 
-- [ ] Cut the W46 code plan with one function/module owner for each normative system.
-- [ ] Implement bounded `advance_ticks` and `tick_limit_reached` rejection.
-- [ ] Execute all 20 systems in fixed order, using explicit honest no-ops where scope is deferred.
-- [ ] Derive per-tick/per-agent random streams without carrying hidden generator state.
-- [ ] Enforce canonical entity iteration and deterministic id/tie ordering.
-- [ ] Keep pathfinding caches derived and unserialized.
-- [ ] Emit state changes and events in deterministic causal order.
-- [ ] Add one-tick, multi-tick and split-batch equivalence tests.
-- [ ] Run the complete determinism, lint, typecheck and replay suites.
-- [ ] **Gate:** any partition of the same tick count reaches the same defined Outcome.
+- [x] Cut the W46 code plan with one function/module owner for each normative system.
+- [x] Implement bounded `advance_ticks` and `tick_limit_reached` rejection.
+- [x] Execute all 20 systems in fixed order, using explicit honest no-ops where scope is deferred.
+- [x] Derive per-tick/per-agent random streams without carrying hidden generator state.
+- [x] Enforce canonical entity iteration and deterministic id/tie ordering.
+- [x] Keep pathfinding caches derived and unserialized.
+- [x] Emit state changes and events in deterministic causal order.
+- [x] Add one-tick, multi-tick and split-batch equivalence tests.
+- [x] Run the complete determinism, lint, typecheck and replay suites.
+- [x] **Gate:** any partition of the same tick count reaches the same defined Outcome.
 
 ### W47 — playable MVP vertical slice
 
@@ -384,16 +385,23 @@ execution record.
 
 ### W49 — validation, scenario and replay guard
 
-- [ ] Cut the W49 hardening plan and enumerate every contract invariant as a test target.
-- [ ] Complete Tier 1 source validation and Tier 2 semantic/cross-reference validation.
-- [ ] Reject malformed maps, references, ranges, caps and impossible starts without throwing.
-- [ ] Author the canonical engine-owned MVP scenario fixture from Sun Trap's MVP contract.
-- [ ] Record a deterministic winning replay and a deterministic losing replay.
+- **Status:** In progress. [PR #134](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/134)
+  delivered the canonical fixture and validation; [PR #136](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/136)
+  delivered win/loss replays and release-corpus coverage. The canonical delivery ledger is
+  [`design/30-slices.md`](../design/30-slices.md); this checklist is historical execution
+  evidence rather than a second status authority.
+
+- [x] Cut the W49 hardening plan and enumerate every contract invariant as a test target.
+- [x] Complete Tier 1 source validation and Tier 2 semantic/cross-reference validation.
+- [x] Reject malformed maps, references, ranges, caps and impossible starts without throwing.
+- [x] Author the canonical engine-owned MVP scenario fixture from Sun Trap's MVP contract.
+- [x] Record a deterministic winning replay and a deterministic losing replay.
 - [ ] Add batch-partition, save/restore and preview/no-mutation replay cases.
-- [ ] Add the world-graph fixtures to the release-tag comparison corpus.
+- [x] Add the world-graph fixtures to the release-tag comparison corpus.
 - [ ] Prove canonical serialization and replay equality across a clean build.
 - [ ] Run package consumer smoke again with the world-graph public exports.
-- [ ] Publish and pin the first engine version that carries the completed world-graph kind.
+- [ ] Publish and pin the first engine version that carries the completed world-graph kind
+      (external release action after the engineering evidence is complete).
 - [ ] **Gate:** the third kind is playable, guarded by the replay oracle and consumable by
       Sun Trap as an immutable package version.
 

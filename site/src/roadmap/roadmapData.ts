@@ -210,14 +210,19 @@ export const nextActs: readonly RoadmapChapter[] = [
     id: "prove",
     workUnits: "W49",
     status: "now",
-    title: "Prove the resort can succeed or collapse",
+    title: "Finish proving the resort can succeed or collapse",
     summary:
-      "Validate it, record a win and loss, add replay protection, and publish a version Sun Trap can install.",
+      "The canonical scenario, validation, and win/loss replay guard are in. Session-parity evidence and a clean consumer rerun remain before a release can be cut.",
     links: [
       {
         label: "W49 ledger",
         href: "/docs/engine/todo#w49",
         kind: "site",
+      },
+      {
+        label: "W49 replay evidence",
+        href: commit("904d601"),
+        kind: "repository",
       },
       {
         label: "Sun Trap",

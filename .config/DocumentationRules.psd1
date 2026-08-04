@@ -27,6 +27,9 @@
     # Path segments never scanned. Generated, vendored, and dependency trees are
     # not authored here.
     ExcludedSegments = @(
+        # Agent configuration may contain nested worktrees. They are independent
+        # repositories, not documentation owned by this checkout.
+        '.claude'
         '.git'
         'artifacts'
         'build'

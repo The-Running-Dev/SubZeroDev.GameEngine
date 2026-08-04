@@ -363,13 +363,15 @@ as `@the-running-dev/game-engine`; a clean consumer test installs the packed art
 than trusting this checkout. The world-graph runtime-state, content, resolution, immediate-action
 foundation, deterministic tick pipeline, and playable guest journey are also merged.
 
-### Current — validate and replay-guard world graph (W49)
+### Current — finish the world-graph replay guard (W49)
 
 Preview parity across the engine, session store, text client, and MCP is delivered in
-[PR #133](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/133). W49 now closes
-the world-graph programme with source validation, a canonical scenario, winning and losing
-replays, release-corpus protection, and a published package. Full sequencing and done-criteria:
-[TODO.md](https://game-engine.subzerodev.com/docs/engine/todo).
+[PR #133](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/133). W49's canonical
+scenario and validation landed in [PR #134](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/134);
+its deterministic win/loss replay pairs and release-corpus coverage landed in
+[PR #136](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/136). Session-parity
+replays, clean-build serialization evidence, and a consumer-smoke rerun remain. Full sequencing
+and done-criteria: [TODO.md](https://game-engine.subzerodev.com/docs/engine/todo).
 
 ---
 
