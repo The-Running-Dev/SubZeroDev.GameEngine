@@ -36,6 +36,7 @@ import type {
 import type { AttributeState, CredentialLevel, JobTier } from "./actor.js";
 import type { ActionType, GameAction } from "./plan.js";
 import type { ActionOutcome } from "./resolvers.js";
+import type { PublicWorldState } from "./view.js";
 
 // ---------------------------------------------------------------------------
 // §8.1 Requirements — declared first; every §7 type below references it
@@ -536,12 +537,10 @@ export interface SkillDefinition {
  * treats it as part of this same cluster; §7.10 itself groups it with the content-definition
  * types for the same reason before calling out the distinction.
  *
- * `view`'s real type is `PublicWorldState` — a projection type §9 documents only in prose
- * and never actually declares ("once fully specified"). Typed `unknown` here rather than
- * invented, the same choice `state.ts` made for `AvailabilityRule.condition` before this
- * unit existed to resolve it. **Revisit when** §9 is fully specified.
+ * `view`'s type is `PublicWorldState` (`view.ts`, §9) — declared there, alongside
+ * `SimulationView`, by the same unit that closed this forward reference (W50).
  */
 export interface AgentStrategy {
   id: string;
-  selectActions(view: unknown, agent: AgentState): GameAction[];
+  selectActions(view: PublicWorldState, agent: AgentState): GameAction[];
 }

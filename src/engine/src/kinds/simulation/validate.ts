@@ -14,10 +14,13 @@
  *
  * - Tier 1: no two `GoalDefinition`s share an `id` (§14's duplicate-id rule, the one
  *   instance of it this campaign shape can produce).
- * - Tier 1: every `LocKey` this campaign shape declares (`descriptionKey`, and each
- *   goal's `labelKey`/`descriptionKey`) resolves in `strings` — reuses the base
- *   `missing_string_key` code rather than inventing one, the same choice
- *   `kinds/story-graph/reasons.ts` made for the identical check.
+ * - Tier 1: every `LocKey` this campaign shape declares (`descriptionKey`, each
+ *   goal's `labelKey`/`descriptionKey`, `sceneTemplateKey` and each `actionLabelKeys`
+ *   entry — W50) resolves in `strings` — reuses the base `missing_string_key` code rather
+ *   than inventing one, the same choice `kinds/story-graph/reasons.ts` made for the
+ *   identical check. This is what makes §9's "a `LocKey` `scene` references but the
+ *   registry does not resolve fails registry construction" true at load time, not just at
+ *   the runtime backstop `scene.ts`'s own `throw` provides.
  *
  * **Revisit when** `SimulationCampaign` grows a new collection (jobs, courses, housing, …)
  * — each one brings its own slice of §14's reference-resolution and addressing rules, to
@@ -60,6 +63,11 @@ function validateLocKeys(content: SimulationCampaign, strings: ReadonlyMap<LocKe
     check(goal.labelKey);
     check(goal.descriptionKey);
   }
+  check(content.sceneTemplateKey);
+  check(content.actionLabelKeys.planAdd);
+  check(content.actionLabelKeys.planRemove);
+  check(content.actionLabelKeys.planClear);
+  check(content.actionLabelKeys.endWeek);
 
   return errors;
 }

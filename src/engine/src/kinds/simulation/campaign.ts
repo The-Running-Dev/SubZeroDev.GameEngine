@@ -16,12 +16,27 @@
  * comment). Identity fields (`id`/`version`/`titleKey`) live on the core `Campaign`
  * envelope, not here — the same envelope-duplication rule `StoryGraphCampaign` already
  * follows.
+ *
+ * `sceneTemplateKey`/`actionLabelKeys` are added by W50 (`view.ts`/`scene.ts`/`available.ts`)
+ * — `scene()` renders "from registry strings only" (§9), so this kind's own status-summary
+ * template must be campaign-authored `AuthoredText`, the same mechanism `StoryGraphCampaign`
+ * node text already uses, rather than an unregistered kind-default (`kindMessages` —
+ * `registry/build.ts` — is never actually threaded through `buildValidatedContentRegistry`
+ * in production; a kind-default string would silently never resolve).
  */
 
 import type { LocKey } from "../../core/localization/types.js";
 import type { CalendarState, EconomyState, WorldState } from "./state.js";
 import type { PlayerState } from "./actor.js";
 import type { GoalDefinition, GoalFailurePrecedence } from "./content.js";
+
+/** `plan.add`/`plan.remove`/`plan.clear`/`end_week` — one label per §4 verb. */
+export interface SimulationActionLabelKeys {
+  planAdd: LocKey;
+  planRemove: LocKey;
+  planClear: LocKey;
+  endWeek: LocKey;
+}
 
 export interface SimulationCampaign {
   descriptionKey: LocKey;
@@ -32,4 +47,9 @@ export interface SimulationCampaign {
 
   goals: readonly GoalDefinition[];
   goalFailurePrecedence: GoalFailurePrecedence;
+
+  /** `scene()`'s (§9) status-summary template — interpolates `{week}`, `{year}`, `{cash}`,
+   *  `{health}`, `{energy}`, `{happiness}`, `{stress}`, `{satiety}` (`scene.ts`). */
+  sceneTemplateKey: LocKey;
+  actionLabelKeys: SimulationActionLabelKeys;
 }
