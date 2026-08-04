@@ -311,15 +311,24 @@ Routing, when a command is run:
 | `/install` | Sonnet, medium |
 | `/make-human-docs` | Sonnet, medium — generate the developer guide from canonical `design/`, then stamp its digest |
 | `/track` | Sonnet, medium — escalate only to judge whether a drifted work unit is a design change |
+| `/verify` | Sonnet, medium — escalate to deep reasoning only to diagnose a failure, never to run the gates |
+| `/pr` | Sonnet, medium |
+| `/resolve` | Sonnet, medium — escalate to judge a contested finding, not to triage the obvious ones |
 
 **`/track` reads `design/30-slices.md`.** It opens one issue per unvisited W-numbered work unit;
-W is this repository's retained slice prefix.
+W is this repository's retained slice prefix. New units carry stable per-criterion ids
+(`W42.1`, `W42.2`, never reused or renumbered — the same discipline as the existing positional
+`W3a` unit numbering, one level down), and issues open in the shape `.claude/commands/track.md`
+defines: a human-first narrative, `### Done when` checkboxes, and a fenced `<!-- agent:start -->`
+block that `/track` regenerates but never overwrites outside the fence. Existing checked units
+predate this and are not retrofitted or reopened.
 
 **Tracking work.** Opening and labelling GitHub issues needs no per-instance approval — cheap
 and reversible, so `/track` does it without asking. Closing an issue, editing anyone else's,
 and creating a milestone or a project all still need the user's sign-off, same as any other
-external write in **Git and Pull Requests** below. `/track` is the only command that writes
-to GitHub.
+external write in **Git and Pull Requests** below. **Resolving or replying to a review thread
+is not covered by this carve-out either** — the exception is for opening issues and nothing
+else. `/track` is the only command that writes to GitHub.
 
 ### Single Ownership
 
