@@ -34,6 +34,7 @@ import type {
 } from "./state.js";
 import { demandBand } from "./state.js";
 import { ACTION_TYPES } from "./plan.js";
+import { RESOLVER_TABLE, stubResolver } from "./resolvers.js";
 import type { SimulationKindState } from "./state.js";
 
 export interface VisibleRelationship {
@@ -152,7 +153,13 @@ export interface PublicWorldState {
   economy: PublicEconomyView;
 }
 
-const PLAN_ACTION_TYPES: readonly ActionType[] = ACTION_TYPES.filter((t) => t !== "custom");
+const PLAN_ACTION_TYPES: readonly ActionType[] = ACTION_TYPES.filter(
+  (t) => t !== "custom" && RESOLVER_TABLE[t] !== stubResolver,
+);
+
+function detached<T>(value: T): T {
+  return structuredClone(value);
+}
 
 function visibleRelationships(relationships: SimulationKindState["player"]["relationships"]): VisibleRelationship[] {
   return relationships.map((r) => ({
@@ -263,30 +270,30 @@ export function project(
   return {
     calendar: calendarView(state.calendar),
 
-    identity: state.player.identity,
+    identity: detached(state.player.identity),
     currentLocationId: state.player.currentLocationId,
-    finances: state.player.finances,
-    needs: state.player.needs,
-    attributes,
-    education: state.player.education,
-    career: state.player.career,
-    housing: state.player.housing,
-    inventory: state.player.inventory,
-    relationships: visibleRelationships(state.player.relationships),
+    finances: detached(state.player.finances),
+    needs: detached(state.player.needs),
+    attributes: detached(attributes),
+    education: detached(state.player.education),
+    career: detached(state.player.career),
+    housing: detached(state.player.housing),
+    inventory: detached(state.player.inventory),
+    relationships: detached(visibleRelationships(state.player.relationships)),
 
-    skills: state.player.skills,
-    traits: state.player.traits,
-    reputation: state.player.reputation,
+    skills: detached(state.player.skills),
+    traits: detached(state.player.traits),
+    reputation: detached(state.player.reputation),
 
-    activeEffects: visibleEffects(state.activeEffects),
-    activeOpportunities: visibleOpportunities(state.activeOpportunities),
-    pendingEventResponses: state.pendingEventResponses,
+    activeEffects: detached(visibleEffects(state.activeEffects)),
+    activeOpportunities: detached(visibleOpportunities(state.activeOpportunities)),
+    pendingEventResponses: detached(state.pendingEventResponses),
 
-    goals: visibleGoals(state.goals),
+    goals: detached(visibleGoals(state.goals)),
 
     plan: {
       week: state.plan?.week ?? state.calendar.currentWeek,
-      actions: state.plan?.actions ?? [],
+      actions: detached(state.plan?.actions ?? []),
       availableActionTypes: PLAN_ACTION_TYPES,
     },
 
