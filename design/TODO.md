@@ -119,3 +119,21 @@
 ### Content Tooling — A First-Class Workstream, Not an Afterthought
 
 ## Known Open Items Carried In
+
+### [x] W41 — companion-package consumer boundary: built, merged, and published. {#w41}
+
+### [x] W42 — runtime-state contract: merged in {#w42}
+
+### [x] W43 — content-definition contract: merged in {#w43}
+
+### [x] W44 — resolution contract: merged in {#w44}
+
+### [x] W45 — kind skeleton and immediate actions: merged in {#w45}
+
+### [x] W46 — deterministic tick pipeline: fixed-order systems, bounded {#w46}
+
+### [x] W47 — MVP vertical slice: the synthetic guest journey — spawn → walk → queue → {#w47}
+
+### [x] W48 — preview/client parity: `previewAction` across Engine, session, text and MCP {#w48}
+
+### [ ] W49 — validation, scenario and replay guard: canonical MVP fixture, {#w49}

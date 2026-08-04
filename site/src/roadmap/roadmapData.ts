@@ -73,7 +73,7 @@ export const shippedChapters: readonly RoadmapChapter[] = [
     status: "done",
     title: "The past becomes testable",
     summary:
-      "Versions and recorded playthroughs can expose when a future release changes an old outcome.",
+      "Versions and recorded games can expose when a future release changes an old outcome.",
     links: [
       {
         label: "Replay evidence",
@@ -159,7 +159,7 @@ export const shippedChapters: readonly RoadmapChapter[] = [
     status: "done",
     title: "The resort gets a deterministic clock",
     summary:
-      "The kind foundation and 20-system tick pipeline are merged: time advances in bounded, replayable batches before the playable loop arrives.",
+      "The kind foundation and 20-system tick pipeline are merged: time advances in bounded, reproducible batches before the playable loop arrives.",
     links: [
       {
         label: "W45 evidence",
@@ -214,6 +214,11 @@ export const nextActs: readonly RoadmapChapter[] = [
     summary:
       "Validate it, record a win and loss, add replay protection, and publish a version Sun Trap can install.",
     links: [
+      {
+        label: "W49 ledger",
+        href: "/docs/engine/todo#w49",
+        kind: "site",
+      },
       {
         label: "Sun Trap",
         href: "https://github.com/The-Running-Dev/SubZeroDev.SunTrap",

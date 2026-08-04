@@ -122,8 +122,9 @@ function Get-CompatibilityPointer {
         [Parameter(Mandatory)] $Document
     )
 
+    $source = ConvertTo-Lf -Text $Document.Content
     $headings = [regex]::Matches(
-        (ConvertTo-Lf -Text $Document.Content),
+        $source,
         '^#{1,6}\s+.+$',
         [Text.RegularExpressions.RegexOptions]::Multiline
     )
@@ -136,6 +137,36 @@ function Get-CompatibilityPointer {
 
     foreach ($heading in $headings) {
         [void] $builder.Append($heading.Value).Append("`n`n")
+    }
+
+    # Some legacy ledgers retain their newer work units as checkbox bullets.
+    # Preserve their stable W-number anchors in the compatibility pointer too,
+    # without making the pointer a second copy of the canonical prose.
+    $headingWorkUnits = [System.Collections.Generic.HashSet[string]]::new(
+        [System.StringComparer]::OrdinalIgnoreCase
+    )
+    foreach ($heading in $headings) {
+        $match = [regex]::Match($heading.Value, '\b(W\d+[a-z]?)\b')
+        if ($match.Success) {
+            $null = $headingWorkUnits.Add($match.Groups[1].Value)
+        }
+    }
+
+    $taskBullets = [regex]::Matches(
+        $source,
+        '^\s*-\s+\[([ xX~])\]\s+\*\*(W\d+[a-z]?)(?:\s+proposed)?\s+—\s+(.+?)(?:\*\*)?\s*$',
+        [Text.RegularExpressions.RegexOptions]::Multiline
+    )
+    foreach ($task in $taskBullets) {
+        $workUnit = $task.Groups[2].Value
+        if ($headingWorkUnits.Contains($workUnit)) {
+            continue
+        }
+
+        $status = $task.Groups[1].Value.ToLowerInvariant()
+        $title = ($task.Groups[3].Value -replace '\*\*', '').Trim()
+        $anchor = $workUnit.ToLowerInvariant()
+        [void] $builder.Append("### [$status] $workUnit — $title {#$anchor}`n`n")
     }
 
     return $builder.ToString().TrimEnd("`n") + "`n"

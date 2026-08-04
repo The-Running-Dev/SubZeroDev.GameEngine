@@ -26,6 +26,11 @@ describe("roadmap page", () => {
         name: currentAct.title,
       }),
     ).toBeVisible();
+    expect(
+      within(checkpoint as HTMLElement).getByRole("link", {
+        name: "Canonical task ledger",
+      }),
+    ).toHaveAttribute("href", "/docs/engine/todo#w49");
     const future = screen.getByText("03 / NEXT").closest("section");
     expect(future).not.toBeNull();
     expect(
