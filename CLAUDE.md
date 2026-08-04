@@ -299,7 +299,10 @@ Two distinctions that are easy to get wrong:
 - **Do not report a cost you did not measure.** A model is not given its own token counts or
   elapsed time, so any figure it states about its own run is an estimate presented as a
   measurement. `tools/Measure-Session.ps1` reads the real per-call usage from the session
-  transcript, and runs as a `SessionEnd` hook. Use it, or say nothing.
+  transcript, and runs as a `SessionEnd` hook. It measures **Claude Code sessions only** —
+  Codex writes a different schema this has no reader for, and Copilot records no token usage
+  at all. Use it, or say nothing — under either of those, *say nothing* is the whole
+  instruction.
 
 ### The Agent Kit — Canonical Workflow
 
