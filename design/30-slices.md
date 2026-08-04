@@ -599,6 +599,8 @@ when it declined a programme doc for this kind.
       (the encoder, exhaustiveness-guarded). `simulation`'s NPC draws and this kind's tick
       draws already have a reachable home — 04 §3.1's own callout box already documents
       `derive` closing exactly the reachability gap this checkbox describes as still open.
+<a id="w41"></a>
+
 - [x] **W41 — companion-package consumer boundary: built, merged, and published.**
       [PR #108](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/108) landed the
       whole boundary: the package renamed to `@the-running-dev/game-engine`, one root export
@@ -622,6 +624,8 @@ when it declined a programme doc for this kind.
       ([`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §2). No read-access grant was needed as a
       result.
       **Plan:** [`plans/40-w41-engine-consumer-boundary.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/40-w41-engine-consumer-boundary.md)
+<a id="w42"></a>
+
 - [x] **W42 — runtime-state contract: merged in
       [PR #116](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/116).** Authoritative
       map, guest, building, queue, staff, construction and finance shapes now live in
@@ -631,6 +635,8 @@ when it declined a programme doc for this kind.
       `WorldGraphKindState`'s closure
       (`Incident`, `ObjectiveProgress`, `Alert`, `TerrainCell`, `PathCell`, `Zone`) are
       drafted in neither repository, so this is design work, not a port.
+<a id="w43"></a>
+
 - [x] **W43 — content-definition contract: merged in
       [PR #119](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/119).** Maps,
       archetypes, buildings, products, terrain, incidents, scenarios, objectives, policies,
@@ -640,6 +646,8 @@ when it declined a programme doc for this kind.
       record and evidence checklist live in
       [`plans/43-w43-world-graph-content-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/43-w43-world-graph-content-contract.md),
       which is historical rather than a second contract authority.
+<a id="w44"></a>
+
 - [x] **W44 — resolution contract: merged in
       [PR #120](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/120).** The
       20-system pipeline, utility scoring, canonical pathfinding, queue/service and staff-task
@@ -648,6 +656,8 @@ when it declined a programme doc for this kind.
       reader copy. Its execution record is
       [`plans/44-w44-world-graph-resolution-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/44-w44-world-graph-resolution-contract.md),
       which is historical rather than a second contract authority.
+<a id="w45"></a>
+
 - [x] **W45 — kind skeleton and immediate actions: merged in
       [PR #125](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/125).** The source/runtime builder,
       total validation, shared spatial substrate, deterministic initial state, read surfaces,
@@ -657,20 +667,28 @@ when it declined a programme doc for this kind.
       the original implementation review. The execution record is
       [`plans/45-w45-world-graph-kind-skeleton.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/45-w45-world-graph-kind-skeleton.md),
       which is historical rather than a second contract authority.
+<a id="w46"></a>
+
 - [x] **W46 — deterministic tick pipeline:** fixed-order systems, bounded
       `advance_ticks`, derived streams and batch invariance are delivered in
       [PR #128](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/128), merged to
       `main` at `6301a49`. Its implementation plan is
       [`plans/46-w46-world-graph-tick-pipeline.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/46-w46-world-graph-tick-pipeline.md);
       it follows the canonical world-graph contract and does not supersede it.
+<a id="w47"></a>
+
 - [x] **W47 — MVP vertical slice:** the synthetic guest journey — spawn → walk → queue →
       buy → litter → clean → objective → win/lose — is delivered in
       [PR #131](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/131), merged
       to `main` at `2390750`. It follows the canonical world-graph contract and does not
       supersede it.
+<a id="w48"></a>
+
 - [x] **W48 — preview/client parity:** `previewAction` across Engine, session, text and MCP
       surfaces, with 09 §4 and `MVP.md` §5 amended in the same unit, is delivered in
       [PR #133](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/133).
+<a id="w49"></a>
+
 - [ ] **W49 proposed — validation, scenario and replay guard:** canonical MVP fixture,
       winning/losing replays, release-corpus coverage and a published world-graph package.
 - [ ] **Programme gate:** batch invariance and determinism beyond the seed pass; the third
