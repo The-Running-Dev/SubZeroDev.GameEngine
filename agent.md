@@ -53,6 +53,12 @@ only when it would have changed a decision.
 - **Full read after many small edits.** Editing a spec from diffs accumulates drift that
   only a full read catches (`learn-codebase` once found twelve here, incl. a functional bug
   where `DerivedPath` omitted `world.strangeness`).
+- **A fix that only changed the odds is not a fix.** An intermittent test failure went away
+  when parallelism was disabled — three consecutive clean runs — and came back on the fourth.
+  The real cause was connection pooling handing out a stale schema snapshot, found by a tight
+  single-threaded loop that reproduced it on iteration zero. When a fix is "it stopped
+  failing," suspect the odds moved rather than the cause, and say over how many runs. Applies
+  to `src/engine`'s vitest suite same as anywhere else.
 
 ## Roadmap Page Maintenance
 

@@ -261,3 +261,35 @@ so they are not forgotten.
 *Add to this register whenever a decision is deferred or an assumption is made — rather than
 leaving it in a commit message or a chat, where the next person will not find it.*
 <!-- human-doc:end -->
+
+---
+
+### 2026-08-04 — Kit catch-up install: adopted stable criterion ids and the human-first issue shape
+Context: Installing/upgrading the agent kit to `dcd0d8f`. The kit's current `track.md`/`slices.md`/`slice.md` bundle two changes this repository had not adopted: stable per-criterion ids (`W<n>.<m>`) on slice acceptance criteria, and a human-first-narrative + `### Done when` + fenced `<!-- agent:start -->` shape for issues `/track` opens. This repository's ~140 already-merged W-units use neither.
+Chosen: Adopt both, for new units only. Existing checked/delivered units are historical and are not retrofitted or reopened — `track.md` says so explicitly. The stable-id scheme is a natural extension of this repository's existing positional `W3a` unit numbering (never renumber, insert with a suffix instead), so the two conventions reinforce rather than compete.
+Rejected: **Keep the older, simpler issue shape** — smaller diff, but leaves this repository permanently behind the kit's drift-detection mechanism (`/track` comparing criterion ids rather than prose), which is the reason the shape changed upstream. **Retrofit existing issues to the new shape** — rejected outright; the kit's own contract forbids rewriting a checkbox or narrative outside the fence, and 140 units is not worth the churn for a cosmetic uniformity gain.
+Reversibility: cheap (only affects new issues going forward)
+
+### 2026-08-04 — Adopted the kit's new agent.md lesson on flaky-test fixes
+Context: The kit's seed gained "a fix that only changed the odds is not a fix" (intermittent failure traced to a stale connection-pool schema snapshot, found by a tight repro loop rather than trusting reduced test parallelism). This repository's `agent.md` is fully earned, not seeded, so per the installer a new kit lesson is offered individually rather than merged in bulk.
+Chosen: Add it. Generic flaky-test lesson, not stack-specific, and `src/engine`'s vitest suite is exactly the kind of surface it applies to. The same lesson was independently approved for the sibling Blog repository minutes earlier, same reasoning.
+Rejected: **Skip it** — not earned in this repository specifically; rejected because the lesson's generality outweighs that, same call made for Blog.
+Reversibility: cheap
+
+### 2026-08-04 — Kit upgrade to `8d4ffdb`: `/refine` and `/kit-help` overlaid rather than copied
+Context: Upgrading the agent kit from `dcd0d8f` to `8d4ffdb`. Two new commands arrive written against the kit's own arrangement — they cite `AGENTS.md §` section names and use `S<n>` slice ids, neither of which is true here: `AGENTS.md` is a pointer to `CLAUDE.md`, and this repository retains the `W` prefix.
+Chosen: Install both, and add a short repository-overlay paragraph at the top of each redirecting the citations to `CLAUDE.md` and the ids to `W`. Only the two id occurrences that would be *read as instructions* were rewritten inline (`/slice W<n>` in `/refine`'s routing table; the worked example and step 2–3 ids in `/kit-help`).
+Rejected: **Mechanically replace every `AGENTS.md` reference with `CLAUDE.md`** — rejected because that is precisely the failure `AGENTS.md` itself documents: an earlier mechanical rewrite turned nine real references into paths that do not exist. An overlay note is checkable; a global substitution is not. **Skip the two commands** — rejected; `/kit-help` is the orientation entry point and `/refine` is the front door for asks between stages, and a repository missing both diverges from the kit for no stated reason.
+Reversibility: cheap
+
+### 2026-08-04 — `Measure-Session.ps1` installed at `tools/`, not `build/`
+Context: The kit ships `tools/Measure-Session.ps1`, run as a `SessionEnd` hook, so that reported session costs are measured rather than estimated. This repository has no `tools/` directory and keeps its PowerShell scripts in `build/`, which would otherwise be the obvious home.
+Chosen: Create `tools/` and install it there, matching the kit's hook path `${CLAUDE_PROJECT_DIR}/tools/Measure-Session.ps1`.
+Rejected: **`build/Measure-Session.ps1`** — one home for PowerShell in this repository, and the naming matches. Rejected because `build/` is wired into the documentation gate and the Docusaurus build; a per-machine session-cost reporter is neither, and putting it there mixes a reporting helper into the repository's build surface. Reversing this costs one file move and two path edits (the hook, and the `CLAUDE.md` line naming it).
+Reversibility: cheap
+
+### 2026-08-04 — Adopted the kit's `SessionEnd` cost hook into the tracked `settings.json`
+Context: `tools/Measure-Session.ps1` can only run from `hooks.SessionEnd`, which lives in `settings.json` — a file the installer otherwise treats as the target's own, because this repository's copy deliberately pins `model: opusplan` and `permissions.defaultMode: plan`.
+Chosen: Add only the `hooks.SessionEnd` key, leaving `$schema`, `model` and `permissions` untouched. No `SessionEnd` hook existed to conflict with, and `pwsh` 7 is on `PATH`. `.claude/session-costs.tsv` is gitignored — it is per-machine and regenerable from the transcripts.
+Rejected: **Install the script without the hook** — rejected because a reporting tool nothing invokes is a tool nobody runs; the rule it serves ("do not report a cost you did not measure") then has no mechanism behind it. **Merge the kit's whole `settings.json`** — rejected outright; it would overwrite the deliberate model and permission pins, which is the reason that file is off-limits in the first place.
+Reversibility: cheap
