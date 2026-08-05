@@ -9,7 +9,7 @@ describe("PlayApp cabinet presentation", () => {
     render(<PlayApp />);
 
     expect(
-      screen.getByRole("heading", { name: "The story shelf" }),
+      screen.getByRole("heading", { name: "Adventure disk library" }),
     ).toBeVisible();
     await user.click(screen.getByRole("button", { name: /The Bureaucracy/i }));
 
@@ -20,7 +20,7 @@ describe("PlayApp cabinet presentation", () => {
       screen.getByText("Estimated duration: 10–15 min per route"),
     ).toBeVisible();
     expect(
-      screen.getByRole("button", { name: "Open dossier and start" }),
+      screen.getByRole("button", { name: "Load selected adventure" }),
     ).toBeVisible();
   });
 
@@ -28,10 +28,12 @@ describe("PlayApp cabinet presentation", () => {
     const user = userEvent.setup();
     render(<PlayApp />);
 
-    const open = screen.getByRole("button", { name: "Open dossier and start" });
+    const open = screen.getByRole("button", {
+      name: "Load selected adventure",
+    });
     await user.click(open);
     expect(
-      screen.getByRole("dialog", { name: "Before opening this file" }),
+      screen.getByRole("dialog", { name: "Before loading this program" }),
     ).toBeVisible();
 
     await user.click(screen.getByRole("button", { name: "Back" }));
@@ -44,23 +46,23 @@ describe("PlayApp cabinet presentation", () => {
 
     await user.click(screen.getByRole("button", { name: /The Bureaucracy/i }));
     await user.click(
-      screen.getByRole("button", { name: "Open dossier and start" }),
+      screen.getByRole("button", { name: "Load selected adventure" }),
     );
-    await user.click(
-      screen.getByRole("button", { name: "I understand — start" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Continue loading" }));
 
     expect(
       await screen.findByRole("heading", { name: /handwritten/i }),
     ).toBeVisible();
     expect(
-      screen.getByRole("heading", { name: "Status console" }),
+      screen.getByRole("heading", { name: "Player status" }),
     ).toBeVisible();
-    expect(screen.getByText("LOCAL CHECKPOINT")).toBeVisible();
+    expect(screen.getByText("GAME SAVED")).toBeVisible();
     expect(
       screen.queryByText(/actionLog|kindState|seed/i),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("Your story begins here.")).toBeVisible();
+    expect(
+      screen.getByText("PROGRAM LOADED. YOUR STORY BEGINS HERE."),
+    ).toBeVisible();
   });
 
   it("records only committed projected pages in the read-only journey", async () => {
@@ -69,22 +71,20 @@ describe("PlayApp cabinet presentation", () => {
 
     await user.click(screen.getByRole("button", { name: /The Bureaucracy/i }));
     await user.click(
-      screen.getByRole("button", { name: "Open dossier and start" }),
+      screen.getByRole("button", { name: "Load selected adventure" }),
     );
-    await user.click(
-      screen.getByRole("button", { name: "I understand — start" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Continue loading" }));
     await user.click(
       await screen.findByRole("button", {
         name: /Wait for the municipal registry/i,
       }),
     );
 
-    expect(screen.getByText("You chose")).toBeVisible();
+    expect(screen.getByText("Last command")).toBeVisible();
     expect(screen.getByText("Wait for the municipal registry")).toBeVisible();
-    expect(screen.getByText("which brought you here.")).toBeVisible();
+    expect(screen.getByText("// accepted")).toBeVisible();
 
-    await user.click(screen.getByText("Journey so far"));
+    await user.click(screen.getByText("Travel log"));
     expect(screen.getByText(/Where I came from:/)).toBeVisible();
     expect(
       screen.queryByText(/actionLog|kindState|currentNodeId|seed/i),
