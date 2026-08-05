@@ -384,6 +384,18 @@ describe("world-graph W45 engine seam", () => {
     expect(stateOf(game).staff).toEqual([]);
   });
 
+  it("emits only the staff assignment field that actually changed", () => {
+    const runtimeEngine = engine();
+    let game = create();
+    game = runtimeEngine.submitAction(game, "build", { definitionId: "kiosk", x: 2, y: 1, rotation: 0 }).value!;
+    game = runtimeEngine.submitAction(game, "hire_staff", { definitionId: "cleaner" }).value!;
+    const assigned = runtimeEngine.submitAction(game, "assign_staff", { staffId: "staff:2", buildingId: "building:0" });
+    expect(assigned.changes).toEqual([
+      expect.objectContaining({ path: "staff.staff:2.assignedBuildingId", value: "building:0" }),
+    ]);
+    expect(assigned.changes.some((entry) => entry.path === "staff.staff:2.assignedZoneId")).toBe(false);
+  });
+
   it("dismisses a persisted alert once and accepts repeat dismissal as a no-op", () => {
     const runtimeEngine = engine();
     const game = create();
