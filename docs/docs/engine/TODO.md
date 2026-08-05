@@ -1640,6 +1640,12 @@ client's rendering and the MCP surface all sit on the path.
 
 ### Breadth: The Platform
 
+- [ ] Interactive CLI play-test harness — a stdin/stdout loop over the existing
+      `TextClient` and `SessionStore` (`src/engine/src/clients/text/client.ts`), so a human
+      can play a committed campaign (e.g. `stable-life`, the Bulgaria arcs) without writing a
+      test. Manual play-testing tooling, not a shipped client surface — distinct from "more
+      clients" below, no projection or store change, no contract change. Not required by any
+      Definition-of-Done item; exists purely so the engine can be seen running.
 - [ ] More clients (web, Discord).
 - [ ] **Additional locales — sliced as [W60](#w60).** The MVP ships English only; the
       authoring→registry types already support more
