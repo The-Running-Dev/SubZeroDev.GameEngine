@@ -22,7 +22,7 @@ import type {
   NewGameConfig,
   Scene,
 } from "./types.js";
-import type { CommandResult } from "./reasons.js";
+import type { CommandResult, OutcomeMessage } from "./reasons.js";
 import type { RngHandle, StreamId } from "../determinism/types.js";
 import { encodeStreamId, rngHandleFor } from "../determinism/rng.js";
 import type { Campaign, ContentRegistry } from "../registry/types.js";
@@ -173,12 +173,12 @@ function submitAction(
    * rejection it is `true` unless the code is `unknown_action` — the one code that means
    * the kind didn't recognize the id either (05 §8's callout).
    */
-  function reject(error: ValidationError, includeActionId: boolean): ActionResult {
+  function reject(error: ValidationError, includeActionId: boolean, messages: OutcomeMessage[] = []): ActionResult {
     emitters.core.emit(CORE_EVENTS.actionRejected.name, CORE_EVENTS.actionRejected.severity, {
       reason: error.code,
       ...(includeActionId ? { data: { actionId } } : {}),
     });
-    return { ok: false, errors: [error], warnings: [], changes: [], messages: [] };
+    return { ok: false, errors: [error], warnings: [], changes: [], messages };
   }
 
   if (state.status !== "active") {
@@ -209,7 +209,7 @@ function submitAction(
   const result = kind.advance(state.kindState, actionId, params, ctx);
 
   if (result.error) {
-    return reject(result.error, result.error.code !== "unknown_action");
+    return reject(result.error, result.error.code !== "unknown_action", result.messages);
   }
 
   emitters.core.emit(CORE_EVENTS.actionAccepted.name, CORE_EVENTS.actionAccepted.severity, { data: { actionId } });

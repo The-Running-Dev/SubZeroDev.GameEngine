@@ -34,10 +34,13 @@ assertable invariants are in the
   a full player projection (`SimulationView`), and Stable Life winning/losing replay fixtures.
   Text-client and MCP parity now match `story-graph`'s row of the API coverage checklist, one
   for one.
-- `world-graph` is a real, registered kind: `worldGraphKind` is exported from the package root
-  and its full tick pipeline — build, utility, routing, queues, staff, finance, incidents, and
-  terminal precedence — is merged and tested. It is usable the same way `story-graph` and
-  `simulation` are.
+- `world-graph` is a real, registered kind: `worldGraphKind` is exported from the package root,
+  and its twenty-system tick pipeline — build, utility, routing, queues, staff, finance,
+  incidents, and terminal precedence — is registered, ordered, and tested. Five of the twenty
+  systems are known-and-retained stubs or partial implementations; see
+  `design/90-decisions.md`, *Known-and-retained implementation gaps: `world-graph` tick
+  systems*. It is registered and usable the same way `story-graph` and `simulation` are, within
+  that scope.
 - Content packs, the `ExperimentSource` port, and privacy-safe session capture are specified but
   not implemented. All three are deferred: content packs and experiment gating to post-MVP
   content-pack work, capture to the hosting layer that gates it.
@@ -300,8 +303,11 @@ is explicitly unsettled and excluded from supported scenarios.
 
 Use `world-graph` for a navigable world with autonomous inhabitants, where the unit of play is a
 batch of simulated ticks rather than a single choice or a week. `worldGraphKind` is a real,
-exported, registered kind — the same status as `story-graph` and `simulation` — with a complete
-and tested tick pipeline.
+exported, registered kind — the same status as `story-graph` and `simulation` — with all twenty
+tick systems registered, ordered, and tested for that ordering. Five of the twenty are
+known-and-retained stubs or partial implementations (three no-op, two partial); see
+`design/90-decisions.md`, *Known-and-retained implementation gaps: `world-graph` tick systems*,
+for the current list.
 
 Its load-bearing rule is **batch invariance**: advancing N ticks in one call must reach the same
 kind state as any ordered partition of that N totalling the same number of ticks. Everything else

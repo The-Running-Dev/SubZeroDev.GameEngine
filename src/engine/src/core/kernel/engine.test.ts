@@ -236,6 +236,30 @@ describe("submitAction", () => {
     expect(result.ok).toBe(false);
     expect(result.errors[0]?.code).toBe("unknown_action");
   });
+
+  it("passes the kind's rejection messages through, rather than discarding them", () => {
+    const messagingKind = makeTestKind({
+      advance: (state, actionId, params, ctx): AdvanceResult<TestKindState> => {
+        if (actionId === "increment") {
+          return {
+            state,
+            status: "active",
+            changes: [],
+            messages: [{ key: "test.rejected", visible: true }],
+            error: { code: "invalid_test_params", messageKey: "test.rejected" },
+          };
+        }
+        return makeTestKind().advance(state, actionId, params, ctx);
+      },
+    });
+    const engine = createEngine(makeHost({ kinds: makeKinds(messagingKind) }));
+    const created = engine.createGame({ campaignId: "test-campaign" });
+
+    const result = engine.submitAction(created.value as GameState, "increment");
+    expect(result.ok).toBe(false);
+    expect(result.errors[0]?.code).toBe("invalid_test_params");
+    expect(result.messages).toEqual([{ key: "test.rejected", visible: true }]);
+  });
 });
 
 describe("previewAction", () => {

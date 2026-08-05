@@ -297,8 +297,14 @@ function safetyInput(state: WorldGraphKindState, content: WorldGraphCampaign, bu
   return total;
 }
 
-/** §9.1's queue-penalty component: remaining head service time plus each guest ahead's declared duration. */
-function estimatedWaitTicks(state: WorldGraphKindState, content: WorldGraphCampaign, processingTick: number, building: Building): number {
+/**
+ * §9.1's queue-penalty component: remaining head service time plus each guest *ahead's*
+ * declared duration. A guest not currently in this queue (`forGuestId` absent, or not
+ * found) is evaluating joining at the back, so every queued guest is ahead of it. A guest
+ * already holding a slot (`forGuestId` present in `guestIds`) only waits on guests strictly
+ * ahead of its own position — guests behind it do not affect its own remaining wait.
+ */
+function estimatedWaitTicks(state: WorldGraphKindState, content: WorldGraphCampaign, processingTick: number, building: Building, forGuestId: string | null = null): number {
   const guestIds = building.queue.guestIds;
   if (guestIds.length === 0) return 0;
   const durationFor = (guestId: string): number => {
@@ -314,7 +320,9 @@ function estimatedWaitTicks(state: WorldGraphKindState, content: WorldGraphCampa
   const remainingHead = building.queue.serviceStartedAtTick !== null && headOffer !== null
     ? Math.max(0, headOffer.serviceTicks - (processingTick - building.queue.serviceStartedAtTick))
     : durationFor(headId);
-  return remainingHead + guestIds.slice(1).reduce((sum, id) => sum + durationFor(id), 0);
+  const position = forGuestId !== null ? guestIds.indexOf(forGuestId) : -1;
+  const ahead = position === -1 ? guestIds.slice(1) : guestIds.slice(1, Math.max(position, 1));
+  return remainingHead + ahead.reduce((sum, id) => sum + durationFor(id), 0);
 }
 
 interface ProductScore { readonly productId: string; readonly score: number }
@@ -331,6 +339,13 @@ function scoreProduct(state: WorldGraphKindState, content: WorldGraphCampaign, p
   const price = building.pricesCents[product.id]; const stock = building.inventory[product.id];
   const pathResult = canonicalPathWithCost(state.map, content.terrain, { x: guest.x, y: guest.y }, entrances(building, content), state.buildings, state.constructionSites);
   if (price === undefined || price > guest.cashCents || stock === 0 || pathResult === null) return null;
+  // §9.1's switching exception: a guest already holding a slot in this building's queue is
+  // not disqualified by its own occupancy, but an alternative that is already full is not
+  // an eligible candidate — scoring it would let a guest abandon a valid queue for one the
+  // admission guard in `queues` immediately refuses.
+  if (operation.queueMaxLength !== null && !building.queue.guestIds.includes(guest.id) && building.queue.guestIds.length >= operation.queueMaxLength) {
+    return null;
+  }
   const archetype = definition(content.guestArchetypes, guest.archetypeId, "guest archetype");
   const needUrgency = Math.max(0, ...archetype.needs.map((profile) => curve(profile.utilityByCurrentValue, guest.needs[profile.needId] ?? 0)));
   const preferenceMatch = archetype.preferences.filter((profile) => definition(content.preferences, profile.definitionId, "preference").targetTags.some((tag) => product.tags.includes(tag) || definition(content.buildings, building.definitionId, "building definition").tags.includes(tag))).reduce((sum, profile) => sum + (guest.preferences[profile.definitionId] ?? 0), 0) * archetype.preferenceUtilityPerPoint;
@@ -339,7 +354,7 @@ function scoreProduct(state: WorldGraphKindState, content: WorldGraphCampaign, p
   const attractiveness = attractivenessInput(state, content, building) * archetype.attractivenessUtilityPerPoint;
   const priceResistance = curve(archetype.priceResistance, price);
   const travelCost = pathResult.cost * archetype.travelPenaltyPerCost;
-  const queuePenalty = estimatedWaitTicks(state, content, processingTick, building) * archetype.queuePenaltyPerTick;
+  const queuePenalty = estimatedWaitTicks(state, content, processingTick, building, guest.id) * archetype.queuePenaltyPerTick;
   const safetyConcern = safetyInput(state, content, building) * archetype.safetyPenaltyPerPoint;
   const score = needUrgency + preferenceMatch + socialRelevance + quality + attractiveness
     - priceResistance - travelCost - queuePenalty - safetyConcern;
