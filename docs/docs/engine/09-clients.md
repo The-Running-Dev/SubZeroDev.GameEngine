@@ -124,16 +124,16 @@ one column per MVP client:
 
 | # | Operation | Text client (W16) | MCP tool (W17) | Simulation kind (W50) | Browser demo (W61) |
 |---|---|---|---|---|---|
-| 1 | `listCampaigns` | ☑ | `list_campaigns` ☑ | ☑ | ☐ |
-| 2 | `createSession` | ☑ | `start_game` ☑ | ☑ | ☐ |
-| 3 | `resumeSession` | ☑ | `continue_game` ☑ | ☑ | ☐ |
-| 4 | `getScene` | ☑ | `get_scene` ☑ | ☑ | ☐ |
-| 5 | `getView` | ☑ | `get_state` ☑ | ☑ | ☐ |
-| 6 | `getStrings` | ☑ | `get_strings` ☑ | ☑ | ☐ |
-| 7 | `submitAction` | ☑ | `choose` ☑ | ☑ | ☐ |
-| 8 | `previewAction` | ☑ | `preview_action` ☑ | ☑ | ☐ |
-| 9 | `saveGame` | ☑ | `save_game` ☑ | ☑ | ☐ |
-| 10 | `loadGame` | ☑ | `load_game` ☑ | ☑ | ☐ |
+| 1 | `listCampaigns` | ☑ | `list_campaigns` ☑ | ☑ | ☑ |
+| 2 | `createSession` | ☑ | `start_game` ☑ | ☑ | ☑ |
+| 3 | `resumeSession` | ☑ | `continue_game` ☑ | ☑ | ☑ |
+| 4 | `getScene` | ☑ | `get_scene` ☑ | ☑ | ☑ |
+| 5 | `getView` | ☑ | `get_state` ☑ | ☑ | ☑ |
+| 6 | `getStrings` | ☑ | `get_strings` ☑ | ☑ | ☑ |
+| 7 | `submitAction` | ☑ | `choose` ☑ | ☑ | ☑ |
+| 8 | `previewAction` | ☑ | `preview_action` ☑ | ☑ | ☑ |
+| 9 | `saveGame` | ☑ | `save_game` ☑ | ☑ | ☑ |
+| 10 | `loadGame` | ☑ | `load_game` ☑ | ☑ | ☑ |
 
 **The "Simulation kind" column is not a third client** — it is the same two clients
 (text, MCP), driven a second time against a kind whose actions carry declared `params`
@@ -184,10 +184,11 @@ through MCP independently — asserting identical `Scene`/`PlayerView` at every 
 client-free replay of the identical action log reaching the identical, golden-filed
 `serialize()` output on repeat.
 
-**Browser-demo evidence** is intentionally unchecked until W61 lands. Its column covers the
-real browser adapter against the Bureaucracy campaign, not calls made directly against the
-store from a component test. `13-playable-web-demo.md` §7 fixes the acceptance shape: all ten
-operations, the same counting `IdSource`, and byte-identical output against the text client.
+**Browser-demo evidence** lives in `site/src/play/browser-client.test.ts`. Its ten numbered
+`it` blocks drive the real browser adapter against Bureaucracy, one per operation; they do not
+call the store directly from a component test. The same file then drives the full committed
+path through that adapter and the text client with the same seed and counting `IdSource`,
+asserting identical `Scene`/`PlayerView` steps and byte-identical final `serialize()` output.
 The demo may present save/load as same-page checkpoints, but that limitation does not weaken
 the adapter proof.
 
