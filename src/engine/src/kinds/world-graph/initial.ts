@@ -2,7 +2,7 @@ import type { InitialStateResult, KindContext } from "../../core/kernel/types.js
 import type { Campaign } from "../../core/registry/types.js";
 import { evaluateCondition, evaluateMetric } from "./conditions.js";
 import { worldGraphContent, type BuildingDefinition, type ScenarioDefinition } from "./content.js";
-import { checkBuildingPlacement, checkSceneryPlacement, materializeMap } from "./spatial.js";
+import { checkBuildingPlacement, checkSceneryPlacement, footprintCells, materializeMap, occupiedCells, terrainIndex } from "./spatial.js";
 import type { Building, Queue, Scenery, WorldGraphKindState } from "./state.js";
 import { resolveStatus } from "./outcome.js";
 
@@ -71,11 +71,17 @@ export function initialState(campaign: Campaign, ctx: KindContext): InitialState
   const placed = buildPlacement(scenario, content, map);
   let nextOrdinal = placed.nextOrdinal;
   const scenery: Scenery[] = [];
+  const sceneryContext = {
+    occupied: occupiedCells(placed.buildings, []),
+    terrainByCell: terrainIndex(map),
+    terrainById: new Map(content.terrain.map((entry) => [entry.id, entry])),
+  };
   for (const placement of scenario.sceneryPlacements) {
     const definition = invariant(content.scenery.find((entry) => entry.id === placement.definitionId), `scenery ${placement.definitionId}`);
-    const result = checkSceneryPlacement(map, content.terrain, definition, placement.x, placement.y, placement.rotation, placed.buildings, [], scenery);
+    const result = checkSceneryPlacement(map, content.terrain, definition, placement.x, placement.y, placement.rotation, placed.buildings, [], scenery, sceneryContext);
     if (!result.ok) throw new Error(`Validated world-graph placement failed: ${definition.id}:${result.reason}`);
     scenery.push({ id: `scenery:${nextOrdinal}`, definitionId: definition.id, x: placement.x, y: placement.y, width: result.width, height: result.height, rotation: placement.rotation });
+    for (const cell of footprintCells(placement.x, placement.y, result.width, result.height)) sceneryContext.occupied.add(`${cell.x},${cell.y}`);
     nextOrdinal += 1;
   }
   map = { ...map, scenery };

@@ -2,7 +2,7 @@ import type { Campaign } from "../../core/registry/types.js";
 import type { LocKey } from "../../core/localization/types.js";
 import type { ValidationError, ValidationResult, ValidationWarning } from "../../core/validation/types.js";
 import type { WorldCondition, WorldEffect, WorldGraphCampaign } from "./content.js";
-import { checkBuildingPlacement, checkSceneryPlacement, materializeMap } from "./spatial.js";
+import { checkBuildingPlacement, checkSceneryPlacement, footprintCells, materializeMap, occupiedCells, terrainIndex } from "./spatial.js";
 import type { Building, Scenery } from "./state.js";
 
 type RecordValue = Record<string, unknown>;
@@ -237,12 +237,20 @@ function placementErrors(content: WorldGraphCampaign): ValidationError[] {
       });
     });
     const scenery: Pick<Scenery, "x" | "y" | "width" | "height">[] = [];
+    const sceneryContext = {
+      occupied: occupiedCells(buildings, []),
+      terrainByCell: terrainIndex(map),
+      terrainById: new Map(content.terrain.map((entry) => [entry.id, entry])),
+    };
     scenario.sceneryPlacements.forEach((placement, index) => {
       const definition = content.scenery.find((entry) => entry.id === placement.definitionId);
       if (!definition) return;
-      const result = checkSceneryPlacement(map, content.terrain, definition, placement.x, placement.y, placement.rotation, buildings, [], scenery);
+      const result = checkSceneryPlacement(map, content.terrain, definition, placement.x, placement.y, placement.rotation, buildings, [], scenery, sceneryContext);
       if (!result.ok) errors.push(error(result.reason, `content.scenarios[${scenarioIndex}].sceneryPlacements[${index}]`));
-      else scenery.push({ x: placement.x, y: placement.y, width: result.width, height: result.height });
+      else {
+        scenery.push({ x: placement.x, y: placement.y, width: result.width, height: result.height });
+        for (const cell of footprintCells(placement.x, placement.y, result.width, result.height)) sceneryContext.occupied.add(`${cell.x},${cell.y}`);
+      }
     });
   });
   return errors;

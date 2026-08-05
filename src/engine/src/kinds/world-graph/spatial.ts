@@ -28,6 +28,12 @@ export type SceneryPlacementResult =
   | { readonly ok: true; readonly width: number; readonly height: number }
   | { readonly ok: false; readonly reason: PlacementFailure };
 
+export type SceneryPlacementContext = {
+  readonly occupied: Set<string>;
+  readonly terrainByCell: ReadonlyMap<string, string>;
+  readonly terrainById: ReadonlyMap<string, TerrainDefinition>;
+};
+
 const key = (position: Position): string => `${position.x},${position.y}`;
 const comparePosition = (a: Position, b: Position): number => a.y - b.y || a.x - b.x;
 
@@ -95,7 +101,7 @@ export function materializeMap(definition: MapDefinition): WorldMap {
   };
 }
 
-function occupiedCells(buildings: readonly Building[], sites: readonly ConstructionSite[]): Set<string> {
+export function occupiedCells(buildings: readonly Building[], sites: readonly ConstructionSite[]): Set<string> {
   const occupied = new Set<string>();
   for (const entity of [...buildings, ...sites]) {
     for (const cell of footprintCells(entity.x, entity.y, entity.width, entity.height)) occupied.add(key(cell));
@@ -103,7 +109,7 @@ function occupiedCells(buildings: readonly Building[], sites: readonly Construct
   return occupied;
 }
 
-function terrainIndex(map: WorldMap): Map<string, string> {
+export function terrainIndex(map: WorldMap): Map<string, string> {
   return new Map(map.terrain.map((cell) => [key(cell), cell.terrainId]));
 }
 
@@ -239,16 +245,17 @@ export function checkSceneryPlacement(
   buildings: readonly Building[],
   sites: readonly ConstructionSite[],
   scenery: readonly Pick<Scenery, "x" | "y" | "width" | "height">[],
+  context?: SceneryPlacementContext,
 ): SceneryPlacementResult {
   if (!definition.allowedRotations.includes(rotation)) return { ok: false, reason: "placement_terrain_unsuitable" };
   const size = rotatedDimensions(definition.footprint.width, definition.footprint.height, rotation);
   const cells = footprintCells(x, y, size.width, size.height);
   if (!cells.every((cell) => inBounds(map.width, map.height, cell))) return { ok: false, reason: "placement_out_of_bounds" };
-  const occupied = occupiedCells(buildings, sites);
-  for (const entry of scenery) for (const cell of footprintCells(entry.x, entry.y, entry.width, entry.height)) occupied.add(key(cell));
+  const occupied = context?.occupied ?? occupiedCells(buildings, sites);
+  if (!context) for (const entry of scenery) for (const cell of footprintCells(entry.x, entry.y, entry.width, entry.height)) occupied.add(key(cell));
   if (cells.some((cell) => occupied.has(key(cell)))) return { ok: false, reason: "placement_overlaps" };
-  const byCell = terrainIndex(map);
-  const terrain = new Map(terrainDefinitions.map((entry) => [entry.id, entry]));
+  const byCell = context?.terrainByCell ?? terrainIndex(map);
+  const terrain = context?.terrainById ?? new Map(terrainDefinitions.map((entry) => [entry.id, entry]));
   if (cells.some((cell) => terrain.get(byCell.get(key(cell)) ?? "")?.buildable !== true)) return { ok: false, reason: "placement_terrain_unsuitable" };
   if (!definition.placementRules.every((rule) => ruleAllows(rule, cells, map, byCell))) return { ok: false, reason: "placement_terrain_unsuitable" };
   return { ok: true, ...size };
