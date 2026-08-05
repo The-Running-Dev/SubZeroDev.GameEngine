@@ -144,11 +144,11 @@ export default function PlayApp() {
         {!state ? (
           <section className="archive" aria-labelledby="shelf-title">
             <div className="archive-heading">
-              <p className="eyebrow">PUBLIC RECORDS / PLAYABLE STORIES</p>
-              <h1 id="shelf-title">The story shelf</h1>
+              <p className="eyebrow">SUBZERO STORY SYSTEM // INSERT DISK</p>
+              <h1 id="shelf-title">Adventure disk library</h1>
               <p>
-                Choose a dossier. Every improbable consequence runs entirely in
-                this browser.
+                Select a program. Your choices, bad luck, and improbable
+                consequences run entirely on this machine.
               </p>
             </div>
             <div className="dossier-grid" aria-label="Story dossiers">
@@ -160,7 +160,8 @@ export default function PlayApp() {
                   aria-pressed={selectedId === campaign.campaignId}
                 >
                   <span className="dossier-number">
-                    FILE {String(index + 1).padStart(2, "0")}
+                    DISK {String(index + 1).padStart(2, "0")} //{" "}
+                    {campaign.featured ? "FEATURED" : "READY"}
                   </span>
                   <strong>{campaign.title}</strong>
                   <span>{campaign.duration}</span>
@@ -191,7 +192,7 @@ export default function PlayApp() {
                     disabled={busy}
                     onClick={() => setNotice(selected.campaignId)}
                   >
-                    Open dossier and start
+                    Load selected adventure
                   </button>
                 </div>
               </section>
@@ -200,7 +201,7 @@ export default function PlayApp() {
         ) : (
           <section
             className={`cabinet accent-${theme?.accent ?? "default"}`}
-            aria-label={`${selected?.title ?? "Story"} game cabinet`}
+            aria-label={`${selected?.title ?? "Story"} adventure terminal`}
           >
             <header className="cabinet-marquee">
               <div>
@@ -219,21 +220,21 @@ export default function PlayApp() {
                 >
                   <span aria-hidden="true" />{" "}
                   {message?.startsWith("Progress could not")
-                    ? "SAVE WARNING"
-                    : "LOCAL CHECKPOINT"}
+                    ? "DISK WRITE ERROR"
+                    : "GAME SAVED"}
                 </span>
                 <button
                   className="cabinet-button quiet"
                   onClick={returnToShelf}
                 >
-                  Story shelf
+                  Quit to library
                 </button>
               </div>
             </header>
             <div className="cabinet-layout">
               <article className="scene-viewport" aria-live="polite">
                 <p className="scene-kicker">
-                  {ended ? "CASE CLOSED" : "CURRENT SCENE"}
+                  {ended ? "SESSION COMPLETE" : "ROOM DESCRIPTION"}
                 </p>
                 <h2 ref={sceneHeading} tabIndex={-1}>
                   {state.scene.body.text}
@@ -241,14 +242,12 @@ export default function PlayApp() {
                 <div className="arrival-receipt" role="status">
                   {arrivalChoice ? (
                     <>
-                      <span>You chose</span>
+                      <span>Last command</span>
                       <strong>{arrivalChoice}</strong>
-                      <span className="arrival-link">
-                        which brought you here.
-                      </span>
+                      <span className="arrival-link">// accepted</span>
                     </>
                   ) : (
-                    <strong>Your story begins here.</strong>
+                    <strong>PROGRAM LOADED. YOUR STORY BEGINS HERE.</strong>
                   )}
                 </div>
                 {ended ? (
@@ -283,9 +282,7 @@ export default function PlayApp() {
                     aria-label="Available actions"
                     aria-busy={busy}
                   >
-                    <p className="deck-label">
-                      Select an official course of action
-                    </p>
+                    <p className="deck-label">What will you do?</p>
                     {state.actions.map((action, index) => (
                       <div
                         className={`action-card ${!action.available ? "unavailable" : ""}`}
@@ -317,8 +314,8 @@ export default function PlayApp() {
               </article>
               <aside className="status-console" aria-labelledby="console-title">
                 <div className="console-heading">
-                  <p className="eyebrow">LIVE PROJECTION</p>
-                  <h2 id="console-title">Status console</h2>
+                  <p className="eyebrow">SIDE PANEL // MEMORY</p>
+                  <h2 id="console-title">Player status</h2>
                 </div>
                 {viewOf(state).stats.length ? (
                   <dl className="stat-readouts">
@@ -341,7 +338,7 @@ export default function PlayApp() {
                   </p>
                 )}
                 <details className="journey-log">
-                  <summary>Journey so far</summary>
+                  <summary>Travel log</summary>
                   <ol>
                     {journey.map((entry, index) => (
                       <li
@@ -365,7 +362,7 @@ export default function PlayApp() {
                   )}
                 </details>
                 <p className="console-footnote">
-                  This console shows only the player-facing record.
+                  Player-visible memory only. No engine internals displayed.
                 </p>
                 {selected?.sources && (
                   <div className="source-links">
@@ -389,8 +386,8 @@ export default function PlayApp() {
               aria-modal="true"
               aria-labelledby="notice-title"
             >
-              <p className="eyebrow">CONTENT NOTICE</p>
-              <h2 id="notice-title">Before opening this file</h2>
+              <p className="eyebrow">SYSTEM MESSAGE // CONTENT NOTICE</p>
+              <h2 id="notice-title">Before loading this program</h2>
               <p>
                 {
                   demo.catalog.find(
@@ -408,7 +405,7 @@ export default function PlayApp() {
                     void start(id);
                   }}
                 >
-                  I understand — start
+                  Continue loading
                 </button>
                 <button
                   className="cabinet-button quiet"
