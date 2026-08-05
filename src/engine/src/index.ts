@@ -22,6 +22,10 @@ export { simulationKind } from "./kinds/simulation/kind.js";
 export { worldGraphKind } from "./kinds/world-graph/kind.js";
 export { buildWorldGraphCampaign } from "./kinds/world-graph/source.js";
 export { buildWorldGraphMvpCampaign, WORLD_GRAPH_MVP_CAMPAIGN_ID } from "./campaigns/world-graph-mvp.js";
+export {
+  buildBulgariaBureaucracyCampaign,
+  BULGARIA_BUREAUCRACY_CAMPAIGN_ID,
+} from "./campaigns/bulgaria-bureaucracy.js";
 export { ENGINE_VERSION } from "./version.js";
 
 export type { Engine } from "./core/kernel/types.js";
@@ -36,6 +40,7 @@ export type { SessionStore, ProfileStore, SessionHandle, SessionActionResult, Cr
 export type { ValidationResult, ValidationError, ValidationWarning } from "./core/validation/types.js";
 export type { CommandResult, StateChange, ReasonCode } from "./core/kernel/reasons.js";
 export type { LocKey } from "./core/localization/types.js";
+export type { StringTable } from "./core/localization/types.js";
 export type { Condition } from "./core/condition/types.js";
 export type { Emitter, EngineEvent } from "./core/observability/types.js";
 export type { WorldGraphCampaign, WorldGraphCampaignSource } from "./kinds/world-graph/content.js";

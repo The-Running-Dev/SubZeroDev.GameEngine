@@ -9,7 +9,8 @@
  * separation `canonical.ts` already draws for serialization itself.
  */
 
-import { createHash } from "node:crypto";
+import { bytesToHex } from "@noble/hashes/utils.js";
+import { sha256 } from "@noble/hashes/sha2.js";
 import type { Campaign, ContentRegistry } from "../registry/types.js";
 import type { GameState, Kind, KindRegistry } from "../kernel/types.js";
 import { isValidGameStateShape } from "../kernel/engine.js";
@@ -25,7 +26,7 @@ export const CURRENT_SAVE_FORMAT_VERSION = 1;
 export const CURRENT_SERIALIZATION_VERSION = 1;
 
 export function computeChecksum(serializedContent: string): string {
-  return createHash("sha256").update(serializedContent).digest("hex");
+  return bytesToHex(sha256(new TextEncoder().encode(serializedContent)));
 }
 
 /**

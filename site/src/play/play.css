@@ -1,0 +1,111 @@
+.play-main {
+  margin: 0 auto;
+  max-width: var(--measure);
+  padding: 2rem var(--page-inline) 4rem;
+}
+.play-hero {
+  max-width: 48rem;
+  margin-block: 2rem 3rem;
+}
+.play-hero h1 {
+  font-size: clamp(2.5rem, 8vw, 5rem);
+  margin-block: 0.25rem 1rem;
+}
+.play-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.38fr);
+  gap: 1.5rem;
+}
+.play-scene,
+.play-state {
+  border: 1px solid var(--landing-border-decorative);
+  background: var(--landing-surface);
+  padding: clamp(1.25rem, 3vw, 2.5rem);
+}
+.play-scene h2 {
+  font-size: clamp(1.3rem, 3vw, 2.1rem);
+  line-height: 1.35;
+}
+.play-actions {
+  display: grid;
+  gap: 0.8rem;
+  margin-top: 2rem;
+}
+.play-actions > div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.45rem;
+  align-items: center;
+}
+button {
+  border: 1px solid var(--landing-border-strong);
+  background: transparent;
+  color: var(--landing-text);
+  cursor: pointer;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font: inherit;
+}
+button:hover:not(:disabled),
+.play-primary {
+  border-color: var(--landing-accent);
+  background: var(--landing-accent-soft);
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.play-primary {
+  display: inline-block;
+  margin-top: 1rem;
+}
+.play-preview {
+  font-size: 0.85rem;
+  color: var(--landing-muted);
+}
+.play-reason {
+  grid-column: 1 / -1;
+  color: var(--landing-muted);
+  margin: 0;
+}
+.play-preview-box,
+.play-message {
+  border-left: 3px solid var(--landing-accent);
+  margin-top: 1.5rem;
+  padding-left: 1rem;
+}
+.play-state dl {
+  display: grid;
+  gap: 0.75rem;
+}
+.play-state dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.play-state dt {
+  color: var(--landing-muted);
+}
+.play-state dd {
+  margin: 0;
+}
+.play-state button {
+  display: block;
+  width: 100%;
+  margin-top: 0.75rem;
+}
+.play-state p {
+  color: var(--landing-muted);
+  font-size: 0.9rem;
+}
+@media (max-width: 700px) {
+  .play-board {
+    grid-template-columns: 1fr;
+  }
+  .play-actions > div {
+    grid-template-columns: 1fr;
+  }
+  .play-preview {
+    justify-self: start;
+  }
+}

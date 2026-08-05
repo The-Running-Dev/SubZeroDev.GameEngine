@@ -90,4 +90,9 @@ if (-not (Test-Path -LiteralPath $roadmapPage -PathType Leaf)) {
     throw "The landing build did not leave a static roadmap route at '$roadmapPage'."
 }
 
+$playPage = Join-Path $DocsOutput 'play/index.html'
+if (-not (Test-Path -LiteralPath $playPage -PathType Leaf)) {
+    throw "The landing build did not leave a static play route at '$playPage'."
+}
+
 Write-Host "[MERGE] Landing page overlaid onto '$DocsOutput'. docs/ untouched ($docsPageCountAfter files)." -ForegroundColor Green

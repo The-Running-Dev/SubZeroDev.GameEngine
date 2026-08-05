@@ -81,6 +81,8 @@ jobs:
             # deploy if a check was ever bypassed getting there.
             - name: Build and verify landing page
               run: |
+                  npm --prefix src/engine ci
+                  npm --prefix src/engine run build
                   npm --prefix site ci
                   npm --prefix site run check
 
