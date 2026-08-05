@@ -3,6 +3,7 @@ import { project, projectPublicWorldState, type SimulationView } from "./view.js
 import type { SimulationCampaign } from "./campaign.js";
 import type { SimulationKindState } from "./state.js";
 import type { KindContext } from "../../core/kernel/types.js";
+import { canonicalStringify } from "../../core/persistence/canonical.js";
 
 const state: SimulationKindState = {
   calendar: { currentWeek: 3, currentYear: 1, totalTimeUnits: 14, committedTimeUnits: 2, spentTimeUnits: 5 },
@@ -128,6 +129,17 @@ describe("project (10-simulation-kind.md §9)", () => {
   it("filters activeEffects to visible: true only, stripping modifiers", () => {
     const view = project(state, "player", fakeCtx());
     expect(view.activeEffects).toEqual([{ id: "e1", sourceKind: "item", descriptionKey: "effect.e1", expiresAtWeek: 5 }]);
+  });
+
+  it("W51.5 — a derived value is visible through SimulationView and never persisted", () => {
+    // The fixture's own e1 effect adds +5 to player.needs.energy (base 50).
+    const view = project(state, "player", fakeCtx());
+    expect(view.needs.energy).toBe(55);
+
+    // The base stored value is untouched by projection — serialize() sees only it.
+    expect(state.player.needs.energy).toBe(50);
+    expect(canonicalStringify(state)).toContain("\"energy\":50");
+    expect(canonicalStringify(state)).not.toContain("\"energy\":55");
   });
 
   it("bands sector demand and withholds an indicator not in publishedIndicators", () => {

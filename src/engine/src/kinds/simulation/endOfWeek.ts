@@ -45,7 +45,9 @@ function clamp(value: number, min: number, max: number): number {
  * Weekly need drift, real logic against provisional rates — `TODO.md`'s *Known Open
  * Items* already tracks these as needing a balancing pass once the sim harness runs;
  * the mechanism (drift, then clamp once, emitting one `StateChange` per touched need) is
- * genuine, only the numbers are placeholder.
+ * genuine, only the numbers are placeholder. Drifts the *base* value (§6.1) — `derived.ts`
+ * layers any active `player.needs.*` modifier over this on read, so drift and modifiers
+ * never fight over the same stored number.
  */
 const DRIFT_PER_WEEK: Readonly<Record<NeedKey, number>> = {
   health: -1,

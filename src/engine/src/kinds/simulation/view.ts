@@ -35,6 +35,7 @@ import type {
 import { demandBand } from "./state.js";
 import { ACTION_TYPES } from "./plan.js";
 import type { SimulationKindState } from "./state.js";
+import { derivedValueResolver } from "./derived.js";
 
 export interface VisibleRelationship {
   npcId: string;
@@ -244,6 +245,46 @@ function calendarView(calendar: SimulationKindState["calendar"]): SimulationView
   };
 }
 
+/** Effective (derived) needs — §6.1's base/derived split means a client sees the
+ *  post-modifier value, never the raw stored one; `serialize()` (`persistence`) still only
+ *  ever walks `state.player.needs` itself, so this never reaches storage (W51.5). */
+function resolvedNeeds(state: SimulationKindState): NeedState {
+  const { needs } = state.player;
+  const { activeEffects } = state;
+  return {
+    health: derivedValueResolver.resolve("player.needs.health", needs.health, activeEffects),
+    energy: derivedValueResolver.resolve("player.needs.energy", needs.energy, activeEffects),
+    happiness: derivedValueResolver.resolve("player.needs.happiness", needs.happiness, activeEffects),
+    stress: derivedValueResolver.resolve("player.needs.stress", needs.stress, activeEffects),
+    satiety: derivedValueResolver.resolve("player.needs.satiety", needs.satiety, activeEffects),
+  };
+}
+
+/** Effective (derived) attributes, `luck` excluded per this view's own rule — same
+ *  base/derived split as `resolvedNeeds`. */
+function resolvedAttributes(state: SimulationKindState): Omit<AttributeState, "luck"> {
+  const { attributes } = state.player;
+  const { activeEffects } = state;
+  return {
+    intelligence: derivedValueResolver.resolve("player.attributes.intelligence", attributes.intelligence, activeEffects),
+    discipline: derivedValueResolver.resolve("player.attributes.discipline", attributes.discipline, activeEffects),
+    charisma: derivedValueResolver.resolve("player.attributes.charisma", attributes.charisma, activeEffects),
+    creativity: derivedValueResolver.resolve("player.attributes.creativity", attributes.creativity, activeEffects),
+    resilience: derivedValueResolver.resolve("player.attributes.resilience", attributes.resilience, activeEffects),
+    wisdom: derivedValueResolver.resolve("player.attributes.wisdom", attributes.wisdom, activeEffects),
+  };
+}
+
+/** Effective (derived) skills — sorted iteration (§2) applies the same as every other
+ *  `Record`-typed field in this view. */
+function resolvedSkills(state: SimulationKindState): Record<string, number> {
+  const skills: Record<string, number> = {};
+  for (const key of Object.keys(state.player.skills).sort()) {
+    skills[key] = derivedValueResolver.resolve(`player.skills.${key}`, state.player.skills[key]!, state.activeEffects);
+  }
+  return skills;
+}
+
 export function project(
   state: SimulationKindState,
   audience: ProjectionAudience,
@@ -251,14 +292,6 @@ export function project(
 ): SimulationView {
   void audience;
   void ctx;
-  const attributes: Omit<AttributeState, "luck"> = {
-    intelligence: state.player.attributes.intelligence,
-    discipline: state.player.attributes.discipline,
-    charisma: state.player.attributes.charisma,
-    creativity: state.player.attributes.creativity,
-    resilience: state.player.attributes.resilience,
-    wisdom: state.player.attributes.wisdom,
-  };
 
   return {
     calendar: calendarView(state.calendar),
@@ -266,15 +299,15 @@ export function project(
     identity: state.player.identity,
     currentLocationId: state.player.currentLocationId,
     finances: state.player.finances,
-    needs: state.player.needs,
-    attributes,
+    needs: resolvedNeeds(state),
+    attributes: resolvedAttributes(state),
     education: state.player.education,
     career: state.player.career,
     housing: state.player.housing,
     inventory: state.player.inventory,
     relationships: visibleRelationships(state.player.relationships),
 
-    skills: state.player.skills,
+    skills: resolvedSkills(state),
     traits: state.player.traits,
     reputation: state.player.reputation,
 
