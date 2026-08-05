@@ -1,6 +1,6 @@
 import type {
+  ActionParams,
   CampaignSummary,
-  CreateSessionConfig,
   PlayerView,
   SaveHandle,
   Scene,
@@ -25,6 +25,12 @@ export interface PlayState {
   readonly actions: readonly PlayAction[];
 }
 
+/** The public demo always renders the player projection and has no profile surface. */
+export interface BrowserSessionConfig {
+  readonly campaignId: string;
+  readonly seed?: string;
+}
+
 export class BrowserClient {
   private readonly store: SessionStore;
 
@@ -36,8 +42,14 @@ export class BrowserClient {
     return this.store.listCampaigns();
   }
 
-  async createSession(config: CreateSessionConfig): Promise<PlayState> {
-    return this.read(await this.store.createSession(config));
+  async createSession(config: BrowserSessionConfig): Promise<PlayState> {
+    return this.read(
+      await this.store.createSession({
+        campaignId: config.campaignId,
+        ...(config.seed === undefined ? {} : { seed: config.seed }),
+        audience: "player",
+      }),
+    );
   }
 
   async start(campaignId: string): Promise<PlayState> {
@@ -64,22 +76,25 @@ export class BrowserClient {
   previewAction(
     sessionId: string,
     actionId: string,
+    params?: ActionParams,
   ): Promise<SessionActionResult> {
-    return this.store.previewAction(sessionId, actionId);
+    return this.store.previewAction(sessionId, actionId, params);
   }
 
   submitAction(
     sessionId: string,
     actionId: string,
+    params?: ActionParams,
   ): Promise<SessionActionResult> {
-    return this.store.submitAction(sessionId, actionId);
+    return this.store.submitAction(sessionId, actionId, params);
   }
 
   async submit(
     state: PlayState,
     actionId: string,
+    params?: ActionParams,
   ): Promise<{ state: PlayState; result: SessionActionResult }> {
-    const result = await this.submitAction(state.sessionId, actionId);
+    const result = await this.submitAction(state.sessionId, actionId, params);
     return {
       state: await this.read({
         sessionId: state.sessionId,
@@ -92,8 +107,9 @@ export class BrowserClient {
   async preview(
     state: PlayState,
     actionId: string,
+    params?: ActionParams,
   ): Promise<Scene | undefined> {
-    return (await this.previewAction(state.sessionId, actionId)).scene;
+    return (await this.previewAction(state.sessionId, actionId, params)).scene;
   }
 
   saveGame(sessionId: string): Promise<SaveHandle> {

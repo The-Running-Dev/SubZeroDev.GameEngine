@@ -7,7 +7,9 @@ import {
   createInMemorySessionStore,
   storyGraphKind,
   TextClient,
+  type ActionParams,
   type ContentRegistry,
+  type CreateSessionConfig,
   type Engine,
   type KindRegistry,
 } from "@the-running-dev/game-engine";
@@ -19,6 +21,45 @@ const ACTIONS = ["wait", "continue_cycle", "continue_cycle", "go_home"];
 
 function makeBrowserClient(): BrowserClient {
   return new BrowserClient(createBrowserDemo().store);
+}
+
+function recordStoreCalls(
+  store: ReturnType<typeof createBrowserDemo>["store"],
+): {
+  store: ReturnType<typeof createBrowserDemo>["store"];
+  created: CreateSessionConfig[];
+  submitted: ActionParams[];
+  previewed: ActionParams[];
+} {
+  const created: CreateSessionConfig[] = [];
+  const submitted: ActionParams[] = [];
+  const previewed: ActionParams[] = [];
+  return {
+    store: {
+      listCampaigns: () => store.listCampaigns(),
+      getScene: (sessionId) => store.getScene(sessionId),
+      getView: (sessionId) => store.getView(sessionId),
+      getStrings: (sessionId) => store.getStrings(sessionId),
+      createSession: (config) => {
+        created.push(config);
+        return store.createSession(config);
+      },
+      resumeSession: (sessionId) => store.resumeSession(sessionId),
+      submitAction: (sessionId, actionId, params) => {
+        if (params !== undefined) submitted.push(params);
+        return store.submitAction(sessionId, actionId, params);
+      },
+      previewAction: (sessionId, actionId, params) => {
+        if (params !== undefined) previewed.push(params);
+        return store.previewAction(sessionId, actionId, params);
+      },
+      saveGame: (sessionId) => store.saveGame(sessionId),
+      loadGame: (saveId) => store.loadGame(saveId),
+    },
+    created,
+    submitted,
+    previewed,
+  };
 }
 
 function observeSerializations(engine: Engine): {
@@ -93,6 +134,20 @@ describe("BrowserClient — the API coverage checklist (09-clients.md §4, W61.8
     expect(started.scene.body.text).toContain("handwritten");
   });
 
+  it("createSession — fixes the demo audience to player", async () => {
+    const calls = recordStoreCalls(createBrowserDemo().store);
+    const client = new BrowserClient(calls.store);
+    await client.createSession({
+      campaignId: "bulgaria-bureaucracy",
+      seed: SEED,
+      // Simulates an untyped JavaScript caller; BrowserSessionConfig rejects this in TypeScript.
+      ...({ audience: "ai" } as object),
+    });
+    expect(calls.created).toEqual([
+      { campaignId: "bulgaria-bureaucracy", seed: SEED, audience: "player" },
+    ]);
+  });
+
   it("3. resumeSession — returns the current scene without changing it", async () => {
     const client = makeBrowserClient();
     const started = await client.createSession({
@@ -155,6 +210,20 @@ describe("BrowserClient — the API coverage checklist (09-clients.md §4, W61.8
     const preview = await client.previewAction(started.sessionId, "wait");
     expect(preview.scene?.body.text).toContain("Room 6");
     expect(await client.getScene(started.sessionId)).toEqual(started.scene);
+  });
+
+  it("action helpers — forward declared parameters unchanged", async () => {
+    const calls = recordStoreCalls(createBrowserDemo().store);
+    const client = new BrowserClient(calls.store);
+    const started = await client.createSession({
+      campaignId: "bulgaria-bureaucracy",
+      seed: SEED,
+    });
+    const params = { declared: "value" };
+    await client.previewAction(started.sessionId, "wait", params);
+    await client.submitAction(started.sessionId, "wait", params);
+    expect(calls.previewed).toEqual([params]);
+    expect(calls.submitted).toEqual([params]);
   });
 
   it("9. saveGame — creates a same-page checkpoint", async () => {
