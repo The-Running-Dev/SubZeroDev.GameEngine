@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: e67a4a44106978204df6f37df1929f700c1b274f94608335988751679228ab5e -->
+<!-- design-digest: c13a64468abe0b459c23c3a3e26e11ed959ec13bfd1cc140234ddfd1ff86b28e -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -261,13 +261,36 @@ text, content notices, disabled reasons, error text, control labels, or accessib
 gauge prints its value, campaigns without visible stats get an honest empty state, and missing
 decorative art leaves a complete CSS interface.
 
-The responsive reading order is marquee, scene, actions, then projected status. At 320 px the
-trim simplifies and controls become full width; at desktop widths the status console may sit
-beside the scene. Keep native controls, visible focus, forced-colours support, 200% zoom, and
-WCAG AA contrast in every campaign theme. Reduced motion removes transforms, parallax, wipes,
-flicker, and staged delay completely; authoritative state never waits for animation. Original
-raster art is PNG/JPG, local to the static build, and stays inside the W63 asset budgets. The
-complete visual grammar, proof matrix, and non-goals are in
+The responsive reading order is marquee, scene, actions, then projected status. Treat the phone
+as the composed case, not the shrunken one. Type and hit-area floors apply at every width, and
+they are floors measured at 320 px: authored prose 1.125 rem at line-height 1.6 or more, choice
+labels 1.0625 rem, cabinet controls 1 rem, stat text 0.9375 rem, reason and journey text
+0.875 rem, and a 44 × 44 px minimum hit area produced by padding with at least 8 px between
+adjacent choice controls. Only stamped marquee, eyebrow, and disk labels may go smaller, and
+uppercase is confined to those same labels — never authored prose, choice labels, reasons, or
+error text.
+
+Below 768 px a turn is two scroll-snapped pages in one ordinary scrolling column: a scene page
+filling the viewport and naming how many choices wait, then a choice page of full-width cards
+under a pinned single-line scene echo. Snapping is `proximity` and assists only — both pages
+stay in the DOM in reading order, every choice is reachable by plain scrolling with snapping,
+smooth scrolling, and the cue's script path all unavailable, and no swipe, drag, long-press, or
+horizontal paging is introduced. Committing an action lands on the new turn's scene page with
+focus on the scene. Measure full-height panels in dynamic viewport units rather than `vh`, add
+`env(safe-area-inset-*)` padding to every inset-facing edge, and go full-bleed below 768 px —
+an offset shadow outside a full-width element is horizontal overflow at 320 px, not decoration.
+At 768 px and above, the desktop compositions are unchanged and no snapping applies.
+
+Keep native controls, visible focus, forced-colours support, 200% zoom, and WCAG AA contrast in
+every campaign theme. The authored scene belongs in a labelled region with a short real
+heading — prose marked up as a heading makes the phone screen-reader's heading rotor useless.
+Reduced motion removes transforms, parallax, wipes, flicker, and staged delay completely, and
+makes the cue jump and post-commit return instant; authoritative state never waits for
+animation. The retro identity is a fixed input: palette values, type family, scan lines,
+stamped labels, offset shadows, double borders, and campaign accents do not change, because
+only size, spacing, safe areas, and reading order are in play. Original raster art is PNG/JPG,
+local to the static build, and stays inside the W63 asset budgets. The complete visual grammar,
+proof matrix, and non-goals are in
 [`14-game-interface.md`](engine/14-game-interface.md).
 
 ## Determinism rules that will bite you
