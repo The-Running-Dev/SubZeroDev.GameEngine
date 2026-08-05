@@ -523,6 +523,7 @@ useful line between "look" and "change."
 interface SessionStore {
   // ── Queries (read-only) ──────────────────────────────
   listCampaigns(): CampaignSummary[];
+  getCampaignStrings(campaignId: string): Promise<StringTable>; // resolve pre-session campaign text
   getScene(sessionId: string): Promise<Scene>;
   getView(sessionId: string): Promise<PlayerView>;
   getStrings(sessionId: string): Promise<StringTable>;   // resolve LocKeys — below
@@ -570,6 +571,12 @@ type StringTable = Readonly<Record<LocKey, string>>;
 > `profileId` stays off `NewGameConfig` and out of `GameState` (§7.1); it is a *session*
 > input, which is exactly what this type is for.
 
+> **Pre-session campaign text.** `listCampaigns` intentionally returns an unresolved
+> `titleKey` so campaign discovery remains locale-neutral. Before a session exists, a client
+> resolves that key with `getCampaignStrings(campaignId)`; after `createSession`, it uses
+> `getStrings(sessionId)`. This keeps localization behind `SessionStore` and never permits a
+> raw `LocKey` to become visible UI.
+>
 > **Why `getStrings` is a store operation.** Every client-facing type carries `LocKey`s —
 > `Scene.actions[].labelKey`, `CampaignSummary.titleKey`, `OutcomeMessage.key`,
 > `ValidationError` — and a client that may call nothing but this store (09 §2) otherwise has

@@ -2390,7 +2390,8 @@ campaign outcomes, rewrite authored strings, or introduce a web-specific game pa
 
 The route has five visible states:
 
-1. **Ready** — campaign title, a short accurate explanation, and one `Start` action.
+1. **Ready** — the localized campaign title resolved through the store's pre-session
+   campaign-string query, a short accurate explanation, and one `Start` action.
 2. **Playing** — scene body, actions, visible state, achievements, and checkpoint controls.
 3. **Previewing** — an explicitly labelled prospective result from `previewAction`; nothing
    is committed until the visitor chooses the original action.
