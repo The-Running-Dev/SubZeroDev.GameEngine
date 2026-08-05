@@ -186,6 +186,31 @@ describe("world-graph W45 source and validation", () => {
     ]));
   });
 
+  it("rejects non-positive edge costs on explicit map topology", () => {
+    const built = envelope();
+    const base = runtime().content;
+    const invalid = {
+      ...built.campaign,
+      content: {
+        ...base,
+        maps: base.maps.map((entry) => ({
+          ...entry,
+          topology: {
+            kind: "explicit" as const,
+            edges: [
+              { from: { x: 0, y: 1 }, to: { x: 1, y: 1 }, edgeCost: 0, allowed: true },
+              { from: { x: 1, y: 1 }, to: { x: 0, y: 1 }, edgeCost: -1, allowed: true },
+            ],
+          },
+        })),
+      },
+    };
+    expect(worldGraphKind.validateCampaign(invalid, built.strings).errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "invalid_edge_cost", path: "content.maps[0].topology.edges[0].edgeCost" }),
+      expect.objectContaining({ code: "invalid_edge_cost", path: "content.maps[0].topology.edges[1].edgeCost" }),
+    ]));
+  });
+
   it("rejects negative and legacy counter effects before a tick can run", () => {
     const built = envelope();
     const base = runtime().content;
