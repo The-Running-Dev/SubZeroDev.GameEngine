@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 import { SiteFooter, SiteHeader } from "../shared";
 import { BrowserClient, type PlayState } from "./browser-client";
 import { createBrowserDemo } from "./composition";
@@ -34,6 +40,12 @@ interface JourneyEntry {
   readonly choice?: string;
 }
 
+const saveWarning =
+  "Progress could not be saved locally; this run remains available in this tab.";
+
+const focusableInDialog =
+  'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
 function excerpt(text: string): string {
   return text.length <= 150 ? text : `${text.slice(0, 147).trimEnd()}…`;
 }
@@ -46,11 +58,16 @@ export default function PlayApp() {
   const [selectedId, setSelectedId] = useState(demo.catalog[0]?.campaignId);
   const [notice, setNotice] = useState<string>();
   const [message, setMessage] = useState<string>();
+  const [saveFailed, setSaveFailed] = useState(false);
   const [arrivalChoice, setArrivalChoice] = useState<string>();
   const [journey, setJourney] = useState<readonly JourneyEntry[]>([]);
   const [busy, setBusy] = useState(false);
   const sceneHeading = useRef<HTMLHeadingElement>(null);
-  const briefingTrigger = useRef<HTMLButtonElement>(null);
+  const noticeDialog = useRef<HTMLElement>(null);
+  const noticeTrigger = useRef<HTMLElement | null>(null);
+  const restoreNoticeFocus = useRef(false);
+  /** Invalidates in-flight submissions when the player leaves or restarts a run. */
+  const runToken = useRef(0);
 
   const selected = demo.catalog.find(
     (campaign) => campaign.campaignId === (state ? campaignId : selectedId),
@@ -63,15 +80,65 @@ export default function PlayApp() {
     if (sceneText) sceneHeading.current?.focus();
   }, [sceneText]);
 
+  /**
+   * Restores focus to the control that opened the notice, and only then: a
+   * dismissal is the one transition that owes the player their place back.
+   */
   useEffect(() => {
-    if (!notice) briefingTrigger.current?.focus();
+    if (notice || !restoreNoticeFocus.current) return;
+    restoreNoticeFocus.current = false;
+    const trigger = noticeTrigger.current;
+    noticeTrigger.current = null;
+    if (trigger?.isConnected) trigger.focus();
   }, [notice]);
 
+  function openNotice(id: string, trigger: HTMLElement) {
+    noticeTrigger.current = trigger;
+    restoreNoticeFocus.current = false;
+    setNotice(id);
+  }
+
+  function dismissNotice() {
+    restoreNoticeFocus.current = true;
+    setNotice(undefined);
+  }
+
+  function confirmNotice(id: string) {
+    restoreNoticeFocus.current = false;
+    noticeTrigger.current = null;
+    setNotice(undefined);
+    void start(id);
+  }
+
+  function onNoticeKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      dismissNotice();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const focusable =
+      noticeDialog.current?.querySelectorAll<HTMLElement>(focusableInDialog);
+    if (!focusable?.length) return;
+    const first = focusable[0]!;
+    const last = focusable[focusable.length - 1]!;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
   async function start(id: string) {
+    const token = ++runToken.current;
     setBusy(true);
     setMessage(undefined);
+    setSaveFailed(false);
     try {
       const next = await client.start(id);
+      if (runToken.current !== token) return;
       setState(next);
       setCampaignId(id);
       setArrivalChoice(undefined);
@@ -79,26 +146,29 @@ export default function PlayApp() {
       try {
         await client.save(next.sessionId);
       } catch {
-        setMessage(
-          "Progress could not be saved locally; this run remains available in this tab.",
-        );
+        if (runToken.current !== token) return;
+        setSaveFailed(true);
+        setMessage(saveWarning);
       }
     } catch {
-      setMessage("This story could not start.");
+      if (runToken.current === token) setMessage("This story could not start.");
     } finally {
-      setBusy(false);
+      if (runToken.current === token) setBusy(false);
     }
   }
 
   async function choose(id: string) {
     if (!state) return;
+    const token = runToken.current;
     const resolvedLabel = state.actions.find(
       (action) => action.id === id,
     )?.label;
     setBusy(true);
     setMessage(undefined);
+    setSaveFailed(false);
     try {
       const next = await client.submit(state, id);
+      if (runToken.current !== token) return;
       setState(next.state);
       if (!next.result.ok)
         setMessage("That action was rejected. The scene has not changed.");
@@ -116,25 +186,29 @@ export default function PlayApp() {
         try {
           await client.save(next.state.sessionId);
         } catch {
-          setMessage(
-            "Progress could not be saved locally; this run remains available in this tab.",
-          );
+          if (runToken.current !== token) return;
+          setSaveFailed(true);
+          setMessage(saveWarning);
         }
       }
     } catch {
-      setMessage("That action could not be completed.");
+      if (runToken.current === token)
+        setMessage("That action could not be completed.");
     } finally {
-      setBusy(false);
+      if (runToken.current === token) setBusy(false);
     }
   }
 
   function returnToShelf() {
+    runToken.current += 1;
     if (campaignId) setSelectedId(campaignId);
     setState(undefined);
     setCampaignId(undefined);
     setMessage(undefined);
+    setSaveFailed(false);
     setArrivalChoice(undefined);
     setJourney([]);
+    setBusy(false);
   }
 
   return (
@@ -142,7 +216,11 @@ export default function PlayApp() {
       <SiteHeader current="play" />
       <main className="play-main">
         {!state ? (
-          <section className="archive" aria-labelledby="shelf-title">
+          <section
+            className="archive"
+            aria-labelledby="shelf-title"
+            inert={notice !== undefined}
+          >
             <div className="archive-heading">
               <p className="eyebrow">SUBZERO STORY SYSTEM // INSERT DISK</p>
               <h1 id="shelf-title">Adventure disk library</h1>
@@ -187,10 +265,11 @@ export default function PlayApp() {
                     Estimated duration: {selected.duration}
                   </p>
                   <button
-                    ref={briefingTrigger}
                     className="cabinet-button primary"
                     disabled={busy}
-                    onClick={() => setNotice(selected.campaignId)}
+                    onClick={(event) =>
+                      openNotice(selected.campaignId, event.currentTarget)
+                    }
                   >
                     Load selected adventure
                   </button>
@@ -202,6 +281,7 @@ export default function PlayApp() {
           <section
             className={`cabinet accent-${theme?.accent ?? "default"}`}
             aria-label={`${selected?.title ?? "Story"} adventure terminal`}
+            inert={notice !== undefined}
           >
             <header className="cabinet-marquee">
               <div>
@@ -212,16 +292,10 @@ export default function PlayApp() {
               </div>
               <div className="marquee-controls">
                 <span
-                  className={
-                    message?.startsWith("Progress could not")
-                      ? "save-lamp warning"
-                      : "save-lamp"
-                  }
+                  className={saveFailed ? "save-lamp warning" : "save-lamp"}
                 >
                   <span aria-hidden="true" />{" "}
-                  {message?.startsWith("Progress could not")
-                    ? "DISK WRITE ERROR"
-                    : "GAME SAVED"}
+                  {saveFailed ? "DISK WRITE ERROR" : "GAME SAVED"}
                 </span>
                 <button
                   className="cabinet-button quiet"
@@ -257,14 +331,20 @@ export default function PlayApp() {
                     </p>
                     <button
                       className="cabinet-button primary"
-                      onClick={() => start(campaignId!)}
+                      disabled={busy}
+                      onClick={(event) =>
+                        openNotice(campaignId!, event.currentTarget)
+                      }
                     >
                       Start another run
                     </button>
                     {campaignId === demo.catalog[0]?.campaignId && (
                       <button
                         className="cabinet-button"
-                        onClick={() => start(campaignId!)}
+                        disabled={busy}
+                        onClick={(event) =>
+                          openNotice(campaignId!, event.currentTarget)
+                        }
                       >
                         Play the other role
                       </button>
@@ -379,8 +459,9 @@ export default function PlayApp() {
           </section>
         )}
         {notice && (
-          <div className="notice-backdrop">
+          <div className="notice-backdrop" onKeyDown={onNoticeKeyDown}>
             <section
+              ref={noticeDialog}
               className="play-notice"
               role="dialog"
               aria-modal="true"
@@ -399,17 +480,13 @@ export default function PlayApp() {
                 <button
                   className="cabinet-button primary"
                   autoFocus
-                  onClick={() => {
-                    const id = notice;
-                    setNotice(undefined);
-                    void start(id);
-                  }}
+                  onClick={() => confirmNotice(notice)}
                 >
                   Continue loading
                 </button>
                 <button
                   className="cabinet-button quiet"
-                  onClick={() => setNotice(undefined)}
+                  onClick={dismissNotice}
                 >
                   Back
                 </button>

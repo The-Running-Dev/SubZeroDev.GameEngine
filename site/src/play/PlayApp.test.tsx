@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import PlayApp from "./PlayApp";
@@ -38,6 +38,89 @@ describe("PlayApp cabinet presentation", () => {
 
     await user.click(screen.getByRole("button", { name: "Back" }));
     expect(open).toHaveFocus();
+  });
+
+  it("leaves initial focus alone until a notice has actually been dismissed", () => {
+    render(<PlayApp />);
+
+    expect(
+      screen.getByRole("button", { name: "Load selected adventure" }),
+    ).not.toHaveFocus();
+    expect(document.body).toHaveFocus();
+  });
+
+  it("dismisses the notice with Escape and keeps Tab inside it", async () => {
+    const user = userEvent.setup();
+    render(<PlayApp />);
+
+    const open = screen.getByRole("button", {
+      name: "Load selected adventure",
+    });
+    await user.click(open);
+
+    const confirm = screen.getByRole("button", { name: "Continue loading" });
+    const back = screen.getByRole("button", { name: "Back" });
+    expect(confirm).toHaveFocus();
+
+    await user.tab();
+    expect(back).toHaveFocus();
+    await user.tab();
+    expect(confirm).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(back).toHaveFocus();
+
+    await user.keyboard("{Escape}");
+    expect(
+      screen.queryByRole("dialog", { name: "Before loading this program" }),
+    ).not.toBeInTheDocument();
+    expect(open).toHaveFocus();
+  });
+
+  it("re-shows the content notice before any repeat run", async () => {
+    const user = userEvent.setup();
+    render(<PlayApp />);
+
+    await user.click(screen.getByRole("button", { name: /The Bureaucracy/i }));
+    await user.click(
+      screen.getByRole("button", { name: "Load selected adventure" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Continue loading" }));
+    await screen.findByRole("heading", { name: /handwritten/i });
+
+    await user.click(screen.getByRole("button", { name: "Quit to library" }));
+    await user.click(
+      screen.getByRole("button", { name: "Load selected adventure" }),
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Before loading this program" }),
+    ).toBeVisible();
+  });
+
+  it("ignores a submission that resolves after the player quits to the library", async () => {
+    const user = userEvent.setup();
+    render(<PlayApp />);
+
+    await user.click(screen.getByRole("button", { name: /The Bureaucracy/i }));
+    await user.click(
+      screen.getByRole("button", { name: "Load selected adventure" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Continue loading" }));
+
+    const action = await screen.findByRole("button", {
+      name: /Wait for the municipal registry/i,
+    });
+    await act(async () => {
+      action.click();
+      screen.getByRole("button", { name: "Quit to library" }).click();
+      await Promise.resolve();
+    });
+
+    expect(
+      screen.getByRole("heading", { name: "Adventure disk library" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Quit to library" }),
+    ).not.toBeInTheDocument();
   });
 
   it("starts the cabinet without exposing engine internals", async () => {
