@@ -3,7 +3,7 @@ import type { LocKey } from "../../core/localization/types.js";
 import type { ValidationError, ValidationResult, ValidationWarning } from "../../core/validation/types.js";
 import type { WorldCondition, WorldEffect, WorldGraphCampaign } from "./content.js";
 import { checkBuildingPlacement, materializeMap } from "./spatial.js";
-import type { Building } from "./state.js";
+import type { Building, Position } from "./state.js";
 
 type RecordValue = Record<string, unknown>;
 const requiredCatalogs = [
@@ -158,6 +158,7 @@ function referenceErrors(content: WorldGraphCampaign): ValidationError[] {
   };
   const requireId = (set: ReadonlySet<string>, id: string, path: string): void => { if (!set.has(id)) errors.push(error("unknown_reference", path)); };
   requireId(ids.scenarios, content.startScenarioId, "content.startScenarioId");
+  const terrainById = new Map(content.terrain.map((entry) => [entry.id, entry]));
   content.maps.forEach((map, mapIndex) => {
     requireId(ids.terrain, map.defaultTerrainId, `content.maps[${mapIndex}].defaultTerrainId`);
     map.terrainOverrides.forEach((entry, index) => {
@@ -166,6 +167,20 @@ function referenceErrors(content: WorldGraphCampaign): ValidationError[] {
     });
     if (map.spawnPoints.length === 0) errors.push(error("missing_spawn", `content.maps[${mapIndex}].spawnPoints`));
     if (map.exits.length === 0) errors.push(error("missing_exit", `content.maps[${mapIndex}].exits`));
+    const overrides = new Map(map.terrainOverrides.map((entry) => [`${entry.position.x},${entry.position.y}`, entry.terrainId]));
+    const terrainIdAt = (position: Position): string => overrides.get(`${position.x},${position.y}`) ?? map.defaultTerrainId;
+    const checkEndpoints = (positions: readonly Position[], label: string, code: string): void => {
+      positions.forEach((position, index) => {
+        if (position.x < 0 || position.y < 0 || position.x >= map.width || position.y >= map.height) {
+          errors.push(error("position_out_of_bounds", `content.maps[${mapIndex}].${label}[${index}]`));
+          return;
+        }
+        const walkable = terrainById.get(terrainIdAt(position))?.walkable === true;
+        if (!walkable) errors.push(error(code, `content.maps[${mapIndex}].${label}[${index}]`));
+      });
+    };
+    checkEndpoints(map.spawnPoints, "spawnPoints", "spawn_not_traversable");
+    checkEndpoints(map.exits, "exits", "exit_not_traversable");
     if (map.topology.kind === "explicit") {
       map.topology.edges.forEach((edge, edgeIndex) => {
         if (edge.edgeCost <= 0) errors.push(error("invalid_edge_cost", `content.maps[${mapIndex}].topology.edges[${edgeIndex}].edgeCost`));
