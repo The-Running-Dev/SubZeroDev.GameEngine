@@ -1631,6 +1631,63 @@ client's rendering and the MCP surface all sit on the path.
       those belong to the *Content Tooling* workstream below. Per-locale content packs are
       [11 §8](11-content-packs.md#8-what-is-deferred)'s deferral, not this unit's.
 
+### [ ] W61 — Consume the Reusable Landing-Page Package {#w61}
+
+**Delivers:** Keeps the Engine's existing landing page and roadmap exactly as visitors see
+them, while replacing its repository-owned Vite build and PowerShell merge machinery with the
+reusable landing-page package Platform already publishes. The Engine continues to own its
+React pages, visual identity, metadata and tests; the package owns route builds and the
+protected documentation merge.
+
+The site is already an exceptional custom frontend, not a README-driven generic page. It
+therefore consumes the package's published custom-adapter seam: two Engine-owned entry modules,
+two independently declared metadata sets, the existing static assets, and no copied Platform
+component or stylesheet. This is a toolchain extraction, not a landing-page redesign.
+- **Spec:** none — site toolchain only. The consumed contract is
+      `subzerodev-platform-ui-landing-page@0.2.0`'s published `defineLandingPage` adapter and
+      protected `merge` command.
+- **Touches:** `site/landing.config.ts` (new); `site/package.json`, `site/package-lock.json`,
+      `site/vitest.config.ts` (new), `site/README.md`, `site/scripts/verify-build.mjs`, and a
+      merge-verification script under `site/scripts/`; the obsolete `site/vite.config.ts`,
+      `site/index.html` and `site/roadmap/index.html`; `build/Merge-LandingPage.ps1`;
+      `.github/workflows/docs-ci.yml` and `.github/workflows/docs-deploy.yml`.
+- **Depends on:** nothing Engine-side. The immutable external prerequisite is
+      `subzerodev-platform-ui-landing-page@0.2.0`, whose adapter preserves route-specific
+      canonical, Open Graph, X/Twitter, icon, theme-colour and no-script metadata.
+- **Status:** Not started.
+- **Done when:**
+  - W61.1 `site/package.json` pins `subzerodev-platform-ui-landing-page` exactly at `0.2.0`,
+        the lockfile resolves that version, and the site no longer declares Vite or the React
+        Vite plugin directly; Vitest retains its existing jsdom setup through a dedicated
+        test configuration.
+  - W61.2 `site/landing.config.ts` declares exactly `/` and `/roadmap/`, each pointing at its
+        existing Engine-owned entry module and carrying the complete metadata currently in
+        that route's HTML: title, description, canonical URL, Open Graph fields, X/Twitter
+        card, icons, theme colour and no-script text.
+  - W61.3 `npm --prefix site run build` emits `site/dist/index.html` and
+        `site/dist/roadmap/index.html`, copies every referenced public asset, and leaves no
+        development-only `/src/` reference in either built document.
+  - W61.4 The existing landing and roadmap component tests pass unchanged, and no Engine
+        component, page copy, stylesheet or public asset changes; adopting the package causes
+        no rendered-content or visual redesign.
+  - W61.5 The site scripts use the package CLI for `dev`, `build` and `merge`; the handwritten
+        Vite route inputs and `build/Merge-LandingPage.ps1` have no remaining caller or copy in
+        the repository.
+  - W61.6 A merge test starts from a real landing build and a fixture documentation output,
+        then proves the result contains `/`, `/roadmap/` and `/docs/` while every file under
+        the protected `docs/` subtree remains byte-identical. A landing fixture containing a
+        top-level `docs/` path is rejected, proving the guard's negative path.
+  - W61.7 Both documentation workflows install the pinned site dependencies, run the full site
+        check, and invoke the package-backed merge. Their triggers, Pages permissions,
+        concurrency and deployment environment remain caller-owned and unchanged.
+  - W61.8 `npm --prefix site run check`, `build/Test-Documentation.ps1` and
+        `git diff --check` pass; the production documentation build remains a separately
+        reported Docker-dependent gate.
+- **Out of scope:** changing landing-page or roadmap content, visual design, routes, roadmap
+      delivery status, documentation information architecture, GitHub Pages policy, or the
+      reusable package itself; adopting the package's generic README renderer; copying any
+      Platform page component, style or token into Engine.
+
 ### Breadth: The First Culture Pack
 
 - [ ] Bulgaria culture pack over the simulation kind — Jones-in-Bulgaria content,
@@ -1640,6 +1697,12 @@ client's rendering and the MCP surface all sit on the path.
 
 ### Breadth: The Platform
 
+- [ ] Interactive CLI play-test harness — a stdin/stdout loop over the existing
+      `TextClient` and `SessionStore` (`src/engine/src/clients/text/client.ts`), so a human
+      can play a committed campaign (e.g. `stable-life`, the Bulgaria arcs) without writing a
+      test. Manual play-testing tooling, not a shipped client surface — distinct from "more
+      clients" below, no projection or store change, no contract change. Not required by any
+      Definition-of-Done item; exists purely so the engine can be seen running.
 - [ ] More clients (web, Discord).
 - [ ] **Additional locales — sliced as [W60](#w60).** The MVP ships English only; the
       authoring→registry types already support more
