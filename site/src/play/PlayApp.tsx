@@ -3,10 +3,8 @@ import { SiteFooter, SiteHeader } from "../shared";
 import { BrowserClient, type PlayState } from "./browser-client";
 import { createBrowserDemo } from "./composition";
 
-type Phase = "ready" | "playing" | "ended" | "failed";
-
-function storyView(value: PlayState) {
-  const kindView = value.view.kindView as {
+function viewOf(state: PlayState) {
+  const view = state.view.kindView as {
     stats?: {
       var: string;
       labelKey: string;
@@ -15,213 +13,185 @@ function storyView(value: PlayState) {
     unlockedAchievements?: string[];
   };
   return {
-    stats: kindView.stats ?? [],
-    achievements: kindView.unlockedAchievements ?? [],
+    stats: view.stats ?? [],
+    achievements: view.unlockedAchievements ?? [],
   };
 }
 
 export default function PlayApp() {
-  const demo = useMemo(() => createBrowserDemo(), []);
+  const demo = useMemo(createBrowserDemo, []);
   const client = useMemo(() => new BrowserClient(demo.store), [demo.store]);
-  const [phase, setPhase] = useState<Phase>("ready");
   const [state, setState] = useState<PlayState>();
-  const [preview, setPreview] = useState<string>();
-  const [saveId, setSaveId] = useState<string>();
+  const [campaignId, setCampaignId] = useState<string>();
+  const [notice, setNotice] = useState<string>();
   const [message, setMessage] = useState<string>();
   const [busy, setBusy] = useState(false);
-
-  async function start() {
+  async function start(id: string) {
     setBusy(true);
     setMessage(undefined);
-    setPreview(undefined);
     try {
-      const next = await client.start(demo.config.campaignId);
+      const next = await client.start(id);
+      await client.save(next.sessionId);
       setState(next);
-      setPhase(next.scene.status === "ended" ? "ended" : "playing");
+      setCampaignId(id);
     } catch {
-      setPhase("failed");
-      setMessage("The demo could not start. Please try again.");
+      setMessage("This story could not start.");
     } finally {
       setBusy(false);
     }
   }
-  async function choose(actionId: string) {
+  async function choose(id: string) {
     if (!state) return;
     setBusy(true);
-    setPreview(undefined);
-    setMessage(undefined);
     try {
-      const next = await client.submit(state, actionId);
+      const next = await client.submit(state, id);
+      if (next.result.ok) await client.save(next.state.sessionId);
       setState(next.state);
-      setPhase(next.state.scene.status === "ended" ? "ended" : "playing");
-      if (!next.result.ok)
-        setMessage(
-          next.result.errors
-            .map(
-              (error) =>
-                next.state.strings[error.messageKey] ??
-                "That action was rejected.",
-            )
-            .join(" "),
-        );
+      if (!next.result.ok) setMessage("That action was rejected.");
     } catch {
-      setMessage("That action could not be completed. Please try again.");
+      setMessage("That action could not be completed.");
     } finally {
       setBusy(false);
     }
   }
-  async function previewAction(actionId: string) {
-    if (!state) return;
-    setBusy(true);
-    try {
-      setPreview(
-        (await client.preview(state, actionId))?.body.text ??
-          "No prospective scene is available.",
-      );
-    } catch {
-      setMessage("The preview could not be produced.");
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function checkpoint() {
-    if (!state) return;
-    setBusy(true);
-    try {
-      const saved = await client.save(state.sessionId);
-      setSaveId(saved.saveId);
-      setMessage("Checkpoint saved for this page only.");
-    } catch {
-      setMessage("The checkpoint could not be saved.");
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function restore() {
-    if (!saveId) return;
-    setBusy(true);
-    try {
-      const next = await client.load(saveId);
-      setState(next);
-      setPhase(next.scene.status === "ended" ? "ended" : "playing");
-      setPreview(undefined);
-      setMessage("Checkpoint restored.");
-    } catch {
-      setMessage("The checkpoint could not be restored.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const view = state ? storyView(state) : undefined;
+  const selected = demo.catalog.find(
+    (campaign) => campaign.campaignId === campaignId,
+  );
+  const ended = state?.scene.status === "ended";
   return (
     <>
       <SiteHeader current="play" />
       <main className="play-main">
         <section className="play-hero">
-          <p className="eyebrow">BROWSER DEMO</p>
-          <h1>{demo.config.title}</h1>
+          <p className="eyebrow">PLAYABLE STORIES</p>
+          <h1>{state ? selected?.title : "Story shelf"}</h1>
           <p>
-            A complete deterministic story, running locally in your browser.
-            This is an engine demo, not a finished game.
+            {state
+              ? "A deterministic story running entirely in this browser."
+              : "Local, choice-driven experiments from the SubZeroDev universe."}
           </p>
-          {phase === "ready" && (
-            <button className="play-primary" onClick={start} disabled={busy}>
-              Start
-            </button>
-          )}
-          {phase === "failed" && (
-            <>
-              <p role="alert">{message}</p>
-              <button className="play-primary" onClick={start}>
-                Try again
-              </button>
-            </>
-          )}
         </section>
+        {!state && (
+          <section className="play-shelf" aria-label="Stories">
+            {demo.catalog.map((campaign) => (
+              <article
+                className={
+                  campaign.featured ? "play-card featured" : "play-card"
+                }
+                key={campaign.campaignId}
+              >
+                <p className="section-index">
+                  {campaign.featured ? "FEATURED" : "STANDALONE EPISODE"}
+                </p>
+                <h2>{campaign.title}</h2>
+                <p>{campaign.description}</p>
+                <small>{campaign.duration}</small>
+                <button
+                  className="play-primary"
+                  disabled={busy}
+                  onClick={() =>
+                    campaign.featured
+                      ? setNotice(campaign.campaignId)
+                      : start(campaign.campaignId)
+                  }
+                >
+                  Start
+                </button>
+              </article>
+            ))}
+          </section>
+        )}
+        {notice && (
+          <section className="play-notice" role="dialog" aria-modal="true">
+            <h2>Content notice</h2>
+            <p>
+              This story contains strong language, religious satire,
+              dangerous-driving anecdotes, and recognizable parody.
+            </p>
+            <button
+              className="play-primary"
+              onClick={() => {
+                setNotice(undefined);
+                start(notice);
+              }}
+            >
+              I understand — start
+            </button>
+            <button onClick={() => setNotice(undefined)}>Back</button>
+          </section>
+        )}
         {state && (
           <section className="play-board" aria-live="polite">
             <article className="play-scene">
               <p className="section-index">
-                {phase === "ended" ? "THE END" : "CURRENT SCENE"}
+                {ended ? "THE END" : "CURRENT SCENE"}
               </p>
               <h2 tabIndex={-1}>{state.scene.body.text}</h2>
-              {phase === "ended" ? (
-                <button className="play-primary" onClick={start}>
-                  Play again
-                </button>
+              {ended ? (
+                <div>
+                  <button
+                    className="play-primary"
+                    onClick={() => start(campaignId!)}
+                  >
+                    Start another run
+                  </button>
+                  {campaignId === demo.catalog[0]?.campaignId && (
+                    <button onClick={() => start(campaignId!)}>
+                      Play the other role
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      setState(undefined);
+                      setCampaignId(undefined);
+                    }}
+                  >
+                    Return to stories
+                  </button>
+                </div>
               ) : (
                 <div className="play-actions">
                   {state.actions.map((action) => (
                     <div key={action.id}>
                       <button
+                        disabled={busy || !action.available}
                         onClick={() => choose(action.id)}
-                        disabled={!action.available || busy}
                       >
                         {action.label}
                       </button>
                       {!action.available && (
                         <p className="play-reason">{action.reason}</p>
                       )}
-                      {action.available && (
-                        <button
-                          className="play-preview"
-                          onClick={() => previewAction(action.id)}
-                          disabled={busy}
-                        >
-                          Preview
-                        </button>
-                      )}
                     </div>
                   ))}
                 </div>
               )}
-              {preview && (
-                <aside className="play-preview-box">
-                  <b>Preview — not committed</b>
-                  <p>{preview}</p>
-                </aside>
-              )}
-              {message && (
-                <p className="play-message" role="status">
-                  {message}
-                </p>
-              )}
+              {message && <p role="status">{message}</p>}
             </article>
             <aside className="play-state">
               <h2>State</h2>
               <dl>
-                {view?.stats.map((stat) => (
+                {viewOf(state).stats.map((stat) => (
                   <div key={stat.var}>
-                    <dt>{state.strings[stat.labelKey] ?? "State"}</dt>
+                    <dt>{state.strings[stat.labelKey]}</dt>
                     <dd>{String(stat.value)}</dd>
                   </div>
                 ))}
               </dl>
-              {view && view.achievements.length > 0 && (
+              <p>
+                Progress is currently kept in this tab. Persistent local saves
+                are being added to the browser composition.
+              </p>
+              {selected?.sources && (
                 <>
-                  <h3>Achievements</h3>
-                  <ul>
-                    {view.achievements.map((achievement) => (
-                      <li key={achievement}>
-                        {state.strings[`bureaucracy.ach.${achievement}.name`] ??
-                          "Achievement unlocked"}
-                      </li>
-                    ))}
-                  </ul>
+                  <h3>Sources / credits</h3>
+                  {selected.sources.map((source) => (
+                    <a key={source.href} href={source.href}>
+                      {source.label}
+                    </a>
+                  ))}
                 </>
               )}
-              <hr />
-              <button onClick={checkpoint} disabled={busy}>
-                Save checkpoint
-              </button>
-              <button onClick={restore} disabled={!saveId || busy}>
-                Restore checkpoint
-              </button>
-              <p>
-                Checkpoints last only while this page stays open. Refreshing
-                starts a new demo.
-              </p>
             </aside>
           </section>
         )}

@@ -24,6 +24,7 @@ import type {
 } from "../kernel/reasons.js";
 import type { PlayerView } from "../projection/types.js";
 import type { ValidationError, ValidationWarning } from "../validation/types.js";
+import type { ProjectionAudience } from "../projection/types.js";
 
 export interface CampaignSummary {
   campaignId: string;
@@ -45,6 +46,66 @@ export interface SessionHandle {
 export interface SaveHandle {
   saveId: string;
   savedAtSeq: number;
+}
+
+/** Host-owned records. They deliberately live outside GameState and are never replayed. */
+export interface StoredSessionRecord {
+  sessionId: string;
+  blob: string;
+  audience: ProjectionAudience;
+  attemptCounter: number;
+  replayCompatible: boolean;
+  createdAt: string;
+  updatedAt: string;
+  profileId?: string;
+}
+
+export interface StoredSaveRecord {
+  saveId: string;
+  campaignId: string;
+  blob: string;
+  savedAtSeq: number;
+  audience: ProjectionAudience;
+  profileId?: string;
+}
+
+export interface SessionRecordStore {
+  get(sessionId: string): Promise<StoredSessionRecord | undefined>;
+  put(record: StoredSessionRecord): Promise<void>;
+}
+
+export interface SaveRecordStore {
+  get(saveId: string): Promise<StoredSaveRecord | undefined>;
+  put(record: StoredSaveRecord): Promise<void>;
+  delete(saveId: string): Promise<void>;
+}
+
+export interface SessionPersistence {
+  sessions: SessionRecordStore;
+  saves: SaveRecordStore;
+}
+
+export type SessionStoreErrorCode =
+  | "unknown_session"
+  | "unknown_save"
+  | "storage_failure"
+  | "unknown_campaign"
+  | "invalid_state"
+  | "unknown_kind"
+  | "save_requires_migration"
+  | "migration_failed";
+
+/** Expected host/session failures retain exception semantics but are safe for clients to render. */
+export class SessionStoreError extends Error {
+  readonly operation: string;
+  readonly code: SessionStoreErrorCode;
+
+  constructor(operation: string, code: SessionStoreErrorCode, message?: string) {
+    super(message ?? `session store: ${operation} — ${code}`);
+    this.name = "SessionStoreError";
+    this.operation = operation;
+    this.code = code;
+  }
 }
 
 /**
