@@ -92,20 +92,13 @@ export function build(state: WorldGraphKindState, raw: Parameters<typeof params>
   ]);
 }
 
-const positionOrder = (left: Position, right: Position): number => left.y - right.y || left.x - right.x;
-
 function nearestExit(
   state: WorldGraphKindState,
   terrain: readonly TerrainDefinition[],
   guest: Guest,
 ): Position | null {
-  return state.map.exits
-    .map((candidate) => ({
-      candidate,
-      path: canonicalPath(state.map, terrain, { x: guest.x, y: guest.y }, [candidate], state.buildings, state.constructionSites),
-    }))
-    .filter((entry): entry is { readonly candidate: Position; readonly path: readonly Position[] } => entry.path !== null)
-    .sort((left, right) => left.path.length - right.path.length || positionOrder(left.candidate, right.candidate))[0]?.candidate ?? null;
+  const path = canonicalPath(state.map, terrain, { x: guest.x, y: guest.y }, state.map.exits, state.buildings, state.constructionSites);
+  return path?.at(-1) ?? null;
 }
 
 function fallbackGuest(guest: Guest, buildingId: string, state: WorldGraphKindState, terrain: readonly TerrainDefinition[], tick: number): Guest {
