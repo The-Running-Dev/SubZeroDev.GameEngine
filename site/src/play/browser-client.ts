@@ -1,4 +1,5 @@
 import type {
+  ActionParams,
   CampaignSummary,
   CreateSessionConfig,
   PlayerView,
@@ -37,7 +38,14 @@ export class BrowserClient {
   }
 
   async createSession(config: CreateSessionConfig): Promise<PlayState> {
-    return this.read(await this.store.createSession(config));
+    const configWithoutAudience = { ...config };
+    delete configWithoutAudience.audience;
+    return this.read(
+      await this.store.createSession({
+        ...configWithoutAudience,
+        audience: "player",
+      }),
+    );
   }
 
   async start(campaignId: string): Promise<PlayState> {
@@ -64,22 +72,25 @@ export class BrowserClient {
   previewAction(
     sessionId: string,
     actionId: string,
+    params?: ActionParams,
   ): Promise<SessionActionResult> {
-    return this.store.previewAction(sessionId, actionId);
+    return this.store.previewAction(sessionId, actionId, params);
   }
 
   submitAction(
     sessionId: string,
     actionId: string,
+    params?: ActionParams,
   ): Promise<SessionActionResult> {
-    return this.store.submitAction(sessionId, actionId);
+    return this.store.submitAction(sessionId, actionId, params);
   }
 
   async submit(
     state: PlayState,
     actionId: string,
+    params?: ActionParams,
   ): Promise<{ state: PlayState; result: SessionActionResult }> {
-    const result = await this.submitAction(state.sessionId, actionId);
+    const result = await this.submitAction(state.sessionId, actionId, params);
     return {
       state: await this.read({
         sessionId: state.sessionId,
@@ -92,8 +103,9 @@ export class BrowserClient {
   async preview(
     state: PlayState,
     actionId: string,
+    params?: ActionParams,
   ): Promise<Scene | undefined> {
-    return (await this.previewAction(state.sessionId, actionId)).scene;
+    return (await this.previewAction(state.sessionId, actionId, params)).scene;
   }
 
   saveGame(sessionId: string): Promise<SaveHandle> {
