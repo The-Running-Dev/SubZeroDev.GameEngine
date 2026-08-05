@@ -8,7 +8,7 @@ import { createRecordingEmitter } from "../../core/observability/emitter.js";
 import type { WorldGraphCampaign, WorldGraphCampaignSource } from "./content.js";
 import { worldGraphKind } from "./kind.js";
 import { buildWorldGraphCampaign } from "./source.js";
-import type { WorldGraphKindState, WorldGraphView } from "./state.js";
+import type { Guest, WorldGraphKindState, WorldGraphView } from "./state.js";
 import { WORLD_GRAPH_REASON_MESSAGES } from "./reasons.js";
 import { createInMemorySessionStore } from "../../core/session/store.js";
 import { TextClient } from "../../clients/text/client.js";
@@ -382,6 +382,28 @@ describe("world-graph W45 engine seam", () => {
     expect(state.map.revision).toBe(2);
     game = runtimeEngine.submitAction(game, "fire_staff", { staffId: "staff:2" }).value!;
     expect(stateOf(game).staff).toEqual([]);
+  });
+
+  it("routes a demolished guest's displaced seek_service intent to the nearest reachable exit, not exits[0]", () => {
+    const base = runtime().content;
+    const overrides: Partial<WorldGraphCampaign> = {
+      maps: base.maps.map((map) => ({ ...map, exits: [...map.exits, { x: 0, y: 1 }] })),
+    };
+    const runtimeEngine = engine(overrides);
+    let game = runtimeEngine.createGame({ campaignId: "world-test" }).value!;
+    game = runtimeEngine.submitAction(game, "build", { definitionId: "kiosk", x: 2, y: 1, rotation: 0 }).value!;
+    const state = stateOf(game);
+    const guest: Guest = {
+      id: "guest:test", archetypeId: "guest", lifecycle: "seeking", tickEntered: 0, stayDurationTicks: 10,
+      x: 0, y: 1, path: [], pathIndex: 0, drawCount: 0, cashCents: 1000,
+      intent: { kind: "seek_service", buildingId: "building:0", productId: null, selectedAtTick: 0 },
+      needs: {}, conditions: {}, opinions: {}, preferences: {}, satisfaction: 0,
+      patienceCapacityTicks: 10, patienceRemainingTicks: 10, lastServedTick: null, spentTicks: 0,
+    };
+    const withGuest = { ...game, kindState: { ...state, guests: [guest] } };
+    const demolished = runtimeEngine.submitAction(withGuest, "demolish", { buildingId: "building:0" });
+    expect(demolished.ok).toBe(true);
+    expect(stateOf(demolished.value!).guests[0]?.intent).toMatchObject({ kind: "leave", exit: { x: 0, y: 1 }, reason: "scenario" });
   });
 
   it("dismisses a persisted alert once and accepts repeat dismissal as a no-op", () => {

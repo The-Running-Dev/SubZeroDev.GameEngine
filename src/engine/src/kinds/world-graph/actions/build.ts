@@ -1,8 +1,8 @@
 import type { AdvanceResult, KindContext } from "../../../core/kernel/types.js";
 import type { ReasonCode } from "../../../core/kernel/reasons.js";
-import { worldGraphContent, type BuildingDefinition, type ScenarioDefinition } from "../content.js";
-import { checkBuildingPlacement } from "../spatial.js";
-import type { Building, ConstructionSite, Guest, WorldGraphKindState } from "../state.js";
+import { worldGraphContent, type BuildingDefinition, type ScenarioDefinition, type TerrainDefinition } from "../content.js";
+import { canonicalPath, checkBuildingPlacement } from "../spatial.js";
+import type { Building, ConstructionSite, Guest, Position, WorldGraphKindState } from "../state.js";
 import { accepted, change, emit, integerParam, params, rejected, spend, stringParam } from "./common.js";
 
 function scenario(ctx: KindContext): ScenarioDefinition {
@@ -92,8 +92,26 @@ export function build(state: WorldGraphKindState, raw: Parameters<typeof params>
   ]);
 }
 
-function fallbackGuest(guest: Guest, buildingId: string, exit: WorldGraphKindState["map"]["exits"][number], tick: number): Guest {
+const positionOrder = (left: Position, right: Position): number => left.y - right.y || left.x - right.x;
+
+function nearestExit(
+  state: WorldGraphKindState,
+  terrain: readonly TerrainDefinition[],
+  guest: Guest,
+): Position | null {
+  return state.map.exits
+    .map((candidate) => ({
+      candidate,
+      path: canonicalPath(state.map, terrain, { x: guest.x, y: guest.y }, [candidate], state.buildings, state.constructionSites),
+    }))
+    .filter((entry): entry is { readonly candidate: Position; readonly path: readonly Position[] } => entry.path !== null)
+    .sort((left, right) => left.path.length - right.path.length || positionOrder(left.candidate, right.candidate))[0]?.candidate ?? null;
+}
+
+function fallbackGuest(guest: Guest, buildingId: string, state: WorldGraphKindState, terrain: readonly TerrainDefinition[], tick: number): Guest {
   if (guest.intent.kind !== "seek_service" || guest.intent.buildingId !== buildingId) return guest;
+  const exit = nearestExit(state, terrain, guest) ?? state.map.exits[0];
+  if (!exit) throw new Error("Validated world-graph map has no exit");
   return { ...guest, lifecycle: "seeking", intent: { kind: "leave", exit, reason: "scenario", selectedAtTick: tick }, path: [], pathIndex: 0 };
 }
 
@@ -103,14 +121,15 @@ export function demolish(state: WorldGraphKindState, raw: Parameters<typeof para
   if (buildingId === null) return rejected(state, "core.reason.unknown_action");
   const target = state.buildings.find((entry) => entry.id === buildingId);
   if (!target) return rejected(state, "unknown_entity");
-  const exit = state.map.exits[0];
-  if (!exit) throw new Error("Validated world-graph map has no exit");
+  const content = worldGraphContent(ctx.campaign.content);
   const nextMap = { ...state.map, revision: state.map.revision + 1 };
+  const remainingBuildings = state.buildings.filter((entry) => entry.id !== buildingId);
+  const stateAfterRemoval = { ...state, buildings: remainingBuildings };
   const next: WorldGraphKindState = {
     ...state,
     map: nextMap,
-    buildings: state.buildings.filter((entry) => entry.id !== buildingId),
-    guests: state.guests.map((guest) => fallbackGuest(guest, buildingId, exit, state.tick)),
+    buildings: remainingBuildings,
+    guests: state.guests.map((guest) => fallbackGuest(guest, buildingId, stateAfterRemoval, content.terrain, state.tick)),
     staff: state.staff.map((member) => member.assignedBuildingId === buildingId || member.task?.buildingId === buildingId || member.task?.queueId === target.queue.id
       ? { ...member, assignedBuildingId: member.assignedBuildingId === buildingId ? null : member.assignedBuildingId, status: "idle", task: null, path: [], pathIndex: 0, moveProgressTicks: 0 }
       : member),
