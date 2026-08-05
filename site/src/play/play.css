@@ -142,7 +142,11 @@
 .dossier.is-selected {
   background: var(--cyan-hover);
   color: #d7fbfa;
-  outline: 0;
+}
+
+.dossier:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
 }
 
 .dossier:hover::before,
@@ -373,7 +377,8 @@
 .action-card button:focus-visible {
   background: var(--cyan);
   color: #001c2d;
-  outline: 0;
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
 }
 
 .action-card button:hover:not(:disabled)::before,
@@ -731,5 +736,12 @@
   .play-notice {
     border: 2px solid CanvasText;
     box-shadow: none;
+  }
+
+  .dossier:focus-visible,
+  .action-card button:focus-visible,
+  .cabinet-button:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
   }
 }
