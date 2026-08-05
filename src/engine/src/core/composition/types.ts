@@ -14,7 +14,8 @@
 import type { ContentRegistry } from "../registry/types.js";
 import type { Engine, KindRegistry } from "../kernel/types.js";
 import type { Emitter } from "../observability/types.js";
-import type { ProfileStore, SessionStore } from "../session/types.js";
+import type { ProfileStore, SessionPersistence } from "../session/types.js";
+import type { EmittedRecordSink } from "../observability/types.js";
 
 /**
  * Supplies the identity the core does not generate itself. The default is random, so a
@@ -51,7 +52,9 @@ export interface EngineHost {
 /** Composition root for the session layer — the only place a clock appears. */
 export interface SessionHost {
   readonly engine: Engine;
-  readonly sessions: SessionStore;
+  readonly registry: ContentRegistry;
+  readonly persistence?: SessionPersistence;
   readonly profiles?: ProfileStore;
   readonly clock?: Clock;
+  readonly recordSink?: EmittedRecordSink;
 }
