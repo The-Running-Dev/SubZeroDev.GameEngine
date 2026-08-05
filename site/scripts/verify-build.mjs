@@ -65,7 +65,10 @@ for (const tag of roadmapTags) {
 const playTags = [
   /<meta\s+name="description"\s+content="Play The Bureaucracy, a deterministic browser demo powered by SubZeroDev Game Engine\."\s*\/>/,
   /<meta\s+property="og:url"\s+content="https:\/\/game-engine\.subzerodev\.com\/play\/"\s*\/>/,
+  /<meta\s+property="og:image"\s+content="https:\/\/game-engine\.subzerodev\.com\/og-image\.png"\s*\/>/,
   /<link\s+rel="canonical"\s+href="https:\/\/game-engine\.subzerodev\.com\/play\/"\s*\/>/,
+  /<meta\s+name="twitter:card"\s+content="summary_large_image"\s*\/>/,
+  /<meta\s+name="twitter:image"\s+content="https:\/\/game-engine\.subzerodev\.com\/og-image\.png"\s*\/>/,
   /<script type="module" crossorigin src="\/assets\//,
 ];
 
