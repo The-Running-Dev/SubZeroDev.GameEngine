@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: cbf8ae118930385ed15f2466dd7affd522315d6c1827ebd529096326c26702b5 -->
+<!-- design-digest: 5ab5fa8fbbed4d66867de57df800d6a8855a18958ca20724a5eac250ad67e978 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -42,9 +42,9 @@ assertable invariants are in the
   `design/90-decisions.md`, *Known-and-retained implementation gaps: `world-graph` tick
   systems*. It is registered and usable the same way `story-graph` and `simulation` are, within
   that scope.
-- A public `/play/` browser demo is designed and sliced as W61 but is not implemented. Its first
-  campaign is the completed Bureaucracy MVP; additional campaigns and durable browser saves are
-  deliberately later work.
+- A public `/play/` browser demo runs the Bureaucracy MVP locally in the browser through the
+  same session-store boundary as the text and MCP clients. Additional campaigns and durable
+  browser saves are deliberately later work.
 - Content packs, the `ExperimentSource` port, and privacy-safe session capture are specified but
   not implemented. All three are deferred: content packs and experiment gating to post-MVP
   content-pack work, capture to the hosting layer that gates it.
