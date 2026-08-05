@@ -106,7 +106,15 @@ function content(effects: readonly WorldEffect[] = []): WorldGraphCampaign {
     maps: [], terrain: [], scenery: [],
     needs: [{ id: "thirst", minimum: 0, maximum: 100 }],
     guestConditions: [], opinions: [], preferences: [], products: [],
-    buildings: [], guestArchetypes: [], staffRoles: [],
+    buildings: [], guestArchetypes: [{
+      id: "visitor", cashCents: { min: 20, max: 20 }, stayTicks: { min: 10, max: 10 },
+      patienceTicks: { min: 5, max: 5 }, initialSatisfaction: { min: 50, max: 50 },
+      needs: [], conditions: [], opinions: [], preferences: [],
+      priceResistance: { interpolation: "step", points: [{ input: 0, output: 0 }] },
+      preferenceUtilityPerPoint: 0, qualityUtilityPerPoint: 0, attractivenessUtilityPerPoint: 0,
+      travelPenaltyPerCost: 0, queuePenaltyPerTick: 0, safetyPenaltyPerPoint: 0,
+      switchThresholdUtility: 0, fallback: { kind: "leave" }, tags: [],
+    }], staffRoles: [],
     incidents: [{ id: "litter", cooldownTicks: 0, durationTicks: { min: 2, max: 2 } }],
     objectives: [], failures: [], policies: [], achievements: [],
     scenarios: [{
@@ -183,6 +191,120 @@ describe("world-graph W46 system order and boundaries", () => {
     });
     expect(result.state.guests.find((guest) => guest.id === first.id)?.lifecycle).toBe("seeking");
     expect(result.state.buildings[0]?.queue).toMatchObject({ guestIds: [second.id], serviceStartedAtTick: 5 });
+  });
+
+  it("does not switch a queued guest to a full alternative queue", () => {
+    const archetype = {
+      id: "visitor", cashCents: { min: 20, max: 20 }, stayTicks: { min: 10, max: 10 },
+      patienceTicks: { min: 5, max: 5 }, initialSatisfaction: { min: 50, max: 50 },
+      needs: [], conditions: [], opinions: [], preferences: [],
+      priceResistance: { interpolation: "step", points: [{ input: 0, output: 0 }] },
+      preferenceUtilityPerPoint: 0, qualityUtilityPerPoint: 0, attractivenessUtilityPerPoint: 0,
+      travelPenaltyPerCost: 0, queuePenaltyPerTick: 0, safetyPenaltyPerPoint: 0,
+      switchThresholdUtility: -1_000_000, fallback: { kind: "leave" }, tags: [],
+    };
+    // Both entrances sit on the guest's own tile, so path cost is 0 for either building and
+    // the only thing distinguishing them is queue capacity.
+    const buildingDefinition = (id: string, offsetX: number, queueMaxLength: number | null) => ({
+      id, footprint: { width: 1, height: 1 }, entrances: [{ x: offsetX, y: 0 }], adjacencyEffects: [],
+      operation: { kind: "service", products: [{ productId: "water", serviceTicks: 1 }], queueMaxLength, baseServiceTicks: 1, staffRequirements: [], effects: [] },
+    });
+    const twoBuildingContent = (altQueueMaxLength: number | null) => ({
+      ...content(),
+      terrain: [{ id: "sand", walkable: true, moveCost: 1, buildable: true, tags: [] }],
+      products: [{ id: "water" }],
+      buildings: [buildingDefinition("kioskA", 1, 5), buildingDefinition("kioskB", -1, altQueueMaxLength)],
+      guestArchetypes: [archetype],
+    } as unknown as WorldGraphCampaign);
+    const twoBuildingState: WorldGraphKindState = {
+      ...state(),
+      map: { ...state().map, width: 3, terrain: [{ x: 0, y: 0, terrainId: "sand" }, { x: 1, y: 0, terrainId: "sand" }, { x: 2, y: 0, terrainId: "sand" }] },
+      buildings: [
+        { id: "building:0", definitionId: "kioskA", x: 0, y: 0, width: 1, height: 1, rotation: 0, status: "open", buildStartTick: 0, wear: 75, cleanliness: 50, queue: { id: "queue:1", guestIds: ["guest:2"], serviceStartedAtTick: 0 }, pricesCents: { water: 5 }, inventory: {} },
+        { id: "building:1", definitionId: "kioskB", x: 2, y: 0, width: 1, height: 1, rotation: 0, status: "open", buildStartTick: 0, wear: 75, cleanliness: 50, queue: { id: "queue:2", guestIds: ["guest:9"], serviceStartedAtTick: null }, pricesCents: { water: 5 }, inventory: {} },
+      ],
+      guests: [{
+        id: "guest:2", archetypeId: "visitor", lifecycle: "queued", tickEntered: 0,
+        stayDurationTicks: 10, x: 1, y: 0, path: [], pathIndex: 0, drawCount: 4, cashCents: 20,
+        intent: { kind: "seek_service", buildingId: "building:0", productId: "water", selectedAtTick: 0 },
+        needs: { thirst: 50 }, conditions: {}, opinions: {}, preferences: {}, satisfaction: 50,
+        patienceCapacityTicks: 5, patienceRemainingTicks: 5, lastServedTick: null, spentTicks: 0,
+      }],
+      incidents: [],
+    };
+    const runQueues = (altContent: WorldGraphCampaign): WorldGraphKindState => {
+      const scratch = createTickScratch();
+      return queues({
+        processingTick: 5, content: altContent, emit: resolutionEmitter().emit,
+        random: createTickRandom(5, () => rngHandle(), scratch), scratch,
+        changes: new BatchChanges(), state: twoBuildingState,
+      }).state;
+    };
+
+    const fullAlternative = runQueues(twoBuildingContent(1));
+    expect(fullAlternative.guests.find((guest) => guest.id === "guest:2")?.lifecycle).toBe("queued");
+    expect(fullAlternative.buildings[0]?.queue.guestIds).toEqual(["guest:2"]);
+
+    const openAlternative = runQueues(twoBuildingContent(2));
+    expect(openAlternative.guests.find((guest) => guest.id === "guest:2")?.lifecycle).toBe("seeking");
+  });
+
+  it("does not count guests behind the scored guest toward its own current-queue wait", () => {
+    const archetype = {
+      id: "visitor", cashCents: { min: 20, max: 20 }, stayTicks: { min: 10, max: 10 },
+      patienceTicks: { min: 5, max: 5 }, initialSatisfaction: { min: 50, max: 50 },
+      needs: [], conditions: [], opinions: [], preferences: [],
+      priceResistance: { interpolation: "step", points: [{ input: 0, output: 0 }] },
+      preferenceUtilityPerPoint: 0, qualityUtilityPerPoint: 0, attractivenessUtilityPerPoint: 0,
+      travelPenaltyPerCost: 0, queuePenaltyPerTick: 100, safetyPenaltyPerPoint: 0,
+      // remainingHead (1 tick, unstarted) alone crosses this; the behind-guest's 1-tick
+      // duration must not be added on top, or the diff (300 vs 100) wrongly clears it too.
+      switchThresholdUtility: 150, fallback: { kind: "leave" }, tags: [],
+    };
+    const buildingDefinition = (id: string, offsetX: number) => ({
+      id, footprint: { width: 1, height: 1 }, entrances: [{ x: offsetX, y: 0 }], adjacencyEffects: [],
+      operation: { kind: "service", products: [{ productId: "water", serviceTicks: 1 }], queueMaxLength: null, baseServiceTicks: 1, staffRequirements: [], effects: [] },
+    });
+    const twoBuildingContent = {
+      ...content(),
+      terrain: [{ id: "sand", walkable: true, moveCost: 1, buildable: true, tags: [] }],
+      products: [{ id: "water" }],
+      buildings: [buildingDefinition("kioskA", 1), buildingDefinition("kioskB", -1)],
+      guestArchetypes: [archetype],
+    } as unknown as WorldGraphCampaign;
+    const queuedIntent = { kind: "seek_service" as const, buildingId: "building:0", productId: "water", selectedAtTick: 0 };
+    const makeGuest = (id: string, patience: number) => ({
+      id, archetypeId: "visitor", lifecycle: "queued" as const, tickEntered: 0,
+      stayDurationTicks: 10, x: 1, y: 0, path: [], pathIndex: 0, drawCount: 4, cashCents: 20,
+      intent: queuedIntent,
+      needs: { thirst: 50 }, conditions: {}, opinions: {}, preferences: {}, satisfaction: 50,
+      patienceCapacityTicks: 5, patienceRemainingTicks: patience, lastServedTick: null, spentTicks: 0,
+    });
+    const threeDeepState: WorldGraphKindState = {
+      ...state(),
+      map: { ...state().map, width: 3, terrain: [{ x: 0, y: 0, terrainId: "sand" }, { x: 1, y: 0, terrainId: "sand" }, { x: 2, y: 0, terrainId: "sand" }] },
+      buildings: [
+        { id: "building:0", definitionId: "kioskA", x: 0, y: 0, width: 1, height: 1, rotation: 0, status: "open", buildStartTick: 0, wear: 75, cleanliness: 50, queue: { id: "queue:1", guestIds: ["guest:head", "guest:2", "guest:behind"], serviceStartedAtTick: null }, pricesCents: { water: 5 }, inventory: {} },
+        { id: "building:1", definitionId: "kioskB", x: 2, y: 0, width: 1, height: 1, rotation: 0, status: "open", buildStartTick: 0, wear: 75, cleanliness: 50, queue: { id: "queue:2", guestIds: [], serviceStartedAtTick: null }, pricesCents: { water: 5 }, inventory: {} },
+      ],
+      guests: [
+        makeGuest("guest:head", 5),
+        makeGuest("guest:2", 5),
+        // Not itself under switching evaluation — only present to inflate a buggy wait sum
+        // for "guest:2" if the fix regresses. Its own eligibility to switch is not the point.
+        { ...makeGuest("guest:behind", 5), intent: { kind: "wait" as const, untilTick: 100, selectedAtTick: 0 } },
+      ],
+      incidents: [],
+    };
+    const scratch = createTickScratch();
+    const result = queues({
+      processingTick: 5, content: twoBuildingContent, emit: resolutionEmitter().emit,
+      random: createTickRandom(5, () => rngHandle(), scratch), scratch,
+      changes: new BatchChanges(), state: threeDeepState,
+    }).state;
+
+    expect(result.guests.find((guest) => guest.id === "guest:2")?.lifecycle).toBe("queued");
+    expect(result.buildings[0]?.queue.guestIds).toEqual(["guest:head", "guest:2", "guest:behind"]);
   });
 
   it("does not start or complete staffed service until the duty is working", () => {

@@ -55,6 +55,12 @@ interface SessionRecord {
    *  never reset (04 §10.2: a migrated save is no longer byte-replayable). Stamped into
    *  the next `SaveEnvelope` this session's `saveGame` produces. */
   replayCompatible: boolean;
+  /** Wall-clock, ISO-8601, via `Clock` (04 §7) — outside the replayable `GameState`,
+   *  never read by `advance`. Set once at `createSession`/`loadGame`, never swapped. */
+  createdAt: string;
+  /** Stamped on every command that mutates `blob` (`submitAction`); left as `createdAt`
+   *  by commands that only read or copy state. */
+  updatedAt: string;
 }
 
 /**
@@ -116,6 +122,11 @@ interface SaveRecord {
   blob: string;
   savedAtSeq: number;
   audience: ProjectionAudience;
+  /** Round-tripped the same way `audience` is — store-record metadata, never written into
+   *  the serialized envelope/blob (08-session-capture.md §3.1: identity "live[s] on the
+   *  session store's own record ... and stay[s] there"). Omitted → the saved session was
+   *  anonymous; `loadGame` must not resurrect a profile association that never existed. */
+  profileId?: string;
 }
 
 export interface InMemorySessionStoreOptions {
@@ -311,12 +322,15 @@ export function createInMemorySessionStore(options: InMemorySessionStoreOptions)
           throw new Error(`session store: createSession rejected — ${code}`);
         }
         const state = created.value;
+        const now = clock.now();
         sessions.set(sessionId, {
           sessionId,
           blob: decoratedEngine.serialize(state),
           audience,
           attemptCounter: 0,
           replayCompatible: true,
+          createdAt: now,
+          updatedAt: now,
           ...(config.profileId !== undefined ? { profileId: config.profileId } : {}),
         });
         return { sessionId, scene: decoratedEngine.scene(state) };
@@ -350,6 +364,7 @@ export function createInMemorySessionStore(options: InMemorySessionStoreOptions)
 
           if (result.ok && result.value) {
             record.blob = decoratedEngine.serialize(result.value);
+            record.updatedAt = clock.now();
 
             // "After a successful action" (04 §7.1) — never on rejection, and never
             // before the engine call above has already returned (plan 15 Decision 3).
@@ -432,6 +447,7 @@ export function createInMemorySessionStore(options: InMemorySessionStoreOptions)
             blob: serializeSaveEnvelope(envelope),
             savedAtSeq: state.actionLog.length,
             audience: record.audience,
+            ...(record.profileId !== undefined ? { profileId: record.profileId } : {}),
           });
           return { saveId, savedAtSeq: state.actionLog.length };
         }),
@@ -454,14 +470,20 @@ export function createInMemorySessionStore(options: InMemorySessionStoreOptions)
         // envelope.ts's own checks (necessarily narrower: they only need enough to compare
         // versions) standing in as a second, parallel guarantee.
         const state = mustDeserialize(decoratedEngine, decoratedEngine.serialize(resolution.state));
-        // The saved audience round-trips through SaveRecord (set in saveGame above) —
-        // a session created with audience: "ai" must still be "ai" after save/load.
+        // The saved audience and profileId both round-trip through SaveRecord (set in
+        // saveGame above), never through the serialized envelope — a session created with
+        // audience: "ai" must still be "ai" after save/load, and a profiled session must
+        // not silently become anonymous (achievements would stop mirroring to the profile).
+        const now = clock.now();
         sessions.set(sessionId, {
           sessionId,
           blob: decoratedEngine.serialize(state),
           audience: save.audience,
           attemptCounter: 0,
           replayCompatible: resolution.replayCompatible,
+          createdAt: now,
+          updatedAt: now,
+          ...(save.profileId !== undefined ? { profileId: save.profileId } : {}),
         });
         return { sessionId, scene: decoratedEngine.scene(state) };
       });

@@ -12,7 +12,7 @@ import type {
 } from "../../core/kernel/types.js";
 import { advance } from "./advance.js";
 import type { WorldGraphKindState } from "./state.js";
-import { WORLD_GRAPH_REASON_CODES } from "./reasons.js";
+import { WORLD_GRAPH_REASON_CODES, WORLD_GRAPH_REASON_MESSAGES } from "./reasons.js";
 import { availableActions, scene } from "./available.js";
 import { initialState } from "./initial.js";
 import { outcome } from "./outcome.js";
@@ -23,6 +23,7 @@ export const worldGraphKind: Kind<WorldGraphKindState> = {
   id: "world-graph",
   version: "1.0.0",
   reasonCodes: WORLD_GRAPH_REASON_CODES,
+  reasonMessages: WORLD_GRAPH_REASON_MESSAGES,
   /** W47 exposes events from the delivered causal systems. */
   eventNames: [
     "kind.world-graph.building.placed",

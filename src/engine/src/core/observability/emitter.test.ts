@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { createRecordingEmitter, emitSystemEvent, jsonlEmitter, makeResolutionEmitters, nullEmitter, safeEmit } from "./emitter.js";
 import type { Emitter, EmittedRecord, GameEvent } from "./types.js";
 
@@ -179,5 +179,34 @@ describe("makeResolutionEmitters", () => {
     };
     const emitters = makeResolutionEmitters(throwingSink, "game-1", 0);
     expect(() => emitters.core.emit("core.action.accepted", "info")).not.toThrow();
+  });
+
+  describe("undeclared-name guard is dev-gated (05-observability.md §9)", () => {
+    const original = process.env.NODE_ENV;
+    afterEach(() => {
+      process.env.NODE_ENV = original;
+    });
+
+    it("still throws under NODE_ENV=production's absence (the default test env)", () => {
+      const emitters = makeResolutionEmitters(nullEmitter, "game-1", 0);
+      expect(() => emitters.core.emit("kind.story-graph.a", "trace")).toThrow();
+    });
+
+    it("does not throw under NODE_ENV=production, and does not abort the caller", () => {
+      process.env.NODE_ENV = "production";
+      const emitters = makeResolutionEmitters(nullEmitter, "game-1", 0);
+      expect(() => emitters.core.emit("kind.story-graph.a", "trace")).not.toThrow();
+
+      const kindEmit = emitters.forKind("story-graph", ["kind.story-graph.a"]);
+      expect(() => kindEmit.emit("kind.story-graph.undeclared", "trace")).not.toThrow();
+    });
+
+    it("under NODE_ENV=production, a malformed name reaches neither the sink nor the recorder", () => {
+      process.env.NODE_ENV = "production";
+      const recorder = createRecordingEmitter();
+      const emitters = makeResolutionEmitters(recorder, "game-1", 0);
+      emitters.core.emit("kind.story-graph.a", "trace");
+      expect(recorder.events).toEqual([]);
+    });
   });
 });

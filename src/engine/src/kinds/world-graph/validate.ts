@@ -2,6 +2,7 @@ import type { Campaign } from "../../core/registry/types.js";
 import type { LocKey } from "../../core/localization/types.js";
 import type { ValidationError, ValidationResult, ValidationWarning } from "../../core/validation/types.js";
 import type { WorldCondition, WorldEffect, WorldGraphCampaign } from "./content.js";
+import { WORLD_GRAPH_REASON_CODES, type WorldGraphReasonCode } from "./reasons.js";
 import { checkBuildingPlacement, materializeMap } from "./spatial.js";
 import type { Building, Position } from "./state.js";
 
@@ -16,11 +17,15 @@ const object = (value: unknown): value is RecordValue => typeof value === "objec
 const safeInteger = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value);
 const pathSafeId = (value: unknown): value is string => typeof value === "string" && value.length > 0 && !value.includes(".");
 
+const KNOWN_REASON_CODES = new Set<string>(WORLD_GRAPH_REASON_CODES);
+function messageKeyFor(code: string): LocKey {
+  return (KNOWN_REASON_CODES.has(code) ? `world-graph.reason.${code as WorldGraphReasonCode}` : "core.reason.invalid_state") as LocKey;
+}
 function error(code: string, path: string): ValidationError {
-  return { code, messageKey: "core.reason.invalid_state", path };
+  return { code, messageKey: messageKeyFor(code), path };
 }
 function warning(code: string, path: string): ValidationWarning {
-  return { code, messageKey: "core.reason.invalid_state", path };
+  return { code, messageKey: messageKeyFor(code), path };
 }
 
 function shapeErrors(value: unknown): ValidationError[] {

@@ -69,6 +69,31 @@ export function safeEmit(sink: Emitter, event: EngineEvent): void {
   }
 }
 
+/** `NODE_ENV=production` is the one place this codebase already relies on to distinguish
+ *  a shipped build from every other build (dev, CI, `vitest`'s own default of `"test"`) —
+ *  there is no other dev-only guard idiom here to match. */
+function isProductionBuild(): boolean {
+  return process.env.NODE_ENV === "production";
+}
+
+/**
+ * A kind/core call site emitting an undeclared or out-of-namespace event name is a coding
+ * defect, not a runtime condition to model — 05 §9/§10's "fail in development builds"
+ * means every non-production build (dev, CI, tests) still throws, so the defect is caught
+ * long before it ships. In a production build the throw is downgraded to the same silent
+ * drop `safeEmit` already gives a misbehaving *sink*: a faulty emit call site must not be
+ * able to abort the game resolution that triggered it (05 §2's "removing every event
+ * changes nothing" — that has to hold for a malformed event too, not just a dropped one).
+ */
+function rejectUndeclaredName(message: string): void {
+  if (!isProductionBuild()) {
+    throw new Error(message);
+  }
+  // Production: no event is built or emitted for the malformed name — degrading further
+  // by emitting it anyway would defeat the namespace/declaration check this exists to
+  // enforce. The caller's resolution continues unaffected either way.
+}
+
 /**
  * "Development, and the text client" (05 §10). One JSON object per line, written through
  * an injected `write` rather than a concrete stream — keeps this testable without touching
@@ -159,9 +184,10 @@ export function makeResolutionEmitters(sink: Emitter, gameId: string, seq: numbe
     core: {
       emit(name, severity, detail) {
         if (!name.startsWith("core.")) {
-          throw new Error(
+          rejectUndeclaredName(
             `core resolutionEmitter: "${name}" is outside the core.* namespace (05-observability.md §3.1)`,
           );
+          return;
         }
         build(name, severity, detail, undefined);
       },
@@ -171,10 +197,11 @@ export function makeResolutionEmitters(sink: Emitter, gameId: string, seq: numbe
       return {
         emit(name, severity, detail) {
           if (!name.startsWith(prefix) || !declaredEventNames.includes(name)) {
-            throw new Error(
+            rejectUndeclaredName(
               `kind "${kindId}" resolutionEmitter: "${name}" must be declared in Kind.eventNames and start ` +
                 `with "${prefix}" (05-observability.md §3.1, §9)`,
             );
+            return;
           }
           build(name, severity, detail, kindId);
         },

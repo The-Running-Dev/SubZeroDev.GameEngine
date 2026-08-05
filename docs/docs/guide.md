@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 8655e8fd13493fb3e3ea862fcd086c938206fe92b49cf864238f21fe83cd3a0b -->
+<!-- design-digest: 071cbe061e00dca9eed08f9f791c536a13e672a5b6bcbbcd0b7b462bcf12a9d7 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -34,14 +34,16 @@ assertable invariants are in the
   a full player projection (`SimulationView`), and Stable Life winning/losing replay fixtures.
   Text-client and MCP parity now match `story-graph`'s row of the API coverage checklist, one
   for one.
-- `world-graph` has a settled core seam, runtime-state, campaign-content, and resolution
-  contract, stream support, and a published consumer package boundary. The contract specifies a
-  source-to-runtime build step and a deterministic 20-system tick pipeline, including utility,
-  routing, queues, staff, finance, incidents, and terminal precedence. W45’s kind foundation
-  is implemented but not merged; W46 onward implements the tick runner and its fixtures, so it
-  is not a usable registered kind yet.
-- Content packs and privacy-safe session capture are specified but not implemented. Capture is
-  intentionally gated on the hosting layer.
+- `world-graph` is a real, registered kind: `worldGraphKind` is exported from the package root,
+  and its twenty-system tick pipeline — build, utility, routing, queues, staff, finance,
+  incidents, and terminal precedence — is registered, ordered, and tested. Five of the twenty
+  systems are known-and-retained stubs or partial implementations; see
+  `design/90-decisions.md`, *Known-and-retained implementation gaps: `world-graph` tick
+  systems*. It is registered and usable the same way `story-graph` and `simulation` are, within
+  that scope.
+- Content packs, the `ExperimentSource` port, and privacy-safe session capture are specified but
+  not implemented. All three are deferred: content packs and experiment gating to post-MVP
+  content-pack work, capture to the hosting layer that gates it.
 
 ## The mental model
 
@@ -121,9 +123,10 @@ The session service is the application boundary. It provides campaign listing, c
 resume, scene/view queries, localization strings, action submission, save, and load. The exact
 operation signatures are in the [contract](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/design/20-contract.md#public-signatures).
 
-Starting a session takes a campaign, locale, optional explicit seed, and optional profile id.
-When no seed is supplied, the session boundary generates and persists one. The returned handle
-contains a `sessionId` and scene, never the envelope.
+Starting a session takes a campaign id, an optional explicit seed, an optional audience, and an
+optional profile id — there is no `locale` parameter. When no seed is supplied, the session
+boundary generates and persists one. The returned handle contains a `sessionId` and scene, never
+the envelope.
 
 Submitting an action follows one atomic path:
 
@@ -153,6 +156,12 @@ sequenceDiagram
 Different sessions may resolve concurrently. Commands for the same `sessionId` must be
 serialized by the service/store so the second command reads the first command's committed state.
 A query returns a projection of one complete stored revision, never a half-written result.
+
+A stored session record carries more than the serialized envelope: an `audience`, an
+`attemptCounter` that only `submitAction` increments, an optional `profileId`, a
+`replayCompatible` flag that turns false forever once a migrated load touches the lineage, and
+wall-clock `createdAt`/`updatedAt` timestamps set via the `Clock` port — all of it outside the
+replayable `GameState` and never read by `advance`.
 
 ### Previewing an action
 
@@ -217,8 +226,12 @@ The stream key matters as much as the generator. Per-action draws use the succes
 sequence. World-level autonomous draws use simulated tick and system. Agent draws use the
 agent's own stored draw counter, not the number of client submissions that happened first.
 
-The same-build harness proves byte identity, property-seed reproducibility, emitter independence,
-and event-stream reproducibility. It cannot by itself detect a deterministic behavior change;
+The same-build harness proves byte identity, property-seed reproducibility, and emitter
+independence: every golden fixture replays under `nullEmitter` and under `recordingEmitter` with
+byte-identical `serialize()` output. It also proves event-stream reproducibility directly — the
+same fixture, run twice under `recordingEmitter`, is asserted to yield the identical event
+sequence (names, order, data), with `gameId` normalized out because a replay is a new game and
+legitimately carries a new one. None of this by itself detects a deterministic behavior change;
 that is the cross-version replay oracle's job.
 
 ## Story-graph campaigns
@@ -286,21 +299,27 @@ The Stable Life fixtures prove winning and losing engine/replay paths. Do not re
 for a week that simultaneously reaches its limit and another terminal condition; that precedence
 is explicitly unsettled and excluded from supported scenarios.
 
-## World-graph integration status
+## World-graph campaigns
 
-`world-graph` is the spatial kind contract for Sun Trap. Its load-bearing rule is batch
-invariance: advancing N ticks in one call must reach the same kind state as every ordered
-partition totaling N ticks.
+Use `world-graph` for a navigable world with autonomous inhabitants, where the unit of play is a
+batch of simulated ticks rather than a single choice or a week. `worldGraphKind` is a real,
+exported, registered kind — the same status as `story-graph` and `simulation` — with all twenty
+tick systems registered, ordered, and tested for that ordering. Five of the twenty are
+known-and-retained stubs or partial implementations (three no-op, two partial); see
+`design/90-decisions.md`, *Known-and-retained implementation gaps: `world-graph` tick systems*,
+for the current list.
 
-The core already supplies `KindContext.derive`, tick streams, agent streams, and the package
-consumer boundary. The runtime-state, campaign-content, and resolution **contract** is settled:
-a scenario selects a map from the campaign-owned catalog; a pure builder validates and
-materializes typed definitions before play; and one atomic tick runs the fixed 20-system
-pipeline with explicit ordering, pathfinding, queue/service, staff-work, finance, incident, and
-terminal semantics. W45 must implement the builder and immediate actions; W46 onward implement
-the pipeline and its fixtures. W45 is reconciled for review but remains unmerged; W46 must
-follow it with the pipeline. Until those units land, do not register a placeholder world kind
-or infer runtime behavior from the game repository.
+Its load-bearing rule is **batch invariance**: advancing N ticks in one call must reach the same
+kind state as any ordered partition of that N totalling the same number of ticks. Everything else
+in the kind exists to make that true.
+
+A scenario selects a map from the campaign-owned catalog; a pure builder validates and
+materializes typed definitions before play begins. One atomic tick then runs a fixed, ordered
+20-system pipeline: pathfinding and routing, queue and service handling, staff work, finance,
+incidents, and terminal precedence, in that declared order every time.
+
+Win and loss are read through `Kind.outcome`, not through `GameStatus` — the same terminal-identity
+mechanism the replay oracle uses for every kind, not a `world-graph`-specific status field.
 
 ## Saves and migrations
 
@@ -352,7 +371,13 @@ The engine has two distinct outputs:
 
 Operational events are clock-free inside resolution and use stable names, sequence, ordinal, and
 sanitized scalar data. The session boundary may add timestamp, session id, and trace id afterward.
-Kinds may emit only names they declare under `kind.<kindId>.*`.
+
+Kinds may emit only names they declare under `kind.<kindId>.*`. Emitting an undeclared name, or a
+name outside that namespace, is a coding defect: it throws in every non-production build (dev, CI,
+tests, `vitest`'s own default), so the mistake surfaces long before it ships. In a production
+build (`NODE_ENV=production`) the same violation is silently dropped instead — no event is built
+or emitted, and the resolution that triggered it continues unaffected, on the same "removing every
+event changes nothing" reasoning that already governs a throwing sink.
 
 An emitter returns nothing. Sink exceptions are isolated. Removing all events must leave the
 serialized game byte-identical. Never include unresolved caller action ids, free text, identity,
@@ -368,8 +393,12 @@ Existing host seams cover:
 - deterministic game/session ids and seeds;
 - session and profile persistence;
 - operational event sinks;
-- boundary clocks used only for metadata;
-- experiment selection before content resolution.
+- boundary clocks used only for metadata.
+
+One seam is specified but not yet implemented: `ExperimentSource` resolves an A/B or feature-flag
+variant at session-creation time so it can select content packs and tag events, but it is
+boundary-only by design — a kind can never see or branch on a variant — and it is deferred along
+with the content-pack resolution machinery it feeds. Do not build against it as a live seam yet.
 
 Kinds, reducers, migrations, condition meaning, content validation, and deterministic tie-breaks
 remain engine-owned. A new theme, scenario, culture, or body of content is not a new kind. Add a

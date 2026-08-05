@@ -20,9 +20,10 @@
  * `sceneTemplateKey`/`actionLabelKeys` are added by W50 (`view.ts`/`scene.ts`/`available.ts`)
  * — `scene()` renders "from registry strings only" (§9), so this kind's own status-summary
  * template must be campaign-authored `AuthoredText`, the same mechanism `StoryGraphCampaign`
- * node text already uses, rather than an unregistered kind-default (`kindMessages` —
- * `registry/build.ts` — is never actually threaded through `buildValidatedContentRegistry`
- * in production; a kind-default string would silently never resolve).
+ * node text already uses, rather than a kind-default reason-code message: those two remain
+ * separate namespaces (`kind.reason.*` vs. a campaign's own `AuthoredText`) even now that
+ * `Kind.reasonMessages` is threaded through `buildValidatedContentRegistry` — a status-summary
+ * template was never a reason-code message to begin with.
  */
 
 import type { LocKey } from "../../core/localization/types.js";

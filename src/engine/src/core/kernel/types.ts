@@ -118,6 +118,11 @@ export interface Kind<KState> {
   /** Codes this kind adds to the base set. Each needs a localized message or registry
    *  validation fails. */
   readonly reasonCodes: readonly ReasonCode[];
+  /** `${id}.reason.<code>` → default-English message, one entry per `reasonCodes` — the
+   *  kind-owned half of `registry/build.ts`'s `kindMessages`, threaded through
+   *  `buildValidatedContentRegistry` (04 §12: "validation fails if any registered reason
+   *  code has no localized message"). */
+  readonly reasonMessages: ReadonlyMap<LocKey, string>;
   /** Events this kind may emit, all under `kind.<id>.*` (05 §9). */
   readonly eventNames: readonly EventName[];
 

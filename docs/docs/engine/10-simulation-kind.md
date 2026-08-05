@@ -2014,16 +2014,29 @@ constructs one yet.
 Codes this kind adds to the base set (`Kind.reasonCodes`, 04 §3, §12). Each needs a localized
 message or registry validation fails:
 
-| Code | When |
-|---|---|
-| `insufficient_time` | The plan exceeds available time units |
-| `insufficient_funds` | The plan's cost exceeds available money |
-| `action_not_planned` | `plan.remove` names an index the plan does not have |
-| `plan_empty` | `end_week` with nothing planned, where the campaign forbids it |
-| `week_limit_reached` | The scenario's week cap is exhausted |
-| `wrong_location` | An action's type is not in the current location's `actionTypes` (§7.9), or a `travel` target is not in `connections` |
+| Code | When | Status |
+|---|---|---|
+| `action_not_planned` | `plan.remove` names an index the plan does not have | registered |
+| `duplicate_id` | Two definitions of the same content type share an `id` — this kind's Tier 1 (§14), the author-facing half | registered |
+| `insufficient_time` | The plan exceeds available time units | specified, not yet dispatched |
+| `insufficient_funds` | The plan's cost exceeds available money | specified, not yet dispatched |
+| `plan_empty` | `end_week` with nothing planned, where the campaign forbids it | specified, not yet dispatched |
+| `week_limit_reached` | The scenario's week cap is exhausted | specified, not yet dispatched |
+| `wrong_location` | An action's type is not in the current location's `actionTypes` (§7.9), or a `travel` target is not in `connections` | specified, not yet dispatched |
 
 Reused from the base set: `unknown_action`, `requirement_unmet`, `session_ended`.
+
+> **This set grows as the dispatched systems land, and that is deliberate.** A code joins
+> `Kind.reasonCodes` when the unit that actually produces it exists, not when this table
+> first names it — the precedent `story-graph` set, whose own codes joined across W10, W11,
+> W12 and W14 rather than being pre-declared. Registering all seven now would put five codes
+> in the vocabulary that no path can return, and every one would still owe a localized
+> message the core's completeness check (04 §12) would then be verifying against nothing.
+> The five above are blocked on the same thing: §5.1's resolver dispatch running against
+> real content, and the end-of-week systems §3 orders — most of which are still stubs (§15).
+> `plan_empty` has an additional gate of its own, recorded in `90-decisions.md`: no
+> `SimulationCampaign` field exists yet for a campaign to forbid an empty plan with.
+> The shipped set lives in `src/engine/src/kinds/simulation/reasons.ts`.
 
 Each code's `messageKey` lives under `simulation.reason.<code>` (04 §12), the
 `<kindId>.reason.*` convention — not to be confused with 05 §9's `kind.<kindId>.*` *event*
@@ -2154,8 +2167,25 @@ phase this contract precedes, not to another doc-only pass.
 
 ## 15. What Was Ported, and What Was Found Along the Way
 
-**Nothing remains upstream as a gap in this contract's shape.** This section used to be "What
-Remains Upstream" — a table of sections still to bring over. `plans/36-simulation-kind-
+**Nothing remains upstream as a gap in this contract's *shape*.** This section used to be
+"What Remains Upstream" — a table of sections still to bring over.
+
+> **"The shape is whole" is not "the systems are built" — read this claim narrowly.** What
+> closed is the *specification*: every field `SimulationKindState` names has a type, every
+> content definition a campaign needs is declared, and the dispatch mechanics that run
+> against both are written down. What is emphatically **not** claimed is that the code
+> behind them exists. Most of §3's fourteen end-of-week systems currently ship as
+> deliberate, individually documented no-op stubs — real functions in the pipeline, running
+> in the normative order and emitting `system.ran`, doing nothing else — because the
+> "Stable Life" vertical slice needed only enough logic to prove a goal can be won and lost.
+> The reason-code table in §10 says the same thing from the other side: five of its seven
+> codes have no dispatch path yet.
+>
+> **`90-decisions.md` carries the current list of which systems are stubs and what each still
+> owes.** It is deliberately not restated here — a second copy would drift, and the version
+> that drifts is always the one in the document nobody updates when the code lands. Consult
+> it, not this section, for "is this built?"; consult this section for "what is it supposed
+> to do?" `plans/36-simulation-kind-
 programme.md`'s four contract units (proposed there as W27–W30, assigned real numbers as each
 was cut: **W32, W33, W34, and this one**) closed it a piece at a time:
 

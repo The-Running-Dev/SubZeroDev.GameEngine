@@ -55,6 +55,11 @@ export type ReasonCode = string;
  * `plans/14-w7-session-store.md`, Design item 1) — but both are registered here anyway so
  * the vocabulary and its localized message live in one place, ready for whenever a real
  * error channel exists. See `plans/38-save-migration-programme.md`.
+ *
+ * `missing_kind_reason_message` was added alongside `Kind.reasonMessages` (`kernel/types.ts`)
+ * — `buildValidatedContentRegistry` (`validation/tiered.ts`) needs a code for the
+ * completeness check §12 already promises: "validation fails if any registered reason code
+ * has no localized message."
  */
 export const BASE_REASON_CODES = [
   "action_not_available",
@@ -78,6 +83,7 @@ export const BASE_REASON_CODES = [
   "profile_write_failed",
   "save_requires_migration",
   "migration_failed",
+  "missing_kind_reason_message",
 ] as const;
 
 export type BaseReasonCode = (typeof BASE_REASON_CODES)[number];
@@ -110,6 +116,7 @@ const CORE_REASON_TEXT: Readonly<Record<BaseReasonCode, string>> = {
   profile_write_failed: "The profile couldn't be saved. Your game progress was not affected.",
   save_requires_migration: "This save was made under a version this build can't read, and no migration is available for it.",
   migration_failed: "This save's migration failed. Your progress was not affected.",
+  missing_kind_reason_message: "This kind declared a reason code with no localized message.",
 };
 
 /** `core.reason.<code>` → its shipped default-English message, for every base code. */

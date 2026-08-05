@@ -27,6 +27,7 @@ function makeTestKind(): Kind<TestKindState> {
     id: "story-graph",
     version: "1.0.0",
     reasonCodes: [],
+    reasonMessages: new Map(),
     eventNames: [],
     initialState: (): InitialStateResult<TestKindState> => ({
       state: { counter: 0 },
@@ -195,6 +196,38 @@ describe("save / load round trip", () => {
 
     const view = await store.getView(loaded.sessionId);
     expect(view.kindView).toEqual({ counter: 0, audience: "ai" });
+  });
+
+  it("a saved and loaded session keeps its profileId — an unlock after reload still mirrors to the profile", async () => {
+    const profiles = createInMemoryProfileStore();
+    const store = makeStore({ profiles });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    const { saveId } = await store.saveGame(sessionId);
+
+    const loaded = await store.loadGame(saveId);
+    await store.submitAction(loaded.sessionId, "unlock-first-count");
+
+    const { profile } = await profiles.load("p1");
+    expect(profile.achievements).toEqual([{ campaignId: "test-campaign", achievementId: "first-count" }]);
+  });
+
+  it("a saved anonymous session loads anonymous — loadGame never invents a profileId", async () => {
+    let loadCalls = 0;
+    const spyProfiles: ProfileStore = {
+      load: async (profileId) => {
+        loadCalls += 1;
+        return { profile: { formatVersion: 1, profileId, achievements: [] }, warnings: [] };
+      },
+      save: async () => ({ ok: true, warnings: [] }),
+    };
+    const store = makeStore({ profiles: spyProfiles });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign" }); // no profileId
+    const { saveId } = await store.saveGame(sessionId);
+
+    const loaded = await store.loadGame(saveId);
+    await store.submitAction(loaded.sessionId, "unlock-first-count");
+
+    expect(loadCalls).toBe(0);
   });
 });
 
