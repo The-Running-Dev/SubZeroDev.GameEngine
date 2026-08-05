@@ -31,8 +31,12 @@ export default function PlayApp() {
     setMessage(undefined);
     try {
       const next = await client.start(id);
-      await client.save(next.sessionId);
       setState(next);
+      try {
+        await client.save(next.sessionId);
+      } catch {
+        setMessage("Progress could not be saved locally.");
+      }
       setCampaignId(id);
     } catch {
       setMessage("This story could not start.");
@@ -45,9 +49,14 @@ export default function PlayApp() {
     setBusy(true);
     try {
       const next = await client.submit(state, id);
-      if (next.result.ok) await client.save(next.state.sessionId);
       setState(next.state);
-      if (!next.result.ok) setMessage("That action was rejected.");
+      if (next.result.ok) {
+        try {
+          await client.save(next.state.sessionId);
+        } catch {
+          setMessage("Progress could not be saved locally.");
+        }
+      } else setMessage("That action was rejected.");
     } catch {
       setMessage("That action could not be completed.");
     } finally {
@@ -179,8 +188,7 @@ export default function PlayApp() {
                 ))}
               </dl>
               <p>
-                Progress is currently kept in this tab. Persistent local saves
-                are being added to the browser composition.
+                Progress is saved locally in this browser when possible.
               </p>
               {selected?.sources && (
                 <>
