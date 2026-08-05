@@ -1951,7 +1951,7 @@ old entry never rewinds or resubmits the game.
 Its tests run in jsdom today, which performs no layout: `getBoundingClientRect` returns zeros
 and stylesheet CSS is never cascaded, so no computed size, hit area, overflow, or contrast can
 be asserted. That is why [W63](#w63) was accepted on manual inspection at four widths, recorded
-as known-and-retained in [90-decisions](90-decisions.md), whose stated revisit trigger is
+as known-and-retained in [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md), whose stated revisit trigger is
 exactly this: extend `site/` with real-browser tooling, and extend it to `/play/` first.
 
 W65 adds a real-browser runner, an accessibility scanner, and visual snapshots, then **captures
@@ -1996,7 +1996,7 @@ of the whole site suite.
   - W65.7 Engine gates, documentation checks, the existing jsdom suite, the production site
         build, and `git diff --check` all still pass, and the added tooling does not enter the
         shipped `/play/` bundle.
-  - W65.8 The known-and-retained W63.7/W63.8 entry in [90-decisions](90-decisions.md) is closed
+  - W65.8 The known-and-retained W63.7/W63.8 entry in [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) is closed
         or narrowed to whatever genuinely remains, rather than left standing beside a harness
         that resolves it.
 - **Out of scope:** any `/play/` visual, layout, type, or markup change — that is [W66](#w66);
