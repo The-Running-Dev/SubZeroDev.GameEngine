@@ -106,7 +106,15 @@ function content(effects: readonly WorldEffect[] = []): WorldGraphCampaign {
     maps: [], terrain: [], scenery: [],
     needs: [{ id: "thirst", minimum: 0, maximum: 100 }],
     guestConditions: [], opinions: [], preferences: [], products: [],
-    buildings: [], guestArchetypes: [], staffRoles: [],
+    buildings: [], guestArchetypes: [{
+      id: "visitor", cashCents: { min: 20, max: 20 }, stayTicks: { min: 10, max: 10 },
+      patienceTicks: { min: 5, max: 5 }, initialSatisfaction: { min: 50, max: 50 },
+      needs: [], conditions: [], opinions: [], preferences: [],
+      priceResistance: { interpolation: "step", points: [{ input: 0, output: 0 }] },
+      preferenceUtilityPerPoint: 0, qualityUtilityPerPoint: 0, attractivenessUtilityPerPoint: 0,
+      travelPenaltyPerCost: 0, queuePenaltyPerTick: 0, safetyPenaltyPerPoint: 0,
+      switchThresholdUtility: 0, fallback: { kind: "leave" }, tags: [],
+    }], staffRoles: [],
     incidents: [{ id: "litter", cooldownTicks: 0, durationTicks: { min: 2, max: 2 } }],
     objectives: [], failures: [], policies: [], achievements: [],
     scenarios: [{

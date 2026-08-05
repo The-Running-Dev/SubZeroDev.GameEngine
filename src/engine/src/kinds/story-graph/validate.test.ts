@@ -415,6 +415,7 @@ describe("validateCampaign — through buildValidatedContentRegistry (integratio
       id: "story-graph",
       version: "1.0.0",
       reasonCodes: [],
+      reasonMessages: new Map(),
       eventNames: [],
       initialState: () => ({ state: {}, status: "active", changes: [], messages: [] }),
       availableActions: () => [],

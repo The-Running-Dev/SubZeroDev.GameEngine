@@ -48,6 +48,7 @@ function makeKind(version: string, migrateState?: Kind<unknown>["migrateState"])
     id: "story-graph",
     version,
     reasonCodes: [],
+    reasonMessages: new Map(),
     eventNames: [],
     initialState: (): InitialStateResult<unknown> => ({ state: { counter: 0 }, status: "active", changes: [], messages: [] }),
     availableActions: (): AvailableAction[] => [],

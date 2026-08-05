@@ -141,7 +141,18 @@ function traversable(
   return !blocked.has(key(position)) && terrainId !== undefined && terrain.get(terrainId)?.walkable === true;
 }
 
-export function canonicalPath(
+export interface CanonicalPathResult {
+  readonly path: readonly Position[];
+  /** Sum of `edge.edgeCost + terrain(next).moveCost` over every step (20-contract.md §9.3). */
+  readonly cost: number;
+}
+
+/**
+ * Canonical A* per §9.3. Returns both the committed path and its total step cost — the
+ * cost is the contract's "canonical path cost" used by §9.1's travel-cost utility
+ * component, not an approximation from hop count.
+ */
+export function canonicalPathWithCost(
   map: WorldMap,
   terrainDefinitions: readonly TerrainDefinition[],
   start: Position,
@@ -149,7 +160,7 @@ export function canonicalPath(
   buildings: readonly Building[],
   sites: readonly ConstructionSite[],
   additionallyBlocked: readonly Position[] = [],
-): readonly Position[] | null {
+): CanonicalPathResult | null {
   const terrain = new Map(terrainDefinitions.map((entry) => [entry.id, entry]));
   const terrainByCell = terrainIndex(map);
   const blocked = occupiedCells(buildings, sites);
@@ -172,7 +183,7 @@ export function canonicalPath(
         cursor = parent.get(key(cursor)) as Position;
         result.push(cursor);
       }
-      return result.reverse();
+      return { path: result.reverse(), cost: current.cost };
     }
     const outgoing = map.paths
       .filter((edge) => edge.allowed && key(edge.from) === key(current.position))
@@ -191,6 +202,19 @@ export function canonicalPath(
     }
   }
   return null;
+}
+
+/** Path-only convenience wrapper over `canonicalPathWithCost` for callers that don't need cost. */
+export function canonicalPath(
+  map: WorldMap,
+  terrainDefinitions: readonly TerrainDefinition[],
+  start: Position,
+  goals: readonly Position[],
+  buildings: readonly Building[],
+  sites: readonly ConstructionSite[],
+  additionallyBlocked: readonly Position[] = [],
+): readonly Position[] | null {
+  return canonicalPathWithCost(map, terrainDefinitions, start, goals, buildings, sites, additionallyBlocked)?.path ?? null;
 }
 
 export function checkBuildingPlacement(

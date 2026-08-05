@@ -2,8 +2,8 @@ import type { KindContext } from "../../../core/kernel/types.js";
 import { assertReferentialIntegrity } from "../actions/common.js";
 import { evaluateCondition, evaluateMetric } from "../conditions.js";
 import type { BuildingDefinition, IntegerCurve, ProductDefinition, WorldGraphCampaign } from "../content.js";
-import type { Building, Guest, Position, StaffTask, WorldGraphKindState } from "../state.js";
-import { canonicalPath, rotateOffset } from "../spatial.js";
+import type { Building, Guest, IncidentSeverity, Position, StaffTask, WorldGraphKindState } from "../state.js";
+import { canonicalPath, canonicalPathWithCost, footprintCells, rotateOffset } from "../spatial.js";
 import type { TickChanges } from "./changes.js";
 import { applyWorldEffects } from "./effects.js";
 import { compareDefinitionId, compareRuntimeEntityId, WORLD_GRAPH_SYSTEM_IDS, type WorldGraphSystemId } from "./order.js";
@@ -219,6 +219,27 @@ export const queues: WorldGraphSystem = (frame) => {
     const abandon = ids.filter((id) => state.guests.find((guest) => guest.id === id)?.patienceRemainingTicks === 0);
     if (abandon.length) state = { ...state, guests: state.guests.map((guest) => abandon.includes(guest.id) ? { ...guest, lifecycle: "seeking", intent: { kind: "wait", untilTick: frame.processingTick, selectedAtTick: frame.processingTick }, path: [], pathIndex: 0 } : guest) };
     ids = ids.filter((id) => !abandon.includes(id));
+    // §9.1: a queued guest switches away only when the best reachable alternative beats
+    // its current committed building/product by more than `switchThresholdUtility`;
+    // equality stays put. An alternative that has since become ineligible for the current
+    // choice (closed, sold out, unaffordable, unreachable) also triggers a switch when a
+    // valid alternative exists.
+    const switching = ids.filter((id) => {
+      const guest = state.guests.find((entry) => entry.id === id);
+      if (!guest || guest.intent.kind !== "seek_service") return false;
+      const archetype = definition(frame.content.guestArchetypes, guest.archetypeId, "guest archetype");
+      const current = scoreProduct(state, frame.content, frame.processingTick, guest, building, guest.intent.productId);
+      const bestAlternative = state.buildings
+        .filter((entry) => entry.id !== building.id)
+        .map((entry) => candidate(state, frame.content, frame.processingTick, guest, entry))
+        .filter((entry): entry is ProductScore => entry !== null)
+        .sort((left, right) => right.score - left.score || compareDefinitionId(left.productId, right.productId))[0] ?? null;
+      if (bestAlternative === null) return false;
+      if (current === null) return true;
+      return bestAlternative.score - current.score > archetype.switchThresholdUtility;
+    });
+    if (switching.length) state = { ...state, guests: state.guests.map((guest) => switching.includes(guest.id) ? { ...guest, lifecycle: "seeking", intent: { kind: "wait", untilTick: frame.processingTick, selectedAtTick: frame.processingTick }, path: [], pathIndex: 0 } : guest) };
+    ids = ids.filter((id) => !switching.includes(id));
     const arrivals = state.guests.filter((guest) => guest.lifecycle === "seeking" && guest.intent.kind === "seek_service" && guest.intent.buildingId === building.id && entrances(building, frame.content).some((entry) => samePosition(entry, guest))).sort((left, right) => compareRuntimeEntityId(left.id, right.id));
     for (const guest of arrivals) {
       if (capacity !== null && ids.length >= capacity) break;
@@ -234,26 +255,110 @@ export const queues: WorldGraphSystem = (frame) => {
   }
   return { ...frame, state };
 };
-function candidate(state: WorldGraphKindState, content: WorldGraphCampaign, guest: Guest, building: Building): { readonly productId: string; readonly score: number } | null {
+const INCIDENT_SEVERITY_POINTS: Readonly<Record<IncidentSeverity, number>> = { info: 0, minor: 1, major: 10, critical: 100 };
+
+/** §9.1's "canonically summed applicable adjacency input" for the attractiveness component. */
+function attractivenessInput(state: WorldGraphKindState, content: WorldGraphCampaign, building: Building): number {
+  const targetCells = entrances(building, content);
+  const sources = [
+    ...state.map.scenery.map((entry) => ({
+      id: entry.id,
+      effects: definition(content.scenery, entry.definitionId, "scenery definition").adjacencyEffects,
+      cells: footprintCells(entry.x, entry.y, entry.width, entry.height),
+    })),
+    ...state.buildings.filter((entry) => entry.id !== building.id).map((entry) => ({
+      id: entry.id,
+      effects: definition(content.buildings, entry.definitionId, "building definition").adjacencyEffects,
+      cells: footprintCells(entry.x, entry.y, entry.width, entry.height),
+    })),
+  ].sort((left, right) => compareRuntimeEntityId(left.id, right.id));
+  let total = 0;
+  for (const source of sources) {
+    for (const effect of source.effects) {
+      if (effect.metric !== "attractiveness" || effect.target.kind !== "building") continue;
+      if (effect.target.definitionIds !== null && !effect.target.definitionIds.includes(building.definitionId)) continue;
+      const distance = Math.min(...source.cells.flatMap((cell) => targetCells.map((target) => Math.max(Math.abs(cell.x - target.x), Math.abs(cell.y - target.y)))));
+      if (distance <= effect.radiusTiles) total += effect.delta;
+    }
+  }
+  return total;
+}
+
+/** §9.1's safety-concern component: active incident severity points at the building's footprint or entrances. */
+function safetyInput(state: WorldGraphKindState, content: WorldGraphCampaign, building: Building): number {
+  const relevant = [...footprintCells(building.x, building.y, building.width, building.height), ...entrances(building, content)];
+  let total = 0;
+  for (const incident of state.incidents) {
+    const position = incident.position;
+    if (incident.resolvedAtTick !== null || position === null) continue;
+    if (!relevant.some((cell) => samePosition(cell, position))) continue;
+    total += INCIDENT_SEVERITY_POINTS[definition(content.incidents, incident.definitionId, "incident definition").severity];
+  }
+  return total;
+}
+
+/** §9.1's queue-penalty component: remaining head service time plus each guest ahead's declared duration. */
+function estimatedWaitTicks(state: WorldGraphKindState, content: WorldGraphCampaign, processingTick: number, building: Building): number {
+  const guestIds = building.queue.guestIds;
+  if (guestIds.length === 0) return 0;
+  const durationFor = (guestId: string): number => {
+    const queuedGuest = state.guests.find((entry) => entry.id === guestId);
+    const offer = queuedGuest?.intent.kind === "seek_service" ? serviceProduct(building, queuedGuest.intent.productId, content) : null;
+    return offer?.serviceTicks ?? 0;
+  };
+  const headId = guestIds[0]!;
+  const headOffer = (() => {
+    const headGuest = state.guests.find((entry) => entry.id === headId);
+    return headGuest?.intent.kind === "seek_service" ? serviceProduct(building, headGuest.intent.productId, content) : null;
+  })();
+  const remainingHead = building.queue.serviceStartedAtTick !== null && headOffer !== null
+    ? Math.max(0, headOffer.serviceTicks - (processingTick - building.queue.serviceStartedAtTick))
+    : durationFor(headId);
+  return remainingHead + guestIds.slice(1).reduce((sum, id) => sum + durationFor(id), 0);
+}
+
+interface ProductScore { readonly productId: string; readonly score: number }
+
+/** §9.1's nine signed components, in the contract's exact order. */
+function scoreProduct(state: WorldGraphKindState, content: WorldGraphCampaign, processingTick: number, guest: Guest, building: Building, productId: string | null): ProductScore | null {
   const operation = definition(content.buildings, building.definitionId, "building definition").operation;
   if (operation.kind !== "service" || building.status !== "open") return null;
-  const values = operation.products.map((entry) => {
-    const product = definition(content.products, entry.productId, "product"); const price = building.pricesCents[product.id]; const stock = building.inventory[product.id];
-    const path = pathTo(state, content, guest, entrances(building, content));
-    if (price === undefined || price > guest.cashCents || stock === 0 || path === null) return null;
-    const archetype = definition(content.guestArchetypes, guest.archetypeId, "guest archetype");
-    const urgency = Math.max(0, ...archetype.needs.map((profile) => curve(profile.utilityByCurrentValue, guest.needs[profile.needId] ?? 0)));
-    const quality = Math.trunc((building.cleanliness + building.wear) / 2) * archetype.qualityUtilityPerPoint;
-    const preferences = archetype.preferences.filter((profile) => definition(content.preferences, profile.definitionId, "preference").targetTags.some((tag) => product.tags.includes(tag) || definition(content.buildings, building.definitionId, "building definition").tags.includes(tag))).reduce((sum, profile) => sum + (guest.preferences[profile.definitionId] ?? 0), 0) * archetype.preferenceUtilityPerPoint;
-    return { productId: product.id, score: urgency + quality + preferences - curve(archetype.priceResistance, price) - ((path.length - 1) * archetype.travelPenaltyPerCost) - (building.queue.guestIds.length * archetype.queuePenaltyPerTick) };
-  }).filter((entry): entry is { readonly productId: string; readonly score: number } => entry !== null);
+  const entry = productId === null
+    ? [...operation.products].sort((left, right) => compareDefinitionId(left.productId, right.productId))[0]
+    : operation.products.find((item) => item.productId === productId);
+  if (!entry) return null;
+  const product = definition(content.products, entry.productId, "product");
+  const price = building.pricesCents[product.id]; const stock = building.inventory[product.id];
+  const pathResult = canonicalPathWithCost(state.map, content.terrain, { x: guest.x, y: guest.y }, entrances(building, content), state.buildings, state.constructionSites);
+  if (price === undefined || price > guest.cashCents || stock === 0 || pathResult === null) return null;
+  const archetype = definition(content.guestArchetypes, guest.archetypeId, "guest archetype");
+  const needUrgency = Math.max(0, ...archetype.needs.map((profile) => curve(profile.utilityByCurrentValue, guest.needs[profile.needId] ?? 0)));
+  const preferenceMatch = archetype.preferences.filter((profile) => definition(content.preferences, profile.definitionId, "preference").targetTags.some((tag) => product.tags.includes(tag) || definition(content.buildings, building.definitionId, "building definition").tags.includes(tag))).reduce((sum, profile) => sum + (guest.preferences[profile.definitionId] ?? 0), 0) * archetype.preferenceUtilityPerPoint;
+  const socialRelevance = 0; // §9.1: exactly zero in v1, groups are not represented
+  const quality = Math.trunc((building.cleanliness + building.wear) / 2) * archetype.qualityUtilityPerPoint;
+  const attractiveness = attractivenessInput(state, content, building) * archetype.attractivenessUtilityPerPoint;
+  const priceResistance = curve(archetype.priceResistance, price);
+  const travelCost = pathResult.cost * archetype.travelPenaltyPerCost;
+  const queuePenalty = estimatedWaitTicks(state, content, processingTick, building) * archetype.queuePenaltyPerTick;
+  const safetyConcern = safetyInput(state, content, building) * archetype.safetyPenaltyPerPoint;
+  const score = needUrgency + preferenceMatch + socialRelevance + quality + attractiveness
+    - priceResistance - travelCost - queuePenalty - safetyConcern;
+  return { productId: product.id, score };
+}
+
+function candidate(state: WorldGraphKindState, content: WorldGraphCampaign, processingTick: number, guest: Guest, building: Building): ProductScore | null {
+  const operation = definition(content.buildings, building.definitionId, "building definition").operation;
+  if (operation.kind !== "service" || building.status !== "open") return null;
+  const values = operation.products
+    .map((entry) => scoreProduct(state, content, processingTick, guest, building, entry.productId))
+    .filter((entry): entry is ProductScore => entry !== null);
   return values.sort((left, right) => right.score - left.score || compareDefinitionId(left.productId, right.productId))[0] ?? null;
 }
 /** System 6: choose the highest reachable, affordable service candidate. */
 export const guestIntent: WorldGraphSystem = (frame) => {
   const guests = frame.state.guests.map((guest) => {
     if (guest.lifecycle !== "seeking" || (guest.intent.kind === "wait" && guest.intent.untilTick > frame.processingTick)) return guest;
-    const choices = frame.state.buildings.map((building) => ({ building, choice: candidate(frame.state, frame.content, guest, building) })).filter((entry): entry is { readonly building: Building; readonly choice: { readonly productId: string; readonly score: number } } => entry.choice !== null).sort((left, right) => right.choice.score - left.choice.score || compareRuntimeEntityId(left.building.id, right.building.id) || compareDefinitionId(left.choice.productId, right.choice.productId));
+    const choices = frame.state.buildings.map((building) => ({ building, choice: candidate(frame.state, frame.content, frame.processingTick, guest, building) })).filter((entry): entry is { readonly building: Building; readonly choice: ProductScore } => entry.choice !== null).sort((left, right) => right.choice.score - left.choice.score || compareRuntimeEntityId(left.building.id, right.building.id) || compareDefinitionId(left.choice.productId, right.choice.productId));
     if (choices.length) return { ...guest, intent: { kind: "seek_service" as const, buildingId: choices[0]!.building.id, productId: choices[0]!.choice.productId, selectedAtTick: frame.processingTick }, path: [], pathIndex: 0 };
     const archetype = definition(frame.content.guestArchetypes, guest.archetypeId, "guest archetype");
     return archetype.fallback.kind === "leave" ? { ...guest, intent: leaveIntent(frame.state, frame.content, guest, frame.processingTick, "unreachable"), path: [], pathIndex: 0 } : { ...guest, intent: { kind: "wait" as const, untilTick: frame.processingTick + archetype.fallback.ticks, selectedAtTick: frame.processingTick } };

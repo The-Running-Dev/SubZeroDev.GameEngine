@@ -5,6 +5,7 @@ import { worldGraphContent, type BuildingDefinition, type ScenarioDefinition } f
 import { checkBuildingPlacement, materializeMap, scenerySize } from "./spatial.js";
 import type { Building, Queue, Scenery, WorldGraphKindState } from "./state.js";
 import { resolveStatus } from "./outcome.js";
+import { compareDefinitionId } from "./tick/order.js";
 
 function invariant<T>(value: T | undefined, message: string): T {
   if (value === undefined) throw new Error(`Validated world-graph invariant failed: ${message}`);
@@ -115,7 +116,12 @@ export function initialState(campaign: Campaign, ctx: KindContext): InitialState
 
   const objectiveIds = state.objectives.filter((entry) => entry.state === "met").map((entry) => entry.id).sort();
   const objectivesWon = state.objectives.length > 0 && objectiveIds.length === state.objectives.length;
-  const failureId = state.failures.find((entry) => entry.state === "triggered")?.id ?? null;
+  // Tie-break matches system 18 (`failure`, tick/pipeline.ts): multiple simultaneously
+  // triggered failures choose definition-id first, not scenario.failureIds array order.
+  const failureId = state.failures
+    .filter((entry) => entry.state === "triggered")
+    .map((entry) => entry.id)
+    .sort(compareDefinitionId)[0] ?? null;
   if (objectivesWon && (failureId === null || scenario.resolutionPrecedence === "objectives_win")) {
     state = { ...state, resolution: { resolution: "objectives_met", objectiveIds, failureId: null, resolvedAtTick: 0 } };
   } else if (failureId !== null) {

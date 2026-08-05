@@ -80,7 +80,7 @@
 
 ### 9.2 Curves, multiplication, and rounding
 
-### 9.3 Canonical A*
+### 9.3 Canonical shortest path
 
 ### 9.4 Exact passive-rate proration
 

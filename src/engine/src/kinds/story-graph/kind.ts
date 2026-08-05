@@ -19,7 +19,7 @@ import type {
   SceneBody,
 } from "../../core/kernel/types.js";
 import { advance } from "./advance.js";
-import { STORY_GRAPH_REASON_CODES } from "./reasons.js";
+import { STORY_GRAPH_REASON_CODES, STORY_GRAPH_REASON_MESSAGES } from "./reasons.js";
 import { availableActions, scene } from "./scene.js";
 import { initialState } from "./settle.js";
 import type { StoryGraphKindState } from "./state.js";
@@ -30,6 +30,7 @@ export const storyGraphKind: Kind<StoryGraphKindState> = {
   id: "story-graph",
   version: "1.0.0",
   reasonCodes: STORY_GRAPH_REASON_CODES,
+  reasonMessages: STORY_GRAPH_REASON_MESSAGES,
   eventNames: [
     "kind.story-graph.settle.step",
     "kind.story-graph.node.entered",

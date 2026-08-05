@@ -24,6 +24,7 @@ function makeTestKind(overrides?: Partial<Kind<TestKindState>>): Kind<TestKindSt
     id: "story-graph",
     version: "1.0.0",
     reasonCodes: [],
+    reasonMessages: new Map(),
     eventNames: [],
     initialState: (): InitialStateResult<TestKindState> => ({
       state: { counter: 0 },

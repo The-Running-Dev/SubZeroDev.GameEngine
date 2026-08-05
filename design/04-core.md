@@ -40,6 +40,8 @@
 
 ## 11. Tiered Validation
 
+#### Which string table validation checks against
+
 ## 12. Reason Codes, State Changes, Messages
 
 ## 13. The MCP Surface

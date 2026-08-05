@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { SETTLE_STEPS, settle, initialState } from "./settle.js";
+import { STORY_GRAPH_REASON_MESSAGES } from "./reasons.js";
 import { enter, type StoryGraphKindState } from "./state.js";
 import type { Node } from "./nodes.js";
 import type { StoryGraphCampaign } from "./campaign.js";
@@ -288,6 +289,7 @@ describe("initialState — through the real engine (integration)", () => {
       id: "story-graph",
       version: "1.0.0",
       reasonCodes: ["settle_guard_tripped"],
+      reasonMessages: STORY_GRAPH_REASON_MESSAGES,
       eventNames: [
         "kind.story-graph.settle.step",
         "kind.story-graph.node.entered",
