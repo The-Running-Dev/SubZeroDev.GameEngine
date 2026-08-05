@@ -34,6 +34,16 @@
 
 ## 8. Responsive and Accessible Behaviour
 
+### 8.1 Type and target floors
+
+### 8.2 The phone reading model
+
+### 8.3 Breakpoint composition
+
+### 8.4 Viewport, safe areas, and trim
+
+### 8.5 Keyboard and assistive behaviour
+
 ## 9. Performance and Failure Behaviour
 
 ## 10. Proof

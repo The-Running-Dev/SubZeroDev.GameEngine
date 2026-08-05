@@ -1950,6 +1950,178 @@ old entry never rewinds or resubmits the game.
       a fabricated completion percentage, and any journal field that participates in game
       resolution.
 
+### [ ] W65 — Browser Test Harness for the Site {#w65}
+
+**Delivers:** Gives `site/` the ability to prove anything about how a page actually renders.
+Its tests run in jsdom today, which performs no layout: `getBoundingClientRect` returns zeros
+and stylesheet CSS is never cascaded, so no computed size, hit area, overflow, or contrast can
+be asserted. That is why [W63](#w63) was accepted on manual inspection at four widths, recorded
+as known-and-retained in [90-decisions](90-decisions.md), whose stated revisit trigger is
+exactly this: extend `site/` with real-browser tooling, and extend it to `/play/` first.
+
+W65 adds a real-browser runner, an accessibility scanner, and visual snapshots, then **captures
+the currently shipped rendering as the baseline**. Ordering matters: [W66](#w66) recomposes the
+play surface and promises the desktop compositions survive untouched, and that promise is only
+provable against a baseline taken before the CSS moves. A harness stood up alongside the
+redesign would baseline the changed rendering and prove nothing.
+
+The harness is test infrastructure. It ships no product behaviour, no page change, and no
+engine change. Where an existing jsdom test is adequate it stays put; this is not a migration
+of the whole site suite.
+
+- **Spec:** [`14-game-interface.md`](14-game-interface.md) §10 for the proof list this must be
+      able to execute, and §8 for the widths and states it must reach;
+      [13 §7–§8](13-playable-web-demo.md#7-client-proof-and-tests).
+- **Touches:** `site/package.json`, `site/vite.config.ts`, a browser-test setup file, new
+      specs under `site/src/play/` and `site/src/`, committed baseline snapshots, and the CI
+      workflow that runs the site's check script. No `src/engine/`, `design/` contract, or
+      product-code change beyond a test id where a control is otherwise unaddressable.
+- **Depends on:** [W63](#w63) and [W64](#w64) being on `main`, since the baseline is of what
+      they shipped. No engine dependency.
+- **Done when:**
+  - W65.1 `site/` runs specs in a real browser engine, driven by the package's existing check
+        script and by CI, with a documented single command. A deliberately failing computed-style
+        assertion fails that command; a jsdom-only run cannot silently satisfy it.
+  - W65.2 The runner can set viewport width and height, so a spec can assert at 320, 360, 390,
+        414, 768, and 1280 px in portrait and at one landscape phone size, and can emulate
+        `prefers-reduced-motion` and forced colours.
+  - W65.3 A spec can read a **computed** style and a real hit area from a rendered control, and
+        can assert the document does not scroll horizontally. Each of those three capabilities
+        has a self-test proving it fails when the condition is violated.
+  - W65.4 An automated accessibility scan runs against the shelf, briefing, content notice,
+        playing, unavailable-choice, rejected, and ended states, and fails the build on a
+        violation at the agreed severity. Existing violations, if any, are recorded explicitly
+        rather than silenced by lowering the threshold.
+  - W65.5 Visual snapshots of the shipped `/play/` rendering are captured and committed for
+        playing, unavailable-choice, persistence-warning, and ended states at 320, 390, 768, and
+        1280 px. Snapshot review and update are documented, and a snapshot diff fails the build.
+  - W65.6 The harness is deterministic enough to run in CI without flake: fonts, animation, and
+        any time-dependent rendering are pinned or disabled for capture, and a repeated run on an
+        unchanged tree produces no diff.
+  - W65.7 Engine gates, documentation checks, the existing jsdom suite, the production site
+        build, and `git diff --check` all still pass, and the added tooling does not enter the
+        shipped `/play/` bundle.
+  - W65.8 The known-and-retained W63.7/W63.8 entry in [90-decisions](90-decisions.md) is closed
+        or narrowed to whatever genuinely remains, rather than left standing beside a harness
+        that resolves it.
+- **Out of scope:** any `/play/` visual, layout, type, or markup change — that is [W66](#w66);
+      migrating the existing jsdom suite wholesale; a harness for `docs/`; performance
+      budgets, Lighthouse scoring, or cross-browser matrices beyond the one engine needed to
+      make the assertions real; and any engine or campaign change.
+
+### [ ] W66 — The Play Surface on a Phone {#w66}
+
+**Delivers:** Recomposes `/play/` for the device most visitors actually hold. The W63 cabinet
+and the W64 casebook were both measured on a desktop and then allowed to shrink: authored
+prose renders at 16 px and choice labels at about 13 px on a phone, cabinet controls stand
+roughly 34 px tall against a 44 px comfortable touch target, the cabinet's 8 px offset shadow
+sits outside a nearly full-width element at 320 px, panels are sized in `vh` under a collapsing
+mobile toolbar, no edge respects a device safe area, and every turn requires scrolling past the
+scene to reach the choices — after which committing one scrolls the player back to the top.
+
+W66 makes the phone the composed case rather than the degraded one. Below 768 px a turn becomes
+**two scroll-snapped pages** in one ordinary scrolling column: a scene page that fills the
+viewport and names how many choices wait below it, then a choice page of full-width cards under
+a pinned one-line echo of the scene. Type and hit-area floors from
+[14 §8.1](14-game-interface.md#81-type-and-target-floors) raise every width, including desktop,
+because a 0.68–0.82 rem control scale was never comfortable there either.
+
+**The retro look is a fixed input, not a variable.** The palette, the terminal type family, the
+scan lines, stamped uppercase labels, offset shadows, double borders, and campaign accents all
+survive unchanged. This slice moves size, spacing, safe areas, and reading order. A submission
+that reads as a modern mobile app has failed even if every measurement passes.
+
+The slice stays presentation-only under the boundary
+[13 §3](13-playable-web-demo.md#3-composition-and-dependency-direction) and
+[14 §1](14-game-interface.md#1-outcome-and-boundary) already set. No engine, kind, campaign,
+projection, DTO, session, persistence, or client-parity change; no new gesture, route, bundle,
+component tree, or user-agent branch.
+
+One correction rides along because it is a phone problem specifically: the authored scene body
+is currently marked up as an `h2`, which makes the screen-reader heading rotor — the primary
+navigation mechanism on a phone — return a wall of story instead of a landmark. The scene
+becomes a labelled region with a short real heading, and the post-commit focus target moves
+with it. Rendered authored text is unchanged.
+
+- **Spec:** [`14-game-interface.md`](14-game-interface.md) §1 and §8 (Revision 2), with §§2–7
+      unchanged; [`13-playable-web-demo.md`](13-playable-web-demo.md) §3, §7–§9;
+      [09 §1](09-clients.md#1-the-rule-made-testable),
+      [§2](09-clients.md#2-the-only-surface),
+      [§6](09-clients.md#6-projection-is-not-optional).
+- **Touches:** `site/src/play/play.css` (type scale, hit areas, snap pages, safe areas,
+      full-bleed trim, breakpoints), `site/src/play/PlayApp.tsx` (scene region and heading,
+      choice-count cue, post-commit scroll target), `site/src/play/PlayApp.test.tsx` and the
+      site's browser/visual checks, and `site/play/index.html` only if a viewport or
+      `theme-color` correction is needed. No `src/engine/` change of any kind.
+- **Depends on:** [W65](#w65) — hard, not preferential. Every measured criterion below needs a
+      real browser, and the promise that the desktop compositions survive is only checkable
+      against a baseline W65 captures before this slice moves any CSS. Also [W63](#w63) for the
+      cabinet grammar and [W64](#w64) for the casebook, journey log, and arrival receipt that
+      must survive the recomposition. No engine dependency.
+- **Done when:**
+  - W66.1 Every §8.1 role meets its floor as a **computed** style at 320 px — authored prose
+        1.125 rem at line-height 1.6 or more, choice labels 1.0625 rem, cabinet controls and
+        dossier titles 1 rem, stat labels and values 0.9375 rem, reason/receipt/journey/save
+        text 0.875 rem. Assertions read computed values from a rendered tree; matching the
+        stylesheet's source text does not count. Only stamped marquee, eyebrow, and disk labels
+        sit below that, and each is decorative or duplicated by larger text nearby.
+  - W66.2 Every interactive control — choice card, cabinet button, dossier, notice button,
+        journey control, scene-echo cue — presents at least a 44 × 44 px hit area at 320 px and
+        at 1280 px, produced by padding rather than a transparent overlay, with at least 8 px of
+        non-actionable space between adjacent choice controls.
+  - W66.3 Below 768 px a turn renders as two scroll-snap stops: a scene page that fills the
+        viewport and names the shown-choice count, then a choice page of full-width cards under
+        a pinned single-line scene echo that returns to the scene page when activated. At
+        768 px and above no snapping applies, and the 1280 px composition differs from the
+        W65 baseline only in the type and spacing W66.1 and W66.2 require — every other
+        difference is either justified in the pull request or reverted.
+  - W66.4 With scroll-snap unsupported, with smooth scrolling unavailable, and with the cue's
+        script path disabled, the scene, every choice, and the status console all remain
+        reachable by ordinary vertical scrolling in that order. Both pages are in the DOM at
+        all times; no choice is conditionally unmounted, gesture-gated, or revealed only by
+        animation.
+  - W66.5 Committing an action lands the player on the new turn's scene page with focus on the
+        scene, never on a stale choice page and never mid-transition. A rejected action leaves
+        the player where they were with the scene still authoritative, and cannot produce a
+        false arrival receipt or journey entry — W64.11 and W64.12 still hold verbatim.
+  - W66.6 No gesture is introduced: no swipe, horizontal paging, carousel, drag, long-press,
+        edge gesture, or pull-to-refresh interception. Pinch zoom is not disabled and the
+        viewport is not pinned to a fixed width.
+  - W66.7 Full-height panels use dynamic viewport units, every inset-facing edge adds
+        `env(safe-area-inset-*)` padding, and below 768 px the cabinet is full-bleed with its
+        offset shadow and double border collapsed to a single edge. The document does not
+        scroll horizontally at 320, 360, 390, 414, or 768 px in portrait, in landscape, or at
+        200% zoom; at 200% zoom on a 390 px viewport the narrow composition is retained.
+  - W66.8 The authored scene renders inside a labelled region with a short real heading; the
+        prose itself is not a heading. The page keeps one H1, a coherent heading order, and its
+        existing live-region announcements. Automated accessibility checks pass on shelf,
+        briefing, notice, playing, unavailable-choice, rejected, and ended states, and a
+        keyboard-only pass completes a full turn without a pointer.
+  - W66.9 The retro identity is preserved and shown to be: the palette custom properties, type
+        family, scan-line overlay, stamped uppercase labels, offset shadows, double borders,
+        and the six campaign accent themes are all still present and applied. No colour token
+        changes value. Uppercase transformation appears on stamped labels only — never on
+        authored prose, choice labels, reasons, or error text.
+  - W66.10 Reduced motion makes the cue jump and the post-commit return instant, removes
+        smooth scrolling, and leaves snapping and every authored transition already governed by
+        W63.9 intact. No action waits on an animation and no permanent timer runs while idle.
+  - W66.11 One full route through Bureaucracy and one through each Lucifer role complete at
+        320 px, 390 px, 768 px portrait and one landscape phone, with no clipped authored text,
+        no truncated or ellipsised choice label, and no action stranded below an inaccessible
+        internal scroll region. Visual snapshots cover playing, unavailable-choice,
+        persistence-warning, and ended states at each of those sizes.
+  - W66.12 Browser/text-client parity still produces byte-identical serialized outcomes, the
+        engine package is untouched, `/play/` remains a direct static route making no runtime
+        request, and the decorative payload does not grow. Site checks, documentation checks,
+        engine gates, and `git diff --check` all pass.
+- **Out of scope:** any engine, kind, campaign, projection, DTO, reason-code, session, or
+      persistence change; new campaigns, scenes, endings, or mechanics; a palette, type-family,
+      or voice refresh; a separate mobile route, bundle, component tree, or user-agent branch;
+      a native shell, PWA, service worker, install prompt, or offline mode; gesture navigation,
+      a bottom-sheet choices modal, or a carousel; durable storage, accounts, analytics, audio,
+      new art beyond CSS-native trim adjustments, and a mobile visual language for the
+      simulation or world-graph kinds.
+
 - [ ] More clients (Discord; the first web client is [W61](#w61)).
 - [ ] **Additional locales — sliced as [W60](#w60).** The MVP ships English only; the
       authoring→registry types already support more

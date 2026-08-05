@@ -270,8 +270,11 @@ so they are not forgotten.
   rather than a dedicated automated suite. `site/` has no visual-regression or axe-style
   accessibility scanner; W63.7 (visual snapshots) and W63.8 (automated accessibility,
   forced-colours, 200% zoom, long-text checks) were proven by direct inspection, not by a
-  committed test. **Revisit when** `site/` adds visual-regression or automated accessibility
-  tooling — extend it to `/play/` first, since this is where the gap is.
+  committed test. The root cause is that `site/` tests run in jsdom, which performs no layout
+  at all: no computed size, hit area, or overflow can be asserted there. **Now sliced as
+  W65**, which stands up a real-browser harness, scanner, and snapshots and baselines the
+  shipped rendering before W66 recomposes it. Close or narrow this entry as part of W65.8
+  rather than leaving it standing beside the harness that resolves it.
 
 *Add to this register whenever a decision is deferred or an assumption is made — rather than
 leaving it in a commit message or a chat, where the next person will not find it.*

@@ -2589,7 +2589,8 @@ Additional acceptance:
 
 # Game Interface — Absurd Adventure Stage and Dashboard
 
-**Document status:** Revision 1 — agreed W63 design target
+**Document status:** Revision 2 — W63 shipped as Revision 1; §8 is restated as the W66
+mobile-first target, proven by the browser test harness W65 stands up, and §§1–7 are unchanged.
 
 **Reading order:** after [`13-playable-web-demo.md`](13-playable-web-demo.md). That document
 owns the browser boundary and delivery model; this one owns how the established multi-campaign
@@ -2622,6 +2623,11 @@ no campaign outcome, action id, projection, persistence format, replay fixture, 
 client-parity rule. React may derive presentation state from the DTO it already receives — for
 example, whether a scene ended or whether a visible stat increased — but it may not infer a
 game rule or expose hidden state.
+
+W66 extends the same boundary to the device most visitors arrive on. It adds a fourth thing
+the page must say before a word is read: **this is comfortable to play on a phone.** The
+cabinet, its jokes, and its palette survive intact; what changes is that the phone stops being
+the shrunken case and becomes the composed one. Nothing in §8 may relax any sentence above.
 
 ## 2. The Two Reference Qualities
 
@@ -2774,20 +2780,115 @@ or content request. A failed decorative image load leaves a complete, readable C
 
 ## 8. Responsive and Accessible Behaviour
 
-The same hierarchy adapts rather than merely shrinking:
+**Revision 2.** Revision 1 asked the desktop hierarchy to adapt rather than shrink, and the
+shipped cabinet does adapt — but it was measured on a desktop. Its authored prose, choice
+labels, and controls all resolve below 14 px on a phone, its controls fall short of a
+comfortable touch target, and every turn asks the player to scroll past the scene to reach the
+choices and then be scrolled back when the scene changes. A retro interface may be cramped on
+purpose; it may not be uncomfortable by accident.
+
+The palette, the terminal voice, the stamped labels, the scan-line and offset-shadow
+treatments, and the campaign accents are **not** what changes. Retro is the look, not the
+size — nothing in this section is served by making the interface look modern.
+
+### 8.1 Type and target floors
+
+One fluid scale governs every width. These are **floors measured at 320 px**, not desktop
+values scaled down, and they apply to the desktop compositions too:
+
+| Role | Floor | Notes |
+|---|---|---|
+| Authored scene prose | 1.125 rem, line-height at least 1.6 | the largest text on the page after the campaign title |
+| Choice label | 1.0625 rem | wraps to as many lines as it needs; never truncated, ellipsised, or scaled to fit |
+| Cabinet control and shelf dossier title | 1 rem | |
+| Visible stat label and value | 0.9375 rem | tabular figures retained |
+| Reason, arrival receipt, journey entry, save state | 0.875 rem | player-facing text has no smaller tier |
+| Stamped marquee, eyebrow, and disk labels | 0.75 rem | the only permitted small type: decorative, or duplicated by a larger label nearby |
+
+Every interactive control presents a hit area of at least 44 × 44 px at every width, produced
+by real padding rather than a transparent overlay, and adjacent choice controls are separated
+by at least 8 px of non-actionable space so a mis-tap cannot commit a different turn. Uppercase
+transformation is confined to the stamped-label row above; authored prose, choice labels,
+reasons, and error text are never uppercased.
+
+### 8.2 The phone reading model
+
+Below 768 px a turn is **two snapped pages**, not one scrolling document:
+
+1. **Scene page** — the authored text fills the viewport. The marquee condenses to a single
+   line, and a footer cue names what waits below (“3 choices ⌄”).
+2. **Choice page** — the action deck fills the viewport as full-width cards. A condensed
+   one-line echo of the scene stays pinned above them so the player never chooses blind, and
+   activating that echo returns to the scene page.
+
+The paging is a reading aid, and the rules that keep it one are load-bearing:
+
+- The two pages are one ordinary, continuously scrollable column with
+  `scroll-snap-type: y proximity`. Snapping assists; it never traps, never blocks a scroll
+  between the pages, and never prevents a tall device from showing both at once.
+- Both pages are present in the DOM at all times, in reading order — scene, then actions, then
+  status. No choice is conditionally unmounted, hidden behind a gesture, or reachable only
+  after an animation.
+- The cue is a real button that moves to the choice page. It is never the only route there.
+- Committing an action lands the player on the **new** turn's scene page, with focus moving to
+  the scene as §6 requires. It never leaves them on a stale choice page.
+- No gesture is introduced: no swipe, horizontal paging, drag, long-press, edge gesture, or
+  pull-to-refresh interception. Vertical scrolling behaves exactly as the browser's default.
+- Reduced motion makes the cue jump and the post-commit return instant. Snapping stays;
+  smooth scrolling does not.
+
+The status console follows the choice page in the same column, reached by scrolling on. It is
+never a modal sheet and is never required in order to play. At 768 px and above the pages
+dissolve into the compositions below and no snapping is applied.
+
+### 8.3 Breakpoint composition
 
 | Width | Composition |
 |---|---|
 | 1280 px and above | Scene and status console side by side; action deck spans beneath the scene |
 | 768–1279 px | Narrower console beside the scene or directly below when prose needs the width |
-| 390–767 px | Single column: marquee, scene, actions, status; decoration simplifies |
-| 320–389 px | Same order, smaller cabinet trim, full-width controls, no clipped labels or horizontal scrolling |
+| 390–767 px | Snapped scene page, then choice page, then status; full-bleed cabinet, simplified trim |
+| 320–389 px | Same order and the same §8.1 floors; trim reduces further; no clipped label and no horizontal scrolling |
 
-The route remains keyboard-complete. Native buttons stay native. Focus is never trapped in the
-cabinet or shelf briefing. The content notice, if modal, receives correct dialog labelling,
-initial focus, escape behavior, and focus restoration. Contrast meets WCAG AA for text and
-essential controls in every campaign theme. Forced-colours mode retains borders, labels, and
-focus. At 200% zoom the game remains playable without two-dimensional scrolling.
+The two desktop rows are unchanged from Revision 1. Only §8.1's floors reach them.
+
+### 8.4 Viewport, safe areas, and trim
+
+- Full-height panels are measured in dynamic viewport units (`dvh`/`svh`), never `vh`, so a
+  collapsing mobile toolbar cannot clip the last choice.
+- Every edge that can meet a device inset — pinned echo, cue footer, final choice card, ending
+  controls — adds `env(safe-area-inset-*)` padding. No control sits under a notch or home
+  indicator.
+- Below 768 px the cabinet is full-bleed: page padding goes to zero and the offset drop-shadow
+  and double border collapse to a single edge treatment, because an offset shadow outside a
+  full-width element is a horizontal-overflow defect at 320 px, not decoration.
+- The document never scrolls horizontally at 320, 360, 390, 414, or 768 px in either
+  orientation, and a landscape phone under 480 px tall keeps the same order and remains
+  scrollable.
+- Tap-highlight colour and text-size adjustment on rotation are set deliberately rather than
+  left to the platform default. Pinch zoom is never disabled and the viewport is never scaled
+  to a fixed width.
+
+### 8.5 Keyboard and assistive behaviour
+
+Everything Revision 1 required still binds: the route is keyboard-complete, native buttons stay
+native, focus is never trapped outside the notice dialog, that dialog keeps its labelling,
+initial focus, escape behaviour and focus restoration, contrast meets WCAG AA for text and
+essential controls in every campaign theme, forced-colours mode retains borders, labels and
+focus, and the game stays playable at 200% zoom without two-dimensional scrolling.
+
+Revision 2 adds three:
+
+- **The authored scene is a region, not a heading.** Marking a paragraph of prose as a heading
+  makes the phone screen-reader's primary navigation mechanism — the heading rotor — useless,
+  because every heading is a wall of story. The scene becomes a labelled region with a short
+  real heading, and the post-commit focus target moves with it. This changes markup and the
+  focus target; it changes no rendered authored text.
+- The choice count named by the cue is derived from the same action list the deck renders, so
+  it cannot disagree with what is below it, and it counts shown choices exactly as the deck
+  shows them — unavailable ones included, hidden ones absent.
+- At 200% zoom on a 390 px phone the layout stays in the narrow composition and still does not
+  scroll in two dimensions.
 
 ## 9. Performance and Failure Behaviour
 
@@ -2815,6 +2916,22 @@ W63 is accepted by behavior and rendered evidence, not a subjective “looks gam
 - browser/text-client parity and serialized outcomes remain byte-identical, demonstrating that
   the cabinet changed presentation only.
 
+Revision 1 accepted that list on manual inspection, because `site/` had no browser test
+harness — its tests run in jsdom, which performs no layout at all. W65 stands one up and
+captures the shipped rendering as a baseline **before** anything moves. W66 then adds evidence
+that is measured rather than eyeballed, because “feels fine on my phone” is the claim that
+produced the sizes it replaces:
+
+- computed type size and hit-area assertions for each §8.1 role, run at 320 px, not asserted
+  against the stylesheet's source text;
+- a full committed turn driven at 320 px, 390 px, and 768 px portrait plus one landscape
+  phone, reaching a choice, committing it, and arriving on the next scene page;
+- a horizontal-overflow assertion at every one of those widths, and at 200% zoom;
+- a scroll-snap-disabled and a JavaScript-scroll-disabled pass proving both pages and every
+  choice remain reachable by ordinary scrolling alone;
+- screen-reader-shaped assertions that the scene is a region with a short heading, that the
+  authored prose is not a heading, and that focus lands on the scene after a commit.
+
 ## 11. Explicit Non-Goals
 
 - New campaigns, story nodes, endings, mechanics, projections, reason codes, or engine APIs.
@@ -2825,6 +2942,13 @@ W63 is accepted by behavior and rendered evidence, not a subjective “looks gam
   navigation model.
 - Mandatory audio, voice acting, cut-scenes, procedural art, or a downloadable asset pack.
 - Sacrificing authored prose, mobile layout, accessibility, or load time for ornament.
+- Modernising the palette, type family, or terminal voice in the name of a mobile refresh. §8
+  changes size, spacing, and reading order only.
+- A native shell, app-store wrapper, service worker, PWA install prompt, or offline mode.
+- Gesture navigation, a bottom-sheet modal for choices, horizontal paging, a carousel, or any
+  control whose only affordance is a swipe.
+- Disabling pinch zoom, pinning a fixed viewport width, or a separate mobile route, bundle,
+  component tree, or user-agent branch.
 
 ## 12. Decision Summary
 
@@ -2838,6 +2962,11 @@ W63 is accepted by behavior and rendered evidence, not a subjective “looks gam
 | Assets | Original local PNG/JPG plus CSS-native frames and controls |
 | Motion | Brief state punctuation; immediate and complete reduced-motion mode |
 | Responsive order | Scene before actions before projected status at narrow widths |
+| Primary device | Phone-first; the desktop compositions are the wider case, not the reference |
+| Type and targets | Prose 1.125 rem, choices 1.0625 rem, 44 px minimum hit area, at every width |
+| Phone turn shape | Two scroll-snapped pages — scene, then choices — in one ordinary scrolling column |
+| Input | Vertical scroll and taps only; snapping is `proximity`, and no gesture is invented |
+| Retro | Palette, type family, and voice are held fixed; only size, spacing, and order move |
 | Proof | Interaction, accessibility, visual snapshots, and unchanged parity bytes |
 
 <!-- human-doc:end -->
