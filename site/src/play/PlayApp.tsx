@@ -29,6 +29,15 @@ function viewOf(state: PlayState) {
   };
 }
 
+interface JourneyEntry {
+  readonly excerpt: string;
+  readonly choice?: string;
+}
+
+function excerpt(text: string): string {
+  return text.length <= 150 ? text : `${text.slice(0, 147).trimEnd()}…`;
+}
+
 export default function PlayApp() {
   const demo = useMemo(createBrowserDemo, []);
   const client = useMemo(() => new BrowserClient(demo.store), [demo.store]);
@@ -37,6 +46,8 @@ export default function PlayApp() {
   const [selectedId, setSelectedId] = useState(demo.catalog[0]?.campaignId);
   const [notice, setNotice] = useState<string>();
   const [message, setMessage] = useState<string>();
+  const [arrivalChoice, setArrivalChoice] = useState<string>();
+  const [journey, setJourney] = useState<readonly JourneyEntry[]>([]);
   const [busy, setBusy] = useState(false);
   const sceneHeading = useRef<HTMLHeadingElement>(null);
   const briefingTrigger = useRef<HTMLButtonElement>(null);
@@ -63,6 +74,8 @@ export default function PlayApp() {
       const next = await client.start(id);
       setState(next);
       setCampaignId(id);
+      setArrivalChoice(undefined);
+      setJourney([{ excerpt: excerpt(next.scene.body.text) }]);
       try {
         await client.save(next.sessionId);
       } catch {
@@ -79,6 +92,9 @@ export default function PlayApp() {
 
   async function choose(id: string) {
     if (!state) return;
+    const resolvedLabel = state.actions.find(
+      (action) => action.id === id,
+    )?.label;
     setBusy(true);
     setMessage(undefined);
     try {
@@ -87,6 +103,16 @@ export default function PlayApp() {
       if (!next.result.ok)
         setMessage("That action was rejected. The scene has not changed.");
       else {
+        if (resolvedLabel) {
+          setArrivalChoice(resolvedLabel);
+          setJourney((current) => [
+            ...current,
+            {
+              choice: resolvedLabel,
+              excerpt: excerpt(next.state.scene.body.text),
+            },
+          ]);
+        }
         try {
           await client.save(next.state.sessionId);
         } catch {
@@ -107,6 +133,8 @@ export default function PlayApp() {
     setState(undefined);
     setCampaignId(undefined);
     setMessage(undefined);
+    setArrivalChoice(undefined);
+    setJourney([]);
   }
 
   return (
@@ -161,11 +189,7 @@ export default function PlayApp() {
                     ref={briefingTrigger}
                     className="cabinet-button primary"
                     disabled={busy}
-                    onClick={() =>
-                      selected.featured
-                        ? setNotice(selected.campaignId)
-                        : start(selected.campaignId)
-                    }
+                    onClick={() => setNotice(selected.campaignId)}
                   >
                     Open dossier and start
                   </button>
@@ -214,6 +238,19 @@ export default function PlayApp() {
                 <h2 ref={sceneHeading} tabIndex={-1}>
                   {state.scene.body.text}
                 </h2>
+                <div className="arrival-receipt" role="status">
+                  {arrivalChoice ? (
+                    <>
+                      <span>You chose</span>
+                      <strong>{arrivalChoice}</strong>
+                      <span className="arrival-link">
+                        which brought you here.
+                      </span>
+                    </>
+                  ) : (
+                    <strong>Your story begins here.</strong>
+                  )}
+                </div>
                 {ended ? (
                   <div className="ending-controls">
                     <p className="ending-placard">
@@ -299,9 +336,34 @@ export default function PlayApp() {
                 )}
                 {viewOf(state).achievements.length > 0 && (
                   <p className="achievement-note">
-                    Filed achievements: {viewOf(state).achievements.length}
+                    <span aria-hidden="true">◆ </span>
+                    Achievement stamps: {viewOf(state).achievements.length}
                   </p>
                 )}
+                <details className="journey-log">
+                  <summary>Journey so far</summary>
+                  <ol>
+                    {journey.map((entry, index) => (
+                      <li
+                        key={`${index}-${entry.excerpt}`}
+                        aria-current={
+                          index === journey.length - 1 ? "step" : undefined
+                        }
+                      >
+                        {entry.choice && (
+                          <strong>You chose {entry.choice}. </strong>
+                        )}
+                        <span>{entry.excerpt}</span>
+                        {index === journey.length - 1 && <em> Current page</em>}
+                      </li>
+                    ))}
+                  </ol>
+                  {journey.length > 1 && (
+                    <p className="journey-origin">
+                      Where I came from: {journey[journey.length - 2]?.excerpt}
+                    </p>
+                  )}
+                </details>
                 <p className="console-footnote">
                   This console shows only the player-facing record.
                 </p>
@@ -330,8 +392,11 @@ export default function PlayApp() {
               <p className="eyebrow">CONTENT NOTICE</p>
               <h2 id="notice-title">Before opening this file</h2>
               <p>
-                This story contains strong language, religious satire,
-                dangerous-driving anecdotes, and recognizable parody.
+                {
+                  demo.catalog.find(
+                    (campaign) => campaign.campaignId === notice,
+                  )?.contentNotice
+                }
               </p>
               <div>
                 <button

@@ -9,6 +9,7 @@ import type { AuthoredText, BuiltCampaign, Campaign } from "../core/registry/typ
 import type { CommandResult } from "../core/kernel/reasons.js";
 import { buildCampaign } from "../core/registry/build.js";
 import { buildStoryGraphCampaign, type NodeSource, type StoryGraphCampaignSource } from "../kinds/story-graph/source.js";
+import { migrateV1AdventureState } from "./adventure-builder.js";
 
 export const LUCIFER_CHRONICLES_CAMPAIGN_ID = "lucifer-chronicles";
 
@@ -118,6 +119,9 @@ function addAct(nodes: Record<string, NodeSource>, act: Act, next: string, effec
       kind: "choice", text: { key: key(nodeId, "text"), text }, choices: [
         { id: `${nodeId}_literal`, label: { key: key(nodeId, "literal"), text: literal }, effects: [{ op: "increment", var: "patience", by: 1 }], goto: literalId },
         { id: `${nodeId}_absurd`, label: { key: key(nodeId, "absurd"), text: absurd }, effects: [{ op: "increment", var: "absurdity", by: 1 }, { op: "increment", var: effectVar, by: 1 }], goto: absurdId },
+        { id: `${nodeId}_observe`, label: { key: key(nodeId, "observe"), text: "Observe one detail everyone else missed" }, effects: [{ op: "increment", var: "cosmic_attention", by: 1 }], goto: literalId },
+        { id: `${nodeId}_escalate`, label: { key: key(nodeId, "escalate"), text: "Escalate through the least appropriate channel" }, effects: [{ op: "increment", var: "scope_creep", by: 1 }], goto: absurdId },
+        ...(index >= 3 ? [{ id: `${nodeId}_remember`, label: { key: key(nodeId, "remember"), text: "Use what this story taught you earlier" }, showWhen: { field: "var.patience", operator: "greater_or_equal" as const, value: 2 }, effects: [{ op: "increment" as const, var: "paperwork", by: 1 }], goto: literalId }] : []),
       ],
     };
     nodes[literalId] = { kind: "auto", text: { key: key(literalId, "text"), text: literalReply }, goto: destination };
@@ -132,23 +136,36 @@ nodes.prologue = {
   choices: [
     { id: "play_ben", label: { key: "lucifer.prologue.ben", text: "Play as Ben" }, effects: [{ op: "set", var: "role", value: "ben" }], goto: "ben_return_1" },
     { id: "play_lucifer", label: { key: "lucifer.prologue.lucifer", text: "Play as Lucifer" }, effects: [{ op: "set", var: "role", value: "lucifer" }], goto: "lucifer_hell_1" },
+    { id: "play_support", label: { key: "lucifer.prologue.support", text: "Take the infernal customer-support shift" }, effects: [{ op: "set", var: "role", value: "lucifer" }, { op: "increment", var: "paperwork", by: 2 }], goto: "support_shift_1" },
   ],
 };
 
-const benEndingIds = ["incident_resolved", "it_builds_character", "room_14_resident", "tomato_jurisprudence", "bought_some_land", "permission_to_exist", "future_me_unanswered", "another_product", "uncategorizable_ben", "well_why_not"] as const;
-const luciferEndingIds = ["ticket_closed", "customer_support", "governor_of_alive", "escape_hatch_missing", "fly_treaty", "fly_statistic", "agents_failed", "platform_outbreak", "invites_ben", "that_one_is_ours"] as const;
+const benEndings = [
+  ["the_bureaucrat", "The Bureaucrat", "You master the forms without letting the forms explain you."],
+  ["the_observer", "The Observer", "You stop demanding that every absurdity become a lesson and finally see the whole joke."],
+  ["the_escapist", "The Escapist", "You leave the queue, the house, and the metaphysics open in another tab."],
+  ["the_builder", "The Builder", "One quick question becomes an engine, a site, and a body of work that answers better questions."],
+  ["house_fix", "The Guy Who Just Wanted to Fix a House", "The roof holds. This modest fact defeats the entire cosmic apparatus."],
+] as const;
+const luciferEndings = [
+  ["the_stoic", "The Stoic", "You accept the infinite queue and choose the quality of the next reply."],
+  ["the_entertainer", "The Entertainer", "If existence insists on being ridiculous, you insist on timing the punchline."],
+  ["support_manager", "Customer Support Manager of Hell", "The promotion changes nothing except who signs the escalation report."],
+  ["one_question", "The One Who Asked One Question", "You answer Ben carefully. Forty-four work units appear anyway."],
+  ["invites_ben", "The Last Drink Before Morning", "You close no tickets, but one impossible case becomes a conversation."],
+] as const;
 
-function addFinale(prefix: "ben" | "lucifer", endings: readonly string[]) {
+function addFinale(prefix: "ben" | "lucifer", endings: readonly (readonly [string, string, string])[]) {
   const finalNode = `${prefix}_final_choice`;
   nodes[finalNode] = {
     kind: "choice",
     text: { key: key(finalNode, "text"), text: prefix === "ben" ? "The story asks what you actually accomplished. This is an aggressive question." : "The postmortem asks what Hell has learned. This is somehow worse." },
-    choices: endings.map((ending, index) => ({ id: `${prefix}_${ending}`, label: { key: key(`${prefix}_${ending}`, "label"), text: `Follow the ${index + 1}th available conclusion` }, goto: `${prefix}_ending_${ending}` })),
+    choices: endings.map(([ending, title], index) => ({ id: `${prefix}_${ending}`, label: { key: key(`${prefix}_${ending}`, "label"), text: title }, ...(index > 1 ? { showWhen: { field: index % 2 === 0 ? "var.absurdity" : "var.patience", operator: "greater_or_equal" as const, value: 2 } } : {}), goto: `${prefix}_ending_${ending}` })),
   };
-  endings.forEach((ending, index) => {
+  endings.forEach(([ending, title, endingText], index) => {
     nodes[`${prefix}_ending_${ending}`] = {
       kind: "ending",
-      text: { key: key(`${prefix}_ending_${ending}`, "text"), text: prefix === "ben" ? `Ending: ${ending.replaceAll("_", " ")}. The house, the paperwork, and the universe each continue with deeply selective interest.` : `Ending: ${ending.replaceAll("_", " ")}. Lucifer updates the ticket, pours another drink, and watches humanity continue unsupervised.` },
+      text: { key: key(`${prefix}_ending_${ending}`, "text"), text: `${title}\n\n${endingText}` },
       endingId: `${prefix}_${ending}`,
       outcome: index % 3 === 0 ? "win" : index % 3 === 1 ? "neutral" : "loss",
     };
@@ -157,10 +174,47 @@ function addFinale(prefix: "ben" | "lucifer", endings: readonly string[]) {
 
 for (let index = 0; index < benActs.length; index += 1) addAct(nodes, benActs[index]!, index === benActs.length - 1 ? "ben_final_choice" : `${benActs[index + 1]!.id}_1`, index % 2 === 0 ? "scope_creep" : "paperwork");
 for (let index = 0; index < luciferActs.length; index += 1) addAct(nodes, luciferActs[index]!, index === luciferActs.length - 1 ? "lucifer_final_choice" : `${luciferActs[index + 1]!.id}_1`, index % 2 === 0 ? "cosmic_attention" : "scope_creep");
-addFinale("ben", benEndingIds);
-addFinale("lucifer", luciferEndingIds);
 
-const endingAchievements = [...benEndingIds.map((id) => `ben_${id}`), ...luciferEndingIds.map((id) => `lucifer_${id}`)];
+function insertSeededDetour(prefix: "ben" | "lucifer", fromIds: readonly string[], destination: string, first: string, second: string) {
+  for (const id of fromIds) {
+    const node = nodes[id];
+    if (node?.kind === "auto") nodes[id] = { ...node, goto: `${prefix}_seeded_detour` };
+  }
+  nodes[`${prefix}_seeded_detour`] = {
+    kind: "random",
+    text: { key: key(`${prefix}_seeded_detour`, "text"), text: "The universe selects a footnote without consulting the protagonist." },
+    transitions: [
+      { weight: 1, effects: [{ op: "increment", var: "patience", by: 1 }], goto: `${prefix}_detour_coffee` },
+      { weight: 1, effects: [{ op: "increment", var: "absurdity", by: 1 }], goto: `${prefix}_detour_fly` },
+    ],
+  };
+  nodes[`${prefix}_detour_coffee`] = oneDetour(`${prefix}_detour_coffee`, first, destination);
+  nodes[`${prefix}_detour_fly`] = oneDetour(`${prefix}_detour_fly`, second, destination);
+}
+
+function oneDetour(id: string, text: string, goto: string): NodeSource {
+  return { kind: "choice", text: { key: key(id, "text"), text }, choices: [{ id: `${id}_return`, label: { key: key(id, "return"), text: "Return to the case with this detail noted" }, goto }] };
+}
+
+insertSeededDetour("ben", ["ben_return_5_literal", "ben_return_5_absurd"], "ben_permission_1", "Coffee arrives with an old apartment key beneath the saucer.", "A fly lands on the deed and refuses to indicate which signature it supports.");
+insertSeededDetour("lucifer", ["lucifer_hell_5_literal", "lucifer_hell_5_absurd"], "lucifer_ticket_1", "The receptionist produces coffee strong enough to qualify as an intervention.", "The treaty fly returns with legal representation and one revised demand.");
+addFinale("ben", benEndings);
+addFinale("lucifer", luciferEndings);
+nodes.support_shift_1 = {
+  kind: "choice",
+  text: { key: "lucifer.support_shift_1.text", text: "The night queue contains a Bulgarian property ticket, a fly treaty, and an Agent requesting a category for despair." },
+  choices: [
+    { id: "support_triage", label: { key: "lucifer.support_shift_1.triage", text: "Triage the impossible cases honestly" }, effects: [{ op: "increment", var: "patience", by: 2 }], goto: "support_shift_2" },
+    { id: "support_escalate", label: { key: "lucifer.support_shift_1.escalate", text: "Escalate all three to God" }, effects: [{ op: "increment", var: "cosmic_attention", by: 2 }], goto: "support_shift_2" },
+  ],
+};
+nodes.support_shift_2 = {
+  kind: "choice",
+  text: { key: "lucifer.support_shift_2.text", text: "Morning finds every ticket still open, but every caller now knows who will answer next." },
+  choices: [{ id: "accept_management", label: { key: "lucifer.support_shift_2.accept", text: "Accept responsibility for the infinite queue" }, goto: "lucifer_ending_support_manager" }],
+};
+
+const endingAchievements = [...benEndings.map(([id]) => `ben_${id}`), ...luciferEndings.map(([id]) => `lucifer_${id}`)];
 const incidentAchievements = ["ahead_of_rubric", "hands_were_problem", "tomato_title_deed", "coffee_still_warm", "forty_four_work_units", "fatal_invoice", "room_fourteen", "cosmic_customer_support"];
 
 export const luciferChroniclesSource: StoryGraphCampaignSource = {
@@ -187,6 +241,21 @@ const TITLE: AuthoredText = { key: "lucifer.campaign.title", text: "Lucifer Chro
 
 export function buildLuciferChroniclesCampaign(source: StoryGraphCampaignSource = luciferChroniclesSource): CommandResult<BuiltCampaign> {
   const { content, authoredText } = buildStoryGraphCampaign(source);
-  const campaign: Campaign = { id: LUCIFER_CHRONICLES_CAMPAIGN_ID, kindId: "story-graph", version: "1.0.0", titleKey: TITLE.key, content };
+  const legacyNodeMap = Object.fromEntries([
+    ...["incident_resolved", "it_builds_character", "room_14_resident", "tomato_jurisprudence", "bought_some_land", "permission_to_exist", "future_me_unanswered", "another_product", "uncategorizable_ben", "well_why_not"].map((id) => [`ben_ending_${id}`, "ben_ending_the_builder"]),
+    ...["ticket_closed", "customer_support", "governor_of_alive", "escape_hatch_missing", "fly_treaty", "fly_statistic", "agents_failed", "platform_outbreak", "invites_ben", "that_one_is_ours"].map((id) => [`lucifer_ending_${id}`, "lucifer_ending_support_manager"]),
+  ]);
+  const legacyEndingMap = Object.fromEntries([
+    ...["incident_resolved", "it_builds_character", "room_14_resident", "tomato_jurisprudence", "bought_some_land", "permission_to_exist", "future_me_unanswered", "another_product", "uncategorizable_ben", "well_why_not"].map((id) => [`ben_${id}`, "ben_the_builder"]),
+    ...["ticket_closed", "customer_support", "governor_of_alive", "escape_hatch_missing", "fly_treaty", "fly_statistic", "agents_failed", "platform_outbreak", "invites_ben", "that_one_is_ours"].map((id) => [`lucifer_${id}`, "lucifer_support_manager"]),
+  ]);
+  const campaign: Campaign = {
+    id: LUCIFER_CHRONICLES_CAMPAIGN_ID,
+    kindId: "story-graph",
+    version: "2.0.0",
+    titleKey: TITLE.key,
+    content,
+    migrateState: (state, fromVersion) => migrateV1AdventureState(state, fromVersion, source, legacyNodeMap, legacyEndingMap),
+  };
   return buildCampaign(campaign, [TITLE, ...authoredText]);
 }

@@ -1789,6 +1789,164 @@ language, not maximum noise: one hero joke and at most two minor jokes per visib
       simulation/world-graph, copied reference material, canvas/WebGL, point-and-click movement,
       a verb parser, mandatory audio, voice acting, cut-scenes, or procedural art.
 
+### Depth: Story Campaigns Become Adventures
+
+### [x] W64 — Replayable Story Campaign Expansion {#w64}
+
+**Delivers:** Reauthors the six story-graph campaigns already on the public shelf as
+replayable narrative adventures and presents them as a playable choose-your-own-adventure
+casebook. Return, Bureaucracy, Driving, Inheritance, Enterprise, and Lucifer Chronicles gain
+routes that stay apart long enough to feel different, optional scenes, delayed consequences,
+hidden discoveries, seeded flavour events, stat-dependent choices, and multiple endings. A
+first playthrough must leave authored content undiscovered, while the interface makes the
+causal link between the choice just made and the scene that followed unmistakable.
+
+This is a content slice over the existing `story-graph` contract, not a new narrative runtime.
+Money, documents, relationships, attention, and character memory are typed campaign variables;
+secrets use `showWhen`; visible obstacles use `requirements`; delayed consequences are earlier
+effects read by later conditions; and random events are seeded `random` nodes. A random draw may
+change flavour or open an optional detour, but it may not make a planned route unwinnable.
+
+For this unit, a **visible scene** is a reachable `choice` or `ending` node. `auto` and `random`
+nodes settle before projection and therefore do not count toward a campaign's scene target. A
+**material route** reaches a different ending or traverses at least two consecutive visible
+scenes that another route skips before the routes rejoin. A **delayed consequence** is a choice
+effect consulted by a `showWhen`, `requirements`, achievement, or later route at least three
+player submissions after it was applied. These definitions keep node inflation and immediate
+reconvergence from masquerading as depth.
+
+The expansion keeps each campaign standalone. Recurring clerks, mechanics, police, relatives,
+coffee, flies, and locations make the catalog feel like one universe, but no campaign reads
+another campaign's save, profile achievements, or variables. Existing campaign, node, ending,
+choice, and achievement ids are published identifiers: retain them where the corresponding
+content remains, and cover every necessary rename through campaign migration rather than
+silently stranding a v1 save.
+
+The W63 cabinet remains the outer game shell; its scene viewport becomes an open **adventure
+casebook** rather than another disconnected slide. The current scene is the current page, the
+action deck is a numbered set of “turn to your choice” passages, visible stats read as a compact
+character sheet, achievements arrive as stamps/bookmarks, and an ending closes the volume with
+its authored title. CSS-native paper, ink, marginalia, tabs, page edges, and brief page-turn
+punctuation may strengthen the game metaphor without copying a published book or hiding the
+text inside a decorative texture.
+
+Every committed transition produces a visible **arrival receipt**: “You chose …” followed by
+“which brought you here.” A persistent, read-only **Journey so far** display lists only pages
+and choices this player has already seen, links the previous entry to the current page, and
+offers “Where I came from” without exposing node ids, hidden choices, conditions, seed, or the
+engine action log. The journal is presentation memory assembled from successful projected
+scenes and resolved action labels. Previewed and rejected actions never enter it; browsing an
+old entry never rewinds or resubmits the game.
+
+- **Campaign shape:**
+  - **Return:** at least 20 visible scenes across Returning Home, Reality, and Settling; the
+        airport/customs arrival, first bureaucracy, neighbours and old connections, and the
+        rent/village/apartment/family/hotel decision form different routes. At least optimistic,
+        sceptical, and exhausted endings are reachable.
+  - **Bureaucracy:** 20–30 visible scenes spanning municipality, cadastral, tax, civil-registry,
+        archives, notary, and translation-office routes. Helpful/angry clerk and supervisor
+        memory pays off later; document obtained, gave up, lawyer solved, miracle, and system
+        failure endings are all reachable.
+  - **Driving:** at least 25 visible scenes covering inspection, mechanic trust, insurance and
+        tax, fuel/LPG, road and weather trouble, police, parking, parts, marketplace, towing, and
+        the insurer. Reliable car, endless repairs, sold car, collector item, and abandoned
+        project endings are all reachable.
+  - **Inheritance:** at least 25 visible scenes across news, documents, village, neighbours,
+        family, police, lawyers, court, settlement, and aftermath. Evidence, support, cost,
+        tension, and property condition expose old-document, helpful-neighbour, lost-deed,
+        police-report, and secret-agreement paths. Court, settlement, abandonment, buyout,
+        family peace, and family war endings are all reachable.
+  - **Enterprise:** at least 30 visible scenes across registration, first client, tax and
+        invoicing, cashflow, hiring, competition, government, growth, and failure. Seeded late
+        payment, audit, tax letter, lucky client, bad review, server outage, and opportunity
+        events alter pressure without erasing deliberate preparation. Consultant, agency,
+        successful company, platform company, bankruptcy, and sale endings are all reachable.
+  - **Lucifer Chronicles:** Ben and Lucifer remain genuinely different perspectives, not a
+        shared route with renamed prose. Every act decision scene offers four to six authored
+        choices, earlier interactions alter later availability or dialogue, and every recurring
+        character with more than one appearance remembers at least one prior interaction.
+        Generic numbered conclusions are replaced by authored philosophical endings, including
+        The Bureaucrat, The Observer, The Escapist, The Builder, The Stoic, The Entertainer,
+        Customer Support Manager of Hell, The One Who Asked One Question, and The Guy Who Just
+        Wanted to Fix a House.
+- **Spec:** [03 §§2–7](03-story-graph-kind.md) for variables, nodes, gates, effects,
+      conditions and achievements; [§8.2](03-story-graph-kind.md) for settle semantics;
+      [§10](03-story-graph-kind.md) for determinism, save and versioning;
+      [04 §10.2](04-core.md#102-save-envelope-and-migration) for campaign migration;
+      [09 §1](09-clients.md#1-the-rule-made-testable) for client parity.
+- **Touches:** the six `src/engine/src/campaigns/` sources and their focused tests,
+      determinism snapshots and replay fixtures; campaign exports only if composition needs
+      them; `/play/` catalog metadata, duration/content notices, casebook/journey presentation,
+      styles, and browser tests. No core, kind, projection, session, or client contract changes.
+- **Depends on:** [W31](#x-w31--save-migration) for the v1 → v2 campaign boundary and
+      [W61](#w61) for public browser proof. The story-graph mechanics themselves are already
+      complete in W9–W14.
+- **Status:** Done — implemented on `feature/w64-story-campaign-expansion`.
+- **Done when:**
+  - W64.1 Each campaign has at least three material routes, three optional visible scenes,
+        three delayed consequences, three `showWhen` discoveries driven by different state,
+        two seeded random-event points whose outcomes are both exercised, and two later gates
+        driven by stats or remembered interactions. Static graph assertions and named
+        playthroughs prove the counts; source-line or raw-node counts do not.
+  - W64.2 All six campaign-shape targets above are met using reachable visible scenes. No
+        promised consequence is authored only as pass-through text that settle prevents a
+        client from seeing, and no route pads its length with repeated “continue” decisions.
+  - W64.3 Two playthroughs of each campaign diverge for at least two consecutive visible
+        scenes before any reconvergence, and no single valid playthrough visits more than 70%
+        of that campaign's reachable visible scenes. At least one tested ending per campaign
+        requires an earlier choice made three or more submissions before the ending path opens.
+  - W64.4 Every named ending above is reachable by an intentional route, with an authored
+        label and ending text rather than a numbered placeholder. Exploration achievements
+        unlock exactly once for optional content and do not become resolution inputs across
+        sessions.
+  - W64.5 Every campaign publishes version `2.0.0`. A v1 active save, a v1 ended save, and a
+        v1 save with achievements migrate or fail with a deliberately tested published-id
+        decision; no save resumes on a missing node, and migrated saves are marked
+        `replayCompatible: false` as W31 requires.
+  - W64.6 Each source builds with no Tier 1 findings and no unexplained Tier 2 warning. A graph
+        test detects unreachable scenes, exitless settle cycles, duplicate ids, endings that
+        cannot be reached, hidden choices that can never appear, and random branches that can
+        remove every route to a planned objective.
+  - W64.7 At least three committed route fixtures per campaign cover materially different
+        paths and endings; separate seeds cover every authored random transition. Replaying a
+        fixture twice is byte-identical, sink-independent, and stable across save/load at a
+        delayed-consequence checkpoint.
+  - W64.8 One representative alternate route through each campaign produces the same ordered
+        scenes, available actions, visible view, and final serialized state through the text
+        client and browser adapter. A hidden choice remains absent and returns
+        `unknown_action` if probed; the browser never gains campaign-specific rules.
+  - W64.9 Recurring-universe references are prose and stable authored ids only. A test registry
+        containing all six campaigns builds without string-key conflicts, and running any
+        campaign with a fresh profile produces the same initial state regardless of which
+        other campaigns were previously played.
+  - W64.10 `/play/` exposes all six v2 campaigns with truthful duration and content notices;
+        one full route in each is keyboard-complete at the W63 breakpoints, renders every
+        visible stat as text, and shows no raw `LocKey`, internal node id, or hidden state.
+  - W64.11 The initial page says “Your story begins here.” After every successful choice, the
+        next page names the resolved label under “You chose” and visually connects it to the
+        new scene under “which brought you here.” Preview, unavailable, rejected, save, and
+        load operations cannot create a false transition receipt; rapid double submission
+        cannot duplicate one.
+  - W64.12 “Journey so far” records the ordered projected scene excerpt and committed choice
+        label for the current live route, highlights the current page, and lets the player
+        inspect a prior entry read-only before returning focus to the current choice. It stores
+        no `Scene.id`, action id, condition, raw `PlayerView`, seed, or serialized state. A
+        checkpoint may carry a separate presentation-only journal beside the save handle; if
+        that journal is missing or invalid, load succeeds and displays “Journey resumed at this
+        checkpoint” rather than inventing earlier steps. Journal presence or absence produces
+        byte-identical engine serialization.
+  - W64.13 The casebook is recognisably playable before decoration loads: current page,
+        consequence link, numbered choices, character sheet, journey control, and ending action
+        remain in that reading order. Page-turn motion lasts no longer than state punctuation,
+        never delays an action, and becomes an instant page replacement under reduced motion.
+        At 320 px the book becomes one page with the same semantic order; it never requires a
+        two-page spread, hover, drag, sound, or a page-flip gesture.
+- **Out of scope:** a new node kind, conditional-transition operator, inventory or relationship
+      subsystem, cross-campaign saves or unlocks, procedural/AI-authored prose, new campaigns,
+      simulation/world-graph content, localization, voice/audio, canvas/WebGL, undo/backtracking,
+      a fabricated completion percentage, and any journal field that participates in game
+      resolution.
+
 - [ ] More clients (Discord; the first web client is [W61](#w61)).
 - [ ] **Additional locales — sliced as [W60](#w60).** The MVP ships English only; the
       authoring→registry types already support more

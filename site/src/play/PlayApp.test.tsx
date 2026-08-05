@@ -16,7 +16,9 @@ describe("PlayApp cabinet presentation", () => {
     expect(
       screen.getByRole("heading", { name: "The Bureaucracy" }),
     ).toBeVisible();
-    expect(screen.getByText("Estimated duration: 10 min")).toBeVisible();
+    expect(
+      screen.getByText("Estimated duration: 10–15 min per route"),
+    ).toBeVisible();
     expect(
       screen.getByRole("button", { name: "Open dossier and start" }),
     ).toBeVisible();
@@ -44,6 +46,9 @@ describe("PlayApp cabinet presentation", () => {
     await user.click(
       screen.getByRole("button", { name: "Open dossier and start" }),
     );
+    await user.click(
+      screen.getByRole("button", { name: "I understand — start" }),
+    );
 
     expect(
       await screen.findByRole("heading", { name: /handwritten/i }),
@@ -54,6 +59,35 @@ describe("PlayApp cabinet presentation", () => {
     expect(screen.getByText("LOCAL CHECKPOINT")).toBeVisible();
     expect(
       screen.queryByText(/actionLog|kindState|seed/i),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Your story begins here.")).toBeVisible();
+  });
+
+  it("records only committed projected pages in the read-only journey", async () => {
+    const user = userEvent.setup();
+    render(<PlayApp />);
+
+    await user.click(screen.getByRole("button", { name: /The Bureaucracy/i }));
+    await user.click(
+      screen.getByRole("button", { name: "Open dossier and start" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "I understand — start" }),
+    );
+    await user.click(
+      await screen.findByRole("button", {
+        name: /Wait for the municipal registry/i,
+      }),
+    );
+
+    expect(screen.getByText("You chose")).toBeVisible();
+    expect(screen.getByText("Wait for the municipal registry")).toBeVisible();
+    expect(screen.getByText("which brought you here.")).toBeVisible();
+
+    await user.click(screen.getByText("Journey so far"));
+    expect(screen.getByText(/Where I came from:/)).toBeVisible();
+    expect(
+      screen.queryByText(/actionLog|kindState|currentNodeId|seed/i),
     ).not.toBeInTheDocument();
   });
 });
