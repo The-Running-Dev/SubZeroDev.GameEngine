@@ -14,6 +14,7 @@ export default defineConfig({
       input: {
         main: resolve(siteRoot, "index.html"),
         roadmap: resolve(siteRoot, "roadmap/index.html"),
+        play: resolve(siteRoot, "play/index.html"),
       },
     },
   },

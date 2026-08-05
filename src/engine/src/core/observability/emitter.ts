@@ -73,7 +73,7 @@ export function safeEmit(sink: Emitter, event: EngineEvent): void {
  *  a shipped build from every other build (dev, CI, `vitest`'s own default of `"test"`) —
  *  there is no other dev-only guard idiom here to match. */
 function isProductionBuild(): boolean {
-  return process.env.NODE_ENV === "production";
+  return typeof process !== "undefined" && process.env?.NODE_ENV === "production";
 }
 
 /**

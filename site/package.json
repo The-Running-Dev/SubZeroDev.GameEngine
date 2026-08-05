@@ -16,6 +16,7 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
+    "@the-running-dev/game-engine": "file:../src/engine",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
