@@ -43,14 +43,12 @@ function localPersistence(): SessionPersistence {
       },
       async put(record) {
         localStorage.setItem(
-          `subzerodev.play.save.v1.${record.campaignId}`,
+          `subzerodev.play.save.v1.${record.saveId}`,
           JSON.stringify(record),
         );
       },
       async delete(id) {
-        const raw = await this.get(id);
-        if (raw)
-          localStorage.removeItem(`subzerodev.play.save.v1.${raw.campaignId}`);
+        localStorage.removeItem(`subzerodev.play.save.v1.${id}`);
       },
     },
   };
