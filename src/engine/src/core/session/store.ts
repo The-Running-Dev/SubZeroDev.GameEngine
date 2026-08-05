@@ -395,21 +395,17 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
         // rejected — plan 14 Decision 4. `attempt: 1` on the first submission, not `0`.
         // Deferred to inside the lock so two same-session submissions still attempt in
         // the order they acquire it, not the order they were called.
-        const attempt = record.attemptCounter + 1;
+        record.attemptCounter += 1;
+        const attempt = record.attemptCounter;
 
         return withCommand(sessionId, attempt, async (decoratedEngine) => {
           const state = mustDeserialize(decoratedEngine, record.blob);
           const result = decoratedEngine.submitAction(state, actionId, params);
 
           if (result.ok && result.value) {
-            const candidate: SessionRecord = {
-              ...record,
-              attemptCounter: attempt,
-              blob: decoratedEngine.serialize(result.value),
-              updatedAt: clock.now(),
-            };
-            await writeSession(candidate);
-            sessions.set(sessionId, candidate);
+            record.blob = decoratedEngine.serialize(result.value);
+            record.updatedAt = clock.now();
+            await writeSession(record);
 
             // "After a successful action" (04 §7.1) — never on rejection, and never
             // before the engine call above has already returned (plan 15 Decision 3).
