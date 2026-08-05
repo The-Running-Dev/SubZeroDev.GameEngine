@@ -1,111 +1,418 @@
 .play-main {
+  --ink: #111722;
+  --paper: #ede4ca;
+  --brass: #c89643;
+  --rust: #b7503d;
+  --teal: #4d9b98;
   margin: 0 auto;
-  max-width: var(--measure);
+  max-width: 78rem;
   padding: 2rem var(--page-inline) 4rem;
 }
-.play-hero {
-  max-width: 48rem;
-  margin-block: 2rem 3rem;
+.archive,
+.cabinet {
+  border: 2px solid color-mix(in srgb, var(--brass), #171d2c 45%);
+  box-shadow: 0 18px 55px #0008;
 }
-.play-hero h1 {
-  font-size: clamp(2.5rem, 8vw, 5rem);
-  margin-block: 0.25rem 1rem;
+.archive {
+  background: linear-gradient(135deg, #1a2635, #121722);
+  padding: clamp(1.25rem, 4vw, 3rem);
 }
-.play-board {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.38fr);
-  gap: 1.5rem;
+.archive-heading {
+  max-width: 45rem;
 }
-.play-scene,
-.play-state {
-  border: 1px solid var(--landing-border-decorative);
-  background: var(--landing-surface);
-  padding: clamp(1.25rem, 3vw, 2.5rem);
+.archive h1,
+.cabinet h1 {
+  font-size: clamp(2.5rem, 7vw, 5.25rem);
+  line-height: 0.95;
+  margin: 0.3rem 0 1rem;
 }
-.play-scene h2 {
-  font-size: clamp(1.3rem, 3vw, 2.1rem);
-  line-height: 1.35;
-}
-.play-actions {
-  display: grid;
-  gap: 0.8rem;
-  margin-top: 2rem;
-}
-.play-actions > div {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.45rem;
-  align-items: center;
-}
-button {
-  border: 1px solid var(--landing-border-strong);
-  background: transparent;
-  color: var(--landing-text);
-  cursor: pointer;
-  padding: 0.75rem 1rem;
-  text-align: left;
-  font: inherit;
-}
-button:hover:not(:disabled),
-.play-primary {
-  border-color: var(--landing-accent);
-  background: var(--landing-accent-soft);
-}
-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-.play-primary {
-  display: inline-block;
-  margin-top: 1rem;
-}
-.play-preview {
-  font-size: 0.85rem;
-  color: var(--landing-muted);
-}
-.play-reason {
-  grid-column: 1 / -1;
-  color: var(--landing-muted);
+.eyebrow,
+.scene-kicker,
+.deck-label {
+  color: var(--brass);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
   margin: 0;
+  text-transform: uppercase;
 }
-.play-preview-box,
-.play-message {
-  border-left: 3px solid var(--landing-accent);
-  margin-top: 1.5rem;
-  padding-left: 1rem;
-}
-.play-state dl {
+.dossier-grid {
   display: grid;
   gap: 0.75rem;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 2.5rem 0 1.25rem;
 }
-.play-state dl div {
+.dossier {
+  background: linear-gradient(150deg, #e8dfc2, #cfc09a);
+  border: 1px solid #a68b58;
+  color: var(--ink);
+  display: grid;
+  gap: 0.5rem;
+  min-height: 9rem;
+  padding: 1rem;
+  text-align: left;
+  transform: rotate(var(--tilt, 0deg));
+}
+.dossier:nth-child(2n) {
+  --tilt: -0.5deg;
+}
+.dossier:nth-child(3n) {
+  --tilt: 0.4deg;
+}
+.dossier:hover,
+.dossier.is-selected {
+  border: 3px solid var(--brass);
+  outline: 2px solid #fff3;
+  outline-offset: 2px;
+}
+.dossier-featured {
+  background: linear-gradient(145deg, #e5c26b, #c56d41);
+  grid-column: span 2;
+}
+.dossier-number,
+.briefing-meta {
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+}
+.dossier strong {
+  font-family: Georgia, serif;
+  font-size: 1.2rem;
+}
+.briefing {
+  align-items: center;
+  background: #ebe1c5;
+  border: 5px double #a87e3e;
+  color: var(--ink);
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: auto 1fr;
+  padding: clamp(1rem, 3vw, 2rem);
+}
+.briefing h2 {
+  font-size: clamp(1.5rem, 3vw, 2.4rem);
+  margin: 0.35rem 0;
+}
+.briefing-emblem {
+  align-items: center;
+  background: #192532;
+  border: 0.35rem double var(--brass);
+  color: var(--brass);
+  display: grid;
+  font-size: 3rem;
+  height: 6rem;
+  justify-content: center;
+  width: 6rem;
+}
+.cabinet {
+  background: #101824;
+  overflow: hidden;
+}
+.cabinet-marquee {
+  align-items: center;
+  background: linear-gradient(110deg, #1f2d3b, #12202d);
+  border-bottom: 3px solid var(--brass);
   display: flex;
-  justify-content: space-between;
   gap: 1rem;
+  justify-content: space-between;
+  padding: 1.1rem clamp(1rem, 3vw, 2rem);
 }
-.play-state dt {
-  color: var(--landing-muted);
+.cabinet h1 {
+  font-size: clamp(1.7rem, 4vw, 3.25rem);
 }
-.play-state dd {
+.marquee-controls {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: end;
+}
+.save-lamp {
+  color: #b6dbc2;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+.save-lamp span {
+  background: #69c580;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #69c580;
+  display: inline-block;
+  height: 0.55rem;
+  width: 0.55rem;
+}
+.save-lamp.warning {
+  color: #ffca8e;
+}
+.save-lamp.warning span {
+  background: #d76140;
+  box-shadow: 0 0 10px #d76140;
+}
+.cabinet-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.36fr);
+  gap: 1rem;
+  padding: clamp(0.75rem, 2vw, 1.5rem);
+}
+.scene-viewport {
+  background: linear-gradient(145deg, #efe6d1, #d9caab);
+  box-shadow:
+    inset 0 0 0 6px #1b2b36,
+    inset 0 0 0 8px var(--brass);
+  color: var(--ink);
+  min-width: 0;
+  padding: clamp(1.5rem, 4vw, 3rem);
+}
+.scene-viewport h2 {
+  font-family: Georgia, serif;
+  font-size: clamp(1.3rem, 2.5vw, 2rem);
+  line-height: 1.55;
+  margin: 0.55rem 0 2rem;
+  white-space: pre-wrap;
+}
+.action-deck {
+  border-top: 2px solid #a87e3e;
+  padding-top: 1.25rem;
+}
+.deck-label {
+  color: #5d4122;
+  margin-bottom: 0.75rem;
+}
+.action-card {
+  margin-top: 0.65rem;
+}
+.action-card button {
+  background: linear-gradient(#314653, #1d303d);
+  border: 2px solid #17222b;
+  box-shadow: 0 4px 0 #6e4d2d;
+  color: #fff9e9;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: start;
+  padding: 0.9rem 1rem;
+  text-align: left;
+  width: 100%;
+}
+.action-card button:hover:not(:disabled) {
+  background: linear-gradient(#3d6570, #24404c);
+  transform: translateY(-1px);
+}
+.action-card button:active:not(:disabled) {
+  box-shadow: 0 1px 0 #6e4d2d;
+  transform: translateY(3px);
+}
+.action-number {
+  color: #ffce69;
+  font-weight: 900;
+}
+.action-card.unavailable button {
+  background: #6a625b;
+  box-shadow: none;
+}
+.play-reason {
+  color: #6d392d;
+  font-size: 0.9rem;
+  margin: 0.45rem 0 0;
+}
+.status-console {
+  background: linear-gradient(165deg, #203944, #14242e);
+  border: 2px solid #6c9a94;
+  min-width: 0;
+  padding: 1.25rem;
+}
+.status-console h2 {
+  margin: 0.25rem 0 1.25rem;
+}
+.stat-readouts {
+  display: grid;
+  gap: 0.7rem;
   margin: 0;
 }
-.play-state button {
-  display: block;
-  width: 100%;
-  margin-top: 0.75rem;
+.stat-readouts div {
+  background: #0c171d;
+  border-left: 4px solid var(--teal);
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem;
 }
-.play-state p {
-  color: var(--landing-muted);
+.stat-readouts dt {
+  color: #b9d4ca;
+}
+.stat-readouts dd {
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+  margin: 0;
+}
+.console-empty,
+.console-footnote,
+.achievement-note {
+  color: #c5d4ce;
   font-size: 0.9rem;
+  line-height: 1.5;
 }
-@media (max-width: 700px) {
-  .play-board {
+.source-links {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 1.5rem;
+}
+.source-links h3 {
+  margin: 0;
+}
+.cabinet-button {
+  background: #d8c392;
+  border: 2px solid #6e4d2d;
+  box-shadow: 0 3px 0 #6e4d2d;
+  color: #1a2028;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  margin: 0.5rem 0.5rem 0 0;
+  padding: 0.65rem 0.9rem;
+}
+.cabinet-button:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+.cabinet-button:active:not(:disabled) {
+  box-shadow: 0 1px 0 #6e4d2d;
+  transform: translateY(2px);
+}
+.cabinet-button.primary {
+  background: #e5a642;
+}
+.cabinet-button.quiet {
+  background: transparent;
+  border-color: currentColor;
+  box-shadow: none;
+  color: inherit;
+}
+button:focus-visible {
+  outline: 3px solid #82d8ff;
+  outline-offset: 3px;
+}
+.ending-controls {
+  border-top: 2px solid #a87e3e;
+  padding-top: 1rem;
+}
+.ending-placard {
+  border: 2px dashed var(--rust);
+  color: #6c2f25;
+  font-family: Georgia, serif;
+  padding: 0.8rem;
+  transform: rotate(-0.5deg);
+}
+.play-message {
+  background: #fff3d5;
+  border-left: 4px solid var(--rust);
+  color: #54251f;
+  margin: 1.25rem 0 0;
+  padding: 0.75rem;
+}
+.notice-backdrop {
+  align-items: center;
+  background: #05080acc;
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 1rem;
+  position: fixed;
+  z-index: 10;
+}
+.play-notice {
+  background: #ede4ca;
+  border: 6px double #a87e3e;
+  box-shadow: 0 20px 80px #000;
+  color: var(--ink);
+  max-width: 34rem;
+  padding: 2rem;
+}
+.play-notice h2 {
+  font-family: Georgia, serif;
+  font-size: 2rem;
+  margin: 0.4rem 0;
+}
+.accent-ember {
+  --brass: #dd7148;
+  --teal: #b1514a;
+}
+.accent-red {
+  --brass: #d0753e;
+  --teal: #a74137;
+}
+.accent-teal {
+  --brass: #d0a44d;
+  --teal: #479d9a;
+}
+.accent-yellow {
+  --brass: #f1bf45;
+  --teal: #42798d;
+}
+.accent-green {
+  --brass: #c3a94e;
+  --teal: #5f9775;
+}
+.accent-violet {
+  --brass: #c698d0;
+  --teal: #755390;
+}
+@media (max-width: 767px) {
+  .dossier-grid {
     grid-template-columns: 1fr;
   }
-  .play-actions > div {
+  .dossier-featured {
+    grid-column: auto;
+  }
+  .cabinet-layout {
     grid-template-columns: 1fr;
   }
-  .play-preview {
-    justify-self: start;
+  .status-console {
+    order: 2;
+  }
+  .cabinet-marquee {
+    align-items: start;
+    flex-direction: column;
+  }
+  .marquee-controls {
+    justify-content: start;
+  }
+}
+@media (max-width: 389px) {
+  .play-main {
+    padding-inline: 0.5rem;
+  }
+  .archive,
+  .scene-viewport,
+  .status-console {
+    padding: 1rem;
+  }
+  .briefing {
+    grid-template-columns: 1fr;
+  }
+  .briefing-emblem {
+    height: 4rem;
+    width: 4rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+@media (forced-colors: active) {
+  .archive,
+  .cabinet,
+  .scene-viewport,
+  .status-console,
+  .dossier,
+  .briefing,
+  .action-card button {
+    border: 2px solid CanvasText;
+    box-shadow: none;
   }
 }

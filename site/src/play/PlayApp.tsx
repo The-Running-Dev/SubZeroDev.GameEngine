@@ -1,7 +1,18 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { SiteFooter, SiteHeader } from "../shared";
 import { BrowserClient, type PlayState } from "./browser-client";
 import { createBrowserDemo } from "./composition";
+
+const cabinetThemes: Readonly<
+  Record<string, { accent: string; eyebrow: string }>
+> = {
+  "lucifer-chronicles": { accent: "ember", eyebrow: "CELESTIAL CASE FILE" },
+  "bulgaria-bureaucracy": { accent: "red", eyebrow: "MUNICIPAL ARCHIVE" },
+  "bulgaria-return": { accent: "teal", eyebrow: "RETURN DEPARTMENT" },
+  "bulgaria-driving": { accent: "yellow", eyebrow: "ROAD SAFETY OFFICE" },
+  "bulgaria-inheritance": { accent: "green", eyebrow: "ESTATE RECORDS" },
+  "bulgaria-enterprise": { accent: "violet", eyebrow: "ENTERPRISE DESK" },
+};
 
 function viewOf(state: PlayState) {
   const view = state.view.kindView as {
@@ -23,9 +34,28 @@ export default function PlayApp() {
   const client = useMemo(() => new BrowserClient(demo.store), [demo.store]);
   const [state, setState] = useState<PlayState>();
   const [campaignId, setCampaignId] = useState<string>();
+  const [selectedId, setSelectedId] = useState(demo.catalog[0]?.campaignId);
   const [notice, setNotice] = useState<string>();
   const [message, setMessage] = useState<string>();
   const [busy, setBusy] = useState(false);
+  const sceneHeading = useRef<HTMLHeadingElement>(null);
+  const briefingTrigger = useRef<HTMLButtonElement>(null);
+
+  const selected = demo.catalog.find(
+    (campaign) => campaign.campaignId === (state ? campaignId : selectedId),
+  );
+  const theme = cabinetThemes[selected?.campaignId ?? ""];
+  const ended = state?.scene.status === "ended";
+  const sceneText = state?.scene.body.text;
+
+  useEffect(() => {
+    if (sceneText) sceneHeading.current?.focus();
+  }, [sceneText]);
+
+  useEffect(() => {
+    if (!notice) briefingTrigger.current?.focus();
+  }, [notice]);
+
   async function start(id: string) {
     setBusy(true);
     setMessage(undefined);
@@ -46,13 +76,16 @@ export default function PlayApp() {
       setBusy(false);
     }
   }
+
   async function choose(id: string) {
     if (!state) return;
     setBusy(true);
+    setMessage(undefined);
     try {
       const next = await client.submit(state, id);
       setState(next.state);
-      if (!next.result.ok) setMessage("That action was rejected.");
+      if (!next.result.ok)
+        setMessage("That action was rejected. The scene has not changed.");
       else {
         try {
           await client.save(next.state.sessionId);
@@ -68,146 +101,259 @@ export default function PlayApp() {
       setBusy(false);
     }
   }
-  const selected = demo.catalog.find(
-    (campaign) => campaign.campaignId === campaignId,
-  );
-  const ended = state?.scene.status === "ended";
+
+  function returnToShelf() {
+    if (campaignId) setSelectedId(campaignId);
+    setState(undefined);
+    setCampaignId(undefined);
+    setMessage(undefined);
+  }
+
   return (
     <>
       <SiteHeader current="play" />
       <main className="play-main">
-        <section className="play-hero">
-          <p className="eyebrow">PLAYABLE STORIES</p>
-          <h1>{state ? selected?.title : "Story shelf"}</h1>
-          <p>
-            {state
-              ? "A deterministic story running entirely in this browser."
-              : "Local, choice-driven experiments from the SubZeroDev universe."}
-          </p>
-        </section>
-        {!state && (
-          <section className="play-shelf" aria-label="Stories">
-            {demo.catalog.map((campaign) => (
-              <article
-                className={
-                  campaign.featured ? "play-card featured" : "play-card"
-                }
-                key={campaign.campaignId}
-              >
-                <p className="section-index">
-                  {campaign.featured ? "FEATURED" : "STANDALONE EPISODE"}
-                </p>
-                <h2>{campaign.title}</h2>
-                <p>{campaign.description}</p>
-                <small>{campaign.duration}</small>
+        {!state ? (
+          <section className="archive" aria-labelledby="shelf-title">
+            <div className="archive-heading">
+              <p className="eyebrow">PUBLIC RECORDS / PLAYABLE STORIES</p>
+              <h1 id="shelf-title">The story shelf</h1>
+              <p>
+                Choose a dossier. Every improbable consequence runs entirely in
+                this browser.
+              </p>
+            </div>
+            <div className="dossier-grid" aria-label="Story dossiers">
+              {demo.catalog.map((campaign, index) => (
                 <button
-                  className="play-primary"
-                  disabled={busy}
-                  onClick={() =>
-                    campaign.featured
-                      ? setNotice(campaign.campaignId)
-                      : start(campaign.campaignId)
+                  className={`dossier ${campaign.featured ? "dossier-featured" : ""} ${selectedId === campaign.campaignId ? "is-selected" : ""}`}
+                  key={campaign.campaignId}
+                  onClick={() => setSelectedId(campaign.campaignId)}
+                  aria-pressed={selectedId === campaign.campaignId}
+                >
+                  <span className="dossier-number">
+                    FILE {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <strong>{campaign.title}</strong>
+                  <span>{campaign.duration}</span>
+                </button>
+              ))}
+            </div>
+            {selected && (
+              <section className="briefing" aria-labelledby="briefing-title">
+                <div
+                  className={`briefing-emblem accent-${cabinetThemes[selected.campaignId]?.accent ?? "default"}`}
+                  aria-hidden="true"
+                >
+                  ⌘
+                </div>
+                <div>
+                  <p className="eyebrow">
+                    {cabinetThemes[selected.campaignId]?.eyebrow ??
+                      "UNCLASSIFIED STORY"}
+                  </p>
+                  <h2 id="briefing-title">{selected.title}</h2>
+                  <p>{selected.description}</p>
+                  <p className="briefing-meta">
+                    Estimated duration: {selected.duration}
+                  </p>
+                  <button
+                    ref={briefingTrigger}
+                    className="cabinet-button primary"
+                    disabled={busy}
+                    onClick={() =>
+                      selected.featured
+                        ? setNotice(selected.campaignId)
+                        : start(selected.campaignId)
+                    }
+                  >
+                    Open dossier and start
+                  </button>
+                </div>
+              </section>
+            )}
+          </section>
+        ) : (
+          <section
+            className={`cabinet accent-${theme?.accent ?? "default"}`}
+            aria-label={`${selected?.title ?? "Story"} game cabinet`}
+          >
+            <header className="cabinet-marquee">
+              <div>
+                <p className="eyebrow">
+                  {theme?.eyebrow ?? "STORY IN PROGRESS"}
+                </p>
+                <h1>{selected?.title}</h1>
+              </div>
+              <div className="marquee-controls">
+                <span
+                  className={
+                    message?.startsWith("Progress could not")
+                      ? "save-lamp warning"
+                      : "save-lamp"
                   }
                 >
-                  Start
+                  <span aria-hidden="true" />{" "}
+                  {message?.startsWith("Progress could not")
+                    ? "SAVE WARNING"
+                    : "LOCAL CHECKPOINT"}
+                </span>
+                <button
+                  className="cabinet-button quiet"
+                  onClick={returnToShelf}
+                >
+                  Story shelf
                 </button>
+              </div>
+            </header>
+            <div className="cabinet-layout">
+              <article className="scene-viewport" aria-live="polite">
+                <p className="scene-kicker">
+                  {ended ? "CASE CLOSED" : "CURRENT SCENE"}
+                </p>
+                <h2 ref={sceneHeading} tabIndex={-1}>
+                  {state.scene.body.text}
+                </h2>
+                {ended ? (
+                  <div className="ending-controls">
+                    <p className="ending-placard">
+                      This matter has been concluded with excessive ceremony.
+                    </p>
+                    <button
+                      className="cabinet-button primary"
+                      onClick={() => start(campaignId!)}
+                    >
+                      Start another run
+                    </button>
+                    {campaignId === demo.catalog[0]?.campaignId && (
+                      <button
+                        className="cabinet-button"
+                        onClick={() => start(campaignId!)}
+                      >
+                        Play the other role
+                      </button>
+                    )}
+                    <button
+                      className="cabinet-button quiet"
+                      onClick={returnToShelf}
+                    >
+                      Return to stories
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    className="action-deck"
+                    aria-label="Available actions"
+                    aria-busy={busy}
+                  >
+                    <p className="deck-label">
+                      Select an official course of action
+                    </p>
+                    {state.actions.map((action, index) => (
+                      <div
+                        className={`action-card ${!action.available ? "unavailable" : ""}`}
+                        key={action.id}
+                      >
+                        <button
+                          disabled={busy || !action.available}
+                          onClick={() => choose(action.id)}
+                        >
+                          <span className="action-number" aria-hidden="true">
+                            {index + 1}
+                          </span>
+                          {action.label}
+                        </button>
+                        {!action.available && (
+                          <p className="play-reason">
+                            Unavailable: {action.reason}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {message && (
+                  <p className="play-message" role="status">
+                    {message}
+                  </p>
+                )}
               </article>
-            ))}
+              <aside className="status-console" aria-labelledby="console-title">
+                <div className="console-heading">
+                  <p className="eyebrow">LIVE PROJECTION</p>
+                  <h2 id="console-title">Status console</h2>
+                </div>
+                {viewOf(state).stats.length ? (
+                  <dl className="stat-readouts">
+                    {viewOf(state).stats.map((stat) => (
+                      <div key={stat.var}>
+                        <dt>{state.strings[stat.labelKey]}</dt>
+                        <dd>{String(stat.value)}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : (
+                  <p className="console-empty">
+                    No visible statistics have been authorized for this case.
+                  </p>
+                )}
+                {viewOf(state).achievements.length > 0 && (
+                  <p className="achievement-note">
+                    Filed achievements: {viewOf(state).achievements.length}
+                  </p>
+                )}
+                <p className="console-footnote">
+                  This console shows only the player-facing record.
+                </p>
+                {selected?.sources && (
+                  <div className="source-links">
+                    <h3>Sources / credits</h3>
+                    {selected.sources.map((source) => (
+                      <a key={source.href} href={source.href}>
+                        {source.label}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </aside>
+            </div>
           </section>
         )}
         {notice && (
-          <section className="play-notice" role="dialog" aria-modal="true">
-            <h2>Content notice</h2>
-            <p>
-              This story contains strong language, religious satire,
-              dangerous-driving anecdotes, and recognizable parody.
-            </p>
-            <button
-              className="play-primary"
-              onClick={() => {
-                setNotice(undefined);
-                start(notice);
-              }}
+          <div className="notice-backdrop">
+            <section
+              className="play-notice"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="notice-title"
             >
-              I understand — start
-            </button>
-            <button onClick={() => setNotice(undefined)}>Back</button>
-          </section>
-        )}
-        {state && (
-          <section className="play-board" aria-live="polite">
-            <article className="play-scene">
-              <p className="section-index">
-                {ended ? "THE END" : "CURRENT SCENE"}
-              </p>
-              <h2 tabIndex={-1}>{state.scene.body.text}</h2>
-              {ended ? (
-                <div>
-                  <button
-                    className="play-primary"
-                    onClick={() => start(campaignId!)}
-                  >
-                    Start another run
-                  </button>
-                  {campaignId === demo.catalog[0]?.campaignId && (
-                    <button onClick={() => start(campaignId!)}>
-                      Play the other role
-                    </button>
-                  )}
-                  <button
-                    onClick={() => {
-                      setState(undefined);
-                      setCampaignId(undefined);
-                    }}
-                  >
-                    Return to stories
-                  </button>
-                </div>
-              ) : (
-                <div className="play-actions">
-                  {state.actions.map((action) => (
-                    <div key={action.id}>
-                      <button
-                        disabled={busy || !action.available}
-                        onClick={() => choose(action.id)}
-                      >
-                        {action.label}
-                      </button>
-                      {!action.available && (
-                        <p className="play-reason">{action.reason}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-              {message && <p role="status">{message}</p>}
-            </article>
-            <aside className="play-state">
-              <h2>State</h2>
-              <dl>
-                {viewOf(state).stats.map((stat) => (
-                  <div key={stat.var}>
-                    <dt>{state.strings[stat.labelKey]}</dt>
-                    <dd>{String(stat.value)}</dd>
-                  </div>
-                ))}
-              </dl>
+              <p className="eyebrow">CONTENT NOTICE</p>
+              <h2 id="notice-title">Before opening this file</h2>
               <p>
-                Progress is currently kept in this tab. Persistent local saves
-                are being added to the browser composition.
+                This story contains strong language, religious satire,
+                dangerous-driving anecdotes, and recognizable parody.
               </p>
-              {selected?.sources && (
-                <>
-                  <h3>Sources / credits</h3>
-                  {selected.sources.map((source) => (
-                    <a key={source.href} href={source.href}>
-                      {source.label}
-                    </a>
-                  ))}
-                </>
-              )}
-            </aside>
-          </section>
+              <div>
+                <button
+                  className="cabinet-button primary"
+                  autoFocus
+                  onClick={() => {
+                    const id = notice;
+                    setNotice(undefined);
+                    void start(id);
+                  }}
+                >
+                  I understand — start
+                </button>
+                <button
+                  className="cabinet-button quiet"
+                  onClick={() => setNotice(undefined)}
+                >
+                  Back
+                </button>
+              </div>
+            </section>
+          </div>
         )}
       </main>
       <SiteFooter />

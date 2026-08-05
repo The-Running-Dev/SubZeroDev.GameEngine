@@ -36,6 +36,7 @@ section number.
 | [Session Capture](engine/08-session-capture.md) | Turning a played session into a fixture: what may be taken from a person, what is refused, and how long it lives |
 | [Clients](engine/09-clients.md) | The client contract: what a client may and may not do, and the API coverage checklist that verifies it |
 | [Playable Web Demo](engine/13-playable-web-demo.md) | The first public browser client: one complete Bureaucracy playthrough at `/play/`, with the portability and delivery boundaries that keep it an honest engine demo |
+| [Game Interface](engine/14-game-interface.md) | The public play surface as an absurd adventure cabinet: scene stage, tactile choices, projected status, original assets, and accessible responsive behaviour |
 | [Simulation Kind](engine/10-simulation-kind.md) | The second kind, expressed against the Kind seam: the week as a turn, plan actions, and what its state must not duplicate |
 | [Content Packs](engine/11-content-packs.md) | Resolving many packs into one frozen registry — merge, override, dependency — and the identity that keeps a game reproducible |
 | [World-Graph Kind](engine/12-world-graph-kind.md) | The third kind: a tick batch as a turn, spatial verbs, and the batch-invariance property that keeps presentation speed out of the results |
