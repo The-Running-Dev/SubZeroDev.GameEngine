@@ -1,5 +1,8 @@
 import type {
+  CampaignSummary,
+  CreateSessionConfig,
   PlayerView,
+  SaveHandle,
   Scene,
   SessionActionResult,
   SessionHandle,
@@ -29,16 +32,54 @@ export class BrowserClient {
     this.store = store;
   }
 
+  listCampaigns(): CampaignSummary[] {
+    return this.store.listCampaigns();
+  }
+
+  async createSession(config: CreateSessionConfig): Promise<PlayState> {
+    return this.read(await this.store.createSession(config));
+  }
+
   async start(campaignId: string): Promise<PlayState> {
-    const handle = await this.store.createSession({ campaignId });
-    return this.read(handle);
+    return this.createSession({ campaignId });
+  }
+
+  async resumeSession(sessionId: string): Promise<PlayState> {
+    const scene = await this.store.resumeSession(sessionId);
+    return this.read({ sessionId, scene });
+  }
+
+  getScene(sessionId: string): Promise<Scene> {
+    return this.store.getScene(sessionId);
+  }
+
+  getView(sessionId: string): Promise<PlayerView> {
+    return this.store.getView(sessionId);
+  }
+
+  getStrings(sessionId: string): Promise<StringTable> {
+    return this.store.getStrings(sessionId);
+  }
+
+  previewAction(
+    sessionId: string,
+    actionId: string,
+  ): Promise<SessionActionResult> {
+    return this.store.previewAction(sessionId, actionId);
+  }
+
+  submitAction(
+    sessionId: string,
+    actionId: string,
+  ): Promise<SessionActionResult> {
+    return this.store.submitAction(sessionId, actionId);
   }
 
   async submit(
     state: PlayState,
     actionId: string,
   ): Promise<{ state: PlayState; result: SessionActionResult }> {
-    const result = await this.store.submitAction(state.sessionId, actionId);
+    const result = await this.submitAction(state.sessionId, actionId);
     return {
       state: await this.read({
         sessionId: state.sessionId,
@@ -52,15 +93,23 @@ export class BrowserClient {
     state: PlayState,
     actionId: string,
   ): Promise<Scene | undefined> {
-    return (await this.store.previewAction(state.sessionId, actionId)).scene;
+    return (await this.previewAction(state.sessionId, actionId)).scene;
   }
 
-  save(sessionId: string) {
+  saveGame(sessionId: string): Promise<SaveHandle> {
     return this.store.saveGame(sessionId);
   }
 
-  async load(saveId: string): Promise<PlayState> {
+  save(sessionId: string): Promise<SaveHandle> {
+    return this.saveGame(sessionId);
+  }
+
+  async loadGame(saveId: string): Promise<PlayState> {
     return this.read(await this.store.loadGame(saveId));
+  }
+
+  load(saveId: string): Promise<PlayState> {
+    return this.loadGame(saveId);
   }
 
   private async read(handle: SessionHandle): Promise<PlayState> {
