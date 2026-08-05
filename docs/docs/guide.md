@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 071cbe061e00dca9eed08f9f791c536a13e672a5b6bcbbcd0b7b462bcf12a9d7 -->
+<!-- design-digest: cbf8ae118930385ed15f2466dd7affd522315d6c1827ebd529096326c26702b5 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -14,10 +14,11 @@ directly.
 
 # Developer Guide
 
-SubZeroDev.GameEngine is a deterministic narrative-game engine for TypeScript and Node. It
-separates game-independent execution from game-category rules and campaign data, then exposes
-every game through one session API. A text client and an MCP client are siblings over that API;
-neither owns rules or authoritative state.
+SubZeroDev.GameEngine is a deterministic narrative-game engine written in TypeScript. Node.js
+is the currently proven runtime; W61 adds the first browser delivery without forking the engine.
+The engine separates game-independent execution from game-category rules and campaign data, then
+exposes every game through one session API. Text, MCP, and browser clients are siblings over that
+API; none owns rules or authoritative state.
 
 Use this guide when integrating the package, implementing a client or campaign, or extending an
 engine-owned kind. The exact public types, signatures, error tables, persisted schemas, and
@@ -41,6 +42,9 @@ assertable invariants are in the
   `design/90-decisions.md`, *Known-and-retained implementation gaps: `world-graph` tick
   systems*. It is registered and usable the same way `story-graph` and `simulation` are, within
   that scope.
+- A public `/play/` browser demo is designed and sliced as W61 but is not implemented. Its first
+  campaign is the completed Bureaucracy MVP; additional campaigns and durable browser saves are
+  deliberately later work.
 - Content packs, the `ExperimentSource` port, and privacy-safe session capture are specified but
   not implemented. All three are deferred: content packs and experiment gating to post-MVP
   content-pack work, capture to the hosting layer that gates it.
@@ -205,6 +209,35 @@ is genuinely player-visible and extend the relevant kind projection deliberately
 Client code switches on stable reason codes and renders localization keys. It never parses an
 English error sentence. A missing localization key is a registry-build defect, not a client
 fallback opportunity.
+
+### Building the public browser demo
+
+W61 adds one static `/play/` route to the existing React site. Keep its composition root separate
+from its client: the root may assemble the engine, story-graph kind, validated Bureaucracy
+campaign, and session store. Before start, it resolves the configured campaign title and passes a
+frozen startup configuration with that plain title and campaign id to the page. The browser
+adapter and React components use `SessionStore` as their only game-facing dependency; they do not
+read a registry, and `Start` remains the action that creates the session. The package root must
+export the committed campaign builder; do not deep-import a campaign or let a component construct
+a registry.
+
+The same supported engine entry point must bundle for Node.js and the browser. Remove Node-only
+runtime filesystem/crypto imports and unguarded Node.js globals from that graph rather than
+creating a reduced browser implementation. Save checksums remain SHA-256 over the same canonical
+bytes; only the already-asynchronous `saveGame`/`loadGame` boundary may await standards-based
+crypto. Gate this with a production browser bundle, not DOM-aware typechecking alone.
+
+The first page exposes scenes, shown choices, disabled reasons, the projected state,
+achievements, optional action preview, and same-page save/load checkpoints. Checkpoints are
+in-memory: refresh intentionally starts a new demo. Do not make React persist raw state or save
+envelopes to browser storage; durable saves require a host-owned persistence seam that does not
+exist yet.
+
+The route must be a real `play/index.html` in the static artifact, not an SPA fallback. Extend the
+combined-site verification so `/`, `/roadmap/`, `/play/`, and `/docs/` survive one deployment and
+the protected documentation subtree remains unchanged. The complete product, accessibility,
+failure, parity, and non-goal boundary is in
+[`13-playable-web-demo.md`](engine/13-playable-web-demo.md).
 
 ## Determinism rules that will bite you
 

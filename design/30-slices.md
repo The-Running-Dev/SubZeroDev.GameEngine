@@ -1651,7 +1651,86 @@ client's rendering and the MCP surface all sit on the path.
       test. Manual play-testing tooling, not a shipped client surface — distinct from "more
       clients" below, no projection or store change, no contract change. Not required by any
       Definition-of-Done item; exists purely so the engine can be seen running.
-- [ ] More clients (web, Discord).
+
+### [ ] W61 — Public Playable Web Demo {#w61}
+
+**Delivers:** Turns the completed Bureaucracy MVP into a public `/play/` route a visitor can
+finish without cloning the repository. The engine runs locally in the browser behind a real
+client over `SessionStore`; the page renders scenes, shown choices, disabled reasons, visible
+state and achievements, offers non-committing previews and same-page checkpoints, and reaches
+the existing ending with no React-owned game rule.
+
+This is deliberately one campaign and one route. The five story campaigns, Stable Life, and
+the world-graph MVP already prove useful engine breadth, but putting all of them in a picker
+would turn the first browser boundary into three rendering problems and still leave the
+load-bearing question unanswered: can the package, session store, save envelope, registry and
+client contract run together in a production browser bundle? [`13-playable-web-demo.md`](13-playable-web-demo.md)
+fixes that product and architecture boundary.
+
+The browser currently exposes three real portability defects hidden by the Node.js CLI:
+`version.ts` reads `node:fs`, `envelope.ts` uses `node:crypto`, and `emitter.ts` reads an
+unguarded `process.env`. Close those in the shared runtime, not with a reduced browser fork.
+The checksum stays SHA-256 over the same canonical bytes, and the pure engine remains
+synchronous; only the already-async store boundary may await platform crypto.
+
+- **Spec:** [`13-playable-web-demo.md`](13-playable-web-demo.md);
+      [09 §1](09-clients.md#1-the-rule-made-testable),
+      [§2](09-clients.md#2-the-only-surface),
+      [§4](09-clients.md#4-the-api-coverage-checklist),
+      [§6](09-clients.md#6-projection-is-not-optional);
+      [04 §7](04-core.md#7-the-session-store-and-the-platform-api),
+      [§9](04-core.md#9-projection), [§10.2](04-core.md#102-save-envelope-and-migration).
+- **Touches:** `src/engine/src/version.ts`, `core/persistence/envelope.ts`,
+      `core/observability/emitter.ts`, the package root and browser-bundle smoke test;
+      `site/` — a new play entry, composition root, browser adapter, React page, shared
+      navigation, styles and tests; the static-build/merge verification; factual status copy
+      in `README.md`, `src/engine/README.md`, and the landing page.
+- **Depends on:** [W19](#x-w19--mvp-acceptance), [W31](#x-w31--save-migration), and W41.
+      Implement against whichever
+      landing build/merge mechanism is on `main` when the unit starts; issue #179's package
+      migration is not a semantic dependency and must not be reimplemented here.
+- **Status:** Not started.
+- **Done when:**
+  - W61.1 The supported engine entry graph used by the site produces a real browser bundle
+        with no `node:` import, unguarded Node.js global, runtime filesystem read, or second
+        browser-only engine path; Node.js typecheck, lint, tests and package build remain green.
+  - W61.2 `ENGINE_VERSION` still has package metadata as its single owner, and save/load under
+        Node.js and a browser produce the same lowercase SHA-256 checksum for the same
+        `{ state, replayCompatible }` canonical bytes without changing any committed replay or
+        serialization fixture.
+  - W61.3 The package root exports the committed Bureaucracy builder needed by the site
+        composition root; React and the browser adapter import only `SessionStore` types and
+        call no engine, kind, registry, validation, projection, or persistence helper.
+  - W61.4 A direct static request to `/play/` succeeds; the production artifact contains
+        `/`, `/roadmap/`, `/play/`, and `/docs/`, and the protected merge proves the docs
+        subtree byte-identical before and after overlay.
+  - W61.5 A visitor can start Bureaucracy, traverse the `office_visits >= 3` loop, see the
+        gated choice with its reason, exercise the seeded transition, reach the existing
+        ending, see `it_builds_character`, and start again. No raw `LocKey` appears in any
+        ready, playing, rejected, preview, or ended state.
+  - W61.6 Previewing an enabled choice shows the labelled prospective scene without changing
+        the committed scene, view, action sequence or checkpoint; committing it afterwards
+        reaches the same result as choosing it without a preview.
+  - W61.7 Save/load is presented honestly as a same-page checkpoint. Restoring it loses no
+        state; refreshing starts a new demo and the UI says so. No component writes raw state
+        or a save envelope to browser storage.
+  - W61.8 [09 §4](09-clients.md#4-the-api-coverage-checklist)'s browser column is checked
+        against ten named adapter tests. The full Bureaucracy path through the browser adapter
+        and text client, under the same seed and counting `IdSource`, produces identical
+        `Scene`/`PlayerView` steps and byte-identical final `serialize()` output.
+  - W61.9 The page is keyboard-complete and usable at 320 px, 390 px, 768 px and 1280 px:
+        native action controls, adjacent disabled reasons, visible focus, announced committed
+        scene changes, no colour-only state, no horizontal overflow, and complete reduced-motion
+        behavior.
+  - W61.10 The public header and landing page expose `Play`; stale claims that nothing is
+        playable are corrected without calling the demo a finished game. Site checks,
+        documentation checks, engine gates, `git diff --check`, and the exact-merge deployment
+        verification all pass before the route is announced.
+- **Out of scope:** additional campaigns or kinds; durable browser storage; profiles across
+      reloads; accounts, cloud sync or any backend; new gameplay; art, audio, analytics,
+      session capture, service workers, a PWA, or a generic reusable web-client package.
+
+- [ ] More clients (Discord; the first web client is [W61](#w61)).
 - [ ] **Additional locales — sliced as [W60](#w60).** The MVP ships English only; the
       authoring→registry types already support more
       ([04 §10.1](04-core.md#101-content-registry)), so this is string tables plus tooling,
