@@ -98,14 +98,14 @@ describe("McpTools — the API coverage checklist (09-clients.md §4)", () => {
     const view = await tools.get_state({ sessionId: created.sessionId });
     const kindView = view.kindView as { turn: number; stats: { var: string }[] };
     expect(kindView.turn).toBe(0);
-    expect(kindView.stats.map((s) => s.var).sort()).toEqual(["certificate_age_months", "office_visits"]);
+    expect(kindView.stats.map((s) => s.var).sort()).toEqual(["connections", "preparation", "pressure"]);
   });
 
   it("get_strings — resolves LocKeys through the registry", async () => {
     const tools = makeTools();
     const created = await tools.start_game({ campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, seed: SEED });
     const strings = await tools.get_strings({ sessionId: created.sessionId });
-    expect(strings["bureaucracy.choice.wait.label"]).toBe("Wait");
+    expect(strings["bureaucracy.municipality.choice_wait"]).toBe("Wait for the municipal registry");
   });
 
   it("choose — submitAction under the MCP name; carries the new Scene, never the envelope", async () => {
@@ -113,7 +113,7 @@ describe("McpTools — the API coverage checklist (09-clients.md §4)", () => {
     const created = await tools.start_game({ campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, seed: SEED });
     const result = await tools.choose({ sessionId: created.sessionId, actionId: "wait" });
     expect(result.ok).toBe(true);
-    expect(result.scene?.body.text).toContain("Room 6 informs you");
+    expect(result.scene?.body.text).toContain("quietly circles");
     expect(result).not.toHaveProperty("kindState");
     expect(result).not.toHaveProperty("actionLog");
   });
@@ -124,7 +124,7 @@ describe("McpTools — the API coverage checklist (09-clients.md §4)", () => {
     const preview = await tools.preview_action({ sessionId: created.sessionId, actionId: "wait" });
 
     expect(preview.ok).toBe(true);
-    expect(preview.scene?.body.text).toContain("Room 6 informs you");
+    expect(preview.scene?.body.text).toContain("quietly circles");
     expect(await tools.get_scene({ sessionId: created.sessionId })).toEqual(created.scene);
   });
 
@@ -250,19 +250,24 @@ describe("McpTools — an agent is a player (09-clients.md §7)", () => {
     const created = await tools.start_game({ campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, seed: SEED });
     const sessionId = created.sessionId;
 
-    await tools.choose({ sessionId, actionId: "wait" });
-    await tools.choose({ sessionId, actionId: "continue_cycle" });
-    await tools.choose({ sessionId, actionId: "continue_cycle" });
-    const result = await tools.choose({ sessionId, actionId: "go_home" });
+    let scene = created.scene;
+    let result;
+    while (scene.status !== "ended") {
+      const action = scene.actions.find((candidate) => candidate.available);
+      if (!action) throw new Error("expected an available action");
+      result = await tools.choose({ sessionId, actionId: action.id });
+      if (!result.scene) throw new Error("expected a projected scene");
+      scene = result.scene;
+    }
 
-    expect(result.ok).toBe(true);
-    expect(result.scene?.status).toBe("ended");
-    expect(result.scene?.body.text).toContain("Congratulations");
+    expect(result?.ok).toBe(true);
+    expect(result?.scene?.status).toBe("ended");
+    expect(result?.scene?.body.text).toContain("Document Obtained");
 
     const view = await tools.get_state({ sessionId });
     const kindView = view.kindView as { unlockedAchievements: string[]; ending?: { endingId: string } };
-    expect(kindView.unlockedAchievements).toEqual(["it_builds_character"]);
-    expect(kindView.ending?.endingId).toBe("ultimate_reward");
+    expect(kindView.unlockedAchievements).toContain("it_builds_character");
+    expect(kindView.ending?.endingId).toBe("document_obtained");
   });
 
   it("sees no more than a human client does — a hidden choice returns unknown_action, not a richer error", async () => {
@@ -285,8 +290,13 @@ describe("the client contract's proof (09-clients.md §1)", () => {
       const sessionId = created.value.sessionId;
       snapshots.push(created.value.scene, (await textClient.getView(sessionId)).value);
 
-      for (const actionId of ["wait", "continue_cycle", "continue_cycle", "go_home"]) {
+      let scene = created.value.scene;
+      while (scene.status !== "ended") {
+        const actionId = scene.actions.find((action) => action.available)?.id;
+        if (!actionId) throw new Error("expected an available action");
         const result = await textClient.submitAction(sessionId, actionId);
+        if (!result.value.scene) throw new Error("expected a projected scene");
+        scene = result.value.scene;
         snapshots.push(result.value.scene, (await textClient.getView(sessionId)).value);
       }
       return snapshots;
@@ -298,8 +308,13 @@ describe("the client contract's proof (09-clients.md §1)", () => {
       const sessionId = created.sessionId;
       snapshots.push(created.scene, await mcpTools.get_state({ sessionId }));
 
-      for (const actionId of ["wait", "continue_cycle", "continue_cycle", "go_home"]) {
+      let scene = created.scene;
+      while (scene.status !== "ended") {
+        const actionId = scene.actions.find((action) => action.available)?.id;
+        if (!actionId) throw new Error("expected an available action");
         const result = await mcpTools.choose({ sessionId, actionId });
+        if (!result.scene) throw new Error("expected a projected scene");
+        scene = result.scene;
         snapshots.push(result.scene, await mcpTools.get_state({ sessionId }));
       }
       return snapshots;

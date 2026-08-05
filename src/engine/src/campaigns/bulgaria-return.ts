@@ -1,111 +1,78 @@
-/**
- * Content — the Return arc (`games/bulgaria-adventure.md`'s "Return" row).
- *
- * Adapted from `games/bulgaria.md`'s single "Expat Returns" scene — the third real arc of
- * the Bulgaria Adventure, following `bulgaria-bureaucracy.ts`/`bulgaria-driving.ts`'s
- * established pattern.
- *
- * Deliberately the simplest arc built so far: a single `choice` node whose four options all
- * converge on one `ending`. Unlike Driving, where "a 'trust the mechanic' flag" was an
- * explicitly named exercise justifying a branching-ending design, `bulgaria-adventure.md`
- * names no mechanic for Return beyond "seeds variables the other arcs read" — already found
- * (`OPEN-QUESTIONS.md` §2, during W27) to not be mechanically achievable, since every arc is
- * its own standalone `Campaign` with no seam between them. Inventing a flag or a branch here
- * anyway would be content this source material never asked for; the four choices differ only
- * in flavor, matching the source scene's own list of four equally-plausible reactions.
- *
- * Node graph: `expat_returns` (start, choice, four choices, one flavor each) --> `home_again`
- * (ending). No variables, no achievement — nothing in this arc's stated design calls for
- * either, and the game's own Definition of Done only requires "at least one" achievement
- * across the whole game, already satisfied by Bureaucracy's `it_builds_character`.
- */
-
-import type { AuthoredText, BuiltCampaign, Campaign } from "../core/registry/types.js";
+import type { BuiltCampaign } from "../core/registry/types.js";
 import type { CommandResult } from "../core/kernel/reasons.js";
-import { buildCampaign } from "../core/registry/build.js";
-import { buildStoryGraphCampaign, type StoryGraphCampaignSource } from "../kinds/story-graph/source.js";
-
-export const bulgariaReturnSource: StoryGraphCampaignSource = {
-  description: {
-    key: "return.campaign.description",
-    text: "A short homecoming, inspired by every expat's first week back in Bulgaria.",
-  },
-
-  variables: {},
-
-  startNodeId: "expat_returns",
-
-  nodes: {
-    expat_returns: {
-      kind: "choice",
-      text: {
-        key: "return.expat_returns.text",
-        text:
-          "After years abroad, you return to Bulgaria. Within the first week: someone asks " +
-          "why you came back; someone offers unsolicited advice; someone tells you they could " +
-          "have done what you did abroad; someone knows a cheaper mechanic.",
-      },
-      choices: [
-        {
-          id: "smile",
-          label: { key: "return.choice.smile.label", text: "Smile" },
-          goto: "home_again",
-        },
-        {
-          id: "explain",
-          label: { key: "return.choice.explain.label", text: "Explain" },
-          goto: "home_again",
-        },
-        {
-          id: "laugh",
-          label: { key: "return.choice.laugh.label", text: "Laugh" },
-          goto: "home_again",
-        },
-        {
-          id: "accept_destiny",
-          label: { key: "return.choice.accept_destiny.label", text: "Accept your destiny" },
-          goto: "home_again",
-        },
-      ],
-    },
-
-    home_again: {
-      kind: "ending",
-      text: {
-        key: "return.home_again.text",
-        text:
-          "By the second week, the questions have become routine, the advice ambient, and " +
-          "the mechanic recommendation forgotten and then remembered again. You are, by every " +
-          "available measure, home.",
-      },
-      endingId: "home_again",
-      outcome: "neutral",
-    },
-  },
-
-  achievements: [],
-};
+import type { StoryGraphCampaignSource } from "../kinds/story-graph/source.js";
+import { buildAdventureCampaign, createAdventureSource, migrateV1AdventureState, type AdventureConfig } from "./adventure-builder.js";
 
 export const BULGARIA_RETURN_CAMPAIGN_ID = "bulgaria-return";
 
-const TITLE: AuthoredText = { key: "return.campaign.title", text: "Return" };
+const config: AdventureConfig = {
+  id: BULGARIA_RETURN_CAMPAIGN_ID,
+  namespace: "return",
+  title: "Return",
+  description: "A homecoming in three acts: arrival, reality, and the difficult art of settling.",
+  startNodeId: "expat_returns",
+  intro: "After years abroad, you land in Sofia with two suitcases and a theory that coming home will be simpler than leaving. Customs, family, and the airport taxi rank have prepared counterarguments.",
+  statLabels: { preparation: "Local Knowledge", connections: "Old Connections", pressure: "Homesickness" },
+  routes: [
+    {
+      id: "city_return", choiceId: "smile", label: "Smile and try the city again", memoryLabel: "the city welcome",
+      scenes: [
+        "The customs officer studies the espresso machine in your luggage as if it has requested citizenship.",
+        "Your first landlord quotes rent in euros and nostalgia in leva. The apartment has a view of three parking disputes.",
+        "An old colleague offers introductions, warnings, and a desk that becomes available whenever its owner moves the printer.",
+        "A month later the city no longer feels foreign, which is not the same thing as feeling easy. You decide what returning will mean.",
+      ],
+      actionLabels: ["Answer every question without performing expatriate expertise", "Explain how customs works elsewhere", "Keep the stamped luggage slip", "Accept the officer's improvised declaration", "Call the landlord before viewing", "Trust the photographs", "Meet the old colleague for coffee", "Follow a cheaper-flat lead"],
+      eventLabels: ["The luggage slip gets you through a second inspection in twelve seconds.", "A shift change starts the entire conversation again, now with chairs.", "Your colleague remembers the one clerk who still answers email.", "The cheaper flat is real; the bathroom is an interpretive proposal."],
+      endings: [
+        { id: "optimistic_return", title: "The Returner", text: "You build a life from old streets and new boundaries. Home becomes a verb again.", outcome: "win" },
+        { id: "city_with_open_eyes", title: "The Sceptical Returner", text: "You stay without pretending the city is perfect or that abroad ever was.", outcome: "neutral", gate: "memory" },
+      ],
+    },
+    {
+      id: "village_return", choiceId: "explain", label: "Explain nothing; take the village road", memoryLabel: "the neighbour's map",
+      scenes: [
+        "The village house is beautiful from the road and urgently educational from inside. A neighbour arrives before the electricity does.",
+        "The well works, the roof mostly works, and four relatives disagree about which wall technically belongs to whom.",
+        "You trade a day of clearing weeds for a hand-drawn map of pipes, boundaries, and grudges.",
+        "Winter makes the village honest. The quiet is generous; the distance to everything is not.",
+      ],
+      actionLabels: ["Listen to the neighbour's full history", "Start repairs before anyone can advise you", "Photograph the map", "Follow the pipe that sounds least theoretical", "Check the deeds before the roof", "Buy tiles and hope", "Ask who has the tractor", "Wait for the mobile shop"],
+      eventLabels: ["The map reveals a stopcock hidden beneath a plum tree and two decades of leaves.", "The first pipe you touch introduces itself by flooding the pantry.", "The tractor owner arrives with rope, coffee, and no interest in payment.", "The mobile shop skips Tuesday because Tuesday has become Wednesday locally."],
+      endings: [
+        { id: "settled_in_the_village", title: "A Light in the Village", text: "You stay. The roof holds, the neighbours knock, and the silence finally includes you.", outcome: "win", gate: "memory" },
+      ],
+    },
+    {
+      id: "temporary_return", choiceId: "laugh", label: "Laugh and book a room for one more week", memoryLabel: "the hotel ledger",
+      scenes: [
+        "The hotel receptionist recognizes your accent, upgrades your opinion, and asks when you are leaving again.",
+        "Family lunches expand to occupy every decision you postponed while abroad.",
+        "A return ticket sits in your inbox while an aunt quietly leaves an apartment key beside your coffee.",
+        "The final morning arrives without resolving whether departure is failure, wisdom, or simply another route home.",
+      ],
+      actionLabels: ["Ask the receptionist what changed", "Keep the booking strictly temporary", "Write down the family promises", "Let lunch decide the afternoon", "Inspect the apartment key", "Open the airline app instead", "Walk the neighbourhood at dawn", "Take one last airport taxi"],
+      eventLabels: ["The old hotel ledger still carries your family's name from a wedding in 1986.", "A conference fills the hotel and relocates you to a room above the kitchen.", "The apartment is small, sunny, and legally entangled only in ordinary ways.", "The taxi driver gives a complete economic forecast before the ring road."],
+      endings: [
+        { id: "exhausted_departure", title: "The Open Return Ticket", text: "You leave exhausted, keeping the key. Some decisions need distance before they become answers.", outcome: "neutral" },
+        { id: "home_again", title: "Home Again", text: "The questions become routine, the advice ambient, and the mechanic recommendation useful. You stay.", outcome: "win", gate: "memory" },
+      ],
+    },
+  ],
+  startAliases: [{ id: "accept_destiny", label: "Accept your destiny and stay in the city", routeId: "city_return" }],
+};
 
-/**
- * Assembles the envelope (`id`/`kindId`/`version`/`titleKey` — core-owned, not part of
- * `StoryGraphCampaignSource`, per the envelope-duplication rule `CLAUDE.md` tracks) around
- * `buildStoryGraphCampaign`'s lifted content, then hands both to `buildCampaign`
- * (`registry/build.ts`, W4) to produce the `BuiltCampaign` a registry is assembled from.
- */
-export function buildBulgariaReturnCampaign(
-  source: StoryGraphCampaignSource = bulgariaReturnSource,
-): CommandResult<BuiltCampaign> {
-  const { content, authoredText } = buildStoryGraphCampaign(source);
-  const campaign: Campaign = {
-    id: BULGARIA_RETURN_CAMPAIGN_ID,
-    kindId: "story-graph",
-    version: "1.0.0",
-    titleKey: TITLE.key,
-    content,
-  };
-  return buildCampaign(campaign, [TITLE, ...authoredText]);
+export const bulgariaReturnSource = createAdventureSource(config);
+
+export function buildBulgariaReturnCampaign(source: StoryGraphCampaignSource = bulgariaReturnSource): CommandResult<BuiltCampaign> {
+  const result = buildAdventureCampaign(config, source);
+  if (result.ok && result.value) {
+    result.value.campaign.migrateState = (state, fromVersion) => migrateV1AdventureState(
+      state,
+      fromVersion,
+      source,
+      { home_again: "ending_home_again" },
+    );
+  }
+  return result;
 }

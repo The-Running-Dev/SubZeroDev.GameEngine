@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   buildBulgariaBureaucracyCampaign,
+  buildBulgariaDrivingCampaign,
+  buildBulgariaEnterpriseCampaign,
+  buildBulgariaInheritanceCampaign,
+  buildBulgariaReturnCampaign,
   buildValidatedContentRegistry,
+  buildLuciferChroniclesCampaign,
   createCountingIds,
   createEngine,
   createInMemorySessionStore,
@@ -17,7 +22,6 @@ import { BrowserClient } from "./browser-client";
 import { createBrowserDemo } from "./composition";
 
 const SEED = "bureaucracy-seed-3";
-const ACTIONS = ["wait", "continue_cycle", "continue_cycle", "go_home"];
 
 function makeBrowserClient(): BrowserClient {
   return new BrowserClient(createBrowserDemo().store);
@@ -96,12 +100,22 @@ function makeParityFixture(): {
   registry: ContentRegistry;
   lastSerialized(): string | undefined;
 } {
-  const campaign = buildBulgariaBureaucracyCampaign();
-  if (!campaign.ok || campaign.value === undefined) {
-    throw new Error("expected the Bureaucracy campaign to build");
+  const built = [
+    buildBulgariaBureaucracyCampaign(),
+    buildBulgariaDrivingCampaign(),
+    buildBulgariaEnterpriseCampaign(),
+    buildBulgariaInheritanceCampaign(),
+    buildBulgariaReturnCampaign(),
+    buildLuciferChroniclesCampaign(),
+  ];
+  if (built.some((campaign) => !campaign.ok || campaign.value === undefined)) {
+    throw new Error("expected the story campaigns to build");
   }
   const kinds = { "story-graph": storyGraphKind } as unknown as KindRegistry;
-  const registryResult = buildValidatedContentRegistry([campaign.value], kinds);
+  const registryResult = buildValidatedContentRegistry(
+    built.map((campaign) => campaign.value!),
+    kinds,
+  );
   if (!registryResult.ok || registryResult.value === undefined) {
     throw new Error("expected the Bureaucracy campaign to validate");
   }
@@ -118,6 +132,15 @@ function makeParityFixture(): {
     lastSerialized: observed.lastSerialized,
   };
 }
+
+const STORY_CAMPAIGN_IDS = [
+  "bulgaria-bureaucracy",
+  "bulgaria-driving",
+  "bulgaria-enterprise",
+  "bulgaria-inheritance",
+  "bulgaria-return",
+  "lucifer-chronicles",
+] as const;
 
 describe("BrowserClient — the API coverage checklist (09-clients.md §4, W61.8)", () => {
   it("1. listCampaigns — returns the configured Bureaucracy campaign", () => {
@@ -184,20 +207,19 @@ describe("BrowserClient — the API coverage checklist (09-clients.md §4, W61.8
       seed: SEED,
     });
     await expect(client.getStrings(started.sessionId)).resolves.toMatchObject({
-      "bureaucracy.choice.wait.label": "Wait",
+      "bureaucracy.municipality.choice_wait": "Wait for the municipal registry",
     });
   });
 
-  it("7. submitAction — reaches the shown gated choice through the adapter", async () => {
+  it("7. submitAction — enters a materially separate route through the adapter", async () => {
     const client = makeBrowserClient();
     let state = await client.createSession({
       campaignId: "bulgaria-bureaucracy",
       seed: SEED,
     });
-    for (const actionId of ACTIONS.slice(0, 3))
-      state = (await client.submit(state, actionId)).state;
+    state = (await client.submit(state, "wait")).state;
     expect(state.actions).toContainEqual(
-      expect.objectContaining({ id: "go_home", available: true }),
+      expect.objectContaining({ id: "registry_route_listen", available: true }),
     );
   });
 
@@ -208,7 +230,7 @@ describe("BrowserClient — the API coverage checklist (09-clients.md §4, W61.8
       seed: SEED,
     });
     const preview = await client.previewAction(started.sessionId, "wait");
-    expect(preview.scene?.body.text).toContain("Room 6");
+    expect(preview.scene?.body.text).toContain("quietly circles");
     expect(await client.getScene(started.sessionId)).toEqual(started.scene);
   });
 
@@ -250,43 +272,52 @@ describe("BrowserClient — the API coverage checklist (09-clients.md §4, W61.8
   });
 });
 
-describe("BrowserClient — Bureaucracy client parity (09-clients.md §1, §4; W61.8)", () => {
-  it("the browser adapter and text client, with the same seed and counting IdSource, produce identical scene and view steps and final serialize() output", async () => {
-    const browserFixture = makeParityFixture();
-    const browser = new BrowserClient(
-      createInMemorySessionStore({
-        engine: browserFixture.engine,
-        registry: browserFixture.registry,
-      }),
-    );
-    const textFixture = makeParityFixture();
-    const text = textFixture.client;
-
-    const browserStarted = await browser.createSession({
-      campaignId: "bulgaria-bureaucracy",
-      seed: SEED,
-    });
-    const textStarted = await text.createSession({
-      campaignId: "bulgaria-bureaucracy",
-      seed: SEED,
-    });
-    let browserState = browserStarted;
-    const textSessionId = textStarted.value.sessionId;
-    expect(browserState.scene).toEqual(textStarted.value.scene);
-    expect(browserState.view).toEqual(
-      await text.getView(textSessionId).then((value) => value.value),
-    );
-
-    for (const actionId of ACTIONS) {
-      browserState = (await browser.submit(browserState, actionId)).state;
-      const textResult = await text.submitAction(textSessionId, actionId);
-      expect(browserState.scene).toEqual(textResult.value.scene);
-      expect(browserState.view).toEqual(
-        (await text.getView(textSessionId)).value,
+describe("BrowserClient — story-campaign client parity (09-clients.md §1, W64.8)", () => {
+  it.each(STORY_CAMPAIGN_IDS)(
+    "%s: the browser adapter and text client produce identical route scenes, views, and final serializations",
+    async (campaignId) => {
+      const browserFixture = makeParityFixture();
+      const browser = new BrowserClient(
+        createInMemorySessionStore({
+          engine: browserFixture.engine,
+          registry: browserFixture.registry,
+        }),
       );
-    }
+      const textFixture = makeParityFixture();
+      const text = textFixture.client;
 
-    expect(browserState.scene.status).toBe("ended");
-    expect(browserFixture.lastSerialized()).toBe(textFixture.lastSerialized());
-  });
+      const browserStarted = await browser.createSession({
+        campaignId,
+        seed: SEED,
+      });
+      const textStarted = await text.createSession({
+        campaignId,
+        seed: SEED,
+      });
+      let browserState = browserStarted;
+      const textSessionId = textStarted.value.sessionId;
+      expect(browserState.scene).toEqual(textStarted.value.scene);
+      expect(browserState.view).toEqual(
+        await text.getView(textSessionId).then((value) => value.value),
+      );
+
+      while (browserState.scene.status !== "ended") {
+        const actionId = browserState.actions.find(
+          (action) => action.available,
+        )?.id;
+        if (!actionId) throw new Error("expected an available route action");
+        browserState = (await browser.submit(browserState, actionId)).state;
+        const textResult = await text.submitAction(textSessionId, actionId);
+        expect(browserState.scene).toEqual(textResult.value.scene);
+        expect(browserState.view).toEqual(
+          (await text.getView(textSessionId)).value,
+        );
+      }
+
+      expect(browserState.scene.status).toBe("ended");
+      expect(browserFixture.lastSerialized()).toBe(
+        textFixture.lastSerialized(),
+      );
+    },
+  );
 });

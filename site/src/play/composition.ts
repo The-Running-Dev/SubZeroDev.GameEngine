@@ -21,6 +21,7 @@ export interface BrowserCampaign {
   readonly title: string;
   readonly description: string;
   readonly duration: string;
+  readonly contentNotice: string;
   readonly featured: boolean;
   readonly sources?: readonly { label: string; href: string }[];
 }
@@ -94,37 +95,43 @@ export function createBrowserDemo(): {
     [
       "Lucifer Chronicles: The Bulgarian Incident",
       "A profane, cosmic support ticket through property, paperwork, cars, AI scope creep, and Hell.",
-      "45–60 min",
+      "35–50 min",
+      "Strong language, religious satire, dangerous-driving anecdotes, and recognizable parody.",
       true,
     ],
     [
       "The Bureaucracy",
-      "The original Bulgarian municipal fixture.",
-      "10 min",
+      "Municipal, cadastral, archive, notary, and translation routes through one determined folder.",
+      "10–15 min per route",
+      "Satirical depictions of public offices, administrative failure, and financial frustration.",
       false,
     ],
     [
       "The Return",
-      "Return to Bulgaria and meet the consequences.",
-      "10 min",
+      "Return to Bulgaria through city, village, or temporary-home routes.",
+      "8–12 min per route",
+      "Themes of migration, family pressure, housing, and homesickness.",
       false,
     ],
     [
       "Driving",
-      "Road etiquette, mechanical optimism, and poor decisions.",
-      "10 min",
+      "Inspection, road trouble, insurance, towing, and mechanical optimism.",
+      "10–15 min per route",
+      "Dangerous-driving anecdotes, police encounters, breakdowns, and financial loss.",
       false,
     ],
     [
       "Inheritance",
-      "Family property, documents, and tomato-adjacent law.",
-      "10 min",
+      "Family property, evidence, neighbours, court, and tomato-adjacent law.",
+      "10–15 min per route",
+      "Family conflict, police and court proceedings, property damage, and abandonment.",
       false,
     ],
     [
       "Enterprise",
-      "A small question develops enterprise features.",
-      "10 min",
+      "Clients, tax, hiring, growth, cashflow, and the price of one more opportunity.",
+      "10–15 min per route",
+      "Debt, bankruptcy, audits, job pressure, and business failure.",
       false,
     ],
   ] as const;
@@ -137,7 +144,8 @@ export function createBrowserDemo(): {
           descriptions[index]![0],
         description: descriptions[index]![1],
         duration: descriptions[index]![2],
-        featured: descriptions[index]![3],
+        contentNotice: descriptions[index]![3],
+        featured: descriptions[index]![4],
         ...(index === 0
           ? {
               sources: [

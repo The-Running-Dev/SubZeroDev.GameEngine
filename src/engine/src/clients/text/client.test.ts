@@ -45,7 +45,7 @@ describe("TextClient — the API coverage checklist (09-clients.md §4)", () => 
     const { value, text } = await client.createSession({ campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, seed: SEEDED_ROOM_14_SEED });
     expect(value.sessionId).toBeTruthy();
     expect(text).toContain("A handwritten");
-    expect(text).toContain("[wait] Wait");
+    expect(text).toContain("[wait] Wait for the municipal registry");
     expect(text).toContain("[coffee]");
   });
 
@@ -71,7 +71,7 @@ describe("TextClient — the API coverage checklist (09-clients.md §4)", () => 
     const { value, text } = await client.getView(created.value.sessionId);
     const kindView = value.kindView as { turn: number; stats: { var: string }[] };
     expect(kindView.turn).toBe(0);
-    expect(kindView.stats.map((s) => s.var).sort()).toEqual(["certificate_age_months", "office_visits"]);
+    expect(kindView.stats.map((s) => s.var).sort()).toEqual(["connections", "preparation", "pressure"]);
     expect(text).toContain('"turn": 0');
   });
 
@@ -79,35 +79,22 @@ describe("TextClient — the API coverage checklist (09-clients.md §4)", () => 
     const client = makeClient();
     const created = await client.createSession({ campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, seed: SEEDED_ROOM_14_SEED });
     const strings = await client.getStrings(created.value.sessionId);
-    expect(strings["bureaucracy.choice.wait.label"]).toBe("Wait");
+    expect(strings["bureaucracy.municipality.choice_wait"]).toBe("Wait for the municipal registry");
   });
 
-  it("7. submitAction — success renders the new scene; a gated choice renders unavailable with its real reason", async () => {
+  it("7. submitAction — success renders the new material route and its projected choices", async () => {
     const client = makeClient();
     const created = await client.createSession({ campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, seed: SEEDED_ROOM_14_SEED });
     const sessionId = created.value.sessionId;
 
-    // wait -> office_visits 1, at room_6: go_home still gated.
     const afterWait = await client.submitAction(sessionId, "wait");
     expect(afterWait.value.ok).toBe(true);
-    expect(afterWait.text).toContain("Room 6 informs you");
-    expect(afterWait.text).toContain("[go_home] Go home (You can't leave yet");
+    expect(afterWait.text).toContain("quietly circles");
+    expect(afterWait.text).toContain("[registry_route_listen]");
 
-    // continue_cycle x2 -> office_visits 3: the gate opens.
-    const afterFirstCycle = await client.submitAction(sessionId, "continue_cycle");
-    expect(afterFirstCycle.value.ok).toBe(true);
-    expect(afterFirstCycle.text).toContain("[go_home] Go home (You can't leave yet");
-
-    const afterSecondCycle = await client.submitAction(sessionId, "continue_cycle");
-    expect(afterSecondCycle.value.ok).toBe(true);
-    expect(afterSecondCycle.text).toContain("[go_home] Go home");
-    expect(afterSecondCycle.text).not.toContain("[go_home] Go home (");
-
-    // go_home -> the ending, rendered from the real authored text, not a client literal.
-    const goHome = await client.submitAction(sessionId, "go_home");
-    expect(goHome.value.ok).toBe(true);
-    expect(goHome.value.scene?.status).toBe("ended");
-    expect(goHome.text).toContain("Congratulations");
+    const afterListening = await client.submitAction(sessionId, "registry_route_listen");
+    expect(afterListening.value.ok).toBe(true);
+    expect(afterListening.value.scene?.status).toBe("active");
   });
 
   it("8. previewAction — renders the prospective scene without changing the session", async () => {
@@ -116,7 +103,7 @@ describe("TextClient — the API coverage checklist (09-clients.md §4)", () => 
     const preview = await client.previewAction(created.value.sessionId, "wait");
 
     expect(preview.value.ok).toBe(true);
-    expect(preview.text).toContain("Room 6 informs you");
+    expect(preview.text).toContain("quietly circles");
     expect((await client.getScene(created.value.sessionId)).value).toEqual(created.value.scene);
   });
 
@@ -150,7 +137,7 @@ describe("TextClient — the API coverage checklist (09-clients.md §4)", () => 
     expect(loaded.value.scene).toEqual(sceneAfterWait.value);
     expect(loaded.text).toBe(sceneAfterWait.text);
 
-    const continued = await client.submitAction(loaded.value.sessionId, "continue_cycle");
+    const continued = await client.submitAction(loaded.value.sessionId, "registry_route_listen");
     expect(continued.value.ok).toBe(true);
   });
 });
@@ -262,6 +249,6 @@ describe("TextClient — imports nothing from kinds/, never reads a persisted Ga
 describe("TextClient — reuses the real W15 source, not a synthetic fixture", () => {
   it("the campaign the client plays is the same source buildStoryGraphCampaign lifts", () => {
     const { authoredText } = buildStoryGraphCampaign(bulgariaBureaucracySource);
-    expect(authoredText.some((t) => t.key === "bureaucracy.choice.wait.label" && t.text === "Wait")).toBe(true);
+    expect(authoredText.some((t) => t.key === "bureaucracy.municipality.choice_wait" && t.text === "Wait for the municipal registry")).toBe(true);
   });
 });

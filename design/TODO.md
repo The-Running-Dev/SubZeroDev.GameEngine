@@ -146,6 +146,10 @@
 
 ### [ ] W63 — Absurd Game Interface {#w63}
 
+### Depth: Story Campaigns Become Adventures
+
+### [x] W64 — Replayable Story Campaign Expansion {#w64}
+
 ### Content Tooling — A First-Class Workstream, Not an Afterthought
 
 ## Known Open Items Carried In

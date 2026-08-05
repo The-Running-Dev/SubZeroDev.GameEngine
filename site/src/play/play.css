@@ -155,13 +155,29 @@
   padding: clamp(0.75rem, 2vw, 1.5rem);
 }
 .scene-viewport {
-  background: linear-gradient(145deg, #efe6d1, #d9caab);
+  background:
+    linear-gradient(
+      90deg,
+      transparent 3.1rem,
+      #b7503d33 3.15rem,
+      transparent 3.22rem
+    ),
+    repeating-linear-gradient(0deg, #efe6d1 0 1.8rem, #d8c9aa 1.84rem), #efe6d1;
   box-shadow:
     inset 0 0 0 6px #1b2b36,
     inset 0 0 0 8px var(--brass);
   color: var(--ink);
   min-width: 0;
   padding: clamp(1.5rem, 4vw, 3rem);
+  position: relative;
+}
+.scene-viewport::after {
+  border: 1px solid #8b734c;
+  content: "";
+  inset: 0.45rem -0.35rem -0.35rem 0.45rem;
+  pointer-events: none;
+  position: absolute;
+  z-index: -1;
 }
 .scene-viewport h2 {
   font-family: Georgia, serif;
@@ -173,6 +189,31 @@
 .action-deck {
   border-top: 2px solid #a87e3e;
   padding-top: 1.25rem;
+}
+.arrival-receipt {
+  align-items: baseline;
+  background: #f7efda;
+  border: 1px solid #9c7a47;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: -0.75rem 0 1.5rem;
+  padding: 0.65rem 0.8rem;
+}
+.arrival-receipt span:first-child {
+  color: #684a2b;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.arrival-link::before {
+  content: "→ ";
+}
+.arrival-link {
+  color: #5a4130;
+  font-family: Georgia, serif;
+  font-style: italic;
 }
 .deck-label {
   color: #5d4122;
@@ -250,6 +291,43 @@
   color: #c5d4ce;
   font-size: 0.9rem;
   line-height: 1.5;
+}
+.journey-log {
+  border-top: 1px solid #6c9a94;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+}
+.journey-log summary {
+  color: #fff4ce;
+  cursor: pointer;
+  font-family: Georgia, serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+.journey-log ol {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0.85rem 0;
+  padding-left: 1.25rem;
+}
+.journey-log li {
+  color: #c5d4ce;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+.journey-log li[aria-current="step"] {
+  color: #fff4ce;
+}
+.journey-log em {
+  color: var(--brass);
+  display: block;
+}
+.journey-origin {
+  background: #0c171d;
+  border-left: 3px solid var(--brass);
+  color: #d8e1dc;
+  font-size: 0.82rem;
+  padding: 0.6rem;
 }
 .source-links {
   display: grid;
@@ -392,6 +470,16 @@ button:focus-visible {
   .briefing-emblem {
     height: 4rem;
     width: 4rem;
+  }
+  .scene-viewport {
+    background: #efe6d1;
+  }
+  .arrival-receipt {
+    align-items: start;
+    flex-direction: column;
+  }
+  .arrival-link::before {
+    content: "↓ ";
   }
 }
 @media (prefers-reduced-motion: reduce) {
