@@ -241,9 +241,13 @@ const TITLE: AuthoredText = { key: "lucifer.campaign.title", text: "Lucifer Chro
 
 export function buildLuciferChroniclesCampaign(source: StoryGraphCampaignSource = luciferChroniclesSource): CommandResult<BuiltCampaign> {
   const { content, authoredText } = buildStoryGraphCampaign(source);
-  const legacyEndingMap = Object.fromEntries([
+  const legacyNodeMap = Object.fromEntries([
     ...["incident_resolved", "it_builds_character", "room_14_resident", "tomato_jurisprudence", "bought_some_land", "permission_to_exist", "future_me_unanswered", "another_product", "uncategorizable_ben", "well_why_not"].map((id) => [`ben_ending_${id}`, "ben_ending_the_builder"]),
     ...["ticket_closed", "customer_support", "governor_of_alive", "escape_hatch_missing", "fly_treaty", "fly_statistic", "agents_failed", "platform_outbreak", "invites_ben", "that_one_is_ours"].map((id) => [`lucifer_ending_${id}`, "lucifer_ending_support_manager"]),
+  ]);
+  const legacyEndingMap = Object.fromEntries([
+    ...["incident_resolved", "it_builds_character", "room_14_resident", "tomato_jurisprudence", "bought_some_land", "permission_to_exist", "future_me_unanswered", "another_product", "uncategorizable_ben", "well_why_not"].map((id) => [`ben_${id}`, "ben_the_builder"]),
+    ...["ticket_closed", "customer_support", "governor_of_alive", "escape_hatch_missing", "fly_treaty", "fly_statistic", "agents_failed", "platform_outbreak", "invites_ben", "that_one_is_ours"].map((id) => [`lucifer_${id}`, "lucifer_support_manager"]),
   ]);
   const campaign: Campaign = {
     id: LUCIFER_CHRONICLES_CAMPAIGN_ID,
@@ -251,7 +255,7 @@ export function buildLuciferChroniclesCampaign(source: StoryGraphCampaignSource 
     version: "2.0.0",
     titleKey: TITLE.key,
     content,
-    migrateState: (state, fromVersion) => migrateV1AdventureState(state, fromVersion, source, legacyEndingMap),
+    migrateState: (state, fromVersion) => migrateV1AdventureState(state, fromVersion, source, legacyNodeMap, legacyEndingMap),
   };
   return buildCampaign(campaign, [TITLE, ...authoredText]);
 }

@@ -80,8 +80,8 @@ export function buildBulgariaBureaucracyCampaign(source: StoryGraphCampaignSourc
     result.value.campaign.migrateState = (state, fromVersion) => migrateV1AdventureState(state, fromVersion, source, {
       clerk_review: "registry_route_event_1",
       expired: "registry_route_1",
-      room_14: "archive_route_event_2",
-      room_6: "archive_route_3",
+      room_14: "registry_route_event_2",
+      room_6: "registry_route_3",
       reward: "ending_ultimate_reward",
     });
   }

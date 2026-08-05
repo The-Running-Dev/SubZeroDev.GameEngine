@@ -46,7 +46,7 @@ function engineFor(fixture: Fixture) {
   return createEngine({ kinds, registry: registry.value, ids: createCountingIds() });
 }
 
-function play(fixture: Fixture, route: string, seed = `${fixture.name}-${route}`): { state: GameState; pages: string[] } {
+function play(fixture: Fixture, route: string, seed = `${fixture.name}-${route}`, openingAction?: string): { state: GameState; pages: string[] } {
   const engine = engineFor(fixture);
   const created = engine.createGame({ campaignId: fixture.built.campaign.id, seed });
   if (!created.ok || !created.value) throw new Error("create failed");
@@ -55,13 +55,16 @@ function play(fixture: Fixture, route: string, seed = `${fixture.name}-${route}`
   let first = true;
   for (let guard = 0; state.status === "active" && guard < 120; guard += 1) {
     const actions = engine.availableActions(state).filter((action) => action.available);
-    const action = first ? actions.find((candidate) => candidate.id === route) : actions[0];
+    const action = first
+      ? actions.find((candidate) => candidate.id === route)
+      : openingAction === undefined ? actions[0] : actions.find((candidate) => candidate.id === openingAction);
     if (!action) throw new Error(`${fixture.name}/${route} has no available action at ${pages.at(-1)}`);
     const result = engine.submitAction(state, action.id);
     if (!result.ok || !result.value) throw new Error(`${fixture.name}/${route} rejected ${action.id}`);
     state = result.value;
     pages.push((state.kindState as StoryGraphKindState).currentNodeId);
     first = false;
+    openingAction = undefined;
   }
   if (state.status !== "ended") throw new Error(`${fixture.name}/${route} did not end`);
   return { state, pages };
@@ -109,6 +112,12 @@ describe("W64 story campaign expansion", () => {
     for (const route of completed) expect(route.pages.length / visibleCount).toBeLessThanOrEqual(0.7);
   });
 
+  it("keeps both village-return opening choices completable", () => {
+    const fixture = FIXTURES.find((candidate) => candidate.name === "Return")!;
+    expect(play(fixture, "explain", "village-listen", "village_return_listen").state.status).toBe("ended");
+    expect(play(fixture, "explain", "village-push", "village_return_push").state.status).toBe("ended");
+  });
+
   it.each(FIXTURES)("$name exercises both outcomes of every authored random transition across fixed seeds", (fixture) => {
     const randomIds = Object.entries(fixture.source.nodes).filter(([, node]) => node.kind === "random").map(([id]) => id);
     const destinations = new Map(randomIds.map((id) => [id, new Set<string>()]));
@@ -146,5 +155,30 @@ describe("W64 story campaign expansion", () => {
     const ended = migrate!({ ...base, currentNodeId: fixture.legacyEndingNode, endingId: "legacy_ending" }, "1.0.0");
     expect(ended.ok).toBe(true);
     expect(Object.hasOwn(fixture.source.nodes, (ended.value as StoryGraphKindState).currentNodeId)).toBe(true);
+  });
+
+  it("migrates a completed Lucifer save to a matching v2 ending identity", () => {
+    const fixture = FIXTURES.find((candidate) => candidate.name === "Lucifer Chronicles")!;
+    const migrated = fixture.built.campaign.migrateState!({
+      currentNodeId: "lucifer_ending_ticket_closed",
+      endingId: "lucifer_ticket_closed",
+      variables: {}, turn: 9, visitedCounts: {}, unlockedAchievements: [],
+    }, "1.0.0");
+    expect(migrated.ok).toBe(true);
+    const state = migrated.value as StoryGraphKindState;
+    expect(state.currentNodeId).toBe("lucifer_ending_support_manager");
+    expect(state.endingId).toBe("lucifer_support_manager");
+    expect((fixture.source.nodes[state.currentNodeId] as { endingId: string }).endingId).toBe(state.endingId);
+  });
+
+  it("keeps Bulgaria Bureaucracy migrations on the registry route", () => {
+    const fixture = FIXTURES.find((candidate) => candidate.name === "Bureaucracy")!;
+    const migrated = fixture.built.campaign.migrateState!({
+      currentNodeId: "room_6", variables: { route: "archive_route" }, turn: 4, visitedCounts: {}, unlockedAchievements: [],
+    }, "1.0.0");
+    expect(migrated.ok).toBe(true);
+    const state = migrated.value as StoryGraphKindState;
+    expect(state.currentNodeId).toBe("registry_route_3");
+    expect(state.variables.route).toBe("registry_route");
   });
 });

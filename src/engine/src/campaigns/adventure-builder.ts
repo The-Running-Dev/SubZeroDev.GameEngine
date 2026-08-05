@@ -105,7 +105,10 @@ export function createAdventureSource(config: AdventureConfig): StoryGraphCampai
         {
           id: `${prefix}_push`,
           label: authored(config.namespace, `${prefix}_1`, "push", route.actionLabels[1]),
-          effects: [{ op: "increment", var: "pressure", by: 1 }],
+          effects: [
+            { op: "set", var: memoryVar, value: true },
+            { op: "increment", var: "pressure", by: 1 },
+          ],
           goto: `${prefix}_event_1`,
         },
       ],
@@ -236,6 +239,11 @@ export function migrateV1AdventureState(
   const currentNodeId = nodeMap[state.currentNodeId] ?? state.currentNodeId;
   if (!Object.hasOwn(source.nodes, currentNodeId)) {
     return { ok: false, errors: [{ code: "migration_failed", messageKey: "core.reason.migration_failed" }], warnings: [] };
+  }
+  const routeDeclaration = source.variables.route;
+  if (routeDeclaration?.type === "enum" && routeDeclaration.values !== undefined) {
+    const routeForCurrentNode = routeDeclaration.values.find((route) => currentNodeId.startsWith(`${route}_`));
+    if (routeForCurrentNode !== undefined) variables.route = routeForCurrentNode;
   }
   const migrated: StoryGraphKindState = {
     ...state,
