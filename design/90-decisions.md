@@ -266,6 +266,13 @@ so they are not forgotten.
   simulation next changes its content boundary; migrate that kind deliberately rather than
   turning W45 into an unrelated repo-wide rewrite.
 
+- **W63 (Absurd Game Interface)** — marked done on manual review at 320/390/768/1280 px
+  rather than a dedicated automated suite. `site/` has no visual-regression or axe-style
+  accessibility scanner; W63.7 (visual snapshots) and W63.8 (automated accessibility,
+  forced-colours, 200% zoom, long-text checks) were proven by direct inspection, not by a
+  committed test. **Revisit when** `site/` adds visual-regression or automated accessibility
+  tooling — extend it to `/play/` first, since this is where the gap is.
+
 *Add to this register whenever a decision is deferred or an assumption is made — rather than
 leaving it in a commit message or a chat, where the next person will not find it.*
 <!-- human-doc:end -->

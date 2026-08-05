@@ -508,9 +508,17 @@ section {
   text-decoration-color: var(--landing-accent);
   text-underline-offset: 0.35em;
 }
-.cta-actions a:first-child {
-  font-size: 1.2rem;
-  font-weight: 650;
+.cta-play {
+  background: var(--landing-accent);
+  color: var(--landing-bg);
+  display: inline-block;
+  font-size: 1.35rem;
+  font-weight: 700;
+  padding: 0.85rem 1.9rem;
+  text-decoration: none;
+}
+.cta-play:hover {
+  background: var(--landing-text);
 }
 @media (max-width: 700px) {
   /*

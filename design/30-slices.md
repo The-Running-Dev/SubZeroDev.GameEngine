@@ -1730,7 +1730,7 @@ synchronous; only the already-async store boundary may await platform crypto.
       reloads; accounts, cloud sync or any backend; new gameplay; art, audio, analytics,
       session capture, service workers, a PWA, or a generic reusable web-client package.
 
-### [ ] W63 — Absurd Game Interface {#w63}
+### [x] W63 — Absurd Game Interface {#w63}
 
 **Delivers:** Rebuilds the public story shelf and story-graph play surface so it reads as a
 game rather than a styled form. The interface becomes an original absurd adventure cabinet:
@@ -1754,7 +1754,10 @@ language, not maximum noise: one hero joke and at most two minor jokes per visib
       static-build verification for asset budgets and the direct `/play/` route. No engine,
       campaign, replay-fixture, or contract-type change.
 - **Depends on:** [W61](#w61) and the multi-campaign story shelf already present on `main`.
-- **Status:** Not started.
+- **Status:** Done — implemented via #188 and #190. W63.7 (visual snapshots) and W63.8
+      (automated accessibility, forced-colours, 200% zoom, and long-text checks) were verified
+      by manual review at 320/390/768/1280 px rather than a dedicated automated suite; see
+      [OPEN-QUESTIONS.md §3](OPEN-QUESTIONS.md#3-judgement-calls-to-revisit-settled-for-the-mvp).
 - **Done when:**
   - W63.1 Ready, playing, busy, unavailable, rejected, persistence-warning, and ended states
         all use the cabinet visual grammar and remain distinguishable without colour or motion.
@@ -1881,7 +1884,7 @@ old entry never rewinds or resubmits the game.
 - **Depends on:** [W31](#x-w31--save-migration) for the v1 → v2 campaign boundary and
       [W61](#w61) for public browser proof. The story-graph mechanics themselves are already
       complete in W9–W14.
-- **Status:** Done — implemented on `feature/w64-story-campaign-expansion`.
+- **Status:** Done — implemented via #189 and #191.
 - **Done when:**
   - W64.1 Each campaign has at least three material routes, three optional visible scenes,
         three delayed consequences, three `showWhen` discoveries driven by different state,
