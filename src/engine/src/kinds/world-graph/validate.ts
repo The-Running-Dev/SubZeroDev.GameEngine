@@ -3,7 +3,7 @@ import type { LocKey } from "../../core/localization/types.js";
 import type { ValidationError, ValidationResult, ValidationWarning } from "../../core/validation/types.js";
 import type { WorldCondition, WorldEffect, WorldGraphCampaign } from "./content.js";
 import { checkBuildingPlacement, materializeMap } from "./spatial.js";
-import type { Building } from "./state.js";
+import type { Building, Position } from "./state.js";
 
 type RecordValue = Record<string, unknown>;
 const requiredCatalogs = [
@@ -166,6 +166,22 @@ function referenceErrors(content: WorldGraphCampaign): ValidationError[] {
     });
     if (map.spawnPoints.length === 0) errors.push(error("missing_spawn", `content.maps[${mapIndex}].spawnPoints`));
     if (map.exits.length === 0) errors.push(error("missing_exit", `content.maps[${mapIndex}].exits`));
+    const terrainById = new Map(content.terrain.map((entry) => [entry.id, entry]));
+    const materialized = materializeMap(map);
+    const terrainAt = new Map(materialized.terrain.map((cell) => [`${cell.x},${cell.y}`, cell.terrainId]));
+    const checkEndpoints = (positions: readonly Position[], label: string, code: string): void => {
+      positions.forEach((position, index) => {
+        if (position.x < 0 || position.y < 0 || position.x >= map.width || position.y >= map.height) {
+          errors.push(error("position_out_of_bounds", `content.maps[${mapIndex}].${label}[${index}]`));
+          return;
+        }
+        const terrainId = terrainAt.get(`${position.x},${position.y}`);
+        const walkable = terrainId !== undefined && terrainById.get(terrainId)?.walkable === true;
+        if (!walkable) errors.push(error(code, `content.maps[${mapIndex}].${label}[${index}]`));
+      });
+    };
+    checkEndpoints(map.spawnPoints, "spawnPoints", "spawn_not_traversable");
+    checkEndpoints(map.exits, "exits", "exit_not_traversable");
   });
   content.buildings.forEach((definition, index) => {
     if (definition.footprint.width <= 0 || definition.footprint.height <= 0) errors.push(error("invalid_footprint", `content.buildings[${index}].footprint`));

@@ -162,6 +162,30 @@ describe("world-graph W45 source and validation", () => {
     ]));
   });
 
+  it("rejects out-of-bounds and non-traversable spawn points and exits", () => {
+    const built = envelope();
+    const base = runtime().content;
+    const blockedTerrain = { ...base.terrain[0]!, id: "blocked", walkable: false, buildable: false };
+    const invalid = {
+      ...built.campaign,
+      content: {
+        ...base,
+        terrain: [...base.terrain, blockedTerrain],
+        maps: base.maps.map((entry) => ({
+          ...entry,
+          terrainOverrides: [...entry.terrainOverrides, { position: { x: 0, y: 0 }, terrainId: "blocked" }],
+          spawnPoints: [{ x: -1, y: 0 }, { x: 0, y: 0 }],
+          exits: [{ x: entry.width, y: 0 }],
+        })),
+      },
+    };
+    expect(worldGraphKind.validateCampaign(invalid, built.strings).errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "position_out_of_bounds", path: "content.maps[0].spawnPoints[0]" }),
+      expect.objectContaining({ code: "spawn_not_traversable", path: "content.maps[0].spawnPoints[1]" }),
+      expect.objectContaining({ code: "position_out_of_bounds", path: "content.maps[0].exits[0]" }),
+    ]));
+  });
+
   it("rejects negative and legacy counter effects before a tick can run", () => {
     const built = envelope();
     const base = runtime().content;
