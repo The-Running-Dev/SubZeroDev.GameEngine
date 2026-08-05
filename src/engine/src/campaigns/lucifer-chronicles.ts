@@ -8,7 +8,7 @@
 import type { AuthoredText, BuiltCampaign, Campaign } from "../core/registry/types.js";
 import type { CommandResult } from "../core/kernel/reasons.js";
 import { buildCampaign } from "../core/registry/build.js";
-import { buildStoryGraphCampaign, type StoryGraphCampaignSource } from "../kinds/story-graph/source.js";
+import { buildStoryGraphCampaign, type NodeSource, type StoryGraphCampaignSource } from "../kinds/story-graph/source.js";
 
 export const LUCIFER_CHRONICLES_CAMPAIGN_ID = "lucifer-chronicles";
 
@@ -108,7 +108,7 @@ const luciferActs: readonly Act[] = [
 
 function key(id: string, field: string): string { return `lucifer.${id}.${field}`; }
 
-function addAct(nodes: Record<string, any>, act: Act, next: string, effectVar: "patience" | "absurdity" | "paperwork" | "scope_creep" | "cosmic_attention") {
+function addAct(nodes: Record<string, NodeSource>, act: Act, next: string, effectVar: "patience" | "absurdity" | "paperwork" | "scope_creep" | "cosmic_attention") {
   act.steps.forEach(([text, literal, literalReply, absurd, absurdReply], index) => {
     const nodeId = `${act.id}_${index + 1}`;
     const literalId = `${nodeId}_literal`;
@@ -125,7 +125,7 @@ function addAct(nodes: Record<string, any>, act: Act, next: string, effectVar: "
   });
 }
 
-const nodes: Record<string, any> = {};
+const nodes: Record<string, NodeSource> = {};
 nodes.prologue = {
   kind: "choice",
   text: { key: "lucifer.prologue.text", text: "Objective: fix one house in Bulgaria. Estimated duration: two weeks. Actual campaign: forty hours, several forms, and a cosmic support ticket." },

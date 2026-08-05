@@ -39,7 +39,6 @@ import type {
   SessionPersistence,
   StoredSaveRecord,
   StoredSessionRecord,
-  SessionStoreError,
 } from "./types.js";
 import { SessionStoreError as SessionStoreErrorValue } from "./types.js";
 import type { SessionHost } from "../composition/types.js";
