@@ -31,9 +31,15 @@ export default function PlayApp() {
     setMessage(undefined);
     try {
       const next = await client.start(id);
-      await client.save(next.sessionId);
       setState(next);
       setCampaignId(id);
+      try {
+        await client.save(next.sessionId);
+      } catch {
+        setMessage(
+          "Progress could not be saved locally; this run remains available in this tab.",
+        );
+      }
     } catch {
       setMessage("This story could not start.");
     } finally {
@@ -45,9 +51,17 @@ export default function PlayApp() {
     setBusy(true);
     try {
       const next = await client.submit(state, id);
-      if (next.result.ok) await client.save(next.state.sessionId);
       setState(next.state);
       if (!next.result.ok) setMessage("That action was rejected.");
+      else {
+        try {
+          await client.save(next.state.sessionId);
+        } catch {
+          setMessage(
+            "Progress could not be saved locally; this run remains available in this tab.",
+          );
+        }
+      }
     } catch {
       setMessage("That action could not be completed.");
     } finally {
