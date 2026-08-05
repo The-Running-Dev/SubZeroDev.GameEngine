@@ -2,7 +2,7 @@ import type { InitialStateResult, KindContext } from "../../core/kernel/types.js
 import type { Campaign } from "../../core/registry/types.js";
 import { evaluateCondition, evaluateMetric } from "./conditions.js";
 import { worldGraphContent, type BuildingDefinition, type ScenarioDefinition } from "./content.js";
-import { checkBuildingPlacement, materializeMap, scenerySize } from "./spatial.js";
+import { checkBuildingPlacement, checkSceneryPlacement, materializeMap } from "./spatial.js";
 import type { Building, Queue, Scenery, WorldGraphKindState } from "./state.js";
 import { resolveStatus } from "./outcome.js";
 
@@ -73,8 +73,9 @@ export function initialState(campaign: Campaign, ctx: KindContext): InitialState
   const scenery: Scenery[] = [];
   for (const placement of scenario.sceneryPlacements) {
     const definition = invariant(content.scenery.find((entry) => entry.id === placement.definitionId), `scenery ${placement.definitionId}`);
-    const size = scenerySize(definition, placement.rotation);
-    scenery.push({ id: `scenery:${nextOrdinal}`, definitionId: definition.id, x: placement.x, y: placement.y, width: size.width, height: size.height, rotation: placement.rotation });
+    const result = checkSceneryPlacement(map, content.terrain, definition, placement.x, placement.y, placement.rotation, placed.buildings, [], scenery);
+    if (!result.ok) throw new Error(`Validated world-graph placement failed: ${definition.id}:${result.reason}`);
+    scenery.push({ id: `scenery:${nextOrdinal}`, definitionId: definition.id, x: placement.x, y: placement.y, width: result.width, height: result.height, rotation: placement.rotation });
     nextOrdinal += 1;
   }
   map = { ...map, scenery };

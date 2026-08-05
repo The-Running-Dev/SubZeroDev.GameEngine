@@ -5,7 +5,7 @@ import type { KindRegistry } from "../../core/kernel/types.js";
 import { buildCampaign, buildContentRegistry } from "../../core/registry/build.js";
 import type { AuthoredText, Campaign } from "../../core/registry/types.js";
 import { createRecordingEmitter } from "../../core/observability/emitter.js";
-import type { WorldGraphCampaign, WorldGraphCampaignSource } from "./content.js";
+import type { SceneryDefinition, WorldGraphCampaign, WorldGraphCampaignSource } from "./content.js";
 import { worldGraphKind } from "./kind.js";
 import { buildWorldGraphCampaign } from "./source.js";
 import type { WorldGraphKindState, WorldGraphView } from "./state.js";
@@ -159,6 +159,34 @@ describe("world-graph W45 source and validation", () => {
       expect.objectContaining({ code: "invalid_cost", path: "content.staffRoles[0].hireCostCents" }),
       expect.objectContaining({ code: "invalid_cost", path: "content.staffRoles[0].wageCentsPerDay" }),
       expect.objectContaining({ code: "invalid_work_rate", path: "content.staffRoles[0].workRates[0].effortPerTick" }),
+    ]));
+  });
+
+  it("rejects scenery placement outside map bounds or overlapping a building", () => {
+    const built = envelope();
+    const base = runtime().content;
+    const bench: SceneryDefinition = {
+      id: "bench", text: base.terrain[0]!.text, footprint: { width: 1, height: 1 },
+      allowedRotations: [0], placementRules: [], adjacencyEffects: [], tags: [],
+    };
+    const invalid = {
+      ...built.campaign,
+      content: {
+        ...base,
+        scenery: [bench],
+        scenarios: base.scenarios.map((scenario) => ({
+          ...scenario,
+          buildingPlacements: [{ definitionId: "kiosk", x: 1, y: 1, rotation: 0 as const, open: true }],
+          sceneryPlacements: [
+            { definitionId: "bench", x: -1, y: 0, rotation: 0 as const },
+            { definitionId: "bench", x: 1, y: 1, rotation: 0 as const },
+          ],
+        })),
+      },
+    };
+    expect(worldGraphKind.validateCampaign(invalid, built.strings).errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "placement_out_of_bounds", path: "content.scenarios[0].sceneryPlacements[0]" }),
+      expect.objectContaining({ code: "placement_overlaps", path: "content.scenarios[0].sceneryPlacements[1]" }),
     ]));
   });
 

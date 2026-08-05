@@ -2,8 +2,8 @@ import type { Campaign } from "../../core/registry/types.js";
 import type { LocKey } from "../../core/localization/types.js";
 import type { ValidationError, ValidationResult, ValidationWarning } from "../../core/validation/types.js";
 import type { WorldCondition, WorldEffect, WorldGraphCampaign } from "./content.js";
-import { checkBuildingPlacement, materializeMap } from "./spatial.js";
-import type { Building } from "./state.js";
+import { checkBuildingPlacement, checkSceneryPlacement, materializeMap } from "./spatial.js";
+import type { Building, Scenery } from "./state.js";
 
 type RecordValue = Record<string, unknown>;
 const requiredCatalogs = [
@@ -235,6 +235,14 @@ function placementErrors(content: WorldGraphCampaign): ValidationError[] {
         wear: definition.initialWear, cleanliness: definition.initialCleanliness,
         queue: { id: `validation-queue:${index}`, guestIds: [], serviceStartedAtTick: null }, pricesCents: {}, inventory: {},
       });
+    });
+    const scenery: Pick<Scenery, "x" | "y" | "width" | "height">[] = [];
+    scenario.sceneryPlacements.forEach((placement, index) => {
+      const definition = content.scenery.find((entry) => entry.id === placement.definitionId);
+      if (!definition) return;
+      const result = checkSceneryPlacement(map, content.terrain, definition, placement.x, placement.y, placement.rotation, buildings, [], scenery);
+      if (!result.ok) errors.push(error(result.reason, `content.scenarios[${scenarioIndex}].sceneryPlacements[${index}]`));
+      else scenery.push({ x: placement.x, y: placement.y, width: result.width, height: result.height });
     });
   });
   return errors;

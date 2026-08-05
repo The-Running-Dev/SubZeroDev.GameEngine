@@ -11,6 +11,7 @@ import type {
   PathCell,
   Position,
   Rotation,
+  Scenery,
   TerrainCell,
   WorldMap,
 } from "./state.js";
@@ -22,6 +23,9 @@ export type PlacementFailure =
   | "placement_unreachable";
 export type PlacementResult =
   | { readonly ok: true; readonly width: number; readonly height: number; readonly entrances: readonly Position[] }
+  | { readonly ok: false; readonly reason: PlacementFailure };
+export type SceneryPlacementResult =
+  | { readonly ok: true; readonly width: number; readonly height: number }
   | { readonly ok: false; readonly reason: PlacementFailure };
 
 const key = (position: Position): string => `${position.x},${position.y}`;
@@ -223,4 +227,29 @@ export function checkBuildingPlacement(
 
 export function scenerySize(definition: SceneryDefinition, rotation: Rotation): { readonly width: number; readonly height: number } {
   return rotatedDimensions(definition.footprint.width, definition.footprint.height, rotation);
+}
+
+export function checkSceneryPlacement(
+  map: WorldMap,
+  terrainDefinitions: readonly TerrainDefinition[],
+  definition: SceneryDefinition,
+  x: number,
+  y: number,
+  rotation: Rotation,
+  buildings: readonly Building[],
+  sites: readonly ConstructionSite[],
+  scenery: readonly Pick<Scenery, "x" | "y" | "width" | "height">[],
+): SceneryPlacementResult {
+  if (!definition.allowedRotations.includes(rotation)) return { ok: false, reason: "placement_terrain_unsuitable" };
+  const size = rotatedDimensions(definition.footprint.width, definition.footprint.height, rotation);
+  const cells = footprintCells(x, y, size.width, size.height);
+  if (!cells.every((cell) => inBounds(map.width, map.height, cell))) return { ok: false, reason: "placement_out_of_bounds" };
+  const occupied = occupiedCells(buildings, sites);
+  for (const entry of scenery) for (const cell of footprintCells(entry.x, entry.y, entry.width, entry.height)) occupied.add(key(cell));
+  if (cells.some((cell) => occupied.has(key(cell)))) return { ok: false, reason: "placement_overlaps" };
+  const byCell = terrainIndex(map);
+  const terrain = new Map(terrainDefinitions.map((entry) => [entry.id, entry]));
+  if (cells.some((cell) => terrain.get(byCell.get(key(cell)) ?? "")?.buildable !== true)) return { ok: false, reason: "placement_terrain_unsuitable" };
+  if (!definition.placementRules.every((rule) => ruleAllows(rule, cells, map, byCell))) return { ok: false, reason: "placement_terrain_unsuitable" };
+  return { ok: true, ...size };
 }
