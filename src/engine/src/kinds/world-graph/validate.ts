@@ -166,6 +166,11 @@ function referenceErrors(content: WorldGraphCampaign): ValidationError[] {
     });
     if (map.spawnPoints.length === 0) errors.push(error("missing_spawn", `content.maps[${mapIndex}].spawnPoints`));
     if (map.exits.length === 0) errors.push(error("missing_exit", `content.maps[${mapIndex}].exits`));
+    if (map.topology.kind === "explicit") {
+      map.topology.edges.forEach((edge, edgeIndex) => {
+        if (edge.edgeCost <= 0) errors.push(error("invalid_edge_cost", `content.maps[${mapIndex}].topology.edges[${edgeIndex}].edgeCost`));
+      });
+    }
   });
   content.buildings.forEach((definition, index) => {
     if (definition.footprint.width <= 0 || definition.footprint.height <= 0) errors.push(error("invalid_footprint", `content.buildings[${index}].footprint`));
