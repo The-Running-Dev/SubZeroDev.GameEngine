@@ -24,8 +24,8 @@
  * `base` its own formula produces; `resolve` only layers modifiers over it.
  */
 
-import type { AttributeState, NeedKey } from "./actor.js";
-import type { StatusEffect } from "./state.js";
+import type { AttributeState, NeedKey, NeedState } from "./actor.js";
+import type { SimulationKindState, StatusEffect } from "./state.js";
 import { collectModifiers, combineModifiers } from "./modifiers.js";
 
 export type DerivedPath =
@@ -74,3 +74,73 @@ export const derivedValueResolver: DerivedValueResolver = {
     return READ_ONLY_PATHS.has(path);
   },
 };
+
+/**
+ * Resolves one dotted field path to its effective (derived) value when `path` names a
+ * `player.needs.*`, `player.attributes.*`, or `player.skills.*` field — the three
+ * `DerivedPath` members with a real stored base this unit wires. Returns `undefined` for
+ * every other path (including the four formula-only paths, which need a caller-supplied
+ * `base` this function has no way to produce), so a caller with its own generic field
+ * resolution — `conditions.ts`'s `resolveField` — can fall back to it. Every reader of a
+ * `player.needs.*`/`player.attributes.*`/`player.skills.*` value must resolve through here
+ * (or `resolveEffective{Needs,Attributes,Skills}` below): §6.1's "computed on read" is not
+ * scoped to the projection alone, and a second, un-modifier-aware read path is exactly the
+ * `Scene.body`-vs-`Scene.view`/goal-condition disagreement this function closes.
+ */
+export function resolveEffectiveField(state: SimulationKindState, path: string): number | undefined {
+  if (path.startsWith("player.needs.")) {
+    const key = path.slice("player.needs.".length) as NeedKey;
+    const base = state.player.needs[key];
+    return base === undefined ? undefined : derivedValueResolver.resolve(path as DerivedPath, base, state.activeEffects);
+  }
+  if (path.startsWith("player.attributes.")) {
+    const key = path.slice("player.attributes.".length) as keyof AttributeState;
+    const base = state.player.attributes[key];
+    return base === undefined ? undefined : derivedValueResolver.resolve(path as DerivedPath, base, state.activeEffects);
+  }
+  if (path.startsWith("player.skills.")) {
+    const key = path.slice("player.skills.".length);
+    const base = state.player.skills[key];
+    return base === undefined ? undefined : derivedValueResolver.resolve(path as DerivedPath, base, state.activeEffects);
+  }
+  return undefined;
+}
+
+/** Effective (derived) needs — shared by every reader (`view.ts`'s `SimulationView.needs`,
+ *  `scene.ts`'s status text) so none of them can drift back to the raw stored value. */
+export function resolveEffectiveNeeds(state: SimulationKindState): NeedState {
+  const { needs } = state.player;
+  const { activeEffects } = state;
+  return {
+    health: derivedValueResolver.resolve("player.needs.health", needs.health, activeEffects),
+    energy: derivedValueResolver.resolve("player.needs.energy", needs.energy, activeEffects),
+    happiness: derivedValueResolver.resolve("player.needs.happiness", needs.happiness, activeEffects),
+    stress: derivedValueResolver.resolve("player.needs.stress", needs.stress, activeEffects),
+    satiety: derivedValueResolver.resolve("player.needs.satiety", needs.satiety, activeEffects),
+  };
+}
+
+/** Effective (derived) attributes, `luck` excluded per `SimulationView`'s own rule — same
+ *  base/derived split as `resolveEffectiveNeeds`. */
+export function resolveEffectiveAttributes(state: SimulationKindState): Omit<AttributeState, "luck"> {
+  const { attributes } = state.player;
+  const { activeEffects } = state;
+  return {
+    intelligence: derivedValueResolver.resolve("player.attributes.intelligence", attributes.intelligence, activeEffects),
+    discipline: derivedValueResolver.resolve("player.attributes.discipline", attributes.discipline, activeEffects),
+    charisma: derivedValueResolver.resolve("player.attributes.charisma", attributes.charisma, activeEffects),
+    creativity: derivedValueResolver.resolve("player.attributes.creativity", attributes.creativity, activeEffects),
+    resilience: derivedValueResolver.resolve("player.attributes.resilience", attributes.resilience, activeEffects),
+    wisdom: derivedValueResolver.resolve("player.attributes.wisdom", attributes.wisdom, activeEffects),
+  };
+}
+
+/** Effective (derived) skills — sorted iteration (§2) applies the same as every other
+ *  `Record`-typed field in `SimulationView`. */
+export function resolveEffectiveSkills(state: SimulationKindState): Record<string, number> {
+  const skills: Record<string, number> = {};
+  for (const key of Object.keys(state.player.skills).sort()) {
+    skills[key] = derivedValueResolver.resolve(`player.skills.${key}`, state.player.skills[key]!, state.activeEffects);
+  }
+  return skills;
+}

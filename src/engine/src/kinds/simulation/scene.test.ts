@@ -72,4 +72,20 @@ describe("scene (10-simulation-kind.md §9)", () => {
     const body = scene(baseState, ctxWithStrings(campaignContent(), strings));
     expect(body.text).toBe("Week 4, {unknownPlaceholder}.");
   });
+
+  it("interpolates the effective (modifier-layered) need, not the raw stored one (§6.1)", () => {
+    const stateWithModifier: SimulationKindState = {
+      ...baseState,
+      activeEffects: [{
+        id: "e1", sourceId: "s1", sourceKind: "item",
+        modifiers: [{ target: "player.needs.energy", operation: "add", value: 20, sourceId: "s1" }],
+        appliedWeek: 1, stacking: "refresh", descriptionKey: "effect.e1", visible: true,
+      }],
+    };
+    const template = "Energy {energy}.";
+    const strings = new Map([["sim.scene.status", template]]);
+    const body = scene(stateWithModifier, ctxWithStrings(campaignContent(), strings));
+
+    expect(body.text).toBe("Energy 75.");
+  });
 });
