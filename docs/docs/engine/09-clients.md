@@ -6,7 +6,7 @@ sidebar_label: Clients
 
 # Clients — The Contract
 
-**Document status:** Revision 1 — new contract, MVP scope
+**Document status:** Revision 2 — browser-demo obligations added after the MVP
 
 **Reading order:** after [`04-core.md`](04-core.md) §7 (the session store, which is the only
 surface a client touches) and §13 (the MCP tools). This makes operational a rule the other
@@ -18,8 +18,9 @@ documents assert four times and never define.
 > Defines the **API coverage checklist** that `MVP.md` §5 and `TODO.md` W16 both require and
 > neither specifies.
 >
-> It covers the text client and the MCP server, which are the MVP's two. Web, mobile and
-> Discord are out of scope (MVP §4) and inherit this contract unchanged when they arrive.
+> It covers the text client and the MCP server, which are the MVP's two, and the public
+> browser demo specified in [`13-playable-web-demo.md`](13-playable-web-demo.md). Mobile and
+> Discord remain deferred and inherit this contract unchanged when they arrive.
 
 ---
 
@@ -121,18 +122,18 @@ checklist."* This is that checklist.
 real client**, not by inspection and not by a unit test of the store. One row per operation,
 one column per MVP client:
 
-| # | Operation | Text client (W16) | MCP tool (W17) | Simulation kind (W50) |
-|---|---|---|---|---|
-| 1 | `listCampaigns` | ☑ | `list_campaigns` ☑ | ☑ |
-| 2 | `createSession` | ☑ | `start_game` ☑ | ☑ |
-| 3 | `resumeSession` | ☑ | `continue_game` ☑ | ☑ |
-| 4 | `getScene` | ☑ | `get_scene` ☑ | ☑ |
-| 5 | `getView` | ☑ | `get_state` ☑ | ☑ |
-| 6 | `getStrings` | ☑ | `get_strings` ☑ | ☑ |
-| 7 | `submitAction` | ☑ | `choose` ☑ | ☑ |
-| 8 | `previewAction` | ☑ | `preview_action` ☑ | ☑ |
-| 9 | `saveGame` | ☑ | `save_game` ☑ | ☑ |
-| 10 | `loadGame` | ☑ | `load_game` ☑ | ☑ |
+| # | Operation | Text client (W16) | MCP tool (W17) | Simulation kind (W50) | Browser demo (W61) |
+|---|---|---|---|---|---|
+| 1 | `listCampaigns` | ☑ | `list_campaigns` ☑ | ☑ | ☐ |
+| 2 | `createSession` | ☑ | `start_game` ☑ | ☑ | ☐ |
+| 3 | `resumeSession` | ☑ | `continue_game` ☑ | ☑ | ☐ |
+| 4 | `getScene` | ☑ | `get_scene` ☑ | ☑ | ☐ |
+| 5 | `getView` | ☑ | `get_state` ☑ | ☑ | ☐ |
+| 6 | `getStrings` | ☑ | `get_strings` ☑ | ☑ | ☐ |
+| 7 | `submitAction` | ☑ | `choose` ☑ | ☑ | ☐ |
+| 8 | `previewAction` | ☑ | `preview_action` ☑ | ☑ | ☐ |
+| 9 | `saveGame` | ☑ | `save_game` ☑ | ☑ | ☐ |
+| 10 | `loadGame` | ☑ | `load_game` ☑ | ☑ | ☐ |
 
 **The "Simulation kind" column is not a third client** — it is the same two clients
 (text, MCP), driven a second time against a kind whose actions carry declared `params`
@@ -182,6 +183,13 @@ same seed, same counting `IdSource`, played to the committed win through the tex
 through MCP independently — asserting identical `Scene`/`PlayerView` at every step, plus a
 client-free replay of the identical action log reaching the identical, golden-filed
 `serialize()` output on repeat.
+
+**Browser-demo evidence** is intentionally unchecked until W61 lands. Its column covers the
+real browser adapter against the Bureaucracy campaign, not calls made directly against the
+store from a component test. `13-playable-web-demo.md` §7 fixes the acceptance shape: all ten
+operations, the same counting `IdSource`, and byte-identical output against the text client.
+The demo may present save/load as same-page checkpoints, but that limitation does not weaken
+the adapter proof.
 
 **The mapping is one-to-one, and that is the point.** Every store operation has exactly one
 MCP tool, and there is no tool that is not an operation. That is what *"no AI-specific path"*
@@ -260,8 +268,9 @@ operations ship unproven.
 
 ## 9. Deferred
 
-- **Web, mobile and Discord clients** (MVP §4). They inherit this contract unchanged; the
-  checklist gains a column each.
+- **Mobile and Discord clients** (MVP §4). They inherit this contract unchanged; the
+  checklist gains a column each. The first web client is no longer deferred: its deliberately
+  narrow public-demo shape is [`13-playable-web-demo.md`](13-playable-web-demo.md).
 - **Client-side localization beyond string lookup.** The MVP ships English only (04 §10.1);
   pluralization and locale-aware formatting are a client concern to specify when a second
   locale exists.

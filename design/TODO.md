@@ -142,6 +142,8 @@
 
 ### Breadth: The Platform
 
+### [ ] W61 — Public Playable Web Demo {#w61}
+
 ### Content Tooling — A First-Class Workstream, Not an Afterthought
 
 ## Known Open Items Carried In
