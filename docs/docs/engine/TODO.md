@@ -1725,14 +1725,72 @@ synchronous; only the already-async store boundary may await platform crypto.
       reloads; accounts, cloud sync or any backend; new gameplay; art, audio, analytics,
       session capture, service workers, a PWA, or a generic reusable web-client package.
 
+### [ ] W62 — Platform Static Host Image {#w62}
+
+**Delivers:** Adds a product-owned ASP.NET Core host under `src/host/`, composed with
+`SubZeroDev.Platform.Hosting`, and packages W61's verified combined static artifact into a
+stateless container. Pull requests build, run, and smoke the image. Merges to `main` publish a
+new immutable GHCR image when relevant hosting inputs change, but do not deploy it; GitHub Pages
+remains the public host.
+
+This is the first Platform consumer and deliberately the smaller half of hosting. The engine
+continues to execute in the browser. A later W63 owns the `.NET Platform edge → Node engine
+workload`, JSON/HTTP boundary, MCP projection, and remote session semantics.
+
+- **Spec:** [`14-platform-static-host.md`](14-platform-static-host.md);
+      [`13-playable-web-demo.md`](13-playable-web-demo.md) §6;
+      the Platform repository's `platform-identity.md`, `engine-hosting-contract.md`, ADR-002,
+      ADR-005, and D3 implementation plan.
+- **Touches:** new `src/host/` web project and tests; the multi-stage container definition and
+      build context; static artifact/route smoke scripts; CI and GHCR publication workflows;
+      package-source configuration without credentials; hosting documentation.
+- **Depends on:** [W61](#w61) and SubZeroDev.Platform S9 package publication. A temporary sibling
+      `ProjectReference` may unblock local development, but W62 cannot merge until the project
+      uses one exact released `SubZeroDev.Platform.Hosting` package version and a clean CI clone
+      restores without `../SubZeroDev.Platform`.
+- **Status:** Not started.
+- **Done when:**
+  - W62.1 `src/host/` is the product composition root. It calls `AddPlatformWebHost()` and maps
+        Platform probes; Platform gains no GameEngine dependency, and the host adds no worker,
+        persistence, migration, outbox, account, or session service.
+  - W62.2 The committed project pins an exact released `SubZeroDev.Platform.Hosting` NuGet
+        version. CI restores it with a short-lived secret that is absent from repository files,
+        Docker arguments, environment layers, runtime image history, and build output.
+  - W62.3 One multi-stage build constructs the site and documentation from the same commit, runs
+        the protected merge, proves the docs subtree byte-identical, publishes the host, and
+        copies only the verified combined artifact into `wwwroot` in the runtime stage.
+  - W62.4 Direct container requests to `/`, `/roadmap/`, `/play/`, and `/docs/` return the
+        expected documents; Platform liveness and readiness succeed; a named unknown route
+        returns `404` with no SPA fallback.
+  - W62.5 The browser demo remains W61's local `SessionStore` client: the container exposes no
+        engine API, game action, or runtime content endpoint, and a production browser smoke
+        observes no such network request.
+  - W62.6 The runtime image contains no Node.js, package-manager cache, source tree, build tools,
+        or registry credential; it runs non-root, supports a read-only root filesystem, writes no
+        product data, performs no normal outbound request, and stops gracefully on `SIGTERM`.
+  - W62.7 PR CI builds and starts the exact image, runs positive route/probe/browser checks, and
+        contains a deliberate missing-or-corrupt-artifact case that proves the gate fails red.
+  - W62.8 A path-filtered `main` workflow publishes a new GHCR image only when host, site,
+        documentation-build, merge, container, or locked dependency inputs change. It records an
+        immutable full-commit tag and digest, creates no `latest` tag, and performs no deployment.
+  - W62.9 The existing GitHub Pages exact-merge workflow and public routes remain unchanged and
+        green; an image publication failure cannot alter the live site or an earlier image.
+- **Out of scope:** public deployment, DNS/TLS/custom domain, traffic cutover or rollback;
+      hosted Node engine/API/MCP/session behavior (W63); persistence, auth, accounts, databases,
+      worker processes; gameplay, campaign, browser-client, or serialization changes; a generic
+      static-site facility in Platform.
+
 - [ ] More clients (Discord; the first web client is [W61](#w61)).
 - [ ] **Additional locales — sliced as [W60](#w60).** The MVP ships English only; the
       authoring→registry types already support more
       ([04 §10.1](04-core.md#101-content-registry)), so this is string tables plus tooling,
       no type change.
 - [ ] AI-assisted authoring (content only; engine validates).
-- [ ] The hosted service — only once all of the above works
-      ([`neaas-platform-vision.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform)).
+- [ ] **W63 proposed — Hosted engine edge.** Follow W62 with the real
+      `.NET Platform edge → Node engine workload` process boundary: generated JSON/HTTP service
+      contract first, MCP as a projection, one in-memory remote session before persistence,
+      accounts, catalogue, or metering. Slice it only after W62 and the Platform package gate are
+      proven ([`neaas-platform-vision.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform)).
 - [ ] Content packs — **sliced as [W58](#w58) and [W59](#w59)** — per
       [`11-content-packs.md`](11-content-packs.md): `resolvePacks` as a
       pure ordered fold; campaigns replace wholesale, strings per key; exact-version

@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 45b87ab988aeda194c987d5b4e251aca9ff3e2bfc327d8529a0c6c58e401171d -->
+<!-- design-digest: 5bdb66374ac19a0f89918cdbabc1a5fd94ab42cec9d847141103225968aaa877 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -15,10 +15,11 @@ directly.
 # Developer Guide
 
 SubZeroDev.GameEngine is a deterministic narrative-game engine written in TypeScript. Node.js
-is the currently proven runtime; W61 adds the first browser delivery without forking the engine.
-The engine separates game-independent execution from game-category rules and campaign data, then
-exposes every game through one session API. Text, MCP, and browser clients are siblings over that
-API; none owns rules or authoritative state.
+is the currently proven runtime; W61 adds the first browser delivery without forking the engine,
+and W62 packages that static delivery behind a product-owned Platform web host without moving
+engine execution to the server. The engine separates game-independent execution from
+game-category rules and campaign data, then exposes every game through one session API. Text,
+MCP, and browser clients are siblings over that API; none owns rules or authoritative state.
 
 Use this guide when integrating the package, implementing a client or campaign, or extending an
 engine-owned kind. The exact public types, signatures, error tables, persisted schemas, and
@@ -45,6 +46,9 @@ assertable invariants are in the
 - A public `/play/` browser demo is designed and sliced as W61 but is not implemented. Its first
   campaign is the completed Bureaucracy MVP; additional campaigns and durable browser saves are
   deliberately later work.
+- A Platform-backed static container is designed and sliced as W62 but is not implemented. It is
+  an undeployed alternative delivery artifact for the W61 bytes, not a hosted engine API; the
+  existing GitHub Pages deployment remains public.
 - Content packs, the `ExperimentSource` port, and privacy-safe session capture are specified but
   not implemented. All three are deferred: content packs and experiment gating to post-MVP
   content-pack work, capture to the hosting layer that gates it.
@@ -235,6 +239,27 @@ combined-site verification so `/`, `/roadmap/`, `/play/`, and `/docs/` survive o
 the protected documentation subtree remains unchanged. The complete product, accessibility,
 failure, parity, and non-goal boundary is in
 [`13-playable-web-demo.md`](engine/13-playable-web-demo.md).
+
+### Hosting the static artifact with Platform
+
+W62 adds a separate ASP.NET Core composition root under `src/host/`. It uses
+`SubZeroDev.Platform.Hosting`'s supported web-host composition and probes, then serves the same
+verified combined artifact at `/`, `/roadmap/`, `/play/`, and `/docs/`. It does not add a worker,
+persistence, accounts, remote sessions, an engine API, or an SPA fallback. Unknown routes return
+`404`, and opening `/play/` still downloads the engine and runs it in browser memory.
+
+Build the site and documentation from one commit inside a multi-stage image, run the protected
+merge, and copy only the published host plus verified artifact into the non-root runtime image.
+The final host project must reference one exact released `SubZeroDev.Platform.Hosting` NuGet
+package. A sibling project reference may unblock local work before Platform S9, but it must not
+merge or become a CI dependency. Keep private-registry credentials in a non-persistent build
+secret; never put them in repository configuration, Docker arguments, or image layers.
+
+PRs build, start, and smoke the image, including supported routes, Platform probes, an unknown
+route, a clean shutdown, and a deliberately broken-artifact case. Relevant merges to `main`
+publish an immutable full-commit tag and digest to GHCR, with no `latest` tag and no deployment.
+GitHub Pages remains authoritative until a later deployment slice. The complete boundary is in
+[`14-platform-static-host.md`](engine/14-platform-static-host.md).
 
 ## Determinism rules that will bite you
 

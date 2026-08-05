@@ -45,6 +45,7 @@ const sidebars: SidebarsConfig = {
         'engine/session-capture',
         'engine/clients',
         'engine/playable-web-demo',
+        'engine/platform-static-host',
         'engine/simulation-kind',
         'engine/content-packs',
         'engine/world-graph-kind',

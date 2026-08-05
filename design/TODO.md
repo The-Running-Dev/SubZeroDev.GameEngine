@@ -144,6 +144,8 @@
 
 ### [ ] W61 — Public Playable Web Demo {#w61}
 
+### [ ] W62 — Platform Static Host Image {#w62}
+
 ### Content Tooling — A First-Class Workstream, Not an Afterthought
 
 ## Known Open Items Carried In
@@ -165,3 +167,5 @@
 ### [x] W48 — preview/client parity: `previewAction` across Engine, session, text and MCP {#w48}
 
 ### [x] W49 — validation, scenario and replay guard: the canonical engine-owned MVP {#w49}
+
+### [ ] W63 — Hosted engine edge. Follow W62 with the real {#w63}
