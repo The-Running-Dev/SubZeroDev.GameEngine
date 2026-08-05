@@ -243,15 +243,19 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
     return run;
   }
 
-  function getSession(sessionId: string): SessionRecord {
+  async function getSession(sessionId: string): Promise<SessionRecord> {
     const record = sessions.get(sessionId);
-    if (!record) {
-      // No ReasonCode fits "the session id itself doesn't exist" — that's a host-routing
-      // error, not a game rejection, and none of SessionStore's methods carry a
-      // CommandResult wrapper to report one through (plan 14, Design section item 1).
-      throw new SessionStoreErrorValue("session", "unknown_session", `session store: unknown sessionId "${sessionId}"`);
+    if (record) return record;
+    try {
+      const stored = await options.persistence?.sessions.get(sessionId);
+      if (stored) {
+        sessions.set(sessionId, stored);
+        return stored;
+      }
+    } catch {
+      throw new SessionStoreErrorValue("session", "storage_failure");
     }
-    return record;
+    throw new SessionStoreErrorValue("session", "unknown_session", `session store: unknown sessionId "${sessionId}"`);
   }
 
   async function getSave(saveId: string): Promise<SaveRecord> {
@@ -318,13 +322,13 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
     },
 
     async getScene(sessionId: string): Promise<Scene> {
-      const record = getSession(sessionId);
+      const record = await getSession(sessionId);
       const state = mustDeserialize(engine, record.blob);
       return engine.scene(state);
     },
 
     async getView(sessionId: string): Promise<PlayerView> {
-      const record = getSession(sessionId);
+      const record = await getSession(sessionId);
       const state = mustDeserialize(engine, record.blob);
       return engine.view(state, record.audience);
     },
@@ -333,7 +337,7 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
       // Validates the session exists even though the returned table doesn't depend on
       // which one — plan 14 Decision 7: the registry has no per-campaign string
       // partition to narrow by, so the whole frozen table is returned.
-      getSession(sessionId);
+      await getSession(sessionId);
       const table: Record<string, string> = {};
       for (const [key, text] of registry.strings) {
         table[key] = text;
@@ -367,14 +371,14 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
           updatedAt: now,
           ...(config.profileId !== undefined ? { profileId: config.profileId } : {}),
         };
-        sessions.set(sessionId, record);
         await writeSession(record);
+        sessions.set(sessionId, record);
         return { sessionId, scene: decoratedEngine.scene(state) };
       });
     },
 
     async resumeSession(sessionId: string): Promise<Scene> {
-      const record = getSession(sessionId);
+      const record = await getSession(sessionId);
       return runExclusive(sessionLocks, sessionId, () =>
         withCommand(sessionId, record.attemptCounter, async (decoratedEngine) => {
           const state = mustDeserialize(decoratedEngine, record.blob);
@@ -384,24 +388,28 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
     },
 
     async submitAction(sessionId: string, actionId: string, params?: ActionParams): Promise<SessionActionResult> {
-      const record = getSession(sessionId);
+      const record = await getSession(sessionId);
 
       return runExclusive(sessionLocks, sessionId, () => {
         // Increments before dispatch, including for a submission that goes on to be
         // rejected — plan 14 Decision 4. `attempt: 1` on the first submission, not `0`.
         // Deferred to inside the lock so two same-session submissions still attempt in
         // the order they acquire it, not the order they were called.
-        record.attemptCounter += 1;
-        const attempt = record.attemptCounter;
+        const attempt = record.attemptCounter + 1;
 
         return withCommand(sessionId, attempt, async (decoratedEngine) => {
           const state = mustDeserialize(decoratedEngine, record.blob);
           const result = decoratedEngine.submitAction(state, actionId, params);
 
           if (result.ok && result.value) {
-            record.blob = decoratedEngine.serialize(result.value);
-            record.updatedAt = clock.now();
-            await writeSession(record);
+            const candidate: SessionRecord = {
+              ...record,
+              attemptCounter: attempt,
+              blob: decoratedEngine.serialize(result.value),
+              updatedAt: clock.now(),
+            };
+            await writeSession(candidate);
+            sessions.set(sessionId, candidate);
 
             // "After a successful action" (04 §7.1) — never on rejection, and never
             // before the engine call above has already returned (plan 15 Decision 3).
@@ -440,7 +448,7 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
     },
 
     async previewAction(sessionId: string, actionId: string, params?: ActionParams): Promise<SessionActionResult> {
-      const record = getSession(sessionId);
+      const record = await getSession(sessionId);
 
       // Shares the session queue with submissions so the preview cannot evaluate one version
       // while a neighbouring command persists another. It deliberately does not increment
@@ -465,7 +473,7 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
     },
 
     async saveGame(sessionId: string): Promise<SaveHandle> {
-      const record = getSession(sessionId);
+      const record = await getSession(sessionId);
       return runExclusive(sessionLocks, sessionId, () =>
         withCommand(sessionId, record.attemptCounter, async (decoratedEngine) => {
           const state = mustDeserialize(decoratedEngine, record.blob);
@@ -525,8 +533,8 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
           updatedAt: now,
           ...(save.profileId !== undefined ? { profileId: save.profileId } : {}),
         };
-        sessions.set(sessionId, record);
         await writeSession(record);
+        sessions.set(sessionId, record);
         return { sessionId, scene: decoratedEngine.scene(state) };
       });
     },
