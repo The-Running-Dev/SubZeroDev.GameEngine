@@ -551,3 +551,14 @@ section {
     scroll-behavior: auto;
   }
 }
+
+/*
+ * The Play CTA drops its underline because it reads as a button, not as prose
+ * -- the padded fill is the affordance. Forced colours discard that fill, so
+ * the boundary has to come back as a border, matching play.css.
+ */
+@media (forced-colors: active) {
+  .cta-play {
+    border: 2px solid CanvasText;
+  }
+}
