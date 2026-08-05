@@ -1730,6 +1730,65 @@ synchronous; only the already-async store boundary may await platform crypto.
       reloads; accounts, cloud sync or any backend; new gameplay; art, audio, analytics,
       session capture, service workers, a PWA, or a generic reusable web-client package.
 
+### [ ] W63 — Absurd Game Interface {#w63}
+
+**Delivers:** Rebuilds the public story shelf and story-graph play surface so it reads as a
+game rather than a styled form. The interface becomes an original absurd adventure cabinet:
+a theatrical scene viewport, tactile action deck, satirical status console, dossier-like story
+shelf, and brief mechanical transitions. Its inspiration is the graphic-adventure staging of
+*Indiana Jones and the Fate of Atlantis* and the busy life-board energy of *Jones in the Fast
+Lane*; it copies neither game's assets, layout, characters, logos, fonts, sounds, or trade dress.
+
+The slice is presentation-only. Existing `BrowserClient` DTOs and `SessionStore` remain the
+only game-facing boundary, and the redesign may not add rules, rewrite campaign text, infer
+hidden state, reorder actions, or change serialized outcomes. “Absurd” is a controlled visual
+language, not maximum noise: one hero joke and at most two minor jokes per visible state.
+
+- **Spec:** [`14-game-interface.md`](14-game-interface.md);
+      [`13-playable-web-demo.md`](13-playable-web-demo.md) §§1–3, §7–§9;
+      [09 §1](09-clients.md#1-the-rule-made-testable),
+      [§2](09-clients.md#2-the-only-surface),
+      [§6](09-clients.md#6-projection-is-not-optional).
+- **Touches:** `site/src/play/` — shelf, game cabinet, action deck, status console, transitions,
+      responsive states, original local assets, component/browser/visual/accessibility tests;
+      static-build verification for asset budgets and the direct `/play/` route. No engine,
+      campaign, replay-fixture, or contract-type change.
+- **Depends on:** [W61](#w61) and the multi-campaign story shelf already present on `main`.
+- **Status:** Not started.
+- **Done when:**
+  - W63.1 Ready, playing, busy, unavailable, rejected, persistence-warning, and ended states
+        all use the cabinet visual grammar and remain distinguishable without colour or motion.
+  - W63.2 The story shelf is a keyboard-navigable dossier/archive composition; selecting a
+        story opens a labelled briefing, content notices remain plain and accessible, and
+        returning from play restores the selected dossier and shelf position.
+  - W63.3 The scene viewport renders authored text unchanged; the action deck preserves action
+        order and full labels; the status console renders only `PlayerView`. No raw node id,
+        `LocKey`, seed, action log, hidden variable, or opaque kind state appears.
+  - W63.4 Every visible-stat control prints its value in addition to any gauge treatment. A
+        campaign with no visible stats receives an honest empty-state prop, not a fabricated
+        score or progress measure.
+  - W63.5 All art is original local PNG/JPG or CSS-native decoration. A missing decorative
+        asset leaves a complete readable cabinet; no reference-game asset, font, logo, sound,
+        character, screenshot, traced composition, or trade dress ships.
+  - W63.6 One full Bureaucracy run and both Lucifer roles are playable through the redesigned
+        UI. Existing browser/text-client parity still produces byte-identical serialized
+        outcomes, proving presentation did not become game logic.
+  - W63.7 Visual snapshots cover ready, playing, unavailable-choice, persistence-warning, and
+        ended states at 320 px, 390 px, 768 px, and 1280 px, with no clipped authored text,
+        horizontal overflow, or action below an inaccessible internal scroll region.
+  - W63.8 Keyboard-only, automated accessibility, forced-colours, 200% zoom, long-text, and
+        missing-asset checks pass. Focus moves after committed scenes, restores after a
+        briefing/dialog closes, and never moves merely because decoration animates.
+  - W63.9 Motion is limited to brief state punctuation; reduced motion removes transforms,
+        parallax, wipes, flicker, and staged delay. No action waits for animation and no
+        permanent timer runs while the page is idle.
+  - W63.10 Initial decorative payload is at most 1.5 MB compressed, no single decorative asset
+        exceeds 500 KB, phone layouts do not fetch desktop backdrops, `/play/` remains a direct
+        static route, and the page performs no runtime request for engine or campaign content.
+- **Out of scope:** new campaigns, mechanics, projections, engine APIs, a visual language for
+      simulation/world-graph, copied reference material, canvas/WebGL, point-and-click movement,
+      a verb parser, mandatory audio, voice acting, cut-scenes, or procedural art.
+
 - [ ] More clients (Discord; the first web client is [W61](#w61)).
 - [ ] **Additional locales — sliced as [W60](#w60).** The MVP ships English only; the
       authoring→registry types already support more

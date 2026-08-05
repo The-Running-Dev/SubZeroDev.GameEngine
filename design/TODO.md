@@ -144,6 +144,8 @@
 
 ### [ ] W61 — Public Playable Web Demo {#w61}
 
+### [ ] W63 — Absurd Game Interface {#w63}
+
 ### Content Tooling — A First-Class Workstream, Not an Afterthought
 
 ## Known Open Items Carried In

@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 5ab5fa8fbbed4d66867de57df800d6a8855a18958ca20724a5eac250ad67e978 -->
+<!-- design-digest: e67a4a44106978204df6f37df1929f700c1b274f94608335988751679228ab5e -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -238,6 +238,37 @@ combined-site verification so `/`, `/roadmap/`, `/play/`, and `/docs/` survive o
 the protected documentation subtree remains unchanged. The complete product, accessibility,
 failure, parity, and non-goal boundary is in
 [`13-playable-web-demo.md`](engine/13-playable-web-demo.md).
+
+### Styling the game interface
+
+W63 redesigns the existing story shelf and story-graph play surface as an original absurd
+adventure cabinet: a dossier-like campaign shelf, dominant scene stage, tactile action deck,
+and projected status console. The reference games supply qualities—graphic-adventure staging,
+life-board density, and 1990s tactility—not assets or a screen to copy. Do not copy or trace
+their art, layouts, characters, logos, fonts, sounds, or trade dress.
+
+Keep this work above the client boundary. Components render the `BrowserClient` DTOs they
+already receive; visual metadata such as campaign accent, backdrop, emblem, and eyebrow is a
+closed site-owned mapping with a complete default. It cannot affect action order, availability,
+resolution, persistence, or serialization. The scene renders authored prose unchanged, the
+action deck retains full labels and engine order, and the status console reads only
+`PlayerView`. Never surface raw node ids, localization keys, seed, action log, hidden variables,
+or opaque kind state.
+
+Treat absurdity as a budget: one hero joke and at most two minor jokes per visible state. A joke
+may decorate a shelf, status prop, save flourish, or ending placard; it may not replace campaign
+text, content notices, disabled reasons, error text, control labels, or accessible names. Every
+gauge prints its value, campaigns without visible stats get an honest empty state, and missing
+decorative art leaves a complete CSS interface.
+
+The responsive reading order is marquee, scene, actions, then projected status. At 320 px the
+trim simplifies and controls become full width; at desktop widths the status console may sit
+beside the scene. Keep native controls, visible focus, forced-colours support, 200% zoom, and
+WCAG AA contrast in every campaign theme. Reduced motion removes transforms, parallax, wipes,
+flicker, and staged delay completely; authoritative state never waits for animation. Original
+raster art is PNG/JPG, local to the static build, and stays inside the W63 asset budgets. The
+complete visual grammar, proof matrix, and non-goals are in
+[`14-game-interface.md`](engine/14-game-interface.md).
 
 ## Determinism rules that will bite you
 
