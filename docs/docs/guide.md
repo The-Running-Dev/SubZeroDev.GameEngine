@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 45b87ab988aeda194c987d5b4e251aca9ff3e2bfc327d8529a0c6c58e401171d -->
+<!-- design-digest: cbf8ae118930385ed15f2466dd7affd522315d6c1827ebd529096326c26702b5 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -214,9 +214,12 @@ fallback opportunity.
 
 W61 adds one static `/play/` route to the existing React site. Keep its composition root separate
 from its client: the root may assemble the engine, story-graph kind, validated Bureaucracy
-campaign, and session store, while the browser adapter and React components receive only the
-`SessionStore` interface. The package root must export the committed campaign builder; do not
-deep-import a campaign or let a component construct a registry.
+campaign, and session store. Before start, it resolves the configured campaign title and passes a
+frozen startup configuration with that plain title and campaign id to the page. The browser
+adapter and React components use `SessionStore` as their only game-facing dependency; they do not
+read a registry, and `Start` remains the action that creates the session. The package root must
+export the committed campaign builder; do not deep-import a campaign or let a component construct
+a registry.
 
 The same supported engine entry point must bundle for Node.js and the browser. Remove Node-only
 runtime filesystem/crypto imports and unguarded Node.js globals from that graph rather than
