@@ -122,6 +122,32 @@ describe("the phone reading model (W66.2)", () => {
     assertNoHorizontalOverflow();
   });
 
+  it("lands a committed action on the new turn's scene page (W66.5)", async () => {
+    await page.viewport(320, 900);
+    await emulateMedia([{ name: "prefers-reduced-motion", value: "reduce" }]);
+    const { container, user } = await reachPlaying();
+
+    screen.getByRole("button", { name: /choices? ⌄/ }).click();
+    const firstChoice = await waitFor(() => {
+      const button = container.querySelector<HTMLButtonElement>(
+        ".action-card button:not(:disabled)",
+      );
+      expect(button).toBeTruthy();
+      return button!;
+    });
+    await user.click(firstChoice);
+
+    await waitFor(() => {
+      const region = screen.getByRole("region", { name: "Scene" });
+      expect(region).toHaveFocus();
+      const rect = region.getBoundingClientRect();
+      expect(rect.top).toBeLessThan(window.innerHeight);
+      expect(rect.bottom).toBeGreaterThan(0);
+    });
+
+    assertNoHorizontalOverflow();
+  });
+
   it("scrolls without animation when reduced motion is preferred (W66.10)", async () => {
     await page.viewport(320, 900);
     await emulateMedia([{ name: "prefers-reduced-motion", value: "reduce" }]);
