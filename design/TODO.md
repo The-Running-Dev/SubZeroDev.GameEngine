@@ -152,7 +152,7 @@
 
 ### [x] W64 — Replayable Story Campaign Expansion {#w64}
 
-### [ ] W65 — Browser Test Harness for the Site {#w65}
+### [x] W65 — Browser Test Harness for the Site {#w65}
 
 ### [ ] W66 — The Play Surface on a Phone {#w66}
 

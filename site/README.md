@@ -21,8 +21,30 @@ npm run dev
 npm run check
 ```
 
-`npm run check` verifies formatting, linting, TypeScript, component tests, the production build,
-and the static social metadata in the built HTML.
+`npm run check` verifies formatting, linting, TypeScript, component tests, the real-browser
+suite, the production build, and the static social metadata in the built HTML.
+
+## Real-browser testing (W65)
+
+`src/**/*.browser.test.{ts,tsx}` specs run in an actual Chromium tab (Playwright, via
+`vitest.browser.config.ts`), not jsdom — jsdom performs no layout, so it cannot back a
+computed-style, hit-area, or visual-snapshot assertion. Everything else keeps running under
+`vite.config.ts`'s jsdom project.
+
+```powershell
+npm run test:browser
+```
+
+Visual snapshots (`toMatchScreenshot()`) live under each spec's `__screenshots__/` and are
+committed. A run against a missing or changed reference fails on purpose, so a human reviews
+the rendering before it becomes the new baseline:
+
+```powershell
+npm run test:browser:update
+```
+
+Review the written/changed `.png` files (a diff viewer or `git diff --stat` on the
+`__screenshots__/` directories is enough) before committing them.
 
 ## Boundaries
 

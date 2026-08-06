@@ -266,15 +266,27 @@ so they are not forgotten.
   simulation next changes its content boundary; migrate that kind deliberately rather than
   turning W45 into an unrelated repo-wide rewrite.
 
-- **W63 (Absurd Game Interface)** — marked done on manual review at 320/390/768/1280 px
-  rather than a dedicated automated suite. `site/` has no visual-regression or axe-style
-  accessibility scanner; W63.7 (visual snapshots) and W63.8 (automated accessibility,
-  forced-colours, 200% zoom, long-text checks) were proven by direct inspection, not by a
-  committed test. The root cause is that `site/` tests run in jsdom, which performs no layout
-  at all: no computed size, hit area, or overflow can be asserted there. **Now sliced as
-  W65**, which stands up a real-browser harness, scanner, and snapshots and baselines the
-  shipped rendering before W66 recomposes it. Close or narrow this entry as part of W65.8
-  rather than leaving it standing beside the harness that resolves it.
+- **W63 (Absurd Game Interface) — harnessed by W65; W63.7/W63.8 narrowed, not closed.** W63 was
+  marked done on manual review at 320/390/768/1280 px because `site/` had no visual-regression
+  or axe-style accessibility scanner and its tests ran in jsdom, which performs no layout at
+  all — no computed size, hit area, or overflow could be asserted there. W65 stood up a real
+  Chromium harness (`site/vitest.browser.config.ts`, the playwright browser provider) with
+  committed self-tests proving each capability fails when the condition it checks is violated
+  (`site/src/test/browser/assertions.browser.test.ts`), an axe-core scan across shelf,
+  briefing, notice, playing, unavailable-choice, rejected, and ended
+  (`site/src/play/browser/accessibility.browser.test.tsx`), and committed baseline snapshots for
+  playing, unavailable-choice, persistence-warning, and ended at 320/390/768/1280 px
+  (`site/src/play/browser/visual-baseline.browser.test.tsx`) — the pre-W66 baseline W66 must
+  diff against. That is real infrastructure, but it does not fully cover what W63.7/W63.8
+  actually ask for: the harness's own hit-area/gap/font/line-height assertions
+  (`assertMinFontSize`/`assertMinLineHeight`/`assertMinHitArea`/`assertMinGap`) are self-tested
+  against synthetic markup only, never applied to a real rendered `PlayApp` control; there is no
+  ready-state visual snapshot alongside playing/unavailable-choice/persistence-warning/ended;
+  and W63.8's keyboard-only, 200%-zoom, long-text, and missing-asset checks, plus forced-colours
+  *application* behaviour (as opposed to the `matchMedia` signal alone), are not exercised at
+  all. **Revisit when** a future slice drives those assertions and scenarios against the actual
+  rendered UI; this entry stays open, narrowed to that remaining gap, rather than closed beside
+  a harness that does not yet resolve it.
 
 *Add to this register whenever a decision is deferred or an assumption is made — rather than
 leaving it in a commit message or a chat, where the next person will not find it.*
