@@ -6,6 +6,14 @@ import { fileURLToPath } from "node:url";
 
 const siteRoot = fileURLToPath(new URL(".", import.meta.url));
 
+// The docs-template container (Alpine) has no glibc, so Playwright's own
+// bundled Chromium download cannot run there and `playwright install
+// --with-deps` fails outright (apk, not apt-get). CI installs Alpine's
+// system `chromium` package instead and points here at it; everywhere else
+// (local dev, the ubuntu-latest `engine` job) leaves this unset and gets
+// Playwright's normal managed browser.
+const systemChromiumPath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+
 // Real-browser counterpart to vite.config.ts's jsdom project (W65). jsdom
 // performs no layout, so it cannot back a computed-style, hit-area, or
 // horizontal-overflow assertion -- these specs run inside an actual Chromium
@@ -32,7 +40,23 @@ export default defineConfig({
     // per-file CDP session emulation in viewport.browser.test.tsx) isolated.
     browser: {
       enabled: true,
-      provider: playwright(),
+      // launchOptions is a provider-level option (applies to every
+      // instance), not a per-instance one -- @vitest/browser-playwright
+      // reads only `this.options.launchOptions` when it opens the browser.
+      provider: playwright(
+        systemChromiumPath
+          ? {
+              launchOptions: {
+                executablePath: systemChromiumPath,
+                // Running as root in the container (no unprivileged user is
+                // set up in the docs-template image) trips Chromium's
+                // sandbox; only added when we've already switched to the
+                // system browser, i.e. only in that container.
+                args: ["--no-sandbox"],
+              },
+            }
+          : undefined,
+      ),
       headless: true,
       screenshotFailures: false,
       instances: [{ browser: "chromium" }],

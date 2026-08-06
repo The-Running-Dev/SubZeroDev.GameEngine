@@ -104,13 +104,20 @@ jobs:
             # is what a contributor runs locally before pushing, made a
             # required step here too, not a weaker CI-only substitute for it.
             # The real-browser suite needs Chromium installed first -- it is
-            # not part of the base image, unlike Node.
+            # not part of the base image, unlike Node. `playwright install
+            # --with-deps` shells out to apt-get, but this container
+            # (docs-template) is Alpine, so that step just fails outright
+            # ("apt-get: not found"). Install Alpine's own `chromium` package
+            # instead and point vitest.browser.config.ts at it via
+            # PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH.
             - name: Build and verify landing page
+              env:
+                  PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH: /usr/bin/chromium-browser
               run: |
+                  apk add --no-cache chromium
                   npm --prefix src/engine ci
                   npm --prefix src/engine run build
                   npm --prefix site ci
-                  npx --prefix site playwright install --with-deps chromium
                   npm --prefix site run check
 
             # Overlays the landing page onto the docs build -- overwrites the
