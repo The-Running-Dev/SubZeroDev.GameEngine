@@ -372,6 +372,13 @@ interface Engine {
   serialize(state: GameState): string;                  // §10 (canonical)
   deserialize(data: string): CommandResult<GameState>;
   migrate(data: string): CommandResult<GameState>;      // §10
+
+  /** The same engine, with every event stamped for one command
+   *  ([`05-observability.md`](05-observability.md) §6.1). The session store builds a
+   *  short-lived decorator per command and swaps it in here, rather than the pure engine
+   *  ever holding a clock or per-command context of its own. Listed here because this is
+   *  the canonical `Engine` block; 05 §6.1 owns the reasoning. */
+  withEmitter(emitter: Emitter): Engine;
 }
 ```
 
@@ -382,7 +389,8 @@ submitAction(state, actionId, params):
   1. kind = kinds[state.kindId];  seq = state.actionLog.length   // 0-based, monotonic
   2. handle = rngHandleFor(state.seed, { kind:"action", seq })   // §8 — derived, not carried
   3. emit = resolutionEmitter(emitter, state.gameId, seq)        // 05 §4 — ordinal starts at 0
-  4. result = kind.advance(state.kindState, actionId, params, { registry, campaign, rng: handle, seq, emit })
+  4. result = kind.advance(state.kindState, actionId, params,
+       { registry, campaign, rng: handle, derive, seq, emit })   // §3.1 — `derive` closes over the seed
   5. if result.error → return { ok:false, errors:[result.error] }, state unchanged  // ActionResult.errors is a list (§12)
   6. newState = {
        ...state,
@@ -417,7 +425,7 @@ createGame(config):
   2. seed = config.seed ?? ids.newSeed()                     // 06 §5.1 — recorded in the envelope
   3. startHandle = rngHandleFor(seed, { kind:"system", system:"start", seq:0 })   // §8
   4. startEmit = resolutionEmitter(emitter, gameId, 0)            // 05 §4 — seq 0, ordinal 0
-  5. init = kind.initialState(campaign, { registry, campaign, rng: startHandle, seq: 0, emit: startEmit })
+  5. init = kind.initialState(campaign, { registry, campaign, rng: startHandle, derive, seq: 0, emit: startEmit })
      // a kind that settles at start (story-graph, 03 §8.2) draws its initial
      // random transitions from startHandle, and reports "ended" if it settled to one
   6. return the envelope { kindId: campaign.kindId, campaignId: campaign.id,
@@ -1133,6 +1141,8 @@ const BASE_REASON_CODES = [
   "save_requires_migration", "migration_failed",
   // host persistence (§7.2)
   "unknown_session", "unknown_save", "storage_failure",
+  // the audit vocabulary — a `StateChange.reason`, not a rejection (below)
+  "achievement_unlocked",
 ] as const;
 ```
 
@@ -1140,7 +1150,7 @@ const BASE_REASON_CODES = [
 > vocabulary one *turn* needs. Everything after them was added by a unit that found a
 > cross-kind failure mode with no code that fitted — the kernel's three rejections, registry
 > assembly's three, the core's own Tier-1 four, the profile store's three, the save
-> boundary's two, host persistence's three. That is the intended shape: a code is registered when a real caller
+> boundary's two, host persistence's three, and the audit vocabulary's one. That is the intended shape: a code is registered when a real caller
 > produces it, not pre-declared from this list. Because `ReasonCode` is *additive, never
 > renamed* (above), growth costs nothing — a client switching on a code it has never seen
 > falls through to the localized message, which the core ships for every base code. Expect
@@ -1217,6 +1227,18 @@ analogous concept, provided it documents that shape here the same way. What they
 *pattern*: an audit record's `path` names the thing that changed using the same string a
 `Condition` would read to check it, and `reason` identifies *why* using a stable code a
 kind-agnostic session store (or a client) can switch on without string-matching prose.
+
+> **A `StateChange.reason` is a registered `ReasonCode` like any other, and both of these
+> are registered.** `StateChange.reason` is typed `ReasonCode`, and `visible` gates client
+> display — so an audit record can reach a client exactly the way a rejection can, and owes
+> a resolvable message for the same reason. Neither of the two above had one until
+> reconciliation registered them, which is why this is now stated rather than assumed:
+> `achievement_unlocked` is **base** vocabulary (`core.reason.achievement_unlocked`) because
+> the session store's profile upsert (§7.1) switches on it without knowing which kind
+> emitted it, while `consequence_applied` is **kind-owned**
+> (`story-graph.reason.consequence_applied`, `kinds/story-graph/reasons.ts`) because only
+> that kind has a consequence. A kind inventing a third audit reason registers it the same
+> way; there is no separate audit namespace exempt from §12's completeness rule.
 
 **Kind-owned reason codes carry their own `messageKey` namespace, distinct from event
 names.** A kind's `Kind.reasonCodes` need a localized message the same way the base set
@@ -1848,6 +1870,19 @@ rule is the same one — every registered code owes a localized message (04 §12
 | `no_reachable_choice` | 2 | no `ChoiceNode` is reachable from the start — valid but non-interactive (04 §11) |
 | `no_reachable_ending` | 2 | no reachable ending |
 
+**An audit code — carried on a `StateChange`, reported to nobody in particular.** It is
+neither a rejection nor a validation finding, and it is registered here for the same single
+reason both halves above are: `StateChange.reason` is typed `ReasonCode` and `visible` gates
+client display (04 §12), so a code a client can be handed owes a resolvable message.
+
+| Code | When |
+|---|---|
+| `consequence_applied` | the coalesced variable-write `StateChange` a resolved consequence emits (§5, 04 §12) — one per touched variable per batch, `visible` mirroring the variable's own declaration |
+
+Its sibling `achievement_unlocked` (§7) is **not** here: it is base vocabulary (04 §12),
+because the session store's profile upsert (04 §7.1) switches on it without knowing which
+kind emitted it, whereas a consequence is this kind's own concept.
+
 `unknown_condition_field` sits in the validation half because that is where it is *found* —
 but it is also the one code here a resolution could in principle raise, if a condition
 reached `advance` unvalidated. It cannot, on a frozen registry; the code is single, and which
@@ -2242,10 +2277,11 @@ interface SimulationKindState {
 > upstream. Derived values do not belong in serialized state: they can disagree with the
 > actions they summarise, and a disagreement is unresolvable. They are computed on read (§4.1).
 
-The rest of this section restates every field type `SimulationKindState` names above, except
-`PlayerState` (§6, deferred) — the field-level port `plans/36-simulation-kind-programme.md`
-calls **W27** (assigned as a real `W` number when this unit is cut), sized against upstream
-§5.1, §5.3–§5.6.
+The rest of this section restates every field type `SimulationKindState` names above.
+`PlayerState` is the one exception, and only because it is large enough to own a section:
+§6 restates it in full. This section's own port — `plans/36-simulation-kind-programme.md`
+proposed it as W27 and it was cut as **W32** — is sized against upstream §5.1, §5.3–§5.6.
+§15's table is the single place that maps every proposed number to the one actually cut.
 
 Two primitives recur across several of these types and are introduced once, here, rather than
 per-field: **money is integer cents**, and **rates are integer basis points**, matching
@@ -2890,8 +2926,8 @@ to the phase that moved). Superseded, not merely absent.
 Nine areas: identity, finances, needs, attributes, education, career, housing, inventory,
 relationships (upstream §8.1–§8.9), plus the base/derived-value layer they read through
 (upstream §7). Both are ported below — the field-level port
-`plans/36-simulation-kind-programme.md` calls **W28** (assigned as a real `W` number when this
-unit is cut), sized against upstream §7 and §8.1–§8.9.
+`plans/36-simulation-kind-programme.md` proposed as W28 and cut as **W33**, sized against
+upstream §7 and §8.1–§8.9.
 
 - **Money is integer cents; rates are integer basis points** — `Cents`/`BasisPoints` (§2),
   used throughout finances, career and housing below.
@@ -3325,8 +3361,8 @@ availability and memories, none of which differ per observer.
 Jobs, courses, housing, items, events, NPCs, goals, scenarios, agents (upstream §14.1–§14.9),
 plus `Modifier` and `Reward` (upstream §13.3–§13.4) — simulation mechanics hanging off
 `Condition`, not condition operators, so they belong here rather than in §8. Ported below —
-the field-level port `plans/36-simulation-kind-programme.md` calls **W29** (assigned as a real
-`W` number when this unit is cut), sized against upstream §13.3–§13.4 and §14.1–§14.9.
+the field-level port `plans/36-simulation-kind-programme.md` proposed as W29 and cut as
+**W34**, sized against upstream §13.3–§13.4 and §14.1–§14.9.
 
 These are **campaign data**, loaded through the content registry (04 §10.1) exactly as
 story-graph campaigns are. A simulation campaign is `kindId: "simulation"` plus data
@@ -5816,7 +5852,12 @@ so a disagreement is a client showing an option the engine will refuse — the f
 ## 11. Reason Codes
 
 Codes this kind adds to the base set (`Kind.reasonCodes`, 04 §3, §12). Each needs a
-localized message or registry validation fails:
+localized message or registry validation fails. They divide by *when they are checked*, and
+the division matters because the two halves reach different audiences — the same split
+[`03-story-graph-kind.md`](03-story-graph-kind.md) §8.3 makes for the flagship kind.
+
+**Resolution codes — checked at action time, reported to the player.** These ride out on a
+rejected `AdvanceResult.error` (and its accompanying `OutcomeMessage`, 04 §3).
 
 | Code | When |
 |---|---|
@@ -5836,6 +5877,59 @@ localized message or registry validation fails:
 
 Reused from the base set: `unknown_action`, `requirement_unmet`, `session_ended`,
 `action_not_available`.
+
+**Validation codes — checked at registry build time, reported to the author.** These are
+this kind's own `validateCampaign` findings (§15), and a player never sees one: a campaign
+carrying any Tier-1 code among them never reaches a frozen registry at all (04 §11). They are
+registered on `Kind.reasonCodes` alongside the resolution codes because the completeness rule
+is the same one — every registered code owes a localized message (04 §12).
+
+This kind's list is long because its content is: a map, a terrain graph, ten catalogues and a
+scenario are all validated, and a single `invalid_definition` covering all of them would tell
+an author nothing about which of twenty-odd shapes was wrong. That is a deliberate trade of
+vocabulary size for author-facing precision, and it is the reason this half is enumerated
+rather than summarized.
+
+| Code | Tier | When |
+|---|---|---|
+| `invalid_world_graph_content` | 1 | `Campaign.content` is not shaped like world-graph content at all |
+| `invalid_kind` | 1 | the campaign's declared kind is not `world-graph` |
+| `invalid_id` | 1 | an id is missing, empty, or contains a `.` (§3.2's one shape constraint) |
+| `duplicate_id` | 1 | the same id is used twice within one catalogue |
+| `unknown_reference` | 1 | a reference names an id absent from its catalogue |
+| `invalid_array` | 1 | a required catalogue array is missing |
+| `invalid_definition` | 1 | a catalogue entry is not a valid definition |
+| `invalid_definition_text` | 1 | a definition has no name or description key |
+| `missing_string_key` | 1 | a referenced `LocKey` is not declared (reused from the base set's own meaning, 04 §12) |
+| `invalid_integer` | 1 | a numeric field that must be a positive integer is not |
+| `unsafe_integer` | 1 | a number falls outside the safe integer range |
+| `invalid_cost` | 1 | a cost is negative |
+| `invalid_condition` | 1 | a `Condition` is malformed |
+| `condition_depth_exceeded` | 1 | a `Condition` nests deeper than the allowed limit |
+| `invalid_effect` | 1 | an effect is malformed |
+| `invalid_counter_increment` | 1 | a counter increment is not a non-negative integer |
+| `position_out_of_bounds` | 1 | an authored position falls outside the map |
+| `missing_spawn` | 1 | the map declares no guest spawn point (§3.2 requires at least one) |
+| `missing_exit` | 1 | the map declares no exit (§3.2 requires at least one) |
+| `spawn_not_traversable` | 1 | a spawn point sits on non-walkable terrain |
+| `exit_not_traversable` | 1 | an exit sits on non-walkable terrain |
+| `invalid_edge_cost` | 1 | an explicit `PathCell.edgeCost` is not positive |
+| `invalid_footprint` | 1 | a building footprint is not a positive size |
+| `invalid_building_geometry` | 1 | a building declares no entrances or no allowed rotations |
+| `invalid_inventory` | 1 | inventory units or capacity are inconsistent |
+| `invalid_work_rate` | 1 | a staff work rate is not positive effort per tick |
+| `invalid_time_limit_pair` | 1 | a scenario declares a time limit without its failure, or the reverse |
+| `disconnected_map` | 2 | the map has no traversable edges |
+| `inert_scenario` | 2 | a scenario declares neither objectives nor failures |
+
+`duplicate_id` and `missing_string_key` are the two names that also exist elsewhere —
+`duplicate_id` in `story-graph` and `simulation`, `missing_string_key` in the base set. That
+is deliberate reuse of a meaning, not a collision: `ReasonCode` is a flat string vocabulary
+namespaced only by the *message* key (`world-graph.reason.duplicate_id`), so the same failure
+reads the same way across kinds and a client switching on it needs no per-kind branch.
+
+The shipped set lives in `src/engine/src/kinds/world-graph/reasons.ts`, and
+`validate.ts` is the only producer of this half.
 
 ---
 

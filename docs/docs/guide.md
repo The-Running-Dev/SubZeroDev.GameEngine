@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: e00ac21ba2cb400582b752e0697e12294e23ce7ab193917f74bb9ba4f376e994 -->
+<!-- design-digest: dc6378b8a0df4078e7512aeaa0dc60ebaf7b1ca043890e62f2200564d8556161 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -30,8 +30,9 @@ assertable invariants are in the
 
 - The core engine, content builder, validation, session/profile stores, save migration,
   observability, deterministic harness, and cross-version replay are implemented.
-- `story-graph` is complete through content, projection, text client, and MCP. The Bulgaria
-  Bureaucracy arc and four additional arcs provide real fixtures.
+- `story-graph` is complete through content, projection, text client, and MCP. Six campaigns —
+  the Bulgaria Bureaucracy arc, four further Bulgaria arcs, and Lucifer Chronicles — provide
+  real fixtures.
 - `simulation` has state, content definitions, weekly resolution, validation, a registered kind,
   a full player projection (`SimulationView`), and Stable Life winning/losing replay fixtures.
   Text-client and MCP parity now match `story-graph`'s row of the API coverage checklist, one
@@ -43,9 +44,11 @@ assertable invariants are in the
   `design/90-decisions.md`, *Known-and-retained implementation gaps: `world-graph` tick
   systems*. It is registered and usable the same way `story-graph` and `simulation` are, within
   that scope.
-- A public `/play/` browser demo runs the Bureaucracy MVP locally in the browser through the
-  same session-store boundary as the text and MCP clients. Additional campaigns and durable
-  browser saves are deliberately later work.
+- A public `/play/` browser demo runs the six shipped `story-graph` campaigns locally in the
+  browser, presented as a story shelf, through the same session-store boundary as the text and
+  MCP clients. Bureaucracy remains the proof fixture the client-parity and replay tests drive.
+  The route is bounded to one kind: `simulation` and `world-graph` surfaces are not part of it.
+  Durable browser saves are specified but the adapter does not yet restore.
 - A Platform-backed static container is designed and sliced as W62 but is not implemented. It is
   an undeployed alternative delivery artifact for the W61 bytes, not a hosted engine API; the
   existing GitHub Pages deployment remains public.
@@ -121,6 +124,15 @@ failure boundary: a Tier 1 error means there is no registry and therefore no pla
   and similar structures that may be deliberate.
 - **Tier 3, simulation/replay:** unwinnable states, never-satisfiable actions, and behavior that
   cannot be decided by reading definitions alone.
+
+Tier 1 and Tier 2 findings come back as reason codes, and each kind publishes its own set
+alongside the codes it uses to reject a player action — they are registered together but reach
+different readers, and a validation code never reaches a player, because a campaign carrying a
+Tier 1 finding never produces a registry at all. How specific those codes are is a per-kind
+choice: `story-graph` publishes twelve, `world-graph` twenty-nine, because its content is a map,
+a terrain graph, ten catalogues and a scenario and one generic "invalid definition" would not
+tell an author which of them was wrong. The per-kind lists are in
+[the contract](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/design/20-contract.md).
 
 AI-authored content takes this same path. AI may draft campaign data; it does not author or load
 executable kinds.
@@ -245,12 +257,25 @@ Client code switches on stable reason codes and renders localization keys. It ne
 English error sentence. A missing localization key is a registry-build defect, not a client
 fallback opportunity.
 
+Two things follow from that which are easy to get wrong when you implement a client or a kind:
+
+- **A rejection gives you both an error and a message, and you may render either.** Every kind
+  attaches one visible `OutcomeMessage` built from the same localization key its
+  `ValidationError` carries, so a client that renders only `messages` still shows the player why
+  an action failed. If you write a kind, your rejection path owes that message too.
+- **Audit records carry reason codes as well.** The `reason` on a `StateChange` is an ordinary
+  registered code with a localized message, not a private label — so a visible change is
+  renderable the same way a rejection is. `achievement_unlocked` is core vocabulary because the
+  session store acts on it without knowing the kind; `consequence_applied` belongs to
+  `story-graph`. A kind adding an audit reason registers it like any other code.
+
 ### Building the public browser demo
 
-W61 adds one static `/play/` route to the existing React site. Keep its composition root separate
-from its client: the root may assemble the engine, story-graph kind, validated campaigns, and
-session store. Before start, it resolves the configured campaign title and passes a frozen startup
-configuration with that plain title and campaign id to the page. The browser adapter and React
+One static `/play/` route sits on the existing React site, presenting the shipped `story-graph`
+campaigns as a shelf. Keep its composition root separate from its client: the root may assemble
+the engine, story-graph kind, validated campaigns, and session store. Before start, it resolves
+each campaign's title and passes a frozen startup configuration carrying those plain titles and
+campaign ids to the page. The browser adapter and React
 components use `SessionStore` as their only game-facing dependency; they do not read a registry,
 and `Start` remains the action that creates the session.
 

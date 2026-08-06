@@ -17,4 +17,12 @@ describe("CORE_REASON_MESSAGES", () => {
   it("has exactly one entry per base code — no extras, no gaps", () => {
     expect(CORE_REASON_MESSAGES.size).toBe(BASE_REASON_CODES.length);
   });
+
+  it("resolves the reason the achievement-unlock StateChange carries (04 §12)", () => {
+    // `kinds/story-graph/achievements.ts` emits `reason: "achievement_unlocked"` with
+    // `visible: true`, and `session/store.ts` switches on it kind-agnostically — so it is
+    // base vocabulary, and a client must be able to look its message up.
+    expect(BASE_REASON_CODES).toContain("achievement_unlocked");
+    expect(CORE_REASON_MESSAGES.get("core.reason.achievement_unlocked")).toBeTypeOf("string");
+  });
 });

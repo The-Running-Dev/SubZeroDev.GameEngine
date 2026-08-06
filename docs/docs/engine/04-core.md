@@ -344,6 +344,13 @@ interface Engine {
   serialize(state: GameState): string;                  // §10 (canonical)
   deserialize(data: string): CommandResult<GameState>;
   migrate(data: string): CommandResult<GameState>;      // §10
+
+  /** The same engine, with every event stamped for one command
+   *  ([`05-observability.md`](05-observability.md) §6.1). The session store builds a
+   *  short-lived decorator per command and swaps it in here, rather than the pure engine
+   *  ever holding a clock or per-command context of its own. Listed here because this is
+   *  the canonical `Engine` block; 05 §6.1 owns the reasoning. */
+  withEmitter(emitter: Emitter): Engine;
 }
 ```
 
@@ -354,7 +361,8 @@ submitAction(state, actionId, params):
   1. kind = kinds[state.kindId];  seq = state.actionLog.length   // 0-based, monotonic
   2. handle = rngHandleFor(state.seed, { kind:"action", seq })   // §8 — derived, not carried
   3. emit = resolutionEmitter(emitter, state.gameId, seq)        // 05 §4 — ordinal starts at 0
-  4. result = kind.advance(state.kindState, actionId, params, { registry, campaign, rng: handle, seq, emit })
+  4. result = kind.advance(state.kindState, actionId, params,
+       { registry, campaign, rng: handle, derive, seq, emit })   // §3.1 — `derive` closes over the seed
   5. if result.error → return { ok:false, errors:[result.error] }, state unchanged  // ActionResult.errors is a list (§12)
   6. newState = {
        ...state,
@@ -389,7 +397,7 @@ createGame(config):
   2. seed = config.seed ?? ids.newSeed()                     // 06 §5.1 — recorded in the envelope
   3. startHandle = rngHandleFor(seed, { kind:"system", system:"start", seq:0 })   // §8
   4. startEmit = resolutionEmitter(emitter, gameId, 0)            // 05 §4 — seq 0, ordinal 0
-  5. init = kind.initialState(campaign, { registry, campaign, rng: startHandle, seq: 0, emit: startEmit })
+  5. init = kind.initialState(campaign, { registry, campaign, rng: startHandle, derive, seq: 0, emit: startEmit })
      // a kind that settles at start (story-graph, 03 §8.2) draws its initial
      // random transitions from startHandle, and reports "ended" if it settled to one
   6. return the envelope { kindId: campaign.kindId, campaignId: campaign.id,
@@ -1105,6 +1113,8 @@ const BASE_REASON_CODES = [
   "save_requires_migration", "migration_failed",
   // host persistence (§7.2)
   "unknown_session", "unknown_save", "storage_failure",
+  // the audit vocabulary — a `StateChange.reason`, not a rejection (below)
+  "achievement_unlocked",
 ] as const;
 ```
 
@@ -1112,7 +1122,7 @@ const BASE_REASON_CODES = [
 > vocabulary one *turn* needs. Everything after them was added by a unit that found a
 > cross-kind failure mode with no code that fitted — the kernel's three rejections, registry
 > assembly's three, the core's own Tier-1 four, the profile store's three, the save
-> boundary's two, host persistence's three. That is the intended shape: a code is registered when a real caller
+> boundary's two, host persistence's three, and the audit vocabulary's one. That is the intended shape: a code is registered when a real caller
 > produces it, not pre-declared from this list. Because `ReasonCode` is *additive, never
 > renamed* (above), growth costs nothing — a client switching on a code it has never seen
 > falls through to the localized message, which the core ships for every base code. Expect
@@ -1189,6 +1199,18 @@ analogous concept, provided it documents that shape here the same way. What they
 *pattern*: an audit record's `path` names the thing that changed using the same string a
 `Condition` would read to check it, and `reason` identifies *why* using a stable code a
 kind-agnostic session store (or a client) can switch on without string-matching prose.
+
+> **A `StateChange.reason` is a registered `ReasonCode` like any other, and both of these
+> are registered.** `StateChange.reason` is typed `ReasonCode`, and `visible` gates client
+> display — so an audit record can reach a client exactly the way a rejection can, and owes
+> a resolvable message for the same reason. Neither of the two above had one until
+> reconciliation registered them, which is why this is now stated rather than assumed:
+> `achievement_unlocked` is **base** vocabulary (`core.reason.achievement_unlocked`) because
+> the session store's profile upsert (§7.1) switches on it without knowing which kind
+> emitted it, while `consequence_applied` is **kind-owned**
+> (`story-graph.reason.consequence_applied`, `kinds/story-graph/reasons.ts`) because only
+> that kind has a consequence. A kind inventing a third audit reason registers it the same
+> way; there is no separate audit namespace exempt from §12's completeness rule.
 
 **Kind-owned reason codes carry their own `messageKey` namespace, distinct from event
 names.** A kind's `Kind.reasonCodes` need a localized message the same way the base set

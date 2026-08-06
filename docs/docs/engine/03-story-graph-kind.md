@@ -421,6 +421,19 @@ rule is the same one — every registered code owes a localized message (04 §12
 | `no_reachable_choice` | 2 | no `ChoiceNode` is reachable from the start — valid but non-interactive (04 §11) |
 | `no_reachable_ending` | 2 | no reachable ending |
 
+**An audit code — carried on a `StateChange`, reported to nobody in particular.** It is
+neither a rejection nor a validation finding, and it is registered here for the same single
+reason both halves above are: `StateChange.reason` is typed `ReasonCode` and `visible` gates
+client display (04 §12), so a code a client can be handed owes a resolvable message.
+
+| Code | When |
+|---|---|
+| `consequence_applied` | the coalesced variable-write `StateChange` a resolved consequence emits (§5, 04 §12) — one per touched variable per batch, `visible` mirroring the variable's own declaration |
+
+Its sibling `achievement_unlocked` (§7) is **not** here: it is base vocabulary (04 §12),
+because the session store's profile upsert (04 §7.1) switches on it without knowing which
+kind emitted it, whereas a consequence is this kind's own concept.
+
 `unknown_condition_field` sits in the validation half because that is where it is *found* —
 but it is also the one code here a resolution could in principle raise, if a condition
 reached `advance` unvalidated. It cannot, on a frozen registry; the code is single, and which

@@ -89,10 +89,11 @@ interface SimulationKindState {
 > upstream. Derived values do not belong in serialized state: they can disagree with the
 > actions they summarise, and a disagreement is unresolvable. They are computed on read (§4.1).
 
-The rest of this section restates every field type `SimulationKindState` names above, except
-`PlayerState` (§6, deferred) — the field-level port `plans/36-simulation-kind-programme.md`
-calls **W27** (assigned as a real `W` number when this unit is cut), sized against upstream
-§5.1, §5.3–§5.6.
+The rest of this section restates every field type `SimulationKindState` names above.
+`PlayerState` is the one exception, and only because it is large enough to own a section:
+§6 restates it in full. This section's own port — `plans/36-simulation-kind-programme.md`
+proposed it as W27 and it was cut as **W32** — is sized against upstream §5.1, §5.3–§5.6.
+§15's table is the single place that maps every proposed number to the one actually cut.
 
 Two primitives recur across several of these types and are introduced once, here, rather than
 per-field: **money is integer cents**, and **rates are integer basis points**, matching
@@ -737,8 +738,8 @@ to the phase that moved). Superseded, not merely absent.
 Nine areas: identity, finances, needs, attributes, education, career, housing, inventory,
 relationships (upstream §8.1–§8.9), plus the base/derived-value layer they read through
 (upstream §7). Both are ported below — the field-level port
-`plans/36-simulation-kind-programme.md` calls **W28** (assigned as a real `W` number when this
-unit is cut), sized against upstream §7 and §8.1–§8.9.
+`plans/36-simulation-kind-programme.md` proposed as W28 and cut as **W33**, sized against
+upstream §7 and §8.1–§8.9.
 
 - **Money is integer cents; rates are integer basis points** — `Cents`/`BasisPoints` (§2),
   used throughout finances, career and housing below.
@@ -1172,8 +1173,8 @@ availability and memories, none of which differ per observer.
 Jobs, courses, housing, items, events, NPCs, goals, scenarios, agents (upstream §14.1–§14.9),
 plus `Modifier` and `Reward` (upstream §13.3–§13.4) — simulation mechanics hanging off
 `Condition`, not condition operators, so they belong here rather than in §8. Ported below —
-the field-level port `plans/36-simulation-kind-programme.md` calls **W29** (assigned as a real
-`W` number when this unit is cut), sized against upstream §13.3–§13.4 and §14.1–§14.9.
+the field-level port `plans/36-simulation-kind-programme.md` proposed as W29 and cut as
+**W34**, sized against upstream §13.3–§13.4 and §14.1–§14.9.
 
 These are **campaign data**, loaded through the content registry (04 §10.1) exactly as
 story-graph campaigns are. A simulation campaign is `kindId: "simulation"` plus data
