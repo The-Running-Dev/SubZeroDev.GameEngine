@@ -36,7 +36,12 @@ import type {
   SessionActionResult,
   SessionHandle,
   SessionStore,
+  SessionPersistence,
+  StoredSaveRecord,
+  StoredSessionRecord,
 } from "./types.js";
+import { SessionStoreError as SessionStoreErrorValue } from "./types.js";
+import type { SessionHost } from "../composition/types.js";
 
 const noopRecordSink: EmittedRecordSink = { write: () => {} };
 
@@ -119,6 +124,7 @@ export async function upsertAchievements(
 
 interface SaveRecord {
   saveId: string;
+  campaignId: string;
   blob: string;
   savedAtSeq: number;
   audience: ProjectionAudience;
@@ -138,6 +144,8 @@ export interface InMemorySessionStoreOptions {
   recordSink?: EmittedRecordSink;
   /** Omitted → every session is anonymous: no profile is ever loaded or saved (04 §7.1). */
   profiles?: ProfileStore;
+  /** Optional host persistence. The in-memory maps remain the default implementation. */
+  persistence?: SessionPersistence;
 }
 
 /**
@@ -196,7 +204,7 @@ function mustDeserialize(engine: Engine, blob: string): GameState {
   return result.value;
 }
 
-export function createInMemorySessionStore(options: InMemorySessionStoreOptions): SessionStore {
+function createStore(options: InMemorySessionStoreOptions): SessionStore {
   const { engine, registry } = options;
   // Read off `engine` rather than taken as a second, independently-suppliable option
   // (Qodo review, PR #92) — this is the same `KindRegistry` every gameplay call already
@@ -235,23 +243,53 @@ export function createInMemorySessionStore(options: InMemorySessionStoreOptions)
     return run;
   }
 
-  function getSession(sessionId: string): SessionRecord {
+  async function getSession(sessionId: string): Promise<SessionRecord> {
     const record = sessions.get(sessionId);
-    if (!record) {
-      // No ReasonCode fits "the session id itself doesn't exist" — that's a host-routing
-      // error, not a game rejection, and none of SessionStore's methods carry a
-      // CommandResult wrapper to report one through (plan 14, Design section item 1).
-      throw new Error(`session store: unknown sessionId "${sessionId}"`);
+    if (record) return record;
+    try {
+      const stored = await options.persistence?.sessions.get(sessionId);
+      if (stored) {
+        sessions.set(sessionId, stored);
+        return stored;
+      }
+    } catch {
+      throw new SessionStoreErrorValue("session", "storage_failure");
     }
-    return record;
+    throw new SessionStoreErrorValue("session", "unknown_session", `session store: unknown sessionId "${sessionId}"`);
   }
 
-  function getSave(saveId: string): SaveRecord {
+  async function getSave(saveId: string): Promise<SaveRecord> {
     const record = saves.get(saveId);
-    if (!record) {
-      throw new Error(`session store: unknown saveId "${saveId}"`);
+    if (record) return record;
+    try {
+      const stored = await options.persistence?.saves.get(saveId);
+      if (stored) {
+        const restored: SaveRecord = stored;
+        saves.set(saveId, restored);
+        return restored;
+      }
+    } catch {
+      throw new SessionStoreErrorValue("loadGame", "storage_failure");
     }
-    return record;
+    throw new SessionStoreErrorValue("loadGame", "unknown_save", `session store: unknown saveId "${saveId}"`);
+  }
+
+  async function writeSession(record: SessionRecord): Promise<void> {
+    if (!options.persistence) return;
+    try {
+      await options.persistence.sessions.put(record as StoredSessionRecord);
+    } catch {
+      throw new SessionStoreErrorValue("session", "storage_failure");
+    }
+  }
+
+  async function writeSave(record: SaveRecord): Promise<void> {
+    if (!options.persistence) return;
+    try {
+      await options.persistence.saves.put(record as StoredSaveRecord);
+    } catch {
+      throw new SessionStoreErrorValue("saveGame", "storage_failure");
+    }
   }
 
   /**
@@ -284,13 +322,13 @@ export function createInMemorySessionStore(options: InMemorySessionStoreOptions)
     },
 
     async getScene(sessionId: string): Promise<Scene> {
-      const record = getSession(sessionId);
+      const record = await getSession(sessionId);
       const state = mustDeserialize(engine, record.blob);
       return engine.scene(state);
     },
 
     async getView(sessionId: string): Promise<PlayerView> {
-      const record = getSession(sessionId);
+      const record = await getSession(sessionId);
       const state = mustDeserialize(engine, record.blob);
       return engine.view(state, record.audience);
     },
@@ -299,7 +337,7 @@ export function createInMemorySessionStore(options: InMemorySessionStoreOptions)
       // Validates the session exists even though the returned table doesn't depend on
       // which one — plan 14 Decision 7: the registry has no per-campaign string
       // partition to narrow by, so the whole frozen table is returned.
-      getSession(sessionId);
+      await getSession(sessionId);
       const table: Record<string, string> = {};
       for (const [key, text] of registry.strings) {
         table[key] = text;
@@ -313,17 +351,17 @@ export function createInMemorySessionStore(options: InMemorySessionStoreOptions)
       const audience = config.audience ?? "player";
       const newGameConfig: NewGameConfig = { campaignId: config.campaignId, ...(config.seed !== undefined ? { seed: config.seed } : {}), audience };
 
-      return withCommand(sessionId, 0, (decoratedEngine) => {
+      return withCommand(sessionId, 0, async (decoratedEngine) => {
         const created = decoratedEngine.createGame(newGameConfig);
         if (!created.ok || !created.value) {
           // createSession's return type carries no error channel (session/types.ts) —
           // same reasoning as getSession's throw above.
           const code = created.errors[0]?.code ?? "unknown_campaign";
-          throw new Error(`session store: createSession rejected — ${code}`);
+          throw new SessionStoreErrorValue("createSession", code === "unknown_campaign" ? code : "invalid_state");
         }
         const state = created.value;
         const now = clock.now();
-        sessions.set(sessionId, {
+        const record: SessionRecord = {
           sessionId,
           blob: decoratedEngine.serialize(state),
           audience,
@@ -332,15 +370,17 @@ export function createInMemorySessionStore(options: InMemorySessionStoreOptions)
           createdAt: now,
           updatedAt: now,
           ...(config.profileId !== undefined ? { profileId: config.profileId } : {}),
-        });
+        };
+        await writeSession(record);
+        sessions.set(sessionId, record);
         return { sessionId, scene: decoratedEngine.scene(state) };
       });
     },
 
     async resumeSession(sessionId: string): Promise<Scene> {
-      const record = getSession(sessionId);
+      const record = await getSession(sessionId);
       return runExclusive(sessionLocks, sessionId, () =>
-        withCommand(sessionId, record.attemptCounter, (decoratedEngine) => {
+        withCommand(sessionId, record.attemptCounter, async (decoratedEngine) => {
           const state = mustDeserialize(decoratedEngine, record.blob);
           return decoratedEngine.scene(state);
         }),
@@ -348,7 +388,7 @@ export function createInMemorySessionStore(options: InMemorySessionStoreOptions)
     },
 
     async submitAction(sessionId: string, actionId: string, params?: ActionParams): Promise<SessionActionResult> {
-      const record = getSession(sessionId);
+      const record = await getSession(sessionId);
 
       return runExclusive(sessionLocks, sessionId, () => {
         // Increments before dispatch, including for a submission that goes on to be
@@ -365,6 +405,7 @@ export function createInMemorySessionStore(options: InMemorySessionStoreOptions)
           if (result.ok && result.value) {
             record.blob = decoratedEngine.serialize(result.value);
             record.updatedAt = clock.now();
+            await writeSession(record);
 
             // "After a successful action" (04 §7.1) — never on rejection, and never
             // before the engine call above has already returned (plan 15 Decision 3).
@@ -403,7 +444,7 @@ export function createInMemorySessionStore(options: InMemorySessionStoreOptions)
     },
 
     async previewAction(sessionId: string, actionId: string, params?: ActionParams): Promise<SessionActionResult> {
-      const record = getSession(sessionId);
+      const record = await getSession(sessionId);
 
       // Shares the session queue with submissions so the preview cannot evaluate one version
       // while a neighbouring command persists another. It deliberately does not increment
@@ -428,9 +469,9 @@ export function createInMemorySessionStore(options: InMemorySessionStoreOptions)
     },
 
     async saveGame(sessionId: string): Promise<SaveHandle> {
-      const record = getSession(sessionId);
+      const record = await getSession(sessionId);
       return runExclusive(sessionLocks, sessionId, () =>
-        withCommand(sessionId, record.attemptCounter, (decoratedEngine) => {
+        withCommand(sessionId, record.attemptCounter, async (decoratedEngine) => {
           const state = mustDeserialize(decoratedEngine, record.blob);
           const campaign = registry.campaigns.get(state.campaignId);
           const kind = kinds[state.kindId];
@@ -442,28 +483,31 @@ export function createInMemorySessionStore(options: InMemorySessionStoreOptions)
           }
           const envelope = buildSaveEnvelope({ state, kind, campaign, replayCompatible: record.replayCompatible });
           const saveId = mintId();
-          saves.set(saveId, {
+          const save: SaveRecord = {
             saveId,
+            campaignId: state.campaignId,
             blob: serializeSaveEnvelope(envelope),
             savedAtSeq: state.actionLog.length,
             audience: record.audience,
             ...(record.profileId !== undefined ? { profileId: record.profileId } : {}),
-          });
+          };
+          saves.set(saveId, save);
+          await writeSave(save);
           return { saveId, savedAtSeq: state.actionLog.length };
         }),
       );
     },
 
     async loadGame(saveId: string): Promise<SessionHandle> {
-      const save = getSave(saveId);
+      const save = await getSave(saveId);
       const sessionId = mintId();
 
-      return withCommand(sessionId, 0, (decoratedEngine) => {
+      return withCommand(sessionId, 0, async (decoratedEngine) => {
         const resolution = resolveSaveEnvelope(save.blob, kinds, registry);
         if (!resolution.ok) {
           // No CommandResult channel on SaveHandle/SessionHandle to report this through —
           // same reasoning as createSession's throw above (plan 14, Design item 1).
-          throw new Error(`session store: loadGame rejected — ${resolution.code}`);
+          throw new SessionStoreErrorValue("loadGame", resolution.code);
         }
         // Re-validated through the engine's own deserialize — the same boundary check and
         // event emission every other state entering a session goes through, rather than
@@ -475,7 +519,7 @@ export function createInMemorySessionStore(options: InMemorySessionStoreOptions)
         // audience: "ai" must still be "ai" after save/load, and a profiled session must
         // not silently become anonymous (achievements would stop mirroring to the profile).
         const now = clock.now();
-        sessions.set(sessionId, {
+        const record: SessionRecord = {
           sessionId,
           blob: decoratedEngine.serialize(state),
           audience: save.audience,
@@ -484,9 +528,21 @@ export function createInMemorySessionStore(options: InMemorySessionStoreOptions)
           createdAt: now,
           updatedAt: now,
           ...(save.profileId !== undefined ? { profileId: save.profileId } : {}),
-        });
+        };
+        await writeSession(record);
+        sessions.set(sessionId, record);
         return { sessionId, scene: decoratedEngine.scene(state) };
       });
     },
   };
+}
+
+/** The canonical session-layer composition root. */
+export function createSessionLayer(host: SessionHost): SessionStore {
+  return createStore(host);
+}
+
+/** Compatibility convenience for the default in-memory host. */
+export function createInMemorySessionStore(options: InMemorySessionStoreOptions): SessionStore {
+  return createStore(options);
 }

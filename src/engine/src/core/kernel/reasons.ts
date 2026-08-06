@@ -56,6 +56,16 @@ export type ReasonCode = string;
  * the vocabulary and its localized message live in one place, ready for whenever a real
  * error channel exists. See `plans/38-save-migration-programme.md`.
  *
+ * `unknown_session`, `unknown_save`, and `storage_failure` were added with host persistence
+ * (04 §7.2) — `SessionStoreError` (`session/types.ts`) carries one of these as its `code`, and
+ * three of its eight members had no vocabulary entry. That mattered once `storage_failure`
+ * became player-visible: the browser demo renders "could not be saved locally" from it, and a
+ * client reading that out of an `Error.message` is exactly what §12 and 09 §3 forbid.
+ * `storage_failure` is deliberately the *only* code a host adapter's own exception maps to —
+ * a Postgres timeout and a `localStorage` quota error are indistinguishable to a client on
+ * purpose, because neither admits a different response and an unbounded host vocabulary must
+ * not cross the boundary.
+ *
  * `missing_kind_reason_message` was added alongside `Kind.reasonMessages` (`kernel/types.ts`)
  * — `buildValidatedContentRegistry` (`validation/tiered.ts`) needs a code for the
  * completeness check §12 already promises: "validation fails if any registered reason code
@@ -83,6 +93,9 @@ export const BASE_REASON_CODES = [
   "profile_write_failed",
   "save_requires_migration",
   "migration_failed",
+  "unknown_session",
+  "unknown_save",
+  "storage_failure",
   "missing_kind_reason_message",
 ] as const;
 
@@ -116,6 +129,9 @@ const CORE_REASON_TEXT: Readonly<Record<BaseReasonCode, string>> = {
   profile_write_failed: "The profile couldn't be saved. Your game progress was not affected.",
   save_requires_migration: "This save was made under a version this build can't read, and no migration is available for it.",
   migration_failed: "This save's migration failed. Your progress was not affected.",
+  unknown_session: "That session could not be found.",
+  unknown_save: "That save could not be found.",
+  storage_failure: "Progress could not be stored. Your game is still playable, but it may not be here next time.",
   missing_kind_reason_message: "This kind declared a reason code with no localized message.",
 };
 

@@ -146,6 +146,22 @@
 
 ### [ ] W62 — Platform Static Host Image {#w62}
 
+### [x] W63 — Absurd Game Interface {#w63}
+
+### Depth: Story Campaigns Become Adventures
+
+### [x] W64 — Replayable Story Campaign Expansion {#w64}
+
+### [ ] W65 — Browser Test Harness for the Site {#w65}
+
+### [ ] W66 — The Play Surface on a Phone {#w66}
+
+### Correctness Debt Found by Reconciliation
+
+### [ ] W67 — Restore the Story-Graph Regression Evidence {#w67}
+
+### [ ] W68 — Make the Browser Save Adapter Actually Restore {#w68}
+
 ### Content Tooling — A First-Class Workstream, Not an Afterthought
 
 ## Known Open Items Carried In
@@ -167,5 +183,3 @@
 ### [x] W48 — preview/client parity: `previewAction` across Engine, session, text and MCP {#w48}
 
 ### [x] W49 — validation, scenario and replay guard: the canonical engine-owned MVP {#w49}
-
-### [ ] W63 — Hosted engine edge. Follow W62 with the real {#w63}

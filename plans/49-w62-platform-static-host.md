@@ -1,7 +1,7 @@
 # W62 — Platform Static Host Image
 
 **Scope:** Implement the product-owned, web-only `SubZeroDev.Platform.Hosting` composition
-specified in [`design/14-platform-static-host.md`](../design/14-platform-static-host.md), bake the
+specified in [`design/15-platform-static-host.md`](../design/15-platform-static-host.md), bake the
 verified W61 site/docs artifact into a stateless container, prove it in PR CI, and publish an
 immutable GHCR image from relevant `main` changes. Do not deploy it and do not host the engine.
 

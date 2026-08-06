@@ -220,6 +220,32 @@ export const shippedChapters: readonly RoadmapChapter[] = [
       },
     ],
   },
+  {
+    id: "casebook",
+    workUnits: "W63–W64",
+    ledgerAnchor: "w64",
+    status: "done",
+    title: "The story shelf becomes a casebook you can actually play",
+    summary:
+      "The public story-graph surface is rebuilt as an original adventure cabinet, and all six campaigns gain material routes, delayed consequences, seeded events, and authored endings instead of one linear pass.",
+    links: [
+      {
+        label: "W63 — Absurd Game Interface",
+        href: `${repo}/pull/188`,
+        kind: "repository",
+      },
+      {
+        label: "W64 — Replayable Story Campaign Expansion",
+        href: `${repo}/pull/191`,
+        kind: "repository",
+      },
+      {
+        label: "Play the adventures",
+        href: "/play/",
+        kind: "site",
+      },
+    ],
+  },
 ];
 
 export const nextActs: readonly RoadmapChapter[] = [

@@ -15,7 +15,7 @@ describe("roadmap page", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
       `How a Quick Question Became ${completedWorkUnitCount} Work Units.`,
     );
-    expect(screen.getAllByText("DONE")).toHaveLength(11);
+    expect(screen.getAllByText("DONE")).toHaveLength(12);
     expect(screen.queryAllByText("NEXT")).toHaveLength(0);
     expect(screen.getAllByText("LATER")).toHaveLength(3);
     const checkpoint = screen.getByText("02 / NOW").closest("section");
@@ -54,6 +54,7 @@ describe("roadmap page", () => {
       "W47",
       "W48",
       "W49",
+      "W63–W64",
     ]);
     expect(nextActs.map((chapter) => chapter.workUnits)).toEqual(["T4"]);
     expect(nextActs.every((chapter) => chapter.status !== "done")).toBe(true);

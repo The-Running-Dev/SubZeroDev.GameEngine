@@ -1,162 +1,78 @@
-/**
- * Content — the Driving arc (`plans/37-w27-bulgaria-driving-arc.md`).
- *
- * Adapted from `games/bulgaria.md` in the companion SubZeroDev.GameOfLife repo (the
- * "Driving" and "BMW Ownership" scenes) — the second real arc of the Bulgaria Adventure,
- * following `bulgaria-bureaucracy.ts`'s established pattern exactly.
- *
- * Node graph: `driving` (start, choice) sets `trust_mechanic` from which of its four
- * options the player picks, then --> `bmw_ownership` (choice), whose own four options are
- * gated by `trust_mechanic` via `showWhen` rather than staged through an extra node: three
- * (`pay_immediately`, `buy_him_lunch`, `never_ask_questions`) are visible only when trusting
- * and lead to `ending_trusting`; one (`ask_what_he_fixed`) is visible only when skeptical and
- * leads to `ending_skeptical`. Neither branch's hidden options are ever shown to the other
- * player — `showWhen` omits entirely, it does not grey out (03 §4).
- */
-
-import type { AuthoredText, BuiltCampaign, Campaign } from "../core/registry/types.js";
+import type { BuiltCampaign } from "../core/registry/types.js";
 import type { CommandResult } from "../core/kernel/reasons.js";
-import { buildCampaign } from "../core/registry/build.js";
-import { buildStoryGraphCampaign, type StoryGraphCampaignSource } from "../kinds/story-graph/source.js";
-
-export const bulgariaDrivingSource: StoryGraphCampaignSource = {
-  description: {
-    key: "driving.campaign.description",
-    text: "A short trip through Bulgarian car ownership, inspired by real mechanics who have seen everything.",
-  },
-
-  variables: {
-    trust_mechanic: {
-      type: "bool",
-      initial: false,
-      visible: true,
-      label: { key: "driving.var.trust_mechanic.label", text: "Trust the Mechanic" },
-    },
-  },
-
-  startNodeId: "driving",
-
-  nodes: {
-    driving: {
-      kind: "choice",
-      text: {
-        key: "driving.driving.text",
-        text:
-          "You pass the annual inspection. Five minutes later the dashboard lights up like a " +
-          'Christmas tree. The mechanic confidently says: "It was already like that."',
-      },
-      choices: [
-        {
-          id: "believe_him",
-          label: { key: "driving.choice.believe_him.label", text: "Believe him" },
-          effects: [{ op: "set", var: "trust_mechanic", value: true }],
-          goto: "bmw_ownership",
-        },
-        {
-          id: "ask_another_opinion",
-          label: { key: "driving.choice.ask_another_opinion.label", text: "Ask for another opinion" },
-          effects: [{ op: "set", var: "trust_mechanic", value: false }],
-          goto: "bmw_ownership",
-        },
-        {
-          id: "ignore_warning",
-          label: { key: "driving.choice.ignore_warning.label", text: "Ignore the warning" },
-          effects: [{ op: "set", var: "trust_mechanic", value: true }],
-          goto: "bmw_ownership",
-        },
-        {
-          id: "turn_up_music",
-          label: { key: "driving.choice.turn_up_music.label", text: "Turn up the music" },
-          effects: [{ op: "set", var: "trust_mechanic", value: true }],
-          goto: "bmw_ownership",
-        },
-      ],
-    },
-
-    bmw_ownership: {
-      kind: "choice",
-      text: {
-        key: "driving.bmw_ownership.text",
-        text:
-          "Your BMW develops a mysterious noise. Three mechanics diagnose: suspension, " +
-          'transmission, "they all do that." A fourth mechanic fixes it with a hammer.',
-      },
-      choices: [
-        {
-          id: "pay_immediately",
-          label: { key: "driving.choice.pay_immediately.label", text: "Pay immediately" },
-          showWhen: { field: "var.trust_mechanic", operator: "equals", value: true },
-          goto: "ending_trusting",
-        },
-        {
-          id: "buy_him_lunch",
-          label: { key: "driving.choice.buy_him_lunch.label", text: "Buy him lunch" },
-          showWhen: { field: "var.trust_mechanic", operator: "equals", value: true },
-          goto: "ending_trusting",
-        },
-        {
-          id: "never_ask_questions",
-          label: { key: "driving.choice.never_ask_questions.label", text: "Never ask questions" },
-          showWhen: { field: "var.trust_mechanic", operator: "equals", value: true },
-          goto: "ending_trusting",
-        },
-        {
-          id: "ask_what_he_fixed",
-          label: { key: "driving.choice.ask_what_he_fixed.label", text: "Ask what he actually fixed" },
-          showWhen: { field: "var.trust_mechanic", operator: "equals", value: false },
-          goto: "ending_skeptical",
-        },
-      ],
-    },
-
-    ending_trusting: {
-      kind: "ending",
-      text: {
-        key: "driving.ending_trusting.text",
-        text:
-          "The noise returns in six months, at a red light, on a Tuesday. By then you have " +
-          "made your peace with it. The dashboard, for its part, has stopped commenting.",
-      },
-      endingId: "trusting_the_mechanic",
-      outcome: "neutral",
-    },
-
-    ending_skeptical: {
-      kind: "ending",
-      text: {
-        key: "driving.ending_skeptical.text",
-        text:
-          "He explains the repair using several words that do not exist in any dictionary. " +
-          "You nod. You still do not know what he fixed. Neither, as far as anyone can tell, does he.",
-      },
-      endingId: "asked_for_a_second_opinion",
-      outcome: "neutral",
-    },
-  },
-
-  achievements: [],
-};
+import type { StoryGraphCampaignSource } from "../kinds/story-graph/source.js";
+import { buildAdventureCampaign, createAdventureSource, migrateV1AdventureState, type AdventureConfig } from "./adventure-builder.js";
 
 export const BULGARIA_DRIVING_CAMPAIGN_ID = "bulgaria-driving";
 
-const TITLE: AuthoredText = { key: "driving.campaign.title", text: "Driving" };
+const config: AdventureConfig = {
+  id: BULGARIA_DRIVING_CAMPAIGN_ID,
+  namespace: "driving",
+  title: "Driving",
+  description: "Inspection stickers, mechanic trust, police, parking, weather, parts, towing, and one very opinionated car.",
+  startNodeId: "driving",
+  intro: "You pass the annual inspection. Five minutes later the dashboard lights up like a Christmas tree. The mechanic says it was already like that, which is technically a diagnosis.",
+  statLabels: { preparation: "Car Reliability", connections: "Mechanic Trust", pressure: "Repair Pressure" },
+  routes: [
+    {
+      id: "repair_route", choiceId: "believe_him", label: "Believe him and build a repair plan", memoryLabel: "the mechanic's trust",
+      scenes: [
+        "The mechanic offers a handwritten repair order: brakes first, mystery noise second, dignity when parts arrive.",
+        "Insurance and vehicle tax occupy neighbouring windows whose lunch breaks overlap with mathematical precision.",
+        "A parts seller finds the exact component in a warehouse described only as 'after the roundabout'.",
+        "The car returns to the lift for the final decision: restore it properly, keep negotiating with entropy, or admit the project owns you.",
+      ],
+      actionLabels: ["Ask the mechanic to prioritize safety", "Approve every repair at once", "Keep the inspection sheet", "Trust the dashboard's temporary silence", "Pay insurance before ordering parts", "Order parts before checking the policy", "Follow the warehouse directions", "Buy the almost-identical component"],
+      eventLabels: ["The inspection sheet proves the warning light appeared after the test, earning an unusually respectful shrug.", "The light turns off by itself and creates six hours of false peace.", "The warehouse owner recognizes the mechanic and finds an original part under three alternators.", "The almost-identical part fits perfectly except for the part where it connects."],
+      endings: [
+        { id: "reliable_car", title: "The Reliable Car", text: "It starts in winter, stops on purpose, and asks nothing more dramatic than fuel.", outcome: "win", gate: "memory" },
+        { id: "endless_repairs", title: "The Perpetual Repair", text: "Every repaired sound reveals a quieter one beneath it. You learn to budget by frequency.", outcome: "neutral" },
+      ],
+    },
+    {
+      id: "road_route", choiceId: "ask_another_opinion", label: "Ask another opinion and test it on the road", memoryLabel: "the police warning",
+      scenes: [
+        "A second mechanic diagnoses the weather, the fuel, and your relationship with the accelerator.",
+        "Rain turns the mountain road into a practical examination no licensing office could legally administer.",
+        "Police stop you beside a fuel station where LPG, petrol, and coffee share one queue.",
+        "With the storm behind you, the car feels either proven or forgiven. The distinction matters at the marketplace.",
+      ],
+      actionLabels: ["Listen to the road-test instructions", "Prove the first mechanic wrong", "Check the forecast and tyres", "Trust the summer tyres' confidence", "Keep the officer's written warning", "Debate the meaning of the road sign", "Refuel before the pass", "Follow the cheaper LPG sign"],
+      eventLabels: ["The road test reveals a loose heat shield, a cheap and almost emotionally disappointing answer.", "A pothole silences the original noise and introduces two apprentices.", "The officer notices the inspection receipt and recommends a safer descent.", "The cheap LPG station is open, but its card terminal is participating remotely."],
+      endings: [
+        { id: "sold_car", title: "Sold Before Sunset", text: "You describe every fault honestly. The buyer calls them character and transfers the money.", outcome: "neutral" },
+        { id: "collector_item", title: "The Accidental Collector", text: "The police warning proves the model's rare specification. What was old becomes collectable overnight.", outcome: "win", gate: "memory" },
+      ],
+    },
+    {
+      id: "escape_route", choiceId: "ignore_warning", label: "Ignore the warning and plan an exit", memoryLabel: "the tow driver's card",
+      scenes: [
+        "A parking space narrows around the car while neighbours direct from five incompatible angles.",
+        "The warning light becomes a warning noise halfway to the marketplace and a warning smell near the ring road.",
+        "A tow driver arrives with the calm of someone who has met this car before.",
+        "At the yard, insurer, marketplace buyer, and scrap dealer offer three definitions of value.",
+      ],
+      actionLabels: ["Accept the neighbour's careful signals", "Mount the kerb decisively", "Save the parking receipt", "Leave before anyone writes a note", "Take the tow driver's card", "Call the insurer first", "Ask for one last repair estimate", "List the car as a project"],
+      eventLabels: ["The receipt proves the bay was legal yesterday, which is the strongest available form of legality.", "A mirror acquires a neat scar and the neighbour acquires a complete theory.", "The tow driver knows an insurer assessor who answers on the first ring.", "The online listing receives nineteen offers, all beginning with 'final price?'"],
+      endings: [
+        { id: "abandoned_project", title: "The Abandoned Project", text: "You hand over the keys and walk home lighter than you have in months.", outcome: "loss" },
+        { id: "trusting_the_mechanic", title: "Trust the Hammer", text: "Your original mechanic buys the project, fixes it with one strike, and refuses to explain.", outcome: "neutral", gate: "memory" },
+      ],
+    },
+  ],
+  startAliases: [{ id: "turn_up_music", label: "Turn up the music and head for the road", routeId: "road_route" }],
+};
 
-/**
- * Assembles the envelope (`id`/`kindId`/`version`/`titleKey` — core-owned, not part of
- * `StoryGraphCampaignSource`, per the envelope-duplication rule `CLAUDE.md` tracks) around
- * `buildStoryGraphCampaign`'s lifted content, then hands both to `buildCampaign`
- * (`registry/build.ts`, W4) to produce the `BuiltCampaign` a registry is assembled from.
- */
-export function buildBulgariaDrivingCampaign(
-  source: StoryGraphCampaignSource = bulgariaDrivingSource,
-): CommandResult<BuiltCampaign> {
-  const { content, authoredText } = buildStoryGraphCampaign(source);
-  const campaign: Campaign = {
-    id: BULGARIA_DRIVING_CAMPAIGN_ID,
-    kindId: "story-graph",
-    version: "1.0.0",
-    titleKey: TITLE.key,
-    content,
-  };
-  return buildCampaign(campaign, [TITLE, ...authoredText]);
+export const bulgariaDrivingSource = createAdventureSource(config);
+
+export function buildBulgariaDrivingCampaign(source: StoryGraphCampaignSource = bulgariaDrivingSource): CommandResult<BuiltCampaign> {
+  const result = buildAdventureCampaign(config, source);
+  if (result.ok && result.value) {
+    result.value.campaign.migrateState = (state, fromVersion) => migrateV1AdventureState(state, fromVersion, source, {
+      bmw_ownership: "repair_route_4",
+      ending_trusting: "ending_trusting_the_mechanic",
+      ending_skeptical: "ending_sold_car",
+    }, { asked_for_a_second_opinion: "sold_car" });
+  }
+  return result;
 }

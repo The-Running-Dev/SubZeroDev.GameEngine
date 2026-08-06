@@ -76,7 +76,8 @@ no partial trust to model. A seam is on one side of the line or the other.
 | `Kind` | **Inside** — is the game logic | **No** — engine-owned (§7) | 04 §3 |
 | `Condition` operators | **Inside** — evaluated during resolution | **No** — frozen set | 04 §18 |
 | `IdSource` | Outside — values enter state but are opaque to it | **Yes** | §5.1 |
-| `SessionStore` | Outside — holds serialized blobs | **Yes** | §5.2 |
+| `SessionStore` | Outside, but **core-owned** — locking, stamping and upsert live in it | **No** — supply `SessionPersistence` instead | §5.2 |
+| `SessionPersistence` | Outside — reads and writes the store's records | **Yes** | §5.2 |
 | `ProfileStore` | Outside — durable, beside the session store | **Yes** | §5.2 |
 | `Emitter` | Outside — write-only, returns `void` | **Yes** | 05 §4 |
 | `Clock` | Outside — boundary only, never reaches the core | **Yes** | §5.4 |
@@ -120,14 +121,24 @@ Stores are composed one layer out, because they sit above the pure engine (04 §
 ```typescript
 interface SessionHost {
   readonly engine: Engine;
-  readonly sessions: SessionStore;       // §5.2
-  readonly profiles?: ProfileStore;      // §5.2 — omitted → anonymous-only (04 §7.1)
-  readonly clock?: Clock;                // §5.4 — defaults to the system clock
-  readonly experiments?: ExperimentSource; // §5.5 — defaults to "no experiments running"
+  readonly registry: ContentRegistry;        // 04 §10.1 — listCampaigns and getStrings read it
+  readonly persistence?: SessionPersistence; // §5.2 — omitted → in-memory only (04 §7.2)
+  readonly profiles?: ProfileStore;          // §5.2 — omitted → anonymous-only (04 §7.1)
+  readonly clock?: Clock;                    // §5.4 — defaults to the system clock
+  readonly recordSink?: EmittedRecordSink;   // 05 §6 — omitted → records are discarded
+  readonly experiments?: ExperimentSource;   // §5.5 — not built; see 90-decisions
 }
 
 function createSessionLayer(host: SessionHost): SessionStore;
 ```
+
+> **`sessions: SessionStore` is what this field used to be, and the change is the point.**
+> Handing the root a finished `SessionStore` and asking it to return one only made sense if
+> the field meant a lower-level, storage-only port — which nothing named. It does now:
+> `SessionPersistence` (04 §7.2) is that port, and `createSessionLayer` composes the real
+> store around it. `experiments` is specified here and deliberately unbuilt; it arrives with
+> content packs (11 §5a), and the root is listed complete so the seam is not redesigned when
+> it does.
 
 **Three rules make this uniform, and they are the whole convention:**
 
@@ -185,19 +196,34 @@ correct** — a fresh game genuinely should not be predictable — and it lives 
 pure engine, so the determinism guard's ban on `Math.random` under `src/core/` stands
 unqualified.
 
-### 5.2 `SessionStore` and `ProfileStore`
+### 5.2 `SessionPersistence` and `ProfileStore`
 
-Both are already defined (04 §7, §7.1). This document changes nothing about their shape; it
-states that they are **ports** — the in-memory implementations the MVP ships are a default,
-not the contract.
+**`SessionStore` is not the port; what sits under it is.** The store's own job — the two lock
+domains (04 §7), the trace-and-stamp decorator (05 §6.1), save-envelope assembly (04 §10.2),
+and the idempotent profile upsert (04 §7.1) — is behaviour every host needs and no host should
+reimplement. A `SessionStore` supplied wholesale by a host is four invariants nobody checks.
 
-A host may supply Postgres, Redis, SQLite, or a file. The obligations are the ones 04
-already implies, collected here so an implementer has them in one place:
+So the seam is drawn one level down. `SessionPersistence` (04 §7.2) is a pair of record
+stores — get and put a `StoredSessionRecord`, get, put and delete a `StoredSaveRecord` — and
+`createSessionLayer` composes the real store around whichever one it is given. Omit it and the
+store's own maps are the whole implementation, which is the MVP default and what every test
+runs against.
+
+A host may supply Postgres, Redis, SQLite, a file, or `localStorage`. The obligations:
 
 - **Persist the canonical serialization, not live objects** (04 §7). A store that keeps
   object graphs will drift from what `deserialize` accepts.
+- **Address a save by its `saveId`** (04 §7.2). An adapter keyed on anything else writes
+  successfully and reads nothing, and no gate catches it.
 - **Never write host metadata into `GameState`.** Timestamps, owner ids, and tenancy live
-  on the store's own record (04 §2, §7).
+  on the record, which is exactly what `StoredSessionRecord` is (04 §2, §7.2).
+- **Throwing is allowed and is not a game failure.** The store converts any adapter exception
+  into `storage_failure` (04 §7.2) rather than letting a host's own exception type cross the
+  boundary.
+
+`ProfileStore` (04 §7.1) is unchanged and remains a port in the original sense — a host
+supplies the whole thing. Its obligations:
+
 - **A failed profile write must not roll back a game action** (04 §7.1). The game is the
   system of record; the profile is a projection of it.
 - **A missing or corrupt profile degrades to "no achievements"**, never to a broken game
@@ -292,6 +318,30 @@ identity mechanism depends on. The bucketing algorithm itself — hash choice, r
 percentage, sticky-session semantics beyond what `bucketKey` already gives for free — is a
 host decision this document does not constrain, the same way `SessionStore`'s storage
 backend is not constrained (§5.2).
+
+### 5.6 The One Build-Time Flag — `__GAME_ENGINE_PRODUCTION__`
+
+Not a port, and listed here so it is not mistaken for a missing one. The observability
+emitter needs to know whether it is running in a shipped build, so that dev-only work can be
+compiled out rather than branched around at runtime. A port cannot do that: a value supplied
+at construction is still there for a bundler to keep.
+
+```text
+__GAME_ENGINE_PRODUCTION__: boolean     // replaced at build time; declared, never imported
+```
+
+- **Node hosts define nothing.** When the global is absent the engine falls back to
+  `process.env.NODE_ENV === "production"`, which is what every Node caller already sets.
+- **Browser hosts must define it.** A bundler substitutes a literal — `define` in Vite, and
+  the equivalent elsewhere. A browser bundle that omits it gets the fallback, and the
+  `typeof process` guard means that resolves to *not* production: dev-mode emitter behaviour,
+  shipped, silently.
+- **It cannot change `serialize()` output**, which is why it is allowed to exist at all
+  (§2). It gates emission work, and 05 §2 already guarantees dropping every event changes
+  nothing.
+
+The asymmetry — Node defaults correctly, browsers must act — is the whole reason this is
+written down rather than left to the bundler config that happens to set it today.
 
 ---
 

@@ -19,10 +19,18 @@
  * effect — expiry's only observability signal, since §6.1 says expiry itself produces no
  * `StateChange`. `week.started` (§11, `info`) is emitted once, after all four systems run —
  * "after start-of-week systems" is what §11's own table says.
+ *
+ * `time_commit` is real logic as of W51: no `JobDefinition`/`CourseDefinition` is wired yet
+ * (out of scope — "the content that grants effects"), so the base commitment it recomputes
+ * is 0 until that content exists. What it proves is the mechanism §3's own callout names —
+ * an `activeEffect`'s `Modifier` targeting `calendar.committedTimeUnits` changes the
+ * recomputed budget, layered the same way `derived.ts` layers every other modifier
+ * (`modifiers.ts`), and clamped to the calendar invariant (§2.1).
  */
 
 import type { ResolutionEmitter } from "../../core/observability/types.js";
 import type { SimulationKindState } from "./state.js";
+import { collectModifiers, combineModifiers } from "./modifiers.js";
 
 const SYSTEM_NAME = "kind.simulation.system.ran";
 const WEEK_STARTED_EVENT = "kind.simulation.week.started";
@@ -65,15 +73,25 @@ function effects(state: SimulationKindState, emit: ResolutionEmitter): Simulatio
   return { ...state, activeEffects };
 }
 
+const COMMITTED_TIME_PATH = "calendar.committedTimeUnits";
+
 /**
- * **Stub.** Recomputing `committedTimeUnits` from job and course commitments needs
- * `JobDefinition.schedule.weeklyTimeCost`/`CourseDefinition.weeklyTimeCost` — content
- * types this unit doesn't have. Returns `calendar` unchanged; a future unit replaces this
- * once those types exist, matching this contract's own "pipeline now, per-system logic
- * once content exists" split.
+ * Recomputes `committedTimeUnits` from job and course commitments (§3). The base commitment
+ * is 0 until `JobDefinition.schedule.weeklyTimeCost`/`CourseDefinition.weeklyTimeCost` are
+ * wired (a future unit — content types this unit doesn't have); a `StatusEffect` targeting
+ * `calendar.committedTimeUnits` still changes the recomputed value, layered per §6.1's order
+ * and clamped to the calendar invariant (§2.1: `0 ≤ committedTimeUnits + spentTimeUnits ≤
+ * totalTimeUnits`) — `spentTimeUnits` is already 0 here, reset by `timeAdvance` above.
  */
 function timeCommit(state: SimulationKindState): SimulationKindState {
-  return state;
+  const baseCommitment = 0;
+  const modifiers = collectModifiers(state.activeEffects, COMMITTED_TIME_PATH);
+  const combined = combineModifiers(baseCommitment, modifiers);
+  const committedTimeUnits = Math.min(
+    Math.max(0, combined),
+    state.calendar.totalTimeUnits - state.calendar.spentTimeUnits,
+  );
+  return { ...state, calendar: { ...state.calendar, committedTimeUnits } };
 }
 
 /**

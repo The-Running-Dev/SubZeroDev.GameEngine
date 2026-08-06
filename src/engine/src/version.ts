@@ -10,15 +10,6 @@
  * game state.
  */
 
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-
-const packageJsonPath = fileURLToPath(new URL("../package.json", import.meta.url));
-
-interface PackageJsonShape {
-  readonly version: string;
-}
-
-const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as PackageJsonShape;
+import packageJson from "../package.json" with { type: "json" };
 
 export const ENGINE_VERSION: string = packageJson.version;

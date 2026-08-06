@@ -167,19 +167,19 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   route, and both of `docs/`'s link checks are `'throw'` (`agent.md`, *Two link checks*), so
   a real cross-repo link would already have failed the build if one existed. There is no
   merged numbering to collide, and none is coming — closing rather than leaving open.
-- **`SessionHost` / `createSessionLayer` remain unbuilt** — [`06-extensibility.md`](06-extensibility.md)
-  §4 specifies a composition root, `createSessionLayer(host: SessionHost): SessionStore`,
-  producing a `SessionStore` from a `SessionHost` whose `sessions` field is already typed as
-  one — which only reconciles if `sessions` was meant to be a lower-level, storage-only port
-  that `createSessionLayer` wraps with stamping (05 §6.1) and profile-upsert (04 §7.1)
-  behaviour, a port `04-core.md` never separately names. W7 built `createInMemorySessionStore`
-  directly against `session/types.ts` instead, since W7's own done-criteria never named
-  `SessionHost` or `createSessionLayer` (`plans/14-w7-session-store.md`, Decision 1). The
-  replay regression oracle (W21) composes `createInMemorySessionStore` for the same reason —
-  see [`07-replay.md`](07-replay.md) §3.2 — rather than resolving this gap, so it now has two
-  real call sites and zero real implementations of the specified abstraction. **Revisit when**
-  a second `SessionStore` implementation is actually needed: the composition-root generality
-  should be drawn from two real cases, not one and a specification.
+- **`SessionHost` / `createSessionLayer` — closed, resolved exactly as this entry predicted.**
+  The open question was that [`06-extensibility.md`](06-extensibility.md) §4 specified
+  `createSessionLayer(host: SessionHost): SessionStore` over a `SessionHost` whose `sessions`
+  field was itself typed `SessionStore` — which only reconciled if `sessions` meant a
+  lower-level, storage-only port that the root wraps with stamping (05 §6.1) and
+  profile-upsert (04 §7.1), a port `04-core.md` never named. That is now the built shape:
+  `SessionPersistence` (04 §7.2) is the storage-only port, `SessionHost` carries it alongside
+  `registry`, `clock` and `recordSink`, and `createSessionLayer` composes the core-owned store
+  around it. **The deferral's trigger was wrong and worth remembering.** This entry said
+  *revisit when a second `SessionStore` implementation is needed*; a second implementation was
+  never wanted, and what forced the root was a host needing **durable records under the same
+  store** — browser `localStorage` for W61's checkpoints. "Wait for a second instance of X"
+  fails when the real demand is for a seam one level below X.
 - **Enterprise's climax scene was already spent — resolved by building it (W30).**
   `games/bulgaria-adventure.md`'s arc table assigned `games/bulgaria.md`'s "Ultimate Bulgarian
   Reward" scene, and by extension its achievement, to Enterprise — but `bulgaria-bureaucracy.ts`
@@ -255,6 +255,16 @@ so they are not forgotten.
   validated-campaign assumption in one internal accessor. **Revisit when** story-graph or
   simulation next changes its content boundary; migrate that kind deliberately rather than
   turning W45 into an unrelated repo-wide rewrite.
+
+- **W63 (Absurd Game Interface)** — marked done on manual review at 320/390/768/1280 px
+  rather than a dedicated automated suite. `site/` has no visual-regression or axe-style
+  accessibility scanner; W63.7 (visual snapshots) and W63.8 (automated accessibility,
+  forced-colours, 200% zoom, long-text checks) were proven by direct inspection, not by a
+  committed test. The root cause is that `site/` tests run in jsdom, which performs no layout
+  at all: no computed size, hit area, or overflow can be asserted there. **Now sliced as
+  W65**, which stands up a real-browser harness, scanner, and snapshots and baselines the
+  shipped rendering before W66 recomposes it. Close or narrow this entry as part of W65.8
+  rather than leaving it standing beside the harness that resolves it.
 
 *Add to this register whenever a decision is deferred or an assumption is made — rather than
 leaving it in a commit message or a chat, where the next person will not find it.*

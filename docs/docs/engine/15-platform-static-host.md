@@ -8,9 +8,9 @@ sidebar_label: Platform Static Host
 
 **Document status:** Revision 1 — agreed W62 build target
 
-**Reading order:** after [`13-playable-web-demo.md`](13-playable-web-demo.md). That document
-owns the browser client and combined static artifact; this one owns an additional container
-delivery surround for the same bytes.
+**Reading order:** after [`14-game-interface.md`](14-game-interface.md). That document owns
+the presentation layer over the browser client; this one owns an additional container delivery
+surround for the same combined static artifact.
 
 > **Scope of this document**
 >
@@ -47,7 +47,7 @@ flowchart LR
     Host --> Files["Verified combined static artifact"]
     Browser --> Local["Engine + Bureaucracy session in browser"]
     Host -. "composed with" .-> Platform["SubZeroDev.Platform.Hosting"]
-    Host -. "never calls" .-> Node["Node engine workload (W63)"]
+    Host -. "never calls" .-> Node["Node engine workload (later slice)"]
 ```
 
 The product host lives under `src/host/`. It calls `AddPlatformWebHost()` and maps Platform's
@@ -150,7 +150,8 @@ runtime environment, rollback policy, and digest-pinned deployment require a lat
 
 - Public deployment, DNS, TLS, a custom domain, traffic cutover, or removal of GitHub Pages.
 - A Node.js engine process, JSON/HTTP engine API, MCP transport, remote session, or server-side
-  action execution. Those form W63's `.NET Platform edge → Node engine workload` boundary.
+  action execution. Those form a later hosted-engine-edge slice's `.NET Platform edge → Node
+  engine workload` boundary.
 - Durable sessions, browser persistence, accounts, authentication, profiles, cloud sync,
   databases, migrations, outbox processing, or a worker process.
 - A generic static-site feature added to Platform. This is a product-owned consumer of the

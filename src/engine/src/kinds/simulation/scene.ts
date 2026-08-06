@@ -16,6 +16,7 @@ import type { KindContext, SceneBody } from "../../core/kernel/types.js";
 import { resolveLocKey } from "../../core/localization/resolve.js";
 import type { SimulationCampaign } from "./campaign.js";
 import type { SimulationKindState } from "./state.js";
+import { resolveEffectiveNeeds } from "./derived.js";
 
 const PLACEHOLDER_PATTERN = /\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g;
 
@@ -34,15 +35,16 @@ export function scene(state: SimulationKindState, ctx: KindContext): SceneBody {
   }
 
   const cents = state.player.finances.cashCents;
+  const needs = resolveEffectiveNeeds(state);
   const text = interpolate(template, {
     week: state.calendar.currentWeek,
     year: state.calendar.currentYear,
     cash: (cents / 100).toFixed(2),
-    health: state.player.needs.health,
-    energy: state.player.needs.energy,
-    happiness: state.player.needs.happiness,
-    stress: state.player.needs.stress,
-    satiety: state.player.needs.satiety,
+    health: needs.health,
+    energy: needs.energy,
+    happiness: needs.happiness,
+    stress: needs.stress,
+    satiety: needs.satiety,
   });
 
   return { textKey: content.sceneTemplateKey, text };

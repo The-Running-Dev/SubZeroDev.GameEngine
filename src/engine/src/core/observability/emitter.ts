@@ -69,11 +69,15 @@ export function safeEmit(sink: Emitter, event: EngineEvent): void {
   }
 }
 
-/** `NODE_ENV=production` is the one place this codebase already relies on to distinguish
- *  a shipped build from every other build (dev, CI, `vitest`'s own default of `"test"`) —
- *  there is no other dev-only guard idiom here to match. */
+/** Vite replaces this at build time for browser consumers; Node callers use `NODE_ENV`. */
+declare const __GAME_ENGINE_PRODUCTION__: boolean | undefined;
+
+/** `NODE_ENV=production` distinguishes a shipped Node build from dev, CI, and tests. Browser
+ *  builds receive the equivalent compile-time flag from their composition root. */
 function isProductionBuild(): boolean {
-  return process.env.NODE_ENV === "production";
+  return typeof __GAME_ENGINE_PRODUCTION__ !== "undefined"
+    ? __GAME_ENGINE_PRODUCTION__
+    : typeof process !== "undefined" && process.env?.NODE_ENV === "production";
 }
 
 /**
