@@ -1208,7 +1208,7 @@ kind-agnostic session store (or a client) can switch on without string-matching 
 > `achievement_unlocked` is **base** vocabulary (`core.reason.achievement_unlocked`) because
 > the session store's profile upsert (§7.1) switches on it without knowing which kind
 > emitted it, while `consequence_applied` is **kind-owned**
-> (`story-graph.reason.consequence_applied`, `kinds/story-graph/reasons.ts`) because only
+> (`story-graph.reason.consequence_applied`, `src/engine/src/kinds/story-graph/reasons.ts`) because only
 > that kind has a consequence. A kind inventing a third audit reason registers it the same
 > way; there is no separate audit namespace exempt from §12's completeness rule.
 
@@ -1221,7 +1221,7 @@ segment, which is exactly why this needs stating rather than assuming: a reason-
 message key and an event name are different vocabularies serving different consumers
 (one renders to a player, one traces a resolution), and neither is a namespace *for* the
 other. `story-graph.reason.unknown_condition_field`
-(`kinds/story-graph/reasons.ts`) is the shipping example — a code this kind adds for a
+(`src/engine/src/kinds/story-graph/reasons.ts`) is the shipping example — a code this kind adds for a
 condition-evaluation failure with no analogue in the base set, so it has no home but a
 kind-owned namespace.
 
