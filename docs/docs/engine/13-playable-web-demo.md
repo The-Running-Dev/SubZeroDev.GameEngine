@@ -53,9 +53,12 @@ The route has five visible states:
    failure is named before a session starts.
 
 Shown-but-unavailable choices remain visible and disabled with their engine-supplied reason.
-A `showWhen`-hidden choice is absent and the page never tries to discover it. All campaign,
-scene, action, reason, achievement, and outcome text resolves through the session's string
-table. A raw `LocKey` is a visible defect, not a fallback presentation.
+A `showWhen`-hidden choice is absent and the page never tries to discover it. Once a session
+exists, all campaign, scene, action, reason, achievement, and outcome text resolves through its
+string table. Before `Start`, the site composition root resolves the one configured campaign's
+title from its validated registry into the demo's frozen startup configuration; it passes a
+plain string, never a `LocKey`, to the page. `Start` remains the only operation that creates a
+session. A raw `LocKey` is a visible defect, not a fallback presentation.
 
 The state panel is a projection, not a debug dump. It may render fields already present in
 `PlayerView` with human labels, but it never requests or displays `GameState`, the seed,
@@ -155,9 +158,10 @@ are bundled at build time. A network outage after the page loads cannot change a
 
 ## 7. Client Proof and Tests
 
-The browser column added to `09-clients.md` §4 is complete only when all ten operations are
-driven through the real browser adapter in automated tests. `previewAction` is exposed as an
-optional engine-demonstration control; `saveGame`/`loadGame` power the same-page checkpoint.
+The browser column added to `09-clients.md` §4 is complete only when all ten operations,
+including `previewAction`, are driven through the real browser adapter in automated tests. The
+visible `previewAction` control is optional engine-demonstration UI; its adapter coverage is
+not optional. `saveGame`/`loadGame` power the same-page checkpoint.
 
 The load-bearing parity test uses the Bureaucracy campaign, the same seed, the same counting
 `IdSource`, and the same committed choices through the browser adapter and text client. At
