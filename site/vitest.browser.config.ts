@@ -58,7 +58,6 @@ export default defineConfig({
           : undefined,
       ),
       headless: true,
-      screenshotFailures: false,
       instances: [{ browser: "chromium" }],
       viewport: { width: 1280, height: 800 },
     },
