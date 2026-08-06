@@ -2177,7 +2177,6 @@ with it. Rendered authored text is unchanged.
       new art beyond CSS-native trim adjustments, and a mobile visual language for the
       simulation or world-graph kinds.
 
-
 ### Correctness Debt Found by Reconciliation
 
 ### [ ] W67 — Restore the Story-Graph Regression Evidence {#w67}
@@ -2286,6 +2285,7 @@ now exists.
 - **Out of scope:** accounts, cloud sync, cross-device resume, multiple named save slots per
       campaign, a server-held session, or any storage-format migration mechanism — the format is
       the existing `SaveEnvelope` and §10.2 already owns its versioning.
+
 - [ ] More clients (Discord; the first web client is [W61](#w61)).
 - [ ] **Additional locales — sliced as [W60](#w60).** The MVP ships English only; the
       authoring→registry types already support more

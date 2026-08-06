@@ -359,7 +359,6 @@ route, a clean shutdown, and a deliberately broken-artifact case. Relevant merge
 publish an immutable full-commit tag and digest to GHCR, with no `latest` tag and no deployment.
 GitHub Pages remains authoritative until a later deployment slice. The complete boundary is in
 [`15-platform-static-host.md`](engine/15-platform-static-host.md).
-
 ## Determinism rules that will bite you
 
 The replay input is campaign identity, seed, and successful submitted actions. Preserve that
