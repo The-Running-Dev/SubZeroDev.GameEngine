@@ -266,21 +266,12 @@ so they are not forgotten.
   simulation next changes its content boundary; migrate that kind deliberately rather than
   turning W45 into an unrelated repo-wide rewrite.
 
-- **W63 (Absurd Game Interface) — resolved by W65.** W63 was marked done on manual review at
-  320/390/768/1280 px because `site/` had no visual-regression or axe-style accessibility
-  scanner and its tests ran in jsdom, which performs no layout at all — no computed size, hit
-  area, or overflow could be asserted there. W65 stood up a real Chromium harness
-  (`site/vitest.browser.config.ts`, the playwright browser provider) with committed
-  self-tests proving each capability fails when the condition it checks is violated
-  (`site/src/test/browser/assertions.browser.test.ts`), an axe-core scan across shelf,
-  briefing, notice, playing, unavailable-choice, rejected, and ended
-  (`site/src/play/browser/accessibility.browser.test.tsx`), and committed baseline snapshots
-  for playing, unavailable-choice, persistence-warning, and ended at 320/390/768/1280 px
-  (`site/src/play/browser/visual-baseline.browser.test.tsx`) — the pre-W66 baseline W66 must
-  diff against. W63.7 and W63.8 are now backed by a committed, CI-run test, not direct
-  inspection; this entry is closed. What remains manual is the ordinary visual-regression
-  workflow itself — reviewing a new reference image before committing it (`npm run
-  test:browser:update`) — which is a process step, not a gap in the acceptance evidence.
+- **W63 (Absurd Game Interface) — harnessed by W65, with acceptance gaps retained.** W65 provides
+  a real Chromium harness, accessibility scanning, and visual snapshots, but W63.7/W63.8 are not
+  yet fully verified against the rendered PlayApp. The remaining gap includes applying the
+  font, line-height, hit-area, and gap assertions to real controls, plus ready-state snapshots,
+  keyboard-only use, 200% zoom, long text, missing assets, and forced-colors application behavior.
+  Revisit when those scenarios are covered by PlayApp-driving specs.
 
 *Add to this register whenever a decision is deferred or an assumption is made — rather than
 leaving it in a commit message or a chat, where the next person will not find it.*
