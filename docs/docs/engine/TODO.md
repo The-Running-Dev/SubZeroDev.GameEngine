@@ -2000,65 +2000,6 @@ old entry never rewinds or resubmits the game.
       a fabricated completion percentage, and any journal field that participates in game
       resolution.
 
-### [x] W65 — Browser Test Harness for the Site {#w65}
-
-**Delivers:** Gives `site/` the ability to prove anything about how a page actually renders.
-Its tests run in jsdom today, which performs no layout: `getBoundingClientRect` returns zeros
-and stylesheet CSS is never cascaded, so no computed size, hit area, overflow, or contrast can
-be asserted. That is why [W63](#w63) was accepted on manual inspection at four widths, recorded
-as known-and-retained in [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md), whose stated revisit trigger is
-exactly this: extend `site/` with real-browser tooling, and extend it to `/play/` first.
-
-W65 adds a real-browser runner, an accessibility scanner, and visual snapshots, then **captures
-the currently shipped rendering as the baseline**. Ordering matters: [W66](#w66) recomposes the
-play surface and promises the desktop compositions survive untouched, and that promise is only
-provable against a baseline taken before the CSS moves. A harness stood up alongside the
-redesign would baseline the changed rendering and prove nothing.
-
-The harness is test infrastructure. It ships no product behaviour, no page change, and no
-engine change. Where an existing jsdom test is adequate it stays put; this is not a migration
-of the whole site suite.
-
-- **Spec:** [`14-game-interface.md`](14-game-interface.md) §10 for the proof list this must be
-      able to execute, and §8 for the widths and states it must reach;
-      [13 §7–§8](13-playable-web-demo.md#7-client-proof-and-tests).
-- **Touches:** `site/package.json`, `site/vite.config.ts`, a browser-test setup file, new
-      specs under `site/src/play/` and `site/src/`, committed baseline snapshots, and the CI
-      workflow that runs the site's check script. No `src/engine/`, `design/` contract, or
-      product-code change beyond a test id where a control is otherwise unaddressable.
-- **Depends on:** [W63](#w63) and [W64](#w64) being on `main`, since the baseline is of what
-      they shipped. No engine dependency.
-- **Done when:**
-  - W65.1 `site/` runs specs in a real browser engine, driven by the package's existing check
-        script and by CI, with a documented single command. A deliberately failing computed-style
-        assertion fails that command; a jsdom-only run cannot silently satisfy it.
-  - W65.2 The runner can set viewport width and height, so a spec can assert at 320, 360, 390,
-        414, 768, and 1280 px in portrait and at one landscape phone size, and can emulate
-        `prefers-reduced-motion` and forced colours.
-  - W65.3 A spec can read a **computed** style and a real hit area from a rendered control, and
-        can assert the document does not scroll horizontally. Each of those three capabilities
-        has a self-test proving it fails when the condition is violated.
-  - W65.4 An automated accessibility scan runs against the shelf, briefing, content notice,
-        playing, unavailable-choice, rejected, and ended states, and fails the build on a
-        violation at the agreed severity. Existing violations, if any, are recorded explicitly
-        rather than silenced by lowering the threshold.
-  - W65.5 Visual snapshots of the shipped `/play/` rendering are captured and committed for
-        playing, unavailable-choice, persistence-warning, and ended states at 320, 390, 768, and
-        1280 px. Snapshot review and update are documented, and a snapshot diff fails the build.
-  - W65.6 The harness is deterministic enough to run in CI without flake: fonts, animation, and
-        any time-dependent rendering are pinned or disabled for capture, and a repeated run on an
-        unchanged tree produces no diff.
-  - W65.7 Engine gates, documentation checks, the existing jsdom suite, the production site
-        build, and `git diff --check` all still pass, and the added tooling does not enter the
-        shipped `/play/` bundle.
-  - W65.8 The known-and-retained W63.7/W63.8 entry in [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) is closed
-        or narrowed to whatever genuinely remains, rather than left standing beside a harness
-        that resolves it.
-- **Out of scope:** any `/play/` visual, layout, type, or markup change — that is [W66](#w66);
-      migrating the existing jsdom suite wholesale; a harness for `docs/`; performance
-      budgets, Lighthouse scoring, or cross-browser matrices beyond the one engine needed to
-      make the assertions real; and any engine or campaign change.
-
 ### [ ] W66 — The Play Surface on a Phone {#w66}
 
 **Delivers:** Recomposes `/play/` for the device most visitors actually hold. The W63 cabinet
