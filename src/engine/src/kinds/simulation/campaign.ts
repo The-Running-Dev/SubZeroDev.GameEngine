@@ -27,7 +27,7 @@
  */
 
 import type { LocKey } from "../../core/localization/types.js";
-import type { CalendarState, EconomyState, WorldState } from "./state.js";
+import type { CalendarState, EconomyState, WorldState, StatusEffect } from "./state.js";
 import type { PlayerState } from "./actor.js";
 import type { GoalDefinition, GoalFailurePrecedence } from "./content.js";
 
@@ -48,6 +48,12 @@ export interface SimulationCampaign {
 
   goals: readonly GoalDefinition[];
   goalFailurePrecedence: GoalFailurePrecedence;
+
+  /** Optional hand-authored `activeEffects` present from `initialState` on — the only lever
+   *  a campaign has to seed one before the content that grants effects at runtime (jobs,
+   *  courses, items) exists. Absent means `[]`, unchanged from every campaign predating this
+   *  field (W51.6). */
+  startingEffects?: readonly StatusEffect[];
 
   /** `scene()`'s (§9) status-summary template — interpolates `{week}`, `{year}`, `{cash}`,
    *  `{health}`, `{energy}`, `{happiness}`, `{stress}`, `{satiety}` (`scene.ts`). */

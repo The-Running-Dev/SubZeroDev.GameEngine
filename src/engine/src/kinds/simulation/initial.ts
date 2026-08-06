@@ -48,7 +48,7 @@ export function initialState(campaign: Campaign): InitialStateResult<SimulationK
     economy: content.startingEconomy,
     world: content.startingWorld,
 
-    activeEffects: [],
+    activeEffects: content.startingEffects ? [...content.startingEffects] : [],
     activeOpportunities: [],
     scheduledEvents: [],
     pendingEventResponses: [],

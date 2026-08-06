@@ -1,0 +1,20 @@
+{
+  "name": "stable-life-effect-expiry",
+  "config": {
+    "campaignId": "stable-life-effects",
+    "seed": "stable-life-effect-expiry-seed"
+  },
+  "campaignVersion": "1.0.0",
+  "capturedUnder": "0.4.0",
+  "submissions": [
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "end_week"
+    }
+  ]
+}
