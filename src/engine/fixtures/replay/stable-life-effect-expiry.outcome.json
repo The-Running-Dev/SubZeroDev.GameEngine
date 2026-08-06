@@ -1,0 +1,30 @@
+{
+  "finalStatus": "active",
+  "acceptedActions": 3,
+  "decisions": [
+    {
+      "index": 0,
+      "seq": 0,
+      "actionId": "end_week",
+      "accepted": true
+    },
+    {
+      "index": 1,
+      "seq": 1,
+      "actionId": "end_week",
+      "accepted": true
+    },
+    {
+      "index": 2,
+      "seq": 2,
+      "actionId": "end_week",
+      "accepted": true
+    }
+  ],
+  "achievements": [],
+  "terminal": {
+    "resolution": null,
+    "goalsMet": [],
+    "goalsFailed": []
+  }
+}
