@@ -138,13 +138,11 @@
 
 ### [ ] W60 — A Second Locale, End to End {#w60}
 
-### [ ] W61 — Consume the Reusable Landing-Page Package {#w61}
-
 ### Breadth: The First Culture Pack
 
 ### Breadth: The Platform
 
-### [ ] W61 — Public Playable Web Demo {#w61}
+### [x] W61 — Public Playable Web Demo {#w61}
 
 ### [ ] W62 — Platform Static Host Image {#w62}
 
@@ -163,6 +161,8 @@
 ### [ ] W67 — Restore the Story-Graph Regression Evidence {#w67}
 
 ### [ ] W68 — Make the Browser Save Adapter Actually Restore {#w68}
+
+### [ ] W69 — Consume the Reusable Landing-Page Package {#w69}
 
 ### Content Tooling — A First-Class Workstream, Not an Afterthought
 
