@@ -6,7 +6,9 @@ sidebar_label: Playable Web Demo
 
 # Playable Web Demo — Browser Client and Static Delivery
 
-**Document status:** Revision 1 — agreed W61 build target
+**Document status:** Revision 2 — W61 shipped as Revision 1. §4's checksum mechanism and
+bundle gate and §5's checkpoint lifetime are restated against what was built; §§1–3 and §§6–11
+are unchanged except where they cited §5's same-page limit.
 
 **Reading order:** after [`09-clients.md`](09-clients.md). That document owns what every
 client may do; this one owns the first public browser client's product boundary, composition,
@@ -91,9 +93,19 @@ flowchart TD
 - **Components render adapter DTOs.** They do not grow a parallel interpretation of
   `ReasonCode`, `Condition`, or action parameters.
 
-The committed Bureaucracy campaign builder becomes a supported package export because the
-composition root needs content to construct the demo without a deep import. That exposes
-existing content; it does not move content into the client.
+The committed campaign builders become supported package exports because the composition root
+needs content to construct the demo without a deep import. That exposes existing content; it
+does not move content into the client. As the shelf grew past Bureaucracy the export set grew
+with it, and the rule that keeps it principled is **a builder, never its internals**: the
+package root exports `build<Campaign>Campaign` and its id constant, and nothing that would let
+a caller assemble or mutate a campaign's nodes.
+
+`TextClient` is exported for the same composition reason and one further one: 09 §1 makes the
+client rule testable as *two clients, same inputs, byte-identical `serialize()`*, and the
+browser parity test cannot instantiate the other client without it. A client in the engine's
+public surface is a mild oddity — it is presentation, and 02 §1 puts presentation above
+everything — but the alternative is a parity proof that reaches into `src/clients/` by path,
+which is the deep import this section exists to forbid.
 
 ## 4. Browser Portability Is an Engine Property
 
@@ -109,35 +121,65 @@ fork:
 - Its production runtime graph contains no `node:` import and no unguarded Node.js global.
 - `ENGINE_VERSION` remains owned by package metadata and is made available without runtime
   filesystem I/O; it is not duplicated by hand in site code.
-- Save-envelope checksums remain SHA-256 over the exact canonical bytes §10.2 specifies.
-  Browser support may make checksum calculation asynchronous inside `saveGame`/`loadGame` —
-  both store operations are already promises — but it must not change the envelope, hex
-  digest, `Engine.serialize`, or pure `advance` path.
-- Use platform standards available in both Node.js 24 and supported browsers. Do not add a
-  second checksum algorithm or a browser-only save format.
+- Save-envelope checksums remain SHA-256 over the exact canonical bytes §10.2 specifies. The
+  envelope, hex digest, `Engine.serialize`, and pure `advance` path are unchanged.
+- Do not add a second checksum algorithm or a browser-only save format.
 
-Support is capability-based: ES2022 modules, `crypto.randomUUID`, `TextEncoder`, and Web
-Crypto SHA-256. The static page detects a missing required capability before composition and
-renders an actionable unsupported-browser message instead of failing during play.
+**`computeChecksum` stays synchronous, over a portable SHA-256 dependency.** Web Crypto was
+the obvious candidate and was not taken: `crypto.subtle.digest` is async, and making it reach
+`saveGame`/`loadGame` means async-ifying `computeChecksum`, `buildSaveEnvelope`, and every
+caller and test between them — a refactor of the envelope path to obtain a hash the engine can
+already compute. A small, audited, dependency-free SHA-256 library (`@noble/hashes`) produces
+the identical digest over the identical bytes and runs unchanged in both runtimes.
 
-A browser production-bundle smoke test is the gate. Merely typechecking DOM declarations in
-Node.js does not prove that no Node-only module reached the bundle.
+The cost is real and is the reason this is recorded rather than assumed: **the engine package
+now has a runtime dependency**, where it previously had none, and it hashes with library code
+rather than the platform primitive. Both are reversible — the digest is the contract, not how
+it is produced — and the trigger for reversing them is a synchronous checksum becoming
+unnecessary, not a preference for the standard.
+
+Support is capability-based: ES2022 modules, `crypto.randomUUID`, and `TextEncoder`. The
+static page detects a missing required capability before composition and renders an actionable
+unsupported-browser message instead of failing during play.
+
+A browser production-bundle smoke test is the gate, and it is an **assertion over the emitted
+bundle**, not the build succeeding. The site's build verification scans the produced assets for
+`node:` specifiers and Node-only globals and fails on a hit. "The bundler would have
+complained" is the same class of claim as "typechecking DOM declarations proves portability" —
+it may be true today, and it is not a gate. The site now depends on the engine by path, so a
+future engine change can reintroduce a Node-only import with nothing else watching.
 
 ## 5. Checkpoints and Lifetime
 
-W61 exposes the existing `saveGame` and `loadGame` operations as **same-page checkpoints**.
-They demonstrate the save envelope and let a visitor explore a branch and return without
-restarting.
+W61 exposes the existing `saveGame` and `loadGame` operations as **checkpoints**. They
+demonstrate the save envelope and let a visitor explore a branch and return without restarting.
 
-They are deliberately not durable across a page reload. The current session store is
-in-memory, the client contract forbids a client from persisting authoritative game state,
-and no browser storage port exists. React must not write a raw state or save envelope into
-`localStorage` to make the demo appear more complete than the architecture is.
+**Revision 2.** Revision 1 made them same-page only, and gave three reasons: the session store
+was in-memory, the client contract forbids a client persisting authoritative state, and no
+browser storage port existed. The third is no longer true — 06 §5.2 draws the seam at
+`SessionPersistence` (04 §7.2) — and the first two never argued against durability, only
+against React reaching for `localStorage` behind the store's back.
 
-The page states this plainly near the checkpoint controls: refreshing starts a new demo.
-Durable local saves require a host-owned persistence adapter or a new store port and therefore
-their own contract and slice. Accounts, cloud sync, and cross-device resume remain in the
-deferred hosting layer.
+So the line moves, and it moves without weakening either rule that produced it:
+
+- **The client still persists nothing.** React holds a `SessionStore` and calls
+  `saveGame`/`loadGame`. It does not see a blob, a save envelope, or a storage key.
+- **The site composition root supplies a `SessionPersistence` adapter over `localStorage`.**
+  That is host composition, above the client boundary and squarely inside 06 §2's rule: an
+  adapter that stores and returns the exact bytes the store gave it cannot change
+  `serialize()` output.
+- **A save is addressed by its `saveId`** (04 §7.2). An adapter keyed on anything else — the
+  campaign id, say — writes successfully and reads nothing back.
+- **Storage is best-effort and the page says so honestly.** A quota error, a disabled store, or
+  a private-browsing restriction surfaces as `storage_failure` (04 §7.2), rendered through the
+  string table, and the run continues in memory. "Saved" is claimed only after a write the
+  adapter confirmed.
+- **What durability means here is one local checkpoint per campaign, in one browser.** Reopening
+  `/play/` offers to resume it. Nothing syncs, nothing is shared between devices, and clearing
+  site data clears it.
+
+Accounts, cloud sync, cross-device resume, and server-held sessions remain in the deferred
+hosting layer, unchanged.
 
 ## 6. Route, Visual System, and Delivery
 
@@ -165,7 +207,9 @@ are bundled at build time. A network outage after the page loads cannot change a
 The browser column added to `09-clients.md` §4 is complete only when all ten operations,
 including `previewAction`, are driven through the real browser adapter in automated tests. The
 visible `previewAction` control is optional engine-demonstration UI; its adapter coverage is
-not optional. `saveGame`/`loadGame` power the same-page checkpoint.
+not optional. `saveGame`/`loadGame` power the checkpoint §5 specifies, and their adapter
+coverage is asserted against the store, not against whether a given browser's storage is
+writable — a run with `SessionPersistence` omitted must satisfy the same ten rows.
 
 The load-bearing parity test uses the Bureaucracy campaign, the same seed, the same counting
 `IdSource`, and the same committed choices through the browser adapter and text client. At
@@ -229,8 +273,10 @@ Additional acceptance:
 | Authority | `SessionStore`; React receives projections only |
 | Runtime | Engine executes locally in the browser; no backend |
 | Browser compatibility | One shared public engine surface, no Node.js fork |
-| Saves | Same-page checkpoints; refresh intentionally resets |
+| Saves | One local checkpoint per campaign, via a host `SessionPersistence` adapter (Rev. 2) |
+| Storage failure | Best-effort: `storage_failure` surfaces, the run continues in memory |
+| Checksums | Synchronous SHA-256 over a portable library, not async Web Crypto |
 | Demonstration feature | Explicit non-committing action preview |
 | Styling | Existing site system, responsive and keyboard-first |
 | Delivery | Existing GitHub Pages artifact beside `/`, `/roadmap/`, and `/docs/` |
-| Expansion | More campaigns and durable persistence require later slices |
+| Expansion | Cloud sync, accounts, and cross-device resume require later slices |

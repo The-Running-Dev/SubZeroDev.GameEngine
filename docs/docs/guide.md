@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: c13a64468abe0b459c23c3a3e26e11ed959ec13bfd1cc140234ddfd1ff86b28e -->
+<!-- design-digest: e00ac21ba2cb400582b752e0697e12294e23ce7ab193917f74bb9ba4f376e994 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -15,10 +15,11 @@ directly.
 # Developer Guide
 
 SubZeroDev.GameEngine is a deterministic narrative-game engine written in TypeScript. Node.js
-is the currently proven runtime; W61 adds the first browser delivery without forking the engine.
-The engine separates game-independent execution from game-category rules and campaign data, then
-exposes every game through one session API. Text, MCP, and browser clients are siblings over that
-API; none owns rules or authoritative state.
+is the currently proven runtime; W61 adds the first browser delivery without forking the engine,
+and W62 packages that static delivery behind a product-owned Platform web host without moving
+engine execution to the server. The engine separates game-independent execution from
+game-category rules and campaign data, then exposes every game through one session API. Text,
+MCP, and browser clients are siblings over that API; none owns rules or authoritative state.
 
 Use this guide when integrating the package, implementing a client or campaign, or extending an
 engine-owned kind. The exact public types, signatures, error tables, persisted schemas, and
@@ -45,6 +46,9 @@ assertable invariants are in the
 - A public `/play/` browser demo runs the Bureaucracy MVP locally in the browser through the
   same session-store boundary as the text and MCP clients. Additional campaigns and durable
   browser saves are deliberately later work.
+- A Platform-backed static container is designed and sliced as W62 but is not implemented. It is
+  an undeployed alternative delivery artifact for the W61 bytes, not a hosted engine API; the
+  existing GitHub Pages deployment remains public.
 - Content packs, the `ExperimentSource` port, and privacy-safe session capture are specified but
   not implemented. All three are deferred: content packs and experiment gating to post-MVP
   content-pack work, capture to the hosting layer that gates it.
@@ -121,6 +125,14 @@ failure boundary: a Tier 1 error means there is no registry and therefore no pla
 AI-authored content takes this same path. AI may draft campaign data; it does not author or load
 executable kinds.
 
+A **campaign-shape builder** takes the same path for the same reason. Every shipped story-graph
+campaign is constructed through one — a parameterized function that takes the authored prose,
+choices and endings and emits the repetitive graph topology around them. It is tooling, not a
+layer: it runs before the engine, emits an ordinary campaign source, is validated by the tiers
+above exactly as hand-written content is, and leaves no trace in `serialize()`. A campaign is
+free not to use one, and that freedom is what keeps the shared shape a convenience rather than an
+undeclared content schema. If a campaign needs a different topology, write it out longhand.
+
 ## Use the session API, not raw engine state
 
 The session service is the application boundary. It provides campaign listing, creation,
@@ -166,6 +178,29 @@ A stored session record carries more than the serialized envelope: an `audience`
 `replayCompatible` flag that turns false forever once a migrated load touches the lineage, and
 wall-clock `createdAt`/`updatedAt` timestamps set via the `Clock` port — all of it outside the
 replayable `GameState` and never read by `advance`.
+
+### Durability is a host adapter, and the store is not
+
+The session store itself is engine-owned. Its two lock domains, its trace-and-stamp decorator,
+save-envelope assembly, and the idempotent profile upsert are behaviour you get, not behaviour
+you supply. What you may supply is `SessionPersistence`: a pair of record stores that get and
+put a session record, and get, put and delete a save record. Omit it and the store's in-memory
+maps are the whole implementation, which is the default and what every test runs against.
+
+Two rules an adapter must not get wrong:
+
+- **Address a save by its `saveId`.** `get` and `put` must reach the same record. An adapter
+  keyed on anything else writes successfully, reads nothing, and fails no gate — the first
+  shipped adapter did exactly that.
+- **Store the bytes you were given.** The record holds a canonical serialization, not a live
+  object graph, and nothing on it may be written into `GameState`.
+
+Failures throw `SessionStoreError`, because none of the store's signatures has a field an error
+could travel in. It is not opaque: `operation` names the call, and `code` is a registered reason
+code with a shipped `core.reason.*` message, so a client renders it through the string table like
+any other rejection and never reads `message`. Whatever exception your adapter raises is caught
+and re-raised as `storage_failure` — a Postgres timeout and a browser quota error are
+indistinguishable to a client deliberately, since neither admits a different response.
 
 ### Previewing an action
 
@@ -213,25 +248,36 @@ fallback opportunity.
 ### Building the public browser demo
 
 W61 adds one static `/play/` route to the existing React site. Keep its composition root separate
-from its client: the root may assemble the engine, story-graph kind, validated Bureaucracy
-campaign, and session store. Before start, it resolves the configured campaign title and passes a
-frozen startup configuration with that plain title and campaign id to the page. The browser
-adapter and React components use `SessionStore` as their only game-facing dependency; they do not
-read a registry, and `Start` remains the action that creates the session. The package root must
-export the committed campaign builder; do not deep-import a campaign or let a component construct
-a registry.
+from its client: the root may assemble the engine, story-graph kind, validated campaigns, and
+session store. Before start, it resolves the configured campaign title and passes a frozen startup
+configuration with that plain title and campaign id to the page. The browser adapter and React
+components use `SessionStore` as their only game-facing dependency; they do not read a registry,
+and `Start` remains the action that creates the session.
 
-The same supported engine entry point must bundle for Node.js and the browser. Remove Node-only
-runtime filesystem/crypto imports and unguarded Node.js globals from that graph rather than
-creating a reduced browser implementation. Save checksums remain SHA-256 over the same canonical
-bytes; only the already-asynchronous `saveGame`/`loadGame` boundary may await standards-based
-crypto. Gate this with a production browser bundle, not DOM-aware typechecking alone.
+The package root exports the committed campaign builders so the root needs no deep import — a
+builder and its id constant, never anything that would let a caller assemble or mutate nodes.
+`TextClient` is exported for the same reason plus one more: the browser/text parity proof cannot
+instantiate the other client without it. Do not deep-import a campaign or let a component
+construct a registry.
 
-The first page exposes scenes, shown choices, disabled reasons, the projected state,
-achievements, optional action preview, and same-page save/load checkpoints. Checkpoints are
-in-memory: refresh intentionally starts a new demo. Do not make React persist raw state or save
-envelopes to browser storage; durable saves require a host-owned persistence seam that does not
-exist yet.
+The same supported engine entry point must bundle for Node.js and the browser, with no `node:`
+import and no unguarded Node global in its production graph. Remove them at the shared
+implementation rather than creating a reduced browser fork. Save checksums remain SHA-256 over
+the same canonical bytes and stay synchronous, computed by a portable library rather than Web
+Crypto — `crypto.subtle.digest` is async, and adopting it would mean async-ifying the whole
+envelope path to obtain an identical digest. The gate for all of this is an assertion that scans
+the emitted bundle for Node-only references. A build that merely succeeded is not the gate.
+
+Browser hosts must also define the `__GAME_ENGINE_PRODUCTION__` build-time flag. Node callers
+fall back to `NODE_ENV`; a browser bundle that omits it silently gets dev-mode emitter behaviour.
+
+The page exposes scenes, shown choices, disabled reasons, the projected state, achievements,
+optional action preview, and save/load. Checkpoints are locally durable — one per campaign, in
+one browser — through a `SessionPersistence` adapter the site composition root supplies. React
+still persists nothing: it holds a `SessionStore` and never sees a blob, an envelope, or a
+storage key. Storage is best-effort, so a quota error or disabled storage surfaces as
+`storage_failure` and the run continues in memory; claim "saved" only after a write the adapter
+confirmed. Nothing syncs and nothing crosses devices.
 
 The route must be a real `play/index.html` in the static artifact, not an SPA fallback. Extend the
 combined-site verification so `/`, `/roadmap/`, `/play/`, and `/docs/` survive one deployment and
@@ -293,6 +339,26 @@ local to the static build, and stays inside the W63 asset budgets. The complete 
 proof matrix, and non-goals are in
 [`14-game-interface.md`](engine/14-game-interface.md).
 
+### Hosting the static artifact with Platform
+
+W62 adds a separate ASP.NET Core composition root under `src/host/`. It uses
+`SubZeroDev.Platform.Hosting`'s supported web-host composition and probes, then serves the same
+verified combined artifact at `/`, `/roadmap/`, `/play/`, and `/docs/`. It does not add a worker,
+persistence, accounts, remote sessions, an engine API, or an SPA fallback. Unknown routes return
+`404`, and opening `/play/` still downloads the engine and runs it in browser memory.
+
+Build the site and documentation from one commit inside a multi-stage image, run the protected
+merge, and copy only the published host plus verified artifact into the non-root runtime image.
+The final host project must reference one exact released `SubZeroDev.Platform.Hosting` NuGet
+package. A sibling project reference may unblock local work before Platform S9, but it must not
+merge or become a CI dependency. Keep private-registry credentials in a non-persistent build
+secret; never put them in repository configuration, Docker arguments, or image layers.
+
+PRs build, start, and smoke the image, including supported routes, Platform probes, an unknown
+route, a clean shutdown, and a deliberately broken-artifact case. Relevant merges to `main`
+publish an immutable full-commit tag and digest to GHCR, with no `latest` tag and no deployment.
+GitHub Pages remains authoritative until a later deployment slice. The complete boundary is in
+[`15-platform-static-host.md`](engine/15-platform-static-host.md).
 ## Determinism rules that will bite you
 
 The replay input is campaign identity, seed, and successful submitted actions. Preserve that
@@ -359,6 +425,22 @@ The week pipeline is contract behavior. Start-of-week time handling is split aro
 end-of-week systems run once in declared order. Income and expenses run before housing so current
 wages can fund rent, while finance reconciliation runs after housing so arrears and eviction see
 the rent decision from that week.
+
+**State stores base values; modifiers never write to state.** A derived value is computed on
+every read by layering active modifiers over the base, in a fixed order: sum the adds and
+subtracts, multiply the multiplies as one product rounded once, then let the highest-priority
+`set` win with ties broken by earliest applied week, then clamp. Because nothing was overwritten,
+an expiring effect has nothing to undo — the value simply recomputes against a shorter list.
+
+Every reader must resolve through that layer, not just the projection. A goal condition reading
+a raw stored need would disagree with what the same field shows in the view.
+
+**Being derived does not make a path read-only; having no stored counterpart does.**
+`player.needs.*`, `player.attributes.*` and `player.skills.*` are derived *and* writable — they
+are what the layering exists to serve, and a modifier setting a need for three weeks is the
+motivating case. The four formula-only paths — `player.housing.quality`,
+`player.career.effectivePerformance`, `calendar.energyRecoveryRate`, `world.strangeness` — have
+no writable field, and a `Modifier` targeting one is a Tier 1 `read_only_field` error.
 
 Important constraints:
 
@@ -478,9 +560,19 @@ does not belong as a host-supplied port.
 Existing host seams cover:
 
 - deterministic game/session ids and seeds;
-- session and profile persistence;
+- session record durability (`SessionPersistence`) and profile persistence (`ProfileStore`);
 - operational event sinks;
 - boundary clocks used only for metadata.
+
+Note which of those two persistence seams is which. `ProfileStore` is a port in the plain sense —
+supply the whole thing. `SessionStore` is not: it is engine-owned, and what a host replaces is
+`SessionPersistence` underneath it. A store supplied wholesale would be four invariants nobody
+checks.
+
+One further seam is not a port at all and is easy to miss: `__GAME_ENGINE_PRODUCTION__` is a
+build-time flag, substituted by the bundler, because a value supplied at construction cannot be
+tree-shaken. Node hosts define nothing and get the right answer from `NODE_ENV`; browser hosts
+must define it.
 
 One seam is specified but not yet implemented: `ExperimentSource` resolves an A/B or feature-flag
 variant at session-creation time so it can select content packs and tag events, but it is
@@ -497,6 +589,8 @@ kind only when turn model, runtime state, projection, and determinism contract d
 - Reject content before freezing the registry; expose no partial registry.
 - On rejected game actions, persist nothing and append no action-log entry.
 - On session write failure, do not acknowledge success; retry only after store recovery.
+- On host storage failure, surface `storage_failure` through the string table and keep playing;
+  never leak the adapter's own exception type across the store boundary.
 - On profile failure, preserve the successful game result and return a warning.
 - On migration failure, retain the previous session/save untouched.
 - On sink failure, preserve both returned and serialized game results.

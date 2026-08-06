@@ -764,7 +764,7 @@ type DerivedPath =
   | "world.strangeness";                           // §2.2
 
 interface DerivedValueResolver {
-  resolve(path: DerivedPath, base: number, effects: StatusEffect[]): number;
+  resolve(path: DerivedPath, base: number, effects: readonly StatusEffect[]): number;
   isReadOnly(path: string): boolean;
 }
 ```
@@ -794,8 +794,23 @@ independent layer. Two different sources always stack.
 12 still applies throughout week 12. Because nothing was ever overwritten, expiry has nothing
 to undo; the derived value simply recomputes against a shorter effect list.
 
-Derived paths are read-only: a `Modifier` or content effect targeting one is a Tier 1
-validation error (`read_only_field`, already a base reason code).
+**`isReadOnly` partitions `DerivedPath`; it does not cover it.** Being derived is not what
+makes a path unwritable — having no stored counterpart is:
+
+| Derived paths | Stored base? | A `Modifier` may target it? |
+|---|---|---|
+| `player.needs.*`, `player.attributes.*`, `player.skills.*` | Yes | **Yes** — this is what the layering above is *for* |
+| `player.housing.quality`, `player.career.effectivePerformance`, `calendar.energyRecoveryRate`, `world.strangeness` | No — formula-only | **No** — Tier 1 `read_only_field` (§14) |
+
+The first row is this section's own motivating example: *a modifier that sets a need to a fixed
+value for three weeks*. `player.needs.*` is a `DerivedPath`, so a blanket "derived paths are
+read-only" would make that example a validation error and leave the base/derived split with
+nothing to layer. The second row has no writable field to name — a `Modifier` targeting
+`career.effectivePerformance` is asking to write a formula's output, which is the defect
+`read_only_field` exists to catch.
+
+`isReadOnly` returns true for the second row only, and §14's Tier 1 check is written against
+that partition rather than against the union.
 
 > **Provisional, not settled.** Resolving a derived value on every access costs against a
 > performance budget this contract does not itself set a number for. The assumed mitigation is
@@ -1192,7 +1207,7 @@ schema (§4.2) by name.
 
 ```typescript
 interface Modifier {
-  target: string;                 // must resolve to a writable *stored* field — never a §6.1 DerivedPath (§14: read_only_field)
+  target: string;                 // must resolve to a writable *stored* field — never one of §6.1's four formula-only paths (§14: read_only_field)
   operation: "add" | "subtract" | "multiply" | "set";
   value: number;
   durationWeeks?: number;
@@ -2144,9 +2159,12 @@ total, run once at registry construction, before the registry is frozen. Tiered 
   resolves in the registry's string table (04 §10.1).
 - A `Modifier.target`/addressing path naming an array collection uses the collection's natural
   key, never a numeric index (§7.1) — a numeric path segment is rejected outright.
-- A `Modifier` targeting a `DerivedPath` (§6.1) fails with `read_only_field` — the same rule
-  §6.1 itself states, checked here because this is where a concrete `target` string first
-  exists to check.
+- A `Modifier` targeting one of §6.1's four **formula-only** paths — `player.housing.quality`,
+  `player.career.effectivePerformance`, `calendar.energyRecoveryRate`, `world.strangeness` —
+  fails with `read_only_field`. That is `isReadOnly`'s partition, not the whole `DerivedPath`
+  union: `player.needs.*`, `player.attributes.*` and `player.skills.*` are derived *and*
+  writable, and are the targets the layering in §6.1 exists to serve. Checked here because this
+  is where a concrete `target` string first exists to check.
 
 **Tier 2 — load-time, warning:**
 

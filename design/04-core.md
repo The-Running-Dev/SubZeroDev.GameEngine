@@ -24,6 +24,8 @@
 
 ### 7.1 The Profile Store
 
+### 7.2 Host Persistence — The Record Store Beneath the Session Store
+
 ## 8. Randomness
 
 ## 9. Projection

@@ -146,6 +146,8 @@
 
 ### [ ] W61 — Public Playable Web Demo {#w61}
 
+### [ ] W62 — Platform Static Host Image {#w62}
+
 ### [x] W63 — Absurd Game Interface {#w63}
 
 ### Depth: Story Campaigns Become Adventures
@@ -155,6 +157,12 @@
 ### [ ] W65 — Browser Test Harness for the Site {#w65}
 
 ### [ ] W66 — The Play Surface on a Phone {#w66}
+
+### Correctness Debt Found by Reconciliation
+
+### [ ] W67 — Restore the Story-Graph Regression Evidence {#w67}
+
+### [ ] W68 — Make the Browser Save Adapter Actually Restore {#w68}
 
 ### Content Tooling — A First-Class Workstream, Not an Afterthought
 

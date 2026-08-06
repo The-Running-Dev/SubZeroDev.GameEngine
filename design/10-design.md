@@ -13,9 +13,10 @@ Owned by [Architecture](#architecture), with detailed cross-cutting models in
 ## Module boundaries
 
 Owned by [Architecture](#architecture), [Extensibility](#extensibility--ports-and-seams),
-[Clients](#clients--the-contract), and
-[Playable Web Demo](#playable-web-demo--browser-client-and-static-delivery), and
-[Game Interface](#game-interface--absurd-adventure-stage-and-dashboard).
+[Clients](#clients--the-contract),
+[Playable Web Demo](#playable-web-demo--browser-client-and-static-delivery),
+[Game Interface](#game-interface--absurd-adventure-stage-and-dashboard), and
+[Platform Static Host](#platform-static-host--container-delivery-without-a-hosted-engine).
 
 ## Control flow
 
@@ -25,8 +26,8 @@ cross-cutting design blocks below.
 ## Failure modes
 
 Owned by the boundary-specific sections in Observability, Extensibility, Replay, Session
-Capture, Clients, Playable Web Demo, and Content Packs. Exact error vocabulary belongs to
-`20-contract.md`.
+Capture, Clients, Playable Web Demo, Game Interface, Platform Static Host, and Content Packs.
+Exact error vocabulary belongs to `20-contract.md`.
 
 ## Concurrency and ordering
 
@@ -454,6 +455,32 @@ over from the simulation kind's §4.3.
 > statically decidable — the same discipline the simulation kind arrived at. AI never
 > routes around it, because AI output is data and all data is validated identically,
 > whatever produced it.
+
+### 9.1 Campaign-Shape Builders Are Tooling, Not a Fourth Layer
+
+The same reasoning covers a second producer of content, and the layer model reads as though it
+does not exist: a **campaign-shape builder** — a parameterized function that takes a
+campaign's authored prose, choices and endings and emits the repetitive graph topology around
+them. `adventure-builder.ts` is the built one; every shipped story-graph campaign is
+constructed through it.
+
+It is not a layer between kinds and campaigns:
+
+- **It runs before the engine does.** Its output is an ordinary campaign source, built and
+  validated through the same registry path as a hand-written one. The engine has no idea one
+  was involved, and nothing in `serialize()` records it.
+- **It is data-producing, so N10 already governs it.** A builder that emits an unreachable
+  node fails Tier 2 exactly as a human who wrote one would. It buys no exemption, which is
+  the same argument that lets AI author content at all.
+- **A campaign is free not to use one.** This matters more than it sounds: the moment a
+  shared shape becomes the only way a campaign is expressed, the shape is a content schema
+  and belongs in the kind contract instead. The test is whether a campaign needing a
+  different topology can simply be written out longhand. It can, and one that needs to,
+  should.
+
+The cost of *not* saying this is a reader inferring from six identically-shaped campaigns that
+the shape is required. It is a convenience, and the day it stops being convenient is the day
+to stop using it, not to generalize it.
 
 ---
 
@@ -1171,7 +1198,8 @@ no partial trust to model. A seam is on one side of the line or the other.
 | `Kind` | **Inside** — is the game logic | **No** — engine-owned (§7) | 04 §3 |
 | `Condition` operators | **Inside** — evaluated during resolution | **No** — frozen set | 04 §18 |
 | `IdSource` | Outside — values enter state but are opaque to it | **Yes** | §5.1 |
-| `SessionStore` | Outside — holds serialized blobs | **Yes** | §5.2 |
+| `SessionStore` | Outside, but **core-owned** — locking, stamping and upsert live in it | **No** — supply `SessionPersistence` instead | §5.2 |
+| `SessionPersistence` | Outside — reads and writes the store's records | **Yes** | §5.2 |
 | `ProfileStore` | Outside — durable, beside the session store | **Yes** | §5.2 |
 | `Emitter` | Outside — write-only, returns `void` | **Yes** | 05 §4 |
 | `Clock` | Outside — boundary only, never reaches the core | **Yes** | §5.4 |
@@ -1215,14 +1243,24 @@ Stores are composed one layer out, because they sit above the pure engine (04 §
 ```typescript
 interface SessionHost {
   readonly engine: Engine;
-  readonly sessions: SessionStore;       // §5.2
-  readonly profiles?: ProfileStore;      // §5.2 — omitted → anonymous-only (04 §7.1)
-  readonly clock?: Clock;                // §5.4 — defaults to the system clock
-  readonly experiments?: ExperimentSource; // §5.5 — defaults to "no experiments running"
+  readonly registry: ContentRegistry;        // 04 §10.1 — listCampaigns and getStrings read it
+  readonly persistence?: SessionPersistence; // §5.2 — omitted → in-memory only (04 §7.2)
+  readonly profiles?: ProfileStore;          // §5.2 — omitted → anonymous-only (04 §7.1)
+  readonly clock?: Clock;                    // §5.4 — defaults to the system clock
+  readonly recordSink?: EmittedRecordSink;   // 05 §6 — omitted → records are discarded
+  readonly experiments?: ExperimentSource;   // §5.5 — not built; see 90-decisions
 }
 
 function createSessionLayer(host: SessionHost): SessionStore;
 ```
+
+> **`sessions: SessionStore` is what this field used to be, and the change is the point.**
+> Handing the root a finished `SessionStore` and asking it to return one only made sense if
+> the field meant a lower-level, storage-only port — which nothing named. It does now:
+> `SessionPersistence` (04 §7.2) is that port, and `createSessionLayer` composes the real
+> store around it. `experiments` is specified here and deliberately unbuilt; it arrives with
+> content packs (11 §5a), and the root is listed complete so the seam is not redesigned when
+> it does.
 
 **Three rules make this uniform, and they are the whole convention:**
 
@@ -1280,19 +1318,34 @@ correct** — a fresh game genuinely should not be predictable — and it lives 
 pure engine, so the determinism guard's ban on `Math.random` under `src/core/` stands
 unqualified.
 
-### 5.2 `SessionStore` and `ProfileStore`
+### 5.2 `SessionPersistence` and `ProfileStore`
 
-Both are already defined (04 §7, §7.1). This document changes nothing about their shape; it
-states that they are **ports** — the in-memory implementations the MVP ships are a default,
-not the contract.
+**`SessionStore` is not the port; what sits under it is.** The store's own job — the two lock
+domains (04 §7), the trace-and-stamp decorator (05 §6.1), save-envelope assembly (04 §10.2),
+and the idempotent profile upsert (04 §7.1) — is behaviour every host needs and no host should
+reimplement. A `SessionStore` supplied wholesale by a host is four invariants nobody checks.
 
-A host may supply Postgres, Redis, SQLite, or a file. The obligations are the ones 04
-already implies, collected here so an implementer has them in one place:
+So the seam is drawn one level down. `SessionPersistence` (04 §7.2) is a pair of record
+stores — get and put a `StoredSessionRecord`, get, put and delete a `StoredSaveRecord` — and
+`createSessionLayer` composes the real store around whichever one it is given. Omit it and the
+store's own maps are the whole implementation, which is the MVP default and what every test
+runs against.
+
+A host may supply Postgres, Redis, SQLite, a file, or `localStorage`. The obligations:
 
 - **Persist the canonical serialization, not live objects** (04 §7). A store that keeps
   object graphs will drift from what `deserialize` accepts.
+- **Address a save by its `saveId`** (04 §7.2). An adapter keyed on anything else writes
+  successfully and reads nothing, and no gate catches it.
 - **Never write host metadata into `GameState`.** Timestamps, owner ids, and tenancy live
-  on the store's own record (04 §2, §7).
+  on the record, which is exactly what `StoredSessionRecord` is (04 §2, §7.2).
+- **Throwing is allowed and is not a game failure.** The store converts any adapter exception
+  into `storage_failure` (04 §7.2) rather than letting a host's own exception type cross the
+  boundary.
+
+`ProfileStore` (04 §7.1) is unchanged and remains a port in the original sense — a host
+supplies the whole thing. Its obligations:
+
 - **A failed profile write must not roll back a game action** (04 §7.1). The game is the
   system of record; the profile is a projection of it.
 - **A missing or corrupt profile degrades to "no achievements"**, never to a broken game
@@ -1387,6 +1440,30 @@ identity mechanism depends on. The bucketing algorithm itself — hash choice, r
 percentage, sticky-session semantics beyond what `bucketKey` already gives for free — is a
 host decision this document does not constrain, the same way `SessionStore`'s storage
 backend is not constrained (§5.2).
+
+### 5.6 The One Build-Time Flag — `__GAME_ENGINE_PRODUCTION__`
+
+Not a port, and listed here so it is not mistaken for a missing one. The observability
+emitter needs to know whether it is running in a shipped build, so that dev-only work can be
+compiled out rather than branched around at runtime. A port cannot do that: a value supplied
+at construction is still there for a bundler to keep.
+
+```text
+__GAME_ENGINE_PRODUCTION__: boolean     // replaced at build time; declared, never imported
+```
+
+- **Node hosts define nothing.** When the global is absent the engine falls back to
+  `process.env.NODE_ENV === "production"`, which is what every Node caller already sets.
+- **Browser hosts must define it.** A bundler substitutes a literal — `define` in Vite, and
+  the equivalent elsewhere. A browser bundle that omits it gets the fallback, and the
+  `typeof process` guard means that resolves to *not* production: dev-mode emitter behaviour,
+  shipped, silently.
+- **It cannot change `serialize()` output**, which is why it is allowed to exist at all
+  (§2). It gates emission work, and 05 §2 already guarantees dropping every event changes
+  nothing.
+
+The asymmetry — Node defaults correctly, browsers must act — is the whole reason this is
+written down rather than left to the bundler config that happens to set it today.
 
 ---
 
@@ -2256,8 +2333,8 @@ client-free replay of the identical action log reaching the identical, golden-fi
 call the store directly from a component test. The same file then drives the full committed
 path through that adapter and the text client with the same seed and counting `IdSource`,
 asserting identical `Scene`/`PlayerView` steps and byte-identical final `serialize()` output.
-The demo may present save/load as same-page checkpoints, but that limitation does not weaken
-the adapter proof.
+How the demo presents save/load — a same-page checkpoint, or the locally durable one
+`13-playable-web-demo.md` §5 now specifies — does not weaken the adapter proof either way.
 
 **The mapping is one-to-one, and that is the point.** Every store operation has exactly one
 MCP tool, and there is no tool that is not an operation. That is what *"no AI-specific path"*
@@ -2353,7 +2430,9 @@ sidebar_label: Playable Web Demo
 
 # Playable Web Demo — Browser Client and Static Delivery
 
-**Document status:** Revision 1 — agreed W61 build target
+**Document status:** Revision 2 — W61 shipped as Revision 1. §4's checksum mechanism and
+bundle gate and §5's checkpoint lifetime are restated against what was built; §§1–3 and §§6–11
+are unchanged except where they cited §5's same-page limit.
 
 **Reading order:** after [`09-clients.md`](09-clients.md). That document owns what every
 client may do; this one owns the first public browser client's product boundary, composition,
@@ -2438,9 +2517,19 @@ flowchart TD
 - **Components render adapter DTOs.** They do not grow a parallel interpretation of
   `ReasonCode`, `Condition`, or action parameters.
 
-The committed Bureaucracy campaign builder becomes a supported package export because the
-composition root needs content to construct the demo without a deep import. That exposes
-existing content; it does not move content into the client.
+The committed campaign builders become supported package exports because the composition root
+needs content to construct the demo without a deep import. That exposes existing content; it
+does not move content into the client. As the shelf grew past Bureaucracy the export set grew
+with it, and the rule that keeps it principled is **a builder, never its internals**: the
+package root exports `build<Campaign>Campaign` and its id constant, and nothing that would let
+a caller assemble or mutate a campaign's nodes.
+
+`TextClient` is exported for the same composition reason and one further one: 09 §1 makes the
+client rule testable as *two clients, same inputs, byte-identical `serialize()`*, and the
+browser parity test cannot instantiate the other client without it. A client in the engine's
+public surface is a mild oddity — it is presentation, and 02 §1 puts presentation above
+everything — but the alternative is a parity proof that reaches into `src/clients/` by path,
+which is the deep import this section exists to forbid.
 
 ## 4. Browser Portability Is an Engine Property
 
@@ -2456,35 +2545,65 @@ fork:
 - Its production runtime graph contains no `node:` import and no unguarded Node.js global.
 - `ENGINE_VERSION` remains owned by package metadata and is made available without runtime
   filesystem I/O; it is not duplicated by hand in site code.
-- Save-envelope checksums remain SHA-256 over the exact canonical bytes §10.2 specifies.
-  Browser support may make checksum calculation asynchronous inside `saveGame`/`loadGame` —
-  both store operations are already promises — but it must not change the envelope, hex
-  digest, `Engine.serialize`, or pure `advance` path.
-- Use platform standards available in both Node.js 24 and supported browsers. Do not add a
-  second checksum algorithm or a browser-only save format.
+- Save-envelope checksums remain SHA-256 over the exact canonical bytes §10.2 specifies. The
+  envelope, hex digest, `Engine.serialize`, and pure `advance` path are unchanged.
+- Do not add a second checksum algorithm or a browser-only save format.
 
-Support is capability-based: ES2022 modules, `crypto.randomUUID`, `TextEncoder`, and Web
-Crypto SHA-256. The static page detects a missing required capability before composition and
-renders an actionable unsupported-browser message instead of failing during play.
+**`computeChecksum` stays synchronous, over a portable SHA-256 dependency.** Web Crypto was
+the obvious candidate and was not taken: `crypto.subtle.digest` is async, and making it reach
+`saveGame`/`loadGame` means async-ifying `computeChecksum`, `buildSaveEnvelope`, and every
+caller and test between them — a refactor of the envelope path to obtain a hash the engine can
+already compute. A small, audited, dependency-free SHA-256 library (`@noble/hashes`) produces
+the identical digest over the identical bytes and runs unchanged in both runtimes.
 
-A browser production-bundle smoke test is the gate. Merely typechecking DOM declarations in
-Node.js does not prove that no Node-only module reached the bundle.
+The cost is real and is the reason this is recorded rather than assumed: **the engine package
+now has a runtime dependency**, where it previously had none, and it hashes with library code
+rather than the platform primitive. Both are reversible — the digest is the contract, not how
+it is produced — and the trigger for reversing them is a synchronous checksum becoming
+unnecessary, not a preference for the standard.
+
+Support is capability-based: ES2022 modules, `crypto.randomUUID`, and `TextEncoder`. The
+static page detects a missing required capability before composition and renders an actionable
+unsupported-browser message instead of failing during play.
+
+A browser production-bundle smoke test is the gate, and it is an **assertion over the emitted
+bundle**, not the build succeeding. The site's build verification scans the produced assets for
+`node:` specifiers and Node-only globals and fails on a hit. "The bundler would have
+complained" is the same class of claim as "typechecking DOM declarations proves portability" —
+it may be true today, and it is not a gate. The site now depends on the engine by path, so a
+future engine change can reintroduce a Node-only import with nothing else watching.
 
 ## 5. Checkpoints and Lifetime
 
-W61 exposes the existing `saveGame` and `loadGame` operations as **same-page checkpoints**.
-They demonstrate the save envelope and let a visitor explore a branch and return without
-restarting.
+W61 exposes the existing `saveGame` and `loadGame` operations as **checkpoints**. They
+demonstrate the save envelope and let a visitor explore a branch and return without restarting.
 
-They are deliberately not durable across a page reload. The current session store is
-in-memory, the client contract forbids a client from persisting authoritative game state,
-and no browser storage port exists. React must not write a raw state or save envelope into
-`localStorage` to make the demo appear more complete than the architecture is.
+**Revision 2.** Revision 1 made them same-page only, and gave three reasons: the session store
+was in-memory, the client contract forbids a client persisting authoritative state, and no
+browser storage port existed. The third is no longer true — 06 §5.2 draws the seam at
+`SessionPersistence` (04 §7.2) — and the first two never argued against durability, only
+against React reaching for `localStorage` behind the store's back.
 
-The page states this plainly near the checkpoint controls: refreshing starts a new demo.
-Durable local saves require a host-owned persistence adapter or a new store port and therefore
-their own contract and slice. Accounts, cloud sync, and cross-device resume remain in the
-deferred hosting layer.
+So the line moves, and it moves without weakening either rule that produced it:
+
+- **The client still persists nothing.** React holds a `SessionStore` and calls
+  `saveGame`/`loadGame`. It does not see a blob, a save envelope, or a storage key.
+- **The site composition root supplies a `SessionPersistence` adapter over `localStorage`.**
+  That is host composition, above the client boundary and squarely inside 06 §2's rule: an
+  adapter that stores and returns the exact bytes the store gave it cannot change
+  `serialize()` output.
+- **A save is addressed by its `saveId`** (04 §7.2). An adapter keyed on anything else — the
+  campaign id, say — writes successfully and reads nothing back.
+- **Storage is best-effort and the page says so honestly.** A quota error, a disabled store, or
+  a private-browsing restriction surfaces as `storage_failure` (04 §7.2), rendered through the
+  string table, and the run continues in memory. "Saved" is claimed only after a write the
+  adapter confirmed.
+- **What durability means here is one local checkpoint per campaign, in one browser.** Reopening
+  `/play/` offers to resume it. Nothing syncs, nothing is shared between devices, and clearing
+  site data clears it.
+
+Accounts, cloud sync, cross-device resume, and server-held sessions remain in the deferred
+hosting layer, unchanged.
 
 ## 6. Route, Visual System, and Delivery
 
@@ -2512,7 +2631,9 @@ are bundled at build time. A network outage after the page loads cannot change a
 The browser column added to `09-clients.md` §4 is complete only when all ten operations,
 including `previewAction`, are driven through the real browser adapter in automated tests. The
 visible `previewAction` control is optional engine-demonstration UI; its adapter coverage is
-not optional. `saveGame`/`loadGame` power the same-page checkpoint.
+not optional. `saveGame`/`loadGame` power the checkpoint §5 specifies, and their adapter
+coverage is asserted against the store, not against whether a given browser's storage is
+writable — a run with `SessionPersistence` omitted must satisfy the same ten rows.
 
 The load-bearing parity test uses the Bureaucracy campaign, the same seed, the same counting
 `IdSource`, and the same committed choices through the browser adapter and text client. At
@@ -2576,11 +2697,13 @@ Additional acceptance:
 | Authority | `SessionStore`; React receives projections only |
 | Runtime | Engine executes locally in the browser; no backend |
 | Browser compatibility | One shared public engine surface, no Node.js fork |
-| Saves | Same-page checkpoints; refresh intentionally resets |
+| Saves | One local checkpoint per campaign, via a host `SessionPersistence` adapter (Rev. 2) |
+| Storage failure | Best-effort: `storage_failure` surfaces, the run continues in memory |
+| Checksums | Synchronous SHA-256 over a portable library, not async Web Crypto |
 | Demonstration feature | Explicit non-committing action preview |
 | Styling | Existing site system, responsive and keyboard-first |
 | Delivery | Existing GitHub Pages artifact beside `/`, `/roadmap/`, and `/docs/` |
-| Expansion | More campaigns and durable persistence require later slices |
+| Expansion | Cloud sync, accounts, and cross-device resume require later slices |
 <!-- human-doc:end -->
 
 <!-- human-doc:start path="engine/14-game-interface.md" -->
@@ -2969,6 +3092,182 @@ produced the sizes it replaces:
 | Retro | Palette, type family, and voice are held fixed; only size, spacing, and order move |
 | Proof | Interaction, accessibility, visual snapshots, and unchanged parity bytes |
 
+<!-- human-doc:end -->
+
+<!-- human-doc:start path="engine/15-platform-static-host.md" -->
+---
+sidebar_label: Platform Static Host
+---
+
+# Platform Static Host — Container Delivery without a Hosted Engine
+
+**Document status:** Revision 1 — agreed W62 build target
+
+**Reading order:** after [`14-game-interface.md`](14-game-interface.md). That document owns
+the presentation layer over the browser client; this one owns an additional container delivery
+surround for the same combined static artifact.
+
+> **Scope of this document**
+>
+> Package the completed public site, roadmap, playable demo, and documentation behind a
+> product-owned ASP.NET Core host composed with `SubZeroDev.Platform.Hosting`. Build and smoke
+> the image in pull requests, publish a new immutable GHCR image from `main` when its inputs
+> change, and leave it undeployed. GitHub Pages remains the public host.
+
+---
+
+## 1. Outcome and Boundary
+
+W62 proves that SubZeroDev.Platform can host this product without pretending the browser demo
+has become a hosted game engine:
+
+> The same verified static artifact served by GitHub Pages is baked into a container, served
+> through Platform's supported web-host composition, health-checked in CI, and published as an
+> immutable image. Opening `/play/` still downloads the application and runs the engine in the
+> browser with no engine API or runtime content request.
+
+The host is a **delivery surround**, not another client and not a game service. It must not
+receive actions, own sessions, calculate results, persist saves, or expose the engine package
+over HTTP. W61's browser-client boundary and byte-level engine evidence remain unchanged.
+
+## 2. Ownership and Dependency Direction
+
+The composition root belongs in this repository because it is product policy: which routes to
+serve, which artifact to embed, and which Platform capabilities to enable. Platform remains a
+reusable hosting framework and must not reference GameEngine.
+
+```mermaid
+flowchart LR
+    Browser["Browser"] --> Host["GameEngine ASP.NET static host"]
+    Host --> Files["Verified combined static artifact"]
+    Browser --> Local["Engine + Bureaucracy session in browser"]
+    Host -. "composed with" .-> Platform["SubZeroDev.Platform.Hosting"]
+    Host -. "never calls" .-> Node["Node engine workload (later slice)"]
+```
+
+The product host lives under `src/host/`. It calls `AddPlatformWebHost()` and maps Platform's
+probe endpoints, but does not add the Platform worker host, persistence, migrations, outbox, or
+account facilities. The dependency direction is always:
+
+> GameEngine host → released Platform package; Platform → no GameEngine dependency.
+
+## 3. Platform Package Gate
+
+Implementation may begin against a temporary sibling project reference to
+`../SubZeroDev.Platform/src/SubZeroDev.Platform.Hosting/SubZeroDev.Platform.Hosting.csproj`.
+That is a local-development scaffold only. It must not be the merged or published dependency:
+
+- W62 cannot merge until Platform's S9 package publication is complete;
+- the final project pins one exact `SubZeroDev.Platform.Hosting` NuGet version, with no floating
+  range and no sibling checkout required by CI;
+- a clean clone restores the package from GitHub Packages using the workflow's short-lived
+  credential;
+- no registry token is committed, copied into an image, passed as a Docker build argument, or
+  retained in a build layer. Container restore uses a secret mount or an equivalently
+  non-persistent mechanism.
+
+This gate makes the first real Platform consumer evidence about the package that will ship,
+not evidence about source-tree adjacency.
+
+## 4. Artifact Assembly and Routes
+
+One multi-stage image build owns the production assembly from a single GameEngine commit:
+
+1. install pinned JavaScript dependencies and build the standalone site;
+2. build the Docusaurus documentation through the repository's supported template path;
+3. run the protected merge and prove the documentation subtree byte-identical before and
+   after the overlay;
+4. publish the ASP.NET product host;
+5. copy only the verified combined artifact into the runtime image's `wwwroot`.
+
+The container serves real files at `/`, `/roadmap/`, `/play/`, and `/docs/`. There is no SPA
+fallback: an unknown route returns `404`, and a direct request to every supported route works
+without first requesting `/`. Static bytes are not rewritten by the host.
+
+Platform's liveness and readiness endpoints are also mapped. They are operational endpoints,
+not part of the static artifact and not routed through a catch-all. Successful startup means
+the baked artifact and required configuration were already validated; the host must fail the
+build or startup rather than serve a partial site.
+
+## 5. Runtime Contract
+
+- The runtime image contains the published host and combined static artifact, not Node.js,
+  npm caches, source trees, registry credentials, or build tooling.
+- It runs as a non-root user, supports a read-only root filesystem, writes no product data, and
+  listens on the ASP.NET port supplied by its environment.
+- Normal static serving performs no outbound network request. Once the page and assets load,
+  losing the network cannot change a game outcome.
+- `SIGTERM` follows Platform's graceful-shutdown behavior. Liveness and readiness remain
+  suitable for a future container orchestrator even though W62 does not deploy one.
+- Logs and error envelopes inherit Platform's correlation and redaction boundary. Static-route
+  failures must not add request bodies, cookies, tokens, or player data to logs.
+
+The image is intentionally stateless. Restarting the container loses nothing because the only
+game session is W61's in-browser memory, and refreshing the page already starts a new demo.
+
+## 6. CI, Publication, and Deployment Boundary
+
+Pull requests build the image, start it, and smoke-test:
+
+- `200` responses for `/`, `/roadmap/`, `/play/`, `/docs/`, liveness, and readiness;
+- `404` for a named unknown route, proving there is no fallback;
+- the expected route metadata and protected documentation-subtree digest;
+- an orderly container stop; and
+- a browser production smoke showing `/play/` makes no engine API or runtime-content request.
+
+The workflow must contain a negative fixture or test mode that deliberately omits or corrupts a
+required artifact and proves the build or startup goes red. A smoke test that has never been
+seen fail is not evidence of the boundary.
+
+After merge, a path-filtered workflow publishes to GHCR only when the host, site, documentation
+build, protected merge, container definition, or their locked dependencies change. Each
+publication receives an immutable full-commit tag and digest; W62 creates no `latest` tag and
+no deployment. Unrelated engine-only changes do not republish identical hosting inputs unless
+they alter the browser bundle included by the site build.
+
+GitHub Pages and its exact-merge deployment workflow remain active and authoritative for the
+public URL. Publishing the image is an artifact event, not a production cutover. DNS, TLS,
+runtime environment, rollback policy, and digest-pinned deployment require a later slice.
+
+## 7. Failure Behaviour
+
+- A missing site route, missing docs artifact, failed protected merge, stale generated page,
+  or unavailable exact Platform package fails CI before an image is published.
+- A malformed runtime configuration or missing baked artifact prevents readiness and exits
+  rather than serving whichever files happen to exist.
+- Unknown routes return `404`; they never return the landing page with `200`.
+- A Platform operational concern may affect health or request delivery but cannot change an
+  engine state, replay input, save envelope, or rendered action result.
+- A GHCR publication failure leaves the existing GitHub Pages site and previously published
+  immutable images unchanged.
+
+## 8. Explicit Non-Goals
+
+- Public deployment, DNS, TLS, a custom domain, traffic cutover, or removal of GitHub Pages.
+- A Node.js engine process, JSON/HTTP engine API, MCP transport, remote session, or server-side
+  action execution. Those form a later hosted-engine-edge slice's `.NET Platform edge → Node
+  engine workload` boundary.
+- Durable sessions, browser persistence, accounts, authentication, profiles, cloud sync,
+  databases, migrations, outbox processing, or a worker process.
+- A generic static-site feature added to Platform. This is a product-owned consumer of the
+  existing Platform web-host contract.
+- Changes to campaign content, gameplay, browser UI, engine serialization, or W61's client
+  contract.
+
+## 9. Decision Summary
+
+| Decision | Choice |
+|---|---|
+| First Platform use | Static product host; hosted engine follows separately |
+| Composition owner | GameEngine repository under `src/host/` |
+| Platform capability | Web host and probes only |
+| Engine execution | Still local in the browser |
+| Artifact | Same protected combined site/docs output built from one commit |
+| Development dependency | Temporary sibling project reference permitted |
+| Merge dependency | Exact released NuGet package required after Platform S9 |
+| PR behavior | Build, run, positive/negative smoke; no publish |
+| Main behavior | Path-filtered immutable GHCR publish when hosting inputs change |
+| Public hosting | GitHub Pages remains authoritative; image is undeployed |
 <!-- human-doc:end -->
 
 <!-- human-doc:start path="engine/11-content-packs.md" -->

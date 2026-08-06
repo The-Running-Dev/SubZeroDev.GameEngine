@@ -412,6 +412,32 @@ over from the simulation kind's §4.3.
 > routes around it, because AI output is data and all data is validated identically,
 > whatever produced it.
 
+### 9.1 Campaign-Shape Builders Are Tooling, Not a Fourth Layer
+
+The same reasoning covers a second producer of content, and the layer model reads as though it
+does not exist: a **campaign-shape builder** — a parameterized function that takes a
+campaign's authored prose, choices and endings and emits the repetitive graph topology around
+them. `adventure-builder.ts` is the built one; every shipped story-graph campaign is
+constructed through it.
+
+It is not a layer between kinds and campaigns:
+
+- **It runs before the engine does.** Its output is an ordinary campaign source, built and
+  validated through the same registry path as a hand-written one. The engine has no idea one
+  was involved, and nothing in `serialize()` records it.
+- **It is data-producing, so N10 already governs it.** A builder that emits an unreachable
+  node fails Tier 2 exactly as a human who wrote one would. It buys no exemption, which is
+  the same argument that lets AI author content at all.
+- **A campaign is free not to use one.** This matters more than it sounds: the moment a
+  shared shape becomes the only way a campaign is expressed, the shape is a content schema
+  and belongs in the kind contract instead. The test is whether a campaign needing a
+  different topology can simply be written out longhand. It can, and one that needs to,
+  should.
+
+The cost of *not* saying this is a reader inferring from six identically-shaped campaigns that
+the shape is required. It is a convenience, and the day it stops being convenient is the day
+to stop using it, not to generalize it.
+
 ---
 
 ## 10. The API and MCP Surface

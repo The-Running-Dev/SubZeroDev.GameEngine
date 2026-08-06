@@ -16,13 +16,15 @@
 
 ### 5.1 `IdSource` — the one that was missing
 
-### 5.2 `SessionStore` and `ProfileStore`
+### 5.2 `SessionPersistence` and `ProfileStore`
 
 ### 5.3 `Emitter`
 
 ### 5.4 `Clock`
 
 ### 5.5 `ExperimentSource` {#experimentsource}
+
+### 5.6 The One Build-Time Flag — `__GAME_ENGINE_PRODUCTION__`
 
 ## 6. Adding a Port
 

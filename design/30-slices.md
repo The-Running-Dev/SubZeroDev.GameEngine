@@ -1787,6 +1787,61 @@ synchronous; only the already-async store boundary may await platform crypto.
       reloads; accounts, cloud sync or any backend; new gameplay; art, audio, analytics,
       session capture, service workers, a PWA, or a generic reusable web-client package.
 
+### [ ] W62 — Platform Static Host Image {#w62}
+
+**Delivers:** Adds a product-owned ASP.NET Core host under `src/host/`, composed with
+`SubZeroDev.Platform.Hosting`, and packages W61's verified combined static artifact into a
+stateless container. Pull requests build, run, and smoke the image. Merges to `main` publish a
+new immutable GHCR image when relevant hosting inputs change, but do not deploy it; GitHub Pages
+remains the public host.
+
+This is the first Platform consumer and deliberately the smaller half of hosting. The engine
+continues to execute in the browser. A later hosted-engine-edge slice owns the `.NET Platform
+edge → Node engine workload`, JSON/HTTP boundary, MCP projection, and remote session semantics.
+
+- **Spec:** [`15-platform-static-host.md`](15-platform-static-host.md);
+      [`13-playable-web-demo.md`](13-playable-web-demo.md) §6;
+      the Platform repository's `platform-identity.md`, `engine-hosting-contract.md`, ADR-002,
+      ADR-005, and D3 implementation plan.
+- **Touches:** new `src/host/` web project and tests; the multi-stage container definition and
+      build context; static artifact/route smoke scripts; CI and GHCR publication workflows;
+      package-source configuration without credentials; hosting documentation.
+- **Depends on:** [W61](#w61) and SubZeroDev.Platform S9 package publication. A temporary sibling
+      `ProjectReference` may unblock local development, but W62 cannot merge until the project
+      uses one exact released `SubZeroDev.Platform.Hosting` package version and a clean CI clone
+      restores without `../SubZeroDev.Platform`.
+- **Status:** Not started.
+- **Done when:**
+  - W62.1 `src/host/` is the product composition root. It calls `AddPlatformWebHost()` and maps
+        Platform probes; Platform gains no GameEngine dependency, and the host adds no worker,
+        persistence, migration, outbox, account, or session service.
+  - W62.2 The committed project pins an exact released `SubZeroDev.Platform.Hosting` NuGet
+        version. CI restores it with a short-lived secret that is absent from repository files,
+        Docker arguments, environment layers, runtime image history, and build output.
+  - W62.3 One multi-stage build constructs the site and documentation from the same commit, runs
+        the protected merge, proves the docs subtree byte-identical, publishes the host, and
+        copies only the verified combined artifact into `wwwroot` in the runtime stage.
+  - W62.4 Direct container requests to `/`, `/roadmap/`, `/play/`, and `/docs/` return the
+        expected documents; Platform liveness and readiness succeed; a named unknown route
+        returns `404` with no SPA fallback.
+  - W62.5 The browser demo remains W61's local `SessionStore` client: the container exposes no
+        engine API, game action, or runtime content endpoint, and a production browser smoke
+        observes no such network request.
+  - W62.6 The runtime image contains no Node.js, package-manager cache, source tree, build tools,
+        or registry credential; it runs non-root, supports a read-only root filesystem, writes no
+        product data, performs no normal outbound request, and stops gracefully on `SIGTERM`.
+  - W62.7 PR CI builds and starts the exact image, runs positive route/probe/browser checks, and
+        contains a deliberate missing-or-corrupt-artifact case that proves the gate fails red.
+  - W62.8 A path-filtered `main` workflow publishes a new GHCR image only when host, site,
+        documentation-build, merge, container, or locked dependency inputs change. It records an
+        immutable full-commit tag and digest, creates no `latest` tag, and performs no deployment.
+  - W62.9 The existing GitHub Pages exact-merge workflow and public routes remain unchanged and
+        green; an image publication failure cannot alter the live site or an earlier image.
+- **Out of scope:** public deployment, DNS/TLS/custom domain, traffic cutover or rollback;
+      hosted Node engine/API/MCP/session behavior (a later hosted-engine-edge slice); persistence,
+      auth, accounts, databases, worker processes; gameplay, campaign, browser-client, or
+      serialization changes; a generic static-site facility in Platform.
+
 ### [x] W63 — Absurd Game Interface {#w63}
 
 **Delivers:** Rebuilds the public story shelf and story-graph play surface so it reads as a
@@ -2179,14 +2234,126 @@ with it. Rendered authored text is unchanged.
       new art beyond CSS-native trim adjustments, and a mobile visual language for the
       simulation or world-graph kinds.
 
+### Correctness Debt Found by Reconciliation
+
+### [ ] W67 — Restore the Story-Graph Regression Evidence {#w67}
+
+**Delivers:** The replay corpus, determinism goldens, and observability acceptance test that
+the [W64](#w64) campaign rewrite removed for the flagship kind. Story-graph is currently the
+only shipped kind with no cross-version oracle, and nothing reports that: the suite is green,
+because the tests that would have failed were deleted along with the campaigns they covered.
+
+Three separate losses, one cause. `bulgaria-bureaucracy.replay.test.ts` was the only reader of
+`fixtures/replay/bureaucracy-*.{fixture,outcome}.json`; those six files are still on disk,
+still pinned at `campaignVersion: "1.0.0"`, and now orphaned. Five
+`__snapshots__/*.determinism.test.ts.snap` golden files went with their tests. And
+`bulgaria-bureaucracy.observability.test.ts` — the executable form of `MVP.md` §5's
+*Observable* box, proving a human reading the `jsonl` stream can diagnose the gate's visit
+counts and the random transition's pick — has no replacement; `nullEmitter` now appears only
+in two unit suites, against no real campaign.
+
+The corpus files could not have survived the rewrite unchanged, since the campaigns now publish
+`2.0.0`. That is the reason to regenerate them deliberately, not the reason to leave them.
+
+**A regenerated `.outcome.json` is a statement that the game changed**
+([07 §4](07-replay.md#4-the-corpus)) and is reviewed as one. This unit produces new outcome
+files against v2 routes; each is read on its merits, not accepted because the runner emitted it.
+
+- **Spec:** [`07-replay.md`](07-replay.md) §4, §6, §7; [04 §14](04-core.md#14-determinism-harness);
+      [`05-observability.md`](05-observability.md) §12; `MVP.md` §5.
+- **Touches:** `src/engine/fixtures/replay/bureaucracy-*.{fixture,outcome}.json`,
+      a restored replay suite and determinism suite beside the campaigns, and a restored
+      `jsonl` observability suite. No `design/` change — this unit implements what the
+      documents already require.
+- **Depends on:** [W64](#w64) being on `main`, since the fixtures are regenerated against its
+      v2 campaign graphs.
+- **Done when:**
+  - W67.1 Three `bureaucracy-*` fixture/outcome pairs exist against `campaignVersion: "2.0.0"`,
+        covering materially different routes and matching [07 §4](07-replay.md#4-the-corpus)'s
+        own priority order: a Definition-of-Done arc, a gated choice, and one deliberate edge
+        case. Each outcome file is reviewed as content, not regenerated in bulk.
+  - W67.2 A replay suite enumerates the corpus by prefix from `fixtures/replay/`, so a new
+        fixture pair needs no test-file edit, and honours `REPLAY_BASELINE_DIR` the same way the
+        `stable-life` and `world-graph-mvp` suites do — the W23 release-tag job must cover
+        story-graph again.
+  - W67.3 **The corpus asserts its own membership.** A test fails when an expected fixture
+        prefix is absent and when a `.fixture.json` has no matching `.outcome.json`, or vice
+        versa. Directory enumeration alone is what made the original deletion invisible; this
+        criterion is the whole lesson of that loss and is not optional.
+  - W67.4 A story-graph determinism suite commits a golden `serialize()` output for at least
+        one campaign and replays it under `nullEmitter` and `recordingEmitter` with
+        byte-identical output — [04 §14](04-core.md#14-determinism-harness)'s golden-file and
+        sink-independence rows, against a real campaign rather than a synthetic state.
+  - W67.5 Stream reproducibility holds: the same fixture under `recordingEmitter` twice yields
+        the identical event sequence, with `gameId` normalized out
+        ([05 §12](05-observability.md#12-validation-and-tests)).
+  - W67.6 A `jsonl` observability suite restores `MVP.md` §5's *Observable* claim against a real
+        campaign: the stream is unfiltered, and both a gate's visit counts and a random
+        transition's pick are readable from it.
+  - W67.7 Engine gates, documentation checks, and `git diff --check` all pass, and no orphaned
+        fixture file remains in `fixtures/replay/`.
+- **Out of scope:** campaign content changes; a new corpus for `simulation` or `world-graph`,
+      both of which still have theirs; the cross-repository replay corpus; any change to the
+      runner's verdict vocabulary or to `Outcome`'s shape.
+
+### [ ] W68 — Make the Browser Save Adapter Actually Restore {#w68}
+
+**Delivers:** The working half of the durable local checkpoint that
+[13 §5](13-playable-web-demo.md#5-checkpoints-and-lifetime) Revision 2 now specifies. The
+`SessionPersistence` port and a `localStorage` adapter shipped with [W61](#w61); the adapter
+writes under `record.campaignId` and reads by `saveId`, so every write succeeds, every read
+misses, and no gate notices. Nothing on the page ever attempts a restore, and the session half
+of the adapter is an in-memory `Map`, so nothing survives a reload today regardless.
+
+The design was written after the code here, which is the defect and is recorded as such in
+`design/90-decisions.md`. This unit brings the code up to the specification that
+now exists.
+
+- **Spec:** [`13-playable-web-demo.md`](13-playable-web-demo.md) §5 (Revision 2);
+      [04 §7.2](04-core.md#72-host-persistence--the-record-store-beneath-the-session-store);
+      [06 §5.2](06-extensibility.md#52-sessionpersistence-and-profilestore);
+      [09 §3](09-clients.md#3-what-a-client-may-and-may-not-do).
+- **Touches:** `site/src/play/composition.ts` (the adapter), `site/src/play/PlayApp.tsx`
+      (resume offer and honest save state), `site/src/play/browser-client.test.ts` and
+      `PlayApp.test.tsx`. `src/engine/` only if `SaveRecordStore.delete` is resolved by removing
+      it.
+- **Depends on:** [W61](#w61). Independent of [W65](#w65)/[W66](#w66) — it changes behaviour,
+      not layout — but should land before them so the resume path is in the visual baseline.
+- **Done when:**
+  - W68.1 The adapter addresses a save by `saveId` for both `get` and `put`, and a test writes
+        a save, reconstructs the store from a fresh adapter over the same backing storage, and
+        loads it back — the round trip the current implementation cannot perform.
+  - W68.2 `/play/` offers to resume a stored checkpoint on load, per campaign, and declining it
+        starts a new run without destroying the stored one until the player commits to that.
+  - W68.3 Storage failure is honest and non-fatal: a quota error, disabled storage, or private
+        browsing surfaces `storage_failure` rendered through the string table — never a raw
+        English message — and the run continues in memory. A run with `SessionPersistence`
+        omitted entirely still satisfies all ten rows of [09 §4](09-clients.md#4-the-api-coverage-checklist).
+  - W68.4 The save state the page shows is truthful: "saved" is claimed only after a write the
+        adapter confirmed, and the existing warning copy no longer implies a durable write that
+        did not happen.
+  - W68.5 `SaveRecordStore.delete` is resolved — either the store calls it on a path that needs
+        it, or it is removed from the port. A required method with no caller obliges every host
+        to implement nothing.
+  - W68.6 The client still persists nothing: React holds a `SessionStore` and never sees a blob,
+        an envelope, or a storage key. The adapter lives in the site composition root.
+  - W68.7 Browser/text-client parity still produces byte-identical serialized outcomes, and
+        engine gates, site checks, documentation checks, and `git diff --check` all pass.
+- **Out of scope:** accounts, cloud sync, cross-device resume, multiple named save slots per
+      campaign, a server-held session, or any storage-format migration mechanism — the format is
+      the existing `SaveEnvelope` and §10.2 already owns its versioning.
+
 - [ ] More clients (Discord; the first web client is [W61](#w61)).
 - [ ] **Additional locales — sliced as [W60](#w60).** The MVP ships English only; the
       authoring→registry types already support more
       ([04 §10.1](04-core.md#101-content-registry)), so this is string tables plus tooling,
       no type change.
 - [ ] AI-assisted authoring (content only; engine validates).
-- [ ] The hosted service — only once all of the above works
-      ([`neaas-platform-vision.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform)).
+- [ ] **W63 proposed — Hosted engine edge.** Follow W62 with the real
+      `.NET Platform edge → Node engine workload` process boundary: generated JSON/HTTP service
+      contract first, MCP as a projection, one in-memory remote session before persistence,
+      accounts, catalogue, or metering. Slice it only after W62 and the Platform package gate are
+      proven ([`neaas-platform-vision.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform)).
 - [ ] Content packs — **sliced as [W58](#w58) and [W59](#w59)** — per
       [`11-content-packs.md`](11-content-packs.md): `resolvePacks` as a
       pure ordered fold; campaigns replace wholesale, strings per key; exact-version

@@ -85,6 +85,9 @@ export interface SessionPersistence {
   saves: SaveRecordStore;
 }
 
+/** Every member is a registered `ReasonCode` with a shipped `core.reason.*` message
+ *  (`kernel/reasons.ts`, 04 §12) — that is what makes `code` renderable through the string
+ *  table and `message` never worth reading (09 §3). */
 export type SessionStoreErrorCode =
   | "unknown_session"
   | "unknown_save"
@@ -95,7 +98,11 @@ export type SessionStoreErrorCode =
   | "save_requires_migration"
   | "migration_failed";
 
-/** Expected host/session failures retain exception semantics but are safe for clients to render. */
+/**
+ * Expected host/session failures. They retain exception semantics because none of
+ * `SessionStore`'s signatures has an error channel (04 §7, §7.2), but `code` is a real
+ * `ReasonCode`, so a client renders it rather than parsing `message`.
+ */
 export class SessionStoreError extends Error {
   readonly operation: string;
   readonly code: SessionStoreErrorCode;
