@@ -96,17 +96,21 @@ jobs:
             # this one GitHub Pages deployment: it serves "/", the docs serve
             # "/docs". The base image already has Node -- no setup-node needed.
             #
-            # `check` runs format:check, lint, typecheck, vitest and the build
-            # (site/package.json), not just the build. A bare `build` would let
-            # a broken component test or a missing Open Graph tag merge and
-            # deploy as long as the bundle still compiled -- `check` is what a
-            # contributor runs locally before pushing, made a required step
-            # here too, not a weaker CI-only substitute for it.
+            # `check` runs format:check, lint, typecheck, the jsdom suite, the
+            # real-browser suite (W65), and the build (site/package.json), not
+            # just the build. A bare `build` would let a broken component
+            # test, a real-browser regression, or a missing Open Graph tag
+            # merge and deploy as long as the bundle still compiled -- `check`
+            # is what a contributor runs locally before pushing, made a
+            # required step here too, not a weaker CI-only substitute for it.
+            # The real-browser suite needs Chromium installed first -- it is
+            # not part of the base image, unlike Node.
             - name: Build and verify landing page
               run: |
                   npm --prefix src/engine ci
                   npm --prefix src/engine run build
                   npm --prefix site ci
+                  npx --prefix site playwright install --with-deps chromium
                   npm --prefix site run check
 
             # Overlays the landing page onto the docs build -- overwrites the

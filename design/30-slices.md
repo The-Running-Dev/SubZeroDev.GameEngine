@@ -2005,7 +2005,7 @@ old entry never rewinds or resubmits the game.
       a fabricated completion percentage, and any journal field that participates in game
       resolution.
 
-### [ ] W65 — Browser Test Harness for the Site {#w65}
+### [x] W65 — Browser Test Harness for the Site {#w65}
 
 **Delivers:** Gives `site/` the ability to prove anything about how a page actually renders.
 Its tests run in jsdom today, which performs no layout: `getBoundingClientRect` returns zeros

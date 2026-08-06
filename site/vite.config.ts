@@ -24,5 +24,9 @@ export default defineConfig(({ mode }) => ({
   test: {
     environment: "jsdom",
     setupFiles: "./src/test/setup.ts",
+    // Real-browser specs (W65) live alongside these under src/**/*.browser.test.*
+    // and run only via vitest.browser.config.ts's `npm run test:browser` --
+    // jsdom performs no layout, so they'd fail here for the wrong reason.
+    exclude: ["**/node_modules/**", "**/.git/**", "**/*.browser.test.{ts,tsx}"],
   },
 }));

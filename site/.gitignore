@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Written by a failing `toMatchScreenshot()` (actual/diff images for local
+# review). The committed baseline lives in __screenshots__/ instead.
+.vitest-attachments/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
