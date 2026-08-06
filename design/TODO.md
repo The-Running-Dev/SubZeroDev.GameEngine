@@ -138,6 +138,8 @@
 
 ### [ ] W60 — A Second Locale, End to End {#w60}
 
+### [ ] W61 — Consume the Reusable Landing-Page Package {#w61}
+
 ### Breadth: The First Culture Pack
 
 ### Breadth: The Platform
