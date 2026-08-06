@@ -2179,7 +2179,8 @@ with it. Rendered authored text is unchanged.
       new art beyond CSS-native trim adjustments, and a mobile visual language for the
       simulation or world-graph kinds.
 
-- [ ] More clients (Discord; the first web client is [W61](#w61)).- [ ] **Additional locales — sliced as [W60](#w60).** The MVP ships English only; the
+- [ ] More clients (Discord; the first web client is [W61](#w61)).
+- [ ] **Additional locales — sliced as [W60](#w60).** The MVP ships English only; the
       authoring→registry types already support more
       ([04 §10.1](04-core.md#101-content-registry)), so this is string tables plus tooling,
       no type change.

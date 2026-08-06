@@ -142,7 +142,8 @@ async function main(): Promise<void> {
     }
   } finally {
     rl.close();
-  }}
+  }
+}
 
 main().catch((err: unknown) => {
   console.error(err);
