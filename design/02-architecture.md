@@ -44,6 +44,8 @@
 
 ## 9. AI Authoring Boundary
 
+### 9.1 Campaign-Shape Builders Are Tooling, Not a Fourth Layer
+
 ## 10. The API and MCP Surface
 
 ## 11. What Is Settled, What Is Next

@@ -661,6 +661,93 @@ Rules, all of them determinism-preserving:
   returns `profile_write_failed` and **does not** roll back the completed game action —
   the game is authoritative, the profile is a mirror.
 
+### 7.2 Host Persistence — The Record Store Beneath the Session Store
+
+§7 says the store keeps host metadata "on the store's record" without naming that record as a
+type. It is one now, because a host supplies it: the **session store is core-owned** —
+locking, stamping, save-envelope assembly and profile upsert all live here — and what a host
+may replace is the narrower job of reading and writing the records underneath.
+
+```typescript
+/** Host-owned. Deliberately outside GameState, and never replayed. */
+interface StoredSessionRecord {
+  sessionId: string;
+  blob: string;                  // the canonical serialization (§2), never a live object
+  audience: ProjectionAudience;
+  attemptCounter: number;
+  replayCompatible: boolean;
+  createdAt: string;             // Clock (06 §5.4), never Date.now
+  updatedAt: string;
+  profileId?: string;            // §7.1 — round-trips here, never through SaveEnvelope
+}
+
+interface StoredSaveRecord {
+  saveId: string;
+  campaignId: string;            // host-side routing only; the authority is the embedded GameState
+  blob: string;                  // a serialized SaveEnvelope (§10.2)
+  savedAtSeq: number;
+  audience: ProjectionAudience;
+  profileId?: string;
+}
+
+interface SessionRecordStore {
+  get(sessionId: string): Promise<StoredSessionRecord | undefined>;
+  put(record: StoredSessionRecord): Promise<void>;
+}
+
+interface SaveRecordStore {
+  get(saveId: string): Promise<StoredSaveRecord | undefined>;
+  put(record: StoredSaveRecord): Promise<void>;
+  delete(saveId: string): Promise<void>;
+}
+
+interface SessionPersistence {
+  sessions: SessionRecordStore;
+  saves: SaveRecordStore;
+}
+```
+
+**Omitted → in-memory, which is the MVP default.** The store keeps its own maps either way and
+consults `persistence` only on a miss, so a host adapter is a durability layer, not a
+replacement for the store's bookkeeping.
+
+**`campaignId` on the save record is host-side routing, nothing more.** A host that lists "your
+saves for this campaign" needs it without deserializing every envelope. It is a *copy* of what
+the embedded `GameState` already says, and §10.2's cross-checks at load read the embedded value,
+not this one — so a divergent copy can misroute a listing but can never load the wrong game.
+
+> **`saveId` is the lookup key on `SaveRecordStore`.** `get(saveId)` and `put(record)` address
+> the same record, so an adapter that stores under any other key silently makes every save
+> unretrievable — the write succeeds, the read misses, and nothing fails loudly. Stated because
+> it is exactly the defect the first adapter shipped with.
+
+**Failures are `SessionStoreError`, not `CommandResult`.** None of `SessionStore`'s methods
+carry an error channel — `SessionHandle`, `SaveHandle` and `Scene` have nowhere to put one — so
+these stay exceptions. What they are not is opaque:
+
+```typescript
+type SessionStoreErrorCode =
+  | "unknown_session" | "unknown_save" | "storage_failure"   // this section
+  | "unknown_campaign" | "invalid_state" | "unknown_kind"    // §12, the kernel's own
+  | "save_requires_migration" | "migration_failed";          // §12, the save boundary's
+
+class SessionStoreError extends Error {
+  readonly operation: string;
+  readonly code: SessionStoreErrorCode;
+}
+```
+
+Every member is a registered `ReasonCode` (§12) with a shipped `core.reason.*` string, so a
+client renders `code` through the string table like any other rejection and never reads
+`message`. That is what makes these safe to surface: a demo showing "could not be saved
+locally" is rendering `storage_failure`, not string-matching English (09 §3).
+
+**An adapter throwing is `storage_failure`, always.** The store catches whatever a host
+implementation raises and re-raises this one code, so a Postgres timeout and a `localStorage`
+quota error are indistinguishable to a client — deliberately, because a client can do nothing
+different about either, and a host's own exception type leaking through the store would put an
+unbounded vocabulary on the other side of the boundary.
+
 ---
 
 ## 8. Randomness
@@ -1044,6 +1131,8 @@ const BASE_REASON_CODES = [
   "profile_missing", "profile_corrupt", "profile_write_failed",
   // the save-load boundary (§10.2)
   "save_requires_migration", "migration_failed",
+  // host persistence (§7.2)
+  "unknown_session", "unknown_save", "storage_failure",
 ] as const;
 ```
 
@@ -1051,7 +1140,7 @@ const BASE_REASON_CODES = [
 > vocabulary one *turn* needs. Everything after them was added by a unit that found a
 > cross-kind failure mode with no code that fitted — the kernel's three rejections, registry
 > assembly's three, the core's own Tier-1 four, the profile store's three, the save
-> boundary's two. That is the intended shape: a code is registered when a real caller
+> boundary's two, host persistence's three. That is the intended shape: a code is registered when a real caller
 > produces it, not pre-declared from this list. Because `ReasonCode` is *additive, never
 > renamed* (above), growth costs nothing — a client switching on a code it has never seen
 > falls through to the localized message, which the core ships for every base code. Expect
@@ -2828,7 +2917,7 @@ type DerivedPath =
   | "world.strangeness";                           // §2.2
 
 interface DerivedValueResolver {
-  resolve(path: DerivedPath, base: number, effects: StatusEffect[]): number;
+  resolve(path: DerivedPath, base: number, effects: readonly StatusEffect[]): number;
   isReadOnly(path: string): boolean;
 }
 ```
@@ -2858,8 +2947,23 @@ independent layer. Two different sources always stack.
 12 still applies throughout week 12. Because nothing was ever overwritten, expiry has nothing
 to undo; the derived value simply recomputes against a shorter effect list.
 
-Derived paths are read-only: a `Modifier` or content effect targeting one is a Tier 1
-validation error (`read_only_field`, already a base reason code).
+**`isReadOnly` partitions `DerivedPath`; it does not cover it.** Being derived is not what
+makes a path unwritable — having no stored counterpart is:
+
+| Derived paths | Stored base? | A `Modifier` may target it? |
+|---|---|---|
+| `player.needs.*`, `player.attributes.*`, `player.skills.*` | Yes | **Yes** — this is what the layering above is *for* |
+| `player.housing.quality`, `player.career.effectivePerformance`, `calendar.energyRecoveryRate`, `world.strangeness` | No — formula-only | **No** — Tier 1 `read_only_field` (§14) |
+
+The first row is this section's own motivating example: *a modifier that sets a need to a fixed
+value for three weeks*. `player.needs.*` is a `DerivedPath`, so a blanket "derived paths are
+read-only" would make that example a validation error and leave the base/derived split with
+nothing to layer. The second row has no writable field to name — a `Modifier` targeting
+`career.effectivePerformance` is asking to write a formula's output, which is the defect
+`read_only_field` exists to catch.
+
+`isReadOnly` returns true for the second row only, and §14's Tier 1 check is written against
+that partition rather than against the union.
 
 > **Provisional, not settled.** Resolving a derived value on every access costs against a
 > performance budget this contract does not itself set a number for. The assumed mitigation is
@@ -3256,7 +3360,7 @@ schema (§4.2) by name.
 
 ```typescript
 interface Modifier {
-  target: string;                 // must resolve to a writable *stored* field — never a §6.1 DerivedPath (§14: read_only_field)
+  target: string;                 // must resolve to a writable *stored* field — never one of §6.1's four formula-only paths (§14: read_only_field)
   operation: "add" | "subtract" | "multiply" | "set";
   value: number;
   durationWeeks?: number;
@@ -4208,9 +4312,12 @@ total, run once at registry construction, before the registry is frozen. Tiered 
   resolves in the registry's string table (04 §10.1).
 - A `Modifier.target`/addressing path naming an array collection uses the collection's natural
   key, never a numeric index (§7.1) — a numeric path segment is rejected outright.
-- A `Modifier` targeting a `DerivedPath` (§6.1) fails with `read_only_field` — the same rule
-  §6.1 itself states, checked here because this is where a concrete `target` string first
-  exists to check.
+- A `Modifier` targeting one of §6.1's four **formula-only** paths — `player.housing.quality`,
+  `player.career.effectivePerformance`, `calendar.energyRecoveryRate`, `world.strangeness` —
+  fails with `read_only_field`. That is `isReadOnly`'s partition, not the whole `DerivedPath`
+  union: `player.needs.*`, `player.attributes.*` and `player.skills.*` are derived *and*
+  writable, and are the targets the layering in §6.1 exists to serve. Checked here because this
+  is where a concrete `target` string first exists to check.
 
 **Tier 2 — load-time, warning:**
 

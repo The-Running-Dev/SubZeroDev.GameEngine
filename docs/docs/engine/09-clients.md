@@ -189,8 +189,8 @@ client-free replay of the identical action log reaching the identical, golden-fi
 call the store directly from a component test. The same file then drives the full committed
 path through that adapter and the text client with the same seed and counting `IdSource`,
 asserting identical `Scene`/`PlayerView` steps and byte-identical final `serialize()` output.
-The demo may present save/load as same-page checkpoints, but that limitation does not weaken
-the adapter proof.
+How the demo presents save/load — a same-page checkpoint, or the locally durable one
+`13-playable-web-demo.md` §5 now specifies — does not weaken the adapter proof either way.
 
 **The mapping is one-to-one, and that is the point.** Every store operation has exactly one
 MCP tool, and there is no tool that is not an operation. That is what *"no AI-specific path"*
