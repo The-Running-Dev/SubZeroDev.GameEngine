@@ -3,7 +3,7 @@ import { validateCampaign } from "./validate.js";
 import type { SimulationCampaign } from "./campaign.js";
 import type { GoalDefinition } from "./content.js";
 import type { Campaign } from "../../core/registry/types.js";
-import type { CalendarState, EconomyState, WorldState } from "./state.js";
+import type { CalendarState, EconomyState, WorldState, StatusEffect } from "./state.js";
 import type { PlayerState } from "./actor.js";
 
 const startingCalendar: CalendarState = {
@@ -129,5 +129,78 @@ describe("validateCampaign", () => {
     });
     const result = validateCampaign(campaign, VALID_STRINGS);
     expect(result.errors.length).toBeGreaterThanOrEqual(2);
+  });
+
+  function makeStartingEffect(overrides: Partial<StatusEffect> = {}): StatusEffect {
+    return {
+      id: "effect-1",
+      sourceId: "campaign",
+      sourceKind: "system",
+      modifiers: [{ target: "player.needs.energy", operation: "add", value: 10, sourceId: "campaign" }],
+      appliedWeek: 1,
+      stacking: "refresh",
+      descriptionKey: "sim.description",
+      visible: true,
+      ...overrides,
+    };
+  }
+
+  it("passes a startingEffects entry with a resolved descriptionKey and a writable modifier target", () => {
+    const campaign = makeCampaign({ startingEffects: [makeStartingEffect()] });
+    const result = validateCampaign(campaign, VALID_STRINGS);
+    expect(result).toEqual({ ok: true, errors: [], warnings: [] });
+  });
+
+  it("rejects a startingEffects entry with no authored descriptionKey", () => {
+    const campaign = makeCampaign({
+      startingEffects: [makeStartingEffect({ descriptionKey: "sim.effect.missing" })],
+    });
+    const result = validateCampaign(campaign, VALID_STRINGS);
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ code: "missing_string_key", path: "sim.effect.missing" }),
+    );
+  });
+
+  it("rejects a startingEffects modifier targeting a read-only derived field", () => {
+    const campaign = makeCampaign({
+      startingEffects: [
+        makeStartingEffect({
+          modifiers: [{ target: "world.strangeness", operation: "add", value: 1, sourceId: "campaign" }],
+        }),
+      ],
+    });
+    const result = validateCampaign(campaign, VALID_STRINGS);
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ code: "read_only_field", path: "world.strangeness" }),
+    );
+  });
+
+  it("rejects a startingEffects modifier targeting an unaddressable field", () => {
+    const campaign = makeCampaign({
+      startingEffects: [
+        makeStartingEffect({
+          modifiers: [{ target: "player.nonsense", operation: "add", value: 1, sourceId: "campaign" }],
+        }),
+      ],
+    });
+    const result = validateCampaign(campaign, VALID_STRINGS);
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ code: "read_only_field", path: "player.nonsense" }),
+    );
+  });
+
+  it("accepts a startingEffects modifier targeting calendar.committedTimeUnits (the time_commit exception)", () => {
+    const campaign = makeCampaign({
+      startingEffects: [
+        makeStartingEffect({
+          modifiers: [{ target: "calendar.committedTimeUnits", operation: "add", value: 1, sourceId: "campaign" }],
+        }),
+      ],
+    });
+    const result = validateCampaign(campaign, VALID_STRINGS);
+    expect(result.ok).toBe(true);
   });
 });
