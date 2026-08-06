@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type RefObject,
 } from "react";
 import { SiteFooter, SiteHeader } from "../shared";
 import { BrowserClient, type PlayState } from "./browser-client";
@@ -50,6 +51,50 @@ function excerpt(text: string): string {
   return text.length <= 150 ? text : `${text.slice(0, 147).trimEnd()}…`;
 }
 
+/**
+ * A labelled region with a short real heading, not the authored prose
+ * itself -- a paragraph marked up as a heading makes the phone
+ * screen-reader's heading rotor return a wall of story instead of a
+ * landmark (14 §8.5).
+ */
+function SceneRegion({
+  text,
+  regionRef,
+}: {
+  text: string;
+  regionRef: RefObject<HTMLElement | null>;
+}) {
+  return (
+    <section
+      ref={regionRef}
+      tabIndex={-1}
+      aria-labelledby="scene-heading"
+      className="scene-region"
+    >
+      <h2 id="scene-heading" className="sr-only">
+        Scene
+      </h2>
+      <p className="scene-body">{text}</p>
+    </section>
+  );
+}
+
+function ArrivalReceipt({ arrivalChoice }: { arrivalChoice?: string }) {
+  return (
+    <div className="arrival-receipt" role="status">
+      {arrivalChoice ? (
+        <>
+          <span>Last command</span>
+          <strong>{arrivalChoice}</strong>
+          <span className="arrival-link">// accepted</span>
+        </>
+      ) : (
+        <strong>PROGRAM LOADED. YOUR STORY BEGINS HERE.</strong>
+      )}
+    </div>
+  );
+}
+
 export default function PlayApp() {
   const demo = useMemo(createBrowserDemo, []);
   const client = useMemo(() => new BrowserClient(demo.store), [demo.store]);
@@ -62,7 +107,9 @@ export default function PlayApp() {
   const [arrivalChoice, setArrivalChoice] = useState<string>();
   const [journey, setJourney] = useState<readonly JourneyEntry[]>([]);
   const [busy, setBusy] = useState(false);
-  const sceneHeading = useRef<HTMLHeadingElement>(null);
+  const sceneRegion = useRef<HTMLElement>(null);
+  const scenePage = useRef<HTMLDivElement>(null);
+  const choicePage = useRef<HTMLDivElement>(null);
   const noticeDialog = useRef<HTMLElement>(null);
   const noticeTrigger = useRef<HTMLElement | null>(null);
   const restoreNoticeFocus = useRef(false);
@@ -77,8 +124,26 @@ export default function PlayApp() {
   const sceneText = state?.scene.body.text;
 
   useEffect(() => {
-    if (sceneText) sceneHeading.current?.focus();
+    if (sceneText) sceneRegion.current?.focus();
   }, [sceneText]);
+
+  function reducedMotion(): boolean {
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  function scrollToChoices() {
+    choicePage.current?.scrollIntoView({
+      behavior: reducedMotion() ? "auto" : "smooth",
+      block: "start",
+    });
+  }
+
+  function scrollToScene() {
+    scenePage.current?.scrollIntoView({
+      behavior: reducedMotion() ? "auto" : "smooth",
+      block: "start",
+    });
+  }
 
   /**
    * Restores focus to the control that opened the notice, and only then: a
@@ -307,84 +372,103 @@ export default function PlayApp() {
             </header>
             <div className="cabinet-layout">
               <article className="scene-viewport" aria-live="polite">
-                <p className="scene-kicker">
-                  {ended ? "SESSION COMPLETE" : "ROOM DESCRIPTION"}
-                </p>
-                <h2 ref={sceneHeading} tabIndex={-1}>
-                  {state.scene.body.text}
-                </h2>
-                <div className="arrival-receipt" role="status">
-                  {arrivalChoice ? (
-                    <>
-                      <span>Last command</span>
-                      <strong>{arrivalChoice}</strong>
-                      <span className="arrival-link">// accepted</span>
-                    </>
-                  ) : (
-                    <strong>PROGRAM LOADED. YOUR STORY BEGINS HERE.</strong>
-                  )}
-                </div>
                 {ended ? (
-                  <div className="ending-controls">
-                    <p className="ending-placard">
-                      This matter has been concluded with excessive ceremony.
-                    </p>
-                    <button
-                      className="cabinet-button primary"
-                      disabled={busy}
-                      onClick={(event) =>
-                        openNotice(campaignId!, event.currentTarget)
-                      }
-                    >
-                      Start another run
-                    </button>
-                    {campaignId === demo.catalog[0]?.campaignId && (
+                  <>
+                    <p className="scene-kicker">SESSION COMPLETE</p>
+                    <SceneRegion
+                      text={state.scene.body.text}
+                      regionRef={sceneRegion}
+                    />
+                    <ArrivalReceipt arrivalChoice={arrivalChoice} />
+                    <div className="ending-controls">
+                      <p className="ending-placard">
+                        This matter has been concluded with excessive ceremony.
+                      </p>
                       <button
-                        className="cabinet-button"
+                        className="cabinet-button primary"
                         disabled={busy}
                         onClick={(event) =>
                           openNotice(campaignId!, event.currentTarget)
                         }
                       >
-                        Play the other role
+                        Start another run
                       </button>
-                    )}
-                    <button
-                      className="cabinet-button quiet"
-                      onClick={returnToShelf}
-                    >
-                      Return to stories
-                    </button>
-                  </div>
-                ) : (
-                  <div
-                    className="action-deck"
-                    aria-label="Available actions"
-                    aria-busy={busy}
-                  >
-                    <p className="deck-label">What will you do?</p>
-                    {state.actions.map((action, index) => (
-                      <div
-                        className={`action-card ${!action.available ? "unavailable" : ""}`}
-                        key={action.id}
-                      >
+                      {campaignId === demo.catalog[0]?.campaignId && (
                         <button
-                          disabled={busy || !action.available}
-                          onClick={() => choose(action.id)}
+                          className="cabinet-button"
+                          disabled={busy}
+                          onClick={(event) =>
+                            openNotice(campaignId!, event.currentTarget)
+                          }
                         >
-                          <span className="action-number" aria-hidden="true">
-                            {index + 1}
-                          </span>
-                          {action.label}
+                          Play the other role
                         </button>
-                        {!action.available && (
-                          <p className="play-reason">
-                            Unavailable: {action.reason}
-                          </p>
-                        )}
+                      )}
+                      <button
+                        className="cabinet-button quiet"
+                        onClick={returnToShelf}
+                      >
+                        Return to stories
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="scene-page" ref={scenePage}>
+                      <p className="scene-kicker">ROOM DESCRIPTION</p>
+                      <SceneRegion
+                        text={state.scene.body.text}
+                        regionRef={sceneRegion}
+                      />
+                      <ArrivalReceipt arrivalChoice={arrivalChoice} />
+                      <button
+                        type="button"
+                        className="scene-cue"
+                        onClick={scrollToChoices}
+                      >
+                        {state.actions.length}{" "}
+                        {state.actions.length === 1 ? "choice" : "choices"} ⌄
+                      </button>
+                    </div>
+                    <div className="choice-page" ref={choicePage}>
+                      <div className="scene-echo">
+                        <button type="button" onClick={scrollToScene}>
+                          Scene: {state.scene.body.text}
+                        </button>
                       </div>
-                    ))}
-                  </div>
+                      <div
+                        className="action-deck"
+                        aria-label="Available actions"
+                        aria-busy={busy}
+                      >
+                        <p className="deck-label">What will you do?</p>
+                        {state.actions.map((action, index) => (
+                          <div
+                            className={`action-card ${!action.available ? "unavailable" : ""}`}
+                            key={action.id}
+                          >
+                            <button
+                              disabled={busy || !action.available}
+                              onClick={() => choose(action.id)}
+                            >
+                              <span
+                                className="action-number"
+                                aria-hidden="true"
+                              >
+                                {index + 1}
+                              </span>
+                              {action.label}
+                            </button>
+                            {!action.available && (
+                              <p className="play-reason">
+                                Unavailable: {action.reason}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
                 )}
                 {message && (
                   <p className="play-message" role="status">

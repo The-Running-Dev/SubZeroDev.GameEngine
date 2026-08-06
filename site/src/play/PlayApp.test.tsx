@@ -85,7 +85,7 @@ describe("PlayApp cabinet presentation", () => {
       screen.getByRole("button", { name: "Load selected adventure" }),
     );
     await user.click(screen.getByRole("button", { name: "Continue loading" }));
-    await screen.findByRole("heading", { name: /handwritten/i });
+    await screen.findByText(/handwritten/i, { selector: ".scene-body" });
 
     await user.click(screen.getByRole("button", { name: "Quit to library" }));
     await user.click(
@@ -134,7 +134,7 @@ describe("PlayApp cabinet presentation", () => {
     await user.click(screen.getByRole("button", { name: "Continue loading" }));
 
     expect(
-      await screen.findByRole("heading", { name: /handwritten/i }),
+      await screen.findByText(/handwritten/i, { selector: ".scene-body" }),
     ).toBeVisible();
     expect(
       screen.getByRole("heading", { name: "Player status" }),
@@ -145,6 +145,45 @@ describe("PlayApp cabinet presentation", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.getByText("PROGRAM LOADED. YOUR STORY BEGINS HERE."),
+    ).toBeVisible();
+  });
+
+  it("marks the authored scene as a labelled region with a short real heading, not the prose itself (W66.8)", async () => {
+    const user = userEvent.setup();
+    render(<PlayApp />);
+
+    await user.click(screen.getByRole("button", { name: /The Bureaucracy/i }));
+    await user.click(
+      screen.getByRole("button", { name: "Load selected adventure" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Continue loading" }));
+    await screen.findByText(/handwritten/i, { selector: ".scene-body" });
+
+    const region = screen.getByRole("region", { name: "Scene" });
+    expect(region).toHaveFocus();
+    expect(
+      screen.queryByRole("heading", { name: /handwritten/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("names the scene-cue button after exactly the shown choices (W66's phone reading model)", async () => {
+    const user = userEvent.setup();
+    render(<PlayApp />);
+
+    await user.click(screen.getByRole("button", { name: /Enterprise/i }));
+    await user.click(
+      screen.getByRole("button", { name: "Load selected adventure" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Continue loading" }));
+    await screen.findByRole("button", { name: /choices? ⌄/ });
+
+    const deck = document.querySelector(".action-deck");
+    const shownChoices = deck?.querySelectorAll(".action-card").length ?? 0;
+    expect(shownChoices).toBeGreaterThan(0);
+    expect(
+      screen.getByRole("button", {
+        name: new RegExp(`^${shownChoices} choices?`),
+      }),
     ).toBeVisible();
   });
 
