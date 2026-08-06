@@ -3,6 +3,16 @@
 The standalone React landing page. It is intentionally separate from the Docusaurus
 documentation site and does not configure hosting.
 
+The playable demo imports the engine's published public entry point as a local package. Build
+the engine before installing or checking this site from a clean checkout:
+
+```powershell
+npm --prefix ../src/engine ci
+npm --prefix ../src/engine run build
+npm ci
+npm run check
+```
+
 ## Development
 
 ```powershell

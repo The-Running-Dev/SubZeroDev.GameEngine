@@ -1,161 +1,77 @@
-/**
- * Content — the Enterprise arc (`games/bulgaria-adventure.md`'s "Enterprise" row).
- *
- * Adapted from `games/bulgaria.md`'s "Starting a Business" and "Entrepreneur" scenes — the
- * fifth and final real arc of the Bulgaria Adventure, following `bulgaria-bureaucracy.ts`'s
- * established pattern.
- *
- * `games/bulgaria-adventure.md` lists this arc's third scene as "Ultimate Reward" and its
- * exercise as "accumulating debt/patience, the 'It Builds Character' achievement." Neither is
- * available: `bulgaria-bureaucracy.ts` already consumed `bulgaria.md`'s "Ultimate Bulgarian
- * Reward" scene verbatim as its own ending, achievement and all (`OPEN-QUESTIONS.md` §2, found
- * during W27). What remains of this arc's exercise is "accumulating debt" — carried by
- * `debt_cents` (int, visible), a running stat in the same idiom as Bureaucracy's own counters,
- * not a gate. No achievement: the game's own Definition of Done requires only "at least one"
- * across the whole game, already satisfied by Bureaucracy's `it_builds_character`.
- *
- * With the achievement gone, nothing in this arc's remaining material calls for a branching
- * ending the way Driving's named flag or Inheritance's named "branching on prior choices" did
- * — `games/bulgaria-adventure.md` names "an ending" for this arc, singular, same as the others.
- * The climax ("This, it turns out, is what having a business means") is new prose, not adapted
- * from any `bulgaria.md` scene, since the one this arc was assigned is already spent.
- *
- * Node graph: `starting_a_business` (start, choice, four options, converge) --> `entrepreneur`
- * (choice, four options, each with its own `debt_cents` effect, converge) --> `ending`.
- */
-
-import type { AuthoredText, BuiltCampaign, Campaign } from "../core/registry/types.js";
+import type { BuiltCampaign } from "../core/registry/types.js";
 import type { CommandResult } from "../core/kernel/reasons.js";
-import { buildCampaign } from "../core/registry/build.js";
-import { buildStoryGraphCampaign, type StoryGraphCampaignSource } from "../kinds/story-graph/source.js";
-
-export const bulgariaEnterpriseSource: StoryGraphCampaignSource = {
-  description: {
-    key: "enterprise.campaign.description",
-    text: "A small business, inspired by every Bulgarian entrepreneur who has ever waited on an invoice.",
-  },
-
-  variables: {
-    debt_cents: {
-      type: "int",
-      initial: 0,
-      min: 0,
-      max: 100000,
-      visible: true,
-      label: { key: "enterprise.var.debt_cents.label", text: "Debt (Cents)" },
-    },
-  },
-
-  startNodeId: "starting_a_business",
-
-  nodes: {
-    starting_a_business: {
-      kind: "choice",
-      text: {
-        key: "enterprise.starting_a_business.text",
-        text:
-          "Congratulations. Your company is officially registered. Your first visitors arrive: " +
-          "the Tax Agency, the Labour Inspectorate, the Health Inspectorate. None of them are " +
-          "customers.",
-      },
-      choices: [
-        {
-          id: "offer_coffee",
-          label: { key: "enterprise.choice.offer_coffee.label", text: "Offer them coffee" },
-          goto: "entrepreneur",
-        },
-        {
-          id: "hide",
-          label: { key: "enterprise.choice.hide.label", text: "Hide" },
-          goto: "entrepreneur",
-        },
-        {
-          id: "ask_who_invited_them",
-          label: { key: "enterprise.choice.ask_who_invited_them.label", text: "Ask who invited them" },
-          goto: "entrepreneur",
-        },
-        {
-          id: "pretend_business_never_opened",
-          label: {
-            key: "enterprise.choice.pretend_business_never_opened.label",
-            text: "Pretend the business never opened",
-          },
-          goto: "entrepreneur",
-        },
-      ],
-    },
-
-    entrepreneur: {
-      kind: "choice",
-      text: {
-        key: "enterprise.entrepreneur.text",
-        text:
-          "You successfully open your first business. Your first invoice is paid… in " +
-          "approximately 60 days. Your supplier expects payment tomorrow.",
-      },
-      choices: [
-        {
-          id: "call_the_client",
-          label: { key: "enterprise.choice.call_the_client.label", text: "Call the client" },
-          goto: "ending",
-        },
-        {
-          id: "negotiate",
-          label: { key: "enterprise.choice.negotiate.label", text: "Negotiate" },
-          effects: [{ op: "increment", var: "debt_cents", by: 5000 }],
-          goto: "ending",
-        },
-        {
-          id: "borrow_money",
-          label: { key: "enterprise.choice.borrow_money.label", text: "Borrow money" },
-          effects: [{ op: "increment", var: "debt_cents", by: 20000 }],
-          goto: "ending",
-        },
-        {
-          id: "discover_entrepreneurship",
-          label: { key: "enterprise.choice.discover_entrepreneurship.label", text: "Discover entrepreneurship" },
-          goto: "ending",
-        },
-      ],
-    },
-
-    ending: {
-      kind: "ending",
-      text: {
-        key: "enterprise.ending.text",
-        text:
-          "The debt does not resolve itself, but neither does it become a crisis — it simply " +
-          "becomes a permanent line item, filed alongside the tax registration and the health " +
-          "inspection report. This, it turns out, is what having a business means.",
-      },
-      endingId: "a_permanent_line_item",
-      outcome: "neutral",
-    },
-  },
-
-  achievements: [],
-};
+import type { StoryGraphCampaignSource } from "../kinds/story-graph/source.js";
+import { buildAdventureCampaign, createAdventureSource, migrateV1AdventureState, type AdventureConfig } from "./adventure-builder.js";
 
 export const BULGARIA_ENTERPRISE_CAMPAIGN_ID = "bulgaria-enterprise";
 
-const TITLE: AuthoredText = { key: "enterprise.campaign.title", text: "Enterprise" };
+const config: AdventureConfig = {
+  id: BULGARIA_ENTERPRISE_CAMPAIGN_ID,
+  namespace: "enterprise",
+  title: "Enterprise",
+  description: "Registration, clients, tax, invoices, hiring, competition, government, growth, sale, and failure.",
+  startNodeId: "starting_a_business",
+  intro: "Your company is officially registered. Its first visitors are the Tax Agency, Labour Inspectorate, and Health Inspectorate. None of them are customers.",
+  statLabels: { preparation: "Runway", connections: "Reputation", pressure: "Cashflow Pressure" },
+  routes: [
+    {
+      id: "consultant_route", choiceId: "offer_coffee", label: "Stay small and win the first client", memoryLabel: "the client's trust",
+      scenes: [
+        "Your first client wants a proposal by Friday, a discount by Thursday, and confidence immediately.",
+        "The invoice is accepted in seconds and scheduled for payment in sixty days.",
+        "A tax letter asks for clarification about income that has not yet become money.",
+        "The consultancy can remain deliberate, grow into an agency, or exhaust itself performing success.",
+      ],
+      actionLabels: ["Ask what success means before pricing", "Promise the full wishlist", "Keep the signed scope beside the invoice", "Assume goodwill will handle scope", "Call the accountant before replying", "Reply from memory tonight", "Ask the client for a reference", "Take the next project quietly"],
+      eventLabels: ["The client removes half the wishlist and trusts the smaller promise more.", "A competitor underbids by excluding the work from the price.", "The tax letter is routine; the accountant identifies the correct checkbox in under an hour.", "A bad review appears for a company with the same name and a different comma."],
+      endings: [
+        { id: "consultant", title: "The Independent Consultant", text: "The calendar fills, the invoices clear, and the company stays small enough to recognize itself.", outcome: "win" },
+        { id: "agency", title: "The Careful Agency", text: "The first client's trust becomes a referral, then a team, then a business that can survive your day off.", outcome: "win", gate: "memory" },
+      ],
+    },
+    {
+      id: "company_route", choiceId: "ask_who_invited_them", label: "Build a company before the inspectors return", memoryLabel: "the employee's loyalty",
+      scenes: [
+        "Hiring one person creates payroll, policy, equipment, and a government portal that prefers yesterday's browser.",
+        "A competitor recruits your prospect while your team repairs the first client's server outage.",
+        "A government opportunity arrives with a short deadline and a folder of declarations about other declarations.",
+        "Growth is now real enough to choose: disciplined company, platform bet, or a profitable sale before scale becomes weather.",
+      ],
+      actionLabels: ["Explain the runway and hire carefully", "Hire three people for momentum", "Save the outage postmortem", "Blame the hosting provider publicly", "Split the tender into a checklist", "Submit the boldest possible bid", "Promote the teammate who held the outage", "Meet the interested buyer alone"],
+      eventLabels: ["The careful hire brings a client relationship stronger than the job board promised.", "The third hire asks when payroll runs; nobody has yet asked payroll.", "Your outage postmortem wins the government evaluator's technical confidence.", "A server outage begins eleven minutes before submission and ends twelve minutes after."],
+      endings: [
+        { id: "successful_company", title: "The Durable Company", text: "Revenue, process, and people finally reinforce each other. Growth stops feeling like falling upward.", outcome: "win", gate: "memory" },
+        { id: "platform_company", title: "The Platform Bet", text: "You turn repeated client work into a product. The roadmap becomes longer and the margins become possible.", outcome: "win", gate: "prepared" },
+      ],
+    },
+    {
+      id: "pressure_route", choiceId: "hide", label: "Hide from the inspectors and chase cash", memoryLabel: "the investor's warning",
+      scenes: [
+        "A late payment forces a choice between supplier trust, payroll, and pretending the bank balance is a design problem.",
+        "An audit notice arrives on the same morning as a lucky client with an implausibly large opportunity.",
+        "The lucky client requests exclusivity while an investor offers rescue on terms written in unusually friendly language.",
+        "Cashflow has become a verdict. You may sell, close cleanly, or keep borrowing until optimism becomes an accounting category.",
+      ],
+      actionLabels: ["Tell the supplier exactly when payment lands", "Borrow silently and keep moving", "Keep the investor's warning email", "Spend the lucky deposit immediately", "Model the exclusivity cost", "Sign before the client cools", "Invite acquisition offers", "Take one final emergency loan"],
+      eventLabels: ["The supplier grants two weeks because honesty turns out to have credit value.", "The bridge loan clears hours before payroll and starts charging interest immediately.", "The audit finds a filing error, not fraud, and the warning email proves when you corrected it.", "The lucky client pauses the project after the deposit has already funded three hires."],
+      endings: [
+        { id: "bankruptcy", title: "The Permanent Line Item", text: "Debt becomes the only reliable customer. You close the company and keep the lessons that cannot be invoiced.", outcome: "loss" },
+        { id: "sale", title: "The Timely Sale", text: "The warning helps you recognize a fair offer before desperation sets the price. You sign and pay everyone.", outcome: "neutral", gate: "memory" },
+      ],
+    },
+  ],
+  startAliases: [{ id: "pretend_business_never_opened", label: "Avoid the inspectors and focus on cash", routeId: "pressure_route" }],
+};
 
-/**
- * Assembles the envelope (`id`/`kindId`/`version`/`titleKey` — core-owned, not part of
- * `StoryGraphCampaignSource`, per the envelope-duplication rule `CLAUDE.md` tracks) around
- * `buildStoryGraphCampaign`'s lifted content, then hands both to `buildCampaign`
- * (`registry/build.ts`, W4) to produce the `BuiltCampaign` a registry is assembled from.
- */
-export function buildBulgariaEnterpriseCampaign(
-  source: StoryGraphCampaignSource = bulgariaEnterpriseSource,
-): CommandResult<BuiltCampaign> {
-  const { content, authoredText } = buildStoryGraphCampaign(source);
-  const campaign: Campaign = {
-    id: BULGARIA_ENTERPRISE_CAMPAIGN_ID,
-    kindId: "story-graph",
-    version: "1.0.0",
-    titleKey: TITLE.key,
-    content,
-  };
-  return buildCampaign(campaign, [TITLE, ...authoredText]);
+export const bulgariaEnterpriseSource = createAdventureSource(config);
+
+export function buildBulgariaEnterpriseCampaign(source: StoryGraphCampaignSource = bulgariaEnterpriseSource): CommandResult<BuiltCampaign> {
+  const result = buildAdventureCampaign(config, source);
+  if (result.ok && result.value) {
+    result.value.campaign.migrateState = (state, fromVersion) => migrateV1AdventureState(state, fromVersion, source, {
+      entrepreneur: "consultant_route_2",
+      ending: "ending_consultant",
+    }, { a_permanent_line_item: "bankruptcy" });
+  }
+  return result;
 }

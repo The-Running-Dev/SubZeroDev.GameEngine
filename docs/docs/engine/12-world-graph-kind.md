@@ -679,8 +679,8 @@ The following comparators are the only canonical orders systems may use:
 | Queue | persisted FIFO arrival position; same-tick admissions by runtime entity id |
 | Utility candidate | utility descending, building entity id, product id (`null` first) |
 | Task candidate | priority descending, path cost ascending, task-kind order, target entity id or position, source definition id, required role id (`null` first), slot ordinal |
-| A* open node | `f`, `h`, `g` ascending, then position row-major |
-| Equal-cost A* parent | predecessor position row-major |
+| Path-search open node | accumulated cost `g` ascending, then position row-major (§9.3 — the search carries no heuristic, so there is no `f`/`h` to order by first) |
+| Equal-cost path parent | predecessor position row-major |
 | Scheduled effect | due tick, priority descending, source definition id, authored change index, authored effect index |
 
 The task-kind order is `service`, `clean`, `restock`, `build`. A definition id is not an
@@ -776,7 +776,7 @@ row.
 
 **Reads:** service/leave intents, committed paths, map revision, dynamic footprints, and
 definition entrances. **Writes:** `Guest.path` and `pathIndex`. **Order:** guests by id;
-goals row-major; A* follows §9. A changed target has no old path to preserve. A path made
+goals row-major; canonical replanning follows §9. A changed target has no old path to preserve. A path made
 invalid by a map revision remains committed only until canonical replanning succeeds; on
 failure it is cleared and the archetype fallback is materialized. **No-op:** waiting,
 queued, served, already-at-goal, or still-valid path. **Records:**
@@ -976,7 +976,7 @@ The minimum W43 fixture takes several ticks; arrows are not permission to collap
 
 ```text
 t0  guest-spawn creates guest → guest-needs drifts thirst → guest-intent selects stand
-    → guest-path commits A* → guest-move advances one edge → tick-finalize commits t1
+    → guest-path commits canonical path → guest-move advances one edge → tick-finalize commits t1
 t1+ guest-move eventually reaches entrance
 next queues admits FIFO and starts service
 later guest-service transfers cents, applies drink effect, and creates litter incident
@@ -1154,7 +1154,7 @@ functions; this states the positive rule those bans imply.
 distance — all integer, all order-preserving for the comparisons that matter.
 
 **Every tie uses §4.2's complete comparator.** Entity id is only one domain; positions,
-definitions, FIFO arrivals, A* nodes, and transient task candidates have their own complete
+definitions, FIFO arrivals, canonical-path nodes, and transient task candidates have their own complete
 tuples. Iteration order is likewise canonical except where FIFO/authored order is semantic.
 
 **Entity ids are derived, never supplied.** Guests, staff, buildings, sites, queues and
@@ -1172,7 +1172,7 @@ to drift, the same objection §3 makes to `rng`.
 Eligibility is a filter before arithmetic. A candidate is absent—not assigned a very
 negative score—when its content is locked, building is not `open`, queue is full, guest
 cannot afford the price, product is not offered/in stock, a typed condition rejects it, or
-no canonical path reaches an entrance. The path-cost query uses the same A* rules as §9.3;
+no canonical path reaches an entrance. The path-cost query uses the same canonical-path rules as §9.3;
 it may share scratch cache but not a second reachability rule.
 
 For each survivor evaluate these signed integer components in order:
@@ -1262,7 +1262,7 @@ a non-constant duration range, it draws from the owning system's
 `tick:${processingTick}:<stable-system-id>` handle in effect/target order; a constant range
 and `null` duration consume no draw.
 
-### 9.3 Canonical A*
+### 9.3 Canonical shortest path
 
 Nodes are `Position`s. Outgoing neighbours are allowed authored `PathCell`s whose `from`
 matches the current node, ordered by destination row-major. The destination terrain must be
@@ -1273,10 +1273,26 @@ cells remain outside footprints and are valid goals. Guest overlap does not bloc
 stepCost(current, next) = edge.edgeCost + terrain(next).moveCost
 ```
 
-Both terms are non-negative and Tier 1 requires every traversable sum to be positive. The
-heuristic is Manhattan distance to the nearest goal multiplied by the campaign's minimum
-traversable step cost, so it is admissible. If a future contract admits a zero minimum, the
-heuristic is zero and the search is Dijkstra; it may never silently overestimate.
+Both terms are non-negative and Tier 1 requires every traversable sum to be positive.
+
+**The search is uniform-cost — Dijkstra, with no heuristic.** The open list is ordered by
+accumulated cost `g`, ties broken row-major by position (§4.2), and the first goal popped is
+returned. `canonicalPath` (`src/engine/src/kinds/world-graph/spatial.ts`) implements exactly
+that.
+
+> **This is a deliberate simplification of an earlier A\* prescription, not an oversight.**
+> This section previously fixed a heuristic — Manhattan distance to the nearest goal times
+> the campaign's minimum traversable step cost — and noted that a zero minimum degenerates to
+> Dijkstra. Running with a zero heuristic *always* is that degenerate case, and it is
+> behaviourally identical on every property this contract actually constrains: an admissible
+> heuristic never changes which paths are optimal, and the tie-break here is the same
+> row-major comparator either way, so the committed path is the same path. The difference is
+> confined to how many nodes get expanded reaching it — a performance question, not a
+> determinism one, and determinism is the only axis §9 exists to fix. Reintroducing the
+> heuristic is therefore a pure optimization, available whenever expansion count is measured
+> to matter, and it requires no change to anything below. What it must never do is *change
+> the answer*: an inadmissible heuristic would, which is why the admissibility rule is
+> restated here rather than dropped with the algorithm.
 
 Open nodes and equal-cost parents use §4.2. A closed node reopens only for smaller `g`;
 equal `g` replaces its parent only for a row-major-smaller predecessor. Multiple entrances
@@ -1422,32 +1438,46 @@ Reused from the base set: `unknown_action`, `requirement_unmet`, `session_ended`
 
 Namespaced `kind.world-graph.*` (05 §9), declared as `Kind.eventNames`:
 
-| Name (after the namespace) | Severity | Emitted at |
-|---|---|---|
-| `batch.started` / `batch.ended` | `debug` | Around `advance_ticks`, with requested and actually processed ticks |
-| `building.placed` / `building.demolished` | `info` / `debug` | The `build` and `demolish` reducers |
-| `staff.hired` / `staff.fired` / `staff.assigned` | `info` / `debug` / `trace` | The staff reducers |
-| `alert.dismissed` | `trace` | The `dismiss_alert` reducer |
-| `scenario.effect.applied` | `debug` | System 1 applied one scheduled/policy effect |
-| `guest.spawned` / `guest.meter.changed` | `trace` | Systems 2–3 |
-| `guest.served` / `service.started` | `trace` | Systems 4–5 |
-| `queue.joined` / `queue.abandoned` | `trace` | FIFO membership changes in system 5 |
-| `guest.intent.selected` | `trace` | System 6, with optional ordered component trace |
-| `guest.path.committed` / `guest.path.failed` | `trace` / `debug` | System 7 attempted a commitment |
-| `guest.moved` / `guest.departed` | `trace` / `debug` | System 8 |
-| `task.candidate.generated` | `trace` | Optional system-9 diagnostic; never state |
-| `staff.task.assigned` / `staff.task.completed` / `staff.task.cancelled` | `trace` | Systems 10–11 |
-| `staff.moved` | `trace` | System 11 traversed one edge |
-| `construction.progressed` / `construction.completed` | `trace` / `info` | System 12 |
-| `building.status.changed` / `building.meter.changed` | `debug` / `trace` | Systems 13–14 and immediate reducers |
-| `finance.charged` | `debug` | System 15 coalesced one charge family |
-| `incident.raised` / `incident.resolved` | `info` / `debug` | Systems 4, 11, 14, or 16 own the transition |
-| `objective.progressed` / `objective.met` | `debug` / `info` | System 17 |
-| `failure.progressed` / `failure.triggered` | `debug` / `info` | System 18 |
-| `scenario.resolved` | `info` | Win or failure, with the `outcome` ids (§8) |
-| `achievement.unlocked` | `info` | System 19, before alert derivation |
-| `alert.raised` / `alert.cleared` | `debug` / `trace` | System 19 active-set transition |
-| `tick.finalized` | `trace` | System 20, after cleanup and increment |
+| Name (after the namespace) | Severity | Emitted at | Status |
+|---|---|---|---|
+| `batch.started` / `batch.ended` | `debug` | Around `advance_ticks`, with requested and actually processed ticks | delivered |
+| `building.placed` / `building.demolished` | `info` / `debug` | The `build` and `demolish` reducers | delivered |
+| `building.status.changed` | `debug` | The immediate reducers (and system 13, once built) | delivered |
+| `staff.hired` / `staff.fired` / `staff.assigned` | `info` / `debug` / `trace` | The staff reducers | delivered |
+| `alert.dismissed` | `trace` | The `dismiss_alert` reducer | delivered |
+| `scenario.effect.applied` | `debug` | System 1 applied one scheduled/policy effect | delivered |
+| `guest.spawned` | `trace` | System 2 | delivered |
+| `guest.served` | `trace` | System 4 | delivered |
+| `incident.resolved` | `debug` | Systems 11 and 16 own the transition today | delivered |
+| `tick.finalized` | `trace` | System 20, after cleanup and increment | delivered |
+| `guest.meter.changed` | `trace` | System 3 | specified, not yet delivered |
+| `service.started` | `trace` | System 5 | specified, not yet delivered |
+| `queue.joined` / `queue.abandoned` | `trace` | FIFO membership changes in system 5 | specified, not yet delivered |
+| `guest.intent.selected` | `trace` | System 6, with optional ordered component trace | specified, not yet delivered |
+| `guest.path.committed` / `guest.path.failed` | `trace` / `debug` | System 7 attempted a commitment | specified, not yet delivered |
+| `guest.moved` / `guest.departed` | `trace` / `debug` | System 8 | specified, not yet delivered |
+| `task.candidate.generated` | `trace` | Optional system-9 diagnostic; never state | specified, not yet delivered |
+| `staff.task.assigned` / `staff.task.completed` / `staff.task.cancelled` | `trace` | Systems 10–11 | specified, not yet delivered |
+| `staff.moved` | `trace` | System 11 traversed one edge | specified, not yet delivered |
+| `construction.progressed` / `construction.completed` | `trace` / `info` | System 12 | specified, not yet delivered |
+| `building.meter.changed` | `trace` | Systems 13–14 | specified, not yet delivered |
+| `finance.charged` | `debug` | System 15 coalesced one charge family | specified, not yet delivered |
+| `incident.raised` | `info` | Systems 4, 11, 14, or 16 own the transition | specified, not yet delivered |
+| `objective.progressed` / `objective.met` | `debug` / `info` | System 17 | specified, not yet delivered |
+| `failure.progressed` / `failure.triggered` | `debug` / `info` | System 18 | specified, not yet delivered |
+| `scenario.resolved` | `info` | Win or failure, with the `outcome` ids (§8) | specified, not yet delivered |
+| `achievement.unlocked` | `info` | System 19, before alert derivation | specified, not yet delivered |
+| `alert.raised` / `alert.cleared` | `debug` / `trace` | System 19 active-set transition | specified, not yet delivered |
+
+> **The status column tracks emit sites, not decisions.** `Kind.eventNames` on the shipped
+> `worldGraphKind` declares the delivered rows; the rest are named here because an event
+> name is a published identifier a sink filters on (05 §9), so it is fixed once, ahead of the
+> emit site, rather than renamed after every host has configured for it. Undelivered rows
+> cluster where the pipeline itself is still incomplete — systems 12, 13 and 19 are no-op
+> stubs and 14 and 16 are partial, recorded with the rest of the tick-system gaps in
+> `90-decisions.md`. Same treatment as `story-graph` §8.4, and safe for the same reason:
+> 05 §2 guarantees dropping every event changes nothing, so a not-yet-emitted event cannot
+> be load-bearing.
 
 **`guest.path.failed` earns its place.** A resort where guests silently cannot reach a
 building looks identical to one where they do not want to — the failure is invisible in the
@@ -2347,7 +2377,7 @@ Everything else in §3 remains W42's state contract.
 ### 14.10 W44 reconciliation
 
 The executable system audit found these durable facts absent or duplicated after W43. They
-are the only W44 state/content corrections; A* open sets, task candidates, indexes, deltas,
+are the only W44 state/content corrections; canonical-path open sets, task candidates, indexes, deltas,
 and aggregation buffers remain scratch (§4.2).
 
 | Pre-W44 surface | W44 correction | System proof |
@@ -2895,7 +2925,7 @@ Expected Tier-1 paths and findings:
   tick/entity events also match across batch partitions while batch diagnostics may differ.
 - Canonicalized content input may be shuffled without effect; FIFO queue arrays may not,
   because their order is state.
-- A* fixtures cover equal paths/parents, multiple entrances, directed edges, blocked
+- Canonical-path fixtures cover equal paths/parents, multiple entrances, directed edges, blocked
   footprints, unreachable goals, and map-revision invalidation.
 - Queue fixtures cover simultaneous arrival, abandonment, close/reopen, rejoin, capacity,
   and save/load during service.

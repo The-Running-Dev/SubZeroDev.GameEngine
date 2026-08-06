@@ -1708,8 +1708,478 @@ component or stylesheet. This is a toolchain extraction, not a landing-page rede
       test. Manual play-testing tooling, not a shipped client surface — distinct from "more
       clients" below, no projection or store change, no contract change. Not required by any
       Definition-of-Done item; exists purely so the engine can be seen running.
-- [ ] More clients (web, Discord).
-- [ ] **Additional locales — sliced as [W60](#w60).** The MVP ships English only; the
+
+### [ ] W61 — Public Playable Web Demo {#w61}
+
+**Delivers:** Turns the completed Bureaucracy MVP into a public `/play/` route a visitor can
+finish without cloning the repository. The engine runs locally in the browser behind a real
+client over `SessionStore`; the page renders scenes, shown choices, disabled reasons, visible
+state and achievements, offers non-committing previews and same-page checkpoints, and reaches
+the existing ending with no React-owned game rule.
+
+This is deliberately one campaign and one route. The five story campaigns, Stable Life, and
+the world-graph MVP already prove useful engine breadth, but putting all of them in a picker
+would turn the first browser boundary into three rendering problems and still leave the
+load-bearing question unanswered: can the package, session store, save envelope, registry and
+client contract run together in a production browser bundle? [`13-playable-web-demo.md`](13-playable-web-demo.md)
+fixes that product and architecture boundary.
+
+The browser currently exposes three real portability defects hidden by the Node.js CLI:
+`version.ts` reads `node:fs`, `envelope.ts` uses `node:crypto`, and `emitter.ts` reads an
+unguarded `process.env`. Close those in the shared runtime, not with a reduced browser fork.
+The checksum stays SHA-256 over the same canonical bytes, and the pure engine remains
+synchronous; only the already-async store boundary may await platform crypto.
+
+- **Spec:** [`13-playable-web-demo.md`](13-playable-web-demo.md);
+      [09 §1](09-clients.md#1-the-rule-made-testable),
+      [§2](09-clients.md#2-the-only-surface),
+      [§4](09-clients.md#4-the-api-coverage-checklist),
+      [§6](09-clients.md#6-projection-is-not-optional);
+      [04 §7](04-core.md#7-the-session-store-and-the-platform-api),
+      [§9](04-core.md#9-projection), [§10.2](04-core.md#102-save-envelope-and-migration).
+- **Touches:** `src/engine/src/version.ts`, `core/persistence/envelope.ts`,
+      `core/observability/emitter.ts`, the package root and browser-bundle smoke test;
+      `site/` — a new play entry, composition root, browser adapter, React page, shared
+      navigation, styles and tests; the static-build/merge verification; factual status copy
+      in `README.md`, `src/engine/README.md`, and the landing page.
+- **Depends on:** [W19](#x-w19--mvp-acceptance), [W31](#x-w31--save-migration), and W41.
+      Implement against whichever
+      landing build/merge mechanism is on `main` when the unit starts; issue #179's package
+      migration is not a semantic dependency and must not be reimplemented here.
+- **Status:** Not started.
+- **Done when:**
+  - W61.1 The supported engine entry graph used by the site produces a real browser bundle
+        with no `node:` import, unguarded Node.js global, runtime filesystem read, or second
+        browser-only engine path; Node.js typecheck, lint, tests and package build remain green.
+  - W61.2 `ENGINE_VERSION` still has package metadata as its single owner, and save/load under
+        Node.js and a browser produce the same lowercase SHA-256 checksum for the same
+        `{ state, replayCompatible }` canonical bytes without changing any committed replay or
+        serialization fixture.
+  - W61.3 The package root exports the committed Bureaucracy builder needed by the site
+        composition root; React and the browser adapter import only `SessionStore` types and
+        call no engine, kind, registry, validation, projection, or persistence helper.
+  - W61.4 A direct static request to `/play/` succeeds; the production artifact contains
+        `/`, `/roadmap/`, `/play/`, and `/docs/`, and the protected merge proves the docs
+        subtree byte-identical before and after overlay.
+  - W61.5 A visitor can start Bureaucracy, traverse the `office_visits >= 3` loop, see the
+        gated choice with its reason, exercise the seeded transition, reach the existing
+        ending, see `it_builds_character`, and start again. No raw `LocKey` appears in any
+        ready, playing, rejected, preview, or ended state.
+  - W61.6 Previewing an enabled choice shows the labelled prospective scene without changing
+        the committed scene, view, action sequence or checkpoint; committing it afterwards
+        reaches the same result as choosing it without a preview.
+  - W61.7 Save/load is presented honestly as a same-page checkpoint. Restoring it loses no
+        state; refreshing starts a new demo and the UI says so. No component writes raw state
+        or a save envelope to browser storage.
+  - W61.8 [09 §4](09-clients.md#4-the-api-coverage-checklist)'s browser column is checked
+        against ten named adapter tests. The full Bureaucracy path through the browser adapter
+        and text client, under the same seed and counting `IdSource`, produces identical
+        `Scene`/`PlayerView` steps and byte-identical final `serialize()` output.
+  - W61.9 The page is keyboard-complete and usable at 320 px, 390 px, 768 px and 1280 px:
+        native action controls, adjacent disabled reasons, visible focus, announced committed
+        scene changes, no colour-only state, no horizontal overflow, and complete reduced-motion
+        behavior.
+  - W61.10 The public header and landing page expose `Play`; stale claims that nothing is
+        playable are corrected without calling the demo a finished game. Site checks,
+        documentation checks, engine gates, `git diff --check`, and the exact-merge deployment
+        verification all pass before the route is announced.
+- **Out of scope:** additional campaigns or kinds; durable browser storage; profiles across
+      reloads; accounts, cloud sync or any backend; new gameplay; art, audio, analytics,
+      session capture, service workers, a PWA, or a generic reusable web-client package.
+
+### [x] W63 — Absurd Game Interface {#w63}
+
+**Delivers:** Rebuilds the public story shelf and story-graph play surface so it reads as a
+game rather than a styled form. The interface becomes an original absurd adventure cabinet:
+a theatrical scene viewport, tactile action deck, satirical status console, dossier-like story
+shelf, and brief mechanical transitions. Its inspiration is the graphic-adventure staging of
+*Indiana Jones and the Fate of Atlantis* and the busy life-board energy of *Jones in the Fast
+Lane*; it copies neither game's assets, layout, characters, logos, fonts, sounds, or trade dress.
+
+The slice is presentation-only. Existing `BrowserClient` DTOs and `SessionStore` remain the
+only game-facing boundary, and the redesign may not add rules, rewrite campaign text, infer
+hidden state, reorder actions, or change serialized outcomes. “Absurd” is a controlled visual
+language, not maximum noise: one hero joke and at most two minor jokes per visible state.
+
+- **Spec:** [`14-game-interface.md`](14-game-interface.md);
+      [`13-playable-web-demo.md`](13-playable-web-demo.md) §§1–3, §7–§9;
+      [09 §1](09-clients.md#1-the-rule-made-testable),
+      [§2](09-clients.md#2-the-only-surface),
+      [§6](09-clients.md#6-projection-is-not-optional).
+- **Touches:** `site/src/play/` — shelf, game cabinet, action deck, status console, transitions,
+      responsive states, original local assets, component/browser/visual/accessibility tests;
+      static-build verification for asset budgets and the direct `/play/` route. No engine,
+      campaign, replay-fixture, or contract-type change.
+- **Depends on:** [W61](#w61) and the multi-campaign story shelf already present on `main`.
+- **Status:** Done — implemented via #188 and #190. W63.7 (visual snapshots) and W63.8
+      (automated accessibility, forced-colours, 200% zoom, and long-text checks) were verified
+      by manual review at 320/390/768/1280 px rather than a dedicated automated suite; see
+      [OPEN-QUESTIONS.md §3](OPEN-QUESTIONS.md#3-judgement-calls-to-revisit-settled-for-the-mvp).
+- **Done when:**
+  - W63.1 Ready, playing, busy, unavailable, rejected, persistence-warning, and ended states
+        all use the cabinet visual grammar and remain distinguishable without colour or motion.
+  - W63.2 The story shelf is a keyboard-navigable dossier/archive composition; selecting a
+        story opens a labelled briefing, content notices remain plain and accessible, and
+        returning from play restores the selected dossier and shelf position.
+  - W63.3 The scene viewport renders authored text unchanged; the action deck preserves action
+        order and full labels; the status console renders only `PlayerView`. No raw node id,
+        `LocKey`, seed, action log, hidden variable, or opaque kind state appears.
+  - W63.4 Every visible-stat control prints its value in addition to any gauge treatment. A
+        campaign with no visible stats receives an honest empty-state prop, not a fabricated
+        score or progress measure.
+  - W63.5 All art is original local PNG/JPG or CSS-native decoration. A missing decorative
+        asset leaves a complete readable cabinet; no reference-game asset, font, logo, sound,
+        character, screenshot, traced composition, or trade dress ships.
+  - W63.6 One full Bureaucracy run and both Lucifer roles are playable through the redesigned
+        UI. Existing browser/text-client parity still produces byte-identical serialized
+        outcomes, proving presentation did not become game logic.
+  - W63.7 Visual snapshots cover ready, playing, unavailable-choice, persistence-warning, and
+        ended states at 320 px, 390 px, 768 px, and 1280 px, with no clipped authored text,
+        horizontal overflow, or action below an inaccessible internal scroll region.
+  - W63.8 Keyboard-only, automated accessibility, forced-colours, 200% zoom, long-text, and
+        missing-asset checks pass. Focus moves after committed scenes, restores after a
+        briefing/dialog closes, and never moves merely because decoration animates.
+  - W63.9 Motion is limited to brief state punctuation; reduced motion removes transforms,
+        parallax, wipes, flicker, and staged delay. No action waits for animation and no
+        permanent timer runs while the page is idle.
+  - W63.10 Initial decorative payload is at most 1.5 MB compressed, no single decorative asset
+        exceeds 500 KB, phone layouts do not fetch desktop backdrops, `/play/` remains a direct
+        static route, and the page performs no runtime request for engine or campaign content.
+- **Out of scope:** new campaigns, mechanics, projections, engine APIs, a visual language for
+      simulation/world-graph, copied reference material, canvas/WebGL, point-and-click movement,
+      a verb parser, mandatory audio, voice acting, cut-scenes, or procedural art.
+
+### Depth: Story Campaigns Become Adventures
+
+### [x] W64 — Replayable Story Campaign Expansion {#w64}
+
+**Delivers:** Reauthors the six story-graph campaigns already on the public shelf as
+replayable narrative adventures and presents them as a playable choose-your-own-adventure
+casebook. Return, Bureaucracy, Driving, Inheritance, Enterprise, and Lucifer Chronicles gain
+routes that stay apart long enough to feel different, optional scenes, delayed consequences,
+hidden discoveries, seeded flavour events, stat-dependent choices, and multiple endings. A
+first playthrough must leave authored content undiscovered, while the interface makes the
+causal link between the choice just made and the scene that followed unmistakable.
+
+This is a content slice over the existing `story-graph` contract, not a new narrative runtime.
+Money, documents, relationships, attention, and character memory are typed campaign variables;
+secrets use `showWhen`; visible obstacles use `requirements`; delayed consequences are earlier
+effects read by later conditions; and random events are seeded `random` nodes. A random draw may
+change flavour or open an optional detour, but it may not make a planned route unwinnable.
+
+For this unit, a **visible scene** is a reachable `choice` or `ending` node. `auto` and `random`
+nodes settle before projection and therefore do not count toward a campaign's scene target. A
+**material route** reaches a different ending or traverses at least two consecutive visible
+scenes that another route skips before the routes rejoin. A **delayed consequence** is a choice
+effect consulted by a `showWhen`, `requirements`, achievement, or later route at least three
+player submissions after it was applied. These definitions keep node inflation and immediate
+reconvergence from masquerading as depth.
+
+The expansion keeps each campaign standalone. Recurring clerks, mechanics, police, relatives,
+coffee, flies, and locations make the catalog feel like one universe, but no campaign reads
+another campaign's save, profile achievements, or variables. Existing campaign, node, ending,
+choice, and achievement ids are published identifiers: retain them where the corresponding
+content remains, and cover every necessary rename through campaign migration rather than
+silently stranding a v1 save.
+
+The W63 cabinet remains the outer game shell; its scene viewport becomes an open **adventure
+casebook** rather than another disconnected slide. The current scene is the current page, the
+action deck is a numbered set of “turn to your choice” passages, visible stats read as a compact
+character sheet, achievements arrive as stamps/bookmarks, and an ending closes the volume with
+its authored title. CSS-native paper, ink, marginalia, tabs, page edges, and brief page-turn
+punctuation may strengthen the game metaphor without copying a published book or hiding the
+text inside a decorative texture.
+
+Every committed transition produces a visible **arrival receipt**: “You chose …” followed by
+“which brought you here.” A persistent, read-only **Journey so far** display lists only pages
+and choices this player has already seen, links the previous entry to the current page, and
+offers “Where I came from” without exposing node ids, hidden choices, conditions, seed, or the
+engine action log. The journal is presentation memory assembled from successful projected
+scenes and resolved action labels. Previewed and rejected actions never enter it; browsing an
+old entry never rewinds or resubmits the game.
+
+- **Campaign shape:**
+  - **Return:** at least 20 visible scenes across Returning Home, Reality, and Settling; the
+        airport/customs arrival, first bureaucracy, neighbours and old connections, and the
+        rent/village/apartment/family/hotel decision form different routes. At least optimistic,
+        sceptical, and exhausted endings are reachable.
+  - **Bureaucracy:** 20–30 visible scenes spanning municipality, cadastral, tax, civil-registry,
+        archives, notary, and translation-office routes. Helpful/angry clerk and supervisor
+        memory pays off later; document obtained, gave up, lawyer solved, miracle, and system
+        failure endings are all reachable.
+  - **Driving:** at least 25 visible scenes covering inspection, mechanic trust, insurance and
+        tax, fuel/LPG, road and weather trouble, police, parking, parts, marketplace, towing, and
+        the insurer. Reliable car, endless repairs, sold car, collector item, and abandoned
+        project endings are all reachable.
+  - **Inheritance:** at least 25 visible scenes across news, documents, village, neighbours,
+        family, police, lawyers, court, settlement, and aftermath. Evidence, support, cost,
+        tension, and property condition expose old-document, helpful-neighbour, lost-deed,
+        police-report, and secret-agreement paths. Court, settlement, abandonment, buyout,
+        family peace, and family war endings are all reachable.
+  - **Enterprise:** at least 30 visible scenes across registration, first client, tax and
+        invoicing, cashflow, hiring, competition, government, growth, and failure. Seeded late
+        payment, audit, tax letter, lucky client, bad review, server outage, and opportunity
+        events alter pressure without erasing deliberate preparation. Consultant, agency,
+        successful company, platform company, bankruptcy, and sale endings are all reachable.
+  - **Lucifer Chronicles:** Ben and Lucifer remain genuinely different perspectives, not a
+        shared route with renamed prose. Every act decision scene offers four to six authored
+        choices, earlier interactions alter later availability or dialogue, and every recurring
+        character with more than one appearance remembers at least one prior interaction.
+        Generic numbered conclusions are replaced by authored philosophical endings, including
+        The Bureaucrat, The Observer, The Escapist, The Builder, The Stoic, The Entertainer,
+        Customer Support Manager of Hell, The One Who Asked One Question, and The Guy Who Just
+        Wanted to Fix a House.
+- **Spec:** [03 §§2–7](03-story-graph-kind.md) for variables, nodes, gates, effects,
+      conditions and achievements; [§8.2](03-story-graph-kind.md) for settle semantics;
+      [§10](03-story-graph-kind.md) for determinism, save and versioning;
+      [04 §10.2](04-core.md#102-save-envelope-and-migration) for campaign migration;
+      [09 §1](09-clients.md#1-the-rule-made-testable) for client parity.
+- **Touches:** the six `src/engine/src/campaigns/` sources and their focused tests,
+      determinism snapshots and replay fixtures; campaign exports only if composition needs
+      them; `/play/` catalog metadata, duration/content notices, casebook/journey presentation,
+      styles, and browser tests. No core, kind, projection, session, or client contract changes.
+- **Depends on:** [W31](#x-w31--save-migration) for the v1 → v2 campaign boundary and
+      [W61](#w61) for public browser proof. The story-graph mechanics themselves are already
+      complete in W9–W14.
+- **Status:** Done — implemented via #189 and #191.
+- **Done when:**
+  - W64.1 Each campaign has at least three material routes, three optional visible scenes,
+        three delayed consequences, three `showWhen` discoveries driven by different state,
+        two seeded random-event points whose outcomes are both exercised, and two later gates
+        driven by stats or remembered interactions. Static graph assertions and named
+        playthroughs prove the counts; source-line or raw-node counts do not.
+  - W64.2 All six campaign-shape targets above are met using reachable visible scenes. No
+        promised consequence is authored only as pass-through text that settle prevents a
+        client from seeing, and no route pads its length with repeated “continue” decisions.
+  - W64.3 Two playthroughs of each campaign diverge for at least two consecutive visible
+        scenes before any reconvergence, and no single valid playthrough visits more than 70%
+        of that campaign's reachable visible scenes. At least one tested ending per campaign
+        requires an earlier choice made three or more submissions before the ending path opens.
+  - W64.4 Every named ending above is reachable by an intentional route, with an authored
+        label and ending text rather than a numbered placeholder. Exploration achievements
+        unlock exactly once for optional content and do not become resolution inputs across
+        sessions.
+  - W64.5 Every campaign publishes version `2.0.0`. A v1 active save, a v1 ended save, and a
+        v1 save with achievements migrate or fail with a deliberately tested published-id
+        decision; no save resumes on a missing node, and migrated saves are marked
+        `replayCompatible: false` as W31 requires.
+  - W64.6 Each source builds with no Tier 1 findings and no unexplained Tier 2 warning. A graph
+        test detects unreachable scenes, exitless settle cycles, duplicate ids, endings that
+        cannot be reached, hidden choices that can never appear, and random branches that can
+        remove every route to a planned objective.
+  - W64.7 At least three committed route fixtures per campaign cover materially different
+        paths and endings; separate seeds cover every authored random transition. Replaying a
+        fixture twice is byte-identical, sink-independent, and stable across save/load at a
+        delayed-consequence checkpoint.
+  - W64.8 One representative alternate route through each campaign produces the same ordered
+        scenes, available actions, visible view, and final serialized state through the text
+        client and browser adapter. A hidden choice remains absent and returns
+        `unknown_action` if probed; the browser never gains campaign-specific rules.
+  - W64.9 Recurring-universe references are prose and stable authored ids only. A test registry
+        containing all six campaigns builds without string-key conflicts, and running any
+        campaign with a fresh profile produces the same initial state regardless of which
+        other campaigns were previously played.
+  - W64.10 `/play/` exposes all six v2 campaigns with truthful duration and content notices;
+        one full route in each is keyboard-complete at the W63 breakpoints, renders every
+        visible stat as text, and shows no raw `LocKey`, internal node id, or hidden state.
+  - W64.11 The initial page says “Your story begins here.” After every successful choice, the
+        next page names the resolved label under “You chose” and visually connects it to the
+        new scene under “which brought you here.” Preview, unavailable, rejected, save, and
+        load operations cannot create a false transition receipt; rapid double submission
+        cannot duplicate one.
+  - W64.12 “Journey so far” records the ordered projected scene excerpt and committed choice
+        label for the current live route, highlights the current page, and lets the player
+        inspect a prior entry read-only before returning focus to the current choice. It stores
+        no `Scene.id`, action id, condition, raw `PlayerView`, seed, or serialized state. A
+        checkpoint may carry a separate presentation-only journal beside the save handle; if
+        that journal is missing or invalid, load succeeds and displays “Journey resumed at this
+        checkpoint” rather than inventing earlier steps. Journal presence or absence produces
+        byte-identical engine serialization.
+  - W64.13 The casebook is recognisably playable before decoration loads: current page,
+        consequence link, numbered choices, character sheet, journey control, and ending action
+        remain in that reading order. Page-turn motion lasts no longer than state punctuation,
+        never delays an action, and becomes an instant page replacement under reduced motion.
+        At 320 px the book becomes one page with the same semantic order; it never requires a
+        two-page spread, hover, drag, sound, or a page-flip gesture.
+- **Out of scope:** a new node kind, conditional-transition operator, inventory or relationship
+      subsystem, cross-campaign saves or unlocks, procedural/AI-authored prose, new campaigns,
+      simulation/world-graph content, localization, voice/audio, canvas/WebGL, undo/backtracking,
+      a fabricated completion percentage, and any journal field that participates in game
+      resolution.
+
+### [ ] W65 — Browser Test Harness for the Site {#w65}
+
+**Delivers:** Gives `site/` the ability to prove anything about how a page actually renders.
+Its tests run in jsdom today, which performs no layout: `getBoundingClientRect` returns zeros
+and stylesheet CSS is never cascaded, so no computed size, hit area, overflow, or contrast can
+be asserted. That is why [W63](#w63) was accepted on manual inspection at four widths, recorded
+as known-and-retained in [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md), whose stated revisit trigger is
+exactly this: extend `site/` with real-browser tooling, and extend it to `/play/` first.
+
+W65 adds a real-browser runner, an accessibility scanner, and visual snapshots, then **captures
+the currently shipped rendering as the baseline**. Ordering matters: [W66](#w66) recomposes the
+play surface and promises the desktop compositions survive untouched, and that promise is only
+provable against a baseline taken before the CSS moves. A harness stood up alongside the
+redesign would baseline the changed rendering and prove nothing.
+
+The harness is test infrastructure. It ships no product behaviour, no page change, and no
+engine change. Where an existing jsdom test is adequate it stays put; this is not a migration
+of the whole site suite.
+
+- **Spec:** [`14-game-interface.md`](14-game-interface.md) §10 for the proof list this must be
+      able to execute, and §8 for the widths and states it must reach;
+      [13 §7–§8](13-playable-web-demo.md#7-client-proof-and-tests).
+- **Touches:** `site/package.json`, `site/vite.config.ts`, a browser-test setup file, new
+      specs under `site/src/play/` and `site/src/`, committed baseline snapshots, and the CI
+      workflow that runs the site's check script. No `src/engine/`, `design/` contract, or
+      product-code change beyond a test id where a control is otherwise unaddressable.
+- **Depends on:** [W63](#w63) and [W64](#w64) being on `main`, since the baseline is of what
+      they shipped. No engine dependency.
+- **Done when:**
+  - W65.1 `site/` runs specs in a real browser engine, driven by the package's existing check
+        script and by CI, with a documented single command. A deliberately failing computed-style
+        assertion fails that command; a jsdom-only run cannot silently satisfy it.
+  - W65.2 The runner can set viewport width and height, so a spec can assert at 320, 360, 390,
+        414, 768, and 1280 px in portrait and at one landscape phone size, and can emulate
+        `prefers-reduced-motion` and forced colours.
+  - W65.3 A spec can read a **computed** style and a real hit area from a rendered control, and
+        can assert the document does not scroll horizontally. Each of those three capabilities
+        has a self-test proving it fails when the condition is violated.
+  - W65.4 An automated accessibility scan runs against the shelf, briefing, content notice,
+        playing, unavailable-choice, rejected, and ended states, and fails the build on a
+        violation at the agreed severity. Existing violations, if any, are recorded explicitly
+        rather than silenced by lowering the threshold.
+  - W65.5 Visual snapshots of the shipped `/play/` rendering are captured and committed for
+        playing, unavailable-choice, persistence-warning, and ended states at 320, 390, 768, and
+        1280 px. Snapshot review and update are documented, and a snapshot diff fails the build.
+  - W65.6 The harness is deterministic enough to run in CI without flake: fonts, animation, and
+        any time-dependent rendering are pinned or disabled for capture, and a repeated run on an
+        unchanged tree produces no diff.
+  - W65.7 Engine gates, documentation checks, the existing jsdom suite, the production site
+        build, and `git diff --check` all still pass, and the added tooling does not enter the
+        shipped `/play/` bundle.
+  - W65.8 The known-and-retained W63.7/W63.8 entry in [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) is closed
+        or narrowed to whatever genuinely remains, rather than left standing beside a harness
+        that resolves it.
+- **Out of scope:** any `/play/` visual, layout, type, or markup change — that is [W66](#w66);
+      migrating the existing jsdom suite wholesale; a harness for `docs/`; performance
+      budgets, Lighthouse scoring, or cross-browser matrices beyond the one engine needed to
+      make the assertions real; and any engine or campaign change.
+
+### [ ] W66 — The Play Surface on a Phone {#w66}
+
+**Delivers:** Recomposes `/play/` for the device most visitors actually hold. The W63 cabinet
+and the W64 casebook were both measured on a desktop and then allowed to shrink: authored
+prose renders at 16 px and choice labels at about 13 px on a phone, cabinet controls stand
+roughly 34 px tall against a 44 px comfortable touch target, the cabinet's 8 px offset shadow
+sits outside a nearly full-width element at 320 px, panels are sized in `vh` under a collapsing
+mobile toolbar, no edge respects a device safe area, and every turn requires scrolling past the
+scene to reach the choices — after which committing one scrolls the player back to the top.
+
+W66 makes the phone the composed case rather than the degraded one. Below 768 px a turn becomes
+**two scroll-snapped pages** in one ordinary scrolling column: a scene page that fills the
+viewport and names how many choices wait below it, then a choice page of full-width cards under
+a pinned one-line echo of the scene. Type and hit-area floors from
+[14 §8.1](14-game-interface.md#81-type-and-target-floors) raise every width, including desktop,
+because a 0.68–0.82 rem control scale was never comfortable there either.
+
+**The retro look is a fixed input, not a variable.** The palette, the terminal type family, the
+scan lines, stamped uppercase labels, offset shadows, double borders, and campaign accents all
+survive unchanged. This slice moves size, spacing, safe areas, and reading order. A submission
+that reads as a modern mobile app has failed even if every measurement passes.
+
+The slice stays presentation-only under the boundary
+[13 §3](13-playable-web-demo.md#3-composition-and-dependency-direction) and
+[14 §1](14-game-interface.md#1-outcome-and-boundary) already set. No engine, kind, campaign,
+projection, DTO, session, persistence, or client-parity change; no new gesture, route, bundle,
+component tree, or user-agent branch.
+
+One correction rides along because it is a phone problem specifically: the authored scene body
+is currently marked up as an `h2`, which makes the screen-reader heading rotor — the primary
+navigation mechanism on a phone — return a wall of story instead of a landmark. The scene
+becomes a labelled region with a short real heading, and the post-commit focus target moves
+with it. Rendered authored text is unchanged.
+
+- **Spec:** [`14-game-interface.md`](14-game-interface.md) §1 and §8 (Revision 2), with §§2–7
+      unchanged; [`13-playable-web-demo.md`](13-playable-web-demo.md) §3, §7–§9;
+      [09 §1](09-clients.md#1-the-rule-made-testable),
+      [§2](09-clients.md#2-the-only-surface),
+      [§6](09-clients.md#6-projection-is-not-optional).
+- **Touches:** `site/src/play/play.css` (type scale, hit areas, snap pages, safe areas,
+      full-bleed trim, breakpoints), `site/src/play/PlayApp.tsx` (scene region and heading,
+      choice-count cue, post-commit scroll target), `site/src/play/PlayApp.test.tsx` and the
+      site's browser/visual checks, and `site/play/index.html` only if a viewport or
+      `theme-color` correction is needed. No `src/engine/` change of any kind.
+- **Depends on:** [W65](#w65) — hard, not preferential. Every measured criterion below needs a
+      real browser, and the promise that the desktop compositions survive is only checkable
+      against a baseline W65 captures before this slice moves any CSS. Also [W63](#w63) for the
+      cabinet grammar and [W64](#w64) for the casebook, journey log, and arrival receipt that
+      must survive the recomposition. No engine dependency.
+- **Done when:**
+  - W66.1 Every §8.1 role meets its floor as a **computed** style at 320 px — authored prose
+        1.125 rem at line-height 1.6 or more, choice labels 1.0625 rem, cabinet controls and
+        dossier titles 1 rem, stat labels and values 0.9375 rem, reason/receipt/journey/save
+        text 0.875 rem. Assertions read computed values from a rendered tree; matching the
+        stylesheet's source text does not count. Only stamped marquee, eyebrow, and disk labels
+        sit below that, and each is decorative or duplicated by larger text nearby.
+  - W66.2 Every interactive control — choice card, cabinet button, dossier, notice button,
+        journey control, scene-echo cue — presents at least a 44 × 44 px hit area at 320 px and
+        at 1280 px, produced by padding rather than a transparent overlay, with at least 8 px of
+        non-actionable space between adjacent choice controls.
+  - W66.3 Below 768 px a turn renders as two scroll-snap stops: a scene page that fills the
+        viewport and names the shown-choice count, then a choice page of full-width cards under
+        a pinned single-line scene echo that returns to the scene page when activated. At
+        768 px and above no snapping applies, and the 1280 px composition differs from the
+        W65 baseline only in the type and spacing W66.1 and W66.2 require — every other
+        difference is either justified in the pull request or reverted.
+  - W66.4 With scroll-snap unsupported, with smooth scrolling unavailable, and with the cue's
+        script path disabled, the scene, every choice, and the status console all remain
+        reachable by ordinary vertical scrolling in that order. Both pages are in the DOM at
+        all times; no choice is conditionally unmounted, gesture-gated, or revealed only by
+        animation.
+  - W66.5 Committing an action lands the player on the new turn's scene page with focus on the
+        scene, never on a stale choice page and never mid-transition. A rejected action leaves
+        the player where they were with the scene still authoritative, and cannot produce a
+        false arrival receipt or journey entry — W64.11 and W64.12 still hold verbatim.
+  - W66.6 No gesture is introduced: no swipe, horizontal paging, carousel, drag, long-press,
+        edge gesture, or pull-to-refresh interception. Pinch zoom is not disabled and the
+        viewport is not pinned to a fixed width.
+  - W66.7 Full-height panels use dynamic viewport units, every inset-facing edge adds
+        `env(safe-area-inset-*)` padding, and below 768 px the cabinet is full-bleed with its
+        offset shadow and double border collapsed to a single edge. The document does not
+        scroll horizontally at 320, 360, 390, 414, or 768 px in portrait, in landscape, or at
+        200% zoom; at 200% zoom on a 390 px viewport the narrow composition is retained.
+  - W66.8 The authored scene renders inside a labelled region with a short real heading; the
+        prose itself is not a heading. The page keeps one H1, a coherent heading order, and its
+        existing live-region announcements. Automated accessibility checks pass on shelf,
+        briefing, notice, playing, unavailable-choice, rejected, and ended states, and a
+        keyboard-only pass completes a full turn without a pointer.
+  - W66.9 The retro identity is preserved and shown to be: the palette custom properties, type
+        family, scan-line overlay, stamped uppercase labels, offset shadows, double borders,
+        and the six campaign accent themes are all still present and applied. No colour token
+        changes value. Uppercase transformation appears on stamped labels only — never on
+        authored prose, choice labels, reasons, or error text.
+  - W66.10 Reduced motion makes the cue jump and the post-commit return instant, removes
+        smooth scrolling, and leaves snapping and every authored transition already governed by
+        W63.9 intact. No action waits on an animation and no permanent timer runs while idle.
+  - W66.11 One full route through Bureaucracy and one through each Lucifer role complete at
+        320 px, 390 px, 768 px portrait and one landscape phone, with no clipped authored text,
+        no truncated or ellipsised choice label, and no action stranded below an inaccessible
+        internal scroll region. Visual snapshots cover playing, unavailable-choice,
+        persistence-warning, and ended states at each of those sizes.
+  - W66.12 Browser/text-client parity still produces byte-identical serialized outcomes, the
+        engine package is untouched, `/play/` remains a direct static route making no runtime
+        request, and the decorative payload does not grow. Site checks, documentation checks,
+        engine gates, and `git diff --check` all pass.
+- **Out of scope:** any engine, kind, campaign, projection, DTO, reason-code, session, or
+      persistence change; new campaigns, scenes, endings, or mechanics; a palette, type-family,
+      or voice refresh; a separate mobile route, bundle, component tree, or user-agent branch;
+      a native shell, PWA, service worker, install prompt, or offline mode; gesture navigation,
+      a bottom-sheet choices modal, or a carousel; durable storage, accounts, analytics, audio,
+      new art beyond CSS-native trim adjustments, and a mobile visual language for the
+      simulation or world-graph kinds.
+
+- [ ] More clients (Discord; the first web client is [W61](#w61)).- [ ] **Additional locales — sliced as [W60](#w60).** The MVP ships English only; the
       authoring→registry types already support more
       ([04 §10.1](04-core.md#101-content-registry)), so this is string tables plus tooling,
       no type change.

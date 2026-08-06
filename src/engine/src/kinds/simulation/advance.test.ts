@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { advance } from "./advance.js";
 import { initialState } from "./initial.js";
-import { SIMULATION_REASON_CODES } from "./reasons.js";
+import { SIMULATION_REASON_CODES, SIMULATION_REASON_MESSAGES } from "./reasons.js";
 import type { SimulationCampaign } from "./campaign.js";
 import type { GoalDefinition } from "./content.js";
 import type { SimulationKindState } from "./state.js";
@@ -251,6 +251,7 @@ describe("simulation kind — through the real engine (integration)", () => {
       id: "simulation",
       version: "1.0.0",
       reasonCodes: [...SIMULATION_REASON_CODES],
+      reasonMessages: SIMULATION_REASON_MESSAGES,
       eventNames: [
         "kind.simulation.plan.changed",
         "kind.simulation.week.started",

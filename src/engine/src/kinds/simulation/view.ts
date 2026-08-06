@@ -35,6 +35,7 @@ import type {
 import { demandBand } from "./state.js";
 import { ACTION_TYPES } from "./plan.js";
 import type { SimulationKindState } from "./state.js";
+import { resolveEffectiveAttributes, resolveEffectiveNeeds, resolveEffectiveSkills } from "./derived.js";
 
 export interface VisibleRelationship {
   npcId: string;
@@ -251,14 +252,6 @@ export function project(
 ): SimulationView {
   void audience;
   void ctx;
-  const attributes: Omit<AttributeState, "luck"> = {
-    intelligence: state.player.attributes.intelligence,
-    discipline: state.player.attributes.discipline,
-    charisma: state.player.attributes.charisma,
-    creativity: state.player.attributes.creativity,
-    resilience: state.player.attributes.resilience,
-    wisdom: state.player.attributes.wisdom,
-  };
 
   return {
     calendar: calendarView(state.calendar),
@@ -266,15 +259,15 @@ export function project(
     identity: state.player.identity,
     currentLocationId: state.player.currentLocationId,
     finances: state.player.finances,
-    needs: state.player.needs,
-    attributes,
+    needs: resolveEffectiveNeeds(state),
+    attributes: resolveEffectiveAttributes(state),
     education: state.player.education,
     career: state.player.career,
     housing: state.player.housing,
     inventory: state.player.inventory,
     relationships: visibleRelationships(state.player.relationships),
 
-    skills: state.player.skills,
+    skills: resolveEffectiveSkills(state),
     traits: state.player.traits,
     reputation: state.player.reputation,
 

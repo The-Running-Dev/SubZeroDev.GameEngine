@@ -56,10 +56,59 @@ describe("runStartOfWeek", () => {
     expect(result.calendar.spentTimeUnits).toBe(0);
   });
 
-  it("does not reset committedTimeUnits (time_commit is a stub, not a clearing operation)", () => {
+  it("recomputes committedTimeUnits from job/course commitments (0, unwired) rather than leaving the prior week's stale value", () => {
     const { emit } = recordingEmitter();
     const result = runStartOfWeek(baseState(), emit);
-    expect(result.calendar.committedTimeUnits).toBe(4);
+    expect(result.calendar.committedTimeUnits).toBe(0);
+  });
+
+  it("layers a StatusEffect's Modifier targeting calendar.committedTimeUnits over the recomputed base", () => {
+    const { emit } = recordingEmitter();
+    const state = baseState({
+      activeEffects: [makeEffect({
+        id: "mandatory-training",
+        expiresAtWeek: 20,
+        modifiers: [{ target: "calendar.committedTimeUnits", operation: "add", value: 3, sourceId: "event-1" }],
+      })],
+    });
+    const result = runStartOfWeek(state, emit);
+    expect(result.calendar.committedTimeUnits).toBe(3);
+  });
+
+  it("W51.4 — an activeEffect reducing committed time changes the recomputed budget, and once it expires the same week the recomputed budget is un-reduced", () => {
+    const { emit } = recordingEmitter();
+    // Week 5 -> 6. A permanent +6 commitment plus a -3 reduction expiring at week 6 (still
+    // active throughout week 6, per the effects system's own kept-through-its-final-week rule).
+    const state = baseState({
+      activeEffects: [
+        makeEffect({
+          id: "base-commitment",
+          modifiers: [{ target: "calendar.committedTimeUnits", operation: "add", value: 6, sourceId: "job-1" }],
+        }),
+        makeEffect({
+          id: "reduced-hours", expiresAtWeek: 6,
+          modifiers: [{ target: "calendar.committedTimeUnits", operation: "subtract", value: 3, sourceId: "event-2" }],
+        }),
+      ],
+    });
+    const duringWeek6 = runStartOfWeek(state, emit);
+    expect(duringWeek6.calendar.committedTimeUnits).toBe(3);
+
+    const duringWeek7 = runStartOfWeek(duringWeek6, emit);
+    expect(duringWeek7.calendar.committedTimeUnits).toBe(6);
+  });
+
+  it("clamps committedTimeUnits to the calendar invariant (never below 0)", () => {
+    const { emit } = recordingEmitter();
+    const state = baseState({
+      activeEffects: [makeEffect({
+        id: "over-reduction",
+        expiresAtWeek: 20,
+        modifiers: [{ target: "calendar.committedTimeUnits", operation: "subtract", value: 99, sourceId: "x" }],
+      })],
+    });
+    const result = runStartOfWeek(state, emit);
+    expect(result.calendar.committedTimeUnits).toBe(0);
   });
 
   it("removes an effect whose expiresAtWeek is strictly before the new week", () => {

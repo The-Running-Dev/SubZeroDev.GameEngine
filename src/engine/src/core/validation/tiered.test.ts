@@ -17,6 +17,7 @@ function makeStubKind(overrides?: Partial<Kind<unknown>>): Kind<unknown> {
     id: "story-graph",
     version: "1.0.0",
     reasonCodes: [],
+    reasonMessages: new Map(),
     eventNames: [],
     initialState: () => ({ state: {}, status: "active", changes: [], messages: [] }),
     availableActions: () => [],
@@ -128,5 +129,34 @@ describe("buildValidatedContentRegistry", () => {
     const result = buildValidatedContentRegistry([built(campaign)], makeKinds());
     expect(result.ok).toBe(false);
     expect(result.errors[0]?.code).toBe("unknown_kind");
+  });
+
+  it("threads a used kind's reasonMessages into the built registry's strings (04 §12)", () => {
+    const kindWithMessage = makeStubKind({
+      reasonCodes: ["dangling_node"],
+      reasonMessages: new Map([["story-graph.reason.dangling_node", "A node reference is dangling."]]),
+    });
+    const result = buildValidatedContentRegistry([built(makeCampaign())], makeKinds(kindWithMessage));
+    expect(result.ok).toBe(true);
+    expect(result.value?.strings.get("story-graph.reason.dangling_node")).toBe("A node reference is dangling.");
+  });
+
+  it("fails registry construction when a used kind declares a reasonCode with no matching message", () => {
+    const incompleteKind = makeStubKind({
+      reasonCodes: ["dangling_node"],
+      reasonMessages: new Map(), // missing "story-graph.reason.dangling_node"
+    });
+    const result = buildValidatedContentRegistry([built(makeCampaign())], makeKinds(incompleteKind));
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((e) => e.code === "missing_kind_reason_message" && e.path === "story-graph.reason.dangling_node")).toBe(
+      true,
+    );
+  });
+
+  it("never checks or threads a kind's messages when no campaign in the batch uses it", () => {
+    // A KindRegistry test double that only supplies "story-graph" — a campaign referencing
+    // any other kind must never touch a (possibly absent) reasonMessages on it.
+    const result = buildValidatedContentRegistry([built(makeCampaign())], makeKinds());
+    expect(result.ok).toBe(true);
   });
 });

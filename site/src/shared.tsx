@@ -28,7 +28,11 @@ export function ExternalLink({
   );
 }
 
-export function SiteHeader({ current }: { current?: "home" | "roadmap" }) {
+export function SiteHeader({
+  current,
+}: {
+  current?: "home" | "roadmap" | "play";
+}) {
   return (
     <header className="site-header">
       <a className="wordmark" href="/" aria-label="SubZeroDev Game Engine home">
@@ -42,6 +46,9 @@ export function SiteHeader({ current }: { current?: "home" | "roadmap" }) {
           aria-current={current === "roadmap" ? "page" : undefined}
         >
           Roadmap
+        </a>
+        <a href="/play/" aria-current={current === "play" ? "page" : undefined}>
+          Play
         </a>
         <a href="/docs/">Documentation</a>
         <ExternalLink href={repository}>GitHub</ExternalLink>

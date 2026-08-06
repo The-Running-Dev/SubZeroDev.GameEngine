@@ -2,8 +2,9 @@ import type { Campaign } from "../../core/registry/types.js";
 import type { LocKey } from "../../core/localization/types.js";
 import type { ValidationError, ValidationResult, ValidationWarning } from "../../core/validation/types.js";
 import type { WorldCondition, WorldEffect, WorldGraphCampaign } from "./content.js";
+import { WORLD_GRAPH_REASON_CODES, type WorldGraphReasonCode } from "./reasons.js";
 import { checkBuildingPlacement, materializeMap } from "./spatial.js";
-import type { Building } from "./state.js";
+import type { Building, Position } from "./state.js";
 
 type RecordValue = Record<string, unknown>;
 const requiredCatalogs = [
@@ -16,11 +17,15 @@ const object = (value: unknown): value is RecordValue => typeof value === "objec
 const safeInteger = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value);
 const pathSafeId = (value: unknown): value is string => typeof value === "string" && value.length > 0 && !value.includes(".");
 
+const KNOWN_REASON_CODES = new Set<string>(WORLD_GRAPH_REASON_CODES);
+function messageKeyFor(code: string): LocKey {
+  return (KNOWN_REASON_CODES.has(code) ? `world-graph.reason.${code as WorldGraphReasonCode}` : "core.reason.invalid_state") as LocKey;
+}
 function error(code: string, path: string): ValidationError {
-  return { code, messageKey: "core.reason.invalid_state", path };
+  return { code, messageKey: messageKeyFor(code), path };
 }
 function warning(code: string, path: string): ValidationWarning {
-  return { code, messageKey: "core.reason.invalid_state", path };
+  return { code, messageKey: messageKeyFor(code), path };
 }
 
 function shapeErrors(value: unknown): ValidationError[] {
@@ -158,6 +163,7 @@ function referenceErrors(content: WorldGraphCampaign): ValidationError[] {
   };
   const requireId = (set: ReadonlySet<string>, id: string, path: string): void => { if (!set.has(id)) errors.push(error("unknown_reference", path)); };
   requireId(ids.scenarios, content.startScenarioId, "content.startScenarioId");
+  const terrainById = new Map(content.terrain.map((entry) => [entry.id, entry]));
   content.maps.forEach((map, mapIndex) => {
     requireId(ids.terrain, map.defaultTerrainId, `content.maps[${mapIndex}].defaultTerrainId`);
     map.terrainOverrides.forEach((entry, index) => {
@@ -166,6 +172,25 @@ function referenceErrors(content: WorldGraphCampaign): ValidationError[] {
     });
     if (map.spawnPoints.length === 0) errors.push(error("missing_spawn", `content.maps[${mapIndex}].spawnPoints`));
     if (map.exits.length === 0) errors.push(error("missing_exit", `content.maps[${mapIndex}].exits`));
+    const overrides = new Map(map.terrainOverrides.map((entry) => [`${entry.position.x},${entry.position.y}`, entry.terrainId]));
+    const terrainIdAt = (position: Position): string => overrides.get(`${position.x},${position.y}`) ?? map.defaultTerrainId;
+    const checkEndpoints = (positions: readonly Position[], label: string, code: string): void => {
+      positions.forEach((position, index) => {
+        if (position.x < 0 || position.y < 0 || position.x >= map.width || position.y >= map.height) {
+          errors.push(error("position_out_of_bounds", `content.maps[${mapIndex}].${label}[${index}]`));
+          return;
+        }
+        const walkable = terrainById.get(terrainIdAt(position))?.walkable === true;
+        if (!walkable) errors.push(error(code, `content.maps[${mapIndex}].${label}[${index}]`));
+      });
+    };
+    checkEndpoints(map.spawnPoints, "spawnPoints", "spawn_not_traversable");
+    checkEndpoints(map.exits, "exits", "exit_not_traversable");
+    if (map.topology.kind === "explicit") {
+      map.topology.edges.forEach((edge, edgeIndex) => {
+        if (edge.edgeCost <= 0) errors.push(error("invalid_edge_cost", `content.maps[${mapIndex}].topology.edges[${edgeIndex}].edgeCost`));
+      });
+    }
   });
   content.buildings.forEach((definition, index) => {
     if (definition.footprint.width <= 0 || definition.footprint.height <= 0) errors.push(error("invalid_footprint", `content.buildings[${index}].footprint`));

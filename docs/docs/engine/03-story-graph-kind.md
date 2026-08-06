@@ -348,7 +348,8 @@ submitChoice(state, choiceId, params):
   0. reject if params is non-empty → unexpected_params (this kind takes none, 04 §3)
   1. resolve the current node (must be a ChoiceNode) and the named choice
   2. reject if the choice is unavailable: showWhen false, or requirements unmet
-     → return ValidationError with the reason (§8.3), no state change
+     → return ValidationError with the reason (§8.3), no state change, and a
+       player-facing `messages` entry built from the same messageKey (§3)
   3. apply the choice's effects (typed consequences, §5), then clamp
   4. the core appends `{ actionId: choiceId }` to the envelope's actionLog
   5. transition: turn += 1, enter(choice.goto)
@@ -387,13 +388,47 @@ not as an error.
 ### 8.3 Reason Codes
 
 The codes this kind adds to the base set (`Kind.reasonCodes`, 04 §3, §12). Each needs a
-localized message or registry validation fails (04 §12):
+localized message or registry validation fails (04 §12). They divide by *when they are
+checked*, and the division matters because the two halves reach different audiences:
+
+**Resolution codes — checked at advance time, reported to the player.** These ride out on a
+rejected `AdvanceResult.error` during a turn.
 
 | Code | When |
 |---|---|
 | `not_a_choice_node` | an action arrived while the current node is not a `ChoiceNode` — should be unreachable after settle |
 | `unexpected_params` | a non-empty `params` object; this kind declares none |
 | `settle_guard_tripped` | `SETTLE_STEPS` exceeded — an auto/random cycle with no exit (§8.2) |
+
+**Validation codes — checked at registry build time, reported to the author.** These are
+this kind's own `validateCampaign` findings (§11), and a player never sees one: a campaign
+carrying any Tier-1 code among them never reaches a frozen registry at all (04 §11). They
+are registered on `Kind.reasonCodes` alongside the resolution codes because the completeness
+rule is the same one — every registered code owes a localized message (04 §12).
+
+| Code | Tier | When |
+|---|---|---|
+| `dangling_reference` | 1 | a `goto`, `transition.goto` or `startNodeId` names no such node |
+| `undeclared_variable` | 1 | a consequence, condition or interpolation names an undeclared variable |
+| `invalid_consequence_value` | 1 | a consequence op or `set` value does not suit the variable's type or range |
+| `duplicate_id` | 1 | a node, choice, achievement or variable id is used twice |
+| `missing_label_key` | 1 | a `visible: true` variable has no `labelKey` |
+| `non_visible_variable_in_text` | 1 | text interpolates a hidden or undeclared variable |
+| `invalid_transition_weight` | 1 | a `RandomTransition.weight` is not a positive integer, or a `random` node has no transitions |
+| `unknown_condition_field` | 1 | a `Condition` reads a field this kind does not define (04 §18) |
+| `unreachable_node` | 2 | no path from `startNodeId` reaches it |
+| `unreachable_cycle` | 2 | a `choice`/`auto`/`random` cycle with no exit to a choice or ending |
+| `no_reachable_choice` | 2 | no `ChoiceNode` is reachable from the start — valid but non-interactive (04 §11) |
+| `no_reachable_ending` | 2 | no reachable ending |
+
+`unknown_condition_field` sits in the validation half because that is where it is *found* —
+but it is also the one code here a resolution could in principle raise, if a condition
+reached `advance` unvalidated. It cannot, on a frozen registry; the code is single, and which
+half it is listed under is a statement about the checked path, not two different codes.
+
+A `LocKey` that fails to resolve reuses the base `missing_string_key` (04 §12) rather than
+adding a kind-owned code — it is the identical failure the core's own `titleKey` check
+already names.
 
 Reused from the base set: `unknown_action` (no such choice id on the current node),
 `requirement_unmet` (shown but gated — carries `requirementFailKey` as its message),
@@ -417,18 +452,29 @@ The operational events this kind emits, declared as `Kind.eventNames`
 (04 §3.1), never returned, and never localized — a `StateChange` (§5) is what the *player*
 is owed, and these are what a developer or a content author needs instead.
 
-| Name (after `kind.story-graph.`) | Severity | Emitted at | `data` |
-|---|---|---|---|
-| `choice.submitted` | `debug` | §8.2 step 1, after the choice resolves | `nodeId`, `choiceId` |
-| `choice.rejected` | `info` | §8.2 step 2 | `choiceId`; `reason` set (§8.3) |
-| `requirement.evaluated` | `trace` | §8.2 step 2, once per requirement | `choiceId`, `satisfied` |
-| `consequence.applied` | `debug` | §8.2 steps 3 and 5, per typed effect | `variable`, `op`, `clamped` |
-| `node.entered` | `debug` | every `enter(nodeId)` — §8.2 | `nodeId`, `nodeKind`, `visitCount` |
-| `settle.step` | `trace` | each iteration of the settle loop | `step`, `nodeId`, `nodeKind` |
-| `random.picked` | `debug` | a `random` node chose a transition | `nodeId`, `goto`, `weight` |
-| `settle.guard_tripped` | `error` | `SETTLE_STEPS` exceeded | `nodeId`; `reason` set |
-| `achievement.unlocked` | `info` | §8.2 step 7 | `achievementId` |
-| `ending.reached` | `info` | settle landed on an `EndingNode` | `endingId` |
+| Name (after `kind.story-graph.`) | Severity | Emitted at | `data` | Status |
+|---|---|---|---|---|
+| `settle.step` | `trace` | each iteration of the settle loop | `step`, `nodeId`, `nodeKind` | delivered |
+| `node.entered` | `debug` | every `enter(nodeId)` — §8.2 | `nodeId`, `nodeKind`, `visitCount` | delivered |
+| `random.picked` | `debug` | a `random` node chose a transition | `nodeId`, `goto`, `weight` | delivered |
+| `settle.guard_tripped` | `error` | `SETTLE_STEPS` exceeded | `nodeId`; `reason` set | delivered |
+| `choice.submitted` | `debug` | §8.2 step 1, after the choice resolves | `nodeId`, `choiceId` | specified, not yet delivered |
+| `choice.rejected` | `info` | §8.2 step 2 | `choiceId`; `reason` set (§8.3) | specified, not yet delivered |
+| `requirement.evaluated` | `trace` | §8.2 step 2, once per requirement | `choiceId`, `satisfied` | specified, not yet delivered |
+| `consequence.applied` | `debug` | §8.2 steps 3 and 5, per typed effect | `variable`, `op`, `clamped` | specified, not yet delivered |
+| `achievement.unlocked` | `info` | §8.2 step 7 | `achievementId` | specified, not yet delivered |
+| `ending.reached` | `info` | settle landed on an `EndingNode` | `endingId` | specified, not yet delivered |
+
+> **What "specified, not yet delivered" means, and why the rows stay.** `Kind.eventNames`
+> (04 §3) declares what a kind *may* emit, and the shipped `storyGraphKind` currently
+> declares the four marked delivered. The other six are named here because the names are the
+> contract — an event name is a published identifier a sink filters on (05 §9), so fixing it
+> before the emit site exists costs nothing and renaming it later costs every configured
+> sink. Deleting them instead would lose the design, and leaving them unmarked would claim a
+> stream a host cannot actually observe. Adding one is a matter of declaring it in
+> `eventNames` and emitting it at the step named above; nothing in this table needs
+> redeciding first. This is safe precisely because of 05 §2: dropping every event changes
+> nothing, so a not-yet-emitted event cannot be load-bearing.
 
 Two of these carry most of the value, for the two audiences the events exist to serve:
 

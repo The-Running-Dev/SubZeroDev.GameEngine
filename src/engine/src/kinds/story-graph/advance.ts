@@ -20,7 +20,7 @@ import type { StoryGraphCampaign } from "./campaign.js";
 import type { StoryGraphKindState } from "./state.js";
 
 function rejected(state: StoryGraphKindState, code: string, messageKey: string): AdvanceResult<StoryGraphKindState> {
-  return { state, status: "active", changes: [], messages: [], error: { code, messageKey } };
+  return { state, status: "active", changes: [], messages: [{ key: messageKey, visible: true }], error: { code, messageKey } };
 }
 
 /**

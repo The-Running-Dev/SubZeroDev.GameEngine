@@ -8,6 +8,10 @@ const roadmapHtml = await readFile(
   new URL("../dist/roadmap/index.html", import.meta.url),
   "utf8",
 );
+const playHtml = await readFile(
+  new URL("../dist/play/index.html", import.meta.url),
+  "utf8",
+);
 
 const requiredAssets = [
   "og-image.png",
@@ -58,10 +62,31 @@ for (const tag of roadmapTags) {
     );
 }
 
-if (/\/src\//.test(landingHtml) || /\/src\//.test(roadmapHtml)) {
+const playTags = [
+  /<meta\s+name="description"\s+content="Play The Bureaucracy, a deterministic browser demo powered by SubZeroDev Game Engine\."\s*\/>/,
+  /<meta\s+property="og:url"\s+content="https:\/\/game-engine\.subzerodev\.com\/play\/"\s*\/>/,
+  /<meta\s+property="og:image"\s+content="https:\/\/game-engine\.subzerodev\.com\/og-image\.png"\s*\/>/,
+  /<link\s+rel="canonical"\s+href="https:\/\/game-engine\.subzerodev\.com\/play\/"\s*\/>/,
+  /<meta\s+name="twitter:card"\s+content="summary_large_image"\s*\/>/,
+  /<meta\s+name="twitter:image"\s+content="https:\/\/game-engine\.subzerodev\.com\/og-image\.png"\s*\/>/,
+  /<script type="module" crossorigin src="\/assets\//,
+];
+
+for (const tag of playTags) {
+  if (!tag.test(playHtml))
+    throw new Error(
+      `Built play HTML is missing required metadata: ${tag.source}`,
+    );
+}
+
+if (
+  /\/src\//.test(landingHtml) ||
+  /\/src\//.test(roadmapHtml) ||
+  /\/src\//.test(playHtml)
+) {
   throw new Error("Built HTML references a development-only source path.");
 }
 
 console.log(
-  "Both built HTML entry points contain their required static metadata.",
+  "All three built HTML entry points contain their required static metadata.",
 );

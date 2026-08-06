@@ -29,7 +29,7 @@ import { advance } from "./advance.js";
 import { availableActions } from "./available.js";
 import { initialState } from "./initial.js";
 import { outcome } from "./outcome.js";
-import { SIMULATION_REASON_CODES } from "./reasons.js";
+import { SIMULATION_REASON_CODES, SIMULATION_REASON_MESSAGES } from "./reasons.js";
 import { scene } from "./scene.js";
 import type { SimulationKindState } from "./state.js";
 import { validateCampaign } from "./validate.js";
@@ -39,6 +39,7 @@ export const simulationKind: Kind<SimulationKindState> = {
   id: "simulation",
   version: "1.0.0",
   reasonCodes: SIMULATION_REASON_CODES,
+  reasonMessages: SIMULATION_REASON_MESSAGES,
   eventNames: [
     "kind.simulation.plan.changed",
     "kind.simulation.week.started",

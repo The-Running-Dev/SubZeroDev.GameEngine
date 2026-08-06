@@ -3,6 +3,7 @@ import { advance } from "./advance.js";
 import { availableActions, scene } from "./scene.js";
 import { project } from "./view.js";
 import { initialState } from "./settle.js";
+import { STORY_GRAPH_REASON_MESSAGES } from "./reasons.js";
 import type { StoryGraphCampaign } from "./campaign.js";
 import type { StoryGraphKindState } from "./state.js";
 import type { VariableSchema } from "./variables.js";
@@ -169,6 +170,7 @@ describe("story-graph kind — through the real engine (integration)", () => {
       id: "story-graph",
       version: "1.0.0",
       reasonCodes: ["not_a_choice_node", "unexpected_params", "settle_guard_tripped", "unknown_condition_field"],
+      reasonMessages: STORY_GRAPH_REASON_MESSAGES,
       eventNames: [
         "kind.story-graph.settle.step",
         "kind.story-graph.node.entered",

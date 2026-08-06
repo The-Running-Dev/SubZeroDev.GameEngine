@@ -44,6 +44,8 @@ const sidebars: SidebarsConfig = {
         'engine/replay',
         'engine/session-capture',
         'engine/clients',
+        'engine/playable-web-demo',
+        'engine/game-interface',
         'engine/simulation-kind',
         'engine/content-packs',
         'engine/world-graph-kind',

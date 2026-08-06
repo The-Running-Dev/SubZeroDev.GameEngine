@@ -104,6 +104,8 @@ jobs:
             # here too, not a weaker CI-only substitute for it.
             - name: Build and verify landing page
               run: |
+                  npm --prefix src/engine ci
+                  npm --prefix src/engine run build
                   npm --prefix site ci
                   npm --prefix site run check
 

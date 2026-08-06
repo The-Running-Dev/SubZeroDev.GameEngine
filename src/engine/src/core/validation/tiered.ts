@@ -17,8 +17,9 @@
 
 import type { BuiltCampaign, Campaign, ContentRegistry } from "../registry/types.js";
 import { buildContentRegistry } from "../registry/build.js";
-import type { KindRegistry } from "../kernel/types.js";
+import type { Kind, KindId, KindRegistry } from "../kernel/types.js";
 import type { CommandResult } from "../kernel/reasons.js";
+import type { LocKey } from "../localization/types.js";
 import type { ValidationError, ValidationWarning } from "./types.js";
 
 /** 04 §17: campaign ids are kebab-case. */
@@ -48,6 +49,28 @@ function validateCoreOwnedFields(campaign: Campaign, strings: ReadonlyMap<string
 }
 
 /**
+ * 04 §12's completeness promise — "validation fails if any registered reason code has no
+ * localized message" — checked against the kind's own `reasonMessages` (`kernel/types.ts`),
+ * not the merged registry: a kind with a gap in its own table must fail even before its
+ * messages ever reach `buildContentRegistry`'s merge.
+ */
+function missingReasonCodeMessages(kind: Kind<unknown>): ValidationError[] {
+  const errors: ValidationError[] = [];
+  for (const code of kind.reasonCodes) {
+    const key: LocKey = `${kind.id}.reason.${code}`;
+    if (!kind.reasonMessages.has(key)) {
+      errors.push({
+        code: "missing_kind_reason_message",
+        messageKey: "core.reason.missing_kind_reason_message",
+        path: key,
+        details: { kindId: kind.id },
+      });
+    }
+  }
+  return errors;
+}
+
+/**
  * The only sanctioned path to a frozen `ContentRegistry`: every campaign's Tier-1 checks
  * (core-owned, above, plus its kind's own `validateCampaign`) must pass before
  * `buildContentRegistry` (`registry/build.ts`, W4) is ever called. If any Tier-1 error
@@ -56,6 +79,14 @@ function validateCoreOwnedFields(campaign: Campaign, strings: ReadonlyMap<string
  *
  * `buildContentRegistry` itself is untouched and still exported — a lower-level primitive
  * this function's own success path delegates to, once validation has cleared.
+ *
+ * Threads each *used* kind's `reasonMessages` into `buildContentRegistry`'s own
+ * `kindMessages` param, and — per kind, once, not once per campaign — runs
+ * `missingReasonCodeMessages` so a kind that declares a `reasonCodes` entry with no
+ * matching message fails registry construction instead of silently never resolving (04
+ * §12). Only kinds actually referenced by `builtCampaigns` are checked and threaded; a
+ * kind never used in this batch (including a `KindRegistry` test double missing some of
+ * its entries) is never touched.
  */
 export function buildValidatedContentRegistry(
   builtCampaigns: readonly BuiltCampaign[],
@@ -63,6 +94,8 @@ export function buildValidatedContentRegistry(
 ): CommandResult<ContentRegistry> {
   const errors: ValidationError[] = [];
   const warnings: ValidationWarning[] = [];
+  const checkedKindIds = new Set<KindId>();
+  const kindMessages: ReadonlyMap<LocKey, string>[] = [];
 
   for (const { campaign, strings } of builtCampaigns) {
     errors.push(...validateCoreOwnedFields(campaign, strings));
@@ -71,6 +104,12 @@ export function buildValidatedContentRegistry(
     if (!kind) {
       errors.push({ code: "unknown_kind", messageKey: "core.reason.unknown_kind", path: campaign.kindId });
       continue;
+    }
+
+    if (!checkedKindIds.has(kind.id)) {
+      checkedKindIds.add(kind.id);
+      errors.push(...missingReasonCodeMessages(kind));
+      kindMessages.push(kind.reasonMessages);
     }
 
     const kindResult = kind.validateCampaign(campaign, strings);
@@ -82,7 +121,7 @@ export function buildValidatedContentRegistry(
     return { ok: false, errors, warnings };
   }
 
-  const built = buildContentRegistry(builtCampaigns);
+  const built = buildContentRegistry(builtCampaigns, kindMessages);
   if (!built.ok) {
     return { ok: false, errors: built.errors, warnings };
   }

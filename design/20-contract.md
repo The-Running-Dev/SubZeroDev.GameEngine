@@ -186,6 +186,12 @@ interface Kind<KState> {
   readonly id: KindId;
   readonly version: string;                      // manually maintained semver (§10.2, W31)
   readonly reasonCodes: readonly ReasonCode[];   // codes this kind adds to the base set (§12)
+  /** `${id}.reason.<code>` → default-English message, one entry per `reasonCodes`. The
+   *  kind-owned half of the string table: registry assembly merges it alongside the core's
+   *  protected `core.reason.*` set (§10.1), and validation checks it for completeness
+   *  before assembly runs (§11, §12). A kind ships its own messages for the same reason the
+   *  core ships the base set's — the codes are useless to a client that cannot render them. */
+  readonly reasonMessages: ReadonlyMap<LocKey, string>;
   readonly eventNames: readonly EventName[];     // events this kind may emit (05 §9)
 
   /** Build the starting kind-state for a fresh game of this campaign. */
@@ -260,6 +266,14 @@ interface InitialStateResult<KState> {
 > carries data that provably cannot change replay. The story-graph kind declares no
 > parameters (an action *is* a choice id) and returns a `ValidationError` if a non-empty
 > `params` object arrives. Undocumented parameters are never silently ignored.
+
+> **A rejection also returns a message.** `error` tells the core and client *that* the
+> action failed and why (`ReasonCode`, `messageKey`); `messages` is what tells the
+> *player* — a rejected `AdvanceResult` attaches one `OutcomeMessage` built from the same
+> `messageKey` the error already carries (`{ key: messageKey, visible: true }`), so a
+> rejection is never silently swallowed by a client that only renders `messages`. Every
+> kind's rejection path follows this convention (world-graph's `actions/common.ts`
+> `rejected` helper and the story-graph kind's own, §8.3).
 
 `advance` is where a kind's whole ruleset lives. For the story-graph kind it is
 `submitChoice → settle` ([`03-story-graph-kind.md`](03-story-graph-kind.md) §8.2); for
@@ -343,6 +357,12 @@ kind by `state.kindId`, derives the RNG handle, delegates, and reassembles the e
 
 ```typescript
 interface Engine {
+  /** The same `KindRegistry` this engine resolves `state.kindId` against, exposed so a
+   *  caller needing kind metadata outside gameplay — `SessionStore`'s `SaveEnvelope`
+   *  stamping and migration dispatch (§10.2) — reads it off the one engine it already
+   *  holds rather than taking a second, independently-suppliable registry that could
+   *  silently disagree with what this engine actually plays against. */
+  readonly kinds: KindRegistry;
   createGame(config: NewGameConfig): CommandResult<GameState>;
   scene(state: GameState): Scene;                       // §6
   view(state: GameState, audience: ProjectionAudience): PlayerView;   // §9
@@ -461,9 +481,30 @@ interface AvailableAction {
 type ActionParams = Readonly<Record<string, string | number | boolean>>;
 ```
 
-For the story-graph kind, an `AvailableAction` is a node choice; `available`/`reasonKey`
-come from its requirement gate (03 §4). The generic shape is a superset — a kind with
-richer actions carries params.
+**`AvailableAction` describes a *verb*, not its parameter space.** A kind uses it to expose
+a gated choice list — one entry per thing the player may currently do, `available` and
+`reasonKey` saying whether and why not. That is *a* pattern a kind may use, not the default
+with exceptions: it is the right shape exactly when the set of distinct submissions is small
+enough to enumerate, and the wrong one as soon as an action carries parameters, because
+enumerating a verb × its parameter domain is combinatorial.
+
+How each of the three kinds actually lands, since the spread is the point:
+
+- **`story-graph`** uses it as a gated choice list — an `AvailableAction` *is* a node choice,
+  `available`/`reasonKey` come straight from its requirement gate (03 §4), and it declares no
+  params at all. This is the pattern at its cleanest, and it is why the type looks the way it
+  does.
+- **`simulation`** returns its four verbs (`plan.add`/`plan.remove`/`plan.clear`, `end_week`)
+  and pushes the whole parameter domain — which `ActionType`s are offerable, and the plan
+  itself, so a client can compute a valid `plan.remove` index — into `SimulationView.plan`
+  (10 §9).
+- **`world-graph`** does the same for spatial verbs, and is the kind that forced the rule to
+  be stated: the build catalogue, staff roster and price bands are projection (12 §7, §10),
+  because `build` × every definition × every cell × four rotations is not a list.
+
+The invariant across all three is only this: whatever a client can submit, it can *discover*
+— from `availableActions`, from the projection, or from both. `AvailableAction` is one of
+the two places that discovery may live, not the place it must.
 
 ---
 
@@ -545,6 +586,32 @@ supporting "resume on another device" (architecture §2).
 `createSession` generates and records a seed when the config omits one, so a resumed or
 replayed session is always reproducible.
 
+**Two independent lock domains, and they are part of this contract.** The store holds a
+serialized blob per session and mutates it in place, so "read the blob, resolve, write it
+back" is a read-modify-write and needs saying who may run concurrently with whom:
+
+- **Per `sessionId`** — every operation that touches one session's blob queues behind its
+  predecessor for that session. Two submissions against the same session therefore resolve in
+  the order they acquire the lock, never interleaved, so neither can read a blob the other is
+  about to overwrite.
+- **Per `profileId`** — the profile upsert (§7.1) is its own load-merge-save, and two
+  *different* sessions may legitimately share one `profileId`; that is what a profile is for.
+  Session locking alone does not serialize it, so profile upserts queue on a second,
+  independent domain keyed by `profileId`.
+
+**Different sessions interleave freely**, which is the property that matters for a host
+serving many players: the domains are keyed, not global, and the two never couple. Nothing
+here is visible in `serialize()` output — locking orders commands, it does not change what any
+one command computes — so this is a store-layer concurrency contract, not a determinism one.
+
+> **`previewAction` takes the session lock but is not a command.** It shares the per-session
+> queue, so it cannot evaluate one version of a session while a neighbouring submission
+> persists another. Everything else that makes an operation a command, it deliberately skips:
+> it does not increment the attempt counter, does not write the blob, does not touch profile
+> persistence, and emits no action lifecycle event (§4). That is the query/command split above
+> taken literally — a preview is a read that happens to run the write path, so it must be
+> ordered like a write and recorded like a read.
+
 ### 7.1 The Profile Store
 
 Achievements must outlive a game (MVP §5, 03 §7), but nothing durable may sit inside
@@ -579,7 +646,10 @@ Rules, all of them determinism-preserving:
 
 - **Profile identity is a session concern.** `profileId` lives on `CreateSessionConfig`
   and the store's record — never on `NewGameConfig`, never on `GameState`. The pure
-  engine has no idea profiles exist.
+  engine has no idea profiles exist. A manual save preserves that association the same
+  way: `profileId` round-trips through the store's own save record, never through the
+  serialized `SaveEnvelope`, so `loadGame` restores the same profile a `saveGame`'d
+  session had.
 - **Nothing in resolution reads a profile.** A kind unlocks into its own `kindState`
   (03 §7) and emits an `achievement_unlocked` `StateChange` (§12). *After* a successful
   action, the session store idempotently upserts those records through the
@@ -637,8 +707,23 @@ It is exactly:
 
 Substreams (games/04-engine-specification.md §3.2) mean adding a draw in one place never renumbers another, and
 a rival kind's draws never perturb the player's. The MVP uses the `action` stream for
-play plus one `system` stream, `system:"start"`, for `createGame`'s initial `settle`
-(§4); the machinery for more is already there.
+play plus **two** `system` streams; the machinery for more is already there.
+
+| Stream | Derived for | Why it is its own stream |
+|---|---|---|
+| `action:${seq}` | `submitAction` (§4) | The play spine — one stream per resolution |
+| `system:start:0` | `createGame`'s initial `settle` (§4) | A start-of-game draw must not collide with the first action's, which shares `seq: 0` |
+| `system:view:${seq}` | the read-only calls — `scene`, `availableActions`, `view` (§6, §9) | A kind that ever drew randomness while *rendering* would otherwise share a stream with the next `submitAction` at the same `seq`, and rendering twice would then change the game |
+
+> **The `view` stream is normative even though nothing draws on it today.** No shipped kind
+> takes a random draw during projection, and none should — projection is a narrowing of
+> state, not a resolution. But `KindContext` is one type and a read path must supply an `rng`
+> handle from somewhere; supplying the action stream's would let an accidental draw during
+> rendering silently perturb the next action, which is exactly the class of bug substreams
+> exist to make impossible. Giving reads their own stream costs one `StreamId` encoding and
+> removes the failure mode by construction. The consequence is that the encoding above is as
+> normative as the other two: changing it changes nothing observable today, and would change
+> every seeded outcome the day a kind does draw while rendering.
 
 > **What goes in `agent.seq` is normative, and it is not the action seq.** It is the
 > *agent's own* draw counter, stored on that agent in `kindState` and incremented per draw.
@@ -709,8 +794,22 @@ interface Campaign {
   version: string;
   titleKey: LocKey;
   content: unknown;              // kind-specific — e.g. StoryGraphCampaign (03 §1)
+
+  /**
+   * Migrates a `kindState` forward when *this campaign's own* content ids or shape changed
+   * between `fromVersion` and this `version` (§10.2) — a renamed node or achievement id.
+   * Optional, for the same reason `Kind.migrateState` (§3) is: most version bumps rename
+   * nothing a save references. Runs at the save-load boundary only, after any
+   * `Kind.migrateState`, never during `advance`.
+   */
+  migrateState?(kindState: unknown, fromVersion: string): CommandResult<unknown>;
 }
 ```
+
+> **Two `migrateState` functions, two axes.** `Kind.migrateState` (§3) is typed
+> `CommandResult<KState>` because a kind knows its own state type; this one is typed
+> `CommandResult<unknown>` because a campaign does not — it only remaps ids *inside* a
+> state whose shape the kind already fixed. That is also why §10.2 runs them in that order.
 
 > **Content excludes envelope identity.** A kind's `content` (e.g. `StoryGraphCampaign`,
 > 03 §1) holds only kind-specific data — it does **not** repeat `id`, `kindId`, `version`,
@@ -794,6 +893,14 @@ load the same way:
   the right fields. Either axis missing its migration function when a mismatch is present
   fails loudly the same way; a registered migration that itself fails does too
   (`migration_failed`, §12).
+- **`checksum` covers `{ state, replayCompatible }`, not the whole envelope.** The scope is
+  narrow by design and the remaining fields are protected differently — by cross-checks that
+  a checksum could not perform anyway: `campaign.kindId` against the outer `kindId`, and both
+  outer ids against the embedded (and therefore checksummed) `GameState`'s own. `state` is in
+  scope because it is the thing being protected; `replayCompatible` is in scope because
+  nothing else guards it, and flipping a migrated save's `false` back to `true` in the stored
+  blob would otherwise silently defeat the sticky-forward rule below. `90-decisions.md`
+  records why this is the accepted scope rather than a gap.
 - **A successful migration** sets `replayCompatible: false`, sticky forward — once a
   lineage has passed through a migrated load, it never becomes replay-compatible again,
   even across further saves that need no further migration.
@@ -874,6 +981,43 @@ Why tiered: "the engine validates AI-authored content" (architecture §9) is onl
 safety property once you say *what validation is* and *what is decidable when*. AI output
 is data; all data goes through the same tiers, whatever produced it.
 
+#### Which string table validation checks against
+
+Two of this section's requirements look like they need each other's output. Every campaign
+must be validated *before* the registry is frozen (above), and §12 requires that a registered
+reason code with no localized message fails validation — but the final merged string table on
+`ContentRegistry` is a *product* of registry assembly (§10.1), which runs after validation
+clears. Read literally, neither could go first.
+
+They are not in conflict, because "a `LocKey` resolves" is scoped per campaign, not against
+the merged table:
+
+- **A campaign's own `LocKey`s** — `titleKey`, and everything `Kind.validateCampaign` reaches
+  inside `content` — are checked against **that campaign's built string table**, the
+  `BuiltCampaign.strings` the authoring builder lifted out of its source (§10.1). That table
+  is complete for the campaign by construction: a key it authored but did not lift cannot
+  exist. Merging adds other campaigns' keys, which this campaign has no business referencing
+  anyway, so the merged table would not make the check stricter — only later.
+- **Reason-code messages** are checked against **the declaring kind's own message table**,
+  once per kind rather than once per campaign, and against the core's shipped
+  `core.reason.*` set for the base codes. A kind therefore fails registry construction for a
+  gap in its own vocabulary before its messages ever reach the merge.
+
+So the ordering is: validate each campaign against its own strings and each used kind against
+its own messages; only then assemble, merging core, kind and campaign strings and freezing
+both maps. `buildValidatedContentRegistry`
+(`src/engine/src/core/validation/tiered.ts`) is the sanctioned entry point that runs them in
+that order, and it threads each used kind's messages into assembly so the frozen table
+carries them.
+
+> **This is a clarification of scope, not a weakening.** Nothing here permits an unresolved
+> key into a frozen registry. The merged table is a superset of every per-campaign table plus
+> the core's and the kinds' own, so a key that resolves in the narrower table resolves in the
+> wider one; checking early is strictly earlier, not looser. What it does rule out is a
+> campaign silently depending on a *different* campaign's authored string — which the merged
+> table would have let through, and which is a real drift surface, since pack resolution
+> (11 §6) can change what else is in that table without this campaign changing at all.
+
 ---
 
 ## 12. Reason Codes, State Changes, Messages
@@ -886,10 +1030,34 @@ type LocKey = string;            // key into the string table; stable, additive,
 type ReasonCode = string;        // stable, machine-readable; additive, never renamed
 
 const BASE_REASON_CODES = [
+  // the original seven — the kind-agnostic play vocabulary
   "action_not_available", "unknown_action", "requirement_unmet",
   "session_ended", "read_only_field", "check_succeeded", "check_failed",
+  // the pure engine kernel: createGame / submitAction / deserialize rejections
+  "unknown_campaign", "unknown_kind", "invalid_state",
+  // registry assembly (§10.1)
+  "string_conflict", "protected_string_key", "duplicate_campaign_id",
+  // the core's own Tier-1 checks (§11, §17)
+  "invalid_identifier", "invalid_loc_key", "missing_string_key",
+  "missing_kind_reason_message",
+  // the profile store (§7.1) — mirrors ProfileWarningCode
+  "profile_missing", "profile_corrupt", "profile_write_failed",
+  // the save-load boundary (§10.2)
+  "save_requires_migration", "migration_failed",
 ] as const;
 ```
+
+> **The base set grows; it was never fixed at the MVP.** The original seven were the
+> vocabulary one *turn* needs. Everything after them was added by a unit that found a
+> cross-kind failure mode with no code that fitted — the kernel's three rejections, registry
+> assembly's three, the core's own Tier-1 four, the profile store's three, the save
+> boundary's two. That is the intended shape: a code is registered when a real caller
+> produces it, not pre-declared from this list. Because `ReasonCode` is *additive, never
+> renamed* (above), growth costs nothing — a client switching on a code it has never seen
+> falls through to the localized message, which the core ships for every base code. Expect
+> this list to keep growing, and keep it in step with
+> `src/engine/src/core/kernel/reasons.ts`, which is where the shipped set and its messages
+> actually live.
 
 **The core ships their strings.** Every base code has a default-English message under a
 **reserved `core.reason.*` namespace** (`core.reason.unknown_action`, …), shipped with the
@@ -1518,7 +1686,8 @@ submitChoice(state, choiceId, params):
   0. reject if params is non-empty → unexpected_params (this kind takes none, 04 §3)
   1. resolve the current node (must be a ChoiceNode) and the named choice
   2. reject if the choice is unavailable: showWhen false, or requirements unmet
-     → return ValidationError with the reason (§8.3), no state change
+     → return ValidationError with the reason (§8.3), no state change, and a
+       player-facing `messages` entry built from the same messageKey (§3)
   3. apply the choice's effects (typed consequences, §5), then clamp
   4. the core appends `{ actionId: choiceId }` to the envelope's actionLog
   5. transition: turn += 1, enter(choice.goto)
@@ -1557,13 +1726,47 @@ not as an error.
 ### 8.3 Reason Codes
 
 The codes this kind adds to the base set (`Kind.reasonCodes`, 04 §3, §12). Each needs a
-localized message or registry validation fails (04 §12):
+localized message or registry validation fails (04 §12). They divide by *when they are
+checked*, and the division matters because the two halves reach different audiences:
+
+**Resolution codes — checked at advance time, reported to the player.** These ride out on a
+rejected `AdvanceResult.error` during a turn.
 
 | Code | When |
 |---|---|
 | `not_a_choice_node` | an action arrived while the current node is not a `ChoiceNode` — should be unreachable after settle |
 | `unexpected_params` | a non-empty `params` object; this kind declares none |
 | `settle_guard_tripped` | `SETTLE_STEPS` exceeded — an auto/random cycle with no exit (§8.2) |
+
+**Validation codes — checked at registry build time, reported to the author.** These are
+this kind's own `validateCampaign` findings (§11), and a player never sees one: a campaign
+carrying any Tier-1 code among them never reaches a frozen registry at all (04 §11). They
+are registered on `Kind.reasonCodes` alongside the resolution codes because the completeness
+rule is the same one — every registered code owes a localized message (04 §12).
+
+| Code | Tier | When |
+|---|---|---|
+| `dangling_reference` | 1 | a `goto`, `transition.goto` or `startNodeId` names no such node |
+| `undeclared_variable` | 1 | a consequence, condition or interpolation names an undeclared variable |
+| `invalid_consequence_value` | 1 | a consequence op or `set` value does not suit the variable's type or range |
+| `duplicate_id` | 1 | a node, choice, achievement or variable id is used twice |
+| `missing_label_key` | 1 | a `visible: true` variable has no `labelKey` |
+| `non_visible_variable_in_text` | 1 | text interpolates a hidden or undeclared variable |
+| `invalid_transition_weight` | 1 | a `RandomTransition.weight` is not a positive integer, or a `random` node has no transitions |
+| `unknown_condition_field` | 1 | a `Condition` reads a field this kind does not define (04 §18) |
+| `unreachable_node` | 2 | no path from `startNodeId` reaches it |
+| `unreachable_cycle` | 2 | a `choice`/`auto`/`random` cycle with no exit to a choice or ending |
+| `no_reachable_choice` | 2 | no `ChoiceNode` is reachable from the start — valid but non-interactive (04 §11) |
+| `no_reachable_ending` | 2 | no reachable ending |
+
+`unknown_condition_field` sits in the validation half because that is where it is *found* —
+but it is also the one code here a resolution could in principle raise, if a condition
+reached `advance` unvalidated. It cannot, on a frozen registry; the code is single, and which
+half it is listed under is a statement about the checked path, not two different codes.
+
+A `LocKey` that fails to resolve reuses the base `missing_string_key` (04 §12) rather than
+adding a kind-owned code — it is the identical failure the core's own `titleKey` check
+already names.
 
 Reused from the base set: `unknown_action` (no such choice id on the current node),
 `requirement_unmet` (shown but gated — carries `requirementFailKey` as its message),
@@ -1587,18 +1790,29 @@ The operational events this kind emits, declared as `Kind.eventNames`
 (04 §3.1), never returned, and never localized — a `StateChange` (§5) is what the *player*
 is owed, and these are what a developer or a content author needs instead.
 
-| Name (after `kind.story-graph.`) | Severity | Emitted at | `data` |
-|---|---|---|---|
-| `choice.submitted` | `debug` | §8.2 step 1, after the choice resolves | `nodeId`, `choiceId` |
-| `choice.rejected` | `info` | §8.2 step 2 | `choiceId`; `reason` set (§8.3) |
-| `requirement.evaluated` | `trace` | §8.2 step 2, once per requirement | `choiceId`, `satisfied` |
-| `consequence.applied` | `debug` | §8.2 steps 3 and 5, per typed effect | `variable`, `op`, `clamped` |
-| `node.entered` | `debug` | every `enter(nodeId)` — §8.2 | `nodeId`, `nodeKind`, `visitCount` |
-| `settle.step` | `trace` | each iteration of the settle loop | `step`, `nodeId`, `nodeKind` |
-| `random.picked` | `debug` | a `random` node chose a transition | `nodeId`, `goto`, `weight` |
-| `settle.guard_tripped` | `error` | `SETTLE_STEPS` exceeded | `nodeId`; `reason` set |
-| `achievement.unlocked` | `info` | §8.2 step 7 | `achievementId` |
-| `ending.reached` | `info` | settle landed on an `EndingNode` | `endingId` |
+| Name (after `kind.story-graph.`) | Severity | Emitted at | `data` | Status |
+|---|---|---|---|---|
+| `settle.step` | `trace` | each iteration of the settle loop | `step`, `nodeId`, `nodeKind` | delivered |
+| `node.entered` | `debug` | every `enter(nodeId)` — §8.2 | `nodeId`, `nodeKind`, `visitCount` | delivered |
+| `random.picked` | `debug` | a `random` node chose a transition | `nodeId`, `goto`, `weight` | delivered |
+| `settle.guard_tripped` | `error` | `SETTLE_STEPS` exceeded | `nodeId`; `reason` set | delivered |
+| `choice.submitted` | `debug` | §8.2 step 1, after the choice resolves | `nodeId`, `choiceId` | specified, not yet delivered |
+| `choice.rejected` | `info` | §8.2 step 2 | `choiceId`; `reason` set (§8.3) | specified, not yet delivered |
+| `requirement.evaluated` | `trace` | §8.2 step 2, once per requirement | `choiceId`, `satisfied` | specified, not yet delivered |
+| `consequence.applied` | `debug` | §8.2 steps 3 and 5, per typed effect | `variable`, `op`, `clamped` | specified, not yet delivered |
+| `achievement.unlocked` | `info` | §8.2 step 7 | `achievementId` | specified, not yet delivered |
+| `ending.reached` | `info` | settle landed on an `EndingNode` | `endingId` | specified, not yet delivered |
+
+> **What "specified, not yet delivered" means, and why the rows stay.** `Kind.eventNames`
+> (04 §3) declares what a kind *may* emit, and the shipped `storyGraphKind` currently
+> declares the four marked delivered. The other six are named here because the names are the
+> contract — an event name is a published identifier a sink filters on (05 §9), so fixing it
+> before the emit site exists costs nothing and renaming it later costs every configured
+> sink. Deleting them instead would lose the design, and leaving them unmarked would claim a
+> stream a host cannot actually observe. Adding one is a matter of declaring it in
+> `eventNames` and emitting it at the step named above; nothing in this table needs
+> redeciding first. This is safe precisely because of 05 §2: dropping every event changes
+> nothing, so a not-yet-emitted event cannot be load-bearing.
 
 Two of these carry most of the value, for the two audiences the events exist to serve:
 
@@ -3864,16 +4078,29 @@ constructs one yet.
 Codes this kind adds to the base set (`Kind.reasonCodes`, 04 §3, §12). Each needs a localized
 message or registry validation fails:
 
-| Code | When |
-|---|---|
-| `insufficient_time` | The plan exceeds available time units |
-| `insufficient_funds` | The plan's cost exceeds available money |
-| `action_not_planned` | `plan.remove` names an index the plan does not have |
-| `plan_empty` | `end_week` with nothing planned, where the campaign forbids it |
-| `week_limit_reached` | The scenario's week cap is exhausted |
-| `wrong_location` | An action's type is not in the current location's `actionTypes` (§7.9), or a `travel` target is not in `connections` |
+| Code | When | Status |
+|---|---|---|
+| `action_not_planned` | `plan.remove` names an index the plan does not have | registered |
+| `duplicate_id` | Two definitions of the same content type share an `id` — this kind's Tier 1 (§14), the author-facing half | registered |
+| `insufficient_time` | The plan exceeds available time units | specified, not yet dispatched |
+| `insufficient_funds` | The plan's cost exceeds available money | specified, not yet dispatched |
+| `plan_empty` | `end_week` with nothing planned, where the campaign forbids it | specified, not yet dispatched |
+| `week_limit_reached` | The scenario's week cap is exhausted | specified, not yet dispatched |
+| `wrong_location` | An action's type is not in the current location's `actionTypes` (§7.9), or a `travel` target is not in `connections` | specified, not yet dispatched |
 
 Reused from the base set: `unknown_action`, `requirement_unmet`, `session_ended`.
+
+> **This set grows as the dispatched systems land, and that is deliberate.** A code joins
+> `Kind.reasonCodes` when the unit that actually produces it exists, not when this table
+> first names it — the precedent `story-graph` set, whose own codes joined across W10, W11,
+> W12 and W14 rather than being pre-declared. Registering all seven now would put five codes
+> in the vocabulary that no path can return, and every one would still owe a localized
+> message the core's completeness check (04 §12) would then be verifying against nothing.
+> The five above are blocked on the same thing: §5.1's resolver dispatch running against
+> real content, and the end-of-week systems §3 orders — most of which are still stubs (§15).
+> `plan_empty` has an additional gate of its own, recorded in `90-decisions.md`: no
+> `SimulationCampaign` field exists yet for a campaign to forbid an empty plan with.
+> The shipped set lives in `src/engine/src/kinds/simulation/reasons.ts`.
 
 Each code's `messageKey` lives under `simulation.reason.<code>` (04 §12), the
 `<kindId>.reason.*` convention — not to be confused with 05 §9's `kind.<kindId>.*` *event*
@@ -4004,8 +4231,25 @@ phase this contract precedes, not to another doc-only pass.
 
 ## 15. What Was Ported, and What Was Found Along the Way
 
-**Nothing remains upstream as a gap in this contract's shape.** This section used to be "What
-Remains Upstream" — a table of sections still to bring over. `plans/36-simulation-kind-
+**Nothing remains upstream as a gap in this contract's *shape*.** This section used to be
+"What Remains Upstream" — a table of sections still to bring over.
+
+> **"The shape is whole" is not "the systems are built" — read this claim narrowly.** What
+> closed is the *specification*: every field `SimulationKindState` names has a type, every
+> content definition a campaign needs is declared, and the dispatch mechanics that run
+> against both are written down. What is emphatically **not** claimed is that the code
+> behind them exists. Most of §3's fourteen end-of-week systems currently ship as
+> deliberate, individually documented no-op stubs — real functions in the pipeline, running
+> in the normative order and emitting `system.ran`, doing nothing else — because the
+> "Stable Life" vertical slice needed only enough logic to prove a goal can be won and lost.
+> The reason-code table in §10 says the same thing from the other side: five of its seven
+> codes have no dispatch path yet.
+>
+> **`90-decisions.md` carries the current list of which systems are stubs and what each still
+> owes.** It is deliberately not restated here — a second copy would drift, and the version
+> that drifts is always the one in the document nobody updates when the code lands. Consult
+> it, not this section, for "is this built?"; consult this section for "what is it supposed
+> to do?" `plans/36-simulation-kind-
 programme.md`'s four contract units (proposed there as W27–W30, assigned real numbers as each
 was cut: **W32, W33, W34, and this one**) closed it a piece at a time:
 
@@ -4733,8 +4977,8 @@ The following comparators are the only canonical orders systems may use:
 | Queue | persisted FIFO arrival position; same-tick admissions by runtime entity id |
 | Utility candidate | utility descending, building entity id, product id (`null` first) |
 | Task candidate | priority descending, path cost ascending, task-kind order, target entity id or position, source definition id, required role id (`null` first), slot ordinal |
-| A* open node | `f`, `h`, `g` ascending, then position row-major |
-| Equal-cost A* parent | predecessor position row-major |
+| Path-search open node | accumulated cost `g` ascending, then position row-major (§9.3 — the search carries no heuristic, so there is no `f`/`h` to order by first) |
+| Equal-cost path parent | predecessor position row-major |
 | Scheduled effect | due tick, priority descending, source definition id, authored change index, authored effect index |
 
 The task-kind order is `service`, `clean`, `restock`, `build`. A definition id is not an
@@ -4830,7 +5074,7 @@ row.
 
 **Reads:** service/leave intents, committed paths, map revision, dynamic footprints, and
 definition entrances. **Writes:** `Guest.path` and `pathIndex`. **Order:** guests by id;
-goals row-major; A* follows §9. A changed target has no old path to preserve. A path made
+goals row-major; canonical replanning follows §9. A changed target has no old path to preserve. A path made
 invalid by a map revision remains committed only until canonical replanning succeeds; on
 failure it is cleared and the archetype fallback is materialized. **No-op:** waiting,
 queued, served, already-at-goal, or still-valid path. **Records:**
@@ -5030,7 +5274,7 @@ The minimum W43 fixture takes several ticks; arrows are not permission to collap
 
 ```text
 t0  guest-spawn creates guest → guest-needs drifts thirst → guest-intent selects stand
-    → guest-path commits A* → guest-move advances one edge → tick-finalize commits t1
+    → guest-path commits canonical path → guest-move advances one edge → tick-finalize commits t1
 t1+ guest-move eventually reaches entrance
 next queues admits FIFO and starts service
 later guest-service transfers cents, applies drink effect, and creates litter incident
@@ -5208,7 +5452,7 @@ functions; this states the positive rule those bans imply.
 distance — all integer, all order-preserving for the comparisons that matter.
 
 **Every tie uses §4.2's complete comparator.** Entity id is only one domain; positions,
-definitions, FIFO arrivals, A* nodes, and transient task candidates have their own complete
+definitions, FIFO arrivals, canonical-path nodes, and transient task candidates have their own complete
 tuples. Iteration order is likewise canonical except where FIFO/authored order is semantic.
 
 **Entity ids are derived, never supplied.** Guests, staff, buildings, sites, queues and
@@ -5226,7 +5470,7 @@ to drift, the same objection §3 makes to `rng`.
 Eligibility is a filter before arithmetic. A candidate is absent—not assigned a very
 negative score—when its content is locked, building is not `open`, queue is full, guest
 cannot afford the price, product is not offered/in stock, a typed condition rejects it, or
-no canonical path reaches an entrance. The path-cost query uses the same A* rules as §9.3;
+no canonical path reaches an entrance. The path-cost query uses the same canonical-path rules as §9.3;
 it may share scratch cache but not a second reachability rule.
 
 For each survivor evaluate these signed integer components in order:
@@ -5316,7 +5560,7 @@ a non-constant duration range, it draws from the owning system's
 `tick:${processingTick}:<stable-system-id>` handle in effect/target order; a constant range
 and `null` duration consume no draw.
 
-### 9.3 Canonical A*
+### 9.3 Canonical shortest path
 
 Nodes are `Position`s. Outgoing neighbours are allowed authored `PathCell`s whose `from`
 matches the current node, ordered by destination row-major. The destination terrain must be
@@ -5327,10 +5571,26 @@ cells remain outside footprints and are valid goals. Guest overlap does not bloc
 stepCost(current, next) = edge.edgeCost + terrain(next).moveCost
 ```
 
-Both terms are non-negative and Tier 1 requires every traversable sum to be positive. The
-heuristic is Manhattan distance to the nearest goal multiplied by the campaign's minimum
-traversable step cost, so it is admissible. If a future contract admits a zero minimum, the
-heuristic is zero and the search is Dijkstra; it may never silently overestimate.
+Both terms are non-negative and Tier 1 requires every traversable sum to be positive.
+
+**The search is uniform-cost — Dijkstra, with no heuristic.** The open list is ordered by
+accumulated cost `g`, ties broken row-major by position (§4.2), and the first goal popped is
+returned. `canonicalPath` (`src/engine/src/kinds/world-graph/spatial.ts`) implements exactly
+that.
+
+> **This is a deliberate simplification of an earlier A\* prescription, not an oversight.**
+> This section previously fixed a heuristic — Manhattan distance to the nearest goal times
+> the campaign's minimum traversable step cost — and noted that a zero minimum degenerates to
+> Dijkstra. Running with a zero heuristic *always* is that degenerate case, and it is
+> behaviourally identical on every property this contract actually constrains: an admissible
+> heuristic never changes which paths are optimal, and the tie-break here is the same
+> row-major comparator either way, so the committed path is the same path. The difference is
+> confined to how many nodes get expanded reaching it — a performance question, not a
+> determinism one, and determinism is the only axis §9 exists to fix. Reintroducing the
+> heuristic is therefore a pure optimization, available whenever expansion count is measured
+> to matter, and it requires no change to anything below. What it must never do is *change
+> the answer*: an inadmissible heuristic would, which is why the admissibility rule is
+> restated here rather than dropped with the algorithm.
 
 Open nodes and equal-cost parents use §4.2. A closed node reopens only for smaller `g`;
 equal `g` replaces its parent only for a row-major-smaller predecessor. Multiple entrances
@@ -5476,32 +5736,46 @@ Reused from the base set: `unknown_action`, `requirement_unmet`, `session_ended`
 
 Namespaced `kind.world-graph.*` (05 §9), declared as `Kind.eventNames`:
 
-| Name (after the namespace) | Severity | Emitted at |
-|---|---|---|
-| `batch.started` / `batch.ended` | `debug` | Around `advance_ticks`, with requested and actually processed ticks |
-| `building.placed` / `building.demolished` | `info` / `debug` | The `build` and `demolish` reducers |
-| `staff.hired` / `staff.fired` / `staff.assigned` | `info` / `debug` / `trace` | The staff reducers |
-| `alert.dismissed` | `trace` | The `dismiss_alert` reducer |
-| `scenario.effect.applied` | `debug` | System 1 applied one scheduled/policy effect |
-| `guest.spawned` / `guest.meter.changed` | `trace` | Systems 2–3 |
-| `guest.served` / `service.started` | `trace` | Systems 4–5 |
-| `queue.joined` / `queue.abandoned` | `trace` | FIFO membership changes in system 5 |
-| `guest.intent.selected` | `trace` | System 6, with optional ordered component trace |
-| `guest.path.committed` / `guest.path.failed` | `trace` / `debug` | System 7 attempted a commitment |
-| `guest.moved` / `guest.departed` | `trace` / `debug` | System 8 |
-| `task.candidate.generated` | `trace` | Optional system-9 diagnostic; never state |
-| `staff.task.assigned` / `staff.task.completed` / `staff.task.cancelled` | `trace` | Systems 10–11 |
-| `staff.moved` | `trace` | System 11 traversed one edge |
-| `construction.progressed` / `construction.completed` | `trace` / `info` | System 12 |
-| `building.status.changed` / `building.meter.changed` | `debug` / `trace` | Systems 13–14 and immediate reducers |
-| `finance.charged` | `debug` | System 15 coalesced one charge family |
-| `incident.raised` / `incident.resolved` | `info` / `debug` | Systems 4, 11, 14, or 16 own the transition |
-| `objective.progressed` / `objective.met` | `debug` / `info` | System 17 |
-| `failure.progressed` / `failure.triggered` | `debug` / `info` | System 18 |
-| `scenario.resolved` | `info` | Win or failure, with the `outcome` ids (§8) |
-| `achievement.unlocked` | `info` | System 19, before alert derivation |
-| `alert.raised` / `alert.cleared` | `debug` / `trace` | System 19 active-set transition |
-| `tick.finalized` | `trace` | System 20, after cleanup and increment |
+| Name (after the namespace) | Severity | Emitted at | Status |
+|---|---|---|---|
+| `batch.started` / `batch.ended` | `debug` | Around `advance_ticks`, with requested and actually processed ticks | delivered |
+| `building.placed` / `building.demolished` | `info` / `debug` | The `build` and `demolish` reducers | delivered |
+| `building.status.changed` | `debug` | The immediate reducers (and system 13, once built) | delivered |
+| `staff.hired` / `staff.fired` / `staff.assigned` | `info` / `debug` / `trace` | The staff reducers | delivered |
+| `alert.dismissed` | `trace` | The `dismiss_alert` reducer | delivered |
+| `scenario.effect.applied` | `debug` | System 1 applied one scheduled/policy effect | delivered |
+| `guest.spawned` | `trace` | System 2 | delivered |
+| `guest.served` | `trace` | System 4 | delivered |
+| `incident.resolved` | `debug` | Systems 11 and 16 own the transition today | delivered |
+| `tick.finalized` | `trace` | System 20, after cleanup and increment | delivered |
+| `guest.meter.changed` | `trace` | System 3 | specified, not yet delivered |
+| `service.started` | `trace` | System 5 | specified, not yet delivered |
+| `queue.joined` / `queue.abandoned` | `trace` | FIFO membership changes in system 5 | specified, not yet delivered |
+| `guest.intent.selected` | `trace` | System 6, with optional ordered component trace | specified, not yet delivered |
+| `guest.path.committed` / `guest.path.failed` | `trace` / `debug` | System 7 attempted a commitment | specified, not yet delivered |
+| `guest.moved` / `guest.departed` | `trace` / `debug` | System 8 | specified, not yet delivered |
+| `task.candidate.generated` | `trace` | Optional system-9 diagnostic; never state | specified, not yet delivered |
+| `staff.task.assigned` / `staff.task.completed` / `staff.task.cancelled` | `trace` | Systems 10–11 | specified, not yet delivered |
+| `staff.moved` | `trace` | System 11 traversed one edge | specified, not yet delivered |
+| `construction.progressed` / `construction.completed` | `trace` / `info` | System 12 | specified, not yet delivered |
+| `building.meter.changed` | `trace` | Systems 13–14 | specified, not yet delivered |
+| `finance.charged` | `debug` | System 15 coalesced one charge family | specified, not yet delivered |
+| `incident.raised` | `info` | Systems 4, 11, 14, or 16 own the transition | specified, not yet delivered |
+| `objective.progressed` / `objective.met` | `debug` / `info` | System 17 | specified, not yet delivered |
+| `failure.progressed` / `failure.triggered` | `debug` / `info` | System 18 | specified, not yet delivered |
+| `scenario.resolved` | `info` | Win or failure, with the `outcome` ids (§8) | specified, not yet delivered |
+| `achievement.unlocked` | `info` | System 19, before alert derivation | specified, not yet delivered |
+| `alert.raised` / `alert.cleared` | `debug` / `trace` | System 19 active-set transition | specified, not yet delivered |
+
+> **The status column tracks emit sites, not decisions.** `Kind.eventNames` on the shipped
+> `worldGraphKind` declares the delivered rows; the rest are named here because an event
+> name is a published identifier a sink filters on (05 §9), so it is fixed once, ahead of the
+> emit site, rather than renamed after every host has configured for it. Undelivered rows
+> cluster where the pipeline itself is still incomplete — systems 12, 13 and 19 are no-op
+> stubs and 14 and 16 are partial, recorded with the rest of the tick-system gaps in
+> `90-decisions.md`. Same treatment as `story-graph` §8.4, and safe for the same reason:
+> 05 §2 guarantees dropping every event changes nothing, so a not-yet-emitted event cannot
+> be load-bearing.
 
 **`guest.path.failed` earns its place.** A resort where guests silently cannot reach a
 building looks identical to one where they do not want to — the failure is invisible in the
@@ -6401,7 +6675,7 @@ Everything else in §3 remains W42's state contract.
 ### 14.10 W44 reconciliation
 
 The executable system audit found these durable facts absent or duplicated after W43. They
-are the only W44 state/content corrections; A* open sets, task candidates, indexes, deltas,
+are the only W44 state/content corrections; canonical-path open sets, task candidates, indexes, deltas,
 and aggregation buffers remain scratch (§4.2).
 
 | Pre-W44 surface | W44 correction | System proof |
@@ -6949,7 +7223,7 @@ Expected Tier-1 paths and findings:
   tick/entity events also match across batch partitions while batch diagnostics may differ.
 - Canonicalized content input may be shuffled without effect; FIFO queue arrays may not,
   because their order is state.
-- A* fixtures cover equal paths/parents, multiple entrances, directed edges, blocked
+- Canonical-path fixtures cover equal paths/parents, multiple entrances, directed edges, blocked
   footprints, unreachable goals, and map-revision invalidation.
 - Queue fixtures cover simultaneous arrival, abandonment, close/reopen, rejoin, capacity,
   and save/load during service.
