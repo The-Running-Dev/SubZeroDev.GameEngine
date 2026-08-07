@@ -34,6 +34,7 @@ describe("viewport control (W65.2)", () => {
   it("renders with no horizontal overflow at one landscape phone size", async () => {
     await page.viewport(844, 390);
     render(<PlayApp />);
+    await screen.findByRole("heading", { name: "Adventure disk library" });
     assertNoHorizontalOverflow();
   });
 });
