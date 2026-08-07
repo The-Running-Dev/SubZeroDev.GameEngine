@@ -32,6 +32,9 @@ export { buildBulgariaReturnCampaign, BULGARIA_RETURN_CAMPAIGN_ID } from "./camp
 export { buildBulgariaInheritanceCampaign, BULGARIA_INHERITANCE_CAMPAIGN_ID } from "./campaigns/bulgaria-inheritance.js";
 export { buildBulgariaEnterpriseCampaign, BULGARIA_ENTERPRISE_CAMPAIGN_ID } from "./campaigns/bulgaria-enterprise.js";
 export { buildLuciferChroniclesCampaign, LUCIFER_CHRONICLES_CAMPAIGN_ID } from "./campaigns/lucifer-chronicles.js";
+// Private campaign: exported so a host can compose it, deliberately absent from the
+// public `/play/` catalog in `site/src/play/composition.ts`.
+export { buildSakiQuestCampaign, SAKI_QUEST_CAMPAIGN_ID } from "./campaigns/saki-quest-for-redemption.js";
 export { ENGINE_VERSION } from "./version.js";
 
 export type { Engine } from "./core/kernel/types.js";
