@@ -79,8 +79,19 @@ jobs:
             # a push to main (verify skips push events), so it is also the
             # last thing standing between a broken landing page and a real
             # deploy if a check was ever bypassed getting there.
+            # The real-browser suite needs Chromium installed first -- it is
+            # not part of the base image, unlike Node. `playwright install
+            # --with-deps` shells out to apt-get, but this container
+            # (docs-template) is Alpine, so that step just fails outright
+            # ("apt-get: not found"). Install Alpine's own `chromium` package
+            # instead and point vitest.browser.config.ts at it via
+            # PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH -- identical to docs-ci.yml's
+            # verify job; that copy proved the fix before it landed here.
             - name: Build and verify landing page
+              env:
+                  PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH: /usr/bin/chromium-browser
               run: |
+                  apk add --no-cache chromium
                   npm --prefix src/engine ci
                   npm --prefix src/engine run build
                   npm --prefix site ci
