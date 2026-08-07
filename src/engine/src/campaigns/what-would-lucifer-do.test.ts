@@ -134,7 +134,7 @@ const ORDER = [
   "ch7_p1", "ch7_p2", "ch8_p1", "ch8_p2", "ch8_p3", "ch8_p4", "ch8_p5", "ch8_p6", "ch8_p7", "ch8_p8",
 ] as const;
 
-/** All wrong up to (but not including) `firstNCorrect`, then correct through the rest. */
+/** First `n` predictions correct, then wrong through the rest. */
 function firstNCorrect(n: number, overrides: Partial<Record<(typeof ORDER)[number], string>> = {}): string[] {
   return ORDER.map((id, index) => overrides[id] ?? (index < n ? CORRECT[id] : WRONG[id]));
 }
@@ -227,6 +227,16 @@ describe("What Would Lucifer Do?", () => {
     const unlocked = new Set(SCRIPTS.flatMap(({ ending, script }) => play(script, `wwld-${ending}`).achievements));
     const authored = content.achievements.map((achievement) => achievement.id);
     expect(authored.filter((id) => !unlocked.has(id))).toEqual([]);
+  });
+
+  it("does not unlock 'A 2004 Salary' unless both the decline and the apply are predicted correctly", () => {
+    const declineWrong = firstNCorrect(26, { ch4_p2: WRONG.ch4_p2 });
+    expect(play(declineWrong, "wwld-decline-wrong").achievements).not.toContain("declined_the_money");
+
+    const applyWrong = firstNCorrect(26, { ch4_p3: WRONG.ch4_p3 });
+    expect(play(applyWrong, "wwld-apply-wrong").achievements).not.toContain("declined_the_money");
+
+    expect(play(ALL_CORRECT, "wwld-both-correct").achievements).toContain("declined_the_money");
   });
 
   it("replays byte-identically from the same seed and inputs", () => {

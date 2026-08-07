@@ -508,7 +508,7 @@ prediction({
   id: "ch4_p2",
   setup: "The VR store offers Lucifer 50,000 euros.\n\nWhat Would Lucifer Do?",
   correctLabel: "Decline. Call it a 2004 salary.",
-  correctEffects: [inc("predictions_correct"), inc("streak"), inc("no_fucking_way")],
+  correctEffects: [inc("predictions_correct"), inc("streak"), inc("no_fucking_way"), put("declined_the_money", true)],
   hitReveal:
     "Correct.\n\n" +
     "He turns it down, on the stated grounds that €50,000 is a 2004 salary and this is not " +
@@ -542,7 +542,7 @@ prediction({
     "reports it. Buried in the code he finds a banner: 'If you're reading this, apply.'\n\n" +
     "What Would Lucifer Do?",
   correctLabel: "Apply",
-  correctEffects: [inc("predictions_correct"), inc("streak"), inc("ridiculous_engineering"), put("declined_the_money", true)],
+  correctEffects: [inc("predictions_correct"), inc("streak"), inc("ridiculous_engineering"), put("applied_after_decline", true)],
   hitReveal:
     "Correct.\n\n" +
     "He applies. The bug report was not a job-hunting strategy — it was curiosity that " +
@@ -1407,7 +1407,12 @@ const achievements: AchievementDefinitionSource[] = [
   ),
   achievement("met_the_fly", "A Beautiful Treaty", "Witness the negotiation that failed spectacularly.", flag("met_the_fly", true)),
   achievement("named_the_ai", "Jar-Jar2R2", "Witness the machine get renamed after two idiot Star Wars characters.", flag("named_the_ai", true)),
-  achievement("declined_the_money", "A 2004 Salary", "Watch Lucifer turn down real money on principle, then apply somewhere else out of curiosity.", flag("declined_the_money", true)),
+  achievement(
+    "declined_the_money",
+    "A 2004 Salary",
+    "Watch Lucifer turn down real money on principle, then apply somewhere else out of curiosity.",
+    { all: [flag("declined_the_money", true), flag("applied_after_decline", true)] },
+  ),
   achievement("documented_menace", "Documented Menace", "Correctly predict six or more of the genuinely unpredictable decisions.", atLeast("no_fucking_way", 6)),
   achievement("state_of_the_art_paperwork", "State Of The Art Paperwork", "Correctly predict both authored bureaucratic escalations.", atLeast("bureaucratic_escalation", 2)),
   achievement("brought_alan_watts_into_this", "You Brought Alan Watts Into This", "Correctly predict five or more philosophical detours.", atLeast("philosophical_detours", 5)),
@@ -1501,6 +1506,7 @@ export const whatWouldLuciferDoSource: StoryGraphCampaignSource = {
     named_the_ai: { type: "bool", initial: false },
     saw_the_thumbs_up: { type: "bool", initial: false },
     declined_the_money: { type: "bool", initial: false },
+    applied_after_decline: { type: "bool", initial: false },
     guessed_close_but_wrong: { type: "bool", initial: false },
   },
   startNodeId: "prologue",
