@@ -116,9 +116,7 @@ export default function PlayApp() {
   /** Invalidates in-flight submissions when the player leaves or restarts a run. */
   const runToken = useRef(0);
 
-  const selected = demo.catalog.find(
-    (campaign) => campaign.campaignId === (state ? campaignId : selectedId),
-  );
+  const selected = demo.findCampaign((state ? campaignId : selectedId) ?? "");
   const theme = cabinetThemes[selected?.campaignId ?? ""];
   const ended = state?.scene.status === "ended";
   const sceneText = state?.scene.body.text;
@@ -126,6 +124,14 @@ export default function PlayApp() {
   useEffect(() => {
     if (sceneText) sceneRegion.current?.focus();
   }, [sceneText]);
+
+  /** A hidden campaign has no dossier tile; a direct `?campaign=` link is its only door in. */
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get(
+      "campaign",
+    );
+    if (requested && demo.findCampaign(requested)) setSelectedId(requested);
+  }, [demo]);
 
   function reducedMotion(): boolean {
     return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
