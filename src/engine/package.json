@@ -23,7 +23,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src scripts",
-    "demo": "tsx scripts/demo-cli.ts"
+    "demo": "tsx scripts/demo-cli.ts",
+    "spike:export": "tsx scripts/spike-export-campaigns.ts"
   },
   "exports": {
     ".": {

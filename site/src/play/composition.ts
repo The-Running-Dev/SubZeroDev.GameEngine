@@ -1,17 +1,13 @@
 import {
-  buildBulgariaBureaucracyCampaign,
-  buildBulgariaDrivingCampaign,
-  buildBulgariaEnterpriseCampaign,
-  buildBulgariaInheritanceCampaign,
-  buildBulgariaReturnCampaign,
-  buildLuciferChroniclesCampaign,
-  buildSakiQuestCampaign,
   buildValidatedContentRegistry,
   createEngine,
   createInMemorySessionStore,
+  fromPortable,
   simulationKind,
   storyGraphKind,
   worldGraphKind,
+  type PortableCampaign,
+  type PortableManifest,
   type SessionPersistence,
   type StoredSaveRecord,
   type SessionStore,
@@ -71,108 +67,55 @@ function browserStorageAvailable(): boolean {
   }
 }
 
-export function createBrowserDemo(): {
-  catalog: readonly BrowserCampaign[];
+// SPIKE: campaigns are runtime-loaded JSON under /campaigns/, not compiled into the
+// engine package. See plans/spike-notes.md. `base` matches Vite's `BASE_URL` so this
+// resolves under a subpath deploy (`/play/`) the same way the rest of the site does.
+async function fetchJson<T>(path: string): Promise<T> {
+  const base = import.meta.env.BASE_URL;
+  const response = await fetch(`${base}campaigns/${path}`);
+  if (!response.ok) throw new Error(`Failed to load ${path}: ${response.status}`);
+  return (await response.json()) as T;
+}
+
+async function loadPortableCampaigns(): Promise<readonly PortableCampaign[]> {
+  const manifest = await fetchJson<PortableManifest>("manifest.json");
+  return Promise.all(manifest.campaigns.map((fileName) => fetchJson<PortableCampaign>(fileName)));
+}
+
+export interface BrowserDemo {
+  readonly catalog: readonly BrowserCampaign[];
   /** Resolves any registered campaign, listed or hidden — the direct-link path for a hidden one. */
   findCampaign(campaignId: string): BrowserCampaign | undefined;
-  store: SessionStore;
-} {
-  const built = [
-    buildLuciferChroniclesCampaign(),
-    buildBulgariaBureaucracyCampaign(),
-    buildBulgariaReturnCampaign(),
-    buildBulgariaDrivingCampaign(),
-    buildBulgariaInheritanceCampaign(),
-    buildBulgariaEnterpriseCampaign(),
-    buildSakiQuestCampaign(),
-  ];
-  if (built.some((result) => !result.ok || result.value === undefined))
-    throw new Error("A playable campaign could not be built.");
-  const campaigns = built.map((result) => result.value!);
+  readonly store: SessionStore;
+}
+
+export async function createBrowserDemo(): Promise<BrowserDemo> {
+  const portables = await loadPortableCampaigns();
+  const hydrated = portables.map((portable) => fromPortable(portable));
+
   const kinds = {
     "story-graph": storyGraphKind,
     simulation: simulationKind,
     "world-graph": worldGraphKind,
   } as const;
-  const registry = buildValidatedContentRegistry(campaigns, kinds);
+  const registry = buildValidatedContentRegistry(
+    hydrated.map((h) => h.built),
+    kinds,
+  );
   if (!registry.ok || !registry.value)
-    throw new Error("The playable catalog could not be validated.");
-  const descriptions = [
-    [
-      "Lucifer Chronicles: The Bulgarian Incident",
-      "A profane, cosmic support ticket through property, paperwork, cars, AI scope creep, and Hell.",
-      "35–50 min",
-      "Strong language, religious satire, dangerous-driving anecdotes, and recognizable parody.",
-      true,
-      false,
-    ],
-    [
-      "The Bureaucracy",
-      "Municipal, cadastral, archive, notary, and translation routes through one determined folder.",
-      "10–15 min per route",
-      "Satirical depictions of public offices, administrative failure, and financial frustration.",
-      false,
-      false,
-    ],
-    [
-      "The Return",
-      "Return to Bulgaria through city, village, or temporary-home routes.",
-      "8–12 min per route",
-      "Themes of migration, family pressure, housing, and homesickness.",
-      false,
-      false,
-    ],
-    [
-      "Driving",
-      "Inspection, road trouble, insurance, towing, and mechanical optimism.",
-      "10–15 min per route",
-      "Dangerous-driving anecdotes, police encounters, breakdowns, and financial loss.",
-      false,
-      false,
-    ],
-    [
-      "Inheritance",
-      "Family property, evidence, neighbours, court, and tomato-adjacent law.",
-      "10–15 min per route",
-      "Family conflict, police and court proceedings, property damage, and abandonment.",
-      false,
-      false,
-    ],
-    [
-      "Enterprise",
-      "Clients, tax, hiring, growth, cashflow, and the price of one more opportunity.",
-      "10–15 min per route",
-      "Debt, bankruptcy, audits, job pressure, and business failure.",
-      false,
-      false,
-    ],
-    [
-      "Saki: Quest for Redemption",
-      "A private five-act arc through consultations, tribunals, and unsolicited grand gestures.",
-      "25–40 min",
-      "Absurdist bureaucratic romance-comedy framing, self-deprecating humor, and unsolicited gestures made without the other party's consent.",
-      false,
-      true,
-    ],
-  ] as const;
-  const all = campaigns.map((campaign, index) => ({
-    campaignId: campaign.campaign.id,
-    title:
-      registry.value!.strings.get(campaign.campaign.titleKey) ??
-      descriptions[index]![0],
-    description: descriptions[index]![1],
-    duration: descriptions[index]![2],
-    contentNotice: descriptions[index]![3],
-    featured: descriptions[index]![4],
-    ...(descriptions[index]![5] ? { hidden: true } : {}),
-    ...(index === 0
-      ? {
-          sources: [
-            { label: "SubZeroDev Blog", href: "https://subzerodev.com" },
-          ],
-        }
-      : {}),
+    throw new Error(`The playable catalog could not be validated: ${JSON.stringify(registry.errors)}`);
+
+  const all = hydrated.map(({ built, catalog }) => ({
+    campaignId: built.campaign.id,
+    title: registry.value!.strings.get(built.campaign.titleKey) ?? catalog.title,
+    description: catalog.description,
+    duration: catalog.duration,
+    contentNotice: catalog.contentNotice,
+    featured: catalog.featured,
+    ...(catalog.hidden ? { hidden: true } : {}),
+    ...(catalog.sources ? { sources: catalog.sources } : {}),
   }));
+
   return {
     catalog: Object.freeze(all.filter((campaign) => !campaign.hidden)),
     findCampaign: (campaignId) =>

@@ -2,8 +2,31 @@ import type { BuiltCampaign } from "../core/registry/types.js";
 import type { CommandResult } from "../core/kernel/reasons.js";
 import type { StoryGraphCampaignSource } from "../kinds/story-graph/source.js";
 import { buildAdventureCampaign, createAdventureSource, migrateV1AdventureState, type AdventureConfig } from "./adventure-builder.js";
+import type { PortableCatalog, PortableMigration } from "../spike/portable.js";
 
 export const BULGARIA_BUREAUCRACY_CAMPAIGN_ID = "bulgaria-bureaucracy";
+
+// SPIKE: catalog card travels with the campaign instead of a positional entry in
+// site/src/play/composition.ts. See plans/spike-notes.md.
+export const bulgariaBureaucracyCatalog: PortableCatalog = {
+  title: "The Bureaucracy",
+  description: "Municipal, cadastral, archive, notary, and translation routes through one determined folder.",
+  duration: "10–15 min per route",
+  contentNotice: "Satirical depictions of public offices, administrative failure, and financial frustration.",
+  featured: false,
+};
+
+const bulgariaBureaucracyMigration: PortableMigration = {
+  fromVersion: "1.0.0",
+  nodeMap: {
+    clerk_review: "registry_route_event_1",
+    expired: "registry_route_1",
+    room_14: "registry_route_event_2",
+    room_6: "registry_route_3",
+    reward: "ending_ultimate_reward",
+  },
+};
+export { bulgariaBureaucracyMigration };
 
 const retainedAchievement: StoryGraphCampaignSource["achievements"][number] = {
   id: "it_builds_character",

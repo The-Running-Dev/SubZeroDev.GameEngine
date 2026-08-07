@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   buildBulgariaBureaucracyCampaign,
   buildBulgariaDrivingCampaign,
@@ -18,19 +18,49 @@ import {
   type Engine,
   type KindRegistry,
 } from "@the-running-dev/game-engine";
+import type { BrowserDemo } from "./composition";
 import { BrowserClient } from "./browser-client";
 import { createBrowserDemo } from "./composition";
+import manifestJson from "../../public/campaigns/manifest.json";
+import bulgariaBureaucracyJson from "../../public/campaigns/bulgaria-bureaucracy.json";
+import sakiQuestJson from "../../public/campaigns/saki-quest-for-redemption.json";
 
 const SEED = "bureaucracy-seed-3";
 
-function makeBrowserClient(): BrowserClient {
-  return new BrowserClient(createBrowserDemo().store);
+// SPIKE: `createBrowserDemo` now fetches runtime campaign JSON instead of importing a
+// compiled-in build. jsdom has no server to fetch from, so `fetch` is stubbed here to
+// return the exact files `npm run spike:export` wrote (statically imported, not a
+// hand-built fixture) — proving the exported files validate through the real registry
+// gate, not just that the pipeline runs. See plans/spike-notes.md.
+const exportedCampaigns: Readonly<Record<string, unknown>> = {
+  "manifest.json": manifestJson,
+  "bulgaria-bureaucracy.json": bulgariaBureaucracyJson,
+  "saki-quest-for-redemption.json": sakiQuestJson,
+};
+const originalFetch = globalThis.fetch;
+
+beforeAll(() => {
+  globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = typeof input === "string" ? input : input.toString();
+    const fileName = url.split("/campaigns/")[1];
+    const body = fileName ? exportedCampaigns[fileName] : undefined;
+    if (body === undefined) throw new Error(`Unstubbed fetch: ${url}`);
+    return new Response(JSON.stringify(body), { status: 200 });
+  }) as typeof fetch;
+});
+
+afterAll(() => {
+  globalThis.fetch = originalFetch;
+});
+
+async function makeBrowserClient(): Promise<BrowserClient> {
+  return new BrowserClient((await createBrowserDemo()).store);
 }
 
 function recordStoreCalls(
-  store: ReturnType<typeof createBrowserDemo>["store"],
+  store: BrowserDemo["store"],
 ): {
-  store: ReturnType<typeof createBrowserDemo>["store"];
+  store: BrowserDemo["store"];
   created: CreateSessionConfig[];
   submitted: ActionParams[];
   previewed: ActionParams[];
@@ -143,14 +173,14 @@ const STORY_CAMPAIGN_IDS = [
 ] as const;
 
 describe("BrowserClient — the API coverage checklist (09-clients.md §4, W61.8)", () => {
-  it("1. listCampaigns — returns the configured Bureaucracy campaign", () => {
-    expect(makeBrowserClient().listCampaigns()).toContainEqual(
+  it("1. listCampaigns — returns the configured Bureaucracy campaign", async () => {
+    expect((await makeBrowserClient()).listCampaigns()).toContainEqual(
       expect.objectContaining({ campaignId: "bulgaria-bureaucracy" }),
     );
   });
 
   it("2. createSession — starts the Bureaucracy arc through the adapter", async () => {
-    const started = await makeBrowserClient().createSession({
+    const started = await (await makeBrowserClient()).createSession({
       campaignId: "bulgaria-bureaucracy",
       seed: SEED,
     });
@@ -158,7 +188,7 @@ describe("BrowserClient — the API coverage checklist (09-clients.md §4, W61.8
   });
 
   it("createSession — fixes the demo audience to player", async () => {
-    const calls = recordStoreCalls(createBrowserDemo().store);
+    const calls = recordStoreCalls((await createBrowserDemo()).store);
     const client = new BrowserClient(calls.store);
     await client.createSession({
       campaignId: "bulgaria-bureaucracy",
@@ -172,7 +202,7 @@ describe("BrowserClient — the API coverage checklist (09-clients.md §4, W61.8
   });
 
   it("3. resumeSession — returns the current scene without changing it", async () => {
-    const client = makeBrowserClient();
+    const client = await makeBrowserClient();
     const started = await client.createSession({
       campaignId: "bulgaria-bureaucracy",
       seed: SEED,
@@ -183,7 +213,7 @@ describe("BrowserClient — the API coverage checklist (09-clients.md §4, W61.8
   });
 
   it("4. getScene — returns the scene created for the same session", async () => {
-    const client = makeBrowserClient();
+    const client = await makeBrowserClient();
     const started = await client.createSession({
       campaignId: "bulgaria-bureaucracy",
       seed: SEED,
@@ -192,7 +222,7 @@ describe("BrowserClient — the API coverage checklist (09-clients.md §4, W61.8
   });
 
   it("5. getView — returns the real StoryGraph player projection", async () => {
-    const client = makeBrowserClient();
+    const client = await makeBrowserClient();
     const started = await client.createSession({
       campaignId: "bulgaria-bureaucracy",
       seed: SEED,
@@ -201,7 +231,7 @@ describe("BrowserClient — the API coverage checklist (09-clients.md §4, W61.8
   });
 
   it("6. getStrings — resolves the Bureaucracy action label", async () => {
-    const client = makeBrowserClient();
+    const client = await makeBrowserClient();
     const started = await client.createSession({
       campaignId: "bulgaria-bureaucracy",
       seed: SEED,
@@ -212,7 +242,7 @@ describe("BrowserClient — the API coverage checklist (09-clients.md §4, W61.8
   });
 
   it("7. submitAction — enters a materially separate route through the adapter", async () => {
-    const client = makeBrowserClient();
+    const client = await makeBrowserClient();
     let state = await client.createSession({
       campaignId: "bulgaria-bureaucracy",
       seed: SEED,
@@ -224,7 +254,7 @@ describe("BrowserClient — the API coverage checklist (09-clients.md §4, W61.8
   });
 
   it("8. previewAction — returns a prospective scene without changing the session", async () => {
-    const client = makeBrowserClient();
+    const client = await makeBrowserClient();
     const started = await client.createSession({
       campaignId: "bulgaria-bureaucracy",
       seed: SEED,
@@ -235,7 +265,7 @@ describe("BrowserClient — the API coverage checklist (09-clients.md §4, W61.8
   });
 
   it("action helpers — forward declared parameters unchanged", async () => {
-    const calls = recordStoreCalls(createBrowserDemo().store);
+    const calls = recordStoreCalls((await createBrowserDemo()).store);
     const client = new BrowserClient(calls.store);
     const started = await client.createSession({
       campaignId: "bulgaria-bureaucracy",
@@ -249,7 +279,7 @@ describe("BrowserClient — the API coverage checklist (09-clients.md §4, W61.8
   });
 
   it("9. saveGame — creates a same-page checkpoint", async () => {
-    const client = makeBrowserClient();
+    const client = await makeBrowserClient();
     const started = await client.createSession({
       campaignId: "bulgaria-bureaucracy",
       seed: SEED,
@@ -260,7 +290,7 @@ describe("BrowserClient — the API coverage checklist (09-clients.md §4, W61.8
   });
 
   it("10. loadGame — restores a fresh session at the checkpoint scene", async () => {
-    const client = makeBrowserClient();
+    const client = await makeBrowserClient();
     const started = await client.createSession({
       campaignId: "bulgaria-bureaucracy",
       seed: SEED,
