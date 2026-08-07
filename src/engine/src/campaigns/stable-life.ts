@@ -1,5 +1,6 @@
 /**
- * Content — the "Stable Life" fixture (10-simulation-kind.md §7, §12; `plans/36`'s W40).
+ * Content — the "Stable Life" fixture (10-simulation-kind.md §7, §12; `plans/36`'s W40,
+ * re-authored onto the real §7 content surface by W52).
  *
  * **A synthetic engine-repo fixture, not the real flagship game's own "Stable Life"
  * scenario.** The real one (`games/03-game-design.md` §16.3, companion
@@ -16,158 +17,152 @@
  * drifts energy down by 3 each week (`endOfWeek.ts`'s `DRIFT_PER_WEEK`) until the
  * `failureConditions` trips. `eat`/`rest` (`resolvers.ts`) are the only two real
  * resolvers this kind has — `rest` is what makes the goal winnable at all.
+ *
+ * **W52 replaces the four literal state blobs this file used to author directly** with one
+ * `ScenarioDefinition` plus the `BackgroundDefinition`/`HousingDefinition`/`LocationDefinition`
+ * it references — `initial.ts` assembles `calendar`/`player`/`economy`/`world` from them the
+ * same way any other campaign's now would. Every value below is chosen to reproduce the
+ * previous literal `startingPlayer`/`startingCalendar` exactly (`initial.ts`'s own
+ * `DEFAULT_PLAYER_NAME`/`DEFAULT_PLAYER_AGE`/`STARTING_ECONOMY` cover the fields no §7
+ * content type sources), so the committed win/loss replay fixtures and the client-parity
+ * golden stay byte-identical — no fixture regeneration needed for this campaign.
  */
 
-import type { AuthoredText, BuiltCampaign, Campaign } from "../core/registry/types.js";
+import type { BuiltCampaign, Campaign } from "../core/registry/types.js";
 import type { CommandResult } from "../core/kernel/reasons.js";
 import { buildCampaign } from "../core/registry/build.js";
-import type { GoalDefinition } from "../kinds/simulation/content.js";
-import type { SimulationCampaign } from "../kinds/simulation/campaign.js";
-import type { CalendarState, EconomyState, WorldState } from "../kinds/simulation/state.js";
-import type { PlayerState } from "../kinds/simulation/actor.js";
+import { buildSimulationCampaign, type SimulationCampaignSource } from "../kinds/simulation/source.js";
 
 export const STABLE_LIFE_CAMPAIGN_ID = "stable-life";
 
-const TITLE: AuthoredText = { key: "stable-life.campaign.title", text: "Stable Life" };
-const DESCRIPTION: AuthoredText = {
-  key: "stable-life.campaign.description",
-  text: "Twelve months to establish something resembling a stable life.",
-};
-const GOAL_LABEL: AuthoredText = { key: "stable-life.goal.well-rested.label", text: "Well Rested" };
-const GOAL_DESCRIPTION: AuthoredText = {
-  key: "stable-life.goal.well-rested.description",
-  text: "Keep your energy at 70 or above for two weeks running.",
-};
-const SCENE_TEMPLATE: AuthoredText = {
-  key: "stable-life.scene.status",
-  text: "Week {week} of Year {year}. Cash: ${cash}. Health {health} · Energy {energy} · Happiness {happiness} · Stress {stress} · Satiety {satiety}.",
-};
-const ACTION_PLAN_ADD_LABEL: AuthoredText = { key: "stable-life.action.plan-add.label", text: "Add to plan" };
-const ACTION_PLAN_REMOVE_LABEL: AuthoredText = { key: "stable-life.action.plan-remove.label", text: "Remove from plan" };
-const ACTION_PLAN_CLEAR_LABEL: AuthoredText = { key: "stable-life.action.plan-clear.label", text: "Clear plan" };
-const ACTION_END_WEEK_LABEL: AuthoredText = { key: "stable-life.action.end-week.label", text: "End week" };
-
-const wellRestedGoal: GoalDefinition = {
-  id: "goal-well-rested",
-  labelKey: GOAL_LABEL.key,
-  descriptionKey: GOAL_DESCRIPTION.key,
-  category: "wellbeing",
-  conditions: { field: "player.needs.energy", operator: "greater_or_equal", value: 70 },
-  requiredDurationWeeks: 2,
-  failureConditions: { field: "player.needs.energy", operator: "less_than", value: 40 },
-};
-
-const startingCalendar: CalendarState = {
-  currentWeek: 1,
-  currentYear: 1,
-  totalTimeUnits: 14,
-  committedTimeUnits: 0,
-  spentTimeUnits: 0,
-};
-
-const startingPlayer: PlayerState = {
-  identity: { actorId: "player", name: "Alex", age: 28, backgroundId: "background-default" },
-  currentLocationId: "home",
-  finances: {
-    cashCents: 20000,
-    savingsCents: 0,
-    debtCents: 0,
-    weeklyIncomeCents: 0,
-    weeklyExpensesCents: 0,
-    overdueBalanceCents: 0,
-    accounts: [],
+export const stableLifeSource: SimulationCampaignSource = {
+  description: {
+    key: "stable-life.campaign.description",
+    text: "Twelve months to establish something resembling a stable life.",
   },
-  needs: { health: 80, energy: 50, happiness: 60, stress: 20, satiety: 80 },
-  attributes: {
-    intelligence: 50, discipline: 50, charisma: 50, creativity: 50,
-    resilience: 50, wisdom: 50, luck: 50,
-  },
-  education: { enrollments: [], credentials: [], completedCourseIds: [], failedCourseIds: [] },
-  career: { history: [], totalWeeksEmployed: 0, pendingApplications: [], highestTierAchieved: "entry" },
-  housing: {
-    definitionId: "housing-default",
-    movedInWeek: 1,
-    ownership: "renting",
-    damage: 0,
-    weeklyCostCents: 5000,
-    depositPaidCents: 0,
-    rentDueWeek: 1,
-    overdueRentCents: 0,
-    missedPayments: 0,
-    evictionStage: "none",
-  },
-  inventory: [],
-  relationships: [],
-  skills: {},
-  traits: [],
-  reputation: {},
-  flags: {},
-  counters: {},
-};
 
-const startingEconomy: EconomyState = {
-  inflation: 200,
-  unemploymentRate: 500,
-  interestRate: 300,
-  sectorDemand: {},
-  marketPrices: {},
-  publishedIndicators: [],
-  flags: {},
-};
-
-const startingWorld: WorldState = {
+  jobs: [],
+  courses: [],
+  housing: [
+    {
+      id: "housing-default",
+      name: { key: "stable-life.housing.default.name", text: "A Small Rental" },
+      description: { key: "stable-life.housing.default.description", text: "Modest, but the rent is due every week regardless." },
+      upfrontCostCents: 0,
+      weeklyCostCents: 5000,
+      capacity: 1,
+      comfort: 50,
+      safety: 50,
+      prestige: 10,
+      storage: 20,
+      commuteModifier: 0,
+      energyRecoveryModifier: 0,
+      happinessModifier: 0,
+      healthModifier: 0,
+      maintenanceRisk: 10,
+      requirements: [],
+      tags: [],
+    },
+  ],
+  items: [],
+  events: [],
   npcs: [],
-  locations: [],
-  jobMarket: { openings: [] },
-  eventCooldowns: {},
-  firedUniqueEvents: [],
-  chainStates: [],
-  strangenessBase: 0,
-  headlinePool: { remainingIds: [], cyclesCompleted: 0 },
-  agents: [],
-  flags: {},
-};
+  goals: [
+    {
+      id: "goal-well-rested",
+      label: { key: "stable-life.goal.well-rested.label", text: "Well Rested" },
+      description: {
+        key: "stable-life.goal.well-rested.description",
+        text: "Keep your energy at 70 or above for two weeks running.",
+      },
+      category: "wellbeing",
+      conditions: { field: "player.needs.energy", operator: "greater_or_equal", value: 70 },
+      requiredDurationWeeks: 2,
+      failureConditions: { field: "player.needs.energy", operator: "less_than", value: 40 },
+    },
+  ],
+  scenarios: [
+    {
+      id: "scenario-stable-life",
+      name: { key: "stable-life.scenario.name", text: "Stable Life" },
+      description: {
+        key: "stable-life.scenario.description",
+        text: "Twelve months to establish something resembling a stable life.",
+      },
+      startingBackgroundIds: ["background-default"],
+      startingCashCents: 20000,
+      startingHousingId: "housing-default",
+      startingLocationId: "home",
+      startingInventory: [],
+      goalIds: ["goal-well-rested"],
+      mode: "classic",
+      goalFailurePrecedence: "goals_win",
+    },
+  ],
+  difficulties: [],
+  opportunities: [],
+  achievements: [],
+  headlines: [],
+  employers: [],
+  locations: [
+    {
+      id: "home",
+      name: { key: "stable-life.location.home.name", text: "Home" },
+      description: { key: "stable-life.location.home.description", text: "Where the week starts and ends." },
+      connections: [],
+      travelTimeUnits: 0,
+      actionTypes: ["eat", "rest", "exercise", "socialize"],
+    },
+  ],
+  backgrounds: [
+    {
+      id: "background-default",
+      name: { key: "stable-life.background.default.name", text: "A Fresh Start" },
+      description: { key: "stable-life.background.default.description", text: "No particular head start, no particular deficit." },
+      startingAttributes: {
+        intelligence: 50, discipline: 50, charisma: 50, creativity: 50,
+        resilience: 50, wisdom: 50, luck: 50,
+      },
+      startingSkills: {},
+      startingCredentials: [],
+      startingTraits: [],
+      startingCashModifierCents: 0,
+    },
+  ],
+  traits: [],
+  skills: [],
 
-const stableLifeContent: SimulationCampaign = {
-  descriptionKey: DESCRIPTION.key,
-  startingCalendar,
-  startingPlayer,
-  startingEconomy,
-  startingWorld,
-  goals: [wellRestedGoal],
+  scenarioId: "scenario-stable-life",
   goalFailurePrecedence: "goals_win",
-  sceneTemplateKey: SCENE_TEMPLATE.key,
-  actionLabelKeys: {
-    planAdd: ACTION_PLAN_ADD_LABEL.key,
-    planRemove: ACTION_PLAN_REMOVE_LABEL.key,
-    planClear: ACTION_PLAN_CLEAR_LABEL.key,
-    endWeek: ACTION_END_WEEK_LABEL.key,
+
+  sceneTemplate: {
+    key: "stable-life.scene.status",
+    text: "Week {week} of Year {year}. Cash: ${cash}. Health {health} · Energy {energy} · Happiness {happiness} · Stress {stress} · Satiety {satiety}.",
+  },
+  actionLabels: {
+    planAdd: { key: "stable-life.action.plan-add.label", text: "Add to plan" },
+    planRemove: { key: "stable-life.action.plan-remove.label", text: "Remove from plan" },
+    planClear: { key: "stable-life.action.plan-clear.label", text: "Clear plan" },
+    endWeek: { key: "stable-life.action.end-week.label", text: "End week" },
   },
 };
 
 /**
- * Assembles the envelope around `stableLifeContent`, then hands both to `buildCampaign`
- * (`registry/build.ts`, kind-agnostic) for the `BuiltCampaign` a registry is assembled
- * from — no simulation-specific source-schema builder exists yet (unlike
- * `buildStoryGraphCampaign`), and this fixture's content is small enough not to need one.
+ * Assembles the envelope around `buildSimulationCampaign(stableLifeSource)`'s output, then
+ * hands both to `buildCampaign` (`registry/build.ts`, kind-agnostic) for the `BuiltCampaign`
+ * a registry is assembled from.
  */
 export function buildStableLifeCampaign(): CommandResult<BuiltCampaign> {
+  const { content, authoredText } = buildSimulationCampaign(stableLifeSource);
   const campaign: Campaign = {
     id: STABLE_LIFE_CAMPAIGN_ID,
     kindId: "simulation",
     version: "1.0.0",
-    titleKey: TITLE.key,
-    content: stableLifeContent,
+    titleKey: "stable-life.campaign.title",
+    content,
   };
   return buildCampaign(campaign, [
-    TITLE,
-    DESCRIPTION,
-    GOAL_LABEL,
-    GOAL_DESCRIPTION,
-    SCENE_TEMPLATE,
-    ACTION_PLAN_ADD_LABEL,
-    ACTION_PLAN_REMOVE_LABEL,
-    ACTION_PLAN_CLEAR_LABEL,
-    ACTION_END_WEEK_LABEL,
+    { key: "stable-life.campaign.title", text: "Stable Life" },
+    ...authoredText,
   ]);
 }

@@ -66,11 +66,12 @@ const state: SimulationKindState = {
 
 const campaignContent: SimulationCampaign = {
   descriptionKey: "sim.description",
-  startingCalendar: state.calendar,
-  startingPlayer: state.player,
-  startingEconomy: state.economy,
-  startingWorld: state.world,
+  jobs: [], courses: [], housing: [], items: [], events: [], npcs: [],
   goals: [],
+  scenarios: [],
+  difficulties: [], opportunities: [], achievements: [], headlines: [], employers: [], locations: [],
+  backgrounds: [], traits: [], skills: [],
+  scenarioId: "",
   goalFailurePrecedence: "goals_win",
   sceneTemplateKey: "sim.scene.status",
   actionLabelKeys: { planAdd: "sim.action.plan-add", planRemove: "sim.action.plan-remove", planClear: "sim.action.plan-clear", endWeek: "sim.action.end-week" },

@@ -2,68 +2,51 @@ import { describe, it, expect } from "vitest";
 import { initialState } from "./initial.js";
 import type { SimulationCampaign } from "./campaign.js";
 import type { Campaign } from "../../core/registry/types.js";
-import type { CalendarState, EconomyState, WorldState } from "./state.js";
-import type { PlayerState } from "./actor.js";
-import type { GoalDefinition } from "./content.js";
+import type { GoalDefinition, BackgroundDefinition, HousingDefinition, ScenarioDefinition, ItemDefinition } from "./content.js";
 
-const startingCalendar: CalendarState = {
-  currentWeek: 1,
-  currentYear: 1,
-  totalTimeUnits: 14,
-  committedTimeUnits: 0,
-  spentTimeUnits: 0,
+const background: BackgroundDefinition = {
+  id: "bg-1",
+  nameKey: "bg.name",
+  descriptionKey: "bg.description",
+  startingAttributes: { intelligence: 50, discipline: 50, charisma: 50, creativity: 50, resilience: 50, wisdom: 50, luck: 50 },
+  startingSkills: {},
+  startingCredentials: [],
+  startingTraits: [],
+  startingCashModifierCents: 0,
 };
 
-const startingPlayer: PlayerState = {
-  identity: { actorId: "player", name: "Test Subject", age: 25, backgroundId: "bg-1" },
-  currentLocationId: "loc-1",
-  finances: { cashCents: 10000, savingsCents: 0, debtCents: 0, weeklyIncomeCents: 0, weeklyExpensesCents: 0, overdueBalanceCents: 0, accounts: [] },
-  needs: { health: 80, energy: 80, happiness: 60, stress: 20, satiety: 80 },
-  attributes: { intelligence: 50, discipline: 50, charisma: 50, creativity: 50, resilience: 50, wisdom: 50, luck: 50 },
-  education: { enrollments: [], credentials: [], completedCourseIds: [], failedCourseIds: [] },
-  career: { history: [], totalWeeksEmployed: 0, pendingApplications: [], highestTierAchieved: "entry" },
-  housing: {
-    definitionId: "housing-1",
-    movedInWeek: 1,
-    ownership: "renting",
-    damage: 0,
-    weeklyCostCents: 5000,
-    depositPaidCents: 0,
-    rentDueWeek: 1,
-    overdueRentCents: 0,
-    missedPayments: 0,
-    evictionStage: "none",
-  },
-  inventory: [],
-  relationships: [],
-  skills: {},
-  traits: [],
-  reputation: {},
-  flags: {},
-  counters: {},
+const housing: HousingDefinition = {
+  id: "housing-1",
+  nameKey: "housing.name",
+  descriptionKey: "housing.description",
+  upfrontCostCents: 0,
+  weeklyCostCents: 5000,
+  capacity: 1,
+  comfort: 50,
+  safety: 50,
+  prestige: 10,
+  storage: 20,
+  commuteModifier: 0,
+  energyRecoveryModifier: 0,
+  happinessModifier: 0,
+  healthModifier: 0,
+  maintenanceRisk: 10,
+  requirements: [],
+  tags: [],
 };
 
-const startingEconomy: EconomyState = {
-  inflation: 200,
-  unemploymentRate: 500,
-  interestRate: 300,
-  sectorDemand: {},
-  marketPrices: {},
-  publishedIndicators: [],
-  flags: {},
-};
-
-const startingWorld: WorldState = {
-  npcs: [],
-  locations: [],
-  jobMarket: { openings: [] },
-  eventCooldowns: {},
-  firedUniqueEvents: [],
-  chainStates: [],
-  strangenessBase: 0,
-  headlinePool: { remainingIds: [], cyclesCompleted: 0 },
-  agents: [],
-  flags: {},
+const scenario: ScenarioDefinition = {
+  id: "scenario-1",
+  nameKey: "scenario.name",
+  descriptionKey: "scenario.description",
+  startingBackgroundIds: ["bg-1"],
+  startingCashCents: 10000,
+  startingHousingId: "housing-1",
+  startingLocationId: "loc-1",
+  startingInventory: [],
+  goalIds: ["goal-happy"],
+  mode: "classic",
+  goalFailurePrecedence: "goals_win",
 };
 
 const goalDefinitions: GoalDefinition[] = [
@@ -78,11 +61,24 @@ const goalDefinitions: GoalDefinition[] = [
 
 const simulationCampaign: SimulationCampaign = {
   descriptionKey: "sim.description",
-  startingCalendar,
-  startingPlayer,
-  startingEconomy,
-  startingWorld,
+  jobs: [],
+  courses: [],
+  housing: [housing],
+  items: [],
+  events: [],
+  npcs: [],
   goals: goalDefinitions,
+  scenarios: [scenario],
+  difficulties: [],
+  opportunities: [],
+  achievements: [],
+  headlines: [],
+  employers: [],
+  locations: [],
+  backgrounds: [background],
+  traits: [],
+  skills: [],
+  scenarioId: "scenario-1",
   goalFailurePrecedence: "goals_win",
   sceneTemplateKey: "sim.scene.status",
   actionLabelKeys: { planAdd: "sim.action.plan-add", planRemove: "sim.action.plan-remove", planClear: "sim.action.plan-clear", endWeek: "sim.action.end-week" },
@@ -97,12 +93,78 @@ const campaign: Campaign = {
 };
 
 describe("initialState", () => {
-  it("carries the campaign's starting calendar, player, economy, and world through unchanged", () => {
+  it("builds the player's identity, location, cash, and housing from the scenario and its referenced content", () => {
     const result = initialState(campaign);
-    expect(result.state.calendar).toEqual(startingCalendar);
-    expect(result.state.player).toEqual(startingPlayer);
-    expect(result.state.economy).toEqual(startingEconomy);
-    expect(result.state.world).toEqual(startingWorld);
+    expect(result.state.player.currentLocationId).toBe("loc-1");
+    expect(result.state.player.finances.cashCents).toBe(10000);
+    expect(result.state.player.identity.backgroundId).toBe("bg-1");
+    expect(result.state.player.housing).toEqual({
+      definitionId: "housing-1",
+      movedInWeek: 1,
+      ownership: "renting",
+      damage: 0,
+      weeklyCostCents: 5000,
+      depositPaidCents: 0,
+      rentDueWeek: 1,
+      overdueRentCents: 0,
+      missedPayments: 0,
+      evictionStage: "none",
+    });
+  });
+
+  it("takes attributes, skills, traits, and the cash modifier from the scenario's backgrounds", () => {
+    const richBackground: BackgroundDefinition = {
+      ...background,
+      id: "bg-rich",
+      startingAttributes: { ...background.startingAttributes, intelligence: 80 },
+      startingSkills: { cooking: 40 },
+      startingTraits: ["frugal"],
+      startingCashModifierCents: 500,
+    };
+    const richScenario: ScenarioDefinition = { ...scenario, startingBackgroundIds: ["bg-rich"] };
+    const richCampaign: SimulationCampaign = {
+      ...simulationCampaign,
+      backgrounds: [richBackground],
+      scenarios: [richScenario],
+    };
+    const result = initialState({ ...campaign, content: richCampaign });
+    expect(result.state.player.attributes.intelligence).toBe(80);
+    expect(result.state.player.skills).toEqual({ cooking: 40 });
+    expect(result.state.player.traits).toEqual(["frugal"]);
+    expect(result.state.player.finances.cashCents).toBe(10500);
+  });
+
+  it("builds inventory instances from the scenario's starting inventory and the matching item definitions", () => {
+    const item: ItemDefinition = {
+      id: "item-book",
+      nameKey: "item.name",
+      descriptionKey: "item.description",
+      category: "misc",
+      purchasePriceCents: 1200,
+      baseResaleValueCents: 400,
+      effects: [],
+      stacking: "stack",
+      requirements: [],
+      tags: [],
+    };
+    const invScenario: ScenarioDefinition = {
+      ...scenario,
+      startingInventory: [{ definitionId: "item-book", quantity: 2 }],
+    };
+    const invCampaign: SimulationCampaign = { ...simulationCampaign, items: [item], scenarios: [invScenario] };
+    const result = initialState({ ...campaign, content: invCampaign });
+    expect(result.state.player.inventory).toEqual([
+      {
+        instanceId: "item-0",
+        definitionId: "item-book",
+        quantity: 2,
+        acquiredWeek: 1,
+        purchasePriceCents: 1200,
+        condition: 100,
+        weeksSinceMaintenance: 0,
+        broken: false,
+      },
+    ]);
   });
 
   it("starts every list field with no campaign-independent entries empty", () => {
