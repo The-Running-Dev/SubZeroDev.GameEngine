@@ -7,6 +7,7 @@ import {
   buildLuciferChroniclesCampaign,
   buildSakiQuestCampaign,
   buildValidatedContentRegistry,
+  buildWhatWouldLuciferDoCampaign,
   createEngine,
   createInMemorySessionStore,
   simulationKind,
@@ -78,6 +79,7 @@ export function createBrowserDemo(): {
   store: SessionStore;
 } {
   const built = [
+    buildWhatWouldLuciferDoCampaign(),
     buildLuciferChroniclesCampaign(),
     buildBulgariaBureaucracyCampaign(),
     buildBulgariaReturnCampaign(),
@@ -97,14 +99,25 @@ export function createBrowserDemo(): {
   const registry = buildValidatedContentRegistry(campaigns, kinds);
   if (!registry.ok || !registry.value)
     throw new Error("The playable catalog could not be validated.");
+  const BLOG_SOURCE = [{ label: "SubZeroDev Blog", href: "https://subzerodev.com" }] as const;
   const descriptions = [
+    [
+      "What Would Lucifer Do?",
+      "Based unfortunately on actual events. Twenty-six real incidents, adapted from the SubZeroDev Blog — predict what he actually did.",
+      "45–60 min",
+      "Strong language, religious satire, dangerous-driving anecdotes, and recognizable parody.",
+      true,
+      false,
+      BLOG_SOURCE,
+    ],
     [
       "Lucifer Chronicles: The Bulgarian Incident",
       "A profane, cosmic support ticket through property, paperwork, cars, AI scope creep, and Hell.",
       "35–50 min",
       "Strong language, religious satire, dangerous-driving anecdotes, and recognizable parody.",
-      true,
       false,
+      false,
+      BLOG_SOURCE,
     ],
     [
       "The Bureaucracy",
@@ -165,13 +178,7 @@ export function createBrowserDemo(): {
     contentNotice: descriptions[index]![3],
     featured: descriptions[index]![4],
     ...(descriptions[index]![5] ? { hidden: true } : {}),
-    ...(index === 0
-      ? {
-          sources: [
-            { label: "SubZeroDev Blog", href: "https://subzerodev.com" },
-          ],
-        }
-      : {}),
+    ...(descriptions[index]!.length > 6 ? { sources: descriptions[index]![6] } : {}),
   }));
   return {
     catalog: Object.freeze(all.filter((campaign) => !campaign.hidden)),
