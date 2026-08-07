@@ -99,7 +99,9 @@ export function createBrowserDemo(): {
   const registry = buildValidatedContentRegistry(campaigns, kinds);
   if (!registry.ok || !registry.value)
     throw new Error("The playable catalog could not be validated.");
-  const BLOG_SOURCE = [{ label: "SubZeroDev Blog", href: "https://subzerodev.com" }] as const;
+  const BLOG_SOURCE = [
+    { label: "SubZeroDev Blog", href: "https://subzerodev.com" },
+  ] as const;
   const descriptions = [
     [
       "What Would Lucifer Do?",
@@ -178,7 +180,9 @@ export function createBrowserDemo(): {
     contentNotice: descriptions[index]![3],
     featured: descriptions[index]![4],
     ...(descriptions[index]![5] ? { hidden: true } : {}),
-    ...(descriptions[index]!.length > 6 ? { sources: descriptions[index]![6] } : {}),
+    ...(descriptions[index]!.length > 6
+      ? { sources: descriptions[index]![6] }
+      : {}),
   }));
   return {
     catalog: Object.freeze(all.filter((campaign) => !campaign.hidden)),
