@@ -18,11 +18,7 @@
         "route": {
           "type": "enum",
           "initial": "registry_route",
-          "values": [
-            "registry_route",
-            "archive_route",
-            "supervisor_route"
-          ]
+          "values": ["registry_route", "archive_route", "supervisor_route"]
         },
         "preparation": {
           "type": "int",

@@ -18,11 +18,7 @@
         "route": {
           "type": "enum",
           "initial": "consultant_route",
-          "values": [
-            "consultant_route",
-            "company_route",
-            "pressure_route"
-          ]
+          "values": ["consultant_route", "company_route", "pressure_route"]
         },
         "preparation": {
           "type": "int",

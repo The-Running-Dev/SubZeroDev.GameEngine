@@ -64,7 +64,10 @@ function localPersistence(): SessionPersistence {
       async delete(id) {
         const raw = await this.get(id);
         localStorage.removeItem(saveKey(id));
-        if (raw && localStorage.getItem(campaignSaveIndexKey(raw.campaignId)) === id)
+        if (
+          raw &&
+          localStorage.getItem(campaignSaveIndexKey(raw.campaignId)) === id
+        )
           localStorage.removeItem(campaignSaveIndexKey(raw.campaignId));
       },
     },
@@ -101,13 +104,16 @@ export function findLocalSave(campaignId: string): string | undefined {
 async function fetchJson<T>(path: string): Promise<T> {
   const base = import.meta.env.BASE_URL;
   const response = await fetch(`${base}campaigns/${path}`);
-  if (!response.ok) throw new Error(`Failed to load ${path}: ${response.status}`);
+  if (!response.ok)
+    throw new Error(`Failed to load ${path}: ${response.status}`);
   return (await response.json()) as T;
 }
 
 async function loadPortableCampaigns(): Promise<readonly PortableCampaign[]> {
   const manifest = await fetchJson<PortableManifest>("manifest.json");
-  return Promise.all(manifest.campaigns.map((fileName) => fetchJson<PortableCampaign>(fileName)));
+  return Promise.all(
+    manifest.campaigns.map((fileName) => fetchJson<PortableCampaign>(fileName)),
+  );
 }
 
 export interface BrowserDemo {
@@ -133,11 +139,14 @@ export async function createBrowserDemo(): Promise<BrowserDemo> {
     kinds,
   );
   if (!registry.ok || !registry.value)
-    throw new Error(`The playable catalog could not be validated: ${JSON.stringify(registry.errors)}`);
+    throw new Error(
+      `The playable catalog could not be validated: ${JSON.stringify(registry.errors)}`,
+    );
 
   const all = hydrated.map(({ built, catalog }) => ({
     campaignId: built.campaign.id,
-    title: registry.value!.strings.get(built.campaign.titleKey) ?? catalog.title,
+    title:
+      registry.value!.strings.get(built.campaign.titleKey) ?? catalog.title,
     description: catalog.description,
     duration: catalog.duration,
     contentNotice: catalog.contentNotice,

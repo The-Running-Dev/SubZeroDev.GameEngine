@@ -95,14 +95,7 @@
         "apology_form": {
           "type": "enum",
           "initial": "none",
-          "values": [
-            "none",
-            "sincere",
-            "formal",
-            "legal",
-            "rpg",
-            "campaign"
-          ]
+          "values": ["none", "sincere", "formal", "legal", "rpg", "campaign"]
         },
         "talked_to_saki": {
           "type": "bool",

@@ -69,9 +69,7 @@ async function makeBrowserClient(): Promise<BrowserClient> {
   return new BrowserClient((await createBrowserDemo()).store);
 }
 
-function recordStoreCalls(
-  store: BrowserDemo["store"],
-): {
+function recordStoreCalls(store: BrowserDemo["store"]): {
   store: BrowserDemo["store"];
   created: CreateSessionConfig[];
   submitted: ActionParams[];
@@ -192,7 +190,9 @@ describe("BrowserClient — the API coverage checklist (09-clients.md §4, W61.8
   });
 
   it("2. createSession — starts the Bureaucracy arc through the adapter", async () => {
-    const started = await (await makeBrowserClient()).createSession({
+    const started = await (
+      await makeBrowserClient()
+    ).createSession({
       campaignId: "bulgaria-bureaucracy",
       seed: SEED,
     });

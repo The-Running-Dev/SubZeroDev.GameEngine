@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type RefObject,
-} from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { SiteFooter, SiteHeader } from "../shared";
 import { BrowserClient, type PlayState } from "./browser-client";
 import { createBrowserDemo, type BrowserDemo } from "./composition";
@@ -346,7 +340,9 @@ function PlayAppReady({ demo }: { demo: BrowserDemo }) {
                     Estimated duration: {selected.duration}
                   </p>
                   {selected.contentNotice && (
-                    <p className="briefing-advisory">{selected.contentNotice}</p>
+                    <p className="briefing-advisory">
+                      {selected.contentNotice}
+                    </p>
                   )}
                   <div className="briefing-actions">
                     <button

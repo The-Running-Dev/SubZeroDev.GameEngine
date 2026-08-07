@@ -38,7 +38,9 @@ describe("accessibility (W65.4)", () => {
   it("briefing", async () => {
     const user = userEvent.setup();
     const { container } = render(<PlayApp />);
-    await user.click(screen.getByRole("button", { name: /The Bureaucracy/i }));
+    await user.click(
+      await screen.findByRole("button", { name: /The Bureaucracy/i }),
+    );
     await scanForViolations(container);
   });
 

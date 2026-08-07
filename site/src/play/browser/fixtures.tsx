@@ -18,7 +18,9 @@ export interface Reached {
 async function mountAndOpen(campaignPattern: RegExp): Promise<Reached> {
   const user = userEvent.setup();
   const { container, unmount } = render(<PlayApp />);
-  await user.click(screen.getByRole("button", { name: campaignPattern }));
+  await user.click(
+    await screen.findByRole("button", { name: campaignPattern }),
+  );
   await user.click(
     screen.getByRole("button", { name: "Load selected adventure" }),
   );

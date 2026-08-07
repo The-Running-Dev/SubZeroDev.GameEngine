@@ -18,11 +18,7 @@
         "route": {
           "type": "enum",
           "initial": "records_route",
-          "values": [
-            "records_route",
-            "neighbour_route",
-            "police_route"
-          ]
+          "values": ["records_route", "neighbour_route", "police_route"]
         },
         "preparation": {
           "type": "int",
