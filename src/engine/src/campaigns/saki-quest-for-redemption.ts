@@ -1,12 +1,14 @@
 /**
  * Saki: Quest for Redemption.
  *
- * A private, personal Lucifer Chronicles story-graph campaign. Deliberately **not**
- * registered in `site/src/play/composition.ts`'s public catalog — the browser demo's
- * catalog is the publication decision, and this campaign is meant to be handed to one
- * person, not listed. It is exported from the package surface like every other campaign so
- * a host can compose it into a private surface when one exists; nothing here invents
- * access control that the engine does not already have.
+ * A private, personal Lucifer Chronicles story-graph campaign. Registered in
+ * `site/src/play/composition.ts` so it is playable through the shared `/play/` page, but
+ * marked `hidden` there — the browser demo's catalog is the publication decision, and this
+ * campaign is deliberately omitted from the public dossier grid. It is reachable only by a
+ * direct `?campaign=saki-quest-for-redemption` link, meant to be handed to one person, not
+ * listed. It is exported from the package surface like every other campaign so a host can
+ * also compose it into a private surface when one exists; nothing here invents access
+ * control that the engine does not already have.
  *
  * Authored directly against `StoryGraphCampaignSource` rather than through
  * `adventure-builder.ts`: that builder produces W64's fixed three-route shape, and this

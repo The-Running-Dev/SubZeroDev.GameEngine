@@ -5,6 +5,7 @@ import {
   buildBulgariaInheritanceCampaign,
   buildBulgariaReturnCampaign,
   buildLuciferChroniclesCampaign,
+  buildSakiQuestCampaign,
   buildValidatedContentRegistry,
   createEngine,
   createInMemorySessionStore,
@@ -23,6 +24,8 @@ export interface BrowserCampaign {
   readonly duration: string;
   readonly contentNotice: string;
   readonly featured: boolean;
+  /** Playable and registered, but omitted from the public dossier grid — reachable only by a direct `?campaign=` link. */
+  readonly hidden?: boolean;
   readonly sources?: readonly { label: string; href: string }[];
 }
 
@@ -70,6 +73,8 @@ function browserStorageAvailable(): boolean {
 
 export function createBrowserDemo(): {
   catalog: readonly BrowserCampaign[];
+  /** Resolves any registered campaign, listed or hidden — the direct-link path for a hidden one. */
+  findCampaign(campaignId: string): BrowserCampaign | undefined;
   store: SessionStore;
 } {
   const built = [
@@ -79,6 +84,7 @@ export function createBrowserDemo(): {
     buildBulgariaDrivingCampaign(),
     buildBulgariaInheritanceCampaign(),
     buildBulgariaEnterpriseCampaign(),
+    buildSakiQuestCampaign(),
   ];
   if (built.some((result) => !result.ok || result.value === undefined))
     throw new Error("A playable campaign could not be built.");
@@ -98,12 +104,14 @@ export function createBrowserDemo(): {
       "35–50 min",
       "Strong language, religious satire, dangerous-driving anecdotes, and recognizable parody.",
       true,
+      false,
     ],
     [
       "The Bureaucracy",
       "Municipal, cadastral, archive, notary, and translation routes through one determined folder.",
       "10–15 min per route",
       "Satirical depictions of public offices, administrative failure, and financial frustration.",
+      false,
       false,
     ],
     [
@@ -112,12 +120,14 @@ export function createBrowserDemo(): {
       "8–12 min per route",
       "Themes of migration, family pressure, housing, and homesickness.",
       false,
+      false,
     ],
     [
       "Driving",
       "Inspection, road trouble, insurance, towing, and mechanical optimism.",
       "10–15 min per route",
       "Dangerous-driving anecdotes, police encounters, breakdowns, and financial loss.",
+      false,
       false,
     ],
     [
@@ -126,6 +136,7 @@ export function createBrowserDemo(): {
       "10–15 min per route",
       "Family conflict, police and court proceedings, property damage, and abandonment.",
       false,
+      false,
     ],
     [
       "Enterprise",
@@ -133,28 +144,39 @@ export function createBrowserDemo(): {
       "10–15 min per route",
       "Debt, bankruptcy, audits, job pressure, and business failure.",
       false,
+      false,
+    ],
+    [
+      "Saki: Quest for Redemption",
+      "A private five-act arc through consultations, tribunals, and unsolicited grand gestures.",
+      "25–40 min",
+      "Absurdist bureaucratic romance-comedy framing, self-deprecating humor, and unsolicited gestures made without the other party's consent.",
+      false,
+      true,
     ],
   ] as const;
+  const all = campaigns.map((campaign, index) => ({
+    campaignId: campaign.campaign.id,
+    title:
+      registry.value!.strings.get(campaign.campaign.titleKey) ??
+      descriptions[index]![0],
+    description: descriptions[index]![1],
+    duration: descriptions[index]![2],
+    contentNotice: descriptions[index]![3],
+    featured: descriptions[index]![4],
+    ...(descriptions[index]![5] ? { hidden: true } : {}),
+    ...(index === 0
+      ? {
+          sources: [
+            { label: "SubZeroDev Blog", href: "https://subzerodev.com" },
+          ],
+        }
+      : {}),
+  }));
   return {
-    catalog: Object.freeze(
-      campaigns.map((campaign, index) => ({
-        campaignId: campaign.campaign.id,
-        title:
-          registry.value!.strings.get(campaign.campaign.titleKey) ??
-          descriptions[index]![0],
-        description: descriptions[index]![1],
-        duration: descriptions[index]![2],
-        contentNotice: descriptions[index]![3],
-        featured: descriptions[index]![4],
-        ...(index === 0
-          ? {
-              sources: [
-                { label: "SubZeroDev Blog", href: "https://subzerodev.com" },
-              ],
-            }
-          : {}),
-      })),
-    ),
+    catalog: Object.freeze(all.filter((campaign) => !campaign.hidden)),
+    findCampaign: (campaignId) =>
+      all.find((campaign) => campaign.campaignId === campaignId),
     store: createInMemorySessionStore({
       engine: createEngine({ kinds, registry: registry.value }),
       registry: registry.value,
