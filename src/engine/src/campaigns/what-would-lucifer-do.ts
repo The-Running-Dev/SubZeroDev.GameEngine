@@ -455,7 +455,7 @@ prediction({
     "identity.",
   wrongOptions: [
     { suffix: "argue", label: "Argue the point line by line with supporting documentation", effects: [put("streak", 0)] },
-    { suffix: "shrink", label: "Quietly shrink the CV to sound more believable", effects: [put("streak", 0)] },
+    { suffix: "shrink", label: "Quietly shrink the CV to sound more believable", effects: [put("streak", 0), inc("reasonable_assumption")] },
   ],
   missReveal:
     "Not quite.\n\n" +
@@ -637,7 +637,7 @@ prediction({
     "entire document.",
   wrongOptions: [
     { suffix: "rewrite", label: "Immediately rewrite everything from scratch", effects: [put("streak", 0)] },
-    { suffix: "human", label: "Escalate to an actual human architect", effects: [put("streak", 0)] },
+    { suffix: "human", label: "Escalate to an actual human architect", effects: [put("streak", 0), inc("reasonable_assumption")] },
     { suffix: "rust", label: "Demand a full rewrite in Rust and reconvene", effects: [put("streak", 0)] },
   ],
   missReveal:
