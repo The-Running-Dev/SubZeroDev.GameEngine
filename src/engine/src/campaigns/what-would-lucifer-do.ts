@@ -42,8 +42,20 @@ import {
 } from "../kinds/story-graph/source.js";
 import type { Consequence, VarValue } from "../kinds/story-graph/variables.js";
 import type { RandomTransition } from "../kinds/story-graph/nodes.js";
+import type { PortableCatalog } from "../spike/portable.js";
 
 export const WHAT_WOULD_LUCIFER_DO_CAMPAIGN_ID = "what-would-lucifer-do";
+
+// SPIKE: catalog card travels with the campaign instead of a positional entry in
+// site/src/play/composition.ts. See plans/spike-notes.md.
+export const whatWouldLuciferDoCatalog: PortableCatalog = {
+  title: "What Would Lucifer Do?",
+  description: "Based unfortunately on actual events. Twenty-six real incidents, adapted from the SubZeroDev Blog — predict what he actually did.",
+  duration: "45–60 min",
+  contentNotice: "Strong language, religious satire, dangerous-driving anecdotes, and recognizable parody.",
+  featured: true,
+  sources: [{ label: "SubZeroDev Blog", href: "https://subzerodev.com" }],
+};
 
 // ---------------------------------------------------------------------------
 // Authoring helpers — same shape as saki-quest-for-redemption.ts

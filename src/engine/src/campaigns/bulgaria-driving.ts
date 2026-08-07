@@ -2,8 +2,29 @@ import type { BuiltCampaign } from "../core/registry/types.js";
 import type { CommandResult } from "../core/kernel/reasons.js";
 import type { StoryGraphCampaignSource } from "../kinds/story-graph/source.js";
 import { buildAdventureCampaign, createAdventureSource, migrateV1AdventureState, type AdventureConfig } from "./adventure-builder.js";
+import type { PortableCatalog, PortableMigration } from "../spike/portable.js";
 
 export const BULGARIA_DRIVING_CAMPAIGN_ID = "bulgaria-driving";
+
+// SPIKE: catalog card travels with the campaign instead of a positional entry in
+// site/src/play/composition.ts. See plans/spike-notes.md.
+export const bulgariaDrivingCatalog: PortableCatalog = {
+  title: "Driving",
+  description: "Inspection, road trouble, insurance, towing, and mechanical optimism.",
+  duration: "10–15 min per route",
+  contentNotice: "Dangerous-driving anecdotes, police encounters, breakdowns, and financial loss.",
+  featured: false,
+};
+
+export const bulgariaDrivingMigration: PortableMigration = {
+  fromVersion: "1.0.0",
+  nodeMap: {
+    bmw_ownership: "repair_route_4",
+    ending_trusting: "ending_trusting_the_mechanic",
+    ending_skeptical: "ending_sold_car",
+  },
+  endingMap: { asked_for_a_second_opinion: "sold_car" },
+};
 
 const config: AdventureConfig = {
   id: BULGARIA_DRIVING_CAMPAIGN_ID,

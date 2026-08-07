@@ -2,8 +2,35 @@ import type { BuiltCampaign } from "../core/registry/types.js";
 import type { CommandResult } from "../core/kernel/reasons.js";
 import type { StoryGraphCampaignSource } from "../kinds/story-graph/source.js";
 import { buildAdventureCampaign, createAdventureSource, migrateV1AdventureState, type AdventureConfig } from "./adventure-builder.js";
+import type { PortableCatalog, PortableMigration } from "../spike/portable.js";
 
 export const BULGARIA_INHERITANCE_CAMPAIGN_ID = "bulgaria-inheritance";
+
+// SPIKE: catalog card travels with the campaign instead of a positional entry in
+// site/src/play/composition.ts. See plans/spike-notes.md.
+export const bulgariaInheritanceCatalog: PortableCatalog = {
+  title: "Inheritance",
+  description: "Family property, evidence, neighbours, court, and tomato-adjacent law.",
+  duration: "10–15 min per route",
+  contentNotice: "Family conflict, police and court proceedings, property damage, and abandonment.",
+  featured: false,
+};
+
+export const bulgariaInheritanceMigration: PortableMigration = {
+  fromVersion: "1.0.0",
+  nodeMap: {
+    village_life: "neighbour_route_1",
+    family_meeting: "neighbour_route_4",
+    ending_avoided: "ending_abandonment",
+    ending_unresolved: "ending_family_war",
+    ending_resolved: "ending_settlement",
+  },
+  endingMap: {
+    avoided_the_inheritance: "abandonment",
+    the_argument_continues: "family_war",
+    the_documents_settle_it: "settlement",
+  },
+};
 
 const config: AdventureConfig = {
   id: BULGARIA_INHERITANCE_CAMPAIGN_ID,

@@ -2,8 +2,24 @@ import type { BuiltCampaign } from "../core/registry/types.js";
 import type { CommandResult } from "../core/kernel/reasons.js";
 import type { StoryGraphCampaignSource } from "../kinds/story-graph/source.js";
 import { buildAdventureCampaign, createAdventureSource, migrateV1AdventureState, type AdventureConfig } from "./adventure-builder.js";
+import type { PortableCatalog, PortableMigration } from "../spike/portable.js";
 
 export const BULGARIA_RETURN_CAMPAIGN_ID = "bulgaria-return";
+
+// SPIKE: catalog card travels with the campaign instead of a positional entry in
+// site/src/play/composition.ts. See plans/spike-notes.md.
+export const bulgariaReturnCatalog: PortableCatalog = {
+  title: "The Return",
+  description: "Return to Bulgaria through city, village, or temporary-home routes.",
+  duration: "8–12 min per route",
+  contentNotice: "Themes of migration, family pressure, housing, and homesickness.",
+  featured: false,
+};
+
+export const bulgariaReturnMigration: PortableMigration = {
+  fromVersion: "1.0.0",
+  nodeMap: { home_again: "ending_home_again" },
+};
 
 const config: AdventureConfig = {
   id: BULGARIA_RETURN_CAMPAIGN_ID,

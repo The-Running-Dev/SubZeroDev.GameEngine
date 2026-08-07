@@ -25,7 +25,7 @@ describe("viewport control (W65.2)", () => {
       await page.viewport(width, 800);
       render(<PlayApp />);
       expect(
-        screen.getByRole("heading", { name: "Adventure disk library" }),
+        await screen.findByRole("heading", { name: "Adventure disk library" }),
       ).toBeVisible();
       assertNoHorizontalOverflow();
     },

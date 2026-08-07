@@ -10,8 +10,34 @@ import type { CommandResult } from "../core/kernel/reasons.js";
 import { buildCampaign } from "../core/registry/build.js";
 import { buildStoryGraphCampaign, type NodeSource, type StoryGraphCampaignSource } from "../kinds/story-graph/source.js";
 import { migrateV1AdventureState } from "./adventure-builder.js";
+import type { PortableCatalog, PortableMigration } from "../spike/portable.js";
 
 export const LUCIFER_CHRONICLES_CAMPAIGN_ID = "lucifer-chronicles";
+
+// SPIKE: catalog card travels with the campaign instead of a positional entry in
+// site/src/play/composition.ts. See plans/spike-notes.md.
+export const luciferChroniclesCatalog: PortableCatalog = {
+  title: "Lucifer Chronicles: The Bulgarian Incident",
+  description: "A profane, cosmic support ticket through property, paperwork, cars, AI scope creep, and Hell.",
+  duration: "35–50 min",
+  contentNotice: "Strong language, religious satire, dangerous-driving anecdotes, and recognizable parody.",
+  featured: false,
+  sources: [{ label: "SubZeroDev Blog", href: "https://subzerodev.com" }],
+};
+
+const legacyNodeMap: Readonly<Record<string, string>> = Object.fromEntries([
+  ...["incident_resolved", "it_builds_character", "room_14_resident", "tomato_jurisprudence", "bought_some_land", "permission_to_exist", "future_me_unanswered", "another_product", "uncategorizable_ben", "well_why_not"].map((id) => [`ben_ending_${id}`, "ben_ending_the_builder"]),
+  ...["ticket_closed", "customer_support", "governor_of_alive", "escape_hatch_missing", "fly_treaty", "fly_statistic", "agents_failed", "platform_outbreak", "invites_ben", "that_one_is_ours"].map((id) => [`lucifer_ending_${id}`, "lucifer_ending_support_manager"]),
+]);
+const legacyEndingMap: Readonly<Record<string, string>> = Object.fromEntries([
+  ...["incident_resolved", "it_builds_character", "room_14_resident", "tomato_jurisprudence", "bought_some_land", "permission_to_exist", "future_me_unanswered", "another_product", "uncategorizable_ben", "well_why_not"].map((id) => [`ben_${id}`, "ben_the_builder"]),
+  ...["ticket_closed", "customer_support", "governor_of_alive", "escape_hatch_missing", "fly_treaty", "fly_statistic", "agents_failed", "platform_outbreak", "invites_ben", "that_one_is_ours"].map((id) => [`lucifer_${id}`, "lucifer_support_manager"]),
+]);
+export const luciferChroniclesMigration: PortableMigration = {
+  fromVersion: "1.0.0",
+  nodeMap: legacyNodeMap,
+  endingMap: legacyEndingMap,
+};
 
 type Step = readonly [text: string, literal: string, literalReply: string, absurd: string, absurdReply: string];
 type Act = { id: string; title: string; steps: readonly Step[] };
@@ -241,14 +267,6 @@ const TITLE: AuthoredText = { key: "lucifer.campaign.title", text: "Lucifer Chro
 
 export function buildLuciferChroniclesCampaign(source: StoryGraphCampaignSource = luciferChroniclesSource): CommandResult<BuiltCampaign> {
   const { content, authoredText } = buildStoryGraphCampaign(source);
-  const legacyNodeMap = Object.fromEntries([
-    ...["incident_resolved", "it_builds_character", "room_14_resident", "tomato_jurisprudence", "bought_some_land", "permission_to_exist", "future_me_unanswered", "another_product", "uncategorizable_ben", "well_why_not"].map((id) => [`ben_ending_${id}`, "ben_ending_the_builder"]),
-    ...["ticket_closed", "customer_support", "governor_of_alive", "escape_hatch_missing", "fly_treaty", "fly_statistic", "agents_failed", "platform_outbreak", "invites_ben", "that_one_is_ours"].map((id) => [`lucifer_ending_${id}`, "lucifer_ending_support_manager"]),
-  ]);
-  const legacyEndingMap = Object.fromEntries([
-    ...["incident_resolved", "it_builds_character", "room_14_resident", "tomato_jurisprudence", "bought_some_land", "permission_to_exist", "future_me_unanswered", "another_product", "uncategorizable_ben", "well_why_not"].map((id) => [`ben_${id}`, "ben_the_builder"]),
-    ...["ticket_closed", "customer_support", "governor_of_alive", "escape_hatch_missing", "fly_treaty", "fly_statistic", "agents_failed", "platform_outbreak", "invites_ben", "that_one_is_ours"].map((id) => [`lucifer_${id}`, "lucifer_support_manager"]),
-  ]);
   const campaign: Campaign = {
     id: LUCIFER_CHRONICLES_CAMPAIGN_ID,
     kindId: "story-graph",

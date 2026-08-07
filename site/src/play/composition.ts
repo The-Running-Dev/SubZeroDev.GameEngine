@@ -1,18 +1,13 @@
 import {
-  buildBulgariaBureaucracyCampaign,
-  buildBulgariaDrivingCampaign,
-  buildBulgariaEnterpriseCampaign,
-  buildBulgariaInheritanceCampaign,
-  buildBulgariaReturnCampaign,
-  buildLuciferChroniclesCampaign,
-  buildSakiQuestCampaign,
   buildValidatedContentRegistry,
-  buildWhatWouldLuciferDoCampaign,
   createEngine,
   createInMemorySessionStore,
+  fromPortable,
   simulationKind,
   storyGraphKind,
   worldGraphKind,
+  type PortableCampaign,
+  type PortableManifest,
   type SessionPersistence,
   type StoredSaveRecord,
   type SessionStore,
@@ -30,6 +25,19 @@ export interface BrowserCampaign {
   readonly sources?: readonly { label: string; href: string }[];
 }
 
+// The `SaveRecordStore` contract keys every operation by `saveId` (types.ts): `get`/`put`/
+// `delete` must agree with each other, or a save written under one key is simply never
+// found again by `loadGame`. A campaign->saveId index lives alongside it, under the same
+// key prefix, so the UI can offer "resume" without the store contract growing a query it
+// doesn't otherwise need.
+function saveKey(saveId: string): string {
+  return `subzerodev.play.save.v1.${saveId}`;
+}
+
+function campaignSaveIndexKey(campaignId: string): string {
+  return `subzerodev.play.save.v1.index.${campaignId}`;
+}
+
 function localPersistence(): SessionPersistence {
   const sessions = new Map();
   return {
@@ -43,19 +51,24 @@ function localPersistence(): SessionPersistence {
     },
     saves: {
       async get(id) {
-        const raw = localStorage.getItem(`subzerodev.play.save.v1.${id}`);
+        const raw = localStorage.getItem(saveKey(id));
         return raw ? (JSON.parse(raw) as StoredSaveRecord) : undefined;
       },
       async put(record) {
+        localStorage.setItem(saveKey(record.saveId), JSON.stringify(record));
         localStorage.setItem(
-          `subzerodev.play.save.v1.${record.campaignId}`,
-          JSON.stringify(record),
+          campaignSaveIndexKey(record.campaignId),
+          record.saveId,
         );
       },
       async delete(id) {
         const raw = await this.get(id);
-        if (raw)
-          localStorage.removeItem(`subzerodev.play.save.v1.${raw.campaignId}`);
+        localStorage.removeItem(saveKey(id));
+        if (
+          raw &&
+          localStorage.getItem(campaignSaveIndexKey(raw.campaignId)) === id
+        )
+          localStorage.removeItem(campaignSaveIndexKey(raw.campaignId));
       },
     },
   };
@@ -72,122 +85,81 @@ function browserStorageAvailable(): boolean {
   }
 }
 
-export function createBrowserDemo(): {
-  catalog: readonly BrowserCampaign[];
+/** The saveId of the most recent local save for a campaign, if any -- the resume affordance
+ *  the `SaveRecordStore` contract has no query for, since it is keyed by saveId alone. Guarded
+ *  the same way `browserStorageAvailable` is: storage can be absent or throw (private
+ *  browsing, disabled cookies), and this is called unconditionally from render. */
+export function findLocalSave(campaignId: string): string | undefined {
+  if (!browserStorageAvailable()) return undefined;
+  try {
+    return localStorage.getItem(campaignSaveIndexKey(campaignId)) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+// SPIKE: campaigns are runtime-loaded JSON under /campaigns/, not compiled into the
+// engine package. See plans/spike-notes.md. `base` matches Vite's `BASE_URL` so this
+// resolves under a subpath deploy (`/play/`) the same way the rest of the site does.
+async function fetchJson<T>(path: string): Promise<T> {
+  const base = import.meta.env.BASE_URL;
+  const response = await fetch(`${base}campaigns/${path}`);
+  if (!response.ok)
+    throw new Error(`Failed to load ${path}: ${response.status}`);
+  return (await response.json()) as T;
+}
+
+async function loadPortableCampaigns(): Promise<readonly PortableCampaign[]> {
+  const manifest = await fetchJson<PortableManifest>("manifest.json");
+  return Promise.all(
+    manifest.campaigns.map((fileName) => fetchJson<PortableCampaign>(fileName)),
+  );
+}
+
+export interface BrowserDemo {
+  readonly catalog: readonly BrowserCampaign[];
   /** Resolves any registered campaign, listed or hidden — the direct-link path for a hidden one. */
   findCampaign(campaignId: string): BrowserCampaign | undefined;
-  store: SessionStore;
-} {
-  const built = [
-    buildWhatWouldLuciferDoCampaign(),
-    buildLuciferChroniclesCampaign(),
-    buildBulgariaBureaucracyCampaign(),
-    buildBulgariaReturnCampaign(),
-    buildBulgariaDrivingCampaign(),
-    buildBulgariaInheritanceCampaign(),
-    buildBulgariaEnterpriseCampaign(),
-    buildSakiQuestCampaign(),
-  ];
-  if (built.some((result) => !result.ok || result.value === undefined))
-    throw new Error("A playable campaign could not be built.");
-  const campaigns = built.map((result) => result.value!);
+  /** The saveId of the most recent local save for a campaign, if any. */
+  findLocalSave(campaignId: string): string | undefined;
+  readonly store: SessionStore;
+}
+
+export async function createBrowserDemo(): Promise<BrowserDemo> {
+  const portables = await loadPortableCampaigns();
+  const hydrated = portables.map((portable) => fromPortable(portable));
+
   const kinds = {
     "story-graph": storyGraphKind,
     simulation: simulationKind,
     "world-graph": worldGraphKind,
   } as const;
-  const registry = buildValidatedContentRegistry(campaigns, kinds);
+  const registry = buildValidatedContentRegistry(
+    hydrated.map((h) => h.built),
+    kinds,
+  );
   if (!registry.ok || !registry.value)
-    throw new Error("The playable catalog could not be validated.");
-  const BLOG_SOURCE = [
-    { label: "SubZeroDev Blog", href: "https://subzerodev.com" },
-  ] as const;
-  const descriptions = [
-    [
-      "What Would Lucifer Do?",
-      "Based unfortunately on actual events. Twenty-six real incidents, adapted from the SubZeroDev Blog — predict what he actually did.",
-      "45–60 min",
-      "Strong language, religious satire, dangerous-driving anecdotes, and recognizable parody.",
-      true,
-      false,
-      BLOG_SOURCE,
-    ],
-    [
-      "Lucifer Chronicles: The Bulgarian Incident",
-      "A profane, cosmic support ticket through property, paperwork, cars, AI scope creep, and Hell.",
-      "35–50 min",
-      "Strong language, religious satire, dangerous-driving anecdotes, and recognizable parody.",
-      false,
-      false,
-      BLOG_SOURCE,
-    ],
-    [
-      "The Bureaucracy",
-      "Municipal, cadastral, archive, notary, and translation routes through one determined folder.",
-      "10–15 min per route",
-      "Satirical depictions of public offices, administrative failure, and financial frustration.",
-      false,
-      false,
-    ],
-    [
-      "The Return",
-      "Return to Bulgaria through city, village, or temporary-home routes.",
-      "8–12 min per route",
-      "Themes of migration, family pressure, housing, and homesickness.",
-      false,
-      false,
-    ],
-    [
-      "Driving",
-      "Inspection, road trouble, insurance, towing, and mechanical optimism.",
-      "10–15 min per route",
-      "Dangerous-driving anecdotes, police encounters, breakdowns, and financial loss.",
-      false,
-      false,
-    ],
-    [
-      "Inheritance",
-      "Family property, evidence, neighbours, court, and tomato-adjacent law.",
-      "10–15 min per route",
-      "Family conflict, police and court proceedings, property damage, and abandonment.",
-      false,
-      false,
-    ],
-    [
-      "Enterprise",
-      "Clients, tax, hiring, growth, cashflow, and the price of one more opportunity.",
-      "10–15 min per route",
-      "Debt, bankruptcy, audits, job pressure, and business failure.",
-      false,
-      false,
-    ],
-    [
-      "Saki: Quest for Redemption",
-      "A private five-act arc through consultations, tribunals, and unsolicited grand gestures.",
-      "25–40 min",
-      "Absurdist bureaucratic romance-comedy framing, self-deprecating humor, and unsolicited gestures made without the other party's consent.",
-      false,
-      true,
-    ],
-  ] as const;
-  const all = campaigns.map((campaign, index) => ({
-    campaignId: campaign.campaign.id,
+    throw new Error(
+      `The playable catalog could not be validated: ${JSON.stringify(registry.errors)}`,
+    );
+
+  const all = hydrated.map(({ built, catalog }) => ({
+    campaignId: built.campaign.id,
     title:
-      registry.value!.strings.get(campaign.campaign.titleKey) ??
-      descriptions[index]![0],
-    description: descriptions[index]![1],
-    duration: descriptions[index]![2],
-    contentNotice: descriptions[index]![3],
-    featured: descriptions[index]![4],
-    ...(descriptions[index]![5] ? { hidden: true } : {}),
-    ...(descriptions[index]!.length > 6
-      ? { sources: descriptions[index]![6] }
-      : {}),
+      registry.value!.strings.get(built.campaign.titleKey) ?? catalog.title,
+    description: catalog.description,
+    duration: catalog.duration,
+    contentNotice: catalog.contentNotice,
+    featured: catalog.featured,
+    ...(catalog.hidden ? { hidden: true } : {}),
+    ...(catalog.sources ? { sources: catalog.sources } : {}),
   }));
+
   return {
     catalog: Object.freeze(all.filter((campaign) => !campaign.hidden)),
     findCampaign: (campaignId) =>
       all.find((campaign) => campaign.campaignId === campaignId),
+    findLocalSave,
     store: createInMemorySessionStore({
       engine: createEngine({ kinds, registry: registry.value }),
       registry: registry.value,

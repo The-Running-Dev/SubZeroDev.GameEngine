@@ -69,8 +69,7 @@
 .archive h1,
 .cabinet h1,
 .briefing h2,
-.status-console h2,
-.play-notice h2 {
+.status-console h2 {
   font-family: inherit;
   font-weight: 700;
   letter-spacing: -0.05em;
@@ -235,6 +234,28 @@
   font-size: 2.5rem;
   justify-content: center;
   min-height: 6rem;
+}
+
+.briefing-advisory {
+  border-left: 3px solid var(--amber);
+  color: var(--ink);
+  font-size: 0.875rem;
+  padding-left: 0.75rem;
+}
+
+.briefing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.briefing-permalink {
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.briefing-permalink a {
+  color: var(--cyan);
 }
 
 .cabinet-marquee {
@@ -618,36 +639,6 @@
   text-transform: uppercase;
 }
 
-.notice-backdrop {
-  align-items: center;
-  background: #02030deb;
-  display: flex;
-  inset: 0;
-  justify-content: center;
-  padding: 1rem;
-  position: fixed;
-  z-index: 10;
-}
-
-.play-notice {
-  background: #07134a;
-  border: 4px double var(--amber);
-  box-shadow: 8px 8px 0 #000;
-  color: var(--muted);
-  max-width: 35rem;
-  padding: clamp(1.25rem, 4vw, 2rem);
-}
-
-.play-notice h2 {
-  color: var(--ink);
-  font-size: clamp(1.4rem, 4vw, 2rem);
-  margin: 0.5rem 0;
-}
-
-.play-notice > p:not(.eyebrow) {
-  line-height: 1.6;
-}
-
 .accent-ember {
   --magenta: #ff5e3a;
   --cyan: #ffba39;
@@ -842,8 +833,7 @@
   .status-console,
   .dossier,
   .briefing,
-  .action-card button,
-  .play-notice {
+  .action-card button {
     border: 2px solid CanvasText;
     box-shadow: none;
   }

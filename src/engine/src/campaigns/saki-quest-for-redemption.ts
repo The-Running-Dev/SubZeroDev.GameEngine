@@ -31,6 +31,18 @@ import type { RandomTransition } from "../kinds/story-graph/nodes.js";
 
 export const SAKI_QUEST_CAMPAIGN_ID = "saki-quest-for-redemption";
 
+// SPIKE: catalog card travels with the campaign instead of a positional entry in
+// site/src/play/composition.ts. See plans/spike-notes.md.
+export const sakiQuestCatalog: import("../spike/portable.js").PortableCatalog = {
+  title: "Saki: Quest for Redemption",
+  description: "A private five-act arc through consultations, tribunals, and unsolicited grand gestures.",
+  duration: "25–40 min",
+  contentNotice:
+    "Absurdist bureaucratic romance-comedy framing, self-deprecating humor, and unsolicited gestures made without the other party's consent.",
+  featured: false,
+  hidden: true,
+};
+
 // ---------------------------------------------------------------------------
 // Authoring helpers
 // ---------------------------------------------------------------------------

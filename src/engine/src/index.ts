@@ -41,6 +41,10 @@ export {
 } from "./campaigns/what-would-lucifer-do.js";
 export { ENGINE_VERSION } from "./version.js";
 
+// SPIKE: runtime campaign loading. See plans/spike-notes.md — not a contract export.
+export { fromPortable } from "./spike/portable.js";
+export type { PortableCampaign, PortableCatalog, PortableManifest } from "./spike/portable.js";
+
 export type { Engine } from "./core/kernel/types.js";
 export type { EngineHost, SessionHost } from "./core/composition/types.js";
 export type { IdSource, Clock } from "./core/composition/types.js";
