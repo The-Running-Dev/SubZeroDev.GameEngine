@@ -13,7 +13,13 @@ import { mkdir, writeFile } from "node:fs/promises";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { buildWhatWouldLuciferDoCampaign, whatWouldLuciferDoCatalog } from "../src/campaigns/what-would-lucifer-do.js";
+import { buildLuciferChroniclesCampaign, luciferChroniclesCatalog, luciferChroniclesMigration } from "../src/campaigns/lucifer-chronicles.js";
 import { buildBulgariaBureaucracyCampaign, bulgariaBureaucracyCatalog, bulgariaBureaucracyMigration } from "../src/campaigns/bulgaria-bureaucracy.js";
+import { buildBulgariaReturnCampaign, bulgariaReturnCatalog, bulgariaReturnMigration } from "../src/campaigns/bulgaria-return.js";
+import { buildBulgariaDrivingCampaign, bulgariaDrivingCatalog, bulgariaDrivingMigration } from "../src/campaigns/bulgaria-driving.js";
+import { buildBulgariaInheritanceCampaign, bulgariaInheritanceCatalog, bulgariaInheritanceMigration } from "../src/campaigns/bulgaria-inheritance.js";
+import { buildBulgariaEnterpriseCampaign, bulgariaEnterpriseCatalog, bulgariaEnterpriseMigration } from "../src/campaigns/bulgaria-enterprise.js";
 import { buildSakiQuestCampaign, sakiQuestCatalog } from "../src/campaigns/saki-quest-for-redemption.js";
 import { toPortable, type PortableCampaign } from "../src/spike/portable.js";
 import type { BuiltCampaign } from "../src/core/registry/types.js";
@@ -29,7 +35,13 @@ interface Entry {
 }
 
 const entries: readonly Entry[] = [
+  { build: buildWhatWouldLuciferDoCampaign, catalog: whatWouldLuciferDoCatalog },
+  { build: buildLuciferChroniclesCampaign, catalog: luciferChroniclesCatalog, migration: luciferChroniclesMigration },
   { build: buildBulgariaBureaucracyCampaign, catalog: bulgariaBureaucracyCatalog, migration: bulgariaBureaucracyMigration },
+  { build: buildBulgariaReturnCampaign, catalog: bulgariaReturnCatalog, migration: bulgariaReturnMigration },
+  { build: buildBulgariaDrivingCampaign, catalog: bulgariaDrivingCatalog, migration: bulgariaDrivingMigration },
+  { build: buildBulgariaInheritanceCampaign, catalog: bulgariaInheritanceCatalog, migration: bulgariaInheritanceMigration },
+  { build: buildBulgariaEnterpriseCampaign, catalog: bulgariaEnterpriseCatalog, migration: bulgariaEnterpriseMigration },
   { build: buildSakiQuestCampaign, catalog: sakiQuestCatalog },
 ];
 

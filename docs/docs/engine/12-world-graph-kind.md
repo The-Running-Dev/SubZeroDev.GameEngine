@@ -1411,7 +1411,12 @@ so a disagreement is a client showing an option the engine will refuse — the f
 ## 11. Reason Codes
 
 Codes this kind adds to the base set (`Kind.reasonCodes`, 04 §3, §12). Each needs a
-localized message or registry validation fails:
+localized message or registry validation fails. They divide by *when they are checked*, and
+the division matters because the two halves reach different audiences — the same split
+[`03-story-graph-kind.md`](03-story-graph-kind.md) §8.3 makes for the flagship kind.
+
+**Resolution codes — checked at action time, reported to the player.** These ride out on a
+rejected `AdvanceResult.error` (and its accompanying `OutcomeMessage`, 04 §3).
 
 | Code | When |
 |---|---|
@@ -1431,6 +1436,59 @@ localized message or registry validation fails:
 
 Reused from the base set: `unknown_action`, `requirement_unmet`, `session_ended`,
 `action_not_available`.
+
+**Validation codes — checked at registry build time, reported to the author.** These are
+this kind's own `validateCampaign` findings (§15), and a player never sees one: a campaign
+carrying any Tier-1 code among them never reaches a frozen registry at all (04 §11). They are
+registered on `Kind.reasonCodes` alongside the resolution codes because the completeness rule
+is the same one — every registered code owes a localized message (04 §12).
+
+This kind's list is long because its content is: a map, a terrain graph, ten catalogues and a
+scenario are all validated, and a single `invalid_definition` covering all of them would tell
+an author nothing about which of twenty-odd shapes was wrong. That is a deliberate trade of
+vocabulary size for author-facing precision, and it is the reason this half is enumerated
+rather than summarized.
+
+| Code | Tier | When |
+|---|---|---|
+| `invalid_world_graph_content` | 1 | `Campaign.content` is not shaped like world-graph content at all |
+| `invalid_kind` | 1 | the campaign's declared kind is not `world-graph` |
+| `invalid_id` | 1 | an id is missing, empty, or contains a `.` (§3.2's one shape constraint) |
+| `duplicate_id` | 1 | the same id is used twice within one catalogue |
+| `unknown_reference` | 1 | a reference names an id absent from its catalogue |
+| `invalid_array` | 1 | a required catalogue array is missing |
+| `invalid_definition` | 1 | a catalogue entry is not a valid definition |
+| `invalid_definition_text` | 1 | a definition has no name or description key |
+| `missing_string_key` | 1 | a referenced `LocKey` is not declared (reused from the base set's own meaning, 04 §12) |
+| `invalid_integer` | 1 | a numeric field that must be a positive integer is not |
+| `unsafe_integer` | 1 | a number falls outside the safe integer range |
+| `invalid_cost` | 1 | a cost is negative |
+| `invalid_condition` | 1 | a `Condition` is malformed |
+| `condition_depth_exceeded` | 1 | a `Condition` nests deeper than the allowed limit |
+| `invalid_effect` | 1 | an effect is malformed |
+| `invalid_counter_increment` | 1 | a counter increment is not a non-negative integer |
+| `position_out_of_bounds` | 1 | an authored position falls outside the map |
+| `missing_spawn` | 1 | the map declares no guest spawn point (§3.2 requires at least one) |
+| `missing_exit` | 1 | the map declares no exit (§3.2 requires at least one) |
+| `spawn_not_traversable` | 1 | a spawn point sits on non-walkable terrain |
+| `exit_not_traversable` | 1 | an exit sits on non-walkable terrain |
+| `invalid_edge_cost` | 1 | an explicit `PathCell.edgeCost` is not positive |
+| `invalid_footprint` | 1 | a building footprint is not a positive size |
+| `invalid_building_geometry` | 1 | a building declares no entrances or no allowed rotations |
+| `invalid_inventory` | 1 | inventory units or capacity are inconsistent |
+| `invalid_work_rate` | 1 | a staff work rate is not positive effort per tick |
+| `invalid_time_limit_pair` | 1 | a scenario declares a time limit without its failure, or the reverse |
+| `disconnected_map` | 2 | the map has no traversable edges |
+| `inert_scenario` | 2 | a scenario declares neither objectives nor failures |
+
+`duplicate_id` and `missing_string_key` are the two names that also exist elsewhere —
+`duplicate_id` in `story-graph` and `simulation`, `missing_string_key` in the base set. That
+is deliberate reuse of a meaning, not a collision: `ReasonCode` is a flat string vocabulary
+namespaced only by the *message* key (`world-graph.reason.duplicate_id`), so the same failure
+reads the same way across kinds and a client switching on it needs no per-kind branch.
+
+The shipped set lives in `src/engine/src/kinds/world-graph/reasons.ts`, and
+`validate.ts` is the only producer of this half.
 
 ---
 

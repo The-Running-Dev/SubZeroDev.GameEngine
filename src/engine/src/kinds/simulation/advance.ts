@@ -35,8 +35,18 @@ const PLAN_CHANGED_EVENT = "kind.simulation.plan.changed";
 const ACTION_RESOLVED_EVENT = "kind.simulation.action.resolved";
 const WEEK_ENDED_EVENT = "kind.simulation.week.ended";
 
+/** A rejection carries the player-facing message as well as the error (04 §3): `error`
+ *  tells the core *that* the action failed, `messages` is what tells the player, and a
+ *  client that renders only `messages` must not be handed silence. Same convention as
+ *  `story-graph/advance.ts` and `world-graph/actions/common.ts`. */
 function rejected(state: SimulationKindState, code: string, messageKey: string): AdvanceResult<SimulationKindState> {
-  return { state, status: "active", changes: [], messages: [], error: { code, messageKey } };
+  return {
+    state,
+    status: "active",
+    changes: [],
+    messages: [{ key: messageKey, visible: true }],
+    error: { code, messageKey },
+  };
 }
 
 /** Structurally unreachable given this kind's own invariant (`initial.ts`: a live game

@@ -35,6 +35,10 @@ export { buildLuciferChroniclesCampaign, LUCIFER_CHRONICLES_CAMPAIGN_ID } from "
 // Private campaign: playable via `/play/` but marked `hidden` in
 // `site/src/play/composition.ts`, so it never appears in the public dossier grid.
 export { buildSakiQuestCampaign, SAKI_QUEST_CAMPAIGN_ID } from "./campaigns/saki-quest-for-redemption.js";
+export {
+  buildWhatWouldLuciferDoCampaign,
+  WHAT_WOULD_LUCIFER_DO_CAMPAIGN_ID,
+} from "./campaigns/what-would-lucifer-do.js";
 export { ENGINE_VERSION } from "./version.js";
 
 // SPIKE: runtime campaign loading. See plans/spike-notes.md — not a contract export.

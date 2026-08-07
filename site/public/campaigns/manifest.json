@@ -1,7 +1,13 @@
 {
   "formatVersion": 1,
   "campaigns": [
+    "what-would-lucifer-do.json",
+    "lucifer-chronicles.json",
     "bulgaria-bureaucracy.json",
+    "bulgaria-return.json",
+    "bulgaria-driving.json",
+    "bulgaria-inheritance.json",
+    "bulgaria-enterprise.json",
     "saki-quest-for-redemption.json"
   ]
 }

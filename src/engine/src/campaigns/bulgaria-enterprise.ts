@@ -2,8 +2,28 @@ import type { BuiltCampaign } from "../core/registry/types.js";
 import type { CommandResult } from "../core/kernel/reasons.js";
 import type { StoryGraphCampaignSource } from "../kinds/story-graph/source.js";
 import { buildAdventureCampaign, createAdventureSource, migrateV1AdventureState, type AdventureConfig } from "./adventure-builder.js";
+import type { PortableCatalog, PortableMigration } from "../spike/portable.js";
 
 export const BULGARIA_ENTERPRISE_CAMPAIGN_ID = "bulgaria-enterprise";
+
+// SPIKE: catalog card travels with the campaign instead of a positional entry in
+// site/src/play/composition.ts. See plans/spike-notes.md.
+export const bulgariaEnterpriseCatalog: PortableCatalog = {
+  title: "Enterprise",
+  description: "Clients, tax, hiring, growth, cashflow, and the price of one more opportunity.",
+  duration: "10–15 min per route",
+  contentNotice: "Debt, bankruptcy, audits, job pressure, and business failure.",
+  featured: false,
+};
+
+export const bulgariaEnterpriseMigration: PortableMigration = {
+  fromVersion: "1.0.0",
+  nodeMap: {
+    entrepreneur: "consultant_route_2",
+    ending: "ending_consultant",
+  },
+  endingMap: { a_permanent_line_item: "bankruptcy" },
+};
 
 const config: AdventureConfig = {
   id: BULGARIA_ENTERPRISE_CAMPAIGN_ID,

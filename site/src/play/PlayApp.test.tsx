@@ -3,7 +3,13 @@ import userEvent from "@testing-library/user-event";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import PlayApp from "./PlayApp";
 import manifestJson from "../../public/campaigns/manifest.json";
+import whatWouldLuciferDoJson from "../../public/campaigns/what-would-lucifer-do.json";
+import luciferChroniclesJson from "../../public/campaigns/lucifer-chronicles.json";
 import bulgariaBureaucracyJson from "../../public/campaigns/bulgaria-bureaucracy.json";
+import bulgariaReturnJson from "../../public/campaigns/bulgaria-return.json";
+import bulgariaDrivingJson from "../../public/campaigns/bulgaria-driving.json";
+import bulgariaInheritanceJson from "../../public/campaigns/bulgaria-inheritance.json";
+import bulgariaEnterpriseJson from "../../public/campaigns/bulgaria-enterprise.json";
 import sakiQuestJson from "../../public/campaigns/saki-quest-for-redemption.json";
 
 // SPIKE: same fetch stub as browser-client.test.ts — `PlayApp` now loads its catalog
@@ -11,7 +17,13 @@ import sakiQuestJson from "../../public/campaigns/saki-quest-for-redemption.json
 // synchronous dossier-shelf queries below will find anything. See plans/spike-notes.md.
 const exportedCampaigns: Readonly<Record<string, unknown>> = {
   "manifest.json": manifestJson,
+  "what-would-lucifer-do.json": whatWouldLuciferDoJson,
+  "lucifer-chronicles.json": luciferChroniclesJson,
   "bulgaria-bureaucracy.json": bulgariaBureaucracyJson,
+  "bulgaria-return.json": bulgariaReturnJson,
+  "bulgaria-driving.json": bulgariaDrivingJson,
+  "bulgaria-inheritance.json": bulgariaInheritanceJson,
+  "bulgaria-enterprise.json": bulgariaEnterpriseJson,
   "saki-quest-for-redemption.json": sakiQuestJson,
 };
 const originalFetch = globalThis.fetch;
@@ -200,11 +212,7 @@ describe("PlayApp cabinet presentation", () => {
     ).not.toBeInTheDocument();
   });
 
-  // SPIKE: skipped — this test drives the Enterprise campaign, which the spike's export
-  // script doesn't produce (only bulgaria-bureaucracy and saki-quest-for-redemption are
-  // exported; see spike-export-campaigns.ts). Not a pipeline defect: the spike targets
-  // one real campaign end-to-end, not full catalog parity. See plans/spike-notes.md.
-  it.skip("names the scene-cue button after exactly the shown choices (W66's phone reading model)", async () => {
+  it("names the scene-cue button after exactly the shown choices (W66's phone reading model)", async () => {
     const user = userEvent.setup();
     render(<PlayApp />);
     await screen.findByRole("heading", { name: "Adventure disk library" });

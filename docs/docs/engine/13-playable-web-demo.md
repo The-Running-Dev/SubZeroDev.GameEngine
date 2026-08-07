@@ -7,8 +7,9 @@ sidebar_label: Playable Web Demo
 # Playable Web Demo — Browser Client and Static Delivery
 
 **Document status:** Revision 2 — W61 shipped as Revision 1. §4's checksum mechanism and
-bundle gate and §5's checkpoint lifetime are restated against what was built; §§1–3 and §§6–11
-are unchanged except where they cited §5's same-page limit.
+bundle gate and §5's checkpoint lifetime are restated against what was built; §1's opening
+path, §10's non-goals and §11's first row are restated against the multi-campaign shelf W63
+and W64 shipped. §§2–3 and §§6–9 are unchanged except where they cited §5's same-page limit.
 
 **Reading order:** after [`09-clients.md`](09-clients.md). That document owns what every
 client may do; this one owns the first public browser client's product boundary, composition,
@@ -27,17 +28,23 @@ and delivery.
 
 ## 1. Outcome and Boundary
 
-The first public demo is one complete vertical path:
+The public demo is one complete vertical path:
 
-> A visitor opens `/play/`, starts the Bulgaria Bureaucracy campaign, sees the current scene
-> and every shown choice, reaches an ending, sees the achievement and final state, and can
-> start again — with no install, account, backend, or game logic in React.
+> A visitor opens `/play/`, picks a `story-graph` campaign from the shelf, sees the current
+> scene and every shown choice, reaches an ending, sees the achievement and final state, and
+> can start again — with no install, account, backend, or game logic in React.
 
-The Bureaucracy arc is the deliberate first campaign. It is the MVP fixture, already proves
-gated choices, a loop, seeded randomness, an achievement, save/load, and an ending, and has
-the strongest replay and client-parity evidence in the repository. Shipping five campaign
-pickers or a world-graph inspector before this one path is usable would widen presentation
-without proving another engine boundary.
+**Bureaucracy is the proof fixture, and that is separate from what the shelf offers.** It is
+the MVP campaign, already proves gated choices, a loop, seeded randomness, an achievement,
+save/load, and an ending, and carries the strongest replay and client-parity evidence in the
+repository — so it is the arc §7's tests drive whatever else ships beside it. W61 shipped it
+alone for exactly that reason; W64 expanded the story campaigns and W63's shelf
+([`14-game-interface.md`](14-game-interface.md) §4) presents them, without weakening a single
+proof, because a shelf adds a route into the same client rather than a second client.
+
+What has *not* moved is the boundary: one kind at `/play/` (§10). A world-graph inspector or a
+Stable Life dashboard would widen presentation into a second kind's surface without proving
+another engine boundary, and remains a different unit's work.
 
 The page demonstrates the engine's existing capabilities. It does not add mechanics, change
 campaign outcomes, rewrite authored strings, or introduce a web-specific game path.
@@ -255,7 +262,9 @@ Additional acceptance:
 
 ## 10. Explicit Non-Goals
 
-- The other four Bulgaria arcs, Stable Life, or the world-graph MVP in the first public route.
+- **Stable Life or the world-graph MVP** at `/play/`. Both remain out: this route proves the
+  `story-graph` kind, and adding a second kind's surface is a different unit's work.
+  Revision 1 also listed the four other Bulgaria arcs here — see §11.
 - Durable browser storage, accounts, profiles across reloads, cloud sync, or a backend.
 - New mechanics, campaign rewrites, balance changes, or a connected five-arc metagame.
 - Visual-novel art, bespoke illustration, audio, animation, or controller support.
@@ -266,9 +275,22 @@ Additional acceptance:
 
 ## 11. Decision Summary
 
+**Revision 2 corrects the first row.** Revision 1 read *Bulgaria Bureaucracy only*, and §10
+made the other Bulgaria arcs a non-goal. Both were true of W61 and neither survived W64,
+which expanded the story campaigns, or W63, whose story shelf
+([`14-game-interface.md`](14-game-interface.md) §4) is a multi-campaign surface by
+construction. §3 was updated for the six sanctioned builder exports and these two were not,
+which left one document arguing both sides. The rule that produced the original row is
+unchanged and is what still bounds the route: **one kind, `story-graph`** — that is what §10
+now says, and it is the line adding Stable Life or the world-graph MVP would cross.
+
+Bureaucracy keeps a distinct standing that is not "first": it is the MVP fixture and carries
+the client-parity and replay evidence §7 depends on, so it is the campaign the proofs run
+against whatever else is on the shelf.
+
 | Decision | Choice |
 |---|---|
-| First public campaign | Bulgaria Bureaucracy only |
+| Public campaigns | The six shipped `story-graph` campaigns, presented as a shelf ([`14`](14-game-interface.md) §4); Lucifer Chronicles is featured, Bureaucracy remains the proof fixture (Rev. 2) |
 | Route | Real static `/play/` entry in the existing React site |
 | Authority | `SessionStore`; React receives projections only |
 | Runtime | Engine executes locally in the browser; no backend |

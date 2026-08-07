@@ -22,7 +22,13 @@ import type { BrowserDemo } from "./composition";
 import { BrowserClient } from "./browser-client";
 import { createBrowserDemo } from "./composition";
 import manifestJson from "../../public/campaigns/manifest.json";
+import whatWouldLuciferDoJson from "../../public/campaigns/what-would-lucifer-do.json";
+import luciferChroniclesJson from "../../public/campaigns/lucifer-chronicles.json";
 import bulgariaBureaucracyJson from "../../public/campaigns/bulgaria-bureaucracy.json";
+import bulgariaReturnJson from "../../public/campaigns/bulgaria-return.json";
+import bulgariaDrivingJson from "../../public/campaigns/bulgaria-driving.json";
+import bulgariaInheritanceJson from "../../public/campaigns/bulgaria-inheritance.json";
+import bulgariaEnterpriseJson from "../../public/campaigns/bulgaria-enterprise.json";
 import sakiQuestJson from "../../public/campaigns/saki-quest-for-redemption.json";
 
 const SEED = "bureaucracy-seed-3";
@@ -34,7 +40,13 @@ const SEED = "bureaucracy-seed-3";
 // gate, not just that the pipeline runs. See plans/spike-notes.md.
 const exportedCampaigns: Readonly<Record<string, unknown>> = {
   "manifest.json": manifestJson,
+  "what-would-lucifer-do.json": whatWouldLuciferDoJson,
+  "lucifer-chronicles.json": luciferChroniclesJson,
   "bulgaria-bureaucracy.json": bulgariaBureaucracyJson,
+  "bulgaria-return.json": bulgariaReturnJson,
+  "bulgaria-driving.json": bulgariaDrivingJson,
+  "bulgaria-inheritance.json": bulgariaInheritanceJson,
+  "bulgaria-enterprise.json": bulgariaEnterpriseJson,
   "saki-quest-for-redemption.json": sakiQuestJson,
 };
 const originalFetch = globalThis.fetch;
