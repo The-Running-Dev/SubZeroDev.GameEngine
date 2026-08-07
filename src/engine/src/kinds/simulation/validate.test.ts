@@ -306,6 +306,31 @@ describe("validateCampaign", () => {
     );
   });
 
+  it("rejects an all-digit JobDefinition.id — W53's resolvers.ts addresses it as a natural key too", () => {
+    const job: JobDefinition = {
+      id: "123",
+      titleKey: "job.title",
+      descriptionKey: "job.description",
+      employerId: "employer-1",
+      careerPathId: "path-1",
+      tier: "entry",
+      schedule: { weeklyTimeCost: 5, flexibility: 0 },
+      compensation: { baseWeeklyPayCents: 1000 },
+      requirements: [],
+      performance: { factors: [], weeklyDriftToward: 50, minimumAcceptable: 0 },
+      promotionPaths: [],
+      terminationRules: [],
+      contested: false,
+      tags: [],
+    };
+    const campaign = makeCampaign({ jobs: [job] });
+    const result = validateCampaign(campaign, VALID_STRINGS);
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ code: "numeric_natural_key", path: "123" }),
+    );
+  });
+
   // -------------------------------------------------------------------------
   // startingEffects — Modifier addressing (retained from before W52)
   // -------------------------------------------------------------------------

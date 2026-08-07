@@ -50,6 +50,7 @@ import type { GoalState, SimulationKindState } from "./state.js";
 const SYSTEM_NAME = "kind.simulation.system.ran";
 const GOAL_ACHIEVED_EVENT = "kind.simulation.goal.achieved";
 const GOAL_FAILED_EVENT = "kind.simulation.goal.failed";
+const APPLICATION_LOST_EVENT = "kind.simulation.employment.application_lost";
 
 function ranSystem(emit: ResolutionEmitter, system: string): void {
   emit.emit(SYSTEM_NAME, "trace", { data: { system, phase: "end_of_week" } });
@@ -130,8 +131,15 @@ function findJob(jobs: readonly JobDefinition[], jobId: string): JobDefinition |
  *  week — this kind's own single-actor scope, not a contested-position race (§7.10's own
  *  "rivals are a real, still-open gap"). Removes the filled `JobOpening` so a second
  *  `apply_for_job` against the same posting fails `requirement_unmet` (no open posting to
- *  find), not because anything here tracks `positionsAvailable` down to zero. */
-function resolveApplications(state: SimulationKindState, jobs: readonly JobDefinition[]): SimulationKindState {
+ *  find), not because anything here tracks `positionsAvailable` down to zero. An application
+ *  whose `jobId` no longer resolves against `jobs` (content removed or renamed) is dropped
+ *  the same way, but emits `employment.application_lost` first — the only trace of it
+ *  otherwise. */
+function resolveApplications(
+  state: SimulationKindState,
+  jobs: readonly JobDefinition[],
+  emit: ResolutionEmitter,
+): SimulationKindState {
   const week = state.calendar.currentWeek;
   const alreadyEmployed = state.player.career.currentEmployment !== undefined;
 
@@ -146,7 +154,10 @@ function resolveApplications(state: SimulationKindState, jobs: readonly JobDefin
     }
     if (alreadyEmployed || hired) continue;
     const job = findJob(jobs, application.jobId);
-    if (!job) continue;
+    if (!job) {
+      emit.emit(APPLICATION_LOST_EVENT, "warn", { data: { jobId: application.jobId } });
+      continue;
+    }
     hired = {
       jobId: job.id,
       employerId: job.employerId,
@@ -179,10 +190,12 @@ function resolveApplications(state: SimulationKindState, jobs: readonly JobDefin
 }
 
 /** Advances `Employment.performance` toward `weeklyDriftToward` absent work this week, or up
- *  by a fixed bonus if the player worked; clears both weekly work flags either way (they are
- *  read here, once, then reset for the week that just started resolving). Checks every
- *  uncontested `PromotionPath` in listed order and takes the first one whose
- *  `minimumWeeksInRole`, `minimumPerformance` and `requirements` are all satisfied. */
+ *  by a fixed bonus if the player worked. Checks every uncontested `PromotionPath` in listed
+ *  order and takes the first one whose `minimumWeeksInRole`, `minimumPerformance` and
+ *  `requirements` are all satisfied — `minimumWeeksInRole` measures tenure *in the role*, so
+ *  a promotion resets `startedWeek` to the promotion week along with `weeksAtCurrentPay`;
+ *  otherwise a later `PromotionPath` would keep measuring from the original hire date and a
+ *  multi-step career path could chain faster than `minimumWeeksInRole` intends. */
 function advanceEmployment(state: SimulationKindState, jobs: readonly JobDefinition[]): SimulationKindState {
   const employment = state.player.career.currentEmployment;
   if (!employment) return state;
@@ -207,6 +220,7 @@ function advanceEmployment(state: SimulationKindState, jobs: readonly JobDefinit
       ...next,
       jobId: target.id,
       employerId: target.employerId,
+      startedWeek: state.calendar.currentWeek,
       weeklyPayCents: target.compensation.baseWeeklyPayCents,
       weeksAtCurrentPay: 0,
     };
@@ -217,16 +231,20 @@ function advanceEmployment(state: SimulationKindState, jobs: readonly JobDefinit
     ...state,
     player: {
       ...state.player,
-      flags: { ...state.player.flags, workedThisWeek: false, workedOvertimeThisWeek: false },
       career: { ...state.player.career, currentEmployment: next, totalWeeksEmployed: state.player.career.totalWeeksEmployed + 1 },
     },
   };
 }
 
 /** Real logic (W53) — resolves due applications into a hire, then advances whatever
- *  `Employment` results (which may be the hire that just landed). */
-function employment(state: SimulationKindState, jobs: readonly JobDefinition[]): SimulationKindState {
-  return advanceEmployment(resolveApplications(state, jobs), jobs);
+ *  `Employment` results. A hire that lands *this same week* is not advanced yet — the
+ *  employee hasn't worked a week under it, so `totalWeeksEmployed` and performance
+ *  drift/promotion would otherwise be evaluated against zero elapsed time. */
+function employment(state: SimulationKindState, jobs: readonly JobDefinition[], emit: ResolutionEmitter): SimulationKindState {
+  const wasEmployed = state.player.career.currentEmployment !== undefined;
+  const resolved = resolveApplications(state, jobs, emit);
+  const hiredThisWeek = !wasEmployed && resolved.player.career.currentEmployment !== undefined;
+  return hiredThisWeek ? resolved : advanceEmployment(resolved, jobs);
 }
 
 /** **Stub.** Needs `CourseDefinition`. */
@@ -236,26 +254,38 @@ function education(state: SimulationKindState): SimulationKindState {
 
 /** Real logic (W53) — pays `Employment.weeklyPayCents` into `cashCents`, plus overtime pay
  *  from `job.compensation.overtimeRate` when `player.flags.workedOvertimeThisWeek` (set by
- *  `resolvers.ts`'s `work_overtime`). Wages a course or scheduled expense would add are still
- *  unwired (`CourseDefinition`, out of scope — W54). Runs *before* `housing` (§3) so rent is
- *  payable out of this same week's wages. */
+ *  `resolvers.ts`'s `work_overtime`), scaled off the employee's current `weeklyPayCents` —
+ *  the same basis as the base wage above it, so a `negotiate_job_terms` raise (§7.9) is
+ *  reflected in overtime pay too, not just the base. Wages a course or scheduled expense
+ *  would add are still unwired (`CourseDefinition`, out of scope — W54). Runs *before*
+ *  `housing` (§3) so rent is payable out of this same week's wages.
+ *
+ *  Clears both weekly work flags here — but only when there's an `Employment` to have set
+ *  them, the same condition `advanceEmployment` used to gate its own (too-early) clear on —
+ *  once both consumers (`advanceEmployment`'s own performance-bonus read, above in
+ *  `employment()`, and this system's own overtime read) have seen them for the week.
+ *  Clearing earlier, inside `advanceEmployment`, meant this system always read
+ *  `workedOvertimeThisWeek` as already-reset and never paid overtime. */
 function financeIncome(state: SimulationKindState, jobs: readonly JobDefinition[]): { state: SimulationKindState; changes: StateChange[] } {
   const employment = state.player.career.currentEmployment;
   if (!employment) return { state, changes: [] };
+
+  const flags = { ...state.player.flags, workedThisWeek: false, workedOvertimeThisWeek: false };
+  const clearedState: SimulationKindState = { ...state, player: { ...state.player, flags } };
   const job = findJob(jobs, employment.jobId);
 
   let pay = employment.weeklyPayCents;
   const workedOvertime = state.player.flags["workedOvertimeThisWeek"] === true;
   if (workedOvertime && job?.compensation.overtimeRate) {
-    pay += Math.round(job.compensation.baseWeeklyPayCents * job.compensation.overtimeRate / 10_000);
+    pay += Math.round(employment.weeklyPayCents * job.compensation.overtimeRate / 10_000);
   }
-  if (pay === 0) return { state, changes: [] };
+  if (pay === 0) return { state: clearedState, changes: [] };
 
   const before = state.player.finances.cashCents;
   return {
     state: {
-      ...state,
-      player: { ...state.player, finances: { ...state.player.finances, cashCents: before + pay } },
+      ...clearedState,
+      player: { ...clearedState.player, finances: { ...clearedState.player.finances, cashCents: before + pay } },
     },
     changes: [{ path: "player.finances.cashCents", op: "increment", value: pay, previous: before, reason: "wage_payment", visible: true }],
   };
@@ -396,7 +426,7 @@ export function runEndOfWeek(
   goalFailurePrecedence: GoalFailurePrecedence,
   jobs: readonly JobDefinition[] = [],
 ): { state: SimulationKindState; changes: StateChange[] } {
-  let next = employment(state, jobs);
+  let next = employment(state, jobs, emit);
   ranSystem(emit, "employment");
 
   next = education(next);

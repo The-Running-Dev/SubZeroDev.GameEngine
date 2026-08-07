@@ -11,10 +11,12 @@
  * implement §9 against the now-declared `SimulationView`/`PublicWorldState` shapes. This is
  * the first unit that needs `Kind.project`'s `state`/`audience`/`ctx` all wired through.
  *
- * `eventNames` lists all eight §11 names now — `plan.changed`/`week.started`/
+ * `eventNames` lists all nine names now — `plan.changed`/`week.started`/
  * `action.resolved`/`goal.achieved`/`goal.failed`/`week.ended` join `system.ran`/
  * `effect.expired` (already emitted since W37/W39) with this unit's own emit sites in
- * `advance.ts`, `startOfWeek.ts` and `endOfWeek.ts`.
+ * `advance.ts`, `startOfWeek.ts` and `endOfWeek.ts`. `employment.application_lost` (W53) is
+ * the newest — `endOfWeek.ts`'s `resolveApplications`, the only otherwise-silent trace of a
+ * `pendingApplications` entry dropped because its `jobId` no longer resolves.
  */
 
 import type {
@@ -49,6 +51,7 @@ export const simulationKind: Kind<SimulationKindState> = {
     "kind.simulation.goal.achieved",
     "kind.simulation.goal.failed",
     "kind.simulation.week.ended",
+    "kind.simulation.employment.application_lost",
   ],
   initialState: (c): InitialStateResult<SimulationKindState> => initialState(c),
   availableActions: (state, ctx): AvailableAction[] => availableActions(state, ctx),

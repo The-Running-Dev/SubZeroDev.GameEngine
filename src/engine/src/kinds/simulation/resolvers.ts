@@ -296,6 +296,7 @@ export const applyForJobResolver: ActionResolver = {
     if (!locationAllows(state, campaign, "apply_for_job")) return wrongLocationError();
     const opening = state.world.jobMarket.openings.find((o) => o.jobId === job.id);
     if (!opening) return requirementUnmetError();
+    if (state.player.career.pendingApplications.some((a) => a.jobId === job.id)) return requirementUnmetError();
     for (const requirement of job.requirements) {
       if (!evaluateSimulationCondition(requirement.condition, state)) {
         return invalid(requirement.failureCode, requirement.messageKey);

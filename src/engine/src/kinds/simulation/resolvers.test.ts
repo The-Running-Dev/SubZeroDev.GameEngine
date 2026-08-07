@@ -165,6 +165,18 @@ describe("W53 — apply_for_job", () => {
     ]);
     expect(next.calendar.spentTimeUnits).toBe(1);
   });
+
+  it("rejects requirement_unmet for a second application to a job already pending", () => {
+    const s = {
+      ...posted("job-cashier"),
+      player: player({ career: { history: [], totalWeeksEmployed: 0, highestTierAchieved: "entry", pendingApplications: [
+        { jobId: "job-cashier", submittedWeek: 2, resolvesWeek: 3, contested: false, outcome: "pending" },
+      ] } }),
+    };
+    const result = applyForJobResolver.canExecute(s, action("apply_for_job", "job-cashier"), ctx());
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]?.code).toBe("requirement_unmet");
+  });
 });
 
 describe("W53 — work / work_overtime", () => {

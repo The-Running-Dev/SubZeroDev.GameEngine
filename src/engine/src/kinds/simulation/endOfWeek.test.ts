@@ -5,15 +5,22 @@ import type { Employment, JobApplication, NeedState } from "./actor.js";
 import type { GoalDefinition, JobDefinition } from "./content.js";
 import type { GoalState, JobOpening, Opportunity, SimulationKindState } from "./state.js";
 
-function recordingEmitter(): { emit: ResolutionEmitter; systems: string[] } {
+function recordingEmitter(): {
+  emit: ResolutionEmitter;
+  systems: string[];
+  events: { name: string; severity: string; data: unknown }[];
+} {
   const systems: string[] = [];
+  const events: { name: string; severity: string; data: unknown }[] = [];
   return {
     emit: {
-      emit: (name, _severity, detail) => {
+      emit: (name, severity, detail) => {
         if (name === "kind.simulation.system.ran") systems.push(String(detail?.data?.["system"]));
+        events.push({ name, severity, data: detail?.data });
       },
     },
     systems,
+    events,
   };
 }
 
@@ -358,5 +365,127 @@ describe("runEndOfWeek — W53 employment, finance_income, housing", () => {
     const { emit } = recordingEmitter();
     const result = runEndOfWeek(baseState(NEEDS), emit, [], "goals_win", jobs);
     expect(result.changes.some((c) => c.reason === "rent_charged")).toBe(false);
+  });
+});
+
+describe("runEndOfWeek — W53 review fixes", () => {
+  const overtimeJob: JobDefinition = {
+    id: "job-cashier",
+    titleKey: "job.title", descriptionKey: "job.description",
+    employerId: "employer-1", careerPathId: "career-retail", tier: "entry",
+    schedule: { weeklyTimeCost: 6, flexibility: 50 },
+    compensation: { baseWeeklyPayCents: 30000, overtimeRate: 5000 },
+    requirements: [],
+    performance: { factors: [], weeklyDriftToward: 50, minimumAcceptable: 0 },
+    // No promotionPaths — these overtime-pay tests aren't about promotion, and the default
+    // baseState's currentWeek (5) against startedWeek (1) would otherwise trivially satisfy
+    // any minimumWeeksInRole and promote the employee before finance_income even runs.
+    promotionPaths: [], terminationRules: [], contested: false, tags: [],
+  };
+  const promotableJob: JobDefinition = {
+    ...overtimeJob,
+    promotionPaths: [{
+      toJobId: "job-manager", minimumWeeksInRole: 1, minimumPerformance: 0,
+      requirements: [], contested: false, baseChance: 100,
+    }],
+  };
+  const managerJob: JobDefinition = { ...overtimeJob, id: "job-manager", compensation: { baseWeeklyPayCents: 50000 } };
+  const jobs = [overtimeJob, managerJob];
+  const NEEDS: NeedState = { health: 50, energy: 50, happiness: 50, stress: 50, satiety: 50 };
+
+  it("pays overtime — work_overtime's flag is not cleared before finance_income reads it", () => {
+    const employment: Employment = {
+      jobId: "job-cashier", employerId: "employer-1", startedWeek: 1,
+      performance: 50, attendanceRatio: 100, warnings: 0, weeklyPayCents: 30000, weeksAtCurrentPay: 1,
+    };
+    const { emit } = recordingEmitter();
+    const state = baseState(NEEDS, {
+      player: {
+        ...baseState(NEEDS).player,
+        career: { history: [], totalWeeksEmployed: 1, pendingApplications: [], highestTierAchieved: "entry", currentEmployment: employment },
+        flags: { workedOvertimeThisWeek: true },
+      },
+    });
+    const result = runEndOfWeek(state, emit, [], "goals_win", jobs);
+    // 30000 base + 30000 * 50% overtime = 45000.
+    expect((result.state.player.finances as unknown as { cashCents: number }).cashCents).toBe(45000);
+    expect(result.state.player.flags["workedOvertimeThisWeek"]).toBe(false);
+  });
+
+  it("bases overtime pay on the employee's current (negotiated) pay, not the job's static base", () => {
+    const employment: Employment = {
+      jobId: "job-cashier", employerId: "employer-1", startedWeek: 1,
+      performance: 50, attendanceRatio: 100, warnings: 0, weeklyPayCents: 40000, weeksAtCurrentPay: 1,
+    };
+    const { emit } = recordingEmitter();
+    const state = baseState(NEEDS, {
+      player: {
+        ...baseState(NEEDS).player,
+        career: { history: [], totalWeeksEmployed: 1, pendingApplications: [], highestTierAchieved: "entry", currentEmployment: employment },
+        flags: { workedOvertimeThisWeek: true },
+      },
+    });
+    const result = runEndOfWeek(state, emit, [], "goals_win", jobs);
+    // 40000 negotiated base + 40000 * 50% overtime = 60000, not 30000 + 30000*50%.
+    expect((result.state.player.finances as unknown as { cashCents: number }).cashCents).toBe(60000);
+  });
+
+  it("a promotion resets startedWeek, so a later PromotionPath measures tenure from the new role", () => {
+    const employment: Employment = {
+      jobId: "job-cashier", employerId: "employer-1", startedWeek: 1,
+      performance: 60, attendanceRatio: 100, warnings: 0, weeklyPayCents: 30000, weeksAtCurrentPay: 4,
+    };
+    const { emit } = recordingEmitter();
+    const state = baseState(NEEDS, {
+      calendar: { currentWeek: 5, currentYear: 1, totalTimeUnits: 14, committedTimeUnits: 0, spentTimeUnits: 0 },
+      player: {
+        ...baseState(NEEDS).player,
+        career: { history: [], totalWeeksEmployed: 4, pendingApplications: [], highestTierAchieved: "entry", currentEmployment: employment },
+      },
+    });
+    const result = runEndOfWeek(state, emit, [], "goals_win", [promotableJob, managerJob]);
+    expect(result.state.player.career.currentEmployment).toMatchObject({ jobId: "job-manager", startedWeek: 5 });
+  });
+
+  it("does not advance performance or totalWeeksEmployed for a hire that lands this same week", () => {
+    // weeklyDriftToward (20) differs from the hire's starting performance (50) — if
+    // advanceEmployment ran on the same-week hire, performance would drift toward 20 and
+    // totalWeeksEmployed would tick to 1 before the employee has worked a single week.
+    const driftingJob: JobDefinition = { ...overtimeJob, performance: { factors: [], weeklyDriftToward: 20, minimumAcceptable: 0 } };
+    const application: JobApplication = { jobId: "job-cashier", submittedWeek: 4, resolvesWeek: 5, contested: false, outcome: "pending" };
+    const opening: JobOpening = { jobId: "job-cashier", contested: false, postedWeek: 4 };
+    const { emit } = recordingEmitter();
+    const state = baseState(NEEDS, {
+      player: {
+        ...baseState(NEEDS).player,
+        career: { history: [], totalWeeksEmployed: 0, pendingApplications: [application], highestTierAchieved: "entry" },
+      },
+      world: { jobMarket: { openings: [opening] } } as unknown as SimulationKindState["world"],
+    });
+    const result = runEndOfWeek(state, emit, [], "goals_win", [driftingJob, managerJob]);
+    expect(result.state.player.career.totalWeeksEmployed).toBe(0);
+    expect(result.state.player.career.currentEmployment?.performance).toBe(50);
+  });
+
+  it("applyForJob's pending duplicate is not a valid target for a second search-and-apply cycle to silently drop", () => {
+    // Coverage for applyForJobResolver's own canExecute guard lives in resolvers.test.ts;
+    // this asserts endOfWeek.ts's own side: a pendingApplications entry whose jobId no
+    // longer resolves against `jobs` is dropped with an observable trace, not silently.
+    const application: JobApplication = { jobId: "job-removed", submittedWeek: 4, resolvesWeek: 5, contested: false, outcome: "pending" };
+    const { emit, events } = recordingEmitter();
+    const state = baseState(NEEDS, {
+      player: {
+        ...baseState(NEEDS).player,
+        career: { history: [], totalWeeksEmployed: 0, pendingApplications: [application], highestTierAchieved: "entry" },
+      },
+    });
+    const result = runEndOfWeek(state, emit, [], "goals_win", jobs);
+    expect(result.state.player.career.pendingApplications).toEqual([]);
+    expect(result.state.player.career.currentEmployment).toBeUndefined();
+    expect(events).toContainEqual({
+      name: "kind.simulation.employment.application_lost",
+      severity: "warn",
+      data: { jobId: "job-removed" },
+    });
   });
 });
