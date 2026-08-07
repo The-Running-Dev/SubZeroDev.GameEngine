@@ -15,8 +15,16 @@
  * consecutive weeks, failing outright if it ever drops below 40. Starting energy is 50 —
  * below the goal's own threshold, so winning requires actually resting; doing nothing
  * drifts energy down by 3 each week (`endOfWeek.ts`'s `DRIFT_PER_WEEK`) until the
- * `failureConditions` trips. `eat`/`rest` (`resolvers.ts`) are the only two real
- * resolvers this kind has — `rest` is what makes the goal winnable at all.
+ * `failureConditions` trips. `eat`/`rest` (`resolvers.ts`) were the only two real
+ * resolvers this kind had before W53.
+ *
+ * **W53 adds one job and one employer** — `job-cashier` at `employer-cornerstore` — solely
+ * so `stable-life-employment.fixture.json` (a fourth committed replay fixture, alongside
+ * win/loss/effect-expiry) can exercise `search_for_work` → `apply_for_job` → the
+ * `employment` end-of-week hire → `finance_income`'s first paycheque, the arc W53.6 names.
+ * `home`'s own `actionTypes` grows to cover all five new `ActionType`s rather than adding a
+ * second location and a `travel` action — `travel` stays `stubResolver` (`resolvers.ts`),
+ * so a second location would be unreachable and this fixture couldn't use it anyway.
  *
  * **W52 replaces the four literal state blobs this file used to author directly** with one
  * `ScenarioDefinition` plus the `BackgroundDefinition`/`HousingDefinition`/`LocationDefinition`
@@ -41,7 +49,24 @@ export const stableLifeSource: SimulationCampaignSource = {
     text: "Twelve months to establish something resembling a stable life.",
   },
 
-  jobs: [],
+  jobs: [
+    {
+      id: "job-cashier",
+      title: { key: "stable-life.job.cashier.title", text: "Cashier" },
+      description: { key: "stable-life.job.cashier.description", text: "Ring up groceries, make small talk." },
+      employerId: "employer-cornerstore",
+      careerPathId: "career-retail",
+      tier: "entry",
+      schedule: { weeklyTimeCost: 6, flexibility: 50 },
+      compensation: { baseWeeklyPayCents: 30000, overtimeRate: 5000 },
+      requirements: [],
+      performance: { factors: [], weeklyDriftToward: 50, minimumAcceptable: 0 },
+      promotionPaths: [],
+      terminationRules: [],
+      contested: false,
+      tags: [],
+    },
+  ],
   courses: [],
   housing: [
     {
@@ -103,7 +128,16 @@ export const stableLifeSource: SimulationCampaignSource = {
   opportunities: [],
   achievements: [],
   headlines: [],
-  employers: [],
+  employers: [
+    {
+      id: "employer-cornerstore",
+      name: { key: "stable-life.employer.cornerstore.name", text: "The Corner Store" },
+      sector: "retail",
+      reputation: 50,
+      jobIds: ["job-cashier"],
+      npcIds: [],
+    },
+  ],
   locations: [
     {
       id: "home",
@@ -111,7 +145,10 @@ export const stableLifeSource: SimulationCampaignSource = {
       description: { key: "stable-life.location.home.description", text: "Where the week starts and ends." },
       connections: [],
       travelTimeUnits: 0,
-      actionTypes: ["eat", "rest", "exercise", "socialize"],
+      actionTypes: [
+        "eat", "rest", "exercise", "socialize",
+        "search_for_work", "apply_for_job", "negotiate_job_terms", "work", "work_overtime",
+      ],
     },
   ],
   backgrounds: [

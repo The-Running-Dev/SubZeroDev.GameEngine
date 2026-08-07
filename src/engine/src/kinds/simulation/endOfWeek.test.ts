@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { runEndOfWeek } from "./endOfWeek.js";
 import type { ResolutionEmitter } from "../../core/observability/types.js";
-import type { NeedState } from "./actor.js";
-import type { GoalDefinition } from "./content.js";
-import type { GoalState, Opportunity, SimulationKindState } from "./state.js";
+import type { Employment, JobApplication, NeedState } from "./actor.js";
+import type { GoalDefinition, JobDefinition } from "./content.js";
+import type { GoalState, JobOpening, Opportunity, SimulationKindState } from "./state.js";
 
 function recordingEmitter(): { emit: ResolutionEmitter; systems: string[] } {
   const systems: string[] = [];
@@ -32,7 +32,13 @@ function makeOpportunity(overrides: Partial<Opportunity> = {}): Opportunity {
 function baseState(needs: NeedState, overrides: Partial<SimulationKindState> = {}): SimulationKindState {
   return {
     calendar: { currentWeek: 5, currentYear: 1, totalTimeUnits: 14, committedTimeUnits: 0, spentTimeUnits: 0 },
-    player: { needs } as SimulationKindState["player"],
+    player: {
+      needs,
+      career: { history: [], totalWeeksEmployed: 0, pendingApplications: [], highestTierAchieved: "entry" },
+      housing: { weeklyCostCents: 0 },
+      finances: { cashCents: 0 },
+      flags: {},
+    } as unknown as SimulationKindState["player"],
     economy: {} as SimulationKindState["economy"],
     world: {} as SimulationKindState["world"],
     activeEffects: [],
@@ -238,5 +244,119 @@ describe("runEndOfWeek — goals and failure", () => {
     });
     const result = runEndOfWeek(state, emit, [happinessGoal], "goals_win");
     expect(result.state.goals[0]).toMatchObject({ status: "completed", completedWeek: 3 });
+  });
+});
+
+describe("runEndOfWeek — W53 employment, finance_income, housing", () => {
+  const job: JobDefinition = {
+    id: "job-cashier",
+    titleKey: "job.title", descriptionKey: "job.description",
+    employerId: "employer-1", careerPathId: "career-retail", tier: "entry",
+    schedule: { weeklyTimeCost: 6, flexibility: 50 },
+    compensation: { baseWeeklyPayCents: 30000 },
+    requirements: [],
+    performance: { factors: [], weeklyDriftToward: 50, minimumAcceptable: 0 },
+    promotionPaths: [{
+      toJobId: "job-manager", minimumWeeksInRole: 1, minimumPerformance: 55,
+      requirements: [], contested: false, baseChance: 100,
+    }],
+    terminationRules: [], contested: false, tags: [],
+  };
+  const managerJob: JobDefinition = { ...job, id: "job-manager", compensation: { baseWeeklyPayCents: 50000 } };
+  const jobs = [job, managerJob];
+
+  const NEEDS: NeedState = { health: 50, energy: 50, happiness: 50, stress: 50, satiety: 50 };
+
+  it("resolves a due pendingApplication into a hire, and removes the filled opening", () => {
+    const application: JobApplication = { jobId: "job-cashier", submittedWeek: 4, resolvesWeek: 5, contested: false, outcome: "pending" };
+    const opening: JobOpening = { jobId: "job-cashier", contested: false, postedWeek: 4 };
+    const { emit } = recordingEmitter();
+    const state = baseState(NEEDS, {
+      player: {
+        ...baseState(NEEDS).player,
+        career: { history: [], totalWeeksEmployed: 0, pendingApplications: [application], highestTierAchieved: "entry" },
+      },
+      world: { jobMarket: { openings: [opening] } } as unknown as SimulationKindState["world"],
+    });
+    const result = runEndOfWeek(state, emit, [], "goals_win", jobs);
+    expect(result.state.player.career.currentEmployment).toMatchObject({ jobId: "job-cashier", weeklyPayCents: 30000, performance: 50 });
+    expect(result.state.player.career.pendingApplications).toEqual([]);
+    expect((result.state.world as unknown as SimulationKindState["world"]).jobMarket.openings).toEqual([]);
+  });
+
+  it("leaves a pendingApplication whose resolvesWeek is still in the future", () => {
+    const application: JobApplication = { jobId: "job-cashier", submittedWeek: 5, resolvesWeek: 6, contested: false, outcome: "pending" };
+    const { emit } = recordingEmitter();
+    const state = baseState(NEEDS, {
+      player: {
+        ...baseState(NEEDS).player,
+        career: { history: [], totalWeeksEmployed: 0, pendingApplications: [application], highestTierAchieved: "entry" },
+      },
+    });
+    const result = runEndOfWeek(state, emit, [], "goals_win", jobs);
+    expect(result.state.player.career.pendingApplications).toEqual([application]);
+    expect(result.state.player.career.currentEmployment).toBeUndefined();
+  });
+
+  it("advances performance up when the player worked this week, and clears both work flags", () => {
+    const employment: Employment = {
+      jobId: "job-cashier", employerId: "employer-1", startedWeek: 1,
+      performance: 50, attendanceRatio: 100, warnings: 0, weeklyPayCents: 30000, weeksAtCurrentPay: 1,
+    };
+    const { emit } = recordingEmitter();
+    const state = baseState(NEEDS, {
+      player: {
+        ...baseState(NEEDS).player,
+        career: { history: [], totalWeeksEmployed: 1, pendingApplications: [], highestTierAchieved: "entry", currentEmployment: employment },
+        flags: { workedThisWeek: true },
+      },
+    });
+    const result = runEndOfWeek(state, emit, [], "goals_win", jobs);
+    expect(result.state.player.career.currentEmployment?.performance).toBe(58);
+    expect(result.state.player.flags["workedThisWeek"]).toBe(false);
+  });
+
+  it("promotes once minimumWeeksInRole/minimumPerformance/requirements are all satisfied", () => {
+    const employment: Employment = {
+      jobId: "job-cashier", employerId: "employer-1", startedWeek: 1,
+      performance: 60, attendanceRatio: 100, warnings: 0, weeklyPayCents: 30000, weeksAtCurrentPay: 4,
+    };
+    const { emit } = recordingEmitter();
+    const state = baseState(NEEDS, {
+      calendar: { currentWeek: 5, currentYear: 1, totalTimeUnits: 14, committedTimeUnits: 0, spentTimeUnits: 0 },
+      player: {
+        ...baseState(NEEDS).player,
+        career: { history: [], totalWeeksEmployed: 4, pendingApplications: [], highestTierAchieved: "entry", currentEmployment: employment },
+      },
+    });
+    const result = runEndOfWeek(state, emit, [], "goals_win", jobs);
+    expect(result.state.player.career.currentEmployment).toMatchObject({ jobId: "job-manager", weeklyPayCents: 50000, weeksAtCurrentPay: 0 });
+  });
+
+  it("pays weekly wages into cashCents before housing charges rent, in the same pass", () => {
+    const employment: Employment = {
+      jobId: "job-cashier", employerId: "employer-1", startedWeek: 1,
+      performance: 50, attendanceRatio: 100, warnings: 0, weeklyPayCents: 30000, weeksAtCurrentPay: 1,
+    };
+    const { emit } = recordingEmitter();
+    const state = baseState(NEEDS, {
+      player: {
+        ...baseState(NEEDS).player,
+        career: { history: [], totalWeeksEmployed: 1, pendingApplications: [], highestTierAchieved: "entry", currentEmployment: employment },
+        housing: { weeklyCostCents: 25000 },
+        // Rent (25000) exceeds starting cash (10000) — only payable once this week's own
+        // wage (30000) has landed, proving finance_income runs before housing (§3).
+        finances: { cashCents: 10000 },
+      } as unknown as SimulationKindState["player"],
+    });
+    const result = runEndOfWeek(state, emit, [], "goals_win", jobs);
+    // 10000 + 30000 wage - 25000 rent = 15000.
+    expect((result.state.player.finances as unknown as { cashCents: number }).cashCents).toBe(15000);
+  });
+
+  it("levies no rent when weeklyCostCents is 0 — no phantom StateChange", () => {
+    const { emit } = recordingEmitter();
+    const result = runEndOfWeek(baseState(NEEDS), emit, [], "goals_win", jobs);
+    expect(result.changes.some((c) => c.reason === "rent_charged")).toBe(false);
   });
 });

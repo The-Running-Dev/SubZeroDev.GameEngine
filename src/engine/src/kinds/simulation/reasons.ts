@@ -17,6 +17,14 @@
  * W52 adds its own Tier 1/2 content-validation codes (§14) — `missing_string_key` and
  * `read_only_field` are reused from the base set (`core.reason.*`), the same choice
  * `story-graph/validate.ts` (W14) made for the identical failures.
+ *
+ * W53 dispatches two of the five §10 names "specified, not yet dispatched" —
+ * `insufficient_time` (a plan exceeds available time units) and `wrong_location` (an
+ * action's type isn't in the current location's `actionTypes`) — from the five real
+ * employment resolvers (`resolvers.ts`). `insufficient_funds`, `plan_empty` and
+ * `week_limit_reached` stay undispatched: none of the five actions this unit wires
+ * carries a money cost, so there is still no path that could produce the first, and the
+ * other two are unrelated to employment.
  */
 
 import type { LocKey } from "../../core/localization/types.js";
@@ -28,6 +36,8 @@ export const SIMULATION_REASON_CODES = [
   "numeric_natural_key",
   "unreachable_content",
   "unsatisfiable_achievement",
+  "insufficient_time",
+  "wrong_location",
 ] as const;
 
 export type SimulationReasonCode = (typeof SIMULATION_REASON_CODES)[number];
@@ -39,6 +49,8 @@ const SIMULATION_REASON_TEXT: Readonly<Record<SimulationReasonCode, string>> = {
   numeric_natural_key: "This campaign uses an all-digit id where the id addresses a collection member by natural key.",
   unreachable_content: "This campaign declares content nothing in it ever reaches.",
   unsatisfiable_achievement: "This achievement's condition references a counter or flag nothing in this campaign ever writes.",
+  insufficient_time: "That plan needs more time than you have left this week.",
+  wrong_location: "You can't do that here.",
 };
 
 /** `simulation.reason.<code>` → its shipped default-English message, for every code. */
