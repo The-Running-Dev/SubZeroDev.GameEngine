@@ -10,28 +10,47 @@
  * is nothing for a system to mutate; skipping it entirely is the correct behavior, not a
  * missing one.
  *
- * Most systems here need content types (`JobDefinition`, `CourseDefinition`,
- * `HousingDefinition`, `EventDefinition`, `AchievementDefinition`, …) that this unit
- * deliberately doesn't wire — the "Stable Life" vertical slice (`plans/36`'s W39) needs
- * only enough real logic to prove a goal can be won and lost, not full mechanical depth;
- * each unwired system is an explicit, documented stub rather than silently doing nothing.
- * `needs` (drift), `opportunities` (expiry only), and now `goals`/`failure` are real logic.
- * Every system emits `kind.simulation.system.ran` at `trace` (§11), the same
- * ordering-verification technique `startOfWeek.ts` uses. `goals`/`failure` additionally
- * emit `goal.achieved`/`goal.failed` (§11, `info`) per goal transitioning this week —
- * `week.ended` itself is `advance.ts`'s own emit, once, after this whole pipeline returns.
+ * Most systems here need content types (`CourseDefinition`, `HousingDefinition`'s full
+ * lifecycle, `EventDefinition`, `AchievementDefinition`, …) that this unit deliberately
+ * doesn't wire — the "Stable Life" vertical slice (`plans/36`'s W39) needs only enough
+ * real logic to prove a goal can be won and lost, not full mechanical depth; each unwired
+ * system is an explicit, documented stub rather than silently doing nothing.
+ * `needs` (drift), `opportunities` (expiry only), `goals`/`failure`, and now (W53)
+ * `employment`/`finance_income`/`housing` are real logic. Every system emits
+ * `kind.simulation.system.ran` at `trace` (§11), the same ordering-verification technique
+ * `startOfWeek.ts` uses. `goals`/`failure` additionally emit `goal.achieved`/`goal.failed`
+ * (§11, `info`) per goal transitioning this week — `week.ended` itself is `advance.ts`'s
+ * own emit, once, after this whole pipeline returns.
+ *
+ * **`employment`/`finance_income`/`housing` (W53).** `employment` does two jobs: it
+ * resolves `CareerState.pendingApplications` whose `resolvesWeek` has arrived into a real
+ * `Employment` (§7.2's own reasoning for why hiring lives here and not in
+ * `resolvers.ts`'s `apply_for_job`), and it advances any existing `Employment.performance`
+ * — toward `JobPerformanceRules.weeklyDriftToward` absent work this week, or up by a fixed
+ * bonus if `player.flags.workedThisWeek` — then checks each uncontested `PromotionPath`
+ * (contested promotion competition is out of scope here, §5.1's own `Requirement`
+ * evaluation reused via `evaluateSimulationCondition`). `finance_income` pays
+ * `Employment.weeklyPayCents` (plus overtime, from `player.flags.workedOvertimeThisWeek`)
+ * into `cashCents` — real logic, but still a stub for wages, scheduled expenses, or courses
+ * this unit doesn't wire. `housing` levies `HousingState.weeklyCostCents` against that same
+ * `cashCents` — deliberately minimal (no arrears tracking, no eviction advancement; that is
+ * `finance_reconcile`'s job, still a stub, and W55's scope) but real enough to prove §3's own
+ * ordering claim: "`finance_income` ... must run *before* `housing`, so rent is payable from
+ * this week's own wages." Both read `jobs: readonly JobDefinition[]`, threaded in from
+ * `advance.ts`'s own `content.jobs` — the same parameter shape `goalDefs` already uses.
  */
 
 import type { ResolutionEmitter } from "../../core/observability/types.js";
 import type { StateChange } from "../../core/kernel/reasons.js";
-import type { NeedKey } from "./actor.js";
-import type { GoalDefinition, GoalFailurePrecedence } from "./content.js";
+import type { Employment, NeedKey } from "./actor.js";
+import type { GoalDefinition, GoalFailurePrecedence, JobDefinition } from "./content.js";
 import { evaluateSimulationCondition } from "./conditions.js";
 import type { GoalState, SimulationKindState } from "./state.js";
 
 const SYSTEM_NAME = "kind.simulation.system.ran";
 const GOAL_ACHIEVED_EVENT = "kind.simulation.goal.achieved";
 const GOAL_FAILED_EVENT = "kind.simulation.goal.failed";
+const APPLICATION_LOST_EVENT = "kind.simulation.employment.application_lost";
 
 function ranSystem(emit: ResolutionEmitter, system: string): void {
   emit.emit(SYSTEM_NAME, "trace", { data: { system, phase: "end_of_week" } });
@@ -96,9 +115,136 @@ function opportunities(state: SimulationKindState): SimulationKindState {
   return { ...state, activeOpportunities };
 }
 
-/** **Stub.** Needs `JobDefinition`/`Employment.performance` rules against real job content. */
-function employment(state: SimulationKindState): SimulationKindState {
-  return state;
+const PERFORMANCE_WORK_BONUS = 8;
+/** Fraction of the gap to `weeklyDriftToward` closed each week absent work — placeholder,
+ *  same caveat as `DRIFT_PER_WEEK`. */
+const PERFORMANCE_DRIFT_RATE = 0.2;
+
+function findJob(jobs: readonly JobDefinition[], jobId: string): JobDefinition | undefined {
+  return jobs.find((j) => j.id === jobId);
+}
+
+/** Resolves every `pendingApplications` entry whose `resolvesWeek` has arrived. Hires into
+ *  `currentEmployment` if the player isn't already employed; otherwise the application is
+ *  simply dropped (this kind has no concept of holding two jobs, and no "decline offer"
+ *  action exists yet for the player to have refused it explicitly). At most one hire per
+ *  week — this kind's own single-actor scope, not a contested-position race (§7.10's own
+ *  "rivals are a real, still-open gap"). Removes the filled `JobOpening` so a second
+ *  `apply_for_job` against the same posting fails `requirement_unmet` (no open posting to
+ *  find), not because anything here tracks `positionsAvailable` down to zero. An application
+ *  whose `jobId` no longer resolves against `jobs` (content removed or renamed) is dropped
+ *  the same way, but emits `employment.application_lost` first — the only trace of it
+ *  otherwise. */
+function resolveApplications(
+  state: SimulationKindState,
+  jobs: readonly JobDefinition[],
+  emit: ResolutionEmitter,
+): SimulationKindState {
+  const week = state.calendar.currentWeek;
+  const alreadyEmployed = state.player.career.currentEmployment !== undefined;
+
+  const remaining: typeof state.player.career.pendingApplications = [];
+  let hired: Employment | undefined;
+  let filledJobId: string | undefined;
+
+  for (const application of state.player.career.pendingApplications) {
+    if (application.resolvesWeek > week) {
+      remaining.push(application);
+      continue;
+    }
+    if (alreadyEmployed || hired) continue;
+    const job = findJob(jobs, application.jobId);
+    if (!job) {
+      emit.emit(APPLICATION_LOST_EVENT, "warn", { data: { jobId: application.jobId } });
+      continue;
+    }
+    hired = {
+      jobId: job.id,
+      employerId: job.employerId,
+      startedWeek: week,
+      performance: 50,
+      attendanceRatio: 100,
+      warnings: 0,
+      weeklyPayCents: job.compensation.baseWeeklyPayCents,
+      weeksAtCurrentPay: 0,
+    };
+    filledJobId = job.id;
+  }
+
+  if (!hired && remaining.length === state.player.career.pendingApplications.length) return state;
+
+  return {
+    ...state,
+    player: {
+      ...state.player,
+      career: {
+        ...state.player.career,
+        pendingApplications: remaining,
+        ...(hired ? { currentEmployment: hired } : {}),
+      },
+    },
+    world: filledJobId === undefined
+      ? state.world
+      : { ...state.world, jobMarket: { openings: state.world.jobMarket.openings.filter((o) => o.jobId !== filledJobId) } },
+  };
+}
+
+/** Advances `Employment.performance` toward `weeklyDriftToward` absent work this week, or up
+ *  by a fixed bonus if the player worked. Checks every uncontested `PromotionPath` in listed
+ *  order and takes the first one whose `minimumWeeksInRole`, `minimumPerformance` and
+ *  `requirements` are all satisfied — `minimumWeeksInRole` measures tenure *in the role*, so
+ *  a promotion resets `startedWeek` to the promotion week along with `weeksAtCurrentPay`;
+ *  otherwise a later `PromotionPath` would keep measuring from the original hire date and a
+ *  multi-step career path could chain faster than `minimumWeeksInRole` intends. */
+function advanceEmployment(state: SimulationKindState, jobs: readonly JobDefinition[]): SimulationKindState {
+  const employment = state.player.career.currentEmployment;
+  if (!employment) return state;
+  const job = findJob(jobs, employment.jobId);
+  if (!job) return state;
+
+  const workedThisWeek = state.player.flags["workedThisWeek"] === true;
+  const performance = workedThisWeek
+    ? clamp(employment.performance + PERFORMANCE_WORK_BONUS, 0, 100)
+    : clamp(Math.round(employment.performance + PERFORMANCE_DRIFT_RATE * (job.performance.weeklyDriftToward - employment.performance)), 0, 100);
+
+  let next: Employment = { ...employment, performance };
+
+  for (const path of job.promotionPaths) {
+    if (path.contested) continue;
+    if (state.calendar.currentWeek - employment.startedWeek < path.minimumWeeksInRole) continue;
+    if (performance < path.minimumPerformance) continue;
+    if (!path.requirements.every((r) => evaluateSimulationCondition(r.condition, state))) continue;
+    const target = findJob(jobs, path.toJobId);
+    if (!target) continue;
+    next = {
+      ...next,
+      jobId: target.id,
+      employerId: target.employerId,
+      startedWeek: state.calendar.currentWeek,
+      weeklyPayCents: target.compensation.baseWeeklyPayCents,
+      weeksAtCurrentPay: 0,
+    };
+    break;
+  }
+
+  return {
+    ...state,
+    player: {
+      ...state.player,
+      career: { ...state.player.career, currentEmployment: next, totalWeeksEmployed: state.player.career.totalWeeksEmployed + 1 },
+    },
+  };
+}
+
+/** Real logic (W53) — resolves due applications into a hire, then advances whatever
+ *  `Employment` results. A hire that lands *this same week* is not advanced yet — the
+ *  employee hasn't worked a week under it, so `totalWeeksEmployed` and performance
+ *  drift/promotion would otherwise be evaluated against zero elapsed time. */
+function employment(state: SimulationKindState, jobs: readonly JobDefinition[], emit: ResolutionEmitter): SimulationKindState {
+  const wasEmployed = state.player.career.currentEmployment !== undefined;
+  const resolved = resolveApplications(state, jobs, emit);
+  const hiredThisWeek = !wasEmployed && resolved.player.career.currentEmployment !== undefined;
+  return hiredThisWeek ? resolved : advanceEmployment(resolved, jobs);
 }
 
 /** **Stub.** Needs `CourseDefinition`. */
@@ -106,9 +252,43 @@ function education(state: SimulationKindState): SimulationKindState {
   return state;
 }
 
-/** **Stub.** Wages/scheduled expenses need `JobDefinition`/`CourseDefinition`. */
-function financeIncome(state: SimulationKindState): SimulationKindState {
-  return state;
+/** Real logic (W53) — pays `Employment.weeklyPayCents` into `cashCents`, plus overtime pay
+ *  from `job.compensation.overtimeRate` when `player.flags.workedOvertimeThisWeek` (set by
+ *  `resolvers.ts`'s `work_overtime`), scaled off the employee's current `weeklyPayCents` —
+ *  the same basis as the base wage above it, so a `negotiate_job_terms` raise (§7.9) is
+ *  reflected in overtime pay too, not just the base. Wages a course or scheduled expense
+ *  would add are still unwired (`CourseDefinition`, out of scope — W54). Runs *before*
+ *  `housing` (§3) so rent is payable out of this same week's wages.
+ *
+ *  Clears both weekly work flags here — but only when there's an `Employment` to have set
+ *  them, the same condition `advanceEmployment` used to gate its own (too-early) clear on —
+ *  once both consumers (`advanceEmployment`'s own performance-bonus read, above in
+ *  `employment()`, and this system's own overtime read) have seen them for the week.
+ *  Clearing earlier, inside `advanceEmployment`, meant this system always read
+ *  `workedOvertimeThisWeek` as already-reset and never paid overtime. */
+function financeIncome(state: SimulationKindState, jobs: readonly JobDefinition[]): { state: SimulationKindState; changes: StateChange[] } {
+  const employment = state.player.career.currentEmployment;
+  if (!employment) return { state, changes: [] };
+
+  const flags = { ...state.player.flags, workedThisWeek: false, workedOvertimeThisWeek: false };
+  const clearedState: SimulationKindState = { ...state, player: { ...state.player, flags } };
+  const job = findJob(jobs, employment.jobId);
+
+  let pay = employment.weeklyPayCents;
+  const workedOvertime = state.player.flags["workedOvertimeThisWeek"] === true;
+  if (workedOvertime && job?.compensation.overtimeRate) {
+    pay += Math.round(employment.weeklyPayCents * job.compensation.overtimeRate / 10_000);
+  }
+  if (pay === 0) return { state: clearedState, changes: [] };
+
+  const before = state.player.finances.cashCents;
+  return {
+    state: {
+      ...clearedState,
+      player: { ...clearedState.player, finances: { ...clearedState.player.finances, cashCents: before + pay } },
+    },
+    changes: [{ path: "player.finances.cashCents", op: "increment", value: pay, previous: before, reason: "wage_payment", visible: true }],
+  };
 }
 
 /** **Stub.** Maintenance rules need `ItemDefinition`. */
@@ -116,9 +296,21 @@ function inventory(state: SimulationKindState): SimulationKindState {
   return state;
 }
 
-/** **Stub.** Rent levied needs `HousingDefinition.weeklyCostCents`. */
-function housing(state: SimulationKindState): SimulationKindState {
-  return state;
+/** Real logic (W53), deliberately minimal — levies `HousingState.weeklyCostCents` against
+ *  `cashCents`, unconditionally (`cashCents` may go negative; arrears tracking and eviction
+ *  advancement are `finance_reconcile`'s job, still a stub, and W55's own scope). Exists to
+ *  prove §3's wage-before-rent ordering, not to be the full housing system. */
+function housing(state: SimulationKindState): { state: SimulationKindState; changes: StateChange[] } {
+  const rent = state.player.housing.weeklyCostCents;
+  if (rent === 0) return { state, changes: [] };
+  const before = state.player.finances.cashCents;
+  return {
+    state: {
+      ...state,
+      player: { ...state.player, finances: { ...state.player.finances, cashCents: before - rent } },
+    },
+    changes: [{ path: "player.finances.cashCents", op: "decrement", value: rent, previous: before, reason: "rent_charged", visible: true }],
+  };
 }
 
 /** **Stub.** Late fees/eviction advancement need `housing`'s own rent charge above. */
@@ -232,20 +424,23 @@ export function runEndOfWeek(
   emit: ResolutionEmitter,
   goalDefs: readonly GoalDefinition[],
   goalFailurePrecedence: GoalFailurePrecedence,
+  jobs: readonly JobDefinition[] = [],
 ): { state: SimulationKindState; changes: StateChange[] } {
-  let next = employment(state);
+  let next = employment(state, jobs, emit);
   ranSystem(emit, "employment");
 
   next = education(next);
   ranSystem(emit, "education");
 
-  next = financeIncome(next);
+  const financeIncomeResult = financeIncome(next, jobs);
+  next = financeIncomeResult.state;
   ranSystem(emit, "finance_income");
 
   next = inventory(next);
   ranSystem(emit, "inventory");
 
-  next = housing(next);
+  const housingResult = housing(next);
+  next = housingResult.state;
   ranSystem(emit, "housing");
 
   next = financeReconcile(next);
@@ -276,5 +471,5 @@ export function runEndOfWeek(
   next = achievements(next);
   ranSystem(emit, "achievements");
 
-  return { state: next, changes: needsResult.changes };
+  return { state: next, changes: [...financeIncomeResult.changes, ...housingResult.changes, ...needsResult.changes] };
 }

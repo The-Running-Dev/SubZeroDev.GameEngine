@@ -1,0 +1,12 @@
+{
+  "name": "stable-life-employment",
+  "config": { "campaignId": "stable-life", "seed": "stable-life-employment-seed" },
+  "campaignVersion": "1.0.0",
+  "capturedUnder": "0.4.0",
+  "submissions": [
+    { "actionId": "plan.add", "params": { "actionType": "search_for_work" } },
+    { "actionId": "plan.add", "params": { "actionType": "apply_for_job", "targetId": "job-cashier" } },
+    { "actionId": "end_week" },
+    { "actionId": "end_week" }
+  ]
+}

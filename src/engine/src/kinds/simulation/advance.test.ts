@@ -185,10 +185,10 @@ describe("advance — end_week", () => {
     expect(result.status).toBe("active");
   });
 
-  it("accumulates changes from end-of-week systems (needs drift)", () => {
+  it("accumulates changes from end-of-week systems (needs drift, and W53's rent charge)", () => {
     const result = advance(baseState(), "end_week", undefined, fakeCtx());
     expect(result.changes.length).toBeGreaterThan(0);
-    expect(result.changes.every((c) => c.path.startsWith("player.needs."))).toBe(true);
+    expect(result.changes.every((c) => c.path.startsWith("player.needs.") || c.path === "player.finances.cashCents")).toBe(true);
   });
 
   it("rejects a planned custom action with action_not_available", () => {
@@ -198,7 +198,10 @@ describe("advance — end_week", () => {
   });
 
   it("resolves every planned, non-custom action through the stub resolver without error", () => {
-    const withAction = advance(baseState(), "plan.add", { actionType: "apply_for_job" }, fakeCtx()).state;
+    // "shop" — still `stubResolver` after W53, which only wires the five employment
+    // ActionTypes (`resolvers.ts`'s own header). `apply_for_job` no longer fits this test's
+    // own name: it now has real preconditions (`resolvers.test.ts` covers those).
+    const withAction = advance(baseState(), "plan.add", { actionType: "shop" }, fakeCtx()).state;
     const result = advance(withAction, "end_week", undefined, fakeCtx());
     expect(result.error).toBeUndefined();
   });

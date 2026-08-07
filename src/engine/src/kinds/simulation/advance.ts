@@ -140,7 +140,7 @@ export function advance(
       }
 
       const content = ctx.campaign.content as SimulationCampaign;
-      const endOfWeekResult = runEndOfWeek(working, ctx.emit, content.goals, content.goalFailurePrecedence);
+      const endOfWeekResult = runEndOfWeek(working, ctx.emit, content.goals, content.goalFailurePrecedence, content.jobs);
       ctx.emit.emit(WEEK_ENDED_EVENT, "info", { data: { week: working.calendar.currentWeek } });
 
       const nextWeek = runStartOfWeek(endOfWeekResult.state, ctx.emit);

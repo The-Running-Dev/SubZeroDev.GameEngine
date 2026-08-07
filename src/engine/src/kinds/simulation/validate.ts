@@ -92,10 +92,12 @@ function validateModifiers(modifiers: readonly Modifier[]): ValidationError[] {
 }
 
 /** §7.1: an id used as a collection's natural key (`world.npcs.<id>`,
- *  `player.education.enrollments.<courseId>`) may not be all-digits — indistinguishable from
- *  the rejected numeric-index form otherwise. Applies to `NPCDefinition.id` and
- *  `CourseDefinition.id`, the two content ids this campaign shape declares that are ever used
- *  as a natural key (`campaign.ts`'s own §7.1 addressing table). */
+ *  `player.education.enrollments.<courseId>`, `world.jobMarket.openings.<jobId>`,
+ *  `player.career.pendingApplications.<jobId>`) may not be all-digits — indistinguishable
+ *  from the rejected numeric-index form otherwise. Applies to `NPCDefinition.id`,
+ *  `CourseDefinition.id`, and (W53) `JobDefinition.id` — every content id this campaign
+ *  shape declares that is ever used as a natural key (`campaign.ts`'s own §7.1 addressing
+ *  table; `resolvers.ts`'s `search_for_work`/`apply_for_job`). */
 function validateNaturalKeyIds(ids: readonly string[]): ValidationError[] {
   return ids.filter((id) => /^\d+$/.test(id)).map((id) => error("numeric_natural_key", id));
 }
@@ -277,6 +279,10 @@ function validateNaturalKeys(content: SimulationCampaign): ValidationError[] {
   return [
     ...validateNaturalKeyIds(content.npcs.map((n) => n.id)),
     ...validateNaturalKeyIds(content.courses.map((c) => c.id)),
+    // W53's resolvers.ts addresses JobOpening/JobApplication by job id
+    // (world.jobMarket.openings.<jobId>.*, player.career.pendingApplications.<jobId>.*) —
+    // the same natural-key addressing npcs/courses already require this check for.
+    ...validateNaturalKeyIds(content.jobs.map((j) => j.id)),
   ];
 }
 
