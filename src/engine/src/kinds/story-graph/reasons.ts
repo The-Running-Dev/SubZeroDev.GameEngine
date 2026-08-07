@@ -15,6 +15,14 @@
  * W14 adds its own Tier 1/2 content-validation codes (03 §11) — a `LocKey` failing to
  * resolve reuses the base `missing_string_key` (W5) instead of a new one, since that's
  * the exact same failure the core's own `titleKey` check already names.
+ *
+ * `consequence_applied` was registered by reconciliation. 04 §12 specifies it as the `reason`
+ * on the coalesced variable-write `StateChange`, and `variables.ts` has emitted it since W9
+ * without it ever entering a vocabulary — so a change whose `visible` mirrors a variable's own
+ * declaration could reach a client with a code the string table had no entry for. It is
+ * kind-owned rather than base because only this kind has a `consequence`; the achievement
+ * sibling `achievement_unlocked` is in `BASE_REASON_CODES` instead, because the session store
+ * switches on that one without knowing which kind produced it.
  */
 
 import type { LocKey } from "../../core/localization/types.js";
@@ -35,6 +43,7 @@ export const STORY_GRAPH_REASON_CODES = [
   "unreachable_cycle",
   "no_reachable_choice",
   "no_reachable_ending",
+  "consequence_applied",
 ] as const;
 
 export type StoryGraphReasonCode = (typeof STORY_GRAPH_REASON_CODES)[number];
@@ -55,6 +64,7 @@ const STORY_GRAPH_REASON_TEXT: Readonly<Record<StoryGraphReasonCode, string>> = 
   unreachable_cycle: "This campaign has a loop with no way out.",
   no_reachable_choice: "This campaign never lets the player make a choice.",
   no_reachable_ending: "This campaign has no reachable ending.",
+  consequence_applied: "A choice changed something.",
 };
 
 /** `story-graph.reason.<code>` → its shipped default-English message, for every code. */

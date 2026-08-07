@@ -245,6 +245,41 @@ describe("advance — unknown action", () => {
   });
 });
 
+describe("advance — every rejection carries a player-facing message (04 §3)", () => {
+  const rejections: readonly { readonly label: string; readonly run: () => ReturnType<typeof advance> }[] = [
+    {
+      label: "plan.add with no actionType",
+      run: () => advance(baseState(), "plan.add", {}, fakeCtx()),
+    },
+    {
+      label: "plan.remove with an out-of-range index",
+      run: () => advance(baseState(), "plan.remove", { index: 0 }, fakeCtx()),
+    },
+    {
+      label: "end_week with a planned custom action",
+      run: () =>
+        advance(
+          advance(baseState(), "plan.add", { actionType: "custom" }, fakeCtx()).state,
+          "end_week",
+          undefined,
+          fakeCtx(),
+        ),
+    },
+    {
+      label: "an unrecognized actionId",
+      run: () => advance(baseState(), "totally_fake_action", undefined, fakeCtx()),
+    },
+  ];
+
+  for (const { label, run } of rejections) {
+    it(`${label} attaches one visible OutcomeMessage built from the error's own messageKey`, () => {
+      const result = run();
+      expect(result.error).toBeDefined();
+      expect(result.messages).toEqual([{ key: result.error!.messageKey, visible: true }]);
+    });
+  }
+});
+
 describe("simulation kind — through the real engine (integration)", () => {
   function makeSimulationKind(): Kind<SimulationKindState> {
     return {

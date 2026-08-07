@@ -125,8 +125,9 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   weeks played across every game under one profile, but the only cross-game store this
   platform has is `PlayerProfile` (04 §7.1: `{ formatVersion, profileId, achievements }`),
   which has no field for arbitrary kind-declared profile-scoped data. Found while porting
-  `WorldState` (10 §2.2, the field-detail port `plans/36-simulation-kind-programme.md` calls
-  W27). **Revisit when** a unit actually needs a `"profile"`-scoped chain to persist —
+  `WorldState` (10 §2.2, the field-detail port `plans/36-simulation-kind-programme.md`
+  proposed as W27 and cut as **W32**). **Revisit when** a unit actually needs a
+  `"profile"`-scoped chain to persist —
   specifying a mechanism generically now, with exactly one (still-hypothetical) consumer,
   would be the same one-built-instance-is-not-a-pattern reasoning this register already
   applies to `createSessionLayer` and the tick-pipeline substrate.

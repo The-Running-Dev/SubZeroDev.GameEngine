@@ -70,6 +70,16 @@ export type ReasonCode = string;
  * — `buildValidatedContentRegistry` (`validation/tiered.ts`) needs a code for the
  * completeness check §12 already promises: "validation fails if any registered reason code
  * has no localized message."
+ *
+ * `achievement_unlocked` was registered by reconciliation: §12 specifies it as the `reason` on
+ * the achievement-unlock `StateChange`, and it had been emitted (`kinds/story-graph/
+ * achievements.ts`) and switched on kind-agnostically (`session/store.ts`'s profile upsert)
+ * without ever entering the vocabulary — so a `visible: true` audit record reached a client
+ * carrying a code the string table could not resolve, which is exactly what §12's "the core
+ * ships the base set's messages" exists to prevent. It belongs to the *base* set rather than
+ * to `story-graph` because the session store reads it without knowing which kind emitted it.
+ * Its story-graph sibling `consequence_applied` is kind-owned and lives in
+ * `kinds/story-graph/reasons.ts` instead.
  */
 export const BASE_REASON_CODES = [
   "action_not_available",
@@ -97,6 +107,7 @@ export const BASE_REASON_CODES = [
   "unknown_save",
   "storage_failure",
   "missing_kind_reason_message",
+  "achievement_unlocked",
 ] as const;
 
 export type BaseReasonCode = (typeof BASE_REASON_CODES)[number];
@@ -133,6 +144,7 @@ const CORE_REASON_TEXT: Readonly<Record<BaseReasonCode, string>> = {
   unknown_save: "That save could not be found.",
   storage_failure: "Progress could not be stored. Your game is still playable, but it may not be here next time.",
   missing_kind_reason_message: "This kind declared a reason code with no localized message.",
+  achievement_unlocked: "Achievement unlocked.",
 };
 
 /** `core.reason.<code>` → its shipped default-English message, for every base code. */
