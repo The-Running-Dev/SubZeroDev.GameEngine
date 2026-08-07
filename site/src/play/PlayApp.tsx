@@ -169,7 +169,9 @@ function PlayAppReady({ demo }: { demo: BrowserDemo }) {
     if (!requested || !demo.findCampaign(requested)) return;
     autoStarted.current = true;
     setSelectedId(requested);
-    void start(requested);
+    const saveId = demo.findLocalSave(requested);
+    if (saveId) void resume(requested, saveId);
+    else void start(requested);
   }, [demo]);
 
   function reducedMotion(): boolean {

@@ -32,6 +32,7 @@ async function scanForViolations(container: Element): Promise<void> {
 describe("accessibility (W65.4)", () => {
   it("shelf", async () => {
     const { container } = render(<PlayApp />);
+    await screen.findByRole("heading", { level: 1 });
     await scanForViolations(container);
   });
 

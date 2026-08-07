@@ -111,6 +111,43 @@ describe("PlayApp cabinet presentation", () => {
     }
   });
 
+  it("resumes an existing local save when opened via its permanent ?campaign= link, rather than restarting", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<PlayApp />);
+    await screen.findByRole("heading", { name: "Adventure disk library" });
+
+    await user.click(screen.getByRole("button", { name: /The Bureaucracy/i }));
+    await user.click(
+      screen.getByRole("button", { name: "Load selected adventure" }),
+    );
+    await user.click(
+      await screen.findByRole("button", {
+        name: /Wait for the municipal registry/i,
+      }),
+    );
+    const advancedScene =
+      document.querySelector(".scene-body")?.textContent ?? "";
+    expect(advancedScene).not.toMatch(/handwritten/i);
+    unmount();
+
+    const originalLocation = window.location.href;
+    window.history.pushState({}, "", "/?campaign=bulgaria-bureaucracy");
+    try {
+      render(<PlayApp />);
+      expect(
+        await screen.findByRole("heading", { name: "The Bureaucracy" }),
+      ).toBeVisible();
+      expect(document.querySelector(".scene-body")?.textContent).toBe(
+        advancedScene,
+      );
+      expect(
+        screen.queryByRole("heading", { name: "Adventure disk library" }),
+      ).not.toBeInTheDocument();
+    } finally {
+      window.history.pushState({}, "", originalLocation);
+    }
+  });
+
   it("ignores a submission that resolves after the player quits to the library", async () => {
     const user = userEvent.setup();
     render(<PlayApp />);
