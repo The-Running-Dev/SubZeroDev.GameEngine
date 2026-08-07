@@ -55,11 +55,20 @@ function localPersistence(): SessionPersistence {
         return raw ? (JSON.parse(raw) as StoredSaveRecord) : undefined;
       },
       async put(record) {
+        const supersededId = localStorage.getItem(
+          campaignSaveIndexKey(record.campaignId),
+        );
         localStorage.setItem(saveKey(record.saveId), JSON.stringify(record));
         localStorage.setItem(
           campaignSaveIndexKey(record.campaignId),
           record.saveId,
         );
+        // Every autosave mints a fresh saveId (types.ts), so the previous full
+        // record would otherwise sit in localStorage unreachable from the index.
+        // Removed only after the new record and index are safely written, so a
+        // failure here can never erase the only usable checkpoint.
+        if (supersededId && supersededId !== record.saveId)
+          localStorage.removeItem(saveKey(supersededId));
       },
       async delete(id) {
         const raw = await this.get(id);
