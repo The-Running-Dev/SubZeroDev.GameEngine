@@ -39,13 +39,54 @@ const world = {
   chainStates: [], strangenessBase: 0, headlinePool: { remainingIds: [], cyclesCompleted: 0 }, agents: [], flags: {},
 };
 
+/**
+ * `advance()` itself has no opinion on how its input `SimulationKindState` was built — these
+ * are unit tests of its own resolution logic, not of `initial.ts`'s `ScenarioDefinition`
+ * assembly (that's `initial.test.ts`'s job). Every state below is a plain object literal, not
+ * a round trip through `initialState`, so the specific starting numbers each test exercises
+ * (`needs.energy: 80`, `needs.happiness: 40/90/5`, …) stay exactly as authored regardless of
+ * what `initial.ts`'s own fixed defaults happen to be.
+ */
+function makeState(overrides: Partial<SimulationKindState> = {}): SimulationKindState {
+  return {
+    calendar: { ...calendar },
+    player: structuredClone(player),
+    economy: { ...economy },
+    world: structuredClone(world),
+    activeEffects: [],
+    activeOpportunities: [],
+    scheduledEvents: [],
+    pendingEventResponses: [],
+    goals: [],
+    plan: { week: 1, actions: [] },
+    ...overrides,
+  };
+}
+
 const simulationCampaign: SimulationCampaign = {
   descriptionKey: "sim.description",
-  startingCalendar: calendar,
-  startingPlayer: player,
-  startingEconomy: economy,
-  startingWorld: world,
+  jobs: [], courses: [], housing: [{
+    id: "housing-1", nameKey: "housing.name", descriptionKey: "housing.description",
+    upfrontCostCents: 0, weeklyCostCents: 5000, capacity: 1, comfort: 0, safety: 0, prestige: 0, storage: 0,
+    commuteModifier: 0, energyRecoveryModifier: 0, happinessModifier: 0, healthModifier: 0, maintenanceRisk: 0,
+    requirements: [], tags: [],
+  }],
+  items: [], events: [], npcs: [],
   goals: [],
+  scenarios: [{
+    id: "scenario-1", nameKey: "scenario.name", descriptionKey: "scenario.description",
+    startingBackgroundIds: ["bg-1"], startingCashCents: 10000, startingHousingId: "housing-1",
+    startingLocationId: "loc-1", startingInventory: [], goalIds: [], mode: "classic", goalFailurePrecedence: "goals_win",
+  }],
+  difficulties: [], opportunities: [], achievements: [], headlines: [], employers: [],
+  locations: [{ id: "loc-1", nameKey: "loc.name", descriptionKey: "loc.description", connections: [], travelTimeUnits: 0, actionTypes: [] }],
+  backgrounds: [{
+    id: "bg-1", nameKey: "bg.name", descriptionKey: "bg.description",
+    startingAttributes: player.attributes, startingSkills: {}, startingCredentials: [], startingTraits: [],
+    startingCashModifierCents: 0,
+  }],
+  traits: [], skills: [],
+  scenarioId: "scenario-1",
   goalFailurePrecedence: "goals_win",
   sceneTemplateKey: "sim.scene.status",
   actionLabelKeys: { planAdd: "sim.action.plan-add", planRemove: "sim.action.plan-remove", planClear: "sim.action.plan-clear", endWeek: "sim.action.end-week" },
@@ -67,7 +108,7 @@ function fakeCtx(): KindContext {
 }
 
 function baseState(): SimulationKindState {
-  return initialState(campaign).state;
+  return makeState();
 }
 
 describe("advance — plan.add", () => {
@@ -196,25 +237,29 @@ describe("advance — end_week ends the game when every goal resolves", () => {
     return { ...fakeCtx(), campaign: { ...campaign, content } };
   }
 
+  /** `initialState` normally seeds `state.goals` from `content.goals` (`startingGoals`,
+   *  `initial.ts`) — these tests build state directly (this file's own header), so the
+   *  matching `GoalState` must be seeded by hand instead. */
+  function activeGoalState(goal: GoalDefinition): SimulationKindState["goals"] {
+    return [{ definitionId: goal.id, status: "active", satisfiedThisWeek: false, consecutiveWeeksSatisfied: 0, progressNotes: [] }];
+  }
+
   it("status stays active while the goal is still active", () => {
-    const content: SimulationCampaign = {
-      ...campaignWithGoal(happinessGoal),
-      startingPlayer: { ...player, needs: { ...player.needs, happiness: 40 } },
-    };
-    const ctx = ctxWithCampaign(content);
-    const state = initialState({ ...campaign, content }).state;
+    const ctx = ctxWithCampaign(campaignWithGoal(happinessGoal));
+    const state = makeState({
+      player: { ...structuredClone(player), needs: { ...player.needs, happiness: 40 } },
+      goals: activeGoalState(happinessGoal),
+    });
     const result = advance(state, "end_week", undefined, ctx);
     expect(result.status).toBe("active");
   });
 
   it("status becomes ended and error stays undefined once the goal completes", () => {
-    const highHappiness: GoalDefinition = happinessGoal;
-    const content: SimulationCampaign = {
-      ...campaignWithGoal(highHappiness),
-      startingPlayer: { ...player, needs: { ...player.needs, happiness: 90 } },
-    };
-    const ctx = ctxWithCampaign(content);
-    const state = initialState({ ...campaign, content }).state;
+    const ctx = ctxWithCampaign(campaignWithGoal(happinessGoal));
+    const state = makeState({
+      player: { ...structuredClone(player), needs: { ...player.needs, happiness: 90 } },
+      goals: activeGoalState(happinessGoal),
+    });
     const result = advance(state, "end_week", undefined, ctx);
     expect(result.status).toBe("ended");
     expect(result.error).toBeUndefined();
@@ -225,12 +270,11 @@ describe("advance — end_week ends the game when every goal resolves", () => {
       ...happinessGoal,
       failureConditions: { field: "player.needs.happiness", operator: "less_than", value: 10 },
     };
-    const content: SimulationCampaign = {
-      ...campaignWithGoal(goalWithFailure),
-      startingPlayer: { ...player, needs: { ...player.needs, happiness: 5 } },
-    };
-    const ctx = ctxWithCampaign(content);
-    const state = initialState({ ...campaign, content }).state;
+    const ctx = ctxWithCampaign(campaignWithGoal(goalWithFailure));
+    const state = makeState({
+      player: { ...structuredClone(player), needs: { ...player.needs, happiness: 5 } },
+      goals: activeGoalState(goalWithFailure),
+    });
     const result = advance(state, "end_week", undefined, ctx);
     expect(result.status).toBe("ended");
   });

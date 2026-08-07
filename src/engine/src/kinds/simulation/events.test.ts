@@ -9,9 +9,9 @@
 
 import { describe, it, expect } from "vitest";
 import { advance } from "./advance.js";
-import { initialState } from "./initial.js";
 import type { GoalDefinition } from "./content.js";
 import type { SimulationCampaign } from "./campaign.js";
+import type { SimulationKindState } from "./state.js";
 import type { EventData, ResolutionEmitter } from "../../core/observability/types.js";
 import type { EventName, Severity } from "../../core/observability/types.js";
 import type { Campaign } from "../../core/registry/types.js";
@@ -58,14 +58,38 @@ const happinessGoal: GoalDefinition = {
   conditions: { field: "player.needs.happiness", operator: "greater_or_equal", value: 60 },
 };
 
+/** Built directly, not through `initial.ts`'s `initialState` — this file exercises
+ *  `advance()`'s own event emission, not `ScenarioDefinition` assembly, so the exact starting
+ *  `needs` these tests depend on (`happiness: 90`, in particular) stay authored here rather
+ *  than routed through `initial.ts`'s own fixed defaults. `goals` mirrors what
+ *  `initial.ts`'s own `startingGoals` would seed from the same `GoalDefinition` list, so a
+ *  test's `makeCampaign(goals)` and `makeState(goals)` calls stay in sync. */
+function makeState(goals: GoalDefinition[] = []): SimulationKindState {
+  return {
+    calendar: { ...calendar },
+    player: structuredClone(player),
+    economy: { ...economy },
+    world: structuredClone(world),
+    activeEffects: [],
+    activeOpportunities: [],
+    scheduledEvents: [],
+    pendingEventResponses: [],
+    goals: goals.map((goal) => ({
+      definitionId: goal.id, status: "active", satisfiedThisWeek: false, consecutiveWeeksSatisfied: 0, progressNotes: [],
+    })),
+    plan: { week: 1, actions: [] },
+  };
+}
+
 function makeCampaign(goals: GoalDefinition[]): Campaign {
   const content: SimulationCampaign = {
     descriptionKey: "sim.description",
-    startingCalendar: calendar,
-    startingPlayer: player,
-    startingEconomy: economy,
-    startingWorld: world,
+    jobs: [], courses: [], housing: [], items: [], events: [], npcs: [],
     goals,
+    scenarios: [],
+    difficulties: [], opportunities: [], achievements: [], headlines: [], employers: [], locations: [],
+    backgrounds: [], traits: [], skills: [],
+    scenarioId: "",
     goalFailurePrecedence: "goals_win",
     sceneTemplateKey: "sim.scene.status",
     actionLabelKeys: { planAdd: "sim.action.plan-add", planRemove: "sim.action.plan-remove", planClear: "sim.action.plan-clear", endWeek: "sim.action.end-week" },
@@ -91,7 +115,7 @@ describe("events (10-simulation-kind.md §11; W50.8)", () => {
     const campaign = makeCampaign([]);
     const { emitter, events } = recordingEmitter();
     const ctx = ctxWith(campaign, emitter);
-    let state = initialState(campaign).state;
+    let state = makeState();
 
     state = advance(state, "plan.add", { actionType: "rest" }, ctx).state;
     state = advance(state, "plan.remove", { index: 0 }, ctx).state;
@@ -106,7 +130,7 @@ describe("events (10-simulation-kind.md §11; W50.8)", () => {
     const campaign = makeCampaign([]);
     const { emitter, events } = recordingEmitter();
     const ctx = ctxWith(campaign, emitter);
-    const withPlan = advance(initialState(campaign).state, "plan.add", { actionType: "rest" }, ctx).state;
+    const withPlan = advance(makeState(), "plan.add", { actionType: "rest" }, ctx).state;
 
     events.length = 0; // isolate the end_week call
     advance(withPlan, "end_week", undefined, ctx);
@@ -127,7 +151,7 @@ describe("events (10-simulation-kind.md §11; W50.8)", () => {
     const campaign = makeCampaign([happinessGoal]);
     const { emitter, events } = recordingEmitter();
     const ctx = ctxWith(campaign, emitter);
-    advance(initialState(campaign).state, "end_week", undefined, ctx);
+    advance(makeState([happinessGoal]), "end_week", undefined, ctx);
 
     expect(events).toContainEqual({ name: "kind.simulation.goal.achieved", severity: "info", data: { goalId: "goal-happy" } });
   });
@@ -144,7 +168,7 @@ describe("events (10-simulation-kind.md §11; W50.8)", () => {
     const campaign = makeCampaign([failingGoal]);
     const { emitter, events } = recordingEmitter();
     const ctx = ctxWith(campaign, emitter);
-    advance(initialState(campaign).state, "end_week", undefined, ctx);
+    advance(makeState([failingGoal]), "end_week", undefined, ctx);
 
     expect(events).toContainEqual({ name: "kind.simulation.goal.failed", severity: "info", data: { goalId: "goal-doomed" } });
   });
@@ -153,7 +177,7 @@ describe("events (10-simulation-kind.md §11; W50.8)", () => {
     const campaign = makeCampaign([happinessGoal]);
     const { emitter, events } = recordingEmitter();
     const ctx = ctxWith(campaign, emitter);
-    let state = initialState(campaign).state;
+    let state = makeState();
     state = advance(state, "plan.add", { actionType: "rest" }, ctx).state;
     advance(state, "end_week", undefined, ctx);
 

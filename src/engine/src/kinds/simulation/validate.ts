@@ -1,47 +1,45 @@
 /**
- * Simulation kind — Tier 1/2 content validation (10-simulation-kind.md §14).
+ * Simulation kind — Tier 1/2 content validation (10-simulation-kind.md §14; W52).
  *
  * Contract: `10-simulation-kind.md` §14.
  *
- * **Scoped to what `SimulationCampaign` actually carries today, not §14's full list.**
- * §14 enumerates checks across every content-definition type §7 names — jobs, courses,
- * housing, items, events, NPCs, scenarios, difficulty, opportunities, achievements,
- * headlines, employers, locations, backgrounds, traits, skills. `SimulationCampaign`
- * (`campaign.ts`) has exactly two content collections so far: `goals` and
- * `goalFailurePrecedence` (W39) — everything else in §14's list has no field to check yet.
- * Implementing checks against collections that don't exist would be validating a shape
- * this kind doesn't have, not content this kind can actually load. This file covers:
+ * **Covers every collection `SimulationCampaign` (`campaign.ts`, W52) now carries** — the
+ * full §7.2–§7.10 content surface, replacing the two-collection scope (`goals` alone) this
+ * file had before W52. Every check runs independently and collects into one report —
+ * nothing short-circuits, matching `kinds/story-graph/validate.ts`'s own style.
  *
- * - Tier 1: no two `GoalDefinition`s share an `id` (§14's duplicate-id rule, the one
- *   instance of it this campaign shape can produce).
- * - Tier 1: every `LocKey` this campaign shape declares (`descriptionKey`, each
- *   goal's `labelKey`/`descriptionKey`, `sceneTemplateKey` and each `actionLabelKeys`
- *   entry — W50) resolves in `strings` — reuses the base `missing_string_key` code rather
- *   than inventing one, the same choice `kinds/story-graph/reasons.ts` made for the
- *   identical check. This is what makes §9's "a `LocKey` `scene` references but the
- *   registry does not resolve fails registry construction" true at load time, not just at
- *   the runtime backstop `scene.ts`'s own `throw` provides.
- * - Tier 1: `startingEffects` (W51.6) — the one hand-authored `StatusEffect` collection this
- *   campaign shape carries — has each `descriptionKey` resolve in `strings`, and each
- *   `Modifier.target` name a writable stored field (`player.needs.*`,
- *   `player.attributes.*`, `player.skills.*`, or `calendar.committedTimeUnits` — §6.1's own
- *   `time_commit` exception). `Modifier.target` is untyped `string`, not `DerivedPath`
- *   (`state.ts`), so nothing catches a target naming one of §6.1's four read-only formula
- *   paths, or an unaddressable one, before this check does — the same `read_only_field`
- *   code §14 assigns a `Modifier` targeting a derived field at load time.
+ * **Scoped exactly like `source.ts`'s own authoring surface, not every `LocKey` this kind's
+ * content can carry.** `validateLocKeys` below checks the same top-level identity/label
+ * fields `source.ts` converts to `AuthoredText` — a handful of deeply-nested fields
+ * (`Requirement.messageKey`, `TerminationRule.messageKey`, `EventChoice.labelKey`,
+ * `EventOutcome.messages[].key`) have no authoring path onto `strings` yet either (`source.ts`
+ * leaves them plain `LocKey`), so checking them here would validate a promise this unit's own
+ * authoring surface doesn't keep. Revisit both together.
  *
- * **Revisit when** `SimulationCampaign` grows a new collection (jobs, courses, housing, …)
- * — each one brings its own slice of §14's reference-resolution and addressing rules, to
- * be added here alongside the unit that adds the collection, not guessed at now.
+ * **Cross-reference checks cover exactly what §14 names, not every plausible one.**
+ * `OpportunityDefinition.targetId`'s `"business"` `kind` has no matching definition type
+ * anywhere in §7.9's list (no `BusinessDefinition` exists in this port) — skipped rather than
+ * guessed at; every other `OpportunityKind` maps onto a real type. `Reward.target`/`value`
+ * are untyped (`content.ts`'s own "provisional, not resolved here" callout on `Reward`), so
+ * Tier 2's "no Reward ... ever references" clause is read as "no `Reward` of the matching
+ * `counter`/`flag` type" for the achievement check below, not as a general reference scan
+ * over every `Reward.target` — the same reason `Reward`'s payload isn't narrowed elsewhere.
  */
 
 import type { Campaign } from "../../core/registry/types.js";
 import type { LocKey } from "../../core/localization/types.js";
-import type { ValidationError, ValidationResult } from "../../core/validation/types.js";
+import type { ValidationError, ValidationResult, ValidationWarning } from "../../core/validation/types.js";
+import type { Condition } from "../../core/condition/types.js";
 import type { SimulationCampaign } from "./campaign.js";
+import type { Modifier } from "./state.js";
+import type { Reward } from "./content.js";
 import { derivedValueResolver } from "./derived.js";
 
 function error(code: string, path: string): ValidationError {
+  return { code, messageKey: `simulation.reason.${code}`, path };
+}
+
+function warning(code: string, path: string): ValidationWarning {
   return { code, messageKey: `simulation.reason.${code}`, path };
 }
 
@@ -53,10 +51,26 @@ function readOnlyField(path: string): ValidationError {
   return { code: "read_only_field", messageKey: "core.reason.read_only_field", path };
 }
 
-/** The addressable stored fields a `startingEffects` `Modifier` may target — §6.1's
- *  base/derived split, plus `calendar.committedTimeUnits` (`modifiers.ts`'s `time_commit`
- *  exception). Anything else — one of §6.1's four read-only formula paths, or a name this
- *  kind's addressing scheme has no field for — is `read_only_field`. */
+// ---------------------------------------------------------------------------
+// Shared helpers — duplicate ids, LocKeys, Modifier addressing
+// ---------------------------------------------------------------------------
+
+/** No two entries of one content collection share an `id` — §14's Tier 1 rule, applied
+ *  independently per collection (each call site names its own `code`/`path` family). */
+function duplicateIds(items: readonly { id: string }[]): string[] {
+  const dupes: string[] = [];
+  const seen = new Set<string>();
+  for (const item of items) {
+    if (seen.has(item.id)) dupes.push(item.id);
+    seen.add(item.id);
+  }
+  return dupes;
+}
+
+/** The addressable stored fields a `Modifier` may target — §6.1's base/derived split, plus
+ *  `calendar.committedTimeUnits` (`modifiers.ts`'s `time_commit` exception). Anything else —
+ *  one of §6.1's four read-only formula paths, or a name this kind's addressing scheme has
+ *  no field for — is `read_only_field`. */
 const WRITABLE_TARGET_PREFIXES = ["player.needs.", "player.attributes.", "player.skills."];
 
 function isWritableModifierTarget(target: string): boolean {
@@ -64,18 +78,144 @@ function isWritableModifierTarget(target: string): boolean {
     || WRITABLE_TARGET_PREFIXES.some((prefix) => target.startsWith(prefix));
 }
 
-/** No two `GoalDefinition`s share an `id`. */
-function validateGoalIds(content: SimulationCampaign): ValidationError[] {
+/** Every `Modifier` a content definition carries targets a writable stored field. Reused
+ *  across `startingEffects`, `ItemDefinition.effects`, `TraitDefinition.effects`, and every
+ *  `DifficultyDefinition` modifier list. */
+function validateModifiers(modifiers: readonly Modifier[]): ValidationError[] {
   const errors: ValidationError[] = [];
-  const seen = new Set<string>();
-  for (const goal of content.goals) {
-    if (seen.has(goal.id)) errors.push(error("duplicate_id", goal.id));
-    seen.add(goal.id);
+  for (const modifier of modifiers) {
+    if (derivedValueResolver.isReadOnly(modifier.target) || !isWritableModifierTarget(modifier.target)) {
+      errors.push(readOnlyField(modifier.target));
+    }
   }
   return errors;
 }
 
-/** Every `LocKey` this campaign shape declares resolves in `strings`. */
+/** §7.1: an id used as a collection's natural key (`world.npcs.<id>`,
+ *  `player.education.enrollments.<courseId>`) may not be all-digits — indistinguishable from
+ *  the rejected numeric-index form otherwise. Applies to `NPCDefinition.id` and
+ *  `CourseDefinition.id`, the two content ids this campaign shape declares that are ever used
+ *  as a natural key (`campaign.ts`'s own §7.1 addressing table). */
+function validateNaturalKeyIds(ids: readonly string[]): ValidationError[] {
+  return ids.filter((id) => /^\d+$/.test(id)).map((id) => error("numeric_natural_key", id));
+}
+
+// ---------------------------------------------------------------------------
+// Tier 1 — duplicate ids
+// ---------------------------------------------------------------------------
+
+function validateDuplicateIds(content: SimulationCampaign): ValidationError[] {
+  return [
+    ...duplicateIds(content.jobs).map((id) => error("duplicate_id", id)),
+    ...duplicateIds(content.courses).map((id) => error("duplicate_id", id)),
+    ...duplicateIds(content.housing).map((id) => error("duplicate_id", id)),
+    ...duplicateIds(content.items).map((id) => error("duplicate_id", id)),
+    ...duplicateIds(content.events).map((id) => error("duplicate_id", id)),
+    ...duplicateIds(content.npcs).map((id) => error("duplicate_id", id)),
+    ...duplicateIds(content.goals).map((id) => error("duplicate_id", id)),
+    ...duplicateIds(content.scenarios).map((id) => error("duplicate_id", id)),
+    ...duplicateIds(content.difficulties).map((id) => error("duplicate_id", id)),
+    ...duplicateIds(content.opportunities).map((id) => error("duplicate_id", id)),
+    ...duplicateIds(content.achievements).map((id) => error("duplicate_id", id)),
+    ...duplicateIds(content.headlines).map((id) => error("duplicate_id", id)),
+    ...duplicateIds(content.employers).map((id) => error("duplicate_id", id)),
+    ...duplicateIds(content.locations).map((id) => error("duplicate_id", id)),
+    ...duplicateIds(content.backgrounds).map((id) => error("duplicate_id", id)),
+    ...duplicateIds(content.traits).map((id) => error("duplicate_id", id)),
+    ...duplicateIds(content.skills).map((id) => error("duplicate_id", id)),
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// Tier 1 — cross-references (§14's named list, exactly)
+// ---------------------------------------------------------------------------
+
+function validateReferences(content: SimulationCampaign): ValidationError[] {
+  const errors: ValidationError[] = [];
+  const jobIds = new Set(content.jobs.map((j) => j.id));
+  const courseIds = new Set(content.courses.map((c) => c.id));
+  const housingIds = new Set(content.housing.map((h) => h.id));
+  const itemIds = new Set(content.items.map((i) => i.id));
+  const npcIds = new Set(content.npcs.map((n) => n.id));
+  const goalIds = new Set(content.goals.map((g) => g.id));
+  const locationIds = new Set(content.locations.map((l) => l.id));
+  const backgroundIds = new Set(content.backgrounds.map((b) => b.id));
+
+  // PromotionPath.toJobId → JobDefinition
+  for (const job of content.jobs) {
+    for (const path of job.promotionPaths) {
+      if (!jobIds.has(path.toJobId)) errors.push(error("dangling_reference", path.toJobId));
+    }
+  }
+
+  // ScenarioDefinition's own five reference fields
+  for (const scenario of content.scenarios) {
+    for (const id of scenario.startingBackgroundIds) {
+      if (!backgroundIds.has(id)) errors.push(error("dangling_reference", id));
+    }
+    if (!housingIds.has(scenario.startingHousingId)) {
+      errors.push(error("dangling_reference", scenario.startingHousingId));
+    }
+    if (!locationIds.has(scenario.startingLocationId)) {
+      errors.push(error("dangling_reference", scenario.startingLocationId));
+    }
+    for (const id of scenario.goalIds) {
+      if (!goalIds.has(id)) errors.push(error("dangling_reference", id));
+    }
+    for (const entry of scenario.startingInventory) {
+      if (!itemIds.has(entry.definitionId)) errors.push(error("dangling_reference", entry.definitionId));
+    }
+  }
+
+  // EmployerDefinition.jobIds / .npcIds → JobDefinition / NPCDefinition
+  for (const employer of content.employers) {
+    for (const id of employer.jobIds) {
+      if (!jobIds.has(id)) errors.push(error("dangling_reference", id));
+    }
+    for (const id of employer.npcIds) {
+      if (!npcIds.has(id)) errors.push(error("dangling_reference", id));
+    }
+  }
+
+  // LocationDefinition.connections → LocationDefinition (the adjacency graph)
+  for (const location of content.locations) {
+    for (const id of location.connections) {
+      if (!locationIds.has(id)) errors.push(error("dangling_reference", id));
+    }
+  }
+
+  // OpportunityDefinition.targetId → whichever type its own `kind` names. "business" has no
+  // matching definition type in this port — skipped, per this file's own header.
+  for (const opportunity of content.opportunities) {
+    let resolves: boolean;
+    switch (opportunity.kind) {
+      case "job_offer":
+      case "promotion":
+        resolves = jobIds.has(opportunity.targetId);
+        break;
+      case "course_place":
+        resolves = courseIds.has(opportunity.targetId);
+        break;
+      case "housing":
+        resolves = housingIds.has(opportunity.targetId);
+        break;
+      case "social":
+        resolves = npcIds.has(opportunity.targetId);
+        break;
+      case "business":
+        resolves = true;
+        break;
+    }
+    if (!resolves) errors.push(error("dangling_reference", opportunity.targetId));
+  }
+
+  return errors;
+}
+
+// ---------------------------------------------------------------------------
+// Tier 1 — every top-level LocKey field this campaign shape's authoring surface produces
+// ---------------------------------------------------------------------------
+
 function validateLocKeys(content: SimulationCampaign, strings: ReadonlyMap<LocKey, string>): ValidationError[] {
   const errors: ValidationError[] = [];
   const check = (key: LocKey): void => {
@@ -83,44 +223,186 @@ function validateLocKeys(content: SimulationCampaign, strings: ReadonlyMap<LocKe
   };
 
   check(content.descriptionKey);
-  for (const goal of content.goals) {
-    check(goal.labelKey);
-    check(goal.descriptionKey);
-  }
   check(content.sceneTemplateKey);
   check(content.actionLabelKeys.planAdd);
   check(content.actionLabelKeys.planRemove);
   check(content.actionLabelKeys.planClear);
   check(content.actionLabelKeys.endWeek);
 
+  for (const job of content.jobs) { check(job.titleKey); check(job.descriptionKey); }
+  for (const course of content.courses) { check(course.nameKey); check(course.descriptionKey); }
+  for (const housing of content.housing) { check(housing.nameKey); check(housing.descriptionKey); }
+  for (const item of content.items) { check(item.nameKey); check(item.descriptionKey); }
+  for (const event of content.events) { check(event.titleKey); check(event.descriptionKey); }
+  for (const npc of content.npcs) { check(npc.nameKey); check(npc.descriptionKey); }
+  for (const goal of content.goals) { check(goal.labelKey); check(goal.descriptionKey); }
+  for (const scenario of content.scenarios) { check(scenario.nameKey); check(scenario.descriptionKey); }
+  for (const difficulty of content.difficulties) { check(difficulty.labelKey); }
+  for (const opportunity of content.opportunities) { check(opportunity.nameKey); check(opportunity.descriptionKey); }
+  for (const achievement of content.achievements) { check(achievement.nameKey); check(achievement.descriptionKey); }
+  for (const headline of content.headlines) { check(headline.textKey); }
+  for (const employer of content.employers) { check(employer.nameKey); }
+  for (const location of content.locations) { check(location.nameKey); check(location.descriptionKey); }
+  for (const background of content.backgrounds) { check(background.nameKey); check(background.descriptionKey); }
+  for (const trait of content.traits) { check(trait.nameKey); check(trait.descriptionKey); }
+  for (const skill of content.skills) { check(skill.nameKey); }
+
+  for (const effect of content.startingEffects ?? []) check(effect.descriptionKey);
+
   return errors;
 }
 
-/** Each `startingEffects` entry's `descriptionKey` resolves in `strings`, and each of its
- *  `Modifier.target`s is a writable stored field — never one of §6.1's four read-only
- *  formula paths, and never an unaddressable name. */
-function validateStartingEffects(content: SimulationCampaign, strings: ReadonlyMap<LocKey, string>): ValidationError[] {
+// ---------------------------------------------------------------------------
+// Tier 1 — Modifier addressing, across every content collection that carries one
+// ---------------------------------------------------------------------------
+
+function validateAllModifiers(content: SimulationCampaign): ValidationError[] {
   const errors: ValidationError[] = [];
-  for (const effect of content.startingEffects ?? []) {
-    if (!strings.has(effect.descriptionKey)) errors.push(missingStringKey(effect.descriptionKey));
-    for (const modifier of effect.modifiers) {
-      if (derivedValueResolver.isReadOnly(modifier.target) || !isWritableModifierTarget(modifier.target)) {
-        errors.push(readOnlyField(modifier.target));
-      }
-    }
+  for (const effect of content.startingEffects ?? []) errors.push(...validateModifiers(effect.modifiers));
+  for (const item of content.items) errors.push(...validateModifiers(item.effects));
+  for (const trait of content.traits) errors.push(...validateModifiers(trait.effects));
+  for (const difficulty of content.difficulties) {
+    errors.push(...validateModifiers(difficulty.economyModifiers));
+    errors.push(...validateModifiers(difficulty.needDriftModifiers));
+    errors.push(...validateModifiers(difficulty.rivalStartingAdvantages));
   }
   return errors;
 }
+
+// ---------------------------------------------------------------------------
+// Tier 1 — natural-key ids may not be all-digits
+// ---------------------------------------------------------------------------
+
+function validateNaturalKeys(content: SimulationCampaign): ValidationError[] {
+  return [
+    ...validateNaturalKeyIds(content.npcs.map((n) => n.id)),
+    ...validateNaturalKeyIds(content.courses.map((c) => c.id)),
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// Tier 2 — unreachable content
+// ---------------------------------------------------------------------------
+
+/** A `GoalDefinition` no `ScenarioDefinition.goalIds` ever names. */
+function validateUnreachableGoals(content: SimulationCampaign): ValidationWarning[] {
+  const referenced = new Set(content.scenarios.flatMap((s) => s.goalIds));
+  return content.goals
+    .filter((g) => !referenced.has(g.id))
+    .map((g) => warning("unreachable_content", g.id));
+}
+
+/** A `JobDefinition` no `EmployerDefinition`, `PromotionPath`, or job-kind `Opportunity`
+ *  ever references. */
+function validateUnreachableJobs(content: SimulationCampaign): ValidationWarning[] {
+  const referenced = new Set<string>();
+  for (const employer of content.employers) for (const id of employer.jobIds) referenced.add(id);
+  for (const job of content.jobs) for (const path of job.promotionPaths) referenced.add(path.toJobId);
+  for (const opportunity of content.opportunities) {
+    if (opportunity.kind === "job_offer" || opportunity.kind === "promotion") referenced.add(opportunity.targetId);
+  }
+  return content.jobs
+    .filter((j) => !referenced.has(j.id))
+    .map((j) => warning("unreachable_content", j.id));
+}
+
+/** A `HousingDefinition` no scenario's starting state and no housing-kind `Opportunity`
+ *  ever references. */
+function validateUnreachableHousing(content: SimulationCampaign): ValidationWarning[] {
+  const referenced = new Set<string>();
+  for (const scenario of content.scenarios) referenced.add(scenario.startingHousingId);
+  for (const opportunity of content.opportunities) {
+    if (opportunity.kind === "housing") referenced.add(opportunity.targetId);
+  }
+  return content.housing
+    .filter((h) => !referenced.has(h.id))
+    .map((h) => warning("unreachable_content", h.id));
+}
+
+/** An `ItemDefinition` no scenario's starting inventory ever references. */
+function validateUnreachableItems(content: SimulationCampaign): ValidationWarning[] {
+  const referenced = new Set(content.scenarios.flatMap((s) => s.startingInventory.map((i) => i.definitionId)));
+  return content.items
+    .filter((i) => !referenced.has(i.id))
+    .map((i) => warning("unreachable_content", i.id));
+}
+
+// ---------------------------------------------------------------------------
+// Tier 2 — an achievement condition referencing an unwritten counter/flag
+// ---------------------------------------------------------------------------
+
+/** Every `field` path a `Condition` tree names, walking `all`/`any`/`not`/`exists.where`/
+ *  `count.where` recursively. */
+function collectFieldPaths(condition: Condition): string[] {
+  if ("field" in condition) return [condition.field];
+  if ("all" in condition) return condition.all.flatMap(collectFieldPaths);
+  if ("any" in condition) return condition.any.flatMap(collectFieldPaths);
+  if ("not" in condition) return collectFieldPaths(condition.not);
+  if ("exists" in condition) return collectFieldPaths(condition.exists.where);
+  return collectFieldPaths(condition.count.where);
+}
+
+function allRewards(content: SimulationCampaign): Reward[] {
+  const rewards: Reward[] = [];
+  for (const course of content.courses) rewards.push(...course.rewards);
+  for (const goal of content.goals) rewards.push(...(goal.rewards ?? []));
+  for (const opportunity of content.opportunities) rewards.push(...(opportunity.acceptRewards ?? []));
+  for (const event of content.events) {
+    const outcomes = [
+      ...(event.automaticOutcome ? [event.automaticOutcome] : []),
+      ...(event.choices ?? []).flatMap((c) => c.outcomes.map((o) => o.outcome)),
+    ];
+    for (const outcome of outcomes) rewards.push(...(outcome.rewards ?? []));
+  }
+  return rewards;
+}
+
+/** A `AchievementDefinition.condition` referencing `player.counters.<key>` or
+ *  `player.flags.<key>` for a key no `"counter"`/`"flag"`-type `Reward` in the campaign ever
+ *  grants — satisfiable only by chance, not by design. */
+function validateUnsatisfiableAchievements(content: SimulationCampaign): ValidationWarning[] {
+  const grantedCounters = new Set<string>();
+  const grantedFlags = new Set<string>();
+  for (const reward of allRewards(content)) {
+    if (reward.target === undefined) continue;
+    if (reward.type === "counter") grantedCounters.add(reward.target);
+    if (reward.type === "flag") grantedFlags.add(reward.target);
+  }
+
+  const warnings: ValidationWarning[] = [];
+  for (const achievement of content.achievements) {
+    for (const path of collectFieldPaths(achievement.condition)) {
+      if (path.startsWith("player.counters.") && !grantedCounters.has(path.slice("player.counters.".length))) {
+        warnings.push(warning("unsatisfiable_achievement", achievement.id));
+      } else if (path.startsWith("player.flags.") && !grantedFlags.has(path.slice("player.flags.".length))) {
+        warnings.push(warning("unsatisfiable_achievement", achievement.id));
+      }
+    }
+  }
+  return warnings;
+}
+
+// ---------------------------------------------------------------------------
 
 /** `Kind<SimulationKindState>.validateCampaign`. */
 export function validateCampaign(campaign: Campaign, strings: ReadonlyMap<LocKey, string>): ValidationResult {
   const content = campaign.content as SimulationCampaign;
 
   const errors: ValidationError[] = [
-    ...validateGoalIds(content),
+    ...validateDuplicateIds(content),
+    ...validateReferences(content),
     ...validateLocKeys(content, strings),
-    ...validateStartingEffects(content, strings),
+    ...validateAllModifiers(content),
+    ...validateNaturalKeys(content),
   ];
 
-  return { ok: errors.length === 0, errors, warnings: [] };
+  const warnings: ValidationWarning[] = [
+    ...validateUnreachableGoals(content),
+    ...validateUnreachableJobs(content),
+    ...validateUnreachableHousing(content),
+    ...validateUnreachableItems(content),
+    ...validateUnsatisfiableAchievements(content),
+  ];
+
+  return { ok: errors.length === 0, errors, warnings };
 }
