@@ -25,6 +25,19 @@ export interface BrowserCampaign {
   readonly sources?: readonly { label: string; href: string }[];
 }
 
+// The `SaveRecordStore` contract keys every operation by `saveId` (types.ts): `get`/`put`/
+// `delete` must agree with each other, or a save written under one key is simply never
+// found again by `loadGame`. A campaign->saveId index lives alongside it, under the same
+// key prefix, so the UI can offer "resume" without the store contract growing a query it
+// doesn't otherwise need.
+function saveKey(saveId: string): string {
+  return `subzerodev.play.save.v1.${saveId}`;
+}
+
+function campaignSaveIndexKey(campaignId: string): string {
+  return `subzerodev.play.save.v1.index.${campaignId}`;
+}
+
 function localPersistence(): SessionPersistence {
   const sessions = new Map();
   return {
@@ -38,19 +51,21 @@ function localPersistence(): SessionPersistence {
     },
     saves: {
       async get(id) {
-        const raw = localStorage.getItem(`subzerodev.play.save.v1.${id}`);
+        const raw = localStorage.getItem(saveKey(id));
         return raw ? (JSON.parse(raw) as StoredSaveRecord) : undefined;
       },
       async put(record) {
+        localStorage.setItem(saveKey(record.saveId), JSON.stringify(record));
         localStorage.setItem(
-          `subzerodev.play.save.v1.${record.campaignId}`,
-          JSON.stringify(record),
+          campaignSaveIndexKey(record.campaignId),
+          record.saveId,
         );
       },
       async delete(id) {
         const raw = await this.get(id);
-        if (raw)
-          localStorage.removeItem(`subzerodev.play.save.v1.${raw.campaignId}`);
+        localStorage.removeItem(saveKey(id));
+        if (raw && localStorage.getItem(campaignSaveIndexKey(raw.campaignId)) === id)
+          localStorage.removeItem(campaignSaveIndexKey(raw.campaignId));
       },
     },
   };
@@ -64,6 +79,19 @@ function browserStorageAvailable(): boolean {
     return true;
   } catch {
     return false;
+  }
+}
+
+/** The saveId of the most recent local save for a campaign, if any -- the resume affordance
+ *  the `SaveRecordStore` contract has no query for, since it is keyed by saveId alone. Guarded
+ *  the same way `browserStorageAvailable` is: storage can be absent or throw (private
+ *  browsing, disabled cookies), and this is called unconditionally from render. */
+export function findLocalSave(campaignId: string): string | undefined {
+  if (!browserStorageAvailable()) return undefined;
+  try {
+    return localStorage.getItem(campaignSaveIndexKey(campaignId)) ?? undefined;
+  } catch {
+    return undefined;
   }
 }
 
@@ -86,6 +114,8 @@ export interface BrowserDemo {
   readonly catalog: readonly BrowserCampaign[];
   /** Resolves any registered campaign, listed or hidden — the direct-link path for a hidden one. */
   findCampaign(campaignId: string): BrowserCampaign | undefined;
+  /** The saveId of the most recent local save for a campaign, if any. */
+  findLocalSave(campaignId: string): string | undefined;
   readonly store: SessionStore;
 }
 
@@ -120,6 +150,7 @@ export async function createBrowserDemo(): Promise<BrowserDemo> {
     catalog: Object.freeze(all.filter((campaign) => !campaign.hidden)),
     findCampaign: (campaignId) =>
       all.find((campaign) => campaign.campaignId === campaignId),
+    findLocalSave,
     store: createInMemorySessionStore({
       engine: createEngine({ kinds, registry: registry.value }),
       registry: registry.value,

@@ -63,62 +63,7 @@ describe("PlayApp cabinet presentation", () => {
     ).toBeVisible();
   });
 
-  it("uses a labelled notice dialog and restores focus after closing it", async () => {
-    const user = userEvent.setup();
-    render(<PlayApp />);
-    await screen.findByRole("heading", { name: "Adventure disk library" });
-
-    const open = screen.getByRole("button", {
-      name: "Load selected adventure",
-    });
-    await user.click(open);
-    expect(
-      screen.getByRole("dialog", { name: "Before loading this program" }),
-    ).toBeVisible();
-
-    await user.click(screen.getByRole("button", { name: "Back" }));
-    expect(open).toHaveFocus();
-  });
-
-  it("leaves initial focus alone until a notice has actually been dismissed", async () => {
-    render(<PlayApp />);
-    await screen.findByRole("heading", { name: "Adventure disk library" });
-
-    expect(
-      screen.getByRole("button", { name: "Load selected adventure" }),
-    ).not.toHaveFocus();
-    expect(document.body).toHaveFocus();
-  });
-
-  it("dismisses the notice with Escape and keeps Tab inside it", async () => {
-    const user = userEvent.setup();
-    render(<PlayApp />);
-    await screen.findByRole("heading", { name: "Adventure disk library" });
-
-    const open = screen.getByRole("button", {
-      name: "Load selected adventure",
-    });
-    await user.click(open);
-
-    const confirm = screen.getByRole("button", { name: "Continue loading" });
-    const back = screen.getByRole("button", { name: "Back" });
-    expect(confirm).toHaveFocus();
-
-    await user.tab();
-    expect(back).toHaveFocus();
-    await user.tab();
-    expect(confirm).toHaveFocus();
-    await user.tab({ shift: true });
-    expect(back).toHaveFocus();
-
-    await user.keyboard("{Escape}");
-    expect(
-      screen.queryByRole("dialog", { name: "Before loading this program" }),
-    ).not.toBeInTheDocument();
-    expect(open).toHaveFocus();
-  });
-
-  it("re-shows the content notice before any repeat run", async () => {
+  it("loads the adventure directly, with no interstitial notice to click through", async () => {
     const user = userEvent.setup();
     render(<PlayApp />);
     await screen.findByRole("heading", { name: "Adventure disk library" });
@@ -127,16 +72,43 @@ describe("PlayApp cabinet presentation", () => {
     await user.click(
       screen.getByRole("button", { name: "Load selected adventure" }),
     );
-    await user.click(screen.getByRole("button", { name: "Continue loading" }));
-    await screen.findByText(/handwritten/i, { selector: ".scene-body" });
 
-    await user.click(screen.getByRole("button", { name: "Quit to library" }));
-    await user.click(
-      screen.getByRole("button", { name: "Load selected adventure" }),
-    );
     expect(
-      screen.getByRole("dialog", { name: "Before loading this program" }),
+      await screen.findByText(/handwritten/i, { selector: ".scene-body" }),
     ).toBeVisible();
+    expect(
+      screen.queryByRole("dialog", { name: "Before loading this program" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows a permanent link for the selected campaign that loads it directly", async () => {
+    const user = userEvent.setup();
+    render(<PlayApp />);
+    await screen.findByRole("heading", { name: "Adventure disk library" });
+
+    await user.click(screen.getByRole("button", { name: /The Bureaucracy/i }));
+
+    const link = screen.getByRole("link", { name: /\?campaign=/ });
+    expect(link).toHaveAttribute(
+      "href",
+      expect.stringContaining("?campaign=bulgaria-bureaucracy"),
+    );
+  });
+
+  it("auto-loads the adventure named by a permanent ?campaign= link", async () => {
+    const originalLocation = window.location.href;
+    window.history.pushState({}, "", "/?campaign=bulgaria-bureaucracy");
+    try {
+      render(<PlayApp />);
+      expect(
+        await screen.findByText(/handwritten/i, { selector: ".scene-body" }),
+      ).toBeVisible();
+      expect(
+        screen.queryByRole("heading", { name: "Adventure disk library" }),
+      ).not.toBeInTheDocument();
+    } finally {
+      window.history.pushState({}, "", originalLocation);
+    }
   });
 
   it("ignores a submission that resolves after the player quits to the library", async () => {
@@ -148,7 +120,6 @@ describe("PlayApp cabinet presentation", () => {
     await user.click(
       screen.getByRole("button", { name: "Load selected adventure" }),
     );
-    await user.click(screen.getByRole("button", { name: "Continue loading" }));
 
     const action = await screen.findByRole("button", {
       name: /Wait for the municipal registry/i,
@@ -176,7 +147,6 @@ describe("PlayApp cabinet presentation", () => {
     await user.click(
       screen.getByRole("button", { name: "Load selected adventure" }),
     );
-    await user.click(screen.getByRole("button", { name: "Continue loading" }));
 
     expect(
       await screen.findByText(/handwritten/i, { selector: ".scene-body" }),
@@ -202,7 +172,6 @@ describe("PlayApp cabinet presentation", () => {
     await user.click(
       screen.getByRole("button", { name: "Load selected adventure" }),
     );
-    await user.click(screen.getByRole("button", { name: "Continue loading" }));
     await screen.findByText(/handwritten/i, { selector: ".scene-body" });
 
     const region = screen.getByRole("region", { name: "Scene" });
@@ -221,7 +190,6 @@ describe("PlayApp cabinet presentation", () => {
     await user.click(
       screen.getByRole("button", { name: "Load selected adventure" }),
     );
-    await user.click(screen.getByRole("button", { name: "Continue loading" }));
     await screen.findByRole("button", { name: /choices? ⌄/ });
 
     const deck = document.querySelector(".action-deck");
@@ -243,7 +211,6 @@ describe("PlayApp cabinet presentation", () => {
     await user.click(
       screen.getByRole("button", { name: "Load selected adventure" }),
     );
-    await user.click(screen.getByRole("button", { name: "Continue loading" }));
     await user.click(
       await screen.findByRole("button", {
         name: /Wait for the municipal registry/i,
@@ -258,6 +225,36 @@ describe("PlayApp cabinet presentation", () => {
     expect(screen.getByText(/Where I came from:/)).toBeVisible();
     expect(
       screen.queryByText(/actionLog|kindState|currentNodeId|seed/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers a resume for a campaign with a local save, and reloads that run", async () => {
+    const user = userEvent.setup();
+    render(<PlayApp />);
+    await screen.findByRole("heading", { name: "Adventure disk library" });
+
+    await user.click(screen.getByRole("button", { name: /The Bureaucracy/i }));
+    await user.click(
+      screen.getByRole("button", { name: "Load selected adventure" }),
+    );
+    await user.click(
+      await screen.findByRole("button", {
+        name: /Wait for the municipal registry/i,
+      }),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Quit to library" }));
+    await user.click(screen.getByRole("button", { name: /The Bureaucracy/i }));
+    const resumeButton = await screen.findByRole("button", {
+      name: "Resume saved run",
+    });
+    await user.click(resumeButton);
+
+    expect(
+      await screen.findByRole("heading", { name: "The Bureaucracy" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("heading", { name: "Adventure disk library" }),
     ).not.toBeInTheDocument();
   });
 });

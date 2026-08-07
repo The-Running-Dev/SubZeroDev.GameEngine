@@ -3,7 +3,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type KeyboardEvent,
   type RefObject,
 } from "react";
 import { SiteFooter, SiteHeader } from "../shared";
@@ -44,8 +43,10 @@ interface JourneyEntry {
 const saveWarning =
   "Progress could not be saved locally; this run remains available in this tab.";
 
-const focusableInDialog =
-  'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+/** A permanent, shareable link that loads a campaign directly -- no click-through required. */
+function permalinkFor(campaignId: string): string {
+  return `${window.location.origin}${window.location.pathname}?campaign=${encodeURIComponent(campaignId)}`;
+}
 
 function excerpt(text: string): string {
   return text.length <= 150 ? text : `${text.slice(0, 147).trimEnd()}…`;
@@ -140,7 +141,6 @@ function PlayAppReady({ demo }: { demo: BrowserDemo }) {
   const [state, setState] = useState<PlayState>();
   const [campaignId, setCampaignId] = useState<string>();
   const [selectedId, setSelectedId] = useState(demo.catalog[0]?.campaignId);
-  const [notice, setNotice] = useState<string>();
   const [message, setMessage] = useState<string>();
   const [saveFailed, setSaveFailed] = useState(false);
   const [arrivalChoice, setArrivalChoice] = useState<string>();
@@ -149,11 +149,10 @@ function PlayAppReady({ demo }: { demo: BrowserDemo }) {
   const sceneRegion = useRef<HTMLElement>(null);
   const scenePage = useRef<HTMLDivElement>(null);
   const choicePage = useRef<HTMLDivElement>(null);
-  const noticeDialog = useRef<HTMLElement>(null);
-  const noticeTrigger = useRef<HTMLElement | null>(null);
-  const restoreNoticeFocus = useRef(false);
   /** Invalidates in-flight submissions when the player leaves or restarts a run. */
   const runToken = useRef(0);
+  /** A `?campaign=` link auto-starts once, on the initial mount -- not on every re-render. */
+  const autoStarted = useRef(false);
 
   const selected = demo.findCampaign((state ? campaignId : selectedId) ?? "");
   const theme = cabinetThemes[selected?.campaignId ?? ""];
@@ -164,12 +163,19 @@ function PlayAppReady({ demo }: { demo: BrowserDemo }) {
     if (sceneText) sceneRegion.current?.focus();
   }, [sceneText]);
 
-  /** A hidden campaign has no dossier tile; a direct `?campaign=` link is its only door in. */
+  /**
+   * A permanent `?campaign=` link loads the adventure directly -- no dossier click, no
+   * briefing step. A hidden campaign has no dossier tile at all, so this is its only door in.
+   */
   useEffect(() => {
+    if (autoStarted.current) return;
     const requested = new URLSearchParams(window.location.search).get(
       "campaign",
     );
-    if (requested && demo.findCampaign(requested)) setSelectedId(requested);
+    if (!requested || !demo.findCampaign(requested)) return;
+    autoStarted.current = true;
+    setSelectedId(requested);
+    void start(requested);
   }, [demo]);
 
   function reducedMotion(): boolean {
@@ -188,57 +194,6 @@ function PlayAppReady({ demo }: { demo: BrowserDemo }) {
       behavior: reducedMotion() ? "auto" : "smooth",
       block: "start",
     });
-  }
-
-  /**
-   * Restores focus to the control that opened the notice, and only then: a
-   * dismissal is the one transition that owes the player their place back.
-   */
-  useEffect(() => {
-    if (notice || !restoreNoticeFocus.current) return;
-    restoreNoticeFocus.current = false;
-    const trigger = noticeTrigger.current;
-    noticeTrigger.current = null;
-    if (trigger?.isConnected) trigger.focus();
-  }, [notice]);
-
-  function openNotice(id: string, trigger: HTMLElement) {
-    noticeTrigger.current = trigger;
-    restoreNoticeFocus.current = false;
-    setNotice(id);
-  }
-
-  function dismissNotice() {
-    restoreNoticeFocus.current = true;
-    setNotice(undefined);
-  }
-
-  function confirmNotice(id: string) {
-    restoreNoticeFocus.current = false;
-    noticeTrigger.current = null;
-    setNotice(undefined);
-    void start(id);
-  }
-
-  function onNoticeKeyDown(event: KeyboardEvent<HTMLElement>) {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      dismissNotice();
-      return;
-    }
-    if (event.key !== "Tab") return;
-    const focusable =
-      noticeDialog.current?.querySelectorAll<HTMLElement>(focusableInDialog);
-    if (!focusable?.length) return;
-    const first = focusable[0]!;
-    const last = focusable[focusable.length - 1]!;
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
   }
 
   async function start(id: string) {
@@ -262,6 +217,26 @@ function PlayAppReady({ demo }: { demo: BrowserDemo }) {
       }
     } catch {
       if (runToken.current === token) setMessage("This story could not start.");
+    } finally {
+      if (runToken.current === token) setBusy(false);
+    }
+  }
+
+  async function resume(id: string, saveId: string) {
+    const token = ++runToken.current;
+    setBusy(true);
+    setMessage(undefined);
+    setSaveFailed(false);
+    try {
+      const next = await client.load(saveId);
+      if (runToken.current !== token) return;
+      setState(next);
+      setCampaignId(id);
+      setArrivalChoice(undefined);
+      setJourney([{ excerpt: excerpt(next.scene.body.text) }]);
+    } catch {
+      if (runToken.current === token)
+        setMessage("This saved run could not be loaded.");
     } finally {
       if (runToken.current === token) setBusy(false);
     }
@@ -326,11 +301,7 @@ function PlayAppReady({ demo }: { demo: BrowserDemo }) {
       <SiteHeader current="play" />
       <main className="play-main">
         {!state ? (
-          <section
-            className="archive"
-            aria-labelledby="shelf-title"
-            inert={notice !== undefined}
-          >
+          <section className="archive" aria-labelledby="shelf-title">
             <div className="archive-heading">
               <p className="eyebrow">SUBZERO STORY SYSTEM // INSERT DISK</p>
               <h1 id="shelf-title">Adventure disk library</h1>
@@ -374,15 +345,38 @@ function PlayAppReady({ demo }: { demo: BrowserDemo }) {
                   <p className="briefing-meta">
                     Estimated duration: {selected.duration}
                   </p>
-                  <button
-                    className="cabinet-button primary"
-                    disabled={busy}
-                    onClick={(event) =>
-                      openNotice(selected.campaignId, event.currentTarget)
-                    }
-                  >
-                    Load selected adventure
-                  </button>
+                  {selected.contentNotice && (
+                    <p className="briefing-advisory">{selected.contentNotice}</p>
+                  )}
+                  <div className="briefing-actions">
+                    <button
+                      className="cabinet-button primary"
+                      disabled={busy}
+                      onClick={() => void start(selected.campaignId)}
+                    >
+                      Load selected adventure
+                    </button>
+                    {demo.findLocalSave(selected.campaignId) && (
+                      <button
+                        className="cabinet-button"
+                        disabled={busy}
+                        onClick={() =>
+                          void resume(
+                            selected.campaignId,
+                            demo.findLocalSave(selected.campaignId)!,
+                          )
+                        }
+                      >
+                        Resume saved run
+                      </button>
+                    )}
+                  </div>
+                  <p className="briefing-permalink">
+                    Permanent link:{" "}
+                    <a href={permalinkFor(selected.campaignId)}>
+                      {permalinkFor(selected.campaignId)}
+                    </a>
+                  </p>
                 </div>
               </section>
             )}
@@ -391,7 +385,6 @@ function PlayAppReady({ demo }: { demo: BrowserDemo }) {
           <section
             className={`cabinet accent-${theme?.accent ?? "default"}`}
             aria-label={`${selected?.title ?? "Story"} adventure terminal`}
-            inert={notice !== undefined}
           >
             <header className="cabinet-marquee">
               <div>
@@ -432,9 +425,7 @@ function PlayAppReady({ demo }: { demo: BrowserDemo }) {
                       <button
                         className="cabinet-button primary"
                         disabled={busy}
-                        onClick={(event) =>
-                          openNotice(campaignId!, event.currentTarget)
-                        }
+                        onClick={() => void start(campaignId!)}
                       >
                         Start another run
                       </button>
@@ -442,9 +433,7 @@ function PlayAppReady({ demo }: { demo: BrowserDemo }) {
                         <button
                           className="cabinet-button"
                           disabled={busy}
-                          onClick={(event) =>
-                            openNotice(campaignId!, event.currentTarget)
-                          }
+                          onClick={() => void start(campaignId!)}
                         >
                           Play the other role
                         </button>
@@ -586,42 +575,6 @@ function PlayAppReady({ demo }: { demo: BrowserDemo }) {
               </aside>
             </div>
           </section>
-        )}
-        {notice && (
-          <div className="notice-backdrop" onKeyDown={onNoticeKeyDown}>
-            <section
-              ref={noticeDialog}
-              className="play-notice"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="notice-title"
-            >
-              <p className="eyebrow">SYSTEM MESSAGE // CONTENT NOTICE</p>
-              <h2 id="notice-title">Before loading this program</h2>
-              <p>
-                {
-                  demo.catalog.find(
-                    (campaign) => campaign.campaignId === notice,
-                  )?.contentNotice
-                }
-              </p>
-              <div>
-                <button
-                  className="cabinet-button primary"
-                  autoFocus
-                  onClick={() => confirmNotice(notice)}
-                >
-                  Continue loading
-                </button>
-                <button
-                  className="cabinet-button quiet"
-                  onClick={dismissNotice}
-                >
-                  Back
-                </button>
-              </div>
-            </section>
-          </div>
         )}
       </main>
       <SiteFooter />

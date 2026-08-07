@@ -22,7 +22,6 @@ async function mountAndOpen(campaignPattern: RegExp): Promise<Reached> {
   await user.click(
     screen.getByRole("button", { name: "Load selected adventure" }),
   );
-  await user.click(screen.getByRole("button", { name: "Continue loading" }));
   await screen.findByRole("heading", { level: 1 });
   return { container, unmount, user };
 }

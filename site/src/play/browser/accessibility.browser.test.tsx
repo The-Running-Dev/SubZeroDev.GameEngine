@@ -13,10 +13,10 @@ import {
 
 /**
  * W65.4: an automated accessibility scan runs against the shelf, briefing,
- * content notice, playing, unavailable-choice, rejected, and ended states,
- * and fails the build on a violation. Every state is reached by driving the
- * real, shipped `PlayApp` through a real campaign (`./fixtures`) -- never a
- * fixture standing in for the rendered UI.
+ * playing, unavailable-choice, rejected, and ended states, and fails the
+ * build on a violation. Every state is reached by driving the real, shipped
+ * `PlayApp` through a real campaign (`./fixtures`) -- never a fixture
+ * standing in for the rendered UI.
  */
 
 async function scanForViolations(container: Element): Promise<void> {
@@ -39,17 +39,6 @@ describe("accessibility (W65.4)", () => {
     const user = userEvent.setup();
     const { container } = render(<PlayApp />);
     await user.click(screen.getByRole("button", { name: /The Bureaucracy/i }));
-    await scanForViolations(container);
-  });
-
-  it("content notice", async () => {
-    const user = userEvent.setup();
-    const { container } = render(<PlayApp />);
-    await user.click(screen.getByRole("button", { name: /The Bureaucracy/i }));
-    await user.click(
-      screen.getByRole("button", { name: "Load selected adventure" }),
-    );
-    await screen.findByRole("dialog", { name: "Before loading this program" });
     await scanForViolations(container);
   });
 
