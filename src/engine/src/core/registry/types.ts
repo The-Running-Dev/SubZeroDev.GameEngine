@@ -16,7 +16,16 @@ import type { CommandResult } from "../kernel/reasons.js";
 export interface ContentRegistry {
   readonly campaigns: ReadonlyMap<string, Campaign>;
   readonly strings: ReadonlyMap<LocKey, string>;
+  /**
+   * A digest over the ordered pack set `resolvePacks` (`packs.ts`) folded this registry
+   * from (11-content-packs.md §6) — absent for a registry built the single-campaign way,
+   * via `buildContentRegistry`, which knows no packs exist.
+   */
+  readonly resolution?: ResolutionId;
 }
+
+/** A canonical digest over an ordered `{id, version}` pack list (11-content-packs.md §6). */
+export type ResolutionId = string;
 
 /**
  * The runtime form: `LocKey`s only, no authored prose. Identity lives here and **not**
