@@ -15,8 +15,9 @@
  * doesn't wire — the "Stable Life" vertical slice (`plans/36`'s W39) needs only enough
  * real logic to prove a goal can be won and lost, not full mechanical depth; each unwired
  * system is an explicit, documented stub rather than silently doing nothing.
- * `needs` (drift), `opportunities` (expiry only), `goals`/`failure`, and now (W53)
- * `employment`/`finance_income`/`housing` are real logic. Every system emits
+ * `needs` (drift), `opportunities` (expiry only), `goals`/`failure`, `employment`/
+ * `finance_income`/`housing` (W53), `education` (W54), and now `finance_reconcile` (W55)
+ * are real logic. Every system emits
  * `kind.simulation.system.ran` at `trace` (§11), the same ordering-verification technique
  * `startOfWeek.ts` uses. `goals`/`failure` additionally emit `goal.achieved`/`goal.failed`
  * (§11, `info`) per goal transitioning this week — `week.ended` itself is `advance.ts`'s
@@ -33,11 +34,23 @@
  * `Employment.weeklyPayCents` (plus overtime, from `player.flags.workedOvertimeThisWeek`)
  * into `cashCents` — real logic, but still a stub for wages, scheduled expenses, or courses
  * this unit doesn't wire. `housing` levies `HousingState.weeklyCostCents` against that same
- * `cashCents` — deliberately minimal (no arrears tracking, no eviction advancement; that is
- * `finance_reconcile`'s job, still a stub, and W55's scope) but real enough to prove §3's own
- * ordering claim: "`finance_income` ... must run *before* `housing`, so rent is payable from
- * this week's own wages." Both read `jobs: readonly JobDefinition[]`, threaded in from
- * `advance.ts`'s own `content.jobs` — the same parameter shape `goalDefs` already uses.
+ * `cashCents`, real enough to prove §3's own ordering claim: "`finance_income` ... must run
+ * *before* `housing`, so rent is payable from this week's own wages." Both read
+ * `jobs: readonly JobDefinition[]`, threaded in from `advance.ts`'s own `content.jobs` —
+ * the same parameter shape `goalDefs` already uses.
+ *
+ * **`finance_reconcile` (W55).** `housing` (above) never lets `cashCents` go negative — it
+ * charges only what's payable and returns the unpaid remainder as `missedCents`, which this
+ * system alone consumes. A nonzero `missedCents` levies a placeholder 10% late fee on top
+ * of it into `HousingState.overdueRentCents`, increments `missedPayments`, and advances
+ * `evictionStage` by exactly one rung on a fixed ladder (`none → warning → penalty →
+ * formal_notice → hearing_scheduled → evicted`) — never more than one, regardless of how
+ * large the shortfall. A week `housing` fully collected is a no-op here: arrears already on
+ * the books are untouched, since this system only ever escalates. The only cure is
+ * `resolvers.ts`'s `pay_bills`, which clears `overdueRentCents`/`missedPayments` and resets
+ * `evictionStage` to `"none"` — a player action, not an end-of-week system, the same split
+ * `financeIncome`/`housing` already draw between "happens regardless" and "something the
+ * player did."
  *
  * **`education` (W54).** Advances every *active* `CourseEnrollment` by one week: `weeksCompleted`
  * always increments, `attendedUnits`/`missedSessions` split on whether `resolvers.ts`'s
@@ -57,10 +70,10 @@
 
 import type { ResolutionEmitter } from "../../core/observability/types.js";
 import type { StateChange } from "../../core/kernel/reasons.js";
-import type { Credential, CourseEnrollment, Employment, NeedKey } from "./actor.js";
+import type { Credential, CourseEnrollment, Employment, EvictionStage, NeedKey } from "./actor.js";
 import type { CourseDefinition, GoalDefinition, GoalFailurePrecedence, JobDefinition } from "./content.js";
 import { evaluateSimulationCondition } from "./conditions.js";
-import type { GoalState, SimulationKindState } from "./state.js";
+import type { Cents, GoalState, SimulationKindState } from "./state.js";
 
 const SYSTEM_NAME = "kind.simulation.system.ran";
 const GOAL_ACHIEVED_EVENT = "kind.simulation.goal.achieved";
@@ -376,7 +389,7 @@ function education(state: SimulationKindState, courses: readonly CourseDefinitio
  *  `employment()`, and this system's own overtime read) have seen them for the week.
  *  Clearing earlier, inside `advanceEmployment`, meant this system always read
  *  `workedOvertimeThisWeek` as already-reset and never paid overtime. */
-function financeIncome(state: SimulationKindState, jobs: readonly JobDefinition[]): { state: SimulationKindState; changes: StateChange[] } {
+export function financeIncome(state: SimulationKindState, jobs: readonly JobDefinition[]): { state: SimulationKindState; changes: StateChange[] } {
   const employment = state.player.career.currentEmployment;
   if (!employment) return { state, changes: [] };
 
@@ -406,26 +419,94 @@ function inventory(state: SimulationKindState): SimulationKindState {
   return state;
 }
 
-/** Real logic (W53), deliberately minimal — levies `HousingState.weeklyCostCents` against
- *  `cashCents`, unconditionally (`cashCents` may go negative; arrears tracking and eviction
- *  advancement are `finance_reconcile`'s job, still a stub, and W55's own scope). Exists to
- *  prove §3's wage-before-rent ordering, not to be the full housing system. */
-function housing(state: SimulationKindState): { state: SimulationKindState; changes: StateChange[] } {
+/** Real logic (W53; revised W55) — levies `HousingState.weeklyCostCents` against
+ *  `cashCents`, but never past zero: `cashCents` stays the liquid-money invariant every
+ *  other system in this pass relies on (nothing upstream of `housing` can drive it
+ *  negative — every resolver that spends cash validates `insufficient_funds` first), so a
+ *  rent the player can't fully cover is charged only up to what's actually there, and the
+ *  unpaid remainder is returned as `missedCents` for `finance_reconcile` (below) to levy
+ *  arrears against — never inferred from a negative balance that no longer exists. Exists
+ *  to prove §3's wage-before-rent ordering, not to be the full housing system. */
+export function housing(state: SimulationKindState): { state: SimulationKindState; changes: StateChange[]; missedCents: Cents } {
   const rent = state.player.housing.weeklyCostCents;
-  if (rent === 0) return { state, changes: [] };
+  if (rent === 0) return { state, changes: [], missedCents: 0 };
   const before = state.player.finances.cashCents;
+  const payable = Math.min(rent, Math.max(0, before));
+  const missedCents = rent - payable;
+  if (payable === 0) return { state, changes: [], missedCents };
   return {
     state: {
       ...state,
-      player: { ...state.player, finances: { ...state.player.finances, cashCents: before - rent } },
+      player: { ...state.player, finances: { ...state.player.finances, cashCents: before - payable } },
     },
-    changes: [{ path: "player.finances.cashCents", op: "decrement", value: rent, previous: before, reason: "rent_charged", visible: true }],
+    changes: [{ path: "player.finances.cashCents", op: "decrement", value: payable, previous: before, reason: "rent_charged", visible: true }],
+    missedCents,
   };
 }
 
-/** **Stub.** Late fees/eviction advancement need `housing`'s own rent charge above. */
-function financeReconcile(state: SimulationKindState): SimulationKindState {
-  return state;
+const EVICTION_LADDER: readonly EvictionStage[] = [
+  "none", "warning", "penalty", "formal_notice", "hearing_scheduled", "evicted",
+];
+
+function advanceEvictionStage(stage: EvictionStage): EvictionStage {
+  const index = EVICTION_LADDER.indexOf(stage);
+  return EVICTION_LADDER[Math.min(index + 1, EVICTION_LADDER.length - 1)]!;
+}
+
+/** Basis points — 10%, levied on the rent `housing` (above) just failed to collect in
+ *  full. Placeholder, the same status every other unbalanced numeric rule in this kind
+ *  carries (`negotiateJobTermsResolver`'s `NEGOTIATE_RAISE_BPS`, `TODO.md`'s *Known Open
+ *  Items*). */
+const LATE_FEE_BPS = 1000;
+
+/** Real logic (W55) — `missedCents` (from `housing`, above, in the same pass) is the only
+ *  input: this system levies a late fee on top of it, adds both to `HousingState.
+ *  overdueRentCents`, and advances `evictionStage` by exactly one rung on the ladder —
+ *  never more than one, regardless of how large `missedCents` is, so a single very bad
+ *  week reads the same as any other missed week. A week where `housing` collected the
+ *  full rent (`missedCents === 0`) is a no-op: arrears already on the books stay exactly
+ *  where they are until the player clears them with `pay_bills` (`resolvers.ts`) — this
+ *  system only ever escalates, never cures. */
+export function financeReconcile(state: SimulationKindState, missedCents: Cents): { state: SimulationKindState; changes: StateChange[] } {
+  if (missedCents <= 0) return { state, changes: [] };
+
+  const lateFee = Math.round((missedCents * LATE_FEE_BPS) / 10_000);
+  const arrears = missedCents + lateFee;
+  const housingBefore = state.player.housing;
+  const nextStage = advanceEvictionStage(housingBefore.evictionStage);
+
+  const changes: StateChange[] = [
+    {
+      path: "player.housing.overdueRentCents", op: "increment", value: arrears,
+      previous: housingBefore.overdueRentCents, reason: "rent_overdue", visible: true,
+    },
+    {
+      path: "player.housing.missedPayments", op: "increment", value: 1,
+      previous: housingBefore.missedPayments, reason: "rent_overdue", visible: true,
+    },
+  ];
+  if (nextStage !== housingBefore.evictionStage) {
+    changes.push({
+      path: "player.housing.evictionStage", op: "set", value: nextStage,
+      previous: housingBefore.evictionStage, reason: "eviction_advanced", visible: true,
+    });
+  }
+
+  return {
+    state: {
+      ...state,
+      player: {
+        ...state.player,
+        housing: {
+          ...housingBefore,
+          overdueRentCents: housingBefore.overdueRentCents + arrears,
+          missedPayments: housingBefore.missedPayments + 1,
+          evictionStage: nextStage,
+        },
+      },
+    },
+    changes,
+  };
 }
 
 /** **Stub.** No relationship-decay rule is specified anywhere in this contract yet. */
@@ -555,7 +636,8 @@ export function runEndOfWeek(
   next = housingResult.state;
   ranSystem(emit, "housing");
 
-  next = financeReconcile(next);
+  const financeReconcileResult = financeReconcile(next, housingResult.missedCents);
+  next = financeReconcileResult.state;
   ranSystem(emit, "finance_reconcile");
 
   const needsResult = needs(next);
@@ -583,5 +665,11 @@ export function runEndOfWeek(
   next = achievements(next);
   ranSystem(emit, "achievements");
 
-  return { state: next, changes: [...educationResult.changes, ...financeIncomeResult.changes, ...housingResult.changes, ...needsResult.changes] };
+  return {
+    state: next,
+    changes: [
+      ...educationResult.changes, ...financeIncomeResult.changes, ...housingResult.changes,
+      ...financeReconcileResult.changes, ...needsResult.changes,
+    ],
+  };
 }

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { runEndOfWeek } from "./endOfWeek.js";
+import { financeIncome, financeReconcile, housing, runEndOfWeek } from "./endOfWeek.js";
+import { canonicalStringify } from "../../core/persistence/canonical.js";
 import type { ResolutionEmitter } from "../../core/observability/types.js";
 import type { CourseEnrollment, Employment, JobApplication, NeedState } from "./actor.js";
 import type { CourseDefinition, GoalDefinition, JobDefinition } from "./content.js";
@@ -367,6 +368,166 @@ describe("runEndOfWeek — W53 employment, finance_income, housing", () => {
     const { emit } = recordingEmitter();
     const result = runEndOfWeek(baseState(NEEDS), emit, [], "goals_win", jobs);
     expect(result.changes.some((c) => c.reason === "rent_charged")).toBe(false);
+  });
+});
+
+describe("runEndOfWeek — W55 housing and finance_reconcile", () => {
+  const employment: Employment = {
+    jobId: "job-cashier", employerId: "employer-1", startedWeek: 1,
+    performance: 50, attendanceRatio: 100, warnings: 0, weeklyPayCents: 30000, weeksAtCurrentPay: 1,
+  };
+  const jobs: JobDefinition[] = [{
+    id: "job-cashier",
+    titleKey: "job.title", descriptionKey: "job.description",
+    employerId: "employer-1", careerPathId: "career-retail", tier: "entry",
+    schedule: { weeklyTimeCost: 6, flexibility: 50 },
+    compensation: { baseWeeklyPayCents: 30000 },
+    requirements: [],
+    performance: { factors: [], weeklyDriftToward: 50, minimumAcceptable: 0 },
+    promotionPaths: [], terminationRules: [], contested: false, tags: [],
+  }];
+  const NEEDS: NeedState = { health: 50, energy: 50, happiness: 50, stress: 50, satiety: 50 };
+
+  function employedState(overrides: Partial<SimulationKindState> = {}): SimulationKindState {
+    return baseState(NEEDS, {
+      player: {
+        ...baseState(NEEDS).player,
+        career: { history: [], totalWeeksEmployed: 1, pendingApplications: [], highestTierAchieved: "entry", currentEmployment: employment },
+        housing: { weeklyCostCents: 0, overdueRentCents: 0, missedPayments: 0, evictionStage: "none" },
+      } as unknown as SimulationKindState["player"],
+      ...overrides,
+    });
+  }
+
+  // W55.2 — proven by outcome, not by reading the list: running the two systems in the
+  // documented order (finance_income, then housing) against wages that only just cover
+  // rent succeeds; running them in the opposite order against the exact same starting
+  // state — rent charged before the wage lands — leaves the same rent unpaid.
+  it("finance_income before housing pays rent in full; housing before finance_income leaves it unpaid", () => {
+    const starting = employedState({
+      player: {
+        ...employedState().player,
+        housing: { ...employedState().player.housing, weeklyCostCents: 30000 },
+        finances: { ...employedState().player.finances, cashCents: 0 },
+      } as unknown as SimulationKindState["player"],
+    });
+
+    const documentedOrder = housing(financeIncome(starting, jobs).state);
+    expect(documentedOrder.missedCents).toBe(0);
+    expect((documentedOrder.state.player.finances as unknown as { cashCents: number }).cashCents).toBe(0);
+
+    const swappedOrder = financeIncome(housing(starting).state, jobs);
+    const swappedHousingMissed = housing(starting).missedCents;
+    expect(swappedHousingMissed).toBe(30000);
+    // The wage still lands, but only after rent already went entirely unpaid — the
+    // opposite order can't recover the shortfall after the fact.
+    expect((swappedOrder.state.player.finances as unknown as { cashCents: number }).cashCents).toBe(30000);
+  });
+
+  it("charges rent only up to available cash, reporting the unpaid remainder as missedCents", () => {
+    const result = housing(employedState({
+      player: {
+        ...employedState().player,
+        housing: { ...employedState().player.housing, weeklyCostCents: 25000 },
+        finances: { ...employedState().player.finances, cashCents: 10000 },
+      } as unknown as SimulationKindState["player"],
+    }));
+    expect(result.missedCents).toBe(15000);
+    expect((result.state.player.finances as unknown as { cashCents: number }).cashCents).toBe(0);
+  });
+
+  it("finance_reconcile is a no-op when missedCents is 0", () => {
+    const state = employedState();
+    const result = financeReconcile(state, 0);
+    expect(result.changes).toEqual([]);
+    expect(result.state).toBe(state);
+  });
+
+  it("a first missed rent advances evictionStage by exactly one step and levies a late fee", () => {
+    const state = employedState();
+    const result = financeReconcile(state, 15000);
+    // 15000 rent shortfall + a 10% late fee (1500) = 16500.
+    expect((result.state.player.housing as unknown as { overdueRentCents: number }).overdueRentCents).toBe(16500);
+    expect((result.state.player.housing as unknown as { missedPayments: number }).missedPayments).toBe(1);
+    expect((result.state.player.housing as unknown as { evictionStage: string }).evictionStage).toBe("warning");
+  });
+
+  it("advances one rung per already-missed week, never skipping ahead", () => {
+    const state = employedState({
+      player: {
+        ...employedState().player,
+        housing: {
+          ...employedState().player.housing,
+          overdueRentCents: 16500, missedPayments: 1, evictionStage: "warning",
+        },
+      } as unknown as SimulationKindState["player"],
+    });
+    const result = financeReconcile(state, 25000);
+    expect((result.state.player.housing as unknown as { evictionStage: string }).evictionStage).toBe("penalty");
+    expect((result.state.player.housing as unknown as { missedPayments: number }).missedPayments).toBe(2);
+  });
+
+  it("never advances evictionStage past 'evicted'", () => {
+    const state = employedState({
+      player: {
+        ...employedState().player,
+        housing: {
+          ...employedState().player.housing,
+          overdueRentCents: 100000, missedPayments: 5, evictionStage: "evicted",
+        },
+      } as unknown as SimulationKindState["player"],
+    });
+    const result = financeReconcile(state, 25000);
+    expect((result.state.player.housing as unknown as { evictionStage: string }).evictionStage).toBe("evicted");
+  });
+
+  it("leaves housing arrears untouched on a week rent was fully paid", () => {
+    const state = employedState({
+      player: {
+        ...employedState().player,
+        housing: {
+          ...employedState().player.housing,
+          overdueRentCents: 16500, missedPayments: 1, evictionStage: "warning",
+        },
+      } as unknown as SimulationKindState["player"],
+    });
+    const result = financeReconcile(state, 0);
+    expect((result.state.player.housing as unknown as { overdueRentCents: number }).overdueRentCents).toBe(16500);
+    expect((result.state.player.housing as unknown as { evictionStage: string }).evictionStage).toBe("warning");
+  });
+
+  it("threads a missed week's arrears and eviction advance through runEndOfWeek's own changes", () => {
+    const { emit } = recordingEmitter();
+    const state = employedState({
+      player: {
+        ...employedState().player,
+        housing: { ...employedState().player.housing, weeklyCostCents: 60000 },
+        finances: { ...employedState().player.finances, cashCents: 0 },
+      } as unknown as SimulationKindState["player"],
+    });
+    const result = runEndOfWeek(state, emit, [], "goals_win", jobs);
+    // Wage (30000) fully consumed by rent (60000): 30000 short, plus a 3000 late fee.
+    expect((result.state.player.housing as unknown as { overdueRentCents: number }).overdueRentCents).toBe(33000);
+    expect((result.state.player.housing as unknown as { evictionStage: string }).evictionStage).toBe("warning");
+    expect(result.changes.some((c) => c.reason === "rent_overdue")).toBe(true);
+    expect(result.changes.some((c) => c.reason === "eviction_advanced")).toBe(true);
+  });
+
+  // W55.4 — checked over the canonical string, not by inspecting individual fields: a late
+  // fee (`Math.round`) is the one W55 computation that could plausibly introduce a
+  // fractional cent, so this drives it with an odd, non-round missedCents value.
+  it("keeps every money value an integer Cents in serialize() output, even after a late fee", () => {
+    const state = employedState({
+      player: {
+        ...employedState().player,
+        housing: { ...employedState().player.housing, weeklyCostCents: 60333 },
+        finances: { ...employedState().player.finances, cashCents: 0 },
+      } as unknown as SimulationKindState["player"],
+    });
+    const result = runEndOfWeek(state, recordingEmitter().emit, [], "goals_win", jobs);
+    const canonical = canonicalStringify(result.state);
+    expect(canonical).not.toMatch(/"(cashCents|overdueRentCents|weeklyCostCents|debtCents|savingsCents)":-?\d+\.\d/);
+    expect(Number.isInteger(result.state.player.housing.overdueRentCents)).toBe(true);
   });
 });
 

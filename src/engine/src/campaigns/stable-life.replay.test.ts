@@ -32,6 +32,7 @@ import type { Outcome, ReplayFixture } from "../core/replay/types.js";
 import type { KindRegistry } from "../core/kernel/types.js";
 import { buildStableLifeCampaign } from "./stable-life.js";
 import { buildStableLifeEffectsCampaign } from "./stable-life-effects.js";
+import { buildStableLifeHousingCampaign } from "./stable-life-housing.js";
 
 const FIXTURES_DIR = fileURLToPath(new URL("../../fixtures/replay/", import.meta.url));
 const REPLAY_PROFILE_ID = "replay-oracle-profile";
@@ -67,17 +68,20 @@ const CURRENT_STABLE_LIFE_FIXTURE_NAMES = stableLifeFixtureNames(FIXTURES_DIR);
 const STABLE_LIFE_FIXTURE_NAMES = stableLifeFixtureNames(CORPUS_DIR);
 
 /**
- * Registers both `stable-life` and `stable-life-effects` (W51.6) — a fixture's own
- * `config.campaignId` picks which one it replays against; the filename prefix scan above
- * is what makes either one part of "the Stable Life replay corpus" regardless.
+ * Registers `stable-life`, `stable-life-effects` (W51.6), and `stable-life-housing` (W55)
+ * — a fixture's own `config.campaignId` picks which one it replays against; the filename
+ * prefix scan above is what makes any of them part of "the Stable Life replay corpus"
+ * regardless.
  */
 function makeContext(): ReplayRunnerContext {
   const built = buildStableLifeCampaign();
   if (!built.ok || !built.value) throw new Error("expected the Stable Life fixture campaign to build");
   const builtEffects = buildStableLifeEffectsCampaign();
   if (!builtEffects.ok || !builtEffects.value) throw new Error("expected the Stable Life: Effects fixture campaign to build");
+  const builtHousing = buildStableLifeHousingCampaign();
+  if (!builtHousing.ok || !builtHousing.value) throw new Error("expected the Stable Life: Housing fixture campaign to build");
   const kinds = { simulation: simulationKind } as unknown as KindRegistry;
-  const registryResult = buildValidatedContentRegistry([built.value, builtEffects.value], kinds);
+  const registryResult = buildValidatedContentRegistry([built.value, builtEffects.value, builtHousing.value], kinds);
   if (!registryResult.ok || !registryResult.value) throw new Error("expected the Stable Life fixture campaigns to validate");
 
   return {
