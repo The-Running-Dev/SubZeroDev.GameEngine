@@ -23,6 +23,7 @@ import { BrowserClient } from "./browser-client";
 import { createBrowserDemo } from "./composition";
 import manifestJson from "../../public/campaigns/manifest.json";
 import whatWouldLuciferDoJson from "../../public/campaigns/what-would-lucifer-do.json";
+import whatWouldLuciferDoEngineersCutJson from "../../public/campaigns/what-would-lucifer-do-engineers-cut.json";
 import luciferChroniclesJson from "../../public/campaigns/lucifer-chronicles.json";
 import bulgariaBureaucracyJson from "../../public/campaigns/bulgaria-bureaucracy.json";
 import bulgariaReturnJson from "../../public/campaigns/bulgaria-return.json";
@@ -41,6 +42,8 @@ const SEED = "bureaucracy-seed-3";
 const exportedCampaigns: Readonly<Record<string, unknown>> = {
   "manifest.json": manifestJson,
   "what-would-lucifer-do.json": whatWouldLuciferDoJson,
+  "what-would-lucifer-do-engineers-cut.json":
+    whatWouldLuciferDoEngineersCutJson,
   "lucifer-chronicles.json": luciferChroniclesJson,
   "bulgaria-bureaucracy.json": bulgariaBureaucracyJson,
   "bulgaria-return.json": bulgariaReturnJson,

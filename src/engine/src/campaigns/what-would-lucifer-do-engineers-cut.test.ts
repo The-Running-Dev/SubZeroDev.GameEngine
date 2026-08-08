@@ -7,13 +7,17 @@ import type { GameState, KindRegistry } from "../core/kernel/types.js";
 import type { BuiltCampaign } from "../core/registry/types.js";
 import type { StoryGraphCampaign } from "../kinds/story-graph/campaign.js";
 import type { StoryGraphKindState } from "../kinds/story-graph/state.js";
-import { buildWhatWouldLuciferDoCampaign, whatWouldLuciferDoSource, WHAT_WOULD_LUCIFER_DO_CAMPAIGN_ID } from "./what-would-lucifer-do.js";
+import {
+  buildWhatWouldLuciferDoEngineersCutCampaign,
+  whatWouldLuciferDoEngineersCutSource,
+  WHAT_WOULD_LUCIFER_DO_ENGINEERS_CUT_CAMPAIGN_ID,
+} from "./what-would-lucifer-do-engineers-cut.js";
 
 const kinds = { "story-graph": storyGraphKind } as unknown as KindRegistry;
 
 function mustBuild(): BuiltCampaign {
-  const result = buildWhatWouldLuciferDoCampaign();
-  if (!result.ok || !result.value) throw new Error("What Would Lucifer Do? did not build");
+  const result = buildWhatWouldLuciferDoEngineersCutCampaign();
+  if (!result.ok || !result.value) throw new Error("What Would Lucifer Do? — Engineer's Cut did not build");
   return result.value;
 }
 
@@ -22,7 +26,7 @@ const content = built.campaign.content as StoryGraphCampaign;
 
 function engine() {
   const registry = buildValidatedContentRegistry([built], kinds);
-  if (!registry.ok || !registry.value) throw new Error("What Would Lucifer Do? did not validate");
+  if (!registry.ok || !registry.value) throw new Error("What Would Lucifer Do? — Engineer's Cut did not validate");
   return createEngine({ kinds, registry: registry.value, ids: createCountingIds() });
 }
 
@@ -42,7 +46,7 @@ interface Run {
  */
 function play(script: readonly string[], seed: string): Run {
   const api = engine();
-  const created = api.createGame({ campaignId: WHAT_WOULD_LUCIFER_DO_CAMPAIGN_ID, seed });
+  const created = api.createGame({ campaignId: WHAT_WOULD_LUCIFER_DO_ENGINEERS_CUT_CAMPAIGN_ID, seed });
   if (!created.ok || !created.value) throw new Error("createGame failed");
 
   let state = created.value;
@@ -68,13 +72,10 @@ function play(script: readonly string[], seed: string): Run {
   return { state, pages, endingId: kindState.endingId!, achievements: kindState.unlockedAchievements };
 }
 
-// Every scored prediction's correct and "conventional wrong" (reasonable_assumption-tagged,
-// where authored) choice id, in the order the campaign presents them.
+// Every scored prediction's correct and "conventional wrong" (reasonable_assumption-tagged)
+// choice id, in the order the campaign presents them. Sixteen predictions — the technical
+// and software-career-adjacent ones relocated in the public campaign — not twenty-six.
 const WRONG = {
-  ch1_scene1: "police",
-  ch1_scene2: "reverse",
-  ch2_p1: "ch2_p1_lift",
-  ch2_p2: "ch2_p2_slow",
   ch3_p1: "ch3_p1_perfect",
   ch3_p2: "ch3_p2_quiet",
   ch3_p3: "ch3_p3_shrink",
@@ -87,23 +88,13 @@ const WRONG = {
   ch6_p1: "ch6_p1_tolerate",
   ch6_p2: "ch6_p2_stop",
   ch6_p3: "ch6_p3_nothing",
-  ch7_p1: "ch7_p1_grateful",
-  ch7_p2: "ch7_p2_ask_visa",
-  ch8_p1: "ch8_p1_mercy",
   ch8_p2: "ch8_p2_close",
   ch8_p3: "ch8_p3_prototype",
   ch8_p4: "ch8_p4_nothing",
-  ch8_p5: "ch8_p5_test",
-  ch8_p6: "ch8_p6_villain",
-  ch8_p7: "ch8_p7_because",
   ch8_p8: "ch8_p8_joke",
 } as const;
 
 const CORRECT = {
-  ch1_scene1: "laugh",
-  ch1_scene2: "thumbsup",
-  ch2_p1: "ch2_p1_correct",
-  ch2_p2: "ch2_p2_correct",
   ch3_p1: "ch3_p1_correct",
   ch3_p2: "ch3_p2_correct",
   ch3_p3: "ch3_p3_correct",
@@ -116,22 +107,16 @@ const CORRECT = {
   ch6_p1: "ch6_p1_correct",
   ch6_p2: "ch6_p2_correct",
   ch6_p3: "ch6_p3_correct",
-  ch7_p1: "ch7_p1_correct",
-  ch7_p2: "ch7_p2_correct",
-  ch8_p1: "ch8_p1_correct",
   ch8_p2: "ch8_p2_correct",
   ch8_p3: "ch8_p3_correct",
   ch8_p4: "ch8_p4_correct",
-  ch8_p5: "ch8_p5_correct",
-  ch8_p6: "ch8_p6_correct",
-  ch8_p7: "ch8_p7_correct",
   ch8_p8: "ch8_p8_correct",
 } as const;
 
 const ORDER = [
-  "ch1_scene1", "ch1_scene2", "ch2_p1", "ch2_p2", "ch3_p1", "ch3_p2", "ch3_p3",
-  "ch4_p1", "ch4_p2", "ch4_p3", "ch5_p1", "ch5_p2", "ch5_p3", "ch6_p1", "ch6_p2", "ch6_p3",
-  "ch7_p1", "ch7_p2", "ch8_p1", "ch8_p2", "ch8_p3", "ch8_p4", "ch8_p5", "ch8_p6", "ch8_p7", "ch8_p8",
+  "ch3_p1", "ch3_p2", "ch3_p3", "ch4_p1", "ch4_p2", "ch4_p3",
+  "ch5_p1", "ch5_p2", "ch5_p3", "ch6_p1", "ch6_p2", "ch6_p3",
+  "ch8_p2", "ch8_p3", "ch8_p4", "ch8_p8",
 ] as const;
 
 /** First `n` predictions correct, then wrong through the rest. */
@@ -140,8 +125,9 @@ function firstNCorrect(n: number, overrides: Partial<Record<(typeof ORDER)[numbe
 }
 
 const ALL_WRONG = firstNCorrect(0);
-const ALL_CORRECT = firstNCorrect(26);
+const ALL_CORRECT = firstNCorrect(16);
 
+// Tier boundaries: novice 0–3, apprentice 4–7, fluent 8–11, disturbing 12–14, transcendent 15–16.
 const SCRIPTS: readonly { readonly name: string; readonly ending: string; readonly script: readonly string[] }[] = [
   { name: "walk away", ending: "walk_away", script: ["leave"] },
   { name: "novice", ending: "tier_novice", script: [...ALL_WRONG, "novice"] },
@@ -151,31 +137,31 @@ const SCRIPTS: readonly { readonly name: string; readonly ending: string; readon
     ending: "tier_apprentice",
     // ch8_p3 answered with the deliberately-absurd-but-still-an-underestimate option, for
     // "The Correct Answer Was Somehow Worse".
-    script: [...firstNCorrect(8, { ch8_p3: "ch8_p3_sentient" }), "apprentice"],
+    script: [...firstNCorrect(5, { ch8_p3: "ch8_p3_sentient" }), "apprentice"],
   },
   {
     name: "fluent",
     ending: "tier_fluent",
     // Reads the full AI Model Selection Policy before answering, for "Reasoning Should Scale".
     script: (() => {
-      const base = firstNCorrect(14);
+      const base = firstNCorrect(9);
       const idx = base.indexOf(CORRECT.ch5_p3);
       base.splice(idx, 0, "read_policy");
       return [...base, "fluent"];
     })(),
   },
-  { name: "disturbing", ending: "tier_disturbing", script: [...firstNCorrect(20), "disturbing"] },
+  { name: "disturbing", ending: "tier_disturbing", script: [...firstNCorrect(13), "disturbing"] },
   { name: "transcendent", ending: "tier_transcendent", script: [...ALL_CORRECT, "transcendent"] },
   { name: "there is no fucking way", ending: "no_fucking_way", script: [...ALL_CORRECT, "no_fucking_way"] },
 ];
 
-describe("What Would Lucifer Do?", () => {
+describe("What Would Lucifer Do? — Engineer's Cut", () => {
   it("builds and validates with no Tier 1 errors and no Tier 2 warnings", () => {
     const registry = buildValidatedContentRegistry([built], kinds);
     expect(registry.errors).toEqual([]);
     expect(registry.warnings).toEqual([]);
     expect(registry.ok).toBe(true);
-    expect(built.campaign.id).toBe(WHAT_WOULD_LUCIFER_DO_CAMPAIGN_ID);
+    expect(built.campaign.id).toBe(WHAT_WOULD_LUCIFER_DO_ENGINEERS_CUT_CAMPAIGN_ID);
     expect(built.campaign.kindId).toBe("story-graph");
   });
 
@@ -187,9 +173,9 @@ describe("What Would Lucifer Do?", () => {
     const choices = all.flatMap((node) => (node.kind === "choice" ? node.choices : []));
     const discoveries = choices.filter((choice) => choice.showWhen !== undefined);
 
-    expect(visible.length).toBeGreaterThanOrEqual(80);
+    expect(visible.length).toBeGreaterThanOrEqual(60);
     expect(choices.length).toBeGreaterThanOrEqual(100);
-    expect(random.length).toBeGreaterThanOrEqual(4);
+    expect(random.length).toBeGreaterThanOrEqual(2);
     expect(discoveries.length).toBeGreaterThanOrEqual(8);
     expect(endings.length).toBe(8);
     for (const ending of endings) {
@@ -212,84 +198,44 @@ describe("What Would Lucifer Do?", () => {
   });
 
   it.each(SCRIPTS)("reaches the $name ending", ({ ending, script }) => {
-    const run = play(script, `wwld-${ending}`);
+    const run = play(script, `wwldx-${ending}`);
     expect(run.state.status).toBe("ended");
     expect(run.endingId).toBe(ending);
   });
 
   it("reaches every authored ending across the committed scripts", () => {
-    const reached = new Set(SCRIPTS.map(({ ending, script }) => play(script, `wwld-${ending}`).endingId));
+    const reached = new Set(SCRIPTS.map(({ ending, script }) => play(script, `wwldx-${ending}`).endingId));
     const authored = Object.values(content.nodes).flatMap((node) => (node.kind === "ending" ? [node.endingId] : []));
     expect([...reached].sort()).toEqual([...authored].sort());
   });
 
   it("unlocks every authored achievement across the committed scripts", () => {
-    const unlocked = new Set(SCRIPTS.flatMap(({ ending, script }) => play(script, `wwld-${ending}`).achievements));
+    const unlocked = new Set(SCRIPTS.flatMap(({ ending, script }) => play(script, `wwldx-${ending}`).achievements));
     const authored = content.achievements.map((achievement) => achievement.id);
     expect(authored.filter((id) => !unlocked.has(id))).toEqual([]);
   });
 
   it("does not unlock 'A 2004 Salary' unless both the decline and the apply are predicted correctly", () => {
-    const declineWrong = firstNCorrect(26, { ch4_p2: WRONG.ch4_p2 });
-    expect(play(declineWrong, "wwld-decline-wrong").achievements).not.toContain("declined_the_money");
+    const declineWrong = firstNCorrect(16, { ch4_p2: WRONG.ch4_p2 });
+    expect(play(declineWrong, "wwldx-decline-wrong").achievements).not.toContain("declined_the_money");
 
-    const applyWrong = firstNCorrect(26, { ch4_p3: WRONG.ch4_p3 });
-    expect(play(applyWrong, "wwld-apply-wrong").achievements).not.toContain("declined_the_money");
+    const applyWrong = firstNCorrect(16, { ch4_p3: WRONG.ch4_p3 });
+    expect(play(applyWrong, "wwldx-apply-wrong").achievements).not.toContain("declined_the_money");
 
-    expect(play(ALL_CORRECT, "wwld-both-correct").achievements).toContain("declined_the_money");
-  });
-
-  it("migrates a v1.0.0 save forward, identically, since v1.1.0 relocated only prose", () => {
-    const migrate = built.campaign.migrateState;
-    expect(migrate).toBeTypeOf("function");
-
-    const active: StoryGraphKindState = {
-      currentNodeId: "ch6_p1",
-      variables: { predictions_correct: 9, streak: 3 },
-      turn: 12,
-      visitedCounts: { prologue: 1, ch6_p1: 1 },
-      unlockedAchievements: ["pattern_recognition"],
-    };
-    const migratedActive = migrate!(active, "1.0.0");
-    expect(migratedActive.ok).toBe(true);
-    const migratedState = migratedActive.value as StoryGraphKindState;
-    // Ids are unchanged, so the node carries straight through; declared variables missing
-    // from the old save (none existed at v1.0.0 either) are backfilled with their initial
-    // value by the shared migration helper, same as every other campaign's v1 migration.
-    expect(migratedState.currentNodeId).toBe("ch6_p1");
-    expect(migratedState.turn).toBe(12);
-    expect(migratedState.unlockedAchievements).toEqual(["pattern_recognition"]);
-    expect(migratedState.variables.predictions_correct).toBe(9);
-    expect(migratedState.variables.streak).toBe(3);
-    expect(Object.keys(migratedState.variables).length).toBe(Object.keys(whatWouldLuciferDoSource.variables).length);
-
-    const ended: StoryGraphKindState = {
-      currentNodeId: "ending_tier_fluent",
-      endingId: "tier_fluent",
-      variables: { predictions_correct: 14 },
-      turn: 27,
-      visitedCounts: { prologue: 1 },
-      unlockedAchievements: ["tier_fluent"],
-    };
-    const migratedEnded = migrate!(ended, "1.0.0");
-    expect(migratedEnded.ok).toBe(true);
-    expect((migratedEnded.value as StoryGraphKindState).currentNodeId).toBe("ending_tier_fluent");
-    expect((migratedEnded.value as StoryGraphKindState).endingId).toBe("tier_fluent");
-
-    expect(migrate!(active, "0.9.0").ok).toBe(false);
+    expect(play(ALL_CORRECT, "wwldx-both-correct").achievements).toContain("declined_the_money");
   });
 
   it("replays byte-identically from the same seed and inputs", () => {
     const api = engine();
     for (const { ending, script } of SCRIPTS) {
-      const first = play(script, `wwld-${ending}`);
-      const second = play(script, `wwld-${ending}`);
+      const first = play(script, `wwldx-${ending}`);
+      const second = play(script, `wwldx-${ending}`);
       expect(api.serialize(first.state)).toEqual(api.serialize(second.state));
     }
   });
 
   it("produces materially different playthroughs from the same campaign", () => {
-    const runs = SCRIPTS.map(({ ending, script }) => play(script, `wwld-${ending}`));
+    const runs = SCRIPTS.map(({ ending, script }) => play(script, `wwldx-${ending}`));
     for (let left = 0; left < runs.length; left += 1) {
       for (let right = left + 1; right < runs.length; right += 1) {
         expect(runs[left]!.pages).not.toEqual(runs[right]!.pages);
@@ -298,16 +244,16 @@ describe("What Would Lucifer Do?", () => {
   });
 
   it("exercises both outcomes of every authored random transition across fixed seeds", () => {
-    const randomIds = Object.entries(whatWouldLuciferDoSource.nodes)
+    const randomIds = Object.entries(whatWouldLuciferDoEngineersCutSource.nodes)
       .filter(([, node]) => node.kind === "random")
       .map(([id]) => id);
     const seen = new Map(randomIds.map((id) => [id, new Set<string>()]));
 
     for (const { script } of SCRIPTS) {
       for (let seed = 0; seed < 24; seed += 1) {
-        const pages = play(script, `wwld-seed-${seed}`).pages;
+        const pages = play(script, `wwldx-seed-${seed}`).pages;
         for (const randomId of randomIds) {
-          const node = whatWouldLuciferDoSource.nodes[randomId];
+          const node = whatWouldLuciferDoEngineersCutSource.nodes[randomId];
           if (node?.kind !== "random") continue;
           for (const transition of node.transitions) {
             if (pages.includes(transition.goto)) seen.get(randomId)!.add(transition.goto);
@@ -317,7 +263,7 @@ describe("What Would Lucifer Do?", () => {
     }
 
     for (const randomId of randomIds) {
-      const node = whatWouldLuciferDoSource.nodes[randomId];
+      const node = whatWouldLuciferDoEngineersCutSource.nodes[randomId];
       if (node?.kind === "random") expect(seen.get(randomId)!.size, randomId).toBe(node.transitions.length);
     }
   });

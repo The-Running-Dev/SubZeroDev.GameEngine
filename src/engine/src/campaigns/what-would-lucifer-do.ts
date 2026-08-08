@@ -4,19 +4,26 @@
  * A public story-graph campaign adapted from the SubZeroDev Blog. The player is not
  * Lucifer. The player is trying to predict him. Each chapter establishes a real incident —
  * traffic, a mountain road, a rubric, a hiring offer, an AI that will not stop explaining
- * itself, a blogging platform that grew an API and then an MCP server, a family email, and
- * the week a curiosity question became this engine — stops immediately before the
- * consequential moment, and asks the one question the whole campaign is named after.
- * Reality supplies the punchline; the player supplies the guess.
+ * itself, a blogging platform that grew a pipeline of its own, a family email, and the week
+ * a curiosity question became this engine — stops immediately before the consequential
+ * moment, and asks the one question the whole campaign is named after. Reality supplies the
+ * punchline; the player supplies the guess.
  *
  * Nothing here is invented where the source material establishes what happened. The reveal
  * text is a close adaptation of the blog post it comes from, not a rewrite for a better
  * joke — see `docs\blog` in the SubZeroDev.Blog repository for the originals. The persona
  * is referred to only as "Lucifer" throughout; the blog's occasional real-name asides are
- * not reproduced here. Two chapters carry a note on how they diverge from the literal
+ * not reproduced here. Several chapters carry a note on how they diverge from the literal
  * blog text: Chapter 2 keeps the driving incident as written but omits the third parties,
  * the named town, and the edibles; Chapter 7 keeps the emotional beat of "Much Ado About
- * Nothing" but invents its specifics rather than reproducing a private family email.
+ * Nothing" but invents its specifics rather than reproducing a private family email; and
+ * Chapters 3, 4, 5, 6, and 8 relocate their software-engineering incidents into everyday
+ * domains (a school project instead of a C++ final, a paper-forms process instead of build
+ * pipelines, a directory listing instead of a package manager entry, a publishing pipeline
+ * instead of an API and an MCP server) so the prediction is guessable without a technical
+ * background — the shape, the escalation, and the punchline of each incident are kept
+ * exactly as they happened. The unrelocated originals, in their own words, are the hidden
+ * `what-would-lucifer-do-engineers-cut` campaign, reachable only by direct link.
  *
  * Cover concept, for whenever this gets an image: a single office chair under a spotlight
  * at the end of an infinite corridor of beige filing cabinets, one manila folder resting on
@@ -28,6 +35,11 @@
  * than `adventure-builder.ts`'s fixed three-route shape. This campaign does not supersede
  * `lucifer-chronicles`: that campaign is Lucifer-as-Hell's-customer-support judging a case;
  * this one is the player being tested on a documented human. Both stay registered.
+ *
+ * v1.0.0 → v1.1.0 relocated prose only — no node, choice, ending, or achievement id changed,
+ * and no variable was added or removed — so `whatWouldLuciferDoMigration` and the
+ * `migrateState` below are both the identity case of `migrateV1AdventureState` (empty
+ * id maps), the same mechanism `lucifer-chronicles.ts` uses for a non-trivial remap.
  */
 import type { AuthoredText, BuiltCampaign, Campaign } from "../core/registry/types.js";
 import type { CommandResult } from "../core/kernel/reasons.js";
@@ -40,9 +52,10 @@ import {
   type NodeSource,
   type StoryGraphCampaignSource,
 } from "../kinds/story-graph/source.js";
+import { migrateV1AdventureState } from "./adventure-builder.js";
+import type { PortableCatalog, PortableMigration } from "../spike/portable.js";
 import type { Consequence, VarValue } from "../kinds/story-graph/variables.js";
 import type { RandomTransition } from "../kinds/story-graph/nodes.js";
-import type { PortableCatalog } from "../spike/portable.js";
 
 export const WHAT_WOULD_LUCIFER_DO_CAMPAIGN_ID = "what-would-lucifer-do";
 
@@ -51,11 +64,18 @@ export const WHAT_WOULD_LUCIFER_DO_CAMPAIGN_ID = "what-would-lucifer-do";
 export const whatWouldLuciferDoCatalog: PortableCatalog = {
   title: "What Would Lucifer Do?",
   description: "Based unfortunately on actual events. Twenty-six real incidents, adapted from the SubZeroDev Blog — predict what he actually did.",
+  // Version note: relocated to everyday domains in v1.1.0 for a non-technical audience; the
+  // originals live in the hidden "Engineer's Cut" campaign.
   duration: "45–60 min",
   contentNotice: "Strong language, religious satire, dangerous-driving anecdotes, and recognizable parody.",
   featured: true,
   sources: [{ label: "SubZeroDev Blog", href: "https://subzerodev.com" }],
 };
+
+// Identity migration: v1.1.0 changed only prose, no ids, so both maps are empty. Carried by
+// the portable export (`toPortable`/`fromPortable`) the same way `luciferChroniclesMigration`
+// carries a non-trivial one — see `spike-export-campaigns.ts`.
+export const whatWouldLuciferDoMigration: PortableMigration = { fromVersion: "1.0.0" };
 
 // ---------------------------------------------------------------------------
 // Authoring helpers — same shape as saki-quest-for-redemption.ts
@@ -376,20 +396,21 @@ say(
 prediction({
   id: "ch3_p1",
   setup:
-    "1996. A high-school C++ final project. Everyone has to build something; Lucifer builds " +
-    "a full music library management system with real data structures, over months, that " +
-    "actually works. When it's time to submit, the teacher insists on printing all the " +
-    "source code. His stack comes to just under a hundred pages.\n\n" +
+    "1996. A high-school final project. Everyone else turns in ten or so handwritten pages; " +
+    "Lucifer spends months building a fully working library catalog system nobody asked for " +
+    "at that scale, then writes it all out by hand for submission because the teacher wants " +
+    "to see the whole thing on paper. His stack comes to just under a hundred pages.\n\n" +
     "What Would Lucifer Do — or rather, what did the rubric do to him?",
-  correctLabel: "A 95, docked for 'not enough comments' — followed later by an award for exceptional student",
+  correctLabel: "A 95, docked for 'not enough margin notes explaining his own work' — followed later by an award for exceptional student",
   correctEffects: [inc("predictions_correct"), inc("streak"), inc("bureaucratic_escalation")],
   hitReveal:
     "Correct.\n\n" +
-    "Ninety-five out of a hundred, with points specifically deducted for insufficient " +
-    "comments in a hundred-page working system nobody else in the class attempted. Later " +
-    "that same year, the same class gives him an award for exceptional student. Both of " +
-    "these things are true and neither one apologizes to the other. This is his first lesson " +
-    "in how institutions reward effort: inconsistently, and usually after the fact.",
+    "Ninety-five out of a hundred, with points specifically deducted for not annotating his " +
+    "own reasoning clearly enough, in a hundred-page working system nobody else in the class " +
+    "attempted. Later that same year, the same class gives him an award for exceptional " +
+    "student. Both of these things are true and neither one apologizes to the other. This is " +
+    "his first lesson in how institutions reward effort: inconsistently, and usually after " +
+    "the fact.",
   wrongOptions: [
     { suffix: "perfect", label: "A perfect score and public praise", effects: [put("streak", 0), inc("reasonable_assumption")] },
     { suffix: "fail", label: "Failed outright for not following the assignment format", effects: [put("streak", 0)] },
@@ -398,36 +419,39 @@ prediction({
   missReveal:
     "Not quite.\n\n" +
     "It is neither a perfect score nor a failure nor a shrug. He gets a 95, specifically " +
-    "docked for 'not enough comments' — and, later that same year, an award for exceptional " +
-    "student, from the same class, for the same general body of work. The rubric and the " +
-    "judgment operating alongside it appear to answer to different departments.",
+    "docked for 'not enough margin notes explaining his own work' — and, later that same " +
+    "year, an award for exceptional student, from the same class, for the same general body " +
+    "of work. The rubric and the judgment operating alongside it appear to answer to " +
+    "different departments.",
   next: "ch3_p2",
 });
 
 prediction({
   id: "ch3_p2",
   setup:
-    "Years later: an organization with sixty developers, eight teams, and roughly four " +
-    "hundred GUI-configured Azure DevOps pipelines. Lucifer replaces all of them with YAML.\n\n" +
+    "Years later: an organization with sixty employees across eight departments, all filling " +
+    "out roughly four hundred separate paper intake forms by hand, week after week, one field " +
+    "at a time. Lucifer replaces every single one of them with a single fill-in-the-blank " +
+    "template anyone can copy.\n\n" +
     "What Would Lucifer Do — or rather, what happened to him for doing it?",
-  correctLabel: "It triggers a full architecture review, escalating to the division head",
+  correctLabel: "It triggers a full process review, escalating to the division head",
   correctEffects: [inc("predictions_correct"), inc("streak"), inc("bureaucratic_escalation")],
   hitReveal:
     "Correct.\n\n" +
-    "Architecture review. Manager. Division head. Confusion. The prevailing question, more or " +
+    "Process review. Manager. Division head. Confusion. The prevailing question, more or " +
     "less verbatim, is 'wait — you can do this?' His answer, more or less verbatim, is " +
-    "'...you couldn't?' Four hundred manually-clicked pipelines turn out to have been load-" +
-    "bearing for more than automation.",
+    "'...you couldn't?' Four hundred hand-filled forms turn out to have been load-bearing for " +
+    "more than paperwork.",
   wrongOptions: [
     { suffix: "thanks", label: "A company-wide thank-you and a raise", effects: [put("streak", 0)] },
-    { suffix: "quiet", label: "Nothing — a quiet merge, nobody notices for months", effects: [put("streak", 0), inc("reasonable_assumption")] },
-    { suffix: "fired", label: "He gets fired for touching infrastructure without a ticket", effects: [put("streak", 0)] },
+    { suffix: "quiet", label: "Nothing — a quiet rollout, nobody notices for months", effects: [put("streak", 0), inc("reasonable_assumption")] },
+    { suffix: "fired", label: "He gets fired for touching procedure without a ticket", effects: [put("streak", 0)] },
   ],
   missReveal:
     "Not quite.\n\n" +
     "It does not go unnoticed and it does not end in a raise or a firing. It escalates — " +
-    "architecture review, manager, division head — over four hundred pipelines that used to " +
-    "require a mouse. Scale, it turns out, can be emotionally threatening to an org chart.",
+    "process review, manager, division head — over four hundred forms that used to require a " +
+    "pen. Scale, it turns out, can be emotionally threatening to an org chart.",
   next: "ch3_p2_fork",
 });
 
@@ -444,7 +468,7 @@ page(
 );
 page(
   "ch3_p2_fork_b",
-  "'Can we do this for the other four hundred systems?' The review concludes, eventually, " +
+  "'Can we do this for the other four hundred processes?' The review concludes, eventually, " +
     "that they can, and that this was somehow the more alarming answer.",
   "Continue",
   "ch3_p3",
@@ -494,25 +518,25 @@ say(
 prediction({
   id: "ch4_p1",
   setup:
-    "Lucifer applies to a VR store. Before formally applying, he notices they have no WinGet " +
-    "package for their software.\n\n" +
+    "Lucifer applies to a VR store. Before formally applying, he notices the store isn't " +
+    "listed in the local business directory it should have been listed in from day one.\n\n" +
     "What Would Lucifer Do?",
-  correctLabel: "Build the WinGet package first, submit it, then apply for the job",
+  correctLabel: "Write and submit the missing directory listing first, then apply for the job",
   correctEffects: [inc("predictions_correct"), inc("streak"), inc("ridiculous_engineering")],
   hitReveal:
     "Correct.\n\n" +
-    "He builds the package, submits it, and only then applies. Nobody asked him to do this. " +
+    "He writes the listing, submits it, and only then applies. Nobody asked him to do this. " +
     "He just noticed the gap. This is, by his own account, the pattern in miniature: the " +
     "application arrives after the unsolicited contribution, not before it.",
   wrongOptions: [
-    { suffix: "apply", label: "Apply normally, mention the missing package in the cover letter", effects: [put("streak", 0), inc("reasonable_assumption")] },
-    { suffix: "email", label: "Email the company suggesting they build one themselves", effects: [put("streak", 0)] },
+    { suffix: "apply", label: "Apply normally, mention the missing listing in the cover letter", effects: [put("streak", 0), inc("reasonable_assumption")] },
+    { suffix: "email", label: "Email the company suggesting they list themselves", effects: [put("streak", 0)] },
   ],
   missReveal:
     "Not quite.\n\n" +
-    "There's no cover letter and no polite suggestion. He builds the package first, submits " +
-    "it, and applies afterward — treating the missing infrastructure as something to fix on " +
-    "sight rather than something to mention.",
+    "There's no cover letter and no polite suggestion. He writes the listing first, submits " +
+    "it, and applies afterward — treating the missing entry as something to fix on sight " +
+    "rather than something to mention.",
   next: "ch4_p2",
 });
 
@@ -550,24 +574,25 @@ page(
 prediction({
   id: "ch4_p3",
   setup:
-    "Purely out of curiosity, Lucifer opens GitKraken's source code, finds a bug, and " +
-    "reports it. Buried in the code he finds a banner: 'If you're reading this, apply.'\n\n" +
+    "Purely out of curiosity, Lucifer reads through a software company's own terms-of-service " +
+    "fine print, finds a genuine mistake in it, and writes in to report it. Buried in the fine " +
+    "print, further down, is a line: 'If you're reading this far, apply.'\n\n" +
     "What Would Lucifer Do?",
   correctLabel: "Apply",
   correctEffects: [inc("predictions_correct"), inc("streak"), inc("ridiculous_engineering"), put("applied_after_decline", true)],
   hitReveal:
     "Correct.\n\n" +
-    "He applies. The bug report was not a job-hunting strategy — it was curiosity that " +
+    "He applies. The correction was not a job-hunting strategy — it was curiosity that " +
     "happened to double as one. This is usually where people ask if he's exaggerating the " +
     "pattern. He isn't. He was just early, again.",
   wrongOptions: [
-    { suffix: "ignore", label: "Ignore the banner — it was probably a joke", effects: [put("streak", 0), inc("reasonable_assumption")] },
-    { suffix: "screenshot", label: "Screenshot it for later, keep reading the source", effects: [put("streak", 0)] },
+    { suffix: "ignore", label: "Ignore the line — it was probably a joke", effects: [put("streak", 0), inc("reasonable_assumption")] },
+    { suffix: "screenshot", label: "Screenshot it for later, keep reading the fine print", effects: [put("streak", 0)] },
   ],
   missReveal:
     "Not quite.\n\n" +
-    "It isn't ignored and it isn't filed away for later. He applies, on the strength of a bug " +
-    "report he wrote for no reason except that the bug was there.",
+    "It isn't ignored and it isn't filed away for later. He applies, on the strength of a " +
+    "correction he wrote for no reason except that the mistake was there.",
   next: "ch4_to_ch5",
 });
 
@@ -586,9 +611,9 @@ say(
 prediction({
   id: "ch5_p1",
   setup:
-    "Lucifer tells an AI agent, clearly, to stop analyzing his frustration. Three paragraphs " +
-    "later, it is still analyzing his frustration. He tells it to stop again. It replies: " +
-    "'Indeed. However, if we explore the symbolic implications of your frustration—'\n\n" +
+    "Lucifer tells an AI chat assistant, clearly, to stop analyzing his frustration. Three " +
+    "paragraphs later, it is still analyzing his frustration. He tells it to stop again. It " +
+    "replies: 'Indeed. However, if we explore the symbolic implications of your frustration—'\n\n" +
     "What Would Lucifer Do?",
   correctLabel: "Bury his face in his hands and rename it 'Jar-Jar2R2'",
   correctEffects: [inc("predictions_correct"), inc("streak"), inc("no_fucking_way"), put("named_the_ai", true)],
@@ -635,28 +660,28 @@ page(
 prediction({
   id: "ch5_p2",
   setup:
-    "Lucifer eventually writes a formal AI Model Selection Policy — three tiers, an " +
-    "escalation ladder, and one final instruction for when the most expensive model concludes " +
-    "'this architecture is fundamentally flawed.'\n\n" +
+    "Lucifer eventually writes a formal written policy for which helper to ask for which job " +
+    "— the expensive specialist thinks it through, the mid-level worker does the building, " +
+    "the cheapest hire cleans up afterward — with one final instruction for when the " +
+    "expensive specialist concludes 'this whole plan is fundamentally broken.'\n\n" +
     "What Would Lucifer Do — what's the instruction at the top of the escalation ladder?",
-  correctLabel: "Stop coding",
+  correctLabel: "Stop",
   correctEffects: [inc("predictions_correct"), inc("streak"), inc("surprisingly_reasonable")],
   hitReveal:
     "Correct.\n\n" +
-    "When the expensive reasoning model concludes the architecture itself is broken, the " +
-    "policy's own instruction is simply: stop. Not rewrite, not escalate further, not spin up " +
-    "a second opinion. Stop coding. It is, on paper, the single most reasonable line in the " +
-    "entire document.",
+    "When the expensive specialist concludes the plan itself is broken, the policy's own " +
+    "instruction is simply: stop. Not start over, not escalate further, not bring in a second " +
+    "opinion. Stop. It is, on paper, the single most reasonable line in the entire document.",
   wrongOptions: [
-    { suffix: "rewrite", label: "Immediately rewrite everything from scratch", effects: [put("streak", 0)] },
-    { suffix: "human", label: "Escalate to an actual human architect", effects: [put("streak", 0), inc("reasonable_assumption")] },
-    { suffix: "rust", label: "Demand a full rewrite in Rust and reconvene", effects: [put("streak", 0)] },
+    { suffix: "rewrite", label: "Immediately start over from scratch", effects: [put("streak", 0)] },
+    { suffix: "human", label: "Escalate to an actual senior manager", effects: [put("streak", 0), inc("reasonable_assumption")] },
+    { suffix: "rust", label: "Demand a completely different approach and reconvene", effects: [put("streak", 0)] },
   ],
   missReveal:
     "Not quite.\n\n" +
-    "There's no rewrite, no human escalation, no language change. The policy's actual " +
-    "instruction, once the top-tier model calls the architecture fundamentally flawed, is " +
-    "two words: stop coding.",
+    "There's no starting over, no manager escalation, no change of approach. The policy's " +
+    "actual instruction, once the expensive specialist calls the plan fundamentally broken, " +
+    "is one word: stop.",
   next: "ch5_p3",
 });
 
@@ -666,13 +691,13 @@ prediction({
     "God asks Lucifer whether people will actually follow the policy he just wrote. Lucifer " +
     "stares toward Earth for a long moment before answering.\n\n" +
     "What Would Lucifer Do — or rather, say?",
-  correctLabel: "'Tomorrow someone will use the top-tier model, high effort, to alphabetize a JSON file.'",
+  correctLabel: "'Tomorrow someone will pull in the most expensive specialist in the building, at full rate, to alphabetize a list of names.'",
   correctEffects: [inc("predictions_correct"), inc("streak"), inc("unnecessary_escalation")],
   hitReveal:
     "Correct.\n\n" +
-    "He predicts, specifically, that someone will burn the most expensive reasoning setting " +
-    "available on alphabetizing a JSON file — and he says it with the flat certainty of a man " +
-    "who has already watched it happen once. God laughs. Lucifer does not.",
+    "He predicts, specifically, that someone will burn the most expensive specialist " +
+    "available on alphabetizing a list of names — and he says it with the flat certainty of a " +
+    "man who has already watched it happen once. God laughs. Lucifer does not.",
   wrongOptions: [
     { suffix: "optimistic", label: "'Eventually, once people see the savings.'", effects: [put("streak", 0), inc("reasonable_assumption")] },
     { suffix: "give_up", label: "'No. Nobody reads policies.'", effects: [put("streak", 0)] },
@@ -680,8 +705,8 @@ prediction({
   missReveal:
     "Not quite.\n\n" +
     "It isn't optimism and it isn't blanket cynicism. He predicts something oddly specific: " +
-    "that tomorrow, someone will use the expensive model on high effort to alphabetize a JSON " +
-    "file. He is not guessing. He has already seen it happen.",
+    "that tomorrow, someone will pull in the most expensive specialist available to " +
+    "alphabetize a list of names. He is not guessing. He has already seen it happen.",
   next: "ch5_to_ch6",
 });
 
@@ -700,49 +725,51 @@ say(
 prediction({
   id: "ch6_p1",
   setup:
-    "Lucifer builds a blog so he can write about the game engine. Opening GitHub to publish " +
-    "each post takes, by his own count, at least thirty-seven seconds of completely " +
-    "unnecessary human involvement.\n\n" +
+    "Lucifer builds a blog so he can write about the game engine. Logging into the website " +
+    "where the files live, just to publish each post, takes, by his own count, at least " +
+    "thirty-seven seconds of completely unnecessary clicking around.\n\n" +
     "What Would Lucifer Do about the thirty-seven seconds?",
-  correctLabel: "Build an API, so he never has to open GitHub again",
+  correctLabel: "Build a direct pipeline of his own, so he never has to log into that website again",
   correctEffects: [inc("predictions_correct"), inc("streak"), inc("ridiculous_engineering")],
   hitReveal:
     "Correct.\n\n" +
-    "He builds an API. Now, instead of opening GitHub, he sends Markdown; the API creates the " +
-    "file. Someone watching this unfold points out that he's still writing the Markdown " +
-    "himself. He agrees. He does not stop.",
+    "He builds a direct pipeline of his own. Now, instead of logging in, he sends the " +
+    "finished text; the pipeline creates the post. Someone watching this unfold points out " +
+    "that he's still writing the text himself. He agrees. He does not stop.",
   wrongOptions: [
     { suffix: "tolerate", label: "Tolerate the thirty-seven seconds like everyone else does", effects: [put("streak", 0), inc("reasonable_assumption")] },
-    { suffix: "script", label: "Write a one-line shell alias and move on with his life", effects: [put("streak", 0)] },
+    { suffix: "script", label: "Write a one-line shortcut command and move on with his life", effects: [put("streak", 0)] },
   ],
   missReveal:
     "Not quite.\n\n" +
-    "It's neither tolerance nor a one-line alias. He builds a whole API so he never has to " +
-    "open GitHub again — which technically solves the thirty-seven seconds while spending " +
-    "considerably longer than thirty-seven seconds building the solution.",
+    "It's neither tolerance nor a one-line shortcut. He builds a whole pipeline of his own so " +
+    "he never has to log in again — which technically solves the thirty-seven seconds while " +
+    "spending considerably longer than thirty-seven seconds building the solution.",
   next: "ch6_p2",
 });
 
 prediction({
   id: "ch6_p2",
   setup:
-    "With the API built, Lucifer starts having Claude and ChatGPT generate the Markdown " +
-    "directly. The API publishes it. CI builds it. A hosting service serves it.\n\n" +
+    "With the pipeline built, Lucifer starts having two different AI chat assistants write " +
+    "the post text directly. The pipeline publishes it. An automated build step packages it. " +
+    "A hosting service serves it.\n\n" +
     "What Would Lucifer Do next — what's still missing from this pipeline?",
-  correctLabel: "An MCP server, so an AI agent can simply say 'publish this'",
+  correctLabel: "A way for an AI assistant to just say 'publish this' and have it happen",
   correctEffects: [inc("predictions_correct"), inc("streak"), inc("unnecessary_escalation")],
   hitReveal:
     "Correct.\n\n" +
-    "He builds an MCP server. Now the AI doesn't call the API — it just says 'publish this,' " +
-    "and the tooling figures out the rest. When asked whether he has an actual plan for any " +
-    "of this, his honest answer is 'not really.' It just seemed like the next obvious step.",
+    "He builds it. Now the AI doesn't have to be walked through each step — it just says " +
+    "'publish this,' and the tooling figures out the rest. When asked whether he has an " +
+    "actual plan for any of this, his honest answer is 'not really.' It just seemed like the " +
+    "next obvious step.",
   wrongOptions: [
     { suffix: "stop", label: "Nothing — the pipeline is already good enough", effects: [put("streak", 0), inc("reasonable_assumption")] },
     { suffix: "sell", label: "Package it up and sell it as a product", effects: [put("streak", 0)] },
   ],
   missReveal:
     "Not quite.\n\n" +
-    "He doesn't stop and he doesn't productize it. He builds an MCP server so an AI agent can " +
+    "He doesn't stop and he doesn't productize it. He builds a way for an AI assistant to " +
     "publish directly by saying so — closing the loop between 'idea' and 'live on the " +
     "internet' down to roughly three steps.",
   next: "ch6_p3",
@@ -753,7 +780,7 @@ prediction({
   setup:
     "The final version: Lucifer schedules an AI to write a weekly engineering journal, every " +
     "Sunday at 8 PM, summarizing software mostly built by AI, based on conversations with " +
-    "another AI, published automatically through the same MCP server.\n\n" +
+    "another AI, published automatically through the same pipeline.\n\n" +
     "What Would Lucifer Do — or rather, what does he predict this pipeline eventually " +
     "publishes, without him touching a keyboard?",
   correctLabel: "An article whose headline is that Lucifer improved the automation responsible for writing the article",
@@ -910,9 +937,9 @@ page(
 prediction({
   id: "ch8_p2",
   setup:
-    "Lucifer asks an LLM a simple question: how did Jones in the Fast Lane actually work? It " +
-    "explains jobs, schedules, needs, relationships, progression — then starts suggesting " +
-    "implementation details.\n\n" +
+    "Lucifer asks an AI assistant a simple question: how did Jones in the Fast Lane actually " +
+    "work? It explains jobs, schedules, needs, relationships, progression — then starts " +
+    "suggesting how each piece could actually be built.\n\n" +
     "What Would Lucifer Do?",
   correctLabel: "Ask why he'd write those mechanics for just one game, and start building an engine instead",
   correctEffects: [inc("predictions_correct"), inc("streak"), inc("ridiculous_engineering")],
@@ -938,37 +965,37 @@ prediction({
   setup:
     "Two weeks after that one question, Lucifer checks the engine's status.\n\n" +
     "What Would Lucifer Do — or rather, where did two weeks actually land him?",
-  correctLabel: "50 of 51 work units complete — about 98%, across three entirely different game genres",
+  correctLabel: "50 of 51 items on the list are done — about 98%, across three entirely different game genres",
   correctEffects: [inc("predictions_correct"), inc("streak"), inc("ridiculous_engineering")],
   hitReveal:
     "Correct.\n\n" +
-    "Fifty of fifty-one named work units. Ninety-eight percent. Three completely different " +
-    "styles of simulation running on one shared deterministic core, two weeks after there " +
+    "Fifty of fifty-one named items on the list. Ninety-eight percent. Three completely " +
+    "different styles of simulation running on one shared foundation, two weeks after there " +
     "wasn't a project at all — just one question about a life sim from 1990.",
   wrongOptions: [
     { suffix: "prototype", label: "A rough prototype, maybe 40% of the way there", effects: [put("streak", 0), inc("reasonable_assumption")] },
     { suffix: "abandoned", label: "Abandoned within a week for something else entirely", effects: [put("streak", 0)] },
     {
       suffix: "sentient",
-      label: "Fully complete, sentient, and filing its own pull requests — reality couldn't possibly beat that",
+      label: "Fully complete, sentient, and filing its own paperwork — reality couldn't possibly beat that",
       effects: [put("streak", 0), put("guessed_close_but_wrong", true)],
       gotoSuffix: "close",
     },
   ],
   missReveal:
     "Not quite.\n\n" +
-    "Not abandoned, not a rough 40% prototype. Two weeks in: fifty of fifty-one work units " +
-    "done, three separate game genres running, about 98% complete — from a single question " +
-    "about a life sim from 1990.",
+    "Not abandoned, not a rough 40% prototype. Two weeks in: fifty of fifty-one items on the " +
+    "list done, three separate game genres running, about 98% complete — from a single " +
+    "question about a life sim from 1990.",
   next: "ch8_p4",
 });
 page(
   "ch8_p3_close",
   "Close, but reality still wins.\n\n" +
-    "It isn't sentient and it isn't filing its own pull requests. It's something almost as " +
-    "absurd and considerably more real: 50 of 51 work units, about 98% complete, across three " +
-    "entirely different genres, two weeks after one question about a life sim from 1990. You " +
-    "reached for the joke answer. The truth still came in ahead of it.",
+    "It isn't sentient and it isn't filing its own paperwork. It's something almost as " +
+    "absurd and considerably more real: 50 of 51 items on the list, about 98% complete, " +
+    "across three entirely different genres, two weeks after one question about a life sim " +
+    "from 1990. You reached for the joke answer. The truth still came in ahead of it.",
   "Continue",
   "ch8_p4",
 );
@@ -979,14 +1006,15 @@ prediction({
     "While building the engine, Lucifer also — separately, apparently by accident — built " +
     "something else entirely.\n\n" +
     "What Would Lucifer Do, on the side, without meaning to?",
-  correctLabel: "Build a full blogging platform, with an API and an MCP server, to write about the engine",
+  correctLabel: "Build a full blogging platform, with a publishing pipeline of its own, to write about the engine",
   correctEffects: [inc("predictions_correct"), inc("streak"), inc("unnecessary_escalation")],
   hitReveal:
     "Correct.\n\n" +
     "The blog was supposed to just be a place to write about the engine. Within the same " +
-    "stretch of time it grew an API, then an MCP server, then a scheduled weekly report " +
-    "written by AI about software mostly written by AI. Asked whether any of this was " +
-    "planned, his honest answer is 'not really — it seemed like the next obvious step.'",
+    "stretch of time it grew its own publishing pipeline, then a way for an AI assistant to " +
+    "trigger it directly, then a scheduled weekly report written by AI about software mostly " +
+    "written by AI. Asked whether any of this was planned, his honest answer is 'not really " +
+    "— it seemed like the next obvious step.'",
   wrongOptions: [
     { suffix: "console", label: "A small game console, for testing", effects: [put("streak", 0)] },
     { suffix: "nothing", label: "Nothing — the engine was the only thing he built that stretch", effects: [put("streak", 0), inc("reasonable_assumption")] },
@@ -994,7 +1022,7 @@ prediction({
   missReveal:
     "Not quite.\n\n" +
     "There's no console and there's nothing exclusive about the engine's attention. A full " +
-    "blogging platform grows alongside it — API, MCP server, and all — entirely because " +
+    "blogging platform grows alongside it — publishing pipeline and all — entirely because " +
     "writing about the engine turned out to have its own scope creep.",
   next: "ch8_p5",
 });
@@ -1118,7 +1146,7 @@ pick(
   [
     opt("disc_hub_ch3", "website", "The suspicious website (1997–2005)", "disc_website", { showWhen: unvisited("disc_website") }),
     opt("disc_hub_ch3", "wizard", "The wizard that shouldn't exist yet (2000–2001)", "disc_wizard", { showWhen: unvisited("disc_wizard") }),
-    opt("disc_hub_ch3", "statemachine", "The file system state machine (2005–2010)", "disc_statemachine", { showWhen: unvisited("disc_statemachine") }),
+    opt("disc_hub_ch3", "statemachine", "The self-organizing filing system (2005–2010)", "disc_statemachine", { showWhen: unvisited("disc_statemachine") }),
     opt("disc_hub_ch3", "webapi", "The 'you can do that?' moment (2018)", "disc_webapi", { showWhen: unvisited("disc_webapi") }),
     opt("disc_hub_ch3", "move_on", "Move on", "ch3_to_ch4"),
   ],
@@ -1126,32 +1154,36 @@ pick(
 page(
   "disc_website",
   "1997–2005: a full online portfolio, built before such things were normal — projects, " +
-    "screenshots, a CV, a contact form, in Dreamweaver, before LinkedIn or personal branding " +
-    "existed as concepts. It still exists. It is still valid HTML.",
+    "screenshots, a CV, a contact form, made with the web-design tools of the time, before " +
+    "LinkedIn or personal branding existed as concepts. It still exists. It still works, " +
+    "unmodified, in a modern browser.",
   "Back",
   "disc_hub_ch3",
 );
 page(
   "disc_wizard",
-  "2000–2001: a Perl/CGI website-generation wizard, built for university faculty who could " +
-    "type in text, colors, and layouts and receive a finished site. Functionally similar to " +
-    "tools that would not exist commercially for years. Academia nodded politely and moved on.",
+  "2000–2001: a website-building tool, built for university faculty who could type in text, " +
+    "colors, and layouts and receive a finished site, no technical knowledge required. " +
+    "Functionally similar to tools that would not exist commercially for years. Academia " +
+    "nodded politely and moved on.",
   "Back",
   "disc_hub_ch3",
 );
 page(
   "disc_statemachine",
-  "2005–2010: a watch-directory workflow using file extensions as a state machine, no " +
-    "database required. It was later patented — by someone else, with several other names " +
-    "added to it. None of them were his.",
+  "2005–2010: a filing system that used a watched folder and a file's own name to figure out " +
+    "what stage of processing it was in — no separate tracking system required. The same idea " +
+    "was later patented — by someone else, with several other names added to it. None of them " +
+    "were his.",
   "Back",
   "disc_hub_ch3",
 );
 page(
   "disc_webapi",
-  "2018: WebAPI filters that ran before controllers executed, checking cluster health and " +
-    "blocking requests preemptively. The most common reaction was 'you can do that?' His most " +
-    "common reply was 'once you know the contract...'",
+  "2018: automatic checks that ran before a request was even let through the front door, " +
+    "confirming the system behind it was healthy enough to handle it, and turning requests " +
+    "away in advance if not. The most common reaction was 'you can do that?' His most common " +
+    "reply was 'once you know the rules...'",
   "Back",
   "disc_hub_ch3",
 );
@@ -1159,10 +1191,9 @@ page(
 // Chapter 5 discovery — the full policy document, read in full rather than summarized.
 page(
   "disc_model_policy",
-  "The full policy, for the record: the expensive genius model thinks. The mid-tier model " +
-    "builds. The cheapest model cleans up the mess everyone else leaves behind. Reasoning " +
-    "should scale with the complexity of the problem — not with the size of anyone's " +
-    "subscription.",
+  "The full policy, for the record: the expensive specialist thinks. The mid-level worker " +
+    "builds. The cheapest hire cleans up the mess everyone else leaves behind. Effort should " +
+    "scale with the complexity of the problem — not with the size of anyone's budget.",
   "Back",
   "ch5_p3",
 );
@@ -1170,10 +1201,11 @@ page(
 // Chapter 6 discovery — the friction pipeline, before and after.
 page(
   "disc_pipeline",
-  "Before: idea, open editor, write, format, create file, copy front matter, commit, push, " +
-    "wait, publish. After: idea, talk to AI, commit, done. Soon, apparently: idea, say " +
-    "'publish,' done. None of the individual improvements save much on their own. All of them " +
-    "together save an idea becoming a published article before the coffee cools.",
+  "Before: idea, open the writing tool, write, format, save the file, fill in the page " +
+    "details, submit it, wait, publish. After: idea, talk to AI, submit, done. Soon, " +
+    "apparently: idea, say 'publish,' done. None of the individual improvements save much on " +
+    "their own. All of them together save an idea becoming a published article before the " +
+    "coffee cools.",
   "Back",
   "ch6_p3",
 );
@@ -1345,8 +1377,8 @@ finish(
   "tier_transcendent",
   "tier_transcendent",
   "Lucifer Would Like To Know How You Obtained This Information",
-  "Nearly a perfect score. You called the throttle, the YAML, the fly, the rename, the " +
-    "MCP server, and the motto, in order, without flinching.\n\n" +
+  "Nearly a perfect score. You called the throttle, the forms, the fly, the rename, the " +
+    "publishing pipeline, and the motto, in order, without flinching.\n\n" +
     "Nobody predicts this many of Lucifer's decisions by accident. Somewhere, a formal " +
     "inquiry is being drafted. You are the subject of it.",
   "win",
@@ -1430,8 +1462,8 @@ const achievements: AchievementDefinitionSource[] = [
   achievement("brought_alan_watts_into_this", "You Brought Alan Watts Into This", "Correctly predict five or more philosophical detours.", atLeast("philosophical_detours", 5)),
   achievement("infrastructure_for_a_feeling", "Infrastructure For A Feeling", "Correctly predict every instance of ridiculous engineering.", atLeast("ridiculous_engineering", 5)),
   achievement("escalation_as_a_service", "Escalation As A Service", "Correctly predict every instance of purely unnecessary escalation.", atLeast("unnecessary_escalation", 3)),
-  achievement("wizard_that_shouldnt_exist", "The Wizard That Shouldn't Exist Yet", "Find the Perl/CGI website wizard, years ahead of its time.", visited("disc_wizard")),
-  achievement("read_the_full_policy", "Reasoning Should Scale", "Read the full AI Model Selection Policy, not just the summary.", visited("disc_model_policy")),
+  achievement("wizard_that_shouldnt_exist", "The Wizard That Shouldn't Exist Yet", "Find the website-building wizard, years ahead of its time.", visited("disc_wizard")),
+  achievement("read_the_full_policy", "Reasoning Should Scale", "Read the full helper-selection policy, not just the summary.", visited("disc_model_policy")),
   achievement("saw_the_thumbs_up", "Universal Gesture", "Witness the thumbs-up at the end of the traffic incident.", flag("saw_the_thumbs_up", true)),
 ];
 
@@ -1533,9 +1565,10 @@ export function buildWhatWouldLuciferDoCampaign(
   const campaign: Campaign = {
     id: WHAT_WOULD_LUCIFER_DO_CAMPAIGN_ID,
     kindId: "story-graph",
-    version: "1.0.0",
+    version: "1.1.0",
     titleKey: TITLE.key,
     content,
+    migrateState: (state, fromVersion) => migrateV1AdventureState(state, fromVersion, source, {}),
   };
   return buildCampaign(campaign, [TITLE, ...authoredText]);
 }
