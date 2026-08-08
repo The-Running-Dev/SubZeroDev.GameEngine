@@ -22,9 +22,17 @@
  * `insufficient_time` (a plan exceeds available time units) and `wrong_location` (an
  * action's type isn't in the current location's `actionTypes`) — from the five real
  * employment resolvers (`resolvers.ts`). `insufficient_funds`, `plan_empty` and
- * `week_limit_reached` stay undispatched: none of the five actions this unit wires
- * carries a money cost, so there is still no path that could produce the first, and the
- * other two are unrelated to employment.
+ * `week_limit_reached` stayed undispatched there: none of the five employment actions
+ * carried a money cost.
+ *
+ * W54 dispatches `insufficient_funds` — `enroll_course` is the first resolver with a real
+ * money cost (`CourseDefinition.tuitionCents`). `plan_empty` and `week_limit_reached` stay
+ * undispatched — unrelated to education.
+ *
+ * W54 also adds four action audit codes (`action_enroll_course`, `action_attend_class`,
+ * `action_study`, `action_withdraw_course`) and four end-of-week education codes
+ * (`education_course_completed`, `education_course_failed`, `education_skill_awarded`,
+ * `education_credential_awarded`).
  */
 
 import type { LocKey } from "../../core/localization/types.js";
@@ -38,6 +46,15 @@ export const SIMULATION_REASON_CODES = [
   "unsatisfiable_achievement",
   "insufficient_time",
   "wrong_location",
+  "insufficient_funds",
+  "action_enroll_course",
+  "action_attend_class",
+  "action_study",
+  "action_withdraw_course",
+  "education_course_completed",
+  "education_course_failed",
+  "education_skill_awarded",
+  "education_credential_awarded",
 ] as const;
 
 export type SimulationReasonCode = (typeof SIMULATION_REASON_CODES)[number];
@@ -51,6 +68,15 @@ const SIMULATION_REASON_TEXT: Readonly<Record<SimulationReasonCode, string>> = {
   unsatisfiable_achievement: "This achievement's condition references a counter or flag nothing in this campaign ever writes.",
   insufficient_time: "That plan needs more time than you have left this week.",
   wrong_location: "You can't do that here.",
+  insufficient_funds: "You can't afford that right now.",
+  action_enroll_course: "You enrolled in the course.",
+  action_attend_class: "You attended class.",
+  action_study: "You studied.",
+  action_withdraw_course: "You withdrew from the course.",
+  education_course_completed: "You completed the course.",
+  education_course_failed: "You did not pass the course.",
+  education_skill_awarded: "You gained a new skill.",
+  education_credential_awarded: "You earned a credential.",
 };
 
 /** `simulation.reason.<code>` → its shipped default-English message, for every code. */

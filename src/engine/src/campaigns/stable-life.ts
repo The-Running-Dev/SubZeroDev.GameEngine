@@ -26,6 +26,14 @@
  * second location and a `travel` action — `travel` stays `stubResolver` (`resolvers.ts`),
  * so a second location would be unreachable and this fixture couldn't use it anyway.
  *
+ * **W54 adds one course and one skill-gated job** — `course-bookkeeping` and
+ * `job-accountant` (also at `employer-cornerstore`) — solely so
+ * `stable-life-education.fixture.json` (a fifth committed replay fixture) can exercise
+ * `enroll_course` → `attend_class`/`study` → the `education` end-of-week completion → the
+ * skill it awards satisfying `job-accountant`'s own `Requirement`, the enrol → attend →
+ * complete → qualify arc W54.6 names. `home`'s `actionTypes` grows again for the same
+ * single-location reason W53's own callout gives.
+ *
  * **W52 replaces the four literal state blobs this file used to author directly** with one
  * `ScenarioDefinition` plus the `BackgroundDefinition`/`HousingDefinition`/`LocationDefinition`
  * it references — `initial.ts` assembles `calendar`/`player`/`economy`/`world` from them the
@@ -66,8 +74,51 @@ export const stableLifeSource: SimulationCampaignSource = {
       contested: false,
       tags: [],
     },
+    {
+      id: "job-accountant",
+      title: { key: "stable-life.job.accountant.title", text: "Accountant" },
+      description: { key: "stable-life.job.accountant.description", text: "Keep the books straight." },
+      employerId: "employer-cornerstore",
+      careerPathId: "career-finance",
+      tier: "skilled",
+      schedule: { weeklyTimeCost: 6, flexibility: 50 },
+      compensation: { baseWeeklyPayCents: 45000 },
+      requirements: [{
+        type: "skill",
+        condition: { field: "player.skills.bookkeeping", operator: "greater_or_equal", value: 50 },
+        failureCode: "requirement_unmet",
+        messageKey: "core.reason.requirement_unmet",
+      }],
+      performance: { factors: [], weeklyDriftToward: 50, minimumAcceptable: 0 },
+      promotionPaths: [],
+      terminationRules: [],
+      contested: false,
+      tags: [],
+    },
   ],
-  courses: [],
+  courses: [
+    {
+      id: "course-bookkeeping",
+      name: { key: "stable-life.course.bookkeeping.name", text: "Bookkeeping Basics" },
+      description: { key: "stable-life.course.bookkeeping.description", text: "Ledgers, receipts, and where the money actually went." },
+      providerId: "provider-community-college",
+      tuitionCents: 10000,
+      durationWeeks: 2,
+      weeklyTimeCost: 2,
+      difficulty: 20,
+      requirements: [],
+      rewards: [{ type: "skill", target: "bookkeeping", value: 50 }],
+      awardsCredential: "certificate",
+      failureRules: {
+        minimumAttendanceRatio: 50,
+        minimumStudyUnitsPerWeek: 1,
+        maximumMissedSessions: 1,
+        tuitionGraceWeeks: 0,
+        progressRetainedOnFailure: 25,
+      },
+      tags: [],
+    },
+  ],
   housing: [
     {
       id: "housing-default",
@@ -134,7 +185,7 @@ export const stableLifeSource: SimulationCampaignSource = {
       name: { key: "stable-life.employer.cornerstore.name", text: "The Corner Store" },
       sector: "retail",
       reputation: 50,
-      jobIds: ["job-cashier"],
+      jobIds: ["job-cashier", "job-accountant"],
       npcIds: [],
     },
   ],
@@ -148,6 +199,7 @@ export const stableLifeSource: SimulationCampaignSource = {
       actionTypes: [
         "eat", "rest", "exercise", "socialize",
         "search_for_work", "apply_for_job", "negotiate_job_terms", "work", "work_overtime",
+        "enroll_course", "attend_class", "study", "withdraw_course",
       ],
     },
   ],
@@ -160,7 +212,7 @@ export const stableLifeSource: SimulationCampaignSource = {
         intelligence: 50, discipline: 50, charisma: 50, creativity: 50,
         resilience: 50, wisdom: 50, luck: 50,
       },
-      startingSkills: {},
+      startingSkills: { bookkeeping: 0 },
       startingCredentials: [],
       startingTraits: [],
       startingCashModifierCents: 0,

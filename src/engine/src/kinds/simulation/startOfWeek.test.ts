@@ -1,7 +1,27 @@
 import { describe, it, expect } from "vitest";
 import { runStartOfWeek } from "./startOfWeek.js";
 import type { ResolutionEmitter } from "../../core/observability/types.js";
+import type { CourseEnrollment } from "./actor.js";
+import type { CourseDefinition } from "./content.js";
 import type { SimulationKindState, StatusEffect } from "./state.js";
+
+const courseFixture: CourseDefinition = {
+  id: "course-fixture", nameKey: "course.name", descriptionKey: "course.description",
+  providerId: "provider-1", tuitionCents: 0, durationWeeks: 4, weeklyTimeCost: 4, difficulty: 0,
+  requirements: [], rewards: [],
+  failureRules: { minimumAttendanceRatio: 0, minimumStudyUnitsPerWeek: 0, maximumMissedSessions: 99, tuitionGraceWeeks: 0, progressRetainedOnFailure: 0 },
+  tags: [],
+};
+
+function enrollmentFixture(overrides: Partial<CourseEnrollment> = {}): CourseEnrollment {
+  return {
+    courseId: "course-fixture", startedWeek: 1, weeksCompleted: 0,
+    attendedUnits: 0, studyUnits: 0, missedSessions: 0,
+    tuitionPaidCents: 0, tuitionOutstandingCents: 0, retainedProgress: 0,
+    status: "active",
+    ...overrides,
+  };
+}
 
 function recordingEmitter(): { emit: ResolutionEmitter; systems: string[]; expiredEffectIds: string[] } {
   const systems: string[] = [];
@@ -35,7 +55,9 @@ function makeEffect(overrides: Partial<StatusEffect> = {}): StatusEffect {
 function baseState(overrides: Partial<SimulationKindState> = {}): SimulationKindState {
   return {
     calendar: { currentWeek: 5, currentYear: 1, totalTimeUnits: 14, committedTimeUnits: 4, spentTimeUnits: 10 },
-    player: {} as SimulationKindState["player"],
+    player: {
+      education: { enrollments: [], credentials: [], completedCourseIds: [], failedCourseIds: [] },
+    } as unknown as SimulationKindState["player"],
     economy: {} as SimulationKindState["economy"],
     world: {} as SimulationKindState["world"],
     activeEffects: [],
@@ -56,9 +78,44 @@ describe("runStartOfWeek", () => {
     expect(result.calendar.spentTimeUnits).toBe(0);
   });
 
-  it("recomputes committedTimeUnits from job/course commitments (0, unwired) rather than leaving the prior week's stale value", () => {
+  it("recomputes committedTimeUnits to 0 with no active course enrollments (job commitments stay unwired)", () => {
     const { emit } = recordingEmitter();
     const result = runStartOfWeek(baseState(), emit);
+    expect(result.calendar.committedTimeUnits).toBe(0);
+  });
+
+  it("W54 — sums weeklyTimeCost across every active enrollment's course, ignoring a completed one", () => {
+    const { emit } = recordingEmitter();
+    const courses: CourseDefinition[] = [
+      { ...courseFixture, id: "course-a", weeklyTimeCost: 4 },
+      { ...courseFixture, id: "course-b", weeklyTimeCost: 3 },
+    ];
+    const state = baseState({
+      player: {
+        education: {
+          enrollments: [
+            enrollmentFixture({ courseId: "course-a", status: "active" }),
+            enrollmentFixture({ courseId: "course-b", status: "completed" }),
+          ],
+          credentials: [], completedCourseIds: [], failedCourseIds: [],
+        },
+      } as unknown as SimulationKindState["player"],
+    });
+    const result = runStartOfWeek(state, emit, courses);
+    expect(result.calendar.committedTimeUnits).toBe(4);
+  });
+
+  it("W54 — an enrollment whose course no longer resolves contributes nothing", () => {
+    const { emit } = recordingEmitter();
+    const state = baseState({
+      player: {
+        education: {
+          enrollments: [enrollmentFixture({ courseId: "course-missing", status: "active" })],
+          credentials: [], completedCourseIds: [], failedCourseIds: [],
+        },
+      } as unknown as SimulationKindState["player"],
+    });
+    const result = runStartOfWeek(state, emit, []);
     expect(result.calendar.committedTimeUnits).toBe(0);
   });
 

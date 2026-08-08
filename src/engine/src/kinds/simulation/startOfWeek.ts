@@ -20,15 +20,20 @@
  * `StateChange`. `week.started` (§11, `info`) is emitted once, after all four systems run —
  * "after start-of-week systems" is what §11's own table says.
  *
- * `time_commit` is real logic as of W51: no `JobDefinition`/`CourseDefinition` is wired yet
- * (out of scope — "the content that grants effects"), so the base commitment it recomputes
- * is 0 until that content exists. What it proves is the mechanism §3's own callout names —
- * an `activeEffect`'s `Modifier` targeting `calendar.committedTimeUnits` changes the
- * recomputed budget, layered the same way `derived.ts` layers every other modifier
- * (`modifiers.ts`), and clamped to the calendar invariant (§2.1).
+ * `time_commit` was real logic as of W51 for the effects-layering mechanism alone: no
+ * `JobDefinition`/`CourseDefinition` was wired yet, so the base commitment it recomputed was
+ * always 0. **W54 wires the course half** — the base commitment is now the sum of every
+ * *active* `CourseEnrollment`'s `CourseDefinition.weeklyTimeCost`, looked up from the
+ * `courses` list threaded in from `advance.ts` (the same plain-parameter shape
+ * `endOfWeek.ts`'s `jobs` already uses). The job half stays unwired — §3's own "job and
+ * course commitments" is still only half true, a gap `10-simulation-kind.md`'s own §15
+ * ledger already tracks, not one this unit closes. An `activeEffect`'s `Modifier` targeting
+ * `calendar.committedTimeUnits` still layers over that base the same way `derived.ts` layers
+ * every other modifier (`modifiers.ts`), clamped to the calendar invariant (§2.1).
  */
 
 import type { ResolutionEmitter } from "../../core/observability/types.js";
+import type { CourseDefinition } from "./content.js";
 import type { SimulationKindState } from "./state.js";
 import { collectModifiers, combineModifiers } from "./modifiers.js";
 
@@ -76,15 +81,20 @@ function effects(state: SimulationKindState, emit: ResolutionEmitter): Simulatio
 const COMMITTED_TIME_PATH = "calendar.committedTimeUnits";
 
 /**
- * Recomputes `committedTimeUnits` from job and course commitments (§3). The base commitment
- * is 0 until `JobDefinition.schedule.weeklyTimeCost`/`CourseDefinition.weeklyTimeCost` are
- * wired (a future unit — content types this unit doesn't have); a `StatusEffect` targeting
- * `calendar.committedTimeUnits` still changes the recomputed value, layered per §6.1's order
- * and clamped to the calendar invariant (§2.1: `0 ≤ committedTimeUnits + spentTimeUnits ≤
- * totalTimeUnits`) — `spentTimeUnits` is already 0 here, reset by `timeAdvance` above.
+ * Recomputes `committedTimeUnits` from course commitments (§3) — the job half of "job and
+ * course commitments" stays unwired (this file's own header). The base commitment is the sum
+ * of `CourseDefinition.weeklyTimeCost` for every *active* `CourseEnrollment`; an enrollment
+ * whose course no longer resolves against `courses` contributes nothing, the same silent-drop
+ * `endOfWeek.ts`'s `advanceEmployment` uses for a missing `JobDefinition`. A `StatusEffect`
+ * targeting `calendar.committedTimeUnits` still changes the recomputed value, layered per
+ * §6.1's order and clamped to the calendar invariant (§2.1: `0 ≤ committedTimeUnits +
+ * spentTimeUnits ≤ totalTimeUnits`) — `spentTimeUnits` is already 0 here, reset by
+ * `timeAdvance` above.
  */
-function timeCommit(state: SimulationKindState): SimulationKindState {
-  const baseCommitment = 0;
+function timeCommit(state: SimulationKindState, courses: readonly CourseDefinition[]): SimulationKindState {
+  const baseCommitment = state.player.education.enrollments
+    .filter((e) => e.status === "active")
+    .reduce((sum, e) => sum + (courses.find((c) => c.id === e.courseId)?.weeklyTimeCost ?? 0), 0);
   const modifiers = collectModifiers(state.activeEffects, COMMITTED_TIME_PATH);
   const combined = combineModifiers(baseCommitment, modifiers);
   const committedTimeUnits = Math.min(
@@ -103,14 +113,18 @@ function events(state: SimulationKindState): SimulationKindState {
   return state;
 }
 
-export function runStartOfWeek(state: SimulationKindState, emit: ResolutionEmitter): SimulationKindState {
+export function runStartOfWeek(
+  state: SimulationKindState,
+  emit: ResolutionEmitter,
+  courses: readonly CourseDefinition[] = [],
+): SimulationKindState {
   let next = timeAdvance(state);
   ranSystem(emit, "time_advance");
 
   next = effects(next, emit);
   ranSystem(emit, "effects");
 
-  next = timeCommit(next);
+  next = timeCommit(next, courses);
   ranSystem(emit, "time_commit");
 
   next = events(next);
