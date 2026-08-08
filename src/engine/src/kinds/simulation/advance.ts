@@ -12,6 +12,12 @@
  * `goals`/`failure` (`endOfWeek.ts`) are wired, where before nothing in this unit's own
  * logic could end a game.
  *
+ * Two seams reconciliation (2026-08-08) wired here, both specified and neither previously
+ * connected: each resolver's `ActionOutcome.messages` (§5.3) now reaches
+ * `AdvanceResult.messages` instead of being dropped, and §6.2's automatic
+ * `counters[change.reason]` fold now runs over every emitted `StateChange`. See
+ * `foldCounters` below for the timing boundary the contract leaves open.
+ *
  * Emits four of §11's eight events directly: `plan.changed` (debug) after any successful
  * `plan.*` action, `action.resolved` (debug) per planned action resolved during `end_week`,
  * and `week.ended` (info) once `end_week`'s own resolution completes — after
@@ -21,7 +27,7 @@
  */
 
 import type { ActionParams, AdvanceResult, KindContext } from "../../core/kernel/types.js";
-import type { StateChange } from "../../core/kernel/reasons.js";
+import type { OutcomeMessage, StateChange } from "../../core/kernel/reasons.js";
 import type { GameAction } from "./plan.js";
 import { addAction, removeAction, clearPlan, isActionType } from "./plan.js";
 import { RESOLVER_TABLE } from "./resolvers.js";
@@ -57,6 +63,36 @@ function requirePlan(state: SimulationKindState): NonNullable<SimulationKindStat
     throw new Error("simulation advance: state.plan is null — no unit in this kind ever produces that");
   }
   return state.plan;
+}
+
+/**
+ * §6.2's **automatic** half of `counters`: one increment of `counters[change.reason]` per
+ * emitted `StateChange`. The reason-code vocabulary is already a taxonomy of things that
+ * happen, so "times evicted" and "checks failed" come free rather than needing a bespoke
+ * counter each. The explicit half — a `"counter"`-type `Reward` (§7.1) — is separate and
+ * unwired.
+ *
+ * Folding produces **no `StateChange` of its own**, deliberately: a counter that audited
+ * itself would count its own audit record, and every emitted change would then emit
+ * another. The count is bookkeeping *about* the audit trail, not part of it.
+ *
+ * Rebuilt in sorted key order per §2's sorted-iteration rule. `canonicalStringify` already
+ * sorts keys, so this cannot change `serialize()` output — it is here because §2 states the
+ * rule over `counters` (§6.2 calls it "the newest and the easiest to forget"), and a reader
+ * should not have to know the serializer's behaviour to see the rule being kept.
+ */
+function foldCounters(state: SimulationKindState, changes: readonly StateChange[]): SimulationKindState {
+  if (changes.length === 0) return state;
+
+  const tallied: Record<string, number> = { ...state.player.counters };
+  for (const change of changes) {
+    tallied[change.reason] = (tallied[change.reason] ?? 0) + 1;
+  }
+
+  const counters: Record<string, number> = {};
+  for (const key of Object.keys(tallied).sort()) counters[key] = tallied[key]!;
+
+  return { ...state, player: { ...state.player, counters } };
 }
 
 function buildAction(id: string, params: ActionParams | undefined): GameAction | undefined {
@@ -117,6 +153,7 @@ export function advance(
       const plan = requirePlan(state);
       let working = state;
       const changes: StateChange[] = [];
+      const messages: OutcomeMessage[] = [];
       const resolvedEvents: { actionId: string; actionType: string; degree: string }[] = [];
 
       for (const action of plan.actions) {
@@ -132,6 +169,11 @@ export function advance(
         const outcome = resolver.calculate(working, action, ctx);
         working = resolver.apply(working, outcome);
         changes.push(...outcome.changes);
+        // §5.3 declares `ActionOutcome.messages` and 04 §12 makes it the player-facing
+        // channel; every resolver returns `[]` today, so this collects nothing yet. It is
+        // wired anyway because the alternative is that the first resolver to produce a
+        // message loses it silently, with the drop three files away from the symptom.
+        messages.push(...outcome.messages);
         resolvedEvents.push({ actionId: action.id, actionType: action.type, degree: outcome.degree });
       }
 
@@ -139,11 +181,19 @@ export function advance(
         ctx.emit.emit(ACTION_RESOLVED_EVENT, "debug", { data });
       }
 
+      // Folded before the end-of-week pass, not after it, so a `goals`/`failure`/
+      // `achievements` condition reading `player.counters.<reason>` sees what the player
+      // actually did *this* week. §6.2 fixes the rule and not its timing; the boundary this
+      // draws is that an end-of-week system's own changes are counted after the pass
+      // (below) and so are not readable within it. Recorded in `90-decisions.md`.
+      working = foldCounters(working, changes);
+
       const content = ctx.campaign.content as SimulationCampaign;
       const endOfWeekResult = runEndOfWeek(working, ctx.emit, content.goals, content.goalFailurePrecedence, content.jobs, content.courses);
       ctx.emit.emit(WEEK_ENDED_EVENT, "info", { data: { week: working.calendar.currentWeek } });
 
-      const nextWeek = runStartOfWeek(endOfWeekResult.state, ctx.emit, content.courses);
+      const counted = foldCounters(endOfWeekResult.state, endOfWeekResult.changes);
+      const nextWeek = runStartOfWeek(counted, ctx.emit, content.courses);
       const finalState: SimulationKindState = {
         ...nextWeek,
         plan: { week: nextWeek.calendar.currentWeek, actions: [] },
@@ -155,7 +205,7 @@ export function advance(
         state: finalState,
         status: result.resolution === null ? "active" : "ended",
         changes: [...changes, ...endOfWeekResult.changes],
-        messages: [],
+        messages,
       };
     }
 

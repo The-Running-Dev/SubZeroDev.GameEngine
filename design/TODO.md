@@ -114,17 +114,17 @@
 
 ### Depth: Life in the Fast Lane Becomes Playable
 
-### [ ] W50 — Simulation Kind: Projection and Client Parity {#w50}
+### [x] W50 — Simulation Kind: Projection and Client Parity {#w50}
 
-### [ ] W51 — Simulation Kind: Derived Values, Modifiers, and Effects {#w51}
+### [x] W51 — Simulation Kind: Derived Values, Modifiers, and Effects {#w51}
 
-### [ ] W52 — Simulation Kind: The Scenario Campaign and Full Validation {#w52}
+### [x] W52 — Simulation Kind: The Scenario Campaign and Full Validation {#w52}
 
-### [ ] W53 — Simulation Kind: Employment and Income {#w53}
+### [x] W53 — Simulation Kind: Employment and Income {#w53}
 
-### [ ] W54 — Simulation Kind: Education and Skills {#w54}
+### [x] W54 — Simulation Kind: Education and Skills {#w54}
 
-### [ ] W55 — Simulation Kind: Housing, Debt, and Reconciliation {#w55}
+### [x] W55 — Simulation Kind: Housing, Debt, and Reconciliation {#w55}
 
 ### [ ] W56 — Simulation Kind: Possessions, Places, and People {#w56}
 

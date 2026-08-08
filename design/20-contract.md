@@ -4216,31 +4216,69 @@ constructs one yet.
 ## 10. Reason Codes
 
 Codes this kind adds to the base set (`Kind.reasonCodes`, 04 §3, §12). Each needs a localized
-message or registry validation fails:
+message or registry validation fails. Split into three tables — resolution, campaign
+validation, and audit — the same shape [`03-story-graph-kind.md`](03-story-graph-kind.md)
+§8.3 and 12 §11 already use, because the three serve different readers: a player, a campaign
+author, and a client rendering a history.
+
+**Resolution — rejections `advance` returns:**
 
 | Code | When | Status |
 |---|---|---|
 | `action_not_planned` | `plan.remove` names an index the plan does not have | registered |
-| `duplicate_id` | Two definitions of the same content type share an `id` — this kind's Tier 1 (§14), the author-facing half | registered |
-| `insufficient_time` | The plan exceeds available time units | specified, not yet dispatched |
-| `insufficient_funds` | The plan's cost exceeds available money | specified, not yet dispatched |
+| `insufficient_time` | A planned action exceeds available time units | registered (W53) |
+| `insufficient_funds` | A planned action's cost exceeds available money | registered (W54) |
+| `wrong_location` | An action's type is not in the current location's `actionTypes` (§7.9), or a `travel` target is not in `connections` | registered (W53) |
 | `plan_empty` | `end_week` with nothing planned, where the campaign forbids it | specified, not yet dispatched |
 | `week_limit_reached` | The scenario's week cap is exhausted | specified, not yet dispatched |
-| `wrong_location` | An action's type is not in the current location's `actionTypes` (§7.9), or a `travel` target is not in `connections` | specified, not yet dispatched |
 
-Reused from the base set: `unknown_action`, `requirement_unmet`, `session_ended`.
+Reused from the base set: `unknown_action`, `requirement_unmet`, `session_ended`,
+`action_not_available` (a `"custom"` `GameAction` reaching resolution, §4.2).
+
+**Campaign validation — what `validateCampaign` returns (§14):**
+
+| Code | Tier | When |
+|---|---|---|
+| `duplicate_id` | 1 | Two definitions of the same content type share an `id` |
+| `dangling_reference` | 1 | A definition references an `id` that resolves to nothing |
+| `numeric_natural_key` | 1 | An addressing path segment is all digits where a natural key is required (§7.1) |
+| `unreachable_content` | 2 | A definition nothing in the campaign ever references |
+| `unsatisfiable_achievement` | 2 | An `AchievementDefinition.condition` reads a counter or flag nothing writes |
+
+Reused from the base set: `read_only_field` (a `Modifier` targeting a formula-only
+`DerivedPath`), `missing_string_key` — the same two `story-graph`'s own validator reuses.
+
+**Audit — `StateChange.reason` values (04 §12).** All are emitted on `visible: true`
+records, so each owes a resolvable message exactly as a rejection does; there is no audit
+namespace exempt from §12's completeness rule.
+
+| Code | Emitted by |
+|---|---|
+| `action_work`, `action_work_overtime`, `action_search_for_work`, `action_apply_for_job`, `action_negotiate_job_terms` | the employment resolvers (§5.1, W53) |
+| `action_enroll_course`, `action_attend_class`, `action_study`, `action_withdraw_course` | the education resolvers (W54) |
+| `action_eat`, `action_rest`, `action_move_housing` | the needs and housing resolvers |
+| `action_pay_bills`, `action_borrow_money`, `action_repay_debt`, `action_deposit_savings`, `action_invest` | the finance resolvers (W55) |
+| `need_drift` | the `needs` end-of-week system (§3) |
+| `wage_payment` | `finance_income` |
+| `rent_charged` | `housing` |
+| `rent_overdue`, `eviction_advanced` | `finance_reconcile` (W55) |
+| `education_course_completed`, `education_course_failed`, `education_skill_awarded`, `education_credential_awarded` | the `education` system (W54) |
 
 > **This set grows as the dispatched systems land, and that is deliberate.** A code joins
 > `Kind.reasonCodes` when the unit that actually produces it exists, not when this table
 > first names it — the precedent `story-graph` set, whose own codes joined across W10, W11,
-> W12 and W14 rather than being pre-declared. Registering all seven now would put five codes
-> in the vocabulary that no path can return, and every one would still owe a localized
-> message the core's completeness check (04 §12) would then be verifying against nothing.
-> The five above are blocked on the same thing: §5.1's resolver dispatch running against
-> real content, and the end-of-week systems §3 orders — most of which are still stubs (§15).
-> `plan_empty` has an additional gate of its own, recorded in `90-decisions.md`: no
-> `SimulationCampaign` field exists yet for a campaign to forbid an empty plan with.
-> The shipped set lives in `src/engine/src/kinds/simulation/reasons.ts`.
+> W12 and W14 rather than being pre-declared. `plan_empty` and `week_limit_reached` are the
+> two still outstanding; `plan_empty` has an additional gate of its own, recorded in
+> `90-decisions.md`: no `SimulationCampaign` field exists yet for a campaign to forbid an
+> empty plan with. The shipped set lives in
+> `src/engine/src/kinds/simulation/reasons.ts`.
+>
+> **The policy has no gate, and that cost eighteen codes.** Registry validation checks
+> *registered → has a message*; nothing checks *emitted → registered*, so W53 and W55
+> emitted eighteen visible audit codes that no client could resolve, and every gate stayed
+> green until a reconciliation compared the two sets by hand. Adding an audit `reason`
+> means registering it in the same commit — the completeness check will not catch the
+> omission. Recorded in `90-decisions.md`.
 
 Each code's `messageKey` lives under `simulation.reason.<code>` (04 §12), the
 `<kindId>.reason.*` convention — not to be confused with 05 §9's `kind.<kindId>.*` *event*
@@ -4262,10 +4300,17 @@ Namespaced `kind.simulation.*` (05 §9), declared as `Kind.eventNames`:
 | `goal.achieved` | `info` | A goal's completion condition met |
 | `goal.failed` | `info` | A goal's failure condition met |
 | `week.ended` | `info` | End of resolution |
+| `employment.application_lost` | `warn` | A `pendingApplications` entry was dropped because its `jobId` no longer resolves against campaign content (W53) |
 
 `system.ran` earns its place: the two-phase time ordering in §3 is the rule most likely to
 regress silently, and a stream that names each system in order localizes such a regression to
 the phase that moved.
+
+`employment.application_lost` is the only `warn` here and the only one that is not part of the
+normal weekly rhythm: `resolveApplications` (§3's `employment` system) silently drops an
+application whose job was removed or renamed between submission and resolution, and this event
+is the sole trace it ever existed. It is `warn` rather than `info` because reaching it means
+campaign content changed under a live game, not that the player did anything.
 
 ---
 
@@ -4381,18 +4426,20 @@ phase this contract precedes, not to another doc-only pass.
 > closed is the *specification*: every field `SimulationKindState` names has a type, every
 > content definition a campaign needs is declared, and the dispatch mechanics that run
 > against both are written down. What is emphatically **not** claimed is that the code
-> behind them exists. Most of §3's fourteen end-of-week systems currently ship as
-> deliberate, individually documented no-op stubs — real functions in the pipeline, running
-> in the normative order and emitting `system.ran`, doing nothing else — because the
-> "Stable Life" vertical slice needed only enough logic to prove a goal can be won and lost.
-> The reason-code table in §10 says the same thing from the other side: five of its seven
-> codes have no dispatch path yet.
+> behind them exists. Some of §3's fourteen end-of-week systems ship as deliberate,
+> individually documented no-op stubs — real functions in the pipeline, running in the
+> normative order and emitting `system.ran`, doing nothing else — because the "Stable Life"
+> vertical slice needed only enough logic to prove a goal can be won and lost. §10's
+> resolution table says the same thing from the other side, marking each code registered or
+> not-yet-dispatched.
 >
-> **`90-decisions.md` carries the current list of which systems are stubs and what each still
-> owes.** It is deliberately not restated here — a second copy would drift, and the version
-> that drifts is always the one in the document nobody updates when the code lands. Consult
-> it, not this section, for "is this built?"; consult this section for "what is it supposed
-> to do?" `plans/36-simulation-kind-
+> **How many, and which, is not stated here — deliberately.** `90-decisions.md` carries the
+> current list of which systems are stubs and what each still owes; §10's own table carries
+> the per-code status. Neither is restated here, because a second copy drifts and the version
+> that drifts is always the one in the document nobody updates when the code lands. This
+> paragraph used to give both as counts, and both counts were wrong within two units of being
+> written. Consult those two for "is this built?"; consult this section for "what is it
+> supposed to do?" `plans/36-simulation-kind-
 programme.md`'s four contract units (proposed there as W27–W30, assigned real numbers as each
 was cut: **W32, W33, W34, and this one**) closed it a piece at a time:
 
@@ -5853,8 +5900,9 @@ so a disagreement is a client showing an option the engine will refuse — the f
 
 Codes this kind adds to the base set (`Kind.reasonCodes`, 04 §3, §12). Each needs a
 localized message or registry validation fails. They divide by *when they are checked*, and
-the division matters because the two halves reach different audiences — the same split
-[`03-story-graph-kind.md`](03-story-graph-kind.md) §8.3 makes for the flagship kind.
+the division matters because the three groups reach different audiences — a player, a
+campaign author, and a client rendering a history — the same split
+[`03-story-graph-kind.md`](03-story-graph-kind.md) §8.3 and 10 §10 make.
 
 **Resolution codes — checked at action time, reported to the player.** These ride out on a
 rejected `AdvanceResult.error` (and its accompanying `OutcomeMessage`, 04 §3).
@@ -5928,8 +5976,42 @@ is deliberate reuse of a meaning, not a collision: `ReasonCode` is a flat string
 namespaced only by the *message* key (`world-graph.reason.duplicate_id`), so the same failure
 reads the same way across kinds and a client switching on it needs no per-kind branch.
 
-The shipped set lives in `src/engine/src/kinds/world-graph/reasons.ts`, and
-`validate.ts` is the only producer of this half.
+**Audit codes — `StateChange.reason` values (04 §12, §13 below).** All ten ride on
+`visible: true` records, so each owes a resolvable message exactly as a rejection does; there
+is no audit namespace exempt from §12's completeness rule. They split by *how the reason
+reaches the record*, which is not decoration — it is the distinction that let five of them go
+unregistered through three units and one reconciliation pass.
+
+| Code | Emitted by | Arrives as |
+|---|---|---|
+| `building_placed`, `construction_started` | the build actions | a literal at the `change()` call site |
+| `staff_hired` | the staff actions | a literal at the `change()` call site |
+| `price_set` | the building actions | a literal at the `change()` call site |
+| `ticks_advanced` | `tick-finalize`, once per batch | a literal at the `record()` call site |
+| `scenario_effect` | the `scenario` system's scheduled changes and active policies | `WorldEffectContext.reason` |
+| `guest_served` | the `guest-service` system | `WorldEffectContext.reason` |
+| `incident_resolved` | the `staff-work` and `incidents` systems | `WorldEffectContext.reason` |
+| `objective_met` | the `objectives` system | `WorldEffectContext.reason` |
+| `failure_triggered` | the `failure` system | `WorldEffectContext.reason` |
+
+> **The indirect five are the ones to watch, and the reason this table exists.** A reason
+> threaded through `WorldEffectContext` is not visible at any call site that also names a
+> `visible` flag: it becomes a visible record only where the effects module writes
+> `finances.cashCents`. So the usual way of auditing this — scan for `reason:` beside
+> `visible: true` — finds the direct five and none of the indirect ones. Adding an effect
+> context with a new `reason` means registering it here in the same commit; nothing checks
+> *emitted → registered*, and the omission is invisible to every gate. The same policy gap 10
+> §10 records, with a second failure mode on top. Recorded in `90-decisions.md`.
+
+Reasons recorded **only** with `visible: false` — `alert_dismissed`, `building_demolished`,
+`staff_fired`, `staff_assigned`, `guest_spawned` — are deliberately unregistered: 04 §12 ties
+the obligation to visibility, so an invisible record owes no message. Flipping one of those
+flags to `true` re-arms the defect above with no gate to catch it, which is why the line is
+recorded rather than merely observed.
+
+The shipped set lives in `src/engine/src/kinds/world-graph/reasons.ts`. `validate.ts` is the
+only producer of the validation half; the actions and the tick pipeline produce the audit
+half.
 
 ---
 

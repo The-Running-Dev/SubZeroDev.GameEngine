@@ -9,6 +9,29 @@
  * by `validate.ts`'s `error()`/`warning()` helpers — one per distinct `code` string that
  * function can produce, following the same pattern `story-graph/reasons.ts` uses for its
  * own Tier 1/2 validation findings.
+ *
+ * The **audit** block at the end is a third category, registered by reconciliation
+ * (2026-08-08): `BatchChanges.record` (`tick/changes.ts`) takes `reason` as a plain
+ * `string`, and ten distinct values reached a client on `visible: true` `StateChange`s
+ * without ever being registered here. 04 §12 gives audit reasons no exemption — a visible
+ * change owes a resolvable message the same way a rejection does — and the 2026-08-06 pass
+ * that fixed the identical defect in `story-graph` covered this kind's *validation* codes
+ * only, so these fell between the two.
+ *
+ * **Five of the ten arrive indirectly, and that is what hid them.** The action codes are
+ * literals at their own `change()` call site, but `scenario_effect`, `guest_served`,
+ * `objective_met`, `failure_triggered` and `incident_resolved` are threaded in as
+ * `WorldEffectContext.reason` (`tick/effects.ts`) and only become a reason where that module
+ * records `finances.cashCents` with `visible: true`. A reader scanning for `reason:` literals
+ * beside a `visible` flag sees neither half — which is exactly how the first pass at this
+ * registration both missed these five and added two codes (`tick`, `effect`) that no
+ * production path emits at all. Recorded in `90-decisions.md`.
+ *
+ * Reasons recorded only with `visible: false` — `alert_dismissed`, `building_demolished`,
+ * `staff_fired`, `staff_assigned`, `guest_spawned` — are deliberately not registered here;
+ * see `90-decisions.md` for why that line is where it is. Note `incident_resolved` is *not*
+ * one of them despite appearing at two `visible: false` sites: its effect-context use above
+ * reaches visible records.
  */
 
 import type { LocKey } from "../../core/localization/types.js";
@@ -56,6 +79,19 @@ export const WORLD_GRAPH_REASON_CODES = [
   "invalid_kind",
   "disconnected_map",
   "inert_scenario",
+  // Audit reasons — `visible: true` `StateChange`s from the actions and the tick pipeline.
+  // Direct: a literal at the `change()`/`record()` call site.
+  "building_placed",
+  "construction_started",
+  "staff_hired",
+  "price_set",
+  "ticks_advanced",
+  // Indirect: `WorldEffectContext.reason`, visible via `effects.ts`'s `finances.cashCents`.
+  "scenario_effect",
+  "guest_served",
+  "objective_met",
+  "failure_triggered",
+  "incident_resolved",
 ] as const;
 
 export type WorldGraphReasonCode = (typeof WORLD_GRAPH_REASON_CODES)[number];
@@ -103,6 +139,16 @@ const WORLD_GRAPH_REASON_TEXT: Readonly<Record<WorldGraphReasonCode, string>> = 
   invalid_kind: "This campaign's kind doesn't match world-graph.",
   disconnected_map: "This campaign's map has no traversable edges.",
   inert_scenario: "This campaign's scenario has no objectives and no failures.",
+  building_placed: "A building was placed.",
+  construction_started: "Construction started.",
+  staff_hired: "A staff member was hired.",
+  price_set: "A price was changed.",
+  ticks_advanced: "Time moved forward.",
+  scenario_effect: "The scenario changed something.",
+  guest_served: "A guest was served.",
+  objective_met: "An objective was met.",
+  failure_triggered: "A failure condition was triggered.",
+  incident_resolved: "An incident was resolved.",
 };
 
 /** `world-graph.reason.<code>` → its shipped default-English message, for every code. */

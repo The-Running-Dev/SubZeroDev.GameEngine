@@ -1412,8 +1412,9 @@ so a disagreement is a client showing an option the engine will refuse — the f
 
 Codes this kind adds to the base set (`Kind.reasonCodes`, 04 §3, §12). Each needs a
 localized message or registry validation fails. They divide by *when they are checked*, and
-the division matters because the two halves reach different audiences — the same split
-[`03-story-graph-kind.md`](03-story-graph-kind.md) §8.3 makes for the flagship kind.
+the division matters because the three groups reach different audiences — a player, a
+campaign author, and a client rendering a history — the same split
+[`03-story-graph-kind.md`](03-story-graph-kind.md) §8.3 and 10 §10 make.
 
 **Resolution codes — checked at action time, reported to the player.** These ride out on a
 rejected `AdvanceResult.error` (and its accompanying `OutcomeMessage`, 04 §3).
@@ -1487,8 +1488,42 @@ is deliberate reuse of a meaning, not a collision: `ReasonCode` is a flat string
 namespaced only by the *message* key (`world-graph.reason.duplicate_id`), so the same failure
 reads the same way across kinds and a client switching on it needs no per-kind branch.
 
-The shipped set lives in `src/engine/src/kinds/world-graph/reasons.ts`, and
-`validate.ts` is the only producer of this half.
+**Audit codes — `StateChange.reason` values (04 §12, §13 below).** All ten ride on
+`visible: true` records, so each owes a resolvable message exactly as a rejection does; there
+is no audit namespace exempt from §12's completeness rule. They split by *how the reason
+reaches the record*, which is not decoration — it is the distinction that let five of them go
+unregistered through three units and one reconciliation pass.
+
+| Code | Emitted by | Arrives as |
+|---|---|---|
+| `building_placed`, `construction_started` | the build actions | a literal at the `change()` call site |
+| `staff_hired` | the staff actions | a literal at the `change()` call site |
+| `price_set` | the building actions | a literal at the `change()` call site |
+| `ticks_advanced` | `tick-finalize`, once per batch | a literal at the `record()` call site |
+| `scenario_effect` | the `scenario` system's scheduled changes and active policies | `WorldEffectContext.reason` |
+| `guest_served` | the `guest-service` system | `WorldEffectContext.reason` |
+| `incident_resolved` | the `staff-work` and `incidents` systems | `WorldEffectContext.reason` |
+| `objective_met` | the `objectives` system | `WorldEffectContext.reason` |
+| `failure_triggered` | the `failure` system | `WorldEffectContext.reason` |
+
+> **The indirect five are the ones to watch, and the reason this table exists.** A reason
+> threaded through `WorldEffectContext` is not visible at any call site that also names a
+> `visible` flag: it becomes a visible record only where the effects module writes
+> `finances.cashCents`. So the usual way of auditing this — scan for `reason:` beside
+> `visible: true` — finds the direct five and none of the indirect ones. Adding an effect
+> context with a new `reason` means registering it here in the same commit; nothing checks
+> *emitted → registered*, and the omission is invisible to every gate. The same policy gap 10
+> §10 records, with a second failure mode on top. Recorded in `90-decisions.md`.
+
+Reasons recorded **only** with `visible: false` — `alert_dismissed`, `building_demolished`,
+`staff_fired`, `staff_assigned`, `guest_spawned` — are deliberately unregistered: 04 §12 ties
+the obligation to visibility, so an invisible record owes no message. Flipping one of those
+flags to `true` re-arms the defect above with no gate to catch it, which is why the line is
+recorded rather than merely observed.
+
+The shipped set lives in `src/engine/src/kinds/world-graph/reasons.ts`. `validate.ts` is the
+only producer of the validation half; the actions and the tick pipeline produce the audit
+half.
 
 ---
 

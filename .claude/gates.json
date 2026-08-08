@@ -1,0 +1,46 @@
+{
+  "manifestHash": "264ca59bd5125833df00aff39ab07e2b2116a8a9cc605d83148434a53244e583",
+  "generated": "2026-08-08",
+  "gates": [
+    {
+      "name": "engine typecheck",
+      "command": "npm --prefix src/engine run typecheck"
+    },
+    {
+      "name": "engine lint",
+      "command": "npm --prefix src/engine run lint"
+    },
+    {
+      "name": "engine test",
+      "command": "npm --prefix src/engine test"
+    },
+    {
+      "name": "engine pack + tarball inspect",
+      "command": "cd src/engine; npm pack"
+    },
+    {
+      "name": "consumer smoke",
+      "command": "cd consumer-smoke; npm run install:engine; npm run build; npm run smoke"
+    },
+    {
+      "name": "documentation gate",
+      "command": "./build/Test-Documentation.ps1"
+    },
+    {
+      "name": "site check",
+      "command": "npm --prefix site run check"
+    },
+    {
+      "name": "powershell parse-check",
+      "command": "Parser::ParseFile over **/*.ps1"
+    },
+    {
+      "name": "pester tools",
+      "command": "Invoke-Pester -Path tools"
+    },
+    {
+      "name": "production docs build",
+      "command": "./docs.ps1 -BuildOnly"
+    }
+  ]
+}
