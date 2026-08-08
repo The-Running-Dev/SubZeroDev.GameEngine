@@ -80,6 +80,13 @@ export type ReasonCode = string;
  * to `story-graph` because the session store reads it without knowing which kind emitted it.
  * Its story-graph sibling `consequence_applied` is kind-owned and lives in
  * `kinds/story-graph/reasons.ts` instead.
+ *
+ * `pack_kind_mismatch`, `duplicate_campaign_id_in_pack`, `pack_dependency_missing`,
+ * `pack_dependency_version_conflict`, `pack_dependency_cycle`, and
+ * `pack_override_unexpected` were added during W58 — `resolvePacks` (`registry/packs.ts`)
+ * needs a code for each of §7's three checks (11-content-packs.md). Base rather than
+ * kind-owned because pack resolution is core machinery, same reasoning as the registry's
+ * existing `duplicate_campaign_id` and `string_conflict`.
  */
 export const BASE_REASON_CODES = [
   "action_not_available",
@@ -108,6 +115,12 @@ export const BASE_REASON_CODES = [
   "storage_failure",
   "missing_kind_reason_message",
   "achievement_unlocked",
+  "pack_kind_mismatch",
+  "duplicate_campaign_id_in_pack",
+  "pack_dependency_missing",
+  "pack_dependency_version_conflict",
+  "pack_dependency_cycle",
+  "pack_override_unexpected",
 ] as const;
 
 export type BaseReasonCode = (typeof BASE_REASON_CODES)[number];
@@ -145,6 +158,12 @@ const CORE_REASON_TEXT: Readonly<Record<BaseReasonCode, string>> = {
   storage_failure: "Progress could not be stored. Your game is still playable, but it may not be here next time.",
   missing_kind_reason_message: "This kind declared a reason code with no localized message.",
   achievement_unlocked: "Achievement unlocked.",
+  pack_kind_mismatch: "A pack can't carry a campaign for a different kind.",
+  duplicate_campaign_id_in_pack: "A pack can't declare the same campaign id twice.",
+  pack_dependency_missing: "A pack depends on another pack that isn't in the resolved set.",
+  pack_dependency_version_conflict: "Two packs require different versions of the same pack.",
+  pack_dependency_cycle: "Content packs can't depend on each other in a cycle.",
+  pack_override_unexpected: "This pack overrides content no earlier pack supplied.",
 };
 
 /** `core.reason.<code>` → its shipped default-English message, for every base code. */
