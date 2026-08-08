@@ -76,6 +76,7 @@ import type { StateChange } from "../../core/kernel/reasons.js";
 import type { Credential, CourseEnrollment, Employment, EvictionStage, NeedKey } from "./actor.js";
 import type { CourseDefinition, GoalDefinition, GoalFailurePrecedence, ItemDefinition, JobDefinition } from "./content.js";
 import { evaluateSimulationCondition } from "./conditions.js";
+import { governingMaintenanceRule } from "./resolvers.js";
 import type { Cents, GoalState, SimulationKindState, StatusEffect } from "./state.js";
 
 const SYSTEM_NAME = "kind.simulation.system.ran";
@@ -427,9 +428,12 @@ function itemEffectId(instanceId: string): string {
 /**
  * Real logic (W56) — two jobs, in this order.
  *
- * **Decay.** Every item ages one week (`weeksSinceMaintenance`), and any `MaintenanceRule`
- * whose `intervalWeeks` has elapsed since the last service takes its `conditionLossIfSkipped`
- * off `condition`, clamped to `0–100`. An item with no `maintenanceRules` never decays —
+ * **Decay.** Every item ages one week (`weeksSinceMaintenance`), and if the **governing**
+ * `MaintenanceRule` — the first listed, `resolvers.ts`'s `governingMaintenanceRule`, shared
+ * so the two cannot diverge — has had its `intervalWeeks` elapse since the last service, its
+ * `conditionLossIfSkipped` comes off `condition`, clamped to `0–100`. Summing every elapsed
+ * rule instead would charge condition for rules `maintain_item` can never service, and let one
+ * service clear penalties it never paid for. An item with no `maintenanceRules` never decays —
  * §7.5 gives condition no other decay source, and inventing a flat rate for a possession the
  * content says needs no upkeep would be a rule this contract does not have. Skipping
  * maintenance keeps costing every week the interval stays elapsed; `resolvers.ts`'s
@@ -455,11 +459,8 @@ function inventory(state: SimulationKindState, items: readonly ItemDefinition[])
 
   const nextInventory = state.player.inventory.map((item) => {
     const weeksSinceMaintenance = item.weeksSinceMaintenance + 1;
-    const rules = findItem(item.definitionId)?.maintenanceRules ?? [];
-    const loss = rules.reduce(
-      (sum, rule) => (weeksSinceMaintenance >= rule.intervalWeeks ? sum + rule.conditionLossIfSkipped : sum),
-      0,
-    );
+    const rule = governingMaintenanceRule(findItem(item.definitionId));
+    const loss = rule !== undefined && weeksSinceMaintenance >= rule.intervalWeeks ? rule.conditionLossIfSkipped : 0;
     const condition = clamp(item.condition - loss, 0, 100);
     if (condition !== item.condition) {
       changes.push({

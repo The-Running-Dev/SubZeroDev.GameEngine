@@ -826,6 +826,22 @@ describe("runEndOfWeek — W56.3 inventory", () => {
     expect(result.state.player.inventory[0]).toMatchObject({ condition: 0, weeksSinceMaintenance: 4 });
   });
 
+  // Review fix — decay and `maintain_item` must select the same rule, or a later rule adds
+  // condition loss that no service can ever prevent and one service clears all of them.
+  it("charges only the governing (first-listed) maintenance rule, matching maintain_item", () => {
+    const { emit } = recordingEmitter();
+    const twoRules: ItemDefinition = {
+      ...bicycle, id: "item-two-rules",
+      maintenanceRules: [
+        { intervalWeeks: 1, costCents: 500, timeCost: 1, conditionLossIfSkipped: 40, breakageChanceAtZeroCondition: 0 },
+        { intervalWeeks: 1, costCents: 900, timeCost: 2, conditionLossIfSkipped: 25, breakageChanceAtZeroCondition: 0 },
+      ],
+    };
+    const state = owning({ definitionId: "item-two-rules" });
+    const result = runEndOfWeek(state, emit, NO_GOALS, "goals_win", [], [], [...items, twoRules]);
+    expect(result.state.player.inventory[0]).toMatchObject({ condition: 60 });
+  });
+
   it("never decays an item whose definition declares no maintenance rules", () => {
     const { emit } = recordingEmitter();
     const state = owning({ definitionId: "item-heirloom", condition: 70 });

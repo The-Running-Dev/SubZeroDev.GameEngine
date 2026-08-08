@@ -1110,8 +1110,12 @@ function findInventoryItem(state: SimulationKindState, instanceId: string | unde
 }
 
 /** §7.5 declares `maintenanceRules` as a list and names no selection rule — first listed
- *  governs, the same convention `advanceEmployment` applies to `promotionPaths`. */
-function governingMaintenanceRule(def: ItemDefinition | undefined): MaintenanceRule | undefined {
+ *  governs, the same convention `advanceEmployment` applies to `promotionPaths`. Exported
+ *  because `endOfWeek.ts`'s `inventory` decay must select the *same* rule this file's
+ *  `maintain_item` services: a decay that summed every elapsed rule would charge condition
+ *  for rules whose cost and interval no action can ever satisfy, and let one service clear
+ *  all of them. One selection rule, one owner. */
+export function governingMaintenanceRule(def: ItemDefinition | undefined): MaintenanceRule | undefined {
   return def?.maintenanceRules?.[0];
 }
 
@@ -1294,9 +1298,14 @@ export const repairItemResolver: ActionResolver = {
 };
 
 /** Resale is `baseResaleValueCents` scaled by the instance's own condition — a worn item is
- *  worth proportionally less. Placeholder balance, same caveat as `repairCostCents`. */
+ *  worth proportionally less — and then by `quantity`, because `sell_item` disposes of the
+ *  whole instance. `InventoryItem.quantity` is genuinely `> 1` for a stacked starting
+ *  possession (`ScenarioDefinition.startingInventory` carries a quantity per entry), so
+ *  paying for one unit while removing all of them would silently discard the rest. Rounded
+ *  per unit before multiplying, so the total stays integer `Cents` (§2) regardless of stack
+ *  size. Placeholder balance, same caveat as `repairCostCents`. */
 function resaleValueCents(def: ItemDefinition, item: InventoryItem): Cents {
-  return Math.round((def.baseResaleValueCents * item.condition) / 100);
+  return Math.round((def.baseResaleValueCents * item.condition) / 100) * item.quantity;
 }
 
 /** Removing the instance is signalled by setting its `quantity` to zero rather than by a
@@ -1419,7 +1428,17 @@ function npcAvailableHere(npc: NPCDefinition, state: SimulationKindState): boole
 /** An NPC who isn't here is `requirement_unmet`, **not** `wrong_location`: §10 defines that
  *  code as exactly two things — an action type absent from `actionTypes`, or a `travel`
  *  target absent from `connections` — and an absent NPC is neither. `requirement_unmet` is
- *  the same "nothing to act on" reading `activeEnrollment`'s callers already give it. */
+ *  the same "nothing to act on" reading `activeEnrollment`'s callers already give it.
+ *
+ *  **The affective dimensions are moved unclamped.** §6.2's `0–100` rule is stated over needs,
+ *  skills, attributes and reputation; §6.11 declares `affinity`/`trust`/`respect`/`resentment`
+ *  with no range at all, and an `"adversarial"` relationship is exactly the case a negative
+ *  affinity exists to express. Clamping here would silently rewrite a campaign's authored
+ *  `NPCDefinition.initialRelationship` on first contact — narrowing upstream never made, the
+ *  same call `content.ts`'s `Reward` declines. That leaves repeated `socialize` unbounded
+ *  upward, which is a balance question (there is no weekly relationship rule to pull it back
+ *  yet either — `endOfWeek.ts`'s `relationships` stub) rather than a range this contract
+ *  states and this resolver ignores. */
 export const socializeResolver: ActionResolver = {
   canExecute: (state, action, ctx): ActionValidation => {
     const campaign = simulationCampaign(ctx);
@@ -1447,8 +1466,8 @@ export const socializeResolver: ActionResolver = {
     const changes: StateChange[] = [
       { path: "calendar.spentTimeUnits", op: "increment", value: SOCIALIZE_TIME_COST, reason: "action_socialize", visible: true },
       { path: `${base}.category`, op: "set", value: before.category, reason: "action_socialize", visible: false },
-      { path: `${base}.affinity`, op: "set", value: clampNeed(before.affinity + SOCIALIZE_AFFINITY_GAIN), previous: before.affinity, reason: "action_socialize", visible: true },
-      { path: `${base}.trust`, op: "set", value: clampNeed(before.trust + SOCIALIZE_TRUST_GAIN), previous: before.trust, reason: "action_socialize", visible: true },
+      { path: `${base}.affinity`, op: "set", value: before.affinity + SOCIALIZE_AFFINITY_GAIN, previous: before.affinity, reason: "action_socialize", visible: true },
+      { path: `${base}.trust`, op: "set", value: before.trust + SOCIALIZE_TRUST_GAIN, previous: before.trust, reason: "action_socialize", visible: true },
       { path: `${base}.respect`, op: "set", value: before.respect, reason: "action_socialize", visible: true },
       // Hidden dimension (§6.11) — carried so `apply` can rebuild the record, never shown.
       { path: `${base}.resentment`, op: "set", value: before.resentment, reason: "action_socialize", visible: false },

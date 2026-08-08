@@ -862,6 +862,14 @@ describe("W56 — sell_item", () => {
     expect(next.player.inventory).toEqual([]);
     expect(next.player.finances.cashCents).toBe(11000);
   });
+
+  // Review fix — the whole instance leaves inventory, so the whole stack must be paid for.
+  it("credits every unit of a stacked instance, not just one", () => {
+    const s = state({ player: player({ inventory: [inventoryItem({ condition: 50, quantity: 3 })] }) });
+    const next = sellItemResolver.apply(s, sellItemResolver.calculate(s, action("sell_item", "inv-1"), ctx()));
+    expect(next.player.inventory).toEqual([]);
+    expect(next.player.finances.cashCents).toBe(13000);
+  });
 });
 
 describe("W56.4 — socialize", () => {
@@ -897,6 +905,24 @@ describe("W56.4 — socialize", () => {
     expect(next.player.relationships).toEqual([{
       ...existing, affinity: 45, trust: 32, lastInteractionWeek: 3, interactionCount: 5,
     }]);
+  });
+
+  // Review fix — §6.11 declares no range for the affective dimensions, and an "adversarial"
+  // relationship is what a negative affinity is for. Clamping to 0–100 would rewrite an
+  // authored `initialRelationship` on first contact.
+  it("moves a negative affinity by the declared delta rather than clamping it to zero", () => {
+    const hostile: NPCDefinition = {
+      ...neighbour, id: "npc-hostile",
+      initialRelationship: { affinity: -10, trust: -20, respect: 0, resentment: 40 },
+    };
+    const campaignWithHostile: Campaign = {
+      ...campaign,
+      content: { ...simulationCampaign, npcs: [neighbour, absentNpc, hostile] },
+    };
+    const s = state();
+    const c = ctx({ campaign: campaignWithHostile });
+    const next = socializeResolver.apply(s, socializeResolver.calculate(s, action("socialize", "npc-hostile"), c));
+    expect(next.player.relationships[0]).toMatchObject({ affinity: -5, trust: -18 });
   });
 
   it("keeps the hidden resentment dimension off any visible change", () => {
