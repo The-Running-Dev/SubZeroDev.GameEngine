@@ -18,6 +18,7 @@ import { canonicalStringify } from "../persistence/canonical.js";
 import type { LocKey } from "../localization/types.js";
 import type { KindId } from "../kernel/types.js";
 import type { CommandResult } from "../kernel/reasons.js";
+import type { ExperimentSource } from "../composition/types.js";
 import type { ValidationError, ValidationWarning } from "../validation/types.js";
 import type { BuiltCampaign, Campaign, ContentRegistry, ResolutionId } from "./types.js";
 
@@ -36,11 +37,65 @@ export interface ContentPack {
   readonly version: string;
   readonly kindId: KindId;
   readonly dependsOn: readonly PackRef[];
-  /** Absent means always included. Filtering on this is `applyExperimentGates` (W59) —
+  /** Absent means always included. Filtering on this is `applyExperimentGates`, below —
    *  `resolvePacks` never reads it. */
   readonly experimentGate?: ExperimentGate;
   readonly campaigns: readonly BuiltCampaign[];
   readonly strings: ReadonlyMap<LocKey, string>;
+}
+
+/**
+ * §5a: filters the candidate pack array to the ones a resolved assignment set selects.
+ * Runs *before* `resolvePacks`, not inside it — `resolvePacks` never learns gates exist,
+ * because the array it receives has already had the excluded packs removed.
+ *
+ * A pack with no `experimentGate` is always included. A gated pack is included only when
+ * `assignments[gate.experimentId] === gate.variant` — never true for `null` ("not
+ * enrolled") or a missing key, which is what makes "no assignment resolved" safe by
+ * construction.
+ */
+export function applyExperimentGates(
+  packs: readonly ContentPack[],
+  assignments: Readonly<Record<string, string | null>>,
+): readonly ContentPack[] {
+  return packs.filter((pack) => {
+    const gate = pack.experimentGate;
+    if (!gate) return true;
+    return assignments[gate.experimentId] === gate.variant;
+  });
+}
+
+/**
+ * `bucketKey` per 06 §5.5: `profileId` when the session is profiled, else the session's
+ * `seed`. Computed once, here, so every `ExperimentSource` implementation is handed the
+ * same already-resolved key rather than each reimplementing the fallback itself.
+ */
+export function resolveBucketKey(profileId: string | undefined, seed: string): string {
+  return profileId ?? seed;
+}
+
+/**
+ * Resolves an assignment for every distinct `experimentId` an `experimentGate` among the
+ * candidate packs references — one `ExperimentSource.resolve` call per distinct id, not
+ * per pack, keyed by the same `bucketKey` for all of them. Returns `{}`, calling nothing,
+ * when no `ExperimentSource` is supplied — the "no experiments running" default `06 §5.5`
+ * names, and the same shape `applyExperimentGates` treats as excluding every gated pack.
+ */
+export function resolveExperimentAssignments(
+  packs: readonly ContentPack[],
+  experiments: ExperimentSource | undefined,
+  bucketKey: string,
+): Readonly<Record<string, string | null>> {
+  if (!experiments) return {};
+  const experimentIds = new Set<string>();
+  for (const pack of packs) {
+    if (pack.experimentGate) experimentIds.add(pack.experimentGate.experimentId);
+  }
+  const assignments: Record<string, string | null> = {};
+  for (const experimentId of experimentIds) {
+    assignments[experimentId] = experiments.resolve(experimentId, bucketKey);
+  }
+  return assignments;
 }
 
 const PROTECTED_PREFIX = "core.reason.";
