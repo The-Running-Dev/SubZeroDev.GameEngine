@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import PlayApp from "./PlayApp";
 import manifestJson from "../../public/campaigns/manifest.json";
 import whatWouldLuciferDoJson from "../../public/campaigns/what-would-lucifer-do.json";
+import whatWouldLuciferDoEngineersCutJson from "../../public/campaigns/what-would-lucifer-do-engineers-cut.json";
 import luciferChroniclesJson from "../../public/campaigns/lucifer-chronicles.json";
 import bulgariaBureaucracyJson from "../../public/campaigns/bulgaria-bureaucracy.json";
 import bulgariaReturnJson from "../../public/campaigns/bulgaria-return.json";
@@ -18,6 +19,8 @@ import sakiQuestJson from "../../public/campaigns/saki-quest-for-redemption.json
 const exportedCampaigns: Readonly<Record<string, unknown>> = {
   "manifest.json": manifestJson,
   "what-would-lucifer-do.json": whatWouldLuciferDoJson,
+  "what-would-lucifer-do-engineers-cut.json":
+    whatWouldLuciferDoEngineersCutJson,
   "lucifer-chronicles.json": luciferChroniclesJson,
   "bulgaria-bureaucracy.json": bulgariaBureaucracyJson,
   "bulgaria-return.json": bulgariaReturnJson,

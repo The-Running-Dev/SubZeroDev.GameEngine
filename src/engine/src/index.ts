@@ -39,6 +39,13 @@ export {
   buildWhatWouldLuciferDoCampaign,
   WHAT_WOULD_LUCIFER_DO_CAMPAIGN_ID,
 } from "./campaigns/what-would-lucifer-do.js";
+// Private campaign: the technical incidents What Would Lucifer Do? relocates for a public
+// audience, told here in their original wording. Playable via `/play/` but marked `hidden`
+// in `site/src/play/composition.ts`, so it never appears in the public dossier grid.
+export {
+  buildWhatWouldLuciferDoEngineersCutCampaign,
+  WHAT_WOULD_LUCIFER_DO_ENGINEERS_CUT_CAMPAIGN_ID,
+} from "./campaigns/what-would-lucifer-do-engineers-cut.js";
 export { ENGINE_VERSION } from "./version.js";
 
 // SPIKE: runtime campaign loading. See plans/spike-notes.md — not a contract export.
