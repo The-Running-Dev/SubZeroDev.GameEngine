@@ -26,6 +26,8 @@ import { createEngine } from "../core/kernel/engine.js";
 import { buildValidatedContentRegistry } from "../core/validation/tiered.js";
 import { createInMemoryProfileStore } from "../core/session/profile-store.js";
 import { simulationKind } from "../kinds/simulation/kind.js";
+import type { HousingState } from "../kinds/simulation/actor.js";
+import type { SimulationKindState } from "../kinds/simulation/state.js";
 import { createCountingIds } from "../core/determinism/counting-ids.js";
 import { runReplayFixture, type ReplayRunnerContext } from "../core/replay/runner.js";
 import type { Outcome, ReplayFixture } from "../core/replay/types.js";
@@ -109,5 +111,42 @@ describe("the Stable Life replay corpus (07-replay.md §4)", () => {
     const expected = loadExpectedOutcome(name);
     const verdict = await runReplayFixture(makeContext(), fixture, expected);
     expect(verdict).toEqual({ kind: "match" });
+  });
+});
+
+/**
+ * W55.6's two housing fixtures both produce an `Outcome` with active status, no
+ * achievements, and a null terminal result regardless of `evictionStage` — none of
+ * `Outcome`'s cross-version-stable fields (07-replay.md §2) depend on it, so the `it.each`
+ * loop above proves the two fixtures replay byte-identically but not that eviction actually
+ * diverges the way W55.6 requires. `evictionStage` lives in `kindState`, which `Outcome`
+ * deliberately excludes (07 §2's own scope), so proving the requirement means driving each
+ * fixture's submissions through the engine directly — the same one `buildReplayOutcome`
+ * uses internally — and reading the final `HousingState` back off `GameState.kindState`.
+ */
+describe("W55.6 — the housing fixtures actually reach and avoid eviction", () => {
+  async function finalHousing(fixtureName: string): Promise<HousingState> {
+    const fixture = loadFixture(fixtureName);
+    const ctx = makeContext();
+    const created = ctx.engine.createGame(fixture.config);
+    if (!created.ok || !created.value) throw new Error(`expected "${fixtureName}" to create a game`);
+
+    let state = created.value;
+    for (const submission of fixture.submissions) {
+      const result = ctx.engine.submitAction(state, submission.actionId, submission.params);
+      if (result.ok && result.value) state = result.value;
+    }
+    return (state.kindState as SimulationKindState).player.housing;
+  }
+
+  it("stable-life-housing-eviction reaches the evicted stage", async () => {
+    const housing = await finalHousing("stable-life-housing-eviction");
+    expect(housing.evictionStage).toBe("evicted");
+  });
+
+  it("stable-life-housing-avoiding-eviction never accrues arrears", async () => {
+    const housing = await finalHousing("stable-life-housing-avoiding-eviction");
+    expect(housing.evictionStage).toBe("none");
+    expect(housing.overdueRentCents).toBe(0);
   });
 });

@@ -39,9 +39,11 @@
  * `jobs: readonly JobDefinition[]`, threaded in from `advance.ts`'s own `content.jobs` —
  * the same parameter shape `goalDefs` already uses.
  *
- * **`finance_reconcile` (W55).** `housing` (above) never lets `cashCents` go negative — it
- * charges only what's payable and returns the unpaid remainder as `missedCents`, which this
- * system alone consumes. A nonzero `missedCents` levies a placeholder 10% late fee on top
+ * **`finance_reconcile` (W55).** `housing` (above) charges the full rent unconditionally —
+ * `cashCents` may go negative, proving §3's ordering claim by an actual overdraw — but
+ * returns `missedCents`, computed from this week's own charge alone (never read back off a
+ * balance that may already carry prior weeks' unresolved debt), which this system alone
+ * consumes. A nonzero `missedCents` levies a placeholder 10% late fee on top
  * of it into `HousingState.overdueRentCents`, increments `missedPayments`, and advances
  * `evictionStage` by exactly one rung on a fixed ladder (`none → warning → penalty →
  * formal_notice → hearing_scheduled → evicted`) — never more than one, regardless of how
@@ -420,26 +422,25 @@ function inventory(state: SimulationKindState): SimulationKindState {
 }
 
 /** Real logic (W53; revised W55) — levies `HousingState.weeklyCostCents` against
- *  `cashCents`, but never past zero: `cashCents` stays the liquid-money invariant every
- *  other system in this pass relies on (nothing upstream of `housing` can drive it
- *  negative — every resolver that spends cash validates `insufficient_funds` first), so a
- *  rent the player can't fully cover is charged only up to what's actually there, and the
- *  unpaid remainder is returned as `missedCents` for `finance_reconcile` (below) to levy
- *  arrears against — never inferred from a negative balance that no longer exists. Exists
- *  to prove §3's wage-before-rent ordering, not to be the full housing system. */
+ *  `cashCents` unconditionally, same as W53: `cashCents` may go negative (§3's own ordering
+ *  claim is proved by exactly this — rent charged before wages arrive genuinely overdraws,
+ *  not merely "goes unpaid"). `missedCents` is *not* read back off the resulting negative
+ *  balance, though — that would double-count an already-negative balance carried in from a
+ *  prior unresolved week into this week's own arrears levy. Instead it's computed from what
+ *  this week's own charge alone could and couldn't cover against the cash on hand *before*
+ *  this charge, so `finance_reconcile` (below) only ever levies a fee against balances
+ *  `housing` charged this week, per its own contract. */
 export function housing(state: SimulationKindState): { state: SimulationKindState; changes: StateChange[]; missedCents: Cents } {
   const rent = state.player.housing.weeklyCostCents;
   if (rent === 0) return { state, changes: [], missedCents: 0 };
   const before = state.player.finances.cashCents;
-  const payable = Math.min(rent, Math.max(0, before));
-  const missedCents = rent - payable;
-  if (payable === 0) return { state, changes: [], missedCents };
+  const missedCents = Math.max(0, rent - Math.max(0, before));
   return {
     state: {
       ...state,
-      player: { ...state.player, finances: { ...state.player.finances, cashCents: before - payable } },
+      player: { ...state.player, finances: { ...state.player.finances, cashCents: before - rent } },
     },
-    changes: [{ path: "player.finances.cashCents", op: "decrement", value: payable, previous: before, reason: "rent_charged", visible: true }],
+    changes: [{ path: "player.finances.cashCents", op: "decrement", value: rent, previous: before, reason: "rent_charged", visible: true }],
     missedCents,
   };
 }

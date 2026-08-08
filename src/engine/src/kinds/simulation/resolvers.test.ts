@@ -481,8 +481,10 @@ describe("W55 — move_housing", () => {
     expect(next.calendar.spentTimeUnits).toBe(4);
   });
 
-  it("moving out clears any existing arrears and eviction stage", () => {
-    const s = state({
+  // pay_bills (below) is this kind's only cure for arrears — a move must not become a
+  // second one, silently discarding the debt and the eviction ladder's progress with it.
+  it("rejects requirement_unmet while the current home has unpaid arrears, leaving housing untouched", () => {
+    const inArrears = state({
       player: player({
         housing: {
           definitionId: "housing-1", movedInWeek: 1, ownership: "renting", damage: 0,
@@ -491,11 +493,9 @@ describe("W55 — move_housing", () => {
         },
       }),
     });
-    const outcome = moveHousingResolver.calculate(s, action("move_housing", "housing-affordable"), ctx());
-    const next = moveHousingResolver.apply(s, outcome);
-    expect(next.player.housing.overdueRentCents).toBe(0);
-    expect(next.player.housing.missedPayments).toBe(0);
-    expect(next.player.housing.evictionStage).toBe("none");
+    const result = moveHousingResolver.canExecute(inArrears, action("move_housing", "housing-affordable"), ctx());
+    expect(result.errors[0]?.code).toBe("requirement_unmet");
+    expect(inArrears.player.housing.evictionStage).toBe("penalty");
   });
 });
 
@@ -544,6 +544,12 @@ describe("W55 — borrow_money / repay_debt / deposit_savings / invest", () => {
     expect(result.errors[0]?.code).toBe("requirement_unmet");
   });
 
+  it("borrow_money rejects requirement_unmet when the resulting balance would overflow a safe integer", () => {
+    const s = state({ player: player({ finances: { ...player().finances, cashCents: Number.MAX_SAFE_INTEGER } }) });
+    const result = borrowMoneyResolver.canExecute(s, actionWithAmount("borrow_money", Number.MAX_SAFE_INTEGER), ctx());
+    expect(result.errors[0]?.code).toBe("requirement_unmet");
+  });
+
   it("borrow_money increases cashCents and debtCents by the same amount, and spends time", () => {
     const s = state();
     const outcome = borrowMoneyResolver.calculate(s, actionWithAmount("borrow_money", 5000), ctx());
@@ -578,6 +584,12 @@ describe("W55 — borrow_money / repay_debt / deposit_savings / invest", () => {
     expect(result.errors[0]?.code).toBe("insufficient_funds");
   });
 
+  it("deposit_savings rejects requirement_unmet when the resulting balance would overflow a safe integer", () => {
+    const s = state({ player: player({ finances: { ...player().finances, cashCents: Number.MAX_SAFE_INTEGER, savingsCents: Number.MAX_SAFE_INTEGER } }) });
+    const result = depositSavingsResolver.canExecute(s, actionWithAmount("deposit_savings", Number.MAX_SAFE_INTEGER), ctx());
+    expect(result.errors[0]?.code).toBe("requirement_unmet");
+  });
+
   it("deposit_savings moves cash into savingsCents", () => {
     const s = state();
     const outcome = depositSavingsResolver.calculate(s, actionWithAmount("deposit_savings", 4000), ctx());
@@ -591,6 +603,13 @@ describe("W55 — borrow_money / repay_debt / deposit_savings / invest", () => {
     expect(result.errors[0]?.code).toBe("insufficient_funds");
   });
 
+  it("invest rejects requirement_unmet when the resulting account balance would overflow a safe integer", () => {
+    const existing = { id: "investment-primary", kind: "investment" as const, label: "simulation.finance.investment.label", balanceCents: Number.MAX_SAFE_INTEGER, interestRate: 0, openedWeek: 3 };
+    const s = state({ player: player({ finances: { ...player().finances, cashCents: Number.MAX_SAFE_INTEGER, accounts: [existing] } }) });
+    const result = investResolver.canExecute(s, actionWithAmount("invest", Number.MAX_SAFE_INTEGER), ctx());
+    expect(result.errors[0]?.code).toBe("requirement_unmet");
+  });
+
   it("invest opens a new investment FinancialAccount from cash", () => {
     const s = state();
     const outcome = investResolver.calculate(s, actionWithAmount("invest", 4000), ctx());
@@ -599,6 +618,16 @@ describe("W55 — borrow_money / repay_debt / deposit_savings / invest", () => {
     expect(next.player.finances.accounts).toEqual([
       { id: "investment-primary", kind: "investment", label: "simulation.finance.investment.label", balanceCents: 4000, interestRate: 0, openedWeek: 3 },
     ]);
+  });
+
+  // W55 review fix — `apply` mutates `player.finances.accounts`, but consumers of
+  // `outcome.changes` alone (the reducer audit contract every other resolver here follows)
+  // could not previously observe that an account was opened or credited.
+  it("invest's outcome.changes carries the account's balance, addressed by natural key", () => {
+    const s = state();
+    const outcome = investResolver.calculate(s, actionWithAmount("invest", 4000), ctx());
+    const balanceChange = outcome.changes.find((c) => c.path === "player.finances.accounts.investment-primary.balanceCents");
+    expect(balanceChange).toMatchObject({ op: "set", value: 4000, previous: 0, visible: true });
   });
 
   it("invest tops up the existing investment account rather than opening a second one", () => {

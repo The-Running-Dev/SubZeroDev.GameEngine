@@ -64,9 +64,11 @@
 import type { KindContext } from "../../core/kernel/types.js";
 import type { StateChange, OutcomeMessage } from "../../core/kernel/reasons.js";
 import type { ValidationError, ValidationWarning } from "../../core/validation/types.js";
+import type { LocKey } from "../../core/localization/types.js";
 import type { CourseEnrollment, FinancialAccount, HousingState, JobApplication } from "./actor.js";
 import type { SimulationCampaign } from "./campaign.js";
 import { evaluateSimulationCondition } from "./conditions.js";
+import { INVESTMENT_ACCOUNT_LABEL_KEY } from "./reasons.js";
 import type { JobOpening, SimulationKindState } from "./state.js";
 import type { BasisPoints, Cents } from "./state.js";
 import type { ActionType, GameAction } from "./plan.js";
@@ -707,17 +709,33 @@ function totalMoveCost(def: { upfrontCostCents: Cents; depositCents?: Cents }): 
  *  `HousingDefinition`), so the amount is the one genuinely free-form number this kind's
  *  action model carries: a positive integer `Cents` the player chose, not an engine-derived
  *  cost (§4's own rule is about costs, not about data an action operates on — the same
- *  distinction that already lets `plan.remove`'s `index` be free-form). */
+ *  distinction that already lets `plan.remove`'s `index` be free-form). `isSafeInteger`,
+ *  not `isInteger` — `isInteger` accepts magnitudes like `Number.MAX_VALUE` that overflow
+ *  `canonicalStringify` (W55.4) the moment they're added to an existing balance. */
 function amountCentsParam(action: GameAction): Cents | undefined {
   const raw = action.parameters["amountCents"];
-  return typeof raw === "number" && Number.isInteger(raw) && raw > 0 ? raw : undefined;
+  return typeof raw === "number" && Number.isSafeInteger(raw) && raw > 0 ? raw : undefined;
+}
+
+/** Guards every resolver above that adds a player-chosen `amountCents` onto an existing
+ *  balance: `amountCentsParam` alone only bounds the input, not the sum. A resulting balance
+ *  that would fall outside the safe integer range is rejected the same way a malformed
+ *  amount is — `requirement_unmet`, not a silent overflow into a value `canonicalStringify`
+ *  (W55.4) cannot serialize. */
+function wouldOverflow(...resultingBalances: readonly number[]): boolean {
+  return resultingBalances.some((balance) => !Number.isSafeInteger(balance));
 }
 
 /** `move_housing` to a home the player cannot afford (§10-simulation-kind.md's own
  *  `HousingDefinition.upfrontCostCents`/`depositCents`) is rejected `insufficient_funds`
  *  and leaves `player.housing` untouched — `canExecute` never reaches `calculate`. Moving
- *  in resets the new home's own arrears ledger to zero: a fresh lease has no history with
- *  the old landlord's eviction ladder (`endOfWeek.ts`'s `financeReconcile`). */
+ *  while `HousingState.overdueRentCents` is nonzero is rejected the same way: `pay_bills`
+ *  (below) is this kind's only cure for arrears, and letting a move erase them for free
+ *  would make it a second one, silently discarding the eviction ladder's progress along
+ *  with the debt. Once arrears are clear (by construction, `missedPayments`/`evictionStage`
+ *  are already `0`/`"none"` too — both are always reset alongside `overdueRentCents`),
+ *  moving in resets the new home's own arrears ledger to zero: a fresh lease has no history
+ *  with the old landlord's eviction ladder (`endOfWeek.ts`'s `financeReconcile`). */
 export const moveHousingResolver: ActionResolver = {
   canExecute: (state, action, ctx): ActionValidation => {
     const campaign = simulationCampaign(ctx);
@@ -726,6 +744,7 @@ export const moveHousingResolver: ActionResolver = {
     if (!def) return invalid("unknown_action", "core.reason.unknown_action");
     if (!locationAllows(state, campaign, "move_housing")) return wrongLocationError();
     if (def.id === state.player.housing.definitionId) return requirementUnmetError();
+    if (state.player.housing.overdueRentCents > 0) return requirementUnmetError();
     for (const requirement of def.requirements) {
       if (!evaluateSimulationCondition(requirement.condition, state)) {
         return invalid(requirement.failureCode, requirement.messageKey);
@@ -842,7 +861,9 @@ export const borrowMoneyResolver: ActionResolver = {
   canExecute: (state, action, ctx): ActionValidation => {
     const campaign = simulationCampaign(ctx);
     if (!locationAllows(state, campaign, "borrow_money")) return wrongLocationError();
-    if (amountCentsParam(action) === undefined) return requirementUnmetError();
+    const amount = amountCentsParam(action);
+    if (amount === undefined) return requirementUnmetError();
+    if (wouldOverflow(state.player.finances.cashCents + amount, state.player.finances.debtCents + amount)) return requirementUnmetError();
     if (availableTimeUnits(state) < FINANCE_ACTION_TIME_COST) return insufficientTimeError();
     return { valid: true, errors: [], warnings: [], calculatedTimeCost: FINANCE_ACTION_TIME_COST, calculatedMoneyCostCents: NO_MONEY_COST };
   },
@@ -917,6 +938,7 @@ export const depositSavingsResolver: ActionResolver = {
     if (!locationAllows(state, campaign, "deposit_savings")) return wrongLocationError();
     const amount = amountCentsParam(action);
     if (amount === undefined) return requirementUnmetError();
+    if (wouldOverflow(state.player.finances.savingsCents + amount)) return requirementUnmetError();
     if (state.player.finances.cashCents < amount) return insufficientFundsError();
     if (availableTimeUnits(state) < FINANCE_ACTION_TIME_COST) return insufficientTimeError();
     return { valid: true, errors: [], warnings: [], calculatedTimeCost: FINANCE_ACTION_TIME_COST, calculatedMoneyCostCents: amount };
@@ -952,7 +974,6 @@ const INVESTMENT_ACCOUNT_ID = "investment-primary";
 /** Placeholder — no market-rate content type exists yet for a real return (`TODO.md`'s
  *  *Known Open Items*). */
 const INVESTMENT_INTEREST_RATE: BasisPoints = 0;
-const INVESTMENT_LABEL_KEY = "simulation.finance.investment.label";
 
 /** The one money-movement resolver that needs a `FinancialAccount` rather than a scalar
  *  `FinancialState` field — `savingsCents`/`debtCents` are named fields `deposit_savings`/
@@ -966,15 +987,26 @@ export const investResolver: ActionResolver = {
     if (!locationAllows(state, campaign, "invest")) return wrongLocationError();
     const amount = amountCentsParam(action);
     if (amount === undefined) return requirementUnmetError();
+    const existingBalance = state.player.finances.accounts.find((a) => a.id === INVESTMENT_ACCOUNT_ID)?.balanceCents ?? 0;
+    if (wouldOverflow(existingBalance + amount)) return requirementUnmetError();
     if (state.player.finances.cashCents < amount) return insufficientFundsError();
     if (availableTimeUnits(state) < FINANCE_ACTION_TIME_COST) return insufficientTimeError();
     return { valid: true, errors: [], warnings: [], calculatedTimeCost: FINANCE_ACTION_TIME_COST, calculatedMoneyCostCents: amount };
   },
   calculate: (state, action): ActionOutcome => {
     const amount = amountCentsParam(action)!;
+    const existing = state.player.finances.accounts.find((a) => a.id === INVESTMENT_ACCOUNT_ID);
+    const balanceBefore = existing?.balanceCents ?? 0;
+    const openedWeek = existing?.openedWeek ?? state.calendar.currentWeek;
+    const accountPath = (field: string): string => `player.finances.accounts.${INVESTMENT_ACCOUNT_ID}.${field}`;
     const changes: StateChange[] = [
       { path: "calendar.spentTimeUnits", op: "increment", value: FINANCE_ACTION_TIME_COST, reason: "action_invest", visible: true },
       { path: "player.finances.cashCents", op: "decrement", value: amount, previous: state.player.finances.cashCents, reason: "action_invest", visible: true },
+      { path: accountPath("kind"), op: "set", value: "investment", reason: "action_invest", visible: false },
+      { path: accountPath("label"), op: "set", value: INVESTMENT_ACCOUNT_LABEL_KEY, reason: "action_invest", visible: false },
+      { path: accountPath("interestRate"), op: "set", value: INVESTMENT_INTEREST_RATE, reason: "action_invest", visible: false },
+      { path: accountPath("openedWeek"), op: "set", value: openedWeek, reason: "action_invest", visible: false },
+      { path: accountPath("balanceCents"), op: "set", value: balanceBefore + amount, previous: balanceBefore, reason: "action_invest", visible: true },
     ];
     return {
       actionId: action.id, success: true, degree: "success", reason: "check_succeeded",
@@ -982,6 +1014,8 @@ export const investResolver: ActionResolver = {
     };
   },
   apply: (state, outcome): SimulationKindState => {
+    const accountField = (field: string): unknown =>
+      outcome.changes.find((c) => c.path === `player.finances.accounts.${INVESTMENT_ACCOUNT_ID}.${field}`)?.value;
     const spentDelta = outcome.changes.find((c) => c.path === "calendar.spentTimeUnits")?.value;
     const amount = outcome.changes.find((c) => c.path === "player.finances.cashCents")?.value;
     const next = {
@@ -990,14 +1024,15 @@ export const investResolver: ActionResolver = {
     };
     if (typeof amount !== "number") return next;
 
-    const existing = next.player.finances.accounts.find((a) => a.id === INVESTMENT_ACCOUNT_ID);
-    const account: FinancialAccount = existing
-      ? { ...existing, balanceCents: existing.balanceCents + amount }
-      : {
-          id: INVESTMENT_ACCOUNT_ID, kind: "investment", label: INVESTMENT_LABEL_KEY,
-          balanceCents: amount, interestRate: INVESTMENT_INTEREST_RATE, openedWeek: next.calendar.currentWeek,
-        };
-    const accounts = existing
+    const account: FinancialAccount = {
+      id: INVESTMENT_ACCOUNT_ID,
+      kind: accountField("kind") as FinancialAccount["kind"],
+      label: accountField("label") as LocKey,
+      balanceCents: accountField("balanceCents") as Cents,
+      interestRate: accountField("interestRate") as BasisPoints,
+      openedWeek: accountField("openedWeek") as number,
+    };
+    const accounts = next.player.finances.accounts.some((a) => a.id === INVESTMENT_ACCOUNT_ID)
       ? next.player.finances.accounts.map((a) => (a.id === INVESTMENT_ACCOUNT_ID ? account : a))
       : [...next.player.finances.accounts, account];
 

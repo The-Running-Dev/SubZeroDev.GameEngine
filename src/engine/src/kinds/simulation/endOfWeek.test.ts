@@ -402,8 +402,8 @@ describe("runEndOfWeek — W55 housing and finance_reconcile", () => {
   // W55.2 — proven by outcome, not by reading the list: running the two systems in the
   // documented order (finance_income, then housing) against wages that only just cover
   // rent succeeds; running them in the opposite order against the exact same starting
-  // state — rent charged before the wage lands — leaves the same rent unpaid.
-  it("finance_income before housing pays rent in full; housing before finance_income leaves it unpaid", () => {
+  // state — rent charged before the wage lands — genuinely overdraws.
+  it("finance_income before housing pays rent in full; housing before finance_income overdraws", () => {
     const starting = employedState({
       player: {
         ...employedState().player,
@@ -416,15 +416,20 @@ describe("runEndOfWeek — W55 housing and finance_reconcile", () => {
     expect(documentedOrder.missedCents).toBe(0);
     expect((documentedOrder.state.player.finances as unknown as { cashCents: number }).cashCents).toBe(0);
 
-    const swappedOrder = financeIncome(housing(starting).state, jobs);
-    const swappedHousingMissed = housing(starting).missedCents;
-    expect(swappedHousingMissed).toBe(30000);
-    // The wage still lands, but only after rent already went entirely unpaid — the
-    // opposite order can't recover the shortfall after the fact.
-    expect((swappedOrder.state.player.finances as unknown as { cashCents: number }).cashCents).toBe(30000);
+    // Housing runs first, against the same starting cash (0): the charge goes through in
+    // full regardless, and the balance is genuinely negative — an actual overdraw, not
+    // merely "unpaid" — the moment rent is charged before the wage has landed.
+    const swapped = housing(starting);
+    expect(swapped.missedCents).toBe(30000);
+    expect((swapped.state.player.finances as unknown as { cashCents: number }).cashCents).toBe(-30000);
+
+    // The wage landing afterward recovers the balance, but the overdraw already happened —
+    // that transient negative balance is the swap's own proof, not its final state.
+    const swappedThenIncome = financeIncome(swapped.state, jobs);
+    expect((swappedThenIncome.state.player.finances as unknown as { cashCents: number }).cashCents).toBe(0);
   });
 
-  it("charges rent only up to available cash, reporting the unpaid remainder as missedCents", () => {
+  it("charges the full rent even past what's payable, reporting the shortfall as missedCents", () => {
     const result = housing(employedState({
       player: {
         ...employedState().player,
@@ -433,7 +438,21 @@ describe("runEndOfWeek — W55 housing and finance_reconcile", () => {
       } as unknown as SimulationKindState["player"],
     }));
     expect(result.missedCents).toBe(15000);
-    expect((result.state.player.finances as unknown as { cashCents: number }).cashCents).toBe(0);
+    expect((result.state.player.finances as unknown as { cashCents: number }).cashCents).toBe(-15000);
+  });
+
+  it("scopes missedCents to this week's own charge, not a balance already negative from a prior week", () => {
+    const result = housing(employedState({
+      player: {
+        ...employedState().player,
+        housing: { ...employedState().player.housing, weeklyCostCents: 5000 },
+        finances: { ...employedState().player.finances, cashCents: -20000 },
+      } as unknown as SimulationKindState["player"],
+    }));
+    // Cash was already -20000 before this week's own charge; only this week's rent (5000)
+    // counts as missed, not the compounded -25000 balance the charge leaves behind.
+    expect(result.missedCents).toBe(5000);
+    expect((result.state.player.finances as unknown as { cashCents: number }).cashCents).toBe(-25000);
   });
 
   it("finance_reconcile is a no-op when missedCents is 0", () => {
