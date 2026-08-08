@@ -198,10 +198,10 @@ describe("advance — end_week", () => {
   });
 
   it("resolves every planned, non-custom action through the stub resolver without error", () => {
-    // "shop" — still `stubResolver` after W53, which only wires the five employment
-    // ActionTypes (`resolvers.ts`'s own header). `apply_for_job` no longer fits this test's
-    // own name: it now has real preconditions (`resolvers.test.ts` covers those).
-    const withAction = advance(baseState(), "plan.add", { actionType: "shop" }, fakeCtx()).state;
+    // "start_project" — still `stubResolver`. This test used "shop" until W56 gave it a
+    // real resolver (and real preconditions, which `resolvers.test.ts` covers); the projects,
+    // business and event/opportunity verbs are what remains unwired.
+    const withAction = advance(baseState(), "plan.add", { actionType: "start_project" }, fakeCtx()).state;
     const result = advance(withAction, "end_week", undefined, fakeCtx());
     expect(result.error).toBeUndefined();
   });

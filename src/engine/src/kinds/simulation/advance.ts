@@ -189,7 +189,10 @@ export function advance(
       working = foldCounters(working, changes);
 
       const content = ctx.campaign.content as SimulationCampaign;
-      const endOfWeekResult = runEndOfWeek(working, ctx.emit, content.goals, content.goalFailurePrecedence, content.jobs, content.courses);
+      // `content.items` joins `jobs`/`courses` as a plain parameter (W56) — `endOfWeek.ts`'s
+      // `inventory` system needs `ItemDefinition` for decay and effect sync, the same way
+      // `employment` needed `jobs` and `education` needed `courses`.
+      const endOfWeekResult = runEndOfWeek(working, ctx.emit, content.goals, content.goalFailurePrecedence, content.jobs, content.courses, content.items);
       ctx.emit.emit(WEEK_ENDED_EVENT, "info", { data: { week: working.calendar.currentWeek } });
 
       const counted = foldCounters(endOfWeekResult.state, endOfWeekResult.changes);
