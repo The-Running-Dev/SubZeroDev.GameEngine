@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { computeResolutionId, resolvePacks } from "./packs.js";
+import { applyExperimentGates, computeResolutionId, resolveBucketKey, resolveExperimentAssignments, resolvePacks } from "./packs.js";
 import type { ContentPack, PackRef } from "./packs.js";
+import type { ExperimentSource } from "../composition/types.js";
 import type { BuiltCampaign, Campaign } from "./types.js";
 
 function makeCampaign(overrides?: Partial<Campaign>): Campaign {
@@ -180,5 +181,145 @@ describe("resolvePacks", () => {
     const result = resolvePacks([first, second]);
     expect(result.ok).toBe(true);
     expect(result.warnings).toHaveLength(0);
+  });
+});
+
+function counting(assignments: Record<string, string | null>): { source: ExperimentSource; calls: Array<{ experimentId: string; bucketKey: string }> } {
+  const calls: Array<{ experimentId: string; bucketKey: string }> = [];
+  return {
+    calls,
+    source: {
+      resolve(experimentId, bucketKey) {
+        calls.push({ experimentId, bucketKey });
+        return assignments[experimentId] ?? null;
+      },
+    },
+  };
+}
+
+describe("applyExperimentGates", () => {
+  it("always includes a pack with no experimentGate", () => {
+    const ungated = pack({ id: "base", version: "1" });
+    expect(applyExperimentGates([ungated], {})).toEqual([ungated]);
+  });
+
+  it("includes a gated pack only on an exact variant match", () => {
+    const gated = pack({ id: "culture", version: "1", experimentGate: { experimentId: "colors", variant: "warm" } });
+    expect(applyExperimentGates([gated], { colors: "warm" })).toEqual([gated]);
+  });
+
+  it("excludes a gated pack when the assignment is a different variant", () => {
+    const gated = pack({ id: "culture", version: "1", experimentGate: { experimentId: "colors", variant: "warm" } });
+    expect(applyExperimentGates([gated], { colors: "cool" })).toEqual([]);
+  });
+
+  it("excludes a gated pack when the assignment is null (not enrolled)", () => {
+    const gated = pack({ id: "culture", version: "1", experimentGate: { experimentId: "colors", variant: "warm" } });
+    expect(applyExperimentGates([gated], { colors: null })).toEqual([]);
+  });
+
+  it("excludes a gated pack when the experimentId key is simply missing", () => {
+    const gated = pack({ id: "culture", version: "1", experimentGate: { experimentId: "colors", variant: "warm" } });
+    expect(applyExperimentGates([gated], {})).toEqual([]);
+  });
+
+  it("with no ExperimentSource supplied (empty assignments), excludes every gated pack and includes every ungated pack", () => {
+    const ungated = pack({ id: "base", version: "1" });
+    const gated = pack({ id: "culture", version: "1", experimentGate: { experimentId: "colors", variant: "warm" } });
+    expect(applyExperimentGates([ungated, gated], {})).toEqual([ungated]);
+  });
+
+  it("runs before resolvePacks and resolvePacks never sees a gated-out pack", () => {
+    const ungated = pack({ id: "base", version: "1", campaigns: [built(makeCampaign({ id: "a" }))] });
+    const gatedOut = pack({
+      id: "culture",
+      version: "1",
+      experimentGate: { experimentId: "colors", variant: "warm" },
+      campaigns: [built(makeCampaign({ id: "b" }))],
+    });
+    const filtered = applyExperimentGates([ungated, gatedOut], { colors: "cool" });
+    const result = resolvePacks(filtered);
+    expect(result.ok).toBe(true);
+    expect(result.value?.campaigns.has("b")).toBe(false);
+    // resolvePacks' own signature is untouched — it still takes a plain pack array.
+    expect(filtered).toEqual([ungated]);
+  });
+});
+
+describe("resolveBucketKey", () => {
+  it("uses profileId when present", () => {
+    expect(resolveBucketKey("profile-1", "seed-1")).toBe("profile-1");
+  });
+
+  it("falls back to seed when profileId is absent", () => {
+    expect(resolveBucketKey(undefined, "seed-1")).toBe("seed-1");
+  });
+});
+
+describe("resolveExperimentAssignments", () => {
+  it("calls resolve exactly once per distinct experimentId across the candidate packs, keyed by bucketKey", () => {
+    const packs: ContentPack[] = [
+      pack({ id: "a", version: "1", experimentGate: { experimentId: "colors", variant: "warm" } }),
+      pack({ id: "b", version: "1", experimentGate: { experimentId: "colors", variant: "cool" } }),
+      pack({ id: "c", version: "1", experimentGate: { experimentId: "layout", variant: "grid" } }),
+      pack({ id: "d", version: "1" }),
+    ];
+    const { source, calls } = counting({ colors: "warm", layout: "grid" });
+    const assignments = resolveExperimentAssignments(packs, source, "bucket-1");
+    expect(assignments).toEqual({ colors: "warm", layout: "grid" });
+    expect(calls).toHaveLength(2);
+    expect(calls).toEqual(
+      expect.arrayContaining([
+        { experimentId: "colors", bucketKey: "bucket-1" },
+        { experimentId: "layout", bucketKey: "bucket-1" },
+      ]),
+    );
+  });
+
+  it("returns an empty assignment map and calls nothing when no pack is gated", () => {
+    const packs: ContentPack[] = [pack({ id: "a", version: "1" })];
+    const { source, calls } = counting({});
+    expect(resolveExperimentAssignments(packs, source, "bucket-1")).toEqual({});
+    expect(calls).toHaveLength(0);
+  });
+
+  it("returns an empty assignment map without calling resolve when no ExperimentSource is supplied", () => {
+    const packs: ContentPack[] = [pack({ id: "a", version: "1", experimentGate: { experimentId: "colors", variant: "warm" } })];
+    expect(resolveExperimentAssignments(packs, undefined, "bucket-1")).toEqual({});
+  });
+});
+
+describe("W59.6 — two variants of the same gated pack set produce different campaignVersions", () => {
+  it("resolves distinct ResolutionIds (and therefore campaignVersions) for two different assignment combinations, through the existing digest — no further mechanism", () => {
+    const base = pack({ id: "base", version: "1", campaigns: [built(makeCampaign({ id: "a" }))] });
+    const warm = pack({
+      id: "warm-culture",
+      version: "1",
+      experimentGate: { experimentId: "colors", variant: "warm" },
+      campaigns: [built(makeCampaign({ id: "a", titleKey: "warm.title" }))],
+    });
+    const cool = pack({
+      id: "cool-culture",
+      version: "1",
+      experimentGate: { experimentId: "colors", variant: "cool" },
+      campaigns: [built(makeCampaign({ id: "a", titleKey: "cool.title" }))],
+    });
+    const candidates = [base, warm, cool];
+
+    const { source: warmSource } = counting({ colors: "warm" });
+    const warmAssignments = resolveExperimentAssignments(candidates, warmSource, "player-a");
+    const warmPacks = applyExperimentGates(candidates, warmAssignments);
+    const warmResult = resolvePacks(warmPacks);
+
+    const { source: coolSource } = counting({ colors: "cool" });
+    const coolAssignments = resolveExperimentAssignments(candidates, coolSource, "player-b");
+    const coolPacks = applyExperimentGates(candidates, coolAssignments);
+    const coolResult = resolvePacks(coolPacks);
+
+    expect(warmResult.ok).toBe(true);
+    expect(coolResult.ok).toBe(true);
+    expect(warmResult.value?.resolution).not.toBe(coolResult.value?.resolution);
+    expect(warmResult.value?.campaigns.get("a")?.version).toBe(warmResult.value?.resolution);
+    expect(coolResult.value?.campaigns.get("a")?.version).toBe(coolResult.value?.resolution);
   });
 });

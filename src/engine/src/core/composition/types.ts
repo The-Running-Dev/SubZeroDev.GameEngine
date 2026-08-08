@@ -38,6 +38,22 @@ export interface Clock {
 }
 
 /**
+ * Resolves an A/B or feature-flag assignment, at session-creation time, for whichever
+ * content pack selection needs it (`11-content-packs.md` §5a). Boundary-only, like `Clock`
+ * — the core never receives this port and its result never enters `GameState`; what varies
+ * is only which content a kind is handed, at a stage the pure engine never observes.
+ *
+ * `null` means "not enrolled," and is a different value from any legal variant — so a
+ * gate's `assignments[gate.experimentId] === gate.variant` comparison (`registry/packs.ts`
+ * `applyExperimentGates`) can never be true for it, which is what makes "no
+ * `ExperimentSource` supplied" safe by construction (06 §5.5).
+ */
+export interface ExperimentSource {
+  /** A stable variant for one experiment, or `null` if `bucketKey` is not enrolled. */
+  resolve(experimentId: string, bucketKey: string): string | null;
+}
+
+/**
  * Composition root for the pure engine. Every port is supplied once, at construction,
  * and never swapped afterwards — replacing a store mid-session would make every
  * invariant in `04-core.md` conditional on when it was asked.
@@ -57,4 +73,7 @@ export interface SessionHost {
   readonly profiles?: ProfileStore;
   readonly clock?: Clock;
   readonly recordSink?: EmittedRecordSink;
+  /** Omitted → "no experiments running": every gated pack is excluded by construction
+   *  (`registry/packs.ts` `applyExperimentGates`), never by a chosen default string. */
+  readonly experiments?: ExperimentSource;
 }
