@@ -220,6 +220,23 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   fixtures as a result — not blocking that unit, but real friction for every arc after it.
   **Revisit when** a second campaign's replay coverage is actually wanted: decide the shared-vs-
   per-campaign shape once, from two real cases, rather than guessing ahead of one.
+- **Nothing checks *emitted → registered* for reason codes, and hand-auditing has now failed
+  twice.** `buildValidatedContentRegistry` (`core/validation/tiered.ts`) checks the opposite
+  direction — every *registered* code owes a localized message — so a `StateChange.reason` that
+  was never declared on `Kind.reasonCodes` cannot make `missing_kind_reason_message` fire, and
+  every gate stays green while a visible audit record reaches a client carrying a code no string
+  table resolves. The gap was found on 2026-08-06 (two codes), again on 2026-08-08 at scale
+  (twenty-eight), and the manual comparison that closed the second one was itself wrong for
+  `world-graph` — it registered two codes nothing emits and missed five that arrive indirectly
+  through `EffectContext.reason`, which no scan for a `reason:` literal beside a `visible`
+  flag can see. That is the argument for building the check rather than repeating the audit: the
+  substitute has a demonstrated failure mode, in the pass that proposed it. The shape wants
+  thought — a naive source scan for `reason:` literals reproduces exactly the blind spot that
+  hid the indirect five, so the check must follow reasons through the context objects that carry
+  them, or the kinds must stop typing `reason` as a bare `string` (`world-graph`'s
+  `BatchChanges.record` and `EffectContext` both do) so the compiler can do it instead.
+  **Revisit when** a unit can own it properly — it is a test with a design question in it, not a
+  reconciliation edit, and the second option may be the cheaper one.
 
 ---
 

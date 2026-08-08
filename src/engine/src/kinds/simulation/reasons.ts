@@ -33,6 +33,16 @@
  * `action_study`, `action_withdraw_course`) and four end-of-week education codes
  * (`education_course_completed`, `education_course_failed`, `education_skill_awarded`,
  * `education_credential_awarded`).
+ *
+ * **Reconciliation (2026-08-08) registers eighteen audit codes W39/W53/W55 emitted without
+ * ever adding them here.** Every one rides on a `visible: true` `StateChange`, so each was
+ * reaching a client with a `reason` the string table could not resolve — precisely the
+ * defect 04 §12's callout describes and that `90-decisions.md`'s 2026-08-06 entry closed for
+ * `story-graph`'s two. The reason it recurred at nine times the size is that
+ * `buildValidatedContentRegistry` (`core/validation/tiered.ts`) only checks
+ * *registered → has message*; nothing checks *emitted → registered*, so the completeness
+ * gate stayed green throughout. W54 registered its own audit codes; W53 and W55 did not,
+ * which is why the two blocks below look inconsistent in origin but not in kind.
  */
 
 import type { LocKey } from "../../core/localization/types.js";
@@ -55,6 +65,28 @@ export const SIMULATION_REASON_CODES = [
   "education_course_failed",
   "education_skill_awarded",
   "education_credential_awarded",
+  // Action audit codes (W53/W55, registered by reconciliation) — `resolvers.ts` emits one
+  // per resolved action, mirroring W54's own four above.
+  "action_work",
+  "action_work_overtime",
+  "action_search_for_work",
+  "action_apply_for_job",
+  "action_negotiate_job_terms",
+  "action_eat",
+  "action_rest",
+  "action_move_housing",
+  "action_pay_bills",
+  "action_borrow_money",
+  "action_repay_debt",
+  "action_deposit_savings",
+  "action_invest",
+  // End-of-week audit codes (W39/W53/W55, registered by reconciliation) — `endOfWeek.ts`'s
+  // `needs`, `financeIncome`, `housing` and `financeReconcile`.
+  "need_drift",
+  "wage_payment",
+  "rent_charged",
+  "rent_overdue",
+  "eviction_advanced",
 ] as const;
 
 export type SimulationReasonCode = (typeof SIMULATION_REASON_CODES)[number];
@@ -77,6 +109,24 @@ const SIMULATION_REASON_TEXT: Readonly<Record<SimulationReasonCode, string>> = {
   education_course_failed: "You did not pass the course.",
   education_skill_awarded: "You gained a new skill.",
   education_credential_awarded: "You earned a credential.",
+  action_work: "You worked this week.",
+  action_work_overtime: "You worked overtime this week.",
+  action_search_for_work: "You searched for work.",
+  action_apply_for_job: "You applied for the job.",
+  action_negotiate_job_terms: "You negotiated your terms.",
+  action_eat: "You ate.",
+  action_rest: "You rested.",
+  action_move_housing: "You moved.",
+  action_pay_bills: "You paid what you owed.",
+  action_borrow_money: "You borrowed money.",
+  action_repay_debt: "You repaid debt.",
+  action_deposit_savings: "You moved money into savings.",
+  action_invest: "You invested.",
+  need_drift: "A week passed, and it took its toll.",
+  wage_payment: "You were paid.",
+  rent_charged: "Rent was charged.",
+  rent_overdue: "Rent went unpaid, and a late fee was added.",
+  eviction_advanced: "Your eviction moved one stage closer.",
 };
 
 /** `simulation.reason.<code>` → its shipped default-English message, for every code. */

@@ -1135,7 +1135,7 @@ be projected at all, which W40 recorded honestly rather than dropping. W50 tests
 W51 comes second because the derived-value layer is what every unit after it reads through,
 and its rounding rule is the most replay-sensitive line in the kind.
 
-### [ ] W50 — Simulation Kind: Projection and Client Parity {#w50}
+### [x] W50 — Simulation Kind: Projection and Client Parity {#w50}
 
 **Delivers:** Makes Life in the Fast Lane something a person can actually play. Today the
 simulation kind runs only inside the replay harness — a game starts, a week is planned and
@@ -1207,8 +1207,9 @@ entry 3, `StoryGraphView` duplicating scene and status fields. `SimulationView` 
       a rival agent actually running. `PublicWorldState` is declared here because
       `AgentStrategy` cannot typecheck without it, not because this unit builds agents — how a
       scenario configures rivals is an open gap §7.10 states outright.
+- **Status:** Done — [PR #166](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/166).
 
-### [ ] W51 — Simulation Kind: Derived Values, Modifiers, and Effects {#w51}
+### [x] W51 — Simulation Kind: Derived Values, Modifiers, and Effects {#w51}
 
 **Delivers:** Makes a status effect or a trait actually change what the player can do — a
 "reduced hours" effect really lowers the time available that week, a bonus really shifts a
@@ -1256,8 +1257,10 @@ rather than a layer added on faith.
 - **Out of scope:** the content that grants effects. Jobs, courses and items arrive with their
       own units; this one proves the mechanism against a hand-authored effect on the existing
       "Stable Life" fixture, the same way W39 proved goals against a single synthetic goal.
+- **Status:** Done — [PR #204](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/204),
+      superseding [PR #194](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/194).
 
-### [ ] W52 — Simulation Kind: The Scenario Campaign and Full Validation {#w52}
+### [x] W52 — Simulation Kind: The Scenario Campaign and Full Validation {#w52}
 
 **Delivers:** Replaces the hand-assembled test fixture with a real authored scenario — a
 starting background, home, job, location, inventory and week cap that a content author writes
@@ -1304,8 +1307,9 @@ what is implemented is goal-id uniqueness and one `LocKey`.
 - **Out of scope:** making any newly authorable content *do* anything. A `JobDefinition` this
       unit lets an author write and the validator accept is still resolved by `stubResolver`
       until W53. This is the authoring and loading surface, not behaviour.
+- **Status:** Done — [PR #227](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/227).
 
-### [ ] W53 — Simulation Kind: Employment and Income {#w53}
+### [x] W53 — Simulation Kind: Employment and Income {#w53}
 
 **Delivers:** The player can look for work, apply for a job, negotiate its terms and then
 actually work it — and be paid for it at the end of the week.
@@ -1339,8 +1343,9 @@ actually work it — and be paid for it at the end of the week.
 - **Out of scope:** education, housing costs, debt and possessions — W54 to W56. A job's
       training requirement may name a `CourseDefinition` id the validator resolves, but taking
       the course is W54's work.
+- **Status:** Done — [PR #228](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/228).
 
-### [ ] W54 — Simulation Kind: Education and Skills {#w54}
+### [x] W54 — Simulation Kind: Education and Skills {#w54}
 
 **Delivers:** The player can enrol on a course, attend it, study for it, and come out with a
 skill that changes which jobs they can hold — or withdraw and lose the fees.
@@ -1370,8 +1375,9 @@ skill that changes which jobs they can hold — or withdraw and lose the fees.
         passes the oracle.
 - **Out of scope:** careers beyond what W53 built, and rival actors studying — agents are
       unbuilt for the reason W50's *Out of scope* records.
+- **Status:** Done — [PR #230](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/230).
 
-### [ ] W55 — Simulation Kind: Housing, Debt, and Reconciliation {#w55}
+### [x] W55 — Simulation Kind: Housing, Debt, and Reconciliation {#w55}
 
 **Delivers:** Rent, bills, borrowing and eviction — the half of the week that happens whether
 the player plans for it or not.
@@ -1408,6 +1414,7 @@ split was necessary rather than merely argued.
         by a single week's wages.
 - **Out of scope:** items and their upkeep (W56), and any economy-wide drift in prices or
       wages — `EconomyState` moves only where a system this unit builds moves it.
+- **Status:** Done — [PR #232](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/232).
 
 ### [ ] W56 — Simulation Kind: Possessions, Places, and People {#w56}
 
