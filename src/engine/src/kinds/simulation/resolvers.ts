@@ -59,13 +59,48 @@
  * `FinancialAccount`) is already visible to `apply` via `state` plus one carried number, the
  * same shape `eatResolver`/`restResolver` use. `pay_bills` is `endOfWeek.ts`'s
  * `financeReconcile` in reverse — the only way a player cures arrears that system levies.
+ *
+ * **W56 adds the last seven**: `shop`, `maintain_item`, `repair_item`, `sell_item`, `travel`,
+ * `socialize` and `exercise`. Four follow `enroll_course`'s addressing convention against a
+ * natural key this contract already fixes (§6, *Addressing collection members*):
+ * `player.inventory.<instanceId>.*` and `player.relationships.<npcId>.*`. `travel` and
+ * `exercise` need no indirection — a location's `travelTimeUnits` and a fixed need delta are
+ * the only inputs, and both recompute in `apply` from `state` plus the carried numbers.
+ *
+ * **An item's `ItemDefinition.effects` are attached by `endOfWeek.ts`'s `inventory` system,
+ * not by `shop`.** `apply(state, outcome)` has no `ctx` (above), and a `StatusEffect`'s
+ * `modifiers` is an *array of objects* — the scalar natural-key convention that carries
+ * `JobOpening`/`CourseEnrollment`/`HousingState` through `outcome.changes` cannot address it.
+ * The `inventory` system is the one place in the week pipeline holding both the item content
+ * and the whole inventory, and §3 already gives it the slot; it therefore owns attachment and
+ * detachment alike, so an effect appears the first end-of-week after purchase and lapses the
+ * first end-of-week after `condition` reaches zero — one rule in both directions rather than
+ * attach-immediately/detach-late.
+ *
+ * **`maintain_item` and `repair_item` are not the same action.** Maintenance is preventive:
+ * it resets `weeksSinceMaintenance`, which is what stops `inventory`'s decay, and restores no
+ * lost condition. Repair is corrective: it restores `condition` to full and clears `broken`,
+ * and leaves the maintenance clock exactly where it was — a player who repairs without
+ * maintaining decays again the very next week. Both read `MaintenanceRule`, and §7.5 declares
+ * `maintenanceRules` as a *list* with no selection rule, so the **first listed** rule governs,
+ * the same "listed order, first match" convention `advanceEmployment` already applies to
+ * `promotionPaths`.
  */
 
 import type { KindContext } from "../../core/kernel/types.js";
 import type { StateChange, OutcomeMessage } from "../../core/kernel/reasons.js";
 import type { ValidationError, ValidationWarning } from "../../core/validation/types.js";
 import type { LocKey } from "../../core/localization/types.js";
-import type { CourseEnrollment, FinancialAccount, HousingState, JobApplication } from "./actor.js";
+import type {
+  CourseEnrollment,
+  FinancialAccount,
+  HousingState,
+  InventoryItem,
+  JobApplication,
+  NeedKey,
+  RelationshipState,
+} from "./actor.js";
+import type { ItemDefinition, MaintenanceRule, NPCDefinition } from "./content.js";
 import type { SimulationCampaign } from "./campaign.js";
 import { evaluateSimulationCondition } from "./conditions.js";
 import { INVESTMENT_ACCOUNT_LABEL_KEY } from "./reasons.js";
@@ -1043,6 +1078,477 @@ export const investResolver: ActionResolver = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// W56 — Possessions, Places, and People
+// ---------------------------------------------------------------------------
+
+const SHOP_TIME_COST = 1;
+const REPAIR_TIME_COST = 2;
+const SELL_TIME_COST = 1;
+const SOCIALIZE_TIME_COST = 2;
+const EXERCISE_TIME_COST = 2;
+
+/** A bought item arrives undamaged and unmaintained; `shop` buys exactly one unit per
+ *  action, since nothing in §4's action model carries a quantity for it to buy more. */
+const NEW_ITEM_CONDITION = 100;
+const NEW_ITEM_QUANTITY = 1;
+
+/** Deterministic and unique without an `IdSource`: `GameAction.id` is already
+ *  `action-<ctx.seq>` (`advance.ts`), so one purchase yields one instance id. Prefixed
+ *  rather than reused verbatim so an inventory key is never mistaken for an action id, and
+ *  never all-digits — §6's natural-key rule forbids a numeric path segment. */
+function inventoryInstanceId(action: GameAction): string {
+  return `inv-${action.id}`;
+}
+
+function findItemDefinition(campaign: SimulationCampaign, definitionId: string | undefined): ItemDefinition | undefined {
+  return definitionId === undefined ? undefined : campaign.items.find((i) => i.id === definitionId);
+}
+
+function findInventoryItem(state: SimulationKindState, instanceId: string | undefined): InventoryItem | undefined {
+  return instanceId === undefined ? undefined : state.player.inventory.find((i) => i.instanceId === instanceId);
+}
+
+/** §7.5 declares `maintenanceRules` as a list and names no selection rule — first listed
+ *  governs, the same convention `advanceEmployment` applies to `promotionPaths`. */
+function governingMaintenanceRule(def: ItemDefinition | undefined): MaintenanceRule | undefined {
+  return def?.maintenanceRules?.[0];
+}
+
+function instanceIdFromPath(path: string): string {
+  return path.split(".")[2]!;
+}
+
+export const shopResolver: ActionResolver = {
+  canExecute: (state, action, ctx): ActionValidation => {
+    const campaign = simulationCampaign(ctx);
+    const def = findItemDefinition(campaign, action.targetId);
+    if (!def) return invalid("unknown_action", "core.reason.unknown_action");
+    if (!locationAllows(state, campaign, "shop")) return wrongLocationError();
+    for (const requirement of def.requirements) {
+      if (!evaluateSimulationCondition(requirement.condition, state)) {
+        return invalid(requirement.failureCode, requirement.messageKey);
+      }
+    }
+    if (state.player.finances.cashCents < def.purchasePriceCents) return insufficientFundsError();
+    if (availableTimeUnits(state) < SHOP_TIME_COST) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: SHOP_TIME_COST, calculatedMoneyCostCents: def.purchasePriceCents };
+  },
+  calculate: (state, action, ctx): ActionOutcome => {
+    const campaign = simulationCampaign(ctx);
+    const def = findItemDefinition(campaign, action.targetId)!;
+    const base = `player.inventory.${inventoryInstanceId(action)}`;
+
+    const changes: StateChange[] = [
+      { path: "calendar.spentTimeUnits", op: "increment", value: SHOP_TIME_COST, reason: "action_shop", visible: true },
+      { path: "player.finances.cashCents", op: "decrement", value: def.purchasePriceCents, previous: state.player.finances.cashCents, reason: "action_shop", visible: true },
+      { path: `${base}.definitionId`, op: "set", value: def.id, reason: "action_shop", visible: true },
+      { path: `${base}.quantity`, op: "set", value: NEW_ITEM_QUANTITY, reason: "action_shop", visible: true },
+      { path: `${base}.acquiredWeek`, op: "set", value: state.calendar.currentWeek, reason: "action_shop", visible: false },
+      { path: `${base}.purchasePriceCents`, op: "set", value: def.purchasePriceCents, reason: "action_shop", visible: false },
+      { path: `${base}.condition`, op: "set", value: NEW_ITEM_CONDITION, reason: "action_shop", visible: true },
+      { path: `${base}.weeksSinceMaintenance`, op: "set", value: 0, reason: "action_shop", visible: false },
+      { path: `${base}.broken`, op: "set", value: false, reason: "action_shop", visible: false },
+    ];
+
+    return {
+      actionId: action.id, success: true, degree: "success", reason: "check_succeeded",
+      changes, generatedEvents: [], generatedOpportunities: [], messages: [],
+    };
+  },
+  apply: (state, outcome): SimulationKindState => {
+    const definitionChange = outcome.changes.find((c) => c.path.startsWith("player.inventory.") && c.path.endsWith(".definitionId"));
+    if (!definitionChange) return state;
+    const instanceId = instanceIdFromPath(definitionChange.path);
+    const field = (name: string): unknown => outcome.changes.find((c) => c.path === `player.inventory.${instanceId}.${name}`)?.value;
+    const spentDelta = outcome.changes.find((c) => c.path === "calendar.spentTimeUnits")?.value;
+    const price = outcome.changes.find((c) => c.path === "player.finances.cashCents")?.value;
+
+    const item: InventoryItem = {
+      instanceId,
+      definitionId: definitionChange.value as string,
+      quantity: field("quantity") as number,
+      acquiredWeek: field("acquiredWeek") as number,
+      purchasePriceCents: field("purchasePriceCents") as Cents,
+      condition: field("condition") as number,
+      weeksSinceMaintenance: field("weeksSinceMaintenance") as number,
+      broken: field("broken") === true,
+    };
+
+    return {
+      ...state,
+      calendar: { ...state.calendar, spentTimeUnits: state.calendar.spentTimeUnits + (typeof spentDelta === "number" ? spentDelta : 0) },
+      player: {
+        ...state.player,
+        finances: { ...state.player.finances, cashCents: state.player.finances.cashCents - (typeof price === "number" ? price : 0) },
+        inventory: [...state.player.inventory, item],
+      },
+    };
+  },
+};
+
+export const maintainItemResolver: ActionResolver = {
+  canExecute: (state, action, ctx): ActionValidation => {
+    const campaign = simulationCampaign(ctx);
+    const item = findInventoryItem(state, action.targetId);
+    if (!item) return requirementUnmetError();
+    if (!locationAllows(state, campaign, "maintain_item")) return wrongLocationError();
+    const rule = governingMaintenanceRule(findItemDefinition(campaign, item.definitionId));
+    if (!rule) return requirementUnmetError();
+    if (state.player.finances.cashCents < rule.costCents) return insufficientFundsError();
+    if (availableTimeUnits(state) < rule.timeCost) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: rule.timeCost, calculatedMoneyCostCents: rule.costCents };
+  },
+  calculate: (state, action, ctx): ActionOutcome => {
+    const campaign = simulationCampaign(ctx);
+    const item = findInventoryItem(state, action.targetId)!;
+    const rule = governingMaintenanceRule(findItemDefinition(campaign, item.definitionId))!;
+
+    const changes: StateChange[] = [
+      { path: "calendar.spentTimeUnits", op: "increment", value: rule.timeCost, reason: "action_maintain_item", visible: true },
+      { path: "player.finances.cashCents", op: "decrement", value: rule.costCents, previous: state.player.finances.cashCents, reason: "action_maintain_item", visible: true },
+      {
+        path: `player.inventory.${item.instanceId}.weeksSinceMaintenance`, op: "set", value: 0,
+        previous: item.weeksSinceMaintenance, reason: "action_maintain_item", visible: true,
+      },
+    ];
+
+    return {
+      actionId: action.id, success: true, degree: "success", reason: "check_succeeded",
+      changes, generatedEvents: [], generatedOpportunities: [], messages: [],
+    };
+  },
+  apply: (state, outcome): SimulationKindState => {
+    const change = outcome.changes.find((c) => c.path.startsWith("player.inventory.") && c.path.endsWith(".weeksSinceMaintenance"));
+    if (!change) return state;
+    const instanceId = instanceIdFromPath(change.path);
+    const spentDelta = outcome.changes.find((c) => c.path === "calendar.spentTimeUnits")?.value;
+    const cost = outcome.changes.find((c) => c.path === "player.finances.cashCents")?.value;
+
+    return {
+      ...state,
+      calendar: { ...state.calendar, spentTimeUnits: state.calendar.spentTimeUnits + (typeof spentDelta === "number" ? spentDelta : 0) },
+      player: {
+        ...state.player,
+        finances: { ...state.player.finances, cashCents: state.player.finances.cashCents - (typeof cost === "number" ? cost : 0) },
+        inventory: state.player.inventory.map((i) => (i.instanceId === instanceId ? { ...i, weeksSinceMaintenance: 0 } : i)),
+      },
+    };
+  },
+};
+
+/** No §7.5 field prices a repair, so it is priced off what was actually lost: the share of
+ *  the instance's own `purchasePriceCents` matching its missing condition. A placeholder
+ *  formula, the same status every other unbalanced numeric rule in this file carries — but
+ *  one derived entirely from stored state, so `apply` recomputes it without a lookup. */
+function repairCostCents(item: InventoryItem): Cents {
+  return Math.round((item.purchasePriceCents * (NEW_ITEM_CONDITION - item.condition)) / 100);
+}
+
+export const repairItemResolver: ActionResolver = {
+  canExecute: (state, action, ctx): ActionValidation => {
+    const campaign = simulationCampaign(ctx);
+    const item = findInventoryItem(state, action.targetId);
+    if (!item) return requirementUnmetError();
+    if (!locationAllows(state, campaign, "repair_item")) return wrongLocationError();
+    if (item.condition >= NEW_ITEM_CONDITION && !item.broken) return requirementUnmetError();
+    const cost = repairCostCents(item);
+    if (state.player.finances.cashCents < cost) return insufficientFundsError();
+    if (availableTimeUnits(state) < REPAIR_TIME_COST) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: REPAIR_TIME_COST, calculatedMoneyCostCents: cost };
+  },
+  calculate: (state, action): ActionOutcome => {
+    const item = findInventoryItem(state, action.targetId)!;
+    const base = `player.inventory.${item.instanceId}`;
+
+    const changes: StateChange[] = [
+      { path: "calendar.spentTimeUnits", op: "increment", value: REPAIR_TIME_COST, reason: "action_repair_item", visible: true },
+      { path: "player.finances.cashCents", op: "decrement", value: repairCostCents(item), previous: state.player.finances.cashCents, reason: "action_repair_item", visible: true },
+      { path: `${base}.condition`, op: "set", value: NEW_ITEM_CONDITION, previous: item.condition, reason: "action_repair_item", visible: true },
+      { path: `${base}.broken`, op: "set", value: false, previous: item.broken, reason: "action_repair_item", visible: true },
+    ];
+
+    return {
+      actionId: action.id, success: true, degree: "success", reason: "check_succeeded",
+      changes, generatedEvents: [], generatedOpportunities: [], messages: [],
+    };
+  },
+  apply: (state, outcome): SimulationKindState => {
+    const change = outcome.changes.find((c) => c.path.startsWith("player.inventory.") && c.path.endsWith(".condition"));
+    if (!change) return state;
+    const instanceId = instanceIdFromPath(change.path);
+    const spentDelta = outcome.changes.find((c) => c.path === "calendar.spentTimeUnits")?.value;
+    const cost = outcome.changes.find((c) => c.path === "player.finances.cashCents")?.value;
+
+    return {
+      ...state,
+      calendar: { ...state.calendar, spentTimeUnits: state.calendar.spentTimeUnits + (typeof spentDelta === "number" ? spentDelta : 0) },
+      player: {
+        ...state.player,
+        finances: { ...state.player.finances, cashCents: state.player.finances.cashCents - (typeof cost === "number" ? cost : 0) },
+        inventory: state.player.inventory.map((i) =>
+          (i.instanceId === instanceId ? { ...i, condition: change.value as number, broken: false } : i)),
+      },
+    };
+  },
+};
+
+/** Resale is `baseResaleValueCents` scaled by the instance's own condition — a worn item is
+ *  worth proportionally less. Placeholder balance, same caveat as `repairCostCents`. */
+function resaleValueCents(def: ItemDefinition, item: InventoryItem): Cents {
+  return Math.round((def.baseResaleValueCents * item.condition) / 100);
+}
+
+/** Removing the instance is signalled by setting its `quantity` to zero rather than by a
+ *  bespoke "removed" path: `quantity` is a real, addressable field of the record §6.10
+ *  declares, and `apply` needs only the natural key it carries. The instance leaves
+ *  `player.inventory` entirely — unlike a failed `CourseEnrollment`, nothing in §6.10 gives a
+ *  sold possession a history record to stay in. `endOfWeek.ts`'s `inventory` system drops the
+ *  matching `StatusEffect` on its next pass, the same way it drops one for a worn-out item. */
+export const sellItemResolver: ActionResolver = {
+  canExecute: (state, action, ctx): ActionValidation => {
+    const campaign = simulationCampaign(ctx);
+    const item = findInventoryItem(state, action.targetId);
+    if (!item) return requirementUnmetError();
+    if (!locationAllows(state, campaign, "sell_item")) return wrongLocationError();
+    const def = findItemDefinition(campaign, item.definitionId);
+    if (!def) return requirementUnmetError();
+    if (availableTimeUnits(state) < SELL_TIME_COST) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: SELL_TIME_COST, calculatedMoneyCostCents: NO_MONEY_COST };
+  },
+  calculate: (state, action, ctx): ActionOutcome => {
+    const campaign = simulationCampaign(ctx);
+    const item = findInventoryItem(state, action.targetId)!;
+    const def = findItemDefinition(campaign, item.definitionId)!;
+
+    const changes: StateChange[] = [
+      { path: "calendar.spentTimeUnits", op: "increment", value: SELL_TIME_COST, reason: "action_sell_item", visible: true },
+      { path: "player.finances.cashCents", op: "increment", value: resaleValueCents(def, item), previous: state.player.finances.cashCents, reason: "action_sell_item", visible: true },
+      { path: `player.inventory.${item.instanceId}.quantity`, op: "set", value: 0, previous: item.quantity, reason: "action_sell_item", visible: true },
+    ];
+
+    return {
+      actionId: action.id, success: true, degree: "success", reason: "check_succeeded",
+      changes, generatedEvents: [], generatedOpportunities: [], messages: [],
+    };
+  },
+  apply: (state, outcome): SimulationKindState => {
+    const change = outcome.changes.find((c) => c.path.startsWith("player.inventory.") && c.path.endsWith(".quantity"));
+    if (!change) return state;
+    const instanceId = instanceIdFromPath(change.path);
+    const spentDelta = outcome.changes.find((c) => c.path === "calendar.spentTimeUnits")?.value;
+    const proceeds = outcome.changes.find((c) => c.path === "player.finances.cashCents")?.value;
+
+    return {
+      ...state,
+      calendar: { ...state.calendar, spentTimeUnits: state.calendar.spentTimeUnits + (typeof spentDelta === "number" ? spentDelta : 0) },
+      player: {
+        ...state.player,
+        finances: { ...state.player.finances, cashCents: state.player.finances.cashCents + (typeof proceeds === "number" ? proceeds : 0) },
+        inventory: state.player.inventory.filter((i) => i.instanceId !== instanceId),
+      },
+    };
+  },
+};
+
+/** §7.9's adjacency graph, literally: one hop, into a location the current one lists in
+ *  `connections`, at that target's own `travelTimeUnits`. A target that exists but is not
+ *  adjacent is `wrong_location`, the half of §10's own definition no earlier unit could
+ *  reach — the other half (an action type absent from `actionTypes`) is `locationAllows`,
+ *  which every resolver in this file already runs, `travel` included. */
+export const travelResolver: ActionResolver = {
+  canExecute: (state, action, ctx): ActionValidation => {
+    const campaign = simulationCampaign(ctx);
+    const target = action.targetId === undefined ? undefined : campaign.locations.find((l) => l.id === action.targetId);
+    if (!target) return invalid("unknown_action", "core.reason.unknown_action");
+    if (!locationAllows(state, campaign, "travel")) return wrongLocationError();
+    const current = campaign.locations.find((l) => l.id === state.player.currentLocationId);
+    if (!current?.connections.includes(target.id)) return wrongLocationError();
+    if (availableTimeUnits(state) < target.travelTimeUnits) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: target.travelTimeUnits, calculatedMoneyCostCents: NO_MONEY_COST };
+  },
+  calculate: (state, action, ctx): ActionOutcome => {
+    const campaign = simulationCampaign(ctx);
+    const target = campaign.locations.find((l) => l.id === action.targetId)!;
+
+    const changes: StateChange[] = [
+      { path: "calendar.spentTimeUnits", op: "increment", value: target.travelTimeUnits, reason: "action_travel", visible: true },
+      { path: "player.currentLocationId", op: "set", value: target.id, previous: state.player.currentLocationId, reason: "action_travel", visible: true },
+    ];
+
+    return {
+      actionId: action.id, success: true, degree: "success", reason: "check_succeeded",
+      changes, generatedEvents: [], generatedOpportunities: [], messages: [],
+    };
+  },
+  apply: (state, outcome): SimulationKindState => {
+    const move = outcome.changes.find((c) => c.path === "player.currentLocationId");
+    if (typeof move?.value !== "string") return state;
+    const spentDelta = outcome.changes.find((c) => c.path === "calendar.spentTimeUnits")?.value;
+    return {
+      ...state,
+      calendar: { ...state.calendar, spentTimeUnits: state.calendar.spentTimeUnits + (typeof spentDelta === "number" ? spentDelta : 0) },
+      player: { ...state.player, currentLocationId: move.value },
+    };
+  },
+};
+
+const SOCIALIZE_AFFINITY_GAIN = 5;
+const SOCIALIZE_TRUST_GAIN = 2;
+
+/** §7.7's `NPCDefinition` declares `initialRelationship` (the affective dimensions) but no
+ *  `RelationshipState.category`, and no other §7 type supplies one. Every relationship this
+ *  action opens is `"personal"` — a fixed engine default of exactly the kind `initial.ts`
+ *  already records for `NeedState`'s starting values, not a guess dressed as content. */
+const DEFAULT_RELATIONSHIP_CATEGORY: RelationshipState["category"] = "personal";
+
+/** §7.7's `AvailabilityRule` is a list of *permissions*: an NPC is here when some rule
+ *  admits this location, this week, and its own condition. An empty list constrains nothing,
+ *  so such an NPC is available everywhere — the reading that makes `availability: []` mean
+ *  "no restrictions" rather than "exists nowhere", which would make the field mandatory in
+ *  all but name. */
+function npcAvailableHere(npc: NPCDefinition, state: SimulationKindState): boolean {
+  if (npc.availability.length === 0) return true;
+  return npc.availability.some((rule) =>
+    (rule.locationId === undefined || rule.locationId === state.player.currentLocationId)
+    && (rule.fromWeek === undefined || state.calendar.currentWeek >= rule.fromWeek)
+    && (rule.toWeek === undefined || state.calendar.currentWeek <= rule.toWeek)
+    && (rule.condition === undefined || evaluateSimulationCondition(rule.condition, state)));
+}
+
+/** An NPC who isn't here is `requirement_unmet`, **not** `wrong_location`: §10 defines that
+ *  code as exactly two things — an action type absent from `actionTypes`, or a `travel`
+ *  target absent from `connections` — and an absent NPC is neither. `requirement_unmet` is
+ *  the same "nothing to act on" reading `activeEnrollment`'s callers already give it. */
+export const socializeResolver: ActionResolver = {
+  canExecute: (state, action, ctx): ActionValidation => {
+    const campaign = simulationCampaign(ctx);
+    const npc = action.targetId === undefined ? undefined : campaign.npcs.find((n) => n.id === action.targetId);
+    if (!npc) return invalid("unknown_action", "core.reason.unknown_action");
+    if (!locationAllows(state, campaign, "socialize")) return wrongLocationError();
+    if (!npcAvailableHere(npc, state)) return requirementUnmetError();
+    if (availableTimeUnits(state) < SOCIALIZE_TIME_COST) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: SOCIALIZE_TIME_COST, calculatedMoneyCostCents: NO_MONEY_COST };
+  },
+  calculate: (state, action, ctx): ActionOutcome => {
+    const campaign = simulationCampaign(ctx);
+    const npc = campaign.npcs.find((n) => n.id === action.targetId)!;
+    const week = state.calendar.currentWeek;
+    const existing = state.player.relationships.find((r) => r.npcId === npc.id);
+    const before: RelationshipState = existing ?? {
+      npcId: npc.id,
+      category: DEFAULT_RELATIONSHIP_CATEGORY,
+      ...npc.initialRelationship,
+      knownSinceWeek: week,
+      interactionCount: 0,
+    };
+    const base = `player.relationships.${npc.id}`;
+
+    const changes: StateChange[] = [
+      { path: "calendar.spentTimeUnits", op: "increment", value: SOCIALIZE_TIME_COST, reason: "action_socialize", visible: true },
+      { path: `${base}.category`, op: "set", value: before.category, reason: "action_socialize", visible: false },
+      { path: `${base}.affinity`, op: "set", value: clampNeed(before.affinity + SOCIALIZE_AFFINITY_GAIN), previous: before.affinity, reason: "action_socialize", visible: true },
+      { path: `${base}.trust`, op: "set", value: clampNeed(before.trust + SOCIALIZE_TRUST_GAIN), previous: before.trust, reason: "action_socialize", visible: true },
+      { path: `${base}.respect`, op: "set", value: before.respect, reason: "action_socialize", visible: true },
+      // Hidden dimension (§6.11) — carried so `apply` can rebuild the record, never shown.
+      { path: `${base}.resentment`, op: "set", value: before.resentment, reason: "action_socialize", visible: false },
+      { path: `${base}.knownSinceWeek`, op: "set", value: before.knownSinceWeek, reason: "action_socialize", visible: false },
+      { path: `${base}.lastInteractionWeek`, op: "set", value: week, reason: "action_socialize", visible: true },
+      { path: `${base}.interactionCount`, op: "set", value: before.interactionCount + 1, previous: before.interactionCount, reason: "action_socialize", visible: false },
+    ];
+
+    return {
+      actionId: action.id, success: true, degree: "success", reason: "check_succeeded",
+      changes, generatedEvents: [], generatedOpportunities: [], messages: [],
+    };
+  },
+  apply: (state, outcome): SimulationKindState => {
+    const affinityChange = outcome.changes.find((c) => c.path.startsWith("player.relationships.") && c.path.endsWith(".affinity"));
+    if (!affinityChange) return state;
+    const npcId = instanceIdFromPath(affinityChange.path);
+    const field = (name: string): unknown => outcome.changes.find((c) => c.path === `player.relationships.${npcId}.${name}`)?.value;
+    const spentDelta = outcome.changes.find((c) => c.path === "calendar.spentTimeUnits")?.value;
+
+    const relationship: RelationshipState = {
+      npcId,
+      category: field("category") as RelationshipState["category"],
+      affinity: affinityChange.value as number,
+      trust: field("trust") as number,
+      respect: field("respect") as number,
+      resentment: field("resentment") as number,
+      knownSinceWeek: field("knownSinceWeek") as number,
+      lastInteractionWeek: field("lastInteractionWeek") as number,
+      interactionCount: field("interactionCount") as number,
+    };
+    const relationships = state.player.relationships.some((r) => r.npcId === npcId)
+      ? state.player.relationships.map((r) => (r.npcId === npcId ? relationship : r))
+      : [...state.player.relationships, relationship];
+
+    return {
+      ...state,
+      calendar: { ...state.calendar, spentTimeUnits: state.calendar.spentTimeUnits + (typeof spentDelta === "number" ? spentDelta : 0) },
+      player: { ...state.player, relationships },
+    };
+  },
+};
+
+/** Costs energy and satiety, buys health, happiness and calm — the same fixed-delta,
+ *  clamp-once shape `eat`/`rest` (W39) already use, and the same placeholder-numbers caveat.
+ *  Iterated in sorted key order so the emitted `StateChange` sequence cannot depend on
+ *  declaration order (§2's sorted-iteration rule), exactly as `endOfWeek.ts`'s `needs` drift
+ *  does. */
+const EXERCISE_NEED_DELTAS: Readonly<Record<NeedKey, number>> = {
+  energy: -10,
+  happiness: 3,
+  health: 5,
+  satiety: -5,
+  stress: -5,
+};
+
+function exercisedNeeds(state: SimulationKindState): SimulationKindState["player"]["needs"] {
+  const needs = { ...state.player.needs };
+  for (const key of Object.keys(EXERCISE_NEED_DELTAS) as NeedKey[]) {
+    needs[key] = clampNeed(needs[key] + EXERCISE_NEED_DELTAS[key]);
+  }
+  return needs;
+}
+
+export const exerciseResolver: ActionResolver = {
+  canExecute: (state, _action, ctx): ActionValidation => {
+    const campaign = simulationCampaign(ctx);
+    if (!locationAllows(state, campaign, "exercise")) return wrongLocationError();
+    if (availableTimeUnits(state) < EXERCISE_TIME_COST) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: EXERCISE_TIME_COST, calculatedMoneyCostCents: NO_MONEY_COST };
+  },
+  calculate: (state, action): ActionOutcome => {
+    const after = exercisedNeeds(state);
+    const changes: StateChange[] = [
+      { path: "calendar.spentTimeUnits", op: "increment", value: EXERCISE_TIME_COST, reason: "action_exercise", visible: true },
+    ];
+    for (const key of (Object.keys(EXERCISE_NEED_DELTAS) as NeedKey[]).sort()) {
+      const before = state.player.needs[key];
+      if (after[key] === before) continue;
+      changes.push({
+        path: `player.needs.${key}`, op: "set", value: after[key], previous: before,
+        reason: "action_exercise", visible: true,
+      });
+    }
+
+    return {
+      actionId: action.id, success: true, degree: "success", reason: "check_succeeded",
+      changes, generatedEvents: [], generatedOpportunities: [], messages: [],
+    };
+  },
+  apply: (state, outcome): SimulationKindState => {
+    const spentDelta = outcome.changes.find((c) => c.path === "calendar.spentTimeUnits")?.value;
+    return {
+      ...state,
+      calendar: { ...state.calendar, spentTimeUnits: state.calendar.spentTimeUnits + (typeof spentDelta === "number" ? spentDelta : 0) },
+      player: { ...state.player, needs: exercisedNeeds(state) },
+    };
+  },
+};
+
 /**
  * A real object literal, not `Object.fromEntries` over an array — a `Record<K, V>`
  * literal is what actually gives `ResolverTable`'s own exhaustiveness claim teeth.
@@ -1060,15 +1566,15 @@ export const RESOLVER_TABLE: ResolverTable = {
   study: studyResolver,
   enroll_course: enrollCourseResolver,
   withdraw_course: withdrawCourseResolver,
-  shop: stubResolver,
+  shop: shopResolver,
   eat: eatResolver,
   rest: restResolver,
-  exercise: stubResolver,
-  socialize: stubResolver,
-  travel: stubResolver,
-  maintain_item: stubResolver,
-  repair_item: stubResolver,
-  sell_item: stubResolver,
+  exercise: exerciseResolver,
+  socialize: socializeResolver,
+  travel: travelResolver,
+  maintain_item: maintainItemResolver,
+  repair_item: repairItemResolver,
+  sell_item: sellItemResolver,
   pay_bills: payBillsResolver,
   borrow_money: borrowMoneyResolver,
   repay_debt: repayDebtResolver,

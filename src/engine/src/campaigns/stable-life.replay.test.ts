@@ -35,6 +35,7 @@ import type { KindRegistry } from "../core/kernel/types.js";
 import { buildStableLifeCampaign } from "./stable-life.js";
 import { buildStableLifeEffectsCampaign } from "./stable-life-effects.js";
 import { buildStableLifeHousingCampaign } from "./stable-life-housing.js";
+import { buildStableLifePossessionsCampaign } from "./stable-life-possessions.js";
 
 const FIXTURES_DIR = fileURLToPath(new URL("../../fixtures/replay/", import.meta.url));
 const REPLAY_PROFILE_ID = "replay-oracle-profile";
@@ -70,7 +71,8 @@ const CURRENT_STABLE_LIFE_FIXTURE_NAMES = stableLifeFixtureNames(FIXTURES_DIR);
 const STABLE_LIFE_FIXTURE_NAMES = stableLifeFixtureNames(CORPUS_DIR);
 
 /**
- * Registers `stable-life`, `stable-life-effects` (W51.6), and `stable-life-housing` (W55)
+ * Registers `stable-life`, `stable-life-effects` (W51.6), `stable-life-housing` (W55), and
+ * `stable-life-possessions` (W56)
  * — a fixture's own `config.campaignId` picks which one it replays against; the filename
  * prefix scan above is what makes any of them part of "the Stable Life replay corpus"
  * regardless.
@@ -82,8 +84,10 @@ function makeContext(): ReplayRunnerContext {
   if (!builtEffects.ok || !builtEffects.value) throw new Error("expected the Stable Life: Effects fixture campaign to build");
   const builtHousing = buildStableLifeHousingCampaign();
   if (!builtHousing.ok || !builtHousing.value) throw new Error("expected the Stable Life: Housing fixture campaign to build");
+  const builtPossessions = buildStableLifePossessionsCampaign();
+  if (!builtPossessions.ok || !builtPossessions.value) throw new Error("expected the Stable Life: Possessions fixture campaign to build");
   const kinds = { simulation: simulationKind } as unknown as KindRegistry;
-  const registryResult = buildValidatedContentRegistry([built.value, builtEffects.value, builtHousing.value], kinds);
+  const registryResult = buildValidatedContentRegistry([built.value, builtEffects.value, builtHousing.value, builtPossessions.value], kinds);
   if (!registryResult.ok || !registryResult.value) throw new Error("expected the Stable Life fixture campaigns to validate");
 
   return {
@@ -148,5 +152,75 @@ describe("W55.6 — the housing fixtures actually reach and avoid eviction", () 
     const housing = await finalHousing("stable-life-housing-avoiding-eviction");
     expect(housing.evictionStage).toBe("none");
     expect(housing.overdueRentCents).toBe(0);
+  });
+});
+
+/**
+ * W56.6's fixture has the same blind spot W55.6's pair does, for the same reason: nothing in
+ * the arc it proves — inventory, item condition, the `StatusEffect` an item contributes —
+ * appears in `Outcome`'s cross-version-stable vocabulary (07-replay.md §2), so the `it.each`
+ * loop above proves only that the fixture replays byte-identically. Reading the arc back means
+ * stepping the same submissions through the engine and inspecting `kindState` per week.
+ */
+describe("W56.6 — the possessions fixture walks buy → use → decay → repair → sell", () => {
+  it("wears the bicycle to zero, drops its effect, repairs it, and sells it on", async () => {
+    const fixture = loadFixture("stable-life-possessions");
+    const ctx = makeContext();
+    const created = ctx.engine.createGame(fixture.config);
+    if (!created.ok || !created.value) throw new Error("expected the possessions fixture to create a game");
+
+    let state = created.value;
+    const perWeek: { condition?: number; itemEffects: number; cashCents: number }[] = [];
+    for (const submission of fixture.submissions) {
+      const result = ctx.engine.submitAction(state, submission.actionId, submission.params);
+      if (!result.ok || !result.value) throw new Error(`expected "${submission.actionId}" to be accepted`);
+      state = result.value;
+      if (submission.actionId !== "end_week") continue;
+      const kindState = state.kindState as SimulationKindState;
+      const item = kindState.player.inventory[0];
+      perWeek.push({
+        ...(item ? { condition: item.condition } : {}),
+        itemEffects: kindState.activeEffects.filter((e) => e.sourceKind === "item").length,
+        cashCents: kindState.player.finances.cashCents,
+      });
+    }
+
+    expect(perWeek).toEqual([
+      // Travelled to the market; nothing owned yet.
+      { itemEffects: 0, cashCents: 30000 },
+      // Bought (−8000), then one week of skipped maintenance took half its condition.
+      { condition: 50, itemEffects: 1, cashCents: 22000 },
+      // A second skipped week reaches zero — still owned, no longer contributing.
+      { condition: 0, itemEffects: 0, cashCents: 22000 },
+      // Repaired to full (−8000), then decayed again: repair does not reset the clock.
+      { condition: 50, itemEffects: 1, cashCents: 14000 },
+      // Sold at half of `baseResaleValueCents`, matching its condition; inventory empty.
+      { itemEffects: 0, cashCents: 16000 },
+    ]);
+  });
+
+  it("moves the neighbour's relationship, created on the first visit", async () => {
+    const fixture = loadFixture("stable-life-possessions");
+    const ctx = makeContext();
+    const created = ctx.engine.createGame(fixture.config);
+    if (!created.ok || !created.value) throw new Error("expected the possessions fixture to create a game");
+
+    let state = created.value;
+    for (const submission of fixture.submissions) {
+      const result = ctx.engine.submitAction(state, submission.actionId, submission.params);
+      if (result.ok && result.value) state = result.value;
+    }
+    const relationships = (state.kindState as SimulationKindState).player.relationships;
+    expect(relationships).toEqual([{
+      npcId: "npc-neighbour",
+      category: "personal",
+      affinity: 15,
+      trust: 12,
+      respect: 10,
+      resentment: 0,
+      knownSinceWeek: 1,
+      lastInteractionWeek: 1,
+      interactionCount: 1,
+    }]);
   });
 });

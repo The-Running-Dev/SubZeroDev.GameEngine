@@ -1,0 +1,19 @@
+{
+  "name": "stable-life-possessions",
+  "config": { "campaignId": "stable-life-possessions", "seed": "stable-life-possessions-seed" },
+  "campaignVersion": "1.0.0",
+  "capturedUnder": "0.4.0",
+  "submissions": [
+    { "actionId": "plan.add", "params": { "actionType": "socialize", "targetId": "npc-neighbour" } },
+    { "actionId": "plan.add", "params": { "actionType": "exercise" } },
+    { "actionId": "plan.add", "params": { "actionType": "travel", "targetId": "market" } },
+    { "actionId": "end_week" },
+    { "actionId": "plan.add", "params": { "actionType": "shop", "targetId": "item-bicycle" } },
+    { "actionId": "end_week" },
+    { "actionId": "end_week" },
+    { "actionId": "plan.add", "params": { "actionType": "repair_item", "targetId": "inv-action-4" } },
+    { "actionId": "end_week" },
+    { "actionId": "plan.add", "params": { "actionType": "sell_item", "targetId": "inv-action-4" } },
+    { "actionId": "end_week" }
+  ]
+}

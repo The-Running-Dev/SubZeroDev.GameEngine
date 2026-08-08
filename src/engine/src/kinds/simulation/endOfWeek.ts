@@ -16,7 +16,8 @@
  * real logic to prove a goal can be won and lost, not full mechanical depth; each unwired
  * system is an explicit, documented stub rather than silently doing nothing.
  * `needs` (drift), `opportunities` (expiry only), `goals`/`failure`, `employment`/
- * `finance_income`/`housing` (W53), `education` (W54), and now `finance_reconcile` (W55)
+ * `finance_income`/`housing` (W53), `education` (W54), `finance_reconcile` (W55), and now
+ * `inventory` (W56)
  * are real logic. Every system emits
  * `kind.simulation.system.ran` at `trace` (§11), the same ordering-verification technique
  * `startOfWeek.ts` uses. `goals`/`failure` additionally emit `goal.achieved`/`goal.failed`
@@ -73,9 +74,9 @@
 import type { ResolutionEmitter } from "../../core/observability/types.js";
 import type { StateChange } from "../../core/kernel/reasons.js";
 import type { Credential, CourseEnrollment, Employment, EvictionStage, NeedKey } from "./actor.js";
-import type { CourseDefinition, GoalDefinition, GoalFailurePrecedence, JobDefinition } from "./content.js";
+import type { CourseDefinition, GoalDefinition, GoalFailurePrecedence, ItemDefinition, JobDefinition } from "./content.js";
 import { evaluateSimulationCondition } from "./conditions.js";
-import type { Cents, GoalState, SimulationKindState } from "./state.js";
+import type { Cents, GoalState, SimulationKindState, StatusEffect } from "./state.js";
 
 const SYSTEM_NAME = "kind.simulation.system.ran";
 const GOAL_ACHIEVED_EVENT = "kind.simulation.goal.achieved";
@@ -416,9 +417,88 @@ export function financeIncome(state: SimulationKindState, jobs: readonly JobDefi
   };
 }
 
-/** **Stub.** Maintenance rules need `ItemDefinition`. */
-function inventory(state: SimulationKindState): SimulationKindState {
-  return state;
+/** A per-item `StatusEffect`'s id, derived from the instance's own natural key (§6) so the
+ *  sync below is a pure set comparison rather than a search. Colon-separated for the same
+ *  reason `attendedClass:<courseId>` is — it cannot collide with a campaign-authored id. */
+function itemEffectId(instanceId: string): string {
+  return `item:${instanceId}`;
+}
+
+/**
+ * Real logic (W56) — two jobs, in this order.
+ *
+ * **Decay.** Every item ages one week (`weeksSinceMaintenance`), and any `MaintenanceRule`
+ * whose `intervalWeeks` has elapsed since the last service takes its `conditionLossIfSkipped`
+ * off `condition`, clamped to `0–100`. An item with no `maintenanceRules` never decays —
+ * §7.5 gives condition no other decay source, and inventing a flat rate for a possession the
+ * content says needs no upkeep would be a rule this contract does not have. Skipping
+ * maintenance keeps costing every week the interval stays elapsed; `resolvers.ts`'s
+ * `maintain_item` is the only thing that resets the clock.
+ *
+ * **Effect sync.** `ItemDefinition.effects` reach `activeEffects` from here, not from `shop`
+ * — `resolvers.ts`'s own header states why (`apply` has no `ctx`, and a `modifiers` array is
+ * not addressable by the scalar natural-key convention). Every `sourceKind: "item"` effect is
+ * rebuilt from the inventory each week, so **an item at zero condition simply stops
+ * contributing its modifiers and stays in inventory** — exactly the distinction W56.3 draws,
+ * and the reason a repaired item resumes contributing without anything having to remember it
+ * once did. Effects from any other source are carried through untouched.
+ *
+ * `breakageChanceAtZeroCondition` (§7.5) is deliberately **not** applied: it is a random draw,
+ * and the end-of-week pipeline is handed an emitter, not a `KindContext` — there is no
+ * `ctx.derive` here to take a deterministic substream from. `InventoryItem.broken` therefore
+ * only ever moves through `repair_item`. Recorded as an open item rather than resolved by
+ * making the roll deterministic, which would misrepresent a chance as a certainty.
+ */
+function inventory(state: SimulationKindState, items: readonly ItemDefinition[]): { state: SimulationKindState; changes: StateChange[] } {
+  const changes: StateChange[] = [];
+  const findItem = (definitionId: string): ItemDefinition | undefined => items.find((d) => d.id === definitionId);
+
+  const nextInventory = state.player.inventory.map((item) => {
+    const weeksSinceMaintenance = item.weeksSinceMaintenance + 1;
+    const rules = findItem(item.definitionId)?.maintenanceRules ?? [];
+    const loss = rules.reduce(
+      (sum, rule) => (weeksSinceMaintenance >= rule.intervalWeeks ? sum + rule.conditionLossIfSkipped : sum),
+      0,
+    );
+    const condition = clamp(item.condition - loss, 0, 100);
+    if (condition !== item.condition) {
+      changes.push({
+        path: `player.inventory.${item.instanceId}.condition`, op: "set", value: condition,
+        previous: item.condition, reason: "item_condition_decayed", visible: true,
+      });
+    }
+    return { ...item, weeksSinceMaintenance, condition };
+  });
+
+  const carried = state.activeEffects.filter((effect) => effect.sourceKind !== "item");
+  const itemEffects: StatusEffect[] = [];
+  for (const item of nextInventory) {
+    if (item.condition <= 0) continue;
+    const def = findItem(item.definitionId);
+    if (!def || def.effects.length === 0) continue;
+    const id = itemEffectId(item.instanceId);
+    itemEffects.push({
+      id,
+      sourceId: item.instanceId,
+      sourceKind: "item",
+      modifiers: def.effects,
+      // Preserved across weeks: `appliedWeek` breaks `set`-modifier priority ties
+      // (`modifiers.ts`), so rebuilding it each week would silently re-date the effect.
+      appliedWeek: state.activeEffects.find((e) => e.id === id)?.appliedWeek ?? state.calendar.currentWeek,
+      stacking: def.stacking,
+      descriptionKey: def.nameKey,
+      visible: true,
+    });
+  }
+
+  return {
+    state: {
+      ...state,
+      player: { ...state.player, inventory: nextInventory },
+      activeEffects: [...carried, ...itemEffects],
+    },
+    changes,
+  };
 }
 
 /** Real logic (W53; revised W55) — levies `HousingState.weeklyCostCents` against
@@ -510,7 +590,11 @@ export function financeReconcile(state: SimulationKindState, missedCents: Cents)
   };
 }
 
-/** **Stub.** No relationship-decay rule is specified anywhere in this contract yet. */
+/** **Stub, and stays one after W56.** No weekly relationship rule — decay, drift, or
+ *  otherwise — is specified anywhere in this contract: §6.11 declares the state and §7.7 the
+ *  NPC, but nothing names what a week does to either. `resolvers.ts`'s `socialize` moves a
+ *  `RelationshipState`; writing the missing weekly rule is `/contract`'s work, not a slice's
+ *  (W56's own *Out of scope*). */
 function relationships(state: SimulationKindState): SimulationKindState {
   return state;
 }
@@ -618,6 +702,7 @@ export function runEndOfWeek(
   goalFailurePrecedence: GoalFailurePrecedence,
   jobs: readonly JobDefinition[] = [],
   courses: readonly CourseDefinition[] = [],
+  items: readonly ItemDefinition[] = [],
 ): { state: SimulationKindState; changes: StateChange[] } {
   let next = employment(state, jobs, emit);
   ranSystem(emit, "employment");
@@ -630,7 +715,8 @@ export function runEndOfWeek(
   next = financeIncomeResult.state;
   ranSystem(emit, "finance_income");
 
-  next = inventory(next);
+  const inventoryResult = inventory(next, items);
+  next = inventoryResult.state;
   ranSystem(emit, "inventory");
 
   const housingResult = housing(next);
@@ -669,8 +755,8 @@ export function runEndOfWeek(
   return {
     state: next,
     changes: [
-      ...educationResult.changes, ...financeIncomeResult.changes, ...housingResult.changes,
-      ...financeReconcileResult.changes, ...needsResult.changes,
+      ...educationResult.changes, ...financeIncomeResult.changes, ...inventoryResult.changes,
+      ...housingResult.changes, ...financeReconcileResult.changes, ...needsResult.changes,
     ],
   };
 }

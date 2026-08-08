@@ -2,9 +2,9 @@ import { describe, it, expect } from "vitest";
 import { financeIncome, financeReconcile, housing, runEndOfWeek } from "./endOfWeek.js";
 import { canonicalStringify } from "../../core/persistence/canonical.js";
 import type { ResolutionEmitter } from "../../core/observability/types.js";
-import type { CourseEnrollment, Employment, JobApplication, NeedState } from "./actor.js";
-import type { CourseDefinition, GoalDefinition, JobDefinition } from "./content.js";
-import type { GoalState, JobOpening, Opportunity, SimulationKindState } from "./state.js";
+import type { CourseEnrollment, Employment, InventoryItem, JobApplication, NeedState } from "./actor.js";
+import type { CourseDefinition, GoalDefinition, ItemDefinition, JobDefinition } from "./content.js";
+import type { GoalState, JobOpening, Opportunity, SimulationKindState, StatusEffect } from "./state.js";
 
 function recordingEmitter(): {
   emit: ResolutionEmitter;
@@ -48,6 +48,10 @@ function baseState(needs: NeedState, overrides: Partial<SimulationKindState> = {
       education: { enrollments: [], credentials: [], completedCourseIds: [], failedCourseIds: [] },
       skills: {},
       flags: {},
+      // Required by `PlayerState`, and read for real since W56's `inventory` system — the
+      // partial cast below is a fixture shortcut, not a state a live game can be in.
+      inventory: [],
+      relationships: [],
     } as unknown as SimulationKindState["player"],
     economy: {} as SimulationKindState["economy"],
     world: {} as SimulationKindState["world"],
@@ -778,5 +782,131 @@ describe("runEndOfWeek — W54 education", () => {
     const completed = enrolled({ weeksCompleted: 2, attendedUnits: 2, status: "completed" });
     const result = runEndOfWeek(withEnrollment(completed), emit, [], "goals_win", [], courses);
     expect(result.state.player.education.enrollments).toEqual([completed]);
+  });
+});
+
+describe("runEndOfWeek — W56.3 inventory", () => {
+  const INVENTORY_NEEDS: NeedState = { health: 50, energy: 50, happiness: 50, stress: 50, satiety: 50 };
+
+  const bicycle: ItemDefinition = {
+    id: "item-bicycle", nameKey: "item.name", descriptionKey: "item.description", category: "transport",
+    purchasePriceCents: 4000, baseResaleValueCents: 2000,
+    effects: [{ target: "player.needs.energy", operation: "add", value: 5, sourceId: "item-bicycle" }],
+    stacking: "refresh",
+    maintenanceRules: [{ intervalWeeks: 1, costCents: 500, timeCost: 1, conditionLossIfSkipped: 40, breakageChanceAtZeroCondition: 0 }],
+    requirements: [], tags: [],
+  };
+  /** No `maintenanceRules` — §7.5 gives condition no other decay source, so this never wears. */
+  const heirloom: ItemDefinition = {
+    ...bicycle, id: "item-heirloom", effects: [], maintenanceRules: [],
+  };
+  /** Effects, but nothing to maintain — so its `StatusEffect` persists week over week. */
+  const durable: ItemDefinition = { ...bicycle, id: "item-durable", maintenanceRules: [] };
+  const items: readonly ItemDefinition[] = [bicycle, heirloom, durable];
+
+  function owning(item: Partial<InventoryItem>, overrides: Partial<SimulationKindState> = {}): SimulationKindState {
+    const base = baseState(INVENTORY_NEEDS, overrides);
+    const owned: InventoryItem = {
+      instanceId: "inv-1", definitionId: "item-bicycle", quantity: 1, acquiredWeek: 1,
+      purchasePriceCents: 4000, condition: 100, weeksSinceMaintenance: 0, broken: false,
+      ...item,
+    };
+    return { ...base, player: { ...base.player, inventory: [owned] } };
+  }
+
+  it("ages every item and takes conditionLossIfSkipped once the interval has elapsed", () => {
+    const { emit } = recordingEmitter();
+    const result = runEndOfWeek(owning({}), emit, NO_GOALS, "goals_win", [], [], items);
+    expect(result.state.player.inventory[0]).toMatchObject({ condition: 60, weeksSinceMaintenance: 1 });
+  });
+
+  it("keeps charging every week the interval stays elapsed, clamped at zero", () => {
+    const { emit } = recordingEmitter();
+    const result = runEndOfWeek(owning({ condition: 20, weeksSinceMaintenance: 3 }), emit, NO_GOALS, "goals_win", [], [], items);
+    expect(result.state.player.inventory[0]).toMatchObject({ condition: 0, weeksSinceMaintenance: 4 });
+  });
+
+  it("never decays an item whose definition declares no maintenance rules", () => {
+    const { emit } = recordingEmitter();
+    const state = owning({ definitionId: "item-heirloom", condition: 70 });
+    const result = runEndOfWeek(state, emit, NO_GOALS, "goals_win", [], [], items);
+    expect(result.state.player.inventory[0]).toMatchObject({ condition: 70, weeksSinceMaintenance: 1 });
+  });
+
+  it("emits one visible StateChange per item whose condition moved", () => {
+    const { emit } = recordingEmitter();
+    const result = runEndOfWeek(owning({}), emit, NO_GOALS, "goals_win", [], [], items);
+    expect(result.changes).toContainEqual({
+      path: "player.inventory.inv-1.condition", op: "set", value: 60, previous: 100,
+      reason: "item_condition_decayed", visible: true,
+    });
+  });
+
+  it("attaches the item's ItemDefinition.effects as a sourceKind: item StatusEffect", () => {
+    const { emit } = recordingEmitter();
+    const result = runEndOfWeek(owning({}), emit, NO_GOALS, "goals_win", [], [], items);
+    expect(result.state.activeEffects).toEqual([{
+      id: "item:inv-1", sourceId: "inv-1", sourceKind: "item",
+      modifiers: bicycle.effects, appliedWeek: 5, stacking: "refresh",
+      descriptionKey: "item.name", visible: true,
+    }]);
+  });
+
+  it("stops contributing modifiers at zero condition, and keeps the item in inventory", () => {
+    const { emit } = recordingEmitter();
+    const state = owning({ condition: 30, weeksSinceMaintenance: 2 });
+    const result = runEndOfWeek(state, emit, NO_GOALS, "goals_win", [], [], items);
+    expect(result.state.activeEffects).toEqual([]);
+    expect(result.state.player.inventory).toHaveLength(1);
+    expect(result.state.player.inventory[0]).toMatchObject({ instanceId: "inv-1", condition: 0 });
+  });
+
+  it("resumes contributing once the item is repaired back above zero", () => {
+    const { emit } = recordingEmitter();
+    const worn = owning({ condition: 0, weeksSinceMaintenance: 2 });
+    const lapsed = runEndOfWeek(worn, emit, NO_GOALS, "goals_win", [], [], items);
+    expect(lapsed.state.activeEffects).toEqual([]);
+
+    const repaired: SimulationKindState = {
+      ...lapsed.state,
+      player: {
+        ...lapsed.state.player,
+        inventory: [{ ...lapsed.state.player.inventory[0]!, condition: 100, weeksSinceMaintenance: 0 }],
+      },
+    };
+    const restored = runEndOfWeek(repaired, emit, NO_GOALS, "goals_win", [], [], items);
+    expect(restored.state.activeEffects.map((e) => e.id)).toEqual(["item:inv-1"]);
+  });
+
+  it("preserves appliedWeek across weeks rather than re-dating the effect", () => {
+    const { emit } = recordingEmitter();
+    const first = runEndOfWeek(owning({ definitionId: "item-durable" }), emit, NO_GOALS, "goals_win", [], [], items);
+    const second = runEndOfWeek(
+      { ...first.state, calendar: { ...first.state.calendar, currentWeek: 9 } },
+      emit, NO_GOALS, "goals_win", [], [], items,
+    );
+    expect(second.state.activeEffects[0]?.appliedWeek).toBe(5);
+  });
+
+  it("carries every effect from another source through untouched", () => {
+    const { emit } = recordingEmitter();
+    const systemEffect: StatusEffect = {
+      id: "sys-1", sourceId: "campaign", sourceKind: "system",
+      modifiers: [], appliedWeek: 1, stacking: "refresh", descriptionKey: "e.description", visible: true,
+    };
+    const state = owning({}, { activeEffects: [systemEffect] });
+    const result = runEndOfWeek(state, emit, NO_GOALS, "goals_win", [], [], items);
+    expect(result.state.activeEffects.map((e) => e.id)).toEqual(["sys-1", "item:inv-1"]);
+  });
+
+  it("drops the effect of an item no longer in inventory", () => {
+    const { emit } = recordingEmitter();
+    const orphan: StatusEffect = {
+      id: "item:inv-gone", sourceId: "inv-gone", sourceKind: "item",
+      modifiers: [], appliedWeek: 1, stacking: "refresh", descriptionKey: "item.name", visible: true,
+    };
+    const base = baseState(INVENTORY_NEEDS, { activeEffects: [orphan] });
+    const result = runEndOfWeek(base, emit, NO_GOALS, "goals_win", [], [], items);
+    expect(result.state.activeEffects).toEqual([]);
   });
 });

@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import type { KindContext } from "../../core/kernel/types.js";
 import type { Campaign } from "../../core/registry/types.js";
 import type { SimulationCampaign } from "./campaign.js";
-import type { CourseDefinition, HousingDefinition, JobDefinition, LocationDefinition } from "./content.js";
-import type { CourseEnrollment, Employment } from "./actor.js";
+import type { CourseDefinition, HousingDefinition, ItemDefinition, JobDefinition, LocationDefinition, NPCDefinition } from "./content.js";
+import type { CourseEnrollment, Employment, InventoryItem, RelationshipState } from "./actor.js";
 import type { JobOpening, SimulationKindState } from "./state.js";
 import type { GameAction } from "./plan.js";
 import { runEndOfWeek } from "./endOfWeek.js";
@@ -13,16 +13,25 @@ import {
   borrowMoneyResolver,
   depositSavingsResolver,
   enrollCourseResolver,
+  exerciseResolver,
   investResolver,
+  maintainItemResolver,
   moveHousingResolver,
   negotiateJobTermsResolver,
   payBillsResolver,
+  repairItemResolver,
   repayDebtResolver,
   searchForWorkResolver,
+  sellItemResolver,
+  shopResolver,
+  socializeResolver,
   studyResolver,
+  travelResolver,
   withdrawCourseResolver,
   workOvertimeResolver,
   workResolver,
+  RESOLVER_TABLE,
+  stubResolver,
 } from "./resolvers.js";
 
 const calendar = { currentWeek: 3, currentYear: 1, totalTimeUnits: 14, committedTimeUnits: 0, spentTimeUnits: 0 };
@@ -69,13 +78,57 @@ const gatedCourse: CourseDefinition = {
 
 const workLocation: LocationDefinition = {
   id: "loc-work", nameKey: "loc.name", descriptionKey: "loc.description",
-  connections: [], travelTimeUnits: 0,
+  connections: ["loc-bare"], travelTimeUnits: 0,
   actionTypes: [
     "search_for_work", "apply_for_job", "negotiate_job_terms", "work", "work_overtime",
     "enroll_course", "attend_class", "study", "withdraw_course",
     "move_housing", "pay_bills", "borrow_money", "repay_debt", "deposit_savings", "invest",
+    "shop", "maintain_item", "repair_item", "sell_item", "travel", "socialize", "exercise",
   ],
 };
+
+/** Reachable from `loc-work` only via `loc-bare` — the two-hop target that proves `travel`
+ *  is single-hop adjacency, not pathfinding (§7.9). */
+const farLocation: LocationDefinition = {
+  id: "loc-far", nameKey: "loc.name", descriptionKey: "loc.description",
+  connections: ["loc-bare"], travelTimeUnits: 3, actionTypes: ["travel"],
+};
+
+const bicycle: ItemDefinition = {
+  id: "item-bicycle", nameKey: "item.name", descriptionKey: "item.description", category: "transport",
+  purchasePriceCents: 4000, baseResaleValueCents: 2000,
+  effects: [{ target: "player.needs.energy", operation: "add", value: 5, sourceId: "item-bicycle" }],
+  stacking: "refresh", durability: 100,
+  maintenanceRules: [{ intervalWeeks: 2, costCents: 500, timeCost: 1, conditionLossIfSkipped: 30, breakageChanceAtZeroCondition: 0 }],
+  requirements: [], tags: [],
+};
+
+/** No effects and no `maintenanceRules` — the item `maintain_item` has nothing to service
+ *  and `inventory` (`endOfWeek.ts`) never decays. */
+const trinket: ItemDefinition = {
+  id: "item-trinket", nameKey: "item.name", descriptionKey: "item.description", category: "misc",
+  purchasePriceCents: 200, baseResaleValueCents: 100,
+  effects: [], stacking: "refresh", requirements: [], tags: [],
+};
+
+const expensiveItem: ItemDefinition = { ...trinket, id: "item-expensive", purchasePriceCents: 999999 };
+
+const neighbour: NPCDefinition = {
+  id: "npc-neighbour", nameKey: "npc.name", descriptionKey: "npc.description",
+  defaultRole: "neighbour",
+  initialRelationship: { affinity: 10, trust: 10, respect: 10, resentment: 0 },
+  availability: [{ locationId: "loc-work" }], tags: [],
+};
+
+const absentNpc: NPCDefinition = { ...neighbour, id: "npc-absent", availability: [{ locationId: "loc-far" }] };
+
+function inventoryItem(overrides: Partial<InventoryItem> = {}): InventoryItem {
+  return {
+    instanceId: "inv-1", definitionId: "item-bicycle", quantity: 1, acquiredWeek: 1,
+    purchasePriceCents: 4000, condition: 100, weeksSinceMaintenance: 0, broken: false,
+    ...overrides,
+  };
+}
 
 const housingAffordable: HousingDefinition = {
   id: "housing-affordable", nameKey: "h.name", descriptionKey: "h.description",
@@ -133,9 +186,10 @@ function state(overrides: Partial<SimulationKindState> = {}): SimulationKindStat
 const simulationCampaign: SimulationCampaign = {
   descriptionKey: "sim.description",
   jobs: [job, gatedJob, accountantJob], courses: [course, gatedCourse],
-  housing: [housingAffordable, housingExpensive, housingGated], items: [], events: [], npcs: [], goals: [],
+  housing: [housingAffordable, housingExpensive, housingGated],
+  items: [bicycle, trinket, expensiveItem], events: [], npcs: [neighbour, absentNpc], goals: [],
   scenarios: [], difficulties: [], opportunities: [], achievements: [], headlines: [], employers: [],
-  locations: [workLocation, bareLocation], backgrounds: [], traits: [], skills: [],
+  locations: [workLocation, bareLocation, farLocation], backgrounds: [], traits: [], skills: [],
   scenarioId: "scenario-1", goalFailurePrecedence: "goals_win",
   sceneTemplateKey: "sim.scene.status",
   actionLabelKeys: { planAdd: "a", planRemove: "b", planClear: "c", endWeek: "d" },
@@ -636,5 +690,242 @@ describe("W55 — borrow_money / repay_debt / deposit_savings / invest", () => {
     const outcome = investResolver.calculate(s, actionWithAmount("invest", 1000), ctx());
     const next = investResolver.apply(s, outcome);
     expect(next.player.finances.accounts).toEqual([{ ...existing, balanceCents: 5000 }]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// W56 — Possessions, Places, and People
+// ---------------------------------------------------------------------------
+
+describe("W56.1 — every remaining ActionType has a real resolver", () => {
+  it.each(["shop", "maintain_item", "repair_item", "sell_item", "travel", "socialize", "exercise"] as const)(
+    "%s is not stubResolver",
+    (type) => {
+      expect(RESOLVER_TABLE[type]).not.toBe(stubResolver);
+    },
+  );
+});
+
+describe("W56.2 — both halves of wrong_location", () => {
+  it("rejects a travel target the current location does not connect to", () => {
+    const result = travelResolver.canExecute(state(), action("travel", "loc-far"), ctx());
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]?.code).toBe("wrong_location");
+  });
+
+  it("accepts a travel target the current location does connect to", () => {
+    const result = travelResolver.canExecute(state(), action("travel", "loc-bare"), ctx());
+    expect(result.valid).toBe(true);
+  });
+
+  it("rejects an unknown travel target as unknown_action, not wrong_location", () => {
+    const result = travelResolver.canExecute(state(), action("travel", "loc-nowhere"), ctx());
+    expect(result.errors[0]?.code).toBe("unknown_action");
+  });
+
+  it.each([
+    ["shop", shopResolver, "item-trinket"],
+    ["maintain_item", maintainItemResolver, "inv-1"],
+    ["repair_item", repairItemResolver, "inv-1"],
+    ["sell_item", sellItemResolver, "inv-1"],
+    ["travel", travelResolver, "loc-far"],
+    ["socialize", socializeResolver, "npc-neighbour"],
+  ] as const)("rejects %s whose type is absent from the location's actionTypes", (type, resolver, targetId) => {
+    const s = state({
+      player: player({ currentLocationId: "loc-bare", inventory: [inventoryItem({ condition: 10 })] }),
+    });
+    const result = resolver.canExecute(s, action(type, targetId), ctx());
+    expect(result.errors[0]?.code).toBe("wrong_location");
+  });
+
+  it("rejects exercise whose type is absent from the location's actionTypes", () => {
+    const s = state({ player: player({ currentLocationId: "loc-bare" }) });
+    expect(exerciseResolver.canExecute(s, action("exercise"), ctx()).errors[0]?.code).toBe("wrong_location");
+  });
+});
+
+describe("W56 — travel", () => {
+  it("moves one hop and spends the target's own travelTimeUnits", () => {
+    const near: LocationDefinition = { ...bareLocation, travelTimeUnits: 3, actionTypes: ["travel"] };
+    const campaignWithCost: Campaign = {
+      ...campaign,
+      content: { ...simulationCampaign, locations: [workLocation, near, farLocation] },
+    };
+    const s = state();
+    const outcome = travelResolver.calculate(s, action("travel", "loc-bare"), ctx({ campaign: campaignWithCost }));
+    const next = travelResolver.apply(s, outcome);
+    expect(next.player.currentLocationId).toBe("loc-bare");
+    expect(next.calendar.spentTimeUnits).toBe(3);
+  });
+
+  it("rejects insufficient_time when the trip costs more than the week has left", () => {
+    const campaignWithCost: Campaign = {
+      ...campaign,
+      content: { ...simulationCampaign, locations: [workLocation, { ...bareLocation, travelTimeUnits: 9 }, farLocation] },
+    };
+    const s = state({ calendar: { ...calendar, spentTimeUnits: 8 } });
+    const result = travelResolver.canExecute(s, action("travel", "loc-bare"), ctx({ campaign: campaignWithCost }));
+    expect(result.errors[0]?.code).toBe("insufficient_time");
+  });
+});
+
+describe("W56 — shop", () => {
+  it("rejects an unknown item", () => {
+    expect(shopResolver.canExecute(state(), action("shop", "item-nope"), ctx()).errors[0]?.code).toBe("unknown_action");
+  });
+
+  it("rejects insufficient_funds when the price exceeds cash", () => {
+    expect(shopResolver.canExecute(state(), action("shop", "item-expensive"), ctx()).errors[0]?.code).toBe("insufficient_funds");
+  });
+
+  it("adds one undamaged instance and debits the price", () => {
+    const s = state();
+    const outcome = shopResolver.calculate(s, action("shop", "item-bicycle"), ctx());
+    const next = shopResolver.apply(s, outcome);
+    expect(next.player.finances.cashCents).toBe(6000);
+    expect(next.player.inventory).toEqual([{
+      instanceId: "inv-action-1", definitionId: "item-bicycle", quantity: 1, acquiredWeek: 3,
+      purchasePriceCents: 4000, condition: 100, weeksSinceMaintenance: 0, broken: false,
+    }]);
+    expect(next.calendar.spentTimeUnits).toBe(1);
+  });
+
+  it("addresses the new instance by natural key in outcome.changes", () => {
+    const outcome = shopResolver.calculate(state(), action("shop", "item-bicycle"), ctx());
+    expect(outcome.changes.find((c) => c.path === "player.inventory.inv-action-1.condition"))
+      .toMatchObject({ op: "set", value: 100, visible: true });
+  });
+
+  it("attaches no StatusEffect itself — that is the inventory system's job", () => {
+    const s = state();
+    const next = shopResolver.apply(s, shopResolver.calculate(s, action("shop", "item-bicycle"), ctx()));
+    expect(next.activeEffects).toEqual([]);
+  });
+});
+
+describe("W56 — maintain_item and repair_item", () => {
+  const owning = (overrides: Partial<InventoryItem> = {}): SimulationKindState =>
+    state({ player: player({ inventory: [inventoryItem(overrides)] }) });
+
+  it("maintain_item rejects requirement_unmet for an instance not owned", () => {
+    expect(maintainItemResolver.canExecute(state(), action("maintain_item", "inv-1"), ctx()).errors[0]?.code)
+      .toBe("requirement_unmet");
+  });
+
+  it("maintain_item rejects requirement_unmet for an item with no maintenance rules", () => {
+    const s = owning({ definitionId: "item-trinket" });
+    expect(maintainItemResolver.canExecute(s, action("maintain_item", "inv-1"), ctx()).errors[0]?.code)
+      .toBe("requirement_unmet");
+  });
+
+  it("maintain_item resets the maintenance clock without restoring condition", () => {
+    const s = owning({ condition: 40, weeksSinceMaintenance: 5 });
+    const next = maintainItemResolver.apply(s, maintainItemResolver.calculate(s, action("maintain_item", "inv-1"), ctx()));
+    expect(next.player.inventory[0]).toMatchObject({ condition: 40, weeksSinceMaintenance: 0 });
+    expect(next.player.finances.cashCents).toBe(9500);
+    expect(next.calendar.spentTimeUnits).toBe(1);
+  });
+
+  it("repair_item rejects requirement_unmet for an undamaged, unbroken item", () => {
+    expect(repairItemResolver.canExecute(owning(), action("repair_item", "inv-1"), ctx()).errors[0]?.code)
+      .toBe("requirement_unmet");
+  });
+
+  it("repair_item restores condition and clears broken, priced off what was lost", () => {
+    const s = owning({ condition: 25, broken: true, weeksSinceMaintenance: 4 });
+    const next = repairItemResolver.apply(s, repairItemResolver.calculate(s, action("repair_item", "inv-1"), ctx()));
+    expect(next.player.inventory[0]).toMatchObject({ condition: 100, broken: false, weeksSinceMaintenance: 4 });
+    expect(next.player.finances.cashCents).toBe(7000);
+  });
+
+  it("repair_item rejects insufficient_funds when the repair costs more than cash", () => {
+    const s = state({
+      player: player({
+        finances: { ...player().finances, cashCents: 100 },
+        inventory: [inventoryItem({ condition: 0 })],
+      }),
+    });
+    expect(repairItemResolver.canExecute(s, action("repair_item", "inv-1"), ctx()).errors[0]?.code)
+      .toBe("insufficient_funds");
+  });
+});
+
+describe("W56 — sell_item", () => {
+  it("rejects requirement_unmet for an instance not owned", () => {
+    expect(sellItemResolver.canExecute(state(), action("sell_item", "inv-1"), ctx()).errors[0]?.code)
+      .toBe("requirement_unmet");
+  });
+
+  it("removes the instance and credits resale scaled by condition", () => {
+    const s = state({ player: player({ inventory: [inventoryItem({ condition: 50 })] }) });
+    const next = sellItemResolver.apply(s, sellItemResolver.calculate(s, action("sell_item", "inv-1"), ctx()));
+    expect(next.player.inventory).toEqual([]);
+    expect(next.player.finances.cashCents).toBe(11000);
+  });
+});
+
+describe("W56.4 — socialize", () => {
+  it("rejects requirement_unmet when the NPC is not present at the current location", () => {
+    const result = socializeResolver.canExecute(state(), action("socialize", "npc-absent"), ctx());
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]?.code).toBe("requirement_unmet");
+  });
+
+  it("rejects an unknown NPC", () => {
+    expect(socializeResolver.canExecute(state(), action("socialize", "npc-nope"), ctx()).errors[0]?.code)
+      .toBe("unknown_action");
+  });
+
+  it("opens a relationship from the NPC's initialRelationship on the first interaction", () => {
+    const s = state();
+    const next = socializeResolver.apply(s, socializeResolver.calculate(s, action("socialize", "npc-neighbour"), ctx()));
+    expect(next.player.relationships).toEqual([{
+      npcId: "npc-neighbour", category: "personal",
+      affinity: 15, trust: 12, respect: 10, resentment: 0,
+      knownSinceWeek: 3, lastInteractionWeek: 3, interactionCount: 1,
+    }]);
+  });
+
+  it("moves an existing relationship rather than opening a second one", () => {
+    const existing: RelationshipState = {
+      npcId: "npc-neighbour", category: "professional",
+      affinity: 40, trust: 30, respect: 20, resentment: 5,
+      knownSinceWeek: 1, lastInteractionWeek: 2, interactionCount: 4,
+    };
+    const s = state({ player: player({ relationships: [existing] }) });
+    const next = socializeResolver.apply(s, socializeResolver.calculate(s, action("socialize", "npc-neighbour"), ctx()));
+    expect(next.player.relationships).toEqual([{
+      ...existing, affinity: 45, trust: 32, lastInteractionWeek: 3, interactionCount: 5,
+    }]);
+  });
+
+  it("keeps the hidden resentment dimension off any visible change", () => {
+    const outcome = socializeResolver.calculate(state(), action("socialize", "npc-neighbour"), ctx());
+    expect(outcome.changes.find((c) => c.path.endsWith(".resentment"))).toMatchObject({ visible: false });
+  });
+});
+
+describe("W56.5 — exercise", () => {
+  it("moves the needs §6.5 names, one StateChange each", () => {
+    const s = state();
+    const outcome = exerciseResolver.calculate(s, action("exercise"), ctx());
+    const next = exerciseResolver.apply(s, outcome);
+    expect(next.player.needs).toEqual({ health: 85, energy: 70, happiness: 63, stress: 15, satiety: 75 });
+    expect(outcome.changes.filter((c) => c.path.startsWith("player.needs.")).map((c) => c.path)).toEqual([
+      "player.needs.energy", "player.needs.happiness", "player.needs.health",
+      "player.needs.satiety", "player.needs.stress",
+    ]);
+  });
+
+  it("clamps to 0-100 and emits nothing for a need already at its bound", () => {
+    const s = state({
+      player: player({ needs: { health: 100, energy: 5, happiness: 100, stress: 0, satiety: 2 } }),
+    });
+    const outcome = exerciseResolver.calculate(s, action("exercise"), ctx());
+    const next = exerciseResolver.apply(s, outcome);
+    expect(next.player.needs).toEqual({ health: 100, energy: 0, happiness: 100, stress: 0, satiety: 0 });
+    expect(outcome.changes.filter((c) => c.path.startsWith("player.needs.")).map((c) => c.path)).toEqual([
+      "player.needs.energy", "player.needs.satiety",
+    ]);
   });
 });

@@ -43,6 +43,10 @@
  * *registered → has message*; nothing checks *emitted → registered*, so the completeness
  * gate stayed green throughout. W54 registered its own audit codes; W53 and W55 did not,
  * which is why the two blocks below look inconsistent in origin but not in kind.
+ *
+ * W56 registers its own eight at the point of emission, the discipline that reconciliation
+ * established. `plan_empty` and `week_limit_reached` remain the only two §10 names still
+ * undispatched — neither is reachable from possessions, places or people.
  */
 
 import type { LocKey } from "../../core/localization/types.js";
@@ -87,6 +91,15 @@ export const SIMULATION_REASON_CODES = [
   "rent_charged",
   "rent_overdue",
   "eviction_advanced",
+  // W56 — possessions, places and people. Seven action audit codes, one end-of-week code.
+  "action_shop",
+  "action_maintain_item",
+  "action_repair_item",
+  "action_sell_item",
+  "action_travel",
+  "action_socialize",
+  "action_exercise",
+  "item_condition_decayed",
 ] as const;
 
 export type SimulationReasonCode = (typeof SIMULATION_REASON_CODES)[number];
@@ -127,6 +140,14 @@ const SIMULATION_REASON_TEXT: Readonly<Record<SimulationReasonCode, string>> = {
   rent_charged: "Rent was charged.",
   rent_overdue: "Rent went unpaid, and a late fee was added.",
   eviction_advanced: "Your eviction moved one stage closer.",
+  action_shop: "You bought it.",
+  action_maintain_item: "You kept it in working order.",
+  action_repair_item: "You had it repaired.",
+  action_sell_item: "You sold it on.",
+  action_travel: "You made the trip.",
+  action_socialize: "You spent time with someone.",
+  action_exercise: "You exercised.",
+  item_condition_decayed: "Something you own is wearing out.",
 };
 
 /** `simulation.reason.<code>` → its shipped default-English message, for every code. */
