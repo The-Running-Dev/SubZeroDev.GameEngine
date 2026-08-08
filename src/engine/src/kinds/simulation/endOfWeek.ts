@@ -38,12 +38,27 @@
  * ordering claim: "`finance_income` ... must run *before* `housing`, so rent is payable from
  * this week's own wages." Both read `jobs: readonly JobDefinition[]`, threaded in from
  * `advance.ts`'s own `content.jobs` — the same parameter shape `goalDefs` already uses.
+ *
+ * **`education` (W54).** Advances every *active* `CourseEnrollment` by one week: `weeksCompleted`
+ * always increments, `attendedUnits`/`missedSessions` split on whether `resolvers.ts`'s
+ * `attend_class` set `player.flags.attendedClass:<courseId>` this week (cleared here once
+ * read, the same clear-after-both-consumers-have-seen-it discipline `financeIncome` already
+ * uses for the two work flags). Once `weeksCompleted` reaches `CourseDefinition.durationWeeks`,
+ * `CourseFailureRules` decides pass or fail — attendance ratio, missed-session count, total
+ * `studyUnits` against `minimumStudyUnitsPerWeek × durationWeeks`, and (if set) a stress cap.
+ * A pass applies the course's `"skill"`-type `Reward`s (raising `player.skills.<id>` to at
+ * least the reward's value — never lowering an already-higher skill) and, if
+ * `awardsCredential` is set, appends a `Credential`; a fail sets `retainedProgress` from
+ * `CourseFailureRules.progressRetainedOnFailure`. Either way the enrollment's own `status`
+ * flips and it stays in `enrollments` as history — unlike a filled `JobOpening`, nothing here
+ * removes it. Threaded `courses: readonly CourseDefinition[]` the same plain-parameter way
+ * `jobs` already is.
  */
 
 import type { ResolutionEmitter } from "../../core/observability/types.js";
 import type { StateChange } from "../../core/kernel/reasons.js";
-import type { Employment, NeedKey } from "./actor.js";
-import type { GoalDefinition, GoalFailurePrecedence, JobDefinition } from "./content.js";
+import type { Credential, CourseEnrollment, Employment, NeedKey } from "./actor.js";
+import type { CourseDefinition, GoalDefinition, GoalFailurePrecedence, JobDefinition } from "./content.js";
 import { evaluateSimulationCondition } from "./conditions.js";
 import type { GoalState, SimulationKindState } from "./state.js";
 
@@ -247,9 +262,95 @@ function employment(state: SimulationKindState, jobs: readonly JobDefinition[], 
   return hiredThisWeek ? resolved : advanceEmployment(resolved, jobs);
 }
 
-/** **Stub.** Needs `CourseDefinition`. */
-function education(state: SimulationKindState): SimulationKindState {
-  return state;
+function findCourse(courses: readonly CourseDefinition[], courseId: string): CourseDefinition | undefined {
+  return courses.find((c) => c.id === courseId);
+}
+
+function attendanceFlagKey(courseId: string): string {
+  return `attendedClass:${courseId}`;
+}
+
+/** Real logic (W54). See this file's own header for the pass/fail rule and what a
+ *  completion awards. */
+function education(state: SimulationKindState, courses: readonly CourseDefinition[]): SimulationKindState {
+  let working = state;
+  const nextEnrollments: CourseEnrollment[] = [];
+  let credentials = state.player.education.credentials;
+  let completedCourseIds = state.player.education.completedCourseIds;
+  let failedCourseIds = state.player.education.failedCourseIds;
+  let flags = state.player.flags;
+
+  for (const enrollment of state.player.education.enrollments) {
+    if (enrollment.status !== "active") {
+      nextEnrollments.push(enrollment);
+      continue;
+    }
+    const course = findCourse(courses, enrollment.courseId);
+    if (!course) {
+      nextEnrollments.push(enrollment);
+      continue;
+    }
+
+    const flagKey = attendanceFlagKey(enrollment.courseId);
+    const attended = flags[flagKey] === true;
+    if (flagKey in flags) flags = { ...flags, [flagKey]: false };
+
+    const weeksCompleted = enrollment.weeksCompleted + 1;
+    const attendedUnits = enrollment.attendedUnits + (attended ? 1 : 0);
+    const missedSessions = enrollment.missedSessions + (attended ? 0 : 1);
+
+    if (weeksCompleted < course.durationWeeks) {
+      nextEnrollments.push({ ...enrollment, weeksCompleted, attendedUnits, missedSessions });
+      continue;
+    }
+
+    const attendanceRatio = Math.round((attendedUnits / weeksCompleted) * 100);
+    const failed = attendanceRatio < course.failureRules.minimumAttendanceRatio
+      || missedSessions > course.failureRules.maximumMissedSessions
+      || enrollment.studyUnits < course.failureRules.minimumStudyUnitsPerWeek * course.durationWeeks
+      || (course.failureRules.maximumStress !== undefined && state.player.needs.stress > course.failureRules.maximumStress);
+
+    if (failed) {
+      nextEnrollments.push({
+        ...enrollment, weeksCompleted, attendedUnits, missedSessions,
+        status: "failed", retainedProgress: course.failureRules.progressRetainedOnFailure,
+      });
+      if (!failedCourseIds.includes(course.id)) failedCourseIds = [...failedCourseIds, course.id];
+      continue;
+    }
+
+    nextEnrollments.push({ ...enrollment, weeksCompleted, attendedUnits, missedSessions, status: "completed" });
+    if (!completedCourseIds.includes(course.id)) completedCourseIds = [...completedCourseIds, course.id];
+
+    for (const reward of course.rewards) {
+      if (reward.type !== "skill" || reward.target === undefined || typeof reward.value !== "number") continue;
+      const skillId = reward.target;
+      const current = working.player.skills[skillId] ?? 0;
+      const awarded = Math.min(100, Math.max(0, Math.max(current, reward.value)));
+      if (awarded === current) continue;
+      working = { ...working, player: { ...working.player, skills: { ...working.player.skills, [skillId]: awarded } } };
+    }
+
+    if (course.awardsCredential !== undefined && course.awardsCredential !== "none") {
+      const credential: Credential = {
+        id: `${course.id}-credential-${state.calendar.currentWeek}`,
+        courseId: course.id,
+        awardedWeek: state.calendar.currentWeek,
+        level: course.awardsCredential,
+        labelKey: course.nameKey,
+      };
+      credentials = [...credentials, credential];
+    }
+  }
+
+  return {
+    ...working,
+    player: {
+      ...working.player,
+      flags,
+      education: { enrollments: nextEnrollments, credentials, completedCourseIds, failedCourseIds },
+    },
+  };
 }
 
 /** Real logic (W53) — pays `Employment.weeklyPayCents` into `cashCents`, plus overtime pay
@@ -425,11 +526,12 @@ export function runEndOfWeek(
   goalDefs: readonly GoalDefinition[],
   goalFailurePrecedence: GoalFailurePrecedence,
   jobs: readonly JobDefinition[] = [],
+  courses: readonly CourseDefinition[] = [],
 ): { state: SimulationKindState; changes: StateChange[] } {
   let next = employment(state, jobs, emit);
   ranSystem(emit, "employment");
 
-  next = education(next);
+  next = education(next, courses);
   ranSystem(emit, "education");
 
   const financeIncomeResult = financeIncome(next, jobs);

@@ -33,12 +33,27 @@
  * way, but on a timescale (`resolvesWeek`) a single action's `apply()` cannot see across —
  * that is `endOfWeek.ts`'s `employment` system, which already receives the full `jobs` list
  * as a plain function parameter and has no `apply()`-style constraint to work around.
+ *
+ * **W54 adds the four education resolvers**: `enroll_course`, `attend_class`, `study` and
+ * `withdraw_course` (§7.3, §6.7). `enroll_course` follows the same natural-key addressing
+ * convention as `apply_for_job` — `calculate` emits one `StateChange` per scalar field of the
+ * new `CourseEnrollment` (`player.education.enrollments.<courseId>.*`), and `apply`
+ * reconstructs it from `outcome.changes`. `attend_class` costs no time of its own:
+ * `startOfWeek.ts`'s `time_commit` already reserves a course's `weeklyTimeCost` for every
+ * active enrollment regardless of whether the player shows up, so the action's only job is to
+ * flip a per-course attendance flag (`player.flags.attendedClass:<courseId>`) that
+ * `endOfWeek.ts`'s `education` system reads and clears. `study` is the one discretionary
+ * education action that spends real time, incrementing `CourseEnrollment.studyUnits` — again
+ * addressed and reconstructed the `apply_for_job` way, since `apply` cannot look up which
+ * enrollment a study session targets on its own. `withdraw_course` removes the enrollment
+ * outright (§10-simulation-kind.md's "or withdraw and lose the fees" — no refund, and nothing
+ * elsewhere in this contract gives a withdrawn course a persisted record).
  */
 
 import type { KindContext } from "../../core/kernel/types.js";
 import type { StateChange, OutcomeMessage } from "../../core/kernel/reasons.js";
 import type { ValidationError, ValidationWarning } from "../../core/validation/types.js";
-import type { JobApplication } from "./actor.js";
+import type { CourseEnrollment, JobApplication } from "./actor.js";
 import type { SimulationCampaign } from "./campaign.js";
 import { evaluateSimulationCondition } from "./conditions.js";
 import type { JobOpening, SimulationKindState } from "./state.js";
@@ -220,6 +235,10 @@ function wrongLocationError(): ActionValidation {
 
 function insufficientTimeError(): ActionValidation {
   return invalid("insufficient_time", "simulation.reason.insufficient_time");
+}
+
+function insufficientFundsError(): ActionValidation {
+  return invalid("insufficient_funds", "simulation.reason.insufficient_funds");
 }
 
 function requirementUnmetError(): ActionValidation {
@@ -472,6 +491,187 @@ export const negotiateJobTermsResolver: ActionResolver = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// W54 — Education and Skills
+// ---------------------------------------------------------------------------
+
+const STUDY_TIME_COST = 2;
+const STUDY_UNITS_PER_SESSION = 1;
+
+function attendanceFlagKey(courseId: string): string {
+  return `attendedClass:${courseId}`;
+}
+
+/** Shared by `attend_class`/`study`/`withdraw_course` — all three need an existing *active*
+ *  enrollment in the targeted course; §10 names no more specific code for "not enrolled." */
+function activeEnrollment(state: SimulationKindState, courseId: string | undefined): CourseEnrollment | undefined {
+  if (courseId === undefined) return undefined;
+  return state.player.education.enrollments.find((e) => e.courseId === courseId && e.status === "active");
+}
+
+export const enrollCourseResolver: ActionResolver = {
+  canExecute: (state, action, ctx): ActionValidation => {
+    const campaign = simulationCampaign(ctx);
+    const courseId = action.targetId;
+    const course = courseId === undefined ? undefined : campaign.courses.find((c) => c.id === courseId);
+    if (!course) return invalid("unknown_action", "core.reason.unknown_action");
+    if (!locationAllows(state, campaign, "enroll_course")) return wrongLocationError();
+    if (activeEnrollment(state, course.id)) return requirementUnmetError();
+    for (const requirement of course.requirements) {
+      if (!evaluateSimulationCondition(requirement.condition, state)) {
+        return invalid(requirement.failureCode, requirement.messageKey);
+      }
+    }
+    if (state.player.finances.cashCents < course.tuitionCents) return insufficientFundsError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: 0, calculatedMoneyCostCents: course.tuitionCents };
+  },
+  calculate: (state, action, ctx): ActionOutcome => {
+    const campaign = simulationCampaign(ctx);
+    const course = campaign.courses.find((c) => c.id === action.targetId)!;
+    const base = `player.education.enrollments.${course.id}`;
+    const cashBefore = state.player.finances.cashCents;
+
+    const changes: StateChange[] = [
+      { path: "player.finances.cashCents", op: "decrement", value: course.tuitionCents, previous: cashBefore, reason: "action_enroll_course", visible: true },
+      { path: `${base}.startedWeek`, op: "set", value: state.calendar.currentWeek, reason: "action_enroll_course", visible: true },
+      { path: `${base}.weeksCompleted`, op: "set", value: 0, reason: "action_enroll_course", visible: false },
+      { path: `${base}.attendedUnits`, op: "set", value: 0, reason: "action_enroll_course", visible: false },
+      { path: `${base}.studyUnits`, op: "set", value: 0, reason: "action_enroll_course", visible: false },
+      { path: `${base}.missedSessions`, op: "set", value: 0, reason: "action_enroll_course", visible: false },
+      { path: `${base}.tuitionPaidCents`, op: "set", value: course.tuitionCents, reason: "action_enroll_course", visible: true },
+      { path: `${base}.tuitionOutstandingCents`, op: "set", value: 0, reason: "action_enroll_course", visible: false },
+      { path: `${base}.retainedProgress`, op: "set", value: 0, reason: "action_enroll_course", visible: false },
+      { path: `${base}.status`, op: "set", value: "active", reason: "action_enroll_course", visible: true },
+    ];
+
+    return {
+      actionId: action.id, success: true, degree: "success", reason: "check_succeeded",
+      changes, generatedEvents: [], generatedOpportunities: [], messages: [],
+    };
+  },
+  apply: (state, outcome): SimulationKindState => {
+    const startedWeekChange = outcome.changes.find((c) => c.path.startsWith("player.education.enrollments.") && c.path.endsWith(".startedWeek"));
+    if (!startedWeekChange) return state;
+    const courseId = startedWeekChange.path.split(".")[3]!;
+    const field = (name: string): unknown => outcome.changes.find((c) => c.path === `player.education.enrollments.${courseId}.${name}`)?.value;
+    const tuitionPaid = outcome.changes.find((c) => c.path === "player.finances.cashCents")?.value;
+
+    const enrollment: CourseEnrollment = {
+      courseId,
+      startedWeek: startedWeekChange.value as number,
+      weeksCompleted: field("weeksCompleted") as number,
+      attendedUnits: field("attendedUnits") as number,
+      studyUnits: field("studyUnits") as number,
+      missedSessions: field("missedSessions") as number,
+      tuitionPaidCents: field("tuitionPaidCents") as Cents,
+      tuitionOutstandingCents: field("tuitionOutstandingCents") as Cents,
+      retainedProgress: field("retainedProgress") as number,
+      status: "active",
+    };
+
+    return {
+      ...state,
+      player: {
+        ...state.player,
+        finances: { ...state.player.finances, cashCents: state.player.finances.cashCents - (typeof tuitionPaid === "number" ? tuitionPaid : 0) },
+        education: { ...state.player.education, enrollments: [...state.player.education.enrollments, enrollment] },
+      },
+    };
+  },
+};
+
+export const attendClassResolver: ActionResolver = {
+  canExecute: (state, action, ctx): ActionValidation => {
+    if (!activeEnrollment(state, action.targetId)) return requirementUnmetError();
+    const campaign = simulationCampaign(ctx);
+    if (!locationAllows(state, campaign, "attend_class")) return wrongLocationError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: 0, calculatedMoneyCostCents: NO_MONEY_COST };
+  },
+  calculate: (state, action): ActionOutcome => {
+    const courseId = action.targetId!;
+    const flagKey = attendanceFlagKey(courseId);
+    const changes: StateChange[] = [
+      { path: `player.flags.${flagKey}`, op: "set", value: true, previous: state.player.flags[flagKey] ?? false, reason: "action_attend_class", visible: true },
+    ];
+    return {
+      actionId: action.id, success: true, degree: "success", reason: "check_succeeded",
+      changes, generatedEvents: [], generatedOpportunities: [], messages: [],
+    };
+  },
+  apply: (state, outcome): SimulationKindState => {
+    const change = outcome.changes.find((c) => c.path.startsWith("player.flags.attendedClass:"));
+    if (!change) return state;
+    const flagKey = change.path.slice("player.flags.".length);
+    return { ...state, player: { ...state.player, flags: { ...state.player.flags, [flagKey]: true } } };
+  },
+};
+
+export const studyResolver: ActionResolver = {
+  canExecute: (state, action, ctx): ActionValidation => {
+    if (!activeEnrollment(state, action.targetId)) return requirementUnmetError();
+    const campaign = simulationCampaign(ctx);
+    if (!locationAllows(state, campaign, "study")) return wrongLocationError();
+    if (availableTimeUnits(state) < STUDY_TIME_COST) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: STUDY_TIME_COST, calculatedMoneyCostCents: NO_MONEY_COST };
+  },
+  calculate: (state, action): ActionOutcome => {
+    const courseId = action.targetId!;
+    const enrollment = activeEnrollment(state, courseId)!;
+    const changes: StateChange[] = [
+      { path: "calendar.spentTimeUnits", op: "increment", value: STUDY_TIME_COST, reason: "action_study", visible: true },
+      {
+        path: `player.education.enrollments.${courseId}.studyUnits`, op: "increment", value: STUDY_UNITS_PER_SESSION,
+        previous: enrollment.studyUnits, reason: "action_study", visible: true,
+      },
+    ];
+    return {
+      actionId: action.id, success: true, degree: "success", reason: "check_succeeded",
+      changes, generatedEvents: [], generatedOpportunities: [], messages: [],
+    };
+  },
+  apply: (state, outcome): SimulationKindState => {
+    const spentDelta = outcome.changes.find((c) => c.path === "calendar.spentTimeUnits")?.value;
+    const studyChange = outcome.changes.find((c) => c.path.startsWith("player.education.enrollments.") && c.path.endsWith(".studyUnits"));
+    if (!studyChange) {
+      return { ...state, calendar: { ...state.calendar, spentTimeUnits: state.calendar.spentTimeUnits + (typeof spentDelta === "number" ? spentDelta : 0) } };
+    }
+    const courseId = studyChange.path.split(".")[3]!;
+    const enrollments = state.player.education.enrollments.map((e) =>
+      e.courseId === courseId ? { ...e, studyUnits: e.studyUnits + (studyChange.value as number) } : e);
+    return {
+      ...state,
+      calendar: { ...state.calendar, spentTimeUnits: state.calendar.spentTimeUnits + (typeof spentDelta === "number" ? spentDelta : 0) },
+      player: { ...state.player, education: { ...state.player.education, enrollments } },
+    };
+  },
+};
+
+export const withdrawCourseResolver: ActionResolver = {
+  canExecute: (state, action, ctx): ActionValidation => {
+    if (!activeEnrollment(state, action.targetId)) return requirementUnmetError();
+    const campaign = simulationCampaign(ctx);
+    if (!locationAllows(state, campaign, "withdraw_course")) return wrongLocationError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: 0, calculatedMoneyCostCents: NO_MONEY_COST };
+  },
+  calculate: (state, action): ActionOutcome => {
+    const courseId = action.targetId!;
+    const changes: StateChange[] = [
+      { path: `player.education.enrollments.${courseId}.status`, op: "set", value: "withdrawn", previous: "active", reason: "action_withdraw_course", visible: true },
+    ];
+    return {
+      actionId: action.id, success: true, degree: "success", reason: "check_succeeded",
+      changes, generatedEvents: [], generatedOpportunities: [], messages: [],
+    };
+  },
+  apply: (state, outcome): SimulationKindState => {
+    const change = outcome.changes.find((c) => c.path.startsWith("player.education.enrollments.") && c.path.endsWith(".status"));
+    if (!change) return state;
+    const courseId = change.path.split(".")[3]!;
+    const enrollments = state.player.education.enrollments.filter((e) => e.courseId !== courseId);
+    return { ...state, player: { ...state.player, education: { ...state.player.education, enrollments } } };
+  },
+};
+
 /**
  * A real object literal, not `Object.fromEntries` over an array — a `Record<K, V>`
  * literal is what actually gives `ResolverTable`'s own exhaustiveness claim teeth.
@@ -485,10 +685,10 @@ export const RESOLVER_TABLE: ResolverTable = {
   search_for_work: searchForWorkResolver,
   apply_for_job: applyForJobResolver,
   negotiate_job_terms: negotiateJobTermsResolver,
-  attend_class: stubResolver,
-  study: stubResolver,
-  enroll_course: stubResolver,
-  withdraw_course: stubResolver,
+  attend_class: attendClassResolver,
+  study: studyResolver,
+  enroll_course: enrollCourseResolver,
+  withdraw_course: withdrawCourseResolver,
   shop: stubResolver,
   eat: eatResolver,
   rest: restResolver,

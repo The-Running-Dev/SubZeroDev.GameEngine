@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { runEndOfWeek } from "./endOfWeek.js";
 import type { ResolutionEmitter } from "../../core/observability/types.js";
-import type { Employment, JobApplication, NeedState } from "./actor.js";
-import type { GoalDefinition, JobDefinition } from "./content.js";
+import type { CourseEnrollment, Employment, JobApplication, NeedState } from "./actor.js";
+import type { CourseDefinition, GoalDefinition, JobDefinition } from "./content.js";
 import type { GoalState, JobOpening, Opportunity, SimulationKindState } from "./state.js";
 
 function recordingEmitter(): {
@@ -44,6 +44,8 @@ function baseState(needs: NeedState, overrides: Partial<SimulationKindState> = {
       career: { history: [], totalWeeksEmployed: 0, pendingApplications: [], highestTierAchieved: "entry" },
       housing: { weeklyCostCents: 0 },
       finances: { cashCents: 0 },
+      education: { enrollments: [], credentials: [], completedCourseIds: [], failedCourseIds: [] },
+      skills: {},
       flags: {},
     } as unknown as SimulationKindState["player"],
     economy: {} as SimulationKindState["economy"],
@@ -487,5 +489,114 @@ describe("runEndOfWeek — W53 review fixes", () => {
       severity: "warn",
       data: { jobId: "job-removed" },
     });
+  });
+});
+
+describe("runEndOfWeek — W54 education", () => {
+  const NEEDS: NeedState = { health: 50, energy: 50, happiness: 50, stress: 50, satiety: 50 };
+
+  const course: CourseDefinition = {
+    id: "course-bookkeeping",
+    nameKey: "course.name", descriptionKey: "course.description",
+    providerId: "provider-1",
+    tuitionCents: 5000, durationWeeks: 2, weeklyTimeCost: 4, difficulty: 0,
+    requirements: [], rewards: [{ type: "skill", target: "bookkeeping", value: 50 }],
+    awardsCredential: "certificate",
+    failureRules: { minimumAttendanceRatio: 50, minimumStudyUnitsPerWeek: 1, maximumMissedSessions: 1, tuitionGraceWeeks: 0, progressRetainedOnFailure: 25 },
+    tags: [],
+  };
+  const courses = [course];
+
+  function enrolled(overrides: Partial<CourseEnrollment> = {}): CourseEnrollment {
+    return {
+      courseId: "course-bookkeeping", startedWeek: 4, weeksCompleted: 0,
+      attendedUnits: 0, studyUnits: 0, missedSessions: 0,
+      tuitionPaidCents: 5000, tuitionOutstandingCents: 0, retainedProgress: 0,
+      status: "active",
+      ...overrides,
+    };
+  }
+
+  function withEnrollment(enrollment: CourseEnrollment, flags: Record<string, boolean> = {}): SimulationKindState {
+    const base = baseState(NEEDS);
+    return {
+      ...base,
+      player: {
+        ...base.player,
+        education: { enrollments: [enrollment], credentials: [], completedCourseIds: [], failedCourseIds: [] },
+        flags,
+      } as unknown as SimulationKindState["player"],
+    };
+  }
+
+  it("advances weeksCompleted every week regardless of attendance", () => {
+    const { emit } = recordingEmitter();
+    const result = runEndOfWeek(withEnrollment(enrolled()), emit, [], "goals_win", [], courses);
+    expect(result.state.player.education.enrollments[0]).toMatchObject({ weeksCompleted: 1, attendedUnits: 0, missedSessions: 1 });
+  });
+
+  it("credits attendedUnits and clears the flag when attend_class set it this week", () => {
+    const { emit } = recordingEmitter();
+    const state = withEnrollment(enrolled(), { "attendedClass:course-bookkeeping": true });
+    const result = runEndOfWeek(state, emit, [], "goals_win", [], courses);
+    expect(result.state.player.education.enrollments[0]).toMatchObject({ weeksCompleted: 1, attendedUnits: 1, missedSessions: 0 });
+    expect(result.state.player.flags["attendedClass:course-bookkeeping"]).toBe(false);
+  });
+
+  it("leaves an enrollment untouched if its course no longer resolves", () => {
+    const { emit } = recordingEmitter();
+    const missing = enrolled({ courseId: "course-gone" });
+    const result = runEndOfWeek(withEnrollment(missing), emit, [], "goals_win", [], courses);
+    expect(result.state.player.education.enrollments).toEqual([missing]);
+  });
+
+  it("completes on reaching durationWeeks with a good attendance/study record: awards the skill and a credential", () => {
+    const { emit } = recordingEmitter();
+    const state = withEnrollment(
+      enrolled({ weeksCompleted: 1, attendedUnits: 1, studyUnits: 2 }),
+      { "attendedClass:course-bookkeeping": true },
+    );
+    const result = runEndOfWeek(state, emit, [], "goals_win", [], courses);
+    expect(result.state.player.education.enrollments[0]).toMatchObject({ status: "completed", weeksCompleted: 2 });
+    expect(result.state.player.education.completedCourseIds).toEqual(["course-bookkeeping"]);
+    expect(result.state.player.skills["bookkeeping"]).toBe(50);
+    expect(result.state.player.education.credentials[0]).toMatchObject({ courseId: "course-bookkeeping", level: "certificate" });
+  });
+
+  it("never lowers an already-higher skill on completion", () => {
+    const { emit } = recordingEmitter();
+    const base = withEnrollment(
+      enrolled({ weeksCompleted: 1, attendedUnits: 1, studyUnits: 2 }),
+      { "attendedClass:course-bookkeeping": true },
+    );
+    const state = { ...base, player: { ...base.player, skills: { bookkeeping: 80 } } };
+    const result = runEndOfWeek(state, emit, [], "goals_win", [], courses);
+    expect(result.state.player.skills["bookkeeping"]).toBe(80);
+  });
+
+  it("fails on reaching durationWeeks with too many missed sessions: sets retainedProgress, no skill awarded", () => {
+    const { emit } = recordingEmitter();
+    const state = withEnrollment(enrolled({ weeksCompleted: 1, attendedUnits: 0, missedSessions: 1, studyUnits: 1 }));
+    const result = runEndOfWeek(state, emit, [], "goals_win", [], courses);
+    expect(result.state.player.education.enrollments[0]).toMatchObject({ status: "failed", retainedProgress: 25 });
+    expect(result.state.player.education.failedCourseIds).toEqual(["course-bookkeeping"]);
+    expect(result.state.player.skills["bookkeeping"]).toBeUndefined();
+  });
+
+  it("fails on insufficient total studyUnits even with perfect attendance", () => {
+    const { emit } = recordingEmitter();
+    const state = withEnrollment(
+      enrolled({ weeksCompleted: 1, attendedUnits: 1, studyUnits: 0 }),
+      { "attendedClass:course-bookkeeping": true },
+    );
+    const result = runEndOfWeek(state, emit, [], "goals_win", [], courses);
+    expect(result.state.player.education.enrollments[0]?.status).toBe("failed");
+  });
+
+  it("a completed enrollment stays in the list and is left alone on later weeks", () => {
+    const { emit } = recordingEmitter();
+    const completed = enrolled({ weeksCompleted: 2, attendedUnits: 2, status: "completed" });
+    const result = runEndOfWeek(withEnrollment(completed), emit, [], "goals_win", [], courses);
+    expect(result.state.player.education.enrollments).toEqual([completed]);
   });
 });

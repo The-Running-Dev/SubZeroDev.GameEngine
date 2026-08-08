@@ -2,14 +2,19 @@ import { describe, it, expect } from "vitest";
 import type { KindContext } from "../../core/kernel/types.js";
 import type { Campaign } from "../../core/registry/types.js";
 import type { SimulationCampaign } from "./campaign.js";
-import type { JobDefinition, LocationDefinition } from "./content.js";
-import type { Employment } from "./actor.js";
+import type { CourseDefinition, JobDefinition, LocationDefinition } from "./content.js";
+import type { CourseEnrollment, Employment } from "./actor.js";
 import type { JobOpening, SimulationKindState } from "./state.js";
 import type { GameAction } from "./plan.js";
+import { runEndOfWeek } from "./endOfWeek.js";
 import {
   applyForJobResolver,
+  attendClassResolver,
+  enrollCourseResolver,
   negotiateJobTermsResolver,
   searchForWorkResolver,
+  studyResolver,
+  withdrawCourseResolver,
   workOvertimeResolver,
   workResolver,
 } from "./resolvers.js";
@@ -34,10 +39,35 @@ const gatedJob: JobDefinition = {
   requirements: [{ type: "attribute", condition: { field: "player.attributes.charisma", operator: "greater_or_equal", value: 200 }, failureCode: "requirement_unmet", messageKey: "core.reason.requirement_unmet" }],
 };
 
+const course: CourseDefinition = {
+  id: "course-bookkeeping",
+  nameKey: "course.name", descriptionKey: "course.description",
+  providerId: "provider-1",
+  tuitionCents: 5000, durationWeeks: 2, weeklyTimeCost: 4, difficulty: 0,
+  requirements: [], rewards: [{ type: "skill", target: "bookkeeping", value: 50 }],
+  failureRules: { minimumAttendanceRatio: 50, minimumStudyUnitsPerWeek: 1, maximumMissedSessions: 1, tuitionGraceWeeks: 0, progressRetainedOnFailure: 25 },
+  tags: [],
+};
+
+const accountantJob: JobDefinition = {
+  ...job,
+  id: "job-accountant",
+  requirements: [{ type: "skill", condition: { field: "player.skills.bookkeeping", operator: "greater_or_equal", value: 50 }, failureCode: "requirement_unmet", messageKey: "core.reason.requirement_unmet" }],
+};
+
+const gatedCourse: CourseDefinition = {
+  ...course,
+  id: "course-gated",
+  requirements: [{ type: "attribute", condition: { field: "player.attributes.intelligence", operator: "greater_or_equal", value: 200 }, failureCode: "requirement_unmet", messageKey: "core.reason.requirement_unmet" }],
+};
+
 const workLocation: LocationDefinition = {
   id: "loc-work", nameKey: "loc.name", descriptionKey: "loc.description",
   connections: [], travelTimeUnits: 0,
-  actionTypes: ["search_for_work", "apply_for_job", "negotiate_job_terms", "work", "work_overtime"],
+  actionTypes: [
+    "search_for_work", "apply_for_job", "negotiate_job_terms", "work", "work_overtime",
+    "enroll_course", "attend_class", "study", "withdraw_course",
+  ],
 };
 
 const bareLocation: LocationDefinition = {
@@ -78,7 +108,7 @@ function state(overrides: Partial<SimulationKindState> = {}): SimulationKindStat
 
 const simulationCampaign: SimulationCampaign = {
   descriptionKey: "sim.description",
-  jobs: [job, gatedJob], courses: [], housing: [], items: [], events: [], npcs: [], goals: [],
+  jobs: [job, gatedJob, accountantJob], courses: [course, gatedCourse], housing: [], items: [], events: [], npcs: [], goals: [],
   scenarios: [], difficulties: [], opportunities: [], achievements: [], headlines: [], employers: [],
   locations: [workLocation, bareLocation], backgrounds: [], traits: [], skills: [],
   scenarioId: "scenario-1", goalFailurePrecedence: "goals_win",
@@ -122,7 +152,7 @@ describe("W53 — search_for_work", () => {
     const s = state();
     const outcome = searchForWorkResolver.calculate(s, action("search_for_work"), ctx());
     const next = searchForWorkResolver.apply(s, outcome);
-    expect(next.world.jobMarket.openings.map((o) => o.jobId).sort()).toEqual(["job-cashier", "job-gated"]);
+    expect(next.world.jobMarket.openings.map((o) => o.jobId).sort()).toEqual(["job-accountant", "job-cashier", "job-gated"]);
     expect(next.calendar.spentTimeUnits).toBe(2);
   });
 
@@ -131,7 +161,7 @@ describe("W53 — search_for_work", () => {
     const s = state({ world: { ...state().world, jobMarket: { openings: [opening] } } });
     const outcome = searchForWorkResolver.calculate(s, action("search_for_work"), ctx());
     const next = searchForWorkResolver.apply(s, outcome);
-    expect(next.world.jobMarket.openings.map((o) => o.jobId).sort()).toEqual(["job-cashier", "job-gated"]);
+    expect(next.world.jobMarket.openings.map((o) => o.jobId).sort()).toEqual(["job-accountant", "job-cashier", "job-gated"]);
   });
 });
 
@@ -245,5 +275,140 @@ describe("W53 — negotiate_job_terms (§13 determinism)", () => {
     negotiateJobTermsResolver.calculate(s, action("negotiate_job_terms"), recordingCtx);
     negotiateJobTermsResolver.calculate(s, { ...action("negotiate_job_terms"), id: "action-2" }, recordingCtx);
     expect(seen[0]).not.toEqual(seen[1]);
+  });
+});
+
+describe("W54 — enroll_course", () => {
+  it("rejects unknown_action for a courseId with no matching CourseDefinition", () => {
+    const result = enrollCourseResolver.canExecute(state(), action("enroll_course", "course-nonexistent"), ctx());
+    expect(result.errors[0]?.code).toBe("unknown_action");
+  });
+
+  it("rejects wrong_location off campus", () => {
+    const s = state({ player: player({ currentLocationId: "loc-bare" }) });
+    const result = enrollCourseResolver.canExecute(s, action("enroll_course", "course-bookkeeping"), ctx());
+    expect(result.errors[0]?.code).toBe("wrong_location");
+  });
+
+  it("rejects the course's own failureCode/messageKey when its Requirement isn't met", () => {
+    const result = enrollCourseResolver.canExecute(state(), action("enroll_course", "course-gated"), ctx());
+    expect(result.errors[0]).toEqual({ code: "requirement_unmet", messageKey: "core.reason.requirement_unmet" });
+  });
+
+  it("rejects insufficient_funds when cash is short of tuitionCents", () => {
+    const s = state({ player: player({ finances: { ...player().finances, cashCents: 100 } }) });
+    const result = enrollCourseResolver.canExecute(s, action("enroll_course", "course-bookkeeping"), ctx());
+    expect(result.errors[0]?.code).toBe("insufficient_funds");
+  });
+
+  it("rejects requirement_unmet for a second enrollment while the first is still active", () => {
+    const enrollment: CourseEnrollment = {
+      courseId: "course-bookkeeping", startedWeek: 1, weeksCompleted: 0,
+      attendedUnits: 0, studyUnits: 0, missedSessions: 0,
+      tuitionPaidCents: 5000, tuitionOutstandingCents: 0, retainedProgress: 0, status: "active",
+    };
+    const s = state({ player: player({ education: { enrollments: [enrollment], credentials: [], completedCourseIds: [], failedCourseIds: [] } }) });
+    const result = enrollCourseResolver.canExecute(s, action("enroll_course", "course-bookkeeping"), ctx());
+    expect(result.errors[0]?.code).toBe("requirement_unmet");
+    expect(s.player.education.enrollments).toEqual([enrollment]);
+  });
+
+  it("charges tuition and adds an active CourseEnrollment", () => {
+    const s = state();
+    const outcome = enrollCourseResolver.calculate(s, action("enroll_course", "course-bookkeeping"), ctx());
+    const next = enrollCourseResolver.apply(s, outcome);
+    expect(next.player.finances.cashCents).toBe(5000);
+    expect(next.player.education.enrollments).toEqual([{
+      courseId: "course-bookkeeping", startedWeek: 3, weeksCompleted: 0,
+      attendedUnits: 0, studyUnits: 0, missedSessions: 0,
+      tuitionPaidCents: 5000, tuitionOutstandingCents: 0, retainedProgress: 0, status: "active",
+    }]);
+  });
+});
+
+describe("W54 — attend_class / study / withdraw_course", () => {
+  const enrollment: CourseEnrollment = {
+    courseId: "course-bookkeeping", startedWeek: 1, weeksCompleted: 0,
+    attendedUnits: 0, studyUnits: 0, missedSessions: 0,
+    tuitionPaidCents: 5000, tuitionOutstandingCents: 0, retainedProgress: 0, status: "active",
+  };
+  const enrolled = (): SimulationKindState =>
+    state({ player: player({ education: { enrollments: [enrollment], credentials: [], completedCourseIds: [], failedCourseIds: [] } }) });
+
+  it("attend_class rejects requirement_unmet with no active enrollment in that course", () => {
+    const result = attendClassResolver.canExecute(state(), action("attend_class", "course-bookkeeping"), ctx());
+    expect(result.errors[0]?.code).toBe("requirement_unmet");
+  });
+
+  it("attend_class sets the per-course attendance flag and spends no time", () => {
+    const s = enrolled();
+    const outcome = attendClassResolver.calculate(s, action("attend_class", "course-bookkeeping"), ctx());
+    const next = attendClassResolver.apply(s, outcome);
+    expect(next.player.flags["attendedClass:course-bookkeeping"]).toBe(true);
+    expect(next.calendar.spentTimeUnits).toBe(0);
+  });
+
+  it("study rejects requirement_unmet with no active enrollment in that course", () => {
+    const result = studyResolver.canExecute(state(), action("study", "course-bookkeeping"), ctx());
+    expect(result.errors[0]?.code).toBe("requirement_unmet");
+  });
+
+  it("study rejects insufficient_time when the plan already spent the week's budget", () => {
+    const s = { ...enrolled(), calendar: { ...calendar, spentTimeUnits: 14 } };
+    const result = studyResolver.canExecute(s, action("study", "course-bookkeeping"), ctx());
+    expect(result.errors[0]?.code).toBe("insufficient_time");
+  });
+
+  it("study spends time and increments the enrollment's own studyUnits", () => {
+    const s = enrolled();
+    const outcome = studyResolver.calculate(s, action("study", "course-bookkeeping"), ctx());
+    const next = studyResolver.apply(s, outcome);
+    expect(next.calendar.spentTimeUnits).toBe(2);
+    expect(next.player.education.enrollments[0]?.studyUnits).toBe(1);
+  });
+
+  it("withdraw_course rejects requirement_unmet with no active enrollment in that course", () => {
+    const result = withdrawCourseResolver.canExecute(state(), action("withdraw_course", "course-bookkeeping"), ctx());
+    expect(result.errors[0]?.code).toBe("requirement_unmet");
+  });
+
+  it("withdraw_course removes the enrollment outright — no refund, nothing retained", () => {
+    const s = enrolled();
+    const outcome = withdrawCourseResolver.calculate(s, action("withdraw_course", "course-bookkeeping"), ctx());
+    const next = withdrawCourseResolver.apply(s, outcome);
+    expect(next.player.education.enrollments).toEqual([]);
+    expect(next.player.finances.cashCents).toBe(s.player.finances.cashCents);
+  });
+});
+
+describe("W54.4 — a skill awarded by course completion satisfies a JobDefinition requirement", () => {
+  it("apply_for_job is rejected before the course, accepted after it completes", () => {
+    const enrollment: CourseEnrollment = {
+      // One week from completing course-bookkeeping (durationWeeks 2), with a study record
+      // that will pass its own failureRules once this week's attendance is counted.
+      courseId: "course-bookkeeping", startedWeek: 2, weeksCompleted: 1,
+      attendedUnits: 1, studyUnits: 2, missedSessions: 0,
+      tuitionPaidCents: 5000, tuitionOutstandingCents: 0, retainedProgress: 0, status: "active",
+    };
+    const opening: JobOpening = { jobId: "job-accountant", contested: false, postedWeek: 1 };
+    const before = state({
+      player: player({
+        education: { enrollments: [enrollment], credentials: [], completedCourseIds: [], failedCourseIds: [] },
+        flags: { "attendedClass:course-bookkeeping": true },
+        // A campaign-declared skill starts at 0, not absent — undefined would make the
+        // job's own `greater_or_equal` condition throw rather than evaluate to false.
+        skills: { bookkeeping: 0 },
+      }),
+      world: { ...state().world, jobMarket: { openings: [opening] } },
+    });
+
+    const beforeResult = applyForJobResolver.canExecute(before, action("apply_for_job", "job-accountant"), ctx());
+    expect(beforeResult.errors[0]).toEqual({ code: "requirement_unmet", messageKey: "core.reason.requirement_unmet" });
+
+    const { state: afterEndOfWeek } = runEndOfWeek(before, ctx().emit, [], "goals_win", [job, gatedJob, accountantJob], [course, gatedCourse]);
+    expect(afterEndOfWeek.player.skills["bookkeeping"]).toBe(50);
+
+    const afterResult = applyForJobResolver.canExecute(afterEndOfWeek, action("apply_for_job", "job-accountant"), ctx());
+    expect(afterResult.valid).toBe(true);
   });
 });
