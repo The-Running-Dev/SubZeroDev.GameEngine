@@ -83,3 +83,19 @@ const SIMULATION_REASON_TEXT: Readonly<Record<SimulationReasonCode, string>> = {
 export const SIMULATION_REASON_MESSAGES: ReadonlyMap<LocKey, string> = new Map(
   SIMULATION_REASON_CODES.map((code) => [`simulation.reason.${code}`, SIMULATION_REASON_TEXT[code]] as const),
 );
+
+/**
+ * Engine-owned `LocKey`s this kind emits that are not reason codes — `kind.ts` merges this
+ * into `Kind.reasonMessages` anyway, since that field is the only channel a `Kind` has for
+ * threading its own strings into `buildValidatedContentRegistry`'s merged registry (`core/
+ * validation/tiered.ts`). `resolvers.ts`'s `invest` is the first to need one:
+ * `FinancialAccount.label` (§6.4) is a `LocKey`, but the account itself is engine-created
+ * (`INVESTMENT_ACCOUNT_ID` is a fixed constant, not campaign content), so no
+ * `SimulationCampaign` collection exists for a campaign author to supply this string —
+ * `validate.ts`'s `validateLocKeys` only checks campaign-authored fields, and rightly so.
+ */
+export const INVESTMENT_ACCOUNT_LABEL_KEY: LocKey = "simulation.finance.investment.label";
+
+export const SIMULATION_ENGINE_MESSAGES: ReadonlyMap<LocKey, string> = new Map([
+  [INVESTMENT_ACCOUNT_LABEL_KEY, "Investments"],
+]);
