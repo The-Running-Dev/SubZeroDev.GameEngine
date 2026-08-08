@@ -261,6 +261,28 @@ describe("applyExperimentGates", () => {
     // resolvePacks' own signature is untouched — it still takes a plain pack array.
     expect(filtered).toEqual([ungated]);
   });
+
+  it("lets a dependsOn on a gated-out pack fail as an ordinary missing dependency, with no gate-aware check", () => {
+    // §5a's stated consequence of filtering *before* dependency resolution: a pack
+    // excluded by its gate is simply absent from the set §5's checks run against, so
+    // "a dependsOn names a pack present in the set" (§7 Tier 1) is what fires. The rule
+    // §5a derives from that — a pack's dependsOn may only name a pack present in every
+    // assignment where the pack itself is — is therefore enforced at session creation
+    // rather than at authoring time, and needs no check of its own.
+    const dependency = pack({ id: "culture", version: "1", experimentGate: { experimentId: "colors", variant: "warm" } });
+    const dependent = pack({ id: "base", version: "1", dependsOn: [{ id: "culture", version: "1" }] });
+
+    // Both present: the same pair resolves cleanly when the gate selects the dependency.
+    const enrolled = applyExperimentGates([dependency, dependent], { colors: "warm" });
+    expect(resolvePacks(enrolled).ok).toBe(true);
+
+    // Gated out: the dependency is absent, and the existing Tier 1 check reports it.
+    const notEnrolled = applyExperimentGates([dependency, dependent], { colors: "cool" });
+    expect(notEnrolled).toEqual([dependent]);
+    const result = resolvePacks(notEnrolled);
+    expect(result.ok).toBe(false);
+    expect(result.errors?.map((e) => e.code)).toContain("pack_dependency_missing");
+  });
 });
 
 describe("resolveBucketKey", () => {

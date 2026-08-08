@@ -1411,7 +1411,7 @@ split was necessary rather than merely argued.
       wages — `EconomyState` moves only where a system this unit builds moves it.
 - **Status:** Done — [PR #232](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/232).
 
-### [ ] W56 — Simulation Kind: Possessions, Places, and People {#w56}
+### [x] W56 — Simulation Kind: Possessions, Places, and People {#w56}
 
 **Delivers:** Shopping, keeping what you own working, getting around town, and having a social
 life — the actions that make a week feel like a life rather than a spreadsheet.
@@ -1425,7 +1425,7 @@ life — the actions that make a week feel like a life rather than a spreadsheet
 - **Touches:** `src/engine/src/kinds/simulation/` — `resolvers.ts`, `endOfWeek.ts`;
       `src/engine/src/campaigns/stable-life.ts`; `src/engine/fixtures/replay/`.
 - **Depends on:** [W55](#w55).
-- **Status:** Not started.
+- **Status:** Done — [PR #236](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/236).
 - **Done when:**
   - W56.1 `shop`, `maintain_item`, `repair_item`, `sell_item`, `travel`, `socialize` and
         `exercise` each have a real resolver, and none is `stubResolver`.
@@ -1510,7 +1510,7 @@ Three units against contracts that are fully specified and entirely unbuilt.
 [`02-architecture.md`](02-architecture.md) §4a promised and 04 §10.1 cannot express; the locale
 unit is the cheapest available test of a claim 04 §10.1 makes and nothing currently checks.
 
-### [ ] W58 — Content Pack Resolution and Content Identity {#w58}
+### [x] W58 — Content Pack Resolution and Content Identity {#w58}
 
 **Delivers:** Lets a game be assembled from several content packs — a base campaign plus, say,
 a culture pack that restyles its text — and makes a save record exactly which mix it was
@@ -1537,7 +1537,7 @@ one is a signal this unit has grown a design decision it should route rather tha
 - **Touches:** `src/engine/src/core/registry/` — `types.ts`, `build.ts`, and a new `packs.ts`;
       `src/engine/src/core/validation/tiered.ts`.
 - **Depends on:** nothing engine-side.
-- **Status:** Not started.
+- **Status:** Done — [PR #238](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/238).
 - **Done when:**
   - W58.1 `resolvePacks` is pure and total — no file or network I/O, and it returns either a
         registry or a complete list of conflicts, never a partial registry.
@@ -1561,7 +1561,7 @@ one is a signal this unit has grown a design decision it should route rather tha
       loading, community trust, and per-locale pack splitting —
       [§8](11-content-packs.md#8-what-is-deferred) defers all four by name.
 
-### [ ] W59 — Experiment Gates and the `ExperimentSource` Port {#w59}
+### [x] W59 — Experiment Gates and the `ExperimentSource` Port {#w59}
 
 **Delivers:** Turns A/B tests and feature flags into one mechanism rather than two — a pack is
 simply in the set or not, decided before resolution — and gives a host the seam that decides
@@ -1584,7 +1584,7 @@ by construction rather than by luck of which default string someone picked.
 - **Touches:** `src/engine/src/core/composition/types.ts`;
       `src/engine/src/core/registry/packs.ts`; `src/engine/src/core/session/store.ts`.
 - **Depends on:** [W58](#w58).
-- **Status:** Not started.
+- **Status:** Done — [PR #239](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/239).
 - **Done when:**
   - W59.1 `ExperimentSource` is declared in `composition/types.ts` and `SessionHost` gains an
         optional `experiments`, with a working default meaning "no experiments running".
@@ -1603,7 +1603,7 @@ by construction rather than by luck of which default string someone picked.
 - **Out of scope:** bucketing algorithms, rollout percentages, sticky-session semantics beyond
       `bucketKey`, and outcome measurement — §5a and §8 place all four outside this contract.
 
-### [ ] W60 — A Second Locale, End to End {#w60}
+### [x] W60 — A Second Locale, End to End {#w60}
 
 **Delivers:** Proves the platform is not accidentally English-only — the same campaign plays
 through in a second language with the engine unchanged, and a missing translation is caught at
@@ -1622,7 +1622,7 @@ client's rendering and the MCP surface all sit on the path.
       `src/engine/src/core/registry/build.ts` and `strings.ts`;
       `src/engine/src/campaigns/`; `src/engine/src/clients/text/render.ts`.
 - **Depends on:** nothing engine-side.
-- **Status:** Not started.
+- **Status:** Done — [PR #240](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/240).
 - **Done when:**
   - W60.1 One shipped campaign has a complete second-locale string table and the registry
         builds for both locales with no change to any type in `core/registry/types.ts`.

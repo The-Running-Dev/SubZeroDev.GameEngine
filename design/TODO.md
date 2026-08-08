@@ -126,17 +126,17 @@
 
 ### [x] W55 — Simulation Kind: Housing, Debt, and Reconciliation {#w55}
 
-### [ ] W56 — Simulation Kind: Possessions, Places, and People {#w56}
+### [x] W56 — Simulation Kind: Possessions, Places, and People {#w56}
 
 ### [ ] W57 — Simulation Kind: Events, Opportunities, Headlines, and Achievements {#w57}
 
 ### Breadth: Content Packs, Experiments, and Locales
 
-### [ ] W58 — Content Pack Resolution and Content Identity {#w58}
+### [x] W58 — Content Pack Resolution and Content Identity {#w58}
 
-### [ ] W59 — Experiment Gates and the `ExperimentSource` Port {#w59}
+### [x] W59 — Experiment Gates and the `ExperimentSource` Port {#w59}
 
-### [ ] W60 — A Second Locale, End to End {#w60}
+### [x] W60 — A Second Locale, End to End {#w60}
 
 ### Breadth: The First Culture Pack
 
