@@ -14,6 +14,10 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { buildWhatWouldLuciferDoCampaign, whatWouldLuciferDoCatalog } from "../src/campaigns/what-would-lucifer-do.js";
+import {
+  buildWhatWouldLuciferDoEngineersCutCampaign,
+  whatWouldLuciferDoEngineersCutCatalog,
+} from "../src/campaigns/what-would-lucifer-do-engineers-cut.js";
 import { buildLuciferChroniclesCampaign, luciferChroniclesCatalog, luciferChroniclesMigration } from "../src/campaigns/lucifer-chronicles.js";
 import { buildBulgariaBureaucracyCampaign, bulgariaBureaucracyCatalog, bulgariaBureaucracyMigration } from "../src/campaigns/bulgaria-bureaucracy.js";
 import { buildBulgariaReturnCampaign, bulgariaReturnCatalog, bulgariaReturnMigration } from "../src/campaigns/bulgaria-return.js";
@@ -36,6 +40,7 @@ interface Entry {
 
 const entries: readonly Entry[] = [
   { build: buildWhatWouldLuciferDoCampaign, catalog: whatWouldLuciferDoCatalog },
+  { build: buildWhatWouldLuciferDoEngineersCutCampaign, catalog: whatWouldLuciferDoEngineersCutCatalog },
   { build: buildLuciferChroniclesCampaign, catalog: luciferChroniclesCatalog, migration: luciferChroniclesMigration },
   { build: buildBulgariaBureaucracyCampaign, catalog: bulgariaBureaucracyCatalog, migration: bulgariaBureaucracyMigration },
   { build: buildBulgariaReturnCampaign, catalog: bulgariaReturnCatalog, migration: bulgariaReturnMigration },
