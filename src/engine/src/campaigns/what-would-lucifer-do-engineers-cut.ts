@@ -47,7 +47,7 @@ export const WHAT_WOULD_LUCIFER_DO_ENGINEERS_CUT_CAMPAIGN_ID = "what-would-lucif
 export const whatWouldLuciferDoEngineersCutCatalog: PortableCatalog = {
   title: "What Would Lucifer Do? — Engineer's Cut",
   description:
-    "The sixteen relocated predictions from What Would Lucifer Do?, told in their original technical wording — the real rubric, the real pipelines, the real policy.",
+    "The sixteen predictions What Would Lucifer Do? relocated for a general audience — thirteen technical, three software-career — told here in their original wording: the real rubric, the real pipelines, the real policy.",
   duration: "25–35 min",
   contentNotice: "Strong language, religious satire, recognizable parody, and technical jargon used completely unironically.",
   featured: false,
@@ -161,10 +161,11 @@ function prediction(spec: PredictionSpec): void {
 say(
   "prologue",
   "WHAT WOULD LUCIFER DO? — ENGINEER'S CUT\n\n" +
-    "The sixteen predictions from the public campaign that needed a technical background to " +
-    "guess honestly — told here in the original words, jargon included. If you already know " +
-    "what a pipeline is, what an MCP server does, or why a rubric and a working system can " +
-    "disagree with each other, this version is for you.\n\n" +
+    "The sixteen predictions the public campaign relocated into everyday domains — thirteen " +
+    "that needed a technical background to guess honestly, plus three software-career ones " +
+    "moved alongside them — told here in the original words, jargon included. If you already " +
+    "know what a pipeline is, what an MCP server does, or why a rubric and a working system " +
+    "can disagree with each other, this version is for you.\n\n" +
     "Same rules as before: reality already made its decision. Yours is just to predict it.\n\n" +
     "Here is the first one.",
   "ch3_p1",
@@ -974,9 +975,10 @@ export const whatWouldLuciferDoEngineersCutSource: StoryGraphCampaignSource = {
   description: {
     key: "wwldx.campaign.description",
     text:
-      "The sixteen relocated predictions from What Would Lucifer Do?, told in their original " +
-      "technical wording. If you don't know what a pipeline, an API, or an MCP server is, " +
-      "play the public campaign instead — this one assumes you do.",
+      "The sixteen predictions What Would Lucifer Do? relocated for a general audience — " +
+      "thirteen technical, three software-career — told here in their original wording. If " +
+      "you don't know what a pipeline, an API, or an MCP server is, play the public campaign " +
+      "instead — this one assumes you do.",
   },
   variables: {
     predictions_correct: {

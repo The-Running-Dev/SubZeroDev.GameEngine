@@ -13,7 +13,11 @@ import { mkdir, writeFile } from "node:fs/promises";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { buildWhatWouldLuciferDoCampaign, whatWouldLuciferDoCatalog } from "../src/campaigns/what-would-lucifer-do.js";
+import {
+  buildWhatWouldLuciferDoCampaign,
+  whatWouldLuciferDoCatalog,
+  whatWouldLuciferDoMigration,
+} from "../src/campaigns/what-would-lucifer-do.js";
 import {
   buildWhatWouldLuciferDoEngineersCutCampaign,
   whatWouldLuciferDoEngineersCutCatalog,
@@ -39,7 +43,7 @@ interface Entry {
 }
 
 const entries: readonly Entry[] = [
-  { build: buildWhatWouldLuciferDoCampaign, catalog: whatWouldLuciferDoCatalog },
+  { build: buildWhatWouldLuciferDoCampaign, catalog: whatWouldLuciferDoCatalog, migration: whatWouldLuciferDoMigration },
   { build: buildWhatWouldLuciferDoEngineersCutCampaign, catalog: whatWouldLuciferDoEngineersCutCatalog },
   { build: buildLuciferChroniclesCampaign, catalog: luciferChroniclesCatalog, migration: luciferChroniclesMigration },
   { build: buildBulgariaBureaucracyCampaign, catalog: bulgariaBureaucracyCatalog, migration: bulgariaBureaucracyMigration },

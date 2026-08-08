@@ -239,6 +239,46 @@ describe("What Would Lucifer Do?", () => {
     expect(play(ALL_CORRECT, "wwld-both-correct").achievements).toContain("declined_the_money");
   });
 
+  it("migrates a v1.0.0 save forward, identically, since v1.1.0 relocated only prose", () => {
+    const migrate = built.campaign.migrateState;
+    expect(migrate).toBeTypeOf("function");
+
+    const active: StoryGraphKindState = {
+      currentNodeId: "ch6_p1",
+      variables: { predictions_correct: 9, streak: 3 },
+      turn: 12,
+      visitedCounts: { prologue: 1, ch6_p1: 1 },
+      unlockedAchievements: ["pattern_recognition"],
+    };
+    const migratedActive = migrate!(active, "1.0.0");
+    expect(migratedActive.ok).toBe(true);
+    const migratedState = migratedActive.value as StoryGraphKindState;
+    // Ids are unchanged, so the node carries straight through; declared variables missing
+    // from the old save (none existed at v1.0.0 either) are backfilled with their initial
+    // value by the shared migration helper, same as every other campaign's v1 migration.
+    expect(migratedState.currentNodeId).toBe("ch6_p1");
+    expect(migratedState.turn).toBe(12);
+    expect(migratedState.unlockedAchievements).toEqual(["pattern_recognition"]);
+    expect(migratedState.variables.predictions_correct).toBe(9);
+    expect(migratedState.variables.streak).toBe(3);
+    expect(Object.keys(migratedState.variables).length).toBe(Object.keys(whatWouldLuciferDoSource.variables).length);
+
+    const ended: StoryGraphKindState = {
+      currentNodeId: "ending_tier_fluent",
+      endingId: "tier_fluent",
+      variables: { predictions_correct: 14 },
+      turn: 27,
+      visitedCounts: { prologue: 1 },
+      unlockedAchievements: ["tier_fluent"],
+    };
+    const migratedEnded = migrate!(ended, "1.0.0");
+    expect(migratedEnded.ok).toBe(true);
+    expect((migratedEnded.value as StoryGraphKindState).currentNodeId).toBe("ending_tier_fluent");
+    expect((migratedEnded.value as StoryGraphKindState).endingId).toBe("tier_fluent");
+
+    expect(migrate!(active, "0.9.0").ok).toBe(false);
+  });
+
   it("replays byte-identically from the same seed and inputs", () => {
     const api = engine();
     for (const { ending, script } of SCRIPTS) {

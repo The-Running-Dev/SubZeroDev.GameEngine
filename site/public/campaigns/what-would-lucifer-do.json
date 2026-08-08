@@ -3230,6 +3230,9 @@
       ]
     }
   },
+  "migration": {
+    "fromVersion": "1.0.0"
+  },
   "strings": {
     "wwld.achievement_brought_alan_watts_into_this.description": "Correctly predict five or more philosophical detours.",
     "wwld.achievement_brought_alan_watts_into_this.name": "You Brought Alan Watts Into This",

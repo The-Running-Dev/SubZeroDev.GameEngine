@@ -13,7 +13,7 @@
  * text is a close adaptation of the blog post it comes from, not a rewrite for a better
  * joke — see `docs\blog` in the SubZeroDev.Blog repository for the originals. The persona
  * is referred to only as "Lucifer" throughout; the blog's occasional real-name asides are
- * not reproduced here. Three chapters carry a note on how they diverge from the literal
+ * not reproduced here. Several chapters carry a note on how they diverge from the literal
  * blog text: Chapter 2 keeps the driving incident as written but omits the third parties,
  * the named town, and the edibles; Chapter 7 keeps the emotional beat of "Much Ado About
  * Nothing" but invents its specifics rather than reproducing a private family email; and
@@ -35,6 +35,11 @@
  * than `adventure-builder.ts`'s fixed three-route shape. This campaign does not supersede
  * `lucifer-chronicles`: that campaign is Lucifer-as-Hell's-customer-support judging a case;
  * this one is the player being tested on a documented human. Both stay registered.
+ *
+ * v1.0.0 → v1.1.0 relocated prose only — no node, choice, ending, or achievement id changed,
+ * and no variable was added or removed — so `whatWouldLuciferDoMigration` and the
+ * `migrateState` below are both the identity case of `migrateV1AdventureState` (empty
+ * id maps), the same mechanism `lucifer-chronicles.ts` uses for a non-trivial remap.
  */
 import type { AuthoredText, BuiltCampaign, Campaign } from "../core/registry/types.js";
 import type { CommandResult } from "../core/kernel/reasons.js";
@@ -47,9 +52,10 @@ import {
   type NodeSource,
   type StoryGraphCampaignSource,
 } from "../kinds/story-graph/source.js";
+import { migrateV1AdventureState } from "./adventure-builder.js";
+import type { PortableCatalog, PortableMigration } from "../spike/portable.js";
 import type { Consequence, VarValue } from "../kinds/story-graph/variables.js";
 import type { RandomTransition } from "../kinds/story-graph/nodes.js";
-import type { PortableCatalog } from "../spike/portable.js";
 
 export const WHAT_WOULD_LUCIFER_DO_CAMPAIGN_ID = "what-would-lucifer-do";
 
@@ -65,6 +71,11 @@ export const whatWouldLuciferDoCatalog: PortableCatalog = {
   featured: true,
   sources: [{ label: "SubZeroDev Blog", href: "https://subzerodev.com" }],
 };
+
+// Identity migration: v1.1.0 changed only prose, no ids, so both maps are empty. Carried by
+// the portable export (`toPortable`/`fromPortable`) the same way `luciferChroniclesMigration`
+// carries a non-trivial one — see `spike-export-campaigns.ts`.
+export const whatWouldLuciferDoMigration: PortableMigration = { fromVersion: "1.0.0" };
 
 // ---------------------------------------------------------------------------
 // Authoring helpers — same shape as saki-quest-for-redemption.ts
@@ -1557,6 +1568,7 @@ export function buildWhatWouldLuciferDoCampaign(
     version: "1.1.0",
     titleKey: TITLE.key,
     content,
+    migrateState: (state, fromVersion) => migrateV1AdventureState(state, fromVersion, source, {}),
   };
   return buildCampaign(campaign, [TITLE, ...authoredText]);
 }
