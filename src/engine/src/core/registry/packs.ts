@@ -53,6 +53,15 @@ export interface ContentPack {
  * `assignments[gate.experimentId] === gate.variant` — never true for `null` ("not
  * enrolled") or a missing key, which is what makes "no assignment resolved" safe by
  * construction.
+ *
+ * The `Object.hasOwn` guard is what keeps "a missing key" meaning *missing*: an
+ * `experimentId` colliding with an `Object.prototype` member (`__proto__` is the sharp
+ * one — assigning it on an object literal hits the inherited accessor and creates no own
+ * property at all) would otherwise compare against an inherited value rather than an
+ * absent one. Every such comparison happens to be false today, so the failure is
+ * fail-closed, but a gate that silently ignores a real assignment is still a wrong
+ * answer — and this function is the one §5a asks to be correct by construction rather
+ * than by which strings an author picked.
  */
 export function applyExperimentGates(
   packs: readonly ContentPack[],
@@ -61,7 +70,7 @@ export function applyExperimentGates(
   return packs.filter((pack) => {
     const gate = pack.experimentGate;
     if (!gate) return true;
-    return assignments[gate.experimentId] === gate.variant;
+    return Object.hasOwn(assignments, gate.experimentId) && assignments[gate.experimentId] === gate.variant;
   });
 }
 
@@ -80,18 +89,25 @@ export function resolveBucketKey(profileId: string | undefined, seed: string): s
  * per pack, keyed by the same `bucketKey` for all of them. Returns `{}`, calling nothing,
  * when no `ExperimentSource` is supplied — the "no experiments running" default `06 §5.5`
  * names, and the same shape `applyExperimentGates` treats as excluding every gated pack.
+ *
+ * The map has a null prototype, which is the other half of `applyExperimentGates`'
+ * `Object.hasOwn` guard: on an object literal, `assignments["__proto__"] = variant` hits
+ * the inherited accessor and stores nothing, so a real assignment for that
+ * `experimentId` would vanish between resolving it here and reading it there. With no
+ * prototype there is no accessor to intercept it, and every `experimentId` behaves like
+ * the plain string key `ExperimentGate` says it is.
  */
 export function resolveExperimentAssignments(
   packs: readonly ContentPack[],
   experiments: ExperimentSource | undefined,
   bucketKey: string,
 ): Readonly<Record<string, string | null>> {
-  if (!experiments) return {};
+  const assignments: Record<string, string | null> = Object.create(null) as Record<string, string | null>;
+  if (!experiments) return assignments;
   const experimentIds = new Set<string>();
   for (const pack of packs) {
     if (pack.experimentGate) experimentIds.add(pack.experimentGate.experimentId);
   }
-  const assignments: Record<string, string | null> = {};
   for (const experimentId of experimentIds) {
     assignments[experimentId] = experiments.resolve(experimentId, bucketKey);
   }

@@ -229,6 +229,23 @@ describe("applyExperimentGates", () => {
     expect(applyExperimentGates([ungated, gated], {})).toEqual([ungated]);
   });
 
+  it("treats an experimentId colliding with an Object.prototype member as a plain key, in both directions", () => {
+    // `__proto__` is the sharp case: on an object literal it stores nothing and reads
+    // back as Object.prototype, so without the null-prototype map and the Object.hasOwn
+    // guard a real assignment silently vanishes and an absent one compares against an
+    // inherited value.
+    const gated = pack({ id: "culture", version: "1", experimentGate: { experimentId: "__proto__", variant: "warm" } });
+    const inherited = pack({ id: "layout", version: "1", experimentGate: { experimentId: "toString", variant: "grid" } });
+
+    // Computed key, not `{ __proto__: "warm" }` — the literal form is the prototype
+    // setter and would store nothing, which is the very bug under test.
+    const { source } = counting({ ["__proto__"]: "warm" });
+    const assignments = resolveExperimentAssignments([gated], source, "bucket-1");
+    expect(applyExperimentGates([gated], assignments)).toEqual([gated]);
+
+    expect(applyExperimentGates([gated, inherited], {})).toEqual([]);
+  });
+
   it("runs before resolvePacks and resolvePacks never sees a gated-out pack", () => {
     const ungated = pack({ id: "base", version: "1", campaigns: [built(makeCampaign({ id: "a" }))] });
     const gatedOut = pack({
