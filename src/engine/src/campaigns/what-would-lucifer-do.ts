@@ -13,7 +13,7 @@
  * text is a close adaptation of the blog post it comes from, not a rewrite for a better
  * joke — see `docs\blog` in the SubZeroDev.Blog repository for the originals. The persona
  * is referred to only as "Lucifer" throughout; the blog's occasional real-name asides are
- * not reproduced here. Three chapters carry a note on how they diverge from the literal
+ * not reproduced here. Five chapters carry a note on how they diverge from the literal
  * blog text: Chapter 2 keeps the driving incident as written but omits the third parties,
  * the named town, and the edibles; Chapter 7 keeps the emotional beat of "Much Ado About
  * Nothing" but invents its specifics rather than reproducing a private family email; and
