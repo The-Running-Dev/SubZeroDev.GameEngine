@@ -530,6 +530,8 @@ export const enrollCourseResolver: ActionResolver = {
     const course = campaign.courses.find((c) => c.id === action.targetId)!;
     const base = `player.education.enrollments.${course.id}`;
     const cashBefore = state.player.finances.cashCents;
+    const priorFailed = state.player.education.enrollments.find((e) => e.courseId === course.id && e.status === "failed");
+    const retainedProgress = priorFailed?.retainedProgress ?? 0;
 
     const changes: StateChange[] = [
       { path: "player.finances.cashCents", op: "decrement", value: course.tuitionCents, previous: cashBefore, reason: "action_enroll_course", visible: true },
@@ -540,7 +542,7 @@ export const enrollCourseResolver: ActionResolver = {
       { path: `${base}.missedSessions`, op: "set", value: 0, reason: "action_enroll_course", visible: false },
       { path: `${base}.tuitionPaidCents`, op: "set", value: course.tuitionCents, reason: "action_enroll_course", visible: true },
       { path: `${base}.tuitionOutstandingCents`, op: "set", value: 0, reason: "action_enroll_course", visible: false },
-      { path: `${base}.retainedProgress`, op: "set", value: 0, reason: "action_enroll_course", visible: false },
+      { path: `${base}.retainedProgress`, op: "set", value: retainedProgress, reason: "action_enroll_course", visible: false },
       { path: `${base}.status`, op: "set", value: "active", reason: "action_enroll_course", visible: true },
     ];
 
@@ -637,7 +639,7 @@ export const studyResolver: ActionResolver = {
     }
     const courseId = studyChange.path.split(".")[3]!;
     const enrollments = state.player.education.enrollments.map((e) =>
-      e.courseId === courseId ? { ...e, studyUnits: e.studyUnits + (studyChange.value as number) } : e);
+      e.courseId === courseId && e.status === "active" ? { ...e, studyUnits: e.studyUnits + (studyChange.value as number) } : e);
     return {
       ...state,
       calendar: { ...state.calendar, spentTimeUnits: state.calendar.spentTimeUnits + (typeof spentDelta === "number" ? spentDelta : 0) },
@@ -667,8 +669,10 @@ export const withdrawCourseResolver: ActionResolver = {
     const change = outcome.changes.find((c) => c.path.startsWith("player.education.enrollments.") && c.path.endsWith(".status"));
     if (!change) return state;
     const courseId = change.path.split(".")[3]!;
-    const enrollments = state.player.education.enrollments.filter((e) => e.courseId !== courseId);
-    return { ...state, player: { ...state.player, education: { ...state.player.education, enrollments } } };
+    const enrollments = state.player.education.enrollments.filter((e) => !(e.courseId === courseId && e.status === "active"));
+    const flagKey = `attendedClass:${courseId}`;
+    const flags = flagKey in state.player.flags ? { ...state.player.flags, [flagKey]: false } : state.player.flags;
+    return { ...state, player: { ...state.player, flags, education: { ...state.player.education, enrollments } } };
   },
 };
 

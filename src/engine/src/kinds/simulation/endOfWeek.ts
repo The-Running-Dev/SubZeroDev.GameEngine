@@ -271,9 +271,11 @@ function attendanceFlagKey(courseId: string): string {
 }
 
 /** Real logic (W54). See this file's own header for the pass/fail rule and what a
- *  completion awards. */
-function education(state: SimulationKindState, courses: readonly CourseDefinition[]): SimulationKindState {
+ *  completion awards. Returns state changes so clients receive audit records for skill
+ *  awards, completions, and failures alongside action-resolver changes. */
+function education(state: SimulationKindState, courses: readonly CourseDefinition[]): { state: SimulationKindState; changes: StateChange[] } {
   let working = state;
+  const changes: StateChange[] = [];
   const nextEnrollments: CourseEnrollment[] = [];
   let credentials = state.player.education.credentials;
   let completedCourseIds = state.player.education.completedCourseIds;
@@ -316,11 +318,13 @@ function education(state: SimulationKindState, courses: readonly CourseDefinitio
         status: "failed", retainedProgress: course.failureRules.progressRetainedOnFailure,
       });
       if (!failedCourseIds.includes(course.id)) failedCourseIds = [...failedCourseIds, course.id];
+      changes.push({ path: `player.education.enrollments.${course.id}.status`, op: "set", value: "failed", previous: "active", reason: "education_course_failed", visible: true });
       continue;
     }
 
     nextEnrollments.push({ ...enrollment, weeksCompleted, attendedUnits, missedSessions, status: "completed" });
     if (!completedCourseIds.includes(course.id)) completedCourseIds = [...completedCourseIds, course.id];
+    changes.push({ path: `player.education.enrollments.${course.id}.status`, op: "set", value: "completed", previous: "active", reason: "education_course_completed", visible: true });
 
     for (const reward of course.rewards) {
       if (reward.type !== "skill" || reward.target === undefined || typeof reward.value !== "number") continue;
@@ -329,6 +333,7 @@ function education(state: SimulationKindState, courses: readonly CourseDefinitio
       const awarded = Math.min(100, Math.max(0, Math.max(current, reward.value)));
       if (awarded === current) continue;
       working = { ...working, player: { ...working.player, skills: { ...working.player.skills, [skillId]: awarded } } };
+      changes.push({ path: `player.skills.${skillId}`, op: "set", value: awarded, previous: current, reason: "education_skill_awarded", visible: true });
     }
 
     if (course.awardsCredential !== undefined && course.awardsCredential !== "none") {
@@ -340,16 +345,20 @@ function education(state: SimulationKindState, courses: readonly CourseDefinitio
         labelKey: course.nameKey,
       };
       credentials = [...credentials, credential];
+      changes.push({ path: "player.education.credentials", op: "set", value: credential.id, reason: "education_credential_awarded", visible: true });
     }
   }
 
   return {
-    ...working,
-    player: {
-      ...working.player,
-      flags,
-      education: { enrollments: nextEnrollments, credentials, completedCourseIds, failedCourseIds },
+    state: {
+      ...working,
+      player: {
+        ...working.player,
+        flags,
+        education: { enrollments: nextEnrollments, credentials, completedCourseIds, failedCourseIds },
+      },
     },
+    changes,
   };
 }
 
@@ -531,7 +540,8 @@ export function runEndOfWeek(
   let next = employment(state, jobs, emit);
   ranSystem(emit, "employment");
 
-  next = education(next, courses);
+  const educationResult = education(next, courses);
+  next = educationResult.state;
   ranSystem(emit, "education");
 
   const financeIncomeResult = financeIncome(next, jobs);
@@ -573,5 +583,5 @@ export function runEndOfWeek(
   next = achievements(next);
   ranSystem(emit, "achievements");
 
-  return { state: next, changes: [...financeIncomeResult.changes, ...housingResult.changes, ...needsResult.changes] };
+  return { state: next, changes: [...educationResult.changes, ...financeIncomeResult.changes, ...housingResult.changes, ...needsResult.changes] };
 }

@@ -212,7 +212,7 @@ export const stableLifeSource: SimulationCampaignSource = {
         intelligence: 50, discipline: 50, charisma: 50, creativity: 50,
         resilience: 50, wisdom: 50, luck: 50,
       },
-      startingSkills: {},
+      startingSkills: { bookkeeping: 0 },
       startingCredentials: [],
       startingTraits: [],
       startingCashModifierCents: 0,
