@@ -12,7 +12,7 @@ import type {
 } from "../kernel/types.js";
 import type { Campaign, ContentRegistry } from "../registry/types.js";
 import type { ValidationResult } from "../validation/types.js";
-import type { EngineHost } from "../composition/types.js";
+import type { EngineHost, RecordIdSource } from "../composition/types.js";
 import { jsonlEmitter } from "../observability/emitter.js";
 import type { EmittedRecord, EmittedRecordSink } from "../observability/types.js";
 import { createInMemoryProfileStore } from "./profile-store.js";
@@ -97,14 +97,32 @@ function makeEngine(overrides?: Partial<EngineHost>): Engine {
   return createEngine({ kinds: makeKinds(), registry: makeRegistry(), ...overrides });
 }
 
-function makeStore(overrides?: { engine?: Engine; recordSink?: EmittedRecordSink; profiles?: ProfileStore }) {
+function makeStore(overrides?: {
+  engine?: Engine;
+  recordSink?: EmittedRecordSink;
+  profiles?: ProfileStore;
+  recordIds?: RecordIdSource;
+}) {
   const registry = makeRegistry();
   return createInMemorySessionStore({
     engine: overrides?.engine ?? makeEngine({ registry }),
     registry,
     ...(overrides?.recordSink ? { recordSink: overrides.recordSink } : {}),
     ...(overrides?.profiles ? { profiles: overrides.profiles } : {}),
+    ...(overrides?.recordIds ? { recordIds: overrides.recordIds } : {}),
   });
+}
+
+/** A counting `RecordIdSource` — independent counters, each from zero, no argument,
+ *  matching the engine's exported `createCountingIds()` convention (20-contract.md
+ *  "The replay profile has no counting-`IdSource` start value"). */
+function makeCountingRecordIds(): RecordIdSource {
+  let sessions = 0;
+  let saves = 0;
+  return {
+    newSessionId: () => `session-${sessions++}`,
+    newSaveId: () => `save-${saves++}`,
+  };
 }
 
 describe("createSession / getScene / getView / getStrings / listCampaigns", () => {
@@ -162,6 +180,126 @@ describe("session isolation", () => {
     const sceneB = await store.getScene(b.sessionId);
     expect(sceneA.body.text).toBe("counter=2");
     expect(sceneB.body.text).toBe("counter=1");
+  });
+});
+
+describe("RecordIdSource (S1)", () => {
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  it("S1.1 — with no RecordIdSource, two createSession calls and two saveGame calls each return two different, UUID-shaped ids", async () => {
+    const store = makeStore();
+    const a = await store.createSession({ campaignId: "test-campaign" });
+    const b = await store.createSession({ campaignId: "test-campaign" });
+    expect(a.sessionId).not.toBe(b.sessionId);
+    expect(a.sessionId).toMatch(UUID_RE);
+    expect(b.sessionId).toMatch(UUID_RE);
+
+    const saveA = await store.saveGame(a.sessionId);
+    const saveB = await store.saveGame(b.sessionId);
+    expect(saveA.saveId).not.toBe(saveB.saveId);
+    expect(saveA.saveId).toMatch(UUID_RE);
+    expect(saveB.saveId).toMatch(UUID_RE);
+  });
+
+  it("S1.2 — with a counting RecordIdSource, two runs of the identical call sequence return identical session and save ids in the identical order", async () => {
+    async function runSequence(): Promise<{ sessionIds: string[]; saveIds: string[] }> {
+      const store = makeStore({ recordIds: makeCountingRecordIds() });
+      const a = await store.createSession({ campaignId: "test-campaign" });
+      const b = await store.createSession({ campaignId: "test-campaign" });
+      const saveA = await store.saveGame(a.sessionId);
+      const saveB = await store.saveGame(b.sessionId);
+      const loaded = await store.loadGame(saveA.saveId);
+      return { sessionIds: [a.sessionId, b.sessionId, loaded.sessionId], saveIds: [saveA.saveId, saveB.saveId] };
+    }
+
+    const run1 = await runSequence();
+    const run2 = await runSequence();
+    expect(run1).toEqual(run2);
+    expect(run1.sessionIds).toEqual(["session-0", "session-1", "session-2"]);
+    expect(run1.saveIds).toEqual(["save-0", "save-1"]);
+  });
+
+  it("S1.3 — serialize() produces the same bytes whether a RecordIdSource was supplied or not", async () => {
+    // A capturing SessionPersistence exposes the store's `StoredSessionRecord.blob` — the
+    // engine's own `serialize()` output (session/store.ts's `writeSession`) — without
+    // reaching into store internals.
+    function makeCapturingPersistence() {
+      const blobs: string[] = [];
+      return {
+        blobs,
+        persistence: {
+          sessions: {
+            get: async () => undefined,
+            put: async (record: { blob: string }) => {
+              blobs.push(record.blob);
+            },
+          },
+          saves: {
+            get: async () => undefined,
+            put: async () => {},
+            delete: async () => {},
+          },
+        },
+      };
+    }
+
+    // `gameId` comes from the unrelated `IdSource` port (composition/types.ts) — fixed here
+    // on both engines so the only variable under test is `RecordIdSource`.
+    const fixedIds = { newGameId: () => "fixed-game-id", newSeed: () => "fixed-seed" };
+    const registry = makeRegistry();
+    const withoutCapture = makeCapturingPersistence();
+    const withCapture = makeCapturingPersistence();
+    const storeWithout = createInMemorySessionStore({
+      engine: makeEngine({ registry, ids: fixedIds }),
+      registry,
+      persistence: withoutCapture.persistence,
+    });
+    const storeWith = createInMemorySessionStore({
+      engine: makeEngine({ registry, ids: fixedIds }),
+      registry,
+      persistence: withCapture.persistence,
+      recordIds: makeCountingRecordIds(),
+    });
+
+    const without = await storeWithout.createSession({ campaignId: "test-campaign", seed: "fixed-seed" });
+    const withSeam = await storeWith.createSession({ campaignId: "test-campaign", seed: "fixed-seed" });
+    await storeWithout.submitAction(without.sessionId, "increment");
+    await storeWith.submitAction(withSeam.sessionId, "increment");
+
+    // Last write per store is the post-`increment` blob.
+    expect(withoutCapture.blobs.at(-1)).toBe(withCapture.blobs.at(-1));
+  });
+
+  it("S1.4 — newSessionId is called exactly once per session created (createSession and loadGame) and newSaveId exactly once per save written, and no other path consumes the source", async () => {
+    let sessionCalls = 0;
+    let saveCalls = 0;
+    const recordIds: RecordIdSource = {
+      newSessionId: () => `session-${sessionCalls++}`,
+      newSaveId: () => `save-${saveCalls++}`,
+    };
+    const store = makeStore({ recordIds });
+
+    const created = await store.createSession({ campaignId: "test-campaign" });
+    expect(sessionCalls).toBe(1);
+    expect(saveCalls).toBe(0);
+
+    await store.submitAction(created.sessionId, "increment");
+    await store.getScene(created.sessionId);
+    await store.getView(created.sessionId);
+    await store.getStrings(created.sessionId);
+    await store.resumeSession(created.sessionId);
+    await store.previewAction(created.sessionId, "increment");
+    // Queries, resumeSession, submitAction and previewAction touch neither counter.
+    expect(sessionCalls).toBe(1);
+    expect(saveCalls).toBe(0);
+
+    const saved = await store.saveGame(created.sessionId);
+    expect(saveCalls).toBe(1);
+    expect(sessionCalls).toBe(1);
+
+    await store.loadGame(saved.saveId);
+    expect(sessionCalls).toBe(2);
+    expect(saveCalls).toBe(1);
   });
 });
 

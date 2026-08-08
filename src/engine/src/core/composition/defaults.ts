@@ -4,7 +4,7 @@
  * Contract: `06-extensibility.md` §5.1, §5.4.
  */
 
-import type { Clock, IdSource } from "./types.js";
+import type { Clock, IdSource, RecordIdSource } from "./types.js";
 
 /**
  * The default `IdSource`: a random source, the one place in the platform where
@@ -15,6 +15,15 @@ import type { Clock, IdSource } from "./types.js";
 export const defaultIdSource: IdSource = {
   newGameId: () => crypto.randomUUID(),
   newSeed: () => crypto.randomUUID(),
+};
+
+/**
+ * The default `RecordIdSource`: `crypto.randomUUID()` for both members, matching the
+ * session layer's own unseamed `mintId()` — supplying this default changes nothing.
+ */
+export const defaultRecordIdSource: RecordIdSource = {
+  newSessionId: () => crypto.randomUUID(),
+  newSaveId: () => crypto.randomUUID(),
 };
 
 /**

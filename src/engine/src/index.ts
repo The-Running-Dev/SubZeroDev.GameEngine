@@ -14,7 +14,7 @@ export { buildValidatedContentRegistry } from "./core/validation/tiered.js";
 export { createInMemorySessionStore, createSessionLayer, upsertAchievements } from "./core/session/store.js";
 export { createInMemoryProfileStore } from "./core/session/profile-store.js";
 export { TextClient } from "./clients/text/client.js";
-export { defaultIdSource, defaultClock } from "./core/composition/defaults.js";
+export { defaultIdSource, defaultClock, defaultRecordIdSource } from "./core/composition/defaults.js";
 export { createCountingIds } from "./core/determinism/counting-ids.js";
 export { nullEmitter, createRecordingEmitter, jsonlEmitter } from "./core/observability/emitter.js";
 export { resolveLocKey } from "./core/localization/resolve.js";
@@ -54,7 +54,7 @@ export type { PortableCampaign, PortableCatalog, PortableManifest } from "./spik
 
 export type { Engine } from "./core/kernel/types.js";
 export type { EngineHost, SessionHost } from "./core/composition/types.js";
-export type { IdSource, Clock } from "./core/composition/types.js";
+export type { IdSource, RecordIdSource, Clock } from "./core/composition/types.js";
 export type { GameState, GameStatus } from "./core/kernel/types.js";
 export type { Kind, KindContext, KindRegistry } from "./core/kernel/types.js";
 export type { ActionParams, ActionResult, AvailableAction, Scene, SceneBody } from "./core/kernel/types.js";
