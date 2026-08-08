@@ -1,0 +1,16 @@
+{
+  "name": "stable-life-housing-avoiding-eviction",
+  "config": { "campaignId": "stable-life-housing", "seed": "stable-life-housing-avoiding-eviction-seed" },
+  "campaignVersion": "1.0.0",
+  "capturedUnder": "0.4.0",
+  "submissions": [
+    { "actionId": "plan.add", "params": { "actionType": "search_for_work" } },
+    { "actionId": "plan.add", "params": { "actionType": "apply_for_job", "targetId": "job-cashier" } },
+    { "actionId": "end_week" },
+    { "actionId": "end_week" },
+    { "actionId": "end_week" },
+    { "actionId": "end_week" },
+    { "actionId": "end_week" },
+    { "actionId": "end_week" }
+  ]
+}

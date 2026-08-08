@@ -48,16 +48,29 @@
  * enrollment a study session targets on its own. `withdraw_course` removes the enrollment
  * outright (§10-simulation-kind.md's "or withdraw and lose the fees" — no refund, and nothing
  * elsewhere in this contract gives a withdrawn course a persisted record).
+ *
+ * **W55 adds the six remaining money/housing resolvers**: `move_housing`, `pay_bills`,
+ * `borrow_money`, `repay_debt`, `deposit_savings`, `invest`. `move_housing` follows
+ * `enroll_course`'s addressing convention (a `HousingDefinition` lookup only `calculate`
+ * can make, reconstructed in `apply` from `outcome.changes`) since replacing
+ * `player.housing` wholesale needs content `apply` alone can't see. The other five need no
+ * such indirection — every field they touch (`cashCents`, `debtCents`, `savingsCents`,
+ * `HousingState.overdueRentCents`/`missedPayments`/`evictionStage`, and `invest`'s own
+ * `FinancialAccount`) is already visible to `apply` via `state` plus one carried number, the
+ * same shape `eatResolver`/`restResolver` use. `pay_bills` is `endOfWeek.ts`'s
+ * `financeReconcile` in reverse — the only way a player cures arrears that system levies.
  */
 
 import type { KindContext } from "../../core/kernel/types.js";
 import type { StateChange, OutcomeMessage } from "../../core/kernel/reasons.js";
 import type { ValidationError, ValidationWarning } from "../../core/validation/types.js";
-import type { CourseEnrollment, JobApplication } from "./actor.js";
+import type { LocKey } from "../../core/localization/types.js";
+import type { CourseEnrollment, FinancialAccount, HousingState, JobApplication } from "./actor.js";
 import type { SimulationCampaign } from "./campaign.js";
 import { evaluateSimulationCondition } from "./conditions.js";
+import { INVESTMENT_ACCOUNT_LABEL_KEY } from "./reasons.js";
 import type { JobOpening, SimulationKindState } from "./state.js";
-import type { Cents } from "./state.js";
+import type { BasisPoints, Cents } from "./state.js";
 import type { ActionType, GameAction } from "./plan.js";
 
 export interface ActionValidation {
@@ -676,6 +689,360 @@ export const withdrawCourseResolver: ActionResolver = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// W55 — Housing, Debt, and Reconciliation
+// ---------------------------------------------------------------------------
+
+const MOVE_HOUSING_TIME_COST = 4;
+/** `pay_bills`/`borrow_money`/`repay_debt`/`deposit_savings`/`invest` are paperwork, not
+ *  labor — a small fixed cost, same placeholder status as every other unbalanced constant
+ *  in this file. `pay_bills` alone costs none: it settles a debt already owed, not a new
+ *  transaction the player negotiates. */
+const FINANCE_ACTION_TIME_COST = 1;
+
+function totalMoveCost(def: { upfrontCostCents: Cents; depositCents?: Cents }): Cents {
+  return def.upfrontCostCents + (def.depositCents ?? 0);
+}
+
+/** Shared by `borrow_money`/`repay_debt`/`deposit_savings`/`invest` — none has a content
+ *  type to size itself against (unlike `enroll_course`'s `tuitionCents` or `move_housing`'s
+ *  `HousingDefinition`), so the amount is the one genuinely free-form number this kind's
+ *  action model carries: a positive integer `Cents` the player chose, not an engine-derived
+ *  cost (§4's own rule is about costs, not about data an action operates on — the same
+ *  distinction that already lets `plan.remove`'s `index` be free-form). `isSafeInteger`,
+ *  not `isInteger` — `isInteger` accepts magnitudes like `Number.MAX_VALUE` that overflow
+ *  `canonicalStringify` (W55.4) the moment they're added to an existing balance. */
+function amountCentsParam(action: GameAction): Cents | undefined {
+  const raw = action.parameters["amountCents"];
+  return typeof raw === "number" && Number.isSafeInteger(raw) && raw > 0 ? raw : undefined;
+}
+
+/** Guards every resolver above that adds a player-chosen `amountCents` onto an existing
+ *  balance: `amountCentsParam` alone only bounds the input, not the sum. A resulting balance
+ *  that would fall outside the safe integer range is rejected the same way a malformed
+ *  amount is — `requirement_unmet`, not a silent overflow into a value `canonicalStringify`
+ *  (W55.4) cannot serialize. */
+function wouldOverflow(...resultingBalances: readonly number[]): boolean {
+  return resultingBalances.some((balance) => !Number.isSafeInteger(balance));
+}
+
+/** `move_housing` to a home the player cannot afford (§10-simulation-kind.md's own
+ *  `HousingDefinition.upfrontCostCents`/`depositCents`) is rejected `insufficient_funds`
+ *  and leaves `player.housing` untouched — `canExecute` never reaches `calculate`. Moving
+ *  while `HousingState.overdueRentCents` is nonzero is rejected the same way: `pay_bills`
+ *  (below) is this kind's only cure for arrears, and letting a move erase them for free
+ *  would make it a second one, silently discarding the eviction ladder's progress along
+ *  with the debt. Once arrears are clear (by construction, `missedPayments`/`evictionStage`
+ *  are already `0`/`"none"` too — both are always reset alongside `overdueRentCents`),
+ *  moving in resets the new home's own arrears ledger to zero: a fresh lease has no history
+ *  with the old landlord's eviction ladder (`endOfWeek.ts`'s `financeReconcile`). */
+export const moveHousingResolver: ActionResolver = {
+  canExecute: (state, action, ctx): ActionValidation => {
+    const campaign = simulationCampaign(ctx);
+    const housingId = action.targetId;
+    const def = housingId === undefined ? undefined : campaign.housing.find((h) => h.id === housingId);
+    if (!def) return invalid("unknown_action", "core.reason.unknown_action");
+    if (!locationAllows(state, campaign, "move_housing")) return wrongLocationError();
+    if (def.id === state.player.housing.definitionId) return requirementUnmetError();
+    if (state.player.housing.overdueRentCents > 0) return requirementUnmetError();
+    for (const requirement of def.requirements) {
+      if (!evaluateSimulationCondition(requirement.condition, state)) {
+        return invalid(requirement.failureCode, requirement.messageKey);
+      }
+    }
+    const cost = totalMoveCost(def);
+    if (state.player.finances.cashCents < cost) return insufficientFundsError();
+    if (availableTimeUnits(state) < MOVE_HOUSING_TIME_COST) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: MOVE_HOUSING_TIME_COST, calculatedMoneyCostCents: cost };
+  },
+  calculate: (state, action, ctx): ActionOutcome => {
+    const campaign = simulationCampaign(ctx);
+    const def = campaign.housing.find((h) => h.id === action.targetId)!;
+    const cost = totalMoveCost(def);
+    const cashBefore = state.player.finances.cashCents;
+    const week = state.calendar.currentWeek;
+
+    const changes: StateChange[] = [
+      { path: "calendar.spentTimeUnits", op: "increment", value: MOVE_HOUSING_TIME_COST, reason: "action_move_housing", visible: true },
+      { path: "player.finances.cashCents", op: "decrement", value: cost, previous: cashBefore, reason: "action_move_housing", visible: true },
+      { path: "player.housing.definitionId", op: "set", value: def.id, previous: state.player.housing.definitionId, reason: "action_move_housing", visible: true },
+      { path: "player.housing.movedInWeek", op: "set", value: week, reason: "action_move_housing", visible: true },
+      { path: "player.housing.ownership", op: "set", value: "renting", reason: "action_move_housing", visible: true },
+      { path: "player.housing.damage", op: "set", value: 0, reason: "action_move_housing", visible: false },
+      { path: "player.housing.weeklyCostCents", op: "set", value: def.weeklyCostCents, reason: "action_move_housing", visible: true },
+      { path: "player.housing.depositPaidCents", op: "set", value: def.depositCents ?? 0, reason: "action_move_housing", visible: false },
+      { path: "player.housing.rentDueWeek", op: "set", value: week, reason: "action_move_housing", visible: false },
+      { path: "player.housing.overdueRentCents", op: "set", value: 0, reason: "action_move_housing", visible: false },
+      { path: "player.housing.missedPayments", op: "set", value: 0, reason: "action_move_housing", visible: false },
+      { path: "player.housing.evictionStage", op: "set", value: "none", reason: "action_move_housing", visible: false },
+    ];
+
+    return {
+      actionId: action.id, success: true, degree: "success", reason: "check_succeeded",
+      changes, generatedEvents: [], generatedOpportunities: [], messages: [],
+    };
+  },
+  apply: (state, outcome): SimulationKindState => {
+    const field = (name: string): unknown => outcome.changes.find((c) => c.path === `player.housing.${name}`)?.value;
+    const definitionId = field("definitionId");
+    if (typeof definitionId !== "string") return state;
+    const spentDelta = outcome.changes.find((c) => c.path === "calendar.spentTimeUnits")?.value;
+    const cost = outcome.changes.find((c) => c.path === "player.finances.cashCents")?.value;
+
+    const housing: HousingState = {
+      definitionId,
+      movedInWeek: field("movedInWeek") as number,
+      ownership: field("ownership") as HousingState["ownership"],
+      damage: field("damage") as number,
+      weeklyCostCents: field("weeklyCostCents") as Cents,
+      depositPaidCents: field("depositPaidCents") as Cents,
+      rentDueWeek: field("rentDueWeek") as number,
+      overdueRentCents: field("overdueRentCents") as Cents,
+      missedPayments: field("missedPayments") as number,
+      evictionStage: field("evictionStage") as HousingState["evictionStage"],
+    };
+
+    return {
+      ...state,
+      calendar: { ...state.calendar, spentTimeUnits: state.calendar.spentTimeUnits + (typeof spentDelta === "number" ? spentDelta : 0) },
+      player: {
+        ...state.player,
+        finances: { ...state.player.finances, cashCents: state.player.finances.cashCents - (typeof cost === "number" ? cost : 0) },
+        housing,
+      },
+    };
+  },
+};
+
+/** Settles `HousingState.overdueRentCents` in full — the only cure for arrears
+ *  `endOfWeek.ts`'s `financeReconcile` levies, all-or-nothing the same way `enroll_course`'s
+ *  tuition is: no partial payment, since `HousingState` has no field to carry one. Nothing
+ *  to pay (`overdueRentCents === 0`) is `requirement_unmet`, not a silent no-op success —
+ *  the same "nothing to act on" reading `activeEnrollment`'s callers already give that
+ *  code. */
+export const payBillsResolver: ActionResolver = {
+  canExecute: (state, _action, ctx): ActionValidation => {
+    const campaign = simulationCampaign(ctx);
+    if (!locationAllows(state, campaign, "pay_bills")) return wrongLocationError();
+    const owed = state.player.housing.overdueRentCents;
+    if (owed === 0) return requirementUnmetError();
+    if (state.player.finances.cashCents < owed) return insufficientFundsError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: 0, calculatedMoneyCostCents: owed };
+  },
+  calculate: (state, action): ActionOutcome => {
+    const owed = state.player.housing.overdueRentCents;
+    const cashBefore = state.player.finances.cashCents;
+    const changes: StateChange[] = [
+      { path: "player.finances.cashCents", op: "decrement", value: owed, previous: cashBefore, reason: "action_pay_bills", visible: true },
+      { path: "player.housing.overdueRentCents", op: "set", value: 0, previous: owed, reason: "action_pay_bills", visible: true },
+      { path: "player.housing.missedPayments", op: "set", value: 0, previous: state.player.housing.missedPayments, reason: "action_pay_bills", visible: true },
+      { path: "player.housing.evictionStage", op: "set", value: "none", previous: state.player.housing.evictionStage, reason: "action_pay_bills", visible: true },
+    ];
+    return {
+      actionId: action.id, success: true, degree: "success", reason: "check_succeeded",
+      changes, generatedEvents: [], generatedOpportunities: [], messages: [],
+    };
+  },
+  apply: (state, outcome): SimulationKindState => {
+    const paid = outcome.changes.find((c) => c.path === "player.finances.cashCents")?.value;
+    if (typeof paid !== "number") return state;
+    return {
+      ...state,
+      player: {
+        ...state.player,
+        finances: { ...state.player.finances, cashCents: state.player.finances.cashCents - paid },
+        housing: { ...state.player.housing, overdueRentCents: 0, missedPayments: 0, evictionStage: "none" },
+      },
+    };
+  },
+};
+
+export const borrowMoneyResolver: ActionResolver = {
+  canExecute: (state, action, ctx): ActionValidation => {
+    const campaign = simulationCampaign(ctx);
+    if (!locationAllows(state, campaign, "borrow_money")) return wrongLocationError();
+    const amount = amountCentsParam(action);
+    if (amount === undefined) return requirementUnmetError();
+    if (wouldOverflow(state.player.finances.cashCents + amount, state.player.finances.debtCents + amount)) return requirementUnmetError();
+    if (availableTimeUnits(state) < FINANCE_ACTION_TIME_COST) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: FINANCE_ACTION_TIME_COST, calculatedMoneyCostCents: NO_MONEY_COST };
+  },
+  calculate: (state, action): ActionOutcome => {
+    const amount = amountCentsParam(action)!;
+    const changes: StateChange[] = [
+      { path: "calendar.spentTimeUnits", op: "increment", value: FINANCE_ACTION_TIME_COST, reason: "action_borrow_money", visible: true },
+      { path: "player.finances.cashCents", op: "increment", value: amount, previous: state.player.finances.cashCents, reason: "action_borrow_money", visible: true },
+      { path: "player.finances.debtCents", op: "increment", value: amount, previous: state.player.finances.debtCents, reason: "action_borrow_money", visible: true },
+    ];
+    return {
+      actionId: action.id, success: true, degree: "success", reason: "check_succeeded",
+      changes, generatedEvents: [], generatedOpportunities: [], messages: [],
+    };
+  },
+  apply: (state, outcome): SimulationKindState => {
+    const spentDelta = outcome.changes.find((c) => c.path === "calendar.spentTimeUnits")?.value;
+    const amount = outcome.changes.find((c) => c.path === "player.finances.cashCents")?.value;
+    const next = {
+      ...state,
+      calendar: { ...state.calendar, spentTimeUnits: state.calendar.spentTimeUnits + (typeof spentDelta === "number" ? spentDelta : 0) },
+    };
+    if (typeof amount !== "number") return next;
+    return {
+      ...next,
+      player: { ...next.player, finances: { ...next.player.finances, cashCents: next.player.finances.cashCents + amount, debtCents: next.player.finances.debtCents + amount } },
+    };
+  },
+};
+
+export const repayDebtResolver: ActionResolver = {
+  canExecute: (state, action, ctx): ActionValidation => {
+    const campaign = simulationCampaign(ctx);
+    if (!locationAllows(state, campaign, "repay_debt")) return wrongLocationError();
+    const amount = amountCentsParam(action);
+    if (amount === undefined) return requirementUnmetError();
+    if (amount > state.player.finances.debtCents) return requirementUnmetError();
+    if (state.player.finances.cashCents < amount) return insufficientFundsError();
+    if (availableTimeUnits(state) < FINANCE_ACTION_TIME_COST) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: FINANCE_ACTION_TIME_COST, calculatedMoneyCostCents: amount };
+  },
+  calculate: (state, action): ActionOutcome => {
+    const amount = amountCentsParam(action)!;
+    const changes: StateChange[] = [
+      { path: "calendar.spentTimeUnits", op: "increment", value: FINANCE_ACTION_TIME_COST, reason: "action_repay_debt", visible: true },
+      { path: "player.finances.cashCents", op: "decrement", value: amount, previous: state.player.finances.cashCents, reason: "action_repay_debt", visible: true },
+      { path: "player.finances.debtCents", op: "decrement", value: amount, previous: state.player.finances.debtCents, reason: "action_repay_debt", visible: true },
+    ];
+    return {
+      actionId: action.id, success: true, degree: "success", reason: "check_succeeded",
+      changes, generatedEvents: [], generatedOpportunities: [], messages: [],
+    };
+  },
+  apply: (state, outcome): SimulationKindState => {
+    const spentDelta = outcome.changes.find((c) => c.path === "calendar.spentTimeUnits")?.value;
+    const amount = outcome.changes.find((c) => c.path === "player.finances.cashCents")?.value;
+    const next = {
+      ...state,
+      calendar: { ...state.calendar, spentTimeUnits: state.calendar.spentTimeUnits + (typeof spentDelta === "number" ? spentDelta : 0) },
+    };
+    if (typeof amount !== "number") return next;
+    return {
+      ...next,
+      player: { ...next.player, finances: { ...next.player.finances, cashCents: next.player.finances.cashCents - amount, debtCents: next.player.finances.debtCents - amount } },
+    };
+  },
+};
+
+export const depositSavingsResolver: ActionResolver = {
+  canExecute: (state, action, ctx): ActionValidation => {
+    const campaign = simulationCampaign(ctx);
+    if (!locationAllows(state, campaign, "deposit_savings")) return wrongLocationError();
+    const amount = amountCentsParam(action);
+    if (amount === undefined) return requirementUnmetError();
+    if (wouldOverflow(state.player.finances.savingsCents + amount)) return requirementUnmetError();
+    if (state.player.finances.cashCents < amount) return insufficientFundsError();
+    if (availableTimeUnits(state) < FINANCE_ACTION_TIME_COST) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: FINANCE_ACTION_TIME_COST, calculatedMoneyCostCents: amount };
+  },
+  calculate: (state, action): ActionOutcome => {
+    const amount = amountCentsParam(action)!;
+    const changes: StateChange[] = [
+      { path: "calendar.spentTimeUnits", op: "increment", value: FINANCE_ACTION_TIME_COST, reason: "action_deposit_savings", visible: true },
+      { path: "player.finances.cashCents", op: "decrement", value: amount, previous: state.player.finances.cashCents, reason: "action_deposit_savings", visible: true },
+      { path: "player.finances.savingsCents", op: "increment", value: amount, previous: state.player.finances.savingsCents, reason: "action_deposit_savings", visible: true },
+    ];
+    return {
+      actionId: action.id, success: true, degree: "success", reason: "check_succeeded",
+      changes, generatedEvents: [], generatedOpportunities: [], messages: [],
+    };
+  },
+  apply: (state, outcome): SimulationKindState => {
+    const spentDelta = outcome.changes.find((c) => c.path === "calendar.spentTimeUnits")?.value;
+    const amount = outcome.changes.find((c) => c.path === "player.finances.cashCents")?.value;
+    const next = {
+      ...state,
+      calendar: { ...state.calendar, spentTimeUnits: state.calendar.spentTimeUnits + (typeof spentDelta === "number" ? spentDelta : 0) },
+    };
+    if (typeof amount !== "number") return next;
+    return {
+      ...next,
+      player: { ...next.player, finances: { ...next.player.finances, cashCents: next.player.finances.cashCents - amount, savingsCents: next.player.finances.savingsCents + amount } },
+    };
+  },
+};
+
+const INVESTMENT_ACCOUNT_ID = "investment-primary";
+/** Placeholder — no market-rate content type exists yet for a real return (`TODO.md`'s
+ *  *Known Open Items*). */
+const INVESTMENT_INTEREST_RATE: BasisPoints = 0;
+
+/** The one money-movement resolver that needs a `FinancialAccount` rather than a scalar
+ *  `FinancialState` field — `savingsCents`/`debtCents` are named fields `deposit_savings`/
+ *  `repay_debt` (above) write directly; nothing analogous exists for an investment, so this
+ *  is what `accounts` (§6.4) exists for. `apply` never needs `ctx`: every field the account
+ *  carries is either a fixed constant or already derivable from `state`/`outcome.changes`,
+ *  so unlike `move_housing` there is no content lookup to route around. */
+export const investResolver: ActionResolver = {
+  canExecute: (state, action, ctx): ActionValidation => {
+    const campaign = simulationCampaign(ctx);
+    if (!locationAllows(state, campaign, "invest")) return wrongLocationError();
+    const amount = amountCentsParam(action);
+    if (amount === undefined) return requirementUnmetError();
+    const existingBalance = state.player.finances.accounts.find((a) => a.id === INVESTMENT_ACCOUNT_ID)?.balanceCents ?? 0;
+    if (wouldOverflow(existingBalance + amount)) return requirementUnmetError();
+    if (state.player.finances.cashCents < amount) return insufficientFundsError();
+    if (availableTimeUnits(state) < FINANCE_ACTION_TIME_COST) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: FINANCE_ACTION_TIME_COST, calculatedMoneyCostCents: amount };
+  },
+  calculate: (state, action): ActionOutcome => {
+    const amount = amountCentsParam(action)!;
+    const existing = state.player.finances.accounts.find((a) => a.id === INVESTMENT_ACCOUNT_ID);
+    const balanceBefore = existing?.balanceCents ?? 0;
+    const openedWeek = existing?.openedWeek ?? state.calendar.currentWeek;
+    const accountPath = (field: string): string => `player.finances.accounts.${INVESTMENT_ACCOUNT_ID}.${field}`;
+    const changes: StateChange[] = [
+      { path: "calendar.spentTimeUnits", op: "increment", value: FINANCE_ACTION_TIME_COST, reason: "action_invest", visible: true },
+      { path: "player.finances.cashCents", op: "decrement", value: amount, previous: state.player.finances.cashCents, reason: "action_invest", visible: true },
+      { path: accountPath("kind"), op: "set", value: "investment", reason: "action_invest", visible: false },
+      { path: accountPath("label"), op: "set", value: INVESTMENT_ACCOUNT_LABEL_KEY, reason: "action_invest", visible: false },
+      { path: accountPath("interestRate"), op: "set", value: INVESTMENT_INTEREST_RATE, reason: "action_invest", visible: false },
+      { path: accountPath("openedWeek"), op: "set", value: openedWeek, reason: "action_invest", visible: false },
+      { path: accountPath("balanceCents"), op: "set", value: balanceBefore + amount, previous: balanceBefore, reason: "action_invest", visible: true },
+    ];
+    return {
+      actionId: action.id, success: true, degree: "success", reason: "check_succeeded",
+      changes, generatedEvents: [], generatedOpportunities: [], messages: [],
+    };
+  },
+  apply: (state, outcome): SimulationKindState => {
+    const accountField = (field: string): unknown =>
+      outcome.changes.find((c) => c.path === `player.finances.accounts.${INVESTMENT_ACCOUNT_ID}.${field}`)?.value;
+    const spentDelta = outcome.changes.find((c) => c.path === "calendar.spentTimeUnits")?.value;
+    const amount = outcome.changes.find((c) => c.path === "player.finances.cashCents")?.value;
+    const next = {
+      ...state,
+      calendar: { ...state.calendar, spentTimeUnits: state.calendar.spentTimeUnits + (typeof spentDelta === "number" ? spentDelta : 0) },
+    };
+    if (typeof amount !== "number") return next;
+
+    const account: FinancialAccount = {
+      id: INVESTMENT_ACCOUNT_ID,
+      kind: accountField("kind") as FinancialAccount["kind"],
+      label: accountField("label") as LocKey,
+      balanceCents: accountField("balanceCents") as Cents,
+      interestRate: accountField("interestRate") as BasisPoints,
+      openedWeek: accountField("openedWeek") as number,
+    };
+    const accounts = next.player.finances.accounts.some((a) => a.id === INVESTMENT_ACCOUNT_ID)
+      ? next.player.finances.accounts.map((a) => (a.id === INVESTMENT_ACCOUNT_ID ? account : a))
+      : [...next.player.finances.accounts, account];
+
+    return {
+      ...next,
+      player: { ...next.player, finances: { ...next.player.finances, cashCents: next.player.finances.cashCents - amount, accounts } },
+    };
+  },
+};
+
 /**
  * A real object literal, not `Object.fromEntries` over an array — a `Record<K, V>`
  * literal is what actually gives `ResolverTable`'s own exhaustiveness claim teeth.
@@ -702,12 +1069,12 @@ export const RESOLVER_TABLE: ResolverTable = {
   maintain_item: stubResolver,
   repair_item: stubResolver,
   sell_item: stubResolver,
-  pay_bills: stubResolver,
-  borrow_money: stubResolver,
-  repay_debt: stubResolver,
-  deposit_savings: stubResolver,
-  invest: stubResolver,
-  move_housing: stubResolver,
+  pay_bills: payBillsResolver,
+  borrow_money: borrowMoneyResolver,
+  repay_debt: repayDebtResolver,
+  deposit_savings: depositSavingsResolver,
+  invest: investResolver,
+  move_housing: moveHousingResolver,
   start_project: stubResolver,
   work_on_project: stubResolver,
   start_business: stubResolver,

@@ -26,12 +26,15 @@ import { createEngine } from "../core/kernel/engine.js";
 import { buildValidatedContentRegistry } from "../core/validation/tiered.js";
 import { createInMemoryProfileStore } from "../core/session/profile-store.js";
 import { simulationKind } from "../kinds/simulation/kind.js";
+import type { HousingState } from "../kinds/simulation/actor.js";
+import type { SimulationKindState } from "../kinds/simulation/state.js";
 import { createCountingIds } from "../core/determinism/counting-ids.js";
 import { runReplayFixture, type ReplayRunnerContext } from "../core/replay/runner.js";
 import type { Outcome, ReplayFixture } from "../core/replay/types.js";
 import type { KindRegistry } from "../core/kernel/types.js";
 import { buildStableLifeCampaign } from "./stable-life.js";
 import { buildStableLifeEffectsCampaign } from "./stable-life-effects.js";
+import { buildStableLifeHousingCampaign } from "./stable-life-housing.js";
 
 const FIXTURES_DIR = fileURLToPath(new URL("../../fixtures/replay/", import.meta.url));
 const REPLAY_PROFILE_ID = "replay-oracle-profile";
@@ -67,17 +70,20 @@ const CURRENT_STABLE_LIFE_FIXTURE_NAMES = stableLifeFixtureNames(FIXTURES_DIR);
 const STABLE_LIFE_FIXTURE_NAMES = stableLifeFixtureNames(CORPUS_DIR);
 
 /**
- * Registers both `stable-life` and `stable-life-effects` (W51.6) — a fixture's own
- * `config.campaignId` picks which one it replays against; the filename prefix scan above
- * is what makes either one part of "the Stable Life replay corpus" regardless.
+ * Registers `stable-life`, `stable-life-effects` (W51.6), and `stable-life-housing` (W55)
+ * — a fixture's own `config.campaignId` picks which one it replays against; the filename
+ * prefix scan above is what makes any of them part of "the Stable Life replay corpus"
+ * regardless.
  */
 function makeContext(): ReplayRunnerContext {
   const built = buildStableLifeCampaign();
   if (!built.ok || !built.value) throw new Error("expected the Stable Life fixture campaign to build");
   const builtEffects = buildStableLifeEffectsCampaign();
   if (!builtEffects.ok || !builtEffects.value) throw new Error("expected the Stable Life: Effects fixture campaign to build");
+  const builtHousing = buildStableLifeHousingCampaign();
+  if (!builtHousing.ok || !builtHousing.value) throw new Error("expected the Stable Life: Housing fixture campaign to build");
   const kinds = { simulation: simulationKind } as unknown as KindRegistry;
-  const registryResult = buildValidatedContentRegistry([built.value, builtEffects.value], kinds);
+  const registryResult = buildValidatedContentRegistry([built.value, builtEffects.value, builtHousing.value], kinds);
   if (!registryResult.ok || !registryResult.value) throw new Error("expected the Stable Life fixture campaigns to validate");
 
   return {
@@ -105,5 +111,42 @@ describe("the Stable Life replay corpus (07-replay.md §4)", () => {
     const expected = loadExpectedOutcome(name);
     const verdict = await runReplayFixture(makeContext(), fixture, expected);
     expect(verdict).toEqual({ kind: "match" });
+  });
+});
+
+/**
+ * W55.6's two housing fixtures both produce an `Outcome` with active status, no
+ * achievements, and a null terminal result regardless of `evictionStage` — none of
+ * `Outcome`'s cross-version-stable fields (07-replay.md §2) depend on it, so the `it.each`
+ * loop above proves the two fixtures replay byte-identically but not that eviction actually
+ * diverges the way W55.6 requires. `evictionStage` lives in `kindState`, which `Outcome`
+ * deliberately excludes (07 §2's own scope), so proving the requirement means driving each
+ * fixture's submissions through the engine directly — the same one `buildReplayOutcome`
+ * uses internally — and reading the final `HousingState` back off `GameState.kindState`.
+ */
+describe("W55.6 — the housing fixtures actually reach and avoid eviction", () => {
+  async function finalHousing(fixtureName: string): Promise<HousingState> {
+    const fixture = loadFixture(fixtureName);
+    const ctx = makeContext();
+    const created = ctx.engine.createGame(fixture.config);
+    if (!created.ok || !created.value) throw new Error(`expected "${fixtureName}" to create a game`);
+
+    let state = created.value;
+    for (const submission of fixture.submissions) {
+      const result = ctx.engine.submitAction(state, submission.actionId, submission.params);
+      if (result.ok && result.value) state = result.value;
+    }
+    return (state.kindState as SimulationKindState).player.housing;
+  }
+
+  it("stable-life-housing-eviction reaches the evicted stage", async () => {
+    const housing = await finalHousing("stable-life-housing-eviction");
+    expect(housing.evictionStage).toBe("evicted");
+  });
+
+  it("stable-life-housing-avoiding-eviction never accrues arrears", async () => {
+    const housing = await finalHousing("stable-life-housing-avoiding-eviction");
+    expect(housing.evictionStage).toBe("none");
+    expect(housing.overdueRentCents).toBe(0);
   });
 });

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { KindContext } from "../../core/kernel/types.js";
 import type { Campaign } from "../../core/registry/types.js";
 import type { SimulationCampaign } from "./campaign.js";
-import type { CourseDefinition, JobDefinition, LocationDefinition } from "./content.js";
+import type { CourseDefinition, HousingDefinition, JobDefinition, LocationDefinition } from "./content.js";
 import type { CourseEnrollment, Employment } from "./actor.js";
 import type { JobOpening, SimulationKindState } from "./state.js";
 import type { GameAction } from "./plan.js";
@@ -10,8 +10,14 @@ import { runEndOfWeek } from "./endOfWeek.js";
 import {
   applyForJobResolver,
   attendClassResolver,
+  borrowMoneyResolver,
+  depositSavingsResolver,
   enrollCourseResolver,
+  investResolver,
+  moveHousingResolver,
   negotiateJobTermsResolver,
+  payBillsResolver,
+  repayDebtResolver,
   searchForWorkResolver,
   studyResolver,
   withdrawCourseResolver,
@@ -67,7 +73,25 @@ const workLocation: LocationDefinition = {
   actionTypes: [
     "search_for_work", "apply_for_job", "negotiate_job_terms", "work", "work_overtime",
     "enroll_course", "attend_class", "study", "withdraw_course",
+    "move_housing", "pay_bills", "borrow_money", "repay_debt", "deposit_savings", "invest",
   ],
+};
+
+const housingAffordable: HousingDefinition = {
+  id: "housing-affordable", nameKey: "h.name", descriptionKey: "h.description",
+  upfrontCostCents: 500, weeklyCostCents: 2000, depositCents: 500,
+  capacity: 1, comfort: 50, safety: 50, prestige: 10, storage: 20,
+  commuteModifier: 0, energyRecoveryModifier: 0, happinessModifier: 0, healthModifier: 0,
+  maintenanceRisk: 10, requirements: [], tags: [],
+};
+
+const housingExpensive: HousingDefinition = {
+  ...housingAffordable, id: "housing-expensive", upfrontCostCents: 50000, depositCents: 0,
+};
+
+const housingGated: HousingDefinition = {
+  ...housingAffordable, id: "housing-gated",
+  requirements: [{ type: "attribute", condition: { field: "player.attributes.charisma", operator: "greater_or_equal", value: 200 }, failureCode: "requirement_unmet", messageKey: "core.reason.requirement_unmet" }],
 };
 
 const bareLocation: LocationDefinition = {
@@ -108,7 +132,8 @@ function state(overrides: Partial<SimulationKindState> = {}): SimulationKindStat
 
 const simulationCampaign: SimulationCampaign = {
   descriptionKey: "sim.description",
-  jobs: [job, gatedJob, accountantJob], courses: [course, gatedCourse], housing: [], items: [], events: [], npcs: [], goals: [],
+  jobs: [job, gatedJob, accountantJob], courses: [course, gatedCourse],
+  housing: [housingAffordable, housingExpensive, housingGated], items: [], events: [], npcs: [], goals: [],
   scenarios: [], difficulties: [], opportunities: [], achievements: [], headlines: [], employers: [],
   locations: [workLocation, bareLocation], backgrounds: [], traits: [], skills: [],
   scenarioId: "scenario-1", goalFailurePrecedence: "goals_win",
@@ -132,6 +157,10 @@ function ctx(overrides: Partial<KindContext> = {}): KindContext {
 
 function action(type: GameAction["type"], targetId?: string): GameAction {
   return { id: "action-1", type, actorId: "player", ...(targetId ? { targetId } : {}), parameters: {} };
+}
+
+function actionWithAmount(type: GameAction["type"], amountCents: number): GameAction {
+  return { id: "action-1", type, actorId: "player", parameters: { amountCents } };
 }
 
 describe("W53 — search_for_work", () => {
@@ -410,5 +439,202 @@ describe("W54.4 — a skill awarded by course completion satisfies a JobDefiniti
 
     const afterResult = applyForJobResolver.canExecute(afterEndOfWeek, action("apply_for_job", "job-accountant"), ctx());
     expect(afterResult.valid).toBe(true);
+  });
+});
+
+describe("W55 — move_housing", () => {
+  it("rejects unknown_action for a housingId with no matching HousingDefinition", () => {
+    const result = moveHousingResolver.canExecute(state(), action("move_housing", "housing-nonexistent"), ctx());
+    expect(result.errors[0]?.code).toBe("unknown_action");
+  });
+
+  it("rejects wrong_location where move_housing isn't in the location's own actionTypes", () => {
+    const s = state({ player: player({ currentLocationId: "loc-bare" }) });
+    const result = moveHousingResolver.canExecute(s, action("move_housing", "housing-affordable"), ctx());
+    expect(result.errors[0]?.code).toBe("wrong_location");
+  });
+
+  it("rejects the housing's own failureCode/messageKey when its Requirement isn't met", () => {
+    const result = moveHousingResolver.canExecute(state(), action("move_housing", "housing-gated"), ctx());
+    expect(result.errors[0]).toEqual({ code: "requirement_unmet", messageKey: "core.reason.requirement_unmet" });
+  });
+
+  // W55.5 — rejected insufficient_funds, current housing left untouched.
+  it("rejects insufficient_funds for a home the player can't afford, leaving current housing untouched", () => {
+    const s = state();
+    const result = moveHousingResolver.canExecute(s, action("move_housing", "housing-expensive"), ctx());
+    expect(result.errors[0]?.code).toBe("insufficient_funds");
+    expect(s.player.housing.definitionId).toBe("housing-1");
+  });
+
+  it("charges upfront cost plus deposit and replaces player.housing wholesale", () => {
+    const s = state();
+    const outcome = moveHousingResolver.calculate(s, action("move_housing", "housing-affordable"), ctx());
+    const next = moveHousingResolver.apply(s, outcome);
+    // upfrontCostCents (500) + depositCents (500) = 1000.
+    expect(next.player.finances.cashCents).toBe(9000);
+    expect(next.player.housing).toEqual({
+      definitionId: "housing-affordable", movedInWeek: 3, ownership: "renting", damage: 0,
+      weeklyCostCents: 2000, depositPaidCents: 500, rentDueWeek: 3, overdueRentCents: 0,
+      missedPayments: 0, evictionStage: "none",
+    });
+    expect(next.calendar.spentTimeUnits).toBe(4);
+  });
+
+  // pay_bills (below) is this kind's only cure for arrears — a move must not become a
+  // second one, silently discarding the debt and the eviction ladder's progress with it.
+  it("rejects requirement_unmet while the current home has unpaid arrears, leaving housing untouched", () => {
+    const inArrears = state({
+      player: player({
+        housing: {
+          definitionId: "housing-1", movedInWeek: 1, ownership: "renting", damage: 0,
+          weeklyCostCents: 3000, depositPaidCents: 0, rentDueWeek: 1, overdueRentCents: 5000,
+          missedPayments: 2, evictionStage: "penalty",
+        },
+      }),
+    });
+    const result = moveHousingResolver.canExecute(inArrears, action("move_housing", "housing-affordable"), ctx());
+    expect(result.errors[0]?.code).toBe("requirement_unmet");
+    expect(inArrears.player.housing.evictionStage).toBe("penalty");
+  });
+});
+
+describe("W55 — pay_bills", () => {
+  const inArrears = (): SimulationKindState => state({
+    player: player({
+      housing: {
+        definitionId: "housing-1", movedInWeek: 1, ownership: "renting", damage: 0,
+        weeklyCostCents: 2000, depositPaidCents: 0, rentDueWeek: 1, overdueRentCents: 3300,
+        missedPayments: 1, evictionStage: "warning",
+      },
+    }),
+  });
+
+  it("rejects requirement_unmet when nothing is owed", () => {
+    const result = payBillsResolver.canExecute(state(), action("pay_bills"), ctx());
+    expect(result.errors[0]?.code).toBe("requirement_unmet");
+  });
+
+  it("rejects wrong_location off the location that allows it", () => {
+    const s = { ...inArrears(), player: player({ ...inArrears().player, currentLocationId: "loc-bare" }) };
+    const result = payBillsResolver.canExecute(s, action("pay_bills"), ctx());
+    expect(result.errors[0]?.code).toBe("wrong_location");
+  });
+
+  it("rejects insufficient_funds when cash is short of the full amount owed", () => {
+    const s = { ...inArrears(), player: player({ ...inArrears().player, finances: { ...player().finances, cashCents: 100 } }) };
+    const result = payBillsResolver.canExecute(s, action("pay_bills"), ctx());
+    expect(result.errors[0]?.code).toBe("insufficient_funds");
+  });
+
+  it("settles overdueRentCents in full and resets missedPayments/evictionStage", () => {
+    const s = inArrears();
+    const outcome = payBillsResolver.calculate(s, action("pay_bills"), ctx());
+    const next = payBillsResolver.apply(s, outcome);
+    expect(next.player.finances.cashCents).toBe(s.player.finances.cashCents - 3300);
+    expect(next.player.housing.overdueRentCents).toBe(0);
+    expect(next.player.housing.missedPayments).toBe(0);
+    expect(next.player.housing.evictionStage).toBe("none");
+  });
+});
+
+describe("W55 — borrow_money / repay_debt / deposit_savings / invest", () => {
+  it("borrow_money rejects requirement_unmet with no amountCents param", () => {
+    const result = borrowMoneyResolver.canExecute(state(), action("borrow_money"), ctx());
+    expect(result.errors[0]?.code).toBe("requirement_unmet");
+  });
+
+  it("borrow_money rejects requirement_unmet when the resulting balance would overflow a safe integer", () => {
+    const s = state({ player: player({ finances: { ...player().finances, cashCents: Number.MAX_SAFE_INTEGER } }) });
+    const result = borrowMoneyResolver.canExecute(s, actionWithAmount("borrow_money", Number.MAX_SAFE_INTEGER), ctx());
+    expect(result.errors[0]?.code).toBe("requirement_unmet");
+  });
+
+  it("borrow_money increases cashCents and debtCents by the same amount, and spends time", () => {
+    const s = state();
+    const outcome = borrowMoneyResolver.calculate(s, actionWithAmount("borrow_money", 5000), ctx());
+    const next = borrowMoneyResolver.apply(s, outcome);
+    expect(next.player.finances.cashCents).toBe(15000);
+    expect(next.player.finances.debtCents).toBe(5000);
+    expect(next.calendar.spentTimeUnits).toBe(1);
+  });
+
+  it("repay_debt rejects requirement_unmet for an amount exceeding debtCents", () => {
+    const s = state({ player: player({ finances: { ...player().finances, debtCents: 1000 } }) });
+    const result = repayDebtResolver.canExecute(s, actionWithAmount("repay_debt", 5000), ctx());
+    expect(result.errors[0]?.code).toBe("requirement_unmet");
+  });
+
+  it("repay_debt rejects insufficient_funds when cash is short", () => {
+    const s = state({ player: player({ finances: { ...player().finances, cashCents: 100, debtCents: 5000 } }) });
+    const result = repayDebtResolver.canExecute(s, actionWithAmount("repay_debt", 5000), ctx());
+    expect(result.errors[0]?.code).toBe("insufficient_funds");
+  });
+
+  it("repay_debt decreases cashCents and debtCents by the same amount", () => {
+    const s = state({ player: player({ finances: { ...player().finances, debtCents: 5000 } }) });
+    const outcome = repayDebtResolver.calculate(s, actionWithAmount("repay_debt", 3000), ctx());
+    const next = repayDebtResolver.apply(s, outcome);
+    expect(next.player.finances.cashCents).toBe(7000);
+    expect(next.player.finances.debtCents).toBe(2000);
+  });
+
+  it("deposit_savings rejects insufficient_funds when cash is short", () => {
+    const result = depositSavingsResolver.canExecute(state(), actionWithAmount("deposit_savings", 20000), ctx());
+    expect(result.errors[0]?.code).toBe("insufficient_funds");
+  });
+
+  it("deposit_savings rejects requirement_unmet when the resulting balance would overflow a safe integer", () => {
+    const s = state({ player: player({ finances: { ...player().finances, cashCents: Number.MAX_SAFE_INTEGER, savingsCents: Number.MAX_SAFE_INTEGER } }) });
+    const result = depositSavingsResolver.canExecute(s, actionWithAmount("deposit_savings", Number.MAX_SAFE_INTEGER), ctx());
+    expect(result.errors[0]?.code).toBe("requirement_unmet");
+  });
+
+  it("deposit_savings moves cash into savingsCents", () => {
+    const s = state();
+    const outcome = depositSavingsResolver.calculate(s, actionWithAmount("deposit_savings", 4000), ctx());
+    const next = depositSavingsResolver.apply(s, outcome);
+    expect(next.player.finances.cashCents).toBe(6000);
+    expect(next.player.finances.savingsCents).toBe(4000);
+  });
+
+  it("invest rejects insufficient_funds when cash is short", () => {
+    const result = investResolver.canExecute(state(), actionWithAmount("invest", 20000), ctx());
+    expect(result.errors[0]?.code).toBe("insufficient_funds");
+  });
+
+  it("invest rejects requirement_unmet when the resulting account balance would overflow a safe integer", () => {
+    const existing = { id: "investment-primary", kind: "investment" as const, label: "simulation.finance.investment.label", balanceCents: Number.MAX_SAFE_INTEGER, interestRate: 0, openedWeek: 3 };
+    const s = state({ player: player({ finances: { ...player().finances, cashCents: Number.MAX_SAFE_INTEGER, accounts: [existing] } }) });
+    const result = investResolver.canExecute(s, actionWithAmount("invest", Number.MAX_SAFE_INTEGER), ctx());
+    expect(result.errors[0]?.code).toBe("requirement_unmet");
+  });
+
+  it("invest opens a new investment FinancialAccount from cash", () => {
+    const s = state();
+    const outcome = investResolver.calculate(s, actionWithAmount("invest", 4000), ctx());
+    const next = investResolver.apply(s, outcome);
+    expect(next.player.finances.cashCents).toBe(6000);
+    expect(next.player.finances.accounts).toEqual([
+      { id: "investment-primary", kind: "investment", label: "simulation.finance.investment.label", balanceCents: 4000, interestRate: 0, openedWeek: 3 },
+    ]);
+  });
+
+  // W55 review fix — `apply` mutates `player.finances.accounts`, but consumers of
+  // `outcome.changes` alone (the reducer audit contract every other resolver here follows)
+  // could not previously observe that an account was opened or credited.
+  it("invest's outcome.changes carries the account's balance, addressed by natural key", () => {
+    const s = state();
+    const outcome = investResolver.calculate(s, actionWithAmount("invest", 4000), ctx());
+    const balanceChange = outcome.changes.find((c) => c.path === "player.finances.accounts.investment-primary.balanceCents");
+    expect(balanceChange).toMatchObject({ op: "set", value: 4000, previous: 0, visible: true });
+  });
+
+  it("invest tops up the existing investment account rather than opening a second one", () => {
+    const existing = { id: "investment-primary", kind: "investment" as const, label: "simulation.finance.investment.label", balanceCents: 4000, interestRate: 0, openedWeek: 3 };
+    const s = state({ player: player({ finances: { ...player().finances, accounts: [existing] } }) });
+    const outcome = investResolver.calculate(s, actionWithAmount("invest", 1000), ctx());
+    const next = investResolver.apply(s, outcome);
+    expect(next.player.finances.accounts).toEqual([{ ...existing, balanceCents: 5000 }]);
   });
 });
