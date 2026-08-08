@@ -21,7 +21,7 @@
  * **Five of the ten arrive indirectly, and that is what hid them.** The action codes are
  * literals at their own `change()` call site, but `scenario_effect`, `guest_served`,
  * `objective_met`, `failure_triggered` and `incident_resolved` are threaded in as
- * `WorldEffectContext.reason` (`tick/effects.ts`) and only become a reason where that module
+ * `EffectContext.reason` (`tick/effects.ts`) and only become a reason where that module
  * records `finances.cashCents` with `visible: true`. A reader scanning for `reason:` literals
  * beside a `visible` flag sees neither half — which is exactly how the first pass at this
  * registration both missed these five and added two codes (`tick`, `effect`) that no
@@ -86,7 +86,7 @@ export const WORLD_GRAPH_REASON_CODES = [
   "staff_hired",
   "price_set",
   "ticks_advanced",
-  // Indirect: `WorldEffectContext.reason`, visible via `effects.ts`'s `finances.cashCents`.
+  // Indirect: `EffectContext.reason`, visible via `effects.ts`'s `finances.cashCents`.
   "scenario_effect",
   "guest_served",
   "objective_met",

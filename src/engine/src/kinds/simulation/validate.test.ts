@@ -450,4 +450,17 @@ describe("validateCampaign", () => {
       expect.objectContaining({ code: "unsatisfiable_achievement" }),
     );
   });
+
+  it("does not warn on a counter key that only `advance.ts`'s automatic reason-code fold grants, with no matching Reward", () => {
+    const achievement: AchievementDefinition = {
+      id: "ach-1", nameKey: "ach.name", descriptionKey: "ach.description",
+      condition: { field: "player.counters.action_rest", operator: "greater_or_equal", value: 1 },
+      hidden: false, scope: "profile",
+    };
+    const campaign = makeCampaign({ achievements: [achievement] });
+    const result = validateCampaign(campaign, VALID_STRINGS);
+    expect(result.warnings).not.toContainEqual(
+      expect.objectContaining({ code: "unsatisfiable_achievement" }),
+    );
+  });
 });

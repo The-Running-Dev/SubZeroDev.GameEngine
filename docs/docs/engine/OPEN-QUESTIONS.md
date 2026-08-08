@@ -228,13 +228,13 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   table resolves. The gap was found on 2026-08-06 (two codes), again on 2026-08-08 at scale
   (twenty-eight), and the manual comparison that closed the second one was itself wrong for
   `world-graph` — it registered two codes nothing emits and missed five that arrive indirectly
-  through `WorldEffectContext.reason`, which no scan for a `reason:` literal beside a `visible`
+  through `EffectContext.reason`, which no scan for a `reason:` literal beside a `visible`
   flag can see. That is the argument for building the check rather than repeating the audit: the
   substitute has a demonstrated failure mode, in the pass that proposed it. The shape wants
   thought — a naive source scan for `reason:` literals reproduces exactly the blind spot that
   hid the indirect five, so the check must follow reasons through the context objects that carry
   them, or the kinds must stop typing `reason` as a bare `string` (`world-graph`'s
-  `BatchChanges.record` and `WorldEffectContext` both do) so the compiler can do it instead.
+  `BatchChanges.record` and `EffectContext` both do) so the compiler can do it instead.
   **Revisit when** a unit can own it properly — it is a test with a design question in it, not a
   reconciliation edit, and the second option may be the cheaper one.
 

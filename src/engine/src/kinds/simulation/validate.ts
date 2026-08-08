@@ -34,6 +34,7 @@ import type { SimulationCampaign } from "./campaign.js";
 import type { Modifier } from "./state.js";
 import type { Reward } from "./content.js";
 import { derivedValueResolver } from "./derived.js";
+import { SIMULATION_REASON_CODES } from "./reasons.js";
 
 function error(code: string, path: string): ValidationError {
   return { code, messageKey: `simulation.reason.${code}`, path };
@@ -365,9 +366,14 @@ function allRewards(content: SimulationCampaign): Reward[] {
 
 /** A `AchievementDefinition.condition` referencing `player.counters.<key>` or
  *  `player.flags.<key>` for a key no `"counter"`/`"flag"`-type `Reward` in the campaign ever
- *  grants — satisfiable only by chance, not by design. */
+ *  grants — satisfiable only by chance, not by design.
+ *
+ *  `player.counters` also gets an entry per reason code through `advance.ts`'s automatic
+ *  `foldCounters` (§6.2) — every `SIMULATION_REASON_CODES` value is therefore a granted
+ *  counter key too, independent of any campaign `Reward`, or this check flags an achievement
+ *  like `player.counters.action_rest >= 1` as unsatisfiable when it is reachable by design. */
 function validateUnsatisfiableAchievements(content: SimulationCampaign): ValidationWarning[] {
-  const grantedCounters = new Set<string>();
+  const grantedCounters = new Set<string>(SIMULATION_REASON_CODES);
   const grantedFlags = new Set<string>();
   for (const reward of allRewards(content)) {
     if (reward.target === undefined) continue;

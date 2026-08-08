@@ -1500,14 +1500,14 @@ unregistered through three units and one reconciliation pass.
 | `staff_hired` | the staff actions | a literal at the `change()` call site |
 | `price_set` | the building actions | a literal at the `change()` call site |
 | `ticks_advanced` | `tick-finalize`, once per batch | a literal at the `record()` call site |
-| `scenario_effect` | the `scenario` system's scheduled changes and active policies | `WorldEffectContext.reason` |
-| `guest_served` | the `guest-service` system | `WorldEffectContext.reason` |
-| `incident_resolved` | the `staff-work` and `incidents` systems | `WorldEffectContext.reason` |
-| `objective_met` | the `objectives` system | `WorldEffectContext.reason` |
-| `failure_triggered` | the `failure` system | `WorldEffectContext.reason` |
+| `scenario_effect` | the `scenario` system's scheduled changes and active policies | `EffectContext.reason` |
+| `guest_served` | the `guest-service` system | `EffectContext.reason` |
+| `incident_resolved` | the `staff-work` and `incidents` systems | `EffectContext.reason` |
+| `objective_met` | the `objectives` system | `EffectContext.reason` |
+| `failure_triggered` | the `failure` system | `EffectContext.reason` |
 
 > **The indirect five are the ones to watch, and the reason this table exists.** A reason
-> threaded through `WorldEffectContext` is not visible at any call site that also names a
+> threaded through `EffectContext` is not visible at any call site that also names a
 > `visible` flag: it becomes a visible record only where the effects module writes
 > `finances.cashCents`. So the usual way of auditing this — scan for `reason:` beside
 > `visible: true` — finds the direct five and none of the indirect ones. Adding an effect
