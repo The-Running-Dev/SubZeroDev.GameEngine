@@ -23,7 +23,7 @@ import { buildSaveEnvelope, resolveSaveEnvelope, serializeSaveEnvelope } from ".
 import type { PlayerView, ProjectionAudience } from "../projection/types.js";
 import type { StringTable } from "../localization/types.js";
 import type { ValidationWarning } from "../validation/types.js";
-import type { Clock } from "../composition/types.js";
+import type { Clock, RecordIdSource } from "../composition/types.js";
 import type { Emitter, EmittedRecord, EmittedRecordSink } from "../observability/types.js";
 import { defaultClock } from "../composition/defaults.js";
 import type {
@@ -146,6 +146,8 @@ export interface InMemorySessionStoreOptions {
   profiles?: ProfileStore;
   /** Optional host persistence. The in-memory maps remain the default implementation. */
   persistence?: SessionPersistence;
+  /** Omitted → session and save ids are minted as they are today (`mintId`, unseamed). */
+  recordIds?: RecordIdSource;
 }
 
 /**
@@ -156,6 +158,18 @@ export interface InMemorySessionStoreOptions {
  */
 function mintId(): string {
   return crypto.randomUUID();
+}
+
+/** Session id for `createSession`/`loadGame` — `recordIds`, when supplied, replaces
+ *  only this call site and the one in `newSaveId` below; `traceId`/`spanId` keep minting
+ *  through `mintId()` unconditionally (20-contract.md's `RecordIdSource` governs session
+ *  and save ids only). */
+function newSessionId(recordIds: RecordIdSource | undefined): string {
+  return recordIds ? recordIds.newSessionId() : mintId();
+}
+
+function newSaveId(recordIds: RecordIdSource | undefined): string {
+  return recordIds ? recordIds.newSaveId() : mintId();
 }
 
 /**
@@ -213,6 +227,7 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
   const kinds = engine.kinds;
   const clock = options.clock ?? defaultClock;
   const recordSink = options.recordSink ?? noopRecordSink;
+  const recordIds = options.recordIds;
 
   const sessions = new Map<string, SessionRecord>();
   const saves = new Map<string, SaveRecord>();
@@ -347,7 +362,7 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
 
     // ── Commands — spanned and stamped (05 §6.1) ──
     async createSession(config: CreateSessionConfig): Promise<SessionHandle> {
-      const sessionId = mintId();
+      const sessionId = newSessionId(recordIds);
       const audience = config.audience ?? "player";
       const newGameConfig: NewGameConfig = { campaignId: config.campaignId, ...(config.seed !== undefined ? { seed: config.seed } : {}), audience };
 
@@ -482,7 +497,7 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
             throw new Error("session store: saveGame — resolved state's campaign or kind is missing from the registry");
           }
           const envelope = buildSaveEnvelope({ state, kind, campaign, replayCompatible: record.replayCompatible });
-          const saveId = mintId();
+          const saveId = newSaveId(recordIds);
           const save: SaveRecord = {
             saveId,
             campaignId: state.campaignId,
@@ -500,7 +515,7 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
 
     async loadGame(saveId: string): Promise<SessionHandle> {
       const save = await getSave(saveId);
-      const sessionId = mintId();
+      const sessionId = newSessionId(recordIds);
 
       return withCommand(sessionId, 0, async (decoratedEngine) => {
         const resolution = resolveSaveEnvelope(save.blob, kinds, registry);

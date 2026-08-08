@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { defaultClock, defaultIdSource } from "./defaults.js";
+import { defaultClock, defaultIdSource, defaultRecordIdSource } from "./defaults.js";
 
 describe("defaultIdSource", () => {
   it("newGameId returns a non-empty string", () => {
@@ -15,6 +15,23 @@ describe("defaultIdSource", () => {
   it("successive calls differ", () => {
     expect(defaultIdSource.newGameId()).not.toBe(defaultIdSource.newGameId());
     expect(defaultIdSource.newSeed()).not.toBe(defaultIdSource.newSeed());
+  });
+});
+
+describe("defaultRecordIdSource", () => {
+  it("newSessionId returns a non-empty string", () => {
+    expect(typeof defaultRecordIdSource.newSessionId()).toBe("string");
+    expect(defaultRecordIdSource.newSessionId().length).toBeGreaterThan(0);
+  });
+
+  it("newSaveId returns a non-empty string", () => {
+    expect(typeof defaultRecordIdSource.newSaveId()).toBe("string");
+    expect(defaultRecordIdSource.newSaveId().length).toBeGreaterThan(0);
+  });
+
+  it("successive calls differ", () => {
+    expect(defaultRecordIdSource.newSessionId()).not.toBe(defaultRecordIdSource.newSessionId());
+    expect(defaultRecordIdSource.newSaveId()).not.toBe(defaultRecordIdSource.newSaveId());
   });
 });
 

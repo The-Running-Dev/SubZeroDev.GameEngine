@@ -28,6 +28,19 @@ export interface IdSource {
 }
 
 /**
+ * Supplies the session id and save id the session layer does not generate itself. A
+ * second port beside `IdSource` rather than a widening of it: `IdSource` supplies
+ * `gameId` and `seed`, which are serialized inputs, and a session id or save id never
+ * enters `GameState` — it is store metadata (`session/store.ts`'s own `mintId` doc
+ * comment). The default is random, unchanged from today's `crypto.randomUUID()`; a
+ * counting source is part of the byte-identity fixture, the same reasoning as `IdSource`.
+ */
+export interface RecordIdSource {
+  newSessionId(): string;
+  newSaveId(): string;
+}
+
+/**
  * Wall-clock, supplied only above the pure core. Nothing inside `advance` may read it;
  * the determinism guard bans `Date.now` in source to keep that structural.
  */
@@ -76,4 +89,7 @@ export interface SessionHost {
   /** Omitted → "no experiments running": every gated pack is excluded by construction
    *  (`registry/packs.ts` `applyExperimentGates`), never by a chosen default string. */
   readonly experiments?: ExperimentSource;
+  /** Omitted → the session layer mints session and save ids as it does today
+   *  (`crypto.randomUUID()`, unseamed). Supplied → the session layer calls it instead. */
+  readonly recordIds?: RecordIdSource;
 }
