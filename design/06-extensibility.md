@@ -26,6 +26,8 @@
 
 ### 5.6 The One Build-Time Flag — `__GAME_ENGINE_PRODUCTION__`
 
+### 5.7 `RecordIdSource` — session and save ids {#recordidsource}
+
 ## 6. Adding a Port
 
 ## 7. Kinds Stay Engine-Owned

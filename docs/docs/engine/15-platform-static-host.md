@@ -118,7 +118,9 @@ Pull requests build the image, start it, and smoke-test:
 - `404` for a named unknown route, proving there is no fallback;
 - the expected route metadata and protected documentation-subtree digest;
 - an orderly container stop; and
-- a browser production smoke showing `/play/` makes no engine API or runtime-content request.
+- a browser production smoke showing `/play/` makes no engine API request, and no request at
+  all outside the same-origin `campaigns/` files it is served from
+  ([`13-playable-web-demo.md`](13-playable-web-demo.md) §6).
 
 The workflow must contain a negative fixture or test mode that deliberately omits or corrupts a
 required artifact and proves the build or startup goes red. A smoke test that has never been

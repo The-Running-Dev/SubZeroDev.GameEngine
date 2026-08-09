@@ -314,8 +314,9 @@ Revision 2 adds three:
 - Animation uses opacity and transform where practical; no permanent timer runs while idle.
 - A rendering failure preserves `Restart` and `Return to stories` without exposing technical
   state. Persistence warnings remain visible and playable exactly as the browser contract says.
-- The production build still emits a direct static `/play/` route and makes no runtime network
-  request for engine or campaign content.
+- The production build still emits a direct static `/play/` route, and issues no runtime request
+  beyond the same-origin `campaigns/` files `13-playable-web-demo.md` §6 specifies — no engine
+  API, no third-party host, no analytics.
 
 ## 10. Proof
 

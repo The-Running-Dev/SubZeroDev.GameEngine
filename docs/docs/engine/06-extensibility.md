@@ -76,6 +76,7 @@ no partial trust to model. A seam is on one side of the line or the other.
 | `Kind` | **Inside** — is the game logic | **No** — engine-owned (§7) | 04 §3 |
 | `Condition` operators | **Inside** — evaluated during resolution | **No** — frozen set | 04 §18 |
 | `IdSource` | Outside — values enter state but are opaque to it | **Yes** | §5.1 |
+| `RecordIdSource` | Outside — session and save ids, which never enter state at all | **Yes** | §5.7 |
 | `SessionStore` | Outside, but **core-owned** — locking, stamping and upsert live in it | **No** — supply `SessionPersistence` instead | §5.2 |
 | `SessionPersistence` | Outside — reads and writes the store's records | **Yes** | §5.2 |
 | `ProfileStore` | Outside — durable, beside the session store | **Yes** | §5.2 |
@@ -126,7 +127,8 @@ interface SessionHost {
   readonly profiles?: ProfileStore;          // §5.2 — omitted → anonymous-only (04 §7.1)
   readonly clock?: Clock;                    // §5.4 — defaults to the system clock
   readonly recordSink?: EmittedRecordSink;   // 05 §6 — omitted → records are discarded
-  readonly experiments?: ExperimentSource;   // §5.5 — not built; see 90-decisions
+  readonly experiments?: ExperimentSource;   // §5.5 — port built, field read by nothing; below
+  readonly recordIds?: RecordIdSource;       // §5.7 — omitted → the layer mints its own
 }
 
 function createSessionLayer(host: SessionHost): SessionStore;
@@ -136,9 +138,17 @@ function createSessionLayer(host: SessionHost): SessionStore;
 > Handing the root a finished `SessionStore` and asking it to return one only made sense if
 > the field meant a lower-level, storage-only port — which nothing named. It does now:
 > `SessionPersistence` (04 §7.2) is that port, and `createSessionLayer` composes the real
-> store around it. `experiments` is specified here and deliberately unbuilt; it arrives with
-> content packs (11 §5a), and the root is listed complete so the seam is not redesigned when
-> it does.
+> store around it.
+
+> **`experiments` is half-arrived, and the half that is missing is a contract question.**
+> W59 built the port itself and the machinery it feeds — `applyExperimentGates`,
+> `resolveBucketKey`, `resolveExperimentAssignments`, all exported from the package root,
+> because §5.5 puts the composition they serve *above* this seam. What no code reads is this
+> field: the session layer receives an already-resolved `ContentRegistry`, never the candidate
+> pack array, so it cannot derive the `experimentId` set an assignment map would be keyed by.
+> Either the field carries a resolved assignment map rather than the port, or the layer gains
+> the candidate packs — and both change this interface. Retained knowingly rather than settled
+> inside an implementation PR; `90-decisions.md` holds the reasoning and the revisit condition.
 
 **Three rules make this uniform, and they are the whole convention:**
 
@@ -342,6 +352,48 @@ __GAME_ENGINE_PRODUCTION__: boolean     // replaced at build time; declared, nev
 
 The asymmetry — Node defaults correctly, browsers must act — is the whole reason this is
 written down rather than left to the bundler config that happens to set it today.
+
+### 5.7 `RecordIdSource` — session and save ids {#recordidsource}
+
+```typescript
+interface RecordIdSource {
+  /** A new session id. Store metadata: never enters `GameState`. */
+  newSessionId(): string;
+  /** A new save id, minted per `saveGame`. Same category. */
+  newSaveId(): string;
+}
+```
+
+**A second port beside `IdSource`, not a widening of it**, and the distinction is the reason it
+exists. `IdSource` supplies `gameId` and `seed`, which are written *into* the envelope and are
+replay inputs — §3 spends a paragraph explaining why that is still outside §2's line. A session
+id and a save id are never in the envelope at all: they key `StoredSessionRecord` and
+`StoredSaveRecord` (04 §7.2), which is host metadata by construction. Folding them into
+`IdSource` would collapse "an opaque input the engine records" and "a key the engine never sees"
+into one port, and a host wanting deterministic save ids would then also be redefining the
+game's seed.
+
+Supplied on `SessionHost` rather than `EngineHost` for that same reason — the pure engine has no
+session and no save.
+
+**The default is random** (`crypto.randomUUID()`, matching `IdSource`'s own choice), and it is
+byte-for-byte what the session layer already minted before the port existed, so supplying the
+default changes nothing. Omit it and the behaviour is identical to omitting it having never been
+declared.
+
+The implementer's obligations:
+
+- **Return a value unique within the store.** A repeated session id overwrites a live session's
+  record; a repeated save id overwrites a checkpoint. Nothing downstream checks — the store
+  treats a returned id as authoritative.
+- **Do not derive it from game state.** It is not a replay input and must not become one; a
+  session id computed from the seed would make two runs of the same fixture collide.
+- **`traceId`/`spanId` are not covered.** Those stay minted internally (05 §6.1) — they are
+  per-command correlation, not records a host addresses.
+
+Its determinism assertion is the ordinary §6 step 6: a fixture replays byte-identically under
+the random default and under a counting implementation, because neither id reaches
+`serialize()`.
 
 ---
 

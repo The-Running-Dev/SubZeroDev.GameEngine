@@ -2345,6 +2345,48 @@ component or stylesheet. This is a toolchain extraction, not a landing-page rede
       reusable package itself; adopting the package's generic README renderer; copying any
       Platform page component, style or token into Engine.
 
+### [ ] W70 — Gate `/play/`'s Startup Request Surface {#w70}
+
+**Delivers:** An assertion that the emitted `/play/` bundle issues no startup request beyond
+the same-origin `campaigns/` files the deployment already contains.
+
+`13-playable-web-demo.md` §6 used to claim the deployment made no runtime network request at
+all, and campaigns are now runtime-loaded JSON, so the claim was false and nothing noticed.
+Reconciliation restated §6 against what ships; this unit supplies the gate, because a restated
+claim with no check is the same unasserted property §4 already refused to accept for `node:`
+specifiers. `site/scripts/verify-build.mjs` is the existing home: it already scans the emitted
+bundle rather than trusting the build to have failed.
+
+The check is a boundary, not an inventory. It must fail on a *new* request destination — a CDN
+font, an analytics beacon, a third-party host, an engine API — without failing every time a
+campaign is added, since the campaign set is enumerated by `manifest.json` and changes by
+design.
+- **Spec:** [`13-playable-web-demo.md`](13-playable-web-demo.md) §4 (the gate is an assertion
+      over the emitted bundle, not the build succeeding), §6 (what the startup path may
+      request), §9 (a fetch failure is a start-up failure the error boundary owns).
+- **Touches:** `site/scripts/verify-build.mjs`; a browser test under `site/src/play/browser/`.
+- **Depends on:** nothing. [W62](#w62)'s container smoke consumes the same property but does
+      not block this.
+- **Status:** Not started.
+- **Done when:**
+  - W70.1 A build-verification assertion scans the emitted `/play/` bundle for request
+        destinations and fails on any absolute URL, protocol-relative URL, or non-`campaigns/`
+        same-origin path reachable from the startup path.
+  - W70.2 The assertion has a proven negative: a fixture bundle containing one off-origin
+        request makes the check go red, committed alongside it. A gate never seen to fail is
+        not evidence.
+  - W70.3 Adding or removing a campaign JSON changes no assertion and needs no update to the
+        gate — the campaign set is data, enumerated by `manifest.json`.
+  - W70.4 A browser test asserts the observed network requests during a real `/play/` load are
+        exactly `campaigns/manifest.json` plus the files that manifest lists, and nothing else.
+  - W70.5 A failed campaign fetch renders §9's single error boundary with a restart path, and
+        never a raw exception or a partial shelf.
+  - W70.6 `npm --prefix site run check`, the engine gates, `build/Test-Documentation.ps1` and
+        `git diff --check` all pass.
+- **Out of scope:** moving campaigns back into the bundle, changing the portable format,
+      caching or a service worker (a named non-goal, [`13`](13-playable-web-demo.md) §10), and
+      W62's container-side smoke, which asserts the same property from outside the page.
+
 - [ ] More clients (Discord; the first web client is [W61](#w61)).
 - [ ] **Additional locales — sliced as [W60](#w60).** The MVP ships English only; the
       authoring→registry types already support more
@@ -2364,8 +2406,10 @@ component or stylesheet. This is a toolchain extraction, not a landing-page rede
       one mechanism for both A/B testing and feature flags, filtered before the fold via
       `ExperimentSource` ([06 §5.5](06-extensibility.md#experimentsource)). Before mods, not before MVP
       ([`neaas-platform-vision.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform) → Known deferred gaps).
-      W1's `src/engine/src/core/composition/types.ts` predates this design and does not yet
-      declare `ExperimentSource`; add it there when this unit is implemented in code.
+      `src/engine/src/core/composition/types.ts` now declares `ExperimentSource`, and the gate
+      machinery ships and is exported; what remains unbuilt is `SessionHost.experiments`'
+      consumer, for the contract reason [06 §4](06-extensibility.md#4-the-composition-root)
+      states.
 
 ### Content Tooling — A First-Class Workstream, Not an Afterthought
 
@@ -2386,11 +2430,13 @@ component or stylesheet. This is a toolchain extraction, not a landing-page rede
 > [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md).
 
 
-- [ ] **`SessionHost`/`createSessionLayer` ([06 §4](06-extensibility.md#4-the-composition-root)) don't reconcile as written.**
-      Moved to [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §2, since the replay regression oracle
-      (W21) is now a second real call site that bypasses the same gap rather than closing it —
-      see [`07-replay.md`](07-replay.md) §3.2. See `plans/14-w7-session-store.md`, Decision 1,
-      for the original reasoning.
+- [x] **`SessionHost`/`createSessionLayer` ([06 §4](06-extensibility.md#4-the-composition-root)) don't reconcile as written — closed.**
+      Resolved by drawing the seam one level down at `SessionPersistence`
+      ([04 §7.2](04-core.md#72-host-persistence--the-record-store-beneath-the-session-store));
+      `createSessionLayer` now ships and is exported. `OPEN-QUESTIONS.md` §2 records the
+      closure and the reason its original "revisit when" was the wrong trigger. The replay
+      oracle still drives `Engine` directly, but for its own stated reason — it needs the raw
+      `GameState` no `SessionStore` returns ([07 §3.2](07-replay.md)) — not for want of a root.
 - [ ] `wisdom` attribute has no consumer in the simulation kind — needs one to earn its
       place (`games/04-engine-specification.md` §8.4).
 - [ ] **Four simulation `ActionType`s have no content-definition type to resolve against.**

@@ -189,10 +189,13 @@ internally, not a second reimplementation: `session/store.ts` exports `upsertAch
 for this reason, and the runner calls it with a fixed `profileId` after every accepted
 submission, then reads the unlocked set from the `ProfileStore` once, after the last one.
 
-> **Not `createSessionLayer`/`SessionHost` (06 §4) either.** That composition root is
-> specified but unbuilt — W7 built `createInMemorySessionStore` directly against
-> `session/types.ts` instead, and nothing in this document needs the unbuilt generality. See
-> [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §2 for the open item and its "revisit when."
+> **Not `createSessionLayer`/`SessionHost` (06 §4) either — and no longer because it is
+> unbuilt.** That composition root now ships (`src/engine/src/core/session/store.ts`,
+> exported from the package root); `createInMemorySessionStore` remains beside it as the
+> convenience wrapper for the default in-memory host. The runner still does not use either,
+> for the reason above rather than for availability: it needs the raw `GameState` that no
+> `SessionStore` returns, so it drives `Engine` directly the way
+> `core/determinism/harness.ts` does.
 
 ### 3.3 `terminal` — Terminal Identity, and Only That
 
