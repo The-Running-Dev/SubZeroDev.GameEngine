@@ -2461,8 +2461,8 @@ question.
 
 The full statement of this — the tool table and the "agent is a player" guarantee —
 moved to
-[`SubZeroDev.Platform`](https://github.com/The-Running-Dev/SubZeroDev.Platform)'s
-[`mcp-tool-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform/blob/main/docs/docs/mcp-tool-contract.md),
+[`SubZeroDev.ServiceContract`](https://github.com/The-Running-Dev/SubZeroDev.ServiceContract)'s
+[`mcp-tool-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.ServiceContract/blob/main/mcp-tool-contract.md),
 alongside `04-core.md` §13. Everything else in this document applies to the MCP server
 unchanged: it is a client like the text client, a thin adapter over the same store,
 holding no game logic (architecture §10).
