@@ -2336,18 +2336,25 @@ checklist."* This is that checklist.
 real client**, not by inspection and not by a unit test of the store. One row per operation,
 one column per MVP client:
 
-| # | Operation | Text client (W16) | MCP tool (W17) | Simulation kind (W50) | Browser demo (W61) |
-|---|---|---|---|---|---|
-| 1 | `listCampaigns` | ☑ | `list_campaigns` ☑ | ☑ | ☑ |
-| 2 | `createSession` | ☑ | `start_game` ☑ | ☑ | ☑ |
-| 3 | `resumeSession` | ☑ | `continue_game` ☑ | ☑ | ☑ |
-| 4 | `getScene` | ☑ | `get_scene` ☑ | ☑ | ☑ |
-| 5 | `getView` | ☑ | `get_state` ☑ | ☑ | ☑ |
-| 6 | `getStrings` | ☑ | `get_strings` ☑ | ☑ | ☑ |
-| 7 | `submitAction` | ☑ | `choose` ☑ | ☑ | ☑ |
-| 8 | `previewAction` | ☑ | `preview_action` ☑ | ☑ | ☑ |
-| 9 | `saveGame` | ☑ | `save_game` ☑ | ☑ | ☑ |
-| 10 | `loadGame` | ☑ | `load_game` ☑ | ☑ | ☑ |
+| # | Operation | Text client (W16) | MCP tool (W17) | Simulation kind (W50) | Browser demo (W61) | Hosted transport (Platform G1/S5) |
+|---|---|---|---|---|---|---|
+| 1 | `listCampaigns` | ☑ | `list_campaigns` ☑ | ☑ | ☑ | ☑ |
+| 2 | `createSession` | ☑ | `start_game` ☑ | ☑ | ☑ | ☑ |
+| 3 | `resumeSession` | ☑ | `continue_game` ☑ | ☑ | ☑ | ☑ |
+| 4 | `getScene` | ☑ | `get_scene` ☑ | ☑ | ☑ | ☑ |
+| 5 | `getView` | ☑ | `get_state` ☑ | ☑ | ☑ | ☑ |
+| 6 | `getStrings` | ☑ | `get_strings` ☑ | ☑ | ☑ | ☑ |
+| 7 | `submitAction` | ☑ | `choose` ☑ | ☑ | ☑ | ☑ |
+| 8 | `previewAction` | ☑ | `preview_action` ☑ | ☑ | ☑ | ☑ |
+| 9 | `saveGame` | ☑ | `save_game` ☑ | ☑ | ☑ | ☑ |
+| 10 | `loadGame` | ☑ | `load_game` ☑ | ☑ | ☑ | ☑ |
+
+**The "Hosted transport" column is `SubZeroDev.Platform`'s G1**, the fifth column S5 adds — every
+row driven over the network through the hosted JSON wire and compared byte for byte against the
+same operation played in-process (`SubZeroDev.Platform`'s `design/20-contract.md` and
+`design/30-slices.md` S5). Evidence lives in that repository — `workloads/game-service/tests/`,
+`runInProcess`/`runHosted` and the committed golden transcript — not in this one; the column here
+records only the fact that every operation this engine exports was exercised through it.
 
 **The "Simulation kind" column is not a third client** — it is the same two clients
 (text, MCP), driven a second time against a kind whose actions carry declared `params`
