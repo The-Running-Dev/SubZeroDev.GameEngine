@@ -1110,11 +1110,13 @@ Both map to `ended`. The win/loss distinction is **terminal identity**, which is
 `Kind.outcome` is for ([`07-replay.md`](07-replay.md) §3.3):
 
 ```typescript
-outcome(state: WorldGraphKindState): {
-  resolution: "objectives_met" | "failed" | null;   // null while active
-  objectivesMet: readonly string[];                  // published objective ids
-  failureId: string | null;                          // published failure-condition id
-} {
+interface WorldGraphOutcome {
+  readonly resolution: "objectives_met" | "failed" | null;   // null while active
+  readonly objectivesMet: readonly string[];                 // published objective ids
+  readonly failureId: string | null;                         // published failure-condition id
+}
+
+outcome(state: WorldGraphKindState): WorldGraphOutcome {
   const terminal = state.resolution;
   return {
     resolution: terminal?.resolution ?? null,
@@ -1123,6 +1125,12 @@ outcome(state: WorldGraphKindState): {
   };
 }
 ```
+
+`WorldGraphOutcome` is named here because it is **exported from the package root**, so the
+name is public whether or not anything imports it yet — nothing does today. `story-graph`
+and `simulation` state their outcome shapes inline and export no equivalent, which is why
+this is the one kind whose outcome type needs a declaration rather than a literal. If this
+one is ever un-exported, it goes back to a literal too.
 
 **A win requires at least one objective and every one must be `"met"`.** A triggered
 `FailureProgress` produces `"failed"` and its published id; a scenario that declares no

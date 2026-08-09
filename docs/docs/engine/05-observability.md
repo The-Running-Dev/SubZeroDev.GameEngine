@@ -188,25 +188,23 @@ interface Emitter {
 declare const nullEmitter: Emitter;
 ```
 
-**Where it comes from.** The engine is constructed with one, defaulting to `nullEmitter`
-so observability is opt-in and an embedder that wants none pays nothing:
+**Where it comes from.** The engine is constructed with one. It is supplied on the
+composition root — `createEngine(host: EngineHost): Engine`, declared in
+[`06-extensibility.md`](06-extensibility.md) §4 — and defaults to `nullEmitter`, so
+observability is opt-in and an embedder that wants none pays nothing:
 
 ```typescript
-function createEngine(
-  registry: ContentRegistry,
-  kinds: KindRegistry,
-  emitter?: Emitter,          // defaults to nullEmitter
-): Engine;
+interface EngineHost {
+  // …existing members (06 §4)…
+  readonly emitter?: Emitter;   // defaults to nullEmitter
+}
 ```
 
 **How a kind reaches it.** `KindContext` (04 §3.1) gains one field:
 
 ```typescript
 interface KindContext {
-  readonly registry: ContentRegistry;
-  readonly campaign: Campaign;
-  readonly rng: RngHandle;              // §8 — per-resolution, discarded after
-  readonly seq: number;
+  // …existing members (04 §3.1)…
   readonly emit: ResolutionEmitter;     // this document — per-resolution, discarded after
 }
 
@@ -445,15 +443,32 @@ keeps catching.
 
 ## 10. Sinks
 
-A sink is an `Emitter` implementation. Three ship with the MVP:
+**A sink is one of two things, and which one is decided by where it runs.** Inside the
+core, no `EmittedRecord` exists yet — only the bare `EngineEvent` (§3) — so a core-layer
+sink is an `Emitter` (§4). At the boundary, the per-command decorator has already built the
+record (§6), so a boundary sink takes that instead:
 
-| Sink | Purpose | Notes |
-|---|---|---|
-| `nullEmitter` | The default | Discards. The engine must behave identically with it — §2 |
-| `recordingEmitter` | Tests and the harness | Keeps events in memory in emission order |
-| `jsonlEmitter` | Development, and the text client | One JSON object per line, at the boundary, stamped per §6 |
+```typescript
+interface EmittedRecordSink {
+  /** Write one stamped record. Never throws — the same conformance rule as `Emitter`. */
+  write(record: EmittedRecord): void;
+}
+```
 
-**The sink contract:**
+It is supplied as `SessionHost.recordSink` ([`06-extensibility.md`](06-extensibility.md)
+§4); omitted, records are discarded. The distinction is not cosmetic — a boundary sink is
+the only kind that can see `emittedAt`, `traceId`, `spanId` and `attempt`, and a core-layer
+sink must not, because none of them is derivable from `{seed, actionLog}` (§5).
+
+Three sinks ship with the MVP:
+
+| Sink | Type | Purpose | Notes |
+|---|---|---|---|
+| `nullEmitter` | `Emitter` | The default | Discards. The engine must behave identically with it — §2 |
+| `createRecordingEmitter()` | `Emitter` | Tests and the harness | Keeps events in memory in emission order; a factory, because it holds state |
+| `jsonlEmitter(write)` | `EmittedRecordSink` | Development, and the text client | One JSON object per line, at the boundary, stamped per §6 |
+
+**The sink contract**, which holds for both types:
 
 - **It must not throw — and the core defends anyway.** A conforming sink catches its own
   errors. The core additionally isolates every `emit` call, so a sink that throws is
