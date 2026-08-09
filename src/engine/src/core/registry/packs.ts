@@ -96,6 +96,14 @@ export function resolveBucketKey(profileId: string | undefined, seed: string): s
  * `experimentId` would vanish between resolving it here and reading it there. With no
  * prototype there is no accessor to intercept it, and every `experimentId` behaves like
  * the plain string key `ExperimentGate` says it is.
+ *
+ * Known and retained: the null prototype is visible to callers — the returned map has no
+ * `Object.prototype` methods, so `assignments.hasOwnProperty(id)` or coercing it to a
+ * string throws where an ordinary `Record` would not. Read it with `Object.hasOwn`, `in`,
+ * or indexing, the way `applyExperimentGates` does. A spread copy at the return would
+ * restore the prototype without reintroducing the bug (spread creates own data
+ * properties, bypassing the inherited `__proto__` setter), and is the fix if a consumer
+ * ever needs an ordinary object more than the honest shape.
  */
 export function resolveExperimentAssignments(
   packs: readonly ContentPack[],
