@@ -1279,8 +1279,8 @@ kind-owned namespace.
 ## 13. The MCP Surface
 
 The tool table itself — args, returns, one tool per session-store operation — moved to
-[`SubZeroDev.Platform`](https://github.com/The-Running-Dev/SubZeroDev.Platform)'s
-[`mcp-tool-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform/blob/main/docs/docs/mcp-tool-contract.md):
+[`SubZeroDev.ServiceContract`](https://github.com/The-Running-Dev/SubZeroDev.ServiceContract)'s
+[`mcp-tool-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.ServiceContract/blob/main/mcp-tool-contract.md):
 it's a hosting-facing contract, not core engine material, even though `McpTools` (implemented
 in `src/engine/src/mcp/server.ts`; see [Engine Package](/docs/guide/engine-package)) wraps this
 repo's own session store (§7) with no runtime
