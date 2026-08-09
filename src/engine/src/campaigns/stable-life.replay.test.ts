@@ -17,11 +17,14 @@
  * (four weeks of nothing, tripping `failureConditions`). Both were captured by running the
  * real engine once, not hand-typed — `seq` numbering in particular depends on
  * `createCountingIds()`'s own behavior, not arithmetic worth re-deriving by hand.
+ *
+ * `CORPUS_DIR`/`COMPARING_ACROSS_VERSIONS`/`loadFixture`/`loadExpectedOutcome`/`hasFixture`/
+ * fixture-name enumeration are shared with every other kind's replay test file via
+ * `./replay-corpus.js` — see that module's own doc comment for why this scaffolding doesn't
+ * need to live under `core/replay/**` to be shared.
  */
 
 import { describe, it, expect } from "vitest";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { createEngine } from "../core/kernel/engine.js";
 import { buildValidatedContentRegistry } from "../core/validation/tiered.js";
 import { createInMemoryProfileStore } from "../core/session/profile-store.js";
@@ -30,42 +33,20 @@ import type { HousingState } from "../kinds/simulation/actor.js";
 import type { SimulationKindState } from "../kinds/simulation/state.js";
 import { createCountingIds } from "../core/determinism/counting-ids.js";
 import { runReplayFixture, type ReplayRunnerContext } from "../core/replay/runner.js";
-import type { Outcome, ReplayFixture } from "../core/replay/types.js";
 import type { KindRegistry } from "../core/kernel/types.js";
 import { buildStableLifeCampaign } from "./stable-life.js";
 import { buildStableLifeEffectsCampaign } from "./stable-life-effects.js";
 import { buildStableLifeHousingCampaign } from "./stable-life-housing.js";
 import { buildStableLifePossessionsCampaign } from "./stable-life-possessions.js";
+import { COMPARING_ACROSS_VERSIONS, CORPUS_DIR, FIXTURES_DIR, fixtureNamesByPrefix, hasFixture, loadExpectedOutcome, loadFixture } from "./replay-corpus.js";
 
-const FIXTURES_DIR = fileURLToPath(new URL("../../fixtures/replay/", import.meta.url));
 const REPLAY_PROFILE_ID = "replay-oracle-profile";
 
-const rawOverride = process.env.REPLAY_BASELINE_DIR;
-const CORPUS_DIR = rawOverride ? `${rawOverride.replace(/[/\\]+$/, "")}/` : FIXTURES_DIR;
-
-function loadFixture(name: string): ReplayFixture {
-  return JSON.parse(readFileSync(`${CORPUS_DIR}${name}.fixture.json`, "utf8")) as ReplayFixture;
-}
-
-function loadExpectedOutcome(name: string): Outcome {
-  return JSON.parse(readFileSync(`${CORPUS_DIR}${name}.outcome.json`, "utf8")) as Outcome;
-}
-
-/** In cross-version mode `CORPUS_DIR` is the baseline tag's extracted fixtures (see the
- *  module doc comment above), which legitimately lacks a fixture added after that tag —
- *  the same "predates this corpus" case the `it.each` loop degrades to zero cases for.
- *  The mechanism suites below name their fixtures directly rather than iterating a
- *  directory listing, so they need this check to degrade the same way instead of an
- *  `ENOENT` failure. */
-function hasFixture(name: string): boolean {
-  return existsSync(`${CORPUS_DIR}${name}.fixture.json`);
-}
-
-function stableLifeFixtureNames(dir: string): string[] {
-  return readdirSync(dir)
-    .filter((f) => f.startsWith("stable-life-") && f.endsWith(".fixture.json"))
-    .map((f) => f.slice(0, -".fixture.json".length))
-    .sort();
+/** Only meaningful when comparing across versions — in the default run `CORPUS_DIR` is this
+ *  commit's own `FIXTURES_DIR`, so a missing fixture there is a real regression (accidentally
+ *  deleted), not the baseline predating it, and must still fail loudly rather than skip. */
+function hasFixtureInBaseline(...names: string[]): boolean {
+  return !COMPARING_ACROSS_VERSIONS || names.every((name) => hasFixture(name));
 }
 
 /** Always this commit's own directory, never `CORPUS_DIR` — unlike the `it.each` loop
@@ -74,11 +55,11 @@ function stableLifeFixtureNames(dir: string): string[] {
  *  corpus (W40) legitimately has none, but that's a fact about the *baseline*, not about
  *  whether this commit's own corpus regressed to empty — the two must not share one
  *  skip condition, which is exactly what a prior version of this file got wrong. */
-const CURRENT_STABLE_LIFE_FIXTURE_NAMES = stableLifeFixtureNames(FIXTURES_DIR);
+const CURRENT_STABLE_LIFE_FIXTURE_NAMES = fixtureNamesByPrefix("stable-life-", FIXTURES_DIR);
 
 /** Sourced from `CORPUS_DIR`, which is the baseline override in cross-version mode — the
  *  set actually replayed against below. */
-const STABLE_LIFE_FIXTURE_NAMES = stableLifeFixtureNames(CORPUS_DIR);
+const STABLE_LIFE_FIXTURE_NAMES = fixtureNamesByPrefix("stable-life-", CORPUS_DIR);
 
 /**
  * Registers `stable-life`, `stable-life-effects` (W51.6), `stable-life-housing` (W55), and
@@ -120,10 +101,15 @@ describe("the Stable Life replay corpus (07-replay.md §4)", () => {
     expect(CURRENT_STABLE_LIFE_FIXTURE_NAMES.length).toBeGreaterThan(0);
   });
 
-  it.each(STABLE_LIFE_FIXTURE_NAMES)("%s: matches its committed Outcome", async (name) => {
+  it.for(STABLE_LIFE_FIXTURE_NAMES)("%s: matches its committed Outcome", async (name, ctx) => {
     const fixture = loadFixture(name);
     const expected = loadExpectedOutcome(name);
     const verdict = await runReplayFixture(makeContext(), fixture, expected);
+    // 10-design.md §6: `unrunnable` is "not a failure" between engine versions — only in
+    // cross-version mode, where a withdrawn campaign or moved campaignVersion is a legitimate
+    // content decision rather than a same-commit regression (see bulgaria-bureaucracy's own
+    // it.each for the full rationale).
+    ctx.skip(COMPARING_ACROSS_VERSIONS && verdict.kind === "unrunnable", `${name}: unrunnable against the baseline tag's corpus — not a regression (10-design.md §6)`);
     expect(verdict).toEqual({ kind: "match" });
   });
 });
@@ -138,7 +124,7 @@ describe("the Stable Life replay corpus (07-replay.md §4)", () => {
  * fixture's submissions through the engine directly — the same one `buildReplayOutcome`
  * uses internally — and reading the final `HousingState` back off `GameState.kindState`.
  */
-describe.skipIf(!hasFixture("stable-life-housing-eviction") || !hasFixture("stable-life-housing-avoiding-eviction"))(
+describe.skipIf(!hasFixtureInBaseline("stable-life-housing-eviction", "stable-life-housing-avoiding-eviction"))(
   "W55.6 — the housing fixtures actually reach and avoid eviction",
   () => {
   async function finalHousing(fixtureName: string): Promise<HousingState> {
@@ -175,7 +161,7 @@ describe.skipIf(!hasFixture("stable-life-housing-eviction") || !hasFixture("stab
  * loop above proves only that the fixture replays byte-identically. Reading the arc back means
  * stepping the same submissions through the engine and inspecting `kindState` per week.
  */
-describe.skipIf(!hasFixture("stable-life-possessions"))(
+describe.skipIf(!hasFixtureInBaseline("stable-life-possessions"))(
   "W56.6 — the possessions fixture walks buy → use → decay → repair → sell",
   () => {
   it("wears the bicycle to zero, drops its effect, repairs it, and sells it on", async () => {

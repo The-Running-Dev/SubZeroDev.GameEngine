@@ -23,11 +23,14 @@
  * a fixture whose `submissions` may have since changed shape — not a clean version-to-version
  * comparison. Unset in the default run (every PR/push), where the baseline is simply this
  * commit's own committed corpus.
+ *
+ * `CORPUS_DIR`/`COMPARING_ACROSS_VERSIONS`/`loadFixture`/`loadExpectedOutcome`/fixture-name
+ * enumeration are shared with every other kind's replay test file via `./replay-corpus.js` —
+ * see that module's own doc comment for why this scaffolding doesn't need to live under
+ * `core/replay/**` to be shared.
  */
 
 import { describe, it, expect } from "vitest";
-import { readFileSync, readdirSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { createEngine } from "../core/kernel/engine.js";
 import { buildValidatedContentRegistry } from "../core/validation/tiered.js";
 import { createInMemoryProfileStore } from "../core/session/profile-store.js";
@@ -37,39 +40,11 @@ import { buildReplayOutcome, findDivergence, runReplayFixture, type ReplayRunner
 import type { Outcome, ReplayFixture } from "../core/replay/types.js";
 import type { KindRegistry } from "../core/kernel/types.js";
 import { buildBulgariaBureaucracyCampaign } from "./bulgaria-bureaucracy.js";
+import { COMPARING_ACROSS_VERSIONS, CORPUS_DIR, fixtureNamesByPrefix, loadExpectedOutcome, loadFixture } from "./replay-corpus.js";
 
-const FIXTURES_DIR = fileURLToPath(new URL("../../fixtures/replay/", import.meta.url));
 const REPLAY_PROFILE_ID = "replay-oracle-profile";
 
-const rawOverride = process.env.REPLAY_BASELINE_DIR;
-const CORPUS_DIR = rawOverride ? `${rawOverride.replace(/[/\\]+$/, "")}/` : FIXTURES_DIR;
-const COMPARING_ACROSS_VERSIONS = CORPUS_DIR !== FIXTURES_DIR;
-
-function loadFixture(name: string): ReplayFixture {
-  return JSON.parse(readFileSync(`${CORPUS_DIR}${name}.fixture.json`, "utf8")) as ReplayFixture;
-}
-
-function loadExpectedOutcome(name: string): Outcome {
-  return JSON.parse(readFileSync(`${CORPUS_DIR}${name}.outcome.json`, "utf8")) as Outcome;
-}
-
-/** Every `bureaucracy-*.fixture.json` in the corpus, by name — new fixtures need no
- *  test-file edit to be picked up, only the committed pair of files (07 §4). In
- *  cross-version mode this is the *previous* tag's own fixture set, not the current
- *  commit's — a fixture added since then simply isn't enumerated here at all, and one
- *  removed since then still is, because both come from the same snapshot the outcomes do.
- *
- *  **The `bureaucracy-` prefix is load-bearing, not decorative, since W40.**
- *  `fixtures/replay/` is one shared, flat directory across every kind's own corpus — W22
- *  never anticipated a second kind landing fixtures beside its own. Filtering only by
- *  `.fixture.json` picked up `simulation`'s `stable-life-*` fixtures too, which then failed
- *  here with `unrunnable: campaign_withdrawn` (this registry only knows `story-graph`).
- *  `stable-life.replay.test.ts` mirrors this same prefix filter for its own corpus, so the
- *  two coexist in one directory without enumerating each other's fixtures. */
-const FIXTURE_NAMES = readdirSync(CORPUS_DIR)
-  .filter((f) => f.startsWith("bureaucracy-") && f.endsWith(".fixture.json"))
-  .map((f) => f.slice(0, -".fixture.json".length))
-  .sort();
+const FIXTURE_NAMES = fixtureNamesByPrefix("bureaucracy-", CORPUS_DIR);
 
 /** A fresh `ReplayRunnerContext` per call — each fixture gets its own counting `IdSource`
  *  starting at 0 (07 §5) and its own in-memory `ProfileStore`, so achievements from one
@@ -95,19 +70,27 @@ describe("the replay corpus (07-replay.md §4)", () => {
     expect(FIXTURE_NAMES.length).toBeGreaterThan(0);
   });
 
-  it.each(FIXTURE_NAMES)("%s: matches its committed Outcome", async (name) => {
+  it.for(FIXTURE_NAMES)("%s: matches its committed Outcome", async (name, ctx) => {
     const fixture = loadFixture(name);
     const expected = loadExpectedOutcome(name);
     const verdict = await runReplayFixture(makeContext(), fixture, expected);
+    // 10-design.md §6: `unrunnable` is "not a failure" — a withdrawn campaign or a
+    // campaignVersion the registry no longer has is a legitimate content decision between
+    // engine versions, not a regression. That distinction only matters in cross-version mode:
+    // this commit's own corpus (the default run) must always be runnable against this
+    // commit's own build, so an `unrunnable` verdict there still fails the assertion below.
+    ctx.skip(COMPARING_ACROSS_VERSIONS && verdict.kind === "unrunnable", `${name}: unrunnable against the baseline tag's corpus — not a regression (10-design.md §6)`);
     expect(verdict).toEqual({ kind: "match" });
   });
+});
 
-  // Everything below is a mechanics check against this commit's own fixed fixture names,
-  // not a cross-version comparison — skipped when comparing against an arbitrary previous
-  // tag, which may not have (or may no longer name identically) these specific fixtures.
-  // The it.each loop above is the whole of what cross-version mode needs.
-
-  it.skipIf(COMPARING_ACROSS_VERSIONS)("bureaucracy-gated-choice: the gate rejects registry_route_call_in_favour, then registry_route_steady recovers", async () => {
+// Everything below is a mechanics check against this commit's own fixed fixture names, not a
+// cross-version comparison — skipped when comparing against an arbitrary previous tag, whose
+// same-named fixtures may hold entirely different content (submissions, gates, decision
+// shapes) than the ones these assertions are hard-coded against. The it.each loop above is
+// the whole of what cross-version mode needs.
+describe.skipIf(COMPARING_ACROSS_VERSIONS)("the replay corpus's mechanics (07-replay.md §6, §7)", () => {
+  it("bureaucracy-gated-choice: the gate rejects registry_route_call_in_favour, then registry_route_steady recovers", async () => {
     // The one fixture that is also 07 §6's own worked example: a rejected submission
     // followed by a later one that recovers — proof the runner doesn't stop at the
     // rejection (07 §6, "a rejected action does not stop the replay"). registry_route_3's
@@ -127,7 +110,7 @@ describe("the replay corpus (07-replay.md §4)", () => {
     expect(result.outcome.finalStatus).toBe("ended");
   });
 
-  it.skipIf(COMPARING_ACROSS_VERSIONS)("a hand-edited outcome produces diverged with the right at — the regression this oracle exists to catch", async () => {
+  it("a hand-edited outcome produces diverged with the right at — the regression this oracle exists to catch", async () => {
     const fixture = loadFixture("bureaucracy-full-arc");
     const expected = loadExpectedOutcome("bureaucracy-full-arc");
 
@@ -147,7 +130,7 @@ describe("the replay corpus (07-replay.md §4)", () => {
     });
   });
 
-  it.skipIf(COMPARING_ACROSS_VERSIONS)("reports unrunnable, not a crash, for a fixture whose campaign no longer exists", async () => {
+  it("reports unrunnable, not a crash, for a fixture whose campaign no longer exists", async () => {
     const fixture = loadFixture("bureaucracy-full-arc");
     const withdrawn: ReplayFixture = { ...fixture, config: { ...fixture.config, campaignId: "does-not-exist" } };
 
@@ -155,7 +138,7 @@ describe("the replay corpus (07-replay.md §4)", () => {
     expect(verdict).toEqual({ kind: "unrunnable", reason: "campaign_withdrawn" });
   });
 
-  it.skipIf(COMPARING_ACROSS_VERSIONS)("reports unrunnable for a fixture pinned to a campaignVersion the registry no longer has", async () => {
+  it("reports unrunnable for a fixture pinned to a campaignVersion the registry no longer has", async () => {
     const fixture = loadFixture("bureaucracy-full-arc");
     const staleVersion: ReplayFixture = { ...fixture, campaignVersion: "0.0.1" };
 
@@ -163,7 +146,7 @@ describe("the replay corpus (07-replay.md §4)", () => {
     expect(verdict).toEqual({ kind: "unrunnable", reason: "campaign_version_missing" });
   });
 
-  it.skipIf(COMPARING_ACROSS_VERSIONS)("findDivergence(expected, expected) is always undefined — a fixture never diverges from itself", async () => {
+  it("findDivergence(expected, expected) is always undefined — a fixture never diverges from itself", async () => {
     for (const name of FIXTURE_NAMES) {
       const expected = loadExpectedOutcome(name);
       expect(findDivergence(expected, expected)).toBeUndefined();
