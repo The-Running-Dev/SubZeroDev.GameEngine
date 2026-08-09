@@ -162,8 +162,8 @@ function mintId(): string {
 
 /** Session id for `createSession`/`loadGame` — `recordIds`, when supplied, replaces
  *  only this call site and the one in `newSaveId` below; `traceId`/`spanId` keep minting
- *  through `mintId()` unconditionally (20-contract.md's `RecordIdSource` governs session
- *  and save ids only). */
+ *  through `mintId()` unconditionally (06 §5.7's `RecordIdSource` governs session and save
+ *  ids only — trace and span ids are per-command correlation, not host-addressed records). */
 function newSessionId(recordIds: RecordIdSource | undefined): string {
   return recordIds ? recordIds.newSessionId() : mintId();
 }

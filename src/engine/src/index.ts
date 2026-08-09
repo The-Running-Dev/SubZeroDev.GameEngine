@@ -11,6 +11,17 @@ export {
 } from "./core/registry/build.js";
 
 export { buildValidatedContentRegistry } from "./core/validation/tiered.js";
+// Content packs (11 §3, §5a, §6). Exported because the composition these serve is
+// host-side: `10-design.md` §5.5 puts resolving one registry per distinct assignment
+// combination — `applyExperimentGates` then `resolvePacks` — *above* the session seam,
+// so a host that cannot name them cannot do the job the design assigns it.
+export {
+  applyExperimentGates,
+  computeResolutionId,
+  resolveBucketKey,
+  resolveExperimentAssignments,
+  resolvePacks,
+} from "./core/registry/packs.js";
 export { createInMemorySessionStore, createSessionLayer, upsertAchievements } from "./core/session/store.js";
 export { createInMemoryProfileStore } from "./core/session/profile-store.js";
 export { TextClient } from "./clients/text/client.js";
@@ -54,12 +65,14 @@ export type { PortableCampaign, PortableCatalog, PortableManifest } from "./spik
 
 export type { Engine } from "./core/kernel/types.js";
 export type { EngineHost, SessionHost } from "./core/composition/types.js";
-export type { IdSource, RecordIdSource, Clock } from "./core/composition/types.js";
+export type { IdSource, RecordIdSource, Clock, ExperimentSource } from "./core/composition/types.js";
 export type { GameState, GameStatus } from "./core/kernel/types.js";
 export type { Kind, KindContext, KindRegistry } from "./core/kernel/types.js";
 export type { ActionParams, ActionResult, AvailableAction, Scene, SceneBody } from "./core/kernel/types.js";
 export type { PlayerView } from "./core/projection/types.js";
 export type { Campaign, BuiltCampaign, ContentRegistry, AuthoredText } from "./core/registry/types.js";
+export type { ResolutionId } from "./core/registry/types.js";
+export type { ContentPack, ExperimentGate, PackRef } from "./core/registry/packs.js";
 export { SessionStoreError } from "./core/session/types.js";
 export type { AchievementRecord, PlayerProfile, ProfileLoadResult, ProfileSaveResult, CampaignSummary, SessionStore, ProfileStore, SaveHandle, SessionHandle, SessionActionResult, CreateSessionConfig, SessionPersistence, SessionRecordStore, SaveRecordStore, StoredSessionRecord, StoredSaveRecord, SessionStoreErrorCode } from "./core/session/types.js";
 export type { ValidationResult, ValidationError, ValidationWarning } from "./core/validation/types.js";

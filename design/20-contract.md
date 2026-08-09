@@ -729,6 +729,15 @@ not this one — so a divergent copy can misroute a listing but can never load t
 > unretrievable — the write succeeds, the read misses, and nothing fails loudly. Stated because
 > it is exactly the defect the first adapter shipped with.
 
+**Where `sessionId` and `saveId` come from.** Both are minted by the session layer, and both are
+seamed: `RecordIdSource` ([`06-extensibility.md`](06-extensibility.md) §5.7) is supplied on
+`SessionHost` and, when present, replaces the layer's own `crypto.randomUUID()` at exactly the
+three call sites that mint one — `createSession`, `loadGame`, and `saveGame`. It is a port
+separate from `IdSource` (06 §5.1) because these two ids are the ones that never enter
+`GameState`: they key the records above, which is host metadata by construction, whereas
+`gameId` and `seed` are serialized replay inputs. Omitted, behaviour is byte-identical to the
+unseamed minting it replaced — which is what makes it additive rather than a change to §7.
+
 **Failures are `SessionStoreError`, not `CommandResult`.** None of `SessionStore`'s methods
 carry an error channel — `SessionHandle`, `SaveHandle` and `Scene` have nowhere to put one — so
 these stay exceptions. What they are not is opaque:
@@ -881,6 +890,7 @@ setting, declared and visible (games/04-engine-specification.md §6.1) — never
 interface ContentRegistry {
   readonly campaigns: ReadonlyMap<string, Campaign>;
   readonly strings: ReadonlyMap<LocKey, string>;     // built form — see the authoring boundary below
+  readonly resolution?: ResolutionId;                // the pack set this was folded from (11 §4, §6)
 }
 
 interface Campaign {
@@ -900,6 +910,13 @@ interface Campaign {
   migrateState?(kindState: unknown, fromVersion: string): CommandResult<unknown>;
 }
 ```
+
+> **`resolution` is optional, and the optionality is the contract.** It is present only on a
+> registry `resolvePacks` folded from an ordered pack set (11 §4) — `buildContentRegistry`
+> knows no packs exist and has none to name. Making it required would mean inventing a digest
+> over content that came from no pack, which under 11 §6 would change `campaignVersion` for
+> every existing single-campaign registry and therefore the version every existing save
+> records. The engine never reads it either way: it is inert identity, not an input.
 
 > **Two `migrateState` functions, two axes.** `Kind.migrateState` (§3) is typed
 > `CommandResult<KState>` because a kind knows its own state type; this one is typed
@@ -1143,6 +1160,9 @@ const BASE_REASON_CODES = [
   "unknown_session", "unknown_save", "storage_failure",
   // the audit vocabulary — a `StateChange.reason`, not a rejection (below)
   "achievement_unlocked",
+  // content-pack resolution (11 §7) — `resolvePacks`, `registry/packs.ts`
+  "pack_kind_mismatch", "duplicate_campaign_id_in_pack", "pack_dependency_missing",
+  "pack_dependency_version_conflict", "pack_dependency_cycle", "pack_override_unexpected",
 ] as const;
 ```
 
@@ -1150,7 +1170,8 @@ const BASE_REASON_CODES = [
 > vocabulary one *turn* needs. Everything after them was added by a unit that found a
 > cross-kind failure mode with no code that fitted — the kernel's three rejections, registry
 > assembly's three, the core's own Tier-1 four, the profile store's three, the save
-> boundary's two, host persistence's three, and the audit vocabulary's one. That is the intended shape: a code is registered when a real caller
+> boundary's two, host persistence's three, the audit vocabulary's one, and content-pack
+> resolution's six. That is the intended shape: a code is registered when a real caller
 > produces it, not pre-declared from this list. Because `ReasonCode` is *additive, never
 > renamed* (above), growth costs nothing — a client switching on a code it has never seen
 > falls through to the localized message, which the core ships for every base code. Expect

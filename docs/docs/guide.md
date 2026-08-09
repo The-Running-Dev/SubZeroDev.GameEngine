@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 90346e69b8d054d68f6a8ca31bfaccdfdbf68b8432d1b96cb48ce1d2ea7980f0 -->
+<!-- design-digest: 5886d8b145240cd902dd9eb3b7180335b5a5864e5fe7d7e7da33d2397f40d77e -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -48,13 +48,18 @@ assertable invariants are in the
   browser, presented as a story shelf, through the same session-store boundary as the text and
   MCP clients. Bureaucracy remains the proof fixture the client-parity and replay tests drive.
   The route is bounded to one kind: `simulation` and `world-graph` surfaces are not part of it.
-  Durable browser saves are specified but the adapter does not yet restore.
+  Campaigns are fetched as JSON from the same static origin at startup rather than bundled, and
+  one durable local checkpoint per campaign is offered on return.
 - A Platform-backed static container is designed and sliced as W62 but is not implemented. It is
   an undeployed alternative delivery artifact for the W61 bytes, not a hosted engine API; the
   existing GitHub Pages deployment remains public.
-- Content packs, the `ExperimentSource` port, and privacy-safe session capture are specified but
-  not implemented. All three are deferred: content packs and experiment gating to post-MVP
-  content-pack work, capture to the hosting layer that gates it.
+- Content pack resolution and experiment gating are implemented and exported: `resolvePacks`,
+  `applyExperimentGates`, `computeResolutionId`, `resolveBucketKey`, `resolveExperimentAssignments`
+  and the `ExperimentSource` port. One piece is deliberately unbuilt — `SessionHost.experiments`
+  is declared but read by nothing, because the session layer receives an already-resolved
+  registry and cannot derive the assignment map itself. Resolve packs above the session seam.
+- Privacy-safe session capture is specified and not implemented; it is deferred to the hosting
+  layer that gates it.
 
 ## The mental model
 
@@ -144,6 +149,33 @@ layer: it runs before the engine, emits an ordinary campaign source, is validate
 above exactly as hand-written content is, and leaves no trace in `serialize()`. A campaign is
 free not to use one, and that freedom is what keeps the shared shape a convenience rather than an
 undeclared content schema. If a campaign needs a different topology, write it out longhand.
+
+### Assembling a registry from content packs
+
+There are two ways to reach a registry, and they differ in what they can say about identity.
+`buildContentRegistry` folds already-built campaigns and knows nothing about packs.
+`resolvePacks` folds an **ordered** array of packs, and the order is significant: later packs
+replace campaigns wholesale by id, and replace strings per key. That asymmetry is the point — a
+culture pack must be able to restyle one line without restating a campaign, but a campaign is a
+validated graph and a field-level merge could produce one no pack author ever validated.
+
+`resolvePacks` is pure and total: either every structural check passes and you get a complete
+registry, or you get every conflict at once and no registry. The checks are that a pack's
+`kindId` matches every campaign it carries, that a `dependsOn` names a pack present in the set at
+exactly that version, that no two packs require different versions of the same pack, that there
+is no cycle, that no campaign id repeats *within* one pack, and that no pack writes a
+`core.reason.*` string. Overriding something no earlier pack supplied is a warning, not an error —
+legal, and almost always a misspelled key that would otherwise fail invisibly at play.
+
+Dependencies are exact `{id, version}` pairs. There is no range solving, deliberately: a
+backtracking resolver would make *which content a game ran against* non-deterministic.
+
+The identity consequence is the part to plan around. `resolvePacks` digests the ordered
+`{id, version}` list into a `ResolutionId` and stamps it as the `version` of every campaign it
+produces, so a game records the content it actually ran against rather than a campaign version
+two different pack sets could share. **Reordering packs therefore changes every campaign version**,
+and every existing save becomes a save of a different version of the content. That is correct, and
+it means pack order is not a knob to adjust on a live deployment.
 
 ## Use the session API, not raw engine state
 
@@ -298,11 +330,19 @@ fall back to `NODE_ENV`; a browser bundle that omits it silently gets dev-mode e
 
 The page exposes scenes, shown choices, disabled reasons, the projected state, achievements,
 optional action preview, and save/load. Checkpoints are locally durable — one per campaign, in
-one browser — through a `SessionPersistence` adapter the site composition root supplies. React
-still persists nothing: it holds a `SessionStore` and never sees a blob, an envelope, or a
-storage key. Storage is best-effort, so a quota error or disabled storage surfaces as
-`storage_failure` and the run continues in memory; claim "saved" only after a write the adapter
-confirmed. Nothing syncs and nothing crosses devices.
+one browser — through a `SessionPersistence` adapter the site composition root supplies, and
+reopening the route offers to resume one. React still persists nothing: it holds a
+`SessionStore` and never sees a blob, an envelope, or a storage key. Storage is best-effort, so a
+quota error or disabled storage surfaces as `storage_failure` and the run continues in memory;
+claim "saved" only after a write the adapter confirmed. Nothing syncs and nothing crosses devices.
+
+**Engine code is bundled; campaign content is not.** Campaigns ship as JSON files in the same
+static artifact, and the page fetches a manifest plus each listed campaign at startup, before the
+shelf renders. That is a packaging decision, not a backend: every file is a static same-origin
+asset the deployment already contains, resolution is entirely local once the registry is built,
+and no third-party host, analytics endpoint, or engine API is involved. What it costs is that
+`/play/` needs a round-trip to *start*, so a failed fetch is a start-up failure the error
+boundary owns rather than something the page can play through.
 
 The route must be a real `play/index.html` in the static artifact, not an SPA fallback. Extend the
 combined-site verification so `/`, `/roadmap/`, `/play/`, and `/docs/` survive one deployment and
@@ -584,10 +624,11 @@ does not belong as a host-supplied port.
 
 Existing host seams cover:
 
-- deterministic game/session ids and seeds;
+- deterministic game ids and seeds (`IdSource`), and session and save ids (`RecordIdSource`);
 - session record durability (`SessionPersistence`) and profile persistence (`ProfileStore`);
 - operational event sinks;
-- boundary clocks used only for metadata.
+- boundary clocks used only for metadata;
+- experiment assignment (`ExperimentSource`), which selects content packs and never reaches a kind.
 
 Note which of those two persistence seams is which. `ProfileStore` is a port in the plain sense —
 supply the whole thing. `SessionStore` is not: it is engine-owned, and what a host replaces is
@@ -599,10 +640,23 @@ build-time flag, substituted by the bundler, because a value supplied at constru
 tree-shaken. Node hosts define nothing and get the right answer from `NODE_ENV`; browser hosts
 must define it.
 
-One seam is specified but not yet implemented: `ExperimentSource` resolves an A/B or feature-flag
-variant at session-creation time so it can select content packs and tag events, but it is
-boundary-only by design — a kind can never see or branch on a variant — and it is deferred along
-with the content-pack resolution machinery it feeds. Do not build against it as a live seam yet.
+`RecordIdSource` is easy to mistake for part of `IdSource` and is deliberately separate. `IdSource`
+supplies `gameId` and `seed`, which are written into the envelope and are replay inputs;
+`RecordIdSource` supplies `newSessionId` and `newSaveId`, which never enter `GameState` at all —
+they key the session and save records, which are host metadata. Supply it on the session host, not
+the engine host. Omit it and the layer mints random ids exactly as before. If you implement one:
+return values unique within your store, never derive them from game state, and note that
+`traceId`/`spanId` are not covered — those stay internal per-command correlation.
+
+`ExperimentSource` resolves an A/B or feature-flag variant at session-creation time so it can
+select content packs, and it is boundary-only by design — a kind can never see or branch on a
+variant, and the result never enters `GameState`. The port and the machinery it feeds are built;
+what is not is `SessionHost.experiments`, which is declared and read by nothing. Resolve
+assignments yourself above the session seam: call `resolveBucketKey` (`profileId`, else the seed),
+then `resolveExperimentAssignments` over your candidate packs, then `applyExperimentGates`, then
+`resolvePacks` — and build one `Engine` per resulting registry, keyed by the `ResolutionId` that
+resolution produced. `null` from `resolve` means "not enrolled" and can never match a gate's
+variant, which is what makes "no `ExperimentSource` supplied" safe rather than lucky.
 
 Kinds, reducers, migrations, condition meaning, content validation, and deterministic tie-breaks
 remain engine-owned. A new theme, scenario, culture, or body of content is not a new kind. Add a

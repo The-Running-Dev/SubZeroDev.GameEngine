@@ -1198,6 +1198,7 @@ no partial trust to model. A seam is on one side of the line or the other.
 | `Kind` | **Inside** — is the game logic | **No** — engine-owned (§7) | 04 §3 |
 | `Condition` operators | **Inside** — evaluated during resolution | **No** — frozen set | 04 §18 |
 | `IdSource` | Outside — values enter state but are opaque to it | **Yes** | §5.1 |
+| `RecordIdSource` | Outside — session and save ids, which never enter state at all | **Yes** | §5.7 |
 | `SessionStore` | Outside, but **core-owned** — locking, stamping and upsert live in it | **No** — supply `SessionPersistence` instead | §5.2 |
 | `SessionPersistence` | Outside — reads and writes the store's records | **Yes** | §5.2 |
 | `ProfileStore` | Outside — durable, beside the session store | **Yes** | §5.2 |
@@ -1248,7 +1249,8 @@ interface SessionHost {
   readonly profiles?: ProfileStore;          // §5.2 — omitted → anonymous-only (04 §7.1)
   readonly clock?: Clock;                    // §5.4 — defaults to the system clock
   readonly recordSink?: EmittedRecordSink;   // 05 §6 — omitted → records are discarded
-  readonly experiments?: ExperimentSource;   // §5.5 — not built; see 90-decisions
+  readonly experiments?: ExperimentSource;   // §5.5 — port built, field read by nothing; below
+  readonly recordIds?: RecordIdSource;       // §5.7 — omitted → the layer mints its own
 }
 
 function createSessionLayer(host: SessionHost): SessionStore;
@@ -1258,9 +1260,17 @@ function createSessionLayer(host: SessionHost): SessionStore;
 > Handing the root a finished `SessionStore` and asking it to return one only made sense if
 > the field meant a lower-level, storage-only port — which nothing named. It does now:
 > `SessionPersistence` (04 §7.2) is that port, and `createSessionLayer` composes the real
-> store around it. `experiments` is specified here and deliberately unbuilt; it arrives with
-> content packs (11 §5a), and the root is listed complete so the seam is not redesigned when
-> it does.
+> store around it.
+
+> **`experiments` is half-arrived, and the half that is missing is a contract question.**
+> W59 built the port itself and the machinery it feeds — `applyExperimentGates`,
+> `resolveBucketKey`, `resolveExperimentAssignments`, all exported from the package root,
+> because §5.5 puts the composition they serve *above* this seam. What no code reads is this
+> field: the session layer receives an already-resolved `ContentRegistry`, never the candidate
+> pack array, so it cannot derive the `experimentId` set an assignment map would be keyed by.
+> Either the field carries a resolved assignment map rather than the port, or the layer gains
+> the candidate packs — and both change this interface. Retained knowingly rather than settled
+> inside an implementation PR; `90-decisions.md` holds the reasoning and the revisit condition.
 
 **Three rules make this uniform, and they are the whole convention:**
 
@@ -1464,6 +1474,48 @@ __GAME_ENGINE_PRODUCTION__: boolean     // replaced at build time; declared, nev
 
 The asymmetry — Node defaults correctly, browsers must act — is the whole reason this is
 written down rather than left to the bundler config that happens to set it today.
+
+### 5.7 `RecordIdSource` — session and save ids {#recordidsource}
+
+```typescript
+interface RecordIdSource {
+  /** A new session id. Store metadata: never enters `GameState`. */
+  newSessionId(): string;
+  /** A new save id, minted per `saveGame`. Same category. */
+  newSaveId(): string;
+}
+```
+
+**A second port beside `IdSource`, not a widening of it**, and the distinction is the reason it
+exists. `IdSource` supplies `gameId` and `seed`, which are written *into* the envelope and are
+replay inputs — §3 spends a paragraph explaining why that is still outside §2's line. A session
+id and a save id are never in the envelope at all: they key `StoredSessionRecord` and
+`StoredSaveRecord` (04 §7.2), which is host metadata by construction. Folding them into
+`IdSource` would collapse "an opaque input the engine records" and "a key the engine never sees"
+into one port, and a host wanting deterministic save ids would then also be redefining the
+game's seed.
+
+Supplied on `SessionHost` rather than `EngineHost` for that same reason — the pure engine has no
+session and no save.
+
+**The default is random** (`crypto.randomUUID()`, matching `IdSource`'s own choice), and it is
+byte-for-byte what the session layer already minted before the port existed, so supplying the
+default changes nothing. Omit it and the behaviour is identical to omitting it having never been
+declared.
+
+The implementer's obligations:
+
+- **Return a value unique within the store.** A repeated session id overwrites a live session's
+  record; a repeated save id overwrites a checkpoint. Nothing downstream checks — the store
+  treats a returned id as authoritative.
+- **Do not derive it from game state.** It is not a replay input and must not become one; a
+  session id computed from the seed would make two runs of the same fixture collide.
+- **`traceId`/`spanId` are not covered.** Those stay minted internally (05 §6.1) — they are
+  per-command correlation, not records a host addresses.
+
+Its determinism assertion is the ordinary §6 step 6: a fixture replays byte-identically under
+the random default and under a counting implementation, because neither id reaches
+`serialize()`.
 
 ---
 
@@ -1745,10 +1797,13 @@ internally, not a second reimplementation: `session/store.ts` exports `upsertAch
 for this reason, and the runner calls it with a fixed `profileId` after every accepted
 submission, then reads the unlocked set from the `ProfileStore` once, after the last one.
 
-> **Not `createSessionLayer`/`SessionHost` (06 §4) either.** That composition root is
-> specified but unbuilt — W7 built `createInMemorySessionStore` directly against
-> `session/types.ts` instead, and nothing in this document needs the unbuilt generality. See
-> [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §2 for the open item and its "revisit when."
+> **Not `createSessionLayer`/`SessionHost` (06 §4) either — and no longer because it is
+> unbuilt.** That composition root now ships (`src/engine/src/core/session/store.ts`,
+> exported from the package root); `createInMemorySessionStore` remains beside it as the
+> convenience wrapper for the default in-memory host. The runner still does not use either,
+> for the reason above rather than for availability: it needs the raw `GameState` that no
+> `SessionStore` returns, so it drives `Engine` directly the way
+> `core/determinism/harness.ts` does.
 
 ### 3.3 `terminal` — Terminal Identity, and Only That
 
@@ -2630,8 +2685,30 @@ The page joins the existing standalone site rather than Docusaurus:
 - extend the existing multi-page build and protected merge so `/`, `/roadmap/`, `/play/`,
   and `/docs/` coexist in one artifact.
 
-The static deployment performs no runtime network request. Engine code and Bureaucracy content
-are bundled at build time. A network outage after the page loads cannot change an outcome.
+**Engine code is bundled; campaign content is fetched.** Revision 1 said the deployment
+performed no runtime network request and that content was bundled at build time. The engine
+half is still true and is the load-bearing half. The content half is not: campaigns ship as
+JSON under `campaigns/` in the same static artifact, and the page fetches `manifest.json` and
+each listed campaign file at startup, before the shelf renders. That is a same-origin request
+for a file the deployment already contains — a build-time decision about *packaging*, not the
+introduction of a backend.
+
+What that costs, stated rather than implied: `/play/` needs a network round-trip to *start*,
+where before it needed none, and a failure to fetch is a start-up failure the error boundary
+in §9 must own. What it does not cost is any of the properties the original sentence existed
+to protect, each of which still holds:
+
+- **No backend, no engine API, no server-held session.** Nothing the page fetches is computed;
+  every file is a static byte-identical asset of the deployment.
+- **A network outage after the page loads cannot change an outcome.** Resolution is entirely
+  local once the registry is built, which is before the first action.
+- **No third-party request, no analytics, no runtime font or content service.** Every fetch is
+  same-origin and enumerable from `manifest.json`.
+
+The gate is the part that is missing rather than the mechanism: nothing today asserts that the
+emitted bundle's startup path issues no request other than same-origin `campaigns/`, which is
+the same class of unasserted claim §4 already rejected for `node:` specifiers. It is sliced,
+not assumed.
 
 ## 7. Client Proof and Tests
 
@@ -3043,8 +3120,9 @@ Revision 2 adds three:
 - Animation uses opacity and transform where practical; no permanent timer runs while idle.
 - A rendering failure preserves `Restart` and `Return to stories` without exposing technical
   state. Persistence warnings remain visible and playable exactly as the browser contract says.
-- The production build still emits a direct static `/play/` route and makes no runtime network
-  request for engine or campaign content.
+- The production build still emits a direct static `/play/` route, and issues no runtime request
+  beyond the same-origin `campaigns/` files `13-playable-web-demo.md` §6 specifies — no engine
+  API, no third-party host, no analytics.
 
 ## 10. Proof
 
@@ -3235,7 +3313,9 @@ Pull requests build the image, start it, and smoke-test:
 - `404` for a named unknown route, proving there is no fallback;
 - the expected route metadata and protected documentation-subtree digest;
 - an orderly container stop; and
-- a browser production smoke showing `/play/` makes no engine API or runtime-content request.
+- a browser production smoke showing `/play/` makes no engine API request, and no request at
+  all outside the same-origin `campaigns/` files it is served from
+  ([`13-playable-web-demo.md`](13-playable-web-demo.md) §6).
 
 The workflow must contain a negative fixture or test mode that deliberately omits or corrupts a
 required artifact and proves the build or startup goes red. A smoke test that has never been
@@ -3399,7 +3479,7 @@ it came from, which is the point.
 interface ContentRegistry {
   readonly campaigns: ReadonlyMap<string, Campaign>;
   readonly strings: ReadonlyMap<LocKey, string>;
-  readonly resolution: ResolutionId;          // NEW — §6
+  readonly resolution?: ResolutionId;         // NEW — §6
 }
 
 type ResolutionId = string;
@@ -3407,6 +3487,12 @@ type ResolutionId = string;
 
 Nothing else. The engine still sees campaigns and strings; `resolution` exists so a game can
 say what content it ran against (§6), and is otherwise inert.
+
+**It is optional because the other entry point has nothing to put there.** `resolvePacks` always
+sets it; `buildContentRegistry` (04 §10.1) builds a registry from already-built campaigns and
+knows no packs exist, so requiring the field would mean manufacturing a digest over a pack set
+that is not one. That is not a hole in §6's identity story — a registry with no packs has
+exactly one resolution of its content, which `campaignVersion` already names on its own.
 
 ---
 
@@ -3520,15 +3606,22 @@ that is unique to the *content it actually ran against*, and:
 
 ## 7. Validation
 
-Pack resolution adds three checks to the tiered validator (04 §11):
+Pack resolution adds four checks to the tiered validator (04 §11):
 
 | Tier | Check |
 |---|---|
-| 1 | A pack's `kindId` matches every campaign it carries; a `dependsOn` names a pack present in the set; no cycle |
+| 1 | A pack's `kindId` matches every campaign it carries; a `dependsOn` names a pack present in the set; two packs requiring different versions of the same id is a conflict; no cycle |
 | 1 | No campaign id collides *within* one pack — across packs is an override, within one is an authoring error |
+| 1 | No pack writes a `core.reason.*` string key |
 | 2 | A pack overrides a campaign or string that no earlier pack supplied — legal, and almost always a typo |
 
-That last one earns its place: a culture pack whose key is misspelled silently contributes
+The third row is the protected-namespace rule 04 §12 already applies at registry assembly,
+restated because a pack is a second way into the same string table. Without it, packs would be
+the one path by which a campaign *could* restyle an engine-level error — which is exactly the
+thing "clients and tooling depend on those meanings being stable" forbids, and the reason the
+rule cannot be assembly's alone.
+
+The last one earns its place: a culture pack whose key is misspelled silently contributes
 nothing, and the failure is invisible at play — the original string simply renders.
 
 ---

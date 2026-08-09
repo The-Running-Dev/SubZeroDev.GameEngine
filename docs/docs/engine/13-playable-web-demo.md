@@ -206,8 +206,30 @@ The page joins the existing standalone site rather than Docusaurus:
 - extend the existing multi-page build and protected merge so `/`, `/roadmap/`, `/play/`,
   and `/docs/` coexist in one artifact.
 
-The static deployment performs no runtime network request. Engine code and Bureaucracy content
-are bundled at build time. A network outage after the page loads cannot change an outcome.
+**Engine code is bundled; campaign content is fetched.** Revision 1 said the deployment
+performed no runtime network request and that content was bundled at build time. The engine
+half is still true and is the load-bearing half. The content half is not: campaigns ship as
+JSON under `campaigns/` in the same static artifact, and the page fetches `manifest.json` and
+each listed campaign file at startup, before the shelf renders. That is a same-origin request
+for a file the deployment already contains — a build-time decision about *packaging*, not the
+introduction of a backend.
+
+What that costs, stated rather than implied: `/play/` needs a network round-trip to *start*,
+where before it needed none, and a failure to fetch is a start-up failure the error boundary
+in §9 must own. What it does not cost is any of the properties the original sentence existed
+to protect, each of which still holds:
+
+- **No backend, no engine API, no server-held session.** Nothing the page fetches is computed;
+  every file is a static byte-identical asset of the deployment.
+- **A network outage after the page loads cannot change an outcome.** Resolution is entirely
+  local once the registry is built, which is before the first action.
+- **No third-party request, no analytics, no runtime font or content service.** Every fetch is
+  same-origin and enumerable from `manifest.json`.
+
+The gate is the part that is missing rather than the mechanism: nothing today asserts that the
+emitted bundle's startup path issues no request other than same-origin `campaigns/`, which is
+the same class of unasserted claim §4 already rejected for `node:` specifiers. It is sliced,
+not assumed.
 
 ## 7. Client Proof and Tests
 

@@ -106,7 +106,7 @@ it came from, which is the point.
 interface ContentRegistry {
   readonly campaigns: ReadonlyMap<string, Campaign>;
   readonly strings: ReadonlyMap<LocKey, string>;
-  readonly resolution: ResolutionId;          // NEW — §6
+  readonly resolution?: ResolutionId;         // NEW — §6
 }
 
 type ResolutionId = string;
@@ -114,6 +114,12 @@ type ResolutionId = string;
 
 Nothing else. The engine still sees campaigns and strings; `resolution` exists so a game can
 say what content it ran against (§6), and is otherwise inert.
+
+**It is optional because the other entry point has nothing to put there.** `resolvePacks` always
+sets it; `buildContentRegistry` (04 §10.1) builds a registry from already-built campaigns and
+knows no packs exist, so requiring the field would mean manufacturing a digest over a pack set
+that is not one. That is not a hole in §6's identity story — a registry with no packs has
+exactly one resolution of its content, which `campaignVersion` already names on its own.
 
 ---
 
@@ -227,15 +233,22 @@ that is unique to the *content it actually ran against*, and:
 
 ## 7. Validation
 
-Pack resolution adds three checks to the tiered validator (04 §11):
+Pack resolution adds four checks to the tiered validator (04 §11):
 
 | Tier | Check |
 |---|---|
-| 1 | A pack's `kindId` matches every campaign it carries; a `dependsOn` names a pack present in the set; no cycle |
+| 1 | A pack's `kindId` matches every campaign it carries; a `dependsOn` names a pack present in the set; two packs requiring different versions of the same id is a conflict; no cycle |
 | 1 | No campaign id collides *within* one pack — across packs is an override, within one is an authoring error |
+| 1 | No pack writes a `core.reason.*` string key |
 | 2 | A pack overrides a campaign or string that no earlier pack supplied — legal, and almost always a typo |
 
-That last one earns its place: a culture pack whose key is misspelled silently contributes
+The third row is the protected-namespace rule 04 §12 already applies at registry assembly,
+restated because a pack is a second way into the same string table. Without it, packs would be
+the one path by which a campaign *could* restyle an engine-level error — which is exactly the
+thing "clients and tooling depend on those meanings being stable" forbids, and the reason the
+rule cannot be assembly's alone.
+
+The last one earns its place: a culture pack whose key is misspelled silently contributes
 nothing, and the failure is invisible at play — the original string simply renders.
 
 ---
