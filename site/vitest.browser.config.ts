@@ -40,6 +40,15 @@ export default defineConfig({
     // per-file CDP session emulation in viewport.browser.test.tsx) isolated.
     browser: {
       enabled: true,
+      // Pinned, because letting Vite pick makes this gate unrunnable on Windows.
+      // Vite's automatic choice lands in the high ephemeral range, and Windows
+      // (WinNAT/Hyper-V) reserves dozens of hundred-port blocks up there --
+      // `netsh interface ipv4 show excludedportrange protocol=tcp` lists them.
+      // A pick inside one fails with `listen EACCES` before a single test runs,
+      // which reads as a failing gate rather than an unusable port. 5199 is below
+      // the reserved region entirely. `strictPort: false` keeps a genuinely
+      // occupied port a fallback rather than a hard stop, so CI is unaffected.
+      api: { port: 5199, strictPort: false },
       // launchOptions is a provider-level option (applies to every
       // instance), not a per-instance one -- @vitest/browser-playwright
       // reads only `this.options.launchOptions` when it opens the browser.
