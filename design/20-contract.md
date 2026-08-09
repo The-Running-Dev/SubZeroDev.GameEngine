@@ -338,18 +338,17 @@ Kinds are registered at engine construction — a fixed, engine-owned set (archi
 ```typescript
 type KindRegistry = Readonly<Record<KindId, Kind<unknown>>>;
 
-function createEngine(
-  registry: ContentRegistry,
-  kinds: KindRegistry,
-  emitter?: Emitter,             // observability sink; defaults to nullEmitter (05 §4)
-): Engine;
+function createEngine(host: EngineHost): Engine;   // EngineHost — 06 §4
 ```
 
-> **Superseded by `06-extensibility.md` §4–§5.1.** The three-positional-argument form
-> above predates the `IdSource` port, which closed a real gap this signature left open
-> (`gameId` and `seed` had no named source). The current, implemented signature is
-> `createEngine(host: EngineHost): Engine`, with `EngineHost { kinds, registry, ids?,
-> emitter? }` — the same "provenance, not authority" relationship this document has with
+> **What this replaced, and why the shape changed.** A three-positional-argument form —
+> `createEngine(registry, kinds, emitter?)` — stood here until the `IdSource` port
+> ([`06-extensibility.md`](06-extensibility.md) §5.1) closed a real gap it left open:
+> `gameId` and `seed` were consumed by `createGame` below with no named source. `EngineHost
+> { kinds, registry, ids?, emitter? }` (06 §4) supplies all four in one shape, and each
+> optional port has a working default — `ids` a random source, `emitter` `nullEmitter`
+> ([`05-observability.md`](05-observability.md) §4). The older form is recorded rather than
+> deleted, the same "provenance, not authority" relationship this document has with
 > `games/04-engine-specification.md` above, just one level down.
 
 The **pure engine** exposes kind-agnostic operations over the envelope. It resolves the
@@ -1309,11 +1308,11 @@ interface PlaythroughFixture {
 - **Property tests** — N random seeds, each run twice, outputs compared; catches
   non-determinism on paths no fixture touches.
 - **Sink independence** — every fixture replays twice, once with `nullEmitter` and once
-  with `recordingEmitter`, and both `serialize()` outputs must be byte-identical. This is
+  with `createRecordingEmitter()`, and both `serialize()` outputs must be byte-identical. This is
   what makes observability ([`05-observability.md`](05-observability.md) §2) safe to have
   inside a deterministic core: it catches a kind that branches on emission, which no
   state-only golden file would notice.
-- **Stream reproducibility** — the same fixture under `recordingEmitter` twice yields the
+- **Stream reproducibility** — the same fixture under `createRecordingEmitter()` twice yields the
   identical event sequence, so the event stream is itself a golden-fileable artifact
   (05 §5).
 
@@ -5619,11 +5618,13 @@ Both map to `ended`. The win/loss distinction is **terminal identity**, which is
 `Kind.outcome` is for ([`07-replay.md`](07-replay.md) §3.3):
 
 ```typescript
-outcome(state: WorldGraphKindState): {
-  resolution: "objectives_met" | "failed" | null;   // null while active
-  objectivesMet: readonly string[];                  // published objective ids
-  failureId: string | null;                          // published failure-condition id
-} {
+interface WorldGraphOutcome {
+  readonly resolution: "objectives_met" | "failed" | null;   // null while active
+  readonly objectivesMet: readonly string[];                 // published objective ids
+  readonly failureId: string | null;                         // published failure-condition id
+}
+
+outcome(state: WorldGraphKindState): WorldGraphOutcome {
   const terminal = state.resolution;
   return {
     resolution: terminal?.resolution ?? null,
@@ -5632,6 +5633,12 @@ outcome(state: WorldGraphKindState): {
   };
 }
 ```
+
+`WorldGraphOutcome` is named here because it is **exported from the package root**, so the
+name is public whether or not anything imports it yet — nothing does today. `story-graph`
+and `simulation` state their outcome shapes inline and export no equivalent, which is why
+this is the one kind whose outcome type needs a declaration rather than a literal. If this
+one is ever un-exported, it goes back to a literal too.
 
 **A win requires at least one objective and every one must be `"met"`.** A triggered
 `FailureProgress` produces `"failed"` and its published id; a scenario that declares no
