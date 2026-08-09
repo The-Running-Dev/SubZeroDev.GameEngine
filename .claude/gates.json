@@ -1,5 +1,5 @@
 {
-  "manifestHash": "95d66f21669897c8b0fd8ff8f9595207b1f5d89b4f0673b0c5b877a8c7387cce",
+  "manifestHash": "840a1e72a6444b21a27f46d78acdd5ceba267a02271584ec99d91c7f936e0d78",
   "generated": "2026-08-10",
   "gates": [
     {
@@ -41,6 +41,14 @@
     {
       "name": "production docs build",
       "command": "./docs.ps1 -BuildOnly"
+    },
+    {
+      "name": "host tests",
+      "command": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests/SubZeroDev.GameEngine.Host.Tests.csproj"
+    },
+    {
+      "name": "host image smoke",
+      "command": "docker build/run/smoke per .github/workflows/host-image.yml"
     }
   ]
 }

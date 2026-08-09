@@ -1,0 +1,218 @@
+name: Platform Static Host Image
+
+# design/15-platform-static-host.md (W62). Pull requests build the image, run it, and
+# smoke it -- never publish. A path-filtered job on main publishes a new immutable GHCR
+# image only when the inputs that actually feed it changed. GitHub Pages remains the
+# public host; this workflow never deploys anything (§6).
+"on":
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Build, run, and smoke the image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      # SubZeroDev.Platform.Hosting is published from the sibling SubZeroDev.Platform
+      # repository. The default GITHUB_TOKEN is scoped to this repository and cannot read
+      # packages published from a different one, so restoring it -- here and in the
+      # `publish` job below -- needs a real cross-repo `read:packages` token. Fail loudly
+      # rather than let `dotnet restore` fall back to an unauthenticated request and fail
+      # with an opaque Docker build error.
+      - name: Verify NuGet restore credential is configured
+        run: |
+          if [ -z "${{ secrets.REGISTRY_TOKEN }}" ]; then
+            echo "::error::REGISTRY_TOKEN secret is required to restore SubZeroDev.Platform.Hosting from GitHub Packages in the SubZeroDev.Platform repository. The default GITHUB_TOKEN cannot read packages published from a sibling repository."
+            exit 1
+          fi
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Test the host
+        env:
+          NUGET_GITHUB_ACTOR: ${{ github.repository_owner }}
+          NUGET_GITHUB_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: dotnet test src/host/SubZeroDev.GameEngine.Host.Tests/SubZeroDev.GameEngine.Host.Tests.csproj -c Release
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Needed to pull ghcr.io/the-running-dev/docs-template, the base image the docs
+      # stage builds from -- docs-ci.yml and docs-deploy.yml authenticate to it the same
+      # way. Not needed to *push* anything; this job never publishes.
+      - name: Log in to GHCR (pull docs-template)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.REGISTRY_TOKEN || github.token }}
+
+      # §3: the short-lived credential that restores SubZeroDev.Platform.Hosting from
+      # GitHub Packages. Passed as build secrets, consumed by host-build's RUN --mount,
+      # never a build argument or an image layer.
+      - name: Build the image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          tags: subzerodev-gameengine-host:smoke
+          load: true
+          secrets: |
+            nuget_github_actor=${{ github.repository_owner }}
+            nuget_github_token=${{ secrets.REGISTRY_TOKEN }}
+
+      - name: Start the container
+        run: |
+          docker run -d --name host-smoke -p 18080:8080 subzerodev-gameengine-host:smoke
+          sleep 3
+          docker logs host-smoke
+
+      - name: Positive route and probe smoke
+        run: |
+          set -euo pipefail
+          check() {
+            local path="$1" expected="$2"
+            local code
+            code="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:18080${path}")"
+            if [ "$code" != "$expected" ]; then
+              echo "GET ${path} -> ${code}, expected ${expected}"
+              exit 1
+            fi
+            echo "GET ${path} -> ${code}"
+          }
+          check / 200
+          check /roadmap/ 200
+          check /play/ 200
+          check /docs/ 200
+          check /health/live 200
+          check /health/ready 200
+          # No SPA fallback (§4): an unknown route must 404, never the landing page.
+          check /this-route-does-not-exist 404
+
+      # §6: no engine API, game action, or runtime content request -- checked from a real
+      # browser against the real running container, not the dev server.
+      - name: Browser production smoke (/play/ makes no engine API request)
+        run: |
+          npm --prefix tools/host-smoke ci
+          npx --prefix tools/host-smoke playwright install --with-deps chromium
+          node tools/host-smoke/browser-smoke.mjs http://127.0.0.1:18080
+
+      - name: Orderly container stop
+        run: |
+          docker stop --timeout 10 host-smoke
+          docker logs host-smoke | tail -5
+          docker rm host-smoke
+
+      # §7 / W62.7: a deliberate missing-artifact fixture, proving the gate actually
+      # fails red rather than merely never having been tested. Program.cs's own startup
+      # check (StaticArtifact.FindMissingRequiredDocuments) is what turns this into a
+      # non-zero exit rather than a container that starts and silently serves less.
+      - name: Negative fixture -- corrupted artifact must fail to start
+        run: |
+          docker build \
+            --build-arg BASE_IMAGE=subzerodev-gameengine-host:smoke \
+            -f tools/host-smoke/Dockerfile.negative-fixture \
+            -t subzerodev-gameengine-host:negative-fixture \
+            .
+          if docker run --rm subzerodev-gameengine-host:negative-fixture; then
+            echo "Negative fixture started successfully -- it must not. The missing-artifact guard is not proven."
+            exit 1
+          fi
+          echo "Negative fixture correctly failed to start."
+
+  publish:
+    name: Publish immutable image to GHCR
+    needs: smoke
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Determine whether hosting inputs changed
+        id: changed
+        run: |
+          before="${{ github.event.before }}"
+          if [ -z "$before" ] || [ "$before" = "0000000000000000000000000000000000000000" ]; then
+            echo "No previous commit to diff against -- publishing."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          elif git diff --quiet "$before" "${{ github.sha }}" -- \
+              Dockerfile .dockerignore src/host site docs build/Merge-LandingPage.ps1 \
+              src/engine; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify NuGet restore credential is configured
+        if: steps.changed.outputs.changed == 'true'
+        run: |
+          if [ -z "${{ secrets.REGISTRY_TOKEN }}" ]; then
+            echo "::error::REGISTRY_TOKEN secret is required to restore SubZeroDev.Platform.Hosting from GitHub Packages in the SubZeroDev.Platform repository. The default GITHUB_TOKEN cannot read packages published from a sibling repository."
+            exit 1
+          fi
+
+      - name: Set up Docker Buildx
+        if: steps.changed.outputs.changed == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: steps.changed.outputs.changed == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.REGISTRY_TOKEN || github.token }}
+
+      - name: Compute image reference
+        if: steps.changed.outputs.changed == 'true'
+        id: image
+        run: |
+          repo_lower="$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')"
+          echo "ref=ghcr.io/${repo_lower}-host" >> "$GITHUB_OUTPUT"
+
+      # One immutable full-commit tag, no `latest`, no deployment -- §6's decision
+      # summary. Digest is recorded in the job summary so a later slice can pin it.
+      - name: Build and push
+        if: steps.changed.outputs.changed == 'true'
+        uses: docker/build-push-action@v6
+        id: build
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.image.outputs.ref }}:${{ github.sha }}
+          secrets: |
+            nuget_github_actor=${{ github.repository_owner }}
+            nuget_github_token=${{ secrets.REGISTRY_TOKEN }}
+
+      - name: Record the published digest
+        if: steps.changed.outputs.changed == 'true'
+        run: |
+          echo "Published ${{ steps.image.outputs.ref }}:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Digest: ${{ steps.build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
