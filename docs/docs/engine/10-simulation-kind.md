@@ -72,6 +72,7 @@ interface SimulationKindState {
   pendingEventResponses: PendingEventResponse[]; // §2.3
 
   goals: GoalState[];                          // §2.4
+  resolution: SimulationResolution | null;     // §12 — immutable once the `week_limit` system sets it
   plan: WeeklyActionPlan | null;               // §4.1 — the week being assembled
 }
 ```
@@ -88,6 +89,16 @@ interface SimulationKindState {
 > **`WeeklyActionPlan.totalTimeCost` / `totalMoneyCostCents`** — marked "engine-computed"
 > upstream. Derived values do not belong in serialized state: they can disagree with the
 > actions they summarise, and a disagreement is unresolvable. They are computed on read (§4.1).
+
+**`resolution` is new against upstream, not carried from it, and mirrors a settled pattern
+rather than inventing one.** `Kind.outcome(state: KState): unknown` (04 §3) takes only state
+— no campaign, no `ScenarioDefinition` — so a scenario's `weekLimit` (§7.8) is invisible to
+`outcome()` unless the fact of having crossed it is captured while campaign data is still in
+scope, during `end_week`'s own resolution, and persisted onto state for `outcome()` to read
+back. `12-world-graph-kind.md` §8 already carries the identical shape (`WorldGraphKindState
+.resolution`, written once by its terminal system, read verbatim by `outcome()`) for the
+identical reason. §12 below defines `SimulationResolution` and the `week_limit` system that
+writes it.
 
 The rest of this section restates every field type `SimulationKindState` names above.
 `PlayerState` is the one exception, and only because it is large enough to own a section:
@@ -470,7 +481,7 @@ resolved every planned action (§5):
 employment          education          finance_income     inventory
 housing              finance_reconcile  needs               relationships
 opportunities        events             headline            goals
-failure              achievements       history
+failure              week_limit         achievements        history
 ```
 
 Order is stable and covered by test, the same as start-of-week. `headline` runs after `events`
@@ -490,13 +501,17 @@ earlier in the pass, including a counter a `goals`/`failure` system just increme
 `history: HistoryEntry[]` as a `SimulationKindState` field — the position in this ordering is
 upstream's own, restated for completeness of the list, not evidence the field is coming.
 
-**`weekLimit` is conspicuously absent from this order, and that is the concrete form of §12's
-own open item.** No system here checks a scenario's `weekLimit` against the current week —
-searched the full ordering, upstream never schedules that check anywhere in `END_WEEK_SYSTEM_ORDER`.
-§12's terminal-identity callout already flagged `week_limit_reached`'s precedence against
-`goals_met` as unresolved upstream; this list is the evidence for that claim, not a new one —
-there is no step here for a future implementation to hook a resolution into without inventing
-one upstream itself never named.
+**`week_limit` is added here, absent from upstream, and closes what was §12's open item.**
+Upstream's `END_WEEK_SYSTEM_ORDER` never schedules a check of a scenario's `weekLimit` against
+the current week at all — this contract's own addition, not a gap in transcription. It sits
+after `failure` and before `achievements`: both `goals` and `failure` have had their turn
+(and, per `goalFailurePrecedence` below, so has whichever of the two wins a same-week tie) by
+the time it runs, and `achievements` (§12) must still see the final `resolution` before it
+evaluates. `week_limit` writes `state.resolution = "week_limit_reached"` only when
+`state.resolution` is still `null` and `scenario.weekLimit` is defined with
+`state.calendar.currentWeek >= scenario.weekLimit` — so a week that both exhausts the limit
+and lands a goal or a failure keeps that result; `week_limit_reached` is exclusively what a
+week reports when neither `goals` nor `failure` had anything to say. §12 states the reasoning.
 
 **Goals run before failure — a per-scenario tie-break, not a fixed rule.**
 `ScenarioDefinition.goalFailurePrecedence: GoalFailurePrecedence` (§7.8, declared there
@@ -1676,9 +1691,9 @@ interface DifficultyDefinition {
 }
 ```
 
-`GoalFailurePrecedence` and its default are already load-bearing in §12 (Terminal Identity) and
-flagged there as provisional against `week_limit_reached`'s own precedence — restating the type
-here does not resolve that; §12's own callout stands. Every rival advantage is declared on
+`GoalFailurePrecedence` and its default are already load-bearing in §12 (Terminal Identity),
+which now also states `week_limit_reached`'s precedence against the two — restating the type
+here does not repeat that reasoning; §12 carries it. Every rival advantage is declared on
 `DifficultyDefinition` and nowhere else, which is what makes an "any advantage must be explicit"
 audit possible at all: a rival that is simply better at something the definition doesn't name
 would be undetectable drift, the same class of risk §6.2 raised for actor-state parity.
@@ -2132,10 +2147,24 @@ campaign content changed under a live game, not that the player did anything.
 (07 §3.3):
 
 ```typescript
+interface SimulationResolution {
+  resolution: "goals_met" | "failed" | "week_limit_reached";
+  goalsMet: readonly string[];      // completed GoalDefinition ids, sorted
+  goalsFailed: readonly string[];   // failed GoalDefinition ids, sorted
+  resolvedAtWeek: number;
+}
+
 outcome(state: SimulationKindState): {
   resolution: "goals_met" | "failed" | "week_limit_reached" | null;  // null while active
   goalsMet: readonly string[];      // completed GoalDefinition ids, sorted
   goalsFailed: readonly string[];   // failed GoalDefinition ids, sorted
+} {
+  const terminal = state.resolution;
+  return {
+    resolution: terminal?.resolution ?? null,
+    goalsMet: terminal?.goalsMet ?? [],
+    goalsFailed: terminal?.goalsFailed ?? [],
+  };
 }
 ```
 
@@ -2151,18 +2180,32 @@ conditions are independent of its objectives, this kind's failures hang off goal
 failing goal is already in `goalsFailed` — naming *which one* ended the game when several
 fail in the same week would expose iteration order, not a fact about the game.
 
+`outcome()` does not compute any of this itself — it cannot. `Kind.outcome(state: KState)`
+(04 §3) receives no campaign, so `ScenarioDefinition.weekLimit` (§7.8) is not reachable from
+here. §2's `SimulationKindState.resolution: SimulationResolution | null` carries the already-
+decided fact instead, exactly as `12-world-graph-kind.md` §8's `WorldGraphKindState
+.resolution` does for the same structural reason. `outcome()` reads it back; it never
+reconstructs a possibly different winner from `goals`/`world` state after the fact.
+
 Published ids only — never money, needs, or week counts, all of which a balance pass changes
 legitimately and none of which a regression oracle should treat as a defect (07 §3.4).
 
-> **This shape fixes the three terminal *values*, not yet their precedence.** Upstream
-> §12.2's `END_WEEK_SYSTEM_ORDER` runs `goals` before `failure` and names no week-limit
-> check at all; §12.3's `goalFailurePrecedence` resolves only the goals-vs-failure tie.
-> Whether a week that simultaneously exhausts `weekLimit` *and* resolves every goal reports
-> `week_limit_reached` or `goals_met` is genuinely open — not merely undocumented here, but
-> unresolved in the upstream source this section would port from. §15 already lists
-> §12.2–§12.3 as not-yet-ported end-of-week material; this is the concrete reason that
-> matters for `outcome()` specifically; treat `week_limit_reached`'s precedence against the
-> other two as provisional until that lands, the same as `history`'s status in §2.
+**`week_limit_reached`'s precedence against `goals_met`/`failed` is settled: goals and
+failure always win.** Upstream never resolves this — §12.2's `END_WEEK_SYSTEM_ORDER` runs
+`goals` before `failure` and names no week-limit check at all, and §12.3's
+`goalFailurePrecedence` resolves only the goals-vs-failure tie, leaving the third axis
+genuinely open in the source this section ports from. This contract settles it rather than
+carrying the gap into an implementation that would have had to guess: the `week_limit` system
+(§3) runs after `goals` and `failure` have applied `goalFailurePrecedence` between themselves,
+and writes `state.resolution` only when it is still `null`. A week that simultaneously
+exhausts `weekLimit` and lands every goal reports `goals_met`, not `week_limit_reached` — the
+same reasoning §3 already gives for defaulting `goalFailurePrecedence` to `"goals_win"`: the
+alternative reports the worst available ending for a player who did everything asked of them,
+over a race against a clock they had no way to see the edge of. The same holds against
+`failed`: a week that both fails a goal and exhausts the limit reports `failed`, the more
+specific fact. `week_limit_reached` is therefore never a tie-break result — it is what a week
+reports only when neither `goals` nor `failure` had anything to say, i.e. play simply ran out
+of scenario before it resolved either way.
 
 ---
 
