@@ -20,7 +20,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createEngine } from "../core/kernel/engine.js";
 import { buildValidatedContentRegistry } from "../core/validation/tiered.js";
@@ -49,6 +49,16 @@ function loadFixture(name: string): ReplayFixture {
 
 function loadExpectedOutcome(name: string): Outcome {
   return JSON.parse(readFileSync(`${CORPUS_DIR}${name}.outcome.json`, "utf8")) as Outcome;
+}
+
+/** In cross-version mode `CORPUS_DIR` is the baseline tag's extracted fixtures (see the
+ *  module doc comment above), which legitimately lacks a fixture added after that tag —
+ *  the same "predates this corpus" case the `it.each` loop degrades to zero cases for.
+ *  The mechanism suites below name their fixtures directly rather than iterating a
+ *  directory listing, so they need this check to degrade the same way instead of an
+ *  `ENOENT` failure. */
+function hasFixture(name: string): boolean {
+  return existsSync(`${CORPUS_DIR}${name}.fixture.json`);
 }
 
 function stableLifeFixtureNames(dir: string): string[] {
@@ -128,7 +138,9 @@ describe("the Stable Life replay corpus (07-replay.md §4)", () => {
  * fixture's submissions through the engine directly — the same one `buildReplayOutcome`
  * uses internally — and reading the final `HousingState` back off `GameState.kindState`.
  */
-describe("W55.6 — the housing fixtures actually reach and avoid eviction", () => {
+describe.skipIf(!hasFixture("stable-life-housing-eviction") || !hasFixture("stable-life-housing-avoiding-eviction"))(
+  "W55.6 — the housing fixtures actually reach and avoid eviction",
+  () => {
   async function finalHousing(fixtureName: string): Promise<HousingState> {
     const fixture = loadFixture(fixtureName);
     const ctx = makeContext();
@@ -153,7 +165,8 @@ describe("W55.6 — the housing fixtures actually reach and avoid eviction", () 
     expect(housing.evictionStage).toBe("none");
     expect(housing.overdueRentCents).toBe(0);
   });
-});
+  },
+);
 
 /**
  * W56.6's fixture has the same blind spot W55.6's pair does, for the same reason: nothing in
@@ -162,7 +175,9 @@ describe("W55.6 — the housing fixtures actually reach and avoid eviction", () 
  * loop above proves only that the fixture replays byte-identically. Reading the arc back means
  * stepping the same submissions through the engine and inspecting `kindState` per week.
  */
-describe("W56.6 — the possessions fixture walks buy → use → decay → repair → sell", () => {
+describe.skipIf(!hasFixture("stable-life-possessions"))(
+  "W56.6 — the possessions fixture walks buy → use → decay → repair → sell",
+  () => {
   it("wears the bicycle to zero, drops its effect, repairs it, and sells it on", async () => {
     const fixture = loadFixture("stable-life-possessions");
     const ctx = makeContext();
@@ -223,4 +238,5 @@ describe("W56.6 — the possessions fixture walks buy → use → decay → repa
       interactionCount: 1,
     }]);
   });
-});
+  },
+);
