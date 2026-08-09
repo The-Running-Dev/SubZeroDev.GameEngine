@@ -1,13 +1,35 @@
 {
   "name": "bureaucracy-gated-choice",
-  "config": { "campaignId": "bulgaria-bureaucracy", "seed": "bureaucracy-seed-3" },
-  "campaignVersion": "1.0.0",
-  "capturedUnder": "0.1.0",
+  "config": {
+    "campaignId": "bulgaria-bureaucracy",
+    "seed": "bureaucracy-gate-search-2"
+  },
+  "campaignVersion": "2.0.0",
+  "capturedUnder": "0.5.0",
   "submissions": [
-    { "actionId": "wait" },
-    { "actionId": "go_home" },
-    { "actionId": "continue_cycle" },
-    { "actionId": "continue_cycle" },
-    { "actionId": "go_home" }
+    {
+      "actionId": "wait"
+    },
+    {
+      "actionId": "registry_route_push"
+    },
+    {
+      "actionId": "registry_route_event_1a_proceed"
+    },
+    {
+      "actionId": "registry_route_improvise"
+    },
+    {
+      "actionId": "registry_route_event_2b_proceed"
+    },
+    {
+      "actionId": "registry_route_call_in_favour"
+    },
+    {
+      "actionId": "registry_route_steady"
+    },
+    {
+      "actionId": "choose_document_obtained"
+    }
   ]
 }

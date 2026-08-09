@@ -1,13 +1,63 @@
 {
   "finalStatus": "ended",
-  "acceptedActions": 4,
+  "acceptedActions": 7,
   "decisions": [
-    { "index": 0, "seq": 0, "actionId": "wait", "accepted": true },
-    { "index": 1, "seq": null, "actionId": "go_home", "accepted": false, "reason": "requirement_unmet" },
-    { "index": 2, "seq": 1, "actionId": "continue_cycle", "accepted": true },
-    { "index": 3, "seq": 2, "actionId": "continue_cycle", "accepted": true },
-    { "index": 4, "seq": 3, "actionId": "go_home", "accepted": true }
+    {
+      "index": 0,
+      "seq": 0,
+      "actionId": "wait",
+      "accepted": true
+    },
+    {
+      "index": 1,
+      "seq": 1,
+      "actionId": "registry_route_push",
+      "accepted": true
+    },
+    {
+      "index": 2,
+      "seq": 2,
+      "actionId": "registry_route_event_1a_proceed",
+      "accepted": true
+    },
+    {
+      "index": 3,
+      "seq": 3,
+      "actionId": "registry_route_improvise",
+      "accepted": true
+    },
+    {
+      "index": 4,
+      "seq": 4,
+      "actionId": "registry_route_event_2b_proceed",
+      "accepted": true
+    },
+    {
+      "index": 5,
+      "seq": null,
+      "actionId": "registry_route_call_in_favour",
+      "accepted": false,
+      "reason": "requirement_unmet"
+    },
+    {
+      "index": 6,
+      "seq": 5,
+      "actionId": "registry_route_steady",
+      "accepted": true
+    },
+    {
+      "index": 7,
+      "seq": 6,
+      "actionId": "choose_document_obtained",
+      "accepted": true
+    }
   ],
-  "achievements": ["it_builds_character"],
-  "terminal": { "endingId": "ultimate_reward" }
+  "achievements": [
+    "found_registry_route_event_1a",
+    "found_registry_route_event_2b",
+    "it_builds_character"
+  ],
+  "terminal": {
+    "endingId": "document_obtained"
+  }
 }
