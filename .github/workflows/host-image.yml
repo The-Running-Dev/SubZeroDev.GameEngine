@@ -30,6 +30,30 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
 
+      # SubZeroDev.Platform.Hosting is published from the sibling SubZeroDev.Platform
+      # repository. The default GITHUB_TOKEN is scoped to this repository and cannot read
+      # packages published from a different one, so restoring it -- here and in the
+      # `publish` job below -- needs a real cross-repo `read:packages` token. Fail loudly
+      # rather than let `dotnet restore` fall back to an unauthenticated request and fail
+      # with an opaque Docker build error.
+      - name: Verify NuGet restore credential is configured
+        run: |
+          if [ -z "${{ secrets.REGISTRY_TOKEN }}" ]; then
+            echo "::error::REGISTRY_TOKEN secret is required to restore SubZeroDev.Platform.Hosting from GitHub Packages in the SubZeroDev.Platform repository. The default GITHUB_TOKEN cannot read packages published from a sibling repository."
+            exit 1
+          fi
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Test the host
+        env:
+          NUGET_GITHUB_ACTOR: ${{ github.repository_owner }}
+          NUGET_GITHUB_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: dotnet test src/host/SubZeroDev.GameEngine.Host.Tests/SubZeroDev.GameEngine.Host.Tests.csproj -c Release
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -54,7 +78,7 @@ jobs:
           load: true
           secrets: |
             nuget_github_actor=${{ github.repository_owner }}
-            nuget_github_token=${{ secrets.REGISTRY_TOKEN || github.token }}
+            nuget_github_token=${{ secrets.REGISTRY_TOKEN }}
 
       - name: Start the container
         run: |
@@ -140,10 +164,18 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           elif git diff --quiet "$before" "${{ github.sha }}" -- \
               Dockerfile .dockerignore src/host site docs build/Merge-LandingPage.ps1 \
-              src/engine/package-lock.json site/package-lock.json; then
+              src/engine; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify NuGet restore credential is configured
+        if: steps.changed.outputs.changed == 'true'
+        run: |
+          if [ -z "${{ secrets.REGISTRY_TOKEN }}" ]; then
+            echo "::error::REGISTRY_TOKEN secret is required to restore SubZeroDev.Platform.Hosting from GitHub Packages in the SubZeroDev.Platform repository. The default GITHUB_TOKEN cannot read packages published from a sibling repository."
+            exit 1
           fi
 
       - name: Set up Docker Buildx
@@ -177,7 +209,7 @@ jobs:
           tags: ${{ steps.image.outputs.ref }}:${{ github.sha }}
           secrets: |
             nuget_github_actor=${{ github.repository_owner }}
-            nuget_github_token=${{ secrets.REGISTRY_TOKEN || github.token }}
+            nuget_github_token=${{ secrets.REGISTRY_TOKEN }}
 
       - name: Record the published digest
         if: steps.changed.outputs.changed == 'true'
