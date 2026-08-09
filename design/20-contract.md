@@ -344,9 +344,9 @@ function createEngine(host: EngineHost): Engine;   // EngineHost — 06 §4
 > **What this replaced, and why the shape changed.** A three-positional-argument form —
 > `createEngine(registry, kinds, emitter?)` — stood here until the `IdSource` port
 > ([`06-extensibility.md`](06-extensibility.md) §5.1) closed a real gap it left open:
-> `gameId` and `seed` were consumed by `createGame` below with no named source. `EngineHost
-> { kinds, registry, ids?, emitter? }` (06 §4) supplies all four in one shape, and each
-> optional port has a working default — `ids` a random source, `emitter` `nullEmitter`
+> `gameId` and `seed` were consumed by `createGame` below with no named source.
+> `EngineHost { kinds, registry, ids?, emitter? }` (06 §4) supplies all four in one shape,
+> and each optional port has a working default — `ids` a random source, `emitter` `nullEmitter`
 > ([`05-observability.md`](05-observability.md) §4). The older form is recorded rather than
 > deleted, the same "provenance, not authority" relationship this document has with
 > `games/04-engine-specification.md` above, just one level down.
