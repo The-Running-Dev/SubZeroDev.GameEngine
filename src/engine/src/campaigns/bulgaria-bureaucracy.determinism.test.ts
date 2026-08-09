@@ -84,12 +84,17 @@ describe("determinism harness — the real Bureaucracy campaign (04-core.md §14
     expect(parsed.kindState.variables.connections).toBe(2);
   });
 
-  it("a one-character difference is detectable — the sensitivity toMatchSnapshot() itself relies on", () => {
+  it("a one-character difference is detectable — toMatchSnapshot() compares raw text, not re-parsed JSON", () => {
     const engine = buildEngine(FIXED_IDS);
     const serialized = runFixture(engine, MID_ARC_FIXTURE);
     const lastChar = serialized.at(-1);
     const corrupted = serialized.slice(0, -1) + (lastChar === "}" ? ")" : "}");
 
+    // Same length, so a JSON-semantic comparison that round-trips through JSON.parse before
+    // diffing would need the parse itself to fail loudly rather than silently normalize the
+    // corruption away — confirmed here, since a snapshot mechanism that instead compared
+    // *parsed* structures could only ever detect this by throwing on the corrupted side.
+    expect(() => JSON.parse(corrupted)).toThrow();
     expect(corrupted).not.toBe(serialized);
     expect(corrupted).toHaveLength(serialized.length);
   });
