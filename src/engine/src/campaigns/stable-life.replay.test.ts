@@ -38,6 +38,7 @@ import { buildStableLifeCampaign } from "./stable-life.js";
 import { buildStableLifeEffectsCampaign } from "./stable-life-effects.js";
 import { buildStableLifeHousingCampaign } from "./stable-life-housing.js";
 import { buildStableLifePossessionsCampaign } from "./stable-life-possessions.js";
+import { buildStableLifeEventsCampaign } from "./stable-life-events.js";
 import { COMPARING_ACROSS_VERSIONS, CORPUS_DIR, FIXTURES_DIR, fixtureNamesByPrefix, hasFixture, loadExpectedOutcome, loadFixture } from "./replay-corpus.js";
 
 const REPLAY_PROFILE_ID = "replay-oracle-profile";
@@ -62,8 +63,8 @@ const CURRENT_STABLE_LIFE_FIXTURE_NAMES = fixtureNamesByPrefix("stable-life-", F
 const STABLE_LIFE_FIXTURE_NAMES = fixtureNamesByPrefix("stable-life-", CORPUS_DIR);
 
 /**
- * Registers `stable-life`, `stable-life-effects` (W51.6), `stable-life-housing` (W55), and
- * `stable-life-possessions` (W56)
+ * Registers `stable-life`, `stable-life-effects` (W51.6), `stable-life-housing` (W55),
+ * `stable-life-possessions` (W56), and `stable-life-events` (W57)
  * — a fixture's own `config.campaignId` picks which one it replays against; the filename
  * prefix scan above is what makes any of them part of "the Stable Life replay corpus"
  * regardless.
@@ -77,8 +78,10 @@ function makeContext(): ReplayRunnerContext {
   if (!builtHousing.ok || !builtHousing.value) throw new Error("expected the Stable Life: Housing fixture campaign to build");
   const builtPossessions = buildStableLifePossessionsCampaign();
   if (!builtPossessions.ok || !builtPossessions.value) throw new Error("expected the Stable Life: Possessions fixture campaign to build");
+  const builtEvents = buildStableLifeEventsCampaign();
+  if (!builtEvents.ok || !builtEvents.value) throw new Error("expected the Stable Life: Events fixture campaign to build");
   const kinds = { simulation: simulationKind } as unknown as KindRegistry;
-  const registryResult = buildValidatedContentRegistry([built.value, builtEffects.value, builtHousing.value, builtPossessions.value], kinds);
+  const registryResult = buildValidatedContentRegistry([built.value, builtEffects.value, builtHousing.value, builtPossessions.value, builtEvents.value], kinds);
   if (!registryResult.ok || !registryResult.value) throw new Error("expected the Stable Life fixture campaigns to validate");
 
   return {

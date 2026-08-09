@@ -45,8 +45,20 @@
  * which is why the two blocks below look inconsistent in origin but not in kind.
  *
  * W56 registers its own eight at the point of emission, the discipline that reconciliation
- * established. `plan_empty` and `week_limit_reached` remain the only two §10 names still
- * undispatched — neither is reachable from possessions, places or people.
+ * established.
+ *
+ * W57 registers nine more the same way — three action codes for the events/opportunities
+ * resolvers, and five end-of-week codes plus `world_strangeness_shifted` for the systems
+ * `endOfWeek.ts` un-stubbed.
+ *
+ * **`plan_empty` and `week_limit_reached` are still the two §10 names not dispatched as
+ * *reason codes*, and W57 does not change that.** §12's `week_limit_reached` is a
+ * `SimulationResolution.resolution` value — a terminal identity `outcome()` reports, now
+ * reachable — which is a different thing from §10's rejection code of the same name. A week
+ * cap being reached ends the game rather than rejecting an action, so nothing yet returns it
+ * as a `ValidationError`, and this file's own rule is that a code joins when the unit that
+ * produces it exists. `plan_empty` keeps its separate gate: no `SimulationCampaign` field
+ * exists for a campaign to forbid an empty plan with.
  */
 
 import type { LocKey } from "../../core/localization/types.js";
@@ -100,6 +112,17 @@ export const SIMULATION_REASON_CODES = [
   "action_socialize",
   "action_exercise",
   "item_condition_decayed",
+  // W57 — events, opportunities, headlines. Three action audit codes and five end-of-week
+  // codes, registered in the same commit that emits them (this file's own header).
+  "action_respond_to_event",
+  "action_accept_opportunity",
+  "action_decline_opportunity",
+  "event_fired",
+  "opportunity_offered",
+  "opportunity_expired",
+  "opportunity_revoked",
+  "headline_shown",
+  "world_strangeness_shifted",
 ] as const;
 
 export type SimulationReasonCode = (typeof SIMULATION_REASON_CODES)[number];
@@ -148,6 +171,15 @@ const SIMULATION_REASON_TEXT: Readonly<Record<SimulationReasonCode, string>> = {
   action_socialize: "You spent time with someone.",
   action_exercise: "You exercised.",
   item_condition_decayed: "Something you own is wearing out.",
+  action_respond_to_event: "You dealt with it.",
+  action_accept_opportunity: "You took the offer.",
+  action_decline_opportunity: "You turned the offer down.",
+  event_fired: "Something happened this week.",
+  opportunity_offered: "An opportunity came up.",
+  opportunity_expired: "An opportunity passed you by.",
+  opportunity_revoked: "An opportunity was withdrawn.",
+  headline_shown: "This week's news.",
+  world_strangeness_shifted: "The world feels a little different.",
 };
 
 /** `simulation.reason.<code>` → its shipped default-English message, for every code. */

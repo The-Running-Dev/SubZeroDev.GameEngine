@@ -61,6 +61,7 @@ const state: SimulationKindState = {
   goals: [
     { definitionId: "goal-1", status: "active", satisfiedThisWeek: true, consecutiveWeeksSatisfied: 1, requiredDurationWeeks: 2, firstSatisfiedWeek: 3, progressNotes: [{ conditionIndex: 0, satisfied: true, currentValue: 70, targetValue: 70 }] },
   ],
+  resolution: null,
   plan: { week: 3, actions: [{ id: "a1", type: "rest", actorId: "player", parameters: {} }] },
 };
 

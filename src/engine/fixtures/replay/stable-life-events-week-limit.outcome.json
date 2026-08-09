@@ -1,0 +1,44 @@
+{
+  "finalStatus": "ended",
+  "acceptedActions": 5,
+  "decisions": [
+    {
+      "index": 0,
+      "seq": 0,
+      "actionId": "end_week",
+      "accepted": true
+    },
+    {
+      "index": 1,
+      "seq": 1,
+      "actionId": "end_week",
+      "accepted": true
+    },
+    {
+      "index": 2,
+      "seq": 2,
+      "actionId": "end_week",
+      "accepted": true
+    },
+    {
+      "index": 3,
+      "seq": 3,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 4,
+      "seq": 4,
+      "actionId": "end_week",
+      "accepted": true
+    }
+  ],
+  "achievements": [
+    "achievement-first-week"
+  ],
+  "terminal": {
+    "resolution": "week_limit_reached",
+    "goalsMet": [],
+    "goalsFailed": []
+  }
+}

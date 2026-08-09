@@ -192,7 +192,27 @@ export function advance(
       // `content.items` joins `jobs`/`courses` as a plain parameter (W56) — `endOfWeek.ts`'s
       // `inventory` system needs `ItemDefinition` for decay and effect sync, the same way
       // `employment` needed `jobs` and `education` needed `courses`.
-      const endOfWeekResult = runEndOfWeek(working, ctx.emit, content.goals, content.goalFailurePrecedence, content.jobs, content.courses, content.items);
+      //
+      // W57's four systems need four more collections, the scenario's own `weekLimit`, and —
+      // uniquely among the end-of-week systems — randomness. They arrive in one `world`
+      // object rather than six more positional parameters. The stream is
+      // `{ kind: "system", system: "end_of_week", seq }` via `ctx.derive` (04 §3.1): the
+      // week's draws must not share `ctx.rng`, which is the *action* stream this same
+      // `end_week` already spent on resolvers, or adding a planned action would silently
+      // reroll the week's events. `seq` keeps successive weeks on different streams.
+      const scenario = content.scenarios.find((s) => s.id === content.scenarioId);
+      const endOfWeekResult = runEndOfWeek(
+        working, ctx.emit, content.goals, content.goalFailurePrecedence,
+        content.jobs, content.courses, content.items,
+        {
+          events: content.events,
+          opportunities: content.opportunities,
+          headlines: content.headlines,
+          achievements: content.achievements,
+          ...(scenario?.weekLimit !== undefined ? { weekLimit: scenario.weekLimit } : {}),
+          rng: ctx.derive({ kind: "system", system: "end_of_week", seq: ctx.seq }),
+        },
+      );
       ctx.emit.emit(WEEK_ENDED_EVENT, "info", { data: { week: working.calendar.currentWeek } });
 
       const counted = foldCounters(endOfWeekResult.state, endOfWeekResult.changes);

@@ -178,7 +178,7 @@ function state(overrides: Partial<SimulationKindState> = {}): SimulationKindStat
     economy: { inflation: 200, unemploymentRate: 500, interestRate: 300, sectorDemand: {}, marketPrices: {}, publishedIndicators: [], flags: {} },
     world: { npcs: [], locations: [], jobMarket: { openings: [] }, eventCooldowns: {}, firedUniqueEvents: [], chainStates: [], strangenessBase: 0, headlinePool: { remainingIds: [], cyclesCompleted: 0 }, agents: [], flags: {} },
     activeEffects: [], activeOpportunities: [], scheduledEvents: [], pendingEventResponses: [],
-    goals: [], plan: null,
+    goals: [], resolution: null, plan: null,
     ...overrides,
   };
 }

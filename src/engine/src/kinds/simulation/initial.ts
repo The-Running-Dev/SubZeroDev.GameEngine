@@ -227,6 +227,9 @@ export function initialState(campaign: Campaign): InitialStateResult<SimulationK
     pendingEventResponses: [],
 
     goals: startingGoals(content.goals),
+    // §12 — a game starts live. Only `end_week`'s `goals`/`failure`/`week_limit` systems
+    // ever write this, and only once (`endOfWeek.ts`).
+    resolution: null,
     plan: { week: calendar.currentWeek, actions: [] },
   };
 
