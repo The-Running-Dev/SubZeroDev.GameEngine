@@ -60,3 +60,14 @@ export function fixtureNamesByPrefix(prefix: string, dir: string = CORPUS_DIR): 
     .map((f) => f.slice(0, -".fixture.json".length))
     .sort();
 }
+
+/** The `.outcome.json` counterpart of `fixtureNamesByPrefix`, so a suite can assert the two
+ *  enumerations agree (07 §4) — directory enumeration alone doesn't catch an orphaned file on
+ *  either side, which is exactly what let W64's campaign rewrite silently drop bureaucracy's
+ *  corpus (`design/90-decisions.md`, the W67 entry). */
+export function outcomeNamesByPrefix(prefix: string, dir: string = CORPUS_DIR): string[] {
+  return readdirSync(dir)
+    .filter((f) => f.startsWith(prefix) && f.endsWith(".outcome.json"))
+    .map((f) => f.slice(0, -".outcome.json".length))
+    .sort();
+}

@@ -40,7 +40,7 @@ import { buildReplayOutcome, findDivergence, runReplayFixture, type ReplayRunner
 import type { Outcome, ReplayFixture } from "../core/replay/types.js";
 import type { KindRegistry } from "../core/kernel/types.js";
 import { buildBulgariaBureaucracyCampaign } from "./bulgaria-bureaucracy.js";
-import { COMPARING_ACROSS_VERSIONS, CORPUS_DIR, fixtureNamesByPrefix, loadExpectedOutcome, loadFixture } from "./replay-corpus.js";
+import { COMPARING_ACROSS_VERSIONS, CORPUS_DIR, fixtureNamesByPrefix, loadExpectedOutcome, loadFixture, outcomeNamesByPrefix } from "./replay-corpus.js";
 
 const REPLAY_PROFILE_ID = "replay-oracle-profile";
 
@@ -68,6 +68,14 @@ function makeContext(): ReplayRunnerContext {
 describe("the replay corpus (07-replay.md §4)", () => {
   it("the corpus is non-empty — every MVP §5 playable box has a fixture", () => {
     expect(FIXTURE_NAMES.length).toBeGreaterThan(0);
+  });
+
+  // The corpus asserts its own membership (07 §4): directory enumeration alone doesn't
+  // catch an orphaned file on either side — a `.fixture.json` with no matching
+  // `.outcome.json`, or vice versa — which is exactly what let #189 silently drop this
+  // corpus while `fixtureNamesByPrefix` kept enumerating (correctly) zero fixtures.
+  it("every bureaucracy-prefixed fixture has a matching committed outcome, and vice versa", () => {
+    expect(FIXTURE_NAMES).toEqual(outcomeNamesByPrefix("bureaucracy-", CORPUS_DIR));
   });
 
   it.for(FIXTURE_NAMES)("%s: matches its committed Outcome", async (name, ctx) => {
