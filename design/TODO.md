@@ -82,6 +82,24 @@
 
 ### Depth: Sun Trap (The `world-graph` Kind)
 
+### [x] W41 — Engine Consumer Boundary {#w41}
+
+### [x] W42 — World-Graph Runtime State Contract {#w42}
+
+### [x] W43 — World-Graph Content Definition Contract {#w43}
+
+### [x] W44 — World-Graph Resolution Contract {#w44}
+
+### [x] W45 — World-Graph Kind Skeleton and Immediate Actions {#w45}
+
+### [x] W46 — World-Graph Deterministic Tick Pipeline {#w46}
+
+### [x] W47 — World-Graph MVP Vertical Slice {#w47}
+
+### [x] W48 — Preview/Client Parity {#w48}
+
+### [x] W49 — World-Graph Validation, Scenario and Replay Guard {#w49}
+
 ### Depth: Finish the Bulgaria Adventure
 
 ### [x] W27 — Bulgaria Adventure: The Driving Arc
@@ -154,7 +172,7 @@
 
 ### [x] W65 — Browser Test Harness for the Site {#w65}
 
-### [ ] W66 — The Play Surface on a Phone {#w66}
+### [x] W66 — The Play Surface on a Phone {#w66}
 
 ### Correctness Debt Found by Reconciliation
 
@@ -169,21 +187,3 @@
 ### Content Tooling — A First-Class Workstream, Not an Afterthought
 
 ## Known Open Items Carried In
-
-### [x] W41 — companion-package consumer boundary: built, merged, and published. {#w41}
-
-### [x] W42 — runtime-state contract: merged in {#w42}
-
-### [x] W43 — content-definition contract: merged in {#w43}
-
-### [x] W44 — resolution contract: merged in {#w44}
-
-### [x] W45 — kind skeleton and immediate actions: merged in {#w45}
-
-### [x] W46 — deterministic tick pipeline: fixed-order systems, bounded {#w46}
-
-### [x] W47 — MVP vertical slice: the synthetic guest journey — spawn → walk → queue → {#w47}
-
-### [x] W48 — preview/client parity: `previewAction` across Engine, session, text and MCP {#w48}
-
-### [x] W49 — validation, scenario and replay guard: the canonical engine-owned MVP {#w49}

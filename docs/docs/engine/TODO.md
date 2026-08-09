@@ -601,106 +601,110 @@ when it declined a programme doc for this kind.
       `derive` closing exactly the reachability gap this checkbox describes as still open.
 <a id="w41"></a>
 
-- [x] **W41 — companion-package consumer boundary: built, merged, and published.**
-      [PR #108](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/108) landed the
-      whole boundary: the package renamed to `@the-running-dev/game-engine`, one root export
-      (`src/engine/src/index.ts`, explicit named re-exports only), `exports` with `types` and
-      `import` targets, `files: ["dist"]` plus a `tsconfig.build.json` that excludes tests and
-      `campaigns/` from the emit, a `consumer-smoke/` project that installs the **packed
-      tarball** rather than linking the source, three new required-CI steps (pack, tarball
-      inspection, consumer smoke — all three verified running green on `main` at `db9c62a`),
-      and `release-engine-package.yml` publishing on a `v*` tag with `packages: write` and no
-      stored credential. Review also corrected a drift this unit made live: `package.json`
-      had never tracked the release tags (`v0.1.0` shipped `0.0.0`; `v0.2.0` and `v0.3.0` both
-      shipped `0.1.0`), harmless while private and unpublished, fatal once `npm publish` ships
-      what the manifest says. Set to `0.3.0`; tag and manifest move together from here.
-      **Now complete.** `@the-running-dev/game-engine@0.4.0` published on the `v0.4.0` tag
-      (2026-08-02), verified against the packages API rather than inferred from the workflow's
-      exit status; the coordinate is recorded in `plans/40`'s Done-When, and milestone **T0**
-      is reached. One deviation, recorded rather than waved through: it published **public**
-      where `plans/39` and `plans/40` specify private. That also surfaced a stale claim in
-      this file's own introduction, which described every companion repository as private when
-      this one and Sun Trap are public — corrected in the same change
-      ([`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §2). No read-access grant was needed as a
-      result.
-      **Plan:** [`plans/40-w41-engine-consumer-boundary.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/40-w41-engine-consumer-boundary.md)
-<a id="w42"></a>
+### [x] W41 — Engine Consumer Boundary {#w41}
 
-- [x] **W42 — runtime-state contract: merged in
-      [PR #116](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/116).** Authoritative
-      map, guest, building, queue, staff, construction and finance shapes now live in
-      [`12-world-graph-kind.md`](12-world-graph-kind.md) §3. The plan remains the evidence trail:
-      [`plans/42-w42-world-graph-state-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/42-w42-world-graph-state-contract.md),
-      including the correction to `plans/39`'s original sizing: six types in
-      `WorldGraphKindState`'s closure
-      (`Incident`, `ObjectiveProgress`, `Alert`, `TerrainCell`, `PathCell`, `Zone`) are
-      drafted in neither repository, so this is design work, not a port.
-<a id="w43"></a>
+[PR #108](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/108) landed the
+whole boundary: the package renamed to `@the-running-dev/game-engine`, one root export
+(`src/engine/src/index.ts`, explicit named re-exports only), `exports` with `types` and
+`import` targets, `files: ["dist"]` plus a `tsconfig.build.json` that excludes tests and
+`campaigns/` from the emit, a `consumer-smoke/` project that installs the **packed
+tarball** rather than linking the source, three new required-CI steps (pack, tarball
+inspection, consumer smoke — all three verified running green on `main` at `db9c62a`),
+and `release-engine-package.yml` publishing on a `v*` tag with `packages: write` and no
+stored credential. Review also corrected a drift this unit made live: `package.json`
+had never tracked the release tags (`v0.1.0` shipped `0.0.0`; `v0.2.0` and `v0.3.0` both
+shipped `0.1.0`), harmless while private and unpublished, fatal once `npm publish` ships
+what the manifest says. Set to `0.3.0`; tag and manifest move together from here.
+**Now complete.** `@the-running-dev/game-engine@0.4.0` published on the `v0.4.0` tag
+(2026-08-02), verified against the packages API rather than inferred from the workflow's
+exit status; the coordinate is recorded in `plans/40`'s Done-When, and milestone **T0**
+is reached. One deviation, recorded rather than waved through: it published **public**
+where `plans/39` and `plans/40` specify private. That also surfaced a stale claim in
+this file's own introduction, which described every companion repository as private when
+this one and Sun Trap are public — corrected in the same change
+([`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §2). No read-access grant was needed as a
+result.
 
-- [x] **W43 — content-definition contract: merged in
-      [PR #119](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/119).** Maps,
-      archetypes, buildings, products, terrain, incidents, scenarios, objectives, policies,
-      and achievements now have their complete source/runtime schema, W42 reconciliation,
-      validation tiers, and worked fixtures in `design/20-contract.md`'s
-      `engine/12-world-graph-kind.md` block and its generated reader copy. The execution
-      record and evidence checklist live in
-      [`plans/43-w43-world-graph-content-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/43-w43-world-graph-content-contract.md),
-      which is historical rather than a second contract authority.
-<a id="w44"></a>
+- **Plan:** [`plans/40-w41-engine-consumer-boundary.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/40-w41-engine-consumer-boundary.md)
 
-- [x] **W44 — resolution contract: merged in
-      [PR #120](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/120).** The
-      20-system pipeline, utility scoring, canonical pathfinding, queue/service and staff-task
-      semantics, simultaneous terminal precedence, and deep batch invariance are in
-      `design/20-contract.md`'s `engine/12-world-graph-kind.md` block and its generated
-      reader copy. Its execution record is
-      [`plans/44-w44-world-graph-resolution-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/44-w44-world-graph-resolution-contract.md),
-      which is historical rather than a second contract authority.
-<a id="w45"></a>
+### [x] W42 — World-Graph Runtime State Contract {#w42}
 
-- [x] **W45 — kind skeleton and immediate actions: merged in
-      [PR #125](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/125).** The source/runtime builder,
-      total validation, shared spatial substrate, deterministic initial state, read surfaces,
-      production assembly, package exports, and nine no-time-passes reducers are reconciled
-      in [PR #125](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/125), with
-      [PR #124](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/124) retained as
-      the original implementation review. The execution record is
-      [`plans/45-w45-world-graph-kind-skeleton.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/45-w45-world-graph-kind-skeleton.md),
-      which is historical rather than a second contract authority.
-<a id="w46"></a>
+Merged in [PR #116](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/116).
+Authoritative map, guest, building, queue, staff, construction and finance shapes now live in
+[`12-world-graph-kind.md`](12-world-graph-kind.md) §3. The plan remains the evidence trail:
+[`plans/42-w42-world-graph-state-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/42-w42-world-graph-state-contract.md),
+including the correction to `plans/39`'s original sizing: six types in
+`WorldGraphKindState`'s closure
+(`Incident`, `ObjectiveProgress`, `Alert`, `TerrainCell`, `PathCell`, `Zone`) are
+drafted in neither repository, so this is design work, not a port.
 
-- [x] **W46 — deterministic tick pipeline:** fixed-order systems, bounded
-      `advance_ticks`, derived streams and batch invariance are delivered in
-      [PR #128](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/128), merged to
-      `main` at `6301a49`. Its implementation plan is
-      [`plans/46-w46-world-graph-tick-pipeline.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/46-w46-world-graph-tick-pipeline.md);
-      it follows the canonical world-graph contract and does not supersede it.
-<a id="w47"></a>
+### [x] W43 — World-Graph Content Definition Contract {#w43}
 
-- [x] **W47 — MVP vertical slice:** the synthetic guest journey — spawn → walk → queue →
-      buy → litter → clean → objective → win/lose — is delivered in
-      [PR #131](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/131), merged
-      to `main` at `2390750`. It follows the canonical world-graph contract and does not
-      supersede it.
-<a id="w48"></a>
+Merged in [PR #119](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/119).
+Maps, archetypes, buildings, products, terrain, incidents, scenarios, objectives, policies,
+and achievements now have their complete source/runtime schema, W42 reconciliation,
+validation tiers, and worked fixtures in `design/20-contract.md`'s
+`engine/12-world-graph-kind.md` block and its generated reader copy. The execution
+record and evidence checklist live in
+[`plans/43-w43-world-graph-content-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/43-w43-world-graph-content-contract.md),
+which is historical rather than a second contract authority.
 
-- [x] **W48 — preview/client parity:** `previewAction` across Engine, session, text and MCP
-      surfaces, with 09 §4 and `MVP.md` §5 amended in the same unit, is delivered in
-      [PR #133](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/133).
-<a id="w49"></a>
+### [x] W44 — World-Graph Resolution Contract {#w44}
 
-- [x] **W49 — validation, scenario and replay guard:** the canonical engine-owned MVP
-      fixture and its Tier 1/Tier 2 validation landed in
-      [PR #134](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/134); deterministic
-      winning and losing replay pairs and release-corpus coverage landed in
-      [PR #136](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/136).
-      Session-parity replay cases, a clean-build serialization proof, and a consumer-smoke
-      rerun landed in [PR #138](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/138).
-      W49's engineering scope is complete. Package version selection and publication remain
-      external release actions, not evidence this unit claims.
+Merged in [PR #120](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/120).
+The 20-system pipeline, utility scoring, canonical pathfinding, queue/service and staff-task
+semantics, simultaneous terminal precedence, and deep batch invariance are in
+`design/20-contract.md`'s `engine/12-world-graph-kind.md` block and its generated
+reader copy. Its execution record is
+[`plans/44-w44-world-graph-resolution-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/44-w44-world-graph-resolution-contract.md),
+which is historical rather than a second contract authority.
+
+### [x] W45 — World-Graph Kind Skeleton and Immediate Actions {#w45}
+
+Merged in [PR #125](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/125).
+The source/runtime builder, total validation, shared spatial substrate, deterministic initial state, read surfaces,
+production assembly, package exports, and nine no-time-passes reducers are reconciled
+in [PR #125](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/125), with
+[PR #124](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/124) retained as
+the original implementation review. The execution record is
+[`plans/45-w45-world-graph-kind-skeleton.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/45-w45-world-graph-kind-skeleton.md),
+which is historical rather than a second contract authority.
+
+### [x] W46 — World-Graph Deterministic Tick Pipeline {#w46}
+
+Fixed-order systems, bounded `advance_ticks`, derived streams and batch invariance are delivered in
+[PR #128](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/128), merged to
+`main` at `6301a49`. Its implementation plan is
+[`plans/46-w46-world-graph-tick-pipeline.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/46-w46-world-graph-tick-pipeline.md);
+it follows the canonical world-graph contract and does not supersede it.
+
+### [x] W47 — World-Graph MVP Vertical Slice {#w47}
+
+The synthetic guest journey — spawn → walk → queue → buy → litter → clean → objective → win/lose — is delivered in
+[PR #131](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/131), merged
+to `main` at `2390750`. It follows the canonical world-graph contract and does not
+supersede it.
+
+### [x] W48 — Preview/Client Parity {#w48}
+
+`previewAction` across Engine, session, text and MCP surfaces, with 09 §4 and `MVP.md` §5 amended in the same unit, is delivered in
+[PR #133](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/133).
+
+### [x] W49 — World-Graph Validation, Scenario and Replay Guard {#w49}
+
+The canonical engine-owned MVP fixture and its Tier 1/Tier 2 validation landed in
+[PR #134](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/134); deterministic
+winning and losing replay pairs and release-corpus coverage landed in
+[PR #136](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/136).
+Session-parity replay cases, a clean-build serialization proof, and a consumer-smoke
+rerun landed in [PR #138](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/138).
+W49's engineering scope is complete. Package version selection and publication remain
+external release actions, not evidence this unit claims.
+
 - [ ] **T4 programme gate:** batch invariance and determinism beyond the seed pass; an
       immutable package version must carry the replay-guarded third kind so Sun Trap can
       install it without a sibling checkout.
+
 - **Plan:** [`plans/39-world-graph-kind-programme.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/39-world-graph-kind-programme.md)
 
 ### Depth: Finish the Bulgaria Adventure
@@ -2066,7 +2070,7 @@ of the whole site suite.
       budgets, Lighthouse scoring, or cross-browser matrices beyond the one engine needed to
       make the assertions real; and any engine or campaign change.
 
-### [ ] W66 — The Play Surface on a Phone {#w66}
+### [x] W66 — The Play Surface on a Phone {#w66}
 
 **Delivers:** Recomposes `/play/` for the device most visitors actually hold. The W63 cabinet
 and the W64 casebook were both measured on a desktop and then allowed to shrink: authored
