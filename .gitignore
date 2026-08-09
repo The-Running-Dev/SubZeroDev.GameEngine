@@ -51,6 +51,10 @@ graphify-out/
 # a secret rather than merely add noise.
 .npmrc
 
+# .NET build output (src/host/) -- restore/build artifacts, not source.
+[Bb]in/
+[Oo]bj/
+
 # OS / editor cruft
 .DS_Store
 Thumbs.db

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Pinned exactly, no floating range: W62's merge dependency (design/30-slices.md,
+         "Depends on") requires a clean clone to restore this one released version from
+         GitHub Packages, with no sibling checkout of SubZeroDev.Platform required. -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SubZeroDev.Platform.Hosting" Version="0.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="SubZeroDev.GameEngine.Host.Tests" />
+  </ItemGroup>
+
+</Project>

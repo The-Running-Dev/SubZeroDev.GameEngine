@@ -1,0 +1,9 @@
+{
+  "name": "host-smoke",
+  "private": true,
+  "type": "module",
+  "description": "W62 container smoke tooling -- design/15-platform-static-host.md §6. Kept independent of site/ and src/engine/ so it restores and runs without either.",
+  "devDependencies": {
+    "playwright": "^1.62.1"
+  }
+}

@@ -1,0 +1,11 @@
+# W62.7 / design/15-platform-static-host.md §6: a deliberate missing-artifact fixture.
+# Layers on top of the already-built image and deletes one required static document, so
+# CI can prove the startup guard (Program.cs's StaticArtifact check) actually turns a
+# corrupted artifact into a failed container start rather than a partial site served as
+# if nothing were wrong. Never built standalone -- BASE_IMAGE must be the real image the
+# smoke job just built.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+USER root
+RUN rm -f /app/wwwroot/play/index.html
+USER app
