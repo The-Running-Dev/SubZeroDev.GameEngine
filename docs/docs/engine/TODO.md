@@ -360,7 +360,7 @@ The plain proving instrument, over `SessionStore` only.
 The same operations as tools — a sibling adapter, no AI-specific path.
 - **Spec:** [04 §13](04-core.md#13-the-mcp-surface); [09 §7](09-clients.md#7-mcp-is-a-sibling-not-a-special-case)
       — MCP is a sibling, not a special case; the tool table itself lives in
-      [SubZeroDev.Platform's `mcp-tool-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform/blob/main/docs/docs/mcp-tool-contract.md).
+      [SubZeroDev.ServiceContract's `mcp-tool-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.ServiceContract/blob/main/mcp-tool-contract.md).
 - **Depends on:** [W7](#x-w7--session-store), [W12](#x-w12--scene-actions-projection-reason-codes).
 - **Status:** Done — [PR #66](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/66).
 - **Done when:** every tool matches its documented args and results and maps
