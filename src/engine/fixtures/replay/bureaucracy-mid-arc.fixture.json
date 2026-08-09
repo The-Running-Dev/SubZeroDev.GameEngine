@@ -1,9 +1,17 @@
 {
   "name": "bureaucracy-mid-arc",
-  "config": { "campaignId": "bulgaria-bureaucracy", "seed": "bureaucracy-seed-3" },
-  "campaignVersion": "1.0.0",
-  "capturedUnder": "0.1.0",
+  "config": {
+    "campaignId": "bulgaria-bureaucracy",
+    "seed": "bureaucracy-seed-1"
+  },
+  "campaignVersion": "2.0.0",
+  "capturedUnder": "0.5.0",
   "submissions": [
-    { "actionId": "wait" }
+    {
+      "actionId": "wait"
+    },
+    {
+      "actionId": "registry_route_listen"
+    }
   ]
 }

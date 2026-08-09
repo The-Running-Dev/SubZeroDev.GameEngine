@@ -1,35 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync, readdirSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { createEngine } from "../core/kernel/engine.js";
 import { createCountingIds } from "../core/determinism/counting-ids.js";
 import type { KindRegistry } from "../core/kernel/types.js";
 import { runReplayFixture, type ReplayRunnerContext } from "../core/replay/runner.js";
-import type { Outcome, ReplayFixture } from "../core/replay/types.js";
 import { buildValidatedContentRegistry } from "../core/validation/tiered.js";
 import { createInMemoryProfileStore } from "../core/session/profile-store.js";
 import { worldGraphKind } from "../kinds/world-graph/kind.js";
 import { buildWorldGraphMvpCampaign } from "./world-graph-mvp.js";
+import { COMPARING_ACROSS_VERSIONS, CORPUS_DIR, FIXTURES_DIR, fixtureNamesByPrefix, loadExpectedOutcome, loadFixture } from "./replay-corpus.js";
 
-const FIXTURES_DIR = fileURLToPath(new URL("../../fixtures/replay/", import.meta.url));
 const REPLAY_PROFILE_ID = "world-graph-replay-oracle-profile";
-const rawOverride = process.env.REPLAY_BASELINE_DIR;
-const CORPUS_DIR = rawOverride ? `${rawOverride.replace(/[/\\]+$/, "")}/` : FIXTURES_DIR;
-
-function loadFixture(name: string): ReplayFixture {
-  return JSON.parse(readFileSync(`${CORPUS_DIR}${name}.fixture.json`, "utf8")) as ReplayFixture;
-}
-
-function loadExpectedOutcome(name: string): Outcome {
-  return JSON.parse(readFileSync(`${CORPUS_DIR}${name}.outcome.json`, "utf8")) as Outcome;
-}
-
-function fixtureNames(directory: string): string[] {
-  return readdirSync(directory)
-    .filter((file) => file.startsWith("world-graph-mvp-") && file.endsWith(".fixture.json"))
-    .map((file) => file.slice(0, -".fixture.json".length))
-    .sort();
-}
 
 function makeContext(): ReplayRunnerContext {
   const built = buildWorldGraphMvpCampaign();
@@ -47,17 +27,20 @@ function makeContext(): ReplayRunnerContext {
 }
 
 describe("the world-graph MVP replay corpus", () => {
-  const names = fixtureNames(CORPUS_DIR);
+  const names = fixtureNamesByPrefix("world-graph-mvp-", CORPUS_DIR);
 
   it("contains both terminal paths", () => {
-    expect(fixtureNames(FIXTURES_DIR)).toEqual(expect.arrayContaining([
+    expect(fixtureNamesByPrefix("world-graph-mvp-", FIXTURES_DIR)).toEqual(expect.arrayContaining([
       "world-graph-mvp-loss",
       "world-graph-mvp-win",
     ]));
   });
 
-  it.each(names)("%s: matches its committed Outcome", async (name) => {
-    await expect(runReplayFixture(makeContext(), loadFixture(name), loadExpectedOutcome(name)))
-      .resolves.toEqual({ kind: "match" });
+  it.for(names)("%s: matches its committed Outcome", async (name, ctx) => {
+    const verdict = await runReplayFixture(makeContext(), loadFixture(name), loadExpectedOutcome(name));
+    // 10-design.md §6: `unrunnable` is "not a failure" between engine versions (see
+    // bulgaria-bureaucracy.replay.test.ts's own it.each for the full rationale).
+    ctx.skip(COMPARING_ACROSS_VERSIONS && verdict.kind === "unrunnable", `${name}: unrunnable against the baseline tag's corpus — not a regression (10-design.md §6)`);
+    expect(verdict).toEqual({ kind: "match" });
   });
 });

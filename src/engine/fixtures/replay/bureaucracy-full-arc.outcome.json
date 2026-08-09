@@ -1,12 +1,56 @@
 {
   "finalStatus": "ended",
-  "acceptedActions": 4,
+  "acceptedActions": 7,
   "decisions": [
-    { "index": 0, "seq": 0, "actionId": "wait", "accepted": true },
-    { "index": 1, "seq": 1, "actionId": "continue_cycle", "accepted": true },
-    { "index": 2, "seq": 2, "actionId": "continue_cycle", "accepted": true },
-    { "index": 3, "seq": 3, "actionId": "go_home", "accepted": true }
+    {
+      "index": 0,
+      "seq": 0,
+      "actionId": "wait",
+      "accepted": true
+    },
+    {
+      "index": 1,
+      "seq": 1,
+      "actionId": "registry_route_listen",
+      "accepted": true
+    },
+    {
+      "index": 2,
+      "seq": 2,
+      "actionId": "registry_route_event_1a_proceed",
+      "accepted": true
+    },
+    {
+      "index": 3,
+      "seq": 3,
+      "actionId": "registry_route_prepare",
+      "accepted": true
+    },
+    {
+      "index": 4,
+      "seq": 4,
+      "actionId": "registry_route_event_2a_proceed",
+      "accepted": true
+    },
+    {
+      "index": 5,
+      "seq": 5,
+      "actionId": "registry_route_steady",
+      "accepted": true
+    },
+    {
+      "index": 6,
+      "seq": 6,
+      "actionId": "choose_document_obtained",
+      "accepted": true
+    }
   ],
-  "achievements": ["it_builds_character"],
-  "terminal": { "endingId": "ultimate_reward" }
+  "achievements": [
+    "found_registry_route_event_1a",
+    "found_registry_route_event_2a",
+    "it_builds_character"
+  ],
+  "terminal": {
+    "endingId": "document_obtained"
+  }
 }
