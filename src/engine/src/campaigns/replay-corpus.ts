@@ -62,9 +62,10 @@ export function fixtureNamesByPrefix(prefix: string, dir: string = CORPUS_DIR): 
 }
 
 /** The `.outcome.json` counterpart of `fixtureNamesByPrefix`, so a suite can assert the two
- *  enumerations agree (07 §4) — directory enumeration alone doesn't catch an orphaned file on
- *  either side, which is exactly what let W64's campaign rewrite silently drop bureaucracy's
- *  corpus (`design/90-decisions.md`, the W67 entry). */
+ *  enumerations agree (07 §4) — directory enumeration alone doesn't catch a `.fixture.json`
+ *  committed with no matching `.outcome.json`, or vice versa. Callers should always pass
+ *  `FIXTURES_DIR`, never `CORPUS_DIR`, for this comparison: a same-commit orphan must fail
+ *  regardless of where the cross-version job has pointed `CORPUS_DIR`. */
 export function outcomeNamesByPrefix(prefix: string, dir: string = CORPUS_DIR): string[] {
   return readdirSync(dir)
     .filter((f) => f.startsWith(prefix) && f.endsWith(".outcome.json"))

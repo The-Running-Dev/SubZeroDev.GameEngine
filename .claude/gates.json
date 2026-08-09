@@ -1,6 +1,6 @@
 {
-  "manifestHash": "264ca59bd5125833df00aff39ab07e2b2116a8a9cc605d83148434a53244e583",
-  "generated": "2026-08-08",
+  "manifestHash": "95d66f21669897c8b0fd8ff8f9595207b1f5d89b4f0673b0c5b877a8c7387cce",
+  "generated": "2026-08-10",
   "gates": [
     {
       "name": "engine typecheck",

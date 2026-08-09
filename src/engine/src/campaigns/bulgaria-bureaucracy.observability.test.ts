@@ -67,6 +67,12 @@ describe("jsonl sink at trace — a node's visit count and a random transition's
     // (or a log pipeline) would actually read, not an in-memory array of objects.
     const records: EmittedRecord[] = lines.map((line) => JSON.parse(line) as EmittedRecord);
 
+    // Proves "nothing here is severity-filtered" (the doc comment above) rather than
+    // asserting it: `settle.step` is the only `trace`-severity name this campaign emits
+    // (05-observability.md §7 fixes severity per name), so its presence is what a
+    // `minSeverity` floor at the store boundary would be the first thing to drop.
+    expect(records.some((r) => r.event.severity === "trace")).toBe(true);
+
     // Both random transitions' picks — this seed's weighted draw takes the "a" branch
     // each time, matching the committed replay fixture's own action sequence above.
     const picks = records.filter((r) => r.event.name === "kind.story-graph.random.picked");

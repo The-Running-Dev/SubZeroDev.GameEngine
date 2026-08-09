@@ -40,11 +40,26 @@ import { buildReplayOutcome, findDivergence, runReplayFixture, type ReplayRunner
 import type { Outcome, ReplayFixture } from "../core/replay/types.js";
 import type { KindRegistry } from "../core/kernel/types.js";
 import { buildBulgariaBureaucracyCampaign } from "./bulgaria-bureaucracy.js";
-import { COMPARING_ACROSS_VERSIONS, CORPUS_DIR, fixtureNamesByPrefix, loadExpectedOutcome, loadFixture, outcomeNamesByPrefix } from "./replay-corpus.js";
+import {
+  COMPARING_ACROSS_VERSIONS,
+  CORPUS_DIR,
+  FIXTURES_DIR,
+  fixtureNamesByPrefix,
+  loadExpectedOutcome,
+  loadFixture,
+  outcomeNamesByPrefix,
+} from "./replay-corpus.js";
 
 const REPLAY_PROFILE_ID = "replay-oracle-profile";
 
 const FIXTURE_NAMES = fixtureNamesByPrefix("bureaucracy-", CORPUS_DIR);
+
+/** Always this commit's own directory, never `CORPUS_DIR` — a membership claim about *this*
+ *  commit's corpus must not weaken in cross-version mode, where `CORPUS_DIR` becomes the
+ *  baseline tag's extracted directory and a mismatch there is a fact about the baseline, not
+ *  about this commit. Same split `stable-life.replay.test.ts` makes between
+ *  `CURRENT_STABLE_LIFE_FIXTURE_NAMES` and `STABLE_LIFE_FIXTURE_NAMES`. */
+const CURRENT_BUREAUCRACY_FIXTURE_NAMES = fixtureNamesByPrefix("bureaucracy-", FIXTURES_DIR);
 
 /** A fresh `ReplayRunnerContext` per call — each fixture gets its own counting `IdSource`
  *  starting at 0 (07 §5) and its own in-memory `ProfileStore`, so achievements from one
@@ -71,11 +86,14 @@ describe("the replay corpus (07-replay.md §4)", () => {
   });
 
   // The corpus asserts its own membership (07 §4): directory enumeration alone doesn't
-  // catch an orphaned file on either side — a `.fixture.json` with no matching
-  // `.outcome.json`, or vice versa — which is exactly what let #189 silently drop this
-  // corpus while `fixtureNamesByPrefix` kept enumerating (correctly) zero fixtures.
+  // catch an orphaned file on either side — a `.fixture.json` committed with no matching
+  // `.outcome.json`, or vice versa. Distinct from #189 (that drop was the whole test file
+  // going missing, which no assertion inside this file could have caught; both fixture and
+  // outcome files survived it unmatched to nothing). Always FIXTURES_DIR, for the same
+  // reason CURRENT_BUREAUCRACY_FIXTURE_NAMES above is: a same-commit orphan must fail here
+  // even when CORPUS_DIR is pointed at a baseline tag for the cross-version job.
   it("every bureaucracy-prefixed fixture has a matching committed outcome, and vice versa", () => {
-    expect(FIXTURE_NAMES).toEqual(outcomeNamesByPrefix("bureaucracy-", CORPUS_DIR));
+    expect(CURRENT_BUREAUCRACY_FIXTURE_NAMES).toEqual(outcomeNamesByPrefix("bureaucracy-", FIXTURES_DIR));
   });
 
   it.for(FIXTURE_NAMES)("%s: matches its committed Outcome", async (name, ctx) => {
