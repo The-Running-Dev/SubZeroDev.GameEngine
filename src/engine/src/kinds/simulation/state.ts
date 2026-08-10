@@ -194,6 +194,30 @@ export interface GoalState {
 }
 
 // ---------------------------------------------------------------------------
+// §12 Terminal Identity — the decided-once resolution `outcome()` reads back
+// ---------------------------------------------------------------------------
+
+/**
+ * New against upstream, and mirroring a settled pattern rather than inventing one.
+ * `Kind.outcome(state)` (04 §3) receives no campaign, so a scenario's `weekLimit` (§7.8)
+ * is invisible to it — the fact of having crossed the line has to be captured while
+ * campaign data is still in scope, during `end_week`, and persisted for `outcome()` to
+ * read back. `12-world-graph-kind.md` §8's `WorldGraphKindState.resolution` already
+ * carries the identical shape for the identical reason.
+ *
+ * Declared here rather than in `outcome.ts` because §2 is where the field lives;
+ * `outcome.ts` imports it back the same direction every other state type travels.
+ */
+export interface SimulationResolution {
+  resolution: "goals_met" | "failed" | "week_limit_reached";
+  /** Completed `GoalDefinition` ids, sorted. */
+  goalsMet: readonly string[];
+  /** Failed `GoalDefinition` ids, sorted. */
+  goalsFailed: readonly string[];
+  resolvedAtWeek: number;
+}
+
+// ---------------------------------------------------------------------------
 // §2.5 Economy State
 // ---------------------------------------------------------------------------
 
@@ -302,6 +326,8 @@ export interface SimulationKindState {
   pendingEventResponses: PendingEventResponse[];
 
   goals: GoalState[];
+  /** §12 — `null` while the game is live; immutable once an end-of-week system sets it. */
+  resolution: SimulationResolution | null;
   /** The week being assembled. */
   plan: WeeklyActionPlan | null;
 }

@@ -65,6 +65,7 @@ function baseState(overrides: Partial<SimulationKindState> = {}): SimulationKind
     scheduledEvents: [],
     pendingEventResponses: [],
     goals: [],
+    resolution: null,
     plan: null,
     ...overrides,
   };

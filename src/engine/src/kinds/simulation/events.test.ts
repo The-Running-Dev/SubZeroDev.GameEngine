@@ -77,6 +77,7 @@ function makeState(goals: GoalDefinition[] = []): SimulationKindState {
     goals: goals.map((goal) => ({
       definitionId: goal.id, status: "active", satisfiedThisWeek: false, consecutiveWeeksSatisfied: 0, progressNotes: [],
     })),
+    resolution: null,
     plan: { week: 1, actions: [] },
   };
 }

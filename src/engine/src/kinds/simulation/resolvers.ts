@@ -100,11 +100,17 @@ import type {
   NeedKey,
   RelationshipState,
 } from "./actor.js";
-import type { ItemDefinition, MaintenanceRule, NPCDefinition } from "./content.js";
+import type { ItemDefinition, MaintenanceRule, NPCDefinition, Requirement } from "./content.js";
 import type { SimulationCampaign } from "./campaign.js";
 import { evaluateSimulationCondition } from "./conditions.js";
 import { INVESTMENT_ACCOUNT_LABEL_KEY } from "./reasons.js";
-import type { JobOpening, SimulationKindState } from "./state.js";
+import type {
+  JobOpening,
+  Opportunity,
+  PendingEventResponse,
+  ScheduledEvent,
+  SimulationKindState,
+} from "./state.js";
 import type { BasisPoints, Cents } from "./state.js";
 import type { ActionType, GameAction } from "./plan.js";
 
@@ -1568,6 +1574,210 @@ export const exerciseResolver: ActionResolver = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// W57 — events and opportunities: the last three non-stub resolvers this kind gets
+// ---------------------------------------------------------------------------
+
+/** Every `Requirement` (§8.1) on a definition, evaluated against current state. Returns the
+ *  first failure so its own `failureCode`/`messageKey` reach the player rather than a
+ *  generic one — the shape §8.1 declares `Requirement` for. */
+function firstUnmetRequirement(
+  requirements: readonly Requirement[] | undefined,
+  state: SimulationKindState,
+): Requirement | undefined {
+  return (requirements ?? []).find((r) => !evaluateSimulationCondition(r.condition, state));
+}
+
+function findOpportunity(state: SimulationKindState, id: string | undefined): Opportunity | undefined {
+  return id === undefined ? undefined : state.activeOpportunities.find((o) => o.id === id);
+}
+
+/**
+ * Shared by `accept_opportunity` and `decline_opportunity`: both take a standing
+ * `Opportunity` off `activeOpportunities`, and §2.3 lists exactly those two among the four
+ * ways one leaves. They are kept distinct actions — and produce distinct audit codes —
+ * because §2.3 is explicit that letting an offer lapse and refusing it to someone's face are
+ * different acts once NPCs remember things (§7.7); without a separate decline path the
+ * engine could not tell them apart later.
+ */
+function resolveOpportunityExit(
+  state: SimulationKindState,
+  action: GameAction,
+  reason: "action_accept_opportunity" | "action_decline_opportunity",
+): ActionOutcome {
+  const opportunity = findOpportunity(state, action.targetId)!;
+  return {
+    actionId: action.id,
+    success: true,
+    degree: "success",
+    reason: "check_succeeded",
+    changes: [{
+      path: `activeOpportunities.${opportunity.id}`,
+      op: "set",
+      value: opportunity.definitionId,
+      reason,
+      visible: true,
+    }],
+    generatedEvents: [],
+    generatedOpportunities: [],
+    messages: [],
+  };
+}
+
+function removeNamedOpportunity(state: SimulationKindState, outcome: ActionOutcome): SimulationKindState {
+  const change = outcome.changes.find((c) => c.path.startsWith("activeOpportunities."));
+  if (!change) return state;
+  const id = change.path.slice("activeOpportunities.".length);
+  return { ...state, activeOpportunities: state.activeOpportunities.filter((o) => o.id !== id) };
+}
+
+/**
+ * Real logic (W57) — takes a standing offer. `canExecute` checks the offer is actually
+ * standing (an expired or revoked one is already gone from `activeOpportunities`, so this is
+ * the same check either way) and that every `OpportunityDefinition.requirements` entry —
+ * "what accepting demands", §7.9 — is satisfied.
+ *
+ * **`acceptRewards` are not applied, for the same reason `endOfWeek.ts`'s event outcomes do
+ * not apply theirs**: §7.1 declares `Reward.target`/`value` as `unknown` for every
+ * `RewardType` and defers a real dispatcher explicitly. Accepting therefore consumes the
+ * offer and records it; what an accepted `job_offer` *does* is the dispatcher's job, not this
+ * resolver's, and writing per-type semantics here would hide that decision inside an action.
+ */
+export const acceptOpportunityResolver: ActionResolver = {
+  canExecute: (state, action, ctx): ActionValidation => {
+    const opportunity = findOpportunity(state, action.targetId);
+    if (!opportunity) return invalid("unknown_action", "core.reason.unknown_action");
+    const def = simulationCampaign(ctx).opportunities.find((d) => d.id === opportunity.definitionId);
+    const unmet = firstUnmetRequirement(def?.requirements, state);
+    if (unmet) return invalid(unmet.failureCode, unmet.messageKey);
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: 0, calculatedMoneyCostCents: NO_MONEY_COST };
+  },
+  calculate: (state, action): ActionOutcome => resolveOpportunityExit(state, action, "action_accept_opportunity"),
+  apply: removeNamedOpportunity,
+};
+
+/** Real logic (W57) — refuses a standing offer outright. No requirements gate a refusal:
+ *  `OpportunityDefinition.requirements` is what *accepting* demands (§7.9), and a player who
+ *  cannot meet them must still be able to say no. */
+export const declineOpportunityResolver: ActionResolver = {
+  canExecute: (state, action): ActionValidation => {
+    if (!findOpportunity(state, action.targetId)) return invalid("unknown_action", "core.reason.unknown_action");
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: 0, calculatedMoneyCostCents: NO_MONEY_COST };
+  },
+  calculate: (state, action): ActionOutcome => resolveOpportunityExit(state, action, "action_decline_opportunity"),
+  apply: removeNamedOpportunity,
+};
+
+const RESPONSE_SCHEDULED_PREFIX = "scheduledEvents.";
+
+function findPendingResponse(state: SimulationKindState, id: string | undefined): PendingEventResponse | undefined {
+  return id === undefined ? undefined : state.pendingEventResponses.find((p) => p.id === id);
+}
+
+/**
+ * Real logic (W57) — answers an event deferred from last week (§2.3's deferred model).
+ * `targetId` names the `PendingEventResponse`; `parameters.choiceId` names one of its
+ * `availableChoiceIds`. `canExecute` rejects a response that is not pending, a choice that
+ * is not on offer, and a choice the player cannot afford in either time or money —
+ * `EventChoice.timeCost`/`moneyCostCents` (§7.6) are the reason the deferral exists at all,
+ * since §2.3 says a deferred response's time cost must compete against a *fresh* budget.
+ *
+ * **The chosen outcome is applied by the `events` end-of-week system, not here, and that is
+ * the same constraint `shop` already works around.** `apply(state, outcome)` receives no
+ * `ctx` (§5.1), so it cannot look up the `EventDefinition` its choice belongs to, and an
+ * `EventOutcome` carries `effects: Modifier[]` — an array of objects the scalar natural-key
+ * convention cannot address. So this resolver removes the pending response and books the
+ * answer as a `ScheduledEvent` due **this** week, carrying the `choiceId` in the `payload`
+ * §2.3 already declares for exactly this kind of hand-off. `events` fires due scheduled
+ * events unconditionally, ahead of any random roll, and applies the named choice's outcome —
+ * no new state shape, no second application path, and the answer lands inside the same
+ * `end_week` the player spent it in.
+ */
+export const respondToEventResolver: ActionResolver = {
+  canExecute: (state, action, ctx): ActionValidation => {
+    const pending = findPendingResponse(state, action.targetId);
+    if (!pending) return invalid("unknown_action", "core.reason.unknown_action");
+
+    const choiceId = action.parameters["choiceId"];
+    if (typeof choiceId !== "string" || !pending.availableChoiceIds.includes(choiceId)) {
+      return invalid("action_not_available", "core.reason.action_not_available");
+    }
+
+    const def = simulationCampaign(ctx).events.find((e) => e.id === pending.eventId);
+    const choice = def?.choices?.find((c) => c.id === choiceId);
+    if (!choice) return invalid("unknown_action", "core.reason.unknown_action");
+
+    const unmet = firstUnmetRequirement(choice.requirements, state);
+    if (unmet) return invalid(unmet.failureCode, unmet.messageKey);
+
+    const timeCost = choice.timeCost ?? 0;
+    if (availableTimeUnits(state) < timeCost) return insufficientTimeError();
+    const moneyCost = choice.moneyCostCents ?? NO_MONEY_COST;
+    if (state.player.finances.cashCents < moneyCost) return insufficientFundsError();
+
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: timeCost, calculatedMoneyCostCents: moneyCost };
+  },
+  calculate: (state, action, ctx): ActionOutcome => {
+    const pending = findPendingResponse(state, action.targetId)!;
+    const choiceId = action.parameters["choiceId"] as string;
+    const def = simulationCampaign(ctx).events.find((e) => e.id === pending.eventId)!;
+    const choice = def.choices!.find((c) => c.id === choiceId)!;
+    const week = state.calendar.currentWeek;
+    const scheduledId = `answer-${pending.id}`;
+    const base = `${RESPONSE_SCHEDULED_PREFIX}${scheduledId}`;
+
+    const changes: StateChange[] = [
+      { path: `pendingEventResponses.${pending.id}`, op: "set", value: pending.eventId, reason: "action_respond_to_event", visible: true },
+      { path: `${base}.eventId`, op: "set", value: pending.eventId, reason: "action_respond_to_event", visible: false },
+      { path: `${base}.scheduledWeek`, op: "set", value: week, reason: "action_respond_to_event", visible: false },
+      { path: `${base}.createdWeek`, op: "set", value: week, reason: "action_respond_to_event", visible: false },
+      { path: `${base}.payload.choiceId`, op: "set", value: choiceId, reason: "action_respond_to_event", visible: true },
+    ];
+    if (choice.timeCost !== undefined && choice.timeCost > 0) {
+      changes.push({ path: "calendar.spentTimeUnits", op: "increment", value: choice.timeCost, reason: "action_respond_to_event", visible: true });
+    }
+    if (choice.moneyCostCents !== undefined && choice.moneyCostCents > 0) {
+      changes.push({ path: "player.finances.cashCents", op: "decrement", value: choice.moneyCostCents, previous: state.player.finances.cashCents, reason: "action_respond_to_event", visible: true });
+    }
+
+    return {
+      actionId: action.id, success: true, degree: "success", reason: "check_succeeded",
+      changes, generatedEvents: [], generatedOpportunities: [], messages: [],
+    };
+  },
+  apply: (state, outcome): SimulationKindState => {
+    const removal = outcome.changes.find((c) => c.path.startsWith("pendingEventResponses."));
+    if (!removal) return state;
+    const pendingId = removal.path.slice("pendingEventResponses.".length);
+
+    const field = (name: string): unknown =>
+      outcome.changes.find((c) => c.path === `${RESPONSE_SCHEDULED_PREFIX}answer-${pendingId}.${name}`)?.value;
+
+    const scheduled: ScheduledEvent = {
+      id: `answer-${pendingId}`,
+      eventId: field("eventId") as string,
+      scheduledWeek: field("scheduledWeek") as number,
+      createdWeek: field("createdWeek") as number,
+      payload: { choiceId: field("payload.choiceId") as string },
+    };
+
+    const spent = outcome.changes.find((c) => c.path === "calendar.spentTimeUnits")?.value;
+    const paid = outcome.changes.find((c) => c.path === "player.finances.cashCents")?.value;
+
+    return {
+      ...state,
+      calendar: typeof spent === "number"
+        ? { ...state.calendar, spentTimeUnits: state.calendar.spentTimeUnits + spent }
+        : state.calendar,
+      player: typeof paid === "number"
+        ? { ...state.player, finances: { ...state.player.finances, cashCents: state.player.finances.cashCents - paid } }
+        : state.player,
+      pendingEventResponses: state.pendingEventResponses.filter((p) => p.id !== pendingId),
+      scheduledEvents: [...state.scheduledEvents, scheduled],
+    };
+  },
+};
+
 /**
  * A real object literal, not `Object.fromEntries` over an array — a `Record<K, V>`
  * literal is what actually gives `ResolverTable`'s own exhaustiveness claim teeth.
@@ -1604,7 +1814,7 @@ export const RESOLVER_TABLE: ResolverTable = {
   work_on_project: stubResolver,
   start_business: stubResolver,
   operate_business: stubResolver,
-  accept_opportunity: stubResolver,
-  decline_opportunity: stubResolver,
-  respond_to_event: stubResolver,
+  accept_opportunity: acceptOpportunityResolver,
+  decline_opportunity: declineOpportunityResolver,
+  respond_to_event: respondToEventResolver,
 };

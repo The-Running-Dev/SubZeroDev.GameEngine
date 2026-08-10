@@ -21,6 +21,7 @@ const baseState: SimulationKindState = {
   world: { npcs: [], locations: [], jobMarket: { openings: [] }, eventCooldowns: {}, firedUniqueEvents: [], chainStates: [], strangenessBase: 0, headlinePool: { remainingIds: [], cyclesCompleted: 0 }, agents: [], flags: {} },
   activeEffects: [], activeOpportunities: [], scheduledEvents: [], pendingEventResponses: [],
   goals: [],
+  resolution: null,
   plan: { week: 4, actions: [] },
 };
 

@@ -54,12 +54,22 @@ function baseState(needs: NeedState, overrides: Partial<SimulationKindState> = {
       relationships: [],
     } as unknown as SimulationKindState["player"],
     economy: {} as SimulationKindState["economy"],
-    world: {} as SimulationKindState["world"],
+    // Real, not a `{}` cast, since W57: `opportunities` reads the job market to decide a
+    // revoke, `events` reads cooldowns and `firedUniqueEvents`, and `headline` reads the
+    // pool and `strangenessBase`. Still minimal — `npcs`/`locations`/`agents` stay empty.
+    world: {
+      npcs: [], locations: [], agents: [], flags: {},
+      jobMarket: { openings: [] },
+      eventCooldowns: {}, firedUniqueEvents: [], chainStates: [],
+      strangenessBase: 0,
+      headlinePool: { remainingIds: [], cyclesCompleted: 0 },
+    },
     activeEffects: [],
     activeOpportunities: [],
     scheduledEvents: [],
     pendingEventResponses: [],
     goals: [],
+    resolution: null,
     plan: null,
     ...overrides,
   };
@@ -134,15 +144,28 @@ describe("runEndOfWeek — opportunity expiry", () => {
 });
 
 describe("runEndOfWeek — system ordering", () => {
-  it("runs all fourteen systems in the documented order", () => {
+  it("runs all fifteen systems in the documented order", () => {
     const { emit, systems } = recordingEmitter();
     const state = baseState({ health: 50, energy: 50, happiness: 50, stress: 50, satiety: 50 });
     runEndOfWeek(state, emit, NO_GOALS, "goals_win");
     expect(systems).toEqual([
       "employment", "education", "finance_income", "inventory", "housing",
       "finance_reconcile", "needs", "relationships", "opportunities", "events",
-      "headline", "goals", "failure", "achievements",
+      "headline", "goals", "failure", "week_limit", "achievements",
     ]);
+  });
+
+  it("places week_limit after failure and before achievements — §3, and what makes §12's precedence work", () => {
+    const { emit, systems } = recordingEmitter();
+    runEndOfWeek(baseState({ health: 50, energy: 50, happiness: 50, stress: 50, satiety: 50 }), emit, NO_GOALS, "goals_win");
+    expect(systems.indexOf("week_limit")).toBe(systems.indexOf("failure") + 1);
+    expect(systems.indexOf("achievements")).toBe(systems.indexOf("week_limit") + 1);
+  });
+
+  it("runs headline after events — the ordering W57.4 depends on", () => {
+    const { emit, systems } = recordingEmitter();
+    runEndOfWeek(baseState({ health: 50, energy: 50, happiness: 50, stress: 50, satiety: 50 }), emit, NO_GOALS, "goals_win");
+    expect(systems.indexOf("headline")).toBeGreaterThan(systems.indexOf("events"));
   });
 });
 

@@ -1,0 +1,17 @@
+{
+  "name": "stable-life-events-headline",
+  "config": {
+    "campaignId": "stable-life-events",
+    "seed": "stable-life-events-headline-seed"
+  },
+  "campaignVersion": "1.0.0",
+  "capturedUnder": "0.5.0",
+  "submissions": [
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "end_week"
+    }
+  ]
+}
