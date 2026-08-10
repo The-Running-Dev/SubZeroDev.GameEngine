@@ -2309,7 +2309,7 @@ now exists.
       campaign, a server-held session, or any storage-format migration mechanism — the format is
       the existing `SaveEnvelope` and §10.2 already owns its versioning.
 
-### [ ] W69 — Consume the Reusable Landing-Page Package {#w69}
+### [x] W69 — Consume the Reusable Landing-Page Package {#w69}
 
 **Delivers:** Keeps the Engine's existing landing page and roadmap exactly as visitors see
 them, while replacing its repository-owned Vite build and PowerShell merge machinery with the
@@ -2332,7 +2332,21 @@ component or stylesheet. This is a toolchain extraction, not a landing-page rede
 - **Depends on:** nothing Engine-side. The immutable external prerequisite is
       `subzerodev-platform-ui-landing-page@0.2.0`, whose adapter preserves route-specific
       canonical, Open Graph, X/Twitter, icon, theme-colour and no-script metadata.
-- **Status:** Not started.
+- **Status:** Done — [PR #272](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/272),
+      with a follow-up in the same branch fixing the host-image build and the `/play/` host gap
+      the extraction left behind.
+
+      **W69.4 is not fully met, deliberately, and that is recorded rather than waved through.**
+      The component tests pass unchanged, but `/play/` was dropped from the build during the
+      slice, which removed the `cta-play` link from `App.tsx` and its rule from `landing.css` —
+      a real rendered-content change, authorized mid-slice rather than in this unit's stated
+      scope. It is consistent with `/play/` being superseded by
+      [SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures)
+      ([`13-playable-web-demo.md`](13-playable-web-demo.md), *Succeeded by
+      SubZeroDev.Adventures*), which is why it was accepted; the deviation from W69.4 as
+      written is the part worth naming. The removed `/play/` browser smoke it also cost is
+      tracked as
+      [issue #273](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/273).
 - **Done when:**
   - W69.1 `site/package.json` pins `subzerodev-platform-ui-landing-page` exactly at `0.2.0`,
         the lockfile resolves that version, and the site no longer declares Vite or the React
