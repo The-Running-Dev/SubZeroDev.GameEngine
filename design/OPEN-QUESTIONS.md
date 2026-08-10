@@ -8,4 +8,6 @@
 
 ## 2. Deferred by Decision — Post-MVP (Indexed; Live Elsewhere)
 
+### Found by the first downstream host — SubZeroDev.Adventures
+
 ## 3. Judgement Calls to Revisit (Settled for the MVP)

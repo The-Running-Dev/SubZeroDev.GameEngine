@@ -1454,7 +1454,7 @@ life — the actions that make a week feel like a life rather than a spreadsheet
       W57's `events` system. Also out of scope: writing the missing weekly-relationship rule,
       which is `/contract`'s, not a slice's.
 
-### [ ] W57 — Simulation Kind: Events, Opportunities, Headlines, and Achievements {#w57}
+### [x] W57 — Simulation Kind: Events, Opportunities, Headlines, and Achievements {#w57}
 
 **Delivers:** The world starts acting on the player — random events arrive and demand a
 response, opportunities appear and expire, the weekly headline reflects what actually
@@ -1486,7 +1486,7 @@ system position upstream never named.
       `src/engine/fixtures/replay/`.
 - **Depends on:** [W56](#w56), **and** a contract decision on §12's `week_limit_reached`
       precedence callout.
-- **Status:** Not started — blocked on the contract decision above.
+- **Status:** Done — [PR #265](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/265).
 - **Done when:**
   - W57.1 `respond_to_event`, `accept_opportunity` and `decline_opportunity` each have a real
         resolver, and `"custom"` still reaches resolution nowhere — a `GameAction` typed
@@ -1741,7 +1741,7 @@ synchronous; only the already-async store boundary may await platform crypto.
       reloads; accounts, cloud sync or any backend; new gameplay; art, audio, analytics,
       session capture, service workers, a PWA, or a generic reusable web-client package.
 
-### [ ] W62 — Platform Static Host Image {#w62}
+### [x] W62 — Platform Static Host Image {#w62}
 
 **Delivers:** Adds a product-owned ASP.NET Core host under `src/host/`, composed with
 `SubZeroDev.Platform.Hosting`, and packages W61's verified combined static artifact into a
@@ -1764,7 +1764,7 @@ edge → Node engine workload`, JSON/HTTP boundary, MCP projection, and remote s
       `ProjectReference` may unblock local development, but W62 cannot merge until the project
       uses one exact released `SubZeroDev.Platform.Hosting` package version and a clean CI clone
       restores without `../SubZeroDev.Platform`.
-- **Status:** Not started.
+- **Status:** Done — [PR #264](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/264).
 - **Done when:**
   - W62.1 `src/host/` is the product composition root. It calls `AddPlatformWebHost()` and maps
         Platform probes; Platform gains no GameEngine dependency, and the host adds no worker,
@@ -2190,7 +2190,7 @@ with it. Rendered authored text is unchanged.
 
 ### Correctness Debt Found by Reconciliation
 
-### [ ] W67 — Restore the Story-Graph Regression Evidence {#w67}
+### [x] W67 — Restore the Story-Graph Regression Evidence {#w67}
 
 **Delivers:** The replay corpus, determinism goldens, and observability acceptance test that
 the [W64](#w64) campaign rewrite removed for the flagship kind. Story-graph is currently the
@@ -2221,6 +2221,7 @@ files against v2 routes; each is read on its merits, not accepted because the ru
       documents already require.
 - **Depends on:** [W64](#w64) being on `main`, since the fixtures are regenerated against its
       v2 campaign graphs.
+- **Status:** Done — [PR #261](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/261).
 - **Done when:**
   - W67.1 Three `bureaucracy-*` fixture/outcome pairs exist against `campaignVersion: "2.0.0"`,
         covering materially different routes and matching [07 §4](07-replay.md#4-the-corpus)'s
@@ -2250,7 +2251,23 @@ files against v2 routes; each is read on its merits, not accepted because the ru
       both of which still have theirs; the cross-repository replay corpus; any change to the
       runner's verdict vocabulary or to `Outcome`'s shape.
 
-### [ ] W68 — Make the Browser Save Adapter Actually Restore {#w68}
+### [~] W68 — Make the Browser Save Adapter Actually Restore — cancelled {#w68}
+
+**Cancelled.** Every file this unit touches is in `site/src/play/`, the route
+[`13-playable-web-demo.md`](13-playable-web-demo.md) now records as superseded by
+[SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures).
+Implementing a durable checkpoint into a surface being deleted buys nothing, and Adventures
+already has the durable version this unit was reaching for — server-side saves in Postgres,
+not a `localStorage` adapter.
+
+Two of the criteria were about the engine rather than the route, and outlive the
+cancellation. Both are in [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md)'s open register:
+**W68.5** — `SaveRecordStore.delete` has no caller in the engine or in either shipped host,
+so the port requires a method nobody invokes. **W68.2**'s resume affordance rests on a
+per-player save query the `SessionStore` contract has no operation for, which two independent
+hosts have now separately invented.
+
+The original statement of the unit follows, unchanged, as the record of what was planned.
 
 **Delivers:** The working half of the durable local checkpoint that
 [13 §5](13-playable-web-demo.md#5-checkpoints-and-lifetime) Revision 2 now specifies. The
@@ -2354,7 +2371,21 @@ component or stylesheet. This is a toolchain extraction, not a landing-page rede
       reusable package itself; adopting the package's generic README renderer; copying any
       Platform page component, style or token into Engine.
 
-### [ ] W70 — Gate `/play/`'s Startup Request Surface {#w70}
+### [~] W70 — Gate `/play/`'s Startup Request Surface — cancelled {#w70}
+
+**Cancelled**, for the same reason as [W68](#w68): it gates the emitted `/play/` bundle, and
+that route is superseded by
+[SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures)
+([`13-playable-web-demo.md`](13-playable-web-demo.md), *Succeeded by SubZeroDev.Adventures*).
+
+**The property is not cancelled — only this unit's location for it.** A browser build that
+silently acquires an off-origin request is exactly the regression
+[`13`](13-playable-web-demo.md) §4 refuses to leave unasserted, and Adventures ships a browser
+build. The gate belongs beside the bundle it guards, in the repository that emits it, which is
+no longer this one. Adventures already carries §4's Node-only-import half of the same check in
+its own `scripts/verify-build.mjs`; the startup-request half is the piece still missing there.
+
+The original statement of the unit follows, unchanged.
 
 **Delivers:** An assertion that the emitted `/play/` bundle issues no startup request beyond
 the same-origin `campaigns/` files the deployment already contains.

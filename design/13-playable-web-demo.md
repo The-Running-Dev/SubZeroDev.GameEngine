@@ -4,6 +4,8 @@
 
 # Playable Web Demo — Browser Client and Static Delivery
 
+### Succeeded by SubZeroDev.Adventures
+
 ## 1. Outcome and Boundary
 
 ## 2. Player Flow
