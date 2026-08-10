@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 const roadmap = "/roadmap/";
 const repository = "https://github.com/The-Running-Dev/SubZeroDev.GameEngine";
+export const adventures = "https://adventures.subzerodev.com";
 
 export function DocsLink({
   href,
@@ -16,12 +17,14 @@ export function DocsLink({
 export function ExternalLink({
   href,
   children,
+  className,
 }: {
   href: string;
   children: ReactNode;
+  className?: string;
 }) {
   return (
-    <a href={href} target="_blank" rel="noreferrer">
+    <a href={href} className={className} target="_blank" rel="noreferrer">
       {children}
       <span className="visually-hidden"> (opens in a new tab)</span>
     </a>
@@ -47,9 +50,7 @@ export function SiteHeader({
         >
           Roadmap
         </a>
-        <a href="/play/" aria-current={current === "play" ? "page" : undefined}>
-          Play
-        </a>
+        <ExternalLink href={adventures}>Play</ExternalLink>
         <a href="/docs/">Documentation</a>
         <ExternalLink href={repository}>GitHub</ExternalLink>
       </nav>

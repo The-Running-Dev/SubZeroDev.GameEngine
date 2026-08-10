@@ -7,5 +7,5 @@
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE}
 USER root
-RUN rm -f /app/wwwroot/play/index.html
+RUN rm -f /app/wwwroot/roadmap/index.html
 USER app

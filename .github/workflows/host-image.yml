@@ -101,20 +101,11 @@ jobs:
           }
           check / 200
           check /roadmap/ 200
-          check /play/ 200
           check /docs/ 200
           check /health/live 200
           check /health/ready 200
           # No SPA fallback (§4): an unknown route must 404, never the landing page.
           check /this-route-does-not-exist 404
-
-      # §6: no engine API, game action, or runtime content request -- checked from a real
-      # browser against the real running container, not the dev server.
-      - name: Browser production smoke (/play/ makes no engine API request)
-        run: |
-          npm --prefix tools/host-smoke ci
-          npx --prefix tools/host-smoke playwright install --with-deps chromium
-          node tools/host-smoke/browser-smoke.mjs http://127.0.0.1:18080
 
       - name: Orderly container stop
         run: |
@@ -163,7 +154,7 @@ jobs:
             echo "No previous commit to diff against -- publishing."
             echo "changed=true" >> "$GITHUB_OUTPUT"
           elif git diff --quiet "$before" "${{ github.sha }}" -- \
-              Dockerfile .dockerignore src/host site docs build/Merge-LandingPage.ps1 \
+              Dockerfile .dockerignore src/host site docs \
               src/engine; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
