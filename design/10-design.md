@@ -2507,14 +2507,45 @@ sidebar_label: Playable Web Demo
 
 # Playable Web Demo — Browser Client and Static Delivery
 
-**Document status:** Revision 2 — W61 shipped as Revision 1. §4's checksum mechanism and
-bundle gate and §5's checkpoint lifetime are restated against what was built; §1's opening
-path, §10's non-goals and §11's first row are restated against the multi-campaign shelf W63
-and W64 shipped. §§2–3 and §§6–9 are unchanged except where they cited §5's same-page limit.
+**Document status:** Revision 3 — **the route this document specifies is being retired.**
+`/play/` was extracted into `SubZeroDev.Adventures`, which is the play surface going forward;
+see *Succeeded by SubZeroDev.Adventures* below. Revision 2 restated §4's checksum mechanism
+and bundle gate and §5's checkpoint lifetime against what W61 built, and §1's opening path,
+§10's non-goals and §11's first row against the multi-campaign shelf W63 and W64 shipped.
+§§2–3 and §§6–9 are unchanged except where they cited §5's same-page limit.
 
 **Reading order:** after [`09-clients.md`](09-clients.md). That document owns what every
 client may do; this one owns the first public browser client's product boundary, composition,
 and delivery.
+
+### Succeeded by SubZeroDev.Adventures
+
+`/play/` proved what this document set out to prove, and the client then outgrew the engine
+repository. It now lives in
+[SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures) — a client
+repository with no `design/` of its own, consuming this engine as a pinned git submodule. That
+repository states the direction plainly: the engine's own `/play/` route exists for a
+transitional period, and Adventures is the one going forward.
+
+**What survives the move, and what does not:**
+
+- **§4 survives, and is the reason to read this document.** *Browser portability is an engine
+  property, asserted over the emitted bundle* is a claim about `src/engine/`, not about a
+  route. Adventures carries the same assertion across the submodule boundary, for the same
+  reason. Whichever repository ships a browser build, this section governs it.
+- **§3's dependency direction survives.** A client composes the engine; the engine never learns
+  the client exists. Adventures is the proof — it added a hosted API, durable persistence and
+  accounts without a single reciprocal engine change.
+- **§§1–2, §§6–9 are historical.** They describe a route, its states, its delivery and its
+  failure behaviour, and the route is going away. They are retained as the record of what the
+  first public browser client was, not as a target to build against.
+- **§5's checkpoint lifetime is superseded by a stronger implementation.** Adventures has
+  durable server-side saves, so the same-page limit this section negotiates no longer binds
+  the product. The engine-side gaps §5 exposed are real and outlive the route — they are in
+  [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md)'s open register, not here.
+
+The engine keeps its landing page and roadmap at `site/`. Those are not part of this document
+and are unaffected.
 
 > **Scope of this document**
 >
@@ -2833,8 +2864,15 @@ against whatever else is on the shelf.
 
 # Game Interface — Absurd Adventure Stage and Dashboard
 
-**Document status:** Revision 2 — W63 shipped as Revision 1; §8 is restated as the W66
-mobile-first target, proven by the browser test harness W65 stands up, and §§1–7 are unchanged.
+**Document status:** Revision 3 — **historical.** This document specifies the appearance of
+the `/play/` route, and that route is being retired in favour of
+[SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures)
+([`13-playable-web-demo.md`](13-playable-web-demo.md), *Succeeded by SubZeroDev.Adventures*).
+Adventures has since taken the play surface in a different visual direction — a selectable
+retro-terminal identity rather than this document's adventure cabinet — and it owns that
+choice, having no `design/` here to answer to. Nothing in §§1–8 binds the engine repository
+any longer. Revision 2 restated §8 as the W66 mobile-first target, proven by the browser test
+harness W65 stands up, and left §§1–7 unchanged.
 
 **Reading order:** after [`13-playable-web-demo.md`](13-playable-web-demo.md). That document
 owns the browser boundary and delivery model; this one owns how the established multi-campaign

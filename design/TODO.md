@@ -178,11 +178,11 @@
 
 ### [x] W67 — Restore the Story-Graph Regression Evidence {#w67}
 
-### [ ] W68 — Make the Browser Save Adapter Actually Restore {#w68}
+### [~] W68 — Make the Browser Save Adapter Actually Restore — cancelled {#w68}
 
 ### [ ] W69 — Consume the Reusable Landing-Page Package {#w69}
 
-### [ ] W70 — Gate `/play/`'s Startup Request Surface {#w70}
+### [~] W70 — Gate `/play/`'s Startup Request Surface — cancelled {#w70}
 
 ### Content Tooling — A First-Class Workstream, Not an Afterthought
 

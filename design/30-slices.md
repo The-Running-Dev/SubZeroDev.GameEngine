@@ -2251,7 +2251,23 @@ files against v2 routes; each is read on its merits, not accepted because the ru
       both of which still have theirs; the cross-repository replay corpus; any change to the
       runner's verdict vocabulary or to `Outcome`'s shape.
 
-### [ ] W68 — Make the Browser Save Adapter Actually Restore {#w68}
+### [~] W68 — Make the Browser Save Adapter Actually Restore — cancelled {#w68}
+
+**Cancelled.** Every file this unit touches is in `site/src/play/`, the route
+[`13-playable-web-demo.md`](13-playable-web-demo.md) now records as superseded by
+[SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures).
+Implementing a durable checkpoint into a surface being deleted buys nothing, and Adventures
+already has the durable version this unit was reaching for — server-side saves in Postgres,
+not a `localStorage` adapter.
+
+Two of the criteria were about the engine rather than the route, and outlive the
+cancellation. Both are in [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md)'s open register:
+**W68.5** — `SaveRecordStore.delete` has no caller in the engine or in either shipped host,
+so the port requires a method nobody invokes. **W68.2**'s resume affordance rests on a
+per-player save query the `SessionStore` contract has no operation for, which two independent
+hosts have now separately invented.
+
+The original statement of the unit follows, unchanged, as the record of what was planned.
 
 **Delivers:** The working half of the durable local checkpoint that
 [13 §5](13-playable-web-demo.md#5-checkpoints-and-lifetime) Revision 2 now specifies. The
@@ -2355,7 +2371,21 @@ component or stylesheet. This is a toolchain extraction, not a landing-page rede
       reusable package itself; adopting the package's generic README renderer; copying any
       Platform page component, style or token into Engine.
 
-### [ ] W70 — Gate `/play/`'s Startup Request Surface {#w70}
+### [~] W70 — Gate `/play/`'s Startup Request Surface — cancelled {#w70}
+
+**Cancelled**, for the same reason as [W68](#w68): it gates the emitted `/play/` bundle, and
+that route is superseded by
+[SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures)
+([`13-playable-web-demo.md`](13-playable-web-demo.md), *Succeeded by SubZeroDev.Adventures*).
+
+**The property is not cancelled — only this unit's location for it.** A browser build that
+silently acquires an off-origin request is exactly the regression
+[`13`](13-playable-web-demo.md) §4 refuses to leave unasserted, and Adventures ships a browser
+build. The gate belongs beside the bundle it guards, in the repository that emits it, which is
+no longer this one. Adventures already carries §4's Node-only-import half of the same check in
+its own `scripts/verify-build.mjs`; the startup-request half is the piece still missing there.
+
+The original statement of the unit follows, unchanged.
 
 **Delivers:** An assertion that the emitted `/play/` bundle issues no startup request beyond
 the same-origin `campaigns/` files the deployment already contains.

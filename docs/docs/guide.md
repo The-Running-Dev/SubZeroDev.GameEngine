@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 5474274dc1e81e5efefd94530c89e4d4b4da934108c2f33d2f8285192f78c472 -->
+<!-- design-digest: 3706310ac32b3d2ae3f2bcd738b89109c901f96d988d03ac34f22381cf092af4 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -50,9 +50,14 @@ assertable invariants are in the
   The route is bounded to one kind: `simulation` and `world-graph` surfaces are not part of it.
   Campaigns are fetched as JSON from the same static origin at startup rather than bundled, and
   one durable local checkpoint per campaign is offered on return.
-- A Platform-backed static container is designed and sliced as W62 but is not implemented. It is
-  an undeployed alternative delivery artifact for the W61 bytes, not a hosted engine API; the
-  existing GitHub Pages deployment remains public.
+  **This route is transitional.** The play surface was extracted into
+  [SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures), which is
+  the client going forward; `/play/` here is retained for now and is not being developed
+  further. Build a browser client against Adventures, not against this route.
+- A Platform-backed static container is implemented: an ASP.NET Core host under `src/host/`
+  packaging the verified combined artifact as an immutable image. It is an alternative delivery
+  artifact for the same bytes, not a hosted engine API; the existing GitHub Pages deployment
+  remains public.
 - Content pack resolution and experiment gating are implemented and exported: `resolvePacks`,
   `applyExperimentGates`, `computeResolutionId`, `resolveBucketKey`, `resolveExperimentAssignments`
   and the `ExperimentSource` port. One piece is deliberately unbuilt — `SessionHost.experiments`
@@ -301,7 +306,19 @@ Two things follow from that which are easy to get wrong when you implement a cli
   session store acts on it without knowing the kind; `consequence_applied` belongs to
   `story-graph`. A kind adding an audit reason registers it like any other code.
 
-### Building the public browser demo
+### Building a browser client
+
+The engine's own `/play/` route is **transitional**. The browser client was extracted into
+[SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures), a client
+repository that consumes the engine as a pinned submodule and is the play surface going
+forward. If you are building a browser client, build it the way Adventures does.
+
+Almost everything below still applies, because it is about the *engine's* browser boundary
+rather than about a route — bundling, the composition split, the portability gate, the
+production flag, and what a client may hold. Only the parts naming `/play/`'s own delivery are
+historical. Adventures also proves the two rules that matter most here: a client composes the
+engine and the engine never learns the client exists, and adding a hosted API, durable
+persistence and accounts required no reciprocal engine change.
 
 One static `/play/` route sits on the existing React site, presenting the shipped `story-graph`
 campaigns as a shelf. Keep its composition root separate from its client: the root may assemble
@@ -351,6 +368,12 @@ failure, parity, and non-goal boundary is in
 [`13-playable-web-demo.md`](engine/13-playable-web-demo.md).
 
 ### Styling the game interface
+
+**Historical.** This section specifies the appearance of the `/play/` route, and that route is
+transitional — see *Building a browser client* above. SubZeroDev.Adventures has since taken
+the play surface in a different visual direction and owns that choice. Nothing here binds a new
+client. It is retained because the client-boundary rules in the second paragraph below are
+general, and because it records what the engine's own play surface was.
 
 W63 redesigns the existing story shelf and story-graph play surface as an original absurd
 adventure cabinet: a dossier-like campaign shelf, dominant scene stage, tactile action deck,

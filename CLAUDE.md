@@ -27,6 +27,19 @@ logic (`kinds`, engine-owned code), and content (`campaigns`, data). v1 ships tw
   Sun Trap, the flagship `world-graph`-kind game — a satirical resort-management sim. Design
   only, no code. Its kind contract is `12-world-graph-kind.md` here; the game's maps,
   scenarios, balance and client live there. Nothing in these specs depends on it.
+- **Client** — [SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures):
+  the browser play surface, extracted from this repository's `/play/` route and **the one going
+  forward** — `site/src/play/` here is transitional (`10-design.md`,
+  *Succeeded by SubZeroDev.Adventures*). It is a **client repository**: no `design/`, no
+  pipeline, no contract of its own. It consumes this engine as a pinned git submodule and adds
+  a hosted Fastify API, Postgres persistence and accounts — all without a reciprocal engine
+  change, which is the dependency direction working.
+  **It is the first host to implement the ports outside a browser tab**, and that turned up
+  eight contract findings, indexed together in `90-decisions.md` §2, *Found by the first
+  downstream host*. Two things to know before touching it: it depends on `fromPortable` and
+  the `Portable*` types, which `src/engine/src/index.ts` marks non-contract spike exports, so a
+  submodule bump can break it legitimately; and its visual identity diverged from
+  `14-game-interface.md` deliberately — do not port it back.
 - **Hosting / NEaaS** — [SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform):
   the deferred hosting / SaaS layer.
 

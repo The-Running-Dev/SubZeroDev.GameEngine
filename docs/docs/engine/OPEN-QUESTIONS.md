@@ -215,6 +215,84 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   fixtures as a result — not blocking that unit, but real friction for every arc after it.
   **Revisit when** a second campaign's replay coverage is actually wanted: decide the shared-vs-
   per-campaign shape once, from two real cases, rather than guessing ahead of one.
+
+### Found by the first downstream host — SubZeroDev.Adventures
+
+[SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures) is the play
+surface extracted from `/play/` ([`13-playable-web-demo.md`](13-playable-web-demo.md),
+*Succeeded by SubZeroDev.Adventures*). It consumes this engine as a pinned submodule across a
+repository boundary and adds a hosted API, Postgres persistence, and accounts. That makes it
+the **first host to implement the ports against something other than a browser tab**, and the
+eight entries below are what that exercise found. They are recorded together because their
+shared provenance is the evidence: each one is a place the contract held up in one host and
+bent in the second.
+
+**None of these was found by review.** They were found by building. That is worth stating,
+because the standing bar in this register — *one built instance is not a pattern* — cuts both
+ways: several of these clear it now, for the first time.
+
+- **`SaveRecordStore.delete` has no caller anywhere.** Not in the engine
+  (`core/session/store.ts` calls `saves.get` and `saves.put` only), not in the browser's
+  `localStorage` adapter, which supersedes an old save with a direct `removeItem` rather than
+  through the port, and not in Adventures' Postgres adapter, which implements it and never
+  invokes it. `SaveRecordStore` (`core/session/types.ts`) declares it **required**, so three
+  hosts implement a method nobody calls. This was
+  [W68](TODO.md#w68).5's question and the cancellation does not answer it. **Removing it
+  also dissolves [issue #226](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/226)**,
+  the TOCTOU race between `delete` and a concurrent `put` — a race that only exists because
+  the method does.
+- **There is no per-player save query, and two hosts have now invented one.** The browser
+  keeps a `campaignSaveIndexKey` beside each save in `localStorage`; Adventures' server has
+  `listSavesForPlayer`, a `distinct on (campaign_id)` query. Both exist because the ten
+  `SessionStore` operations are session-id-keyed and a resume affordance is player-keyed.
+  Independent reinvention in two hosts is the pattern evidence this register asks for.
+- **`VisibleStat` omits the declared range, so clients read `Campaign.content` to get it.**
+  The projection carries `{ var, labelKey, value }` (`kinds/story-graph/view.ts`) but not
+  `min`/`max`, so rendering a stat as "3 / 26" instead of a bare "3" means reaching into
+  `Campaign.content` — which the core deliberately keeps `unknown`. Adventures does exactly
+  that, structurally and defensively, in `shared/campaign-registry.ts`. So does the count of
+  distinct endings, for "n of m discovered".
+
+  **This is the inverse of the envelope-duplication ledger** in `CLAUDE.md`, and belongs
+  beside it: that ledger tracks a kind carrying a field the envelope already owns; this is a
+  projection *omitting* a field, which forces every client to reach past the projection into
+  content. The failure mode is the same — the boundary stops being load-bearing — and the
+  view-side entry (ledger item 3) is the closest existing relative.
+- **`listCampaigns()` is synchronous, so no remote store can implement it.** The signature is
+  `listCampaigns(): CampaignSummary[]` (`core/session/types.ts`), which a `fetch`-backed
+  `SessionStore` cannot satisfy. Adventures prefetches the summaries at composition time and
+  closes over them. It works, but it means the contract quietly requires every store to hold
+  the campaign set in memory before it is a store at all.
+- **Reproducing a stored session's blob requires pinning `IdSource.newGameId`.** The default
+  mints a fresh `crypto.randomUUID()` per `createGame`, so replaying a real session's action
+  log from scratch can never byte-match its stored blob unless the host injects an `IdSource`
+  returning the original `gameId`. [`07-replay.md`](07-replay.md)'s oracle never hit this
+  because fixtures are inputs with no prior identity; a stored session has one. Adventures
+  builds a second `Engine` per replay for exactly this.
+- **`SessionStore` has no concept of a caller, so authorization lives entirely outside it.**
+  `getScene(sessionId)` succeeds for anyone holding the id. Adventures added ownership guards
+  as Fastify `preHandler`s over its own `profile_id` columns, because the port gave it nowhere
+  to express the check. That is the right layering for a static demo and a real gap for a
+  hosted engine — it is the first concrete requirement the deferred NEaaS layer has produced.
+- **Session forking is built, and it bypasses the store.** Adventures replays a stored action
+  log to an arbitrary `atSeq` and writes a new `StoredSessionRecord` straight to persistence,
+  because no store operation covers it. This is
+  [issue #266](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/266) with a
+  working reference implementation — and a caution, since writing through the persistence port
+  rather than the store leaves the store's in-memory session cache unaware of the new session.
+- **`Kind.outcome` has no shape a host can read generically.** Deriving a terminal identity to
+  index — "which ending did this finished session reach" — means calling `kind.outcome()` and
+  then guessing at the returned object's fields. Adventures recognises `{ endingId }` and
+  reports nothing for any other kind, degrading rather than guessing. Terminal identity is
+  supposed to be the cross-version-stable vocabulary ([`07-replay.md`](07-replay.md) §3); it is
+  stable per kind but not legible across them.
+
+One further item is not an engine defect but a standing cross-repository hazard: **Adventures
+depends on `fromPortable` and the `Portable*` types**, which `src/engine/src/index.ts:62`
+marks `// SPIKE: … not a contract export`. A real downstream consumer is now pinned to a spike
+export that carries no deprecation promise. Either it earns contract status or Adventures
+accepts breakage on every submodule bump; today neither has been chosen.
+
 ---
 
 ## 3. Judgement Calls to Revisit (Settled for the MVP)
