@@ -213,6 +213,10 @@ export function advance(
           rng: ctx.derive({ kind: "system", system: "end_of_week", seq: ctx.seq }),
         },
       );
+      // An `EventOutcome`'s authored `messages` (§7.6) join the resolvers' own on the one
+      // player-facing channel (04 §12) — the end-of-week pass is the only place they can
+      // enter, and dropping them meant authored event text reached nobody.
+      messages.push(...endOfWeekResult.messages);
       ctx.emit.emit(WEEK_ENDED_EVENT, "info", { data: { week: working.calendar.currentWeek } });
 
       const counted = foldCounters(endOfWeekResult.state, endOfWeekResult.changes);

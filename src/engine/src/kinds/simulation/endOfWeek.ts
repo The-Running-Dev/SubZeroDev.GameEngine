@@ -71,7 +71,7 @@
 
 import type { ResolutionEmitter } from "../../core/observability/types.js";
 import type { RngHandle } from "../../core/determinism/types.js";
-import type { StateChange } from "../../core/kernel/reasons.js";
+import type { OutcomeMessage, StateChange } from "../../core/kernel/reasons.js";
 import type { Credential, CourseEnrollment, Employment, EvictionStage, NeedKey } from "./actor.js";
 import type {
   AchievementDefinition,
@@ -161,15 +161,37 @@ function stillOpen(expiresAtWeek: number, currentWeek: number): boolean {
 }
 
 /**
+ * **`RngHandle.weightedPick` throws on any weight that is not a positive integer**
+ * (`core/determinism/pcg32.ts`), and nothing validates `weight` at authoring or
+ * campaign-build time. `weight: 0` is the natural way for an author to say "this only ever
+ * fires when a chain schedules it, never on the random roll" — so left unfiltered, the first
+ * week such a definition's `conditions` hold would throw out of `advance` entirely rather
+ * than reject an action. Drawing pools are therefore narrowed to drawable weights first, and
+ * an all-unweighted pool simply means nothing is drawn that week.
+ */
+function drawable(weight: number | undefined): boolean {
+  return weight !== undefined && Number.isInteger(weight) && weight > 0;
+}
+
+/**
  * Real logic (W57) — §2.3's full lifecycle, in the order it fixes: **revoke, then expire,
  * then offer.** Revoking and expiring before offering is what lets a slot freed this week be
  * re-offered this week rather than next.
  *
- * **Revoke** drops any `contested` opportunity whose target position no longer has an
- * opening in `world.jobMarket.openings` — §2.3's "a contested position filled by a rival."
- * With no rivals wired (§7.10 is an open gap, and W57's own *Out of scope*), the filling is
- * done by `employment` above, which removes an opening when the player is hired; the rule is
- * the specified one either way, and gains rivals without changing.
+ * **Revoke** drops any `contested` opportunity whose target position is now *filled* —
+ * §2.3's "a contested position filled by a rival." With no rivals wired (§7.10 is an open
+ * gap, and W57's own *Out of scope*), the only filling this engine can observe is the
+ * player's own hire, so that is exactly what the predicate tests; it gains rivals by
+ * widening, without changing shape.
+ *
+ * **Absence from `world.jobMarket.openings` is deliberately *not* the test, and reading it
+ * as one was a defect.** That collection is not a world job market: `search_for_work`
+ * (`resolvers.ts`) is its only writer, so it holds the jobs *this player has surfaced* and
+ * is empty until they look. Treating "not in openings" as "filled" revoked every contested
+ * `job_offer` on the first pass after it was offered — an unsolicited headhunt could never
+ * outlive one week — and made a `contested` `promotion` unable to survive at all, since a
+ * promotion target is reached through `JobDefinition.promotionPaths` and is never posted as
+ * an opening in the first place.
  *
  * **Expire** drops anything `expiresAtWeek` has passed, unchanged from W39.
  *
@@ -193,14 +215,14 @@ function opportunities(
 ): { state: SimulationKindState; changes: StateChange[] } {
   const week = state.calendar.currentWeek;
   const changes: StateChange[] = [];
-  const openJobIds = new Set(state.world.jobMarket.openings.map((o) => o.jobId));
+  const heldJobId = state.player.career.currentEmployment?.jobId;
 
   const surviving: Opportunity[] = [];
   for (const open of state.activeOpportunities) {
     const def = defs.find((d) => d.id === open.definitionId);
     const revoked = def?.contested === true
       && (open.kind === "job_offer" || open.kind === "promotion")
-      && !openJobIds.has(open.targetId);
+      && open.targetId === heldJobId;
     if (revoked) {
       changes.push({ path: `activeOpportunities.${open.id}`, op: "set", value: open.definitionId, reason: "opportunity_revoked", visible: true });
       continue;
@@ -213,8 +235,8 @@ function opportunities(
   }
 
   const standing = new Set(surviving.map((o) => o.definitionId));
-  const heldJobId = state.player.career.currentEmployment?.jobId;
   const eligible = defs.filter((def) => {
+    if (!drawable(def.weight)) return false;
     if (standing.has(def.id)) return false;
     if ((def.kind === "job_offer" || def.kind === "promotion") && def.targetId === heldJobId) return false;
     if (def.conditions !== undefined && !evaluateSimulationCondition(def.conditions, state)) return false;
@@ -713,14 +735,26 @@ const STRANGENESS_PER_EVENT = 5;
  * out of scope until something needs one ("**Revisit when** `Reward` gains a real
  * dispatcher, not before"). Inventing per-type semantics here would be writing that
  * dispatcher inside an event handler, three sections away from where it belongs.
+ *
+ * **`messages` are collected, not dropped.** They are the one part of an `EventOutcome` that
+ * is finished content rather than a deferred mechanism — an authored `OutcomeMessage` with a
+ * `LocKey` and a `visible` flag, the same shape `ActionOutcome.messages` already carries to
+ * the player through `advance.ts`. Discarding them silently meant a campaign could author
+ * event flavour text, see the modifier land, and never learn the text went nowhere.
+ * `generatedEvents`/`generatedOpportunities` remain unapplied, and now say so: both name ids
+ * whose *creation* semantics §7.6 leaves to the same undesigned dispatcher `rewards` waits on.
  */
 function applyEventOutcome(
   state: SimulationKindState,
   def: EventDefinition,
   outcome: EventOutcome,
+  messages: OutcomeMessage[],
+  firing: number,
 ): SimulationKindState {
   const week = state.calendar.currentWeek;
   let next = state;
+
+  messages.push(...outcome.messages);
 
   if (outcome.effects.length > 0) {
     const effect: StatusEffect = {
@@ -740,16 +774,25 @@ function applyEventOutcome(
   if (outcome.endsChain === true && def.chainId !== undefined) {
     scheduled = scheduled.filter((s) => s.chainId !== def.chainId);
   }
-  for (const entry of outcome.scheduledEvents ?? []) {
+  // `eventId` and target week alone do not identify a scheduled entry: two events firing in
+  // the same pass can each schedule the same follow-up onto the same week. Four things do —
+  // the scheduling definition, the week it fired in, *which* firing of that pass it was, and
+  // the entry's index within the outcome. `firing` is load-bearing rather than belt-and-
+  // braces: `def.id` alone is not enough, because one definition can fire twice in a single
+  // pass (two due `ScheduledEvent`s naming it, or `cooldownWeeks: 0` letting the scheduled
+  // firing be drawn again), and `week` alone is not enough either, because one definition
+  // firing in two different weeks can schedule the same index onto the same target week
+  // through two choices with different `inWeeks`.
+  (outcome.scheduledEvents ?? []).forEach((entry, index) => {
     scheduled = [...scheduled, {
-      id: `scheduled-${entry.eventId}-${week + entry.inWeeks}`,
+      id: `scheduled-${def.id}-${week}-${firing}-${index}-${entry.eventId}-${week + entry.inWeeks}`,
       eventId: entry.eventId,
       scheduledWeek: week + entry.inWeeks,
       createdWeek: week,
       ...(def.chainId !== undefined ? { chainId: def.chainId } : {}),
       ...(def.chainStep !== undefined ? { chainStep: def.chainStep } : {}),
     }];
-  }
+  });
 
   return { ...next, scheduledEvents: scheduled };
 }
@@ -768,7 +811,9 @@ function selectOutcome(
     (c) => c.condition === undefined || evaluateSimulationCondition(c.condition as never, state),
   );
   if (eligible.length === 0) return undefined;
-  const weighted = eligible.filter((c) => c.weight !== undefined && c.weight > 0);
+  // `drawable`, not `weight > 0`: `weightedPick` rejects a non-integer weight as hard as a
+  // zero one, so an author writing `weight: 1.5` would throw rather than fall back.
+  const weighted = eligible.filter((c) => drawable(c.weight));
   if (rng !== undefined && weighted.length > 0) {
     return rng.weightedPick(weighted.map((item) => ({ item, weight: item.weight! }))).outcome;
   }
@@ -793,6 +838,8 @@ function fireEvent(
   choiceId: string | undefined,
   rng: RngHandle | undefined,
   changes: StateChange[],
+  messages: OutcomeMessage[],
+  firing: number,
 ): SimulationKindState {
   const week = state.calendar.currentWeek;
 
@@ -803,7 +850,7 @@ function fireEvent(
   if (choiceId !== undefined) {
     const choice = def.choices?.find((c) => c.id === choiceId);
     const selected = choice === undefined ? undefined : selectOutcome(choice.outcomes, state, rng);
-    return selected === undefined ? state : applyEventOutcome(state, def, selected);
+    return selected === undefined ? state : applyEventOutcome(state, def, selected, messages, firing);
   }
 
   const strangenessBefore = state.world.strangenessBase;
@@ -821,7 +868,13 @@ function fireEvent(
   };
   changes.push({ path: "world.strangenessBase", op: "set", value: strangenessBase, previous: strangenessBefore, reason: "event_fired", visible: true });
   if (strangenessBase !== strangenessBefore) {
-    changes.push({ path: "world.strangeness", op: "set", value: strangenessBase, previous: strangenessBefore, reason: "world_strangeness_shifted", visible: true });
+    // `world.strangeness` is a formula-only `DerivedPath` (`derived.ts`) with no stored
+    // counterpart, so a change *named* for it must carry the derived value, not the stored
+    // base — reporting the base meant this visible change and `headline`'s own read two
+    // systems later disagreed about the same path whenever any effect modified it.
+    const derivedBefore = derivedValueResolver.resolve("world.strangeness", strangenessBefore, state.activeEffects);
+    const derivedAfter = derivedValueResolver.resolve("world.strangeness", strangenessBase, state.activeEffects);
+    changes.push({ path: "world.strangeness", op: "set", value: derivedAfter, previous: derivedBefore, reason: "world_strangeness_shifted", visible: true });
   }
 
   if (def.choices !== undefined && def.choices.length > 0) {
@@ -835,7 +888,7 @@ function fireEvent(
     return { ...next, pendingEventResponses: [...next.pendingEventResponses, pending] };
   }
 
-  return def.automaticOutcome === undefined ? next : applyEventOutcome(next, def, def.automaticOutcome);
+  return def.automaticOutcome === undefined ? next : applyEventOutcome(next, def, def.automaticOutcome, messages, firing);
 }
 
 /**
@@ -862,9 +915,10 @@ function events(
   state: SimulationKindState,
   defs: readonly EventDefinition[],
   rng: RngHandle | undefined,
-): { state: SimulationKindState; changes: StateChange[] } {
+): { state: SimulationKindState; changes: StateChange[]; messages: OutcomeMessage[] } {
   const week = state.calendar.currentWeek;
   const changes: StateChange[] = [];
+  const messages: OutcomeMessage[] = [];
   const find = (id: string): EventDefinition | undefined => defs.find((d) => d.id === id);
 
   const due: ScheduledEvent[] = state.scheduledEvents
@@ -876,14 +930,24 @@ function events(
     scheduledEvents: state.scheduledEvents.filter((s) => s.scheduledWeek > week),
   };
 
+  // Counts every firing this pass makes, scheduled and drawn alike, so `applyEventOutcome`
+  // can mint scheduled-event ids that stay distinct when one definition fires more than
+  // once — two due entries naming it, or a `cooldownWeeks: 0` definition winning the random
+  // draw in the same week it fired from the schedule.
+  let firing = 0;
+
   for (const entry of due) {
     const def = find(entry.eventId);
     if (!def) continue;
     const answered = entry.payload?.["choiceId"];
-    next = fireEvent(next, def, typeof answered === "string" ? answered : undefined, rng, changes);
+    next = fireEvent(next, def, typeof answered === "string" ? answered : undefined, rng, changes, messages, firing);
+    firing += 1;
   }
 
   const eligible = defs.filter((def) => {
+    // `drawable` first: an un-drawable weight is a scheduled-only event (see the helper),
+    // not an error, and `weightedPick` would throw on it rather than skip it.
+    if (!drawable(def.weight)) return false;
     if (def.unique === true && next.world.firedUniqueEvents.includes(def.id)) return false;
     const lastFired = next.world.eventCooldowns[def.id];
     if (lastFired !== undefined && def.cooldownWeeks !== undefined && week - lastFired < def.cooldownWeeks) return false;
@@ -893,10 +957,11 @@ function events(
 
   if (rng !== undefined && eligible.length > 0) {
     const drawn = rng.weightedPick(eligible.map((item) => ({ item, weight: item.weight })));
-    next = fireEvent(next, drawn, undefined, rng, changes);
+    next = fireEvent(next, drawn, undefined, rng, changes, messages, firing);
+    firing += 1;
   }
 
-  return { state: next, changes };
+  return { state: next, changes, messages };
 }
 
 /**
@@ -916,6 +981,21 @@ function events(
  * remaining pool holds no eligible id, it refills from the full eligible set and
  * `cyclesCompleted` increments — which is what that field is for. First in authored order,
  * not a weighted draw: §7.9 gives `HeadlineDefinition` no `weight`.
+ *
+ * **A week with nothing eligible clears `shownThisWeek` rather than leaving it alone.** The
+ * field is named for the week it belongs to; carrying last week's id forward through a quiet
+ * week would report stale news as current, and a client cannot tell the two apart because
+ * the absence of a `headline_shown` change is not something a projection reads. Cleared by
+ * omitting the key, not by writing `undefined` — `canonicalStringify` (§2) drops neither
+ * silently, and the field is optional precisely so "no headline this week" is expressible.
+ *
+ * **Clearing an *exhausted* pool counts its cycle then and there.** `shownThisWeek` is the
+ * only evidence that a pool with no `remainingIds` has ever been filled, and `firstFill`
+ * below reads exactly that evidence to tell a spent pool from the untouched one
+ * `initial.ts` builds. Dropping the field without counting would make the next refill look
+ * like the first, and a completed cycle would vanish for every quiet week that happened to
+ * land on an empty pool. The total is the same either way; only the week the increment
+ * lands in moves, and it lands in the week the pool was actually spent.
  */
 function headline(
   state: SimulationKindState,
@@ -929,9 +1009,35 @@ function headline(
     if (def.conditions !== undefined && !evaluateSimulationCondition(def.conditions, state)) return false;
     return true;
   });
-  if (eligible.length === 0) return { state, changes: [] };
-
   const pool = state.world.headlinePool;
+  if (eligible.length === 0) {
+    // Optional chain, not an assertion: a campaign with no headlines at all never reaches
+    // the pool below, and this branch must stay as tolerant of a headline-free game as the
+    // early return it replaced — there is nothing to clear when there is no pool.
+    if (pool?.shownThisWeek === undefined) return { state, changes: [] };
+    // Rebuilt field by field rather than destructured with a discarded `shownThisWeek`: the
+    // key has to be *absent*, and naming a binding only to throw it away is the unused
+    // variable the lint rule is right to reject.
+    //
+    // An empty `remainingIds` alongside a set `shownThisWeek` is a pool that has just been
+    // spent to the last id. Count that cycle before the clear removes the only thing that
+    // distinguishes it from a pool that has never been filled (see the note above).
+    const spent = pool.remainingIds.length === 0;
+    return {
+      state: {
+        ...state,
+        world: {
+          ...state.world,
+          headlinePool: {
+            remainingIds: pool.remainingIds,
+            cyclesCompleted: spent ? pool.cyclesCompleted + 1 : pool.cyclesCompleted,
+          },
+        },
+      },
+      changes: [],
+    };
+  }
+
   let remainingIds = pool.remainingIds;
   let cyclesCompleted = pool.cyclesCompleted;
 
@@ -1043,7 +1149,11 @@ function failure(state: SimulationKindState, goalDefs: readonly GoalDefinition[]
   });
 
   const next: SimulationKindState = { ...state, goals: nextGoals };
-  if (next.resolution !== null) return next;
+  // `?? null`, not `!== null`: `deserialize` is a bare `JSON.parse` with no migration step,
+  // so a session persisted before `resolution` existed comes back with the key absent. A
+  // strict `!== null` treats that `undefined` as "already resolved" and short-circuits —
+  // leaving the save permanently unwinnable and unlosable. Same guard in `weekLimit` below.
+  if ((next.resolution ?? null) !== null) return next;
   if (nextGoals.length === 0 || nextGoals.some((goal) => goal.status === "active")) return next;
 
   const goalsMet = nextGoals.filter((g) => g.status === "completed").map((g) => g.definitionId).sort();
@@ -1073,7 +1183,7 @@ function failure(state: SimulationKindState, goalDefs: readonly GoalDefinition[]
  * path was unreachable by construction before this unit.
  */
 function weekLimit(state: SimulationKindState, limit: number | undefined): SimulationKindState {
-  if (state.resolution !== null) return state;
+  if ((state.resolution ?? null) !== null) return state;
   if (limit === undefined || state.calendar.currentWeek < limit) return state;
 
   return {
@@ -1171,7 +1281,7 @@ export function runEndOfWeek(
   courses: readonly CourseDefinition[] = [],
   items: readonly ItemDefinition[] = [],
   world: EndOfWeekWorld = {},
-): { state: SimulationKindState; changes: StateChange[] } {
+): { state: SimulationKindState; changes: StateChange[]; messages: OutcomeMessage[] } {
   let next = employment(state, jobs, emit);
   ranSystem(emit, "employment");
 
@@ -1235,5 +1345,10 @@ export function runEndOfWeek(
       ...opportunitiesResult.changes, ...eventsResult.changes, ...headlineResult.changes,
       ...achievementsResult.changes,
     ],
+    // `events` is the only system that produces player-facing text: an `EventOutcome`'s
+    // `messages` (§7.6). `advance.ts` folds these into the same `AdvanceResult.messages`
+    // channel a resolver's `ActionOutcome.messages` reach (04 §12), so an event's flavour
+    // text arrives by the same route as an action's.
+    messages: eventsResult.messages,
   };
 }

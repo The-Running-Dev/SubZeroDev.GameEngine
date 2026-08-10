@@ -340,6 +340,16 @@ target position was just filled, then expire anything past `expiresAtWeek`, then
 opportunities from the eligible pool. Revoking and expiring before offering means a slot freed
 this week becomes available to re-offer this week rather than next.
 
+**"Just filled" means observed to be filled, and `world.jobMarket.openings` does not say
+that.** That collection is written only by `search_for_work` (§5.2) — it holds the jobs *this
+player has surfaced*, and is empty until they look. Absence from it is ignorance, not
+evidence, and reading the two as the same thing revokes every unsolicited contested
+`job_offer` on the first pass after it is made, whatever its `durationWeeks`, and makes a
+contested `promotion` unsurvivable outright, since a promotion target is reached through
+`JobDefinition.promotionPaths` (§7.3) and is never posted as an opening at all. Until rivals
+exist (§7.10), the only filling this engine can observe is the player's own hire, so that is
+what the predicate tests; it widens to rivals without changing shape.
+
 **Why explicit decline exists.** Letting an offer lapse and refusing it to someone's face are
 different acts once NPCs remember things (§7.7) — turning down a
 manager's offer is a relationship event; forgetting to answer is a different one. Without a

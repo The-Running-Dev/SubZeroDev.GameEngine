@@ -15,7 +15,7 @@ import { runEndOfWeek } from "./endOfWeek.js";
 import { rngHandleFor } from "../../core/determinism/rng.js";
 import type { RngHandle } from "../../core/determinism/types.js";
 import type { ResolutionEmitter } from "../../core/observability/types.js";
-import type { NeedState } from "./actor.js";
+import type { Employment, NeedState } from "./actor.js";
 import type {
   AchievementDefinition,
   EventDefinition,
@@ -148,8 +148,28 @@ describe("opportunities — §2.3's lifecycle (W57.3)", () => {
     expect(run(state, { opportunities: [] }).state.activeOpportunities.map((o) => o.id)).toEqual(["open-1"]);
   });
 
-  it("revokes a contested job offer whose target opening has been filled", () => {
+  /** The one filling this engine can actually observe: the player took the position. A
+   *  complete `Employment` rather than a cast-away partial — `employment`, `financeIncome`
+   *  and `housing` all run over this state before `opportunities` does, and a missing
+   *  `weeklyPayCents` alone is enough to settle the week's wages to `NaN`. */
+  function employedIn(jobId: string): SimulationKindState["player"] {
+    const base = baseState().player;
+    const employment: Employment = {
+      jobId,
+      employerId: "emp-1",
+      startedWeek: 1,
+      performance: 50,
+      attendanceRatio: 100,
+      warnings: 0,
+      weeklyPayCents: 50_000,
+      weeksAtCurrentPay: 4,
+    };
+    return { ...base, career: { ...base.career, currentEmployment: employment } };
+  }
+
+  it("revokes a contested job offer whose target position the player now holds", () => {
     const state = baseState({
+      player: employedIn("job-1"),
       activeOpportunities: [standing({ id: "open-job", kind: "job_offer", targetId: "job-1", definitionId: "def-job" })],
     });
     const result = run(state, { opportunities: [opportunityDef({ id: "def-job", kind: "job_offer", targetId: "job-1", contested: true })] });
@@ -157,12 +177,44 @@ describe("opportunities — §2.3's lifecycle (W57.3)", () => {
     expect(result.changes.some((c) => c.reason === "opportunity_revoked")).toBe(true);
   });
 
-  it("does not revoke an uncontested offer, however empty the job market is", () => {
+  it("does not revoke a contested offer merely because the job market is empty", () => {
+    // `world.jobMarket.openings` is written only by `search_for_work` — it is what *this
+    // player has surfaced*, not a world market, and is empty until they look. Reading its
+    // emptiness as "filled by a rival" revoked every unsolicited contested offer one week
+    // after it was made, whatever its `durationWeeks`.
     const state = baseState({
+      activeOpportunities: [standing({ id: "open-job", kind: "job_offer", targetId: "job-1", definitionId: "def-job" })],
+    });
+    const result = run(state, { opportunities: [opportunityDef({ id: "def-job", kind: "job_offer", targetId: "job-1", contested: true })] });
+    expect(result.state.activeOpportunities.map((o) => o.id)).toEqual(["open-job"]);
+    expect(result.changes.some((c) => c.reason === "opportunity_revoked")).toBe(false);
+  });
+
+  it("leaves a contested promotion standing — its target is never posted as an opening", () => {
+    // A promotion target is reached through `JobDefinition.promotionPaths`, so it can never
+    // appear in `openings` at all; the old rule made a contested promotion unable to survive
+    // a single pass.
+    const state = baseState({
+      activeOpportunities: [standing({ id: "open-promo", kind: "promotion", targetId: "job-senior", definitionId: "def-promo" })],
+    });
+    const result = run(state, { opportunities: [opportunityDef({ id: "def-promo", kind: "promotion", targetId: "job-senior", contested: true })] });
+    expect(result.state.activeOpportunities.map((o) => o.id)).toEqual(["open-promo"]);
+  });
+
+  it("does not revoke an uncontested offer even for a position the player now holds", () => {
+    const state = baseState({
+      player: employedIn("job-1"),
       activeOpportunities: [standing({ id: "open-job", kind: "job_offer", targetId: "job-1", definitionId: "def-job" })],
     });
     const result = run(state, { opportunities: [opportunityDef({ id: "def-job", kind: "job_offer", targetId: "job-1", contested: false })] });
     expect(result.state.activeOpportunities.map((o) => o.id)).toEqual(["open-job"]);
+  });
+
+  it("never offers a definition whose weight cannot be drawn — it does not throw either", () => {
+    // `weightedPick` rejects any weight that is not a positive integer, so `weight: 0` (the
+    // natural "scheduled-only, never rolls" authoring) would have thrown out of `advance`.
+    const result = run(baseState(), { opportunities: [opportunityDef({ weight: 0 })], rng: rng() });
+    expect(result.state.activeOpportunities).toEqual([]);
   });
 
   it("offers from the eligible pool, dated from the definition's durationWeeks", () => {
@@ -333,6 +385,80 @@ describe("events — §2.3's firing order and deferred responses (W57.2)", () =>
     expect(result.state.pendingEventResponses).toEqual([]);
   });
 
+  it("skips a weight the RNG cannot draw instead of throwing out of the pass", () => {
+    // `weightedPick` rejects any weight that is not a positive integer. `weight: 0` is the
+    // natural way to author "this only ever fires when a chain schedules it" — unfiltered,
+    // the first week its conditions held threw an Error out of `advance` entirely.
+    const scheduledOnly = eventDef({ id: "event-chain-only", weight: 0 });
+    expect(() => run(baseState(), { events: [scheduledOnly], rng: rng() })).not.toThrow();
+    expect(run(baseState(), { events: [scheduledOnly], rng: rng() }).state.world.strangenessBase).toBe(0);
+  });
+
+  it("still fires an undrawable event when a chain schedules it — the whole point of weight 0", () => {
+    const scheduledOnly = eventDef({ id: "event-chain-only", weight: 0 });
+    const state = baseState({
+      scheduledEvents: [{ id: "s-1", eventId: "event-chain-only", scheduledWeek: 5, createdWeek: 3 }],
+    });
+    expect(run(state, { events: [scheduledOnly], rng: rng() }).state.world.eventCooldowns["event-chain-only"]).toBe(5);
+  });
+
+  it("carries an outcome's authored messages out of the pass", () => {
+    const def = eventDef({
+      automaticOutcome: { effects: [], messages: [{ key: "k.power-cut", visible: true }] },
+    });
+    expect(run(baseState(), { events: [def], rng: rng() }).messages).toEqual([{ key: "k.power-cut", visible: true }]);
+  });
+
+  it("reports the derived value on the world.strangeness change, not the stored base", () => {
+    // `world.strangeness` is a formula-only `DerivedPath`; a change named for it that
+    // carried `strangenessBase` disagreed with `headline`'s own read two systems later.
+    const state = baseState({
+      activeEffects: [{
+        id: "e-1", sourceId: "s", sourceKind: "system",
+        modifiers: [{ target: "world.strangeness", operation: "add", value: 40, sourceId: "s" }],
+        appliedWeek: 1, stacking: "refresh", descriptionKey: "k", visible: true,
+      }],
+    });
+    const change = run(state, { events: [eventDef()], rng: rng() })
+      .changes.find((c) => c.path === "world.strangeness");
+    expect(change).toMatchObject({ value: 45, previous: 40 });
+  });
+
+  it("gives two events scheduling the same follow-up onto one week distinct ids", () => {
+    // Sharing an id fired the follow-up twice and made `endsChain` cancellation ambiguous.
+    const spec = { effects: [], messages: [], scheduledEvents: [{ eventId: "event-follow", inWeeks: 2 }] };
+    const first = eventDef({ id: "event-a", automaticOutcome: spec });
+    const second = eventDef({ id: "event-b", automaticOutcome: spec, conditions: { field: "calendar.currentWeek", operator: "greater_or_equal", value: 99 } });
+    const state = baseState({
+      scheduledEvents: [{ id: "s-1", eventId: "event-b", scheduledWeek: 5, createdWeek: 3 }],
+    });
+    const result = run(state, { events: [first, second], rng: rng() });
+    const ids = result.state.scheduledEvents.map((s) => s.id);
+    expect(ids).toHaveLength(2);
+    expect(new Set(ids).size).toBe(2);
+  });
+
+  it("gives one definition's two firings in a single pass distinct ids too", () => {
+    // `def.id` and the entry index are not enough on their own: two chains can schedule the
+    // *same* follow-up onto one week, which is exactly what distinct ids above now allow, and
+    // both entries then fire that one definition in a single pass. Without the firing
+    // ordinal both firings mint the identical scheduled id.
+    const def = eventDef({
+      id: "event-follow",
+      conditions: { field: "calendar.currentWeek", operator: "greater_or_equal", value: 99 },
+      automaticOutcome: { effects: [], messages: [], scheduledEvents: [{ eventId: "event-x", inWeeks: 2 }] },
+    });
+    const state = baseState({
+      scheduledEvents: [
+        { id: "s-1", eventId: "event-follow", scheduledWeek: 5, createdWeek: 3 },
+        { id: "s-2", eventId: "event-follow", scheduledWeek: 5, createdWeek: 3 },
+      ],
+    });
+    const ids = run(state, { events: [def], rng: rng() }).state.scheduledEvents.map((s) => s.id);
+    expect(ids).toHaveLength(2);
+    expect(new Set(ids).size).toBe(2);
+  });
+
   it("takes no random draw at all when no rng is supplied, but still fires scheduled events", () => {
     const state = baseState({
       scheduledEvents: [{ id: "s-1", eventId: "event-1", scheduledWeek: 5, createdWeek: 3 }],
@@ -387,9 +513,50 @@ describe("headline — §3's ordering, made observable (W57.4)", () => {
     expect(third.state.world.headlinePool).toMatchObject({ shownThisWeek: "h-a", cyclesCompleted: 1 });
   });
 
-  it("leaves the pool untouched when no headline is eligible", () => {
+  it("leaves the pool untouched when no headline is eligible and none was ever shown", () => {
     const result = run(baseState(), { headlines: [STRANGE] });
     expect(result.state.world.headlinePool.shownThisWeek).toBeUndefined();
+  });
+
+  it("clears last week's headline in a week with nothing eligible, rather than carrying it", () => {
+    // `shownThisWeek` is named for the week it belongs to. Leaving it alone reported stale
+    // news as current, and no projection can tell the two apart — the absence of a
+    // `headline_shown` change is not something a client reads.
+    const shown = run(baseState(), { headlines: [QUIET] });
+    expect(shown.state.world.headlinePool.shownThisWeek).toBe("h-quiet");
+
+    const quietWeek = run(baseState({ world: shown.state.world }), { headlines: [STRANGE] });
+    expect(quietWeek.state.world.headlinePool.shownThisWeek).toBeUndefined();
+    expect("shownThisWeek" in quietWeek.state.world.headlinePool).toBe(false);
+  });
+
+  it("counts the cycle when the quiet week clears a pool that was already spent", () => {
+    // `shownThisWeek` is the only thing distinguishing a spent pool from the untouched one
+    // `initial.ts` builds, and `firstFill` reads it. Clearing it without counting made the
+    // next refill look like the first, silently losing a completed cycle.
+    const a: HeadlineDefinition = { id: "h-a", textKey: "k.a", tags: [] };
+    const b: HeadlineDefinition = { id: "h-b", textKey: "k.b", tags: [] };
+    const w1 = run(baseState(), { headlines: [a, b] });
+    const w2 = run(baseState({ world: w1.state.world }), { headlines: [a, b] });
+    expect(w2.state.world.headlinePool).toMatchObject({ remainingIds: [], cyclesCompleted: 0 });
+
+    const quiet = run(baseState({ world: w2.state.world }), { headlines: [STRANGE] });
+    expect(quiet.state.world.headlinePool).toMatchObject({ remainingIds: [], cyclesCompleted: 1 });
+
+    // The refill that follows does not count it a second time — the same total the same
+    // three weeks reach without the quiet week in the middle.
+    const w4 = run(baseState({ world: quiet.state.world }), { headlines: [a, b] });
+    expect(w4.state.world.headlinePool).toMatchObject({ shownThisWeek: "h-a", cyclesCompleted: 1 });
+  });
+
+  it("does not count a cycle when the quiet week clears a pool with entries left", () => {
+    const a: HeadlineDefinition = { id: "h-a", textKey: "k.a", tags: [] };
+    const b: HeadlineDefinition = { id: "h-b", textKey: "k.b", tags: [] };
+    const w1 = run(baseState(), { headlines: [a, b] });
+    expect(w1.state.world.headlinePool).toMatchObject({ remainingIds: ["h-b"], cyclesCompleted: 0 });
+
+    const quiet = run(baseState({ world: w1.state.world }), { headlines: [STRANGE] });
+    expect(quiet.state.world.headlinePool).toMatchObject({ remainingIds: ["h-b"], cyclesCompleted: 0 });
   });
 });
 
@@ -525,6 +692,24 @@ describe("week_limit — the third terminal path (W57.6)", () => {
   it("resolves a scenario with no goals purely on the cap", () => {
     const result = runEndOfWeek(baseState(), silentEmitter(), NO_GOALS, "goals_win", [], [], [], { weekLimit: 5 });
     expect(result.state.resolution?.resolution).toBe("week_limit_reached");
+  });
+
+  it("resolves a session persisted before `resolution` existed, where the field is absent", () => {
+    // `deserialize` is a bare `JSON.parse` with no migration step, so an older save comes
+    // back with the key missing rather than `null`. A strict `!== null` guard read that
+    // `undefined` as "already resolved" and short-circuited both `failure` and `week_limit`,
+    // leaving the save permanently unwinnable and unlosable.
+    const legacy = baseState();
+    delete (legacy as Partial<SimulationKindState>).resolution;
+    const result = runEndOfWeek(legacy, silentEmitter(), NO_GOALS, "goals_win", [], [], [], { weekLimit: 5 });
+    expect(result.state.resolution?.resolution).toBe("week_limit_reached");
+  });
+
+  it("resolves goals on a legacy save too — `failure` carries the same guard", () => {
+    const legacy = baseState({ goals: [goal("active")] });
+    delete (legacy as Partial<SimulationKindState>).resolution;
+    const result = runEndOfWeek(legacy, silentEmitter(), [ALWAYS], "goals_win", [], [], [], {});
+    expect(result.state.resolution).toMatchObject({ resolution: "goals_met", goalsMet: ["goal-1"] });
   });
 
   it("achievements can see the final resolution, because week_limit ran first", () => {
