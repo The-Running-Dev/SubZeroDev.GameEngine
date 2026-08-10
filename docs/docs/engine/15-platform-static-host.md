@@ -6,7 +6,23 @@ sidebar_label: Platform Static Host
 
 # Platform Static Host — Container Delivery without a Hosted Engine
 
-**Document status:** Revision 1 — agreed W62 build target
+**Document status:** Revision 2 — **historical.** Revision 1 was the agreed W62 build target
+and shipped; this block is no longer a target the repository builds against. Two things
+outdated it. W69 removed `/play/` from the site build, so the four-route artifact §4 and §6
+describe is a three-route artifact
+([`13-playable-web-demo.md`](13-playable-web-demo.md), Revision 4). And the hosted direction
+moved out of this repository along with the play surface. The route lists below are corrected
+rather than left false — a retired document that is also wrong about what it retired teaches
+a reader two things instead of one — but nothing here is a specification to build to.
+
+> **The image workflow is still live, and that is the sharp edge of retiring this block.**
+> `.github/workflows/host-image.yml` still builds, smokes and publishes on every merge, and
+> `src/host/` is still in the tree. It is not one of the three required checks
+> (`CLAUDE.md`, *Git and Pull Requests*) and W62 deliberately deploys nothing, so nothing is
+> gated on a contract that no longer binds — but a future change to that workflow or that host
+> now has no document to check itself against. Whether the host follows the play surface out
+> of this repository is a decision this reconciliation did not make; it is recorded in
+> `90-decisions.md`.
 
 **Reading order:** after [`14-game-interface.md`](14-game-interface.md). That document owns
 the presentation layer over the browser client; this one owns an additional container delivery
@@ -85,9 +101,15 @@ One multi-stage image build owns the production assembly from a single GameEngin
 4. publish the ASP.NET product host;
 5. copy only the verified combined artifact into the runtime image's `wwwroot`.
 
-The container serves real files at `/`, `/roadmap/`, `/play/`, and `/docs/`. There is no SPA
+The container serves real files at `/`, `/roadmap/`, and `/docs/`. There is no SPA
 fallback: an unknown route returns `404`, and a direct request to every supported route works
 without first requesting `/`. Static bytes are not rewritten by the host.
+
+> **Revision 1 listed `/play/` as a fourth route.** W69 removed it from the site build, and
+> the host followed in the same branch: `StaticArtifact.RequiredRelativePaths` is
+> `index.html`, `roadmap/index.html`, `docs/index.html`, and the missing-artifact fixture that
+> proves the startup guard fails red now deletes `roadmap/index.html` instead of
+> `play/index.html`. The no-fallback property is unaffected and still asserted.
 
 Platform's liveness and readiness endpoints are also mapped. They are operational endpoints,
 not part of the static artifact and not routed through a catch-all. Successful startup means
@@ -114,13 +136,20 @@ game session is W61's in-browser memory, and refreshing the page already starts 
 
 Pull requests build the image, start it, and smoke-test:
 
-- `200` responses for `/`, `/roadmap/`, `/play/`, `/docs/`, liveness, and readiness;
+- `200` responses for `/`, `/roadmap/`, `/docs/`, liveness, and readiness;
 - `404` for a named unknown route, proving there is no fallback;
-- the expected route metadata and protected documentation-subtree digest;
-- an orderly container stop; and
-- a browser production smoke showing `/play/` makes no engine API request, and no request at
-  all outside the same-origin `campaigns/` files it is served from
-  ([`13-playable-web-demo.md`](13-playable-web-demo.md) §6).
+- the expected route metadata and protected documentation-subtree digest; and
+- an orderly container stop.
+
+> **Revision 1 required a sixth check and a browser production smoke, and both went with the
+> route.** The smoke existed to prove `/play/` made no engine API request and no request
+> outside the same-origin `campaigns/` files; with no `/play/` in the artifact it has nothing
+> left to assert, so the step and its playwright project were removed in W69's follow-up
+> rather than left green over an absent route. Whether the property deserves a replacement is
+> tracked as
+> [issue #273](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/273); it is the
+> same question §4 of `13` now answers for the Node-only half, and the same answer applies —
+> the assertion belongs beside the bundle it guards, which is no longer emitted here.
 
 The workflow must contain a negative fixture or test mode that deliberately omits or corrupts a
 required artifact and proves the build or startup goes red. A smoke test that has never been

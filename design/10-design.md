@@ -2507,12 +2507,24 @@ sidebar_label: Playable Web Demo
 
 # Playable Web Demo — Browser Client and Static Delivery
 
-**Document status:** Revision 3 — **the route this document specifies is being retired.**
-`/play/` was extracted into `SubZeroDev.Adventures`, which is the play surface going forward;
-see *Succeeded by SubZeroDev.Adventures* below. Revision 2 restated §4's checksum mechanism
-and bundle gate and §5's checkpoint lifetime against what W61 built, and §1's opening path,
+**Document status:** Revision 4 — **the route this document specifies has been retired.**
+W69 dropped `/play/` from the site build: `site/landing.config.ts` declares `/` and
+`/roadmap/` only, the landing page's Play links now point at
+[SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures), and the
+static host requires three documents rather than four. Revision 3 anticipated this in the
+future tense throughout; every such sentence is now past tense. Revision 4 also removes §4's
+gate — see that section — while keeping every claim §4 makes about the package. Revision 3
+recorded the extraction into Adventures; Revision 2 restated §4's checksum mechanism and
+bundle gate and §5's checkpoint lifetime against what W61 built, and §1's opening path,
 §10's non-goals and §11's first row against the multi-campaign shelf W63 and W64 shipped.
 §§2–3 and §§6–9 are unchanged except where they cited §5's same-page limit.
+
+> **`site/src/play/` is still in the tree, and still runs.** The route is gone from the build;
+> the browser adapter, its ten-operation coverage suite and its parity proof are not.
+> [`09-clients.md`](09-clients.md) §4's browser-demo column cites
+> `site/src/play/browser-client.test.ts`, which still executes under both site test
+> configurations. The directory is live evidence for a live claim, not dead code awaiting
+> deletion.
 
 **Reading order:** after [`09-clients.md`](09-clients.md). That document owns what every
 client may do; this one owns the first public browser client's product boundary, composition,
@@ -2523,22 +2535,30 @@ and delivery.
 `/play/` proved what this document set out to prove, and the client then outgrew the engine
 repository. It now lives in
 [SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures) — a client
-repository with no `design/` of its own, consuming this engine as a pinned git submodule. That
-repository states the direction plainly: the engine's own `/play/` route exists for a
-transitional period, and Adventures is the one going forward.
+repository with no `design/` of its own, consuming this engine as a pinned git submodule.
+Revision 3 described the engine's own route as existing for a transitional period; W69 ended
+it, and Adventures is now the only play surface either repository ships.
 
 **What survives the move, and what does not:**
 
-- **§4 survives, and is the reason to read this document.** *Browser portability is an engine
-  property, asserted over the emitted bundle* is a claim about `src/engine/`, not about a
-  route. Adventures carries the same assertion across the submodule boundary, for the same
-  reason. Whichever repository ships a browser build, this section governs it.
+- **§4 survives, and is the reason to read this document — but its gate does not.** *Browser
+  portability is an engine property* is a claim about `src/engine/`, not about a route, and
+  every constraint §4 places on the package still binds. What went with `/play/` is this
+  repository's ability to *assert* it over an emitted bundle: nothing here now bundles the
+  engine for a browser, so the check runs over bundles that cannot contain it. Adventures
+  carries the assertion, over a bundle it can see. §4 states the rule; the repository that
+  ships a browser build proves the bytes comply.
 - **§3's dependency direction survives.** A client composes the engine; the engine never learns
   the client exists. Adventures is the proof — it added a hosted API, durable persistence and
   accounts without a single reciprocal engine change.
 - **§§1–2, §§6–9 are historical.** They describe a route, its states, its delivery and its
-  failure behaviour, and the route is going away. They are retained as the record of what the
-  first public browser client was, not as a target to build against.
+  failure behaviour, and the route is gone. They are retained as the record of what the first
+  public browser client was, not as a target to build against. Two consequences of the removal
+  are worth naming rather than leaving to be discovered: §6's same-origin `campaigns/` fetch
+  has no caller, so the nine campaign JSON files and their manifest still ship in `site/public/`
+  and are copied into every artifact with nothing reading them; and §7's acceptance that "a
+  direct static request to `/play/` succeeds" is not something any gate now checks, because
+  there is no such route to request.
 - **§5's checkpoint lifetime is superseded by a stronger implementation.** Adventures has
   durable server-side saves, so the same-page limit this section negotiates no longer binds
   the product. The engine-side gaps §5 exposed are real and outlive the route — they are in
@@ -2681,12 +2701,23 @@ Support is capability-based: ES2022 modules, `crypto.randomUUID`, and `TextEncod
 static page detects a missing required capability before composition and renders an actionable
 unsupported-browser message instead of failing during play.
 
-A browser production-bundle smoke test is the gate, and it is an **assertion over the emitted
-bundle**, not the build succeeding. The site's build verification scans the produced assets for
-`node:` specifiers and Node-only globals and fails on a hit. "The bundler would have
-complained" is the same class of claim as "typechecking DOM declarations proves portability" —
-it may be true today, and it is not a gate. The site now depends on the engine by path, so a
-future engine change can reintroduce a Node-only import with nothing else watching.
+**Revision 4 removes this section's gate, and keeps the property.** Every bullet above is a
+statement about what the *package* must contain, and each remains binding. What no longer
+appears here is the requirement that this repository assert it over an emitted bundle.
+
+Revision 2 made that assertion the gate, on the reasoning that the site depended on the engine
+by path and an engine change could reintroduce a Node-only import with nothing else watching.
+W69 retired `/play/` from the build, and `/play/` was the only route that imported the engine —
+so the scan this repository runs now passes over bundles containing no engine code at all. A
+gate whose subject has been deleted is not a weaker gate; it is a green check that means
+nothing, which is a worse position than having none, because it reads as coverage.
+
+The property is asserted where a browser bundle containing the engine is actually emitted,
+which is
+[SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures) — it carries
+its own `scripts/verify-build.mjs` with the same scan, over a bundle the scan can see. This
+document states what the package must not contain; the repository that ships a browser build
+of it states that the shipped bytes comply.
 
 ## 5. Checkpoints and Lifetime
 
@@ -2864,15 +2895,19 @@ against whatever else is on the shelf.
 
 # Game Interface — Absurd Adventure Stage and Dashboard
 
-**Document status:** Revision 3 — **historical.** This document specifies the appearance of
-the `/play/` route, and that route is being retired in favour of
+**Document status:** Revision 4 — **historical.** This document specifies the appearance of
+the `/play/` route, and that route has been retired in favour of
 [SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures)
 ([`13-playable-web-demo.md`](13-playable-web-demo.md), *Succeeded by SubZeroDev.Adventures*).
 Adventures has since taken the play surface in a different visual direction — a selectable
 retro-terminal identity rather than this document's adventure cabinet — and it owns that
-choice, having no `design/` here to answer to. Nothing in §§1–8 binds the engine repository
-any longer. Revision 2 restated §8 as the W66 mobile-first target, proven by the browser test
-harness W65 stands up, and left §§1–7 unchanged.
+choice, having no `design/` here to answer to. Revision 3 said "nothing in §§1–8 binds the
+engine repository any longer" and stopped at §8, which left §9's delivery claim reading as
+live; **nothing in §§1–12 binds it** — W69 removed the route from the build entirely, so §9's
+"the production build still emits a direct static `/play/` route" describes something that has
+not been true since ([`13-playable-web-demo.md`](13-playable-web-demo.md), Revision 4).
+Revision 2 restated §8 as the W66 mobile-first target, proven by the browser test harness W65
+stands up, and left §§1–7 unchanged.
 
 **Reading order:** after [`13-playable-web-demo.md`](13-playable-web-demo.md). That document
 owns the browser boundary and delivery model; this one owns how the established multi-campaign
@@ -3261,7 +3296,23 @@ sidebar_label: Platform Static Host
 
 # Platform Static Host — Container Delivery without a Hosted Engine
 
-**Document status:** Revision 1 — agreed W62 build target
+**Document status:** Revision 2 — **historical.** Revision 1 was the agreed W62 build target
+and shipped; this block is no longer a target the repository builds against. Two things
+outdated it. W69 removed `/play/` from the site build, so the four-route artifact §4 and §6
+describe is a three-route artifact
+([`13-playable-web-demo.md`](13-playable-web-demo.md), Revision 4). And the hosted direction
+moved out of this repository along with the play surface. The route lists below are corrected
+rather than left false — a retired document that is also wrong about what it retired teaches
+a reader two things instead of one — but nothing here is a specification to build to.
+
+> **The image workflow is still live, and that is the sharp edge of retiring this block.**
+> `.github/workflows/host-image.yml` still builds, smokes and publishes on every merge, and
+> `src/host/` is still in the tree. It is not one of the three required checks
+> (`CLAUDE.md`, *Git and Pull Requests*) and W62 deliberately deploys nothing, so nothing is
+> gated on a contract that no longer binds — but a future change to that workflow or that host
+> now has no document to check itself against. Whether the host follows the play surface out
+> of this repository is a decision this reconciliation did not make; it is recorded in
+> `90-decisions.md`.
 
 **Reading order:** after [`14-game-interface.md`](14-game-interface.md). That document owns
 the presentation layer over the browser client; this one owns an additional container delivery
@@ -3340,9 +3391,15 @@ One multi-stage image build owns the production assembly from a single GameEngin
 4. publish the ASP.NET product host;
 5. copy only the verified combined artifact into the runtime image's `wwwroot`.
 
-The container serves real files at `/`, `/roadmap/`, `/play/`, and `/docs/`. There is no SPA
+The container serves real files at `/`, `/roadmap/`, and `/docs/`. There is no SPA
 fallback: an unknown route returns `404`, and a direct request to every supported route works
 without first requesting `/`. Static bytes are not rewritten by the host.
+
+> **Revision 1 listed `/play/` as a fourth route.** W69 removed it from the site build, and
+> the host followed in the same branch: `StaticArtifact.RequiredRelativePaths` is
+> `index.html`, `roadmap/index.html`, `docs/index.html`, and the missing-artifact fixture that
+> proves the startup guard fails red now deletes `roadmap/index.html` instead of
+> `play/index.html`. The no-fallback property is unaffected and still asserted.
 
 Platform's liveness and readiness endpoints are also mapped. They are operational endpoints,
 not part of the static artifact and not routed through a catch-all. Successful startup means
@@ -3369,13 +3426,20 @@ game session is W61's in-browser memory, and refreshing the page already starts 
 
 Pull requests build the image, start it, and smoke-test:
 
-- `200` responses for `/`, `/roadmap/`, `/play/`, `/docs/`, liveness, and readiness;
+- `200` responses for `/`, `/roadmap/`, `/docs/`, liveness, and readiness;
 - `404` for a named unknown route, proving there is no fallback;
-- the expected route metadata and protected documentation-subtree digest;
-- an orderly container stop; and
-- a browser production smoke showing `/play/` makes no engine API request, and no request at
-  all outside the same-origin `campaigns/` files it is served from
-  ([`13-playable-web-demo.md`](13-playable-web-demo.md) §6).
+- the expected route metadata and protected documentation-subtree digest; and
+- an orderly container stop.
+
+> **Revision 1 required a sixth check and a browser production smoke, and both went with the
+> route.** The smoke existed to prove `/play/` made no engine API request and no request
+> outside the same-origin `campaigns/` files; with no `/play/` in the artifact it has nothing
+> left to assert, so the step and its playwright project were removed in W69's follow-up
+> rather than left green over an absent route. Whether the property deserves a replacement is
+> tracked as
+> [issue #273](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/273); it is the
+> same question §4 of `13` now answers for the Node-only half, and the same answer applies —
+> the assertion belongs beside the bundle it guards, which is no longer emitted here.
 
 The workflow must contain a negative fixture or test mode that deliberately omits or corrupts a
 required artifact and proves the build or startup goes red. A smoke test that has never been

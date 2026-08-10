@@ -110,6 +110,23 @@ README, whose status is deliberately coarse.
   server does not check links — only a production build does.
 - **Encoding** — some imported source docs arrived CP1252, not UTF-8 (mojibake em-dashes /
   arrows). Rewrite to UTF-8 when importing.
+- **Removing a build input can leave its gate passing over nothing.** W69 dropped `/play/`
+  from the site build, and `/play/` was the only route importing the engine — so
+  `site/scripts/verify-build.mjs`'s scan for `node:` specifiers has been green and
+  meaningless ever since, because it reads bundles that can no longer contain engine code.
+  A scan finding zero hits looks exactly like a scan with nothing to find, so nothing
+  reported it; it took tracing every route's imports by hand to notice. When a build input
+  goes away, name every assertion whose **subject** it was — not just its callers. A gate
+  documented as coverage it does not provide is worse than no gate.
+- **A known-and-retained gap list is a ledger, and this one has gone stale twice.**
+  `90-decisions.md`'s simulation end-of-week stub list was re-derived from source on
+  2026-08-08 after three slices silently invalidated it, and the amendment wrote the
+  obligation into the entry: *a slice that turns a stub into real logic edits this entry in
+  the same PR.* Two slices later (W56, W57) it was wrong again — four of five named stubs
+  had become real. The lesson is not "write a stronger sentence": it is that a rule with no
+  gate gets checked only when someone compares the two sets by hand, the same shape as the
+  *emitted → registered* reason-code gap `20-contract.md` §10 already records. Treat a
+  hand-maintained list against code as a drift surface, and count it from source every time.
 
 ## Open Concerns & Assumptions
 
