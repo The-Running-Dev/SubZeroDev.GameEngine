@@ -158,11 +158,19 @@ interface Kind<KState> {
   readonly id: KindId;
   readonly version: string;                      // manually maintained semver (§10.2, W31)
   readonly reasonCodes: readonly ReasonCode[];   // codes this kind adds to the base set (§12)
-  /** `${id}.reason.<code>` → default-English message, one entry per `reasonCodes`. The
-   *  kind-owned half of the string table: registry assembly merges it alongside the core's
-   *  protected `core.reason.*` set (§10.1), and validation checks it for completeness
+  /** The kind-owned half of the string table: registry assembly merges it alongside the
+   *  core's protected `core.reason.*` set (§10.1), and validation checks it for completeness
    *  before assembly runs (§11, §12). A kind ships its own messages for the same reason the
-   *  core ships the base set's — the codes are useless to a client that cannot render them. */
+   *  core ships the base set's — the codes are useless to a client that cannot render them.
+   *
+   *  It must carry a `${id}.reason.<code>` entry for **every** member of `reasonCodes`; the
+   *  completeness check is `registered → has a message` and nothing more. It may carry
+   *  others, and this is a channel rather than a leak: a kind's own engine-created content
+   *  can reference a `LocKey` no campaign collection exists to author — `simulation`'s
+   *  `simulation.finance.investment.label`, on the fixed investment account its `invest`
+   *  resolver creates — and `reasonMessages` is a `Kind`'s only route into the merged
+   *  registry. Such a key is namespaced under the kind like any other and is not a reason
+   *  code; nothing resolves it as one. */
   readonly reasonMessages: ReadonlyMap<LocKey, string>;
   readonly eventNames: readonly EventName[];     // events this kind may emit (05 §9)
 

@@ -186,11 +186,19 @@ interface Kind<KState> {
   readonly id: KindId;
   readonly version: string;                      // manually maintained semver (§10.2, W31)
   readonly reasonCodes: readonly ReasonCode[];   // codes this kind adds to the base set (§12)
-  /** `${id}.reason.<code>` → default-English message, one entry per `reasonCodes`. The
-   *  kind-owned half of the string table: registry assembly merges it alongside the core's
-   *  protected `core.reason.*` set (§10.1), and validation checks it for completeness
+  /** The kind-owned half of the string table: registry assembly merges it alongside the
+   *  core's protected `core.reason.*` set (§10.1), and validation checks it for completeness
    *  before assembly runs (§11, §12). A kind ships its own messages for the same reason the
-   *  core ships the base set's — the codes are useless to a client that cannot render them. */
+   *  core ships the base set's — the codes are useless to a client that cannot render them.
+   *
+   *  It must carry a `${id}.reason.<code>` entry for **every** member of `reasonCodes`; the
+   *  completeness check is `registered → has a message` and nothing more. It may carry
+   *  others, and this is a channel rather than a leak: a kind's own engine-created content
+   *  can reference a `LocKey` no campaign collection exists to author — `simulation`'s
+   *  `simulation.finance.investment.label`, on the fixed investment account its `invest`
+   *  resolver creates — and `reasonMessages` is a `Kind`'s only route into the merged
+   *  registry. Such a key is namespaced under the kind like any other and is not a reason
+   *  code; nothing resolves it as one. */
   readonly reasonMessages: ReadonlyMap<LocKey, string>;
   readonly eventNames: readonly EventName[];     // events this kind may emit (05 §9)
 
@@ -4303,11 +4311,17 @@ namespace exempt from §12's completeness rule.
 | `action_enroll_course`, `action_attend_class`, `action_study`, `action_withdraw_course` | the education resolvers (W54) |
 | `action_eat`, `action_rest`, `action_move_housing` | the needs and housing resolvers |
 | `action_pay_bills`, `action_borrow_money`, `action_repay_debt`, `action_deposit_savings`, `action_invest` | the finance resolvers (W55) |
+| `action_shop`, `action_maintain_item`, `action_repair_item`, `action_sell_item`, `action_travel`, `action_socialize`, `action_exercise` | the possessions, places and people resolvers (W56) |
+| `action_respond_to_event`, `action_accept_opportunity`, `action_decline_opportunity` | the events and opportunities resolvers (W57) |
 | `need_drift` | the `needs` end-of-week system (§3) |
 | `wage_payment` | `finance_income` |
 | `rent_charged` | `housing` |
 | `rent_overdue`, `eviction_advanced` | `finance_reconcile` (W55) |
 | `education_course_completed`, `education_course_failed`, `education_skill_awarded`, `education_credential_awarded` | the `education` system (W54) |
+| `item_condition_decayed` | the `inventory` system (W56) |
+| `event_fired` | the `events` system (W57) |
+| `opportunity_offered`, `opportunity_expired`, `opportunity_revoked` | the `opportunities` system (W57) |
+| `headline_shown`, `world_strangeness_shifted` | the `headline` and `events` systems (W57) |
 
 > **This set grows as the dispatched systems land, and that is deliberate.** A code joins
 > `Kind.reasonCodes` when the unit that actually produces it exists, not when this table
@@ -4324,6 +4338,14 @@ namespace exempt from §12's completeness rule.
 > green until a reconciliation compared the two sets by hand. Adding an audit `reason`
 > means registering it in the same commit — the completeness check will not catch the
 > omission. Recorded in `90-decisions.md`.
+>
+> **The second lapse was this table, not the code.** W56 and W57 registered their seventeen
+> audit codes at the point of emission — exactly the discipline the paragraph above asks for
+> — and neither added a row here, so the table under-reported the shipped set by seventeen
+> until reconciliation compared the two again. That failure has the same shape and the
+> opposite direction, and no gate covers it either: nothing checks *registered → tabulated*.
+> The shipped set is `src/engine/src/kinds/simulation/reasons.ts`; when the two disagree,
+> that file is right and this table is what moves.
 
 Each code's `messageKey` lives under `simulation.reason.<code>` (04 §12), the
 `<kindId>.reason.*` convention — not to be confused with 05 §9's `kind.<kindId>.*` *event*
@@ -4499,12 +4521,16 @@ phase this contract precedes, not to another doc-only pass.
 > closed is the *specification*: every field `SimulationKindState` names has a type, every
 > content definition a campaign needs is declared, and the dispatch mechanics that run
 > against both are written down. What is emphatically **not** claimed is that the code
-> behind them exists. Some of §3's fourteen end-of-week systems ship as deliberate,
-> individually documented no-op stubs — real functions in the pipeline, running in the
-> normative order and emitting `system.ran`, doing nothing else — because the "Stable Life"
-> vertical slice needed only enough logic to prove a goal can be won and lost. §10's
-> resolution table says the same thing from the other side, marking each code registered or
-> not-yet-dispatched.
+> behind them exists. Some of §3's end-of-week systems ship as deliberate, individually
+> documented no-op stubs — real functions in the pipeline, running in the normative order and
+> emitting `system.ran`, doing nothing else — because the "Stable Life" vertical slice needed
+> only enough logic to prove a goal can be won and lost. §10's resolution table says the same
+> thing from the other side, marking each code registered or not-yet-dispatched.
+>
+> **The count that used to sit in that sentence is gone, and its removal is the point.** It
+> read "fourteen" and had been wrong since W57 inserted `week_limit` into §3's order — the
+> third time a count in this section outlived the units that changed it. §3's list is the one
+> place the systems are enumerated; count them there or not at all.
 >
 > **How many, and which, is not stated here — deliberately.** `90-decisions.md` carries the
 > current list of which systems are stubs and what each still owes; §10's own table carries

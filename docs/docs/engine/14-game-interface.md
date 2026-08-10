@@ -5,15 +5,19 @@
 
 # Game Interface — Absurd Adventure Stage and Dashboard
 
-**Document status:** Revision 3 — **historical.** This document specifies the appearance of
-the `/play/` route, and that route is being retired in favour of
+**Document status:** Revision 4 — **historical.** This document specifies the appearance of
+the `/play/` route, and that route has been retired in favour of
 [SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures)
 ([`13-playable-web-demo.md`](13-playable-web-demo.md), *Succeeded by SubZeroDev.Adventures*).
 Adventures has since taken the play surface in a different visual direction — a selectable
 retro-terminal identity rather than this document's adventure cabinet — and it owns that
-choice, having no `design/` here to answer to. Nothing in §§1–8 binds the engine repository
-any longer. Revision 2 restated §8 as the W66 mobile-first target, proven by the browser test
-harness W65 stands up, and left §§1–7 unchanged.
+choice, having no `design/` here to answer to. Revision 3 said "nothing in §§1–8 binds the
+engine repository any longer" and stopped at §8, which left §9's delivery claim reading as
+live; **nothing in §§1–12 binds it** — W69 removed the route from the build entirely, so §9's
+"the production build still emits a direct static `/play/` route" describes something that has
+not been true since ([`13-playable-web-demo.md`](13-playable-web-demo.md), Revision 4).
+Revision 2 restated §8 as the W66 mobile-first target, proven by the browser test harness W65
+stands up, and left §§1–7 unchanged.
 
 **Reading order:** after [`13-playable-web-demo.md`](13-playable-web-demo.md). That document
 owns the browser boundary and delivery model; this one owns how the established multi-campaign

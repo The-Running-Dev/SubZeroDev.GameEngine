@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 3706310ac32b3d2ae3f2bcd738b89109c901f96d988d03ac34f22381cf092af4 -->
+<!-- design-digest: 862ebf48d17fddbad224237446fd5d94a87512bd6b3e35a4791eb53db1524f55 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -14,12 +14,12 @@ directly.
 
 # Developer Guide
 
-SubZeroDev.GameEngine is a deterministic narrative-game engine written in TypeScript. Node.js
-is the currently proven runtime; W61 adds the first browser delivery without forking the engine,
-and W62 packages that static delivery behind a product-owned Platform web host without moving
-engine execution to the server. The engine separates game-independent execution from
-game-category rules and campaign data, then exposes every game through one session API. Text,
-MCP, and browser clients are siblings over that API; none owns rules or authoritative state.
+SubZeroDev.GameEngine is a deterministic narrative-game engine written in TypeScript. Node.js is
+the proven runtime, and the same public entry point is required to bundle for a standards-based
+browser without a reduced fork — a downstream client repository ships that browser build today.
+The engine separates game-independent execution from game-category rules and campaign data, then
+exposes every game through one session API. Text, MCP, and browser clients are siblings over that
+API; none owns rules or authoritative state.
 
 Use this guide when integrating the package, implementing a client or campaign, or extending an
 engine-owned kind. The exact public types, signatures, error tables, persisted schemas, and
@@ -44,20 +44,19 @@ assertable invariants are in the
   `design/90-decisions.md`, *Known-and-retained implementation gaps: `world-graph` tick
   systems*. It is registered and usable the same way `story-graph` and `simulation` are, within
   that scope.
-- A public `/play/` browser demo runs the six shipped `story-graph` campaigns locally in the
-  browser, presented as a story shelf, through the same session-store boundary as the text and
-  MCP clients. Bureaucracy remains the proof fixture the client-parity and replay tests drive.
-  The route is bounded to one kind: `simulation` and `world-graph` surfaces are not part of it.
-  Campaigns are fetched as JSON from the same static origin at startup rather than bundled, and
-  one durable local checkpoint per campaign is offered on return.
-  **This route is transitional.** The play surface was extracted into
-  [SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures), which is
-  the client going forward; `/play/` here is retained for now and is not being developed
-  further. Build a browser client against Adventures, not against this route.
+- **There is no browser demo in this repository.** A public `/play/` route existed, ran the
+  shipped `story-graph` campaigns as a story shelf through the same session-store boundary as
+  the text and MCP clients, and was removed from the site build in W69. The play surface is
+  [SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures), a client
+  repository that consumes this engine as a pinned submodule. Build a browser client the way
+  Adventures does; do not build against the retired route.
+  The browser *adapter* and its tests are still here, under `site/src/play/`, and still run —
+  they are the evidence behind the browser column of the API coverage checklist, not leftovers.
 - A Platform-backed static container is implemented: an ASP.NET Core host under `src/host/`
-  packaging the verified combined artifact as an immutable image. It is an alternative delivery
-  artifact for the same bytes, not a hosted engine API; the existing GitHub Pages deployment
-  remains public.
+  packaging the verified combined artifact as an immutable image, serving `/`, `/roadmap/` and
+  `/docs/`. It is an alternative delivery artifact for the same bytes, not a hosted engine API;
+  the existing GitHub Pages deployment remains public. Its design block is now historical —
+  the workflow still builds, smokes and publishes on every merge, but nothing specifies it.
 - Content pack resolution and experiment gating are implemented and exported: `resolvePacks`,
   `applyExperimentGates`, `computeResolutionId`, `resolveBucketKey`, `resolveExperimentAssignments`
   and the `ExperimentSource` port. One piece is deliberately unbuilt — `SessionHost.experiments`
@@ -308,25 +307,25 @@ Two things follow from that which are easy to get wrong when you implement a cli
 
 ### Building a browser client
 
-The engine's own `/play/` route is **transitional**. The browser client was extracted into
+This repository no longer ships a browser client. Its own `/play/` route was removed from the
+site build in W69; the play surface is
 [SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures), a client
-repository that consumes the engine as a pinned submodule and is the play surface going
-forward. If you are building a browser client, build it the way Adventures does.
+repository that consumes the engine as a pinned submodule. If you are building a browser
+client, build it the way Adventures does.
 
-Almost everything below still applies, because it is about the *engine's* browser boundary
-rather than about a route — bundling, the composition split, the portability gate, the
-production flag, and what a client may hold. Only the parts naming `/play/`'s own delivery are
-historical. Adventures also proves the two rules that matter most here: a client composes the
-engine and the engine never learns the client exists, and adding a hosted API, durable
-persistence and accounts required no reciprocal engine change.
+Everything below still applies, because it is about the *engine's* browser boundary rather than
+about a route — bundling, the composition split, the production flag, and what a client may
+hold. Adventures also proves the two rules that matter most here: a client composes the engine
+and the engine never learns the client exists, and adding a hosted API, durable persistence and
+accounts required no reciprocal engine change.
 
-One static `/play/` route sits on the existing React site, presenting the shipped `story-graph`
-campaigns as a shelf. Keep its composition root separate from its client: the root may assemble
-the engine, story-graph kind, validated campaigns, and session store. Before start, it resolves
-each campaign's title and passes a frozen startup configuration carrying those plain titles and
-campaign ids to the page. The browser adapter and React
-components use `SessionStore` as their only game-facing dependency; they do not read a registry,
-and `Start` remains the action that creates the session.
+Keep the composition root separate from the client. The root may assemble the engine, the kind,
+validated campaigns, and the session store, and it resolves each campaign's title before start,
+passing a frozen startup configuration carrying plain titles and campaign ids to the page. The
+browser adapter and React components use `SessionStore` as their only game-facing dependency;
+they do not read a registry, and `Start` remains the action that creates the session. The
+retired route's adapter, `site/src/play/`, is still in the tree as the worked example and as the
+proof behind the browser column of the API coverage checklist.
 
 The package root exports the committed campaign builders so the root needs no deep import — a
 builder and its id constant, never anything that would let a caller assemble or mutate nodes.
@@ -339,8 +338,14 @@ import and no unguarded Node global in its production graph. Remove them at the 
 implementation rather than creating a reduced browser fork. Save checksums remain SHA-256 over
 the same canonical bytes and stay synchronous, computed by a portable library rather than Web
 Crypto — `crypto.subtle.digest` is async, and adopting it would mean async-ifying the whole
-envelope path to obtain an identical digest. The gate for all of this is an assertion that scans
-the emitted bundle for Node-only references. A build that merely succeeded is not the gate.
+envelope path to obtain an identical digest.
+
+**Nothing in this repository proves that any more, and you should assume that job is yours.**
+The check was an assertion scanning the emitted bundle for Node-only references, and it lived
+on the route that bundled the engine. With no such route here, the scan has no engine code to
+read. If you ship a browser build of this package, scan your own emitted bundle for `node:`
+specifiers and unguarded Node globals — Adventures does, and that is now the only place the
+property is asserted. A build that merely succeeded is not the check.
 
 Browser hosts must also define the `__GAME_ENGINE_PRODUCTION__` build-time flag. Node callers
 fall back to `NODE_ENV`; a browser bundle that omits it silently gets dev-mode emitter behaviour.
@@ -353,25 +358,28 @@ reopening the route offers to resume one. React still persists nothing: it holds
 quota error or disabled storage surfaces as `storage_failure` and the run continues in memory;
 claim "saved" only after a write the adapter confirmed. Nothing syncs and nothing crosses devices.
 
-**Engine code is bundled; campaign content is not.** Campaigns ship as JSON files in the same
-static artifact, and the page fetches a manifest plus each listed campaign at startup, before the
-shelf renders. That is a packaging decision, not a backend: every file is a static same-origin
-asset the deployment already contains, resolution is entirely local once the registry is built,
-and no third-party host, analytics endpoint, or engine API is involved. What it costs is that
-`/play/` needs a round-trip to *start*, so a failed fetch is a start-up failure the error
-boundary owns rather than something the page can play through.
+**Engine code bundles; campaign content need not.** The retired route shipped campaigns as JSON
+files in the same static artifact and fetched a manifest plus each listed campaign at startup,
+before the shelf rendered. That was a packaging decision, not a backend: every file was a static
+same-origin asset the deployment already contained, resolution stayed entirely local once the
+registry was built, and no third-party host, analytics endpoint, or engine API was involved. What
+it cost was a round-trip to *start*, so a failed fetch was a start-up failure the error boundary
+had to own rather than something the page could play through. Both the pattern and its cost carry
+to any client that packages content the same way. Those files are still in `site/public/campaigns/`
+and still copied into every artifact, with nothing reading them.
 
-The route must be a real `play/index.html` in the static artifact, not an SPA fallback. Extend the
-combined-site verification so `/`, `/roadmap/`, `/play/`, and `/docs/` survive one deployment and
-the protected documentation subtree remains unchanged. The complete product, accessibility,
-failure, parity, and non-goal boundary is in
-[`13-playable-web-demo.md`](engine/13-playable-web-demo.md).
+Whatever route a client serves must be a real document in the static artifact, not an SPA
+fallback. This site's combined-artifact verification now covers `/`, `/roadmap/` and `/docs/`,
+and proves the protected documentation subtree is unchanged by the merge. The product,
+accessibility, failure, parity, and non-goal boundary the browser demo was held to is recorded
+in [`13-playable-web-demo.md`](engine/13-playable-web-demo.md); its §§1–2 and §§6–9 describe the
+retired route and are history, while its constraints on the package itself still bind.
 
 ### Styling the game interface
 
-**Historical.** This section specifies the appearance of the `/play/` route, and that route is
-transitional — see *Building a browser client* above. SubZeroDev.Adventures has since taken
-the play surface in a different visual direction and owns that choice. Nothing here binds a new
+**Historical.** This section specifies the appearance of the `/play/` route, and that route has
+been retired — see *Building a browser client* above. SubZeroDev.Adventures has since taken the
+play surface in a different visual direction and owns that choice. Nothing here binds a new
 client. It is retained because the client-boundary rules in the second paragraph below are
 general, and because it records what the engine's own play surface was.
 
@@ -429,11 +437,17 @@ proof matrix, and non-goals are in
 
 ### Hosting the static artifact with Platform
 
+**Historical, and the workflow is not.** The design block behind this section is retired, while
+`.github/workflows/host-image.yml` still builds, smokes and publishes on every merge. Read what
+follows as a description of what exists rather than a specification to build to; if you change
+`src/host/` or that workflow, there is currently no document to check yourself against.
+
 W62 adds a separate ASP.NET Core composition root under `src/host/`. It uses
 `SubZeroDev.Platform.Hosting`'s supported web-host composition and probes, then serves the same
-verified combined artifact at `/`, `/roadmap/`, `/play/`, and `/docs/`. It does not add a worker,
-persistence, accounts, remote sessions, an engine API, or an SPA fallback. Unknown routes return
-`404`, and opening `/play/` still downloads the engine and runs it in browser memory.
+verified combined artifact at `/`, `/roadmap/`, and `/docs/` — three routes since W69 removed
+`/play/` from the site build, and the host requires exactly those three documents to be present
+before it will start. It does not add a worker, persistence, accounts, remote sessions, an
+engine API, or an SPA fallback. Unknown routes return `404`.
 
 Build the site and documentation from one commit inside a multi-stage image, run the protected
 merge, and copy only the published host plus verified artifact into the non-root runtime image.
@@ -552,9 +566,21 @@ rival-agent strategy selection — the same world information a client's project
 actor's own private state — but no unit yet wires a rival agent into `end_week`'s resolution, so
 nothing constructs one at runtime yet.
 
-The Stable Life fixtures prove winning and losing engine/replay paths. Do not rely on an answer
-for a week that simultaneously reaches its limit and another terminal condition; that precedence
-is explicitly unsettled and excluded from supported scenarios.
+Terminal identity is a record on state, not a computation. The `goals`, `failure` and
+`week_limit` end-of-week systems write `SimulationKindState.resolution` once, while campaign data
+is still in scope, and `Kind.outcome` reads it back — it cannot derive one, because it receives
+no campaign and a scenario's week limit is campaign data. **Precedence is settled: goals and
+failure always win.** A week that both lands every goal and exhausts the limit reports
+`goals_met`; a week that both fails a goal and exhausts it reports `failed`, the more specific
+fact; `week_limit_reached` is what a week reports only when neither had anything to say. The
+`week_limit` system runs after both and writes only into a still-null resolution, which is where
+that rule actually lives.
+
+Across multiple goals the resolution stays conservative: any failed goal makes the whole
+resolution `failed`. That rule is verified only against single-goal scenarios so far, and it is
+decided in the `failure` system rather than in `outcome`.
+
+The Stable Life fixtures prove winning and losing engine/replay paths.
 
 ## World-graph campaigns
 
