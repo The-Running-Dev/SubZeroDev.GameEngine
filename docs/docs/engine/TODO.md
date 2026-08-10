@@ -1449,7 +1449,7 @@ life — the actions that make a week feel like a life rather than a spreadsheet
       W57's `events` system. Also out of scope: writing the missing weekly-relationship rule,
       which is `/contract`'s, not a slice's.
 
-### [ ] W57 — Simulation Kind: Events, Opportunities, Headlines, and Achievements {#w57}
+### [x] W57 — Simulation Kind: Events, Opportunities, Headlines, and Achievements {#w57}
 
 **Delivers:** The world starts acting on the player — random events arrive and demand a
 response, opportunities appear and expire, the weekly headline reflects what actually
@@ -1481,7 +1481,7 @@ system position upstream never named.
       `src/engine/fixtures/replay/`.
 - **Depends on:** [W56](#w56), **and** a contract decision on §12's `week_limit_reached`
       precedence callout.
-- **Status:** Not started — blocked on the contract decision above.
+- **Status:** Done — [PR #265](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/265).
 - **Done when:**
   - W57.1 `respond_to_event`, `accept_opportunity` and `decline_opportunity` each have a real
         resolver, and `"custom"` still reaches resolution nowhere — a `GameAction` typed
@@ -1736,7 +1736,7 @@ synchronous; only the already-async store boundary may await platform crypto.
       reloads; accounts, cloud sync or any backend; new gameplay; art, audio, analytics,
       session capture, service workers, a PWA, or a generic reusable web-client package.
 
-### [ ] W62 — Platform Static Host Image {#w62}
+### [x] W62 — Platform Static Host Image {#w62}
 
 **Delivers:** Adds a product-owned ASP.NET Core host under `src/host/`, composed with
 `SubZeroDev.Platform.Hosting`, and packages W61's verified combined static artifact into a
@@ -1759,7 +1759,7 @@ edge → Node engine workload`, JSON/HTTP boundary, MCP projection, and remote s
       `ProjectReference` may unblock local development, but W62 cannot merge until the project
       uses one exact released `SubZeroDev.Platform.Hosting` package version and a clean CI clone
       restores without `../SubZeroDev.Platform`.
-- **Status:** Not started.
+- **Status:** Done — [PR #264](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/264).
 - **Done when:**
   - W62.1 `src/host/` is the product composition root. It calls `AddPlatformWebHost()` and maps
         Platform probes; Platform gains no GameEngine dependency, and the host adds no worker,
@@ -2185,7 +2185,7 @@ with it. Rendered authored text is unchanged.
 
 ### Correctness Debt Found by Reconciliation
 
-### [ ] W67 — Restore the Story-Graph Regression Evidence {#w67}
+### [x] W67 — Restore the Story-Graph Regression Evidence {#w67}
 
 **Delivers:** The replay corpus, determinism goldens, and observability acceptance test that
 the [W64](#w64) campaign rewrite removed for the flagship kind. Story-graph is currently the
@@ -2216,6 +2216,7 @@ files against v2 routes; each is read on its merits, not accepted because the ru
       documents already require.
 - **Depends on:** [W64](#w64) being on `main`, since the fixtures are regenerated against its
       v2 campaign graphs.
+- **Status:** Done — [PR #261](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/261).
 - **Done when:**
   - W67.1 Three `bureaucracy-*` fixture/outcome pairs exist against `campaignVersion: "2.0.0"`,
         covering materially different routes and matching [07 §4](07-replay.md#4-the-corpus)'s

@@ -146,7 +146,7 @@
 
 ### [x] W56 — Simulation Kind: Possessions, Places, and People {#w56}
 
-### [ ] W57 — Simulation Kind: Events, Opportunities, Headlines, and Achievements {#w57}
+### [x] W57 — Simulation Kind: Events, Opportunities, Headlines, and Achievements {#w57}
 
 ### Breadth: Content Packs, Experiments, and Locales
 
@@ -162,7 +162,7 @@
 
 ### [x] W61 — Public Playable Web Demo {#w61}
 
-### [ ] W62 — Platform Static Host Image {#w62}
+### [x] W62 — Platform Static Host Image {#w62}
 
 ### [x] W63 — Absurd Game Interface {#w63}
 
@@ -176,7 +176,7 @@
 
 ### Correctness Debt Found by Reconciliation
 
-### [ ] W67 — Restore the Story-Graph Regression Evidence {#w67}
+### [x] W67 — Restore the Story-Graph Regression Evidence {#w67}
 
 ### [ ] W68 — Make the Browser Save Adapter Actually Restore {#w68}
 

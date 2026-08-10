@@ -77,7 +77,7 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   moment the authentication difference is felt rather than theorised.
 - **Provisional simulation numbers** — drift rates, scenario economics, `demandBand`
   thresholds, housing-quality formula, travel costs. Need a balancing pass once the sim
-  harness runs. ([`TODO.md`](TODO.md) → Known open items; simulation kind.)
+  harness runs. Tracked as [issue #267](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/267).
 - **`wisdom` attribute has no consumer** — needs one to earn its place
   (`games/04-engine-specification.md` §8.4).
 - **`end_week`'s `plan_empty` gate is declared but not wired — W50.4.** §10 names
@@ -136,27 +136,22 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   platform has is `PlayerProfile` (04 §7.1: `{ formatVersion, profileId, achievements }`),
   which has no field for arbitrary kind-declared profile-scoped data. Found while porting
   `WorldState` (10 §2.2, the field-detail port `plans/36-simulation-kind-programme.md`
-  proposed as W27 and cut as **W32**). **Revisit when** a unit actually needs a
-  `"profile"`-scoped chain to persist —
-  specifying a mechanism generically now, with exactly one (still-hypothetical) consumer,
-  would be the same one-built-instance-is-not-a-pattern reasoning this register already
-  applies to `createSessionLayer` and the tick-pipeline substrate.
+  proposed as W27 and cut as **W32**). Tracked as
+  [issue #268](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/268).
 - **The hosted MCP contract still needs its W48 mirror.** The engine-side contract and façade
   now expose ten operations, including `preview_action`, but SubZeroDev.Platform's
   `mcp-tool-contract.md` still lists the original nine. The engine repository cannot make a
-  companion-repository edit in the same commit. **Revisit before the hosted MCP server
-  publishes W48:** add `preview_action` with the same arguments and `SessionActionResult`
-  return shape, preserving the one-operation/one-tool mapping from 09 §4.
+  companion-repository edit in the same commit. Tracked as
+  [issue #269](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/269).
 - **A shared simulation substrate for tick-driven kinds** — `simulation` and
   `world-graph` are the same archetype: mutate pending configuration, then resolve
   a block of simulated time through an ordered system pipeline (12 §2). Both hand-roll that
   pipeline, and it is where determinism defects concentrate — the two-phase time ordering in
   10 §3 is exactly the class of bug a shared, tested runner would stop recurring per kind. A
   `SystemPipeline` in the core (ordered registration, deterministic per-system stream keying,
-  stable iteration, derived entity ids) would make kind N+1 cheaper. **Not extracted now:**
-  one built instance is not a pattern, and `simulation` is not built. **Revisit when** the
-  second tick-driven kind is actually implemented, so the abstraction is drawn from two real
-  cases rather than one and a specification.
+  stable iteration, derived entity ids) would make kind N+1 cheaper. **Not extracted while
+  `simulation` was the only tick-driven kind; `world-graph` (W41–W49) now makes it two.**
+  Tracked as [issue #270](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/270).
 - **Third-party kinds, and the sandbox they would require** — architecture §1 **N2**
   rejected downloadable code kinds as a security and reproducibility hazard, and
   [`06-extensibility.md`](06-extensibility.md) §7 leaves that standing. It is a rejected
