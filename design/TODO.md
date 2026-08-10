@@ -158,6 +158,10 @@
 
 ### Breadth: The First Culture Pack
 
+### [ ] W71 — The Bulgaria Culture Pack: Mechanism and Voice {#w71}
+
+### [ ] W72 — The Bulgaria Culture Pack: The Full Setting {#w72}
+
 ### Breadth: The Platform
 
 ### [x] W61 — Public Playable Web Demo {#w61}
@@ -185,5 +189,7 @@
 ### [~] W70 — Gate `/play/`'s Startup Request Surface — cancelled {#w70}
 
 ### Content Tooling — A First-Class Workstream, Not an Afterthought
+
+### [ ] W73 — Tier 3 Validation as an Author-Facing Check {#w73}
 
 ## Known Open Items Carried In

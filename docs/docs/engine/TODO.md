@@ -553,6 +553,27 @@ themselves.
       background collection ([08 §5](08-session-capture.md#5-when-a-capture-may-be-taken)).
 - [ ] Promotion into the replay corpus is a reviewed human step, never automatic ([08 §7](08-session-capture.md#7-promotion-is-a-one-way-door)).
 
+> **Not sliced, and the reason changed.** The stated gate above — "there is nothing to capture
+> from a local client the developer drives themselves" — has quietly stopped being true:
+> [SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures) is a real
+> hosted deployment with an API, Postgres persistence and accounts. The hosting precondition is
+> met.
+>
+> **What blocks it now is a missing contract surface, which is `/contract`'s work and not a
+> slice's.** [08 §3.2](08-session-capture.md#3-what-is-refused) requires capture to keep "only
+> the parameters the kind declares," dropping every other key — but no kind declares its
+> parameters anywhere the core can read. [04 §6](04-core.md#6-scenes-and-actions-generic) states
+> the opposite outright: `AvailableAction` "describes a verb, not its parameter space," and
+> pushes the parameter domain into the kind's projection, which the core holds as `unknown` by
+> design. So §3.2 is unimplementable as written, and a slice for it would have to invent a
+> `Kind` signature the contract does not have, which no slice may do. The same gap makes
+> [08 §9](08-session-capture.md#9-deferred)'s first deferral stale for a second reason: it
+> defers simulation-kind capture because "the kind does not exist yet," and W32–W57 built it.
+>
+> **Route to `/contract`:** either the `Kind` interface gains a declared-parameter surface, or
+> §3.2 is restated against something a host can actually enforce. Everything else in this
+> section is buildable once that is settled.
+
 ### Depth: Life in the Fast Lane (The `simulation` Kind)
 
 - [x] **Specify the kind first, in this repository.** Done across W25 (seam reconciliation)
@@ -1644,19 +1665,104 @@ client's rendering and the MCP surface all sit on the path.
 
 ### Breadth: The First Culture Pack
 
-- [ ] Bulgaria culture pack over the simulation kind — Jones-in-Bulgaria content,
-      no engine change ([`02-architecture.md`](02-architecture.md) §4a). Needs
-      [W58](#w58) for the pack mechanism and [W50](#w50)–[W57](#w57) for a simulation game
-      worth reskinning; not sliced until both land.
+Both preconditions have landed. [W58](#w58) built the pack fold and the `ResolutionId`;
+[W50](#w50)–[W57](#w57) made the simulation kind playable, so there is now a game worth
+reskinning. Sliced as **W71–W72**.
+
+**This is the riskiest unproven claim left in the design**, which is why it leads.
+[`02-architecture.md`](02-architecture.md) §4a calls culture packs "the volume play: one kind,
+many settings," and [§11](02-architecture.md#11-what-is-settled-what-is-next) says the Bulgaria
+pack "needs no new deliverable — it is a content pack over the existing simulation kind."
+Neither statement has
+ever been exercised: W58 proved the fold against synthetic packs, and no real culture pack
+exists. W71 is the first one, and its job is to find out whether "no engine change" is true.
+
+### [ ] W71 — The Bulgaria Culture Pack: Mechanism and Voice {#w71}
+
+**Delivers:** Proves the platform's central customization claim — that one game's mechanics can
+host a completely different world without touching the engine. Life in the Fast Lane's "Stable
+Life" is assembled from two content packs instead of one: the base game, plus a Bulgarian
+culture pack that swaps the narrator's voice and the world it describes. Two players who both
+say they are playing "Stable Life" are recorded as having played different games when one of
+them resolved the Bulgarian pack, which is the whole point of content identity.
+
+The pack replaces the campaign **wholesale by id** and its strings **per key** ([11 §3](11-content-packs.md#3-resolution)) — so the Bulgarian world arrives under the same `stable-life` id, and the `ResolutionId` is the only thing that distinguishes the two ([11 §6](11-content-packs.md#6-identity-and-why-determinism-needs-it)). Every surface this needs is already an exported contract surface (`resolvePacks`, `computeResolutionId`, `ContentPack`, `buildValidatedContentRegistry`, `TextClient`); the unit adds no signature.
+- **Spec:** [`02-architecture.md`](02-architecture.md) §4a; [11 §2](11-content-packs.md#2-what-a-pack-is),
+      [§3](11-content-packs.md#3-resolution), [§6](11-content-packs.md#6-identity-and-why-determinism-needs-it);
+      [04 §10.1](04-core.md#101-content-registry); [10 §7](10-simulation-kind.md#7-content-definition-types).
+- **Touches:** `src/engine/src/campaigns/` — a base-pack wrapper around the existing
+      `stable-life` source and a new Bulgarian culture pack, plus a test alongside.
+      `src/engine/src/core/registry/packs.ts` is **read, not modified**.
+- **Depends on:** [W58](#w58), [W59](#w59), [W50](#w50)–[W57](#w57) — all done.
+- **Status:** Not started.
+- **Done when:**
+  - W71.1 Resolving `[base]` and `[base, bulgaria]` both produce a registry that builds and
+        passes validation; the two differ in rendered text at every key the pack overrides and
+        at no other key, asserted key-by-key rather than by a whole-table comparison.
+  - W71.2 No file under `src/engine/src/core/` or `src/engine/src/kinds/` changes. §4a's "no
+        engine change" is the claim under test, so a diff touching either directory falsifies
+        it — **stop and report rather than absorbing the change**.
+  - W71.3 The two resolutions produce different `ResolutionId`s, and each resolved campaign
+        carries its own as `Campaign.version`, so a save records which mix it was played
+        against.
+  - W71.4 A game created against the Bulgarian resolution plays a full week through the text
+        client — `plan.add`, `end_week`, `view` — and renders the pack's text, never
+        `stable-life`'s.
+  - W71.5 A replay fixture captured under one resolution returns `unrunnable` with
+        `campaign_version_missing` against the other, not `diverged` — the reachability
+        [W58.6](#w58) built and nothing has yet exercised with real packs.
+  - W71.6 The same seed and the same actions under the Bulgarian resolution replay
+        byte-identically through `serialize()`.
+- **Out of scope:** the full Bulgarian setting ([W72](#w72)); a Bulgarian *locale* string table
+      — [W60](#w60) owns translation, and this is voice-and-world within one locale, a
+      different axis; pack discovery, distribution, and loading from disk, which
+      [11 §8](11-content-packs.md#8-what-is-deferred) defers by name; a second culture pack.
+
+### [ ] W72 — The Bulgaria Culture Pack: The Full Setting {#w72}
+
+**Delivers:** Fills the Bulgarian world out from a proof into something worth playing — its
+jobs, places, events, housing, possessions and prices — so a player can take the Bulgarian
+"Stable Life" all the way to a win and to a loss, rather than only to a correctly rendered
+first week.
+
+Split from [W71](#w71) on size, not on principle: `stable-life`'s content is roughly a thousand
+lines across five files, and a unit that authors a Bulgarian equivalent *and* proves the
+mechanism would not finish in one session. W71 proves the claim; this one does the volume.
+- **Spec:** [10 §7](10-simulation-kind.md#7-content-definition-types); [`02-architecture.md`](02-architecture.md) §4a;
+      [11 §7](11-content-packs.md#7-validation).
+- **Touches:** `src/engine/src/campaigns/` — the pack's content files, mirroring the split
+      `stable-life-events.ts` / `-housing.ts` / `-possessions.ts` / `-effects.ts` already uses;
+      `fixtures/replay/`; `src/engine/scripts/demo-cli.ts`.
+- **Depends on:** [W71](#w71).
+- **Status:** Not started.
+- **Done when:**
+  - W72.1 The pack supplies Bulgarian content for every collection `stable-life` populates —
+        jobs, places, events, housing, possessions, effects — with none left silently
+        inheriting the base pack's content by omission.
+  - W72.2 Two committed replay fixtures under the Bulgarian resolution reach a terminal state,
+        one `goals_met` and one a failure — the same both-paths bar W40 set for `stable-life`.
+  - W72.3 Tier 1 and Tier 2 validation pass on the Bulgarian resolution, producing no warning
+        class `stable-life` does not also produce.
+  - W72.4 Every player-facing string the pack adds is a `LocKey` with an entry in the pack's
+        string table; no literal player-facing text reaches a client from the pack's source.
+  - W72.5 `npm run demo` lists and plays the Bulgarian resolution alongside the base one.
+- **Out of scope:** balancing the Bulgarian numbers — this pack inherits the simulation kind's
+      provisional-numbers debt ([issue #267](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/267))
+      rather than resolving it; a Bulgarian locale translation; Jones-in-Corporate or any
+      second culture pack, which is volume this unit does not need to prove.
 
 ### Breadth: The Platform
 
-- [ ] Interactive CLI play-test harness — a stdin/stdout loop over the existing
-      `TextClient` and `SessionStore` (`src/engine/src/clients/text/client.ts`), so a human
-      can play a committed campaign (e.g. `stable-life`, the Bulgaria arcs) without writing a
-      test. Manual play-testing tooling, not a shipped client surface — distinct from "more
-      clients" below, no projection or store change, no contract change. Not required by any
-      Definition-of-Done item; exists purely so the engine can be seen running.
+- [x] **Interactive CLI play-test harness — built.** `src/engine/scripts/demo-cli.ts`, run with
+      `npm run demo` from `src/engine/`: a stdin/stdout loop over the existing `TextClient` and
+      `SessionStore` that lists the committed campaigns, takes a campaign id and an optional
+      seed, and accepts `<actionId> [key=value ...]`, `view`, `save`, `load <id>` and `quit`.
+      Verified playing `stable-life` — the simulation kind — end to end, so it covers both
+      shipped kinds and not just the story-graph ones. It lives outside `src/`, so neither the
+      determinism guard nor the client-contract import rule applies to it, and it is covered by
+      `npm run lint` and `npm run typecheck` (`eslint src scripts`, `tsconfig.scripts.json`).
+      Manual play-testing tooling, not a shipped client surface — distinct from "more clients"
+      below; no projection, store, or contract change.
 
 ### [x] W61 — Public Playable Web Demo {#w61}
 
@@ -2471,12 +2577,79 @@ design.
 - [ ] Localization tooling (string-table extraction, coverage, translation).
 - [ ] Authoring assistants (AI-drafted content → the same validation, §9).
 
+**Tier 3 is the one of these that is fully specified and entirely unbuilt**, so it is sliced
+first, as **W73**. [04 §11](04-core.md#11-tiered-validation) names it — "unwinnable campaigns,
+dead-end states — found by running, not reading" — and [03 §11](03-story-graph-kind.md#11-validation-story-graph-specific)
+gives its two story-graph cases, but nothing under `src/engine/src/core/validation/`
+implements it.
+
+### [ ] W73 — Tier 3 Validation as an Author-Facing Check {#w73}
+
+**Delivers:** Tells a campaign author the thing that reading the campaign cannot — which
+endings no sequence of choices can actually reach, and which choices no reachable state can
+ever satisfy. Today a campaign passes every load-time check and still ships with an ending
+nobody can get to; the only way to find that out is to play it and notice.
+
+**Scoped deliberately narrow, because the contract disagrees with itself about what Tier 3 is.**
+[12 §15](12-world-graph-kind.md#15-validation) rejects "Tier 3 simulation findings" outright —
+dominant strategies, infinite-money loops, unavoidable bankruptcy — on the grounds that they
+are content-balance findings from a long-running search, and putting one inside registry
+construction would break [04 §10.1](04-core.md#101-content-registry)'s purity requirement. That
+objection is correct and this unit does not touch it. What is left, and what 03 §11 actually
+asks for, is **reachability over a finite authored graph** — decidable, bounded, and run
+offline as tooling, never at load. If the two statements turn out not to reconcile this way,
+that is `/contract`'s call, not this unit's.
+- **Spec:** [04 §11](04-core.md#11-tiered-validation) (Tier 3 is not part of load),
+      [§10.1](04-core.md#101-content-registry) (registry construction is pure and total);
+      [03 §11](03-story-graph-kind.md#11-validation-story-graph-specific) (the two story-graph
+      Tier 3 cases); [12 §15](12-world-graph-kind.md#15-validation) (what Tier 3 is *not*).
+- **Touches:** a new `src/engine/scripts/validate-campaign.ts` — tooling outside `src/`, the
+      same placement and rationale `demo-cli.ts` already uses; `src/engine/package.json`
+      scripts; a broken fixture under `src/engine/src/campaigns/`.
+- **Depends on:** nothing.
+- **Status:** Not started.
+- **Done when:**
+  - W73.1 Running the checker over a committed story-graph campaign reports, per ending,
+        whether some sequence of choices from `startNodeId` reaches it, and exits non-zero when
+        any ending is unreachable.
+  - W73.2 A committed fixture with exactly one unreachable ending makes the checker name that
+        ending and fail — and the same fixture passes Tier 1 and Tier 2, which is what proves
+        the check finds something load-time validation cannot.
+  - W73.3 A choice whose `requirements` no reachable variable state can satisfy is reported
+        with its node id and choice id — 03 §11's second Tier 3 case.
+  - W73.4 No registry path invokes the checker. `buildValidatedContentRegistry` is asserted
+        unchanged in behaviour and timing, so registry construction stays pure and total.
+  - W73.5 The search is bounded and honest about it: it terminates on every committed campaign,
+        and distinguishes **proven unreachable** from **not proven reachable within the bound**
+        rather than reporting the second as the first.
+  - W73.6 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`.
+- **Out of scope:** balance findings of every kind — dominant strategies, unwinnable economics,
+      loops — which 12 §15 assigns to a game-side balance harness by name; Tier 3 for the
+      `simulation` and `world-graph` kinds, whose state spaces are not finite the way an
+      authored story graph's is; wiring the checker into CI as a required gate, which is a
+      policy change and wants its own decision; and the Tier 1/2 author-facing linter in the
+      bullet list above, which is a different tool over checks that already exist.
+
 ---
 
 ## Known Open Items Carried In
 
 > Full register of unknowns, gaps, and deferred decisions:
 > [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md).
+
+> **The eight findings from the first downstream host are contract work, not slices.**
+> [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §2, *Found by the first downstream host*, indexes what
+> SubZeroDev.Adventures turned up by implementing the ports outside a browser tab
+> ([#266](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/266),
+> [#276](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/276)–[#282](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/282)).
+> They are deliberately **not** sliced here. Every one of them either asks for a signature the
+> contract does not have — a player-keyed save query, a fork operation, an async
+> `listCampaigns`, a `min`/`max` on `VisibleStat`, a cross-kind-legible `Kind.outcome` — or asks
+> the contract to *state* a decision it currently leaves implicit, which is not something a
+> vertical slice can deliver at all. Slicing one would mean inventing the signature first, and
+> that is exactly the failure the "no slice may introduce a signature absent from the contract"
+> rule exists to prevent. **Route to `/contract`**; they become sliceable the moment the seam is
+> settled, and several are small once it is.
 
 
 - [x] **`SessionHost`/`createSessionLayer` ([06 §4](06-extensibility.md#4-the-composition-root)) don't reconcile as written — closed.**
