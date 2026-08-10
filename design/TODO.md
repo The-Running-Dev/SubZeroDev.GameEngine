@@ -180,7 +180,7 @@
 
 ### [~] W68 — Make the Browser Save Adapter Actually Restore — cancelled {#w68}
 
-### [ ] W69 — Consume the Reusable Landing-Page Package {#w69}
+### [x] W69 — Consume the Reusable Landing-Page Package {#w69}
 
 ### [~] W70 — Gate `/play/`'s Startup Request Surface — cancelled {#w70}
 
