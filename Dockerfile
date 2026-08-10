@@ -4,8 +4,8 @@
 # from one GameEngine commit, produces:
 #   1. the standalone landing page (site/dist);
 #   2. the Docusaurus documentation, through the repository's supported template path;
-#   3. the protected merge of the two (§4 step 3 -- build/Merge-LandingPage.ps1, the same
-#      script docs-ci.yml's verify job proves on every PR);
+#   3. the protected merge of the two (§4 step 3 -- the package-backed `merge` command
+#      site/package.json runs, the same command docs-ci.yml's verify job proves on every PR);
 #   4. the ASP.NET product host, composed with the one pinned, released
 #      SubZeroDev.Platform.Hosting package (§3 -- no sibling checkout, no floating range);
 #   5. a runtime stage carrying only the published host and the verified combined
@@ -54,17 +54,21 @@ COPY docs/ docs/
 RUN pwsh /template/scripts/docs-build.ps1 -SourceDocs ./docs -OutputPath artifacts/docs
 
 ########################################################################################
-# merged -- the protected merge (design/15 §4 step 3). Merge-LandingPage.ps1 itself
-# proves the docs/ subtree is byte-for-byte the same before and after the overlay
-# (file-count check) and refuses to proceed otherwise -- see the script for why that is
+# merged -- the protected merge (design/15 §4 step 3), via the same package-backed
+# `merge` command site/package.json's own script runs (W69). The package proves the
+# docs/ subtree is byte-for-byte the same before and after the overlay and refuses to
+# proceed otherwise -- see subzerodev-platform-ui-landing-page for why that is
 # sufficient: the two builds are proven to never write the same paths under docs/.
+# node_modules is copied from the site stage rather than reinstalled here so the CLI
+# (a site devDependency) doesn't need a second npm ci against the docs-template image.
 ########################################################################################
 FROM docs AS merged
 WORKDIR /workspace
 
-COPY build/Merge-LandingPage.ps1 build/Merge-LandingPage.ps1
+COPY --from=site /workspace/site/package.json site/package.json
+COPY --from=site /workspace/site/node_modules site/node_modules
 COPY --from=site /workspace/site/dist site/dist
-RUN pwsh build/Merge-LandingPage.ps1 -LandingDist site/dist -DocsOutput artifacts/docs
+RUN npm --prefix site run merge
 
 ########################################################################################
 # host-build -- publishes the product composition root against the one pinned,

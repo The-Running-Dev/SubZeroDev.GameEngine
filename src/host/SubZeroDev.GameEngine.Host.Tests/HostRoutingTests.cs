@@ -17,7 +17,6 @@ public sealed class HostRoutingTests : IClassFixture<HostRoutingTests.Fixture>
     [Theory]
     [InlineData("/")]
     [InlineData("/roadmap/")]
-    [InlineData("/play/")]
     [InlineData("/docs/")]
     public async Task DirectRouteRequest_ReturnsTheExpectedDocument(string path)
     {
@@ -70,7 +69,6 @@ public sealed class HostRoutingTests : IClassFixture<HostRoutingTests.Fixture>
     {
         "/" => "home",
         "/roadmap/" => "roadmap",
-        "/play/" => "play",
         "/docs/" => "docs",
         _ => throw new ArgumentOutOfRangeException(nameof(path)),
     };
@@ -89,7 +87,6 @@ public sealed class HostRoutingTests : IClassFixture<HostRoutingTests.Fixture>
 
             WriteDocument(wwwroot, "index.html", "home");
             WriteDocument(wwwroot, "roadmap/index.html", "roadmap");
-            WriteDocument(wwwroot, "play/index.html", "play");
             WriteDocument(wwwroot, "docs/index.html", "docs");
         }
 

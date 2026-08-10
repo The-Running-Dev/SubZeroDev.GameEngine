@@ -3,7 +3,9 @@ import "./site.css";
 import "./css/motion.css";
 import { useRevealOnScroll } from "./hooks/useRevealOnScroll";
 import {
+  adventures,
   DocsLink,
+  ExternalLink,
   ExternalLink as RepositoryLink,
   SiteFooter,
   SiteHeader,
@@ -460,6 +462,9 @@ function App() {
           <h2 id="cta-title">Still Here?</h2>
           <p>Good. Now it becomes considerably less philosophical.</p>
           <div className="cta-actions">
+            <ExternalLink className="cta-play" href={adventures}>
+              Play the adventures
+            </ExternalLink>
             <DocsLink href={routes.architecture}>
               Read the architecture <span aria-hidden="true">→</span>
             </DocsLink>

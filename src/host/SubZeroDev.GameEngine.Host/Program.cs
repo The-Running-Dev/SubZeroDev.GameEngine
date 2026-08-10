@@ -28,10 +28,10 @@ if (missing.Count > 0)
 app.MapPlatformProbes();
 
 // No SPA fallback (§4): UseDefaultFiles only resolves a directory request ("/",
-// "/roadmap/", "/play/", "/docs/") to that directory's own index.html. An unknown route
-// falls through both middleware with nothing left to handle it, which is what makes it a
-// 404 rather than the landing page. Static bytes are served exactly as baked, never
-// rewritten by the host.
+// "/roadmap/", "/docs/") to that directory's own index.html. An unknown route falls
+// through both middleware with nothing left to handle it, which is what makes it a 404
+// rather than the landing page. Static bytes are served exactly as baked, never rewritten
+// by the host.
 app.UseDefaultFiles();
 app.UseStaticFiles(new StaticFileOptions
 {
@@ -50,7 +50,6 @@ internal static class StaticArtifact
     [
         "index.html",
         "roadmap/index.html",
-        "play/index.html",
         "docs/index.html",
     ];
 

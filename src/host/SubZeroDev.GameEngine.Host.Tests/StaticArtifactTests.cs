@@ -29,13 +29,12 @@ public sealed class StaticArtifactTests
 
         var missing = StaticArtifact.FindMissingRequiredDocuments(root);
 
-        Assert.Equal(4, missing.Count);
+        Assert.Equal(3, missing.Count);
     }
 
     [Theory]
     [InlineData("index.html")]
     [InlineData("roadmap/index.html")]
-    [InlineData("play/index.html")]
     [InlineData("docs/index.html")]
     public void OneCorruptedOrMissingDocument_IsReportedByItself(string relativePath)
     {
@@ -67,7 +66,6 @@ public sealed class StaticArtifactTests
     {
         WriteDocument(root, "index.html");
         WriteDocument(root, "roadmap/index.html");
-        WriteDocument(root, "play/index.html");
         WriteDocument(root, "docs/index.html");
     }
 
