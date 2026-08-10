@@ -163,7 +163,7 @@ jobs:
             echo "No previous commit to diff against -- publishing."
             echo "changed=true" >> "$GITHUB_OUTPUT"
           elif git diff --quiet "$before" "${{ github.sha }}" -- \
-              Dockerfile .dockerignore src/host site docs build/Merge-LandingPage.ps1 \
+              Dockerfile .dockerignore src/host site docs \
               src/engine; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else

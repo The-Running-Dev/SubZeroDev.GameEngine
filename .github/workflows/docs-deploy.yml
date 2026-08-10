@@ -97,12 +97,12 @@ jobs:
                   npm --prefix site ci
                   npm --prefix site run check
 
-            # Overlays the landing page onto the docs build -- see
-            # build/Merge-LandingPage.ps1, and the same step in docs-ci.yml's
-            # verify job, which proves this on every PR before it ever runs
-            # here on push to main.
+            # Overlays the landing page onto the docs build -- the package-backed
+            # `merge` command (subzerodev-platform-ui-landing-page@0.2.0), invoked
+            # via the same site/package.json script docs-ci.yml's verify job runs
+            # and proves on every PR before this ever runs here on push to main.
             - name: Merge landing page into documentation build
-              run: ./build/Merge-LandingPage.ps1 -LandingDist site/dist -DocsOutput artifacts/docs
+              run: npm --prefix site run merge
 
             - name: Upload Pages Artifact
               uses: actions/upload-pages-artifact@v5

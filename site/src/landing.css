@@ -508,18 +508,6 @@ section {
   text-decoration-color: var(--landing-accent);
   text-underline-offset: 0.35em;
 }
-.cta-play {
-  background: var(--landing-accent);
-  color: var(--landing-bg);
-  display: inline-block;
-  font-size: 1.35rem;
-  font-weight: 700;
-  padding: 0.85rem 1.9rem;
-  text-decoration: none;
-}
-.cta-play:hover {
-  background: var(--landing-text);
-}
 @media (max-width: 700px) {
   /*
    * No mobile override anymore. The old 32rem WAS a true floor -- a bare
@@ -549,16 +537,5 @@ section {
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
-  }
-}
-
-/*
- * The Play CTA drops its underline because it reads as a button, not as prose
- * -- the padded fill is the affordance. Forced colours discard that fill, so
- * the boundary has to come back as a border, matching play.css.
- */
-@media (forced-colors: active) {
-  .cta-play {
-    border: 2px solid CanvasText;
   }
 }

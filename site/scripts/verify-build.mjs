@@ -8,10 +8,6 @@ const roadmapHtml = await readFile(
   new URL("../dist/roadmap/index.html", import.meta.url),
   "utf8",
 );
-const playHtml = await readFile(
-  new URL("../dist/play/index.html", import.meta.url),
-  "utf8",
-);
 
 const requiredAssets = [
   "og-image.png",
@@ -28,16 +24,16 @@ for (const asset of requiredAssets) {
 }
 
 const requiredTags = [
-  /<meta\s+name="description"\s+content="A deterministic, game-agnostic platform for building reusable narrative-game mechanics\."\s*\/>/,
-  /<meta\s+property="og:title"\s+content="SubZeroDev Game Engine"\s*\/>/,
-  /<meta\s+property="og:description"\s+content="Build mechanics once\. Create infinite games\."\s*\/>/,
-  /<meta\s+property="og:type"\s+content="website"\s*\/>/,
-  /<meta\s+property="og:url"\s+content="https:\/\/game-engine\.subzerodev\.com\/"\s*\/>/,
-  /<meta\s+property="og:image"\s+content="https:\/\/game-engine\.subzerodev\.com\/og-image\.png"\s*\/>/,
-  /<link\s+rel="canonical"\s+href="https:\/\/game-engine\.subzerodev\.com\/"\s*\/>/,
-  /<meta\s+name="twitter:card"\s+content="summary_large_image"\s*\/>/,
-  /<meta\s+name="twitter:image"\s+content="https:\/\/game-engine\.subzerodev\.com\/og-image\.png"\s*\/>/,
-  /<link\s+rel="icon"\s+type="image\/svg\+xml"\s+href="\/favicon\.svg"\s*\/>/,
+  /<meta\s+name="description"\s+content="A deterministic, game-agnostic platform for building reusable narrative-game mechanics\."\s*\/?>/,
+  /<meta\s+property="og:title"\s+content="SubZeroDev Game Engine"\s*\/?>/,
+  /<meta\s+property="og:description"\s+content="Build mechanics once\. Create infinite games\."\s*\/?>/,
+  /<meta\s+property="og:type"\s+content="website"\s*\/?>/,
+  /<meta\s+property="og:url"\s+content="https:\/\/game-engine\.subzerodev\.com\/"\s*\/?>/,
+  /<meta\s+property="og:image"\s+content="https:\/\/game-engine\.subzerodev\.com\/og-image\.png"\s*\/?>/,
+  /<link\s+rel="canonical"\s+href="https:\/\/game-engine\.subzerodev\.com\/"\s*\/?>/,
+  /<meta\s+name="twitter:card"\s+content="summary_large_image"\s*\/?>/,
+  /<meta\s+name="twitter:image"\s+content="https:\/\/game-engine\.subzerodev\.com\/og-image\.png"\s*\/?>/,
+  /<link\s+rel="icon"\s+href="\/favicon\.svg"\s+type="image\/svg\+xml"\s*\/?>/,
 ];
 
 for (const tag of requiredTags) {
@@ -49,9 +45,9 @@ for (const tag of requiredTags) {
 }
 
 const roadmapTags = [
-  /<meta\s+name="description"\s+content="What SubZeroDev Game Engine has built, what comes next, and why it became 44 work units\."\s*\/>/,
-  /<meta\s+property="og:url"\s+content="https:\/\/game-engine\.subzerodev\.com\/roadmap\/"\s*\/>/,
-  /<link\s+rel="canonical"\s+href="https:\/\/game-engine\.subzerodev\.com\/roadmap\/"\s*\/>/,
+  /<meta\s+name="description"\s+content="What SubZeroDev Game Engine has built, what comes next, and why it became 44 work units\."\s*\/?>/,
+  /<meta\s+property="og:url"\s+content="https:\/\/game-engine\.subzerodev\.com\/roadmap\/"\s*\/?>/,
+  /<link\s+rel="canonical"\s+href="https:\/\/game-engine\.subzerodev\.com\/roadmap\/"\s*\/?>/,
   /<script type="module" crossorigin src="\/assets\//,
 ];
 
@@ -62,28 +58,7 @@ for (const tag of roadmapTags) {
     );
 }
 
-const playTags = [
-  /<meta\s+name="description"\s+content="Play six deterministic story campaigns in your browser, powered by SubZeroDev Game Engine\."\s*\/>/,
-  /<meta\s+property="og:url"\s+content="https:\/\/game-engine\.subzerodev\.com\/play\/"\s*\/>/,
-  /<meta\s+property="og:image"\s+content="https:\/\/game-engine\.subzerodev\.com\/og-image\.png"\s*\/>/,
-  /<link\s+rel="canonical"\s+href="https:\/\/game-engine\.subzerodev\.com\/play\/"\s*\/>/,
-  /<meta\s+name="twitter:card"\s+content="summary_large_image"\s*\/>/,
-  /<meta\s+name="twitter:image"\s+content="https:\/\/game-engine\.subzerodev\.com\/og-image\.png"\s*\/>/,
-  /<script type="module" crossorigin src="\/assets\//,
-];
-
-for (const tag of playTags) {
-  if (!tag.test(playHtml))
-    throw new Error(
-      `Built play HTML is missing required metadata: ${tag.source}`,
-    );
-}
-
-if (
-  /\/src\//.test(landingHtml) ||
-  /\/src\//.test(roadmapHtml) ||
-  /\/src\//.test(playHtml)
-) {
+if (/\/src\//.test(landingHtml) || /\/src\//.test(roadmapHtml)) {
   throw new Error("Built HTML references a development-only source path.");
 }
 
@@ -121,5 +96,5 @@ for (const bundle of bundles) {
 }
 
 console.log(
-  `All three built HTML entry points contain their required static metadata, and ${bundles.length} bundle(s) are free of Node-only runtime references.`,
+  `Both built HTML entry points contain their required static metadata, and ${bundles.length} bundle(s) are free of Node-only runtime references.`,
 );

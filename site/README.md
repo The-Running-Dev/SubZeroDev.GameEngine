@@ -3,6 +3,13 @@
 The standalone React landing page. It is intentionally separate from the Docusaurus
 documentation site and does not configure hosting.
 
+Route builds and the protected documentation merge are owned by the published
+[`subzerodev-platform-ui-landing-page`](https://www.npmjs.com/package/subzerodev-platform-ui-landing-page)
+package (pinned at `0.2.0`), consumed through its custom-adapter seam: `landing.config.ts`
+declares this site's two routes (`/`, `/roadmap/`) — each an existing Engine-owned entry
+module and its own static metadata — and the package's CLI builds, serves, and merges them.
+No Vite config lives in this package any more; the site owns pages, styles, and tests only.
+
 The playable demo imports the engine's published public entry point as a local package. Build
 the engine before installing or checking this site from a clean checkout:
 
@@ -29,7 +36,7 @@ suite, the production build, and the static social metadata in the built HTML.
 `src/**/*.browser.test.{ts,tsx}` specs run in an actual Chromium tab (Playwright, via
 `vitest.browser.config.ts`), not jsdom — jsdom performs no layout, so it cannot back a
 computed-style, hit-area, or visual-snapshot assertion. Everything else keeps running under
-`vite.config.ts`'s jsdom project.
+`vitest.config.ts`'s jsdom project.
 
 ```powershell
 npm run test:browser

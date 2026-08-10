@@ -460,9 +460,6 @@ function App() {
           <h2 id="cta-title">Still Here?</h2>
           <p>Good. Now it becomes considerably less philosophical.</p>
           <div className="cta-actions">
-            <a className="cta-play" href="/play/">
-              Play the adventures
-            </a>
             <DocsLink href={routes.architecture}>
               Read the architecture <span aria-hidden="true">→</span>
             </DocsLink>
