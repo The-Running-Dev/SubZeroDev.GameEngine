@@ -237,9 +237,8 @@ ways: several of these clear it now, for the first time.
   rather than the store leaves the store's in-memory session cache unaware of the new session.
 One further item is not an engine defect but a standing cross-repository hazard: **Adventures
 depends on `fromPortable` and the `Portable*` types**, which `src/engine/src/index.ts:62`
-marks `// SPIKE: … not a contract export`. A real downstream consumer is now pinned to a spike
-export that carries no deprecation promise. Either it earns contract status or Adventures
-accepts breakage on every submodule bump; today neither has been chosen.
+marks `// SPIKE: … not a contract export`. Tracked as
+[issue #285](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/285).
 
 ---
 
