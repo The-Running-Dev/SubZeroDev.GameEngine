@@ -18,11 +18,7 @@
         "route": {
           "type": "enum",
           "initial": "repair_route",
-          "values": [
-            "repair_route",
-            "road_route",
-            "escape_route"
-          ]
+          "values": ["repair_route", "road_route", "escape_route"]
         },
         "preparation": {
           "type": "int",
