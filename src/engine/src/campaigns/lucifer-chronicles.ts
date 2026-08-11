@@ -14,8 +14,8 @@ import type { PortableCatalog, PortableMigration } from "../portable/format.js";
 
 export const LUCIFER_CHRONICLES_CAMPAIGN_ID = "lucifer-chronicles";
 
-// SPIKE: catalog card travels with the campaign instead of a positional entry in
-// site/src/play/composition.ts. See plans/spike-notes.md.
+// The catalog card travels with the campaign, not a positional entry in
+// site/src/play/composition.ts.
 export const luciferChroniclesCatalog: PortableCatalog = {
   title: "Lucifer Chronicles: The Bulgarian Incident",
   description: "A profane, cosmic support ticket through property, paperwork, cars, AI scope creep, and Hell.",

@@ -2,6 +2,7 @@ import {
   buildValidatedContentRegistry,
   createEngine,
   createInMemorySessionStore,
+  digestPortableCampaign,
   fromPortable,
   simulationKind,
   storyGraphKind,
@@ -107,9 +108,10 @@ export function findLocalSave(campaignId: string): string | undefined {
   }
 }
 
-// SPIKE: campaigns are runtime-loaded JSON under /campaigns/, not compiled into the
-// engine package. See plans/spike-notes.md. `base` matches Vite's `BASE_URL` so this
-// resolves under a subpath deploy (`/play/`) the same way the rest of the site does.
+// Campaigns are runtime-loaded JSON under /campaigns/, not compiled into the engine
+// package — see `src/portable/format.ts` (`@the-running-dev/game-engine`). `base` matches
+// Vite's `BASE_URL` so this resolves under a subpath deploy (`/play/`) the same way the
+// rest of the site does.
 async function fetchJson<T>(path: string): Promise<T> {
   const base = import.meta.env.BASE_URL;
   const response = await fetch(`${base}campaigns/${path}`);
@@ -121,7 +123,15 @@ async function fetchJson<T>(path: string): Promise<T> {
 async function loadPortableCampaigns(): Promise<readonly PortableCampaign[]> {
   const manifest = await fetchJson<PortableManifest>("manifest.json");
   return Promise.all(
-    manifest.campaigns.map((entry) => fetchJson<PortableCampaign>(entry.file)),
+    manifest.campaigns.map(async (entry) => {
+      const portable = await fetchJson<PortableCampaign>(entry.file);
+      const digest = digestPortableCampaign(portable);
+      if (digest !== entry.digest)
+        throw new Error(
+          `${entry.file}: fetched content does not match manifest digest (expected ${entry.digest}, got ${digest})`,
+        );
+      return portable;
+    }),
   );
 }
 
