@@ -4,6 +4,12 @@ description: Derive the interface contract from the design doc
 
 Read `design/10-design.md`. Write `design/20-contract.md`.
 
+## Stop if `design/` is frozen
+
+If `design/FROZEN.md` exists, **stop before doing anything else.** Report its `Frozen because` and `Lifts when` lines verbatim and write nothing. The rule and the marker's format live in `CLAUDE.md`, *The design freeze* — not restated here.
+
+This is the gate a blocked slice most often arrives at: a unit that needs a contract amendment stops and escalates, and while frozen that escalation is answered by the user, not absorbed here. Thawing to amend is a legitimate answer — **it is just not this command's to decide.**
+
 **Repository overlay:** `design/20-contract.md` is a compound canonical contract. Read it in full
 before revising it and preserve every `human-doc` block. The section map at the top routes the
 generic headings below to Core and the three kind contracts; exact declarations stay in their

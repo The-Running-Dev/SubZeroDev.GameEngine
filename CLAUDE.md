@@ -320,6 +320,66 @@ Two distinctions that are easy to get wrong:
   at all. Use it, or say nothing — under either of those, *say nothing* is the whole
   instruction.
 
+### Hard Rules
+
+- **Non-goals are binding.** Anything listed as a non-goal in `01-vision.md` §5 is out of
+  scope even if it looks trivial, even if you are already touching that file.
+- **One unit at a time.** Do not start W<n+1> because you noticed something while doing
+  W<n>. Write it to `90-decisions.md`'s open register instead.
+- **No new dependencies** without a decision-log entry naming the alternatives rejected and
+  why.
+- **No new public interfaces** that are not in `20-contract.md`. If you need one, stop and
+  ask for a contract amendment.
+- **Ask instead of assuming.** If two readings of a spec are both defensible, stop and
+  present both. Do not pick one and proceed.
+- **Every unit ends runnable.** No half-wired states committed.
+
+### The Design Freeze
+
+The pipeline's normal loop keeps `design/` live: a unit lands, `/reconcile` writes reality
+back, `/track` resyncs the tracker. That is right while the design is still being settled
+and **wrong once implementation is the bottleneck**, because each pass is generative rather
+than merely checking — landing W<n> rewrites W<n+1>'s specification, which desyncs the
+tracker, which needs `/track`, which finds drift, which needs `/reconcile`. The loop has no
+fixed point. Freezing is how it is escaped.
+
+**`design/FROZEN.md` is the marker, and its existence is the whole mechanism.** It is
+tracked, not ignored — a freeze is a statement to everyone working in the repository, not
+local state. While it exists:
+
+- **`/reconcile` and `/track` do not run.** The tracker is deliberately allowed to go stale.
+- **`/design`, `/contract` and `/slices` refuse.** Authoring is gated too, so the docs
+  cannot drift forward while the implementation is being checked against them.
+- **Units implement against `20-contract.md` as a fixed artifact**, at the SHA the marker
+  names.
+- **A contradiction found while implementing is stated in that unit's pull request and left
+  in the document.** Do not fix it in `design/`. The staleness is the point; recording it in
+  the PR is what makes the eventual reconciliation cheap.
+
+**`/freeze` writes the marker; `/unfreeze` lifts it** — deletes the file, then runs one
+reconciliation pass, `/reconcile` then `/track`, in the same session. `/unfreeze` runs
+unattended, without a confirmation prompt; the freeze itself is still the user's decision,
+made when `/freeze` is invoked, and lifting it early is one command call away rather than
+gated a second time. A unit that turns out to need a contract amendment still stops and
+says so; that escalation is the user's to answer, and answering it may well be "thaw,
+amend, re-freeze."
+
+The marker's format, which the five gated commands read and must not restate:
+
+```markdown
+# design/ is frozen
+
+Frozen at: <sha>, <YYYY-MM-DD>
+Frozen because: <what the freeze is escaping>
+Lifts when: <the checkable condition — "tier one is code-complete", not "when we are ready">
+
+To lift: run `/unfreeze`, or delete this file by hand and run `/reconcile`, then `/track`.
+```
+
+A command that refuses reports `Frozen because` and `Lifts when` **verbatim** rather than
+paraphrasing them — the point of a stated condition is that it can be checked against, and a
+paraphrase is where it stops being checkable.
+
 ### The Agent Kit — Canonical Workflow
 
 `.claude/commands/` holds the
@@ -361,6 +421,9 @@ Routing, when a command is run:
 | `/resolve` | Sonnet, medium — escalate to judge a contested finding, not to triage the obvious ones |
 | `/refine` | Sonnet, medium — never escalates; an architectural ask is routed to the command that owns it, not refined |
 | `/kit-help` | Haiku, low — orientation from file existence and a tracker listing; escalate only where the repository's state matches no stage |
+| `/done` | Haiku, low — mechanical git housekeeping; escalate only to judge whether an unmerged-looking branch is actually safe to delete |
+| `/freeze` | Sonnet, medium — `Frozen because`/`Lifts when` come from the user, never invented |
+| `/unfreeze` | Sonnet, medium for the sequencing; runs `/reconcile` (Opus, high) and `/track` (Sonnet, medium) as its own phases |
 
 **`/track` reads `design/30-slices.md`.** It opens one issue per unvisited W-numbered work unit;
 W is this repository's retained slice prefix. New units carry stable per-criterion ids
@@ -459,6 +522,15 @@ in CI, with nothing saying why.
 feature branches do not, so it is discipline rather than enforcement. If a pushed commit
 needs changing, add a follow-up commit.
 
+**Deleting a local branch `/done` independently confirms via `git branch --merged` is
+delegated in this repository.** `/done` (`.claude/commands/done.md`) runs proactively — as
+soon as a merge is on the table, not only when asked — and deletes every branch on that
+confirmed list without a chat confirmation first; the `--merged` check is the authorization.
+It also may stash (never discard) a dirty tree to unblock its own branch switch, and always
+reports the stash back rather than popping it silently. This delegation stops exactly where
+`--merged` stops: a branch it did not confirm, or a `-d` refusal on one it did, still needs a
+separate ask before anything stronger (`-D`) is even considered.
+
 **`/slice` may push the branch it creates and open its PR as a draft, without asking** —
 carved out of the authorization rule the same as an issue: a draft blocks no one and requests
 no review, so opening one carries the same reversibility argument. Marking that PR ready for
@@ -500,6 +572,13 @@ check on the PR instead — never report it as locally passing.
 
 **Never state or imply a published URL until the deploy workflow for that exact merge commit
 reports success.** A merged PR is not a deployed site; poll the run rather than estimating.
+
+**A regression test is verified by reverting the fix** and confirming it fails. A test that
+passes with and without the fix guards nothing.
+
+**A schema or validator change is not done until it has rejected something.** Positive and
+negative cases both, with the counts stated. A validator that has never failed is not known
+to constrain anything.
 
 ### Imported From the Blog Repository — and What Did Not Transfer
 
