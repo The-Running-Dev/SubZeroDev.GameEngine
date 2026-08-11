@@ -124,7 +124,7 @@ describe("W60 — a second locale, end to end", () => {
     const mcpTools = createMcpTools(store);
 
     const started = await textClient.createSession({ campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, seed: SEED });
-    expect(started.value.scene.body.text).toBe("Пристигате в общината в 08:03. Офисът отвори в 08:00. Ръкописна бележка казва, че срещата свършва в 11:30; три съседни врати не са съгласни за годината.");
+    expect(started.value.scene.body.text).toBe("Пристигате в общината в 08:03. Офисът отвори в 08:00. Ръкописна бележка на стъклото казва, че работният ден свършва в 11:30 „по технически причини“; три съседни врати не са съгласни коя година е в момента.");
     expect(started.text).toContain("Изчакайте общинския регистър");
 
     const strings = await mcpTools.get_strings({ sessionId: started.value.sessionId });

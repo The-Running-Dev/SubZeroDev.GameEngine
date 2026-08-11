@@ -2,9 +2,9 @@
   "formatVersion": 2,
   "catalog": {
     "title": "The Bureaucracy",
-    "description": "Municipal, cadastral, archive, notary, and translation routes through one determined folder.",
+    "description": "Municipal, cadastral, archive, notary, and translation routes through one determined folder — now with more offices, more stamps, and considerably more ways to lose an afternoon.",
     "duration": "10–15 min per route",
-    "contentNotice": "Satirical depictions of public offices, administrative failure, and financial frustration.",
+    "contentNotice": "Satirical depictions of public offices, administrative failure, bribery-adjacent humor, and financial frustration.",
     "featured": false
   },
   "campaign": {
@@ -18,7 +18,11 @@
         "route": {
           "type": "enum",
           "initial": "registry_route",
-          "values": ["registry_route", "archive_route", "supervisor_route"]
+          "values": [
+            "registry_route",
+            "archive_route",
+            "supervisor_route"
+          ]
         },
         "preparation": {
           "type": "int",
@@ -340,6 +344,27 @@
               },
               "goto": "ending_miracle",
               "labelKey": "bureaucracy.registry_route_4.ending_miracle"
+            },
+            {
+              "id": "choose_incoming_number_only",
+              "goto": "ending_incoming_number_only",
+              "labelKey": "bureaucracy.registry_route_4.ending_incoming_number_only"
+            },
+            {
+              "id": "choose_hired_a_professional_queuer",
+              "requirements": {
+                "field": "var.preparation",
+                "operator": "greater_or_equal",
+                "value": 2
+              },
+              "goto": "ending_hired_a_professional_queuer",
+              "labelKey": "bureaucracy.registry_route_4.ending_hired_a_professional_queuer",
+              "requirementFailKey": "bureaucracy.registry_route_4.ending_hired_a_professional_queuer_fail"
+            },
+            {
+              "id": "choose_reorganized_into_nonexistence",
+              "goto": "ending_reorganized_into_nonexistence",
+              "labelKey": "bureaucracy.registry_route_4.ending_reorganized_into_nonexistence"
             }
           ]
         },
@@ -356,6 +381,27 @@
           "textKey": "bureaucracy.ending_miracle.text",
           "endingId": "miracle",
           "outcome": "win"
+        },
+        "ending_incoming_number_only": {
+          "id": "ending_incoming_number_only",
+          "kind": "ending",
+          "textKey": "bureaucracy.ending_incoming_number_only.text",
+          "endingId": "incoming_number_only",
+          "outcome": "neutral"
+        },
+        "ending_hired_a_professional_queuer": {
+          "id": "ending_hired_a_professional_queuer",
+          "kind": "ending",
+          "textKey": "bureaucracy.ending_hired_a_professional_queuer.text",
+          "endingId": "hired_a_professional_queuer",
+          "outcome": "win"
+        },
+        "ending_reorganized_into_nonexistence": {
+          "id": "ending_reorganized_into_nonexistence",
+          "kind": "ending",
+          "textKey": "bureaucracy.ending_reorganized_into_nonexistence.text",
+          "endingId": "reorganized_into_nonexistence",
+          "outcome": "loss"
         },
         "archive_route_1": {
           "id": "archive_route_1",
@@ -584,6 +630,27 @@
               "id": "choose_gave_up",
               "goto": "ending_gave_up",
               "labelKey": "bureaucracy.archive_route_4.ending_gave_up"
+            },
+            {
+              "id": "choose_bribed_with_coffee",
+              "goto": "ending_bribed_with_coffee",
+              "labelKey": "bureaucracy.archive_route_4.ending_bribed_with_coffee"
+            },
+            {
+              "id": "choose_archive_reveals_second_family",
+              "goto": "ending_archive_reveals_second_family",
+              "labelKey": "bureaucracy.archive_route_4.ending_archive_reveals_second_family"
+            },
+            {
+              "id": "choose_became_the_archives_hero",
+              "requirements": {
+                "field": "var.preparation",
+                "operator": "greater_or_equal",
+                "value": 2
+              },
+              "goto": "ending_became_the_archives_hero",
+              "labelKey": "bureaucracy.archive_route_4.ending_became_the_archives_hero",
+              "requirementFailKey": "bureaucracy.archive_route_4.ending_became_the_archives_hero_fail"
             }
           ]
         },
@@ -600,6 +667,27 @@
           "textKey": "bureaucracy.ending_gave_up.text",
           "endingId": "gave_up",
           "outcome": "neutral"
+        },
+        "ending_bribed_with_coffee": {
+          "id": "ending_bribed_with_coffee",
+          "kind": "ending",
+          "textKey": "bureaucracy.ending_bribed_with_coffee.text",
+          "endingId": "bribed_with_coffee",
+          "outcome": "win"
+        },
+        "ending_archive_reveals_second_family": {
+          "id": "ending_archive_reveals_second_family",
+          "kind": "ending",
+          "textKey": "bureaucracy.ending_archive_reveals_second_family.text",
+          "endingId": "archive_reveals_second_family",
+          "outcome": "neutral"
+        },
+        "ending_became_the_archives_hero": {
+          "id": "ending_became_the_archives_hero",
+          "kind": "ending",
+          "textKey": "bureaucracy.ending_became_the_archives_hero.text",
+          "endingId": "became_the_archives_hero",
+          "outcome": "win"
         },
         "supervisor_route_1": {
           "id": "supervisor_route_1",
@@ -828,6 +916,27 @@
               "id": "choose_ultimate_reward",
               "goto": "ending_ultimate_reward",
               "labelKey": "bureaucracy.supervisor_route_4.ending_ultimate_reward"
+            },
+            {
+              "id": "choose_supervisor_adopts_your_case_personally",
+              "goto": "ending_supervisor_adopts_your_case_personally",
+              "labelKey": "bureaucracy.supervisor_route_4.ending_supervisor_adopts_your_case_personally"
+            },
+            {
+              "id": "choose_promoted_to_the_committee",
+              "requirements": {
+                "field": "var.preparation",
+                "operator": "greater_or_equal",
+                "value": 2
+              },
+              "goto": "ending_promoted_to_the_committee",
+              "labelKey": "bureaucracy.supervisor_route_4.ending_promoted_to_the_committee",
+              "requirementFailKey": "bureaucracy.supervisor_route_4.ending_promoted_to_the_committee_fail"
+            },
+            {
+              "id": "choose_the_case_outlives_the_supervisor",
+              "goto": "ending_the_case_outlives_the_supervisor",
+              "labelKey": "bureaucracy.supervisor_route_4.ending_the_case_outlives_the_supervisor"
             }
           ]
         },
@@ -844,6 +953,27 @@
           "textKey": "bureaucracy.ending_ultimate_reward.text",
           "endingId": "ultimate_reward",
           "outcome": "win"
+        },
+        "ending_supervisor_adopts_your_case_personally": {
+          "id": "ending_supervisor_adopts_your_case_personally",
+          "kind": "ending",
+          "textKey": "bureaucracy.ending_supervisor_adopts_your_case_personally.text",
+          "endingId": "supervisor_adopts_your_case_personally",
+          "outcome": "win"
+        },
+        "ending_promoted_to_the_committee": {
+          "id": "ending_promoted_to_the_committee",
+          "kind": "ending",
+          "textKey": "bureaucracy.ending_promoted_to_the_committee.text",
+          "endingId": "promoted_to_the_committee",
+          "outcome": "win"
+        },
+        "ending_the_case_outlives_the_supervisor": {
+          "id": "ending_the_case_outlives_the_supervisor",
+          "kind": "ending",
+          "textKey": "bureaucracy.ending_the_case_outlives_the_supervisor.text",
+          "endingId": "the_case_outlives_the_supervisor",
+          "outcome": "loss"
         }
       },
       "startNodeId": "municipality",
@@ -1004,7 +1134,7 @@
     }
   },
   "strings": {
-    "bureaucracy.ach.it_builds_character.description": "Reach a resolution after the offices have tested every available kind of patience.",
+    "bureaucracy.ach.it_builds_character.description": "Reach any resolution after the offices have tested every available kind of patience — and a few kinds you didn't know you had.",
     "bureaucracy.ach.it_builds_character.name": "It Builds Character",
     "bureaucracy.achievement_archive_route_event_1a.description": "Discover an optional page on this route.",
     "bureaucracy.achievement_archive_route_event_1a.name": "Found: the archive favour",
@@ -1032,86 +1162,107 @@
     "bureaucracy.achievement_supervisor_route_event_2b.name": "Found: the supervisor's promise",
     "bureaucracy.archive_route_1.listen": "Write down the guard's room numbers",
     "bureaucracy.archive_route_1.push": "Treat the directions as folklore",
-    "bureaucracy.archive_route_1.text": "The guard sends you through civil registry, down one floor, and twenty-seven years backward.",
-    "bureaucracy.archive_route_2.improvise": "Visit the notary without calling",
+    "bureaucracy.archive_route_1.text": "The guard sends you through civil registry, down one floor, and twenty-seven years backward, past a door numbered in a system that predates the euro, the lev redenomination, and possibly the guard.",
+    "bureaucracy.archive_route_2.improvise": "Visit the notary without calling ahead",
     "bureaucracy.archive_route_2.prepare": "Ask the translator to explain the mismatch",
-    "bureaucracy.archive_route_2.text": "The archive catalog lists your file under a spelling used once by a tired typist in 1987.",
+    "bureaucracy.archive_route_2.text": "The archive catalog lists your file under a spelling used exactly once, by a tired typist in 1987, who could not have known she was creating a legal identity.",
     "bureaucracy.archive_route_3.favour": "Call in the favour you earned",
     "bureaucracy.archive_route_3.favour_fail": "No one owes you that favour yet.",
     "bureaucracy.archive_route_3.steady": "Use what you prepared",
-    "bureaucracy.archive_route_3.text": "A translation office can certify the old spelling if a notary certifies that the new spelling is yours.",
+    "bureaucracy.archive_route_3.text": "A translation office can certify the old spelling if a notary certifies that the new spelling is yours — a notary who, coincidentally, is the translator's brother-in-law.",
+    "bureaucracy.archive_route_4.ending_archive_reveals_second_family": "A Discovery Nobody Requested",
+    "bureaucracy.archive_route_4.ending_became_the_archives_hero": "The Index You Fixed",
+    "bureaucracy.archive_route_4.ending_became_the_archives_hero_fail": "This ending needs more preparation.",
+    "bureaucracy.archive_route_4.ending_bribed_with_coffee": "A Small Coffee, Understood Correctly",
     "bureaucracy.archive_route_4.ending_gave_up": "The Folder in the Cupboard",
     "bureaucracy.archive_route_4.ending_lawyer_solved": "Counsel for the Living",
-    "bureaucracy.archive_route_4.text": "The recovered folder reaches a lawyer whose calm costs less than another week of queues and more than lunch.",
+    "bureaucracy.archive_route_4.text": "The recovered folder reaches a lawyer whose calm costs less than another week of queues and considerably more than lunch.",
     "bureaucracy.archive_route_event_1.text": "The day contributes its own amendment.",
     "bureaucracy.archive_route_event_1a.proceed": "Search the handwritten archive index",
-    "bureaucracy.archive_route_event_1a.text": "The handwritten index contains a cross-reference in immaculate blue ink.",
+    "bureaucracy.archive_route_event_1a.text": "The handwritten index contains a cross-reference in immaculate blue ink, written by someone who clearly loved this job in a way nobody has since.",
     "bureaucracy.archive_route_event_1b.proceed": "Pay for a computerized search",
-    "bureaucracy.archive_route_event_1b.text": "The database returns nine citizens, two streets, and a livestock permit.",
+    "bureaucracy.archive_route_event_1b.text": "The database returns nine citizens, two streets, and a livestock permit — none of them relevant, all of them printed anyway.",
     "bureaucracy.archive_route_event_2.text": "A seeded interruption arrives on schedule.",
     "bureaucracy.archive_route_event_2a.proceed": "Let the lawyer carry the folder",
-    "bureaucracy.archive_route_event_2a.text": "The translator knows the notary and corrects the appointment before it disappears.",
+    "bureaucracy.archive_route_event_2a.text": "The translator turns out to know the notary personally and reschedules the appointment before it can disappear a second time.",
     "bureaucracy.archive_route_event_2b.proceed": "Return personally to Room 14",
-    "bureaucracy.archive_route_event_2b.text": "Room 14 sends you to Room 6; Room 6 has redecorated but remembers the arrangement.",
-    "bureaucracy.campaign.description": "A municipal casebook through cadastral, tax, registry, archive, notary, and translation offices.",
+    "bureaucracy.archive_route_event_2b.text": "Room 14 sends you to Room 6. Room 6 has been repainted, renumbered, and relocated, but the woman behind the desk still remembers the arrangement.",
+    "bureaucracy.campaign.description": "A municipal casebook through cadastral, tax, registry, archive, notary, and translation offices — and, on a bad day, one very confused European Commission auditor.",
     "bureaucracy.campaign.title": "The Bureaucracy",
-    "bureaucracy.ending_document_obtained.text": "Document Obtained\n\nThe paper arrives with three seals and no apology. It proves the fact everyone knew before breakfast.",
-    "bureaucracy.ending_gave_up.text": "The Folder in the Cupboard\n\nYou put the folder away. The municipality records no defeat; it merely stops hearing from you.",
-    "bureaucracy.ending_lawyer_solved.text": "Counsel for the Living\n\nThe lawyer submits one precise letter. The system, confronted by grammar, yields.",
-    "bureaucracy.ending_miracle.text": "The Administrative Miracle\n\nThe clerk remembers your courtesy, finds the missing entry, and performs an act future staff will deny was possible.",
-    "bureaucracy.ending_system_failure.text": "System Failure, Human Success\n\nThe registry crashes while everyone is watching. The supervisor signs a paper fallback last used before Wi-Fi.",
-    "bureaucracy.ending_ultimate_reward.text": "The Ultimate Bulgarian Reward\n\nAfter seven years of paperwork, you receive €300 and twenty-eight years of unresolved legal responsibility.",
+    "bureaucracy.ending_archive_reveals_second_family.text": "A Discovery Nobody Requested\n\nThe old spelling in your file belongs to a second household your great-grandfather apparently maintained two villages over. The archivist finds this considerably more interesting than your paperwork and insists on discussing it at length.",
+    "bureaucracy.ending_became_the_archives_hero.text": "The Index You Fixed\n\nYou cross-reference the misfiled spelling so thoroughly that the archivist adopts your correction as the new official entry. Your name enters the municipal record twice: once as a citizen, once as a footnote.",
+    "bureaucracy.ending_bribed_with_coffee.text": "A Small Coffee, Understood Correctly\n\nYou offer to 'buy the clerk a coffee.' Everyone involved understands this is not about coffee. An envelope changes hands beneath a folder, the folder changes hands above the desk, and the file that took two years to lose takes four minutes to find.",
+    "bureaucracy.ending_document_obtained.text": "Document Obtained\n\nThe paper arrives with three seals and no apology. It proves the fact everyone already knew before breakfast.",
+    "bureaucracy.ending_gave_up.text": "The Folder in the Cupboard\n\nYou put the folder away. The municipality records no defeat; it simply stops hearing from you, which it appears to consider a form of resolution.",
+    "bureaucracy.ending_hired_a_professional_queuer.text": "Bay Ivan Queues For You\n\nA retired railway conductor named bay Ivan offers to hold your place for a small daily fee and a standing invitation to your name day. He is better at this than you ever were, has been since 1987, and retires you from the whole process.",
+    "bureaucracy.ending_incoming_number_only.text": "A Number, Not a Document\n\nWhat you receive is an входящ номер — official proof that you asked. It is not the document. It is, several colleagues assure you, 'basically the same thing,' and after seven months you have started to believe them.",
+    "bureaucracy.ending_lawyer_solved.text": "Counsel for the Living\n\nThe lawyer submits one precise letter. The system, confronted at last with grammar, yields.",
+    "bureaucracy.ending_miracle.text": "The Administrative Miracle\n\nThe clerk remembers your courtesy, finds the missing entry, and performs an act future staff will swear was never possible.",
+    "bureaucracy.ending_promoted_to_the_committee.text": "A Seat on the Working Group\n\nImpressed by how thoroughly you understand your own case, the municipality invites you to join an informal working group on 'process improvement.' You accept, mostly to make sure this happens to someone else next time.",
+    "bureaucracy.ending_reorganized_into_nonexistence.text": "Absorbed Into a New Ministry\n\nMidway through your fourth visit, the office is merged into a newly created Agency for Something Adjacent. Your folder is 'in transition' — a phrase that, you slowly learn, means forever.",
+    "bureaucracy.ending_supervisor_adopts_your_case_personally.text": "You Become a Personal Project\n\nThe supervisor takes a genuine, slightly alarming interest in your file, phones three colleagues by first name, and resolves in one afternoon what four departments failed to resolve in four years. You never learn why. You do not ask.",
+    "bureaucracy.ending_system_failure.text": "System Failure, Human Success\n\nThe registry crashes while everyone is watching. The supervisor signs a paper fallback last used before Wi-Fi existed in this building.",
+    "bureaucracy.ending_the_case_outlives_the_supervisor.text": "Reassigned, Indefinitely\n\nThe supervisor is transferred to a different department before signing anything. Her successor asks you to start again from Room 1 — this time with a folder thick enough to be taken seriously on its own.",
+    "bureaucracy.ending_ultimate_reward.text": "The Ultimate Bulgarian Reward\n\nAfter seven years of paperwork, you receive €300 and twenty-eight years of unresolved legal responsibility. Somewhere, this counts as closure.",
     "bureaucracy.municipality.choice_ask_guard": "Ask the guard for the unofficial route",
     "bureaucracy.municipality.choice_coffee": "Get coffee and find the supervisor",
-    "bureaucracy.municipality.choice_try_another_entrance": "Try the archive entrance",
+    "bureaucracy.municipality.choice_try_another_entrance": "Try the archive entrance instead",
     "bureaucracy.municipality.choice_wait": "Wait for the municipal registry",
-    "bureaucracy.municipality.text": "You arrive at the municipality at 08:03. The office opened at 08:00. A handwritten note says the meeting ends at 11:30; three nearby doors disagree about the year.",
+    "bureaucracy.municipality.text": "You arrive at the municipality at 08:03. The office opened at 08:00. A handwritten note taped to the glass says the working day ends at 11:30 'for technical reasons'; three nearby doors disagree about which year it currently is.",
     "bureaucracy.registry_route_1.listen": "Thank the clerk and note the expiry date",
     "bureaucracy.registry_route_1.push": "Demand the supervisor immediately",
-    "bureaucracy.registry_route_1.text": "A clerk checks your folder and quietly circles the one certificate that will expire first.",
+    "bureaucracy.registry_route_1.text": "A clerk unfolds your file like a fortune teller and circles, in red, the one certificate that expires the day after tomorrow — the only day it could possibly have mattered.",
     "bureaucracy.registry_route_2.improvise": "Bring the tax receipt you already have",
     "bureaucracy.registry_route_2.prepare": "Order the cadastral sketch first",
-    "bureaucracy.registry_route_2.text": "The cadastral office recognizes the address but not the building, while the building recognizes neither.",
+    "bureaucracy.registry_route_2.text": "The cadastral office recognizes the address. The tax office recognizes the building. Neither recognizes the other's right to exist, and both would like this in writing.",
     "bureaucracy.registry_route_3.favour": "Call in the favour you earned",
     "bureaucracy.registry_route_3.favour_fail": "No one owes you that favour yet.",
     "bureaucracy.registry_route_3.steady": "Use what you prepared",
-    "bureaucracy.registry_route_3.text": "The tax desk needs proof that the property exists before it can explain why it owes tax.",
+    "bureaucracy.registry_route_3.text": "The tax desk needs proof the property exists before it can explain why it owes tax on existing. The proof, naturally, is held one floor up, by an office currently at lunch.",
     "bureaucracy.registry_route_4.ending_document_obtained": "Document Obtained",
+    "bureaucracy.registry_route_4.ending_hired_a_professional_queuer": "Bay Ivan Queues For You",
+    "bureaucracy.registry_route_4.ending_hired_a_professional_queuer_fail": "This ending needs more preparation.",
+    "bureaucracy.registry_route_4.ending_incoming_number_only": "A Number, Not a Document",
     "bureaucracy.registry_route_4.ending_miracle": "The Administrative Miracle",
-    "bureaucracy.registry_route_4.text": "Back at the registry, your folder is thick enough to command professional respect. The final stamp is now a matter of method.",
+    "bureaucracy.registry_route_4.ending_reorganized_into_nonexistence": "Absorbed Into a New Ministry",
+    "bureaucracy.registry_route_4.text": "Back at the registry, your folder has grown thick enough to command professional respect. The final stamp is now purely a matter of locating whoever still has the stamp.",
     "bureaucracy.registry_route_event_1.text": "The day contributes its own amendment.",
     "bureaucracy.registry_route_event_1a.proceed": "Copy the clerk's pencilled checklist",
-    "bureaucracy.registry_route_event_1a.text": "The pencilled checklist names the only copying shop whose stamp faces the correct direction.",
+    "bureaucracy.registry_route_event_1a.text": "The pencilled checklist names the one copying shop across the street whose stamp faces the correct direction — everyone knows it, nobody explains it.",
     "bureaucracy.registry_route_event_1b.proceed": "Use the official checklist from 2019",
-    "bureaucracy.registry_route_event_1b.text": "The official checklist omits a certificate now required by the official who printed it.",
+    "bureaucracy.registry_route_event_1b.text": "The official checklist omits a certificate the official who printed it now requires in person.",
     "bureaucracy.registry_route_event_2.text": "A seeded interruption arrives on schedule.",
     "bureaucracy.registry_route_event_2a.proceed": "Ask the tax clerk to call upstairs",
-    "bureaucracy.registry_route_event_2a.text": "The tax clerk reaches the cadastral desk by phone and both discover a shared cousin.",
+    "bureaucracy.registry_route_event_2a.text": "The tax clerk reaches the cadastral desk by phone and both discover a shared cousin in Sliven.",
     "bureaucracy.registry_route_event_2b.proceed": "Queue again with a fresh number",
-    "bureaucracy.registry_route_event_2b.text": "Your queue number is called during the twelve seconds you spend reading the display.",
+    "bureaucracy.registry_route_event_2b.text": "Your number is called during the twelve seconds you spend reading the display board instead of watching it.",
     "bureaucracy.supervisor_route_1.listen": "Let the supervisor finish her coffee",
     "bureaucracy.supervisor_route_1.push": "Lead with the seven-year history",
-    "bureaucracy.supervisor_route_1.text": "At the cafe you meet a deputy supervisor who remembers your case and, more dangerously, promises to look at it.",
+    "bureaucracy.supervisor_route_1.text": "At the café next door you meet a deputy supervisor who remembers your case and, more dangerously, promises to look at it personally.",
     "bureaucracy.supervisor_route_2.improvise": "Add another certificate just in case",
     "bureaucracy.supervisor_route_2.prepare": "Answer the notary's question honestly",
-    "bureaucracy.supervisor_route_2.text": "The civil registry accepts the promise as evidence but the translation office requests it in writing.",
+    "bureaucracy.supervisor_route_2.text": "The civil registry accepts the promise as evidence; the translation office would prefer it in writing, ideally with a second, unrelated stamp.",
     "bureaucracy.supervisor_route_3.favour": "Call in the favour you earned",
     "bureaucracy.supervisor_route_3.favour_fail": "No one owes you that favour yet.",
     "bureaucracy.supervisor_route_3.steady": "Use what you prepared",
-    "bureaucracy.supervisor_route_3.text": "A notary reviews the growing stack and asks the only useful question anyone has asked all day.",
+    "bureaucracy.supervisor_route_3.text": "A notary reviews the growing stack of paper and asks the only genuinely useful question anyone has asked you all day.",
+    "bureaucracy.supervisor_route_4.ending_promoted_to_the_committee": "A Seat on the Working Group",
+    "bureaucracy.supervisor_route_4.ending_promoted_to_the_committee_fail": "This ending needs more preparation.",
+    "bureaucracy.supervisor_route_4.ending_supervisor_adopts_your_case_personally": "You Become a Personal Project",
     "bureaucracy.supervisor_route_4.ending_system_failure": "System Failure, Human Success",
+    "bureaucracy.supervisor_route_4.ending_the_case_outlives_the_supervisor": "Reassigned, Indefinitely",
     "bureaucracy.supervisor_route_4.ending_ultimate_reward": "The Ultimate Bulgarian Reward",
-    "bureaucracy.supervisor_route_4.text": "The supervisor convenes three desks around one computer. Either the case will resolve or the system will finally describe its objection.",
+    "bureaucracy.supervisor_route_4.text": "The supervisor convenes three desks around one shared computer. Either the case resolves, or the system finally, publicly describes what it actually objects to.",
     "bureaucracy.supervisor_route_event_1.text": "The day contributes its own amendment.",
     "bureaucracy.supervisor_route_event_1a.proceed": "Request the promise by email",
-    "bureaucracy.supervisor_route_event_1a.text": "The supervisor writes her direct extension on a napkin, the municipality's most durable medium.",
+    "bureaucracy.supervisor_route_event_1a.text": "The supervisor writes her direct extension on a napkin — the municipality's most durable and least searchable medium.",
     "bureaucracy.supervisor_route_event_1b.proceed": "Quote the promise from memory",
-    "bureaucracy.supervisor_route_event_1b.text": "Your complete chronology triggers a second coffee and no measurable progress.",
+    "bureaucracy.supervisor_route_event_1b.text": "Your complete seven-year chronology earns a second coffee, sincere sympathy, and no measurable progress whatsoever.",
     "bureaucracy.supervisor_route_event_2.text": "A seeded interruption arrives on schedule.",
     "bureaucracy.supervisor_route_event_2a.proceed": "Bring everyone to the same counter",
-    "bureaucracy.supervisor_route_event_2a.text": "The email arrives with a subject line that makes three offices suddenly cooperative.",
+    "bureaucracy.supervisor_route_event_2a.text": "The email arrives with a subject line so alarming that three offices become cooperative within the hour.",
     "bureaucracy.supervisor_route_event_2b.proceed": "Submit separate copies to each desk",
-    "bureaucracy.supervisor_route_event_2b.text": "The extra certificate contradicts a form nobody had noticed until now.",
+    "bureaucracy.supervisor_route_event_2b.text": "The extra certificate, added purely for safety, contradicts a form nobody had actually read until just now.",
     "bureaucracy.var_connections.label": "Clerk Goodwill",
     "bureaucracy.var_preparation.label": "Documents",
     "bureaucracy.var_pressure.label": "Administrative Pressure"

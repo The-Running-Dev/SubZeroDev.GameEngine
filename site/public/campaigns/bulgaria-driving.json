@@ -2,9 +2,9 @@
   "formatVersion": 2,
   "catalog": {
     "title": "Driving",
-    "description": "Inspection, road trouble, insurance, towing, and mechanical optimism.",
+    "description": "ГТП inspections, mechanics who diagnose by ear, KAT patrols, mountain passes, LPG queues, and one deeply opinionated used car.",
     "duration": "10–15 min per route",
-    "contentNotice": "Dangerous-driving anecdotes, police encounters, breakdowns, and financial loss.",
+    "contentNotice": "Dangerous-driving anecdotes, police encounters, breakdowns, mild bribery-adjacent humor, and financial loss.",
     "featured": false
   },
   "campaign": {
@@ -18,7 +18,11 @@
         "route": {
           "type": "enum",
           "initial": "repair_route",
-          "values": ["repair_route", "road_route", "escape_route"]
+          "values": [
+            "repair_route",
+            "road_route",
+            "escape_route"
+          ]
         },
         "preparation": {
           "type": "int",
@@ -340,6 +344,27 @@
               "id": "choose_endless_repairs",
               "goto": "ending_endless_repairs",
               "labelKey": "driving.repair_route_4.ending_endless_repairs"
+            },
+            {
+              "id": "choose_mechanic_becomes_family",
+              "goto": "ending_mechanic_becomes_family",
+              "labelKey": "driving.repair_route_4.ending_mechanic_becomes_family"
+            },
+            {
+              "id": "choose_the_part_never_arrives",
+              "goto": "ending_the_part_never_arrives",
+              "labelKey": "driving.repair_route_4.ending_the_part_never_arrives"
+            },
+            {
+              "id": "choose_sold_to_a_tourist",
+              "requirements": {
+                "field": "var.preparation",
+                "operator": "greater_or_equal",
+                "value": 2
+              },
+              "goto": "ending_sold_to_a_tourist",
+              "labelKey": "driving.repair_route_4.ending_sold_to_a_tourist",
+              "requirementFailKey": "driving.repair_route_4.ending_sold_to_a_tourist_fail"
             }
           ]
         },
@@ -356,6 +381,27 @@
           "textKey": "driving.ending_endless_repairs.text",
           "endingId": "endless_repairs",
           "outcome": "neutral"
+        },
+        "ending_mechanic_becomes_family": {
+          "id": "ending_mechanic_becomes_family",
+          "kind": "ending",
+          "textKey": "driving.ending_mechanic_becomes_family.text",
+          "endingId": "mechanic_becomes_family",
+          "outcome": "win"
+        },
+        "ending_the_part_never_arrives": {
+          "id": "ending_the_part_never_arrives",
+          "kind": "ending",
+          "textKey": "driving.ending_the_part_never_arrives.text",
+          "endingId": "the_part_never_arrives",
+          "outcome": "loss"
+        },
+        "ending_sold_to_a_tourist": {
+          "id": "ending_sold_to_a_tourist",
+          "kind": "ending",
+          "textKey": "driving.ending_sold_to_a_tourist.text",
+          "endingId": "sold_to_a_tourist",
+          "outcome": "win"
         },
         "road_route_1": {
           "id": "road_route_1",
@@ -584,6 +630,27 @@
               },
               "goto": "ending_collector_item",
               "labelKey": "driving.road_route_4.ending_collector_item"
+            },
+            {
+              "id": "choose_car_becomes_local_legend",
+              "goto": "ending_car_becomes_local_legend",
+              "labelKey": "driving.road_route_4.ending_car_becomes_local_legend"
+            },
+            {
+              "id": "choose_impounded_at_the_border",
+              "goto": "ending_impounded_at_the_border",
+              "labelKey": "driving.road_route_4.ending_impounded_at_the_border"
+            },
+            {
+              "id": "choose_became_a_taxi",
+              "requirements": {
+                "field": "var.preparation",
+                "operator": "greater_or_equal",
+                "value": 2
+              },
+              "goto": "ending_became_a_taxi",
+              "labelKey": "driving.road_route_4.ending_became_a_taxi",
+              "requirementFailKey": "driving.road_route_4.ending_became_a_taxi_fail"
             }
           ]
         },
@@ -600,6 +667,27 @@
           "textKey": "driving.ending_collector_item.text",
           "endingId": "collector_item",
           "outcome": "win"
+        },
+        "ending_car_becomes_local_legend": {
+          "id": "ending_car_becomes_local_legend",
+          "kind": "ending",
+          "textKey": "driving.ending_car_becomes_local_legend.text",
+          "endingId": "car_becomes_local_legend",
+          "outcome": "win"
+        },
+        "ending_impounded_at_the_border": {
+          "id": "ending_impounded_at_the_border",
+          "kind": "ending",
+          "textKey": "driving.ending_impounded_at_the_border.text",
+          "endingId": "impounded_at_the_border",
+          "outcome": "loss"
+        },
+        "ending_became_a_taxi": {
+          "id": "ending_became_a_taxi",
+          "kind": "ending",
+          "textKey": "driving.ending_became_a_taxi.text",
+          "endingId": "became_a_taxi",
+          "outcome": "neutral"
         },
         "escape_route_1": {
           "id": "escape_route_1",
@@ -828,6 +916,27 @@
               },
               "goto": "ending_trusting_the_mechanic",
               "labelKey": "driving.escape_route_4.ending_trusting_the_mechanic"
+            },
+            {
+              "id": "choose_insurance_fraud_temptation",
+              "goto": "ending_insurance_fraud_temptation",
+              "labelKey": "driving.escape_route_4.ending_insurance_fraud_temptation"
+            },
+            {
+              "id": "choose_scrapped_for_parts",
+              "goto": "ending_scrapped_for_parts",
+              "labelKey": "driving.escape_route_4.ending_scrapped_for_parts"
+            },
+            {
+              "id": "choose_one_more_repair_actually_works",
+              "requirements": {
+                "field": "var.preparation",
+                "operator": "greater_or_equal",
+                "value": 2
+              },
+              "goto": "ending_one_more_repair_actually_works",
+              "labelKey": "driving.escape_route_4.ending_one_more_repair_actually_works",
+              "requirementFailKey": "driving.escape_route_4.ending_one_more_repair_actually_works_fail"
             }
           ]
         },
@@ -844,6 +953,27 @@
           "textKey": "driving.ending_trusting_the_mechanic.text",
           "endingId": "trusting_the_mechanic",
           "outcome": "neutral"
+        },
+        "ending_insurance_fraud_temptation": {
+          "id": "ending_insurance_fraud_temptation",
+          "kind": "ending",
+          "textKey": "driving.ending_insurance_fraud_temptation.text",
+          "endingId": "insurance_fraud_temptation",
+          "outcome": "loss"
+        },
+        "ending_scrapped_for_parts": {
+          "id": "ending_scrapped_for_parts",
+          "kind": "ending",
+          "textKey": "driving.ending_scrapped_for_parts.text",
+          "endingId": "scrapped_for_parts",
+          "outcome": "neutral"
+        },
+        "ending_one_more_repair_actually_works": {
+          "id": "ending_one_more_repair_actually_works",
+          "kind": "ending",
+          "textKey": "driving.ending_one_more_repair_actually_works.text",
+          "endingId": "one_more_repair_actually_works",
+          "outcome": "win"
         }
       },
       "startNodeId": "driving",
@@ -1019,88 +1149,109 @@
     "driving.achievement_road_route_event_2a.name": "Found: the police warning",
     "driving.achievement_road_route_event_2b.description": "Discover an optional page on this route.",
     "driving.achievement_road_route_event_2b.name": "Found: the police warning",
-    "driving.campaign.description": "Inspection stickers, mechanic trust, police, parking, weather, parts, towing, and one very opinionated car.",
+    "driving.campaign.description": "Inspection stickers, mechanic trust, police, parking, weather, parts, towing, and one very opinionated car — Bulgaria's national relationship, dramatized.",
     "driving.campaign.title": "Driving",
     "driving.driving.choice_ask_another_opinion": "Ask another opinion and test it on the road",
     "driving.driving.choice_believe_him": "Believe him and build a repair plan",
     "driving.driving.choice_ignore_warning": "Ignore the warning and plan an exit",
     "driving.driving.choice_turn_up_music": "Turn up the music and head for the road",
-    "driving.driving.text": "You pass the annual inspection. Five minutes later the dashboard lights up like a Christmas tree. The mechanic says it was already like that, which is technically a diagnosis.",
-    "driving.ending_abandoned_project.text": "The Abandoned Project\n\nYou hand over the keys and walk home lighter than you have in months.",
-    "driving.ending_collector_item.text": "The Accidental Collector\n\nThe police warning proves the model's rare specification. What was old becomes collectable overnight.",
-    "driving.ending_endless_repairs.text": "The Perpetual Repair\n\nEvery repaired sound reveals a quieter one beneath it. You learn to budget by frequency.",
-    "driving.ending_reliable_car.text": "The Reliable Car\n\nIt starts in winter, stops on purpose, and asks nothing more dramatic than fuel.",
-    "driving.ending_sold_car.text": "Sold Before Sunset\n\nYou describe every fault honestly. The buyer calls them character and transfers the money.",
-    "driving.ending_trusting_the_mechanic.text": "Trust the Hammer\n\nYour original mechanic buys the project, fixes it with one strike, and refuses to explain.",
+    "driving.driving.text": "You pass the ГТП inspection by four minutes and one understanding technician. Five minutes later the dashboard lights up like a name-day table. The mechanic says it was 'already like that,' which is, legally speaking, a diagnosis.",
+    "driving.ending_abandoned_project.text": "The Abandoned Project\n\nYou hand over the keys and walk home lighter than you have felt in months.",
+    "driving.ending_became_a_taxi.text": "A Second Career, Unlicensed\n\nA neighbour offers good money for occasional airport runs. Within a month the car has a fixed rate, a regular clientele, and opinions about which terminal is faster.",
+    "driving.ending_car_becomes_local_legend.text": "The Pass Remembers You\n\nWord of the storm crossing spreads through every roadside kafene between here and Kazanlak. Strangers now recognize the car before they recognize you.",
+    "driving.ending_collector_item.text": "The Accidental Collector\n\nThe police warning turns out to confirm the model's rare specification. What was merely old becomes collectible overnight.",
+    "driving.ending_endless_repairs.text": "The Perpetual Repair\n\nEvery repaired sound reveals a quieter one beneath it. You learn to budget by frequency, like a very small orchestra.",
+    "driving.ending_impounded_at_the_border.text": "Detained at Kapitan Andreevo\n\nA customs officer takes one long look at the paperwork, one longer look at the car, and directs you to a special lane reserved for cars with 'interesting histories.' You miss the ferry, the meeting, and most of your optimism.",
+    "driving.ending_insurance_fraud_temptation.text": "The Offer You Didn't Take, Mostly\n\nA man at the yard suggests, quietly, that the car could 'have an accident' somewhere more profitable. You decline. The car, offended on principle, breaks down anyway, for free, out of spite.",
+    "driving.ending_mechanic_becomes_family.text": "You Are Now Basically Related\n\nThe mechanic starts calling you at rakia hour to report on the car unprompted. You are invited to his daughter's wedding. The car, somehow, runs better after.",
+    "driving.ending_one_more_repair_actually_works.text": "The Hammer, Reconsidered\n\nAgainst every piece of advice you gave yourself, you approve one final repair. It works. It simply, quietly works, and you drive home wondering what exactly you learned from any of this.",
+    "driving.ending_reliable_car.text": "The Reliable Car\n\nIt starts in winter, stops on purpose, and asks nothing more dramatic of you than fuel.",
+    "driving.ending_scrapped_for_parts.text": "Distributed Among the Living\n\nThe scrap dealer takes it apart with visible respect. Within a year you spot its wing mirror on a taxi, its seats in a garage sofa, and its horn, unmistakably, on a tractor.",
+    "driving.ending_sold_car.text": "Sold Before Sunset\n\nYou describe every fault honestly. The buyer calls them character and transfers the money anyway.",
+    "driving.ending_sold_to_a_tourist.text": "A German Bought It, Somehow\n\nA tourist admires the car's 'character' outside a café in Veliko Tarnovo and pays cash on the spot, no questions, no test drive. You do not correct his optimism.",
+    "driving.ending_the_part_never_arrives.text": "Still Waiting on the Part From Rado\n\nRado swears it left the warehouse Tuesday. It is now several Tuesdays later. The car sits under a tarp, technically a project, spiritually a monument.",
+    "driving.ending_trusting_the_mechanic.text": "Trust the Hammer\n\nYour original mechanic buys the project, fixes it with one decisive strike of something, and refuses to explain what.",
     "driving.escape_route_1.listen": "Accept the neighbour's careful signals",
     "driving.escape_route_1.push": "Mount the kerb decisively",
-    "driving.escape_route_1.text": "A parking space narrows around the car while neighbours direct from five incompatible angles.",
+    "driving.escape_route_1.text": "A parking space narrows around the car while five neighbours direct you from five entirely incompatible angles.",
     "driving.escape_route_2.improvise": "Call the insurer first",
     "driving.escape_route_2.prepare": "Take the tow driver's card",
-    "driving.escape_route_2.text": "The warning light becomes a warning noise halfway to the marketplace and a warning smell near the ring road.",
+    "driving.escape_route_2.text": "The warning light becomes a warning noise halfway to the market, and a warning smell somewhere near the ring road.",
     "driving.escape_route_3.favour": "Call in the favour you earned",
     "driving.escape_route_3.favour_fail": "No one owes you that favour yet.",
     "driving.escape_route_3.steady": "Use what you prepared",
-    "driving.escape_route_3.text": "A tow driver arrives with the calm of someone who has met this car before.",
+    "driving.escape_route_3.text": "A tow truck arrives with the unhurried calm of a driver who has met this exact car before.",
     "driving.escape_route_4.ending_abandoned_project": "The Abandoned Project",
+    "driving.escape_route_4.ending_insurance_fraud_temptation": "The Offer You Didn't Take, Mostly",
+    "driving.escape_route_4.ending_one_more_repair_actually_works": "The Hammer, Reconsidered",
+    "driving.escape_route_4.ending_one_more_repair_actually_works_fail": "This ending needs more preparation.",
+    "driving.escape_route_4.ending_scrapped_for_parts": "Distributed Among the Living",
     "driving.escape_route_4.ending_trusting_the_mechanic": "Trust the Hammer",
-    "driving.escape_route_4.text": "At the yard, insurer, marketplace buyer, and scrap dealer offer three definitions of value.",
+    "driving.escape_route_4.text": "At the yard, the insurer, a marketplace buyer, and a scrap dealer offer three sincerely different definitions of value.",
     "driving.escape_route_event_1.text": "The day contributes its own amendment.",
     "driving.escape_route_event_1a.proceed": "Save the parking receipt",
-    "driving.escape_route_event_1a.text": "The receipt proves the bay was legal yesterday, which is the strongest available form of legality.",
+    "driving.escape_route_event_1a.text": "The receipt proves the bay was legal yesterday, which turns out to be the strongest form of legality this street recognizes.",
     "driving.escape_route_event_1b.proceed": "Leave before anyone writes a note",
-    "driving.escape_route_event_1b.text": "A mirror acquires a neat scar and the neighbour acquires a complete theory.",
+    "driving.escape_route_event_1b.text": "A mirror acquires a neat scar, and the neighbour acquires a complete, unshakeable theory about how.",
     "driving.escape_route_event_2.text": "A seeded interruption arrives on schedule.",
     "driving.escape_route_event_2a.proceed": "Ask for one last repair estimate",
-    "driving.escape_route_event_2a.text": "The tow driver knows an insurer assessor who answers on the first ring.",
+    "driving.escape_route_event_2a.text": "The tow driver knows an insurance assessor who answers on the very first ring — a small miracle nobody mentions twice.",
     "driving.escape_route_event_2b.proceed": "List the car as a project",
-    "driving.escape_route_event_2b.text": "The online listing receives nineteen offers, all beginning with 'final price?'",
+    "driving.escape_route_event_2b.text": "The online listing receives nineteen offers, all of them opening with 'final price?'",
     "driving.repair_route_1.listen": "Ask the mechanic to prioritize safety",
     "driving.repair_route_1.push": "Approve every repair at once",
-    "driving.repair_route_1.text": "The mechanic offers a handwritten repair order: brakes first, mystery noise second, dignity when parts arrive.",
+    "driving.repair_route_1.text": "The mechanic hands you a handwritten repair order in three parts: brakes first, the mystery noise second, your dignity whenever the parts arrive from Plovdiv.",
     "driving.repair_route_2.improvise": "Order parts before checking the policy",
     "driving.repair_route_2.prepare": "Pay insurance before ordering parts",
-    "driving.repair_route_2.text": "Insurance and vehicle tax occupy neighbouring windows whose lunch breaks overlap with mathematical precision.",
+    "driving.repair_route_2.text": "Insurance and vehicle tax occupy neighbouring windows whose lunch breaks overlap with suspicious, possibly deliberate precision.",
     "driving.repair_route_3.favour": "Call in the favour you earned",
     "driving.repair_route_3.favour_fail": "No one owes you that favour yet.",
     "driving.repair_route_3.steady": "Use what you prepared",
-    "driving.repair_route_3.text": "A parts seller finds the exact component in a warehouse described only as 'after the roundabout'.",
+    "driving.repair_route_3.text": "A parts dealer locates the exact component in a warehouse described only as 'past the roundabout, ask for Rado'.",
     "driving.repair_route_4.ending_endless_repairs": "The Perpetual Repair",
+    "driving.repair_route_4.ending_mechanic_becomes_family": "You Are Now Basically Related",
     "driving.repair_route_4.ending_reliable_car": "The Reliable Car",
-    "driving.repair_route_4.text": "The car returns to the lift for the final decision: restore it properly, keep negotiating with entropy, or admit the project owns you.",
+    "driving.repair_route_4.ending_sold_to_a_tourist": "A German Bought It, Somehow",
+    "driving.repair_route_4.ending_sold_to_a_tourist_fail": "This ending needs more preparation.",
+    "driving.repair_route_4.ending_the_part_never_arrives": "Still Waiting on the Part From Rado",
+    "driving.repair_route_4.text": "The car returns to the lift for the final verdict: restore it properly, keep negotiating with entropy, or admit the project now owns you.",
     "driving.repair_route_event_1.text": "The day contributes its own amendment.",
     "driving.repair_route_event_1a.proceed": "Keep the inspection sheet",
-    "driving.repair_route_event_1a.text": "The inspection sheet proves the warning light appeared after the test, earning an unusually respectful shrug.",
+    "driving.repair_route_event_1a.text": "The inspection sheet proves the warning light appeared after the test — earning an unusually respectful shrug from the inspector.",
     "driving.repair_route_event_1b.proceed": "Trust the dashboard's temporary silence",
-    "driving.repair_route_event_1b.text": "The light turns off by itself and creates six hours of false peace.",
+    "driving.repair_route_event_1b.text": "The light turns off by itself and buys you six hours of false, blissful peace.",
     "driving.repair_route_event_2.text": "A seeded interruption arrives on schedule.",
-    "driving.repair_route_event_2a.proceed": "Follow the warehouse directions",
-    "driving.repair_route_event_2a.text": "The warehouse owner recognizes the mechanic and finds an original part under three alternators.",
-    "driving.repair_route_event_2b.proceed": "Buy the almost-identical component",
-    "driving.repair_route_event_2b.text": "The almost-identical part fits perfectly except for the part where it connects.",
+    "driving.repair_route_event_2a.proceed": "Follow the directions to Rado's warehouse",
+    "driving.repair_route_event_2a.text": "Rado recognizes the mechanic by voice alone and finds an original part hiding under three dead alternators.",
+    "driving.repair_route_event_2b.proceed": "Buy the almost-identical component instead",
+    "driving.repair_route_event_2b.text": "The almost-identical part fits perfectly, except for the one connector that defines the entire car.",
     "driving.road_route_1.listen": "Listen to the road-test instructions",
     "driving.road_route_1.push": "Prove the first mechanic wrong",
-    "driving.road_route_1.text": "A second mechanic diagnoses the weather, the fuel, and your relationship with the accelerator.",
+    "driving.road_route_1.text": "A second mechanic diagnoses the weather, the fuel quality, and your entire relationship with the accelerator pedal.",
     "driving.road_route_2.improvise": "Debate the meaning of the road sign",
     "driving.road_route_2.prepare": "Keep the officer's written warning",
-    "driving.road_route_2.text": "Rain turns the mountain road into a practical examination no licensing office could legally administer.",
+    "driving.road_route_2.text": "Rain turns the mountain pass into a practical exam no licensing office could legally administer, somewhere between Shipka and regret.",
     "driving.road_route_3.favour": "Call in the favour you earned",
     "driving.road_route_3.favour_fail": "No one owes you that favour yet.",
     "driving.road_route_3.steady": "Use what you prepared",
-    "driving.road_route_3.text": "Police stop you beside a fuel station where LPG, petrol, and coffee share one queue.",
+    "driving.road_route_3.text": "Police stop you beside a fuel station where LPG, petrol, and coffee somehow share one single queue.",
+    "driving.road_route_4.ending_became_a_taxi": "A Second Career, Unlicensed",
+    "driving.road_route_4.ending_became_a_taxi_fail": "This ending needs more preparation.",
+    "driving.road_route_4.ending_car_becomes_local_legend": "The Pass Remembers You",
     "driving.road_route_4.ending_collector_item": "The Accidental Collector",
+    "driving.road_route_4.ending_impounded_at_the_border": "Detained at Kapitan Andreevo",
     "driving.road_route_4.ending_sold_car": "Sold Before Sunset",
-    "driving.road_route_4.text": "With the storm behind you, the car feels either proven or forgiven. The distinction matters at the marketplace.",
+    "driving.road_route_4.text": "With the storm behind you, the car feels either proven or forgiven. The distinction matters considerably at the marketplace.",
     "driving.road_route_event_1.text": "The day contributes its own amendment.",
     "driving.road_route_event_1a.proceed": "Check the forecast and tyres",
-    "driving.road_route_event_1a.text": "The road test reveals a loose heat shield, a cheap and almost emotionally disappointing answer.",
+    "driving.road_route_event_1a.text": "The road test reveals a loose heat shield — a cheap, almost emotionally disappointing answer to six months of dread.",
     "driving.road_route_event_1b.proceed": "Trust the summer tyres' confidence",
-    "driving.road_route_event_1b.text": "A pothole silences the original noise and introduces two apprentices.",
+    "driving.road_route_event_1b.text": "A pothole silences the original noise and, generously, introduces two new ones.",
     "driving.road_route_event_2.text": "A seeded interruption arrives on schedule.",
     "driving.road_route_event_2a.proceed": "Refuel before the pass",
-    "driving.road_route_event_2a.text": "The officer notices the inspection receipt and recommends a safer descent.",
+    "driving.road_route_event_2a.text": "The officer notices the inspection receipt, softens considerably, and recommends a safer route down.",
     "driving.road_route_event_2b.proceed": "Follow the cheaper LPG sign",
-    "driving.road_route_event_2b.text": "The cheap LPG station is open, but its card terminal is participating remotely.",
+    "driving.road_route_event_2b.text": "The cheaper LPG station is open, but its card terminal is 'participating remotely' today — cash only, which means the ATM two villages back.",
     "driving.var_connections.label": "Mechanic Trust",
     "driving.var_preparation.label": "Car Reliability",
     "driving.var_pressure.label": "Repair Pressure"

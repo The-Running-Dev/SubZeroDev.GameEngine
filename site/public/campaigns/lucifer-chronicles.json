@@ -64,12 +64,18 @@
         "role": {
           "type": "enum",
           "initial": "ben",
-          "values": ["ben", "lucifer"]
+          "values": [
+            "ben",
+            "lucifer"
+          ]
         },
         "approach": {
           "type": "enum",
           "initial": "literal",
-          "values": ["literal", "absurd"]
+          "values": [
+            "literal",
+            "absurd"
+          ]
         },
         "has_deeds": {
           "type": "bool",

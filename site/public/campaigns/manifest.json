@@ -23,31 +23,31 @@
       "file": "bulgaria-bureaucracy.json",
       "id": "bulgaria-bureaucracy",
       "version": "2.0.0",
-      "digest": "sha-256:de58bc01087fc05b237582414cf7e96f2fa67c374fa414f95287b1a4efd476e2"
+      "digest": "sha-256:066094581eb2f83928877f563760e49a25738386027733acf2a766db403bd19d"
     },
     {
       "file": "bulgaria-return.json",
       "id": "bulgaria-return",
       "version": "2.0.0",
-      "digest": "sha-256:951a1b638dd8050aaeabd501c7915b73e488c55083972a877c4b4c622a72110a"
+      "digest": "sha-256:c2cc877693a46d9354352e43e4ab3fd59a5d0607b840548c01350f366e4ddf45"
     },
     {
       "file": "bulgaria-driving.json",
       "id": "bulgaria-driving",
       "version": "2.0.0",
-      "digest": "sha-256:03255609bea40c8b07f6c37f4aafbaf3a99f8a3a722fdb6485728485a4483bb5"
+      "digest": "sha-256:f572c9d5e287571afcc75404e19e3389d59b4a7206657baedb6d6124bd350ca8"
     },
     {
       "file": "bulgaria-inheritance.json",
       "id": "bulgaria-inheritance",
       "version": "2.0.0",
-      "digest": "sha-256:316c884f68d16fc02b5de5f2f2d007c4eddebe1bd8bbb13d2c5733975a15b633"
+      "digest": "sha-256:e9784857b27cfaf94e9ce9f6b70c252e496834a75142af304310b6fe3ef72b34"
     },
     {
       "file": "bulgaria-enterprise.json",
       "id": "bulgaria-enterprise",
       "version": "2.0.0",
-      "digest": "sha-256:05a3fd67eae92c75458dd85ad40ad6923d2e65b987d0e40980af211406ef282d"
+      "digest": "sha-256:aa729f411767d51a611a510e66dec62ab3f18a7dd1d5aeed18d0f755d41ab69e"
     },
     {
       "file": "saki-quest-for-redemption.json",

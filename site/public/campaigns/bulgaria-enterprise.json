@@ -2,9 +2,9 @@
   "formatVersion": 2,
   "catalog": {
     "title": "Enterprise",
-    "description": "Clients, tax, hiring, growth, cashflow, and the price of one more opportunity.",
+    "description": "Clients, tax, hiring, growth, cashflow, and the price of one more opportunity — now with considerably more ways for the company to end (most of them survivable).",
     "duration": "10–15 min per route",
-    "contentNotice": "Debt, bankruptcy, audits, job pressure, and business failure.",
+    "contentNotice": "Debt, bankruptcy, audits, job pressure, business failure, and mild tax-avoidance humor.",
     "featured": false
   },
   "campaign": {
@@ -18,7 +18,11 @@
         "route": {
           "type": "enum",
           "initial": "consultant_route",
-          "values": ["consultant_route", "company_route", "pressure_route"]
+          "values": [
+            "consultant_route",
+            "company_route",
+            "pressure_route"
+          ]
         },
         "preparation": {
           "type": "int",
@@ -340,6 +344,27 @@
               },
               "goto": "ending_agency",
               "labelKey": "enterprise.consultant_route_4.ending_agency"
+            },
+            {
+              "id": "choose_accountant_becomes_indispensable",
+              "goto": "ending_accountant_becomes_indispensable",
+              "labelKey": "enterprise.consultant_route_4.ending_accountant_becomes_indispensable"
+            },
+            {
+              "id": "choose_client_disappears_owing_two_invoices",
+              "goto": "ending_client_disappears_owing_two_invoices",
+              "labelKey": "enterprise.consultant_route_4.ending_client_disappears_owing_two_invoices"
+            },
+            {
+              "id": "choose_becomes_an_influencer_by_accident",
+              "requirements": {
+                "field": "var.preparation",
+                "operator": "greater_or_equal",
+                "value": 2
+              },
+              "goto": "ending_becomes_an_influencer_by_accident",
+              "labelKey": "enterprise.consultant_route_4.ending_becomes_an_influencer_by_accident",
+              "requirementFailKey": "enterprise.consultant_route_4.ending_becomes_an_influencer_by_accident_fail"
             }
           ]
         },
@@ -356,6 +381,27 @@
           "textKey": "enterprise.ending_agency.text",
           "endingId": "agency",
           "outcome": "win"
+        },
+        "ending_accountant_becomes_indispensable": {
+          "id": "ending_accountant_becomes_indispensable",
+          "kind": "ending",
+          "textKey": "enterprise.ending_accountant_becomes_indispensable.text",
+          "endingId": "accountant_becomes_indispensable",
+          "outcome": "win"
+        },
+        "ending_client_disappears_owing_two_invoices": {
+          "id": "ending_client_disappears_owing_two_invoices",
+          "kind": "ending",
+          "textKey": "enterprise.ending_client_disappears_owing_two_invoices.text",
+          "endingId": "client_disappears_owing_two_invoices",
+          "outcome": "loss"
+        },
+        "ending_becomes_an_influencer_by_accident": {
+          "id": "ending_becomes_an_influencer_by_accident",
+          "kind": "ending",
+          "textKey": "enterprise.ending_becomes_an_influencer_by_accident.text",
+          "endingId": "becomes_an_influencer_by_accident",
+          "outcome": "neutral"
         },
         "company_route_1": {
           "id": "company_route_1",
@@ -590,6 +636,21 @@
               "goto": "ending_platform_company",
               "labelKey": "enterprise.company_route_4.ending_platform_company",
               "requirementFailKey": "enterprise.company_route_4.ending_platform_company_fail"
+            },
+            {
+              "id": "choose_best_employee_leaves_for_germany",
+              "goto": "ending_best_employee_leaves_for_germany",
+              "labelKey": "enterprise.company_route_4.ending_best_employee_leaves_for_germany"
+            },
+            {
+              "id": "choose_tender_won_paperwork_lost",
+              "goto": "ending_tender_won_paperwork_lost",
+              "labelKey": "enterprise.company_route_4.ending_tender_won_paperwork_lost"
+            },
+            {
+              "id": "choose_quietly_becomes_the_towns_biggest_employer",
+              "goto": "ending_quietly_becomes_the_towns_biggest_employer",
+              "labelKey": "enterprise.company_route_4.ending_quietly_becomes_the_towns_biggest_employer"
             }
           ]
         },
@@ -605,6 +666,27 @@
           "kind": "ending",
           "textKey": "enterprise.ending_platform_company.text",
           "endingId": "platform_company",
+          "outcome": "win"
+        },
+        "ending_best_employee_leaves_for_germany": {
+          "id": "ending_best_employee_leaves_for_germany",
+          "kind": "ending",
+          "textKey": "enterprise.ending_best_employee_leaves_for_germany.text",
+          "endingId": "best_employee_leaves_for_germany",
+          "outcome": "neutral"
+        },
+        "ending_tender_won_paperwork_lost": {
+          "id": "ending_tender_won_paperwork_lost",
+          "kind": "ending",
+          "textKey": "enterprise.ending_tender_won_paperwork_lost.text",
+          "endingId": "tender_won_paperwork_lost",
+          "outcome": "loss"
+        },
+        "ending_quietly_becomes_the_towns_biggest_employer": {
+          "id": "ending_quietly_becomes_the_towns_biggest_employer",
+          "kind": "ending",
+          "textKey": "enterprise.ending_quietly_becomes_the_towns_biggest_employer.text",
+          "endingId": "quietly_becomes_the_towns_biggest_employer",
           "outcome": "win"
         },
         "pressure_route_1": {
@@ -834,6 +916,27 @@
               },
               "goto": "ending_sale",
               "labelKey": "enterprise.pressure_route_4.ending_sale"
+            },
+            {
+              "id": "choose_investor_takes_over_completely",
+              "goto": "ending_investor_takes_over_completely",
+              "labelKey": "enterprise.pressure_route_4.ending_investor_takes_over_completely"
+            },
+            {
+              "id": "choose_audit_clears_you_publicly",
+              "requirements": {
+                "field": "var.preparation",
+                "operator": "greater_or_equal",
+                "value": 2
+              },
+              "goto": "ending_audit_clears_you_publicly",
+              "labelKey": "enterprise.pressure_route_4.ending_audit_clears_you_publicly",
+              "requirementFailKey": "enterprise.pressure_route_4.ending_audit_clears_you_publicly_fail"
+            },
+            {
+              "id": "choose_one_more_loan_actually_works",
+              "goto": "ending_one_more_loan_actually_works",
+              "labelKey": "enterprise.pressure_route_4.ending_one_more_loan_actually_works"
             }
           ]
         },
@@ -850,6 +953,27 @@
           "textKey": "enterprise.ending_sale.text",
           "endingId": "sale",
           "outcome": "neutral"
+        },
+        "ending_investor_takes_over_completely": {
+          "id": "ending_investor_takes_over_completely",
+          "kind": "ending",
+          "textKey": "enterprise.ending_investor_takes_over_completely.text",
+          "endingId": "investor_takes_over_completely",
+          "outcome": "loss"
+        },
+        "ending_audit_clears_you_publicly": {
+          "id": "ending_audit_clears_you_publicly",
+          "kind": "ending",
+          "textKey": "enterprise.ending_audit_clears_you_publicly.text",
+          "endingId": "audit_clears_you_publicly",
+          "outcome": "win"
+        },
+        "ending_one_more_loan_actually_works": {
+          "id": "ending_one_more_loan_actually_works",
+          "kind": "ending",
+          "textKey": "enterprise.ending_one_more_loan_actually_works.text",
+          "endingId": "one_more_loan_actually_works",
+          "outcome": "win"
         }
       },
       "startNodeId": "starting_a_business",
@@ -1024,89 +1148,109 @@
     "enterprise.achievement_pressure_route_event_2a.name": "Found: the investor's warning",
     "enterprise.achievement_pressure_route_event_2b.description": "Discover an optional page on this route.",
     "enterprise.achievement_pressure_route_event_2b.name": "Found: the investor's warning",
-    "enterprise.campaign.description": "Registration, clients, tax, invoices, hiring, competition, government, growth, sale, and failure.",
+    "enterprise.campaign.description": "Registration, clients, tax, invoices, hiring, competition, government tenders, growth, sale, and failure — Bulgarian small business, dramatized.",
     "enterprise.campaign.title": "Enterprise",
     "enterprise.company_route_1.listen": "Explain the runway and hire carefully",
     "enterprise.company_route_1.push": "Hire three people for momentum",
-    "enterprise.company_route_1.text": "Hiring one person creates payroll, policy, equipment, and a government portal that prefers yesterday's browser.",
+    "enterprise.company_route_1.text": "Hiring one single person creates payroll, policy, equipment, and a government portal that clearly prefers yesterday's browser and possibly yesterday's government.",
     "enterprise.company_route_2.improvise": "Submit the boldest possible bid",
     "enterprise.company_route_2.prepare": "Split the tender into a checklist",
-    "enterprise.company_route_2.text": "A competitor recruits your prospect while your team repairs the first client's server outage.",
+    "enterprise.company_route_2.text": "A competitor recruits your best prospect directly while your team is busy repairing the first client's server outage.",
     "enterprise.company_route_3.favour": "Call in the favour you earned",
     "enterprise.company_route_3.favour_fail": "No one owes you that favour yet.",
     "enterprise.company_route_3.steady": "Use what you prepared",
-    "enterprise.company_route_3.text": "A government opportunity arrives with a short deadline and a folder of declarations about other declarations.",
+    "enterprise.company_route_3.text": "A government tender arrives with a short deadline and a folder of declarations, each one requiring a separate declaration confirming the first.",
+    "enterprise.company_route_4.ending_best_employee_leaves_for_germany": "Gone to Munich, With Love",
     "enterprise.company_route_4.ending_platform_company": "The Platform Bet",
     "enterprise.company_route_4.ending_platform_company_fail": "This ending needs more preparation.",
+    "enterprise.company_route_4.ending_quietly_becomes_the_towns_biggest_employer": "Nobody Noticed It Happening",
     "enterprise.company_route_4.ending_successful_company": "The Durable Company",
-    "enterprise.company_route_4.text": "Growth is now real enough to choose: disciplined company, platform bet, or a profitable sale before scale becomes weather.",
+    "enterprise.company_route_4.ending_tender_won_paperwork_lost": "You Won. The Folder Didn't.",
+    "enterprise.company_route_4.text": "Growth is now real enough to require a choice: a disciplined company, a platform bet, or a well-timed sale before scale turns into weather.",
     "enterprise.company_route_event_1.text": "The day contributes its own amendment.",
     "enterprise.company_route_event_1a.proceed": "Save the outage postmortem",
-    "enterprise.company_route_event_1a.text": "The careful hire brings a client relationship stronger than the job board promised.",
+    "enterprise.company_route_event_1a.text": "The careful hire arrives with a client relationship stronger than the job listing ever promised.",
     "enterprise.company_route_event_1b.proceed": "Blame the hosting provider publicly",
-    "enterprise.company_route_event_1b.text": "The third hire asks when payroll runs; nobody has yet asked payroll.",
+    "enterprise.company_route_event_1b.text": "The third hire asks, reasonably, when payroll runs. Nobody has yet actually asked payroll.",
     "enterprise.company_route_event_2.text": "A seeded interruption arrives on schedule.",
     "enterprise.company_route_event_2a.proceed": "Promote the teammate who held the outage",
-    "enterprise.company_route_event_2a.text": "Your outage postmortem wins the government evaluator's technical confidence.",
+    "enterprise.company_route_event_2a.text": "Your outage postmortem, oddly, wins the government evaluator's full technical confidence.",
     "enterprise.company_route_event_2b.proceed": "Meet the interested buyer alone",
-    "enterprise.company_route_event_2b.text": "A server outage begins eleven minutes before submission and ends twelve minutes after.",
+    "enterprise.company_route_event_2b.text": "A server outage begins eleven minutes before submission and ends twelve minutes after — a margin everyone agrees not to discuss again.",
     "enterprise.consultant_route_1.listen": "Ask what success means before pricing",
     "enterprise.consultant_route_1.push": "Promise the full wishlist",
-    "enterprise.consultant_route_1.text": "Your first client wants a proposal by Friday, a discount by Thursday, and confidence immediately.",
+    "enterprise.consultant_route_1.text": "Your first client wants a proposal by Friday, a discount by Thursday, and your total confidence immediately, ideally before either.",
     "enterprise.consultant_route_2.improvise": "Reply from memory tonight",
     "enterprise.consultant_route_2.prepare": "Call the accountant before replying",
-    "enterprise.consultant_route_2.text": "The invoice is accepted in seconds and scheduled for payment in sixty days.",
+    "enterprise.consultant_route_2.text": "The invoice is accepted in seconds and quietly scheduled for payment in exactly sixty days, per 'standard company policy.'",
     "enterprise.consultant_route_3.favour": "Call in the favour you earned",
     "enterprise.consultant_route_3.favour_fail": "No one owes you that favour yet.",
     "enterprise.consultant_route_3.steady": "Use what you prepared",
-    "enterprise.consultant_route_3.text": "A tax letter asks for clarification about income that has not yet become money.",
+    "enterprise.consultant_route_3.text": "A tax letter politely asks for clarification about income that has not, strictly speaking, become money yet.",
+    "enterprise.consultant_route_4.ending_accountant_becomes_indispensable": "The Real Founder Was the Accountant",
     "enterprise.consultant_route_4.ending_agency": "The Careful Agency",
+    "enterprise.consultant_route_4.ending_becomes_an_influencer_by_accident": "Personal Brand, Unplanned",
+    "enterprise.consultant_route_4.ending_becomes_an_influencer_by_accident_fail": "This ending needs more preparation.",
+    "enterprise.consultant_route_4.ending_client_disappears_owing_two_invoices": "Ghosted, Professionally",
     "enterprise.consultant_route_4.ending_consultant": "The Independent Consultant",
-    "enterprise.consultant_route_4.text": "The consultancy can remain deliberate, grow into an agency, or exhaust itself performing success.",
+    "enterprise.consultant_route_4.text": "The consultancy can now stay deliberately small, grow into an agency, or exhaust itself performing a success it hasn't quite reached.",
     "enterprise.consultant_route_event_1.text": "The day contributes its own amendment.",
     "enterprise.consultant_route_event_1a.proceed": "Keep the signed scope beside the invoice",
-    "enterprise.consultant_route_event_1a.text": "The client removes half the wishlist and trusts the smaller promise more.",
+    "enterprise.consultant_route_event_1a.text": "The client removes half the wishlist unprompted and trusts the smaller, honest promise considerably more.",
     "enterprise.consultant_route_event_1b.proceed": "Assume goodwill will handle scope",
-    "enterprise.consultant_route_event_1b.text": "A competitor underbids by excluding the work from the price.",
+    "enterprise.consultant_route_event_1b.text": "A competitor underbids you by quietly excluding the actual work from the price.",
     "enterprise.consultant_route_event_2.text": "A seeded interruption arrives on schedule.",
     "enterprise.consultant_route_event_2a.proceed": "Ask the client for a reference",
-    "enterprise.consultant_route_event_2a.text": "The tax letter is routine; the accountant identifies the correct checkbox in under an hour.",
+    "enterprise.consultant_route_event_2a.text": "The tax letter turns out to be routine; the accountant finds the correct checkbox in under an hour, visibly bored by the whole thing.",
     "enterprise.consultant_route_event_2b.proceed": "Take the next project quietly",
-    "enterprise.consultant_route_event_2b.text": "A bad review appears for a company with the same name and a different comma.",
-    "enterprise.ending_agency.text": "The Careful Agency\n\nThe first client's trust becomes a referral, then a team, then a business that can survive your day off.",
-    "enterprise.ending_bankruptcy.text": "The Permanent Line Item\n\nDebt becomes the only reliable customer. You close the company and keep the lessons that cannot be invoiced.",
-    "enterprise.ending_consultant.text": "The Independent Consultant\n\nThe calendar fills, the invoices clear, and the company stays small enough to recognize itself.",
-    "enterprise.ending_platform_company.text": "The Platform Bet\n\nYou turn repeated client work into a product. The roadmap becomes longer and the margins become possible.",
-    "enterprise.ending_sale.text": "The Timely Sale\n\nThe warning helps you recognize a fair offer before desperation sets the price. You sign and pay everyone.",
+    "enterprise.consultant_route_event_2b.text": "A bad review appears — for a company with the same name and, mercifully, one different comma.",
+    "enterprise.ending_accountant_becomes_indispensable.text": "The Real Founder Was the Accountant\n\nYou quietly realize the company has survived three near-disasters entirely because of one extremely competent accountant. You give her a raise before you give yourself one.",
+    "enterprise.ending_agency.text": "The Careful Agency\n\nThe first client's trust becomes a referral, then a team, then a business that can survive your actual day off.",
+    "enterprise.ending_audit_clears_you_publicly.text": "Vindicated, On the Record\n\nThe audit not only clears you but becomes, oddly, a credibility boost — 'audited and clean' turns out to be a better sales line than any marketing you ever paid for.",
+    "enterprise.ending_bankruptcy.text": "The Permanent Line Item\n\nDebt becomes the only reliable customer left. You close the company and keep only the lessons that couldn't be invoiced.",
+    "enterprise.ending_becomes_an_influencer_by_accident.text": "Personal Brand, Unplanned\n\nA rant you posted about invoice culture goes mildly viral in local business circles. You now have more followers than clients, and an uncomfortable number of DMs asking for 'just a quick favour.'",
+    "enterprise.ending_best_employee_leaves_for_germany.text": "Gone to Munich, With Love\n\nYour best engineer gives two months' notice, a firm handshake, and a job offer in Munich paying triple. You can't even be angry — you'd have taken it too.",
+    "enterprise.ending_client_disappears_owing_two_invoices.text": "Ghosted, Professionally\n\nYour best client stops answering after invoice two. The company registration lookup shows the business still exists, still trading, apparently just not with you anymore.",
+    "enterprise.ending_consultant.text": "The Independent Consultant\n\nThe calendar fills, the invoices clear, and the company stays exactly small enough to still recognize itself.",
+    "enterprise.ending_investor_takes_over_completely.text": "Rescued, Then Replaced\n\nThe investor's terms are friendly right up until the board meeting where you learn 'strategic realignment' means you personally. The company survives. You, professionally, do not.",
+    "enterprise.ending_one_more_loan_actually_works.text": "The Loan That Shouldn't Have Worked\n\nAgainst every reasonable prediction, one final loan buys exactly enough time for the lucky client's payment to land first. Nobody, including you, recommends this as a strategy.",
+    "enterprise.ending_platform_company.text": "The Platform Bet\n\nYou turn repeated client work into an actual product. The roadmap gets longer and, for the first time, so do the margins.",
+    "enterprise.ending_quietly_becomes_the_towns_biggest_employer.text": "Nobody Noticed It Happening\n\nBetween the careful hires and the steady contracts, the company becomes, without any single dramatic moment, the largest employer in the neighbourhood. The mayor asks you to open the Christmas market.",
+    "enterprise.ending_sale.text": "The Timely Sale\n\nThe warning helps you recognize a fair offer before desperation sets the price. You sign, and for once, pay everyone.",
     "enterprise.ending_successful_company.text": "The Durable Company\n\nRevenue, process, and people finally reinforce each other. Growth stops feeling like falling upward.",
+    "enterprise.ending_tender_won_paperwork_lost.text": "You Won. The Folder Didn't.\n\nYou win the tender outright. A single missing declaration, page fourteen of nineteen, disqualifies the submission on a technicality discovered three weeks later, well past appeal.",
     "enterprise.pressure_route_1.listen": "Tell the supplier exactly when payment lands",
     "enterprise.pressure_route_1.push": "Borrow silently and keep moving",
-    "enterprise.pressure_route_1.text": "A late payment forces a choice between supplier trust, payroll, and pretending the bank balance is a design problem.",
+    "enterprise.pressure_route_1.text": "A late payment forces a choice between supplier trust, payroll, and quietly treating the bank balance as a design problem.",
     "enterprise.pressure_route_2.improvise": "Sign before the client cools",
     "enterprise.pressure_route_2.prepare": "Model the exclusivity cost",
-    "enterprise.pressure_route_2.text": "An audit notice arrives on the same morning as a lucky client with an implausibly large opportunity.",
+    "enterprise.pressure_route_2.text": "An audit notice arrives the same morning as a lucky client offering an implausibly large opportunity.",
     "enterprise.pressure_route_3.favour": "Call in the favour you earned",
     "enterprise.pressure_route_3.favour_fail": "No one owes you that favour yet.",
     "enterprise.pressure_route_3.steady": "Use what you prepared",
-    "enterprise.pressure_route_3.text": "The lucky client requests exclusivity while an investor offers rescue on terms written in unusually friendly language.",
+    "enterprise.pressure_route_3.text": "The lucky client requests exclusivity while an investor offers rescue on terms written in suspiciously friendly language.",
+    "enterprise.pressure_route_4.ending_audit_clears_you_publicly": "Vindicated, On the Record",
+    "enterprise.pressure_route_4.ending_audit_clears_you_publicly_fail": "This ending needs more preparation.",
     "enterprise.pressure_route_4.ending_bankruptcy": "The Permanent Line Item",
+    "enterprise.pressure_route_4.ending_investor_takes_over_completely": "Rescued, Then Replaced",
+    "enterprise.pressure_route_4.ending_one_more_loan_actually_works": "The Loan That Shouldn't Have Worked",
     "enterprise.pressure_route_4.ending_sale": "The Timely Sale",
-    "enterprise.pressure_route_4.text": "Cashflow has become a verdict. You may sell, close cleanly, or keep borrowing until optimism becomes an accounting category.",
+    "enterprise.pressure_route_4.text": "Cashflow has become a verdict. You may sell, close cleanly, or keep borrowing until optimism officially becomes an accounting category.",
     "enterprise.pressure_route_event_1.text": "The day contributes its own amendment.",
     "enterprise.pressure_route_event_1a.proceed": "Keep the investor's warning email",
-    "enterprise.pressure_route_event_1a.text": "The supplier grants two weeks because honesty turns out to have credit value.",
+    "enterprise.pressure_route_event_1a.text": "The supplier grants two full weeks, because honesty turns out to have real, tradeable credit value.",
     "enterprise.pressure_route_event_1b.proceed": "Spend the lucky deposit immediately",
-    "enterprise.pressure_route_event_1b.text": "The bridge loan clears hours before payroll and starts charging interest immediately.",
+    "enterprise.pressure_route_event_1b.text": "The bridge loan clears hours before payroll and starts charging interest literally immediately.",
     "enterprise.pressure_route_event_2.text": "A seeded interruption arrives on schedule.",
     "enterprise.pressure_route_event_2a.proceed": "Invite acquisition offers",
-    "enterprise.pressure_route_event_2a.text": "The audit finds a filing error, not fraud, and the warning email proves when you corrected it.",
+    "enterprise.pressure_route_event_2a.text": "The audit finds a filing error, not fraud — and the warning email proves exactly when you corrected it.",
     "enterprise.pressure_route_event_2b.proceed": "Take one final emergency loan",
-    "enterprise.pressure_route_event_2b.text": "The lucky client pauses the project after the deposit has already funded three hires.",
+    "enterprise.pressure_route_event_2b.text": "The lucky client pauses the project right after the deposit has already funded three new hires.",
     "enterprise.starting_a_business.choice_ask_who_invited_them": "Build a company before the inspectors return",
     "enterprise.starting_a_business.choice_hide": "Hide from the inspectors and chase cash",
     "enterprise.starting_a_business.choice_offer_coffee": "Stay small and win the first client",
     "enterprise.starting_a_business.choice_pretend_business_never_opened": "Avoid the inspectors and focus on cash",
-    "enterprise.starting_a_business.text": "Your company is officially registered. Its first visitors are the Tax Agency, Labour Inspectorate, and Health Inspectorate. None of them are customers.",
+    "enterprise.starting_a_business.text": "Your company is officially registered — a fresh ЕИК, a bank account, and a company stamp you were mildly disappointed to learn is now optional. Its first visitors are the Tax Agency, the Labour Inspectorate, and the Health Inspectorate. None of them are customers.",
     "enterprise.var_connections.label": "Reputation",
     "enterprise.var_preparation.label": "Runway",
     "enterprise.var_pressure.label": "Cashflow Pressure"

@@ -113,7 +113,7 @@ describe("McpTools — the API coverage checklist (09-clients.md §4)", () => {
     const created = await tools.start_game({ campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, seed: SEED });
     const result = await tools.choose({ sessionId: created.sessionId, actionId: "wait" });
     expect(result.ok).toBe(true);
-    expect(result.scene?.body.text).toContain("quietly circles");
+    expect(result.scene?.body.text).toContain("unfolds your file like a fortune teller");
     expect(result).not.toHaveProperty("kindState");
     expect(result).not.toHaveProperty("actionLog");
   });
@@ -124,7 +124,7 @@ describe("McpTools — the API coverage checklist (09-clients.md §4)", () => {
     const preview = await tools.preview_action({ sessionId: created.sessionId, actionId: "wait" });
 
     expect(preview.ok).toBe(true);
-    expect(preview.scene?.body.text).toContain("quietly circles");
+    expect(preview.scene?.body.text).toContain("unfolds your file like a fortune teller");
     expect(await tools.get_scene({ sessionId: created.sessionId })).toEqual(created.scene);
   });
 

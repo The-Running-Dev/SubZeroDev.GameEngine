@@ -89,7 +89,7 @@ describe("TextClient — the API coverage checklist (09-clients.md §4)", () => 
 
     const afterWait = await client.submitAction(sessionId, "wait");
     expect(afterWait.value.ok).toBe(true);
-    expect(afterWait.text).toContain("quietly circles");
+    expect(afterWait.text).toContain("unfolds your file like a fortune teller");
     expect(afterWait.text).toContain("[registry_route_listen]");
 
     const afterListening = await client.submitAction(sessionId, "registry_route_listen");
@@ -103,7 +103,7 @@ describe("TextClient — the API coverage checklist (09-clients.md §4)", () => 
     const preview = await client.previewAction(created.value.sessionId, "wait");
 
     expect(preview.value.ok).toBe(true);
-    expect(preview.text).toContain("quietly circles");
+    expect(preview.text).toContain("unfolds your file like a fortune teller");
     expect((await client.getScene(created.value.sessionId)).value).toEqual(created.value.scene);
   });
 
