@@ -9,6 +9,14 @@
  * Run with `npm run export:campaigns` from `src/engine/`. Writes one JSON file per campaign
  * to `../../site/public/campaigns/`, plus a manifest listing them in catalog order.
  *
+ * **Run `npx prettier --write public/campaigns/*.json` from `site/` afterward.** Plain
+ * `JSON.stringify(x, null, 2)` always expands every array element onto its own line;
+ * Prettier collapses one short enough to fit `printWidth` onto one line instead
+ * (`site`'s own `format:check` gate caught this the first time this script's output changed
+ * under CI). Not worth wiring as an automatic post-step here — this script has no dependency
+ * on `site`'s tooling today, and one array-formatting rule does not justify adding one.
+ *
+
  * Aborts hard on any campaign build failure and writes nothing — pre-graduation, a failed
  * campaign only logged and `continue`d, so a partial export still produced a valid-looking
  * manifest. Under fetch-at-runtime (`SubZeroDev.Adventures.Content` publishes this output),
