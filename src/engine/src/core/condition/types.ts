@@ -27,7 +27,17 @@ export type ComparisonOperator =
 export interface ComparisonCondition {
   field: string;
   operator: ComparisonOperator;
-  value: unknown;
+  /**
+   * Optional, not merely `unknown` -- `not_equals` against an absent field reads as "field is
+   * set to something," authored as `value: undefined` (`campaigns/bulgaria-bureaucracy.ts`).
+   * That satisfied `value: unknown` at the TypeScript level, but `JSON.stringify` silently
+   * drops an `undefined`-valued key, so the published wire document never actually carried
+   * `value` for that condition -- a `value: unknown` (required) schema is stricter than what
+   * this engine has ever actually produced or needed. `value?:` makes the type honestly
+   * describe the wire format; `compare` (`evaluate.ts`) already reads a missing `value` the
+   * same way it reads an explicit `undefined` one, so this is a type-only change.
+   */
+  value?: unknown;
 }
 
 export interface AllCondition {
