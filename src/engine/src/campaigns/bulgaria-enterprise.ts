@@ -6,8 +6,8 @@ import type { PortableCatalog, PortableMigration } from "../portable/format.js";
 
 export const BULGARIA_ENTERPRISE_CAMPAIGN_ID = "bulgaria-enterprise";
 
-// SPIKE: catalog card travels with the campaign instead of a positional entry in
-// site/src/play/composition.ts. See plans/spike-notes.md.
+// The catalog card travels with the campaign, not a positional entry in
+// site/src/play/composition.ts.
 export const bulgariaEnterpriseCatalog: PortableCatalog = {
   title: "Enterprise",
   description: "Clients, tax, hiring, growth, cashflow, and the price of one more opportunity.",

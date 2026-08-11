@@ -10,8 +10,17 @@
  * as BigInt or float — so `bigint` is rejected here on purpose.
  */
 
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
+
 export function canonicalStringify(value: unknown): string {
   return write(value);
+}
+
+/** sha-256 of a UTF-8 string, hex-encoded — the shared hash primitive behind
+ *  `computeResolutionId`, `computeChecksum`, and the portable campaign format's digests. */
+export function sha256Hex(text: string): string {
+  return bytesToHex(sha256(new TextEncoder().encode(text)));
 }
 
 function write(v: unknown): string {

@@ -2,19 +2,18 @@
  * Digests for the portable campaign format.
  *
  * Reuses the exact `computeResolutionId` recipe (`core/registry/packs.ts`) — sha-256 over
- * `canonicalStringify` — rather than defining a second one. A `PortableManifest` is not a
- * `ContentPack[]` (that function's own input shape), so this is a sibling built on the same
- * primitives, not a generalization of the pack function.
+ * `canonicalStringify`, via the shared `sha256Hex` primitive — rather than defining a second
+ * one. A `PortableManifest` is not a `ContentPack[]` (that function's own input shape), so
+ * this is a sibling built on the same primitives, not a generalization of the pack function.
  */
 
-import { sha256 } from "@noble/hashes/sha2.js";
-import { bytesToHex } from "@noble/hashes/utils.js";
-import { canonicalStringify } from "../core/persistence/canonical.js";
+import { canonicalStringify, sha256Hex } from "../core/persistence/canonical.js";
+import type { PackRef } from "../core/registry/packs.js";
 
 const DIGEST_PREFIX = "sha-256:";
 
 function digestOf(value: unknown): string {
-  return `${DIGEST_PREFIX}${bytesToHex(sha256(new TextEncoder().encode(canonicalStringify(value))))}`;
+  return `${DIGEST_PREFIX}${sha256Hex(canonicalStringify(value))}`;
 }
 
 /**
@@ -32,8 +31,6 @@ export function digestPortableCampaign(portable: unknown): string {
  * reordered, or re-versioned; does not change for a file-name or digest-only edit to an
  * otherwise-identical `{id, version}` list.
  */
-export function digestManifestResolution(
-  entries: readonly { readonly id: string; readonly version: string }[],
-): string {
+export function digestManifestResolution(entries: readonly PackRef[]): string {
   return digestOf(entries.map(({ id, version }) => ({ id, version })));
 }

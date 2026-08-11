@@ -13,9 +13,9 @@ import bulgariaInheritanceJson from "../../public/campaigns/bulgaria-inheritance
 import bulgariaEnterpriseJson from "../../public/campaigns/bulgaria-enterprise.json";
 import sakiQuestJson from "../../public/campaigns/saki-quest-for-redemption.json";
 
-// SPIKE: same fetch stub as browser-client.test.ts — `PlayApp` now loads its catalog
-// with a `fetch`, so every test must wait for that to resolve before the previously
-// synchronous dossier-shelf queries below will find anything. See plans/spike-notes.md.
+// Same fetch stub as browser-client.test.ts — `PlayApp` loads its catalog with a `fetch`,
+// so every test must wait for that to resolve before the previously synchronous
+// dossier-shelf queries below will find anything.
 const exportedCampaigns: Readonly<Record<string, unknown>> = {
   "manifest.json": manifestJson,
   "what-would-lucifer-do.json": whatWouldLuciferDoJson,

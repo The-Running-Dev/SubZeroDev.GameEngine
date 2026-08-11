@@ -34,11 +34,11 @@ import sakiQuestJson from "../../public/campaigns/saki-quest-for-redemption.json
 
 const SEED = "bureaucracy-seed-3";
 
-// SPIKE: `createBrowserDemo` now fetches runtime campaign JSON instead of importing a
-// compiled-in build. jsdom has no server to fetch from, so `fetch` is stubbed here to
-// return the exact files `npm run spike:export` wrote (statically imported, not a
-// hand-built fixture) — proving the exported files validate through the real registry
-// gate, not just that the pipeline runs. See plans/spike-notes.md.
+// `createBrowserDemo` fetches runtime campaign JSON instead of importing a compiled-in
+// build. jsdom has no server to fetch from, so `fetch` is stubbed here to return the exact
+// files `npm run export:campaigns` wrote (statically imported, not a hand-built fixture) —
+// proving the exported files validate through the real registry gate, not just that the
+// pipeline runs.
 const exportedCampaigns: Readonly<Record<string, unknown>> = {
   "manifest.json": manifestJson,
   "what-would-lucifer-do.json": whatWouldLuciferDoJson,

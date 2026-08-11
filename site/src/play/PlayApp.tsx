@@ -90,10 +90,10 @@ function ArrivalReceipt({ arrivalChoice }: { arrivalChoice?: string }) {
   );
 }
 
-// SPIKE: campaigns are runtime-loaded JSON, so building the browser demo is now async
-// (a fetch, not a synchronous compiled-in build). This gate loads it once and hands the
-// resolved `BrowserDemo` down as a prop, so `PlayAppReady` below is unchanged from the
-// synchronous version other than reading `demo` from props. See plans/spike-notes.md.
+// Campaigns are runtime-loaded JSON, so building the browser demo is async (a fetch, not
+// a synchronous compiled-in build). This gate loads it once and hands the resolved
+// `BrowserDemo` down as a prop, so `PlayAppReady` below is unchanged from the synchronous
+// version other than reading `demo` from props.
 export default function PlayApp() {
   const [demo, setDemo] = useState<BrowserDemo>();
   const [loadError, setLoadError] = useState<string>();

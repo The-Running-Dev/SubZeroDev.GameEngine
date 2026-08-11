@@ -6,8 +6,8 @@ import type { PortableCatalog, PortableMigration } from "../portable/format.js";
 
 export const BULGARIA_INHERITANCE_CAMPAIGN_ID = "bulgaria-inheritance";
 
-// SPIKE: catalog card travels with the campaign instead of a positional entry in
-// site/src/play/composition.ts. See plans/spike-notes.md.
+// The catalog card travels with the campaign, not a positional entry in
+// site/src/play/composition.ts.
 export const bulgariaInheritanceCatalog: PortableCatalog = {
   title: "Inheritance",
   description: "Family property, evidence, neighbours, court, and tomato-adjacent law.",

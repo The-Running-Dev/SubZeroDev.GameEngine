@@ -16,7 +16,6 @@
  * under CI). Not worth wiring as an automatic post-step here — this script has no dependency
  * on `site`'s tooling today, and one array-formatting rule does not justify adding one.
  *
-
  * Aborts hard on any campaign build failure and writes nothing — pre-graduation, a failed
  * campaign only logged and `continue`d, so a partial export still produced a valid-looking
  * manifest. Under fetch-at-runtime (`SubZeroDev.Adventures.Content` publishes this output),
@@ -82,7 +81,11 @@ function buildAllOrAbort(): readonly PortableCampaign[] {
       failures.push(`  - ${JSON.stringify(result.errors)}`);
       continue;
     }
-    portables.push(toPortable(result.value, entry.catalog, entry.migration));
+    try {
+      portables.push(toPortable(result.value, entry.catalog, entry.migration));
+    } catch (error) {
+      failures.push(`  - ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   if (failures.length > 0) {
@@ -97,18 +100,19 @@ async function main(): Promise<void> {
 
   await mkdir(outDir, { recursive: true });
 
-  const manifestEntries: PortableManifestEntry[] = [];
-  for (const portable of portables) {
-    const fileName = `${portable.campaign.id}.json`;
-    await writeFile(path.join(outDir, fileName), `${JSON.stringify(portable, null, 2)}\n`, "utf8");
-    manifestEntries.push({
-      file: fileName,
-      id: portable.campaign.id,
-      version: portable.campaign.version,
-      digest: digestPortableCampaign(portable),
-    });
-    console.log(`Wrote ${fileName} (${Object.keys(portable.strings).length} strings)`);
-  }
+  const manifestEntries = await Promise.all(
+    portables.map(async (portable): Promise<PortableManifestEntry> => {
+      const fileName = `${portable.campaign.id}.json`;
+      await writeFile(path.join(outDir, fileName), `${JSON.stringify(portable, null, 2)}\n`, "utf8");
+      console.log(`Wrote ${fileName} (${Object.keys(portable.strings).length} strings)`);
+      return {
+        file: fileName,
+        id: portable.campaign.id,
+        version: portable.campaign.version,
+        digest: digestPortableCampaign(portable),
+      };
+    }),
+  );
 
   const manifest = {
     formatVersion: 2 as const,

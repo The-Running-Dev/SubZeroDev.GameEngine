@@ -59,8 +59,8 @@ import type { RandomTransition } from "../kinds/story-graph/nodes.js";
 
 export const WHAT_WOULD_LUCIFER_DO_CAMPAIGN_ID = "what-would-lucifer-do";
 
-// SPIKE: catalog card travels with the campaign instead of a positional entry in
-// site/src/play/composition.ts. See plans/spike-notes.md.
+// The catalog card travels with the campaign, not a positional entry in
+// site/src/play/composition.ts.
 export const whatWouldLuciferDoCatalog: PortableCatalog = {
   title: "What Would Lucifer Do?",
   description: "Based unfortunately on actual events. Twenty-six real incidents, adapted from the SubZeroDev Blog — predict what he actually did.",
@@ -74,7 +74,7 @@ export const whatWouldLuciferDoCatalog: PortableCatalog = {
 
 // Identity migration: v1.1.0 changed only prose, no ids, so both maps are empty. Carried by
 // the portable export (`toPortable`/`fromPortable`) the same way `luciferChroniclesMigration`
-// carries a non-trivial one — see `spike-export-campaigns.ts`.
+// carries a non-trivial one — see `scripts/export-campaigns.ts`.
 export const whatWouldLuciferDoMigration: PortableMigration = { fromVersion: "1.0.0" };
 
 // ---------------------------------------------------------------------------

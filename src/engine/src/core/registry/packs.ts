@@ -12,9 +12,7 @@
  * registry already goes through (`validation/tiered.ts`), now over the folded result.
  */
 
-import { sha256 } from "@noble/hashes/sha2.js";
-import { bytesToHex } from "@noble/hashes/utils.js";
-import { canonicalStringify } from "../persistence/canonical.js";
+import { canonicalStringify, sha256Hex } from "../persistence/canonical.js";
 import type { LocKey } from "../localization/types.js";
 import type { KindId } from "../kernel/types.js";
 import type { CommandResult } from "../kernel/reasons.js";
@@ -131,7 +129,7 @@ const PROTECTED_PREFIX = "core.reason.";
  */
 export function computeResolutionId(packs: readonly ContentPack[]): ResolutionId {
   const refs: PackRef[] = packs.map((p) => ({ id: p.id, version: p.version }));
-  return bytesToHex(sha256(new TextEncoder().encode(canonicalStringify(refs))));
+  return sha256Hex(canonicalStringify(refs));
 }
 
 /** §7 Tier 1: "a pack's `kindId` matches every campaign it carries." */
