@@ -59,9 +59,21 @@ export {
 } from "./campaigns/what-would-lucifer-do-engineers-cut.js";
 export { ENGINE_VERSION } from "./version.js";
 
-// SPIKE: runtime campaign loading. See plans/spike-notes.md — not a contract export.
-export { fromPortable } from "./spike/portable.js";
-export type { PortableCampaign, PortableCatalog, PortableManifest } from "./spike/portable.js";
+// Portable campaign format (graduated from the spike — plans/spike-notes.md). A real
+// contract export: `SubZeroDev.ServiceContract`'s content contract projects its schema
+// straight from `PortableCampaign`/`PortableManifest` below. `toPortable` and the digest
+// helpers (`./portable/digest.js`) stay unexported here — they are author-time-only, used
+// by `scripts/export-campaigns.ts` via a relative import within this repo, the same way
+// `toPortable` already was pre-graduation.
+export { fromPortable } from "./portable/format.js";
+export type {
+  PortableCampaign,
+  PortableCampaignBody,
+  PortableCatalog,
+  PortableManifest,
+  PortableManifestEntry,
+  PortableMigration,
+} from "./portable/format.js";
 
 export type { Engine } from "./core/kernel/types.js";
 export type { EngineHost, SessionHost } from "./core/composition/types.js";
