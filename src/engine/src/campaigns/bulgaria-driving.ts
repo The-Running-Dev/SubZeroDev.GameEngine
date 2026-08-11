@@ -2,7 +2,7 @@ import type { BuiltCampaign } from "../core/registry/types.js";
 import type { CommandResult } from "../core/kernel/reasons.js";
 import type { StoryGraphCampaignSource } from "../kinds/story-graph/source.js";
 import { buildAdventureCampaign, createAdventureSource, migrateV1AdventureState, type AdventureConfig } from "./adventure-builder.js";
-import type { PortableCatalog, PortableMigration } from "../spike/portable.js";
+import type { PortableCatalog, PortableMigration } from "../portable/format.js";
 
 export const BULGARIA_DRIVING_CAMPAIGN_ID = "bulgaria-driving";
 

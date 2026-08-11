@@ -121,7 +121,7 @@ async function fetchJson<T>(path: string): Promise<T> {
 async function loadPortableCampaigns(): Promise<readonly PortableCampaign[]> {
   const manifest = await fetchJson<PortableManifest>("manifest.json");
   return Promise.all(
-    manifest.campaigns.map((fileName) => fetchJson<PortableCampaign>(fileName)),
+    manifest.campaigns.map((entry) => fetchJson<PortableCampaign>(entry.file)),
   );
 }
 

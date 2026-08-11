@@ -53,7 +53,7 @@ import {
   type StoryGraphCampaignSource,
 } from "../kinds/story-graph/source.js";
 import { migrateV1AdventureState } from "./adventure-builder.js";
-import type { PortableCatalog, PortableMigration } from "../spike/portable.js";
+import type { PortableCatalog, PortableMigration } from "../portable/format.js";
 import type { Consequence, VarValue } from "../kinds/story-graph/variables.js";
 import type { RandomTransition } from "../kinds/story-graph/nodes.js";
 

@@ -40,7 +40,7 @@ import {
 } from "../kinds/story-graph/source.js";
 import type { Consequence, VarValue } from "../kinds/story-graph/variables.js";
 import type { RandomTransition } from "../kinds/story-graph/nodes.js";
-import type { PortableCatalog } from "../spike/portable.js";
+import type { PortableCatalog } from "../portable/format.js";
 
 export const WHAT_WOULD_LUCIFER_DO_ENGINEERS_CUT_CAMPAIGN_ID = "what-would-lucifer-do-engineers-cut";
 

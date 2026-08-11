@@ -1,12 +1,19 @@
 /**
- * SPIKE — exports built campaigns as portable JSON.
+ * Exports built campaigns as portable JSON.
  *
- * Throwaway. See `plans/spike-notes.md`. Lives outside `src/`, same as `demo-cli.ts`, so
- * neither the determinism guard nor the dependency-arrow rule applies here — this is an
+ * Graduated from `scripts/spike-export-campaigns.ts` alongside the format it exports
+ * (`src/portable/format.ts`). Still lives outside `src/`, same as `demo-cli.ts`, so neither
+ * the determinism guard nor the dependency-arrow rule applies here — this is an
  * authoring-time tool, not shipped engine code.
  *
- * Run with `npm run spike:export` from `src/engine/`. Writes one JSON file per campaign to
- * `../../site/public/campaigns/`, plus a manifest listing them in catalog order.
+ * Run with `npm run export:campaigns` from `src/engine/`. Writes one JSON file per campaign
+ * to `../../site/public/campaigns/`, plus a manifest listing them in catalog order.
+ *
+ * Aborts hard on any campaign build failure and writes nothing — pre-graduation, a failed
+ * campaign only logged and `continue`d, so a partial export still produced a valid-looking
+ * manifest. Under fetch-at-runtime (`SubZeroDev.Adventures.Content` publishes this output),
+ * that would be a silent content regression rather than a build failure: a manifest listing
+ * a file this run never wrote, or a resolution digest computed over an incomplete set.
  */
 
 import { mkdir, writeFile } from "node:fs/promises";
@@ -29,9 +36,10 @@ import { buildBulgariaDrivingCampaign, bulgariaDrivingCatalog, bulgariaDrivingMi
 import { buildBulgariaInheritanceCampaign, bulgariaInheritanceCatalog, bulgariaInheritanceMigration } from "../src/campaigns/bulgaria-inheritance.js";
 import { buildBulgariaEnterpriseCampaign, bulgariaEnterpriseCatalog, bulgariaEnterpriseMigration } from "../src/campaigns/bulgaria-enterprise.js";
 import { buildSakiQuestCampaign, sakiQuestCatalog } from "../src/campaigns/saki-quest-for-redemption.js";
-import { toPortable, type PortableCampaign } from "../src/spike/portable.js";
+import { toPortable, type PortableCampaign, type PortableManifestEntry } from "../src/portable/format.js";
+import { digestManifestResolution, digestPortableCampaign } from "../src/portable/digest.js";
 import type { BuiltCampaign } from "../src/core/registry/types.js";
-import type { PortableCatalog, PortableMigration } from "../src/spike/portable.js";
+import type { PortableCatalog, PortableMigration } from "../src/portable/format.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const outDir = path.resolve(here, "../../../site/public/campaigns");
@@ -54,30 +62,53 @@ const entries: readonly Entry[] = [
   { build: buildSakiQuestCampaign, catalog: sakiQuestCatalog },
 ];
 
-async function main(): Promise<void> {
-  await mkdir(outDir, { recursive: true });
-  const manifest: string[] = [];
+/** Builds every entry first, writes nothing until every build has succeeded — the abort
+ *  this graduation adds. Returns the built portables in source order. */
+function buildAllOrAbort(): readonly PortableCampaign[] {
+  const portables: PortableCampaign[] = [];
+  const failures: string[] = [];
 
   for (const entry of entries) {
     const result = entry.build();
     if (!result.ok || result.value === undefined) {
-      console.error(`Build failed: ${JSON.stringify(result.errors)}`);
-      process.exitCode = 1;
+      failures.push(`  - ${JSON.stringify(result.errors)}`);
       continue;
     }
-    const portable: PortableCampaign = toPortable(result.value, entry.catalog, entry.migration);
+    portables.push(toPortable(result.value, entry.catalog, entry.migration));
+  }
+
+  if (failures.length > 0) {
+    throw new Error(`${failures.length} of ${entries.length} campaign build(s) failed, writing nothing:\n${failures.join("\n")}`);
+  }
+
+  return portables;
+}
+
+async function main(): Promise<void> {
+  const portables = buildAllOrAbort();
+
+  await mkdir(outDir, { recursive: true });
+
+  const manifestEntries: PortableManifestEntry[] = [];
+  for (const portable of portables) {
     const fileName = `${portable.campaign.id}.json`;
     await writeFile(path.join(outDir, fileName), `${JSON.stringify(portable, null, 2)}\n`, "utf8");
-    manifest.push(fileName);
+    manifestEntries.push({
+      file: fileName,
+      id: portable.campaign.id,
+      version: portable.campaign.version,
+      digest: digestPortableCampaign(portable),
+    });
     console.log(`Wrote ${fileName} (${Object.keys(portable.strings).length} strings)`);
   }
 
-  await writeFile(
-    path.join(outDir, "manifest.json"),
-    `${JSON.stringify({ formatVersion: 1, campaigns: manifest }, null, 2)}\n`,
-    "utf8",
-  );
-  console.log(`Wrote manifest.json (${manifest.length} campaigns)`);
+  const manifest = {
+    formatVersion: 2 as const,
+    campaigns: manifestEntries,
+    resolution: digestManifestResolution(manifestEntries),
+  };
+  await writeFile(path.join(outDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  console.log(`Wrote manifest.json (${manifestEntries.length} campaigns)`);
 }
 
 main().catch((error: unknown) => {

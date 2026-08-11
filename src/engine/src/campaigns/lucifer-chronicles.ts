@@ -10,7 +10,7 @@ import type { CommandResult } from "../core/kernel/reasons.js";
 import { buildCampaign } from "../core/registry/build.js";
 import { buildStoryGraphCampaign, type NodeSource, type StoryGraphCampaignSource } from "../kinds/story-graph/source.js";
 import { migrateV1AdventureState } from "./adventure-builder.js";
-import type { PortableCatalog, PortableMigration } from "../spike/portable.js";
+import type { PortableCatalog, PortableMigration } from "../portable/format.js";
 
 export const LUCIFER_CHRONICLES_CAMPAIGN_ID = "lucifer-chronicles";
 
