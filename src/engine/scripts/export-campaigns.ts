@@ -52,7 +52,7 @@ import {
   type PortableCatalog,
   type PortableManifestEntry,
   type PortableMigration,
-} from "@the-running-dev/game-engine/authoring";
+} from "../src/authoring.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const outDir = path.resolve(here, "../../../site/public/campaigns");
