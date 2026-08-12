@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 862ebf48d17fddbad224237446fd5d94a87512bd6b3e35a4791eb53db1524f55 -->
+<!-- design-digest: ab73c3869ba8619b3859631a70556d5853352f9f00b91cdce616c3aad660581f -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -153,6 +153,30 @@ layer: it runs before the engine, emits an ordinary campaign source, is validate
 above exactly as hand-written content is, and leaves no trace in `serialize()`. A campaign is
 free not to use one, and that freedom is what keeps the shared shape a convenience rather than an
 undeclared content schema. If a campaign needs a different topology, write it out longhand.
+
+### Authoring published narrative content
+
+`@the-running-dev/game-engine/authoring` is a separate entry point for a repository that owns
+campaign source, distinct from the package root every runtime host imports. It exports the
+story-graph and adventure builders, the shared adventure migration helper, portable
+serialization (`toPortable`), manifest digests (`digestManifestResolution`), and the
+replay-runner functions/types the cross-version oracle uses — everything a content repository
+needs to build, publish, and regression-test its own campaigns, without a runtime host ever
+importing authored campaign source merely to play published portable JSON.
+
+[SubZeroDev.Adventures.Content](https://github.com/The-Running-Dev/SubZeroDev.Adventures.Content)
+is the canonical owner of this engine's published narrative campaigns: it authors their
+TypeScript sources through `/authoring`, builds the portable JSON, and publishes the manifest
+that hosts fetch. `fromPortable` and `digestPortableCampaign` stay package-root exports, because
+a runtime host verifying fetched content needs them without reaching into `/authoring`.
+
+This is a staged move. As of this release the package root still exports the nine campaign
+builders that predate this seam — nothing has been removed yet. A later breaking release drops
+those root exports, the in-repository exporter, and the retired `/play/` artifacts described
+under *Building a browser client* below, once Adventures.Content's own publication is deployed.
+A frozen `bulgaria-bureaucracy` campaign may remain in this repository afterward purely as
+story-graph regression evidence for the replay oracle; that copy is never published, never
+listed in a manifest, and never exported from the package root.
 
 ### Assembling a registry from content packs
 
