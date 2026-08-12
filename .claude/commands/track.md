@@ -7,6 +7,12 @@ Reconcile `design/` against this repository's GitHub tracker. This command is th
 
 Re-running must be a no-op when nothing has changed. That is the property that makes this safe to run often, and it is the first thing to get right.
 
+## Stop if `design/` is frozen
+
+If `design/FROZEN.md` exists, **stop before doing anything else.** Report its `Frozen because` and `Lifts when` lines verbatim and take no other action — no issue is opened, edited, closed or repinned. The rule and the marker's format live in `CLAUDE.md`, *The design freeze* — not restated here.
+
+A frozen repository's tracker is **deliberately** stale, so drift found here is expected rather than actionable. Resyncing it one unit at a time is the loop the freeze exists to escape.
+
 ## Before anything
 
 ```powershell

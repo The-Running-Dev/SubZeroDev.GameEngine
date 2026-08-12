@@ -4,6 +4,10 @@ description: Produce or revise the design doc from the brief
 
 Read `design/00-brief.md`. Write `design/10-design.md`.
 
+## Stop if `design/` is frozen
+
+If `design/FROZEN.md` exists, **stop before doing anything else.** Report its `Frozen because` and `Lifts when` lines verbatim and write nothing. The rule and the marker's format live in `CLAUDE.md`, *The design freeze* — not restated here.
+
 **Repository overlay:** `design/10-design.md` is a compound canonical document. Read it in full
 before revising it and preserve every `human-doc` block. The section map at the top satisfies the
 generic structure below; detailed decisions belong in the marked Architecture or cross-cutting

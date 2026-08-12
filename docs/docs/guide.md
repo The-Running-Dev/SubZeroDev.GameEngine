@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 862ebf48d17fddbad224237446fd5d94a87512bd6b3e35a4791eb53db1524f55 -->
+<!-- design-digest: 4b7b8b7863bb7948aee6fb7229e9dde12e409e71fc405975069205c830d81f7b -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -108,6 +108,34 @@ Create one composition root for the process:
 The engine package performs no filesystem or network I/O while resolving play. Parsing JSON or
 YAML, reading campaign files, database access, clocks, hosting, and process lifetime belong to
 outer adapters.
+
+## Published narrative content lives outside this repository
+
+Narrative campaigns are authored and published by
+[SubZeroDev.Adventures.Content](https://github.com/The-Running-Dev/SubZeroDev.Adventures.Content),
+not by this repository. It builds portable JSON from TypeScript campaign sources and publishes
+the manifest that hosts fetch. This engine stays the authority for deterministic mechanics,
+kinds, validation, and portable hydration.
+
+The package root (`@the-running-dev/game-engine`) is for runtime hosts. A separate subpath,
+`@the-running-dev/game-engine/authoring`, is for repositories that own campaign source: it
+exports the content-registry builder, the story-graph and adventure source builders and their
+migration helpers, portable serialization and manifest-digest functions, and replay-runner
+types. Import from `/authoring` only when writing or publishing campaign content — a runtime
+host must never import authored campaign source merely to play published portable JSON.
+
+`toPortable` and `digestManifestResolution` are available only through `/authoring`.
+`fromPortable` is root-only. `digestPortableCampaign` is exported from both: the root, so a host
+can verify fetched content, and `/authoring`, so a publishing pipeline can digest campaign
+source before it ships.
+
+A handful of frozen campaigns (the Bulgaria Bureaucracy arc among them) still ship as
+package-root exports for compatibility. They are regression fixtures, not a publication source,
+and the breaking 0.8.0 release removes them from the root. Build against `/authoring` and the
+Adventures.Content feed, not against these root exports, when integrating narrative content
+going forward. The retired `/play/` route follows the same boundary: it stays in this
+repository through 0.7.0 and is removed with that same breaking release; the browser host for
+published content is [SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures).
 
 ## Build content before creating the engine
 

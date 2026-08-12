@@ -43,10 +43,16 @@ import { buildBulgariaDrivingCampaign, bulgariaDrivingCatalog, bulgariaDrivingMi
 import { buildBulgariaInheritanceCampaign, bulgariaInheritanceCatalog, bulgariaInheritanceMigration } from "../src/campaigns/bulgaria-inheritance.js";
 import { buildBulgariaEnterpriseCampaign, bulgariaEnterpriseCatalog, bulgariaEnterpriseMigration } from "../src/campaigns/bulgaria-enterprise.js";
 import { buildSakiQuestCampaign, sakiQuestCatalog } from "../src/campaigns/saki-quest-for-redemption.js";
-import { toPortable, type PortableCampaign, type PortableManifestEntry } from "../src/portable/format.js";
-import { digestManifestResolution, digestPortableCampaign } from "../src/portable/digest.js";
-import type { BuiltCampaign } from "../src/core/registry/types.js";
-import type { PortableCatalog, PortableMigration } from "../src/portable/format.js";
+import {
+  toPortable,
+  digestManifestResolution,
+  digestPortableCampaign,
+  type BuiltCampaign,
+  type PortableCampaign,
+  type PortableCatalog,
+  type PortableManifestEntry,
+  type PortableMigration,
+} from "../src/authoring.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const outDir = path.resolve(here, "../../../site/public/campaigns");
