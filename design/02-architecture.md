@@ -51,3 +51,5 @@
 ## 11. What Is Settled, What Is Next
 
 ## 12. Relationship to Life in the Fast Lane
+
+## 13. Published Narrative Content Ownership

@@ -192,4 +192,6 @@
 
 ### [ ] W73 — Tier 3 Validation as an Author-Facing Check {#w73}
 
+### [ ] W74 — Campaign Content Ownership {#w74}
+
 ## Known Open Items Carried In

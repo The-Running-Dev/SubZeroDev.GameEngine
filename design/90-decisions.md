@@ -620,3 +620,23 @@ Context: `/install` re-run against kit commit `af610a6` (previously synced at `9
 Chosen: Install all four. The freeze section and `/freeze`/`/unfreeze` commands were added to CLAUDE.md and the five gated command files, adapted to this repo's conventions (`CLAUDE.md` as the reference target, not `AGENTS.md`; "unit"/W-ids, not "slice"/S-ids). `/done` and `tools/Invoke-DoneHousekeeping.ps1` were updated to the kit's current versions (both were `WouldUpdated`, not locally modified, so no target edits were at risk), and a `/done` delegation paragraph was added to *Git and Pull Requests* to match — this repo had never stated the rule at all. The Hard Rules and the two Verification rules were added verbatim, adapted only for terminology.
 Rejected: **Skip the design freeze** — the repository has already lived the exact failure it prevents (this file's own 2026-08-08 "known-and-retained gap list... gone stale twice" entry, and `agent.md`'s "hand-maintained list against code as a drift surface" lesson), so declining new tooling built for that failure would have needed a reason this repo doesn't have. **Keep `/done`'s ask-once behavior** — rejected because it would leave this repo permanently flagged `Divergent` against the kit's default with no local edit backing the divergence; if the ask-once behavior is ever wanted back deliberately, that is a fresh decision, not a default to fall back into. **Leave the Hard Rules/Verification gap unaddressed** — rejected; nothing in this repo's history suggested the omission was deliberate, and the cost of stating five bullet points and two sentences is negligible next to the cost of a future install re-discovering the same gap from scratch.
 Reversibility: cheap — documentation and command-file text only; `/freeze` has not been invoked, so `design/FROZEN.md` does not exist and nothing is actually frozen yet.
+
+### 2026-08-12 — Published narrative content moves to Adventures.Content through an authoring seam
+Context: nine narrative campaigns had become both Engine fixtures and the publication source,
+while Adventures.Content already deployed their portable JSON. The portable format is no longer
+a spike: hosts use `fromPortable` and manifest digests in production. Keeping campaign builders
+on the package root made authored content look like a runtime dependency and made the Content
+repository depend on Engine-private paths.
+
+Chosen: `SubZeroDev.Adventures.Content` owns the nine published narrative sources and their
+exporter. GameEngine adds `@the-running-dev/game-engine/authoring` for the shared story-graph
+and adventure builders, portable author-time APIs, and replay helpers. The root keeps runtime
+APIs only. A frozen `bulgaria-bureaucracy` remains Engine-owned regression evidence, never a
+manifest entry or root export. The change is staged: `0.7.0` adds the subpath; `0.8.0` removes
+the published sources and retired `/play/` artifacts after Content deployment.
+
+Rejected: moving the shared adventure builder out of GameEngine — it is a reusable authoring
+primitive and the retained regression fixture needs it. Retaining the in-repository `/play/`
+artifact after its route retired — it ships unused content and has no live consumer.
+Reversibility: the additive seam is cheap to revert before adoption; removing root exports is a
+deliberate pre-1.0 breaking release, coordinated with Adventures and Content.

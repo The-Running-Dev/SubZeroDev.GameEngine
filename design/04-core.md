@@ -57,3 +57,5 @@
 ## 17. Identifier Conventions
 
 ## 18. Frozen Primitives
+
+## 18. Published Narrative Authoring
