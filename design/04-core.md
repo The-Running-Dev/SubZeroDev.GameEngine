@@ -58,4 +58,4 @@
 
 ## 18. Frozen Primitives
 
-## 18. Published Narrative Authoring
+## 19. Published Narrative Authoring

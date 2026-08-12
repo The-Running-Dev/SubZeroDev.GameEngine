@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: ab73c3869ba8619b3859631a70556d5853352f9f00b91cdce616c3aad660581f -->
+<!-- design-digest: 4b7b8b7863bb7948aee6fb7229e9dde12e409e71fc405975069205c830d81f7b -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -109,6 +109,34 @@ The engine package performs no filesystem or network I/O while resolving play. P
 YAML, reading campaign files, database access, clocks, hosting, and process lifetime belong to
 outer adapters.
 
+## Published narrative content lives outside this repository
+
+Narrative campaigns are authored and published by
+[SubZeroDev.Adventures.Content](https://github.com/The-Running-Dev/SubZeroDev.Adventures.Content),
+not by this repository. It builds portable JSON from TypeScript campaign sources and publishes
+the manifest that hosts fetch. This engine stays the authority for deterministic mechanics,
+kinds, validation, and portable hydration.
+
+The package root (`@the-running-dev/game-engine`) is for runtime hosts. A separate subpath,
+`@the-running-dev/game-engine/authoring`, is for repositories that own campaign source: it
+exports the content-registry builder, the story-graph and adventure source builders and their
+migration helpers, portable serialization and manifest-digest functions, and replay-runner
+types. Import from `/authoring` only when writing or publishing campaign content — a runtime
+host must never import authored campaign source merely to play published portable JSON.
+
+`toPortable` and `digestManifestResolution` are available only through `/authoring`.
+`fromPortable` is root-only. `digestPortableCampaign` is exported from both: the root, so a host
+can verify fetched content, and `/authoring`, so a publishing pipeline can digest campaign
+source before it ships.
+
+A handful of frozen campaigns (the Bulgaria Bureaucracy arc among them) still ship as
+package-root exports for compatibility. They are regression fixtures, not a publication source,
+and the breaking 0.8.0 release removes them from the root. Build against `/authoring` and the
+Adventures.Content feed, not against these root exports, when integrating narrative content
+going forward. The retired `/play/` route follows the same boundary: it stays in this
+repository through 0.7.0 and is removed with that same breaking release; the browser host for
+published content is [SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures).
+
 ## Build content before creating the engine
 
 Authors may write player-facing text inline as keyed authored text. The pure content builder:
@@ -153,30 +181,6 @@ layer: it runs before the engine, emits an ordinary campaign source, is validate
 above exactly as hand-written content is, and leaves no trace in `serialize()`. A campaign is
 free not to use one, and that freedom is what keeps the shared shape a convenience rather than an
 undeclared content schema. If a campaign needs a different topology, write it out longhand.
-
-### Authoring published narrative content
-
-`@the-running-dev/game-engine/authoring` is a separate entry point for a repository that owns
-campaign source, distinct from the package root every runtime host imports. It exports the
-story-graph and adventure builders, the shared adventure migration helper, portable
-serialization (`toPortable`), manifest digests (`digestManifestResolution`), and the
-replay-runner functions/types the cross-version oracle uses — everything a content repository
-needs to build, publish, and regression-test its own campaigns, without a runtime host ever
-importing authored campaign source merely to play published portable JSON.
-
-[SubZeroDev.Adventures.Content](https://github.com/The-Running-Dev/SubZeroDev.Adventures.Content)
-is the canonical owner of this engine's published narrative campaigns: it authors their
-TypeScript sources through `/authoring`, builds the portable JSON, and publishes the manifest
-that hosts fetch. `fromPortable` and `digestPortableCampaign` stay package-root exports, because
-a runtime host verifying fetched content needs them without reaching into `/authoring`.
-
-This is a staged move. As of this release the package root still exports the nine campaign
-builders that predate this seam — nothing has been removed yet. A later breaking release drops
-those root exports, the in-repository exporter, and the retired `/play/` artifacts described
-under *Building a browser client* below, once Adventures.Content's own publication is deployed.
-A frozen `bulgaria-bureaucracy` campaign may remain in this repository afterward purely as
-story-graph regression evidence for the replay oracle; that copy is never published, never
-listed in a manifest, and never exported from the package root.
 
 ### Assembling a registry from content packs
 
