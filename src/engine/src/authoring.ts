@@ -38,17 +38,19 @@ export type { StoryGraphCampaign } from "./kinds/story-graph/campaign.js";
 export type { StoryGraphKindState } from "./kinds/story-graph/state.js";
 export type { Consequence, VarValue } from "./kinds/story-graph/variables.js";
 export type { RandomTransition } from "./kinds/story-graph/nodes.js";
-export type { Condition } from "./core/condition/types.js";
-export type { CommandResult } from "./core/kernel/reasons.js";
-export type { AuthoredText, BuiltCampaign, Campaign } from "./core/registry/types.js";
 export type {
+  Condition,
+  CommandResult,
+  AuthoredText,
+  BuiltCampaign,
+  Campaign,
   PortableCampaign,
   PortableCampaignBody,
   PortableCatalog,
   PortableManifest,
   PortableManifestEntry,
   PortableMigration,
-} from "./portable/format.js";
+} from "./index.js";
 export type {
   Outcome,
   ReplayFixture,

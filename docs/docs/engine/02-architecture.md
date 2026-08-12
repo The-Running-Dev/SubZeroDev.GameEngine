@@ -530,6 +530,7 @@ repository and includes source builders, portable export/digest APIs, and replay
 Published campaign builders are not package-root API. A frozen Bureaucracy campaign may remain
 inside the engine as story-graph regression evidence only; it is not a publication source.
 
-The former in-repository `/play/` route and its campaign artifact directory are historical and
-are removed with the breaking ownership release. Adventures is the browser host; it consumes
-the deployed Content feed rather than Engine-generated campaign files.
+The former in-repository `/play/` route and its campaign artifact directory are superseded:
+Adventures is the browser host now, consuming the deployed Content feed rather than
+Engine-generated campaign files. `/play/` itself stays in the repository through 0.7.0 and is
+removed with the breaking ownership release (design/30-slices.md, W74.5).
