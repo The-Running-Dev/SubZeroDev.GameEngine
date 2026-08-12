@@ -2637,6 +2637,26 @@ that is `/contract`'s call, not this unit's.
 
 ---
 
+### [ ] W74 — Campaign Content Ownership {#w74}
+
+**Delivers:** an explicit authoring seam, then transfers published narrative content to
+SubZeroDev.Adventures.Content without weakening GameEngine's story-graph regression oracle.
+
+- **Depends on:** W67, portable format graduation.
+- **Done when:**
+  - W74.1 `@the-running-dev/game-engine/authoring` is packed, installable, and exposes only
+        the documented author-time surface.
+  - W74.2 Adventures.Content owns all nine published sources and produces the manifest and
+        campaign JSON without invoking an Engine exporter.
+  - W74.3 The five expanded Bulgaria publications retain `2.0.0`, preserve existing replay
+        outcomes and serialized state, and expose all 75 endings; the remaining publications
+        retain their manifest digests and the manifest resolution remains unchanged.
+  - W74.4 GameEngine retains a byte-frozen, non-published Bureaucracy fixture with its replay,
+        determinism, localization, and observability evidence; cross-version replay CI still
+        enumerates its corpus.
+  - W74.5 The breaking follow-up removes published campaign sources, root exports, exporter,
+        and retired `/play/` artifacts only after Content is deployed.
+
 ## Known Open Items Carried In
 
 > Full register of unknowns, gaps, and deferred decisions:

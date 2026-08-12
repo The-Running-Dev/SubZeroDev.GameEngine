@@ -1446,3 +1446,20 @@ section, not that document, is now where the shape itself lives.
 
 **Reason codes are additive, never renamed** (§12) — saves and replay logs reference
 them, so a rename breaks old data.
+## 18. Published Narrative Authoring
+
+The package root is the runtime contract. `@the-running-dev/game-engine/authoring` is the
+separate author-time contract for repositories that own campaign source. It exports the
+story-graph source builder, the shared adventure builder and its migration helper, portable
+serialization and manifest digests, and replay-runner types/functions. It is deliberately a
+subpath: a runtime host must not import authored campaign source merely to play published
+portable JSON.
+
+`SubZeroDev.Adventures.Content` owns the canonical source and publication of narrative
+campaigns. GameEngine owns kinds, validation, portable hydration and authoring primitives.
+GameEngine may retain a frozen campaign solely as a regression fixture; such a fixture is not
+published, not listed in a manifest, and is not exported from the package root.
+
+Portable campaign documents remain format version 2. `toPortable` and
+`digestManifestResolution` are public only through `/authoring`; `fromPortable` and
+`digestPortableCampaign` remain runtime-root exports for hosts verifying fetched content.

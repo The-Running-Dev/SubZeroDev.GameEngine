@@ -516,3 +516,20 @@ localization, save/migration.
 > **hosting / NEaaS** layer in
 > [SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform). References
 > to `games/…` throughout these docs point to SubZeroDev.GameOfLife specifically.
+## 13. Published Narrative Content Ownership
+
+Published narrative content has one canonical owner:
+[SubZeroDev.Adventures.Content](https://github.com/The-Running-Dev/SubZeroDev.Adventures.Content).
+It authors TypeScript campaign sources, builds portable JSON, and publishes the manifest that
+hosts fetch. The engine remains the authority for deterministic mechanics, kinds, validation,
+portable hydration, and the author-time primitives exposed through
+`@the-running-dev/game-engine/authoring`.
+
+The package root is for runtime hosts. The `/authoring` subpath is explicitly for a content
+repository and includes source builders, portable export/digest APIs, and replay helpers.
+Published campaign builders are not package-root API. A frozen Bureaucracy campaign may remain
+inside the engine as story-graph regression evidence only; it is not a publication source.
+
+The former in-repository `/play/` route and its campaign artifact directory are historical and
+are removed with the breaking ownership release. Adventures is the browser host; it consumes
+the deployed Content feed rather than Engine-generated campaign files.
