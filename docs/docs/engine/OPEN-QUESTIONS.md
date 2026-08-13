@@ -231,10 +231,16 @@ implementation:
   working reference implementation — and a caution, since writing through the persistence port
   rather than the store leaves the store's in-memory session cache unaware of the new session.
 
-One further item is not an engine defect but a standing cross-repository hazard: **Adventures
-depends on `fromPortable` and the `Portable*` types**, which `src/engine/src/index.ts:62`
-marks `// SPIKE: … not a contract export`. Tracked as
-[issue #285](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/285).
+One further item **was** a standing cross-repository hazard rather than an engine defect, and is
+now resolved: **Adventures depended on `fromPortable` and the `Portable*` types** while
+`src/engine/src/index.ts` marked them `// SPIKE: … not a contract export`, so a submodule bump
+could legitimately break the downstream host. `6991e37` (0.6.0) graduated the format: that same
+line now reads *"A real contract export"*, no `SPIKE` marker survives anywhere under
+`src/engine/src/`, and §19 of `20-contract.md` states the surface. The dependency is sanctioned,
+so the hazard is gone — kept rather than deleted because the fact that it was once unsanctioned
+and was deliberately regularised is the reasoning a later reader of
+[issue #285](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/285) will want. That
+issue's premise no longer holds and it is `/track`'s to close.
 
 ---
 
