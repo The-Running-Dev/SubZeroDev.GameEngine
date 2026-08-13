@@ -21,6 +21,7 @@ import {
   type ProfileStore,
   type SessionPersistence,
   type SessionStoreErrorCode,
+  type StoredSessionRecord,
 } from "./types.js";
 import { BASE_REASON_CODES, CORE_REASON_MESSAGES } from "../kernel/reasons.js";
 
@@ -227,14 +228,18 @@ describe("persistence error translation (G2 S1)", () => {
 
   it("W75.4 — a conflict on submitAction leaves the cache no further ahead than persistence", async () => {
     let writeCount = 0;
+    // Snapshotted, not captured by reference: the store mutates its cached record in place,
+    // so holding the object would show later state rather than what this write carried.
+    const written: StoredSessionRecord[] = [];
     const store = makeStore({
       persistence: persistenceWith({
         sessions: {
           get: async () => undefined,
-          put: async () => {
+          put: async (record) => {
             writeCount += 1;
             // createSession's write (1) succeeds; submitAction's write (2) is the conflict.
             if (writeCount === 2) throw { name: SESSION_PERSISTENCE_CONFLICT };
+            written.push({ ...record });
           },
         },
       }),
@@ -247,6 +252,13 @@ describe("persistence error translation (G2 S1)", () => {
 
     const scene = await store.getScene(sessionId);
     expect(scene.body.text).toBe("counter=0");
+
+    // Every field the refused `put` carried is rolled back, not just the blob. The counter
+    // is the one that is only observable on the next accepted write: had the conflict left
+    // it raised, this submission would persist `2` for its first surviving attempt.
+    const result = await store.submitAction(sessionId, "increment");
+    expect(result.ok).toBe(true);
+    expect(written.at(-1)).toMatchObject({ attemptCounter: 1 });
   });
 });
 
