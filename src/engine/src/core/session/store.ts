@@ -429,9 +429,20 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
           const result = decoratedEngine.submitAction(state, actionId, params);
 
           if (result.ok && result.value) {
+            const previousBlob = record.blob;
+            const previousUpdatedAt = record.updatedAt;
             record.blob = decoratedEngine.serialize(result.value);
             record.updatedAt = clock.now();
-            await writeSession(record);
+            try {
+              await writeSession(record);
+            } catch (error) {
+              // A rejected write must not leave the cache ahead of persistence (20-contract.md
+              // §7.2's blockquote) — restore what was here before this mutation so the next
+              // read serves the pre-conflict state, not the refused one.
+              record.blob = previousBlob;
+              record.updatedAt = previousUpdatedAt;
+              throw error;
+            }
 
             // "After a successful action" (04 §7.1) — never on rejection, and never
             // before the engine call above has already returned (plan 15 Decision 3).

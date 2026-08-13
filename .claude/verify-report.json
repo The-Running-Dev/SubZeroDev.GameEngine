@@ -1,0 +1,65 @@
+{
+  "gates": [
+    {
+      "name": "engine typecheck",
+      "status": "Passed",
+      "detail": "npm run typecheck (src/engine) — tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json — no output, exit 0."
+    },
+    {
+      "name": "engine lint",
+      "status": "Passed",
+      "detail": "npm run lint (src/engine) — eslint src scripts — no output, exit 0."
+    },
+    {
+      "name": "engine test",
+      "status": "Passed",
+      "detail": "npm test (src/engine) — vitest run — Test Files 74 passed (74), Tests 1084 passed (1084)."
+    },
+    {
+      "name": "engine pack + tarball inspect",
+      "status": "Passed",
+      "detail": "npm pack --silent produced the-running-dev-game-engine-0.8.0.tgz. Reproduced ci.yml's Inspect-tarball checks by hand: no src/ files, no tsconfig*.json, no .test. build artifacts, package/dist/ present. All checks passed."
+    },
+    {
+      "name": "consumer smoke",
+      "status": "Passed",
+      "detail": "cd consumer-smoke; npm run install:engine (packed and installed 0.8.0 tarball); npm run build (tsc -p tsconfig.json, no errors); npm run smoke (node dist/smoke.js) exited 0, including the SESSION_PERSISTENCE_CONFLICT/SessionPersistenceConflict resolution assertion at smoke.ts:134."
+    },
+    {
+      "name": "documentation gate (Test-Documentation.ps1)",
+      "status": "DidNotRun",
+      "reason": "pwsh is not installed in this session's environment (`which pwsh` finds nothing), so ./build/Test-Documentation.ps1 cannot execute at all. This diff touches only src/engine/, not design/ or docs/, but the gate did not run locally. The 'Documentation links and terminology' check on PR #311 is where the answer will come from."
+    },
+    {
+      "name": "site check",
+      "status": "DidNotRun",
+      "reason": "Optional, not CI-gate-flagged on its own — it runs as one step inside docs-ci.yml's 'Verify Documentation Build' job. Not run locally: this diff has no site/ or docs/ changes, and the job also needs the docs-template container this environment does not have."
+    },
+    {
+      "name": "powershell parse-check",
+      "status": "DidNotRun",
+      "reason": "pwsh is not installed in this environment, so [System.Management.Automation.Language.Parser]::ParseFile cannot run. This diff touches no *.ps1 files."
+    },
+    {
+      "name": "pester tools",
+      "status": "DidNotRun",
+      "reason": "pwsh is not installed in this environment, so Invoke-Pester cannot run. This diff touches no files under tools/."
+    },
+    {
+      "name": "production docs build (docs.ps1 -BuildOnly)",
+      "status": "DidNotRun",
+      "reason": "docs.ps1 requires pwsh, which is not installed in this environment, and Docker Desktop is not available for the build container. The 'Verify Documentation Build' check on PR #311 is where the answer will come from."
+    },
+    {
+      "name": "host tests (dotnet test src/host)",
+      "status": "DidNotRun",
+      "reason": "dotnet is not installed in this environment (`which dotnet` finds nothing). This diff touches no files under src/host/."
+    },
+    {
+      "name": "host image smoke",
+      "status": "DidNotRun",
+      "reason": "Not attempted: requires a full Docker image build unrelated to this diff (src/engine only, no host or image changes), and is not one of the three required checks."
+    }
+  ],
+  "note": "tools/Test-VerifyReport.ps1 itself could not be run to validate this artifact — pwsh is not installed in this environment. This file was authored by hand following the same schema; its structure was not mechanically validated."
+}
