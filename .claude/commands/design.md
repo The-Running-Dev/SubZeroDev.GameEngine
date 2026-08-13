@@ -2,17 +2,18 @@
 description: Produce or revise the design doc from the brief
 ---
 
-Read `design/00-brief.md`. Write `design/10-design.md`.
+<!-- companion:start -->
+**Per-repo companion:** `.claude/commands/design-local.md`. Read it now, if it exists — an absent,
+empty, or frontmatter-only file is no companion, and this file then stands alone.
+It may override: `vocabulary`, `document-map`, `extra-steps`. It may never override anything in
+[`.claude/COMPANIONS.md`](../COMPANIONS.md) § *Never*, which is also where these categories are defined.
+<!-- companion:end -->
 
 ## Stop if `design/` is frozen
 
-If `design/FROZEN.md` exists, **stop before doing anything else.** Report its `Frozen because` and `Lifts when` lines verbatim and write nothing. The rule and the marker's format live in `CLAUDE.md`, *The design freeze* — not restated here.
+If `design/FROZEN.md` exists, **stop before doing anything else.** Report its `Frozen because` and `Lifts when` lines verbatim and write nothing. The rule and the marker's format live in `AGENTS.md`, *The design freeze* — not restated here.
 
-**Repository overlay:** `design/10-design.md` is a compound canonical document. Read it in full
-before revising it and preserve every `human-doc` block. The section map at the top satisfies the
-generic structure below; detailed decisions belong in the marked Architecture or cross-cutting
-blocks that own them. Never replace the compound document with a condensed summary. After an
-approved edit, regenerate human docs with `build/ConvertTo-HumanDocumentation.ps1`.
+Read `design/00-brief.md`. Write `design/10-design.md`.
 
 This is the stage where irreversible decisions get made. Data model, module boundaries and error semantics are expensive to change later; code is not. Spend the reasoning here.
 
@@ -43,3 +44,10 @@ Rules:
 - No code. No file layouts. No package names beyond what a decision required.
 - Every decision that survives goes into `design/90-decisions.md` in the logged format.
 - If the brief is too thin to design against, stop and say what is missing rather than inventing requirements.
+
+## Re-run
+
+Rewrites `design/10-design.md` in full from the current brief — there is no partial
+regeneration. Check `design/90-decisions.md` before restating a choice; a decision already
+logged there is not made fresh on a re-run, only re-expressed. `## Open questions` only ever
+shrinks as the brief answers them — a question the brief now answers must not reappear.

@@ -3,13 +3,14 @@ description: Turn a rough ask into a prompt carrying this repository's binding c
 argument-hint: <rough ask>
 ---
 
-Turn **$ARGUMENTS** into a prompt that carries the constraints this repository actually binds an agent to.
+<!-- companion:start -->
+**Per-repo companion:** `.claude/commands/refine-local.md`. Read it now, if it exists — an absent,
+empty, or frontmatter-only file is no companion, and this file then stands alone.
+It may override: `vocabulary`, `document-map`. It may never override anything in
+[`.claude/COMPANIONS.md`](../COMPANIONS.md) § *Never*, which is also where these categories are defined.
+<!-- companion:end -->
 
-**Repository overlay:** every `AGENTS.md §` citation below resolves through the pointer to
-`CLAUDE.md`, which is where this repository's contract, command routing, and session boundaries
-actually live. Slice ids carry the retained `W` prefix, so the routing table's `/slice S<n>` reads
-`/slice W<n>` here. Cite `CLAUDE.md` and its real section names in `Binding` and `Tier`; never
-emit a section name you have not seen in the file.
+Turn **$ARGUMENTS** into a prompt that carries the constraints this repository actually binds an agent to.
 
 The value here is not better wording. It is that you do not have to remember which decision, non-goal, or lesson applies before you ask for something. Generic prompt refinement is available elsewhere and is not what this is for.
 
@@ -24,7 +25,7 @@ The value here is not better wording. It is that you do not have to remember whi
 | Architecture, data model, failure modes | `/design` |
 | Types, schemas, signatures, errors | `/contract` |
 | Breaking work into units | `/slices` |
-| Implementing a defined unit | `/slice W<n>` |
+| Implementing a defined unit | `/slice S<n>` |
 | Whether the code and the docs still agree | `/reconcile` |
 | Running this repository's gates | `/verify` |
 | Issues, milestones, anything on GitHub | `/track` |
@@ -99,3 +100,10 @@ Halt and say so rather than refining:
 - Never widen the ask. A vague request becomes precise, not larger.
 - Never write to `design/`, to `agent.md`, or to the tracker. This command emits text and nothing else.
 - Never emit more than about fifteen lines. A prompt long enough to need skimming has reproduced the problem it was meant to solve.
+
+## Re-run
+
+Stateless — nothing it emits is stored, so a re-run on the same ask re-derives the prompt from
+`AGENTS.md`, `design/`, and `agent.md` as they stand now, not from a remembered prior emission.
+A constraint lifted since the last run drops out of `Binding`; one added since shows up. It
+never treats a prior refinement of the same ask as already answered.
