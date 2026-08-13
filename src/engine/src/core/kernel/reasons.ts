@@ -56,9 +56,10 @@ export type ReasonCode = string;
  * the vocabulary and its localized message live in one place, ready for whenever a real
  * error channel exists. See `plans/38-save-migration-programme.md`.
  *
- * `unknown_session`, `unknown_save`, and `storage_failure` were added with host persistence
- * (04 §7.2) — `SessionStoreError` (`session/types.ts`) carries one of these as its `code`, and
- * three of its eight members had no vocabulary entry. That mattered once `storage_failure`
+ * `unknown_session`, `unknown_save`, `storage_failure`, and `concurrent_modification` were added
+ * with host persistence (04 §7.2) — `SessionStoreError` (`session/types.ts`) carries one of these
+ * as its `code`. `concurrent_modification` is the one classified host failure: a host signals it
+ * when another writer changed the session after this request read it. That mattered once `storage_failure`
  * became player-visible: the browser demo renders "could not be saved locally" from it, and a
  * client reading that out of an `Error.message` is exactly what §12 and 09 §3 forbid.
  * `storage_failure` is deliberately the *only* code a host adapter's own exception maps to —
@@ -113,6 +114,7 @@ export const BASE_REASON_CODES = [
   "unknown_session",
   "unknown_save",
   "storage_failure",
+  "concurrent_modification",
   "missing_kind_reason_message",
   "achievement_unlocked",
   "pack_kind_mismatch",
@@ -156,6 +158,7 @@ const CORE_REASON_TEXT: Readonly<Record<BaseReasonCode, string>> = {
   unknown_session: "That session could not be found.",
   unknown_save: "That save could not be found.",
   storage_failure: "Progress could not be stored. Your game is still playable, but it may not be here next time.",
+  concurrent_modification: "This session changed elsewhere. Refresh it before trying again.",
   missing_kind_reason_message: "This kind declared a reason code with no localized message.",
   achievement_unlocked: "Achievement unlocked.",
   pack_kind_mismatch: "A pack can't carry a campaign for a different kind.",

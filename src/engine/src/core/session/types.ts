@@ -96,7 +96,19 @@ export type SessionStoreErrorCode =
   | "invalid_state"
   | "unknown_kind"
   | "save_requires_migration"
-  | "migration_failed";
+  | "migration_failed"
+  | "concurrent_modification";
+
+/**
+ * The one persistence failure a host may classify for callers: another writer changed
+ * the same session after this request read it. The name property is the brand so the
+ * engine recognises it across duplicated package copies without relying on `instanceof`.
+ */
+export const SESSION_PERSISTENCE_CONFLICT = "SessionPersistenceConflict";
+
+export interface SessionPersistenceConflict extends Error {
+  readonly name: typeof SESSION_PERSISTENCE_CONFLICT;
+}
 
 /**
  * Expected host/session failures. They retain exception semantics because none of
