@@ -2659,10 +2659,19 @@ SubZeroDev.Adventures.Content without weakening GameEngine's story-graph regress
 lost update surfacing as `concurrent_modification` instead of `storage_failure` — together with
 the cache invariant that makes the new message honest.
 
-Supersedes the draft on `slice/S1` (PR #306), which implemented the mapping against a contract
-that still said `storage_failure` **always** and carried no `design/` change. The contract half
-landed first; this unit is the code, and the divergence recorded in `design/90-decisions.md`
-(2026-08-13) is the reason the two are ordered that way.
+**Four of the seven criteria arrived before this unit ran, and the two that remain are the
+two that matter.** This was written expecting the contract to land first and the code after,
+which is the order `design/90-decisions.md` (2026-08-13) argues for. That is not what happened:
+the branch carrying the amendment was cut from `d44afde` — the `slice/S1` draft's own commit,
+opened as PR #306 — rather than from `main`, so merging the amendment (PR #307) carried the
+mapping and its four tests along with it. PR #306 is closed; its commit is on `main` regardless.
+
+So this unit **completes** rather than implements. `W75.1`, `W75.2`, `W75.3` and `W75.5` are
+satisfied by what landed; verify them rather than rewriting them. `W75.4` and `W75.6` are open,
+and until they close `main` ships an actionable *"refresh and try again"* message without the
+behaviour that makes it true, and added root exports without a version bump. Criterion ids are
+retained as written — they are never renumbered — so the record of which arrived how stays
+readable.
 
 - **Spec:** [20 §7.2](04-core.md#7-the-session-store-and-the-platform-api),
       [§12](04-core.md#12-reason-codes-state-changes-messages),

@@ -673,3 +673,32 @@ already owns the save-side race. Revisit when that issue is resolved.
 Reversibility: moderate. The documentation half is cheap, but `SESSION_PERSISTENCE_CONFLICT` and
 `SessionPersistenceConflict` become root exports once the implementing unit lands, so narrowing
 or removing them after that release is breaking.
+
+### 2026-08-13 — W75's code landed with its own contract amendment, because the branch was cut from the draft
+Context: the amendment recorded above was authored on a branch cut from `d44afde` — the `slice/S1`
+draft's commit, open as PR #306 — rather than from `main`. Merging it (PR #307) therefore carried
+six engine files onto `main` alongside the documentation, and that PR's description said
+"documentation only" because it was written from the authoring commit's diff rather than the pull
+request's cumulative diff against its base. Nothing broke: the three engine gates were run and
+passed, and the code that landed is exactly what the amendment legitimises. But it landed in the
+opposite order from the one this register argued for one entry earlier, and it landed unreviewed
+as code, having been reviewed as prose.
+Chosen: Keep the code and correct the record rather than revert. Reverting would remove a mapping
+the contract now permits, to re-land it unchanged. `30-slices.md`'s W75 is restated to complete
+rather than implement — `W75.1`, `W75.2`, `W75.3` and `W75.5` are marked as arrived, `W75.4` and
+`W75.6` stay open, and ids are retained rather than renumbered so which-arrived-how stays legible.
+PR #306 is closed as its commit is already on `main`, PR #307's description carries a correction
+at the top, and issue #308 is rescoped to match.
+The generalisable part is the check that was missing, not the mistake: **a pull request's scope
+claim must be read off the base-to-head diff, never off the authoring commit.** A branch cut from
+another branch's tip is invisible in `git status`, in the working-tree diff, and in the commit
+being written — the three places a scope claim is usually checked. `git diff --stat <base>...HEAD`
+is where it shows, and it is the one that governs.
+Rejected: **Revert `d44afde` from `main` and re-land it under `/slice W75`** — rejected on cost.
+It buys process fidelity and nothing else: the contract now permits the mapping, the tests pass,
+and the re-land would be byte-identical. **Leave `30-slices.md` describing this unit as the code**
+— rejected outright; `/slice` reads that file, not the issue, so a stale entry would have the next
+session reimplement four criteria that already exist, which is precisely the drift this repository
+keeps paying for.
+Reversibility: cheap as documentation. The code is on `main` and shipping, so `W75.4` is now a
+defect against a released behaviour rather than an unwritten criterion.
