@@ -230,6 +230,16 @@ A host may supply Postgres, Redis, SQLite, a file, or `localStorage`. The obliga
 - **Throwing is allowed and is not a game failure.** The store converts any adapter exception
   into `storage_failure` (04 §7.2) rather than letting a host's own exception type cross the
   boundary.
+- **Brand a lost-update conflict, and nothing else, as `SessionPersistenceConflict`.** It is
+  the one adapter failure the store classifies rather than flattening (04 §7.2), so it is
+  reserved for the case it names: a session write this adapter rejected because another writer
+  changed the same record after this request read it. Set `name` to the exported
+  `SESSION_PERSISTENCE_CONFLICT` string — the store matches on that, not on `instanceof`, so
+  the signal survives a duplicated copy of this package. A host that brands a timeout, a
+  deadlock, or a retryable transport error with it is telling a player to refresh a session
+  that never changed; leave those unbranded and they arrive as `storage_failure`, which is
+  correct for them. Hosts with a single writer — every in-process and `localStorage`
+  adapter — never raise it, and need do nothing.
 
 `ProfileStore` (04 §7.1) is unchanged and remains a port in the original sense — a host
 supplies the whole thing. Its obligations:

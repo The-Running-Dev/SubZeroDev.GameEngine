@@ -207,14 +207,32 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
 surface extracted from `/play/` ([`13-playable-web-demo.md`](13-playable-web-demo.md),
 *Succeeded by SubZeroDev.Adventures*). It consumes this engine as a pinned submodule across a
 repository boundary and adds a hosted API, Postgres persistence, and accounts. That makes it
-the **first host to implement the ports against something other than a browser tab**, and the
-eight entries below are what that exercise found. They are recorded together because their
-shared provenance is the evidence: each one is a place the contract held up in one host and
-bent in the second.
+the **first host to implement the ports against something other than a browser tab**, and eight
+findings are what that exercise produced. They are recorded together because their shared
+provenance is the evidence: each one is a place the contract held up in one host and bent in the
+second.
 
 **None of these was found by review.** They were found by building. That is worth stating,
 because the standing bar in this register — *one built instance is not a pattern* — cuts both
 ways: several of these clear it now, for the first time.
+
+**Seven of the eight are issues, not bullets here.** This register indexes, it does not
+duplicate, and each issue carries the *Done when* that a bullet had nowhere to put — so the
+issue is the authority for those seven, not this section:
+
+| Issue | Finding |
+|---|---|
+| [#276](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/276) | `SaveRecordStore.delete` has no caller anywhere |
+| [#277](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/277) | No per-player save query, and two hosts have now invented one |
+| [#278](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/278) | `VisibleStat` omits the declared range, so clients read `Campaign.content` to get it |
+| [#279](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/279) | `listCampaigns()` is synchronous, so no remote store can implement it |
+| [#280](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/280) | Reproducing a stored session's blob requires pinning `IdSource.newGameId` |
+| [#281](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/281) | `SessionStore` has no concept of a caller, so authorization lives outside it |
+| [#282](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/282) | `Kind.outcome` has no shape a host can read generically |
+
+The eighth is kept in full because it is the only one that arrived with a working
+implementation, and the caution attached to it is what a reader needs *before* copying that
+implementation:
 
 - **Session forking is built, and it bypasses the store.** Adventures replays a stored action
   log to an arbitrary `atSeq` and writes a new `StoredSessionRecord` straight to persistence,
@@ -222,6 +240,7 @@ ways: several of these clear it now, for the first time.
   [issue #266](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/266) with a
   working reference implementation — and a caution, since writing through the persistence port
   rather than the store leaves the store's in-memory session cache unaware of the new session.
+
 One further item is not an engine defect but a standing cross-repository hazard: **Adventures
 depends on `fromPortable` and the `Portable*` types**, which `src/engine/src/index.ts:62`
 marks `// SPIKE: … not a contract export`. Tracked as
@@ -617,3 +636,40 @@ primitive and the retained regression fixture needs it. Retaining the in-reposit
 artifact after its route retired — it ships unused content and has no live consumer.
 Reversibility: the additive seam is cheap to revert before adoption; removing root exports is a
 deliberate pre-1.0 breaking release, coordinated with Adventures and Content.
+
+### 2026-08-13 — An adapter exception may be classified, once, and `concurrent_modification` is that once
+Context: PR #306 (`slice/S1`, draft) added a `SessionPersistenceConflict` brand, a
+`concurrent_modification` reason code, and root exports of both, mapping a branded session-write
+failure away from `storage_failure`. `20-contract.md` §7.2 said the opposite in terms — "An
+adapter throwing is `storage_failure`, **always**" — and the branch touched no file under
+`design/`, which is the same defect this register already recorded against the earlier `S1`
+(`42f34f6`, `RecordIdSource`): root exports, no slice, no contract section, no register entry.
+The work itself is sound and could only live here, because the reason-code vocabulary is
+engine-owned and no host can extend it. §7's two lock domains are the reason it is needed at
+all: per-`sessionId` locking orders operations within one store instance, and a host running
+several instances over one database has sessions nothing here serializes.
+Chosen: Amend §7.2 rather than accept the code against a contradicting contract. The default is
+unchanged and restated — any adapter exception is `storage_failure` — with exactly one carve-out,
+bounded by two rules that preserve the original argument: the vocabulary stays closed (one brand,
+one code, no host-extensible path), and a classified failure must be one the caller can act on
+differently, which "re-read and retry" is and a quota error is not. The brand is a string on
+`name`, not an `instanceof` check, so it survives a duplicated copy of the package. §12's list
+and its growth tally move from host persistence's three codes to four, and `06-extensibility.md`
+§5.2 gains the implementer obligation that was missing — brand a lost update and nothing else.
+§7.2 also now states the invariant the implementation must satisfy: a rejected write may not
+leave the store's cache ahead of persistence. `submitAction` mutates a cached record in place
+before persisting it, and `getSession` is cache-first, so a conflict there would serve the
+un-persisted state back to the retry the new message asks for. `storage_failure` tolerated that
+divergence because its message promises only that the game is still playable; this code does not.
+Rejected: **Take the code as written and leave §7.2 alone** — rejected outright; it is the hard
+rule about interfaces absent from `20-contract.md`, and an invariant stated in the emphatic form
+"always" is exactly the kind a later reader trusts without checking. **Reject the classification
+and keep §7.2 as written** — rejected on the merits, not on process: the "a client can do nothing
+different about either" prong is simply false for a lost update, and the alternative leaves a
+host signalling conflicts outside the vocabulary, which is the unbounded surface §7.2 exists to
+prevent. **Classify save writes and reads the same way** — rejected for now; the asymmetry is
+deliberate and stays stated, and [issue #226](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/226)
+already owns the save-side race. Revisit when that issue is resolved.
+Reversibility: moderate. The documentation half is cheap, but `SESSION_PERSISTENCE_CONFLICT` and
+`SessionPersistenceConflict` become root exports once the implementing unit lands, so narrowing
+or removing them after that release is breaking.

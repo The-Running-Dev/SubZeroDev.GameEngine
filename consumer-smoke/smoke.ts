@@ -6,6 +6,7 @@ import {
   buildWorldGraphCampaign,
   buildWorldGraphMvpCampaign,
   createEngine,
+  SESSION_PERSISTENCE_CONFLICT,
   storyGraphKind,
   simulationKind,
   worldGraphKind,
@@ -13,6 +14,8 @@ import {
   type Engine,
   type KindRegistry,
   type LocKey,
+  type SessionPersistenceConflict,
+  type SessionStoreErrorCode,
   type WorldGraphCampaign,
   type WorldGraphCampaignSource,
   type WorldGraphKindState,
@@ -26,6 +29,11 @@ type WorldGraphPublicTypes = [
   WorldGraphKindState,
   WorldGraphView,
   WorldGraphOutcome,
+];
+
+type SessionPersistencePublicTypes = [
+  SessionStoreErrorCode,
+  SessionPersistenceConflict,
 ];
 
 function expectOk<T>(result: { ok: boolean; value?: T }, context: string): T {
@@ -123,6 +131,7 @@ function runEngineSmoke(): void {
   const created = expectOk(engine.createGame({ campaignId: "smoke-campaign" }), "createGame should succeed for a valid smoke campaign");
   assert.equal(created.status, "active");
   assert.equal(worldGraphKind.id, "world-graph");
+  assert.equal(SESSION_PERSISTENCE_CONFLICT, "SessionPersistenceConflict");
   assert.equal(typeof buildWorldGraphCampaign, "function");
   const worldGraphCampaign = expectOk(buildWorldGraphMvpCampaign(), "world-graph MVP campaign should build");
   const worldGraphRegistry = expectOk(
@@ -160,6 +169,8 @@ function runEngineSmoke(): void {
   assert.equal(runWorldGraphReplay(), runWorldGraphReplay(), "packed world-graph replays should be byte-identical");
   const publicTypesResolve = <T extends WorldGraphPublicTypes>(): T | undefined => undefined;
   assert.equal(publicTypesResolve(), undefined);
+  const sessionPersistenceTypesResolve = <T extends SessionPersistencePublicTypes>(): T | undefined => undefined;
+  assert.equal(sessionPersistenceTypesResolve(), undefined);
   assertCampaignContentCastThrows(kinds, authoredText);
 }
 

@@ -40,7 +40,10 @@ import type {
   StoredSaveRecord,
   StoredSessionRecord,
 } from "./types.js";
-import { SessionStoreError as SessionStoreErrorValue } from "./types.js";
+import {
+  SESSION_PERSISTENCE_CONFLICT,
+  SessionStoreError as SessionStoreErrorValue,
+} from "./types.js";
 import type { SessionHost } from "../composition/types.js";
 
 const noopRecordSink: EmittedRecordSink = { write: () => {} };
@@ -293,7 +296,15 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
     if (!options.persistence) return;
     try {
       await options.persistence.sessions.put(record as StoredSessionRecord);
-    } catch {
+    } catch (error) {
+      if (
+        typeof error === "object"
+        && error !== null
+        && "name" in error
+        && error.name === SESSION_PERSISTENCE_CONFLICT
+      ) {
+        throw new SessionStoreErrorValue("session", "concurrent_modification");
+      }
       throw new SessionStoreErrorValue("session", "storage_failure");
     }
   }

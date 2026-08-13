@@ -16,7 +16,13 @@ import type { EngineHost, RecordIdSource } from "../composition/types.js";
 import { jsonlEmitter } from "../observability/emitter.js";
 import type { EmittedRecord, EmittedRecordSink } from "../observability/types.js";
 import { createInMemoryProfileStore } from "./profile-store.js";
-import type { ProfileStore } from "./types.js";
+import {
+  SESSION_PERSISTENCE_CONFLICT,
+  type ProfileStore,
+  type SessionPersistence,
+  type SessionStoreErrorCode,
+} from "./types.js";
+import { BASE_REASON_CODES, CORE_REASON_MESSAGES } from "../kernel/reasons.js";
 
 interface TestKindState {
   counter: number;
@@ -102,6 +108,7 @@ function makeStore(overrides?: {
   recordSink?: EmittedRecordSink;
   profiles?: ProfileStore;
   recordIds?: RecordIdSource;
+  persistence?: SessionPersistence;
 }) {
   const registry = makeRegistry();
   return createInMemorySessionStore({
@@ -110,6 +117,7 @@ function makeStore(overrides?: {
     ...(overrides?.recordSink ? { recordSink: overrides.recordSink } : {}),
     ...(overrides?.profiles ? { profiles: overrides.profiles } : {}),
     ...(overrides?.recordIds ? { recordIds: overrides.recordIds } : {}),
+    ...(overrides?.persistence ? { persistence: overrides.persistence } : {}),
   });
 }
 
@@ -124,6 +132,99 @@ function makeCountingRecordIds(): RecordIdSource {
     newSaveId: () => `save-${saves++}`,
   };
 }
+
+function persistenceWith(overrides?: Partial<SessionPersistence>): SessionPersistence {
+  return {
+    sessions: {
+      get: async () => undefined,
+      put: async () => {},
+      ...overrides?.sessions,
+    },
+    saves: {
+      get: async () => undefined,
+      put: async () => {},
+      delete: async () => {},
+      ...overrides?.saves,
+    },
+  };
+}
+
+describe("persistence error translation (G2 S1)", () => {
+  const sessionStoreCodes: Record<SessionStoreErrorCode, true> = {
+    unknown_session: true,
+    unknown_save: true,
+    storage_failure: true,
+    unknown_campaign: true,
+    invalid_state: true,
+    unknown_kind: true,
+    save_requires_migration: true,
+    migration_failed: true,
+    concurrent_modification: true,
+  };
+
+  it("S1.1 — maps the branded session-write conflict to concurrent_modification", async () => {
+    const store = makeStore({
+      persistence: persistenceWith({
+        sessions: {
+          get: async () => undefined,
+          put: async () => {
+            throw { name: SESSION_PERSISTENCE_CONFLICT };
+          },
+        },
+      }),
+    });
+
+    await expect(store.createSession({ campaignId: "test-campaign" })).rejects.toMatchObject({
+      name: "SessionStoreError",
+      operation: "session",
+      code: "concurrent_modification",
+    });
+    expect(Object.keys(sessionStoreCodes)).toHaveLength(9);
+  });
+
+  it("S1.2 — leaves ordinary and differently named session-write failures as storage_failure", async () => {
+    for (const failure of [new Error("store unavailable"), { name: "SomeOtherStoreFailure" }]) {
+      const store = makeStore({
+        persistence: persistenceWith({
+          sessions: {
+            get: async () => undefined,
+            put: async () => {
+              throw failure;
+            },
+          },
+        }),
+      });
+
+      await expect(store.createSession({ campaignId: "test-campaign" })).rejects.toMatchObject({
+        code: "storage_failure",
+      });
+    }
+  });
+
+  it("S1.3 — registers concurrent_modification with a shipped core reason message", () => {
+    expect(BASE_REASON_CODES).toContain("concurrent_modification");
+    expect(CORE_REASON_MESSAGES.get("core.reason.concurrent_modification")).toBeTruthy();
+  });
+
+  it("S1.4 — only writeSession recognises the conflict brand", async () => {
+    const conflict = { name: SESSION_PERSISTENCE_CONFLICT };
+    const readSessionStore = makeStore({
+      persistence: persistenceWith({ sessions: { get: async () => { throw conflict; }, put: async () => {} } }),
+    });
+    await expect(readSessionStore.getScene("missing")).rejects.toMatchObject({ code: "storage_failure" });
+
+    const readSaveStore = makeStore({
+      persistence: persistenceWith({ saves: { get: async () => { throw conflict; }, put: async () => {}, delete: async () => {} } }),
+    });
+    await expect(readSaveStore.loadGame("missing")).rejects.toMatchObject({ code: "storage_failure" });
+
+    const writeSaveStore = makeStore({
+      persistence: persistenceWith({ saves: { get: async () => undefined, put: async () => { throw conflict; }, delete: async () => {} } }),
+    });
+    const { sessionId } = await writeSaveStore.createSession({ campaignId: "test-campaign" });
+    await expect(writeSaveStore.saveGame(sessionId)).rejects.toMatchObject({ code: "storage_failure" });
+  });
+});
 
 describe("createSession / getScene / getView / getStrings / listCampaigns", () => {
   it("creates a session and returns its opening scene", async () => {
