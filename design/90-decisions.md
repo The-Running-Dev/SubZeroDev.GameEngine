@@ -702,3 +702,48 @@ session reimplement four criteria that already exist, which is precisely the dri
 keeps paying for.
 Reversibility: cheap as documentation. The code is on `main` and shipping, so `W75.4` is now a
 defect against a released behaviour rather than an unwritten criterion.
+
+### 2026-08-13 — Fifteen command cores migrated to the kit's current version; thirteen gained a terse `vocabulary` companion (issue #309)
+Context: `Kit Update` (#305) shipped `.claude/COMPANIONS.md` and `tools/Test-Companion.ps1`, which
+require every `.claude/commands/*.md` core to declare a `<!-- companion:start -->` block. Only the
+six cores #305 itself touched (`brief-check`, `done`, `fix`, `install`, `kit-sync`, `verify`) got
+one; the other fifteen were left on pre-split bodies, failing `powershell` on every PR since.
+Investigating (issue #309) found the validator is not the defect: `SubZeroDev.AgentKit`'s current
+HEAD already carries the block on all twenty-one cores, added in the same commit (`4f3d988`) that
+introduced the split, and its own CI already runs `Test-Companion.ps1`. The gap is local — this
+repository's `.claude/kit.json` records `syncedCommit` at that same kit HEAD, but `Sync-Kit.ps1`
+correctly left the fifteen divergent cores alone as `Unmigrated-Blocked`, since overwriting a local
+edit with no companion to receive it is exactly what the split exists to prevent.
+Chosen: adopt the kit's current core text for all fifteen. Diffing each against its kit version
+found two kinds of local content the pre-split bodies had carried: prose "repository overlay"
+paragraphs about `design/`'s compound files and generation workflow (already stated, in more
+detail, in `CLAUDE.md` itself — a companion repeating it would be the second copy *Single
+Ownership* forbids, and INSTALL.md's own "rules the target already states" step calls this outcome
+`Already satisfied`), and literal `AGENTS.md`/`S<n>` references the core text uses generically that
+this repository's own vocabulary — `CLAUDE.md`, the retained `W<n>` id scheme — actually names.
+The second kind is exactly what `.claude/COMPANIONS.md`'s `vocabulary` category exists for, so
+thirteen of the fifteen (all but `install-all` and `make-human-docs`, neither of which names this
+repository specifically) got a short `-local.md` stating the substitution — not a restatement of
+what the substituted text says. `pr.md` additionally gained a `tightened-authorization` section:
+its kit core reads "never open a pull request as a draft," but `CLAUDE.md`, *Git and Pull Requests*
+carves `/slice` out to open its PR as a draft and requires `/pr` to ask before marking it ready —
+narrower than the core, and exactly the category's shape. `slice.md`'s core states the same
+"never as a draft" line and does not allow `tightened-authorization` in its declared category
+list, so it carries no override; `CLAUDE.md`'s own rule still governs in practice, since
+`.claude/COMPANIONS.md`'s *Never* list makes a repository's instruction file outrank a core
+regardless of what the core's declared categories permit — recorded here as a known, accepted gap
+rather than silently left unexplained, and named as a candidate for a `SubZeroDev.AgentKit` issue
+if `slice.md` should allow the category it is missing.
+Rejected: **no companions at all**, matching the six cores #305 already merged verbatim — rejected
+once the diff showed real, repository-specific substitutions (not just paraphrase) that
+`.claude/COMPANIONS.md`'s `vocabulary` category was written for; leaving them unstated would have
+been the same gap this repository's own history (2026-08-04, "`8d4ffdb` upgrade") already paid to
+close once. **Full "repository overlay" paragraphs restored per file**, matching the pre-split
+bodies almost verbatim — rejected as the duplicate `CLAUDE.md` content Single Ownership forbids,
+now that a companion is not the only place that content could live. **Leave the fifteen cores as
+they were and correct the checker instead** — the issue's own original second checkbox — rejected
+once the checker was confirmed correct and already fixed upstream; the fifteen files, not
+`Test-Companion.ps1`, were behind.
+Reversibility: cheap — command-file and companion text only, and `Sync-Kit.ps1`'s own mechanism
+(`Superseded`, once a companion exists) means any of these can gain a fuller companion later
+without touching this entry.
