@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 4b7b8b7863bb7948aee6fb7229e9dde12e409e71fc405975069205c830d81f7b -->
+<!-- design-digest: 52b6bf337e7a456f2964c54cb89a34a0706b9c68ad3a05924a21bb6d269c7a71 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -277,6 +277,17 @@ code with a shipped `core.reason.*` message, so a client renders it through the 
 any other rejection and never reads `message`. Whatever exception your adapter raises is caught
 and re-raised as `storage_failure` — a Postgres timeout and a browser quota error are
 indistinguishable to a client deliberately, since neither admits a different response.
+
+One failure is classified rather than flattened, and it is a **lost update**. The store's
+per-session lock orders operations inside a single process; run several instances over one
+database and nothing here serializes them, so your adapter is the only party that can tell
+another writer moved the record first. Signal it by setting `name` on the thrown exception to the
+exported `SESSION_PERSISTENCE_CONFLICT` string, and the store raises `concurrent_modification`
+instead — a code the client can act on, by re-reading the session and retrying. The store matches
+on `name` rather than `instanceof`, so the signal survives a duplicated copy of the package.
+Brand nothing else with it: a timeout or a deadlock branded this way tells a player to refresh a
+session that never changed, and unbranded they arrive as `storage_failure`, which is correct for
+them. A single-writer adapter — in-memory, `localStorage` — never raises it and needs no change.
 
 ### Previewing an action
 
@@ -746,7 +757,9 @@ kind only when turn model, runtime state, projection, and determinism contract d
 - On rejected game actions, persist nothing and append no action-log entry.
 - On session write failure, do not acknowledge success; retry only after store recovery.
 - On host storage failure, surface `storage_failure` through the string table and keep playing;
-  never leak the adapter's own exception type across the store boundary.
+  never leak the adapter's own exception type across the store boundary. Brand only a lost
+  update as `SessionPersistenceConflict`; it arrives as `concurrent_modification`, and the
+  caller re-reads and retries rather than continuing.
 - On profile failure, preserve the successful game result and return a warning.
 - On migration failure, retain the previous session/save untouched.
 - On sink failure, preserve both returned and serialized game results.

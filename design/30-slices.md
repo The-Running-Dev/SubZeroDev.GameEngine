@@ -2657,6 +2657,48 @@ SubZeroDev.Adventures.Content without weakening GameEngine's story-graph regress
   - W74.5 The breaking follow-up removes published campaign sources, root exports, exporter,
         and retired `/play/` artifacts only after Content is deployed.
 
+### [ ] W75 — Classified Persistence Conflicts {#w75}
+
+**Delivers:** the one classified adapter failure
+[20 §7.2](04-core.md#7-the-session-store-and-the-platform-api) now carves out — a host-branded
+lost update surfacing as `concurrent_modification` instead of `storage_failure` — together with
+the cache invariant that makes the new message honest.
+
+Supersedes the draft on `slice/S1` (PR #306), which implemented the mapping against a contract
+that still said `storage_failure` **always** and carried no `design/` change. The contract half
+landed first; this unit is the code, and the divergence recorded in `design/90-decisions.md`
+(2026-08-13) is the reason the two are ordered that way.
+
+- **Spec:** [20 §7.2](04-core.md#7-the-session-store-and-the-platform-api),
+      [§12](04-core.md#12-reason-codes-state-changes-messages),
+      [06 §5.2](06-extensibility.md#52-sessionpersistence-and-profilestore).
+- **Depends on:** nothing beyond the shipped session store.
+- **Done when:**
+  - W75.1 A session write whose adapter throws an exception branded with
+        `SESSION_PERSISTENCE_CONFLICT` raises `SessionStoreError` with code
+        `concurrent_modification`; an unbranded throw and a differently branded throw both
+        still raise `storage_failure`.
+  - W75.2 `concurrent_modification` is in `BASE_REASON_CODES` with a shipped
+        `core.reason.*` message, and `20-contract.md` §12's list and growth tally agree with
+        `reasons.ts`.
+  - W75.3 The brand is matched on `name`, not by `instanceof`, and a test proves it by
+        raising a plain object carrying only that `name`.
+  - W75.4 **A conflict on `submitAction` leaves the store's cache no further ahead than
+        persistence.** The path mutates a cached record in place before persisting, so the
+        unit restores or evicts it when the write throws, and a test asserts a subsequent
+        read returns the pre-conflict state rather than the refused mutation. This is the
+        invariant 20 §7.2's blockquote states, and it is what makes "refresh and try again"
+        a promise the store can keep.
+  - W75.5 The asymmetry is asserted, not assumed: save writes, save reads and session reads
+        continue to raise `storage_failure` for a branded exception, with
+        [#226](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/226) named as
+        the owner of the save-side race.
+  - W75.6 `SESSION_PERSISTENCE_CONFLICT` and `SessionPersistenceConflict` are root exports,
+        the package version is bumped for the added surface, and `consumer-smoke` resolves
+        both.
+  - W75.7 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`, and
+        `./build/Test-Documentation.ps1` passes.
+
 ## Known Open Items Carried In
 
 > Full register of unknowns, gaps, and deferred decisions:

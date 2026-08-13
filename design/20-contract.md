@@ -752,6 +752,7 @@ these stay exceptions. What they are not is opaque:
 ```typescript
 type SessionStoreErrorCode =
   | "unknown_session" | "unknown_save" | "storage_failure"   // this section
+  | "concurrent_modification"                                // this section, below
   | "unknown_campaign" | "invalid_state" | "unknown_kind"    // §12, the kernel's own
   | "save_requires_migration" | "migration_failed";          // §12, the save boundary's
 
@@ -766,11 +767,45 @@ client renders `code` through the string table like any other rejection and neve
 `message`. That is what makes these safe to surface: a demo showing "could not be saved
 locally" is rendering `storage_failure`, not string-matching English (09 §3).
 
-**An adapter throwing is `storage_failure`, always.** The store catches whatever a host
-implementation raises and re-raises this one code, so a Postgres timeout and a `localStorage`
-quota error are indistinguishable to a client — deliberately, because a client can do nothing
-different about either, and a host's own exception type leaking through the store would put an
-unbounded vocabulary on the other side of the boundary.
+**An adapter throwing is `storage_failure`, with exactly one classified exception.** The store
+catches whatever a host implementation raises and re-raises `storage_failure`, so a Postgres
+timeout and a `localStorage` quota error stay indistinguishable to a client — a client can do
+nothing different about either, and a host's own exception type leaking through the store would
+put an unbounded vocabulary on the other side of the boundary.
+
+The exception is **`concurrent_modification`**, and it exists because §7's two lock domains stop
+at the process edge. Per-`sessionId` locking orders operations *within one store instance*; a
+host running several instances over one database has sessions that no lock here serializes, and
+that host is the only party positioned to detect the overwrite. It signals one by **branding**
+an exception rather than by raising a type of its own:
+
+```typescript
+const SESSION_PERSISTENCE_CONFLICT = "SessionPersistenceConflict";
+
+interface SessionPersistenceConflict extends Error {
+  readonly name: typeof SESSION_PERSISTENCE_CONFLICT;
+}
+```
+
+**The brand is a string on `name`, deliberately, and not an `instanceof` check** — a host may
+resolve a duplicated copy of this package, across which class identity does not survive.
+
+Two rules bound the carve-out, and they are what keep the paragraph above intact rather than
+merely qualified. **The vocabulary stays closed**: one brand, one code, and every other adapter
+exception still maps to `storage_failure` with no path by which a host adds a third outcome.
+And **a classified failure must be one the caller can act on differently** —
+`concurrent_modification` earns its place because "re-read the session and retry" is a real and
+different response, which is exactly what a timeout and a quota error do not have. A later code
+needs both arguments made here; a brand invented downstream is not a contract.
+
+> **A rejected write must not leave the store ahead of its persistence.** This failure is
+> actionable — the shipped `core.reason.concurrent_modification` string tells a player the
+> session changed elsewhere and to refresh — so the store's in-memory record must not retain a
+> mutation that persistence refused. An operation that mutates a cached record *before*
+> persisting it has to restore or evict that record when the write throws. Otherwise the next
+> read is served from the cache, returns the un-persisted state, and the retry the message asks
+> for cannot succeed. `storage_failure` tolerated this divergence because its own message
+> promises only that the game is still playable; `concurrent_modification` does not.
 
 ---
 
@@ -1164,7 +1199,7 @@ const BASE_REASON_CODES = [
   // the save-load boundary (§10.2)
   "save_requires_migration", "migration_failed",
   // host persistence (§7.2)
-  "unknown_session", "unknown_save", "storage_failure",
+  "unknown_session", "unknown_save", "storage_failure", "concurrent_modification",
   // the audit vocabulary — a `StateChange.reason`, not a rejection (below)
   "achievement_unlocked",
   // content-pack resolution (11 §7) — `resolvePacks`, `registry/packs.ts`
@@ -1177,7 +1212,7 @@ const BASE_REASON_CODES = [
 > vocabulary one *turn* needs. Everything after them was added by a unit that found a
 > cross-kind failure mode with no code that fitted — the kernel's three rejections, registry
 > assembly's three, the core's own Tier-1 four, the profile store's three, the save
-> boundary's two, host persistence's three, the audit vocabulary's one, and content-pack
+> boundary's two, host persistence's four, the audit vocabulary's one, and content-pack
 > resolution's six. That is the intended shape: a code is registered when a real caller
 > produces it, not pre-declared from this list. Because `ReasonCode` is *additive, never
 > renamed* (above), growth costs nothing — a client switching on a code it has never seen

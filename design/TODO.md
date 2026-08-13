@@ -194,4 +194,6 @@
 
 ### [ ] W74 — Campaign Content Ownership {#w74}
 
+### [ ] W75 — Classified Persistence Conflicts {#w75}
+
 ## Known Open Items Carried In
