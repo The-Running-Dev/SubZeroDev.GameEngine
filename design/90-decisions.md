@@ -207,14 +207,32 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
 surface extracted from `/play/` ([`13-playable-web-demo.md`](13-playable-web-demo.md),
 *Succeeded by SubZeroDev.Adventures*). It consumes this engine as a pinned submodule across a
 repository boundary and adds a hosted API, Postgres persistence, and accounts. That makes it
-the **first host to implement the ports against something other than a browser tab**, and the
-eight entries below are what that exercise found. They are recorded together because their
-shared provenance is the evidence: each one is a place the contract held up in one host and
-bent in the second.
+the **first host to implement the ports against something other than a browser tab**, and eight
+findings are what that exercise produced. They are recorded together because their shared
+provenance is the evidence: each one is a place the contract held up in one host and bent in the
+second.
 
 **None of these was found by review.** They were found by building. That is worth stating,
 because the standing bar in this register — *one built instance is not a pattern* — cuts both
 ways: several of these clear it now, for the first time.
+
+**Seven of the eight are issues, not bullets here.** This register indexes, it does not
+duplicate, and each issue carries the *Done when* that a bullet had nowhere to put — so the
+issue is the authority for those seven, not this section:
+
+| Issue | Finding |
+|---|---|
+| [#276](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/276) | `SaveRecordStore.delete` has no caller anywhere |
+| [#277](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/277) | No per-player save query, and two hosts have now invented one |
+| [#278](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/278) | `VisibleStat` omits the declared range, so clients read `Campaign.content` to get it |
+| [#279](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/279) | `listCampaigns()` is synchronous, so no remote store can implement it |
+| [#280](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/280) | Reproducing a stored session's blob requires pinning `IdSource.newGameId` |
+| [#281](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/281) | `SessionStore` has no concept of a caller, so authorization lives outside it |
+| [#282](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/282) | `Kind.outcome` has no shape a host can read generically |
+
+The eighth is kept in full because it is the only one that arrived with a working
+implementation, and the caution attached to it is what a reader needs *before* copying that
+implementation:
 
 - **Session forking is built, and it bypasses the store.** Adventures replays a stored action
   log to an arbitrary `atSeq` and writes a new `StoredSessionRecord` straight to persistence,
@@ -222,6 +240,7 @@ ways: several of these clear it now, for the first time.
   [issue #266](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/266) with a
   working reference implementation — and a caution, since writing through the persistence port
   rather than the store leaves the store's in-memory session cache unaware of the new session.
+
 One further item is not an engine defect but a standing cross-repository hazard: **Adventures
 depends on `fromPortable` and the `Portable*` types**, which `src/engine/src/index.ts:62`
 marks `// SPIKE: … not a contract export`. Tracked as
