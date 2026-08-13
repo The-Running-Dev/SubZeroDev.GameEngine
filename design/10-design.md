@@ -576,8 +576,8 @@ inside the engine as story-graph regression evidence only; it is not a publicati
 
 The former in-repository `/play/` route and its campaign artifact directory are superseded:
 Adventures is the browser host now, consuming the deployed Content feed rather than
-Engine-generated campaign files. `/play/` itself stays in the repository through 0.7.0 and is
-removed with the breaking ownership release (design/30-slices.md, W74.5).
+Engine-generated campaign files. `/play/` itself stays in the repository through 0.8.0 and is
+removed with the breaking ownership release, 0.9.0 (design/30-slices.md, W74.5).
 <!-- human-doc:end -->
 
 <!-- human-doc:start path="engine/05-observability.md" -->

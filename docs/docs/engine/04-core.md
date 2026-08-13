@@ -1441,7 +1441,9 @@ type ComparisonOperator =
   "greater_than" | "greater_or_equal" | "in" | "not_in" | "contains" |
   "has_tag" | "has_flag";
 
-interface ComparisonCondition { field: string; operator: ComparisonOperator; value: unknown; }
+// `value` is optional: `not_equals` against an absent field is authored as `value: undefined`,
+// and `JSON.stringify` drops an undefined-valued key, so the wire document never carries it.
+interface ComparisonCondition { field: string; operator: ComparisonOperator; value?: unknown; }
 interface AllCondition { all: Condition[]; }
 interface AnyCondition { any: Condition[]; }
 interface NotCondition { not: Condition; }
@@ -1495,8 +1497,10 @@ portable JSON.
 campaigns. GameEngine owns kinds, validation, portable hydration and authoring primitives.
 GameEngine may retain a frozen campaign solely as a regression fixture; such a fixture is not
 published and not listed in a manifest. Existing frozen campaigns stay package-root exports
-through 0.7.0 for compatibility; the breaking 0.8.0 release removes them from the root
-(design/90-decisions.md, W74.5).
+through 0.8.0 for compatibility; the breaking 0.9.0 release removes them from the root
+(design/90-decisions.md, W74.5). The peg moved once already: 0.8.0 was originally named here
+and was then spent on an additive release, so a version reserved by this section is a name
+to check against `src/engine/package.json` before a bump, not after.
 
 Portable campaign documents remain format version 2. `toPortable` and
 `digestManifestResolution` are public only through `/authoring`; `fromPortable` remains a

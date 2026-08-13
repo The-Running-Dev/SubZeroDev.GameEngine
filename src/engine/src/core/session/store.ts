@@ -438,9 +438,13 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
             } catch (error) {
               // A rejected write must not leave the cache ahead of persistence (20-contract.md
               // §7.2's blockquote) — restore what was here before this mutation so the next
-              // read serves the pre-conflict state, not the refused one.
+              // read serves the pre-conflict state, not the refused one. All three fields the
+              // refused `put` carried, including the counter incremented above: it is part of
+              // `StoredSessionRecord`, so leaving it raised keeps the cache one attempt ahead
+              // of a record persistence never took, and `getSession` is cache-first.
               record.blob = previousBlob;
               record.updatedAt = previousUpdatedAt;
+              record.attemptCounter = attempt - 1;
               throw error;
             }
 

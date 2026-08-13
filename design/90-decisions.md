@@ -241,10 +241,16 @@ implementation:
   working reference implementation — and a caution, since writing through the persistence port
   rather than the store leaves the store's in-memory session cache unaware of the new session.
 
-One further item is not an engine defect but a standing cross-repository hazard: **Adventures
-depends on `fromPortable` and the `Portable*` types**, which `src/engine/src/index.ts:62`
-marks `// SPIKE: … not a contract export`. Tracked as
-[issue #285](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/285).
+One further item **was** a standing cross-repository hazard rather than an engine defect, and is
+now resolved: **Adventures depended on `fromPortable` and the `Portable*` types** while
+`src/engine/src/index.ts` marked them `// SPIKE: … not a contract export`, so a submodule bump
+could legitimately break the downstream host. `6991e37` (0.6.0) graduated the format: that same
+line now reads *"A real contract export"*, no `SPIKE` marker survives anywhere under
+`src/engine/src/`, and §19 of `20-contract.md` states the surface. The dependency is sanctioned,
+so the hazard is gone — kept rather than deleted because the fact that it was once unsanctioned
+and was deliberately regularised is the reasoning a later reader of
+[issue #285](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/285) will want. That
+issue's premise no longer holds and it is `/track`'s to close.
 
 ---
 
@@ -747,3 +753,70 @@ once the checker was confirmed correct and already fixed upstream; the fifteen f
 Reversibility: cheap — command-file and companion text only, and `Sync-Kit.ps1`'s own mechanism
 (`Superseded`, once a companion exists) means any of these can gain a fuller companion later
 without touching this entry.
+
+### 2026-08-11 — The portable format graduated, and a frozen primitive was widened, in the same release window
+Context: found by reconciliation, not by review. Two releases landed with no entry here at all —
+the register jumps 2026-08-10 to 2026-08-12. `6991e37` (0.6.0) graduated the portable campaign
+format out of spike status: `fromPortable`, `digestPortableCampaign` and the six `Portable*`
+types became real contract exports, the `// SPIKE` marker was removed, and
+`SubZeroDev.ServiceContract` now projects its content schema straight from `PortableCampaign`.
+`ec92fba` (0.6.1) then made `ComparisonCondition.value` optional. Both are public types crossing
+into or moving within contract status without a slice, which is the same defect this register
+recorded twice against `S1` (`42f34f6`, `a349c2a`): root exports, no slice, no register entry.
+Chosen: Record both, as one entry, and keep both changes. The graduation is what §19 already
+describes as the end state and what the first downstream host had in practice been depending on
+regardless — the alternative was leaving a live production dependency marked unsanctioned. The
+widening is correct on the merits: `not_equals` against an absent field is authored as
+`value: undefined`, and `JSON.stringify` drops an undefined-valued key, so a required `value` was
+strictly stricter than any document this engine has ever emitted; `compare` already read a
+missing `value` and an explicit `undefined` one identically, making it a type-only change. §18's
+restated shape is corrected to match in the same pass.
+Rejected: **Treat the widening as an unauthorised change to a frozen primitive and revert it** —
+rejected on the merits. §18 freezes the *operator set*, and the bar it sets is against additions
+that each cost validation, evaluation, projection, migration and tooling; an optional marker on
+an existing field adds no operator and costs none of that. **Record only the widening and let
+§19 stand for the graduation** — rejected because §19 records what is true now and not what was
+decided or what was rejected, which is the whole job of this file.
+Reversibility: the graduation is expensive to reverse — the exports are consumed downstream and
+un-exporting them is breaking. The widening is cheap in this repository and moderate outside it:
+narrowing `value?:` back to `value:` would reject documents a generated validator now accepts.
+
+### 2026-08-13 — The 0.8.0 peg moved to 0.9.0, because 0.8.0 was spent on an additive release
+Context: `20-contract.md` §19 and `10-design.md` §13 staged W74's ownership move as "root exports
+stay through 0.7.0; the breaking 0.8.0 release removes them." W75's fix then bumped
+`src/engine/package.json` from `0.7.0` to `0.8.0` and `v0.8.0` was tagged at `f00bb43`, the tip of
+`main` — with every published campaign builder still a root export, `site/src/play/` still present,
+and `scripts/export-campaigns.ts` still generating campaign files. Neither `0.6.x` nor `0.7.0` was
+ever tagged, so `0.8.0` is the released version. W74.5 is honestly unstarted and gated on Content
+having deployed; the defect is the peg, not the schedule.
+Chosen: Re-peg both statements to "through 0.8.0 … the breaking 0.9.0 release," and add a line to
+§19 recording that the peg has moved once, so the next bump checks this section first. The code is
+correct and W74.5's criteria in `30-slices.md` are untouched.
+Rejected: **Drop the version peg entirely** and name the change without a number — immune to
+recurrence, but Adventures and Content are coordinating against exactly that number, and a
+consumer's whole reason to read this section is to learn which upgrade breaks them. **Land the
+removal now so 0.8.0 means what §19 said** — rejected outright: that is W74.5, a unit of work with
+its own criteria and a cross-repository dependency, and a reconciliation pass implementing it is
+the churn loop the design freeze exists to escape.
+Reversibility: cheap — two canonical lines, plus a regenerate and re-stamp.
+
+### 2026-08-13 — `submitAction` rolls back all three fields of a refused write, not two
+Context: §7.2's blockquote, added eight days earlier, requires that a rejected write leave nothing
+behind — "restore or evict that record when the write throws." W75.4 implemented it for
+`record.blob` and `record.updatedAt`. `record.attemptCounter`, incremented before dispatch inside
+the session lock, was left raised, and it is a field of `StoredSessionRecord` that the same refused
+`put` carried. Because `getSession` is cache-first, nothing re-synced it: the cache stayed one
+attempt ahead of persistence for the life of the session, and the stored counter skipped a value on
+the next accepted write.
+Chosen: Restore the counter alongside the other two, and extend the W75.4 test to assert it — the
+counter is only observable on the next accepted write, so the test submits again and asserts the
+persisted record carries `1`. Verified by reverting the fix: the assertion fails with
+`attemptCounter: 2`.
+Rejected: **Amend §7.2 to exempt the counter** — arguably the truer semantics, since a submission
+that reached dispatch is an attempt whether or not its write survived. Rejected on two grounds: it
+narrows a rule written eight days ago to fit the code that missed it, and §7.2 is a contract-
+amendment surface that belongs to `/contract`, not to a reconciliation pass. **Record it as
+known-and-retained** — rejected; the impact is small (trace stamping and a skipped counter value,
+never `serialize()` output), but a stated invariant knowingly left unmet is what the envelope-
+duplication ledger is made of.
+Reversibility: cheap — three lines of code and one assertion.
