@@ -224,6 +224,30 @@ describe("persistence error translation (G2 S1)", () => {
     const { sessionId } = await writeSaveStore.createSession({ campaignId: "test-campaign" });
     await expect(writeSaveStore.saveGame(sessionId)).rejects.toMatchObject({ code: "storage_failure" });
   });
+
+  it("W75.4 — a conflict on submitAction leaves the cache no further ahead than persistence", async () => {
+    let writeCount = 0;
+    const store = makeStore({
+      persistence: persistenceWith({
+        sessions: {
+          get: async () => undefined,
+          put: async () => {
+            writeCount += 1;
+            // createSession's write (1) succeeds; submitAction's write (2) is the conflict.
+            if (writeCount === 2) throw { name: SESSION_PERSISTENCE_CONFLICT };
+          },
+        },
+      }),
+    });
+
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+    await expect(store.submitAction(sessionId, "increment")).rejects.toMatchObject({
+      code: "concurrent_modification",
+    });
+
+    const scene = await store.getScene(sessionId);
+    expect(scene.body.text).toBe("counter=0");
+  });
 });
 
 describe("createSession / getScene / getView / getStrings / listCampaigns", () => {
