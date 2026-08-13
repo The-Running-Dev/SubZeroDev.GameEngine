@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import { TextClient } from "../clients/text/client.js";
 import { createCountingIds } from "../core/determinism/counting-ids.js";
 import { createEngine } from "../core/kernel/engine.js";
+import { CORE_REASON_MESSAGES } from "../core/kernel/reasons.js";
 import type { KindRegistry } from "../core/kernel/types.js";
 import { runReplayFixture, type ReplayRunnerContext } from "../core/replay/runner.js";
 import type { ReplayFixture } from "../core/replay/types.js";
@@ -15,7 +16,7 @@ import { buildValidatedContentRegistry } from "../core/validation/tiered.js";
 import { createInMemoryProfileStore } from "../core/session/profile-store.js";
 import { createInMemorySessionStore } from "../core/session/store.js";
 import { simulationKind } from "../kinds/simulation/kind.js";
-import { resolvePacks } from "../core/registry/packs.js";
+import { resolvePacks, type ContentPack } from "../core/registry/packs.js";
 import type { ContentRegistry } from "../core/registry/types.js";
 import { bulgariaCulturePack, stableLifeBasePack } from "./stable-life-packs.js";
 import { STABLE_LIFE_CAMPAIGN_ID } from "./stable-life.js";
@@ -27,18 +28,37 @@ const WEEK_ACTIONS = [
   { actionId: "end_week" },
 ] as const;
 
-function resolve(...packs: Parameters<typeof resolvePacks>): ContentRegistry {
-  const result = resolvePacks(...packs);
-  if (!result.ok || !result.value) throw new Error("expected packs to resolve");
-  return result.value;
-}
+/**
+ * The whole path a host takes, in the order 20-contract.md §11 fixes it: fold the ordered
+ * pack set, then run the folded result through `buildValidatedContentRegistry` — the
+ * sanctioned entry point, and the only one that merges the core's `core.reason.*` and the
+ * used kind's own `simulation.reason.*` messages into the frozen table. `resolvePacks`
+ * knows only what the packs themselves ship, so a registry taken straight from the fold and
+ * handed to `createEngine` renders every rejection as a bare `core.reason.*` key.
+ *
+ * `resolution` is carried across by hand because `buildContentRegistry` cannot carry it:
+ * it takes `BuiltCampaign`s and "knows no packs exist" (04 §10.1), so the validated
+ * registry it returns has none. Dropping it would leave the registry actually played
+ * unable to name the mix it was folded from — the identity 11 §6 exists for, and the thing
+ * `Campaign.version` is stamped with two tests below. **Known and retained:** no single
+ * call produces both today, and closing that would mean changing a core signature, which
+ * W71.2 puts out of this unit's scope.
+ */
+function resolve(packs: readonly ContentPack[]): ContentRegistry {
+  const folded = resolvePacks(packs);
+  if (!folded.ok || !folded.value) throw new Error("expected packs to resolve");
+  const { campaigns, strings, resolution } = folded.value;
+  // Optional on the type, but never absent on a folded registry (04 §10.1) — asserted
+  // rather than spread away, so the carry-across below cannot silently become a no-op.
+  if (resolution === undefined) throw new Error("expected the fold to name its resolution");
 
-function validate(registry: ContentRegistry): void {
-  const result = buildValidatedContentRegistry(
-    [...registry.campaigns.values()].map((campaign) => ({ campaign, strings: registry.strings })),
+  const validated = buildValidatedContentRegistry(
+    [...campaigns.values()].map((campaign) => ({ campaign, strings })),
     kinds,
   );
-  expect(result.ok).toBe(true);
+  if (!validated.ok || !validated.value) throw new Error("expected the folded registry to validate");
+
+  return { ...validated.value, resolution };
 }
 
 function replayContext(registry: ContentRegistry): ReplayRunnerContext {
@@ -68,8 +88,14 @@ describe("W71 — Stable Life Bulgaria culture pack", () => {
   it("folds the base and Bulgaria packs into valid registries, changing exactly the declared strings", () => {
     const base = resolve([stableLifeBasePack]);
     const bulgaria = resolve([stableLifeBasePack, bulgariaCulturePack]);
-    validate(base);
-    validate(bulgaria);
+
+    // Neither table is the packs' own strings alone. The fold ships 24 keys and no reason
+    // messages at all; assembly is what merges the core's and the kind's in (20 §11), and a
+    // registry missing them renders every rejection as a bare key to the player.
+    for (const registry of [base, bulgaria]) {
+      expect(registry.strings.has("core.reason.unknown_action")).toBe(true);
+      expect([...registry.strings.keys()].some((key) => key.startsWith("simulation.reason."))).toBe(true);
+    }
 
     const overridden = new Set(bulgariaCulturePack.strings.keys());
     for (const [key, baseText] of base.strings) {
@@ -88,6 +114,43 @@ describe("W71 — Stable Life Bulgaria culture pack", () => {
     expect(bulgaria.campaigns.get(STABLE_LIFE_CAMPAIGN_ID)?.version).toBe(bulgaria.resolution);
   });
 
+  /**
+   * The other half of 11 §3 — campaigns replace *wholesale by id*, not field by field.
+   * Checked by reference rather than by value on purpose: until W72 authors the Bulgarian
+   * setting the two campaigns are deep-equal, so a value comparison would pass just as
+   * happily against the base pack's campaign, or against a Bulgaria pack shipping no
+   * campaign at all. `resolvePacks` shallow-spreads the winning campaign to stamp its
+   * `version`, which leaves `content` the very object the pack supplied.
+   */
+  it("replaces the campaign wholesale, keeping the later pack's own campaign object", () => {
+    const baseContent = stableLifeBasePack.campaigns[0]?.campaign.content;
+    const bulgarianContent = bulgariaCulturePack.campaigns[0]?.campaign.content;
+    expect(bulgarianContent).toBeDefined();
+    expect(bulgarianContent).not.toBe(baseContent);
+
+    expect(resolve([stableLifeBasePack]).campaigns.get(STABLE_LIFE_CAMPAIGN_ID)?.content).toBe(baseContent);
+    expect(resolve([stableLifeBasePack, bulgariaCulturePack]).campaigns.get(STABLE_LIFE_CAMPAIGN_ID)?.content)
+      .toBe(bulgarianContent);
+  });
+
+  /**
+   * `computeResolutionId` digests `{id, version}` and nothing else, so a pack whose version
+   * did not move with its content would hand a stale `ResolutionId` to every save and
+   * fixture captured against it. Neither pack authors its campaign here — both build it
+   * from `stable-life.ts` — so both versions are derived from a digest of what they ship.
+   * Two packs shipping different strings must therefore carry different versions.
+   */
+  it("derives each pack's version from the content it ships", () => {
+    expect(stableLifeBasePack.version).toMatch(/^1\.0\.0\+[0-9a-f]{12}$/);
+    expect(bulgariaCulturePack.version).toMatch(/^1\.0\.0\+[0-9a-f]{12}$/);
+    expect(stableLifeBasePack.version).not.toBe(bulgariaCulturePack.version);
+    // The declared dependency tracks the derived version rather than restating it; a stale
+    // literal would fail the fold with `pack_dependency_missing`, which `resolve` throws on.
+    expect(bulgariaCulturePack.dependsOn).toEqual([
+      { id: stableLifeBasePack.id, version: stableLifeBasePack.version },
+    ]);
+  });
+
   it("plays a Bulgarian week through the text client without rendering base Stable Life text", async () => {
     const registry = resolve([stableLifeBasePack, bulgariaCulturePack]);
     const engine = createEngine({ kinds, registry });
@@ -101,6 +164,14 @@ describe("W71 — Stable Life Bulgaria culture pack", () => {
     expect(ended.text).toContain("Приключи седмицата");
     expect(view.value.kindView).toBeDefined();
     expect(`${started.text}\n${planned.text}\n${ended.text}`).not.toContain("Stable Life");
+
+    // A rejection is the surface that catches a registry assembled the wrong way: the text
+    // client resolves a reason code against the session's own string table and falls back to
+    // the raw key when it is absent (`clients/text/render.ts`), so a registry taken straight
+    // from `resolvePacks` shows the player the literal string "core.reason.unknown_action".
+    const rejected = await client.submitAction(started.value.sessionId, "no_such_action");
+    expect(rejected.value.ok).toBe(false);
+    expect(rejected.text).toBe(CORE_REASON_MESSAGES.get("core.reason.unknown_action"));
   });
 
   it("marks a replay captured under the Bulgarian resolution as campaign_version_missing under base", async () => {
