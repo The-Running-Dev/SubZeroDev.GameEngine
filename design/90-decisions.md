@@ -54,27 +54,8 @@ answer now lives — so a later reader finds the reasoning without re-opening th
 
 Settled as out of MVP scope. Listed so they resurface deliberately, not by accident.
 
-- **The engine package published *public*, and the plans specify private.** `v0.4.0`
-  published `@the-running-dev/game-engine` to GitHub Packages on 2026-08-02 with
-  `visibility: public`, verified against the packages API. Two plan documents still specify
-  otherwise, each now carrying a pointer to this entry: `plans/39` Decision 4 ("a private
-  GitHub Packages npm package") and `plans/40`'s non-goals ("**No public npm publication.**
-  Private GitHub Packages only").
-
-  Checking why turned up a larger stale premise: **both `SubZeroDev.GameEngine` and
-  `SubZeroDev.SunTrap` are public repositories.** [`TODO.md`](TODO.md) described all
-  companions as private until the same change that added this entry corrected it. Nothing was
-  exposed that was not already public — the engine source has been readable throughout — so
-  this is a contract-versus-reality gap, not an incident.
-
-  Two coherent resolutions, and they differ in what they cost. **Accept public** and correct
-  the documents: a private package fronting a public repository protects nothing and adds an
-  authentication step to Sun Trap's CI for no benefit. **Or make it private** through the
-  package's own settings — there is no REST API for visibility — and grant Sun Trap read
-  access, which W41's ledger then needs reopened.
-
-  **Revisit when:** Sun Trap's M1 actually consumes the package, since that is the first
-  moment the authentication difference is felt rather than theorised.
+- **The engine package published *public*, and the plans specify private — tracked as
+  [issue #302](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/302).**
 - **Provisional simulation numbers** — drift rates, scenario economics, `demandBand`
   thresholds, housing-quality formula, travel costs. Need a balancing pass once the sim
   harness runs. Tracked as [issue #267](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/267).
@@ -210,19 +191,15 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   document lives in the companion `SubZeroDev.GameOfLife` repository, so correcting it is a
   follow-up there, out of scope for this repo. Nothing here blocks on it: arc build order was
   already safe regardless, and that has now been exercised three times over.
-- **The replay-corpus test harness assumes one campaign per corpus directory** —
-  `bulgaria-bureaucracy.replay.test.ts` (W22) does a generic `readdirSync` scan of
-  `fixtures/replay/` to enumerate fixtures, but builds its `ReplayRunnerContext` from *only*
-  the Bureaucracy campaign's registry. A second campaign's fixtures dropped into the same
-  directory would be enumerated by that scan and then fail, since the registry they'd run
-  against doesn't contain their campaign. W22 built this before a second campaign existed, so
-  it was never wrong for its own scope — but it means today's replay-corpus pattern doesn't
-  extend to a second campaign without either a multi-campaign registry in that shared context,
-  or a parallel per-campaign test file scoping its own directory read by filename prefix.
-  Found while implementing W27 (`plans/37-w27-bulgaria-driving-arc.md`), which has no replay
-  fixtures as a result — not blocking that unit, but real friction for every arc after it.
-  **Revisit when** a second campaign's replay coverage is actually wanted: decide the shared-vs-
-  per-campaign shape once, from two real cases, rather than guessing ahead of one.
+- **The replay-corpus test harness assuming one campaign per corpus directory — closed,
+  resolved by prefix-filtering.** Filed after W22 built `bulgaria-bureaucracy.replay.test.ts`'s
+  generic `readdirSync` scan of `fixtures/replay/` against only the Bureaucracy campaign's
+  registry, before a second campaign existed to expose it. W40 hit exactly the predicted
+  collision and fixed it by prefix-filtering both suites (`bureaucracy-`/`stable-life-`); W49
+  and W67 followed the same per-kind prefix-filtering pattern rather than reopening the
+  shared-vs-per-campaign design question. Tracked and closed `not_planned` as
+  [issue #303](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/303) — the
+  friction this entry named is resolved in practice, not merely worked around.
 
 ### Found by the first downstream host — SubZeroDev.Adventures
 
