@@ -1682,7 +1682,7 @@ Neither statement has
 ever been exercised: W58 proved the fold against synthetic packs, and no real culture pack
 exists. W71 is the first one, and its job is to find out whether "no engine change" is true.
 
-### [ ] W71 — The Bulgaria Culture Pack: Mechanism and Voice {#w71}
+### [x] W71 — The Bulgaria Culture Pack: Mechanism and Voice {#w71}
 
 **Delivers:** Proves the platform's central customization claim — that one game's mechanics can
 host a completely different world without touching the engine. Life in the Fast Lane's "Stable
@@ -1699,7 +1699,7 @@ The pack replaces the campaign **wholesale by id** and its strings **per key** (
       `stable-life` source and a new Bulgarian culture pack, plus a test alongside.
       `src/engine/src/core/registry/packs.ts` is **read, not modified**.
 - **Depends on:** [W58](#w58), [W59](#w59), [W50](#w50)–[W57](#w57) — all done.
-- **Status:** Not started.
+- **Status:** Done — [PR #314](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/314).
 - **Done when:**
   - W71.1 Resolving `[base]` and `[base, bulgaria]` both produce a registry that builds and
         passes validation; the two differ in rendered text at every key the pack overrides and
@@ -1723,7 +1723,7 @@ The pack replaces the campaign **wholesale by id** and its strings **per key** (
       different axis; pack discovery, distribution, and loading from disk, which
       [11 §8](11-content-packs.md#8-what-is-deferred) defers by name; a second culture pack.
 
-### [ ] W72 — The Bulgaria Culture Pack: The Full Setting {#w72}
+### [x] W72 — The Bulgaria Culture Pack: The Full Setting {#w72}
 
 **Delivers:** Fills the Bulgarian world out from a proof into something worth playing — its
 jobs, places, events, housing, possessions and prices — so a player can take the Bulgarian
@@ -1739,7 +1739,7 @@ mechanism would not finish in one session. W71 proves the claim; this one does t
       `stable-life-events.ts` / `-housing.ts` / `-possessions.ts` / `-effects.ts` already uses;
       `fixtures/replay/`; `src/engine/scripts/demo-cli.ts`.
 - **Depends on:** [W71](#w71).
-- **Status:** Not started.
+- **Status:** Done — [PR #317](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/317).
 - **Done when:**
   - W72.1 The pack supplies Bulgarian content for every collection `stable-life` populates —
         jobs, places, events, housing, possessions, effects — with none left silently

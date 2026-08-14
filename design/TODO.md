@@ -158,9 +158,9 @@
 
 ### Breadth: The First Culture Pack
 
-### [ ] W71 — The Bulgaria Culture Pack: Mechanism and Voice {#w71}
+### [x] W71 — The Bulgaria Culture Pack: Mechanism and Voice {#w71}
 
-### [ ] W72 — The Bulgaria Culture Pack: The Full Setting {#w72}
+### [x] W72 — The Bulgaria Culture Pack: The Full Setting {#w72}
 
 ### Breadth: The Platform
 
