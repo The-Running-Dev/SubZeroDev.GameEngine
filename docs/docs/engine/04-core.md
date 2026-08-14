@@ -1487,8 +1487,8 @@ them, so a rename breaks old data.
 
 The package root is the runtime contract. `@the-running-dev/game-engine/authoring` is the
 separate author-time contract for repositories that own campaign source. It exports the
-generic content-registry builder, the story-graph source builder, the shared adventure
-builder and its migration helper, portable serialization and manifest digests, and
+generic campaign builder, the story-graph source builder, the shared adventure builder with
+its source factory and its migration helper, portable serialization and manifest digests, and
 replay-runner types/functions. It is deliberately a
 subpath: a runtime host must not import authored campaign source merely to play published
 portable JSON.

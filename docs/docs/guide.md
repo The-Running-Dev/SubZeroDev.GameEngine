@@ -3,9 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: ff610cc166b17dd01370b8fd6afc834d48e88024953127255121f034eee0a2b3 -->
-
-<!-- design-digest: PLACEHOLDER -->
+<!-- design-digest: 4d841cf939c14b3f27a12659e754cde59a6a1bdce3a2810a36706a3110ab8a5b -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -124,7 +122,7 @@ validation, and portable hydration.
 
 The package root (`@the-running-dev/game-engine`) is for runtime hosts. A separate subpath,
 `@the-running-dev/game-engine/authoring`, is for repositories that own campaign source: it exports
-the content-registry builder, the story-graph and adventure source builders and their migration
+the generic campaign builder, the story-graph and adventure source builders and their migration
 helpers, portable serialization and manifest-digest functions, and replay-runner types. Import
 from `/authoring` only when writing or publishing campaign content — a runtime host must never
 import authored campaign source merely to play already-published portable JSON.

@@ -6,6 +6,7 @@ import {
   buildWorldGraphCampaign,
   buildWorldGraphMvpCampaign,
   createEngine,
+  fromPortable,
   SESSION_PERSISTENCE_CONFLICT,
   storyGraphKind,
   simulationKind,
@@ -22,6 +23,30 @@ import {
   type WorldGraphOutcome,
   type WorldGraphView,
 } from "@the-running-dev/game-engine";
+import * as engineRoot from "@the-running-dev/game-engine";
+// `20-contract.md` §19's second published surface. Imported through the packed tarball's
+// `exports` map exactly as the root is, because the subpath is the half a `file:` link to
+// `src/engine` would resolve anyway — and therefore the half nothing here proved until now.
+import {
+  buildAdventureCampaign,
+  buildCampaign as buildCampaignFromAuthoring,
+  buildReplayOutcome,
+  buildStoryGraphCampaign,
+  createAdventureSource,
+  digestManifestResolution,
+  digestPortableCampaign,
+  findDivergence,
+  migrateV1AdventureState,
+  runReplayFixture,
+  toPortable,
+  type AdventureConfig,
+  type BuiltCampaign,
+  type PortableCampaign,
+  type PortableCatalog,
+  type ReplayFixture,
+  type ReplayResult,
+  type StoryGraphCampaignSource,
+} from "@the-running-dev/game-engine/authoring";
 
 type WorldGraphPublicTypes = [
   WorldGraphCampaignSource,
@@ -35,6 +60,73 @@ type SessionPersistencePublicTypes = [
   SessionStoreErrorCode,
   SessionPersistenceConflict,
 ];
+
+type AuthoringPublicTypes = [
+  AdventureConfig,
+  BuiltCampaign,
+  PortableCampaign,
+  PortableCatalog,
+  ReplayFixture,
+  ReplayResult,
+  StoryGraphCampaignSource,
+];
+
+const SMOKE_CATALOG: PortableCatalog = {
+  title: "Consumer smoke",
+  description: "Packed-tarball evidence for the /authoring subpath.",
+  duration: "n/a",
+  contentNotice: "none",
+  featured: false,
+};
+
+/**
+ * §19's whole claim, checked against the artifact that ships: the author-time surface
+ * resolves through `./authoring`, the two surfaces agree on the types they share, and the
+ * three exports the section splits between them are split the way it says.
+ */
+function assertAuthoringSurface(built: BuiltCampaign): void {
+  for (const [name, fn] of Object.entries({
+    buildAdventureCampaign,
+    buildCampaignFromAuthoring,
+    buildReplayOutcome,
+    buildStoryGraphCampaign,
+    createAdventureSource,
+    digestManifestResolution,
+    digestPortableCampaign,
+    findDivergence,
+    migrateV1AdventureState,
+    runReplayFixture,
+    toPortable,
+  })) {
+    assert.equal(typeof fn, "function", `/authoring should export ${name}`);
+  }
+  // The same function object, not a second copy: the two subpaths must resolve to one
+  // module graph, or a `BuiltCampaign` made through `/authoring` is not the one the root
+  // accepts.
+  assert.equal(buildCampaignFromAuthoring, buildCampaign, "both surfaces should share one buildCampaign");
+
+  // §19: `toPortable` and `digestManifestResolution` are `/authoring`-only, `fromPortable`
+  // is root-only, `digestPortableCampaign` is on both.
+  assert.ok(!("toPortable" in engineRoot), "toPortable must not be a package-root export");
+  assert.ok(!("digestManifestResolution" in engineRoot), "digestManifestResolution must not be a package-root export");
+  assert.equal(typeof engineRoot.digestPortableCampaign, "function", "digestPortableCampaign should be on both surfaces");
+
+  // Author-time out, runtime back in — the round trip the split exists to serve.
+  const portable = toPortable(built, SMOKE_CATALOG);
+  assert.equal(portable.formatVersion, 2);
+  const digest = digestPortableCampaign(portable);
+  assert.match(digest, /^sha-256:[0-9a-f]{64}$/);
+  assert.equal(digest, engineRoot.digestPortableCampaign(portable), "both surfaces should digest identically");
+  assert.match(
+    digestManifestResolution([{ id: built.campaign.id, version: built.campaign.version }]),
+    /^sha-256:[0-9a-f]{64}$/,
+  );
+
+  const hydrated = fromPortable(portable);
+  assert.equal(hydrated.built.campaign.id, built.campaign.id);
+  assert.equal(hydrated.built.campaign.kindId, built.campaign.kindId);
+  assert.equal(hydrated.catalog.title, SMOKE_CATALOG.title);
+}
 
 function expectOk<T>(result: { ok: boolean; value?: T }, context: string): T {
   assert.equal(result.ok, true, context);
@@ -171,6 +263,9 @@ function runEngineSmoke(): void {
   assert.equal(publicTypesResolve(), undefined);
   const sessionPersistenceTypesResolve = <T extends SessionPersistencePublicTypes>(): T | undefined => undefined;
   assert.equal(sessionPersistenceTypesResolve(), undefined);
+  const authoringTypesResolve = <T extends AuthoringPublicTypes>(): T | undefined => undefined;
+  assert.equal(authoringTypesResolve(), undefined);
+  assertAuthoringSurface(worldGraphCampaign);
   assertCampaignContentCastThrows(kinds, authoredText);
 }
 

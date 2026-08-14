@@ -196,4 +196,6 @@
 
 ### [ ] W75 — Classified Persistence Conflicts {#w75}
 
+### [ ] W76 — A Folded Registry Keeps Its Resolution {#w76}
+
 ## Known Open Items Carried In
