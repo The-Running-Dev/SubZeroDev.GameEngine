@@ -3,67 +3,62 @@
     {
       "name": "engine typecheck",
       "status": "Passed",
-      "detail": "npm run typecheck (src/engine) — tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json — no output, exit 0."
+      "detail": "npm --prefix src/engine run typecheck: tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json completed with no output, no errors."
     },
     {
       "name": "engine lint",
       "status": "Passed",
-      "detail": "npm run lint (src/engine) — eslint src scripts — no output, exit 0."
+      "detail": "npm --prefix src/engine run lint: eslint src scripts completed with no output, no errors."
     },
     {
       "name": "engine test",
       "status": "Passed",
-      "detail": "npm test (src/engine) — vitest run — Test Files 74 passed (74), Tests 1084 passed (1084), Duration 3.75s."
+      "detail": "npm --prefix src/engine test: vitest run. Test Files 76 passed (76), Tests 1097 passed (1097)."
     },
     {
       "name": "engine pack + tarball inspect",
       "status": "Passed",
-      "detail": "npm pack --silent produced the-running-dev-game-engine-0.8.0.tgz. Reproduced ci.yml's Inspect-tarball checks by hand: no src/ files, no tsconfig*.json, no .test. build artifacts, package/dist/ present. TARBALL_INSPECT_OK, tarball removed after."
+      "detail": "cd src/engine; npm pack produced the-running-dev-game-engine-0.8.0.tgz, package size 433.8 kB, unpacked size 1.8 MB, total files 341. Tarball removed after inspection."
     },
     {
       "name": "consumer smoke",
       "status": "Passed",
-      "detail": "cd consumer-smoke; npm run install:engine (packed and installed 0.8.0 tarball, added 5 packages); npm run build (tsc -p tsconfig.json, no errors); npm run smoke (node dist/smoke.js) exited 0."
+      "detail": "cd consumer-smoke; npm run install:engine (packed and installed the-running-dev-game-engine-0.8.0.tgz); npm run build (tsc -p tsconfig.json, no errors); npm run smoke (node dist/smoke.js, exited cleanly with no output)."
     },
     {
-      "name": "documentation gate (build/Test-Documentation.ps1)",
+      "name": "documentation gate",
       "status": "Passed",
-      "detail": "pwsh -File ./build/Test-Documentation.ps1 — 'Human-documentation drift check passed across 18 generated engine page(s), compatibility pointers, and the guide.' and 'Documentation checks passed across 125 Markdown file(s).' Exit 0. (Console CursorPosition/Write-Host warnings emitted alongside are non-interactive-terminal artifacts, not check failures.)"
+      "detail": "./build/Test-Documentation.ps1: first run failed with 'Generated human documentation differs from the canonical design documents: Human-documentation generation failed: Generated document is stale: engine/TODO.md (source design/30-slices.md) Generated compatibility pointer is stale: design/TODO.md' because design/30-slices.md's W71/W72 checkbox and status edits had not been regenerated. Fixed by running build/ConvertTo-HumanDocumentation.ps1, which regenerated design/TODO.md and docs/docs/engine/TODO.md, committed as c77b58b. Re-run passed: 'Human-documentation drift check passed across 18 generated engine page(s), compatibility pointers, and the guide. Documentation checks passed across 125 Markdown file(s).'"
     },
     {
       "name": "site check",
       "status": "Passed",
-      "detail": "cd site; npm install (added deps, 0 vulnerabilities blocking); npm run check — format:check (prettier), lint, typecheck (tsc -b), test (vitest: 4 files/44 tests passed), test:browser (vitest --config vitest.browser.config.ts: 5 files/52 tests passed), test:build (tsc -b && landing build + verify-build.mjs — 'Both built HTML entry points contain their required static metadata, and 3 bundle(s) are free of Node-only runtime references.'), test:merge (verify-merge.mjs — 'Package-backed merge proven'). Exit 0. One pre-existing non-blocking ESLint warning (react-hooks/exhaustive-deps in src/play/PlayApp.tsx:173, unrelated to this diff)."
+      "detail": "npm --prefix site run check: format:check, lint, typecheck, test (44 passed), test:browser (52 passed), test:build, test:merge all completed successfully. One pre-existing oxlint warning noted (src/play/PlayApp.tsx:173:22, react-hooks/exhaustive-deps) but oxlint did not fail the run."
     },
     {
       "name": "powershell parse-check",
       "status": "Passed",
-      "detail": "Parser::ParseFile over every *.ps1 recursively — no parse errors found, PARSE_CHECK_OK."
+      "detail": "Parsed every *.ps1 file (71 files, excluding node_modules) with [System.Management.Automation.Language.Parser]::ParseFile. Result: OK: no parse errors."
     },
     {
       "name": "pester tools",
       "status": "Passed",
-      "detail": "Invoke-Pester -Path tools -Output Detailed -PassThru — Tests Passed: 94, Failed: 0, Skipped: 0, NotRun: 0. Duration 16.28s."
+      "detail": "Invoke-Pester -Path tools -Output Detailed -PassThru. Tests completed in 18.91s. Tests Passed: 94, Failed: 0, Skipped: 0, NotRun: 0."
     },
     {
-      "name": "production docs build (docs.ps1 -BuildOnly)",
+      "name": "production docs build",
       "status": "DidNotRun",
-      "reason": "docs.ps1 is not present in this checkout — it is generated by Invoke-SetupDocs and not committed (CLAUDE.md, 'Docs Site' section). Docker Desktop is available and running, but there is no script to invoke. The 'Verify Documentation Build' check on PR #313 is where the answer will come from."
+      "reason": "docs.ps1 does not exist in this working tree. Per this repository's CLAUDE.md, docs.ps1 is generated by Invoke-SetupDocs and is not committed to the repository, so it is absent in this environment. The corresponding 'Verify Documentation Build' check on the pull request is the source of truth for this gate."
     },
     {
-      "name": "host tests (dotnet test src/host)",
+      "name": "host tests",
       "status": "Passed",
-      "detail": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests/SubZeroDev.GameEngine.Host.Tests.csproj — Passed!  - Failed: 0, Passed: 12, Skipped: 0, Total: 12, Duration: 517 ms."
+      "detail": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests/SubZeroDev.GameEngine.Host.Tests.csproj. Passed! - Failed: 0, Passed: 12, Skipped: 0, Total: 12, Duration: 730 ms."
     },
     {
       "name": "host image smoke",
       "status": "DidNotRun",
-      "reason": "Deliberately not run locally: host-image.yml is a full Docker image build, run, and smoke test (~20 min timeout in CI) with no changes in this diff to src/host/ or the image workflow itself. Docker is available, but running a full container build/run cycle ad hoc duplicates CI's own host-image job on this same PR rather than adding information; deferred to that CI run."
-    },
-    {
-      "name": "git diff --check",
-      "status": "Passed",
-      "detail": "git diff --check on the branch — no whitespace errors, exit 0."
+      "reason": "The .github/workflows/host-image.yml smoke job requires a REGISTRY_TOKEN secret to restore SubZeroDev.Platform.Hosting from GitHub Packages in the sibling SubZeroDev.Platform repository ('the default GITHUB_TOKEN cannot read packages published from a different one'). That credential is not available in this local environment, so the Docker build/run/smoke sequence cannot be reproduced here. The 'Platform Static Host Image' check on the pull request is the source of truth for this gate."
     }
   ]
 }
