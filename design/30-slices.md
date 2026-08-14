@@ -1682,7 +1682,7 @@ Neither statement has
 ever been exercised: W58 proved the fold against synthetic packs, and no real culture pack
 exists. W71 is the first one, and its job is to find out whether "no engine change" is true.
 
-### [ ] W71 — The Bulgaria Culture Pack: Mechanism and Voice {#w71}
+### [x] W71 — The Bulgaria Culture Pack: Mechanism and Voice {#w71}
 
 **Delivers:** Proves the platform's central customization claim — that one game's mechanics can
 host a completely different world without touching the engine. Life in the Fast Lane's "Stable
@@ -1699,7 +1699,8 @@ The pack replaces the campaign **wholesale by id** and its strings **per key** (
       `stable-life` source and a new Bulgarian culture pack, plus a test alongside.
       `src/engine/src/core/registry/packs.ts` is **read, not modified**.
 - **Depends on:** [W58](#w58), [W59](#w59), [W50](#w50)–[W57](#w57) — all done.
-- **Status:** Not started.
+- **Status:** Done — [PR #314](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/314),
+      closing [issue #289](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/289).
 - **Done when:**
   - W71.1 Resolving `[base]` and `[base, bulgaria]` both produce a registry that builds and
         passes validation; the two differ in rendered text at every key the pack overrides and
@@ -2707,6 +2708,93 @@ readable.
         both.
   - W75.7 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`, and
         `./build/Test-Documentation.ps1` passes.
+
+### [ ] W76 — A Folded Registry Keeps Its Resolution {#w76}
+
+**Delivers:** A game assembled from several content packs can still say which mix of content it
+was played against — on the one route a host is actually able to use. Today that route quietly
+loses the record, so every host has to remember to put it back by hand, and a host that forgets
+loses it with no symptom at all: the game plays perfectly and simply stops being able to say
+what it was.
+
+**The two supported routes disagree, and only one of them is usable.**
+[11 §3](11-content-packs.md#3-resolution) says a folded registry is "validated (04 §11) and
+frozen exactly as a single-campaign registry is today," and
+[11 §4](11-content-packs.md#4-the-one-change-to-contentregistry) adds `resolution` so a game can
+name what it ran against — but validation runs through `buildValidatedContentRegistry`, which
+delegates to `buildContentRegistry`, which "knows no packs exist"
+([04 §10.1](04-core.md#101-content-registry)) and returns no `resolution`. Fold → validate is
+also the only path that merges the used kind's own `<kindId>.reason.*` messages into the frozen
+table, so a host cannot skip it and play the fold's output directly — a rejection would render as
+a bare key. [W71](#w71) hit this with the first real pack and carried the value across by hand,
+labelled *known and retained*, because [W71.2](#w71) fenced core changes out of that unit.
+**`Campaign.version` is not affected** — `resolvePacks` still stamps it with the `ResolutionId`,
+so replay identity and `campaign_version_missing` hold; what is lost is the registry-level field.
+- **Spec:** [11 §3](11-content-packs.md#3-resolution),
+      [§4](11-content-packs.md#4-the-one-change-to-contentregistry),
+      [§6](11-content-packs.md#6-identity-and-why-determinism-needs-it),
+      [§7](11-content-packs.md#7-validation); [04 §10.1](04-core.md#101-content-registry)
+      (why `resolution` is optional, and the authoring boundary),
+      [§11](04-core.md#11-tiered-validation) (*Which string table validation checks against*),
+      [§12](04-core.md#12-reason-codes-state-changes-messages) (the kind-message merge).
+      Recorded as needing a unit in [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §2 and decided
+      2026-08-14 in `design/90-decisions.md`.
+- **Touches:** `src/engine/src/core/validation/tiered.ts` and its test;
+      `src/engine/src/index.ts`; `src/engine/package.json`; `consumer-smoke/smoke.ts`;
+      `src/engine/src/campaigns/stable-life-packs.test.ts`.
+      `src/engine/src/core/registry/packs.ts` and `build.ts` are **read and called, not
+      modified** — the fold's rules and the no-pack builder both stay as they are.
+- **Depends on:** [W58](#w58), [W71](#w71) — both landed.
+- **Status:** Not started.
+- **Done when:**
+  - W76.1 One call takes an ordered pack set and returns a validated, frozen registry whose
+        `resolution` equals `computeResolutionId` over that same set, with no caller reattaching
+        anything. Asserted for both a one-pack set and a two-pack set, and the two values differ.
+  - W76.2 That same call still merges each used kind's own `<kindId>.reason.*` messages into the
+        frozen table: a rejection raised through the resulting registry renders the kind's
+        message, not a bare key. This is the property that made fold → validate unavoidable, and
+        losing it while fixing `resolution` would trade one defect for a worse one.
+  - W76.3 The new path fails at both stages and reports which: a pack set violating a
+        [11 §7](11-content-packs.md#7-validation) Tier 1 rule and a pack set that resolves but
+        whose campaign fails [04 §11](04-core.md#11-tiered-validation) Tier 1 each return
+        `ok: false` carrying that stage's errors and no registry. One committed fixture per
+        stage, with the error counts stated — a validator that has never rejected anything is not
+        known to constrain anything.
+  - W76.4 Tier 2 warnings from **both** stages reach the caller in one result: a
+        `pack_override_unexpected` warning and a kind-supplied warning appear together, so
+        folding swallows neither.
+  - W76.5 The no-pack route is unchanged. `buildContentRegistry` and the existing
+        `buildValidatedContentRegistry` signature still produce a registry with
+        `resolution === undefined`, and every existing call site compiles untouched —
+        04 §10.1's reasoning is that requiring the field would change `campaignVersion` for
+        every existing save, so widening it is not an option this unit may take.
+  - W76.6 Which string table each campaign is validated against on the folded path is **pinned
+        by a test, not left implicit**: a campaign whose `titleKey` resolves nowhere in the
+        resolved set fails with `missing_string_key`, and a campaign whose `titleKey` resolves
+        only through a *later* pack's contribution has its outcome asserted either way. If that
+        outcome contradicts 04 §11's per-campaign scoping — which is written for built campaigns
+        that each own a string table, and a folded set has one merged table — **stop and report
+        it rather than picking a reading**; that is `/contract`'s call.
+  - W76.7 `stable-life-packs.test.ts`'s hand carry-across and its *known and retained* comment
+        are both deleted, and the suite passes through the new path with no local helper
+        reconstructing what the call now returns.
+  - W76.8 Proven by reverting: with the `resolution` assignment removed from the new path, a
+        named test goes red. A test that passes with and without the fix guards nothing.
+  - W76.9 Whatever shape is chosen — an optional parameter or a pack-aware sibling — the surface
+        a host must call is reachable from the package root, the package version is bumped for
+        the added or widened surface, and `consumer-smoke` resolves it through the packed
+        tarball rather than a source link.
+  - W76.10 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`, and
+        `./build/Test-Documentation.ps1` passes.
+- **Out of scope:** making `resolution` required on `ContentRegistry` — 04 §10.1 states why it
+      is optional and what requiring it would cost, and W76.5 holds that line; changing
+      `resolvePacks`' fold rules or `computeResolutionId`'s digest, both of which this unit
+      calls and does not touch; the engine *reading* `resolution` — 11 §4 makes it inert
+      identity, so no branch in `advance`, projection or replay may start depending on it;
+      pack discovery, distribution, and loading from disk, which
+      [11 §8](11-content-packs.md#8-what-is-deferred) defers by name;
+      [W72](#w72)'s Bulgarian content volume; and the seven Adventures findings below, which
+      are routed to `/contract` for the reason stated there.
 
 ## Known Open Items Carried In
 

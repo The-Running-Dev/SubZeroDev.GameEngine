@@ -241,6 +241,18 @@ implementation:
   working reference implementation — and a caution, since writing through the persistence port
   rather than the store leaves the store's in-memory session cache unaware of the new session.
 
+- **`buildValidatedContentRegistry` drops a fold's `resolution`, so no registry a host plays
+  carries it — needs a slice.** 11 §4 adds `ContentRegistry.resolution` so a game can name the
+  content it ran against, and §3 says a folded registry is validated "exactly as a single-campaign
+  registry is today" — but that path runs through `buildContentRegistry`, which knows no packs and
+  returns no `resolution`. Fold → validate is also the only path that merges the used kind's own
+  reason messages into the frozen table, so a host cannot avoid it: it must reattach `resolution`
+  by hand afterwards, as `campaigns/stable-life-packs.test.ts` does. The fix is a core signature
+  change — an optional parameter on `buildValidatedContentRegistry`, or a pack-aware sibling —
+  which W71.2 fenced out of that unit. **`Campaign.version` is unaffected**: `resolvePacks` still
+  stamps it with the `ResolutionId`, so replay identity and `campaign_version_missing` hold. Decided
+  2026-08-14 (below); needs a work unit, so it is `/slices`' and `/track`'s to pick up.
+
 One further item **was** a standing cross-repository hazard rather than an engine defect, and is
 now resolved: **Adventures depended on `fromPortable` and the `Portable*` types** while
 `src/engine/src/index.ts` marked them `// SPIKE: … not a contract export`, so a submodule bump
@@ -820,3 +832,68 @@ known-and-retained** — rejected; the impact is small (trace stamping and a ski
 never `serialize()` output), but a stated invariant knowingly left unmet is what the envelope-
 duplication ledger is made of.
 Reversibility: cheap — three lines of code and one assertion.
+
+### 2026-08-14 — The sanctioned pack path drops `ContentRegistry.resolution`, and the fix is a slice
+Context: 11 §4 adds `resolution?: ResolutionId` so "a game can say what content it ran against," and
+§3 says a folded registry is "validated (04 §11) and frozen exactly as a single-campaign registry is
+today." Those two sentences cannot both hold. `buildValidatedContentRegistry`
+(`src/engine/src/core/validation/tiered.ts`) delegates to `buildContentRegistry`, which "knows no
+packs exist" (04 §10.1) and therefore returns a registry with no `resolution` — so fold → validate,
+the only path that also merges the used kind's own reason messages into the frozen table, produces a
+registry whose identity field is `undefined`. W71 found it and carried the value across by hand,
+labelled *known and retained* in `campaigns/stable-life-packs.test.ts`, because W71.2 fenced core
+changes out of that unit.
+Chosen: **The code moves, in its own slice.** `buildValidatedContentRegistry` needs a way to preserve
+a fold's `resolution` — an optional parameter, or a pack-aware sibling; which one is the slice's call,
+not this pass's. Recorded in the open register above rather than applied here, because it is a core
+signature change and `/reconcile` is a check, not an authoring surface.
+Rejected: **Amend 11 to state the carry-across is the host's job** — it makes the contract honest and
+the defect permanent. Every host then reimplements the same three lines, and one that forgets loses
+the identity with no symptom at all, which is precisely what the field was added to prevent.
+**Leave it as known-and-retained with no owner** — rejected; a test comment is not a register entry,
+and the second pack author would have found it the same way the first did.
+Impact is bounded: `Campaign.version` is still stamped with the `ResolutionId` by `resolvePacks`, so
+replay identity and `campaign_version_missing` are unaffected. What is lost is the registry-level
+field, and only on the validated path.
+Reversibility: cheap while unshipped; a public signature once the slice lands.
+
+### 2026-08-14 — `/authoring` is proved against the packed tarball, not just the source tree
+Context: §19 publishes a second contract surface, and `consumer-smoke/` exists specifically because a
+`file:` link to `src/engine` "would pass while `exports`, `files` and the declaration emit were all
+still broken" (`consumer-smoke/install-engine.mjs`, plan 40 Decision 2). It packs the real tarball —
+and imported only from the package root. Nothing in the repository or CI resolved `./authoring`
+through the artifact, so a broken subpath entry would first have surfaced in Adventures.Content,
+which is the one consumer that cannot fix it.
+Chosen: Extend `consumer-smoke/smoke.ts` with an `/authoring` block covering the §19 surface: every
+exported function resolves, the two subpaths share one module graph (`buildCampaign` is the same
+object through both), the three-way split holds (`toPortable` and `digestManifestResolution` absent
+from the root, `fromPortable` root-only, `digestPortableCampaign` on both and agreeing), and a built
+campaign round-trips `toPortable` → `digestPortableCampaign` → `fromPortable` across the boundary.
+Verified by reverting the fix: with the `./authoring` entry removed from `exports`, the smoke fails
+to compile with `TS2307: Cannot find module '@the-running-dev/game-engine/authoring'`.
+Rejected: **Slice it** — rejected as disproportionate; it is one file, no new gate, and the existing
+CI step already builds and runs it. **Narrow §19 to a source-level claim** — rejected outright: it
+would leave a published export surface with no artifact-level proof, which is the failure
+`consumer-smoke` was built to prevent.
+Reversibility: trivial — delete the block.
+
+### 2026-08-14 — A content pack's version is derived from what it ships, not hand-written
+Context: 11 §6's identity promise holds only while a pack's `version` moves whenever its shipped
+content does, and `computeResolutionId` digests nothing but `{id, version}`. W71's two packs author
+no campaign of their own — both build from `stable-life.ts`, which has already grown three times
+(W52–W54) for reasons unrelated to packs — so a literal `"1.0.0"` would have gone stale with nothing
+to signal it, and a fixture captured under older content would have replayed a different game and
+reported a spurious `diverged` instead of `campaign_version_missing`.
+Chosen: `packVersion` (`src/engine/src/campaigns/stable-life-packs.ts`) derives the version as
+`1.0.0+<sha256(canonical content)[0:12]>`. Two things ride on it and are stated here because neither
+is visible from the version string: **the build-metadata suffix is significant only because
+`PackRef` compares versions as exact strings** — semver's own precedence rules ignore everything
+after `+`, so any host or tooling that compares pack versions semver-correctly reads two different
+content sets as the same version; and the digest **enumerates campaign fields rather than digesting
+`Campaign` whole**, because `migrateState` is an optional function and `canonicalStringify` rejects
+one outright, which would otherwise take the module down at import time the first time a pack's
+campaign gained a migration.
+Rejected: **Also state this in 11 as guidance for pack authors** — rejected; the contract has never
+specified how an author picks a version, the engine enforces nothing here, and turning a fixture-side
+convention into contract text would measure every future pack against a rule with no gate behind it.
+Reversibility: cheap — it is one function in one fixture file.

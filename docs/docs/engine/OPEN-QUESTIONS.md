@@ -231,6 +231,18 @@ implementation:
   working reference implementation — and a caution, since writing through the persistence port
   rather than the store leaves the store's in-memory session cache unaware of the new session.
 
+- **`buildValidatedContentRegistry` drops a fold's `resolution`, so no registry a host plays
+  carries it — needs a slice.** 11 §4 adds `ContentRegistry.resolution` so a game can name the
+  content it ran against, and §3 says a folded registry is validated "exactly as a single-campaign
+  registry is today" — but that path runs through `buildContentRegistry`, which knows no packs and
+  returns no `resolution`. Fold → validate is also the only path that merges the used kind's own
+  reason messages into the frozen table, so a host cannot avoid it: it must reattach `resolution`
+  by hand afterwards, as `campaigns/stable-life-packs.test.ts` does. The fix is a core signature
+  change — an optional parameter on `buildValidatedContentRegistry`, or a pack-aware sibling —
+  which W71.2 fenced out of that unit. **`Campaign.version` is unaffected**: `resolvePacks` still
+  stamps it with the `ResolutionId`, so replay identity and `campaign_version_missing` hold. Decided
+  2026-08-14 (below); needs a work unit, so it is `/slices`' and `/track`'s to pick up.
+
 One further item **was** a standing cross-repository hazard rather than an engine defect, and is
 now resolved: **Adventures depended on `fromPortable` and the `Portable*` types** while
 `src/engine/src/index.ts` marked them `// SPIKE: … not a contract export`, so a submodule bump
