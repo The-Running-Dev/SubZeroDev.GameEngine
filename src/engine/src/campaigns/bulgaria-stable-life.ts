@@ -13,12 +13,14 @@
  *
  * **The goal keeps the base's exact numbers on purpose.** `goal-well-rested` mirrors
  * `stable-life.ts`'s `goal-well-rested` field-for-field (energy ≥ 70 sustained two weeks,
- * failure below 40) and the starting economics match too (₴200 start, 5000 stotinki/week
+ * failure below 40) and the starting economics match too (200 lv start, 5000 stotinki/week
  * rent) — `endOfWeek.ts`'s drift and rent mechanics are engine-owned, not campaign content, so
- * the already-proven win arc (rest three times) and loss arc (do nothing four weeks) replay
- * identically here. Re-deriving different numbers would only risk an unproven arc; the
- * "different game" claim rests on jobs, places, events, possessions and voice, not on
- * reinventing the wellbeing goal's thresholds.
+ * the loss arc (do nothing four weeks) replays identically to the base pack's own. The win arc
+ * is one week shorter here (two `rest`s, not the base's three) because `startingEffects`'
+ * `effect-rakia-lek` grants a temporary +10 energy the base pack doesn't carry — see
+ * `bulgaria-stable-life.replay.test.ts`'s own header for the arithmetic. Re-deriving different
+ * threshold numbers would only risk an unproven arc; the "different game" claim rests on jobs,
+ * places, events, possessions and voice, not on reinventing the wellbeing goal's thresholds.
  *
  * **Two locations, not one**, the same reason `stable-life-possessions.ts` added its market:
  * `home` for rest/work/study/events, `bazaar` for `shop`/`sell_item`/`repair_item` on the
@@ -37,6 +39,21 @@ const STARTING_EFFECT_DESCRIPTION = {
   key: "bulgaria-stable-life.effect.rakia-lek.description",
   text: "Ракия лек — дядо ти се закле, че лекува всичко. Временно повдига енергията.",
 };
+
+/**
+ * `buildEvent` (`kinds/simulation/source.ts`) only lifts `title`/`description` into
+ * `authoredText` — `EventChoice.labelKey` and `EventOutcome.messages[].key` pass through
+ * unlifted (`validate.ts`'s `validateLocKeys` documents skipping them too), so every such
+ * key an event uses has to be supplied here explicitly or it renders as a bare key to the
+ * player.
+ */
+const EVENT_TEXT = [
+  { key: "bulgaria-stable-life.event.power-cut.message", text: "Токът угасна посред вечеря. Свещите пак влизат в употреба." },
+  { key: "bulgaria-stable-life.event.baba-letter.choice.open", text: "Отвори писмото" },
+  { key: "bulgaria-stable-life.event.baba-letter.choice.call", text: "Обади се вместо това" },
+  { key: "bulgaria-stable-life.event.baba-letter.message.opened", text: "Съвети, поръчения и едно наставление — всичко на два реда." },
+  { key: "bulgaria-stable-life.event.baba-letter.message.called", text: "Гласът ѝ звучи същия, независимо колко години минават." },
+];
 
 export const bulgariaStableLifeSource: SimulationCampaignSource = {
   description: {
@@ -405,7 +422,7 @@ export const bulgariaStableLifeSource: SimulationCampaignSource = {
 
   sceneTemplate: {
     key: "bulgaria-stable-life.scene.status",
-    text: "Седмица {week}, година {year}. Пари: {cash} ст. Здраве {health} · Енергия {energy} · Щастие {happiness} · Стрес {stress} · Ситост {satiety}.",
+    text: "Седмица {week}, година {year}. Пари: {cash} лв. Здраве {health} · Енергия {energy} · Щастие {happiness} · Стрес {stress} · Ситост {satiety}.",
   },
   actionLabels: {
     planAdd: { key: "bulgaria-stable-life.action.plan-add.label", text: "Добави към плана" },
@@ -428,6 +445,7 @@ export function buildBulgariaStableLifeCampaign(): CommandResult<BuiltCampaign> 
   return buildCampaign(campaign, [
     { key: "bulgaria-stable-life.campaign.title", text: "Стабилен живот" },
     STARTING_EFFECT_DESCRIPTION,
+    ...EVENT_TEXT,
     ...authoredText,
   ]);
 }

@@ -6,9 +6,9 @@
  *
  * **A dedicated context, not `stable-life.replay.test.ts`'s own `makeContext`.** That file's
  * registry is a flat array of standalone campaigns; the Bulgarian resolution instead needs
- * `resolvePacks` → `buildValidatedContentRegistry` (11 §3, `stable-life-packs.test.ts`'s own
- * `resolve` helper) because `campaignId: "stable-life"` is shared with the base pack — the
- * two can only coexist in one registry as one fold's winner, never as two array entries.
+ * the pack fold (11 §3, `stable-life-packs.ts`'s own `resolveStableLifeRegistry`) because
+ * `campaignId: "stable-life"` is shared with the base pack — the two can only coexist in one
+ * registry as one fold's winner, never as two array entries.
  *
  * `bulgaria-stable-life-win` (two weeks of `rest`, reaching the Well Rested goal — one fewer
  * week than the base pack's own three, since `startingEffects`' `effect-rakia-lek` adds a
@@ -19,15 +19,13 @@
 
 import { describe, it, expect } from "vitest";
 import { createEngine } from "../core/kernel/engine.js";
-import { buildValidatedContentRegistry } from "../core/validation/tiered.js";
 import { createInMemoryProfileStore } from "../core/session/profile-store.js";
 import { createCountingIds } from "../core/determinism/counting-ids.js";
 import { runReplayFixture, type ReplayRunnerContext } from "../core/replay/runner.js";
 import type { KindRegistry } from "../core/kernel/types.js";
 import type { ContentRegistry } from "../core/registry/types.js";
 import { simulationKind } from "../kinds/simulation/kind.js";
-import { resolvePacks } from "../core/registry/packs.js";
-import { stableLifeBasePack, bulgariaCulturePack } from "./stable-life-packs.js";
+import { resolveStableLifeRegistry, stableLifeBasePack, bulgariaCulturePack } from "./stable-life-packs.js";
 import {
   COMPARING_ACROSS_VERSIONS,
   CORPUS_DIR,
@@ -41,25 +39,20 @@ const REPLAY_PROFILE_ID = "bulgaria-replay-oracle-profile";
 const kinds = { simulation: simulationKind } as unknown as KindRegistry;
 
 function resolveBulgarianRegistry(): ContentRegistry {
-  const folded = resolvePacks([stableLifeBasePack, bulgariaCulturePack]);
-  if (!folded.ok || !folded.value) throw new Error("expected the Bulgarian pack set to fold");
-  const { campaigns, strings, resolution } = folded.value;
-  if (resolution === undefined) throw new Error("expected the fold to name its resolution");
-
-  const validated = buildValidatedContentRegistry(
-    [...campaigns.values()].map((campaign) => ({ campaign, strings })),
-    kinds,
-  );
-  if (!validated.ok || !validated.value) throw new Error("expected the folded registry to validate");
-
-  return { ...validated.value, resolution };
+  const result = resolveStableLifeRegistry([stableLifeBasePack, bulgariaCulturePack], kinds);
+  if (!result.ok || !result.value) throw new Error(`expected the Bulgarian pack set to resolve — ${JSON.stringify(result.errors)}`);
+  return result.value;
 }
 
+// One fold per context, not one per field — `resolveBulgarianRegistry` runs a full pack
+// fold plus tiered content validation, real work that `engine:` and `registry:` below used
+// to each pay for independently.
 function makeContext(): ReplayRunnerContext {
+  const registry = resolveBulgarianRegistry();
   return {
-    engine: createEngine({ kinds, registry: resolveBulgarianRegistry(), ids: createCountingIds() }),
+    engine: createEngine({ kinds, registry, ids: createCountingIds() }),
     kinds,
-    registry: resolveBulgarianRegistry(),
+    registry,
     profiles: createInMemoryProfileStore(),
     profileId: REPLAY_PROFILE_ID,
   };

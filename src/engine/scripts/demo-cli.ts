@@ -16,7 +16,6 @@ import { stdin as input, stdout as output } from "node:process";
 import { createEngine } from "../src/core/kernel/engine.js";
 import { createInMemorySessionStore } from "../src/core/session/store.js";
 import { buildValidatedContentRegistry } from "../src/core/validation/tiered.js";
-import { resolvePacks } from "../src/core/registry/packs.js";
 import type { ActionParams, KindRegistry } from "../src/core/kernel/types.js";
 import type { SessionStore } from "../src/core/session/types.js";
 import type { BuiltCampaign, ContentRegistry } from "../src/core/registry/types.js";
@@ -30,7 +29,8 @@ import { buildBulgariaInheritanceCampaign } from "../src/campaigns/bulgaria-inhe
 import { buildBulgariaReturnCampaign } from "../src/campaigns/bulgaria-return.js";
 import { buildBulgariaEnterpriseCampaign } from "../src/campaigns/bulgaria-enterprise.js";
 import { buildStableLifeCampaign } from "../src/campaigns/stable-life.js";
-import { stableLifeBasePack, bulgariaCulturePack } from "../src/campaigns/stable-life-packs.js";
+import { resolveStableLifeRegistry, stableLifeBasePack, bulgariaCulturePack } from "../src/campaigns/stable-life-packs.js";
+import { BULGARIA_STABLE_LIFE_CAMPAIGN_ID } from "../src/campaigns/bulgaria-stable-life.js";
 
 import { TextClient } from "../src/clients/text/client.js";
 
@@ -70,28 +70,22 @@ function buildClient(): TextClient {
 
 /**
  * The Bulgarian resolution of "Stable Life" (W72), built the sanctioned way — fold the
- * ordered pack set, then validate (11 §3, `stable-life-packs.test.ts`'s own `resolve`
- * helper) — rather than the flat campaign-array path `buildClient` uses above. It shares
- * `campaignId: "stable-life"` with the base pack's own campaign, so it cannot sit in the
- * same registry as `buildClient`'s: `resolvePacks` replaces a campaign wholesale by id,
- * one winner per id, never two entries for the same one.
+ * ordered pack set, then validate (11 §3, `stable-life-packs.ts`'s own
+ * `resolveStableLifeRegistry`) — rather than the flat campaign-array path `buildClient`
+ * uses above. It shares `campaignId: "stable-life"` with the base pack's own campaign, so
+ * it cannot sit in the same registry as `buildClient`'s: `resolvePacks` replaces a campaign
+ * wholesale by id, one winner per id, never two entries for the same one.
  */
 function buildBulgarianResolutionClient(): TextClient {
-  const folded = resolvePacks([stableLifeBasePack, bulgariaCulturePack]);
-  if (!folded.ok || !folded.value) {
-    throw new Error(`demo-cli: the Bulgarian pack set failed to fold — ${JSON.stringify(folded.errors)}`);
+  const resolved = resolveStableLifeRegistry([stableLifeBasePack, bulgariaCulturePack], KINDS);
+  if (!resolved.ok || !resolved.value) {
+    throw new Error(`demo-cli: the Bulgarian resolution failed to build — ${JSON.stringify(resolved.errors)}`);
   }
-  const { campaigns, strings, resolution } = folded.value;
-  if (resolution === undefined) throw new Error("demo-cli: expected the fold to name its resolution");
-  const registryResult = buildValidatedContentRegistry(
-    [...campaigns.values()].map((campaign) => ({ campaign, strings })),
-    KINDS,
-  );
-  if (!registryResult.ok || !registryResult.value) {
-    throw new Error(`demo-cli: the Bulgarian resolution failed validation — ${JSON.stringify(registryResult.errors)}`);
+  if (resolved.warnings.length > 0) {
+    console.warn(`demo-cli: Bulgarian resolution fold reported ${resolved.warnings.length} warning(s) — ${JSON.stringify(resolved.warnings)}`);
   }
 
-  return clientFromRegistry({ ...registryResult.value, resolution });
+  return clientFromRegistry(resolved.value);
 }
 
 /** `"key=value key2=value2"` → `ActionParams` — a manual-play convenience, not a parser
@@ -131,18 +125,25 @@ async function main(): Promise<void> {
   try {
     console.log("SubZeroDev.GameEngine — interactive CLI play-test harness\n");
 
+    // Both resolutions are built and validated unconditionally, before the prompt below
+    // even runs — matching this script's fail-fast behavior for every other committed
+    // campaign (`buildClient`, called next). Skipping whichever one the operator declines
+    // would mean a broken commit only fails when someone happens to choose that path.
+    const baseClient = buildClient();
+    const bulgarianClient = buildBulgarianResolutionClient();
+
     // `stable-life` names two different games depending on which resolution is loaded (11
     // §6) — both cannot list side by side in one registry, so this picks the resolution
-    // before building a client at all, rather than after.
+    // before playing a session against either, even though both were already validated above.
     const resolutionInput = (await ask("Play the Bulgarian resolution of Stable Life instead of the base? [y/N]: "))?.trim().toLowerCase();
     const playBulgaria = resolutionInput === "y" || resolutionInput === "yes";
-    const client = playBulgaria ? buildBulgarianResolutionClient() : buildClient();
+    const client = playBulgaria ? bulgarianClient : baseClient;
 
     console.log();
     console.log(client.listCampaigns().text);
     console.log();
 
-    const defaultCampaignId = playBulgaria ? "stable-life" : BULGARIA_BUREAUCRACY_CAMPAIGN_ID;
+    const defaultCampaignId = playBulgaria ? BULGARIA_STABLE_LIFE_CAMPAIGN_ID : BULGARIA_BUREAUCRACY_CAMPAIGN_ID;
     const campaignInput = (await ask(`Campaign id to play [${defaultCampaignId}]: `))?.trim();
     const campaignId = campaignInput || defaultCampaignId;
     const seedInput = (await ask("Seed (blank for random): "))?.trim();

@@ -7,9 +7,12 @@
  * housing, possessions and effects, not a voice-only reskin of the base's.
  */
 
-import type { ContentPack } from "../core/registry/packs.js";
-import type { BuiltCampaign } from "../core/registry/types.js";
+import { resolvePacks, type ContentPack } from "../core/registry/packs.js";
+import type { BuiltCampaign, ContentRegistry } from "../core/registry/types.js";
 import type { LocKey } from "../core/localization/types.js";
+import type { KindRegistry } from "../core/kernel/types.js";
+import type { CommandResult } from "../core/kernel/reasons.js";
+import { buildValidatedContentRegistry } from "../core/validation/tiered.js";
 import { canonicalStringify, sha256Hex } from "../core/persistence/canonical.js";
 import { buildStableLifeCampaign } from "./stable-life.js";
 import { buildBulgariaStableLifeCampaign } from "./bulgaria-stable-life.js";
@@ -92,3 +95,51 @@ export const bulgariaCulturePack: ContentPack = {
   campaigns: bulgarianCampaigns,
   strings: bulgarianCampaign.strings,
 };
+
+/**
+ * The sanctioned way to turn an ordered Stable Life pack set into a playable registry:
+ * fold it (11 §3), run the fold through the same Tier 1–3 validation a single-campaign
+ * registry goes through (`validation/tiered.ts` — `resolvePacks` itself runs no
+ * `Kind.validateCampaign`), then reattach the fold's `resolution` id, which
+ * `buildValidatedContentRegistry` cannot stamp itself because it "knows no packs exist"
+ * (04 §10.1). One definition, shared by every caller that needs this pair resolved —
+ * `stable-life-packs.test.ts`, `scripts/demo-cli.ts`, and
+ * `bulgaria-stable-life.replay.test.ts` each used to hand-roll this same sequence, which
+ * left them free to silently diverge.
+ *
+ * Callers should inspect `.warnings` rather than discard them: folding a pack whose
+ * strings/campaigns are mostly new — like `bulgariaCulturePack`, a full independent
+ * setting rather than a small override subset — legitimately produces many
+ * `pack_override_unexpected` warnings (`registry/packs.ts`'s heuristic for "probably a
+ * typo" fires on any key a later pack introduces that no earlier pack shipped). This
+ * helper does not judge which of them are expected; it only refuses to make that decision
+ * for the caller by throwing them away.
+ */
+export function resolveStableLifeRegistry(
+  packs: readonly ContentPack[],
+  kinds: KindRegistry,
+): CommandResult<ContentRegistry> {
+  const folded = resolvePacks(packs);
+  if (!folded.ok || !folded.value) {
+    return { ok: false, errors: folded.errors, warnings: folded.warnings };
+  }
+  const { campaigns, strings, resolution } = folded.value;
+  // Optional on the type, but never absent on a folded registry (04 §10.1) — asserted
+  // rather than spread away, so the carry-across below cannot silently become a no-op.
+  if (resolution === undefined) throw new Error("resolveStableLifeRegistry: expected the fold to name its resolution");
+
+  const validated = buildValidatedContentRegistry(
+    [...campaigns.values()].map((campaign) => ({ campaign, strings })),
+    kinds,
+  );
+  if (!validated.ok || !validated.value) {
+    return { ok: false, errors: validated.errors, warnings: [...folded.warnings, ...validated.warnings] };
+  }
+
+  return {
+    ok: true,
+    value: { ...validated.value, resolution },
+    errors: [],
+    warnings: [...folded.warnings, ...validated.warnings],
+  };
+}
