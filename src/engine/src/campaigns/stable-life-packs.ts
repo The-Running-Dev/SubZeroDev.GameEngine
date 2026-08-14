@@ -1,43 +1,40 @@
 /**
- * W71's first real content-pack pair.
+ * The Stable Life content-pack pair — W71's proof of mechanism, W72's full Bulgarian setting.
  *
  * `stableLifeBasePack` wraps the existing synthetic Stable Life campaign as a distributable
  * base. `bulgariaCulturePack` deliberately replaces that campaign wholesale under the same
- * id, then changes only the voice-facing strings needed to prove the pack fold. W72 owns
- * the volume work: Bulgarian jobs, places, events, housing, possessions, and prices.
+ * id, authored independently in `bulgaria-stable-life.ts` — its own jobs, places, events,
+ * housing, possessions and effects, not a voice-only reskin of the base's.
  */
 
+import { resolvePacks, type ContentPack } from "../core/registry/packs.js";
+import type { BuiltCampaign, ContentRegistry } from "../core/registry/types.js";
 import type { LocKey } from "../core/localization/types.js";
-import type { ContentPack } from "../core/registry/packs.js";
-import type { BuiltCampaign } from "../core/registry/types.js";
+import type { KindRegistry } from "../core/kernel/types.js";
+import type { CommandResult } from "../core/kernel/reasons.js";
+import { buildValidatedContentRegistry } from "../core/validation/tiered.js";
 import { canonicalStringify, sha256Hex } from "../core/persistence/canonical.js";
 import { buildStableLifeCampaign } from "./stable-life.js";
+import { buildBulgariaStableLifeCampaign } from "./bulgaria-stable-life.js";
 
-function builtStableLife(): BuiltCampaign {
-  const result = buildStableLifeCampaign();
-  if (!result.ok || !result.value) throw new Error("expected the Stable Life campaign to build");
+function built(build: () => ReturnType<typeof buildStableLifeCampaign>): BuiltCampaign {
+  const result = build();
+  if (!result.ok || !result.value) throw new Error("expected the campaign to build");
   return result.value;
 }
 
-/**
- * Two separate builds, deliberately — **not** one constant shared by both packs.
- * `resolvePacks` replaces a campaign wholesale by id (11 §3), and until W72 authors the
- * Bulgarian setting the two campaigns are deep-equal, so the only available evidence that
- * the *later* pack's campaign is the one that survived the fold is that it is a distinct
- * object. Collapsing these into one shared build would leave that half of §3 asserted but
- * untested — `stable-life-packs.test.ts` checks it by reference for exactly this reason.
- */
-const baseCampaign = builtStableLife();
-const bulgarianCampaign = builtStableLife();
+const baseCampaign = built(buildStableLifeCampaign);
+const bulgarianCampaign = built(buildBulgariaStableLifeCampaign);
 
 /**
  * A pack's `version` is the only thing besides its `id` that `computeResolutionId`
  * (`src/engine/src/core/registry/packs.ts`) digests, so 11 §6's identity promise holds only
  * while the version moves whenever the pack's shipped content does. A hand-written
- * `"1.0.0"` cannot promise that here: neither pack authors its campaign in this file —
- * both build it from `stable-life.ts`, which has already grown three times (W52, W53, W54)
- * for reasons that had nothing to do with packs, and W72 will grow it again. Nothing would
- * have signalled to those authors that a version in *this* file had to move with theirs.
+ * `"1.0.0"` cannot promise that here: neither pack authors its campaign in this file — the
+ * base pack builds from `stable-life.ts`, which has already grown three times (W52, W53,
+ * W54) for reasons that had nothing to do with packs, and the Bulgarian pack builds from
+ * `bulgaria-stable-life.ts`, authored independently. Nothing would have signalled to either
+ * file's author that a version in *this* file had to move with theirs.
  *
  * Deriving the suffix from a canonical digest of what the pack actually ships makes that
  * self-enforcing rather than a rule someone has to remember: a replay fixture captured
@@ -81,28 +78,68 @@ export const stableLifeBasePack: ContentPack = {
 
 const bulgarianCampaigns = [bulgarianCampaign];
 
-const bulgarianStrings = new Map<LocKey, string>([
-  ["stable-life.campaign.title", "Стабилен живот"],
-  ["stable-life.scene.status", "Седмица {week}, година {year}. Пари: {cash} лв. Енергия: {energy}."],
-  ["stable-life.action.plan-add.label", "Добави към плана"],
-  ["stable-life.action.plan-remove.label", "Премахни от плана"],
-  ["stable-life.action.plan-clear.label", "Изчисти плана"],
-  ["stable-life.action.end-week.label", "Приключи седмицата"],
-]);
-
 /**
- * A deliberate small voice layer, rather than partial setting data. This is enough to prove
- * replacement, string override, client rendering, resolution identity, and replay honesty;
- * W72 expands it into a complete Bulgarian setting.
+ * The full string table `bulgaria-stable-life.ts` authored — every key its own campaign's
+ * content and voice need, not a small hand-picked override subset. `resolvePacks` still
+ * folds it per key (11 §3): any key this table does not carry stays whatever the base pack
+ * supplied.
  */
 export const bulgariaCulturePack: ContentPack = {
   id: "stable-life-bulgaria",
-  version: packVersion(bulgarianCampaigns, bulgarianStrings),
+  version: packVersion(bulgarianCampaigns, bulgarianCampaign.strings),
   kindId: "simulation",
   // Reads `stableLifeBasePack.version` rather than restating it, so the derived version
   // above stays the single place either pack's identity is decided — a literal here would
   // fail resolution with `pack_dependency_missing` the moment the base's content changed.
   dependsOn: [{ id: stableLifeBasePack.id, version: stableLifeBasePack.version }],
   campaigns: bulgarianCampaigns,
-  strings: bulgarianStrings,
+  strings: bulgarianCampaign.strings,
 };
+
+/**
+ * The sanctioned way to turn an ordered Stable Life pack set into a playable registry:
+ * fold it (11 §3), run the fold through the same Tier 1–3 validation a single-campaign
+ * registry goes through (`validation/tiered.ts` — `resolvePacks` itself runs no
+ * `Kind.validateCampaign`), then reattach the fold's `resolution` id, which
+ * `buildValidatedContentRegistry` cannot stamp itself because it "knows no packs exist"
+ * (04 §10.1). One definition, shared by every caller that needs this pair resolved —
+ * `stable-life-packs.test.ts`, `scripts/demo-cli.ts`, and
+ * `bulgaria-stable-life.replay.test.ts` each used to hand-roll this same sequence, which
+ * left them free to silently diverge.
+ *
+ * Callers should inspect `.warnings` rather than discard them: folding a pack whose
+ * strings/campaigns are mostly new — like `bulgariaCulturePack`, a full independent
+ * setting rather than a small override subset — legitimately produces many
+ * `pack_override_unexpected` warnings (`registry/packs.ts`'s heuristic for "probably a
+ * typo" fires on any key a later pack introduces that no earlier pack shipped). This
+ * helper does not judge which of them are expected; it only refuses to make that decision
+ * for the caller by throwing them away.
+ */
+export function resolveStableLifeRegistry(
+  packs: readonly ContentPack[],
+  kinds: KindRegistry,
+): CommandResult<ContentRegistry> {
+  const folded = resolvePacks(packs);
+  if (!folded.ok || !folded.value) {
+    return { ok: false, errors: folded.errors, warnings: folded.warnings };
+  }
+  const { campaigns, strings, resolution } = folded.value;
+  // Optional on the type, but never absent on a folded registry (04 §10.1) — asserted
+  // rather than spread away, so the carry-across below cannot silently become a no-op.
+  if (resolution === undefined) throw new Error("resolveStableLifeRegistry: expected the fold to name its resolution");
+
+  const validated = buildValidatedContentRegistry(
+    [...campaigns.values()].map((campaign) => ({ campaign, strings })),
+    kinds,
+  );
+  if (!validated.ok || !validated.value) {
+    return { ok: false, errors: validated.errors, warnings: [...folded.warnings, ...validated.warnings] };
+  }
+
+  return {
+    ok: true,
+    value: { ...validated.value, resolution },
+    errors: [],
+    warnings: [...folded.warnings, ...validated.warnings],
+  };
+}

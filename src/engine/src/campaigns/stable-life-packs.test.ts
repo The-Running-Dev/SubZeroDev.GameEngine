@@ -12,13 +12,13 @@ import { CORE_REASON_MESSAGES } from "../core/kernel/reasons.js";
 import type { KindRegistry } from "../core/kernel/types.js";
 import { runReplayFixture, type ReplayRunnerContext } from "../core/replay/runner.js";
 import type { ReplayFixture } from "../core/replay/types.js";
-import { buildValidatedContentRegistry } from "../core/validation/tiered.js";
 import { createInMemoryProfileStore } from "../core/session/profile-store.js";
 import { createInMemorySessionStore } from "../core/session/store.js";
 import { simulationKind } from "../kinds/simulation/kind.js";
+import type { LocKey } from "../core/localization/types.js";
 import { resolvePacks, type ContentPack } from "../core/registry/packs.js";
 import type { ContentRegistry } from "../core/registry/types.js";
-import { bulgariaCulturePack, stableLifeBasePack } from "./stable-life-packs.js";
+import { bulgariaCulturePack, resolveStableLifeRegistry, stableLifeBasePack } from "./stable-life-packs.js";
 import { STABLE_LIFE_CAMPAIGN_ID } from "./stable-life.js";
 
 const kinds = { simulation: simulationKind } as unknown as KindRegistry;
@@ -36,29 +36,14 @@ const WEEK_ACTIONS = [
  * knows only what the packs themselves ship, so a registry taken straight from the fold and
  * handed to `createEngine` renders every rejection as a bare `core.reason.*` key.
  *
- * `resolution` is carried across by hand because `buildContentRegistry` cannot carry it:
- * it takes `BuiltCampaign`s and "knows no packs exist" (04 §10.1), so the validated
- * registry it returns has none. Dropping it would leave the registry actually played
- * unable to name the mix it was folded from — the identity 11 §6 exists for, and the thing
- * `Campaign.version` is stamped with two tests below. **Known and retained:** no single
- * call produces both today, and closing that would mean changing a core signature, which
- * W71.2 puts out of this unit's scope.
+ * Delegates to `resolveStableLifeRegistry` (`stable-life-packs.ts`) — the single shared
+ * definition of this sequence every caller now uses — rather than reimplementing it here;
+ * this thin wrapper only adds the throw-on-failure shape tests want.
  */
 function resolve(packs: readonly ContentPack[]): ContentRegistry {
-  const folded = resolvePacks(packs);
-  if (!folded.ok || !folded.value) throw new Error("expected packs to resolve");
-  const { campaigns, strings, resolution } = folded.value;
-  // Optional on the type, but never absent on a folded registry (04 §10.1) — asserted
-  // rather than spread away, so the carry-across below cannot silently become a no-op.
-  if (resolution === undefined) throw new Error("expected the fold to name its resolution");
-
-  const validated = buildValidatedContentRegistry(
-    [...campaigns.values()].map((campaign) => ({ campaign, strings })),
-    kinds,
-  );
-  if (!validated.ok || !validated.value) throw new Error("expected the folded registry to validate");
-
-  return { ...validated.value, resolution };
+  const result = resolveStableLifeRegistry(packs, kinds);
+  if (!result.ok || !result.value) throw new Error(`expected packs to resolve — ${JSON.stringify(result.errors)}`);
+  return result.value;
 }
 
 function replayContext(registry: ContentRegistry): ReplayRunnerContext {
@@ -85,11 +70,11 @@ function serializeWeek(registry: ContentRegistry): string {
 }
 
 describe("W71 — Stable Life Bulgaria culture pack", () => {
-  it("folds the base and Bulgaria packs into valid registries, changing exactly the declared strings", () => {
+  it("folds the base and Bulgaria packs into valid registries, dropping no base key and resolving every Bulgarian key to that pack's own text", () => {
     const base = resolve([stableLifeBasePack]);
     const bulgaria = resolve([stableLifeBasePack, bulgariaCulturePack]);
 
-    // Neither table is the packs' own strings alone. The fold ships 24 keys and no reason
+    // Neither table is the packs' own strings alone — the fold itself ships no reason
     // messages at all; assembly is what merges the core's and the kind's in (20 §11), and a
     // registry missing them renders every rejection as a bare key to the player.
     for (const registry of [base, bulgaria]) {
@@ -97,13 +82,72 @@ describe("W71 — Stable Life Bulgaria culture pack", () => {
       expect([...registry.strings.keys()].some((key) => key.startsWith("simulation.reason."))).toBe(true);
     }
 
+    // W72 authors an independent campaign, so the Bulgarian pack's own keys are no longer a
+    // small override subset of the base's — it ships its own jobs, places, events, housing,
+    // possessions and effects, each with keys the base pack never had. Every base key still
+    // survives the fold (11 §3 replaces per key, never drops one silently), and every key
+    // the Bulgarian pack itself ships resolves to that pack's own text. Because the two key
+    // namespaces (`stable-life.*` vs `bulgaria-stable-life.*`) are now fully disjoint, this
+    // is an additive-union check, not an override check — `"resolvePacks replaces a genuine
+    // key collision, not just a duplicate campaign id"` below covers the override half.
     const overridden = new Set(bulgariaCulturePack.strings.keys());
     for (const [key, baseText] of base.strings) {
       const bulgarianText = bulgaria.strings.get(key);
       expect(bulgarianText).toBeDefined();
       expect(bulgarianText === baseText).toBe(!overridden.has(key));
     }
-    expect([...bulgaria.strings.keys()].sort()).toEqual([...base.strings.keys()].sort());
+    for (const [key, packText] of bulgariaCulturePack.strings) {
+      expect(bulgaria.strings.get(key)).toBe(packText);
+    }
+    expect([...bulgaria.strings.keys()].sort()).toEqual(
+      [...new Set([...base.strings.keys(), ...bulgariaCulturePack.strings.keys()])].sort(),
+    );
+  });
+
+  it("resolvePacks replaces a genuine key collision, not just a duplicate campaign id", () => {
+    // The real Stable Life pair no longer collides on any string key (the test above), so
+    // it cannot exercise the "later pack replaces an *existing* key" half of 11 §3 by
+    // itself. Two minimal synthetic packs, colliding on exactly one key, prove that half
+    // directly against the same `resolvePacks` the real pair goes through.
+    const overriddenKey = "stable-life-packs-test.synthetic.overridden-key" as LocKey;
+    const untouchedKey = "stable-life-packs-test.synthetic.untouched-key" as LocKey;
+    const base: ContentPack = {
+      id: "synthetic-base",
+      version: "1.0.0",
+      kindId: "simulation",
+      dependsOn: [],
+      campaigns: [],
+      strings: new Map([[overriddenKey, "base text"], [untouchedKey, "untouched text"]]),
+    };
+    const override: ContentPack = {
+      id: "synthetic-override",
+      version: "1.0.0",
+      kindId: "simulation",
+      dependsOn: [{ id: base.id, version: base.version }],
+      campaigns: [],
+      strings: new Map([[overriddenKey, "override text"]]),
+    };
+
+    const folded = resolvePacks([base, override]);
+    if (!folded.ok || !folded.value) throw new Error("expected the synthetic pair to fold");
+    expect(folded.value.strings.get(overriddenKey)).toBe("override text");
+    expect(folded.value.strings.get(untouchedKey)).toBe("untouched text");
+    // A key the later pack DID already share with the earlier one is a real override and
+    // must not warn — only a key introduced with no prior key of that name warns.
+    expect(folded.warnings.some((w) => w.path === overriddenKey)).toBe(false);
+  });
+
+  it("surfaces every pack_override_unexpected warning the real Stable Life pair produces, so a new one gets noticed", () => {
+    // `bulgariaCulturePack` ships a wholly independent key/campaign-id namespace rather
+    // than a small override subset, so nearly every one of its keys trips `resolvePacks`'
+    // "a later pack introduced a key no earlier pack shipped" heuristic (`registry/packs.ts`).
+    // That is expected here, but nothing was reading `.warnings` before this test existed —
+    // pinning the count means a *change* to that count (a real new-typo risk, or a change to
+    // the pack pair's shape) gets reviewed instead of silently passing through unexamined.
+    const folded = resolvePacks([stableLifeBasePack, bulgariaCulturePack]);
+    if (!folded.ok || !folded.value) throw new Error("expected the real pack pair to fold");
+    expect(folded.warnings.every((w) => w.code === "pack_override_unexpected")).toBe(true);
+    expect(folded.warnings.length).toBe(46);
   });
 
   it("uses distinct resolution ids as the campaign version", () => {
@@ -116,11 +160,12 @@ describe("W71 — Stable Life Bulgaria culture pack", () => {
 
   /**
    * The other half of 11 §3 — campaigns replace *wholesale by id*, not field by field.
-   * Checked by reference rather than by value on purpose: until W72 authors the Bulgarian
-   * setting the two campaigns are deep-equal, so a value comparison would pass just as
-   * happily against the base pack's campaign, or against a Bulgaria pack shipping no
-   * campaign at all. `resolvePacks` shallow-spreads the winning campaign to stamp its
-   * `version`, which leaves `content` the very object the pack supplied.
+   * Checked by reference rather than by value: `resolvePacks` shallow-spreads the winning
+   * campaign to stamp its `version`, which leaves `content` the very object the pack
+   * supplied, so a reference check proves the fold kept that exact object rather than
+   * cloning or reconstructing it — a value comparison could pass even if `resolvePacks`
+   * rebuilt an equal-looking `content` from scratch, which reference equality would catch
+   * and value equality would not.
    */
   it("replaces the campaign wholesale, keeping the later pack's own campaign object", () => {
     const baseContent = stableLifeBasePack.campaigns[0]?.campaign.content;

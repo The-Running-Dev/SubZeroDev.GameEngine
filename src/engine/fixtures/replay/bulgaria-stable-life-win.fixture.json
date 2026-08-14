@@ -1,0 +1,12 @@
+{
+  "name": "bulgaria-stable-life-win",
+  "config": { "campaignId": "stable-life", "seed": "bulgaria-stable-life-win-seed" },
+  "campaignVersion": "eba3579cb180ab0406f4fa19e70f3b9635956ea3515866c29889c99be14c7f48",
+  "capturedUnder": "0.8.0",
+  "submissions": [
+    { "actionId": "plan.add", "params": { "actionType": "rest" } },
+    { "actionId": "end_week" },
+    { "actionId": "plan.add", "params": { "actionType": "rest" } },
+    { "actionId": "end_week" }
+  ]
+}
