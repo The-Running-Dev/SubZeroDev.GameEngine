@@ -89,7 +89,7 @@ describe("W71 — Stable Life Bulgaria culture pack", () => {
     const base = resolve([stableLifeBasePack]);
     const bulgaria = resolve([stableLifeBasePack, bulgariaCulturePack]);
 
-    // Neither table is the packs' own strings alone. The fold ships 24 keys and no reason
+    // Neither table is the packs' own strings alone — the fold itself ships no reason
     // messages at all; assembly is what merges the core's and the kind's in (20 §11), and a
     // registry missing them renders every rejection as a bare key to the player.
     for (const registry of [base, bulgaria]) {
@@ -97,13 +97,23 @@ describe("W71 — Stable Life Bulgaria culture pack", () => {
       expect([...registry.strings.keys()].some((key) => key.startsWith("simulation.reason."))).toBe(true);
     }
 
+    // W72 authors an independent campaign, so the Bulgarian pack's own keys are no longer a
+    // small override subset of the base's — it ships its own jobs, places, events, housing,
+    // possessions and effects, each with keys the base pack never had. Every base key still
+    // survives the fold (11 §3 replaces per key, never drops one silently), and every key
+    // the Bulgarian pack itself ships resolves to that pack's own text.
     const overridden = new Set(bulgariaCulturePack.strings.keys());
     for (const [key, baseText] of base.strings) {
       const bulgarianText = bulgaria.strings.get(key);
       expect(bulgarianText).toBeDefined();
       expect(bulgarianText === baseText).toBe(!overridden.has(key));
     }
-    expect([...bulgaria.strings.keys()].sort()).toEqual([...base.strings.keys()].sort());
+    for (const [key, packText] of bulgariaCulturePack.strings) {
+      expect(bulgaria.strings.get(key)).toBe(packText);
+    }
+    expect([...bulgaria.strings.keys()].sort()).toEqual(
+      [...new Set([...base.strings.keys(), ...bulgariaCulturePack.strings.keys()])].sort(),
+    );
   });
 
   it("uses distinct resolution ids as the campaign version", () => {
@@ -116,8 +126,7 @@ describe("W71 — Stable Life Bulgaria culture pack", () => {
 
   /**
    * The other half of 11 §3 — campaigns replace *wholesale by id*, not field by field.
-   * Checked by reference rather than by value on purpose: until W72 authors the Bulgarian
-   * setting the two campaigns are deep-equal, so a value comparison would pass just as
+   * Checked by reference rather than by value: a value comparison would pass just as
    * happily against the base pack's campaign, or against a Bulgaria pack shipping no
    * campaign at all. `resolvePacks` shallow-spreads the winning campaign to stamp its
    * `version`, which leaves `content` the very object the pack supplied.

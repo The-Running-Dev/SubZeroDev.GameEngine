@@ -1,0 +1,12 @@
+{
+  "name": "bulgaria-stable-life-loss",
+  "config": { "campaignId": "stable-life", "seed": "bulgaria-stable-life-loss-seed" },
+  "campaignVersion": "cab706d57632c1b23a9674829e15da3e00934c1974857c2e20dd78b693e13034",
+  "capturedUnder": "0.8.0",
+  "submissions": [
+    { "actionId": "end_week" },
+    { "actionId": "end_week" },
+    { "actionId": "end_week" },
+    { "actionId": "end_week" }
+  ]
+}

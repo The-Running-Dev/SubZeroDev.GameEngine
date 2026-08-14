@@ -1,0 +1,40 @@
+{
+  "finalStatus": "ended",
+  "acceptedActions": 4,
+  "decisions": [
+    {
+      "index": 0,
+      "seq": 0,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 1,
+      "seq": 1,
+      "actionId": "end_week",
+      "accepted": true
+    },
+    {
+      "index": 2,
+      "seq": 2,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 3,
+      "seq": 3,
+      "actionId": "end_week",
+      "accepted": true
+    }
+  ],
+  "achievements": [
+    "achievement-purva-sedmitsa"
+  ],
+  "terminal": {
+    "resolution": "goals_met",
+    "goalsMet": [
+      "goal-well-rested"
+    ],
+    "goalsFailed": []
+  }
+}
