@@ -16,13 +16,34 @@
  * into *every* transition (not one RNG pick, since a checker asks "can any sequence of
  * choices reach X", not "what does one seeded playthrough do"), and a `choice` node
  * branches into every choice whose `showWhen` and `requirements` the current state
- * satisfies. States are deduplicated by full content (node, variables, visited counts,
- * achievements, turn) so a genuine loop collapses once its state stops changing. A hard
- * cap on both the total number of distinct states explored and the turn-depth of any one
- * path guarantees termination even when a loop's state never stops changing (W73.5) —
- * when either cap is hit, anything not yet found is reported as "unknown" (not proven
- * reachable within the bound), never as "unreachable": this checker never claims to have
- * proven more than it actually explored.
+ * satisfies. Achievements are recomputed at every `choice` node (mirroring `advance.ts`'s
+ * "evaluate after settle" boundary), so a choice gated on `achieved.<id>` is judged
+ * correctly rather than always false.
+ *
+ * States are deduplicated by node, variables, visited counts, and achievements — turn is
+ * deliberately excluded: it strictly increases on every transition, so including it would
+ * mean two structurally identical states reached at different turn numbers never collapse,
+ * defeating dedup for any stable loop.
+ *
+ * Two independent caps bound the search: `MAX_EXPLORED_STATES`/`MAX_TURN_DEPTH` guarantee
+ * termination even when a loop's state never stops changing (W73.5), and a per-chain
+ * `SETTLE_STEPS` cap (imported from `settle.ts`, the same constant the real engine's settle
+ * loop enforces) mirrors the real crash: a path whose auto/random chain between two
+ * choice/ending nodes would trip `settle_guard_tripped` in real play is never credited as
+ * "reachable" here either. Hitting any cap sets `bounded = true` and stops that state from
+ * expanding further; it is not examined as a hit (an ending found exactly at a cap is not
+ * counted), matching this checker's promise to never claim to have proven more than it
+ * actually explored. The exploded-states cap stops *pushing new work* rather than aborting
+ * the whole search outright, so states already queued from unrelated, already-mostly-explored
+ * branches still get drained instead of being discarded — reducing, though not eliminating,
+ * cross-branch "unknown" bleed from one runaway branch (`bounded` is still one flag for the
+ * whole search, so a cap tripped anywhere can still downgrade an unrelated verdict that
+ * would otherwise have been a definite "unreachable"/"unsatisfiable").
+ *
+ * A choice is only reported in `choiceRequirements` if it was visible (`showWhen`) in at
+ * least one reached state — a choice hidden by `showWhen` in every reached state is a
+ * reachability/authoring concern distinct from "requirements no state satisfies," and
+ * reporting it as "unsatisfiable" would send an author to the wrong field.
  *
  * Run with `npm run validate-campaign -- <campaign-id>` from `src/engine/`.
  */
@@ -33,9 +54,22 @@ import { applyConsequences, buildInitialVariables } from "../src/kinds/story-gra
 import { enter, type StoryGraphKindState } from "../src/kinds/story-graph/state.js";
 import { requireNode } from "../src/kinds/story-graph/nodes.js";
 import { evaluateStoryGraphCondition, toConditionContext } from "../src/kinds/story-graph/conditions.js";
+import { evaluateAchievements } from "../src/kinds/story-graph/achievements.js";
+import { SETTLE_STEPS } from "../src/kinds/story-graph/settle.js";
 import type { StoryGraphCampaign } from "../src/kinds/story-graph/campaign.js";
 
+import { buildWhatWouldLuciferDoCampaign, WHAT_WOULD_LUCIFER_DO_CAMPAIGN_ID } from "../src/campaigns/what-would-lucifer-do.js";
+import {
+  buildWhatWouldLuciferDoEngineersCutCampaign,
+  WHAT_WOULD_LUCIFER_DO_ENGINEERS_CUT_CAMPAIGN_ID,
+} from "../src/campaigns/what-would-lucifer-do-engineers-cut.js";
+import { buildLuciferChroniclesCampaign, LUCIFER_CHRONICLES_CAMPAIGN_ID } from "../src/campaigns/lucifer-chronicles.js";
 import { buildBulgariaBureaucracyCampaign, BULGARIA_BUREAUCRACY_CAMPAIGN_ID } from "../src/campaigns/bulgaria-bureaucracy.js";
+import { buildBulgariaReturnCampaign, BULGARIA_RETURN_CAMPAIGN_ID } from "../src/campaigns/bulgaria-return.js";
+import { buildBulgariaDrivingCampaign, BULGARIA_DRIVING_CAMPAIGN_ID } from "../src/campaigns/bulgaria-driving.js";
+import { buildBulgariaInheritanceCampaign, BULGARIA_INHERITANCE_CAMPAIGN_ID } from "../src/campaigns/bulgaria-inheritance.js";
+import { buildBulgariaEnterpriseCampaign, BULGARIA_ENTERPRISE_CAMPAIGN_ID } from "../src/campaigns/bulgaria-enterprise.js";
+import { buildSakiQuestCampaign, SAKI_QUEST_CAMPAIGN_ID } from "../src/campaigns/saki-quest-for-redemption.js";
 import {
   buildTier3UnreachableEndingFixtureCampaign,
   TIER3_UNREACHABLE_ENDING_FIXTURE_CAMPAIGN_ID,
@@ -80,7 +114,15 @@ function canonicalStateKey(state: StoryGraphKindState): string {
     .map((k) => `${k}:${state.visitedCounts[k]}`)
     .join(",");
   const achieved = [...state.unlockedAchievements].sort().join(",");
-  return `${state.currentNodeId}|t${state.turn}|${vars}|${visits}|${achieved}|${state.endingId ?? ""}`;
+  return `${state.currentNodeId}|${vars}|${visits}|${achieved}`;
+}
+
+/** A queued search node: the game state plus how many auto/random hops it is into its
+ *  current settle chain — reset at every choice pick, mirroring `settle()`'s own
+ *  per-call `step` counter. */
+interface SearchNode {
+  state: StoryGraphKindState;
+  chainSteps: number;
 }
 
 /**
@@ -105,27 +147,31 @@ export function checkStoryGraphCampaign(content: StoryGraphCampaign): CampaignCh
     visitedCounts: {},
     unlockedAchievements: [],
   };
-  const start = enter(seeded, content.startNodeId);
+  const start: SearchNode = { state: enter(seeded, content.startNodeId), chainSteps: 0 };
 
   const visitedKeys = new Set<string>();
-  const queue: StoryGraphKindState[] = [start];
+  const queue: SearchNode[] = [start];
+  let head = 0;
   let bounded = false;
   let explored = 0;
+  let atCap = false;
 
-  while (queue.length > 0) {
-    const state = queue.shift()!;
+  while (head < queue.length) {
+    const { state, chainSteps } = queue[head]!;
+    head++;
+
     const key = canonicalStateKey(state);
     if (visitedKeys.has(key)) continue;
     visitedKeys.add(key);
     explored++;
 
-    if (explored > MAX_EXPLORED_STATES) {
+    if (explored > MAX_EXPLORED_STATES) atCap = true;
+    if (atCap || state.turn > MAX_TURN_DEPTH || chainSteps > SETTLE_STEPS) {
+      // This state stops expanding: already-queued siblings (from unrelated branches
+      // explored before the cap was hit) still run, but nothing new is pushed once
+      // `atCap` is set — the queue can only shrink from here.
       bounded = true;
-      break;
-    }
-    if (state.turn > MAX_TURN_DEPTH) {
-      bounded = true;
-      continue; // this path stops expanding; already-queued siblings still run
+      continue;
     }
 
     const node = requireNode(content.nodes, state.currentNodeId);
@@ -137,33 +183,51 @@ export function checkStoryGraphCampaign(content: StoryGraphCampaign): CampaignCh
 
     if (node.kind === "auto") {
       const applied = applyConsequences(content.variables, state.variables, node.effects ?? []);
-      queue.push(enter({ ...state, variables: applied.variables, turn: state.turn + 1 }, node.goto));
+      queue.push({
+        state: enter({ ...state, variables: applied.variables, turn: state.turn + 1 }, node.goto),
+        chainSteps: chainSteps + 1,
+      });
       continue;
     }
 
     if (node.kind === "random") {
       for (const transition of node.transitions) {
         const applied = applyConsequences(content.variables, state.variables, transition.effects ?? []);
-        queue.push(enter({ ...state, variables: applied.variables, turn: state.turn + 1 }, transition.goto));
+        queue.push({
+          state: enter({ ...state, variables: applied.variables, turn: state.turn + 1 }, transition.goto),
+          chainSteps: chainSteps + 1,
+        });
       }
       continue;
     }
 
-    // choice
-    const context = toConditionContext(state);
+    // choice — a settle boundary in the real engine, so achievements are recomputed here
+    // (evaluateAchievements is only ever called after a settle chain completes, per
+    // advance.ts), and this state's own downstream pushes reset chainSteps to 0.
+    const achieved = evaluateAchievements(content.achievements, state);
+    const currentState =
+      achieved.unlockedAchievements.length === state.unlockedAchievements.length
+        ? state
+        : { ...state, unlockedAchievements: achieved.unlockedAchievements };
+
+    const context = toConditionContext(currentState);
     for (const choice of node.choices) {
       const choiceKey = `${node.id}::${choice.id}`;
-      if (choice.requirements !== undefined) choicesWithRequirements.set(choiceKey, { nodeId: node.id, choiceId: choice.id });
 
       const visible = !choice.showWhen || evaluateStoryGraphCondition(choice.showWhen, context);
       if (!visible) continue;
+
+      if (choice.requirements !== undefined) choicesWithRequirements.set(choiceKey, { nodeId: node.id, choiceId: choice.id });
 
       const requirementsOk = !choice.requirements || evaluateStoryGraphCondition(choice.requirements, context);
       if (!requirementsOk) continue;
 
       choiceEverSatisfied.add(choiceKey);
-      const applied = applyConsequences(content.variables, state.variables, choice.effects ?? []);
-      queue.push(enter({ ...state, variables: applied.variables, turn: state.turn + 1 }, choice.goto));
+      const applied = applyConsequences(content.variables, currentState.variables, choice.effects ?? []);
+      queue.push({
+        state: enter({ ...currentState, variables: applied.variables, turn: currentState.turn + 1 }, choice.goto),
+        chainSteps: 0,
+      });
     }
   }
 
@@ -190,8 +254,21 @@ export function reportHasFailures(report: CampaignCheckReport): boolean {
   return report.endings.some((e) => e.status === "unreachable") || report.choiceRequirements.some((c) => c.status === "unsatisfiable");
 }
 
+/**
+ * Every story-graph campaign this repository ships, kept in sync by hand with
+ * `export-campaigns.ts`'s own `entries` — the two lists have no shared source of truth,
+ * so a new story-graph campaign must be added to both.
+ */
 const CAMPAIGNS: Record<string, () => CommandResult<BuiltCampaign>> = {
+  [WHAT_WOULD_LUCIFER_DO_CAMPAIGN_ID]: buildWhatWouldLuciferDoCampaign,
+  [WHAT_WOULD_LUCIFER_DO_ENGINEERS_CUT_CAMPAIGN_ID]: buildWhatWouldLuciferDoEngineersCutCampaign,
+  [LUCIFER_CHRONICLES_CAMPAIGN_ID]: buildLuciferChroniclesCampaign,
   [BULGARIA_BUREAUCRACY_CAMPAIGN_ID]: buildBulgariaBureaucracyCampaign,
+  [BULGARIA_RETURN_CAMPAIGN_ID]: buildBulgariaReturnCampaign,
+  [BULGARIA_DRIVING_CAMPAIGN_ID]: buildBulgariaDrivingCampaign,
+  [BULGARIA_INHERITANCE_CAMPAIGN_ID]: buildBulgariaInheritanceCampaign,
+  [BULGARIA_ENTERPRISE_CAMPAIGN_ID]: buildBulgariaEnterpriseCampaign,
+  [SAKI_QUEST_CAMPAIGN_ID]: buildSakiQuestCampaign,
   [TIER3_UNREACHABLE_ENDING_FIXTURE_CAMPAIGN_ID]: buildTier3UnreachableEndingFixtureCampaign,
 };
 
@@ -225,6 +302,12 @@ async function main(): Promise<void> {
   const built = entry();
   if (!built.ok || !built.value) {
     console.error(`validate-campaign: campaign failed to build — ${JSON.stringify(built.errors)}`);
+    process.exitCode = 1;
+    return;
+  }
+
+  if (built.value.campaign.kindId !== "story-graph") {
+    console.error(`validate-campaign: "${campaignId}" is a "${built.value.campaign.kindId}" campaign — Tier 3 validation only supports story-graph.`);
     process.exitCode = 1;
     return;
   }
