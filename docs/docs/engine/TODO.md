@@ -2659,19 +2659,20 @@ SubZeroDev.Adventures.Content without weakening GameEngine's story-graph regress
 lost update surfacing as `concurrent_modification` instead of `storage_failure` — together with
 the cache invariant that makes the new message honest.
 
-**Four of the seven criteria arrived before this unit ran, and the two that remain are the
-two that matter.** This was written expecting the contract to land first and the code after,
-which is the order `design/90-decisions.md` (2026-08-13) argues for. That is not what happened:
-the branch carrying the amendment was cut from `d44afde` — the `slice/S1` draft's own commit,
-opened as PR #306 — rather than from `main`, so merging the amendment (PR #307) carried the
-mapping and its four tests along with it. PR #306 is closed; its commit is on `main` regardless.
+**Six of the seven criteria are now satisfied, and the seventh is the validation gate.** This
+was written expecting the contract to land first and the code after, which is the order
+`design/90-decisions.md` (2026-08-13) argues for. That is not what happened: the branch
+carrying the amendment was cut from `d44afde` — the `slice/S1` draft's own commit, opened as
+PR #306 — rather than from `main`, so merging the amendment (PR #307) carried the mapping and
+its four tests along with it. PR #306 is closed; its commit is on `main` regardless. PR #311
+then closed the two criteria that were left: the cache-restore behaviour on a `submitAction`
+conflict (`W75.4`) and the version bump for the added root exports (`W75.6`).
 
-So this unit **completes** rather than implements. `W75.1`, `W75.2`, `W75.3` and `W75.5` are
-satisfied by what landed; verify them rather than rewriting them. `W75.4` and `W75.6` are open,
-and until they close `main` ships an actionable *"refresh and try again"* message without the
-behaviour that makes it true, and added root exports without a version bump. Criterion ids are
-retained as written — they are never renumbered — so the record of which arrived how stays
-readable.
+So this unit **completes** rather than implements. `W75.1`–`W75.6` are satisfied by what
+landed in `d44afde` and PR #311; verify them rather than rewriting them. `W75.7` is open —
+`npm run typecheck`, `npm run lint` and `npm test` pass, but `./build/Test-Documentation.ps1`
+still needs a clean run. Criterion ids are retained as written — they are never renumbered —
+so the record of which arrived how stays readable.
 
 - **Spec:** [20 §7.2](04-core.md#7-the-session-store-and-the-platform-api),
       [§12](04-core.md#12-reason-codes-state-changes-messages),
