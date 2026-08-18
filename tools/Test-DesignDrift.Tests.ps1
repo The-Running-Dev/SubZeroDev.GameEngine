@@ -41,19 +41,20 @@ BeforeAll {
         [pscustomobject]@{ Issues = @($Issues); Failure = $null }
     }
 
-    # One slice, two criteria - the shape every positive case starts from.
+    # One slice, two criteria - the shape every positive case starts from. This repository's
+    # own vocabulary (W, not S; a `### [ ]` heading, not `##`) per track-local.md.
     $script:TwoCriterionDoc = @'
 # Slices
 
-## Outstanding
+## Core
 
-## S1 — A slice
+### [ ] W1 — A slice
 
 Delivers: something a reader can follow.
 
-Acceptance:
-  - S1.1 The first criterion holds.
-  - S1.2 The second criterion holds.
+- **Done when:**
+  - W1.1 The first criterion holds.
+  - W1.2 The second criterion holds.
 '@
 }
 
@@ -69,7 +70,7 @@ Describe 'Test-DesignDrift' {
         It 'matching ids on both sides is Clean, exit 0' {
             $path = New-SlicesDoc -Content $script:TwoCriterionDoc
             Mock Get-TrackerIssue { New-Tracker -Issues @(
-                New-Issue -Number 9 -Title 'S1 — A slice' -Body "### Done when`n- [ ] **S1.1** first`n- [x] **S1.2** second"
+                New-Issue -Number 9 -Title 'W1 — A slice' -Body "### Done when`n- [ ] **W1.1** first`n- [x] **W1.2** second"
             ) }
 
             $r = Invoke-DriftCheck -SlicesPath $path
@@ -83,7 +84,7 @@ Describe 'Test-DesignDrift' {
         It 'reworded criteria with the same ids are not drift' {
             $path = New-SlicesDoc -Content $script:TwoCriterionDoc
             Mock Get-TrackerIssue { New-Tracker -Issues @(
-                New-Issue -Number 9 -Title 'S1 — A slice' -Body "- [ ] **S1.1** completely different wording here`n- [ ] **S1.2** and here too"
+                New-Issue -Number 9 -Title 'W1 — A slice' -Body "- [ ] **W1.1** completely different wording here`n- [ ] **W1.2** and here too"
             ) }
 
             (Invoke-DriftCheck -SlicesPath $path).State | Should -Be 'Clean'
@@ -92,27 +93,27 @@ Describe 'Test-DesignDrift' {
         It 'an id in the doc but not the issue is reported as InDocNotIssue, exit 1' {
             $path = New-SlicesDoc -Content $script:TwoCriterionDoc
             Mock Get-TrackerIssue { New-Tracker -Issues @(
-                New-Issue -Number 9 -Title 'S1 — A slice' -Body '- [ ] **S1.1** first'
+                New-Issue -Number 9 -Title 'W1 — A slice' -Body '- [ ] **W1.1** first'
             ) }
 
             $r = Invoke-DriftCheck -SlicesPath $path
 
             $r.State | Should -Be 'Drifted'
             $r.Findings.Kind | Should -Contain 'InDocNotIssue'
-            ($r.Findings | Where-Object Kind -eq 'InDocNotIssue').Detail | Should -Be 'S1.2'
+            ($r.Findings | Where-Object Kind -eq 'InDocNotIssue').Detail | Should -Be 'W1.2'
             Get-DriftExitCode -State $r.State | Should -Be 1
         }
 
         It 'an id in the issue but not the doc - a renumber - is reported as InIssueNotDoc' {
             $path = New-SlicesDoc -Content $script:TwoCriterionDoc
             Mock Get-TrackerIssue { New-Tracker -Issues @(
-                New-Issue -Number 9 -Title 'S1 — A slice' -Body "- [ ] **S1.1** first`n- [x] **S1.7** a tick now pointing at something else"
+                New-Issue -Number 9 -Title 'W1 — A slice' -Body "- [ ] **W1.1** first`n- [x] **W1.7** a tick now pointing at something else"
             ) }
 
             $r = Invoke-DriftCheck -SlicesPath $path
 
             $r.State | Should -Be 'Drifted'
-            ($r.Findings | Where-Object Kind -eq 'InIssueNotDoc').Detail | Should -Be 'S1.7'
+            ($r.Findings | Where-Object Kind -eq 'InIssueNotDoc').Detail | Should -Be 'W1.7'
         }
 
         It 'an id cited in prose outside a slice section is not counted as a criterion' {
@@ -123,21 +124,24 @@ Describe 'Test-DesignDrift' {
 
 ## Contract questions
 
-None outstanding - zero checks yields NotEvaluated, exercised by S1.9, and the batch by S1.8.
+None outstanding - zero checks yields NotEvaluated, exercised by W1.9, and the batch by W1.8.
 
-## S1 — A slice
+### [ ] W1 — A slice
 
-Acceptance:
-  - S1.1 The only real criterion.
+- **Done when:**
+  - W1.1 The only real criterion.
 '@
             Mock Get-TrackerIssue { New-Tracker -Issues @(
-                New-Issue -Number 9 -Title 'S1 — A slice' -Body '- [ ] **S1.1** the only real criterion'
+                New-Issue -Number 9 -Title 'W1 — A slice' -Body '- [ ] **W1.1** the only real criterion'
             ) }
 
             (Invoke-DriftCheck -SlicesPath $path).State | Should -Be 'Clean'
         }
 
         It 'a landed slice with no body is not reported as a removal' {
+            # The kit-generic `## Landed` table layout. This repository does not retire
+            # slice bodies this way (every `### [x] W<n>` keeps its full "Done when" list),
+            # but the table-row path stays supported and is worth covering.
             $path = New-SlicesDoc -Content @'
 # Slices
 
@@ -149,10 +153,10 @@ None.
 
 | Slice | Name | Issue | Criteria | Body complete at |
 |---|---|---|---|---|
-| **S1** | A slice that landed | #9, closed | S1.1-S1.2 | `af610a6` |
+| **W1** | A slice that landed | #9, closed | W1.1-W1.2 | `af610a6` |
 '@
             Mock Get-TrackerIssue { New-Tracker -Issues @(
-                New-Issue -Number 9 -Title 'S1 — A slice that landed' -Body "- [x] **S1.1** first`n- [x] **S1.2** second"
+                New-Issue -Number 9 -Title 'W1 — A slice that landed' -Body "- [x] **W1.1** first`n- [x] **W1.2** second"
             ) }
 
             $r = Invoke-DriftCheck -SlicesPath $path
@@ -178,8 +182,8 @@ None.
         BeforeEach {
             $script:PinnedDoc = New-SlicesDoc -Content $script:TwoCriterionDoc -Name 'pinned.md'
             Mock Get-TrackerIssue { New-Tracker -Issues @(
-                New-Issue -Number 9 -Title 'S1 — A slice' `
-                    -Body "- [ ] **S1.1** first`n- [ ] **S1.2** second`n<!-- agent:start -->`nScope and criteria: ``design/30-slices.md`` § S1 @ ``deadbee```n<!-- agent:end -->"
+                New-Issue -Number 9 -Title 'W1 — A slice' `
+                    -Body "- [ ] **W1.1** first`n- [ ] **W1.2** second`n<!-- agent:start -->`nScope and criteria: ``design/30-slices.md`` § W1 @ ``deadbee```n<!-- agent:end -->"
             ) }
         }
 
@@ -244,14 +248,14 @@ None.
             $path = New-SlicesDoc -Content @'
 # Slices
 
-## S1 — A slice
+### [ ] W1 — A slice
 
-Acceptance:
-  - S1.1 The first criterion.
-  - S2.4 Numbered for a slice this is not.
+- **Done when:**
+  - W1.1 The first criterion.
+  - W2.4 Numbered for a slice this is not.
 '@ -Name 'stray.md'
             Mock Get-TrackerIssue { New-Tracker -Issues @(
-                New-Issue -Number 9 -Title 'S1 — A slice' -Body '- [ ] **S1.1** first'
+                New-Issue -Number 9 -Title 'W1 — A slice' -Body '- [ ] **W1.1** first'
             ) }
 
             $r = Invoke-DriftCheck -SlicesPath $path
@@ -265,8 +269,8 @@ Acceptance:
             # incomplete run, and reporting it as a finished one is the failure I12 forbids.
             $path = New-SlicesDoc -Content $script:TwoCriterionDoc -Name 'both.md'
             Mock Get-TrackerIssue { New-Tracker -Issues @(
-                New-Issue -Number 9 -Title 'S1 — A slice' `
-                    -Body "- [ ] **S1.1** first`n``design/30-slices.md`` § S1 @ ``deadbee``"
+                New-Issue -Number 9 -Title 'W1 — A slice' `
+                    -Body "- [ ] **W1.1** first`n``design/30-slices.md`` § W1 @ ``deadbee``"
             ) }
             Mock Test-CommitIsAncestor { 'Unresolvable' }
 
