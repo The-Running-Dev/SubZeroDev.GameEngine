@@ -291,7 +291,7 @@ Because creativity should be encouraged. Undefined behavior shouldn't.
 
 Unity renders. Unreal renders. Godot renders.
 
-This engine quietly sits underneath asking, *"Yes... but what actually happens?"*
+This engine quietly sits underneath asking, _"Yes... but what actually happens?"_
 
 Turns out that's the interesting part.
 
@@ -367,8 +367,8 @@ validation, and replay guard. `v0.4.0` is published as `@the-running-dev/game-en
 consumer test installs the packed artifact rather than trusting this checkout. All six
 story-graph campaigns — Return, Bureaucracy, Driving, Inheritance, Enterprise, and Lucifer
 Chronicles — now ship as a replayable casebook behind an original adventure-cabinet interface at
-[`/play/`](/play/), with a Bulgarian content pack proving the
-same engine reskins without an engine change. Author-facing validation, a real-browser test
+<a href="/play/"><code>/play/</code></a>, with a Bulgarian
+content pack proving the same engine reskins without an engine change. Author-facing validation, a real-browser test
 harness, and a mobile-first recomposition of the play surface followed.
 
 ### Current — publish the completed world-graph kind (T4)
@@ -412,8 +412,8 @@ time seems sufficiently ambitious. In
 Developers tired of rebuilding the same mechanics. System designers. Narrative
 designers. Simulation nerds. AI-assisted workflows. Researchers. Tool builders.
 
-And anyone who's ever stared at an existing codebase and quietly whispered, *"There has
-to be a better way."*
+And anyone who's ever stared at an existing codebase and quietly whispered, _"There has
+to be a better way."_
 
 There might be.
 
@@ -448,12 +448,12 @@ Either way, you've understood it.
 
 ## Layout
 
-| Path | What |
-|---|---|
-| [`docs/docs/engine/`](/docs/engine/vision) | The specs — `01-vision`, `02-architecture`, `04-core` (the API/types), `03-story-graph-kind`, `MVP`, `TODO`, `OPEN-QUESTIONS` |
-| [`src/engine/`](/docs/guide/engine-package) | The implementation (TypeScript strict, vitest, determinism-guard eslint) |
-| `docs/` | The specs are a Docusaurus site; `docs/docs/` is its content root |
-| [`docs.ps1`](/docs/guide/documentation-site#previewing-locally) | Build & serve the docs site |
+| Path                                                                                              | What                                                                                                                          |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| [`docs/docs/engine/`](/docs/engine/vision)                      | The specs — `01-vision`, `02-architecture`, `04-core` (the API/types), `03-story-graph-kind`, `MVP`, `TODO`, `OPEN-QUESTIONS` |
+| [`src/engine/`](/docs/guide/engine-package)                     | The implementation (TypeScript strict, vitest, determinism-guard eslint)                                                      |
+| `docs/`                                                                                           | The specs are a Docusaurus site; `docs/docs/` is its content root                                                             |
+| [`docs.ps1`](/docs/guide/documentation-site#previewing-locally) | Build & serve the docs site                                                                                                   |
 
 ## Build the Docs Site
 
