@@ -2727,7 +2727,8 @@ the origin; the criteria are transcribed as written and their ids are retained.
       [§12](04-core.md#12-reason-codes-state-changes-messages).
 - **Touches:** `src/engine/src/core/registry/packs.ts` and `types.ts`;
       `src/engine/src/core/validation/tiered.ts`; `src/engine/src/index.ts`;
-      `src/engine/src/campaigns/stable-life-packs.test.ts`; `src/engine/package.json`.
+      `src/engine/src/campaigns/stable-life-packs.ts` and `stable-life-packs.test.ts`;
+      `src/engine/package.json`.
 - **Depends on:** nothing beyond the shipped pack resolution.
 - **Status:** Not started.
 - **Done when:**
@@ -2753,9 +2754,11 @@ the origin; the criteria are transcribed as written and their ids are retained.
         through a later pack's contribution has its outcome asserted either way. If that outcome
         contradicts 04 §11's per-campaign scoping, stop and report it rather than picking a
         reading — that is `/contract`'s call.
-  - W76.7 `stable-life-packs.test.ts`'s hand carry-across and its *known and retained* comment
-        are both deleted, and the suite passes through the new path with no local helper
-        reconstructing what the call now returns.
+  - W76.7 `stable-life-packs.ts`'s `resolveStableLifeRegistry` — which already consolidated the
+        fold-then-validate-then-reattach sequence out of its three former callers — is rewritten
+        to call the new shared call instead of reimplementing that sequence itself, and the
+        suite passes through the new path with no local helper reconstructing what the call now
+        returns.
   - W76.8 Proven by reverting: with the `resolution` assignment removed from the new path, a
         named test goes red.
   - W76.9 Whatever shape is chosen — an optional parameter or a pack-aware sibling — the surface
