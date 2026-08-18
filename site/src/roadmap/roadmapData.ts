@@ -19,22 +19,13 @@ export type RoadmapChapter = {
 const repo = "https://github.com/The-Running-Dev/SubZeroDev.GameEngine";
 const commit = (hash: string) => `${repo}/commit/${hash}`;
 
-// TODO owns W0–W40 (including W3a). W41–W49 merged after its ledger format stopped
-// carrying completed headings; keep that exceptional evidence explicit rather than pretending
-// the prose is a uniform machine-readable database.
-const completedBeyondTodo = [
-  "W41",
-  "W42",
-  "W43",
-  "W44",
-  "W45",
-  "W46",
-  "W47",
-  "W48",
-  "W49",
-] as const;
-export const completedWorkUnitCount =
-  (todo.match(/^### \[x\] W[\w]+/gm) ?? []).length + completedBeyondTodo.length;
+// TODO.md's `### [x] W…` headings are now the complete machine-readable record — W41–W49
+// caught back up once the ledger format resumed carrying completed headings, so the exception
+// list that used to patch this count by hand (`completedBeyondTodo`, W41–W49) is redundant and
+// has been retired. If a future gap reopens, reintroduce the same pattern rather than silently
+// undercounting.
+export const completedWorkUnitCount = (todo.match(/^### \[x\] W[\w]+/gm) ?? [])
+  .length;
 
 export const shippedChapters: readonly RoadmapChapter[] = [
   {
@@ -221,6 +212,46 @@ export const shippedChapters: readonly RoadmapChapter[] = [
     ],
   },
   {
+    id: "life-economy",
+    workUnits: "W50–W60",
+    status: "done",
+    title: "Life in the Fast Lane becomes a whole, playable economy",
+    summary:
+      "Employment, education, housing, debt, possessions, relationships, events, and achievements are all wired in; content packs resolve identity, features gate behind experiments, and the campaign plays end to end in a second locale.",
+    links: [
+      {
+        label: "W50–W60 evidence",
+        href: `${repo}/pull/166`,
+        kind: "repository",
+      },
+    ],
+  },
+  {
+    id: "public-demo",
+    workUnits: "W61–W62",
+    status: "done",
+    title: "The demo leaves the repository",
+    summary:
+      "A static, public /play/ route and an immutable container image put the running engine somewhere a stranger can actually click it.",
+    links: [
+      {
+        label: "W61 evidence (part 1)",
+        href: `${repo}/pull/183`,
+        kind: "repository",
+      },
+      {
+        label: "W61 evidence (part 2)",
+        href: `${repo}/pull/184`,
+        kind: "repository",
+      },
+      {
+        label: "W62 evidence",
+        href: `${repo}/pull/264`,
+        kind: "repository",
+      },
+    ],
+  },
+  {
     id: "casebook",
     workUnits: "W63–W64",
     ledgerAnchor: "w64",
@@ -243,6 +274,91 @@ export const shippedChapters: readonly RoadmapChapter[] = [
         label: "Play the adventures",
         href: "/play/",
         kind: "site",
+      },
+    ],
+  },
+  {
+    id: "phone-witness",
+    workUnits: "W65–W66",
+    status: "done",
+    title: "The play surface gets a witness, then a phone",
+    summary:
+      "A real-browser test harness captures the shipped cabinet as a baseline, then the whole surface is recomposed for a thumb instead of a mouse — same retro look, different reading order.",
+    links: [
+      {
+        label: "W65 evidence",
+        href: `${repo}/pull/201`,
+        kind: "repository",
+      },
+      {
+        label: "W66 evidence",
+        href: `${repo}/pull/205`,
+        kind: "repository",
+      },
+    ],
+  },
+  {
+    id: "regression-evidence",
+    workUnits: "W67",
+    status: "done",
+    title: "A gap in the story-graph evidence gets closed",
+    summary:
+      "Regression coverage lost during earlier reconciliation work is restored and re-verified.",
+    links: [
+      {
+        label: "W67 evidence",
+        href: `${repo}/pull/261`,
+        kind: "repository",
+      },
+    ],
+  },
+  {
+    id: "landing-package",
+    workUnits: "W69",
+    status: "done",
+    title: "The landing page stops maintaining its own copy",
+    summary:
+      "site/ adopts the shared, versioned landing-page package instead of a hand-rolled one, so a platform-wide layout fix arrives here without a duplicate patch.",
+    links: [
+      {
+        label: "W69 evidence",
+        href: `${repo}/pull/272`,
+        kind: "repository",
+      },
+    ],
+  },
+  {
+    id: "bulgaria-pack",
+    workUnits: "W71–W72",
+    status: "done",
+    title: "Bulgaria becomes a content pack, not a hard-coded setting",
+    summary:
+      "A second campaign resolution proves no engine or kind code has to change to reskin a game, then the full Bulgarian setting is written to prove the mechanism at volume.",
+    links: [
+      {
+        label: "W71 evidence",
+        href: `${repo}/pull/314`,
+        kind: "repository",
+      },
+      {
+        label: "W72 evidence",
+        href: `${repo}/pull/317`,
+        kind: "repository",
+      },
+    ],
+  },
+  {
+    id: "author-checks",
+    workUnits: "W73",
+    status: "done",
+    title: "Author-facing checks catch unreachable endings before players do",
+    summary:
+      "A Tier 3 validator reports unreachable endings and unsatisfiable choices per campaign — run by hand, not wired into the registry gate.",
+    links: [
+      {
+        label: "W73 evidence",
+        href: `${repo}/pull/319`,
+        kind: "repository",
       },
     ],
   },

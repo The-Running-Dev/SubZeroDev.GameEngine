@@ -287,7 +287,7 @@ Because creativity should be encouraged. Undefined behavior shouldn't.
 
 Unity renders. Unreal renders. Godot renders.
 
-This engine quietly sits underneath asking, *"Yes... but what actually happens?"*
+This engine quietly sits underneath asking, _"Yes... but what actually happens?"_
 
 Turns out that's the interesting part.
 
@@ -355,14 +355,17 @@ The MVP contracts are complete and every MVP-blocking decision has already been 
 [Story Graph](https://game-engine.subzerodev.com/docs/engine/story-graph-kind). The remaining
 work is implementation. Not philosophy.
 
-### Code — two implemented kinds, a published package, and a replay-guarded world graph (W0–W49)
+### Code — three implemented kinds and a playable public casebook (W0–W73)
 
-The deterministic core, story-graph kind, five Bulgaria arcs, text client, MCP adapter,
-replay oracle, save migration, and simulation kind are built and tested. `v0.4.0` is published
-as `@the-running-dev/game-engine`; a clean consumer test installs the packed artifact rather
-than trusting this checkout. The world-graph runtime-state, content, resolution, immediate-action
-foundation, deterministic tick pipeline, playable guest journey, validation, and replay guard
-are also merged.
+The deterministic core, story-graph kind, simulation kind, and world-graph kind are all built
+and tested, including the world graph's deterministic tick pipeline, playable guest journey,
+validation, and replay guard. `v0.4.0` is published as `@the-running-dev/game-engine`; a clean
+consumer test installs the packed artifact rather than trusting this checkout. All six
+story-graph campaigns — Return, Bureaucracy, Driving, Inheritance, Enterprise, and Lucifer
+Chronicles — now ship as a replayable casebook behind an original adventure-cabinet interface at
+<a href="https://game-engine.subzerodev.com/play/"><code>/play/</code></a>, with a Bulgarian
+content pack proving the same engine reskins without an engine change. Author-facing validation, a real-browser test
+harness, and a mobile-first recomposition of the play surface followed.
 
 ### Current — publish the completed world-graph kind (T4)
 
@@ -405,8 +408,8 @@ time seems sufficiently ambitious. In
 Developers tired of rebuilding the same mechanics. System designers. Narrative
 designers. Simulation nerds. AI-assisted workflows. Researchers. Tool builders.
 
-And anyone who's ever stared at an existing codebase and quietly whispered, *"There has
-to be a better way."*
+And anyone who's ever stared at an existing codebase and quietly whispered, _"There has
+to be a better way."_
 
 There might be.
 
@@ -441,12 +444,12 @@ Either way, you've understood it.
 
 ## Layout
 
-| Path | What |
-|---|---|
-| [`docs/docs/engine/`](https://game-engine.subzerodev.com/docs/engine/vision) | The specs — `01-vision`, `02-architecture`, `04-core` (the API/types), `03-story-graph-kind`, `MVP`, `TODO`, `OPEN-QUESTIONS` |
-| [`src/engine/`](https://game-engine.subzerodev.com/docs/guide/engine-package) | The implementation (TypeScript strict, vitest, determinism-guard eslint) |
-| `docs/` | The specs are a Docusaurus site; `docs/docs/` is its content root |
-| [`docs.ps1`](https://game-engine.subzerodev.com/docs/guide/documentation-site#previewing-locally) | Build & serve the docs site |
+| Path                                                                                              | What                                                                                                                          |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| [`docs/docs/engine/`](https://game-engine.subzerodev.com/docs/engine/vision)                      | The specs — `01-vision`, `02-architecture`, `04-core` (the API/types), `03-story-graph-kind`, `MVP`, `TODO`, `OPEN-QUESTIONS` |
+| [`src/engine/`](https://game-engine.subzerodev.com/docs/guide/engine-package)                     | The implementation (TypeScript strict, vitest, determinism-guard eslint)                                                      |
+| `docs/`                                                                                           | The specs are a Docusaurus site; `docs/docs/` is its content root                                                             |
+| [`docs.ps1`](https://game-engine.subzerodev.com/docs/guide/documentation-site#previewing-locally) | Build & serve the docs site                                                                                                   |
 
 ## Build the Docs Site
 

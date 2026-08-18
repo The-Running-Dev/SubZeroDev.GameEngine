@@ -446,8 +446,9 @@ function App() {
             <span className="commentary-marker" aria-hidden="true">
               *
             </span>
-            Tested engine scenarios exist. Polished player-facing games are
-            still later work. The distinction matters.
+            Story-graph now has a playable casebook. Simulation and world-graph
+            still have tested scenarios, not polished games. The distinction
+            matters.
           </p>
           <ContinueLink to="#continue" />
         </section>
