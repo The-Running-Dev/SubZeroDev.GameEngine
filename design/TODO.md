@@ -190,10 +190,12 @@
 
 ### Content Tooling — A First-Class Workstream, Not an Afterthought
 
-### [ ] W73 — Tier 3 Validation as an Author-Facing Check {#w73}
+### [x] W73 — Tier 3 Validation as an Author-Facing Check {#w73}
 
 ### [ ] W74 — Campaign Content Ownership {#w74}
 
 ### [ ] W75 — Classified Persistence Conflicts {#w75}
+
+### [ ] W76 — A Folded Registry Keeps Its Resolution {#w76}
 
 ## Known Open Items Carried In

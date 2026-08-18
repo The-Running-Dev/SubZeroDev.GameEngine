@@ -2588,7 +2588,7 @@ dead-end states — found by running, not reading" — and [03 §11](03-story-gr
 gives its two story-graph cases, but nothing under `src/engine/src/core/validation/`
 implements it.
 
-### [ ] W73 — Tier 3 Validation as an Author-Facing Check {#w73}
+### [x] W73 — Tier 3 Validation as an Author-Facing Check {#w73}
 
 **Delivers:** Tells a campaign author the thing that reading the campaign cannot — which
 endings no sequence of choices can actually reach, and which choices no reachable state can
@@ -2612,7 +2612,7 @@ that is `/contract`'s call, not this unit's.
       same placement and rationale `demo-cli.ts` already uses; `src/engine/package.json`
       scripts; a broken fixture under `src/engine/src/campaigns/`.
 - **Depends on:** nothing.
-- **Status:** Not started.
+- **Status:** Done — [PR #319](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/319).
 - **Done when:**
   - W73.1 Running the checker over a committed story-graph campaign reports, per ending,
         whether some sequence of choices from `startNodeId` reaches it, and exits non-zero when
@@ -2707,6 +2707,75 @@ readable.
         both.
   - W75.7 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`, and
         `./build/Test-Documentation.ps1` passes.
+
+---
+
+### [ ] W76 — A Folded Registry Keeps Its Resolution {#w76}
+
+**Delivers:** A game assembled from several content packs can still say which mix of content it
+was played against — on the one route a host is actually able to use. Today that route quietly
+loses the record, so every host has to remember to put it back by hand, and a host that forgets
+loses it with no symptom at all: the game plays perfectly and simply stops being able to say
+what it was.
+
+**Backfilled from [#315](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/315),
+which was authored straight onto the tracker.** The issue carried the full slice — narrative,
+ten criteria, out-of-scope list — but no `W76` section ever existed in this ledger, so its pin
+cited a section that could not be read. Recorded here so the pin resolves and the ledger stays
+the origin; the criteria are transcribed as written and their ids are retained.
+
+- **Spec:** [11 §3](11-content-packs.md#3-resolution),
+      [§4](11-content-packs.md#4-the-one-change-to-contentregistry),
+      [§7](11-content-packs.md#7-validation);
+      [04 §10.1](04-core.md#101-content-registry),
+      [§11](04-core.md#11-tiered-validation),
+      [§12](04-core.md#12-reason-codes-state-changes-messages).
+- **Touches:** `src/engine/src/core/registry/packs.ts` and `types.ts`;
+      `src/engine/src/core/validation/tiered.ts`; `src/engine/src/index.ts`;
+      `src/engine/src/campaigns/stable-life-packs.ts` and `stable-life-packs.test.ts`;
+      `src/engine/package.json`.
+- **Depends on:** nothing beyond the shipped pack resolution.
+- **Status:** Not started.
+- **Done when:**
+  - W76.1 One call takes an ordered pack set and returns a validated, frozen registry whose
+        `resolution` equals `computeResolutionId` over that same set, with no caller reattaching
+        anything. Asserted for both a one-pack set and a two-pack set, and the two values differ.
+  - W76.2 That same call still merges each used kind's own `<kindId>.reason.*` messages into the
+        frozen table: a rejection raised through the resulting registry renders the kind's
+        message, not a bare key.
+  - W76.3 The new path fails at both stages and reports which: a pack set violating an 11 §7
+        Tier 1 rule and a pack set that resolves but whose campaign fails 04 §11 Tier 1 each
+        return `ok: false` carrying that stage's errors and no registry. One committed fixture
+        per stage, with the error counts stated.
+  - W76.4 Tier 2 warnings from both stages reach the caller in one result: a
+        `pack_override_unexpected` warning and a kind-supplied warning appear together, so
+        folding swallows neither.
+  - W76.5 The no-pack route is unchanged. `buildContentRegistry` and the existing
+        `buildValidatedContentRegistry` signature still produce a registry with
+        `resolution === undefined`, and every existing call site compiles untouched.
+  - W76.6 Which string table each campaign is validated against on the folded path is pinned by
+        a test, not left implicit: a campaign whose `titleKey` resolves nowhere in the resolved
+        set fails with `missing_string_key`, and a campaign whose `titleKey` resolves only
+        through a later pack's contribution has its outcome asserted either way. If that outcome
+        contradicts 04 §11's per-campaign scoping, stop and report it rather than picking a
+        reading — that is `/contract`'s call.
+  - W76.7 `stable-life-packs.ts`'s `resolveStableLifeRegistry` — which already consolidated the
+        fold-then-validate-then-reattach sequence out of its three former callers — is rewritten
+        to call the new shared call instead of reimplementing that sequence itself, and the
+        suite passes through the new path with no local helper reconstructing what the call now
+        returns.
+  - W76.8 Proven by reverting: with the `resolution` assignment removed from the new path, a
+        named test goes red.
+  - W76.9 Whatever shape is chosen — an optional parameter or a pack-aware sibling — the surface
+        a host must call is reachable from the package root, the package version is bumped for
+        the added or widened surface, and `consumer-smoke` resolves it through the packed tarball
+        rather than a source link.
+  - W76.10 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`, and
+        `./build/Test-Documentation.ps1` passes.
+- **Out of scope:** making `resolution` required on `ContentRegistry`; changing `resolvePacks`'
+      fold rules or `computeResolutionId`'s digest; the engine reading `resolution`; pack
+      discovery, distribution, and loading from disk; W72's Bulgarian content volume; the seven
+      Adventures findings, which route to `/contract`.
 
 ## Known Open Items Carried In
 
