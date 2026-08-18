@@ -8,12 +8,12 @@
     files and both fail silently when done from memory (AGENTS.md, "What should stop being
     model work" - the red row):
 
-      1. Criterion ids. Every `S<n>.<m>` under a slice's `Acceptance:` lines, against every
-         `S<n>.<m>` checkbox in that slice's issue. Reworded criteria are not drift; an added,
+      1. Criterion ids. Every `W<n>.<m>` under a slice's `Done when:` lines, against every
+         `W<n>.<m>` checkbox in that slice's issue. Reworded criteria are not drift; an added,
          removed, or renumbered id is. A renumber is the finding that matters, because an
          existing ticked checkbox then refers to something else.
 
-      2. Pin ancestry. Every `design/30-slices.md § S<n> @ <sha>` pin in an issue's agent
+      2. Pin ancestry. Every `design/30-slices.md § W<n> @ <sha>` pin in an issue's agent
          block, against `git merge-base --is-ancestor <sha> HEAD`. This is the check
          design/90-decisions.md (2026-08-10) records as having been claimed done and not
          been: fourteen of seventeen issues cited a commit that was not an ancestor of main,
@@ -81,9 +81,11 @@ function New-Failure {
 }
 
 <#
-    Criterion ids are read only from lines under a `## S<n>` heading, never from the whole
-    file. Prose cites ids too - "exercised by S1.10" appears in this document's own Contract
-    questions section - and a whole-file regex would count those as criteria that exist.
+    Criterion ids are read only from lines under a `### [ ] W<n>` heading, never from the
+    whole file. Prose cites ids too - "exercised by W1.10" would appear in this document's
+    own cross-references - and a whole-file regex would count those as criteria that exist.
+    This repository retains its established `W` slice prefix in place of the kit's generic
+    `S` (design/30-slices.md, "How this document is kept"; .claude/commands/track-local.md).
 #>
 function Get-SliceCriteria {
     param([Parameter(Mandatory)][string] $Path)
@@ -101,32 +103,40 @@ function Get-SliceCriteria {
     $current = $null
 
     foreach ($line in (Get-Content -LiteralPath $Path)) {
-        if ($line -match '^##\s') {
-            # A new second-level heading always ends the previous slice's body, so an
-            # Acceptance line can never be attributed across a section boundary.
-            $current = if ($line -match '^##\s+S(?<n>\d+)\b') { [int]$Matches['n'] } else { $null }
+        if ($line -match '^##\s' -and $line -notmatch '^###') {
+            # A thematic `##` section boundary (this repository groups slices under
+            # `## Core`, `## Post-MVP — Depth`, etc., not a flat `## Outstanding`) always
+            # ends the previous slice's body, the same as a new slice heading does below.
+            $current = $null
+            continue
+        }
+
+        if ($line -match '^###\s+\[') {
+            # A new third-level `### [ ] W<n>` heading always ends the previous slice's body,
+            # so a Done-when line can never be attributed across a section boundary.
+            $current = if ($line -match '^###\s+\[.\]\s+W(?<n>\d+)\b') { [int]$Matches['n'] } else { $null }
             if ($null -ne $current -and -not $slices.ContainsKey($current)) {
                 $slices[$current] = [System.Collections.Generic.List[string]]::new()
             }
             continue
         }
 
-        if ($line -match '^\|\s*\*\*S(?<n>\d+)\*\*\s*\|') {
+        if ($line -match '^\|\s*\*\*W(?<n>\d+)\*\*\s*\|') {
             $landed.Add([int]$Matches['n'])
             continue
         }
 
-        if ($null -ne $current -and $line -match '^\s*-\s+S(?<n>\d+)\.(?<m>\d+)\b') {
+        if ($null -ne $current -and $line -match '^\s*-\s+W(?<n>\d+)\.(?<m>\d+)\b') {
             if ([int]$Matches['n'] -ne $current) {
                 # An id numbered for a different slice than the section it sits in. Reported
                 # rather than silently filed under either, because it is a defect in the doc.
                 if (-not $slices.ContainsKey(-1)) {
                     $slices[-1] = [System.Collections.Generic.List[string]]::new()
                 }
-                $slices[-1].Add("S$($Matches['n']).$($Matches['m']) (found under S$current)")
+                $slices[-1].Add("W$($Matches['n']).$($Matches['m']) (found under W$current)")
                 continue
             }
-            $slices[$current].Add("S$($Matches['n']).$($Matches['m'])")
+            $slices[$current].Add("W$($Matches['n']).$($Matches['m'])")
         }
     }
 
@@ -143,8 +153,8 @@ function Get-IssueCriteria {
 
     $ids = [System.Collections.Generic.List[string]]::new()
     foreach ($line in ($Body -split "`r?`n")) {
-        if ($line -match '^\s*-\s*\[[ xX]\]\s*\*{0,2}S(?<n>\d+)\.(?<m>\d+)\*{0,2}') {
-            $ids.Add("S$($Matches['n']).$($Matches['m'])")
+        if ($line -match '^\s*-\s*\[[ xX]\]\s*\*{0,2}W(?<n>\d+)\.(?<m>\d+)\*{0,2}') {
+            $ids.Add("W$($Matches['n']).$($Matches['m'])")
         }
     }
     @($ids)
@@ -154,10 +164,10 @@ function Get-IssuePin {
     param([string] $Body)
     if ([string]::IsNullOrWhiteSpace($Body)) { return $null }
     # The backtick after `.md` is not optional decoration: track.md's pin format is
-    # `design/30-slices.md` § S3 @ `a1b2c3d`, so the path is code-fenced and the closing
+    # `design/30-slices.md` § W3 @ `a1b2c3d`, so the path is code-fenced and the closing
     # fence sits between `.md` and the section mark. Omitting it here matched no real issue
     # at all - caught by the first CI run of this file's tests, not by reading it.
-    if ($Body -match '30-slices\.md`?\s*§\s*S(?<n>\d+)\s*@\s*`?(?<sha>[0-9a-fA-F]{7,40})`?') {
+    if ($Body -match '30-slices\.md`?\s*§\s*W(?<n>\d+)\s*@\s*`?(?<sha>[0-9a-fA-F]{7,40})`?') {
         return [pscustomobject]@{ Slice = [int]$Matches['n']; Sha = $Matches['sha'] }
     }
     $null
@@ -241,10 +251,10 @@ function Invoke-DriftCheck {
 
     foreach ($number in ($doc.Slices.Keys | Sort-Object)) {
         $docIds = @($doc.Slices[$number] | Sort-Object -Unique)
-        $issue  = $tracker.Issues | Where-Object { $_.title -match "^S$number\b" } | Select-Object -First 1
+        $issue  = $tracker.Issues | Where-Object { $_.title -match "^W$number\b" } | Select-Object -First 1
 
         if (-not $issue) {
-            $findings.Add((New-Finding -Kind 'NoIssue' -Slice "S$number" -Detail 'slice has no issue; /track opens one' -Issue 0))
+            $findings.Add((New-Finding -Kind 'NoIssue' -Slice "W$number" -Detail 'slice has no issue; /track opens one' -Issue 0))
             continue
         }
 
@@ -252,22 +262,24 @@ function Invoke-DriftCheck {
         $issueIds = @(Get-IssueCriteria -Body $issue.body | Sort-Object -Unique)
 
         foreach ($id in ($docIds | Where-Object { $_ -notin $issueIds })) {
-            $findings.Add((New-Finding -Kind 'InDocNotIssue' -Slice "S$number" -Detail $id -Issue $issue.number))
+            $findings.Add((New-Finding -Kind 'InDocNotIssue' -Slice "W$number" -Detail $id -Issue $issue.number))
         }
         foreach ($id in ($issueIds | Where-Object { $_ -notin $docIds })) {
-            $findings.Add((New-Finding -Kind 'InIssueNotDoc' -Slice "S$number" -Detail $id -Issue $issue.number))
+            $findings.Add((New-Finding -Kind 'InIssueNotDoc' -Slice "W$number" -Detail $id -Issue $issue.number))
         }
     }
 
-    # Landed slices carry no criteria in the doc by design - their bodies were retired once
-    # their issues closed (design/30-slices.md, "How this document is kept"). Comparing ids
-    # for one would report every criterion as removed, so only the pin is checked.
+    # In the kit's generic layout, a landed slice's body is retired once its issue closes,
+    # so only its pin can be checked. This repository does not retire slice bodies (every
+    # `### [x] W<n>` keeps its full "Done when" list - design/30-slices.md, "How this
+    # document is kept"), so `$landed` stays empty here and every slice, closed or open,
+    # is compared on ids above as well as pin below.
     foreach ($issue in $tracker.Issues) {
         $pin = Get-IssuePin -Body $issue.body
         if (-not $pin) { continue }
 
         switch (Test-CommitIsAncestor -Sha $pin.Sha) {
-            'NotAncestor'  { $findings.Add((New-Finding -Kind 'PinNotAncestor' -Slice "S$($pin.Slice)" -Detail $pin.Sha -Issue $issue.number)) }
+            'NotAncestor'  { $findings.Add((New-Finding -Kind 'PinNotAncestor' -Slice "W$($pin.Slice)" -Detail $pin.Sha -Issue $issue.number)) }
             'Unresolvable' { $failures.Add((New-Failure -Reason 'PinUnresolvable' -Detail "#$($issue.number) pins $($pin.Sha), which this clone cannot resolve")) }
         }
     }
