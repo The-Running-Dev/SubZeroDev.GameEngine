@@ -198,4 +198,14 @@
 
 ### [ ] W76 — A Folded Registry Keeps Its Resolution {#w76}
 
+### Content Tooling — Slicing the Remaining Bullets
+
+### [ ] W77 — Tier 1 and Tier 2 as an Author-Facing Check {#w77}
+
+### [ ] W78 — Localization Coverage and String Extraction {#w78}
+
+### [ ] W79 — What Changed Between Two Resolutions {#w79}
+
+### [ ] W80 — Seeing a Story Graph {#w80}
+
 ## Known Open Items Carried In

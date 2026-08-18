@@ -2778,6 +2778,226 @@ the origin; the criteria are transcribed as written and their ids are retained.
       discovery, distribution, and loading from disk; W72's Bulgarian content volume; the seven
       Adventures findings, which route to `/contract`.
 
+### Content Tooling — Slicing the Remaining Bullets
+
+**W73 took the one bullet that was fully specified.** The five above are still open, and they
+are now the largest named body of unbuilt work in this repository: the runtime has three kinds,
+nine story-graph campaigns, a second locale and a culture pack, and an author has exactly one
+command to point at any of it. Four units below take four of the five bullets — two of them
+only in half, because the other half of each is blocked on something a slice may not invent.
+What is deliberately *not* sliced, and why, is stated in that unit's **Out of scope** rather
+than left as an absence.
+
+### [ ] W77 — Tier 1 and Tier 2 as an Author-Facing Check {#w77}
+
+**Delivers:** Someone writing a campaign can ask what is wrong with it before anyone plays it,
+and get back a list they can act on — naming the node, key or id at fault. Today those checks
+already run on every campaign, but the only way to see what they found is to be a program that
+caught a registry build failing; there is no way for the person who wrote the content to just
+ask.
+
+**The premise under test is [`02-architecture.md`](02-architecture.md) §9's N10** — "the engine
+validates AI-authored content" is a safety property only if the validation is reachable by
+whoever authored it. It currently is not. The second thing this unit finds out is whether
+`ValidationError` as shipped is *legible*: `path` is optional and `details` is sparse, so if a
+real finding cannot be located from what the type carries, that is a contract finding to report
+rather than paper over.
+- **Spec:** [04 §11](04-core.md#11-tiered-validation),
+      [§12](04-core.md#12-reason-codes-state-changes-messages),
+      [§17](04-core.md#17-identifier-conventions);
+      [03 §11](03-story-graph-kind.md#11-validation-story-graph-specific);
+      [`02-architecture.md`](02-architecture.md) §9, §9.2.
+- **Touches:** a new checker under `src/engine/scripts/`, alongside `validate-campaign.ts` —
+      the placement and rationale [`02-architecture.md`](02-architecture.md) §9.2 already
+      states; `src/engine/package.json` scripts. `src/engine/src/core/validation/tiered.ts` is
+      **read, not modified**.
+- **Depends on:** nothing.
+- **Status:** Not started.
+- **Done when:**
+  - W77.1 Running the check over a named committed campaign reports every Tier 1 error and
+        Tier 2 warning `buildValidatedContentRegistry` produces for it, each rendered with its
+        `code`, its message resolved against the string table — never a bare `messageKey` — and
+        its `path` when one is set.
+  - W77.2 The exit code carries the tier split: a campaign with any Tier 1 error exits
+        non-zero, a campaign with only Tier 2 warnings exits zero and still prints them.
+  - W77.3 Both committed broken fixtures — `bulgaria-bureaucracy.broken.ts` and
+        `stable-life.broken.ts` — produce a named, non-empty finding list, with the exact error
+        and warning counts stated in the test rather than asserted as "more than zero."
+  - W77.4 Coverage is not maintained by remembering. A test enumerates
+        `src/engine/src/campaigns/*.ts` and requires every module exporting a campaign builder
+        to be either in the checker's catalogue or in an explicit exclusion list carrying a
+        stated reason — a module in neither fails the test. So a campaign added without
+        registering it turns a suite red instead of going silently unchecked, and the
+        deliberately-broken and locale fixtures stay excluded on the record rather than by
+        omission. Three scripts (`demo-cli.ts`, `export-campaigns.ts`, `validate-campaign.ts`)
+        each hand-maintain their own list today; this unit introduces the shared catalogue
+        rather than a fourth list.
+  - W77.5 No registry path invokes the checker and no new rule is added.
+        `buildValidatedContentRegistry` is asserted unchanged in behaviour, and every finding
+        the checker prints is one the registry path already produces.
+  - W77.6 Every finding the two broken fixtures produce carries a location — a `path`, or a
+        `details` entry naming one — asserted finding-by-finding rather than in aggregate. Any
+        that does not is reported as a contract gap with the campaign and check named, and is
+        **not** worked around by having the checker re-derive the location itself, which would
+        put a second validation implementation in the tree.
+  - W77.7 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`.
+- **Out of scope:** Tier 3 reachability, which is [W73](#w73)'s `validate-campaign` and stays a
+      separate command; wiring either checker into CI as a required gate, which W73 already
+      named as a policy change wanting its own decision; migrating `demo-cli.ts` and
+      `export-campaigns.ts` onto the shared catalogue; adding, tightening or relaxing any
+      validation rule — this unit surfaces the checks that exist and authors none.
+
+### [ ] W78 — Localization Coverage and String Extraction {#w78}
+
+**Delivers:** A translator can be handed the exact list of lines a campaign needs, and a
+maintainer can see which campaigns are translated, which are half-translated and which are not
+translated at all. Today the only way to discover a translation is incomplete is to try to
+build it and read the failure — one missing line at a time, with no way to ask how many are
+left.
+
+[W60](#w60) put string-table extraction, translation workflow and coverage reporting out of its
+own scope by name and routed them here. [04 §10.1](04-core.md#101-content-registry) says
+additional locales are "string tables plus tooling, no type change"; W60 proved the string-table
+half for one campaign, and this is the tooling half, across a shelf where exactly one campaign
+of nine has a second locale.
+- **Spec:** [04 §10.1](04-core.md#101-content-registry),
+      [§11](04-core.md#11-tiered-validation) (`missing_string_key`),
+      [§17](04-core.md#17-identifier-conventions); [09 §5](09-clients.md#5-reason-codes-and-messages).
+- **Touches:** a new script under `src/engine/scripts/`; `src/engine/package.json` scripts;
+      a second-locale fixture under `src/engine/src/campaigns/`.
+      `src/engine/src/core/localization/` and `src/engine/src/core/registry/` are **read, not
+      modified**.
+- **Depends on:** [W77](#w77), for the shared campaign catalogue.
+- **Status:** Not started.
+- **Done when:**
+  - W78.1 For a named campaign the tool emits the complete, sorted set of `LocKey`s its built
+        campaign requires — the keys `BuiltCampaign.strings` carries — in a form a translator
+        can fill in. Running it twice produces byte-identical output.
+  - W78.2 For a campaign with a second-locale build the tool reports, per locale: keys present
+        in the reference locale and absent here, keys present here and in no reference locale,
+        and the resulting covered/total count. Asserted against `bulgaria-bureaucracy` and its
+        `.bg` build, which is complete, and against a fixture with exactly one key removed,
+        whose report names that key.
+  - W78.3 An **untranslated** key — present in both tables with byte-identical text — is
+        counted and reported separately from a missing one. This is the case Tier 1 cannot
+        catch at all, since the key resolves; stated as a count and asserted on a fixture
+        carrying exactly one.
+  - W78.4 Across the whole catalogue the tool reports how many campaigns have a second locale
+        and which, so the shelf-wide gap is a number rather than an absence nobody counted.
+  - W78.5 The tool writes only files it was explicitly asked to write: a run against the
+        committed shelf leaves `git status --short` clean.
+  - W78.6 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`.
+- **Out of scope:** translating anything; a translation-memory, vendor or review workflow;
+      per-locale content packs, which [11 §8](11-content-packs.md#8-what-is-deferred) defers by
+      name; locale-aware pluralization and formatting, which
+      [09 §9](09-clients.md#9-deferred) leaves to a client; making coverage a CI gate, which is
+      the same policy decision W77 declines to take unilaterally.
+
+### [ ] W79 — What Changed Between Two Resolutions {#w79}
+
+**Delivers:** When two saves say they were played against different content, someone can find
+out what was actually different. The platform can already prove two content resolutions are not
+the same — that is what the resolution id is for — but it cannot say how, so every question
+about a divergence ends at "the digests differ," which is exactly where the interesting part
+starts.
+
+[W58](#w58) built `computeResolutionId` and [W71](#w71) proved two real resolutions of
+`stable-life` produce different ids. Neither can answer what moved between them, and
+[11 §6](11-content-packs.md#6-identity-and-why-determinism-needs-it) is deliberately a digest —
+it is *meant* to be opaque, which is precisely why the readable view has to be tooling beside
+it rather than a widening of it.
+- **Spec:** [11 §3](11-content-packs.md#3-resolution),
+      [§4](11-content-packs.md#4-the-one-change-to-contentregistry),
+      [§6](11-content-packs.md#6-identity-and-why-determinism-needs-it);
+      [04 §10.1](04-core.md#101-content-registry).
+- **Touches:** a new script under `src/engine/scripts/`; `src/engine/package.json` scripts.
+      `src/engine/src/core/registry/packs.ts` and `src/engine/src/campaigns/stable-life-packs.ts`
+      are **read, not modified**.
+- **Depends on:** [W58](#w58), [W71](#w71) — both done.
+- **Status:** Not started.
+- **Done when:**
+  - W79.1 Given two ordered pack sets the tool reports both `ResolutionId`s and, when they
+        differ, an itemized difference following [11 §3](11-content-packs.md#3-resolution)'s two
+        replacement rules: campaigns replaced wholesale by id, and string keys added, removed or
+        changed. Asserted on `[base]` versus `[base, bulgaria]` with the expected item counts
+        stated in the test.
+  - W79.2 A key whose *value* changed is reported as changed, distinct from added and removed.
+        This is the case a set difference alone misses entirely, and it is what a culture pack
+        is almost wholly made of — W71's pack overrides text at existing keys.
+  - W79.3 Two identical pack sets produce equal ids and an empty difference, and the tool says
+        so explicitly rather than printing nothing.
+  - W79.4 Output is deterministic and independent of object key order: the same two sets produce
+        byte-identical output across runs, and reordering a pack's fields in source does not
+        change it.
+  - W79.5 `resolvePacks` and `computeResolutionId` are unchanged and the tool only reads them —
+        asserted by no file under `src/engine/src/core/` changing.
+  - W79.6 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`.
+- **Out of scope:** **balancing tools — the other half of this workstream's third bullet.** They
+      need the simulation harness the provisional-numbers debt
+      ([issue #267](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/267)) is
+      itself waiting on, and neither the harness's shape nor what a balance finding *is* is
+      specified anywhere; slicing it now would mean inventing both. Also out: diffing saves or
+      runtime state; diffing portable campaign JSON as shipped to hosts, which belongs to
+      Adventures.Content ([W74](#w74)); pack discovery and loading from disk
+      ([11 §8](11-content-packs.md#8-what-is-deferred)).
+
+### [ ] W80 — Seeing a Story Graph {#w80}
+
+**Delivers:** Anyone looking at an authored adventure can see its shape — where it starts, where
+it branches, which endings hang off which route — instead of reconstructing it from several
+hundred lines of node ids. The shelf is nine campaigns and, across the five expanded Bulgaria
+publications alone, seventy-five endings ([W74.3](#w74)); there is currently no way to look at
+any of it.
+
+- **Spec:** [03 §3](03-story-graph-kind.md#3-nodes--the-single-content-type-n7),
+      [§4](03-story-graph-kind.md#4-choices-and-transitions),
+      [§8.5](03-story-graph-kind.md#85-terminal-identity);
+      [`02-architecture.md`](02-architecture.md) §9.1, §9.2 — the three tests that make this
+      tooling rather than a fourth layer apply here unchanged.
+- **Touches:** a new script under `src/engine/scripts/`; `src/engine/package.json` scripts.
+- **Depends on:** [W77](#w77), for the shared campaign catalogue and for the Tier 2 warnings
+      W80.4 cross-checks against.
+- **Status:** Not started.
+- **Done when:**
+  - W80.1 For a named story-graph campaign the tool emits a text graph — Mermaid, which needs no
+        dependency to write — with one vertex per node, edges labelled by choice id, and
+        ending nodes visually distinguished from `choice`, `auto` and `random` nodes. Every node
+        and every choice in the campaign appears exactly once, asserted by count against the
+        built campaign.
+  - W80.2 Output is deterministic: the same campaign produces byte-identical output across runs,
+        with vertices and edges in a stated canonical order rather than object-iteration order.
+  - W80.3 The largest committed campaign renders without truncation, and the tool prints its
+        node, choice and ending counts beside the graph so a reader can check the picture
+        against the numbers.
+  - W80.4 A node no edge reaches is marked as such, and the set it marks equals the set of nodes
+        [W77](#w77) reports a Tier 2 unreachable warning for on the same campaign — the same
+        finding in two forms, never two different answers. If they disagree, that is the
+        finding: report it rather than reconciling it in the renderer.
+  - W80.5 The tool reads the built campaign only. No file under `src/engine/src/` changes, and
+        nothing in the registry path imports it.
+  - W80.6 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`.
+- **Out of scope:** **the visual node editor — the other half of this workstream's second
+      bullet.** It writes content rather than reading it, so it needs decisions this repository
+      has not taken: where it lives, what it emits, and whether authored source or built
+      campaign is its file format. [`02-architecture.md`](02-architecture.md) §9.1's "a campaign
+      is free not to use one" test is about builders, and an editor that owns the file is a
+      different question. Route to `/design` before it is sliced. Also out: graphing the
+      `simulation` and `world-graph` kinds, whose state is not an authored graph; rendering to
+      an image format; embedding the graph in the documentation site.
+
+> **The fifth bullet — authoring assistants — is not sliced, and the reason is a decision, not a
+> size.** [`02-architecture.md`](02-architecture.md) §9 settles the *boundary* (AI authors
+> campaigns, never kinds; its output is data and is validated identically), which is the part
+> that needed settling. What it does not settle is anything an implementation needs: which model
+> or service, which is a new dependency and so needs a decision-log entry naming what was
+> rejected; whether the assistant lives in this repository at all now that
+> [SubZeroDev.Adventures.Content](https://github.com/The-Running-Dev/SubZeroDev.Adventures.Content)
+> owns published narrative content ([W74](#w74)); and what it would be measured against. W77 is
+> its real precondition regardless — an assistant whose output is checked by a validator no
+> human can run is the same gap one level up.
+
+---
+
 ## Known Open Items Carried In
 
 > Full register of unknowns, gaps, and deferred decisions:
