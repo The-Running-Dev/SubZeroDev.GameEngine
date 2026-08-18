@@ -3,19 +3,28 @@
 The code for the deterministic narrative game engine. The design lives in
 [`../../docs/docs/engine/`](../../docs/docs/engine/02-architecture.md); this is the build.
 
-**Status:** Phase 1 in progress — the deterministic core. No game is playable yet.
+**Status:** Three kinds implemented and tested — `story-graph`, `simulation`, and
+`world-graph` — with a published package, a playable public casebook at `/play/`, and a
+Bulgarian content pack proving a campaign can reskin without an engine change. Full,
+unit-by-unit state: [`docs/docs/engine/TODO.md`](../../docs/docs/engine/TODO.md).
 
 ## Layout
 
 ```
 src/
   core/            the shared, game-agnostic layer, used by every kind
-    rng/                seeded PRNG (PCG32), serializable state, named substreams
-    serialize/          canonical (byte-stable) serialization
-    ...                 (session store, projection, registry, validation — pending)
-  kinds/                game-logic modules (story-graph, simulation — pending)
-  clients/              text client (pending)
-  mcp/                  MCP server (pending)
+    determinism/        seeded PRNG (PCG32), serializable state, named substreams
+    persistence/         canonical (byte-stable) serialization
+    session/, registry/, validation/, projection/, replay/, observability/,
+    composition/, condition/, localization/    session store, registry, validation,
+                                                projection, replay oracle, event sinks,
+                                                composition roots, condition tree, i18n
+  kinds/                game-logic modules: story-graph, simulation, world-graph
+  clients/              text client
+  mcp/                  MCP server
+  campaigns/            Bulgaria: Make-Your-Own-Adventure content, built against story-graph
+  portable/             the portable save/campaign format (non-contract spike exports)
+  authoring.ts           the public authoring seam consumers build campaigns against
 ```
 
 Structure mirrors the architecture's dependency layering
@@ -45,6 +54,4 @@ npm run lint    # determinism guard + typescript-eslint
 npm run typecheck
 ```
 
-> The core logic was verified by running it directly in Node during development
-> (all invariants pass, RNG matches reference vectors). The committed `*.test.ts` files
-> are the vitest versions; run `npm install && npm test` to execute them in CI.
+All three run in CI on every push and pull request (the `engine` job).

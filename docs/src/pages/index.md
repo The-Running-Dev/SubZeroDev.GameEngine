@@ -359,14 +359,17 @@ The MVP contracts are complete and every MVP-blocking decision has already been 
 [Story Graph](/docs/engine/story-graph-kind). The remaining
 work is implementation. Not philosophy.
 
-### Code — two implemented kinds, a published package, and a replay-guarded world graph (W0–W49)
+### Code — three implemented kinds and a playable public casebook (W0–W73)
 
-The deterministic core, story-graph kind, five Bulgaria arcs, text client, MCP adapter,
-replay oracle, save migration, and simulation kind are built and tested. `v0.4.0` is published
-as `@the-running-dev/game-engine`; a clean consumer test installs the packed artifact rather
-than trusting this checkout. The world-graph runtime-state, content, resolution, immediate-action
-foundation, deterministic tick pipeline, playable guest journey, validation, and replay guard
-are also merged.
+The deterministic core, story-graph kind, simulation kind, and world-graph kind are all built
+and tested, including the world graph's deterministic tick pipeline, playable guest journey,
+validation, and replay guard. `v0.4.0` is published as `@the-running-dev/game-engine`; a clean
+consumer test installs the packed artifact rather than trusting this checkout. All six
+story-graph campaigns — Return, Bureaucracy, Driving, Inheritance, Enterprise, and Lucifer
+Chronicles — now ship as a replayable casebook behind an original adventure-cabinet interface at
+[`/play/`](/play/), with a Bulgarian content pack proving the
+same engine reskins without an engine change. Author-facing validation, a real-browser test
+harness, and a mobile-first recomposition of the play surface followed.
 
 ### Current — publish the completed world-graph kind (T4)
 
