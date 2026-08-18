@@ -46,6 +46,8 @@
 
 ### 9.1 Campaign-Shape Builders Are Tooling, Not a Fourth Layer
 
+### 9.2 Authoring-Time Checks Are Tooling Too
+
 ## 10. The API and MCP Surface
 
 ## 11. What Is Settled, What Is Next

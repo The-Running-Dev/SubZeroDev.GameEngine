@@ -417,8 +417,10 @@ over from the simulation kind's §4.3.
 The same reasoning covers a second producer of content, and the layer model reads as though it
 does not exist: a **campaign-shape builder** — a parameterized function that takes a
 campaign's authored prose, choices and endings and emits the repetitive graph topology around
-them. `adventure-builder.ts` is the built one; every shipped story-graph campaign is
-constructed through it.
+them. `adventure-builder.ts` is the built one, and eight of the nine shipped story-graph
+campaigns are constructed through it. `what-would-lucifer-do-engineers-cut` is not — it is
+written out longhand, as is the Tier 3 reachability fixture (§9.2). That is the third bullet
+below happening in fact rather than in principle, and it is why the bullet is worth keeping.
 
 It is not a layer between kinds and campaigns:
 
@@ -434,9 +436,36 @@ It is not a layer between kinds and campaigns:
   different topology can simply be written out longhand. It can, and one that needs to,
   should.
 
-The cost of *not* saying this is a reader inferring from six identically-shaped campaigns that
-the shape is required. It is a convenience, and the day it stops being convenient is the day
-to stop using it, not to generalize it.
+The cost of *not* saying this is a reader inferring from a shelf of identically-shaped
+campaigns that the shape is required. It is a convenience, and the day it stops being
+convenient is the day to stop using it, not to generalize it.
+
+### 9.2 Authoring-Time Checks Are Tooling Too
+
+The same reasoning covers a second kind of tool, one that consumes content rather than
+producing it: the **Tier 3 reachability check** ([`04-core.md`](04-core.md) §11), shipped as
+`npm run validate-campaign` in the engine package. It answers what Tier 1 and Tier 2 cannot
+— can any sequence of choices reach this ending, and can any reachable state satisfy this
+choice's requirements — by searching the state space rather than reading the definitions.
+
+It is tooling by the same three tests §9.1 applies:
+
+- **It runs outside the engine, not before it.** It imports the kind's own settle, condition
+  and achievement logic so its answers match real play, but nothing in the registry path
+  imports *it*. A campaign loads, plays and serializes identically whether or not it has ever
+  been checked.
+- **It is a check, so it changes nothing.** It emits a report, not content. There is no
+  output for validation to police and no trace in `serialize()`.
+- **It lives outside `src/`**, alongside the demo CLI, which is what puts it outside the
+  determinism guard's scope — deliberately, because a state-space search is free to use
+  ordinary collections and iteration that shipped engine code is not.
+
+Why say so rather than leave it as a script: a checker that reports "no unreachable endings"
+is easy to read as a *property of the campaign*, and it is not. It is a property of what the
+search explored. The check is bounded, it says so when a bound was hit, and
+[`04-core.md`](04-core.md) §11 makes "bounded means not proven" the contractual half. Naming
+it here is what keeps the boundary visible — an authoring aid, not a fourth validation tier
+that content must pass.
 
 ---
 
