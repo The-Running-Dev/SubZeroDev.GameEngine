@@ -3,62 +3,62 @@
     {
       "name": "engine typecheck",
       "status": "Passed",
-      "detail": "npm --prefix src/engine run typecheck: tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json completed with no output, no errors."
+      "detail": "npm --prefix src/engine run typecheck — tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json completed with no errors."
     },
     {
       "name": "engine lint",
       "status": "Passed",
-      "detail": "npm --prefix src/engine run lint: eslint src scripts completed with no output, no errors."
+      "detail": "npm --prefix src/engine run lint — eslint src scripts completed with no errors or warnings."
     },
     {
       "name": "engine test",
       "status": "Passed",
-      "detail": "npm --prefix src/engine test: vitest run. Test Files 76 passed (76), Tests 1097 passed (1097)."
+      "detail": "npm --prefix src/engine test — vitest run: Test Files 77 passed (77), Tests 1102 passed (1102)."
     },
     {
       "name": "engine pack + tarball inspect",
       "status": "Passed",
-      "detail": "cd src/engine; npm pack produced the-running-dev-game-engine-0.8.0.tgz, package size 433.8 kB, unpacked size 1.8 MB, total files 341. Tarball removed after inspection."
+      "detail": "cd src/engine; npm pack — produced the-running-dev-game-engine-0.8.0.tgz, 341 files, package size 433.3 kB, unpacked size 1.8 MB. Tarball removed after inspection."
     },
     {
       "name": "consumer smoke",
       "status": "Passed",
-      "detail": "cd consumer-smoke; npm run install:engine (packed and installed the-running-dev-game-engine-0.8.0.tgz); npm run build (tsc -p tsconfig.json, no errors); npm run smoke (node dist/smoke.js, exited cleanly with no output)."
+      "detail": "cd consumer-smoke; npm run install:engine (packed and installed the tarball); npm run build (tsc -p tsconfig.json, no errors); npm run smoke (node dist/smoke.js, exit 0, no output)."
     },
     {
       "name": "documentation gate",
       "status": "Passed",
-      "detail": "./build/Test-Documentation.ps1: first run failed with 'Generated human documentation differs from the canonical design documents: Human-documentation generation failed: Generated document is stale: engine/TODO.md (source design/30-slices.md) Generated compatibility pointer is stale: design/TODO.md' because design/30-slices.md's W71/W72 checkbox and status edits had not been regenerated. Fixed by running build/ConvertTo-HumanDocumentation.ps1, which regenerated design/TODO.md and docs/docs/engine/TODO.md, committed as c77b58b. Re-run passed: 'Human-documentation drift check passed across 18 generated engine page(s), compatibility pointers, and the guide. Documentation checks passed across 125 Markdown file(s).'"
+      "detail": "./build/Test-Documentation.ps1 — \"Human-documentation drift check passed across 18 generated engine page(s), compatibility pointers, and the guide.\" \"Documentation checks passed across 123 Markdown file(s).\""
     },
     {
       "name": "site check",
-      "status": "Passed",
-      "detail": "npm --prefix site run check: format:check, lint, typecheck, test (44 passed), test:browser (52 passed), test:build, test:merge all completed successfully. One pre-existing oxlint warning noted (src/play/PlayApp.tsx:173:22, react-hooks/exhaustive-deps) but oxlint did not fail the run."
+      "status": "DidNotRun",
+      "reason": "The aggregate `npm --prefix site run check` chains test:browser, which asserts toMatchScreenshot against a committed baseline corpus containing only -chromium-linux and -chromium-win32 references (no -chromium-darwin). On this macOS machine every one of those 16 assertions has no reference image, so the matcher writes a new image and fails by contract — this is design/90-decisions.md's 2026-08-08 entry \"Known-and-retained gap: the W65.5 visual-baseline gate cannot run on macOS\", not a regression. Per that decision, ran the six non-browser sub-gates individually instead: format:check (prettier --check, clean), lint (oxlint, one pre-existing warning in PlayApp.tsx:173 unrelated to this branch, exit 0), typecheck (tsc -b, clean), test (vitest run, 4 files / 44 tests passed), test:build (build + verify-build.mjs, passed), test:merge (verify-merge.mjs, passed). The generated -chromium-darwin PNGs were deleted rather than left staged. CI runs the full aggregate on Linux against the committed -chromium-linux baselines, so that is where this gate's real verdict comes from for this PR."
     },
     {
       "name": "powershell parse-check",
       "status": "Passed",
-      "detail": "Parsed every *.ps1 file (71 files, excluding node_modules) with [System.Management.Automation.Language.Parser]::ParseFile. Result: OK: no parse errors."
+      "detail": "Parser::ParseFile over every *.ps1 in the repository — \"All PowerShell files parsed cleanly.\", no parse errors found."
     },
     {
       "name": "pester tools",
       "status": "Passed",
-      "detail": "Invoke-Pester -Path tools -Output Detailed -PassThru. Tests completed in 18.91s. Tests Passed: 94, Failed: 0, Skipped: 0, NotRun: 0."
+      "detail": "Invoke-Pester -Path tools -Output Detailed -PassThru — Tests Passed: 94, Failed: 0, Skipped: 0, Inconclusive: 0, NotRun: 0."
     },
     {
       "name": "production docs build",
       "status": "DidNotRun",
-      "reason": "docs.ps1 does not exist in this working tree. Per this repository's CLAUDE.md, docs.ps1 is generated by Invoke-SetupDocs and is not committed to the repository, so it is absent in this environment. The corresponding 'Verify Documentation Build' check on the pull request is the source of truth for this gate."
+      "reason": "docs.ps1 is not present in this checkout — per AGENTS.md it is installed by Invoke-SetupDocs and not committed. Cannot run ./docs.ps1 -BuildOnly (the onBrokenLinks: 'throw' Docusaurus build) without it, even though Docker is available. Verify via the 'Verify Documentation Build' check on this pull request instead."
     },
     {
       "name": "host tests",
-      "status": "Passed",
-      "detail": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests/SubZeroDev.GameEngine.Host.Tests.csproj. Passed! - Failed: 0, Passed: 12, Skipped: 0, Total: 12, Duration: 730 ms."
+      "status": "DidNotRun",
+      "reason": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests/SubZeroDev.GameEngine.Host.Tests.csproj fails at restore: NU1301, 'Response status code does not indicate success: 401 (Unauthorized)' retrieving SubZeroDev.Platform.Hosting from the private GitHub Packages feed nuget.pkg.github.com/The-Running-Dev. .github/workflows/host-image.yml shows this restore needs a REGISTRY_TOKEN secret (the default GITHUB_TOKEN cannot read packages published from the sibling SubZeroDev.Platform repository) that is not available in this local environment. Verify via CI."
     },
     {
       "name": "host image smoke",
       "status": "DidNotRun",
-      "reason": "The .github/workflows/host-image.yml smoke job requires a REGISTRY_TOKEN secret to restore SubZeroDev.Platform.Hosting from GitHub Packages in the sibling SubZeroDev.Platform repository ('the default GITHUB_TOKEN cannot read packages published from a different one'). That credential is not available in this local environment, so the Docker build/run/smoke sequence cannot be reproduced here. The 'Platform Static Host Image' check on the pull request is the source of truth for this gate."
+      "reason": "Same blocker as 'host tests': the Docker build restores the same private SubZeroDev.Platform.Hosting NuGet package and requires the same REGISTRY_TOKEN secret, which is not available locally. Not attempted, to avoid a guaranteed-failing Docker build. Verify via CI (.github/workflows/host-image.yml)."
     }
   ]
 }

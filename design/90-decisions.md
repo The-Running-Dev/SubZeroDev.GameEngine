@@ -79,6 +79,16 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   because they expose repository layout and build side effects as the delivery contract.
   **Revisit when** a second independently versioned package actually exists and makes a
   monorepo/workspace layout useful rather than aspirational.
+- **`packVersion` is duplicated per pack file, not shared engine code.** The 2026-08-18 W71
+  decision above makes a pack's `version` a content digest rather than a hand-written number,
+  but the function that computes it (`packVersion` in
+  `src/engine/src/campaigns/stable-life-packs.ts`) is local and unexported — each pack file
+  must call its own copy, and `ContentPack.version` stays a plain `string` the type system
+  does not check (`10-design.md` §6). The guarantee the decision was meant to
+  make self-enforcing is currently enforced by convention again, one level down. **Revisit
+  when** a second pack is authored outside `stable-life-packs.ts` — that is the concrete case
+  for promoting `packVersion` to an exported engine helper, rather than doing it speculatively
+  ahead of a second caller.
 - **`history` in the simulation kind's state** — the upstream model carries
   `history: HistoryEntry[]`, a narrative record of what happened. That overlaps
   `StateChange[]`, which `advance` already returns (04 §12), and the event stream
@@ -820,3 +830,35 @@ known-and-retained** — rejected; the impact is small (trace stamping and a ski
 never `serialize()` output), but a stated invariant knowingly left unmet is what the envelope-
 duplication ledger is made of.
 Reversibility: cheap — three lines of code and one assertion.
+
+### 2026-08-18 — A pack's `version` is a digest of what it ships, not a hand-written semver
+Context: `11-content-packs.md` §6 makes `campaignVersion` identify the *resolution*, and
+`computeResolutionId` digests the ordered `{id, version}` list of the resolved packs. That promise
+holds only if a pack's `version` moves whenever the pack's content moves, and §6 never says how
+that is guaranteed — it reads as a published version an author maintains by hand. W71 found the
+guarantee cannot be a rule someone remembers: neither shipped pack authors its campaign in
+`campaigns/stable-life-packs.ts`. The base pack builds from `stable-life.ts`, which has already
+grown three times (W52, W53, W54) for reasons unrelated to packs; the Bulgarian pack builds from
+`bulgaria-stable-life.ts`, authored independently. Nothing would have signalled to either file's
+author that a constant in a third file had to move with theirs. The failure is silent and lands in
+replay: a fixture captured under an older content set replays against different content and reports
+`diverged`, when the honest verdict is `campaign_version_missing` (`07-replay.md` §6).
+Chosen: Derive the version as `1.0.0+<canonical-digest-12>` over the pack's campaigns and its
+sorted string table, making the property self-enforcing rather than remembered. The `1.0.0` prefix
+stays for humans — semver build metadata, and `PackRef` compares versions exactly, never as a
+range. Strings are sorted rather than left in insertion order, because the digest names what a pack
+ships and reordering an authoring file ships the same content. The campaign's fields are listed
+rather than the campaign digested whole: `Campaign.migrateState` (04 §10.1) is an optional
+*function* and `canonicalStringify` rejects one outright, so digesting whole would take the module
+down at import time the first time a campaign gained a migration.
+Rejected: **Hand-write `"1.0.0"` and state the discipline in `11-content-packs.md` §6** — rejected
+on the evidence above; the rule would have to be honoured by authors of files that do not mention
+packs. **Digest the `BuiltCampaign` whole** — rejected; it makes a future `migrateState` a
+load-time crash rather than a supported field. **Leave the reasoning in the file header** —
+rejected for the reason this register has twice already recorded (2026-08-06, simulation
+`outcome()`; 2026-08-08, W53/W55 mechanism rules): a rule that only a source comment states is one
+a document-first reader never learns, and this one is load-bearing for a promise made in a
+different document.
+Reversibility: cheap in code, expensive in consequence — changing how the version is derived
+changes every resolution digest, hence every `campaignVersion`, hence every existing save's
+recorded content identity. §6 already states that cost for pack reordering; it applies here too.

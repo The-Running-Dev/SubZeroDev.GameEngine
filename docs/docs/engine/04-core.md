@@ -42,12 +42,18 @@ them and does not restate the algorithms.
 > disagree, this one is correct, and the older text should be read as the draft that led
 > here rather than as a second opinion.
 >
-> It remains authoritative for exactly one thing: the **`simulation` kind's own** content and
-> resolution model (its §5, §7–§10, §12, §14). That kind is engine-owned code
-> (architecture §1) and will need a contract in *this* repository against the Kind seam
-> (§3), the way [`03-story-graph-kind.md`](03-story-graph-kind.md) is one. Until that exists,
-> the upstream sections are where its rules live — and they are written as a game's engine
-> spec, not as a kind, so they do not yet plug into §3.
+> **It is no longer authoritative for anything.** It was, for one thing: the **`simulation`
+> kind's own** content and resolution model (its §5, §7–§10, §12, §14), held upstream until a
+> contract existed in *this* repository against the Kind seam (§3). That contract exists —
+> [`10-simulation-kind.md`](10-simulation-kind.md), whole as of its Revision 2, expressed
+> against §3 the way [`03-story-graph-kind.md`](03-story-graph-kind.md) is, with every type
+> `SimulationKindState` names and every resolution mechanic that dispatches on them specified
+> here. Its §15 records what was ported and what each pass found.
+>
+> What remains upstream is *provisional balance*, not contract: drift rates, scenario
+> economics, `demandBand` thresholds, and the housing-quality formula, indexed in
+> [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) §2 as needing a balancing pass. Numbers, not shape
+> — and a number this repository has not yet chosen is not a rule living somewhere else.
 
 ---
 
@@ -1100,8 +1106,18 @@ interface ValidationWarning { code: ReasonCode; messageKey: LocKey; path?: strin
   node reachable from the start. It loads and plays (§3, `InitialStateResult.status` reports
   `"ended"` immediately); the warning tells an author their campaign is non-interactive
   without forbidding a deliberate vignette or a single-scene test fixture.
-- **Tier 3 — simulation-time (§14):** unwinnable campaigns, dead-end states — found by
-  running, not reading. Not part of load.
+- **Tier 3 — simulation-time:** unwinnable campaigns, dead-end states — found by
+  running, not reading. **Not part of load**, and not part of §14 either: the determinism
+  harness compares a build against itself and cannot answer whether an ending is reachable.
+  Tier 3 is an **author-facing check run out of band** — `npm run validate-campaign` in the
+  engine package, tooling rather than shipped engine code (architecture §9.2).
+
+  Its one contractual property is what a *clean* result means. The search is bounded by
+  construction — an explored-state cap, a turn-depth cap, and the same settle-step cap the
+  real engine enforces — so it reports `bounded` whenever any cap was reached anywhere. **A
+  bounded result means "not proven", never "passed."** A caller that reads the two as the
+  same thing gets a guarantee the checker never offered: it declines to credit an ending
+  found exactly at a cap, precisely so it never claims to have explored more than it did.
 
 Why tiered: "the engine validates AI-authored content" (architecture §9) is only a
 safety property once you say *what validation is* and *what is decidable when*. AI output

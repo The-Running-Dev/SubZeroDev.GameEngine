@@ -3,9 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: ff610cc166b17dd01370b8fd6afc834d48e88024953127255121f034eee0a2b3 -->
-
-<!-- design-digest: PLACEHOLDER -->
+<!-- design-digest: d65bd3799b6c219506b439233dee3762a9351ece0e43e74f1dc77a7d11d3f54b -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -166,7 +164,17 @@ failure boundary: a Tier 1 error means there is no registry and therefore no pla
 - **Tier 2, warning** — unreachable content, suspicious cycles, non-interactive story campaigns,
   and similar structures that may be deliberate.
 - **Tier 3, simulation/replay** — unwinnable states, never-satisfiable actions, and anything that
-  cannot be decided by reading definitions alone.
+  cannot be decided by reading definitions alone. Not part of load, and not proven by the
+  determinism harness either — that harness compares a build against itself, which cannot tell you
+  whether an ending is reachable. Tier 3 is an author-facing check run out of band: `npm run
+  validate-campaign` in the engine package searches the actual state space using the kind's own
+  settle, condition, and achievement logic, so its answers match real play, but nothing in the
+  registry path imports it — a campaign loads, plays, and serializes identically whether or not it
+  has ever been checked. The search is bounded (an explored-state cap, a turn-depth cap, the same
+  settle-step cap the engine itself enforces), and it reports `bounded` whenever any cap was hit
+  anywhere. **A bounded result means "not proven," never "passed."** Treat the two as identical and
+  you get a guarantee the checker never offered — it declines to credit an ending found exactly at a
+  cap so it never claims to have explored more than it did.
 
 Every registered code — Tier 1, Tier 2, and the codes a kind uses to reject a player action —
 needs a localized message, or registry construction fails; a validation code never reaches a
@@ -180,12 +188,15 @@ per-kind lists are in
 AI-authored content takes this same path. AI may draft campaign data; it never authors or loads
 executable kinds.
 
-A **campaign-shape builder** takes the same path for the same reason. Every shipped story-graph
-campaign is constructed through one — a parameterized function that takes authored prose, choices
-and endings and emits the repetitive graph topology around them. It is tooling, not a layer: it
-runs before the engine, emits an ordinary campaign source, is validated by the tiers above exactly
-as hand-written content is, and leaves no trace in `serialize()`. A campaign is free not to use
-one; that freedom is what keeps a shared shape a convenience rather than an undeclared content
+A **campaign-shape builder** takes the same path for the same reason. `adventure-builder.ts` is the
+built one — a parameterized function that takes authored prose, choices and endings and emits the
+repetitive graph topology around them. Eight of the nine shipped story-graph campaigns are
+constructed through it; `what-would-lucifer-do-engineers-cut` and the Tier 3 reachability fixture
+are written out longhand instead, which is the point proven in practice rather than just stated: a
+campaign whose topology genuinely differs can simply skip the builder. It is tooling, not a layer:
+it runs before the engine, emits an ordinary campaign source, is validated by the tiers above
+exactly as hand-written content is, and leaves no trace in `serialize()`. A campaign is free not to
+use one; that freedom is what keeps a shared shape a convenience rather than an undeclared content
 schema.
 
 ### Assembling a registry from content packs
@@ -208,6 +219,14 @@ almost always a misspelled key that would otherwise fail invisibly at play.
 
 Dependencies are exact `{id, version}` pairs; there is no range solving, deliberately — a
 backtracking resolver would make *which content a game ran against* non-deterministic.
+
+A pack's own `version` is not something its author hand-writes. It is derived —
+`1.0.0+<canonical-digest-12>` over the pack's campaigns and its sorted string table — so the
+version moves automatically whenever the pack's content moves, rather than depending on every
+author of a file that feeds a pack remembering to bump a constant nobody's file mentions. Treat it
+as generated identity, not a field to edit by hand. The type does not enforce this — `version` is
+a plain string, and today each pack file (`stable-life-packs.ts`) calls its own local helper to
+compute it, so a new pack is only correct if its author copies the pattern.
 
 The identity consequence is the part worth planning around. `resolvePacks` digests the ordered
 `{id, version}` list into a `ResolutionId` and stamps it as the `version` of every campaign it

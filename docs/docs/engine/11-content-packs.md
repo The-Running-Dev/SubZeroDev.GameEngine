@@ -45,7 +45,7 @@ contract, and it changes `ContentRegistry` in exactly one way — §4.
 ```typescript
 interface ContentPack {
   readonly id: string;                       // stable published id (04 §17)
-  readonly version: string;
+  readonly version: string;                  // a content digest, not hand-written — §6
   readonly kindId: KindId;                   // a pack targets exactly one kind
   readonly dependsOn: readonly PackRef[];    // §5
   readonly experimentGate?: ExperimentGate;  // §5a — absent means always included
@@ -228,6 +228,25 @@ that is unique to the *content it actually ran against*, and:
 > produces, with no further mechanism. A player's variant is legible from their save the same
 > way any other content difference is: it is not, directly, but *what they actually ran
 > against* is, which is the property that matters.
+
+**The resolution digest is only honest if a pack's own `version` moves when the pack's
+content does.** §3's `{id, version}` list is `ResolutionId`'s entire input; a pack whose
+`version` a shipped campaign changed underneath without bumping makes `ResolutionId` describe
+content that no longer exists. So `version` is not a published number an author picks — it is
+`1.0.0+<digest-12>`, a canonical digest (04 §10.1's `canonicalStringify`, then the first 12
+hex characters of its SHA-256) over the pack's `campaigns` (each `BuiltCampaign`'s `id`,
+`kindId`, `version`, `titleKey` and `content` — never `migrateState`, which is a function and
+`canonicalStringify` rejects those outright) and its `strings`, sorted by key rather than left
+in the map's insertion order, since the digest names what the pack ships and reordering an
+authoring file must not change it. `1.0.0` stays as a literal prefix — semver build metadata
+for a human skimming a version string, never compared as a range (`PackRef` compares exactly).
+
+There is no engine-supplied function that computes this; each shipped pack (`stable-life-
+packs.ts`) calls its own local `packVersion` helper at the `ContentPack` literal. The type
+does not enforce it — `version` is a plain `string` — so the guarantee is a convention every
+pack author must follow, not a rule the compiler holds them to. `90-decisions.md`'s open
+register carries whether that helper should move into the engine as a shared, exported
+function.
 
 ---
 

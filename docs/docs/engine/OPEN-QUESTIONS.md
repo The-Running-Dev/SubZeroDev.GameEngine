@@ -69,6 +69,16 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   because they expose repository layout and build side effects as the delivery contract.
   **Revisit when** a second independently versioned package actually exists and makes a
   monorepo/workspace layout useful rather than aspirational.
+- **`packVersion` is duplicated per pack file, not shared engine code.** The 2026-08-18 W71
+  decision above makes a pack's `version` a content digest rather than a hand-written number,
+  but the function that computes it (`packVersion` in
+  `src/engine/src/campaigns/stable-life-packs.ts`) is local and unexported — each pack file
+  must call its own copy, and `ContentPack.version` stays a plain `string` the type system
+  does not check (`10-design.md` §6). The guarantee the decision was meant to
+  make self-enforcing is currently enforced by convention again, one level down. **Revisit
+  when** a second pack is authored outside `stable-life-packs.ts` — that is the concrete case
+  for promoting `packVersion` to an exported engine helper, rather than doing it speculatively
+  ahead of a second caller.
 - **`history` in the simulation kind's state** — the upstream model carries
   `history: HistoryEntry[]`, a narrative record of what happened. That overlaps
   `StateChange[]`, which `advance` already returns (04 §12), and the event stream
