@@ -24,7 +24,6 @@
     "test:watch": "vitest",
     "lint": "eslint src scripts",
     "demo": "tsx scripts/demo-cli.ts",
-    "export:campaigns": "tsx scripts/export-campaigns.ts",
     "validate-campaign": "tsx scripts/validate-campaign.ts"
   },
   "exports": {
