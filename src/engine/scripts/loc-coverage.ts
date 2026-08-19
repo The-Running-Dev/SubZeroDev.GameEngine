@@ -31,6 +31,7 @@ import type { CommandResult } from "../src/core/kernel/reasons.js";
 import type { BuiltCampaign } from "../src/core/registry/types.js";
 import type { LocKey } from "../src/core/localization/types.js";
 import { runIfMainModule } from "./run-if-main.js";
+import { joinOrNone } from "./format-list.js";
 
 import { buildBulgariaBureaucracyCampaignBG } from "../src/campaigns/bulgaria-bureaucracy.bg.js";
 import { CAMPAIGN_CATALOGUE } from "./check-content.js";
@@ -164,9 +165,9 @@ function printCampaignReport(moduleName: string): void {
   const translated = buildOrThrow(secondLocale.build, secondLocale.moduleFile);
   const report = computeLocaleCoverage(built, translated, secondLocale.locale);
   console.log(`\nLocale "${report.locale}": ${report.covered}/${report.total} covered.`);
-  console.log(`  missing:      ${report.missing.length ? report.missing.join(", ") : "none"}`);
-  console.log(`  extra:        ${report.extra.length ? report.extra.join(", ") : "none"}`);
-  console.log(`  untranslated: ${report.untranslated.length ? report.untranslated.join(", ") : "none"}`);
+  console.log(`  missing:      ${joinOrNone(report.missing)}`);
+  console.log(`  extra:        ${joinOrNone(report.extra)}`);
+  console.log(`  untranslated: ${joinOrNone(report.untranslated)}`);
 }
 
 async function main(): Promise<void> {

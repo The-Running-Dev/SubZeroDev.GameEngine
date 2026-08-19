@@ -24,11 +24,13 @@
 import type { LocKey } from "../src/core/localization/types.js";
 import type { CommandResult } from "../src/core/kernel/reasons.js";
 import type { ValidationError } from "../src/core/validation/types.js";
+import type { ValidationWarning } from "../src/core/validation/types.js";
 import type { Campaign, ContentRegistry } from "../src/core/registry/types.js";
 import type { ContentPack } from "../src/core/registry/packs.js";
-import { computeResolutionId, resolvePacks } from "../src/core/registry/packs.js";
+import { resolvePacks } from "../src/core/registry/packs.js";
 import { canonicalStringify } from "../src/core/persistence/canonical.js";
 import { runIfMainModule } from "./run-if-main.js";
+import { joinOrNone } from "./format-list.js";
 
 import { stableLifeBasePack, bulgariaCulturePack } from "../src/campaigns/stable-life-packs.js";
 
@@ -121,34 +123,35 @@ export function diffPackSets(packsA: readonly ContentPack[], packsB: readonly Co
   const resultA = resolvePacks(packsA);
   const resultB = resolvePacks(packsB);
 
+  const warnings: ValidationWarning[] = [...resultA.warnings, ...resultB.warnings];
+
   if (!resultA.ok || !resultA.value || !resultB.ok || !resultB.value) {
-    const errors: ValidationError[] = [...(resultA.errors ?? []), ...(resultB.errors ?? [])];
-    return { ok: false, errors, warnings: [] };
+    const errors: ValidationError[] = [...resultA.errors, ...resultB.errors];
+    return { ok: false, errors, warnings };
   }
 
-  const resolutionIdA = computeResolutionId(packsA);
-  const resolutionIdB = computeResolutionId(packsB);
+  // Every registry `resolvePacks` returns carries its set's resolution id (§6) — reusing it
+  // here avoids re-hashing the same pack list a second time.
+  const resolutionIdA = resultA.value.resolution!;
+  const resolutionIdB = resultB.value.resolution!;
   const { campaigns, strings } = diffRegistries(resultA.value, resultB.value);
 
+  // Derived from the same arrays the caller already has, rather than a hand-maintained
+  // conjunction, so a future diff category is covered without a matching edit here.
   const identical =
     resolutionIdA === resolutionIdB &&
-    campaigns.added.length === 0 &&
-    campaigns.removed.length === 0 &&
-    campaigns.changed.length === 0 &&
-    strings.added.length === 0 &&
-    strings.removed.length === 0 &&
-    strings.changed.length === 0;
+    [...Object.values(campaigns), ...Object.values(strings)].every((items) => items.length === 0);
 
   return {
     ok: true,
     value: { resolutionIdA, resolutionIdB, identical, campaigns, strings },
     errors: [],
-    warnings: [],
+    warnings,
   };
 }
 
 function formatList(label: string, items: readonly string[]): string {
-  return `  ${label}: ${items.length ? items.join(", ") : "none"}`;
+  return `  ${label}: ${joinOrNone(items)}`;
 }
 
 function printDiff(nameA: string, nameB: string, diff: ResolutionDiff): void {
