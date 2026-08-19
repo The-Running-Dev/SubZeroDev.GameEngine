@@ -26,7 +26,8 @@
     "demo": "tsx scripts/demo-cli.ts",
     "validate-campaign": "tsx scripts/validate-campaign.ts",
     "check-content": "tsx scripts/check-content.ts",
-    "loc-coverage": "tsx scripts/loc-coverage.ts"
+    "loc-coverage": "tsx scripts/loc-coverage.ts",
+    "diff-resolution": "tsx scripts/diff-resolution.ts"
   },
   "exports": {
     ".": {
