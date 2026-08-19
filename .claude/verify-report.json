@@ -13,7 +13,7 @@
     {
       "name": "engine test",
       "status": "Passed",
-      "detail": "npm --prefix src/engine test: vitest run — Test Files 78 passed (78), Tests 1081 passed (1081), Duration 10.04s."
+      "detail": "npm --prefix src/engine test: vitest run — Test Files 78 passed (78), Tests 1081 passed (1081), Duration 9.43s."
     },
     {
       "name": "engine pack + tarball inspect",
@@ -43,12 +43,12 @@
     {
       "name": "pester tools",
       "status": "Passed",
-      "detail": "Invoke-Pester -Path tools -Output Detailed -PassThru — Tests Passed: 94, Failed: 0, Skipped: 0, Inconclusive: 0, NotRun: 0. Duration 35.71s. Containers included Measure-Session, Sync-Kit, Test-Companion, Test-DesignDrift, Test-VerifyReport, Test-WriteSurface, Wait-PullRequestCheck."
+      "detail": "Invoke-Pester -Path tools -Output Detailed -PassThru — Tests Passed: 94, Failed: 0, Skipped: 0, Inconclusive: 0, NotRun: 0. Containers included Measure-Session, Sync-Kit, Test-Companion, Test-DesignDrift, Test-VerifyReport, Test-WriteSurface, Wait-PullRequestCheck."
     },
     {
       "name": "production docs build",
       "status": "DidNotRun",
-      "reason": "./docs.ps1 is not present in this checkout — per CLAUDE.md it is installer-generated (by Invoke-SetupDocs), not committed, and was not found at the repository root. Docker itself is available locally, but without docs.ps1 the production Docusaurus build (onBrokenLinks: 'throw') cannot be invoked. The corresponding PR check 'Verify Documentation Build' on PR #342 reports pass (https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/32280865000/job/96159067337)."
+      "reason": "./docs.ps1 is not present in this checkout — per CLAUDE.md it is installer-generated (by Invoke-SetupDocs), not committed, and was not found at the repository root. Docker itself is available locally, but without docs.ps1 the production Docusaurus build (onBrokenLinks: 'throw') cannot be invoked. The corresponding PR check 'Verify Documentation Build' on PR #342 (head cb5c6c28b403a2f020851733d816f0030449f800) reports pass (https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/32282997783/job/96165860675)."
     },
     {
       "name": "host tests",
@@ -58,7 +58,7 @@
     {
       "name": "host image smoke",
       "status": "DidNotRun",
-      "reason": "The same host-image.yml smoke job restores SubZeroDev.Platform.Hosting as its first real step (via 'Test the host', which runs the same dotnet test as the 'host tests' gate) before building/running/smoke-testing the Docker image, and that restore requires the REGISTRY_TOKEN cross-repo GitHub Packages credential that is not configured locally — same root cause as 'host tests'. The corresponding PR check 'Build, run, and smoke the image' on PR #342 reports pass (https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/32280865179/job/96159068334)."
+      "reason": "The same host-image.yml smoke job restores SubZeroDev.Platform.Hosting as its first real step (via 'Test the host', which runs the same dotnet test as the 'host tests' gate) before building/running/smoke-testing the Docker image, and that restore requires the REGISTRY_TOKEN cross-repo GitHub Packages credential that is not configured locally — same root cause as 'host tests'. The corresponding PR check 'Build, run, and smoke the image' on PR #342 (head cb5c6c28b403a2f020851733d816f0030449f800) reports pass (https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/32282997774/job/96165861089)."
     }
   ]
 }
