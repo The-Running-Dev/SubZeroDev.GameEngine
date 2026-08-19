@@ -2632,25 +2632,198 @@ that is `/contract`'s call, not this unit's.
 
 ---
 
-### [ ] W74 — Campaign Content Ownership {#w74}
+### [ ] W74 — Campaign Content Ownership: The Authoring Seam {#w74}
 
-**Delivers:** an explicit authoring seam, then transfers published narrative content to
-SubZeroDev.Adventures.Content without weakening GameEngine's story-graph regression oracle.
+**Delivers:** Someone writing campaigns in the content repository can install the engine and get
+exactly the tools authoring needs — the builders, the portable serializer, the digests — without
+the engine's own published stories arriving alongside them. That separation exists in the source
+tree today but nothing checks it, so the first time it breaks, it breaks in someone else's build
+rather than in this one.
 
-- **Depends on:** W67, portable format graduation.
+**Resized 2026-08-19, from five criteria spanning two repositories and a breaking release into
+four units that each fit a session.** `W74.2` and `W74.3` assert facts about
+[SubZeroDev.Adventures.Content](https://github.com/The-Running-Dev/SubZeroDev.Adventures.Content):
+a unit of work in this repository can neither make them true nor honestly tick them, so they move
+to [W74c](#w74c) as verified preconditions of the removal they were always guarding. `W74.4`
+becomes [W74a](#w74a), and `W74.5` splits into [W74b](#w74b) and [W74c](#w74c) — it was never one
+session's work. **`W74.2`–`W74.5` are retired and never reused**; the gap in this unit's numbering
+is the record of the split. Two canonical statements still cite `W74.5` by name —
+[20 §19](04-core.md#19-published-narrative-authoring) and
+[10 §13](02-architecture.md#13-published-narrative-content-ownership) — and W74c owns re-pointing
+both.
+
+- **Spec:** [20 §19](04-core.md#19-published-narrative-authoring) (the subpath is the author-time
+      contract, the root is the runtime one, and a runtime host must not import authored campaign
+      source merely to play published portable JSON).
+- **Touches:** `src/engine/src/authoring.ts`; `consumer-smoke/smoke.ts` and
+      `consumer-smoke/package.json`; `.github/workflows/ci.yml`'s consumer-smoke step, if
+      resolving a second entry point needs one.
+- **Depends on:** [W67](#w67). The original line also named "portable format graduation", which
+      is not a unit id and resolves to nothing in this ledger; `src/engine/src/portable/format.ts`
+      is shipped and gates nothing here.
+- **Status:** In progress — the subpath itself landed in
+      [PR #299](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/299)
+      (`src/engine/src/authoring.ts`, plus the `./authoring` entry in
+      `src/engine/package.json`). Nothing proves it: `consumer-smoke/smoke.ts` imports the
+      package root only.
 - **Done when:**
   - W74.1 `@the-running-dev/game-engine/authoring` is packed, installable, and exposes only
         the documented author-time surface.
-  - W74.2 Adventures.Content owns all nine published sources and produces the manifest and
-        campaign JSON without invoking an Engine exporter.
-  - W74.3 The five expanded Bulgaria publications retain `2.0.0`, preserve existing replay
-        outcomes and serialized state, and expose all 75 endings; the remaining publications
-        retain their manifest digests and the manifest resolution remains unchanged.
-  - W74.4 GameEngine retains a byte-frozen, non-published Bureaucracy fixture with its replay,
-        determinism, localization, and observability evidence; cross-version replay CI still
-        enumerates its corpus.
-  - W74.5 The breaking follow-up removes published campaign sources, root exports, exporter,
-        and retired `/play/` artifacts only after Content is deployed.
+  - W74.6 `consumer-smoke` resolves `@the-running-dev/game-engine/authoring` **from the packed
+        tarball**, not from a source link, and imports every value and type the subpath exports.
+        Deleting one export from `src/engine/src/authoring.ts` fails the smoke build — verified
+        by deleting one and confirming the failure.
+  - W74.7 The subpath is closed against published content: a check enumerates its exported names
+        against a committed sorted list and fails both when a name is missing and when one is
+        added, and asserts that no published campaign builder or campaign id — any
+        `bulgaria-*`, `lucifer-*`, `saki-*` or `what-would-lucifer-do*` — is reachable through
+        it. The shared `buildAdventureCampaign` is not a published campaign and stays.
+  - W74.8 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`, and
+        `install:engine`, `build` and `smoke` pass from `consumer-smoke/`.
+- **Out of scope:** removing anything at all — no campaign source, root export, exporter or
+      `/play/` artifact is deleted here, and `src/engine/package.json`'s version is not bumped;
+      that is [W74b](#w74b) and [W74c](#w74c). Adventures.Content's own build, which this unit
+      neither reads nor changes.
+
+---
+
+### [ ] W74a — The Bureaucracy Fixture, Frozen Byte-for-Byte {#w74a}
+
+**Delivers:** The engine keeps one story campaign purely as regression evidence, and it becomes
+impossible to change it by accident. Today the same file is both the oracle and a shipped
+publication, so an edit made for the story's sake silently moves the baseline everything else is
+measured against — and the move only shows up much later, as a replay failure nobody can date.
+
+- **Spec:** [10 §13](02-architecture.md#13-published-narrative-content-ownership) (a frozen
+      Bureaucracy campaign may remain inside the engine as story-graph regression evidence only;
+      it is not a publication source); [20 §19](04-core.md#19-published-narrative-authoring)
+      (such a fixture is not published and not listed in a manifest);
+      [W67](#w67) (the corpus and the evidence suites this unit pins).
+- **Touches:** `src/engine/src/campaigns/bulgaria-bureaucracy.ts` and
+      `bulgaria-bureaucracy.bg.ts`; a new freeze assertion beside them; the four
+      `bulgaria-bureaucracy.*.test.ts` evidence suites; `src/engine/fixtures/replay/`, read only.
+- **Depends on:** none.
+- **Done when:**
+  - W74a.1 A committed golden pins the built campaign byte-for-byte — the canonical
+        serialization of `buildBulgariaBureaucracyCampaign()` and its `digestPortableCampaign` —
+        and any edit to either source file that changes either value fails a named test.
+        Verified by making a one-character edit and confirming the failure.
+  - W74a.2 The freeze names itself. The failure message says the campaign is frozen regression
+        evidence and that changing it invalidates the replay corpus, rather than reporting a bare
+        digest mismatch that reads like a bug.
+  - W74a.3 All four evidence suites — replay, determinism, localization, observability — still
+        run against the frozen campaign, and a test asserts all four files exist, so deleting one
+        fails rather than silently shrinking the evidence.
+  - W74a.4 The three `bureaucracy-*` fixture/outcome pairs are still enumerated by prefix from
+        `fixtures/replay/`, and `.github/workflows/ci.yml`'s release-tag cross-version job still
+        names `src/campaigns/bulgaria-bureaucracy.replay.test.ts`.
+  - W74a.5 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`.
+- **Out of scope:** removing Bureaucracy from `scripts/export-campaigns.ts` or from
+      `site/public/campaigns/` — that is [W74b](#w74b), and while `/play/`'s artifacts are still
+      in the tree the exporter's output must stay consistent with them. Freezing any other
+      campaign: the other eight belong to Content and are deleted outright in [W74c](#w74c),
+      not frozen.
+
+---
+
+### [ ] W74b — Retire the Engine's Own Play Surface {#w74b}
+
+**Delivers:** The engine repository stops carrying a browser game nobody can reach. The route was
+removed from the build by [W69](#w69) and Adventures has been the only play surface since, but the
+source, the screenshot baselines and the campaign files it used to fetch are all still here —
+still type-checked, still tested, still telling anyone who opens the folder that this is where you
+go to play.
+
+- **Spec:** [10 §13](02-architecture.md#13-published-narrative-content-ownership) (the former
+      in-repository `/play/` route and its campaign artifact directory are superseded, and
+      Adventures consumes the deployed Content feed rather than Engine-generated campaign files);
+      and [`13-playable-web-demo.md`](13-playable-web-demo.md), *Succeeded by
+      SubZeroDev.Adventures*.
+- **Touches:** `site/src/play/` in full, including `browser/__screenshots__/`;
+      `site/public/campaigns/`; `site/vitest.config.ts` and `site/vitest.browser.config.ts`, if
+      either names a removed path; `src/engine/scripts/export-campaigns.ts` and the
+      `export:campaigns` script in `src/engine/package.json`.
+- **Depends on:** [W74a](#w74a). The freeze must exist before Bureaucracy's exporter entry is
+      deleted, so the deletion is proven not to have moved the fixture.
+- **Done when:**
+  - W74b.1 `site/src/play/` is gone in full, and `npm --prefix site run check` passes — format,
+        lint, typecheck, unit tests, the real-browser suite, the build and the merge — with no
+        suite skipped, filtered or renamed to stand in for a deleted one.
+  - W74b.2 `site/public/campaigns/` is gone, and `site/scripts/verify-build.mjs` and
+        `site/scripts/verify-merge.mjs` both still pass, which is what proves the built landing
+        page never referenced it.
+  - W74b.3 `scripts/export-campaigns.ts` and the `export:campaigns` script are gone, and
+        `npm run typecheck` from `src/engine/` still covers the remaining scripts through
+        `tsconfig.scripts.json`.
+  - W74b.4 Nothing in the repository fetches `campaigns/` or `manifest.json` from a relative
+        site path any longer; a search across `site/` for both returns nothing.
+  - W74b.5 The engine's campaign sources and root exports are untouched: `src/index.ts` still
+        exports all nine builders and `src/engine/package.json`'s version is unchanged. This unit
+        deletes publication and play artifacts only, so it is not a breaking release.
+  - W74b.6 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`;
+        `npm --prefix site run check` passes; `./build/Test-Documentation.ps1` passes.
+- **Out of scope:** deleting campaign sources or root exports and bumping the version — both are
+      [W74c](#w74c), and both are breaking where this unit is not. Rewriting
+      [`13-playable-web-demo.md`](13-playable-web-demo.md) or
+      [`14-game-interface.md`](14-game-interface.md), which already record `/play/`
+      as superseded; describing the retirement a third time is churn, not reconciliation.
+
+---
+
+### [ ] W74c — The Breaking Ownership Release {#w74c}
+
+**Delivers:** The engine package stops shipping the stories. Someone installing
+`@the-running-dev/game-engine` gets an engine — kinds, validation, portable hydration, authoring
+primitives — and fetches content from the content feed, which is what every host has actually
+been doing since Adventures shipped. The version number finally says so out loud, so a host
+knows which upgrade is the one that moves the content.
+
+- **Spec:** [20 §19](04-core.md#19-published-narrative-authoring) (existing frozen campaigns stay
+      package-root exports through 0.8.0; the breaking 0.9.0 release removes them from the root,
+      and the peg is a name to check against `src/engine/package.json` before a bump, not after);
+      [10 §13](02-architecture.md#13-published-narrative-content-ownership) (published campaign
+      builders are not package-root API).
+- **Touches:** the eight published campaign sources under `src/engine/src/campaigns/`, with their
+      tests and snapshots; `src/engine/src/index.ts`; `src/engine/src/portable/format.test.ts`;
+      `src/engine/src/campaigns/story-campaign-expansion.test.ts`;
+      `src/engine/scripts/demo-cli.ts`; `src/engine/scripts/validate-campaign.ts`;
+      `src/engine/package.json`; `consumer-smoke/smoke.ts`, if it names a removed export;
+      `design/20-contract.md` §19 and `design/10-design.md` §13, for the retired `W74.5` citation
+      only.
+- **Depends on:** [W74](#w74), [W74a](#w74a), [W74b](#w74b). W74b is a hard ordering rather than a
+      preference: `site/src/play/browser-client.test.ts` imports six campaign builders from the
+      package root, so removing them before that file is deleted breaks `site`'s suite.
+- **Done when:**
+  - W74c.1 **The preconditions are verified before anything is deleted, and recorded in the pull
+        request as commit shas rather than as an assertion.** Adventures.Content publishes all
+        nine campaigns and its `manifest.json` from its own `scripts/export-content.ts`, invoking
+        no engine exporter, and its Deploy workflow has succeeded on its current tip.
+  - W74c.2 At the sha W74c.1 names, the five expanded Bulgaria publications in Content carry
+        `2.0.0` and 75 endings between them, and Content's `manifest.json` carries a resolution
+        digest. All three values are quoted in the pull request, and this unit changes none of
+        them — it is a GameEngine-side deletion, so any movement in them is a signal to stop.
+  - W74c.3 The eight published campaign sources, their tests and their snapshots are removed, and
+        their root exports are gone from `src/index.ts`. `bulgaria-bureaucracy.*` stays, exported
+        from nowhere, and [W74a](#w74a)'s freeze still passes untouched — which is what proves
+        the removal did not disturb the regression oracle.
+  - W74c.4 `scripts/validate-campaign.ts` and `scripts/demo-cli.ts` both still run over the
+        campaigns that remain, and each reports which ones by name. Neither loses a campaign to a
+        dangling import, and neither is left with an empty set.
+  - W74c.5 `src/engine/package.json` reads `0.9.0`, and `consumer-smoke` resolves the package
+        root with no removed name.
+  - W74c.6 Neither §19 nor §13 cites the retired `W74.5`; both name [W74c](#w74c) instead. That
+        citation is the only change made to either section — restating §19's version peg now that
+        it is satisfied belongs to `/reconcile`, not to this unit.
+  - W74c.7 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`;
+        `npm --prefix site run check` passes; `install:engine`, `build` and `smoke` pass from
+        `consumer-smoke/`; `./build/Test-Documentation.ps1` passes.
+- **Out of scope:** publishing or tagging 0.9.0 — the release workflow is the user's to trigger,
+      and `design/90-decisions.md` records how the last peg was spent by an unrelated
+      bump. Bumping the engine submodule pin in Adventures or Adventures.Content, which are
+      separate repositories with their own gates. Removing `fromPortable` or the `Portable*`
+      types, which Adventures depends on and which are runtime-root surface, not publication.
+
+---
 
 ### [ ] W75 — Classified Persistence Conflicts {#w75}
 

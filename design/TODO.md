@@ -192,7 +192,13 @@
 
 ### [x] W73 — Tier 3 Validation as an Author-Facing Check {#w73}
 
-### [ ] W74 — Campaign Content Ownership {#w74}
+### [ ] W74 — Campaign Content Ownership: The Authoring Seam {#w74}
+
+### [ ] W74a — The Bureaucracy Fixture, Frozen Byte-for-Byte {#w74a}
+
+### [ ] W74b — Retire the Engine's Own Play Surface {#w74b}
+
+### [ ] W74c — The Breaking Ownership Release {#w74c}
 
 ### [ ] W75 — Classified Persistence Conflicts {#w75}
 
