@@ -82,36 +82,40 @@ function campaignContentDigest(campaign: Campaign): string {
   });
 }
 
+/**
+ * The added/removed/changed shape both `campaigns` and `strings` diff to — one keyed set
+ * compared against another, with `isEqual` deciding what "changed" means for a key present
+ * on both sides.
+ */
+function diffKeyed<K>(
+  keysA: readonly K[],
+  keysB: readonly K[],
+  isEqual: (key: K) => boolean,
+): { added: readonly K[]; removed: readonly K[]; changed: readonly K[] } {
+  const setA = new Set(keysA);
+  const setB = new Set(keysB);
+  return {
+    added: keysB.filter((key) => !setA.has(key)).sort(),
+    removed: keysA.filter((key) => !setB.has(key)).sort(),
+    changed: keysA.filter((key) => setB.has(key) && !isEqual(key)).sort(),
+  };
+}
+
 /** §3's two rules, read off a pair of already-resolved registries. */
 function diffRegistries(a: ContentRegistry, b: ContentRegistry): { campaigns: CampaignDiff; strings: StringDiff } {
-  const campaignIdsA = [...a.campaigns.keys()];
-  const campaignIdsB = [...b.campaigns.keys()];
-  const campaignIdSetA = new Set(campaignIdsA);
-  const campaignIdSetB = new Set(campaignIdsB);
+  const campaigns = diffKeyed(
+    [...a.campaigns.keys()],
+    [...b.campaigns.keys()],
+    (id) => campaignContentDigest(a.campaigns.get(id)!) === campaignContentDigest(b.campaigns.get(id)!),
+  );
 
-  const campaignsAdded = campaignIdsB.filter((id) => !campaignIdSetA.has(id)).sort();
-  const campaignsRemoved = campaignIdsA.filter((id) => !campaignIdSetB.has(id)).sort();
-  const campaignsChanged = campaignIdsA
-    .filter((id) => campaignIdSetB.has(id))
-    .filter((id) => campaignContentDigest(a.campaigns.get(id)!) !== campaignContentDigest(b.campaigns.get(id)!))
-    .sort();
+  const strings = diffKeyed(
+    [...a.strings.keys()],
+    [...b.strings.keys()],
+    (key) => a.strings.get(key) === b.strings.get(key),
+  );
 
-  const stringKeysA = [...a.strings.keys()];
-  const stringKeysB = [...b.strings.keys()];
-  const stringKeySetA = new Set(stringKeysA);
-  const stringKeySetB = new Set(stringKeysB);
-
-  const stringsAdded = stringKeysB.filter((key) => !stringKeySetA.has(key)).sort();
-  const stringsRemoved = stringKeysA.filter((key) => !stringKeySetB.has(key)).sort();
-  const stringsChanged = stringKeysA
-    .filter((key) => stringKeySetB.has(key))
-    .filter((key) => a.strings.get(key) !== b.strings.get(key))
-    .sort();
-
-  return {
-    campaigns: { added: campaignsAdded, removed: campaignsRemoved, changed: campaignsChanged },
-    strings: { added: stringsAdded, removed: stringsRemoved, changed: stringsChanged },
-  };
+  return { campaigns, strings };
 }
 
 /**
@@ -186,13 +190,13 @@ async function main(): Promise<void> {
     return;
   }
 
-  const packsA = PACK_SET_CATALOGUE[nameA];
-  const packsB = PACK_SET_CATALOGUE[nameB];
-  if (!packsA || !packsB) {
+  if (!Object.hasOwn(PACK_SET_CATALOGUE, nameA) || !Object.hasOwn(PACK_SET_CATALOGUE, nameB)) {
     console.error(`Unknown pack set. Known sets: ${Object.keys(PACK_SET_CATALOGUE).join(", ")}`);
     process.exitCode = 1;
     return;
   }
+  const packsA = PACK_SET_CATALOGUE[nameA]!;
+  const packsB = PACK_SET_CATALOGUE[nameB]!;
 
   const result = diffPackSets(packsA, packsB);
   if (!result.ok || !result.value) {
