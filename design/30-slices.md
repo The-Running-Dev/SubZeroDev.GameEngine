@@ -2637,7 +2637,7 @@ that is `/contract`'s call, not this unit's.
 
 ---
 
-### [ ] W74 — Campaign Content Ownership: The Authoring Seam {#w74}
+### [x] W74 — Campaign Content Ownership: The Authoring Seam {#w74}
 
 **Delivers:** Someone writing campaigns in the content repository can install the engine and get
 exactly the tools authoring needs — the builders, the portable serializer, the digests — without
@@ -2666,11 +2666,9 @@ both.
 - **Depends on:** [W67](#w67). The original line also named "portable format graduation", which
       is not a unit id and resolves to nothing in this ledger; `src/engine/src/portable/format.ts`
       is shipped and gates nothing here.
-- **Status:** In progress — the subpath itself landed in
-      [PR #299](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/299)
-      (`src/engine/src/authoring.ts`, plus the `./authoring` entry in
-      `src/engine/package.json`). Nothing proves it: `consumer-smoke/smoke.ts` imports the
-      package root only.
+- **Status:** Done — closed by
+      [#301](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/301), all four
+      criteria ticked.
 - **Done when:**
   - W74.1 `@the-running-dev/game-engine/authoring` is packed, installable, and exposes only
         the documented author-time surface.
@@ -2692,7 +2690,7 @@ both.
 
 ---
 
-### [ ] W74a — The Bureaucracy Fixture, Frozen Byte-for-Byte {#w74a}
+### [x] W74a — The Bureaucracy Fixture, Frozen Byte-for-Byte {#w74a}
 
 **Delivers:** The engine keeps one story campaign purely as regression evidence, and it becomes
 impossible to change it by accident. Today the same file is both the oracle and a shipped
@@ -2708,6 +2706,7 @@ measured against — and the move only shows up much later, as a replay failure 
       `bulgaria-bureaucracy.bg.ts`; a new freeze assertion beside them; the four
       `bulgaria-bureaucracy.*.test.ts` evidence suites; `src/engine/fixtures/replay/`, read only.
 - **Depends on:** none.
+- **Status:** Done — [PR #333](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/333).
 - **Done when:**
   - W74a.1 A committed golden pins the built campaign byte-for-byte — the canonical
         serialization of `buildBulgariaBureaucracyCampaign()` and its `digestPortableCampaign` —
@@ -2731,7 +2730,7 @@ measured against — and the move only shows up much later, as a replay failure 
 
 ---
 
-### [ ] W74b — Retire the Engine's Own Play Surface {#w74b}
+### [x] W74b — Retire the Engine's Own Play Surface {#w74b}
 
 **Delivers:** The engine repository stops carrying a browser game nobody can reach. The route was
 removed from the build by [W69](#w69) and Adventures has been the only play surface since, but the
@@ -2750,6 +2749,7 @@ go to play.
       `export:campaigns` script in `src/engine/package.json`.
 - **Depends on:** [W74a](#w74a). The freeze must exist before Bureaucracy's exporter entry is
       deleted, so the deletion is proven not to have moved the fixture.
+- **Status:** Done — [PR #335](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/335).
 - **Done when:**
   - W74b.1 `site/src/play/` is gone in full, and `npm --prefix site run check` passes — format,
         lint, typecheck, unit tests, the real-browser suite, the build and the merge — with no
@@ -2775,7 +2775,7 @@ go to play.
 
 ---
 
-### [ ] W74c — The Breaking Ownership Release {#w74c}
+### [x] W74c — The Breaking Ownership Release {#w74c}
 
 **Delivers:** The engine package stops shipping the stories. Someone installing
 `@the-running-dev/game-engine` gets an engine — kinds, validation, portable hydration, authoring
@@ -2798,6 +2798,7 @@ knows which upgrade is the one that moves the content.
 - **Depends on:** [W74](#w74), [W74a](#w74a), [W74b](#w74b). W74b is a hard ordering rather than a
       preference: `site/src/play/browser-client.test.ts` imports six campaign builders from the
       package root, so removing them before that file is deleted breaks `site`'s suite.
+- **Status:** Done — [PR #336](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/336).
 - **Done when:**
   - W74c.1 **The preconditions are verified before anything is deleted, and recorded in the pull
         request as commit shas rather than as an assertion.** Adventures.Content publishes all
@@ -2830,7 +2831,7 @@ knows which upgrade is the one that moves the content.
 
 ---
 
-### [ ] W75 — Classified Persistence Conflicts {#w75}
+### [x] W75 — Classified Persistence Conflicts {#w75}
 
 **Delivers:** the one classified adapter failure
 [20 §7.2](04-core.md#7-the-session-store-and-the-platform-api) now carves out — a host-branded
@@ -2846,16 +2847,17 @@ its four tests along with it. PR #306 is closed; its commit is on `main` regardl
 then closed the two criteria that were left: the cache-restore behaviour on a `submitAction`
 conflict (`W75.4`) and the version bump for the added root exports (`W75.6`).
 
-So this unit **completes** rather than implements. `W75.1`–`W75.6` are satisfied by what
-landed in `d44afde` and PR #311; verify them rather than rewriting them. `W75.7` is open —
-`npm run typecheck`, `npm run lint` and `npm test` pass, but `./build/Test-Documentation.ps1`
-still needs a clean run. Criterion ids are retained as written — they are never renumbered —
-so the record of which arrived how stays readable.
+So this unit **completed** rather than implemented from scratch. `W75.1`–`W75.6` were
+satisfied by what landed in `d44afde` and PR #311; `W75.7` was verified 2026-08-19 on `main`
+at `7a66da3` — typecheck, lint, 1116 tests across 79 files, `git diff --check`, and
+`./build/Test-Documentation.ps1` all clean. Criterion ids are retained as written — they are
+never renumbered — so the record of which arrived how stays readable.
 
 - **Spec:** [20 §7.2](04-core.md#7-the-session-store-and-the-platform-api),
       [§12](04-core.md#12-reason-codes-state-changes-messages),
       [06 §5.2](06-extensibility.md#52-sessionpersistence-and-profilestore).
 - **Depends on:** nothing beyond the shipped session store.
+- **Status:** Done — closed by [#308](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/308), all seven criteria ticked.
 - **Done when:**
   - W75.1 A session write whose adapter throws an exception branded with
         `SESSION_PERSISTENCE_CONFLICT` raises `SessionStoreError` with code
@@ -2884,7 +2886,7 @@ so the record of which arrived how stays readable.
 
 ---
 
-### [ ] W76 — A Folded Registry Keeps Its Resolution {#w76}
+### [x] W76 — A Folded Registry Keeps Its Resolution {#w76}
 
 **Delivers:** A game assembled from several content packs can still say which mix of content it
 was played against — on the one route a host is actually able to use. Today that route quietly
@@ -2909,7 +2911,9 @@ the origin; the criteria are transcribed as written and their ids are retained.
       `src/engine/src/campaigns/stable-life-packs.ts` and `stable-life-packs.test.ts`;
       `src/engine/package.json`.
 - **Depends on:** nothing beyond the shipped pack resolution.
-- **Status:** Not started.
+- **Status:** Done — [PR #337](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/337),
+      closing [#315](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/315). All ten
+      criteria verified against `main` and ticked 2026-08-19.
 - **Done when:**
   - W76.1 One call takes an ordered pack set and returns a validated, frozen registry whose
         `resolution` equals `computeResolutionId` over that same set, with no caller reattaching
@@ -2961,7 +2965,7 @@ only in half, because the other half of each is blocked on something a slice may
 What is deliberately *not* sliced, and why, is stated in that unit's **Out of scope** rather
 than left as an absence.
 
-### [ ] W77 — Tier 1 and Tier 2 as an Author-Facing Check {#w77}
+### [x] W77 — Tier 1 and Tier 2 as an Author-Facing Check {#w77}
 
 **Delivers:** Someone writing a campaign can ask what is wrong with it before anyone plays it,
 and get back a list they can act on — naming the node, key or id at fault. Today those checks
@@ -2985,7 +2989,7 @@ rather than paper over.
       states; `src/engine/package.json` scripts. `src/engine/src/core/validation/tiered.ts` is
       **read, not modified**.
 - **Depends on:** nothing.
-- **Status:** Not started.
+- **Status:** Done — [PR #338](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/338), all seven criteria ticked.
 - **Done when:**
   - W77.1 Running the check over a named committed campaign reports every Tier 1 error and
         Tier 2 warning `buildValidatedContentRegistry` produces for it, each rendered with its
