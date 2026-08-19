@@ -308,4 +308,17 @@ describe("buildValidatedPackRegistry", () => {
     expect(result.ok).toBe(true);
     expect(result.value?.strings.get("test.title")).toBe("Test Title");
   });
+
+  it("W76.6 — fails missing_string_key when a campaign's titleKey resolves nowhere in the resolved set", () => {
+    const pack = makePack({
+      campaigns: [built(makeCampaign({ id: "camp-a", titleKey: "test.title" }))],
+      strings: new Map(), // no pack in the set ever supplies "test.title"
+    });
+
+    const result = buildValidatedPackRegistry([pack], makeKinds());
+
+    expect(result.ok).toBe(false);
+    expect(result.value).toBeUndefined();
+    expect(result.errors.some((e) => e.code === "missing_string_key" && e.path === "test.title")).toBe(true);
+  });
 });
