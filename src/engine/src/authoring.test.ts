@@ -1,0 +1,191 @@
+/**
+ * The author-time surface is closed (W74.7; contract §19, *Published Narrative Authoring*).
+ *
+ * Two separate claims, because a boundary is only real when something fails on being crossed:
+ *
+ * - **Nothing enters or leaves unnoticed.** Every exported name — value *and* type — is
+ *   compared against a committed sorted list, so adding one fails exactly as loudly as
+ *   removing one. Values come from the runtime namespace; types cannot, since they are
+ *   erased, so they come from parsing the source with the compiler the package builds with.
+ *   The two are cross-checked against each other so the parser cannot quietly go blind.
+ * - **No published narrative is reachable through it.** Not by name, and not through the
+ *   module graph either. The walk follows exactly the edges that survive erasure — with
+ *   `verbatimModuleSyntax`, every statement except `import type` / `export type` is a real
+ *   runtime load — so `export type { … } from "./index.js"`, which would otherwise drag in
+ *   every published campaign the root exports, correctly counts as no edge at all.
+ */
+
+import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { dirname, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import * as ts from "typescript";
+import * as authoring from "./authoring.js";
+
+/** The documented author-time surface. Sorted, and asserted sorted below. */
+const AUTHORING_VALUE_EXPORTS = [
+  "buildAdventureCampaign",
+  "buildCampaign",
+  "buildReplayOutcome",
+  "buildStoryGraphCampaign",
+  "createAdventureSource",
+  "digestManifestResolution",
+  "digestPortableCampaign",
+  "findDivergence",
+  "migrateV1AdventureState",
+  "runReplayFixture",
+  "toPortable",
+];
+
+const AUTHORING_TYPE_EXPORTS = [
+  "AchievementDefinitionSource",
+  "AdventureConfig",
+  "AdventureEnding",
+  "AdventureRoute",
+  "AuthoredText",
+  "AutoNodeSource",
+  "BuiltCampaign",
+  "Campaign",
+  "ChoiceNodeSource",
+  "ChoiceSource",
+  "CommandResult",
+  "Condition",
+  "Consequence",
+  "EndingNodeSource",
+  "NodeSource",
+  "Outcome",
+  "PortableCampaign",
+  "PortableCampaignBody",
+  "PortableCatalog",
+  "PortableManifest",
+  "PortableManifestEntry",
+  "PortableMigration",
+  "RandomNodeSource",
+  "RandomTransition",
+  "ReplayFixture",
+  "ReplayResult",
+  "ReplayRunnerContext",
+  "ReplayVerdict",
+  "StoryGraphCampaign",
+  "StoryGraphCampaignSource",
+  "StoryGraphKindState",
+  "Submission",
+  "VarValue",
+  "VariableDeclSource",
+  "VariableSchemaSource",
+];
+
+/**
+ * The published narrative families W74.7 names. Matched against names with separators
+ * stripped, so `bulgaria-driving` (a campaign id), `buildBulgariaDrivingCampaign` (a builder)
+ * and `BULGARIA_DRIVING_CAMPAIGN_ID` (its id constant) are all one needle.
+ */
+const PUBLISHED_NARRATIVE_FAMILIES = ["bulgaria-", "lucifer-", "saki-", "what-would-lucifer-do"];
+
+const normalize = (name: string): string => name.toLowerCase().replaceAll(/[-_]/g, "");
+
+const namesPublishedNarrative = (name: string): boolean =>
+  PUBLISHED_NARRATIVE_FAMILIES.some((family) => normalize(name).includes(normalize(family)));
+
+const SOURCE_ROOT = dirname(fileURLToPath(import.meta.url));
+const AUTHORING_SOURCE = resolve(SOURCE_ROOT, "authoring.ts");
+
+const parse = (file: string): ts.SourceFile =>
+  ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.ES2022, true, ts.ScriptKind.TS);
+
+/** Names re-exported by a module, split the way erasure splits them. */
+function declaredExports(file: string): { readonly values: string[]; readonly types: string[] } {
+  const values: string[] = [];
+  const types: string[] = [];
+  for (const statement of parse(file).statements) {
+    if (!ts.isExportDeclaration(statement)) continue;
+    const clause = statement.exportClause;
+    if (clause === undefined || !ts.isNamedExports(clause)) continue;
+    for (const specifier of clause.elements) {
+      (statement.isTypeOnly || specifier.isTypeOnly ? types : values).push(specifier.name.text);
+    }
+  }
+  return { values: values.sort(), types: types.sort() };
+}
+
+/**
+ * The specifiers of a module that still exist after type erasure. `import type` and
+ * `export type` are gone; everything else — including `import { type A } from "…"`, whose
+ * *statement* survives even though its binding does not — is a real load.
+ */
+function runtimeSpecifiers(file: string): string[] {
+  const specifiers: string[] = [];
+  for (const statement of parse(file).statements) {
+    let moduleSpecifier: ts.Expression | undefined;
+    if (ts.isImportDeclaration(statement)) {
+      if (statement.importClause?.isTypeOnly === true) continue;
+      moduleSpecifier = statement.moduleSpecifier;
+    } else if (ts.isExportDeclaration(statement)) {
+      if (statement.isTypeOnly) continue;
+      moduleSpecifier = statement.moduleSpecifier;
+    }
+    if (moduleSpecifier !== undefined && ts.isStringLiteral(moduleSpecifier)) specifiers.push(moduleSpecifier.text);
+  }
+  return specifiers;
+}
+
+/** Every source file `authoring.ts` actually loads, transitively, as repository-root-relative paths. */
+function runtimeModuleGraph(entry: string): string[] {
+  const seen = new Set<string>();
+  const pending = [entry];
+  while (pending.length > 0) {
+    const file = pending.pop() as string;
+    if (seen.has(file)) continue;
+    seen.add(file);
+    for (const specifier of runtimeSpecifiers(file)) {
+      if (!specifier.startsWith(".")) continue;
+      pending.push(resolve(dirname(file), specifier.replace(/\.js$/, ".ts")));
+    }
+  }
+  return [...seen].map((file) => relative(SOURCE_ROOT, file).replaceAll("\\", "/")).sort();
+}
+
+describe("the author-time subpath is closed (W74.7)", () => {
+  it("keeps its committed lists sorted, so a diff to one is a diff to one line", () => {
+    expect(AUTHORING_VALUE_EXPORTS).toEqual([...AUTHORING_VALUE_EXPORTS].sort());
+    expect(AUTHORING_TYPE_EXPORTS).toEqual([...AUTHORING_TYPE_EXPORTS].sort());
+  });
+
+  it("exports exactly the committed values — a name added or removed fails here", () => {
+    expect(Object.keys(authoring).sort()).toEqual(AUTHORING_VALUE_EXPORTS);
+  });
+
+  it("exports exactly the committed types — a name added or removed fails here", () => {
+    expect(declaredExports(AUTHORING_SOURCE).types).toEqual(AUTHORING_TYPE_EXPORTS);
+  });
+
+  it("parses the same value exports the runtime reports, so the type half is trustworthy", () => {
+    expect(declaredExports(AUTHORING_SOURCE).values).toEqual(Object.keys(authoring).sort());
+  });
+
+  it("retains the shared adventure builder, which is not a published campaign", () => {
+    expect(typeof authoring.buildAdventureCampaign).toBe("function");
+    expect(typeof authoring.createAdventureSource).toBe("function");
+  });
+
+  it("names no published campaign builder, id constant or campaign id", () => {
+    const surfaced = [...AUTHORING_VALUE_EXPORTS, ...AUTHORING_TYPE_EXPORTS].filter(namesPublishedNarrative);
+    expect(surfaced).toEqual([]);
+  });
+
+  it("exports no string value that is a published campaign id", () => {
+    const exported: readonly unknown[] = Object.values(authoring);
+    const ids = exported.filter((value): value is string => typeof value === "string");
+    expect(ids.filter(namesPublishedNarrative)).toEqual([]);
+  });
+
+  it("loads no published campaign module, transitively", () => {
+    const graph = runtimeModuleGraph(AUTHORING_SOURCE);
+
+    // Without this the walk could pass by reaching nothing at all. `campaigns/` is exactly
+    // where a published campaign would appear, and the shared builder proves we get there.
+    expect(graph).toContain("campaigns/adventure-builder.ts");
+
+    expect(graph.filter((file) => namesPublishedNarrative(file.split("/").pop() ?? ""))).toEqual([]);
+  });
+});
