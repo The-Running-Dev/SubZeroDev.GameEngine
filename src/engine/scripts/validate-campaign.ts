@@ -57,6 +57,7 @@ import { evaluateStoryGraphCondition, toConditionContext } from "../src/kinds/st
 import { evaluateAchievements } from "../src/kinds/story-graph/achievements.js";
 import { SETTLE_STEPS } from "../src/kinds/story-graph/settle.js";
 import type { StoryGraphCampaign } from "../src/kinds/story-graph/campaign.js";
+import { runIfMainModule } from "./run-if-main.js";
 
 import { buildBulgariaBureaucracyCampaign, BULGARIA_BUREAUCRACY_CAMPAIGN_ID } from "../src/campaigns/bulgaria-bureaucracy.js";
 import {
@@ -300,9 +301,4 @@ async function main(): Promise<void> {
   process.exitCode = reportHasFailures(report) ? 1 : 0;
 }
 
-if (process.argv[1] !== undefined && import.meta.url === `file://${process.argv[1]}`) {
-  main().catch((error: unknown) => {
-    console.error(error);
-    process.exitCode = 1;
-  });
-}
+runIfMainModule(import.meta.url, main);

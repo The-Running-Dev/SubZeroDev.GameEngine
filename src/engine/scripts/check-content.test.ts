@@ -200,10 +200,11 @@ describe("stable-life.broken.ts — W77.3, W77.6", () => {
 });
 
 describe("catalogue coverage — W77.4", () => {
-  // A module "exports a campaign builder" iff it declares a top-level `export function`
-  // whose name starts with `build` and ends with `Campaign` (optionally `...CampaignBG`)
-  // — the naming convention every committed campaign builder in this repository follows.
-  const CAMPAIGN_BUILDER_EXPORT = /^export function (build\w*Campaign(?:BG)?)\s*\(/m;
+  // A module "exports a campaign builder" iff it declares a top-level `export function` or
+  // `export const` whose name starts with `build` and ends with `Campaign` (optionally
+  // `...CampaignBG`) — the naming convention every committed campaign builder in this
+  // repository follows, matched regardless of function-declaration vs. arrow-function style.
+  const CAMPAIGN_BUILDER_EXPORT = /^export (?:function (build\w*Campaign(?:BG)?)\s*\(|const (build\w*Campaign(?:BG)?)\s*=)/m;
 
   function campaignModuleFiles(): string[] {
     return readdirSync(CAMPAIGNS_DIR).filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts"));

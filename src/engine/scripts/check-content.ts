@@ -8,9 +8,12 @@
  * Those two tiers already run on every campaign, at registry-construction time
  * (`buildValidatedContentRegistry`, `src/core/validation/tiered.ts`) — the only way to
  * see what they found was to be the program that caught a registry build failing. This
- * script is the author-facing door onto the same checks: it calls
- * `buildValidatedContentRegistry` with a batch of exactly one campaign and renders
- * whatever comes back, authoring no rule of its own (W77.5).
+ * script is the author-facing door onto the single-campaign subset of those checks: it
+ * calls `buildValidatedContentRegistry` with a batch of exactly one campaign and renders
+ * whatever comes back, authoring no rule of its own (W77.5). Because the batch is always
+ * size one, a check that only fires across a batch — `duplicate_campaign_id`, a
+ * cross-campaign string conflict — can never trigger here; catching those still needs the
+ * real, multi-campaign registry build.
  *
  * Lives outside `src/`, alongside `validate-campaign.ts` (Tier 3) — authoring-time
  * tooling, not shipped engine code (architecture §9.2), so neither the determinism guard
@@ -28,6 +31,8 @@ import type { BuiltCampaign } from "../src/core/registry/types.js";
 import type { LocKey } from "../src/core/localization/types.js";
 import type { ValidationError, ValidationWarning } from "../src/core/validation/types.js";
 import { buildValidatedContentRegistry } from "../src/core/validation/tiered.js";
+import { mergeStringTables } from "../src/core/registry/strings.js";
+import { runIfMainModule } from "./run-if-main.js";
 
 import { storyGraphKind } from "../src/kinds/story-graph/kind.js";
 import { simulationKind } from "../src/kinds/simulation/kind.js";
@@ -57,9 +62,8 @@ interface CatalogueEntry {
  * Every committed campaign this checker will run over, keyed by the source file
  * (`src/engine/src/campaigns/<key>`) that declares it — the key, not just the campaign
  * id, is what lets the coverage test (W77.4) below cross-check against the directory
- * listing. `demo-cli.ts` and `export-campaigns.ts` each hand-maintain their own version
- * of this same list today (W77 introduces the shared one; migrating those two onto it is
- * out of scope here).
+ * listing. `demo-cli.ts` hand-maintains its own version of this same list today (W77
+ * introduces the shared one; migrating `demo-cli.ts` onto it is out of scope here).
  */
 export const CAMPAIGN_CATALOGUE: Readonly<Record<string, CatalogueEntry>> = {
   "bulgaria-bureaucracy.ts": { campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, build: buildBulgariaBureaucracyCampaign },
@@ -102,42 +106,50 @@ export interface ContentCheckResult {
   warnings: CampaignFinding[];
 }
 
-function resolveMessage(key: LocKey, tables: readonly ReadonlyMap<LocKey, string>[]): string {
-  for (const table of tables) {
-    const text = table.get(key);
-    if (text !== undefined) return text;
+function resolveMessage(key: LocKey, strings: ReadonlyMap<LocKey, string>): string {
+  const text = strings.get(key);
+  if (text === undefined) {
+    // Every registered reason code and every campaign's own titleKey/content LocKeys are
+    // guaranteed resolvable by the tiers this checker delegates to (04 §12, §11) — asserted
+    // rather than silently degraded to a bare key, so a gap in that guarantee surfaces as a
+    // checker failure instead of looking like a normal finding.
+    throw new Error(`check-content: unresolvable messageKey "${key}" — the checker's own tables or a kind's reasonMessages are missing an entry.`);
   }
-  // Every registered reason code and every campaign's own titleKey/content LocKeys are
-  // guaranteed resolvable by the tiers this checker delegates to (04 §12, §11) — this
-  // fallback exists so a gap surfaces as a visible key rather than the checker crashing.
-  return key;
+  return text;
 }
 
-function toFinding(entry: ValidationError | ValidationWarning, tables: readonly ReadonlyMap<LocKey, string>[]): CampaignFinding {
-  const message = resolveMessage(entry.messageKey, tables);
+function toFinding(entry: ValidationError | ValidationWarning, strings: ReadonlyMap<LocKey, string>): CampaignFinding {
+  const message = resolveMessage(entry.messageKey, strings);
   return entry.path !== undefined ? { code: entry.code, message, path: entry.path } : { code: entry.code, message };
 }
 
 /**
  * Runs Tier 1 and Tier 2 over one already-built campaign, through
  * `buildValidatedContentRegistry` — the same sanctioned entry point the registry path
- * itself uses (W77.5) — with a batch of exactly this one campaign. Every finding's
- * `messageKey` is resolved to text (never left as a bare key, W77.1): the declaring
- * kind's own `reasonMessages` first, then the core's `CORE_REASON_MESSAGES`, then this
- * campaign's own built string table — the same order 04 §11's "which string table
- * validation checks against" resolves a campaign's own `LocKey`s against.
+ * itself uses (W77.5) — with a batch of exactly this one campaign, so only the
+ * single-campaign subset of Tier 1/2 fires here; a batch-only check like
+ * `duplicate_campaign_id` needs the real multi-campaign registry build to ever trigger.
+ * Every finding's `messageKey` is resolved to text (never left as a bare key, W77.1),
+ * against the declaring kind's own `reasonMessages`, the core's `CORE_REASON_MESSAGES`,
+ * and this campaign's own built string table merged via `mergeStringTables` — the same
+ * primitive and the same precedence 04 §11's "which string table validation checks
+ * against" resolves a campaign's own `LocKey`s with.
  */
 export function checkBuiltCampaign(built: BuiltCampaign, kinds: KindRegistry = KINDS): ContentCheckResult {
   const kind = kinds[built.campaign.kindId];
   const tables = [kind?.reasonMessages, CORE_REASON_MESSAGES, built.strings].filter(
     (table): table is ReadonlyMap<LocKey, string> => table !== undefined,
   );
+  const merged = mergeStringTables(tables);
+  if (!merged.ok) {
+    throw new Error(`check-content: conflicting text for the same key across reason-message tables — ${JSON.stringify(merged.conflicts)}`);
+  }
 
   const result = buildValidatedContentRegistry([{ campaign: built.campaign, strings: built.strings }], kinds);
 
   return {
-    errors: result.errors.map((error) => toFinding(error, tables)),
-    warnings: result.warnings.map((warning) => toFinding(warning, tables)),
+    errors: result.errors.map((error) => toFinding(error, merged.strings)),
+    warnings: result.warnings.map((warning) => toFinding(warning, merged.strings)),
   };
 }
 
@@ -191,9 +203,4 @@ async function main(): Promise<void> {
   process.exitCode = hasFailures(result) ? 1 : 0;
 }
 
-if (process.argv[1] !== undefined && import.meta.url === `file://${process.argv[1]}`) {
-  main().catch((error: unknown) => {
-    console.error(error);
-    process.exitCode = 1;
-  });
-}
+runIfMainModule(import.meta.url, main);
