@@ -98,11 +98,11 @@ export const bulgariaCulturePack: ContentPack = {
 
 /**
  * The sanctioned way to turn an ordered Stable Life pack set into a playable registry.
- * A thin, kind-fixed sibling of `buildValidatedPackRegistry` (`core/validation/tiered.ts`,
- * W76) — that function is the shared fold-validate-reattach sequence; this one exists so
+ * A pure passthrough to `buildValidatedPackRegistry` (`core/validation/tiered.ts`, W76) —
+ * that function is the shared fold-validate-reattach sequence; this one exists only so
  * `stable-life-packs.test.ts`, `scripts/demo-cli.ts`, and
- * `bulgaria-stable-life.replay.test.ts` keep one name for "resolve *this* pack pair"
- * rather than each re-passing `kinds` by hand.
+ * `bulgaria-stable-life.replay.test.ts` keep the Stable-Life-scoped name they already call,
+ * rather than each switching to the generic one.
  *
  * Callers should inspect `.warnings` rather than discard them: folding a pack whose
  * strings/campaigns are mostly new — like `bulgariaCulturePack`, a full independent

@@ -164,7 +164,7 @@ export function buildValidatedPackRegistry(
   if (resolution === undefined) throw new Error("buildValidatedPackRegistry: expected the fold to name its resolution");
 
   const validated = buildValidatedContentRegistry(
-    [...campaigns.values()].map((campaign) => ({ campaign, strings })),
+    Array.from(campaigns.values(), (campaign) => ({ campaign, strings })),
     kinds,
   );
   if (!validated.ok || !validated.value) {
