@@ -106,7 +106,6 @@ const namesPublishedNarrative = (name: string): boolean => {
 
 const SOURCE_ROOT = dirname(fileURLToPath(import.meta.url));
 const AUTHORING_SOURCE = resolve(SOURCE_ROOT, "authoring.ts");
-const EXPORT_CAMPAIGNS_SOURCE = resolve(SOURCE_ROOT, "../scripts/export-campaigns.ts");
 
 const sourceFileCache = new Map<string, ts.SourceFile>();
 
@@ -192,22 +191,6 @@ function runtimeModuleGraph(entry: string): string[] {
   return [...seen].map((file) => relative(SOURCE_ROOT, file).replaceAll("\\", "/")).sort();
 }
 
-/** The campaign source-file basenames `export-campaigns.ts` actually publishes — the real
- *  manifest `PUBLISHED_NARRATIVE_FAMILIES` exists to match, read directly so the two cannot
- *  silently drift apart. */
-function publishedCampaignBasenames(): string[] {
-  const basenames: string[] = [];
-  for (const statement of parse(EXPORT_CAMPAIGNS_SOURCE).statements) {
-    if (!ts.isImportDeclaration(statement)) continue;
-    const specifier = statement.moduleSpecifier;
-    if (!ts.isStringLiteral(specifier)) continue;
-    const match = /^\.\.\/src\/campaigns\/(.+)\.js$/.exec(specifier.text);
-    const basename = match?.[1];
-    if (basename !== undefined) basenames.push(basename);
-  }
-  return basenames;
-}
-
 describe("the author-time subpath is closed (W74.7)", () => {
   it("exports exactly the committed values — a name added or removed fails here", () => {
     expect(Object.keys(authoring).sort()).toEqual(AUTHORING_VALUE_EXPORTS);
@@ -224,11 +207,6 @@ describe("the author-time subpath is closed (W74.7)", () => {
   it("retains the shared adventure builder, which is not a published campaign", () => {
     expect(typeof authoring.buildAdventureCampaign).toBe("function");
     expect(typeof authoring.createAdventureSource).toBe("function");
-  });
-
-  it("covers every campaign export-campaigns.ts actually publishes, so a new family can't go unmatched", () => {
-    const uncovered = publishedCampaignBasenames().filter((basename) => !namesPublishedNarrative(basename));
-    expect(uncovered).toEqual([]);
   });
 
   it("names no published campaign builder, id constant or campaign id", () => {

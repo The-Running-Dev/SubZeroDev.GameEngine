@@ -11,8 +11,6 @@ import {
 /**
  * W65.3 self-tests: each capability must demonstrably fail when the
  * condition it checks is violated, not just pass on compliant markup.
- * Proving that here, once, is what lets the specs under `../play/browser/`
- * trust a passing assertion instead of re-deriving it per spec.
  */
 
 function mount(html: string): HTMLElement {
