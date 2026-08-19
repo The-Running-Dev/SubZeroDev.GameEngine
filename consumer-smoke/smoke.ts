@@ -3,8 +3,10 @@ import {
   buildCampaign,
   buildContentRegistry,
   buildValidatedContentRegistry,
+  buildValidatedPackRegistry,
   buildWorldGraphCampaign,
   buildWorldGraphMvpCampaign,
+  computeResolutionId,
   createEngine,
   createInMemoryProfileStore,
   SESSION_PERSISTENCE_CONFLICT,
@@ -12,6 +14,7 @@ import {
   simulationKind,
   worldGraphKind,
   type Campaign,
+  type ContentPack,
   type Engine,
   type KindRegistry,
   type LocKey,
@@ -344,6 +347,20 @@ function runEngineSmoke(): KindRegistry {
 
   const created = expectOk(engine.createGame({ campaignId: "smoke-campaign" }), "createGame should succeed for a valid smoke campaign");
   assert.equal(created.status, "active");
+
+  // W76: the fold-validate-reattach sequence, reachable through the packed tarball —
+  // proves the resolution stamp survives npm pack/install, not just source imports.
+  const pack: ContentPack = {
+    id: "smoke-pack",
+    version: "1.0.0",
+    kindId: "story-graph",
+    dependsOn: [],
+    campaigns: [validBuilt],
+    strings: new Map(validBuilt.strings),
+  };
+  const packRegistry = expectOk(buildValidatedPackRegistry([pack], kinds), "pack registry should fold and validate");
+  assert.equal(packRegistry.resolution, computeResolutionId([pack]));
+  assert.equal(packRegistry.campaigns.get("smoke-campaign")?.version, packRegistry.resolution);
   assert.equal(worldGraphKind.id, "world-graph");
   assert.equal(SESSION_PERSISTENCE_CONFLICT, "SessionPersistenceConflict");
   assert.equal(typeof buildWorldGraphCampaign, "function");

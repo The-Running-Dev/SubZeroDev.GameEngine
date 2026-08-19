@@ -17,6 +17,7 @@
 
 import type { BuiltCampaign, Campaign, ContentRegistry } from "../registry/types.js";
 import { buildContentRegistry } from "../registry/build.js";
+import { resolvePacks, type ContentPack } from "../registry/packs.js";
 import type { Kind, KindId, KindRegistry } from "../kernel/types.js";
 import type { CommandResult } from "../kernel/reasons.js";
 import type { LocKey } from "../localization/types.js";
@@ -129,4 +130,51 @@ export function buildValidatedContentRegistry(
   // `built.ok` was just checked; `value` is always set on that branch (registry/build.ts's
   // own contract) — TS doesn't discriminate CommandResult's `ok` from a plain `boolean`.
   return { ok: true, value: built.value as ContentRegistry, errors: [], warnings };
+}
+
+/**
+ * The sanctioned path from an ordered pack set (11 §3) to a validated, frozen registry —
+ * the two-stage sequence `resolvePacks` then `buildValidatedContentRegistry` folded
+ * together, with the fold's `ResolutionId` reattached. Neither stage can do this alone:
+ * `resolvePacks` runs no `Kind.validateCampaign` (11 §3), and `buildValidatedContentRegistry`
+ * "knows no packs exist" so it has nothing to stamp `resolution` with (04 §10.1).
+ *
+ * Fails at whichever stage fails, reporting only that stage's errors and no registry — the
+ * fold's own Tier 1 checks (§7: kind/campaign mismatch, dependency conflicts, cycles,
+ * protected-string writes) short-circuit before a single campaign is ever validated.
+ * Tier 2 warnings from both stages are combined into one result, never one discarded for
+ * the other.
+ *
+ * Every campaign is validated against the *folded* string table, not its own pack's —
+ * the same table 11 §3's per-key replace produces, so a campaign whose `titleKey` resolves
+ * only through a later pack's contribution validates the same as one whose own pack always
+ * carried it.
+ */
+export function buildValidatedPackRegistry(
+  packs: readonly ContentPack[],
+  kinds: KindRegistry,
+): CommandResult<ContentRegistry> {
+  const folded = resolvePacks(packs);
+  if (!folded.ok || !folded.value) {
+    return { ok: false, errors: folded.errors, warnings: folded.warnings };
+  }
+  const { campaigns, strings, resolution } = folded.value;
+  // Optional on the type, but never absent on a folded registry (04 §10.1) — asserted
+  // rather than spread away, so the reattachment below cannot silently become a no-op.
+  if (resolution === undefined) throw new Error("buildValidatedPackRegistry: expected the fold to name its resolution");
+
+  const validated = buildValidatedContentRegistry(
+    [...campaigns.values()].map((campaign) => ({ campaign, strings })),
+    kinds,
+  );
+  if (!validated.ok || !validated.value) {
+    return { ok: false, errors: validated.errors, warnings: [...folded.warnings, ...validated.warnings] };
+  }
+
+  return {
+    ok: true,
+    value: { ...validated.value, resolution },
+    errors: [],
+    warnings: [...folded.warnings, ...validated.warnings],
+  };
 }
