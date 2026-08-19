@@ -62,7 +62,7 @@ describe("W74a — the Bureaucracy fixture is frozen byte-for-byte", () => {
 
   it("W74a.1 — the comparison is sensitive to a one-character change, not just gross structural drift", () => {
     const corrupted = `${golden.en.canonical.slice(0, -1)}${golden.en.canonical.endsWith("}") ? ")" : "}"}`;
-    expect(corrupted).not.toBe(canonicalStringify(enPortable()));
+    expect(() => expect(canonicalStringify(enPortable()), FROZEN_MESSAGE).toBe(corrupted)).toThrow();
   });
 
   it("W74a.2 — the failure message names the freeze and the regeneration path, not a bare digest mismatch", () => {
