@@ -1180,6 +1180,14 @@ both maps. `buildValidatedContentRegistry`
 that order, and it threads each used kind's messages into assembly so the frozen table
 carries them.
 
+For a pack set rather than a single campaign batch, `buildValidatedPackRegistry(packs:
+readonly ContentPack[], kinds: KindRegistry): CommandResult<ContentRegistry>` (same file) is
+the sanctioned entry point (11 §3, W76): it runs `resolvePacks` (§7 below) to fold the set,
+then this same validate-and-assemble sequence against the folded campaigns and string table,
+and reattaches the fold's `resolution` id — neither stage alone can produce a validated,
+`resolution`-stamped registry. It is exported from the package root alongside
+`buildValidatedContentRegistry`.
+
 > **This is a clarification of scope, not a weakening.** Nothing here permits an unresolved
 > key into a frozen registry. The merged table is a superset of every per-campaign table plus
 > the core's and the kinds' own, so a key that resolves in the narrower table resolves in the

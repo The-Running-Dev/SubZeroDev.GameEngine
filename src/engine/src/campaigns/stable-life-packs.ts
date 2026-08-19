@@ -7,12 +7,12 @@
  * housing, possessions and effects, not a voice-only reskin of the base's.
  */
 
-import { resolvePacks, type ContentPack } from "../core/registry/packs.js";
+import type { ContentPack } from "../core/registry/packs.js";
 import type { BuiltCampaign, ContentRegistry } from "../core/registry/types.js";
 import type { LocKey } from "../core/localization/types.js";
 import type { KindRegistry } from "../core/kernel/types.js";
 import type { CommandResult } from "../core/kernel/reasons.js";
-import { buildValidatedContentRegistry } from "../core/validation/tiered.js";
+import { buildValidatedPackRegistry } from "../core/validation/tiered.js";
 import { canonicalStringify, sha256Hex } from "../core/persistence/canonical.js";
 import { buildStableLifeCampaign } from "./stable-life.js";
 import { buildBulgariaStableLifeCampaign } from "./bulgaria-stable-life.js";
@@ -97,15 +97,12 @@ export const bulgariaCulturePack: ContentPack = {
 };
 
 /**
- * The sanctioned way to turn an ordered Stable Life pack set into a playable registry:
- * fold it (11 §3), run the fold through the same Tier 1–3 validation a single-campaign
- * registry goes through (`validation/tiered.ts` — `resolvePacks` itself runs no
- * `Kind.validateCampaign`), then reattach the fold's `resolution` id, which
- * `buildValidatedContentRegistry` cannot stamp itself because it "knows no packs exist"
- * (04 §10.1). One definition, shared by every caller that needs this pair resolved —
+ * The sanctioned way to turn an ordered Stable Life pack set into a playable registry.
+ * A pure passthrough to `buildValidatedPackRegistry` (`core/validation/tiered.ts`, W76) —
+ * that function is the shared fold-validate-reattach sequence; this one exists only so
  * `stable-life-packs.test.ts`, `scripts/demo-cli.ts`, and
- * `bulgaria-stable-life.replay.test.ts` each used to hand-roll this same sequence, which
- * left them free to silently diverge.
+ * `bulgaria-stable-life.replay.test.ts` keep the Stable-Life-scoped name they already call,
+ * rather than each switching to the generic one.
  *
  * Callers should inspect `.warnings` rather than discard them: folding a pack whose
  * strings/campaigns are mostly new — like `bulgariaCulturePack`, a full independent
@@ -119,27 +116,5 @@ export function resolveStableLifeRegistry(
   packs: readonly ContentPack[],
   kinds: KindRegistry,
 ): CommandResult<ContentRegistry> {
-  const folded = resolvePacks(packs);
-  if (!folded.ok || !folded.value) {
-    return { ok: false, errors: folded.errors, warnings: folded.warnings };
-  }
-  const { campaigns, strings, resolution } = folded.value;
-  // Optional on the type, but never absent on a folded registry (04 §10.1) — asserted
-  // rather than spread away, so the carry-across below cannot silently become a no-op.
-  if (resolution === undefined) throw new Error("resolveStableLifeRegistry: expected the fold to name its resolution");
-
-  const validated = buildValidatedContentRegistry(
-    [...campaigns.values()].map((campaign) => ({ campaign, strings })),
-    kinds,
-  );
-  if (!validated.ok || !validated.value) {
-    return { ok: false, errors: validated.errors, warnings: [...folded.warnings, ...validated.warnings] };
-  }
-
-  return {
-    ok: true,
-    value: { ...validated.value, resolution },
-    errors: [],
-    warnings: [...folded.warnings, ...validated.warnings],
-  };
+  return buildValidatedPackRegistry(packs, kinds);
 }

@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { buildValidatedContentRegistry } from "./tiered.js";
+import { buildValidatedContentRegistry, buildValidatedPackRegistry } from "./tiered.js";
 import type { ValidationResult } from "./types.js";
 import type { BuiltCampaign, Campaign } from "../registry/types.js";
+import { computeResolutionId, type ContentPack } from "../registry/packs.js";
 import type { Kind, KindRegistry } from "../kernel/types.js";
 
 function makeCampaign(overrides?: Partial<Campaign>): Campaign {
@@ -158,5 +159,166 @@ describe("buildValidatedContentRegistry", () => {
     // any other kind must never touch a (possibly absent) reasonMessages on it.
     const result = buildValidatedContentRegistry([built(makeCampaign())], makeKinds());
     expect(result.ok).toBe(true);
+  });
+});
+
+function makePack(overrides?: Partial<ContentPack>): ContentPack {
+  return {
+    id: "pack-a",
+    version: "1.0.0",
+    kindId: "story-graph",
+    dependsOn: [],
+    campaigns: [],
+    strings: new Map(),
+    ...overrides,
+  };
+}
+
+describe("buildValidatedPackRegistry", () => {
+  it("W76.1 — folds an ordered pack set into a validated registry whose resolution matches computeResolutionId, distinct for a one- vs two-pack set", () => {
+    const packA = makePack({
+      id: "pack-a",
+      campaigns: [built(makeCampaign({ id: "camp-a" }))],
+      strings: new Map([["test.title", "Test Title"]]),
+    });
+    const packB = makePack({
+      id: "pack-b",
+      campaigns: [built(makeCampaign({ id: "camp-b" }))],
+      strings: new Map([["test.title", "Test Title"]]),
+    });
+
+    const one = buildValidatedPackRegistry([packA], makeKinds());
+    const two = buildValidatedPackRegistry([packA, packB], makeKinds());
+
+    expect(one.ok).toBe(true);
+    expect(two.ok).toBe(true);
+    expect(one.value?.resolution).toBe(computeResolutionId([packA]));
+    expect(two.value?.resolution).toBe(computeResolutionId([packA, packB]));
+    expect(one.value?.resolution).not.toBe(two.value?.resolution);
+    // No caller reattaches anything: every campaign's own version is already stamped.
+    expect(one.value?.campaigns.get("camp-a")?.version).toBe(one.value?.resolution);
+    expect(two.value?.campaigns.get("camp-b")?.version).toBe(two.value?.resolution);
+  });
+
+  it("W76.2 — merges the used kind's own <kindId>.reason.* messages into the frozen table", () => {
+    const kindWithMessage = makeStubKind({
+      reasonCodes: ["dangling_node"],
+      reasonMessages: new Map([["story-graph.reason.dangling_node", "A node reference is dangling."]]),
+    });
+    const pack = makePack({
+      campaigns: [built(makeCampaign())],
+      strings: new Map([["test.title", "Test Title"]]),
+    });
+
+    const result = buildValidatedPackRegistry([pack], makeKinds(kindWithMessage));
+
+    expect(result.ok).toBe(true);
+    expect(result.value?.strings.get("story-graph.reason.dangling_node")).toBe("A node reference is dangling.");
+  });
+
+  it("W76.3 — fails at the fold stage on a Tier 1 pack-set violation, reporting only that stage's errors and no registry", () => {
+    // The campaign's kindId ("simulation") doesn't match its pack's ("story-graph") —
+    // 11 §7's first Tier 1 rule — so resolvePacks itself fails before any campaign is validated.
+    const mismatched = makePack({
+      kindId: "story-graph",
+      campaigns: [built(makeCampaign({ kindId: "simulation" }))],
+      strings: new Map([["test.title", "Test Title"]]),
+    });
+
+    const result = buildValidatedPackRegistry([mismatched], makeKinds());
+
+    expect(result.ok).toBe(false);
+    expect(result.value).toBeUndefined();
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]?.code).toBe("pack_kind_mismatch");
+  });
+
+  it("W76.3 — fails at the campaign stage when the fold resolves but a campaign fails Tier 1, reporting only that stage's errors and no registry", () => {
+    // The pack itself folds cleanly (kinds match, no duplicate id, no protected write) —
+    // the failure is 04 §11's own campaign-shape check, which only runs once folding succeeds.
+    const badShape = makePack({
+      campaigns: [built(makeCampaign({ id: "Not_Kebab_Case" }))],
+      strings: new Map([["test.title", "Test Title"]]),
+    });
+
+    const result = buildValidatedPackRegistry([badShape], makeKinds());
+
+    expect(result.ok).toBe(false);
+    expect(result.value).toBeUndefined();
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]?.code).toBe("invalid_identifier");
+  });
+
+  it("W76.4 — combines Tier 2 warnings from both the fold stage and the campaign-validation stage into one result", () => {
+    const warningKind = makeStubKind({
+      validateCampaign: (): ValidationResult => ({
+        ok: true,
+        errors: [],
+        warnings: [{ code: "no_reachable_choice", messageKey: "kind.story-graph.reason.no_reachable_choice" }],
+      }),
+    });
+    const packA = makePack({
+      id: "pack-a",
+      campaigns: [built(makeCampaign({ id: "camp-a" }))],
+      strings: new Map([["test.title", "Test Title"]]),
+    });
+    // A second pack introducing a key no earlier pack shipped trips resolvePacks' own
+    // Tier 2 "probably a typo" heuristic (registry/packs.ts).
+    const packB = makePack({
+      id: "pack-b",
+      dependsOn: [{ id: packA.id, version: packA.version }],
+      campaigns: [],
+      strings: new Map([["pack-b.new-key", "New text"]]),
+    });
+
+    const result = buildValidatedPackRegistry([packA, packB], makeKinds(warningKind));
+
+    expect(result.ok).toBe(true);
+    expect(result.warnings.some((w) => w.code === "pack_override_unexpected" && w.path === "pack-b.new-key")).toBe(true);
+    expect(result.warnings.some((w) => w.code === "no_reachable_choice")).toBe(true);
+  });
+
+  it("W76.5 — the no-pack route is unchanged: buildValidatedContentRegistry still yields resolution undefined", () => {
+    const result = buildValidatedContentRegistry([built(makeCampaign())], makeKinds());
+    expect(result.ok).toBe(true);
+    expect(result.value?.resolution).toBeUndefined();
+  });
+
+  it("W76.6 — validates a campaign against the fully folded string table, not just its own pack's", () => {
+    // camp-a's titleKey has no string in pack-a at all — only pack-b, which comes later in
+    // the fold, supplies it. Validation must run against the merged table (11 §3's per-key
+    // replace already folded pack-b's contribution in) or this campaign fails
+    // missing_string_key even though the resolved registry has the key.
+    const packA = makePack({
+      id: "pack-a",
+      // The built campaign's own `.strings` is not read by `resolvePacks` — only the
+      // pack-level `strings` map, below, feeds the fold — so it is irrelevant here.
+      campaigns: [built(makeCampaign({ id: "camp-a", titleKey: "test.title" }))],
+      strings: new Map(),
+    });
+    const packB = makePack({
+      id: "pack-b",
+      dependsOn: [{ id: packA.id, version: packA.version }],
+      campaigns: [],
+      strings: new Map([["test.title", "Test Title"]]),
+    });
+
+    const result = buildValidatedPackRegistry([packA, packB], makeKinds());
+
+    expect(result.ok).toBe(true);
+    expect(result.value?.strings.get("test.title")).toBe("Test Title");
+  });
+
+  it("W76.6 — fails missing_string_key when a campaign's titleKey resolves nowhere in the resolved set", () => {
+    const pack = makePack({
+      campaigns: [built(makeCampaign({ id: "camp-a", titleKey: "test.title" }))],
+      strings: new Map(), // no pack in the set ever supplies "test.title"
+    });
+
+    const result = buildValidatedPackRegistry([pack], makeKinds());
+
+    expect(result.ok).toBe(false);
+    expect(result.value).toBeUndefined();
+    expect(result.errors.some((e) => e.code === "missing_string_key" && e.path === "test.title")).toBe(true);
   });
 });

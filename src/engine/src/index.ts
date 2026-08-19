@@ -10,7 +10,7 @@ export {
   buildContentRegistry,
 } from "./core/registry/build.js";
 
-export { buildValidatedContentRegistry } from "./core/validation/tiered.js";
+export { buildValidatedContentRegistry, buildValidatedPackRegistry } from "./core/validation/tiered.js";
 // Content packs (11 §3, §5a, §6). Exported because the composition these serve is
 // host-side: `10-design.md` §5.5 puts resolving one registry per distinct assignment
 // combination — `applyExperimentGates` then `resolvePacks` — *above* the session seam,
