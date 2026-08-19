@@ -22,7 +22,8 @@ import { fileURLToPath } from "node:url";
 import * as ts from "typescript";
 import * as authoring from "./authoring.js";
 
-/** The documented author-time surface. Sorted, and asserted sorted below. */
+/** The documented author-time surface. Sorted, so the exact-match assertions below fail if
+ *  either list drifts out of order. */
 const AUTHORING_VALUE_EXPORTS = [
   "buildAdventureCampaign",
   "buildCampaign",
@@ -76,19 +77,33 @@ const AUTHORING_TYPE_EXPORTS = [
 ];
 
 /**
- * The published narrative families W74.7 names. Matched against names with separators
- * stripped, so `bulgaria-driving` (a campaign id), `buildBulgariaDrivingCampaign` (a builder)
- * and `BULGARIA_DRIVING_CAMPAIGN_ID` (its id constant) are all one needle.
+ * The published narrative families W74.7 names. Matched by whole word, case-insensitively,
+ * against names split on `-`/`_` and camelCase boundaries — so `bulgaria-driving` (a campaign
+ * id), `buildBulgariaDrivingCampaign` (a builder) and `BULGARIA_DRIVING_CAMPAIGN_ID` (its id
+ * constant) are all one needle, but an unrelated word that merely contains a family's letters
+ * (e.g. "kawasaki") is not.
  */
 const PUBLISHED_NARRATIVE_FAMILIES = ["bulgaria-", "lucifer-", "saki-", "what-would-lucifer-do"];
 
-const normalize = (name: string): string => name.toLowerCase().replaceAll(/[-_]/g, "");
+const WORD_BOUNDARY = " ";
 
-const namesPublishedNarrative = (name: string): boolean =>
-  PUBLISHED_NARRATIVE_FAMILIES.some((family) => normalize(name).includes(normalize(family)));
+const words = (name: string): string[] =>
+  name
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .split(/[-_\s]+/)
+    .map((word) => word.toLowerCase())
+    .filter((word) => word.length > 0);
+
+const wordKey = (name: string): string => `${WORD_BOUNDARY}${words(name).join(WORD_BOUNDARY)}${WORD_BOUNDARY}`;
+
+const namesPublishedNarrative = (name: string): boolean => {
+  const haystack = wordKey(name);
+  return PUBLISHED_NARRATIVE_FAMILIES.some((family) => haystack.includes(wordKey(family)));
+};
 
 const SOURCE_ROOT = dirname(fileURLToPath(import.meta.url));
 const AUTHORING_SOURCE = resolve(SOURCE_ROOT, "authoring.ts");
+const EXPORT_CAMPAIGNS_SOURCE = resolve(SOURCE_ROOT, "../scripts/export-campaigns.ts");
 
 const parse = (file: string): ts.SourceFile =>
   ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.ES2022, true, ts.ScriptKind.TS);
@@ -129,6 +144,18 @@ function runtimeSpecifiers(file: string): string[] {
   return specifiers;
 }
 
+/**
+ * Resolves a relative runtime specifier to the `.ts` source it compiles from, or `undefined`
+ * for a non-source leaf (`.json`) that ends the walk without being parsed as one. Every
+ * relative *module* specifier in this package is `.js`-suffixed (NodeNext-style); anything
+ * else fails loudly here rather than as a confusing `ENOENT` several calls later.
+ */
+function specifierToSourceFile(fromFile: string, specifier: string): string | undefined {
+  if (specifier.endsWith(".js")) return resolve(dirname(fromFile), specifier.replace(/\.js$/, ".ts"));
+  if (specifier.endsWith(".json")) return undefined;
+  throw new Error(`${fromFile}: unsupported relative specifier (expected a ".js" or ".json" extension): "${specifier}"`);
+}
+
 /** Every source file `authoring.ts` actually loads, transitively, as repository-root-relative paths. */
 function runtimeModuleGraph(entry: string): string[] {
   const seen = new Set<string>();
@@ -139,18 +166,30 @@ function runtimeModuleGraph(entry: string): string[] {
     seen.add(file);
     for (const specifier of runtimeSpecifiers(file)) {
       if (!specifier.startsWith(".")) continue;
-      pending.push(resolve(dirname(file), specifier.replace(/\.js$/, ".ts")));
+      const sourceFile = specifierToSourceFile(file, specifier);
+      if (sourceFile !== undefined) pending.push(sourceFile);
     }
   }
   return [...seen].map((file) => relative(SOURCE_ROOT, file).replaceAll("\\", "/")).sort();
 }
 
-describe("the author-time subpath is closed (W74.7)", () => {
-  it("keeps its committed lists sorted, so a diff to one is a diff to one line", () => {
-    expect(AUTHORING_VALUE_EXPORTS).toEqual([...AUTHORING_VALUE_EXPORTS].sort());
-    expect(AUTHORING_TYPE_EXPORTS).toEqual([...AUTHORING_TYPE_EXPORTS].sort());
-  });
+/** The campaign source-file basenames `export-campaigns.ts` actually publishes — the real
+ *  manifest `PUBLISHED_NARRATIVE_FAMILIES` exists to match, read directly so the two cannot
+ *  silently drift apart. */
+function publishedCampaignBasenames(): string[] {
+  const basenames: string[] = [];
+  for (const statement of parse(EXPORT_CAMPAIGNS_SOURCE).statements) {
+    if (!ts.isImportDeclaration(statement)) continue;
+    const specifier = statement.moduleSpecifier;
+    if (!ts.isStringLiteral(specifier)) continue;
+    const match = /^\.\.\/src\/campaigns\/(.+)\.js$/.exec(specifier.text);
+    const basename = match?.[1];
+    if (basename !== undefined) basenames.push(basename);
+  }
+  return basenames;
+}
 
+describe("the author-time subpath is closed (W74.7)", () => {
   it("exports exactly the committed values — a name added or removed fails here", () => {
     expect(Object.keys(authoring).sort()).toEqual(AUTHORING_VALUE_EXPORTS);
   });
@@ -166,6 +205,11 @@ describe("the author-time subpath is closed (W74.7)", () => {
   it("retains the shared adventure builder, which is not a published campaign", () => {
     expect(typeof authoring.buildAdventureCampaign).toBe("function");
     expect(typeof authoring.createAdventureSource).toBe("function");
+  });
+
+  it("covers every campaign export-campaigns.ts actually publishes, so a new family can't go unmatched", () => {
+    const uncovered = publishedCampaignBasenames().filter((basename) => !namesPublishedNarrative(basename));
+    expect(uncovered).toEqual([]);
   });
 
   it("names no published campaign builder, id constant or campaign id", () => {
