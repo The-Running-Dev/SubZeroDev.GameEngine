@@ -1,6 +1,6 @@
 {
   "name": "@the-running-dev/game-engine",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "type": "module",
   "description": "Deterministic narrative game engine — core + kinds. Specs: ../../docs/docs/engine/.",
   "repository": {

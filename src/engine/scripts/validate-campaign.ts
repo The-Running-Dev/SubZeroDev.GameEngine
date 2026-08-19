@@ -58,18 +58,7 @@ import { evaluateAchievements } from "../src/kinds/story-graph/achievements.js";
 import { SETTLE_STEPS } from "../src/kinds/story-graph/settle.js";
 import type { StoryGraphCampaign } from "../src/kinds/story-graph/campaign.js";
 
-import { buildWhatWouldLuciferDoCampaign, WHAT_WOULD_LUCIFER_DO_CAMPAIGN_ID } from "../src/campaigns/what-would-lucifer-do.js";
-import {
-  buildWhatWouldLuciferDoEngineersCutCampaign,
-  WHAT_WOULD_LUCIFER_DO_ENGINEERS_CUT_CAMPAIGN_ID,
-} from "../src/campaigns/what-would-lucifer-do-engineers-cut.js";
-import { buildLuciferChroniclesCampaign, LUCIFER_CHRONICLES_CAMPAIGN_ID } from "../src/campaigns/lucifer-chronicles.js";
 import { buildBulgariaBureaucracyCampaign, BULGARIA_BUREAUCRACY_CAMPAIGN_ID } from "../src/campaigns/bulgaria-bureaucracy.js";
-import { buildBulgariaReturnCampaign, BULGARIA_RETURN_CAMPAIGN_ID } from "../src/campaigns/bulgaria-return.js";
-import { buildBulgariaDrivingCampaign, BULGARIA_DRIVING_CAMPAIGN_ID } from "../src/campaigns/bulgaria-driving.js";
-import { buildBulgariaInheritanceCampaign, BULGARIA_INHERITANCE_CAMPAIGN_ID } from "../src/campaigns/bulgaria-inheritance.js";
-import { buildBulgariaEnterpriseCampaign, BULGARIA_ENTERPRISE_CAMPAIGN_ID } from "../src/campaigns/bulgaria-enterprise.js";
-import { buildSakiQuestCampaign, SAKI_QUEST_CAMPAIGN_ID } from "../src/campaigns/saki-quest-for-redemption.js";
 import {
   buildTier3UnreachableEndingFixtureCampaign,
   TIER3_UNREACHABLE_ENDING_FIXTURE_CAMPAIGN_ID,
@@ -255,20 +244,14 @@ export function reportHasFailures(report: CampaignCheckReport): boolean {
 }
 
 /**
- * Every story-graph campaign this repository ships, kept in sync by hand with
- * `export-campaigns.ts`'s own `entries` — the two lists have no shared source of truth,
- * so a new story-graph campaign must be added to both.
+ * Every story-graph campaign this repository still holds. Published narrative moved to
+ * Adventures.Content with the breaking ownership release (W74c), so what remains is not a
+ * catalog: `bulgaria-bureaucracy` is frozen regression evidence (W74a) and the tier-3 fixture
+ * exists to be found unreachable. An author checking a *published* campaign runs this
+ * repository's checker from Content, against Content's source.
  */
 const CAMPAIGNS: Record<string, () => CommandResult<BuiltCampaign>> = {
-  [WHAT_WOULD_LUCIFER_DO_CAMPAIGN_ID]: buildWhatWouldLuciferDoCampaign,
-  [WHAT_WOULD_LUCIFER_DO_ENGINEERS_CUT_CAMPAIGN_ID]: buildWhatWouldLuciferDoEngineersCutCampaign,
-  [LUCIFER_CHRONICLES_CAMPAIGN_ID]: buildLuciferChroniclesCampaign,
   [BULGARIA_BUREAUCRACY_CAMPAIGN_ID]: buildBulgariaBureaucracyCampaign,
-  [BULGARIA_RETURN_CAMPAIGN_ID]: buildBulgariaReturnCampaign,
-  [BULGARIA_DRIVING_CAMPAIGN_ID]: buildBulgariaDrivingCampaign,
-  [BULGARIA_INHERITANCE_CAMPAIGN_ID]: buildBulgariaInheritanceCampaign,
-  [BULGARIA_ENTERPRISE_CAMPAIGN_ID]: buildBulgariaEnterpriseCampaign,
-  [SAKI_QUEST_CAMPAIGN_ID]: buildSakiQuestCampaign,
   [TIER3_UNREACHABLE_ENDING_FIXTURE_CAMPAIGN_ID]: buildTier3UnreachableEndingFixtureCampaign,
 };
 
