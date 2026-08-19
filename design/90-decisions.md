@@ -85,10 +85,15 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   `src/engine/src/campaigns/stable-life-packs.ts`) is local and unexported — each pack file
   must call its own copy, and `ContentPack.version` stays a plain `string` the type system
   does not check (`10-design.md` §6). The guarantee the decision was meant to
-  make self-enforcing is currently enforced by convention again, one level down. **Revisit
-  when** a second pack is authored outside `stable-life-packs.ts` — that is the concrete case
-  for promoting `packVersion` to an exported engine helper, rather than doing it speculatively
-  ahead of a second caller.
+  make self-enforcing is currently enforced by convention again, one level down. W79's
+  `campaignContentDigest` (`src/engine/scripts/diff-resolution.ts`) is now a second,
+  independent copy of the same idea — a canonical digest over a campaign's content fields
+  excluding the ones stamped after the fact — with its own field list (it excludes
+  `campaign.version`, which `packVersion` includes, since W79 diffs already-resolved
+  campaigns whose `version` is the resolution stamp itself). **Revisit when** a second pack
+  is authored outside `stable-life-packs.ts` — that is the concrete case for promoting
+  `packVersion` to an exported engine helper that both call, rather than doing it
+  speculatively ahead of a second caller.
 - **`history` in the simulation kind's state** — the upstream model carries
   `history: HistoryEntry[]`, a narrative record of what happened. That overlaps
   `StateChange[]`, which `advance` already returns (04 §12), and the event stream

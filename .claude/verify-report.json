@@ -3,62 +3,62 @@
     {
       "name": "engine typecheck",
       "status": "Passed",
-      "detail": "npm --prefix src/engine run typecheck — tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json, exit 0, no diagnostics."
+      "detail": "npm --prefix src/engine run typecheck: tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json — completed with no errors."
     },
     {
       "name": "engine lint",
       "status": "Passed",
-      "detail": "npm --prefix src/engine run lint — eslint src scripts, exit 0, no findings."
+      "detail": "npm --prefix src/engine run lint: eslint src scripts — completed with no errors."
     },
     {
       "name": "engine test",
       "status": "Passed",
-      "detail": "npm --prefix src/engine test — vitest run. Test Files 77 passed (77); Tests 1076 passed (1076)."
+      "detail": "npm --prefix src/engine test: vitest run — Test Files 78 passed (78), Tests 1081 passed (1081), Duration 9.43s."
     },
     {
       "name": "engine pack + tarball inspect",
       "status": "Passed",
-      "detail": "npm pack in src/engine produced the-running-dev-game-engine-0.10.0.tgz; tar -tzf inspection confirmed no src/ files, no tsconfig*.json, no .test.* build artifacts, and package/dist/ present, matching the ci.yml 'Inspect tarball' step's checks. Tarball removed after inspection."
+      "detail": "cd src/engine; npm pack — produced the-running-dev-game-engine-0.10.0.tgz, package size 340.9 kB, unpacked size 1.5 MB, total files 311, shasum eabb6cc08492f3250d237dd699cada3bf5964508."
     },
     {
       "name": "consumer smoke",
       "status": "Passed",
-      "detail": "consumer-smoke: rm -rf node_modules package-lock.json dist; npm run install:engine (packed and installed the-running-dev-game-engine-0.10.0.tgz, added 5 packages); npm run build (tsc -p tsconfig.json, no errors); npm run smoke (node dist/smoke.js), exit 0, no output (smoke script produces none on success)."
+      "detail": "cd consumer-smoke; npm run install:engine (packed and installed the-running-dev-game-engine-0.10.0.tgz); npm run build (tsc -p tsconfig.json, no errors); npm run smoke (node dist/smoke.js, exited 0 with no output)."
     },
     {
       "name": "documentation gate",
       "status": "Passed",
-      "detail": "./build/Test-Documentation.ps1 run from repo root under pwsh, exit code 0."
+      "detail": "./build/Test-Documentation.ps1 — \"Human-documentation drift check passed across 18 generated engine page(s), compatibility pointers, and the guide.\" \"Documentation checks passed across 123 Markdown file(s).\" Exited with code 0."
     },
     {
       "name": "site check",
       "status": "Passed",
-      "detail": "npm --prefix site run check — format:check (Prettier: all matched files use Prettier code style), lint (oxlint, no findings), typecheck (tsc -b, no errors), test (vitest: 2 files, 15 tests passed), test:browser (vitest: 1 file, 11 tests passed), test:build (build succeeded, verify-build.mjs: both built HTML entry points contain their required static metadata, and 3 bundle(s) are free of Node-only runtime references), test:merge (verify-merge.mjs: Package-backed merge proven: '/', '/roadmap/' and the protected 'docs/' subtree all verified, and the top-level 'docs/' guard rejects a bad landing build)."
+      "detail": "npm --prefix site run check — format:check (Prettier: all matched files use Prettier code style), lint (oxlint, no errors), typecheck (tsc -b, no errors), test (vitest: 2 files / 15 tests passed), test:browser (vitest: 1 file / 11 tests passed), test:build (tsc -b + landing build succeeded, verify-build.mjs: both built HTML entry points contain required static metadata, 3 bundles free of Node-only runtime references), test:merge (verify-merge.mjs: \"Package-backed merge proven: '/', '/roadmap/' and the protected 'docs/' subtree all verified, and the top-level 'docs/' guard rejects a bad landing build.\")."
     },
     {
       "name": "powershell parse-check",
       "status": "Passed",
-      "detail": "Parsed every *.ps1 recursively with [System.Management.Automation.Language.Parser]::ParseFile, mirroring verify.yml's step. Output: 'All PowerShell scripts parse cleanly.' No parse errors."
+      "detail": "Parsed every *.ps1 file (excluding node_modules) with [System.Management.Automation.Language.Parser]::ParseFile — 21 files checked, all parsed successfully, zero parse errors."
     },
     {
       "name": "pester tools",
       "status": "Passed",
-      "detail": "Invoke-Pester -Path tools -Output Detailed -PassThru. Tests completed in 177.66s. Tests Passed: 95, Failed: 0, Skipped: 0, Inconclusive: 0, NotRun: 0."
+      "detail": "Invoke-Pester -Path tools -Output Detailed -PassThru — Tests Passed: 94, Failed: 0, Skipped: 0, Inconclusive: 0, NotRun: 0. Containers included Measure-Session, Sync-Kit, Test-Companion, Test-DesignDrift, Test-VerifyReport, Test-WriteSurface, Wait-PullRequestCheck."
     },
     {
       "name": "production docs build",
       "status": "DidNotRun",
-      "reason": "docs.ps1 does not exist in this working copy. Per this repository's own convention (CLAUDE.md, 'Docs Site'), docs.ps1 is generated by Invoke-SetupDocs during kit installation and is not committed — it was never installed in this checkout. Cannot run ./docs.ps1 -BuildOnly without it; the corresponding 'Verify Documentation Build' check on the pull request is where the real answer comes from."
+      "reason": "./docs.ps1 is not present in this checkout — per CLAUDE.md it is installer-generated (by Invoke-SetupDocs), not committed, and was not found at the repository root. Docker itself is available locally, but without docs.ps1 the production Docusaurus build (onBrokenLinks: 'throw') cannot be invoked. The corresponding PR check 'Verify Documentation Build' on PR #342 (head cb5c6c28b403a2f020851733d816f0030449f800) reports pass (https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/32282997783/job/96165860675)."
     },
     {
       "name": "host tests",
       "status": "DidNotRun",
-      "reason": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests/SubZeroDev.GameEngine.Host.Tests.csproj fails at NuGet restore: 'error NU1301: Failed to retrieve information about SubZeroDev.Platform.Hosting from remote source https://nuget.pkg.github.com/The-Running-Dev/download/subzerodev.platform.hosting/index.json — Response status code does not indicate success: 401 (Unauthorized).' This package is published from the sibling SubZeroDev.Platform repository and needs a cross-repo read:packages token (host-image.yml calls this REGISTRY_TOKEN) that is not configured in this local environment. The 'engine' required check does not cover src/host/; the host-image workflow's own CI run is where this actually gets verified."
+      "reason": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests/SubZeroDev.GameEngine.Host.Tests.csproj fails during NuGet restore with NU1301: 'Response status code does not indicate success: 401 (Unauthorized)' against https://nuget.pkg.github.com/The-Running-Dev/download/subzerodev.platform.hosting/index.json. SubZeroDev.Platform.Hosting is published from the sibling SubZeroDev.Platform repository via GitHub Packages, and the local environment has no cross-repo read:packages credential configured (CI supplies this via the REGISTRY_TOKEN secret, per .github/workflows/host-image.yml). Cannot run locally without that credential."
     },
     {
       "name": "host image smoke",
       "status": "DidNotRun",
-      "reason": "host-image.yml's own first step ('Verify NuGet restore credential is configured') fails the job outright without a REGISTRY_TOKEN secret, and its 'Test the host' step needs the same cross-repo GitHub Packages credential that made 'host tests' fail above (NU1301 401 Unauthorized restoring SubZeroDev.Platform.Hosting). Also needs a Docker build/run/smoke sequence pulling ghcr.io/the-running-dev/docs-template, which was not attempted once the restore precondition was already known to fail. The host-image workflow's own CI run on the pull request is where this gets verified."
+      "reason": "The same host-image.yml smoke job restores SubZeroDev.Platform.Hosting as its first real step (via 'Test the host', which runs the same dotnet test as the 'host tests' gate) before building/running/smoke-testing the Docker image, and that restore requires the REGISTRY_TOKEN cross-repo GitHub Packages credential that is not configured locally — same root cause as 'host tests'. The corresponding PR check 'Build, run, and smoke the image' on PR #342 (head cb5c6c28b403a2f020851733d816f0030449f800) reports pass (https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/32282997774/job/96165861089)."
     }
   ]
 }
