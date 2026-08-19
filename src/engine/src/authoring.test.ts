@@ -89,7 +89,10 @@ const WORD_BOUNDARY = " ";
 
 const words = (name: string): string[] =>
   name
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+    .replace(/([A-Za-z])(\d)/g, "$1 $2")
+    .replace(/(\d)([A-Za-z])/g, "$1 $2")
     .split(/[-_\s]+/)
     .map((word) => word.toLowerCase())
     .filter((word) => word.length > 0);
@@ -105,17 +108,33 @@ const SOURCE_ROOT = dirname(fileURLToPath(import.meta.url));
 const AUTHORING_SOURCE = resolve(SOURCE_ROOT, "authoring.ts");
 const EXPORT_CAMPAIGNS_SOURCE = resolve(SOURCE_ROOT, "../scripts/export-campaigns.ts");
 
-const parse = (file: string): ts.SourceFile =>
-  ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.ES2022, true, ts.ScriptKind.TS);
+const sourceFileCache = new Map<string, ts.SourceFile>();
 
-/** Names re-exported by a module, split the way erasure splits them. */
+const parse = (file: string): ts.SourceFile => {
+  const cached = sourceFileCache.get(file);
+  if (cached !== undefined) return cached;
+  const sourceFile = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.ES2022, true, ts.ScriptKind.TS);
+  sourceFileCache.set(file, sourceFile);
+  return sourceFile;
+};
+
+/**
+ * Names re-exported by a module, split the way erasure splits them. Every export declaration
+ * must be a named-exports clause (`export { … } from "…"` / `export type { … } from "…"`) —
+ * an `export * from "…"` or a locally declared export would be invisible to this walk, so it
+ * fails loudly here rather than silently reporting an incomplete list.
+ */
 function declaredExports(file: string): { readonly values: string[]; readonly types: string[] } {
   const values: string[] = [];
   const types: string[] = [];
   for (const statement of parse(file).statements) {
     if (!ts.isExportDeclaration(statement)) continue;
     const clause = statement.exportClause;
-    if (clause === undefined || !ts.isNamedExports(clause)) continue;
+    if (clause === undefined || !ts.isNamedExports(clause)) {
+      throw new Error(
+        `${file}: unsupported export declaration (expected a named-exports clause): "${statement.getText()}"`,
+      );
+    }
     for (const specifier of clause.elements) {
       (statement.isTypeOnly || specifier.isTypeOnly ? types : values).push(specifier.name.text);
     }
@@ -230,6 +249,7 @@ describe("the author-time subpath is closed (W74.7)", () => {
     // where a published campaign would appear, and the shared builder proves we get there.
     expect(graph).toContain("campaigns/adventure-builder.ts");
 
-    expect(graph.filter((file) => namesPublishedNarrative(file.split("/").pop() ?? ""))).toEqual([]);
+    const basenames = graph.map((file) => (file.split("/").pop() ?? "").replace(/\.ts$/, ""));
+    expect(basenames.filter(namesPublishedNarrative)).toEqual([]);
   });
 });

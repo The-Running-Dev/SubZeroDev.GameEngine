@@ -139,6 +139,12 @@ function expectOk<T>(result: { ok: boolean; value?: T }, context: string): T {
   return result.value;
 }
 
+/** Asserts, at the type level, that `T` is exactly the declared public-types tuple. */
+function assertTypeSurface<T extends readonly unknown[]>(): void {
+  const resolve = <U extends T>(): U | undefined => undefined;
+  assert.equal(resolve(), undefined);
+}
+
 function assertCampaignContentCastThrows(kinds: KindRegistry, authoredText: readonly { key: LocKey; text: string }[]): void {
   const malformedCampaign: Campaign = {
     id: "smoke-malformed",
@@ -271,9 +277,10 @@ async function runAuthoringSmoke(kinds: KindRegistry): Promise<void> {
   assert.equal(typeof buildAdventureCampaign, "function");
   const migrated = migrateV1AdventureState({}, "2.0.0", source, {});
   assert.equal(migrated.ok, false, "a non-v1 state is not migratable");
+  const migratedV1 = migrateV1AdventureState({ currentNodeId: "start", variables: {} }, "1.0.0", source, {});
+  assert.equal(migratedV1.ok, true, "a v1 state should migrate to v2 declarations");
 
-  const authoringTypesResolve = <T extends AuthoringPublicTypes>(): T | undefined => undefined;
-  assert.equal(authoringTypesResolve(), undefined);
+  assertTypeSurface<AuthoringPublicTypes>();
 }
 
 function runEngineSmoke(): KindRegistry {
@@ -374,10 +381,8 @@ function runEngineSmoke(): KindRegistry {
     return serialized;
   };
   assert.equal(runWorldGraphReplay(), runWorldGraphReplay(), "packed world-graph replays should be byte-identical");
-  const publicTypesResolve = <T extends WorldGraphPublicTypes>(): T | undefined => undefined;
-  assert.equal(publicTypesResolve(), undefined);
-  const sessionPersistenceTypesResolve = <T extends SessionPersistencePublicTypes>(): T | undefined => undefined;
-  assert.equal(sessionPersistenceTypesResolve(), undefined);
+  assertTypeSurface<WorldGraphPublicTypes>();
+  assertTypeSurface<SessionPersistencePublicTypes>();
   assertCampaignContentCastThrows(kinds, authoredText);
   return kinds;
 }
