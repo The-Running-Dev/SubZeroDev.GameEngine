@@ -24,10 +24,6 @@ import { storyGraphKind } from "../src/kinds/story-graph/kind.js";
 import { simulationKind } from "../src/kinds/simulation/kind.js";
 
 import { buildBulgariaBureaucracyCampaign, BULGARIA_BUREAUCRACY_CAMPAIGN_ID } from "../src/campaigns/bulgaria-bureaucracy.js";
-import { buildBulgariaDrivingCampaign } from "../src/campaigns/bulgaria-driving.js";
-import { buildBulgariaInheritanceCampaign } from "../src/campaigns/bulgaria-inheritance.js";
-import { buildBulgariaReturnCampaign } from "../src/campaigns/bulgaria-return.js";
-import { buildBulgariaEnterpriseCampaign } from "../src/campaigns/bulgaria-enterprise.js";
 import { buildStableLifeCampaign } from "../src/campaigns/stable-life.js";
 import { resolveStableLifeRegistry, stableLifeBasePack, bulgariaCulturePack } from "../src/campaigns/stable-life-packs.js";
 import { BULGARIA_STABLE_LIFE_CAMPAIGN_ID } from "../src/campaigns/bulgaria-stable-life.js";
@@ -36,12 +32,12 @@ import { TextClient } from "../src/clients/text/client.js";
 
 const KINDS: KindRegistry = { "story-graph": storyGraphKind, simulation: simulationKind } as KindRegistry;
 
+/** What this repository can still be played against. The published narrative moved to
+ *  Adventures.Content with the breaking ownership release (W74c), so this harness plays the
+ *  frozen Bureaucracy fixture (W74a) and the simulation kind's "Stable Life" — one campaign
+ *  per kind that ships here, which is what a play-test harness for *the engine* needs. */
 const CAMPAIGN_BUILDERS: ReadonlyArray<() => ReturnType<typeof buildBulgariaBureaucracyCampaign>> = [
   buildBulgariaBureaucracyCampaign,
-  buildBulgariaDrivingCampaign,
-  buildBulgariaInheritanceCampaign,
-  buildBulgariaReturnCampaign,
-  buildBulgariaEnterpriseCampaign,
   buildStableLifeCampaign,
 ];
 

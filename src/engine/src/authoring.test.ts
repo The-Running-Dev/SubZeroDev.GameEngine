@@ -1,5 +1,8 @@
 /**
- * The author-time surface is closed (W74.7; contract §19, *Published Narrative Authoring*).
+ * The package's two published surfaces are closed: the author-time subpath (W74.7) and, since
+ * the breaking ownership release, the runtime root as well (W74c; contract §19, *Published
+ * Narrative Authoring*). Both claims live here because they share one matcher and one module
+ * walker, and two copies of either is a promise they will diverge.
  *
  * Two separate claims, because a boundary is only real when something fails on being crossed:
  *
@@ -21,6 +24,7 @@ import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as ts from "typescript";
 import * as authoring from "./authoring.js";
+import * as root from "./index.js";
 
 /** The documented author-time surface. Sorted, so the exact-match assertions below fail if
  *  either list drifts out of order. */
@@ -106,6 +110,7 @@ const namesPublishedNarrative = (name: string): boolean => {
 
 const SOURCE_ROOT = dirname(fileURLToPath(import.meta.url));
 const AUTHORING_SOURCE = resolve(SOURCE_ROOT, "authoring.ts");
+const ROOT_SOURCE = resolve(SOURCE_ROOT, "index.ts");
 
 const sourceFileCache = new Map<string, ts.SourceFile>();
 
@@ -226,6 +231,36 @@ describe("the author-time subpath is closed (W74.7)", () => {
     // Without this the walk could pass by reaching nothing at all. `campaigns/` is exactly
     // where a published campaign would appear, and the shared builder proves we get there.
     expect(graph).toContain("campaigns/adventure-builder.ts");
+
+    const basenames = graph.map((file) => (file.split("/").pop() ?? "").replace(/\.ts$/, ""));
+    expect(basenames.filter(namesPublishedNarrative)).toEqual([]);
+  });
+});
+
+/**
+ * The mirror claim on the runtime root (W74c). Adventures.Content owns the publication of
+ * narrative campaigns; the engine keeps `bulgaria-bureaucracy` solely as frozen regression
+ * evidence (W74a), which is why the frozen fixture is checked here too rather than carved out —
+ * "kept as evidence" and "shipped to hosts" are exactly the two things this separates.
+ */
+describe("the runtime root publishes no narrative campaign (W74c)", () => {
+  it("names no published campaign builder or id constant", () => {
+    expect(Object.keys(root).filter(namesPublishedNarrative)).toEqual([]);
+  });
+
+  it("exports no string value that is a published campaign id", () => {
+    const exported: readonly unknown[] = Object.values(root);
+    const ids = exported.filter((value): value is string => typeof value === "string");
+    expect(ids.filter(namesPublishedNarrative)).toEqual([]);
+  });
+
+  it("loads no published campaign module, transitively — the frozen fixture included", () => {
+    const graph = runtimeModuleGraph(ROOT_SOURCE);
+
+    // Same guard against a vacuous pass as the subpath's walk above: `campaigns/` is where a
+    // published campaign would appear, and the world-graph MVP campaign — which is content the
+    // engine legitimately still ships — proves the walk reaches that directory at all.
+    expect(graph).toContain("campaigns/world-graph-mvp.ts");
 
     const basenames = graph.map((file) => (file.split("/").pop() ?? "").replace(/\.ts$/, ""));
     expect(basenames.filter(namesPublishedNarrative)).toEqual([]);

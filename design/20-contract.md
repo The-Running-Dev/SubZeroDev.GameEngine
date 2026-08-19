@@ -1542,7 +1542,7 @@ campaigns. GameEngine owns kinds, validation, portable hydration and authoring p
 GameEngine may retain a frozen campaign solely as a regression fixture; such a fixture is not
 published and not listed in a manifest. Existing frozen campaigns stay package-root exports
 through 0.8.0 for compatibility; the breaking 0.9.0 release removes them from the root
-(design/90-decisions.md, W74.5). The peg moved once already: 0.8.0 was originally named here
+(design/30-slices.md, W74c). The peg moved once already: 0.8.0 was originally named here
 and was then spent on an additive release, so a version reserved by this section is a name
 to check against `src/engine/package.json` before a bump, not after.
 

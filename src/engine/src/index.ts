@@ -34,39 +34,21 @@ export { simulationKind } from "./kinds/simulation/kind.js";
 export { worldGraphKind } from "./kinds/world-graph/kind.js";
 export { buildWorldGraphCampaign } from "./kinds/world-graph/source.js";
 export { buildWorldGraphMvpCampaign, WORLD_GRAPH_MVP_CAMPAIGN_ID } from "./campaigns/world-graph-mvp.js";
-export {
-  buildBulgariaBureaucracyCampaign,
-  BULGARIA_BUREAUCRACY_CAMPAIGN_ID,
-} from "./campaigns/bulgaria-bureaucracy.js";
-export { buildBulgariaDrivingCampaign, BULGARIA_DRIVING_CAMPAIGN_ID } from "./campaigns/bulgaria-driving.js";
-export { buildBulgariaReturnCampaign, BULGARIA_RETURN_CAMPAIGN_ID } from "./campaigns/bulgaria-return.js";
-export { buildBulgariaInheritanceCampaign, BULGARIA_INHERITANCE_CAMPAIGN_ID } from "./campaigns/bulgaria-inheritance.js";
-export { buildBulgariaEnterpriseCampaign, BULGARIA_ENTERPRISE_CAMPAIGN_ID } from "./campaigns/bulgaria-enterprise.js";
-export { buildLuciferChroniclesCampaign, LUCIFER_CHRONICLES_CAMPAIGN_ID } from "./campaigns/lucifer-chronicles.js";
-// Private campaign: playable via `/play/` but marked `hidden` in
-// `site/src/play/composition.ts`, so it never appears in the public dossier grid.
-export { buildSakiQuestCampaign, SAKI_QUEST_CAMPAIGN_ID } from "./campaigns/saki-quest-for-redemption.js";
-export {
-  buildWhatWouldLuciferDoCampaign,
-  WHAT_WOULD_LUCIFER_DO_CAMPAIGN_ID,
-} from "./campaigns/what-would-lucifer-do.js";
-// Private campaign: the technical incidents What Would Lucifer Do? relocates for a public
-// audience, told here in their original wording. Playable via `/play/` but marked `hidden`
-// in `site/src/play/composition.ts`, so it never appears in the public dossier grid.
-export {
-  buildWhatWouldLuciferDoEngineersCutCampaign,
-  WHAT_WOULD_LUCIFER_DO_ENGINEERS_CUT_CAMPAIGN_ID,
-} from "./campaigns/what-would-lucifer-do-engineers-cut.js";
+// No narrative campaign is exported here. Adventures.Content owns the source and publication
+// of published campaigns; a runtime host fetches portable JSON from that feed and hydrates it
+// with `fromPortable` below (W74c; contract §19). `bulgaria-bureaucracy` stays in
+// `campaigns/` as frozen regression evidence (W74a) and is deliberately reachable from
+// nowhere on this surface — `authoring.test.ts` fails if either claim stops holding.
 export { ENGINE_VERSION } from "./version.js";
 
 // Portable campaign format (graduated from the spike — plans/spike-notes.md). A real
 // contract export: `SubZeroDev.ServiceContract`'s content contract projects its schema
 // straight from `PortableCampaign`/`PortableManifest` below. `toPortable` and
-// `digestManifestResolution` stay unexported here — they are author-time-only, used by
-// `scripts/export-campaigns.ts` via a relative import within this repo, the same way
-// `toPortable` already was pre-graduation. `digestPortableCampaign` is exported so a host
-// (e.g. `site/src/play/composition.ts`) can re-verify a fetched file against the digest its
-// manifest entry recorded.
+// `digestManifestResolution` stay unexported here — they are author-time-only, reachable
+// through the `./authoring` subpath, which is what Adventures.Content's own
+// `scripts/export-content.ts` publishes from. `digestPortableCampaign` is exported here too,
+// so a runtime host can re-verify a fetched file against the digest its manifest entry
+// recorded.
 export { fromPortable } from "./portable/format.js";
 export { digestPortableCampaign } from "./portable/digest.js";
 export type {

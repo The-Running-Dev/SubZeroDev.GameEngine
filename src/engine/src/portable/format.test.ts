@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { fromPortable, toPortable, type PortableCatalog } from "./format.js";
 import { buildStableLifeCampaign } from "../campaigns/stable-life.js";
 import { buildWorldGraphMvpCampaign } from "../campaigns/world-graph-mvp.js";
-import { buildWhatWouldLuciferDoCampaign, whatWouldLuciferDoMigration } from "../campaigns/what-would-lucifer-do.js";
+import { buildBulgariaBureaucracyCampaign, bulgariaBureaucracyMigration } from "../campaigns/bulgaria-bureaucracy.js";
 import type { BuiltCampaign } from "../core/registry/types.js";
 import type { CommandResult } from "../core/kernel/reasons.js";
 
@@ -52,8 +52,8 @@ describe("toPortable/fromPortable — world-graph and simulation kinds", () => {
 
 describe("toPortable/fromPortable — story-graph hardening", () => {
   it("restores a null prototype on content-controlled maps after a JSON round-trip, and reattaches the migration", () => {
-    const source = unwrap(buildWhatWouldLuciferDoCampaign());
-    const portable = toPortable(source, catalog, whatWouldLuciferDoMigration);
+    const source = unwrap(buildBulgariaBureaucracyCampaign());
+    const portable = toPortable(source, catalog, bulgariaBureaucracyMigration);
     const roundTripped = JSON.parse(JSON.stringify(portable));
     const { built } = fromPortable(roundTripped);
     const content = built.campaign.content as { variables: object; nodes: object };
