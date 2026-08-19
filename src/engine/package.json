@@ -25,7 +25,8 @@
     "lint": "eslint src scripts",
     "demo": "tsx scripts/demo-cli.ts",
     "validate-campaign": "tsx scripts/validate-campaign.ts",
-    "check-content": "tsx scripts/check-content.ts"
+    "check-content": "tsx scripts/check-content.ts",
+    "loc-coverage": "tsx scripts/loc-coverage.ts"
   },
   "exports": {
     ".": {
