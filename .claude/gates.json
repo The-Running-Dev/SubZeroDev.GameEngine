@@ -1,54 +1,66 @@
 {
-  "manifestHash": "230fb9a3b6a2ccb0ce3ba7dff294dcf85dfe1773ff45db2a23e4883e5035d5f4",
-  "generated": "2026-08-19",
+  "manifestHash": "fe74684ae7ca549e563e429d0ce2ae9099f71b3e7dc61db78a48dd7dc7257456",
+  "generated": "2026-08-20",
   "gates": [
     {
-      "name": "engine typecheck",
+      "name": "Typecheck",
       "command": "npm --prefix src/engine run typecheck"
     },
     {
-      "name": "engine lint",
+      "name": "Lint",
       "command": "npm --prefix src/engine run lint"
     },
     {
-      "name": "engine test",
+      "name": "Test",
       "command": "npm --prefix src/engine test"
     },
     {
-      "name": "engine pack + tarball inspect",
-      "command": "cd src/engine; npm pack"
+      "name": "Pack package",
+      "command": "cd src/engine; npm pack --silent"
     },
     {
-      "name": "consumer smoke",
-      "command": "cd consumer-smoke; npm run install:engine; npm run build; npm run smoke"
+      "name": "Inspect tarball",
+      "command": "tar -tzf src/engine/*.tgz; assert no src/, no tsconfig*.json, no .test.* artifacts, package/dist/ present"
     },
     {
-      "name": "documentation gate",
+      "name": "Consumer smoke",
+      "command": "rm -rf consumer-smoke/{node_modules,package-lock.json,dist}; cd consumer-smoke; npm run install:engine; npm run build; npm run smoke"
+    },
+    {
+      "name": "Parse-check PowerShell scripts",
+      "command": "pwsh: Parser::ParseFile over Get-ChildItem -Recurse -Filter *.ps1"
+    },
+    {
+      "name": "Run Pester tests",
+      "command": "pwsh: Invoke-Pester -Path tools -Output Detailed -PassThru"
+    },
+    {
+      "name": "Validate Markdown links, terminology, and generated files",
       "command": "./build/Test-Documentation.ps1"
     },
     {
-      "name": "site check",
-      "command": "npm --prefix site run check"
+      "name": "Build documentation",
+      "command": "./docs.ps1 -BuildOnly (local stand-in for /template/scripts/docs-build.ps1; needs Docker and an installed docs.ps1)"
     },
     {
-      "name": "powershell parse-check",
-      "command": "Parser::ParseFile over **/*.ps1"
+      "name": "Build and verify landing page",
+      "command": "npm --prefix src/engine run build; npm --prefix site run check"
     },
     {
-      "name": "pester tools",
-      "command": "Invoke-Pester -Path tools"
+      "name": "Merge landing page into documentation build",
+      "command": "npm --prefix site run merge (needs a prior docs build in artifacts/docs)"
     },
     {
-      "name": "production docs build",
-      "command": "./docs.ps1 -BuildOnly"
+      "name": "Test the host",
+      "command": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests/SubZeroDev.GameEngine.Host.Tests.csproj (needs NUGET_GITHUB_TOKEN for the sibling-repo package feed)"
     },
     {
-      "name": "host tests",
-      "command": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests/SubZeroDev.GameEngine.Host.Tests.csproj"
+      "name": "Positive route and probe smoke",
+      "command": "docker build -t subzerodev-gameengine-host:smoke .; docker run -d -p 18080:8080; curl /, /roadmap/, /docs/, /health/live, /health/ready -> 200 and an unknown route -> 404"
     },
     {
-      "name": "host image smoke",
-      "command": "docker build/run/smoke per .github/workflows/host-image.yml"
+      "name": "Negative fixture -- corrupted artifact must fail to start",
+      "command": "docker build -f tools/host-smoke/Dockerfile.negative-fixture --build-arg BASE_IMAGE=subzerodev-gameengine-host:smoke; docker run must exit non-zero"
     }
   ]
 }

@@ -26,6 +26,18 @@ step's own `name:`. **A step without the flag is not a gate this command owns**,
 happens to run something useful — do not add it to the report on your own judgement, and
 do not drop the flag from a step that is still meant to gate the repository.
 
+**Which steps carry the flag.** Flag a step when its failure means the *repository* is
+broken, and its `run:` block translates to a local invocation. In practice that is the
+typechecks, linters, test suites, parse checks, packaging assertions and smoke probes —
+the steps that return a verdict on the tree. It is **not** checkout, toolchain setup,
+dependency installation, credential preconditions, container start/stop, image save/load,
+publishing or deployment steps, or `uses:`-only steps that run no command of their own.
+Those can fail, and CI goes red when they do, but they fail as plumbing rather than as a
+judgement on the code, and a report listing them describes the runner instead of the
+repository. When a step both prepares and asserts, flag it only if the assertion is the
+point of the step.
+
+
 **Check the cache first.** `tools/Test-GatesCache.ps1 -RepoRoot <repo>` hashes the files
 this discovery reads (every workflow's full content — so a flag added, moved, or removed
 invalidates it same as any other step edit — plus `package.json`'s content and whether the
@@ -41,13 +53,26 @@ invocation — that translation is still genuine judgement, the flag only says *
 is a gate, not *how* to reproduce it outside CI. This repository's current flagged steps and
 their local equivalents:
 
-| Flagged step (`.github/workflows/verify.yml`) | Run locally |
-|---|---|
-| `Parse-check PowerShell scripts` | Parse every `*.ps1` with `[System.Management.Automation.Language.Parser]::ParseFile`, as the step does |
-| `Run Pester tests` | `Invoke-Pester -Path tools -Output Detailed -PassThru` |
+| Flagged step | Workflow | Run locally |
+|---|---|---|
+| `Typecheck` | `ci.yml` | `npm --prefix src/engine run typecheck` |
+| `Lint` | `ci.yml` | `npm --prefix src/engine run lint` |
+| `Test` | `ci.yml` | `npm --prefix src/engine test` |
+| `Pack package` | `ci.yml` | `cd src/engine; npm pack --silent` |
+| `Inspect tarball` | `ci.yml` | `tar -tzf` the packed tarball; assert no `src/`, no `tsconfig*.json`, no `.test.*` artifacts, `package/dist/` present |
+| `Consumer smoke` | `ci.yml` | Clear `consumer-smoke/{node_modules,package-lock.json,dist}`, then `npm run install:engine && npm run build && npm run smoke` |
+| `Parse-check PowerShell scripts` | `verify.yml` | Parse every `*.ps1` with `[System.Management.Automation.Language.Parser]::ParseFile`, as the step does |
+| `Run Pester tests` | `verify.yml` | `Invoke-Pester -Path tools -Output Detailed -PassThru` |
+| `Validate Markdown links, terminology, and generated files` | `docs-ci.yml` | `./build/Test-Documentation.ps1` |
+| `Build documentation` | `docs-ci.yml` | `./docs.ps1 -BuildOnly` — needs Docker **and** an installed `docs.ps1` |
+| `Build and verify landing page` | `docs-ci.yml` | `npm --prefix src/engine run build; npm --prefix site run check` |
+| `Merge landing page into documentation build` | `docs-ci.yml` | `npm --prefix site run merge` — needs a completed docs build in `artifacts/docs` |
+| `Test the host` | `host-image.yml` | `dotnet test src/host/SubZeroDev.GameEngine.Host.Tests/…csproj` — needs `NUGET_GITHUB_TOKEN` for the sibling-repo feed |
+| `Positive route and probe smoke` | `host-image.yml` | Build and run the host image, then `curl` `/`, `/roadmap/`, `/docs/`, `/health/live`, `/health/ready` → 200 and an unknown route → 404 |
+| `Negative fixture -- corrupted artifact must fail to start` | `host-image.yml` | `docker build -f tools/host-smoke/Dockerfile.negative-fixture …`; the run must exit non-zero |
 
 A repository can gain, lose, or rename flagged steps over time — re-derive this table from
-the workflow files rather than trusting a memorized list; the two rows above describe this
+the workflow files rather than trusting a memorized list; the fifteen rows above describe this
 repository's steps as of this writing, not a fixed schema.
 
 Then look for anything else the repository ships that is not CI-gated. These are optional —
