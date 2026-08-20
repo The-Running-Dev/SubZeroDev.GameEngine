@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import type { StoryGraphCampaign } from "../src/kinds/story-graph/campaign.js";
 import { buildBulgariaBureaucracyCampaign } from "../src/campaigns/bulgaria-bureaucracy.js";
 
-import { buildCampaignGraph } from "./graph-campaign.js";
+import { buildCampaignGraph, mermaidId } from "./graph-campaign.js";
 import { CAMPAIGN_CATALOGUE, checkBuiltCampaign } from "./check-content.js";
 
 function bulgariaBureaucracyContent(): StoryGraphCampaign {
@@ -25,7 +25,7 @@ describe("buildCampaignGraph — W80.1", () => {
       .filter((n) => n.kind === "choice")
       .reduce((sum, n) => sum + n.choices.length, 0);
     expect(graph.counts.choices).toBe(expectedChoiceCount);
-    expect(graph.edges.filter((e) => e.label !== "" || content.nodes[e.from]!.kind === "auto").length).toBeGreaterThanOrEqual(0);
+    expect(graph.edges.every((e) => e.label !== "" || content.nodes[e.from]!.kind === "auto")).toBe(true);
 
     const expectedEndingCount = Object.values(content.nodes).filter((n) => n.kind === "ending").length;
     expect(graph.counts.endings).toBe(expectedEndingCount);
@@ -36,8 +36,10 @@ describe("buildCampaignGraph — W80.1", () => {
     const content = bulgariaBureaucracyContent();
     const graph = buildCampaignGraph(content);
 
+    const lines = graph.mermaid.split("\n");
     for (const vertex of graph.vertices) {
-      const line = graph.mermaid.split("\n").find((l) => l.includes(`n_${vertex.id.replace(/[^A-Za-z0-9_]/g, "_")}[`) || l.includes(`n_${vertex.id.replace(/[^A-Za-z0-9_]/g, "_")}((`));
+      const id = mermaidId(vertex.id);
+      const line = lines.find((l) => l.includes(`${id}[`) || l.includes(`${id}((`));
       expect(line, `no rendered vertex line for "${vertex.id}"`).toBeDefined();
       if (vertex.kind === "ending") {
         expect(line).toContain("((");
@@ -92,8 +94,10 @@ describe("buildCampaignGraph — W80.3", () => {
     const content = bulgariaBureaucracyContent();
     const graph = buildCampaignGraph(content);
 
+    const lines = graph.mermaid.split("\n");
     for (const vertex of graph.vertices) {
-      expect(graph.mermaid).toContain(`n_${vertex.id.replace(/[^A-Za-z0-9_]/g, "_")}`);
+      const id = mermaidId(vertex.id);
+      expect(lines.some((l) => l.includes(id)), `no rendered line for "${vertex.id}"`).toBe(true);
     }
     expect(graph.counts.nodes).toBeGreaterThan(0);
     expect(graph.counts.nodes).toBe(Object.keys(content.nodes).length);

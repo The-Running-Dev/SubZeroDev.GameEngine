@@ -35,7 +35,7 @@ import type { Node } from "../src/kinds/story-graph/nodes.js";
 import { runIfMainModule } from "./run-if-main.js";
 import { joinOrNone } from "./format-list.js";
 
-import { CAMPAIGN_CATALOGUE } from "./check-content.js";
+import { CAMPAIGN_CATALOGUE, moduleKeyFor } from "./check-content.js";
 
 export interface GraphVertex {
   readonly id: string;
@@ -90,14 +90,15 @@ function computeReachableIds(content: StoryGraphCampaign): ReadonlySet<string> {
 
 /** Mermaid vertex ids must be identifier-shaped; node ids are sanitized rather than
  *  trusted, so an authored id with a character Mermaid treats specially never breaks the
- *  diagram. Node ids are unique by construction (`Record` keys), and this mapping is
- *  injective over the characters it changes, so no two distinct node ids can collide. */
-function mermaidId(nodeId: string): string {
-  return `n_${nodeId.replace(/[^A-Za-z0-9_]/g, "_")}`;
+ *  diagram. Every non-alphanumeric character (including `_` and `-`, both legal in an
+ *  authored node id per `04-core.md` §17) is replaced with a distinct `_<hex>_` escape
+ *  rather than collapsed onto a shared `_`, so distinct node ids can never collide. */
+export function mermaidId(nodeId: string): string {
+  return `n_${nodeId.replace(/[^A-Za-z0-9]/g, (ch) => `_${ch.charCodeAt(0).toString(16)}_`)}`;
 }
 
 function escapeLabel(text: string): string {
-  return text.replace(/"/g, "&quot;");
+  return text.replace(/\\/g, "\\\\").replace(/"/g, "&quot;").replace(/\n/g, "\\n");
 }
 
 function vertexLine(vertex: GraphVertex): string {
@@ -139,7 +140,7 @@ export function buildCampaignGraph(content: StoryGraphCampaign): CampaignGraph {
       for (const transition of node.transitions) {
         edges.push({ from: id, to: transition.goto, label: `weight=${transition.weight}` });
       }
-    } else {
+    } else if (node.kind === "ending") {
       endingCount++;
     }
   }
@@ -170,7 +171,7 @@ function printGraph(campaignId: string, graph: CampaignGraph): void {
 
 async function main(): Promise<void> {
   const moduleName = process.argv[2];
-  const entry = moduleName !== undefined ? CAMPAIGN_CATALOGUE[`${moduleName}.ts`] : undefined;
+  const entry = moduleName !== undefined ? CAMPAIGN_CATALOGUE[moduleKeyFor(moduleName)] : undefined;
 
   if (!entry) {
     const known = Object.keys(CAMPAIGN_CATALOGUE).map((file) => file.replace(/\.ts$/, "")).join(", ");

@@ -176,7 +176,7 @@ function printReport(campaignId: string, result: ContentCheckResult): void {
  * uses (11 §3, `stable-life-packs.ts`), so `Campaign.id` cannot address one catalogue
  * entry unambiguously the way the module name can.
  */
-function moduleKeyFor(argument: string): string {
+export function moduleKeyFor(argument: string): string {
   return `${argument}.ts`;
 }
 
