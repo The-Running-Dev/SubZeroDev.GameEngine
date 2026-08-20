@@ -1,64 +1,36 @@
 {
+  "branch": "fix/verify-gate-flags",
+  "generated": "2026-08-20",
   "gates": [
-    {
-      "name": "engine typecheck",
-      "status": "Passed",
-      "detail": "npm --prefix src/engine run typecheck: tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json — completed with no errors."
-    },
-    {
-      "name": "engine lint",
-      "status": "Passed",
-      "detail": "npm --prefix src/engine run lint: eslint src scripts — completed with no errors."
-    },
-    {
-      "name": "engine test",
-      "status": "Passed",
-      "detail": "npm --prefix src/engine test: vitest run — Test Files 79 passed (79), Tests 1089 passed (1089), Duration 9.19s."
-    },
-    {
-      "name": "engine pack + tarball inspect",
-      "status": "Passed",
-      "detail": "cd src/engine; npm pack — produced the-running-dev-game-engine-0.10.0.tgz, package size 340.9 kB, unpacked size 1.5 MB, total files 311, shasum 36c24ce815a170c401e21ae89a53a9acc4446a97."
-    },
-    {
-      "name": "consumer smoke",
-      "status": "Passed",
-      "detail": "cd consumer-smoke; npm run install:engine (packed and installed the-running-dev-game-engine-0.10.0.tgz); npm run build (tsc -p tsconfig.json, no errors); npm run smoke (node dist/smoke.js, exited 0 with no output)."
-    },
-    {
-      "name": "documentation gate",
-      "status": "Passed",
-      "detail": "./build/Test-Documentation.ps1 — \"Human-documentation drift check passed across 18 generated engine page(s), compatibility pointers, and the guide.\" \"Documentation checks passed across 123 Markdown file(s).\" Exited with code 0."
-    },
-    {
-      "name": "site check",
-      "status": "Passed",
-      "detail": "npm --prefix site run check — test:browser (vitest: 1 file / 11 tests passed), test:build (tsc -b + landing build succeeded, verify-build.mjs: both built HTML entry points contain required static metadata, 3 bundles free of Node-only runtime references), test:merge (verify-merge.mjs: \"Package-backed merge proven: '/', '/roadmap/' and the protected 'docs/' subtree all verified, and the top-level 'docs/' guard rejects a bad landing build.\")."
-    },
-    {
-      "name": "powershell parse-check",
-      "status": "Passed",
-      "detail": "Parsed every *.ps1 file (excluding node_modules) with [System.Management.Automation.Language.Parser]::ParseFile — 28 files checked, all parsed successfully, zero parse errors."
-    },
-    {
-      "name": "pester tools",
-      "status": "Passed",
-      "detail": "Invoke-Pester -Path tools -Output Detailed -PassThru — Tests Passed: 94, Failed: 0, Skipped: 0, Inconclusive: 0, NotRun: 0. Containers included Measure-Session, Sync-Kit, Test-Companion, Test-DesignDrift, Test-VerifyReport, Test-WriteSurface, Wait-PullRequestCheck."
-    },
-    {
-      "name": "production docs build",
-      "status": "DidNotRun",
-      "reason": "./docs.ps1 is not present in this checkout — per CLAUDE.md it is installer-generated (by Invoke-SetupDocs), not committed, and was not found at the repository root. Docker itself is available locally, but without docs.ps1 the production Docusaurus build (onBrokenLinks: 'throw') cannot be invoked. The corresponding PR check 'Verify Documentation Build' on PR #343 is the source of truth for this gate; poll it there before merge."
-    },
-    {
-      "name": "host tests",
-      "status": "DidNotRun",
-      "reason": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests/SubZeroDev.GameEngine.Host.Tests.csproj fails during NuGet restore with NU1301: 'Response status code does not indicate success: 401 (Unauthorized)' against https://nuget.pkg.github.com/The-Running-Dev/download/subzerodev.platform.hosting/index.json. SubZeroDev.Platform.Hosting is published from the sibling SubZeroDev.Platform repository via GitHub Packages, and the local environment has no cross-repo read:packages credential configured (CI supplies this via the REGISTRY_TOKEN secret, per .github/workflows/host-image.yml). Cannot run locally without that credential."
-    },
-    {
-      "name": "host image smoke",
-      "status": "DidNotRun",
-      "reason": "The same host-image.yml smoke job restores SubZeroDev.Platform.Hosting as its first real step ('Test the host', which runs the same dotnet test as the 'host tests' gate) before building/running/smoke-testing the Docker image, and that restore requires the REGISTRY_TOKEN cross-repo GitHub Packages credential that is not configured locally — same root cause as 'host tests'. The corresponding PR check 'Build, run, and smoke the image' on PR #343 is the source of truth for this gate; poll it there before merge."
-    }
+    { "name": "Typecheck", "status": "Passed",
+      "detail": "npm --prefix src/engine run typecheck -> tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json; exit 0." },
+    { "name": "Lint", "status": "Passed",
+      "detail": "npm --prefix src/engine run lint -> eslint src scripts; exit 0, no findings. Covers the determinism guard." },
+    { "name": "Test", "status": "Passed",
+      "detail": "vitest run: Test Files 79 passed (79), Tests 1101 passed (1101); exit 0." },
+    { "name": "Pack package", "status": "Passed",
+      "detail": "cd src/engine; npm pack --silent -> the-running-dev-game-engine-0.10.0.tgz, 311 entries; exit 0." },
+    { "name": "Inspect tarball", "status": "Passed",
+      "detail": "All four CI assertions re-run locally over the packed tarball: no entries under src/, no tsconfig*.json, no .test.* build artifacts, and package/dist/ present. Zero violations." },
+    { "name": "Consumer smoke", "status": "Passed",
+      "detail": "consumer-smoke rebuilt from a clean tree (node_modules, package-lock.json, dist removed): npm run install:engine, npm run build (tsc), npm run smoke -> node dist/smoke.js; exit 0." },
+    { "name": "Parse-check PowerShell scripts", "status": "Passed",
+      "detail": "Parser::ParseFile over Get-ChildItem -Recurse -Filter *.ps1, matching verify.yml's scope exactly with no exclusions: 28 files parsed, zero parse errors; exit 0." },
+    { "name": "Run Pester tests", "status": "Passed",
+      "detail": "Invoke-Pester -Path tools -Output Detailed -PassThru: Tests Passed: 94, Failed: 0, Skipped: 0, Inconclusive: 0, NotRun: 0." },
+    { "name": "Validate Markdown links, terminology, and generated files", "status": "Passed",
+      "detail": "./build/Test-Documentation.ps1: human-documentation drift check passed across 18 generated engine page(s), compatibility pointers, and the guide. Documentation checks passed across 123 Markdown file(s). Exit 0." },
+    { "name": "Build documentation", "status": "DidNotRun",
+      "reason": "The CI step runs /template/scripts/docs-build.ps1 inside the docs-template container. Its local stand-in, ./docs.ps1 -BuildOnly, is absent from the repository root: docs.ps1 is generated by Invoke-SetupDocs and deliberately not committed, so it does not exist in this checkout. Docker is running, so the missing script is the only blocker. The 'Verify Documentation Build' required check on the pull request is where this answer comes from." },
+    { "name": "Build and verify landing page", "status": "Passed",
+      "detail": "npm --prefix src/engine run build, then npm --prefix site run check: format:check, lint, typecheck, jsdom suite, real-browser suite, test:build (both HTML entry points carry required static metadata; 3 bundles free of Node-only runtime references) and test:merge ('Package-backed merge proven: /, /roadmap/ and the protected docs/ subtree all verified, and the top-level docs/ guard rejects a bad landing build'). Exit 0." },
+    { "name": "Merge landing page into documentation build", "status": "DidNotRun",
+      "reason": "npm --prefix site run merge overlays the landing page onto a completed docs build at artifacts/docs, which does not exist locally because the 'Build documentation' gate above could not run. Note the merge LOGIC is separately covered: test:merge inside 'Build and verify landing page' passed. What is unproven locally is the real overlay against a real docs build; the 'Verify Documentation Build' check on the pull request covers it." },
+    { "name": "Test the host", "status": "DidNotRun",
+      "reason": "dotnet restore cannot authenticate to GitHub Packages. Re-confirmed this run: NUGET_GITHUB_TOKEN is unset and restore exits 1 with 'error NU1301: Failed to retrieve information about SubZeroDev.Platform.Hosting from remote source https://nuget.pkg.github.com/The-Running-Dev/download/subzerodev.platform.hosting/index.json' and 'Response status code does not indicate success: 401 (Unauthorized)'. The package is published from the sibling SubZeroDev.Platform repository and needs the cross-repo REGISTRY_TOKEN that host-image.yml supplies in CI. Nothing compiled or executed, so this is not a test failure." },
+    { "name": "Positive route and probe smoke", "status": "DidNotRun",
+      "reason": "Requires the host image, whose Docker build performs the same SubZeroDev.Platform.Hosting restore that returned 401 above, fed by the nuget_github_token build secret from REGISTRY_TOKEN. host-image.yml also fails its own job up front when REGISTRY_TOKEN is unset. Docker is available locally, so the cross-repo package credential is the sole blocker, not the daemon." },
+    { "name": "Negative fixture -- corrupted artifact must fail to start", "status": "DidNotRun",
+      "reason": "Builds FROM the smoke image via tools/host-smoke/Dockerfile.negative-fixture, so it is blocked by the same missing REGISTRY_TOKEN credential as the image build and the host tests above. Docker is available; the credential is not." }
   ]
 }

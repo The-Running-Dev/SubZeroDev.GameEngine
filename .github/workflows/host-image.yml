@@ -48,6 +48,7 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      # verification: true
       - name: Test the host
         env:
           NUGET_GITHUB_ACTOR: ${{ github.repository_owner }}
@@ -86,6 +87,7 @@ jobs:
           sleep 3
           docker logs host-smoke
 
+      # verification: true
       - name: Positive route and probe smoke
         run: |
           set -euo pipefail
@@ -117,6 +119,7 @@ jobs:
       # fails red rather than merely never having been tested. Program.cs's own startup
       # check (StaticArtifact.FindMissingRequiredDocuments) is what turns this into a
       # non-zero exit rather than a container that starts and silently serves less.
+      # verification: true
       - name: Negative fixture -- corrupted artifact must fail to start
         run: |
           docker build \
