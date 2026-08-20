@@ -214,4 +214,22 @@
 
 ### [ ] W80 — Seeing a Story Graph {#w80}
 
+### Correctness Debt — The Tick Pipeline Runs Twenty Systems and Implements Fifteen
+
+### [ ] W81 — Construction Finishes What `build` Starts {#w81}
+
+### [ ] W82 — A Kiosk That Ran Out Can Be Refilled {#w82}
+
+### [ ] W83 — Buildings Get Dirty, Wear Out, and Break {#w83}
+
+### [ ] W84 — Incidents That Happen On Their Own {#w84}
+
+### [ ] W85 — The Resort Tells You What Needs Attention {#w85}
+
+### Rigour: Two Event Streams Specified and Never Emitted
+
+### [ ] W86 — The Story-Graph Kind Says Why {#w86}
+
+### [ ] W87 — The World-Graph Kind Says What Its Ticks Did {#w87}
+
 ## Known Open Items Carried In
