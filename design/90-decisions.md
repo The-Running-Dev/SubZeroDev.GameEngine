@@ -267,6 +267,19 @@ and was deliberately regularised is the reasoning a later reader of
 [issue #285](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/285) will want. That
 issue's premise no longer holds and it is `/track`'s to close.
 
+**Nothing checks *emitted → registered* for `StateChange.reason`, and it has now failed twice.**
+`20-contract.md` §13 says so in its own words — a reason threaded through `EffectContext` is not
+visible at any call site that also names a `visible` flag, so the usual audit (scan for `reason:`
+beside `visible: true`) finds the direct codes and none of the indirect ones. That gap let five
+world-graph codes go unregistered through three units and one reconciliation pass. W83's
+`building_broken` was the second occurrence: it shipped as an eleventh `visible: true` audit code
+against a table stating there were ten, with all six required checks green, and was caught by code
+review rather than by any gate. The fix is a test that fails when a reason recorded with
+`visible: true` is missing from the contract's audit table; it was scoped out of W83's review pass
+as its own unit, because parsing a markdown table from a test is a new kind of coupling and wants
+deciding on its own. Until it exists, the tables are kept correct by hand and this is the note
+saying that is a manual control, not an enforced one.
+
 ---
 
 ## 3. Judgement Calls to Revisit (Settled for the MVP)

@@ -1491,6 +1491,8 @@ rather than summarized.
 | `invalid_building_geometry` | 1 | a building declares no entrances or no allowed rotations |
 | `invalid_inventory` | 1 | inventory units or capacity are inconsistent |
 | `invalid_work_rate` | 1 | a staff work rate is not positive effort per tick |
+| `invalid_initial_wear` | 1 | a building's `initialWear` is not positive, so it could never reach the broken transition |
+| `undeferrable_building_meter_effect` | 1 | a `wear` delta sits on an effect list owned by a system after 14 (§9.2) |
 | `invalid_time_limit_pair` | 1 | a scenario declares a time limit without its failure, or the reverse |
 | `disconnected_map` | 2 | the map has no traversable edges |
 | `inert_scenario` | 2 | a scenario declares neither objectives nor failures |
@@ -1501,11 +1503,13 @@ is deliberate reuse of a meaning, not a collision: `ReasonCode` is a flat string
 namespaced only by the *message* key (`world-graph.reason.duplicate_id`), so the same failure
 reads the same way across kinds and a client switching on it needs no per-kind branch.
 
-**Audit codes — `StateChange.reason` values (04 §12, §13 below).** All ten ride on
+**Audit codes — `StateChange.reason` values (04 §12, §13 below).** All eleven ride on
 `visible: true` records, so each owes a resolvable message exactly as a rejection does; there
 is no audit namespace exempt from §12's completeness rule. They split by *how the reason
 reaches the record*, which is not decoration — it is the distinction that let five of them go
-unregistered through three units and one reconciliation pass.
+unregistered through three units and one reconciliation pass. W83's `building_broken` was the
+second occurrence, caught in review rather than by a gate, which is what the warning below
+predicts and why the count above is stated rather than left to be inferred from the rows.
 
 | Code | Emitted by | Arrives as |
 |---|---|---|
@@ -1518,6 +1522,7 @@ unregistered through three units and one reconciliation pass.
 | `incident_resolved` | the `staff-work` and `incidents` systems | `EffectContext.reason` |
 | `objective_met` | the `objectives` system | `EffectContext.reason` |
 | `failure_triggered` | the `failure` system | `EffectContext.reason` |
+| `building_broken` | the `cleanliness-wear` system, on the wear-hits-zero transition (§4.16) | a literal at the `record()` call site |
 
 > **The indirect five are the ones to watch, and the reason this table exists.** A reason
 > threaded through `EffectContext` is not visible at any call site that also names a
