@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: f2537ab237370e334d30d57de859be972134a7f6434c37fb19224e84446d9ca6 -->
+<!-- design-digest: 11806725d815a1d3e10f094157dbc80aeb637c90a305bbe618f8c6a24305f37b -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -40,8 +40,8 @@ assertable invariants live in the
   the Stable Life fixtures prove both a winning and a losing replay path.
 - `world-graph` is a real, registered kind — the same status as the other two. Its twenty-system
   tick pipeline (build, utility, routing, queues, staff, finance, incidents, terminal precedence)
-  is registered, ordered, and tested for that ordering. Five of the twenty systems are
-  known-and-retained stubs or partial implementations (three no-op, two partial); see
+  is registered, ordered, and tested for that ordering. Two of the twenty systems are
+  known-and-retained stubs or partial implementations (one no-op, one partial); see
   `design/90-decisions.md`, *Known-and-retained implementation gaps: `world-graph` tick systems*,
   for the current list.
 - **There is no browser demo in this repository.** A public `/play/` route existed, ran the
@@ -544,7 +544,7 @@ and projection catalogue is in the
 Use `world-graph` for a navigable world with autonomous inhabitants, where the unit of play is a
 batch of simulated ticks rather than a single choice or a week. `worldGraphKind` is exported from
 the package root and registered exactly as `story-graph` and `simulation` are, with all twenty
-tick systems registered, ordered, and tested for that ordering. Five of the twenty are
+tick systems registered, ordered, and tested for that ordering. Two of the twenty are
 known-and-retained stubs or partial implementations — see `design/90-decisions.md` for the current
 list.
 

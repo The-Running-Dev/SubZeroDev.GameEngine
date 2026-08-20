@@ -5935,7 +5935,12 @@ relevant canonical comparator. Ordered `unlock`/`lock` or policy writes to the s
 last-write-wins. Each producing system groups numeric deltas by target/scalar, sums, then
 clamps once before it exits; systems 1, 4, and 11 explicitly defer building-meter deltas to
 system 14 so policy/service/litter/staff sources compose there. Systems after 14 apply their own
-group locally—effects never wait for the next tick without persisted state.
+group locally—effects never wait for the next tick without persisted state. A `wear` delta is
+therefore not authorable on a list one of those later systems owns (`objectives.onCompleted`,
+`failures.onTriggered`, and `incidents.onResolve` on a duration-bearing incident): it would clamp
+independently and could never reach §4.16's broken transition, so validation rejects it rather
+than leaving the gap reachable by content. `cleanliness` carries no such transition and stays
+legal there, clamped locally like any other late group.
 Finance/counter/objective deltas use checked addition. An effect cannot emit another effect
 or call a system recursively. If starting an incident must sample
 a non-constant duration range, it draws from the owning system's

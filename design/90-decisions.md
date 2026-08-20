@@ -871,3 +871,28 @@ different document.
 Reversibility: cheap in code, expensive in consequence — changing how the version is derived
 changes every resolution digest, hence every `campaignVersion`, hence every existing save's
 recorded content identity. §6 already states that cost for pack reordering; it applies here too.
+
+### 2026-08-20 — A late `wear` delta is rejected; a late `cleanliness` delta is not
+Context: W83 gave system 14 (`cleanliness-wear`) the wear-hits-zero broken transition, and added a
+validator forbidding `building_meter_delta` on every effect list owned by a system that runs after
+14 and never defers to it — `objectives.onCompleted` (17), `failures.onTriggered` (18), and
+`incidents.onResolve` on a duration-bearing incident (16). The reasoning was sound but the guard
+was too wide, and it contradicted §9.2's own sentence, "Systems after 14 apply their own group
+locally—effects never wait for the next tick without persisted state." A code review found the
+divergence: an objective reward as ordinary as `onCompleted: [{ building_meter_delta, cleanliness,
++20 }]` is exactly what §9.2 licenses, and W83 rejected the entire campaign for it. The contract
+and the code disagreed, and neither side had recorded a decision.
+Chosen: Narrow the guard to `meter: "wear"`, and amend §9.2 to say so. Only `wear` has a status
+transition hanging off it, so only `wear` can be silently wrong when applied late: it clamps
+independently and can never reach §4.16's `broken`. `cleanliness` has no transition, so a late
+cleanliness delta is merely clamped locally, which is the behaviour §9.2 already describes. This
+closes the real gap while keeping an authoring capability the contract promised.
+Rejected: **Amend §9.2 to match the wide guard** — no code change, but it costs the capability
+outright: objectives and failures could never touch a building meter, even harmlessly, and the
+contract would be narrowed to fit an implementation accident rather than a reason. **Drop the
+guard entirely and leave §9.2 as written** — restores conformance with no doc edit, but reinstates
+the trap: a wear delta authored on an objective or failure silently cannot break a building, which
+is the class of latent content bug W83 existed to remove.
+Reversibility: cheap — the guard is one condition and the §9.2 sentence is one clause. Widening it
+back would reject content that is valid under this entry, so it is a one-way door for any campaign
+authored against it.

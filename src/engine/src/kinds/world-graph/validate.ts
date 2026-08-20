@@ -130,15 +130,21 @@ function effectErrors(effect: WorldEffect, path: string, errors: ValidationError
 /**
  * Systems 16 (`incidents`, expiry-driven resolution), 17 (`objectives`), and 18 (`failure`)
  * run after system 14 (`cleanliness-wear`) and never defer to it — unlike systems 1, 4, and 11
- * (20-contract.md §9, §4.16). A `building_meter_delta` reachable through one of those three
- * would apply immediately with its own independent clamp and could never trigger the
- * wear-hits-zero broken transition, since system 14 already ran this tick. Forbidding it here
- * keeps that gap from being reachable by content rather than leaving it a latent trap.
+ * (20-contract.md §9.2, §4.16). A `wear` delta reachable through one of those three would apply
+ * immediately with its own independent clamp and could never trigger the wear-hits-zero broken
+ * transition, since system 14 already ran this tick. Forbidding it keeps that gap from being
+ * reachable by content rather than leaving it a latent trap.
+ *
+ * Only `wear` is forbidden. `cleanliness` has no status transition hanging off it, so a late
+ * cleanliness delta is simply clamped locally — exactly what §9.2's "systems after 14 apply
+ * their own group locally" already licenses, and what an objective reward legitimately wants.
  */
-function forbidBuildingMeterDelta(effects: readonly WorldEffect[], path: string, errors: ValidationError[]): void {
+function forbidUndeferrableWearDelta(effects: readonly WorldEffect[], path: string, errors: ValidationError[]): void {
   if (!Array.isArray(effects)) return;
   effects.forEach((effect, index) => {
-    if (object(effect) && effect.kind === "building_meter_delta") errors.push(error("undeferrable_building_meter_effect", `${path}[${index}]`));
+    if (object(effect) && effect.kind === "building_meter_delta" && effect.meter === "wear") {
+      errors.push(error("undeferrable_building_meter_effect", `${path}[${index}]`));
+    }
   });
 }
 
@@ -156,18 +162,18 @@ function catalogEffectErrors(content: WorldGraphCampaign, errors: ValidationErro
   });
   content.objectives.forEach((entry, index) => {
     check(entry.onCompleted, `content.objectives[${index}].onCompleted`);
-    forbidBuildingMeterDelta(entry.onCompleted, `content.objectives[${index}].onCompleted`, errors);
+    forbidUndeferrableWearDelta(entry.onCompleted, `content.objectives[${index}].onCompleted`, errors);
   });
   content.failures.forEach((entry, index) => {
     check(entry.onTriggered, `content.failures[${index}].onTriggered`);
-    forbidBuildingMeterDelta(entry.onTriggered, `content.failures[${index}].onTriggered`, errors);
+    forbidUndeferrableWearDelta(entry.onTriggered, `content.failures[${index}].onTriggered`, errors);
   });
   content.incidents.forEach((entry, index) => {
     check(entry.onStart, `content.incidents[${index}].onStart`);
     check(entry.onResolve, `content.incidents[${index}].onResolve`);
     // A duration-bearing incident can resolve via system 16's expiry, which never defers;
-    // only a staff-resolved-only incident (durationTicks: null) is safe for this effect.
-    if (entry.durationTicks !== null) forbidBuildingMeterDelta(entry.onResolve, `content.incidents[${index}].onResolve`, errors);
+    // only a staff-resolved-only incident (durationTicks: null) can carry a wear delta.
+    if (entry.durationTicks !== null) forbidUndeferrableWearDelta(entry.onResolve, `content.incidents[${index}].onResolve`, errors);
   });
   content.policies.forEach((entry, index) => check(entry.whileActive, `content.policies[${index}].whileActive`));
   content.scenarios.forEach((entry, scenarioIndex) => entry.scheduledChanges.forEach((change, changeIndex) => (
