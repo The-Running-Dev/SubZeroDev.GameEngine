@@ -1,0 +1,11 @@
+{
+  "name": "world-graph-mvp-construction",
+  "config": { "campaignId": "world-graph-mvp", "seed": "world-graph-mvp-construction-seed" },
+  "campaignVersion": "1.0.0",
+  "capturedUnder": "0.10.0",
+  "submissions": [
+    { "actionId": "build", "params": { "definitionId": "hut", "x": 3, "y": 1, "rotation": 0 } },
+    { "actionId": "hire_staff", "params": { "definitionId": "builder" } },
+    { "actionId": "advance_ticks", "params": { "ticks": 7 } }
+  ]
+}

@@ -107,7 +107,7 @@ describe("world-graph W45 source and validation", () => {
 
   it("lifts text, applies exactly the five defaults, and canonicalizes catalogs", () => {
     const built = buildWorldGraphCampaign({ ...source, terrain: [...source.terrain].reverse() });
-    expect(built.authoredText).toHaveLength(24);
+    expect(built.authoredText).toHaveLength(28);
     expect(built.content.scenery).toEqual([]);
     expect(built.content.guestConditions).toEqual([]);
     expect(built.content.preferences).toEqual([]);
@@ -155,10 +155,15 @@ describe("world-graph W45 source and validation", () => {
       expect.objectContaining({ code: "invalid_cost", path: "content.products[0].unitCostCents" }),
       expect.objectContaining({ code: "invalid_cost", path: "content.buildings[0].constructionCostCents" }),
       expect.objectContaining({ code: "invalid_cost", path: "content.buildings[0].operatingCostCentsPerDay" }),
-      expect.objectContaining({ code: "invalid_inventory", path: "content.buildings[0].operation.products[0].initialUnits" }),
+      expect.objectContaining({ code: "invalid_cost", path: "content.buildings[1].constructionCostCents" }),
+      expect.objectContaining({ code: "invalid_cost", path: "content.buildings[1].operatingCostCentsPerDay" }),
+      expect.objectContaining({ code: "invalid_inventory", path: "content.buildings[1].operation.products[0].initialUnits" }),
       expect.objectContaining({ code: "invalid_cost", path: "content.staffRoles[0].hireCostCents" }),
       expect.objectContaining({ code: "invalid_cost", path: "content.staffRoles[0].wageCentsPerDay" }),
       expect.objectContaining({ code: "invalid_work_rate", path: "content.staffRoles[0].workRates[0].effortPerTick" }),
+      expect.objectContaining({ code: "invalid_cost", path: "content.staffRoles[1].hireCostCents" }),
+      expect.objectContaining({ code: "invalid_cost", path: "content.staffRoles[1].wageCentsPerDay" }),
+      expect.objectContaining({ code: "invalid_work_rate", path: "content.staffRoles[1].workRates[0].effortPerTick" }),
     ]));
   });
 
@@ -505,5 +510,89 @@ describe("world-graph W45 engine seam", () => {
     const base = stateOf(create());
     expect(worldGraphKind.outcome({ ...base, objectives: [{ ...base.objectives[0]!, state: "met" }] })).toEqual({ resolution: null, objectivesMet: [], failureId: null });
     expect(worldGraphKind.outcome({ ...base, resolution: { resolution: "failed", objectiveIds: [], failureId: "bankrupt", resolvedAtTick: 0 } })).toEqual({ resolution: "failed", objectivesMet: [], failureId: "bankrupt" });
+  });
+});
+
+describe("world-graph W81 construction", () => {
+  it("declares the two construction events", () => {
+    expect(worldGraphKind.eventNames).toEqual(expect.arrayContaining([
+      "kind.world-graph.construction.progressed",
+      "kind.world-graph.construction.completed",
+    ]));
+  });
+
+  it("reaches zero and materializes the reserved building/queue ids despite another entity allocated in between", () => {
+    const recording = createRecordingEmitter();
+    const runtimeEngine = engine().withEmitter(recording);
+    let game = create();
+    game = runtimeEngine.submitAction(game, "build", { definitionId: "hut", x: 3, y: 1, rotation: 0 }).value!;
+    expect(stateOf(game).constructionSites[0]).toMatchObject({ id: "construction-site:0", workRemaining: 3, completedBuildingId: "building:1", completedQueueId: "queue:2" });
+    game = runtimeEngine.submitAction(game, "hire_staff", { definitionId: "builder" }).value!;
+    // Three ticks of travel, no effort applied yet — the builder has not reached the site.
+    game = runtimeEngine.submitAction(game, "advance_ticks", { ticks: 3 }).value!;
+    expect(stateOf(game).constructionSites[0]?.workRemaining).toBe(3);
+    // Allocate another entity — hiring a second staff member — between the build action and
+    // the completion tick, so completion cannot be shown to renumber it (W81.2).
+    const ordinalBeforeInterleave = stateOf(game).nextEntityOrdinal;
+    game = runtimeEngine.submitAction(game, "hire_staff", { definitionId: "cleaner" }).value!;
+    expect(stateOf(game).nextEntityOrdinal).toBeGreaterThan(ordinalBeforeInterleave);
+    // Declared work is 3, one effort-per-tick builder arrives at tick 3 (0-indexed) and
+    // works ticks 4, 5, 6 — completing on the seventh advance_ticks call in total.
+    game = runtimeEngine.submitAction(game, "advance_ticks", { ticks: 4 }).value!;
+    const state = stateOf(game);
+    expect(state.constructionSites).toEqual([]);
+    expect(state.buildings.find((entry) => entry.definitionId === "hut")).toMatchObject({
+      id: "building:1", status: "open", wear: 100, cleanliness: 100,
+      queue: { id: "queue:2", guestIds: [] }, pricesCents: {}, inventory: {},
+    });
+    expect(state.counters.buildingsCompleted).toBe(1);
+    expect(recording.events.some((entry) => entry.name === "kind.world-graph.construction.progressed")).toBe(true);
+    expect(recording.events.some((entry) => entry.name === "kind.world-graph.construction.completed")).toBe(true);
+  });
+
+  it("bumps map.revision once for placement and once for completion", () => {
+    const runtimeEngine = engine();
+    let game = create();
+    const before = stateOf(game).map.revision;
+    game = runtimeEngine.submitAction(game, "build", { definitionId: "hut", x: 3, y: 1, rotation: 0 }).value!;
+    expect(stateOf(game).map.revision).toBe(before + 1);
+    game = runtimeEngine.submitAction(game, "hire_staff", { definitionId: "builder" }).value!;
+    game = runtimeEngine.submitAction(game, "advance_ticks", { ticks: 7 }).value!;
+    expect(stateOf(game).map.revision).toBe(before + 2);
+  });
+
+  it("carries a batch-grain existence row for the completed building, reasoned and resolvable", () => {
+    const runtimeEngine = engine();
+    let game = create();
+    game = runtimeEngine.submitAction(game, "build", { definitionId: "hut", x: 3, y: 1, rotation: 0 }).value!;
+    game = runtimeEngine.submitAction(game, "hire_staff", { definitionId: "builder" }).value!;
+    const advanced = runtimeEngine.submitAction(game, "advance_ticks", { ticks: 7 });
+    const existenceRow = advanced.changes.find((entry) => entry.path === "buildings.building:1.exists");
+    expect(existenceRow).toMatchObject({ value: true, reason: "building_completed" });
+    expect(WORLD_GRAPH_REASON_MESSAGES.get(`world-graph.reason.${existenceRow?.reason}`)).toBeTypeOf("string");
+  });
+
+  it("serializes byte-identically whether advance_ticks n is submitted whole or split strictly inside the construction span", () => {
+    const runWhole = (): WorldGraphKindState => {
+      const runtimeEngine = engine();
+      let game = create();
+      game = runtimeEngine.submitAction(game, "build", { definitionId: "hut", x: 3, y: 1, rotation: 0 }).value!;
+      game = runtimeEngine.submitAction(game, "hire_staff", { definitionId: "builder" }).value!;
+      game = runtimeEngine.submitAction(game, "advance_ticks", { ticks: 7 }).value!;
+      return stateOf(game);
+    };
+    const runSplit = (): WorldGraphKindState => {
+      const runtimeEngine = engine();
+      let game = create();
+      game = runtimeEngine.submitAction(game, "build", { definitionId: "hut", x: 3, y: 1, rotation: 0 }).value!;
+      game = runtimeEngine.submitAction(game, "hire_staff", { definitionId: "builder" }).value!;
+      // Split at 5 ticks — the builder has arrived and worked once, with work remaining at 2
+      // of the declared 3 — strictly inside the span, not at an end.
+      game = runtimeEngine.submitAction(game, "advance_ticks", { ticks: 5 }).value!;
+      expect(stateOf(game).constructionSites[0]?.workRemaining).toBe(2);
+      game = runtimeEngine.submitAction(game, "advance_ticks", { ticks: 2 }).value!;
+      return stateOf(game);
+    };
+    expect(runSplit()).toEqual(runWhole());
   });
 });

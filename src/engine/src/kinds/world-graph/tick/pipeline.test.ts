@@ -3,6 +3,7 @@ import type { RngHandle, StreamId } from "../../../core/determinism/types.js";
 import type { ResolutionEmitter } from "../../../core/observability/types.js";
 import type { WorldEffect, WorldGraphCampaign } from "../content.js";
 import type { WorldGraphKindState } from "../state.js";
+import { WORLD_GRAPH_REASON_MESSAGES } from "../reasons.js";
 import { BatchChanges } from "./changes.js";
 import { compareDefinitionId, WORLD_GRAPH_SYSTEM_IDS } from "./order.js";
 import {
@@ -642,5 +643,188 @@ describe("world-graph W46 batch changes", () => {
       { path: "shared", op: "set", previous: 1, value: 3, reason: "effect", visible: true },
       { path: "other", op: "set", previous: 0, value: 1, reason: "effect", visible: false },
     ]);
+  });
+});
+
+describe("world-graph W81 construction", () => {
+  const constructionContent = {
+    ...content(),
+    terrain: [{ id: "sand", walkable: true, moveCost: 1 }],
+    buildings: [{
+      id: "hut", footprint: { width: 1, height: 1 }, entrances: [{ x: 1, y: 0 }],
+      constructionTaskPriority: 5, initialWear: 100, initialCleanliness: 100,
+      operation: { kind: "decorative" },
+    }],
+    staffRoles: [{
+      id: "builder", supportedTaskKinds: ["build"], workRates: [{ taskType: "build", effortPerTick: 1 }],
+    }, {
+      id: "cleaner", supportedTaskKinds: ["clean"], workRates: [{ taskType: "clean", effortPerTick: 1 }],
+    }],
+  } as unknown as WorldGraphCampaign;
+
+  function siteState(workRemaining: number): WorldGraphKindState {
+    return {
+      ...state(),
+      buildings: [],
+      constructionSites: [{
+        id: "construction-site:0", definitionId: "hut", x: 0, y: 0, width: 1, height: 1, rotation: 0,
+        startedAtTick: 0, workRemaining, completedBuildingId: "building:1", completedQueueId: "queue:2",
+      }],
+      staff: [],
+    };
+  }
+
+  it("generates exactly one build candidate per site, priced from the definition", () => {
+    const scratch = createTickScratch();
+    taskGenerate({
+      processingTick: 0, content: constructionContent, emit: resolutionEmitter().emit,
+      random: createTickRandom(0, () => rngHandle(), scratch), scratch,
+      changes: new BatchChanges(), state: siteState(3),
+    });
+    expect(scratch.taskCandidates.filter((entry) => entry.type === "build")).toEqual([
+      { type: "build", priority: 5, effort: 3, buildingId: null, incidentId: null, constructionSiteId: "construction-site:0", productId: null, requiredRoleId: null, slot: 0 },
+    ]);
+  });
+
+  it("never assigns a build candidate to a role that does not support it", () => {
+    const rosterState: WorldGraphKindState = {
+      ...siteState(3),
+      staff: [{
+        id: "staff:4", roleId: "cleaner", x: 1, y: 0, status: "idle",
+        path: [], pathIndex: 0, moveProgressTicks: 0, assignedBuildingId: null,
+        assignedZoneId: null, drawCount: 0, task: null, tasksCompleted: 0,
+      }],
+    };
+    const scratch = createTickScratch();
+    scratch.taskCandidates.push({ type: "build", priority: 5, effort: 3, buildingId: null, incidentId: null, constructionSiteId: "construction-site:0", productId: null, requiredRoleId: null, slot: 0 });
+    const result = taskAssign({
+      processingTick: 0, content: constructionContent, emit: resolutionEmitter().emit,
+      random: createTickRandom(0, () => rngHandle(), scratch), scratch,
+      changes: new BatchChanges(), state: rosterState,
+    });
+    expect(result.state.staff[0]?.task).toBeNull();
+  });
+
+  it("resolves a build candidate's goals to the construction site's own entrance", () => {
+    const rosterState: WorldGraphKindState = {
+      ...siteState(3),
+      staff: [{
+        id: "staff:4", roleId: "builder", x: 1, y: 0, status: "idle",
+        path: [], pathIndex: 0, moveProgressTicks: 0, assignedBuildingId: null,
+        assignedZoneId: null, drawCount: 0, task: null, tasksCompleted: 0,
+      }],
+    };
+    const scratch = createTickScratch();
+    scratch.taskCandidates.push({ type: "build", priority: 5, effort: 3, buildingId: null, incidentId: null, constructionSiteId: "construction-site:0", productId: null, requiredRoleId: null, slot: 0 });
+    const result = taskAssign({
+      processingTick: 0, content: constructionContent, emit: resolutionEmitter().emit,
+      random: createTickRandom(0, () => rngHandle(), scratch), scratch,
+      changes: new BatchChanges(), state: rosterState,
+    });
+    expect(result.state.staff[0]?.task).toMatchObject({ type: "build", constructionSiteId: "construction-site:0" });
+    expect(result.state.staff[0]?.path.at(-1)).toEqual({ x: 1, y: 0 });
+  });
+
+  it("reduces work by exactly the assigned builder's effort per tick, completing on the computed tick", () => {
+    let workState = siteState(3);
+    workState = {
+      ...workState,
+      staff: [{
+        id: "staff:4", roleId: "builder", x: 1, y: 0, status: "working",
+        path: [{ x: 2, y: 0 }, { x: 1, y: 0 }], pathIndex: 1, moveProgressTicks: 0,
+        assignedBuildingId: null, assignedZoneId: null, drawCount: 0, tasksCompleted: 0,
+        task: {
+          id: "task:5", type: "build", status: "in_progress", guestId: null, queueId: null,
+          buildingId: null, constructionSiteId: "construction-site:0", incidentId: null,
+          targetProductId: null, startedAtTick: 0, endedAtTick: null, priority: 5, effortRemaining: 3,
+        },
+      }],
+    };
+    const recording = resolutionEmitter();
+    const runConstruction = (tick: number): void => {
+      const scratch = createTickScratch();
+      workState = construction({
+        processingTick: tick, content: constructionContent, emit: recording.emit,
+        random: createTickRandom(tick, () => rngHandle(), scratch), scratch,
+        changes: new BatchChanges(), state: workState,
+      }).state;
+    };
+    // Declared work is 3 with an effort-per-tick-1 builder continuously in_progress,
+    // so the site reaches zero on the third call — tick 2 (0-indexed).
+    runConstruction(0);
+    expect(workState.constructionSites[0]?.workRemaining).toBe(2);
+    expect(workState.buildings).toEqual([]);
+    runConstruction(1);
+    expect(workState.constructionSites[0]?.workRemaining).toBe(1);
+    runConstruction(2);
+    expect(workState.constructionSites).toEqual([]);
+    expect(workState.buildings[0]).toMatchObject({
+      id: "building:1", definitionId: "hut", status: "open", wear: 100, cleanliness: 100,
+      queue: { id: "queue:2", guestIds: [] },
+    });
+    expect(workState.counters.buildingsCompleted).toBe(1);
+    expect(workState.map.revision).toBe(1);
+    expect(workState.staff[0]).toMatchObject({ status: "idle", tasksCompleted: 1, task: { status: "completed", endedAtTick: 2 } });
+    expect(recording.events.filter((entry) => entry.name === "kind.world-graph.construction.progressed")).toHaveLength(3);
+    expect(recording.events.filter((entry) => entry.name === "kind.world-graph.construction.completed")).toEqual([
+      { name: "kind.world-graph.construction.completed", data: { constructionSiteId: "construction-site:0", buildingId: "building:1" } },
+    ]);
+  });
+
+  it("carries a batch-grain existence row for the completed building, reasoned and visible", () => {
+    let workState = siteState(1);
+    workState = {
+      ...workState,
+      staff: [{
+        id: "staff:4", roleId: "builder", x: 1, y: 0, status: "working",
+        path: [], pathIndex: 0, moveProgressTicks: 0, assignedBuildingId: null,
+        assignedZoneId: null, drawCount: 0, tasksCompleted: 0,
+        task: {
+          id: "task:5", type: "build", status: "in_progress", guestId: null, queueId: null,
+          buildingId: null, constructionSiteId: "construction-site:0", incidentId: null,
+          targetProductId: null, startedAtTick: 0, endedAtTick: null, priority: 5, effortRemaining: 1,
+        },
+      }],
+    };
+    const changes = new BatchChanges();
+    const scratch = createTickScratch();
+    construction({
+      processingTick: 0, content: constructionContent, emit: resolutionEmitter().emit,
+      random: createTickRandom(0, () => rngHandle(), scratch), scratch,
+      changes, state: workState,
+    });
+    const existenceRow = changes.finish().find((entry) => entry.path === "buildings.building:1.exists");
+    expect(existenceRow).toMatchObject({ value: true, reason: "building_completed" });
+    expect(WORLD_GRAPH_REASON_MESSAGES.get(`world-graph.reason.${existenceRow?.reason}`)).toBeTypeOf("string");
+  });
+
+  it("does not disturb serialize() if every event is dropped", () => {
+    let workState = siteState(1);
+    workState = {
+      ...workState,
+      staff: [{
+        id: "staff:4", roleId: "builder", x: 1, y: 0, status: "working",
+        path: [], pathIndex: 0, moveProgressTicks: 0, assignedBuildingId: null,
+        assignedZoneId: null, drawCount: 0, tasksCompleted: 0,
+        task: {
+          id: "task:5", type: "build", status: "in_progress", guestId: null, queueId: null,
+          buildingId: null, constructionSiteId: "construction-site:0", incidentId: null,
+          targetProductId: null, startedAtTick: 0, endedAtTick: null, priority: 5, effortRemaining: 1,
+        },
+      }],
+    };
+    const scratch = createTickScratch();
+    const withEvents = construction({
+      processingTick: 0, content: constructionContent, emit: resolutionEmitter().emit,
+      random: createTickRandom(0, () => rngHandle(), scratch), scratch,
+      changes: new BatchChanges(), state: workState,
+    }).state;
+    const droppedScratch = createTickScratch();
+    const withoutEvents = construction({
+      processingTick: 0, content: constructionContent, emit: { emit: () => {} }, scratch: droppedScratch,
+      random: createTickRandom(0, () => rngHandle(), droppedScratch),
+      changes: new BatchChanges(), state: workState,
+    }).state;
+    expect(withoutEvents).toEqual(withEvents);
   });
 });

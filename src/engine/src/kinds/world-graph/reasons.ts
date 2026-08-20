@@ -83,6 +83,7 @@ export const WORLD_GRAPH_REASON_CODES = [
   // Direct: a literal at the `change()`/`record()` call site.
   "building_placed",
   "construction_started",
+  "building_completed",
   "staff_hired",
   "price_set",
   "ticks_advanced",
@@ -141,6 +142,7 @@ const WORLD_GRAPH_REASON_TEXT: Readonly<Record<WorldGraphReasonCode, string>> = 
   inert_scenario: "This campaign's scenario has no objectives and no failures.",
   building_placed: "A building was placed.",
   construction_started: "Construction started.",
+  building_completed: "Construction finished.",
   staff_hired: "A staff member was hired.",
   price_set: "A price was changed.",
   ticks_advanced: "Time moved forward.",
