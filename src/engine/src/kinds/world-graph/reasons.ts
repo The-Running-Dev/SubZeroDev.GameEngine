@@ -87,6 +87,7 @@ export const WORLD_GRAPH_REASON_CODES = [
   "staff_hired",
   "price_set",
   "ticks_advanced",
+  "building_broken",
   // Indirect: `EffectContext.reason`, visible via `effects.ts`'s `finances.cashCents`.
   "scenario_effect",
   "guest_served",
@@ -146,6 +147,7 @@ const WORLD_GRAPH_REASON_TEXT: Readonly<Record<WorldGraphReasonCode, string>> = 
   staff_hired: "A staff member was hired.",
   price_set: "A price was changed.",
   ticks_advanced: "Time moved forward.",
+  building_broken: "A building broke down.",
   scenario_effect: "The scenario changed something.",
   guest_served: "A guest was served.",
   objective_met: "An objective was met.",

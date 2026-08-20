@@ -9,6 +9,7 @@ import type { Building, Guest, WorldGraphKindState } from "../state.js";
 import type { TickChanges } from "./changes.js";
 import { compareRuntimeEntityId, type WorldGraphSystemId } from "./order.js";
 import type { TickRandom } from "./random.js";
+import type { DeferredBuildingMeterSource, TickScratch } from "./scratch.js";
 
 interface EffectContext {
   readonly processingTick: number;
@@ -20,6 +21,8 @@ interface EffectContext {
   readonly currentIncidentId?: string;
   readonly currentServiceGuestId?: string;
   readonly currentServiceBuildingId?: string;
+  /** Systems 1, 4, and 11 defer building-meter deltas to system 14 (20-contract.md §9). */
+  readonly deferBuildingMeters?: { readonly scratch: TickScratch; readonly source: DeferredBuildingMeterSource };
 }
 
 export interface AppliedEffects {
@@ -276,8 +279,16 @@ export function applyWorldEffects(
   }
 
   for (const group of buildingMeters.values()) {
+    if (group.delta === 0) continue;
+    if (context.deferBuildingMeters) {
+      context.deferBuildingMeters.scratch.deferredBuildingMeterDeltas.push({
+        source: context.deferBuildingMeters.source, buildingId: group.buildingId, meter: group.meter, delta: group.delta,
+      });
+      group.effects.forEach((index) => { applied[index] = true; });
+      continue;
+    }
     const building = state.buildings.find((entry) => entry.id === group.buildingId);
-    if (!building || group.delta === 0) continue;
+    if (!building) continue;
     const previous = building[group.meter];
     const value = clamp(safeAdd(previous, group.delta, `building meter ${group.buildingId}`), 0, 100);
     if (value === previous) continue;

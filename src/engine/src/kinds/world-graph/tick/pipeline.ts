@@ -130,6 +130,7 @@ export const scenario: WorldGraphSystem = (frame) => {
     changes: frame.changes,
     system: "scenario",
     reason: "scenario_effect",
+    deferBuildingMeters: { scratch: frame.scratch, source: "policy" },
   });
   effects.forEach((effect, index) => {
     if (!result.applied[index]) return;
@@ -199,7 +200,7 @@ export const guestService: WorldGraphSystem = (frame) => {
     const staffed = hasServiceLabor(state, building.id, offer.definition);
     if (price === undefined || price > guest.cashCents || stock === undefined || stock === 0 || !staffed) continue;
     state = { ...state, guests: state.guests.map((entry) => entry.id === guest.id ? { ...entry, lifecycle: "served", cashCents: entry.cashCents - price, lastServedTick: frame.processingTick } : entry), buildings: state.buildings.map((entry) => entry.id === building.id ? { ...entry, inventory: stock === null ? entry.inventory : { ...entry.inventory, [offer.product.id]: stock - 1 } } : entry), finances: { ...state.finances, cashCents: state.finances.cashCents + price - offer.product.unitCostCents, revenueTodayCents: state.finances.revenueTodayCents + price, revenueTotalCents: state.finances.revenueTotalCents + price, expensesTodayCents: state.finances.expensesTodayCents + offer.product.unitCostCents, expensesTotalCents: state.finances.expensesTotalCents + offer.product.unitCostCents }, counters: { ...state.counters, servicesCompleted: state.counters.servicesCompleted + 1 } };
-    state = applyWorldEffects(state, [...operation.effects, ...offer.product.effects], { processingTick: frame.processingTick, content: frame.content, random: frame.random, changes: frame.changes, system: "guest-service", reason: "guest_served", currentServiceGuestId: guest.id, currentServiceBuildingId: building.id }).state;
+    state = applyWorldEffects(state, [...operation.effects, ...offer.product.effects], { processingTick: frame.processingTick, content: frame.content, random: frame.random, changes: frame.changes, system: "guest-service", reason: "guest_served", currentServiceGuestId: guest.id, currentServiceBuildingId: building.id, deferBuildingMeters: { scratch: frame.scratch, source: "service" } }).state;
     if (offer.product.litter) {
       const incidentId = `incident:${state.nextEntityOrdinal}`;
       state = { ...state, incidents: [...state.incidents, { id: incidentId, definitionId: offer.product.litter.incidentDefinitionId, buildingId: building.id, guestId: null, zoneId: null, position: { x: guest.x, y: guest.y }, amount: offer.product.litter.unitsPerService, startedAtTick: frame.processingTick, expiresAtTick: null, resolvedAtTick: null }], nextEntityOrdinal: state.nextEntityOrdinal + 1, counters: { ...state.counters, incidentsRaised: state.counters.incidentsRaised + 1, litterCreated: state.counters.litterCreated + offer.product.litter.unitsPerService } };
@@ -495,7 +496,7 @@ export const staffWork: WorldGraphSystem = (frame) => {
       state = { ...state, incidents: state.incidents.map((entry) => entry.id === incident.id ? { ...entry, amount: remaining, resolvedAtTick: remaining === 0 ? frame.processingTick : null } : entry), staff: state.staff.map((entry) => entry.id === member.id ? { ...entry, status: remaining === 0 ? "idle" : "working", tasksCompleted: remaining === 0 ? entry.tasksCompleted + 1 : entry.tasksCompleted, task: remaining === 0 ? { ...entry.task!, status: "completed", endedAtTick: frame.processingTick } : { ...entry.task!, status: "in_progress", effortRemaining: remaining } } : entry), counters: { ...state.counters, litterCleaned: state.counters.litterCleaned + removed } };
       if (remaining === 0) {
         frame.changes.record("staff-work", `incidents.${incident.id}.resolvedAtTick`, frame.processingTick, "incident_resolved", false);
-        state = applyWorldEffects(state, definition(frame.content.incidents, incident.definitionId, "incident definition").onResolve, { processingTick: frame.processingTick, content: frame.content, random: frame.random, changes: frame.changes, system: "staff-work", reason: "incident_resolved", currentIncidentId: incident.id }).state;
+        state = applyWorldEffects(state, definition(frame.content.incidents, incident.definitionId, "incident definition").onResolve, { processingTick: frame.processingTick, content: frame.content, random: frame.random, changes: frame.changes, system: "staff-work", reason: "incident_resolved", currentIncidentId: incident.id, deferBuildingMeters: { scratch: frame.scratch, source: "staff" } }).state;
         frame.emit.emit("kind.world-graph.incident.resolved", "info", { data: { incidentId: incident.id, definitionId: incident.definitionId, tick: frame.processingTick } });
       }
     }
@@ -587,11 +588,51 @@ export const buildings: WorldGraphSystem = (frame) => {
 
   return { ...frame, state: { ...frame.state, buildings: buildingsAfterRestock, staff } };
 };
+/**
+ * System 14: composes the four real meter-delta sources — `service` (deferred from system 4),
+ * `litter` (ambient, computed here from unresolved litter-kind incidents), `staff` (deferred
+ * from system 11, including cleaning's `onResolve` recovery), and `policy` (deferred from
+ * system 1) — summed once per building/meter and clamped once. The contract's fifth ordered
+ * slot, `incident`, has no independent mechanism yet and contributes nothing.
+ */
 export const cleanlinessWear: WorldGraphSystem = (frame) => {
-  const buildingDeltas = new Map<string, number>();
-  for (const incident of frame.state.incidents.filter((entry) => entry.resolvedAtTick === null && entry.buildingId !== null)) buildingDeltas.set(incident.buildingId!, (buildingDeltas.get(incident.buildingId!) ?? 0) - incident.amount);
-  if (buildingDeltas.size === 0) return frame;
-  return { ...frame, state: { ...frame.state, buildings: frame.state.buildings.map((building) => buildingDeltas.has(building.id) ? { ...building, cleanliness: Math.max(0, Math.min(100, building.cleanliness + buildingDeltas.get(building.id)!)) } : building) } };
+  const totals = new Map<string, number>();
+  const addDelta = (buildingId: string, meter: "cleanliness" | "wear", delta: number): void => {
+    if (delta === 0) return;
+    const key = `${buildingId} ${meter}`;
+    totals.set(key, (totals.get(key) ?? 0) + delta);
+  };
+  for (const entry of frame.scratch.deferredBuildingMeterDeltas) if (entry.source === "service") addDelta(entry.buildingId, entry.meter, entry.delta);
+  for (const incident of frame.state.incidents) {
+    if (incident.resolvedAtTick !== null || incident.buildingId === null) continue;
+    if (definition(frame.content.incidents, incident.definitionId, "incident definition").kind !== "litter") continue;
+    addDelta(incident.buildingId, "cleanliness", -incident.amount);
+  }
+  for (const entry of frame.scratch.deferredBuildingMeterDeltas) if (entry.source === "staff") addDelta(entry.buildingId, entry.meter, entry.delta);
+  for (const entry of frame.scratch.deferredBuildingMeterDeltas) if (entry.source === "policy") addDelta(entry.buildingId, entry.meter, entry.delta);
+  if (totals.size === 0) return frame;
+
+  const byId = new Map(frame.state.buildings.map((building) => [building.id, building] as const));
+  for (const id of [...byId.keys()].sort(compareRuntimeEntityId)) {
+    let building = byId.get(id)!;
+    for (const meter of ["cleanliness", "wear"] as const) {
+      const delta = totals.get(`${id} ${meter}`);
+      if (delta === undefined) continue;
+      const previous = building[meter];
+      const value = Math.max(0, Math.min(100, previous + delta));
+      if (value === previous) continue;
+      building = { ...building, [meter]: value };
+      frame.emit.emit("kind.world-graph.building.meter.changed", "trace", { data: { buildingId: id, meter, value } });
+      if (meter === "wear" && value === 0 && (building.status === "open" || building.status === "closed")) {
+        const previousStatus = building.status;
+        building = { ...building, status: "broken" };
+        frame.changes.record("cleanliness-wear", `buildings.${id}.status`, "broken", "building_broken", true, previousStatus);
+        frame.emit.emit("kind.world-graph.building.status.changed", "info", { data: { buildingId: id, status: "broken" } });
+      }
+    }
+    byId.set(id, building);
+  }
+  return { ...frame, state: { ...frame.state, buildings: frame.state.buildings.map((building) => byId.get(building.id)!) } };
 };
 export const finance: WorldGraphSystem = (frame) => {
   const due = (amount: number): number => Math.floor((amount * (frame.processingTick + 1)) / frame.content.ticksPerDay) - Math.floor((amount * frame.processingTick) / frame.content.ticksPerDay);
