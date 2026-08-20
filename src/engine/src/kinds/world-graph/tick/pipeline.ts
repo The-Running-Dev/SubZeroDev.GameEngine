@@ -2,7 +2,7 @@ import type { KindContext } from "../../../core/kernel/types.js";
 import { assertReferentialIntegrity } from "../actions/common.js";
 import { evaluateCondition, evaluateMetric } from "../conditions.js";
 import type { BuildingDefinition, IntegerCurve, ProductDefinition, WorldGraphCampaign } from "../content.js";
-import type { Building, Guest, IncidentSeverity, Position, StaffTask, WorldGraphKindState } from "../state.js";
+import type { Building, ConstructionSite, Guest, IncidentSeverity, Position, StaffTask, WorldGraphKindState } from "../state.js";
 import { canonicalPath, canonicalPathWithCost, footprintCells, rotateOffset } from "../spatial.js";
 import type { TickChanges } from "./changes.js";
 import { applyWorldEffects } from "./effects.js";
@@ -60,7 +60,7 @@ function curve(curveDefinition: IntegerCurve, value: number): number {
   const rounded = numerator < 0 ? -Math.floor((-numerator * 2 + denominator) / (denominator * 2)) : Math.floor((numerator * 2 + denominator) / (denominator * 2));
   return before.output + rounded;
 }
-function entrances(building: Building, content: WorldGraphCampaign): readonly Position[] {
+function entrances(building: Pick<Building, "definitionId" | "x" | "y" | "rotation">, content: WorldGraphCampaign): readonly Position[] {
   const item = definition(content.buildings, building.definitionId, "building definition");
   return item.entrances.map((offset) => rotateOffset(offset, item.footprint.width, item.footprint.height, building.rotation)).map((offset) => ({ x: building.x + offset.x, y: building.y + offset.y })).sort(positionOrder);
 }
@@ -409,6 +409,10 @@ export const taskGenerate: WorldGraphSystem = (frame) => {
     if (operation.kind !== "service" || building.queue.guestIds.length === 0) continue;
     for (const requirement of operation.staffRequirements) for (let slot = 0; slot < requirement.count; slot += 1) frame.scratch.taskCandidates.push({ type: "service", priority: operation.staffingTaskPriority, effort: null, buildingId: building.id, incidentId: null, constructionSiteId: null, productId: null, requiredRoleId: requirement.roleId, slot });
   }
+  for (const site of [...frame.state.constructionSites].sort((left, right) => compareRuntimeEntityId(left.id, right.id))) {
+    const siteDefinition = definition(frame.content.buildings, site.definitionId, "building definition");
+    frame.scratch.taskCandidates.push({ type: "build", priority: siteDefinition.constructionTaskPriority, effort: site.workRemaining, buildingId: null, incidentId: null, constructionSiteId: site.id, productId: null, requiredRoleId: null, slot: 0 });
+  }
   return frame;
 };
 export const taskAssign: WorldGraphSystem = (frame) => {
@@ -427,10 +431,12 @@ export const taskAssign: WorldGraphSystem = (frame) => {
       const incident = candidate.incidentId === null ? undefined : state.incidents.find((entry) => entry.id === candidate.incidentId);
       const targetBuildingId = incident?.buildingId ?? candidate.buildingId;
       const targetBuilding = targetBuildingId === null ? undefined : state.buildings.find((building) => building.id === targetBuildingId);
+      const targetSite = candidate.type === "build" && candidate.constructionSiteId !== null ? state.constructionSites.find((site) => site.id === candidate.constructionSiteId) : undefined;
       const targetZone = incident?.zoneId === null || incident?.zoneId === undefined ? undefined : state.map.zones.find((zone) => zone.id === incident.zoneId);
       const goals = incident?.position !== null && incident?.position !== undefined ? [incident.position]
         : targetBuilding !== undefined ? entrances(targetBuilding, frame.content)
-          : targetZone === undefined ? [] : [...targetZone.cells].sort(positionOrder);
+          : targetSite !== undefined ? entrances(targetSite, frame.content)
+            : targetZone === undefined ? [] : [...targetZone.cells].sort(positionOrder);
       if (goals.length === 0) continue;
       const candidatePath = canonicalPath(state.map, frame.content.terrain, { x: member.x, y: member.y }, goals, state.buildings, state.constructionSites);
       if (candidatePath === null) continue;
@@ -462,7 +468,7 @@ export const staffWork: WorldGraphSystem = (frame) => {
       } : entry) };
       continue;
     }
-    if (member.task.type === "service") { state = { ...state, staff: state.staff.map((entry) => entry.id === member.id ? { ...entry, status: "working", task: { ...entry.task!, status: "in_progress" } } : entry) }; continue; }
+    if (member.task.type === "service" || member.task.type === "build") { state = { ...state, staff: state.staff.map((entry) => entry.id === member.id ? { ...entry, status: "working", task: { ...entry.task!, status: "in_progress" } } : entry) }; continue; }
     if (member.task.type === "clean" && member.task.incidentId) {
       const incident = state.incidents.find((entry) => entry.id === member.task!.incidentId);
       if (!incident || incident.resolvedAtTick !== null) {
@@ -482,7 +488,52 @@ export const staffWork: WorldGraphSystem = (frame) => {
   }
   return { ...frame, state };
 };
-export const construction: WorldGraphSystem = (frame) => frame;
+/** System 12: apply builder deltas to open sites, then complete zero-effort sites in id order. */
+export const construction: WorldGraphSystem = (frame) => {
+  const builderDeltas = new Map<string, number>();
+  for (const member of frame.state.staff) {
+    if (member.task?.type !== "build" || member.task.status !== "in_progress" || member.task.constructionSiteId === null) continue;
+    const role = definition(frame.content.staffRoles, member.roleId, "staff role");
+    const rate = Math.max(0, role.workRates.find((entry) => entry.taskType === "build")?.effortPerTick ?? 0);
+    builderDeltas.set(member.task.constructionSiteId, (builderDeltas.get(member.task.constructionSiteId) ?? 0) + rate);
+  }
+  if (builderDeltas.size === 0) return frame;
+
+  let staff = frame.state.staff;
+  let map = frame.state.map;
+  let counters = frame.state.counters;
+  const remainingSites: ConstructionSite[] = [];
+  const completedBuildings: Building[] = [];
+  for (const site of [...frame.state.constructionSites].sort((left, right) => compareRuntimeEntityId(left.id, right.id))) {
+    const delta = builderDeltas.get(site.id) ?? 0;
+    if (delta === 0) { remainingSites.push(site); continue; }
+    const workRemaining = Math.max(0, site.workRemaining - delta);
+    frame.emit.emit("kind.world-graph.construction.progressed", "trace", { data: { constructionSiteId: site.id, workRemaining } });
+    if (workRemaining > 0) { remainingSites.push({ ...site, workRemaining }); continue; }
+
+    const buildingDefinition = definition(frame.content.buildings, site.definitionId, "building definition");
+    const products = buildingDefinition.operation.kind === "service" ? buildingDefinition.operation.products : [];
+    const building: Building = {
+      id: site.completedBuildingId, definitionId: site.definitionId, x: site.x, y: site.y,
+      width: site.width, height: site.height, rotation: site.rotation, status: "open",
+      buildStartTick: frame.processingTick, wear: buildingDefinition.initialWear, cleanliness: buildingDefinition.initialCleanliness,
+      queue: { id: site.completedQueueId, guestIds: [], serviceStartedAtTick: null },
+      pricesCents: Object.fromEntries(products.map((service) => [service.productId, definition(frame.content.products, service.productId, "product").price.defaultCents])),
+      inventory: Object.fromEntries(products.map((service) => [service.productId, service.initialUnits])),
+    };
+    completedBuildings.push(building);
+    scalar(frame, "construction", "map.revision", map.revision, map.revision + 1, "building_completed", false);
+    map = { ...map, revision: map.revision + 1 };
+    counters = { ...counters, buildingsCompleted: counters.buildingsCompleted + 1 };
+    staff = staff.map((entry) => entry.task?.type === "build" && entry.task.constructionSiteId === site.id
+      ? { ...entry, status: "idle", tasksCompleted: entry.tasksCompleted + 1, task: { ...entry.task, status: "completed", endedAtTick: frame.processingTick } }
+      : entry);
+    frame.changes.record("construction", `buildings.${building.id}.exists`, true, "building_completed", false);
+    frame.changes.record("construction", `constructionSites.${site.id}.exists`, false, "building_completed", false);
+    frame.emit.emit("kind.world-graph.construction.completed", "info", { data: { constructionSiteId: site.id, buildingId: building.id } });
+  }
+  return { ...frame, state: { ...frame.state, constructionSites: remainingSites, buildings: [...frame.state.buildings, ...completedBuildings], map, counters, staff } };
+};
 export const buildings: WorldGraphSystem = (frame) => frame;
 export const cleanlinessWear: WorldGraphSystem = (frame) => {
   const buildingDeltas = new Map<string, number>();
