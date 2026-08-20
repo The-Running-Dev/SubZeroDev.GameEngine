@@ -127,6 +127,27 @@ function effectErrors(effect: WorldEffect, path: string, errors: ValidationError
   }
 }
 
+/**
+ * Systems 16 (`incidents`, expiry-driven resolution), 17 (`objectives`), and 18 (`failure`)
+ * run after system 14 (`cleanliness-wear`) and never defer to it — unlike systems 1, 4, and 11
+ * (20-contract.md §9.2, §4.16). A `wear` delta reachable through one of those three would apply
+ * immediately with its own independent clamp and could never trigger the wear-hits-zero broken
+ * transition, since system 14 already ran this tick. Forbidding it keeps that gap from being
+ * reachable by content rather than leaving it a latent trap.
+ *
+ * Only `wear` is forbidden. `cleanliness` has no status transition hanging off it, so a late
+ * cleanliness delta is simply clamped locally — exactly what §9.2's "systems after 14 apply
+ * their own group locally" already licenses, and what an objective reward legitimately wants.
+ */
+function forbidUndeferrableWearDelta(effects: readonly WorldEffect[], path: string, errors: ValidationError[]): void {
+  if (!Array.isArray(effects)) return;
+  effects.forEach((effect, index) => {
+    if (object(effect) && effect.kind === "building_meter_delta" && effect.meter === "wear") {
+      errors.push(error("undeferrable_building_meter_effect", `${path}[${index}]`));
+    }
+  });
+}
+
 function catalogEffectErrors(content: WorldGraphCampaign, errors: ValidationError[]): void {
   const check = (effects: readonly WorldEffect[], path: string): void => {
     if (!Array.isArray(effects)) {
@@ -139,11 +160,20 @@ function catalogEffectErrors(content: WorldGraphCampaign, errors: ValidationErro
   content.buildings.forEach((entry, index) => {
     if (entry.operation.kind === "service") check(entry.operation.effects, `content.buildings[${index}].operation.effects`);
   });
-  content.objectives.forEach((entry, index) => check(entry.onCompleted, `content.objectives[${index}].onCompleted`));
-  content.failures.forEach((entry, index) => check(entry.onTriggered, `content.failures[${index}].onTriggered`));
+  content.objectives.forEach((entry, index) => {
+    check(entry.onCompleted, `content.objectives[${index}].onCompleted`);
+    forbidUndeferrableWearDelta(entry.onCompleted, `content.objectives[${index}].onCompleted`, errors);
+  });
+  content.failures.forEach((entry, index) => {
+    check(entry.onTriggered, `content.failures[${index}].onTriggered`);
+    forbidUndeferrableWearDelta(entry.onTriggered, `content.failures[${index}].onTriggered`, errors);
+  });
   content.incidents.forEach((entry, index) => {
     check(entry.onStart, `content.incidents[${index}].onStart`);
     check(entry.onResolve, `content.incidents[${index}].onResolve`);
+    // A duration-bearing incident can resolve via system 16's expiry, which never defers;
+    // only a staff-resolved-only incident (durationTicks: null) can carry a wear delta.
+    if (entry.durationTicks !== null) forbidUndeferrableWearDelta(entry.onResolve, `content.incidents[${index}].onResolve`, errors);
   });
   content.policies.forEach((entry, index) => check(entry.whileActive, `content.policies[${index}].whileActive`));
   content.scenarios.forEach((entry, scenarioIndex) => entry.scheduledChanges.forEach((change, changeIndex) => (
@@ -197,6 +227,9 @@ function referenceErrors(content: WorldGraphCampaign): ValidationError[] {
     if (definition.entrances.length === 0 || definition.allowedRotations.length === 0) errors.push(error("invalid_building_geometry", `content.buildings[${index}]`));
     if (definition.constructionCostCents < 0) errors.push(error("invalid_cost", `content.buildings[${index}].constructionCostCents`));
     if (definition.operatingCostCentsPerDay < 0) errors.push(error("invalid_cost", `content.buildings[${index}].operatingCostCentsPerDay`));
+    // Wear reaching zero is the only broken trigger (20-contract.md §4.16); a building created
+    // already at zero can never re-trigger it, since cleanliness-wear only breaks on a change.
+    if (definition.initialWear <= 0) errors.push(error("invalid_initial_wear", `content.buildings[${index}].initialWear`));
     if (definition.operation.kind === "service") {
       definition.operation.products.forEach((entry, productIndex) => {
         requireId(ids.products, entry.productId, `content.buildings[${index}].operation.products[${productIndex}].productId`);

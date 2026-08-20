@@ -3,7 +3,8 @@ import type { RngHandle, StreamId } from "../../../core/determinism/types.js";
 import type { ResolutionEmitter } from "../../../core/observability/types.js";
 import type { WorldEffect, WorldGraphCampaign } from "../content.js";
 import type { WorldGraphKindState } from "../state.js";
-import { WORLD_GRAPH_REASON_MESSAGES } from "../reasons.js";
+import { worldGraphKind } from "../kind.js";
+import { WORLD_GRAPH_REASON_CODES, WORLD_GRAPH_REASON_MESSAGES } from "../reasons.js";
 import { BatchChanges } from "./changes.js";
 import { compareDefinitionId, WORLD_GRAPH_SYSTEM_IDS } from "./order.js";
 import {
@@ -116,7 +117,7 @@ function content(effects: readonly WorldEffect[] = []): WorldGraphCampaign {
       travelPenaltyPerCost: 0, queuePenaltyPerTick: 0, safetyPenaltyPerPoint: 0,
       switchThresholdUtility: 0, fallback: { kind: "leave" }, tags: [],
     }], staffRoles: [],
-    incidents: [{ id: "litter", cooldownTicks: 0, durationTicks: { min: 2, max: 2 } }],
+    incidents: [{ id: "litter", kind: "litter", cooldownTicks: 0, durationTicks: { min: 2, max: 2 }, onResolve: [] }],
     objectives: [], failures: [], policies: [], achievements: [],
     scenarios: [{
       id: "opening", scheduledChanges: [{
@@ -542,7 +543,7 @@ describe("world-graph W46 scenario effects", () => {
     const recording = resolutionEmitter();
     const changes = new BatchChanges();
     const result = runWorldGraphTick(initial, content(effects), { derive: () => rngHandle(), emit: recording.emit }, changes, [
-      { id: "scenario", run: scenario }, { id: "tick-finalize", run: tickFinalize },
+      { id: "scenario", run: scenario }, { id: "cleanliness-wear", run: cleanlinessWear }, { id: "tick-finalize", run: tickFinalize },
     ]);
     expect(result.finances).toMatchObject({ cashCents: 125, revenueTotalCents: 70, expensesTotalCents: 80 });
     expect(result.counters.incidentsRaised).toBe(2);
@@ -980,5 +981,170 @@ describe("world-graph W82 restock", () => {
     });
     expect(result.state.buildings[0]?.cleanliness).toBe(workState.buildings[0]?.cleanliness);
     expect(result.state.buildings[0]?.wear).toBe(workState.buildings[0]?.wear);
+  });
+});
+
+describe("world-graph W83 cleanliness-wear", () => {
+  function runMeter(input: WorldGraphKindState, scratch = createTickScratch(), tick = 0): { readonly state: WorldGraphKindState; readonly events: RecordedResolutionEvent[]; readonly changes: BatchChanges } {
+    const recording = resolutionEmitter();
+    const changes = new BatchChanges();
+    const result = cleanlinessWear({
+      processingTick: tick, content: content(), emit: recording.emit,
+      random: createTickRandom(tick, () => rngHandle(), scratch), scratch, changes, state: input,
+    });
+    return { state: result.state, events: recording.events, changes };
+  }
+
+  it("sums service, litter, staff and policy deltas once and clamps once, distinct from clamping between sources", () => {
+    const initial: WorldGraphKindState = {
+      ...state(),
+      buildings: [{ ...state().buildings[0]!, cleanliness: 50 }],
+      incidents: [{ ...state().incidents[0]!, buildingId: "building:0", amount: 40, resolvedAtTick: null }],
+    };
+    const scratch = createTickScratch();
+    scratch.deferredBuildingMeterDeltas.push(
+      { source: "service", buildingId: "building:0", meter: "cleanliness", delta: 90 },
+      { source: "staff", buildingId: "building:0", meter: "cleanliness", delta: 90 },
+      { source: "policy", buildingId: "building:0", meter: "cleanliness", delta: -90 },
+    );
+    // Single clamp at the end: 50 + 90 - 40 + 90 - 90 = 100. Clamping between each source
+    // (service first: 140 -> 100; then litter: 60; then staff: 150 -> 100; then policy: 10)
+    // would land on 10 instead — the case this test exists to distinguish.
+    const { state: result } = runMeter(initial, scratch);
+    expect(result.buildings[0]?.cleanliness).toBe(100);
+  });
+
+  it("leaves the meter and status untouched when no source produces a delta", () => {
+    const initial = state();
+    const { state: result } = runMeter(initial);
+    expect(result).toEqual(initial);
+  });
+
+  it("moves wear to zero and breaks an open building; cleanliness reaching zero never breaks it on its own", () => {
+    const initial: WorldGraphKindState = {
+      ...state(),
+      buildings: [{ ...state().buildings[0]!, status: "open", wear: 10, cleanliness: 5 }],
+      incidents: [{ ...state().incidents[0]!, buildingId: "building:0", amount: 50, resolvedAtTick: null }],
+    };
+    const scratch = createTickScratch();
+    scratch.deferredBuildingMeterDeltas.push({ source: "staff", buildingId: "building:0", meter: "wear", delta: -10 });
+    const { state: result, changes } = runMeter(initial, scratch);
+    expect(result.buildings[0]?.wear).toBe(0);
+    expect(result.buildings[0]?.status).toBe("broken");
+    expect(result.buildings[0]?.cleanliness).toBe(0);
+    const statusRow = changes.finish().find((entry) => entry.path === "buildings.building:0.status");
+    expect(statusRow).toMatchObject({ value: "broken", previous: "open", reason: "building_broken", visible: true });
+    expect(WORLD_GRAPH_REASON_MESSAGES.get(`world-graph.reason.${statusRow?.reason}`)).toBeTypeOf("string");
+  });
+
+  it("breaks a closed building the same way as an open one", () => {
+    const initial: WorldGraphKindState = {
+      ...state(),
+      buildings: [{ ...state().buildings[0]!, status: "closed", wear: 5 }],
+    };
+    const scratch = createTickScratch();
+    scratch.deferredBuildingMeterDeltas.push({ source: "policy", buildingId: "building:0", meter: "wear", delta: -5 });
+    const { state: result } = runMeter(initial, scratch);
+    expect(result.buildings[0]?.status).toBe("broken");
+  });
+
+  it("never breaks an already-broken building again", () => {
+    const initial: WorldGraphKindState = {
+      ...state(),
+      buildings: [{ ...state().buildings[0]!, status: "broken", wear: 5 }],
+    };
+    const scratch = createTickScratch();
+    scratch.deferredBuildingMeterDeltas.push({ source: "policy", buildingId: "building:0", meter: "wear", delta: -5 });
+    const { state: result, changes } = runMeter(initial, scratch);
+    expect(result.buildings[0]?.status).toBe("broken");
+    expect(changes.finish().some((entry) => entry.path === "buildings.building:0.status")).toBe(false);
+  });
+
+  it("applies a cleaning incident's deferred onResolve recovery exactly once", () => {
+    const initial = state();
+    const workContent = {
+      ...content(),
+      staffRoles: [{ id: "cleaner", moveTicksPerTile: 1, workRates: [{ taskType: "clean", effortPerTick: 5 }] }],
+      incidents: [{
+        ...content().incidents[0], id: "litter",
+        onResolve: [{ kind: "building_meter_delta", meter: "cleanliness", delta: 15, buildings: { kind: "current_incident_building" } }],
+      }],
+    } as unknown as WorldGraphCampaign;
+    let workState: WorldGraphKindState = {
+      ...initial,
+      buildings: [{ ...initial.buildings[0]!, cleanliness: 50 }],
+      incidents: initial.incidents.map((incident) => ({ ...incident, amount: 5, buildingId: "building:0" })),
+      staff: [{
+        id: "staff:4", roleId: "cleaner", x: 0, y: 0, status: "working",
+        path: [{ x: 0, y: 0 }], pathIndex: 0, moveProgressTicks: 0, assignedBuildingId: null,
+        assignedZoneId: null, drawCount: 0, tasksCompleted: 0,
+        task: {
+          id: "task:5", type: "clean", status: "in_progress", guestId: null, queueId: null,
+          buildingId: null, constructionSiteId: null, incidentId: "incident:3", targetProductId: null,
+          startedAtTick: 0, endedAtTick: null, priority: 1, effortRemaining: 5,
+        },
+      }],
+    };
+    const tick = (n: number): void => {
+      const scratch = createTickScratch();
+      const frame: WorldGraphTickFrame = {
+        processingTick: n, content: workContent, emit: resolutionEmitter().emit,
+        random: createTickRandom(n, () => rngHandle(), scratch), scratch,
+        changes: new BatchChanges(), state: workState,
+      };
+      workState = cleanlinessWear(staffWork(frame)).state;
+    };
+    tick(0);
+    expect(workState.incidents[0]).toMatchObject({ amount: 0, resolvedAtTick: 0 });
+    expect(workState.buildings[0]?.cleanliness).toBe(65);
+    tick(1);
+    expect(workState.buildings[0]?.cleanliness).toBe(65);
+  });
+
+  it("emits building.meter.changed per changed meter without adding per-tick audit rows, auditing only the broken transition", () => {
+    let workState: WorldGraphKindState = {
+      ...state(),
+      buildings: [{ ...state().buildings[0]!, cleanliness: 100, wear: 3 }],
+      incidents: [{ ...state().incidents[0]!, buildingId: "building:0", amount: 10, resolvedAtTick: null }],
+    };
+    const changes = new BatchChanges();
+    const recording = resolutionEmitter();
+    for (let tick = 0; tick < 3; tick += 1) {
+      const scratch = createTickScratch();
+      if (tick === 0) scratch.deferredBuildingMeterDeltas.push({ source: "staff", buildingId: "building:0", meter: "wear", delta: -3 });
+      workState = cleanlinessWear({
+        processingTick: tick, content: content(), emit: recording.emit,
+        random: createTickRandom(tick, () => rngHandle(), scratch), scratch, changes, state: workState,
+      }).state;
+    }
+    expect(workState.buildings[0]?.cleanliness).toBe(70);
+    expect(workState.buildings[0]?.wear).toBe(0);
+    expect(workState.buildings[0]?.status).toBe("broken");
+    const meterEvents = recording.events.filter((event) => event.name === "kind.world-graph.building.meter.changed");
+    expect(meterEvents).toHaveLength(4); // 3 cleanliness ticks + the one wear tick
+    const recorded = changes.finish();
+    expect(recorded.some((entry) => entry.path.endsWith(".cleanliness") || entry.path.endsWith(".wear"))).toBe(false);
+    expect(recorded.filter((entry) => entry.path === "buildings.building:0.status")).toHaveLength(1);
+  });
+
+  it("throws rather than silently losing precision when deferred sources leave the safe-integer range", () => {
+    const initial: WorldGraphKindState = { ...state(), buildings: [{ ...state().buildings[0]!, cleanliness: 50 }] };
+    const scratch = createTickScratch();
+    // Unchecked `+` rounds the intermediate 2**53 + 1 down to 2**53 and lands on 1 rather than
+    // 2, which the final clamp cannot detect — the meter ends up silently off by one. Checked
+    // addition fails where the precision is actually lost, matching applyWorldEffects' grouping.
+    scratch.deferredBuildingMeterDeltas.push(
+      { source: "service", buildingId: "building:0", meter: "cleanliness", delta: 9007199254740991 },
+      { source: "staff", buildingId: "building:0", meter: "cleanliness", delta: 2 },
+      { source: "policy", buildingId: "building:0", meter: "cleanliness", delta: -9007199254740991 },
+    );
+    expect(() => runMeter(initial, scratch)).toThrow(/Unsafe world-graph integer/);
+  });
+
+  it("declares the meter-changed event and the building_broken reason", () => {
+    expect(worldGraphKind.eventNames).toContain("kind.world-graph.building.meter.changed");
+    // The reason is recorded on a `visible: true` row, so 04 §12 owes it a resolvable message.
+    expect(WORLD_GRAPH_REASON_CODES).toContain("building_broken");
+    expect(WORLD_GRAPH_REASON_MESSAGES.get("world-graph.reason.building_broken")).toBeTypeOf("string");
   });
 });

@@ -267,6 +267,50 @@ and was deliberately regularised is the reasoning a later reader of
 [issue #285](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/285) will want. That
 issue's premise no longer holds and it is `/track`'s to close.
 
+**`incidents[].onStart` is the one effect list with no building-meter rule, and W47 has to pick
+one.** After W83, every other list is accounted for: `products[].effects` and a building's
+`operation.effects` defer as `service`, `scheduledChanges` and `policies[].whileActive` as
+`policy`, a staff-resolved `onResolve` as `staff`, and a `wear` delta on `objectives.onCompleted`,
+`failures.onTriggered`, or a duration-bearing `onResolve` is rejected (§9.2). `onStart` is neither,
+and nothing misbehaves today only because no system applies it — it is declared, shape-validated,
+and dead. W47 makes it live, and the answer depends on a choice W47 owns rather than W83: if
+`onStart` runs only for system 16's rolls, it runs after system 14 and a `wear` delta there could
+never reach §4.16's broken transition, so the §9.2 rejection should extend to it; but if W47 also
+applies `onStart` at the `start_incident` call sites in systems 1 and 4, those run *before* 14 and
+could defer legitimately, and extending the rejection would forbid content W47 wants. Both readings
+are defensible, so W83's review pass deliberately left the code alone rather than pick one. Note
+the contract's own MVP worked example (§13's litter incident) puts a `cleanliness` delta in
+`onStart`, not a `wear` one, so the wear-only rule would not contradict it either way.
+
+**Nothing checks *emitted → registered* for `StateChange.reason`, and it has now failed twice.**
+`20-contract.md` §13 says so in its own words — a reason threaded through `EffectContext` is not
+visible at any call site that also names a `visible` flag, so the usual audit (scan for `reason:`
+beside `visible: true`) finds the direct codes and none of the indirect ones. That gap let five
+world-graph codes go unregistered through three units and one reconciliation pass. W83's
+`building_broken` was the second occurrence: it shipped as an eleventh `visible: true` audit code
+against a table stating there were ten, with all six required checks green, and was caught by code
+review rather than by any gate. The fix is a test that fails when a reason recorded with
+`visible: true` is missing from the contract's audit table; it was scoped out of W83's review pass
+as its own unit, because parsing a markdown table from a test is a new kind of coupling and wants
+deciding on its own. Until it exists, the tables are kept correct by hand and this is the note
+saying that is a manual control, not an enforced one.
+
+**A deferred building-meter effect is marked `applied` before system 14 composes/clamps it,
+and this is accepted rather than fixed.** `effects.ts`'s deferred branch sets
+`applied[index] = true` as soon as the local per-source delta is nonzero, not once the
+final composed value actually differs from `previous` — unlike the non-deferred and
+`guestMeters` branches, which wait for the clamped outcome. So a same-tick combination of
+`service`/`staff`/`litter`/`policy` deltas that nets to zero after system 14's single clamp
+still fires `kind.world-graph.scenario.effect.applied`. Filed as
+[issue #349](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/349), which
+also records the three ways out considered during W83's review: leave it; stop marking
+deferred meters applied at all (trades over-reporting for under-reporting, not obviously
+better); or move the event emission into system 14 alongside the composition (the only
+fully correct fix, but it touches the shared `applyWorldEffects` interpreter seam across
+all six call sites). **Accepted as-is for this MVP slice** — the event is debug severity
+and `scenario` is the only caller reading `.applied` today. Revisit if a second caller
+starts reading `.applied`, or as part of whatever unit closes #349.
+
 ---
 
 ## 3. Judgement Calls to Revisit (Settled for the MVP)
@@ -385,6 +429,7 @@ Rejected: **Rewrite §4.12–§4.21 to describe only what runs today** — rejec
 Reversibility: cheap — documentation only; no code or contract behaviour changes.
 **Amended 2026-08-20 by W81.** `construction` (system 12) is real as of this unit and leaves the list below. Re-reading systems 9 and 11 against the source while slicing W81 found the register incomplete rather than wrong: `task-generate` (system 9) and `staff-work` (system 11) were never on this list — both looked complete because every other documented task kind they touch (`clean`, `service`) was wired — but `StaffTaskType` and the `task-assign` comparator have always included `build` and `restock` as options neither system ever produced or applied. **The gap is seven systems, not five.** W81 wired the `build` half of both (a construction-site candidate in system 9, and status marking in system 11, with the effort application and completion itself living in system 12); the `restock` half is still missing and is W82's scope. `buildings` (system 13) and `alerts` (system 19) remain fully no-op; `cleanliness-wear` (14) and `incidents` (16) are unchanged from the description above.
 **Amended again 2026-08-20 by W82.** The `restock` half W81 left open is wired: `task-generate` (system 9) now generates a restock candidate per below-capacity product, `staff-work` (system 11) marks a restocker's task `in_progress` on arrival — mirroring how it already treats `build` — and `buildings` (system 13) applies the assigned restocker's effort to finite inventory, clamped once at each product's capacity, and completes the task. `buildings` is real as of this unit and leaves the list below. `task-generate` and `staff-work` are now fully wired for every documented task kind (`service`, `clean`, `restock`, `build`) and leave this register entirely. **Three systems remain**: `alerts` (19) is fully no-op; `cleanliness-wear` (14) and `incidents` (16) are unchanged from the 2026-08-05 description.
+**Amended again 2026-08-20 by W83.** `cleanliness-wear` (system 14) is real as of this unit for four of its five documented sources: `service` (deferred from system 4), `staff` (deferred from system 11, including cleaning's `onResolve` recovery), `policy` (deferred from system 1), and `litter` (ambient, computed here from unresolved litter-kind incidents) now compose in one sum per building/meter and clamp once, per §9's "systems 1, 4, and 11 explicitly defer building-meter deltas to system 14" rule; wear now moves and a zero-wear open or closed building becomes `broken`. The contract's third ordered slot, `incident`, has no independent mechanism the contract or the source distinguishes from `staff`'s deferred `onResolve` effect (see the `AskUserQuestion` resolution this unit's session recorded) and is left a no-op placeholder in the source's own comment — a future unit that gives it real content should also correct this entry rather than leaving both stale. **Two systems remain**: `alerts` (19) is fully no-op; `incidents` (16) is unchanged from the 2026-08-05 description.
 Reversibility: cheap — documentation only.
 
 ### 2026-08-05 — Known-and-retained implementation gaps: `simulation` end-of-week systems
@@ -870,3 +915,28 @@ different document.
 Reversibility: cheap in code, expensive in consequence — changing how the version is derived
 changes every resolution digest, hence every `campaignVersion`, hence every existing save's
 recorded content identity. §6 already states that cost for pack reordering; it applies here too.
+
+### 2026-08-20 — A late `wear` delta is rejected; a late `cleanliness` delta is not
+Context: W83 gave system 14 (`cleanliness-wear`) the wear-hits-zero broken transition, and added a
+validator forbidding `building_meter_delta` on every effect list owned by a system that runs after
+14 and never defers to it — `objectives.onCompleted` (17), `failures.onTriggered` (18), and
+`incidents.onResolve` on a duration-bearing incident (16). The reasoning was sound but the guard
+was too wide, and it contradicted §9.2's own sentence, "Systems after 14 apply their own group
+locally—effects never wait for the next tick without persisted state." A code review found the
+divergence: an objective reward as ordinary as `onCompleted: [{ building_meter_delta, cleanliness,
++20 }]` is exactly what §9.2 licenses, and W83 rejected the entire campaign for it. The contract
+and the code disagreed, and neither side had recorded a decision.
+Chosen: Narrow the guard to `meter: "wear"`, and amend §9.2 to say so. Only `wear` has a status
+transition hanging off it, so only `wear` can be silently wrong when applied late: it clamps
+independently and can never reach §4.16's `broken`. `cleanliness` has no transition, so a late
+cleanliness delta is merely clamped locally, which is the behaviour §9.2 already describes. This
+closes the real gap while keeping an authoring capability the contract promised.
+Rejected: **Amend §9.2 to match the wide guard** — no code change, but it costs the capability
+outright: objectives and failures could never touch a building meter, even harmlessly, and the
+contract would be narrowed to fit an implementation accident rather than a reason. **Drop the
+guard entirely and leave §9.2 as written** — restores conformance with no doc edit, but reinstates
+the trap: a wear delta authored on an objective or failure silently cannot break a building, which
+is the class of latent content bug W83 existed to remove.
+Reversibility: cheap — the guard is one condition and the §9.2 sentence is one clause. Widening it
+back would reject content that is valid under this entry, so it is a one-way door for any campaign
+authored against it.

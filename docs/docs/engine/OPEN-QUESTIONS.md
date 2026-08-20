@@ -257,6 +257,50 @@ and was deliberately regularised is the reasoning a later reader of
 [issue #285](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/285) will want. That
 issue's premise no longer holds and it is `/track`'s to close.
 
+**`incidents[].onStart` is the one effect list with no building-meter rule, and W47 has to pick
+one.** After W83, every other list is accounted for: `products[].effects` and a building's
+`operation.effects` defer as `service`, `scheduledChanges` and `policies[].whileActive` as
+`policy`, a staff-resolved `onResolve` as `staff`, and a `wear` delta on `objectives.onCompleted`,
+`failures.onTriggered`, or a duration-bearing `onResolve` is rejected (§9.2). `onStart` is neither,
+and nothing misbehaves today only because no system applies it — it is declared, shape-validated,
+and dead. W47 makes it live, and the answer depends on a choice W47 owns rather than W83: if
+`onStart` runs only for system 16's rolls, it runs after system 14 and a `wear` delta there could
+never reach §4.16's broken transition, so the §9.2 rejection should extend to it; but if W47 also
+applies `onStart` at the `start_incident` call sites in systems 1 and 4, those run *before* 14 and
+could defer legitimately, and extending the rejection would forbid content W47 wants. Both readings
+are defensible, so W83's review pass deliberately left the code alone rather than pick one. Note
+the contract's own MVP worked example (§13's litter incident) puts a `cleanliness` delta in
+`onStart`, not a `wear` one, so the wear-only rule would not contradict it either way.
+
+**Nothing checks *emitted → registered* for `StateChange.reason`, and it has now failed twice.**
+`20-contract.md` §13 says so in its own words — a reason threaded through `EffectContext` is not
+visible at any call site that also names a `visible` flag, so the usual audit (scan for `reason:`
+beside `visible: true`) finds the direct codes and none of the indirect ones. That gap let five
+world-graph codes go unregistered through three units and one reconciliation pass. W83's
+`building_broken` was the second occurrence: it shipped as an eleventh `visible: true` audit code
+against a table stating there were ten, with all six required checks green, and was caught by code
+review rather than by any gate. The fix is a test that fails when a reason recorded with
+`visible: true` is missing from the contract's audit table; it was scoped out of W83's review pass
+as its own unit, because parsing a markdown table from a test is a new kind of coupling and wants
+deciding on its own. Until it exists, the tables are kept correct by hand and this is the note
+saying that is a manual control, not an enforced one.
+
+**A deferred building-meter effect is marked `applied` before system 14 composes/clamps it,
+and this is accepted rather than fixed.** `effects.ts`'s deferred branch sets
+`applied[index] = true` as soon as the local per-source delta is nonzero, not once the
+final composed value actually differs from `previous` — unlike the non-deferred and
+`guestMeters` branches, which wait for the clamped outcome. So a same-tick combination of
+`service`/`staff`/`litter`/`policy` deltas that nets to zero after system 14's single clamp
+still fires `kind.world-graph.scenario.effect.applied`. Filed as
+[issue #349](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/349), which
+also records the three ways out considered during W83's review: leave it; stop marking
+deferred meters applied at all (trades over-reporting for under-reporting, not obviously
+better); or move the event emission into system 14 alongside the composition (the only
+fully correct fix, but it touches the shared `applyWorldEffects` interpreter seam across
+all six call sites). **Accepted as-is for this MVP slice** — the event is debug severity
+and `scenario` is the only caller reading `.applied` today. Revisit if a second caller
+starts reading `.applied`, or as part of whatever unit closes #349.
+
 ---
 
 ## 3. Judgement Calls to Revisit (Settled for the MVP)
