@@ -2164,7 +2164,7 @@ interface BuildingDefinitionBase<TText> {
   constructionWork: number;                          // effort units; 0 = immediate MVP construction
   constructionTaskPriority: number;                  // signed integer candidate priority
   operatingCostCentsPerDay: number;                  // non-negative integer cents
-  initialWear: number;                               // integer 0..100
+  initialWear: number;                               // integer 1..100 (0 could never break)
   initialCleanliness: number;                        // integer 0..100
   placementRules: readonly PlacementRule[];
   adjacencyEffects: readonly AdjacencyEffect[];
