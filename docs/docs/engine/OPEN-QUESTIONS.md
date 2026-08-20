@@ -285,6 +285,22 @@ as its own unit, because parsing a markdown table from a test is a new kind of c
 deciding on its own. Until it exists, the tables are kept correct by hand and this is the note
 saying that is a manual control, not an enforced one.
 
+**A deferred building-meter effect is marked `applied` before system 14 composes/clamps it,
+and this is accepted rather than fixed.** `effects.ts`'s deferred branch sets
+`applied[index] = true` as soon as the local per-source delta is nonzero, not once the
+final composed value actually differs from `previous` — unlike the non-deferred and
+`guestMeters` branches, which wait for the clamped outcome. So a same-tick combination of
+`service`/`staff`/`litter`/`policy` deltas that nets to zero after system 14's single clamp
+still fires `kind.world-graph.scenario.effect.applied`. Filed as
+[issue #349](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/349), which
+also records the three ways out considered during W83's review: leave it; stop marking
+deferred meters applied at all (trades over-reporting for under-reporting, not obviously
+better); or move the event emission into system 14 alongside the composition (the only
+fully correct fix, but it touches the shared `applyWorldEffects` interpreter seam across
+all six call sites). **Accepted as-is for this MVP slice** — the event is debug severity
+and `scenario` is the only caller reading `.applied` today. Revisit if a second caller
+starts reading `.applied`, or as part of whatever unit closes #349.
+
 ---
 
 ## 3. Judgement Calls to Revisit (Settled for the MVP)
