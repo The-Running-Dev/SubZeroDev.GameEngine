@@ -4,7 +4,7 @@ import type { ResolutionEmitter } from "../../../core/observability/types.js";
 import type { WorldEffect, WorldGraphCampaign } from "../content.js";
 import type { WorldGraphKindState } from "../state.js";
 import { worldGraphKind } from "../kind.js";
-import { WORLD_GRAPH_REASON_MESSAGES } from "../reasons.js";
+import { WORLD_GRAPH_REASON_CODES, WORLD_GRAPH_REASON_MESSAGES } from "../reasons.js";
 import { BatchChanges } from "./changes.js";
 import { compareDefinitionId, WORLD_GRAPH_SYSTEM_IDS } from "./order.js";
 import {
@@ -1127,7 +1127,24 @@ describe("world-graph W83 cleanliness-wear", () => {
     expect(recorded.filter((entry) => entry.path === "buildings.building:0.status")).toHaveLength(1);
   });
 
+  it("throws rather than silently losing precision when deferred sources leave the safe-integer range", () => {
+    const initial: WorldGraphKindState = { ...state(), buildings: [{ ...state().buildings[0]!, cleanliness: 50 }] };
+    const scratch = createTickScratch();
+    // Unchecked `+` rounds the intermediate 2**53 + 1 down to 2**53 and lands on 1 rather than
+    // 2, which the final clamp cannot detect — the meter ends up silently off by one. Checked
+    // addition fails where the precision is actually lost, matching applyWorldEffects' grouping.
+    scratch.deferredBuildingMeterDeltas.push(
+      { source: "service", buildingId: "building:0", meter: "cleanliness", delta: 9007199254740991 },
+      { source: "staff", buildingId: "building:0", meter: "cleanliness", delta: 2 },
+      { source: "policy", buildingId: "building:0", meter: "cleanliness", delta: -9007199254740991 },
+    );
+    expect(() => runMeter(initial, scratch)).toThrow(/Unsafe world-graph integer/);
+  });
+
   it("declares the meter-changed event and the building_broken reason", () => {
     expect(worldGraphKind.eventNames).toContain("kind.world-graph.building.meter.changed");
+    // The reason is recorded on a `visible: true` row, so 04 §12 owes it a resolvable message.
+    expect(WORLD_GRAPH_REASON_CODES).toContain("building_broken");
+    expect(WORLD_GRAPH_REASON_MESSAGES.get("world-graph.reason.building_broken")).toBeTypeOf("string");
   });
 });

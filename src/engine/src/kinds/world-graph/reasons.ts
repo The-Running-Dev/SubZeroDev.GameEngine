@@ -139,7 +139,7 @@ const WORLD_GRAPH_REASON_TEXT: Readonly<Record<WorldGraphReasonCode, string>> = 
   invalid_cost: "This campaign has a cost that is negative.",
   invalid_inventory: "This campaign has inventory units or capacity that don't make sense.",
   invalid_work_rate: "This campaign has a staff work rate that isn't a positive effort per tick.",
-  invalid_initial_wear: "This campaign's building has an initial wear of zero, which can never be marked broken.",
+  invalid_initial_wear: "This campaign's building has an initial wear that isn't positive, so it could never be marked broken.",
   undeferrable_building_meter_effect: "This campaign has a building-meter effect on an effect list that cannot defer to cleanliness-wear.",
   invalid_time_limit_pair: "This campaign's scenario must declare both a time limit and its failure, or neither.",
   invalid_kind: "This campaign's kind doesn't match world-graph.",

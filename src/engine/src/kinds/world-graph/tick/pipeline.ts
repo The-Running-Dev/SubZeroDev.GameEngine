@@ -575,14 +575,14 @@ export const buildings: WorldGraphSystem = (frame) => {
       const stock = inventory[service.productId] ?? 0;
       const next = Math.min(service.capacity, stock + delta);
       if (next !== stock) inventory = { ...inventory, [service.productId]: next };
-      if (next >= service.capacity) filledProductKeys.add(`${building.id} ${service.productId}`);
+      if (next >= service.capacity) filledProductKeys.add(`${building.id}\u0000${service.productId}`);
     }
     return inventory === building.inventory ? building : { ...building, inventory };
   });
 
   const staff = frame.state.staff.map((member) => {
     if (member.task?.type !== "restock" || member.task.status !== "in_progress" || member.task.buildingId === null || member.task.targetProductId === null) return member;
-    if (!filledProductKeys.has(`${member.task.buildingId} ${member.task.targetProductId}`)) return member;
+    if (!filledProductKeys.has(`${member.task.buildingId}\u0000${member.task.targetProductId}`)) return member;
     return { ...member, status: "idle" as const, tasksCompleted: member.tasksCompleted + 1, task: { ...member.task!, status: "completed" as const, endedAtTick: frame.processingTick } };
   });
 
@@ -592,15 +592,15 @@ export const buildings: WorldGraphSystem = (frame) => {
  * System 14: composes the four real meter-delta sources — `service` (deferred from system 4),
  * `litter` (ambient, computed here from unresolved litter-kind incidents), `staff` (deferred
  * from system 11, including cleaning's `onResolve` recovery), and `policy` (deferred from
- * system 1) — summed once per building/meter and clamped once. The contract's fifth ordered
+ * system 1) — summed once per building/meter and clamped once. The contract's third ordered
  * slot, `incident`, has no independent mechanism yet and contributes nothing.
  */
 export const cleanlinessWear: WorldGraphSystem = (frame) => {
   const totals = new Map<string, number>();
   const addDelta = (buildingId: string, meter: "cleanliness" | "wear", delta: number): void => {
     if (delta === 0) return;
-    const key = `${buildingId} ${meter}`;
-    totals.set(key, (totals.get(key) ?? 0) + delta);
+    const key = `${buildingId}\u0000${meter}`;
+    totals.set(key, safeAdd(totals.get(key) ?? 0, delta, `building meter ${buildingId}.${meter}`));
   };
   for (const entry of frame.scratch.deferredBuildingMeterDeltas) if (entry.source === "service") addDelta(entry.buildingId, entry.meter, entry.delta);
   for (const incident of frame.state.incidents) {
@@ -616,7 +616,7 @@ export const cleanlinessWear: WorldGraphSystem = (frame) => {
   for (const id of [...byId.keys()].sort(compareRuntimeEntityId)) {
     let building = byId.get(id)!;
     for (const meter of ["cleanliness", "wear"] as const) {
-      const delta = totals.get(`${id} ${meter}`);
+      const delta = totals.get(`${id}\u0000${meter}`);
       if (delta === undefined) continue;
       const previous = building[meter];
       const value = clamp(safeAdd(previous, delta, `building meter ${id}.${meter}`), 0, 100);
