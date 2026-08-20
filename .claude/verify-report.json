@@ -13,12 +13,12 @@
     {
       "name": "engine test",
       "status": "Passed",
-      "detail": "npm --prefix src/engine test: vitest run — Test Files 78 passed (78), Tests 1081 passed (1081), Duration 9.43s."
+      "detail": "npm --prefix src/engine test: vitest run — Test Files 79 passed (79), Tests 1089 passed (1089), Duration 9.19s."
     },
     {
       "name": "engine pack + tarball inspect",
       "status": "Passed",
-      "detail": "cd src/engine; npm pack — produced the-running-dev-game-engine-0.10.0.tgz, package size 340.9 kB, unpacked size 1.5 MB, total files 311, shasum eabb6cc08492f3250d237dd699cada3bf5964508."
+      "detail": "cd src/engine; npm pack — produced the-running-dev-game-engine-0.10.0.tgz, package size 340.9 kB, unpacked size 1.5 MB, total files 311, shasum 36c24ce815a170c401e21ae89a53a9acc4446a97."
     },
     {
       "name": "consumer smoke",
@@ -33,12 +33,12 @@
     {
       "name": "site check",
       "status": "Passed",
-      "detail": "npm --prefix site run check — format:check (Prettier: all matched files use Prettier code style), lint (oxlint, no errors), typecheck (tsc -b, no errors), test (vitest: 2 files / 15 tests passed), test:browser (vitest: 1 file / 11 tests passed), test:build (tsc -b + landing build succeeded, verify-build.mjs: both built HTML entry points contain required static metadata, 3 bundles free of Node-only runtime references), test:merge (verify-merge.mjs: \"Package-backed merge proven: '/', '/roadmap/' and the protected 'docs/' subtree all verified, and the top-level 'docs/' guard rejects a bad landing build.\")."
+      "detail": "npm --prefix site run check — test:browser (vitest: 1 file / 11 tests passed), test:build (tsc -b + landing build succeeded, verify-build.mjs: both built HTML entry points contain required static metadata, 3 bundles free of Node-only runtime references), test:merge (verify-merge.mjs: \"Package-backed merge proven: '/', '/roadmap/' and the protected 'docs/' subtree all verified, and the top-level 'docs/' guard rejects a bad landing build.\")."
     },
     {
       "name": "powershell parse-check",
       "status": "Passed",
-      "detail": "Parsed every *.ps1 file (excluding node_modules) with [System.Management.Automation.Language.Parser]::ParseFile — 21 files checked, all parsed successfully, zero parse errors."
+      "detail": "Parsed every *.ps1 file (excluding node_modules) with [System.Management.Automation.Language.Parser]::ParseFile — 28 files checked, all parsed successfully, zero parse errors."
     },
     {
       "name": "pester tools",
@@ -48,7 +48,7 @@
     {
       "name": "production docs build",
       "status": "DidNotRun",
-      "reason": "./docs.ps1 is not present in this checkout — per CLAUDE.md it is installer-generated (by Invoke-SetupDocs), not committed, and was not found at the repository root. Docker itself is available locally, but without docs.ps1 the production Docusaurus build (onBrokenLinks: 'throw') cannot be invoked. The corresponding PR check 'Verify Documentation Build' on PR #342 (head cb5c6c28b403a2f020851733d816f0030449f800) reports pass (https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/32282997783/job/96165860675)."
+      "reason": "./docs.ps1 is not present in this checkout — per CLAUDE.md it is installer-generated (by Invoke-SetupDocs), not committed, and was not found at the repository root. Docker itself is available locally, but without docs.ps1 the production Docusaurus build (onBrokenLinks: 'throw') cannot be invoked. The corresponding PR check 'Verify Documentation Build' on PR #343 is the source of truth for this gate; poll it there before merge."
     },
     {
       "name": "host tests",
@@ -58,7 +58,7 @@
     {
       "name": "host image smoke",
       "status": "DidNotRun",
-      "reason": "The same host-image.yml smoke job restores SubZeroDev.Platform.Hosting as its first real step (via 'Test the host', which runs the same dotnet test as the 'host tests' gate) before building/running/smoke-testing the Docker image, and that restore requires the REGISTRY_TOKEN cross-repo GitHub Packages credential that is not configured locally — same root cause as 'host tests'. The corresponding PR check 'Build, run, and smoke the image' on PR #342 (head cb5c6c28b403a2f020851733d816f0030449f800) reports pass (https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/32282997774/job/96165861089)."
+      "reason": "The same host-image.yml smoke job restores SubZeroDev.Platform.Hosting as its first real step ('Test the host', which runs the same dotnet test as the 'host tests' gate) before building/running/smoke-testing the Docker image, and that restore requires the REGISTRY_TOKEN cross-repo GitHub Packages credential that is not configured locally — same root cause as 'host tests'. The corresponding PR check 'Build, run, and smoke the image' on PR #343 is the source of truth for this gate; poll it there before merge."
     }
   ]
 }
