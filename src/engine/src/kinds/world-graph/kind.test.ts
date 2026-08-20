@@ -107,7 +107,7 @@ describe("world-graph W45 source and validation", () => {
 
   it("lifts text, applies exactly the five defaults, and canonicalizes catalogs", () => {
     const built = buildWorldGraphCampaign({ ...source, terrain: [...source.terrain].reverse() });
-    expect(built.authoredText).toHaveLength(28);
+    expect(built.authoredText).toHaveLength(32);
     expect(built.content.scenery).toEqual([]);
     expect(built.content.guestConditions).toEqual([]);
     expect(built.content.preferences).toEqual([]);
@@ -591,6 +591,65 @@ describe("world-graph W81 construction", () => {
       game = runtimeEngine.submitAction(game, "advance_ticks", { ticks: 5 }).value!;
       expect(stateOf(game).constructionSites[0]?.workRemaining).toBe(2);
       game = runtimeEngine.submitAction(game, "advance_ticks", { ticks: 2 }).value!;
+      return stateOf(game);
+    };
+    expect(runSplit()).toEqual(runWhole());
+  });
+});
+
+describe("world-graph W82 restock", () => {
+  function withRestocker() {
+    const runtimeEngine = engine();
+    let game = create();
+    game = runtimeEngine.submitAction(game, "build", { definitionId: "stall", x: 3, y: 1, rotation: 0 }).value!;
+    game = runtimeEngine.submitAction(game, "hire_staff", { definitionId: "restocker" }).value!;
+    return { runtimeEngine, game };
+  }
+
+  it("restocks a below-capacity product up to capacity, staffed by a restocker, and never beyond", () => {
+    const { runtimeEngine, game: staffed } = withRestocker();
+    const stallBefore = stateOf(staffed).buildings.find((entry) => entry.definitionId === "stall");
+    expect(stallBefore?.inventory.water).toBe(1);
+    // Travel takes 4 ticks and the missing 2 units take 2 ticks at effort-per-tick 1,
+    // completing on the sixth advance_ticks call in total.
+    const game = runtimeEngine.submitAction(staffed, "advance_ticks", { ticks: 6 }).value!;
+    const state = stateOf(game);
+    const stall = state.buildings.find((entry) => entry.definitionId === "stall");
+    expect(stall?.inventory.water).toBe(3);
+    expect(state.staff[0]).toMatchObject({ status: "idle", tasksCompleted: 1, task: null });
+    // Never exceeds capacity on a further tick.
+    const further = runtimeEngine.submitAction(game, "advance_ticks", { ticks: 1 }).value!;
+    expect(stateOf(further).buildings.find((entry) => entry.definitionId === "stall")?.inventory.water).toBe(3);
+  });
+
+  it("never applies cleanliness or wear, and moves cash only by the restocker's wage — never the product's unit cost", () => {
+    const { runtimeEngine, game: staffed } = withRestocker();
+    const before = stateOf(staffed);
+    const stallBefore = before.buildings.find((entry) => entry.definitionId === "stall")!;
+    const game = runtimeEngine.submitAction(staffed, "advance_ticks", { ticks: 6 }).value!;
+    const after = stateOf(game);
+    const stallAfter = after.buildings.find((entry) => entry.definitionId === "stall")!;
+    expect(stallAfter.cleanliness).toBe(stallBefore.cleanliness);
+    expect(stallAfter.wear).toBe(stallBefore.wear);
+    // Six ticks of a 20-cents-per-day wage, prorated over a 100-tick day: floor(20*6/100) = 1.
+    // If restock recognized the product's 50-cent unit cost, the delta would be far larger.
+    expect(before.finances.cashCents - after.finances.cashCents).toBe(1);
+    expect(after.finances.expensesTotalCents - before.finances.expensesTotalCents).toBe(1);
+  });
+
+  it("serializes byte-identically whether advance_ticks n is submitted whole or split strictly inside the restock span", () => {
+    const runWhole = (): WorldGraphKindState => {
+      const { runtimeEngine, game: staffed } = withRestocker();
+      const game = runtimeEngine.submitAction(staffed, "advance_ticks", { ticks: 6 }).value!;
+      return stateOf(game);
+    };
+    const runSplit = (): WorldGraphKindState => {
+      const { runtimeEngine, game: staffed } = withRestocker();
+      // Split at 5 ticks — the restocker has arrived and worked once, one of the missing 2
+      // units still outstanding — strictly inside the span, not at an end.
+      let game = runtimeEngine.submitAction(staffed, "advance_ticks", { ticks: 5 }).value!;
+      expect(stateOf(game).buildings.find((entry) => entry.definitionId === "stall")?.inventory.water).toBe(2);
+      game = runtimeEngine.submitAction(game, "advance_ticks", { ticks: 1 }).value!;
       return stateOf(game);
     };
     expect(runSplit()).toEqual(runWhole());

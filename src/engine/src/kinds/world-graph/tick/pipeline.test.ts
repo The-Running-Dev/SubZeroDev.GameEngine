@@ -828,3 +828,157 @@ describe("world-graph W81 construction", () => {
     expect(withoutEvents).toEqual(withEvents);
   });
 });
+
+describe("world-graph W82 restock", () => {
+  const restockContent = {
+    ...content(),
+    terrain: [{ id: "sand", walkable: true, moveCost: 1 }],
+    products: [{ id: "water", unitCostCents: 10, price: { defaultCents: 100 } }],
+    buildings: [{
+      id: "kiosk", footprint: { width: 1, height: 1 }, entrances: [{ x: 1, y: 0 }],
+      operation: {
+        kind: "service",
+        products: [{ productId: "water", serviceTicks: 1, initialUnits: 0, capacity: 3, restockTaskPriority: 5 }],
+        queueMaxLength: 5, baseServiceTicks: 1, staffRequirements: [], staffingTaskPriority: 0, effects: [],
+      },
+    }, {
+      id: "hut", footprint: { width: 1, height: 1 }, entrances: [{ x: 1, y: 0 }], operation: { kind: "decorative" },
+    }],
+    staffRoles: [{
+      id: "restocker", supportedTaskKinds: ["restock"], workRates: [{ taskType: "restock", effortPerTick: 1 }],
+    }],
+  } as unknown as WorldGraphCampaign;
+
+  function kioskState(inventory: number): WorldGraphKindState {
+    return {
+      ...state(),
+      buildings: [{
+        id: "building:0", definitionId: "kiosk", x: 0, y: 0, width: 1, height: 1, rotation: 0,
+        status: "open", buildStartTick: 0, wear: 100, cleanliness: 100,
+        queue: { id: "queue:1", guestIds: [], serviceStartedAtTick: null },
+        pricesCents: { water: 100 }, inventory: { water: inventory },
+      }],
+      staff: [],
+    };
+  }
+
+  it("generates a restock candidate for a product missing units, priced from the product", () => {
+    const scratch = createTickScratch();
+    taskGenerate({
+      processingTick: 0, content: restockContent, emit: resolutionEmitter().emit,
+      random: createTickRandom(0, () => rngHandle(), scratch), scratch,
+      changes: new BatchChanges(), state: kioskState(1),
+    });
+    expect(scratch.taskCandidates.filter((entry) => entry.type === "restock")).toEqual([
+      { type: "restock", priority: 5, effort: 2, buildingId: "building:0", incidentId: null, constructionSiteId: null, productId: "water", requiredRoleId: null, slot: 0 },
+    ]);
+  });
+
+  it("generates no candidate for a product whose units are unlimited", () => {
+    const unlimitedContent = {
+      ...restockContent,
+      buildings: [{
+        ...restockContent.buildings[0],
+        operation: {
+          ...(restockContent.buildings[0] as { operation: object }).operation,
+          products: [{ productId: "water", serviceTicks: 1, initialUnits: null, capacity: null, restockTaskPriority: 5 }],
+        },
+      }, restockContent.buildings[1]],
+    } as unknown as WorldGraphCampaign;
+    const scratch = createTickScratch();
+    taskGenerate({
+      processingTick: 0, content: unlimitedContent, emit: resolutionEmitter().emit,
+      random: createTickRandom(0, () => rngHandle(), scratch), scratch,
+      changes: new BatchChanges(), state: { ...kioskState(1), buildings: [{ ...kioskState(1).buildings[0]!, inventory: { water: null } }] },
+    });
+    expect(scratch.taskCandidates.filter((entry) => entry.type === "restock")).toEqual([]);
+  });
+
+  it("generates no candidate once a product is already at capacity", () => {
+    const scratch = createTickScratch();
+    taskGenerate({
+      processingTick: 0, content: restockContent, emit: resolutionEmitter().emit,
+      random: createTickRandom(0, () => rngHandle(), scratch), scratch,
+      changes: new BatchChanges(), state: kioskState(3),
+    });
+    expect(scratch.taskCandidates.filter((entry) => entry.type === "restock")).toEqual([]);
+  });
+
+  it("generates no candidate for a decorative building, an honest no-op", () => {
+    const decorativeState: WorldGraphKindState = {
+      ...kioskState(1),
+      buildings: [{
+        id: "building:1", definitionId: "hut", x: 1, y: 0, width: 1, height: 1, rotation: 0,
+        status: "open", buildStartTick: 0, wear: 100, cleanliness: 100,
+        queue: { id: "queue:2", guestIds: [], serviceStartedAtTick: null },
+        pricesCents: {}, inventory: {},
+      }],
+    };
+    const scratch = createTickScratch();
+    taskGenerate({
+      processingTick: 0, content: restockContent, emit: resolutionEmitter().emit,
+      random: createTickRandom(0, () => rngHandle(), scratch), scratch,
+      changes: new BatchChanges(), state: decorativeState,
+    });
+    expect(scratch.taskCandidates).toEqual([]);
+  });
+
+  it("fills inventory by the assigned restocker's effort per tick, clamped at capacity, and completes the task", () => {
+    let workState = kioskState(1);
+    workState = {
+      ...workState,
+      staff: [{
+        id: "staff:4", roleId: "restocker", x: 1, y: 0, status: "working",
+        path: [], pathIndex: 0, moveProgressTicks: 0, assignedBuildingId: null,
+        assignedZoneId: null, drawCount: 0, tasksCompleted: 0,
+        task: {
+          id: "task:5", type: "restock", status: "in_progress", guestId: null, queueId: null,
+          buildingId: "building:0", constructionSiteId: null, incidentId: null,
+          targetProductId: "water", startedAtTick: 0, endedAtTick: null, priority: 5, effortRemaining: 2,
+        },
+      }],
+    };
+    const runBuildings = (tick: number): void => {
+      const scratch = createTickScratch();
+      workState = buildings({
+        processingTick: tick, content: restockContent, emit: resolutionEmitter().emit,
+        random: createTickRandom(tick, () => rngHandle(), scratch), scratch,
+        changes: new BatchChanges(), state: workState,
+      }).state;
+    };
+    runBuildings(0);
+    expect(workState.buildings[0]?.inventory.water).toBe(2);
+    expect(workState.staff[0]?.task?.status).toBe("in_progress");
+    runBuildings(1);
+    expect(workState.buildings[0]?.inventory.water).toBe(3);
+    expect(workState.staff[0]).toMatchObject({ status: "idle", tasksCompleted: 1, task: { status: "completed", endedAtTick: 1 } });
+    // Never exceeds capacity on a further tick.
+    runBuildings(2);
+    expect(workState.buildings[0]?.inventory.water).toBe(3);
+  });
+
+  it("never applies cleanliness or wear", () => {
+    let workState = kioskState(1);
+    workState = {
+      ...workState,
+      staff: [{
+        id: "staff:4", roleId: "restocker", x: 1, y: 0, status: "working",
+        path: [], pathIndex: 0, moveProgressTicks: 0, assignedBuildingId: null,
+        assignedZoneId: null, drawCount: 0, tasksCompleted: 0,
+        task: {
+          id: "task:5", type: "restock", status: "in_progress", guestId: null, queueId: null,
+          buildingId: "building:0", constructionSiteId: null, incidentId: null,
+          targetProductId: "water", startedAtTick: 0, endedAtTick: null, priority: 5, effortRemaining: 2,
+        },
+      }],
+    };
+    const scratch = createTickScratch();
+    const result = buildings({
+      processingTick: 0, content: restockContent, emit: resolutionEmitter().emit,
+      random: createTickRandom(0, () => rngHandle(), scratch), scratch,
+      changes: new BatchChanges(), state: workState,
+    });
+    expect(result.state.buildings[0]?.cleanliness).toBe(workState.buildings[0]?.cleanliness);
+    expect(result.state.buildings[0]?.wear).toBe(workState.buildings[0]?.wear);
+  });
+});
