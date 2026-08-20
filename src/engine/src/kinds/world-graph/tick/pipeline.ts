@@ -50,6 +50,9 @@ const definition = <T extends { readonly id: string }>(items: readonly T[], id: 
   if (!item) throw new Error(`Validated world-graph ${label} missing: ${id}`);
   return item;
 };
+function workRate(role: { readonly workRates: readonly { readonly taskType: string; readonly effortPerTick: number }[] }, taskType: string): number {
+  return Math.max(0, role.workRates.find((entry) => entry.taskType === taskType)?.effortPerTick ?? 0);
+}
 function curve(curveDefinition: IntegerCurve, value: number): number {
   const points = [...curveDefinition.points].sort((left, right) => left.input - right.input);
   const before = points.filter((point) => point.input <= value).at(-1) ?? points[0];
@@ -415,11 +418,11 @@ export const taskGenerate: WorldGraphSystem = (frame) => {
   }
   for (const building of [...frame.state.buildings].sort((left, right) => compareRuntimeEntityId(left.id, right.id))) {
     const operation = definition(frame.content.buildings, building.definitionId, "building definition").operation;
-    if (operation.kind !== "service") continue;
+    if (operation.kind !== "service" || building.status !== "open") continue;
     for (const service of operation.products) {
       if (service.capacity === null) continue;
       const stock = building.inventory[service.productId] ?? 0;
-      const missing = service.capacity - (stock ?? 0);
+      const missing = service.capacity - stock;
       if (missing <= 0) continue;
       frame.scratch.taskCandidates.push({ type: "restock", priority: service.restockTaskPriority, effort: missing, buildingId: building.id, incidentId: null, constructionSiteId: null, productId: service.productId, requiredRoleId: null, slot: 0 });
     }
@@ -486,7 +489,7 @@ export const staffWork: WorldGraphSystem = (frame) => {
         state = { ...state, staff: state.staff.map((entry) => entry.id === member.id ? { ...entry, task: { ...entry.task!, status: "cancelled", endedAtTick: frame.processingTick } } : entry) };
         continue;
       }
-      const rate = Math.max(0, role.workRates.find((entry) => entry.taskType === "clean")?.effortPerTick ?? 0);
+      const rate = workRate(role, "clean");
       const removed = Math.min(incident.amount, rate);
       const remaining = Math.max(0, incident.amount - rate);
       state = { ...state, incidents: state.incidents.map((entry) => entry.id === incident.id ? { ...entry, amount: remaining, resolvedAtTick: remaining === 0 ? frame.processingTick : null } : entry), staff: state.staff.map((entry) => entry.id === member.id ? { ...entry, status: remaining === 0 ? "idle" : "working", tasksCompleted: remaining === 0 ? entry.tasksCompleted + 1 : entry.tasksCompleted, task: remaining === 0 ? { ...entry.task!, status: "completed", endedAtTick: frame.processingTick } : { ...entry.task!, status: "in_progress", effortRemaining: remaining } } : entry), counters: { ...state.counters, litterCleaned: state.counters.litterCleaned + removed } };
@@ -505,7 +508,7 @@ export const construction: WorldGraphSystem = (frame) => {
   for (const member of frame.state.staff) {
     if (member.task?.type !== "build" || member.task.status !== "in_progress" || member.task.constructionSiteId === null) continue;
     const role = definition(frame.content.staffRoles, member.roleId, "staff role");
-    const rate = Math.max(0, role.workRates.find((entry) => entry.taskType === "build")?.effortPerTick ?? 0);
+    const rate = workRate(role, "build");
     builderDeltas.set(member.task.constructionSiteId, (builderDeltas.get(member.task.constructionSiteId) ?? 0) + rate);
   }
   if (builderDeltas.size === 0) return frame;
@@ -551,13 +554,14 @@ export const buildings: WorldGraphSystem = (frame) => {
   for (const member of frame.state.staff) {
     if (member.task?.type !== "restock" || member.task.status !== "in_progress" || member.task.buildingId === null || member.task.targetProductId === null) continue;
     const role = definition(frame.content.staffRoles, member.roleId, "staff role");
-    const rate = Math.max(0, role.workRates.find((entry) => entry.taskType === "restock")?.effortPerTick ?? 0);
+    const rate = workRate(role, "restock");
     const forBuilding = restockDeltas.get(member.task.buildingId) ?? new Map<string, number>();
     forBuilding.set(member.task.targetProductId, (forBuilding.get(member.task.targetProductId) ?? 0) + rate);
     restockDeltas.set(member.task.buildingId, forBuilding);
   }
   if (restockDeltas.size === 0) return frame;
 
+  const filledProductKeys = new Set<string>();
   const buildingsAfterRestock = frame.state.buildings.map((building) => {
     const operation = definition(frame.content.buildings, building.definitionId, "building definition").operation;
     if (operation.kind !== "service") return building;
@@ -568,20 +572,16 @@ export const buildings: WorldGraphSystem = (frame) => {
       const delta = forBuilding.get(service.productId) ?? 0;
       if (delta === 0 || service.capacity === null) continue;
       const stock = inventory[service.productId] ?? 0;
-      const next = Math.min(service.capacity, (stock ?? 0) + delta);
+      const next = Math.min(service.capacity, stock + delta);
       if (next !== stock) inventory = { ...inventory, [service.productId]: next };
+      if (next >= service.capacity) filledProductKeys.add(`${building.id} ${service.productId}`);
     }
     return inventory === building.inventory ? building : { ...building, inventory };
   });
 
   const staff = frame.state.staff.map((member) => {
     if (member.task?.type !== "restock" || member.task.status !== "in_progress" || member.task.buildingId === null || member.task.targetProductId === null) return member;
-    const building = buildingsAfterRestock.find((entry) => entry.id === member.task!.buildingId);
-    const operation = building ? definition(frame.content.buildings, building.definitionId, "building definition").operation : undefined;
-    const service = operation?.kind === "service" ? operation.products.find((entry) => entry.productId === member.task!.targetProductId) : undefined;
-    const stock = building?.inventory[member.task!.targetProductId!] ?? null;
-    const filled = service !== undefined && service.capacity !== null && stock !== null && stock >= service.capacity;
-    if (!filled) return member;
+    if (!filledProductKeys.has(`${member.task.buildingId} ${member.task.targetProductId}`)) return member;
     return { ...member, status: "idle" as const, tasksCompleted: member.tasksCompleted + 1, task: { ...member.task!, status: "completed" as const, endedAtTick: frame.processingTick } };
   });
 

@@ -654,4 +654,14 @@ describe("world-graph W82 restock", () => {
     };
     expect(runSplit()).toEqual(runWhole());
   });
+
+  it("never dispatches a restocker to a closed, below-capacity building", () => {
+    const { runtimeEngine, game: staffed } = withRestocker();
+    const stallId = stateOf(staffed).buildings.find((entry) => entry.definitionId === "stall")!.id;
+    const closed = runtimeEngine.submitAction(staffed, "close_building", { buildingId: stallId }).value!;
+    const game = runtimeEngine.submitAction(closed, "advance_ticks", { ticks: 6 }).value!;
+    const state = stateOf(game);
+    expect(state.buildings.find((entry) => entry.id === stallId)?.inventory.water).toBe(1);
+    expect(state.staff[0]).toMatchObject({ status: "idle", tasksCompleted: 0, task: null });
+  });
 });
