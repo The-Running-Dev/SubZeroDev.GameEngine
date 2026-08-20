@@ -5,7 +5,7 @@ import type { BuildingDefinition, IntegerCurve, ProductDefinition, WorldGraphCam
 import type { Building, ConstructionSite, Guest, IncidentSeverity, Position, StaffTask, WorldGraphKindState } from "../state.js";
 import { canonicalPath, canonicalPathWithCost, footprintCells, rotateOffset } from "../spatial.js";
 import type { TickChanges } from "./changes.js";
-import { applyWorldEffects } from "./effects.js";
+import { applyWorldEffects, clamp, safeAdd } from "./effects.js";
 import { compareDefinitionId, compareRuntimeEntityId, WORLD_GRAPH_SYSTEM_IDS, type WorldGraphSystemId } from "./order.js";
 import { createTickRandom, type TickRandom } from "./random.js";
 import { createTickScratch, type TickScratch } from "./scratch.js";
@@ -619,7 +619,7 @@ export const cleanlinessWear: WorldGraphSystem = (frame) => {
       const delta = totals.get(`${id} ${meter}`);
       if (delta === undefined) continue;
       const previous = building[meter];
-      const value = Math.max(0, Math.min(100, previous + delta));
+      const value = clamp(safeAdd(previous, delta, `building meter ${id}.${meter}`), 0, 100);
       if (value === previous) continue;
       building = { ...building, [meter]: value };
       frame.emit.emit("kind.world-graph.building.meter.changed", "trace", { data: { buildingId: id, meter, value } });
@@ -627,12 +627,12 @@ export const cleanlinessWear: WorldGraphSystem = (frame) => {
         const previousStatus = building.status;
         building = { ...building, status: "broken" };
         frame.changes.record("cleanliness-wear", `buildings.${id}.status`, "broken", "building_broken", true, previousStatus);
-        frame.emit.emit("kind.world-graph.building.status.changed", "info", { data: { buildingId: id, status: "broken" } });
+        frame.emit.emit("kind.world-graph.building.status.changed", "debug", { data: { buildingId: id, status: "broken" } });
       }
     }
     byId.set(id, building);
   }
-  return { ...frame, state: { ...frame.state, buildings: frame.state.buildings.map((building) => byId.get(building.id)!) } };
+  return { ...frame, state: { ...frame.state, buildings: [...byId.values()] } };
 };
 export const finance: WorldGraphSystem = (frame) => {
   const due = (amount: number): number => Math.floor((amount * (frame.processingTick + 1)) / frame.content.ticksPerDay) - Math.floor((amount * frame.processingTick) / frame.content.ticksPerDay);

@@ -30,13 +30,13 @@ export interface AppliedEffects {
   readonly applied: readonly boolean[];
 }
 
-function safeAdd(left: number, right: number, owner: string): number {
+export function safeAdd(left: number, right: number, owner: string): number {
   const value = left + right;
   if (!Number.isSafeInteger(value)) throw new Error(`Unsafe world-graph integer for ${owner}`);
   return value;
 }
 
-const clamp = (value: number, minimum: number, maximum: number): number => (
+export const clamp = (value: number, minimum: number, maximum: number): number => (
   value < minimum ? minimum : value > maximum ? maximum : value
 );
 
