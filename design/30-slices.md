@@ -3173,6 +3173,443 @@ any of it.
 > its real precondition regardless — an assistant whose output is checked by a validator no
 > human can run is the same gap one level up.
 
+### Correctness Debt — The Tick Pipeline Runs Twenty Systems and Implements Fifteen
+
+**The world-graph kind's tick pipeline is the largest thing in this repository that is specified
+in full and built in part.** [12 §4](12-world-graph-kind.md#4-the-turn-is-a-tick-batch) fixes
+twenty tick systems in a normative order, and `src/engine/src/kinds/world-graph/tick/pipeline.ts`
+registers and runs all twenty — the ordering, the `processingTick` guard and the finalize-once
+assertion are genuine and tested. **Five of the twenty do not do what the contract describes**,
+recorded as a known-and-retained gap in `design/90-decisions.md` since 2026-08-05 — named
+individually there rather than in this repository's public register, with the stated revisit
+condition *each system's own build unit lands*. W81–W85 are those build units, one per system.
+
+**Re-read against the source while slicing, the gap is seven systems rather than five**, and the
+two extra ones decide how these units are cut. `task-generate` (system 9) pushes only `clean` and
+`service` candidates, and `staff-work` (system 11) branches on only those two kinds — so `build`
+and `restock` sit in the task-kind comparator and in `StaffTaskType`, reachable by nothing.
+Systems 12 and 13 therefore cannot be built alone: each needs its own half of systems 9 and 11,
+which is why W81 and W82 name three systems apiece. **The register's list is not wrong about the
+five; it is silent about the two**, and correcting it is folded into W81 rather than left to be
+rediscovered.
+
+**No unit here introduces a signature.** Every runtime and content type these systems need already
+ships — `ConstructionSite`, `Building.wear` and `.cleanliness`, `Incident`, `Alert`,
+`ServiceProduct.capacity`/`initialUnits`/`restockTaskPriority`,
+`BuildingDefinition.constructionWork`/`constructionTaskPriority`, `IncidentDefinition`'s roll
+scope, chance, weight and cooldown, and the world-graph `AchievementDefinition`. What is missing
+is the code between them, and the content to exercise it: `world-graph-mvp.ts` declares
+`constructionWork: 0`, `capacity: null` and `rollChanceBasisPoints: 0` throughout and carries no
+achievements or policies — deliberately, so W49's fixture stayed small. Each unit below therefore
+extends that fixture as its content half, which is also what keeps it a vertical slice rather than
+a system rewrite.
+
+**Ordered so the determinism risk is exercised earliest.** The kind rests on batch invariance
+([12 §5](12-world-graph-kind.md#5-batch-invariance--and-the-two-seam-changes-it-forced)) — that
+`advance_ticks n` reaches the same state as any split of it — and on the draw discipline in
+[§9](12-world-graph-kind.md#9-determinism-beyond-the-seed). W81 goes first because construction is
+the first system to carry work *across* ticks from a player action as its origin, which is where
+an invariance defect would first show. W84 sits where it does because it is the only one of the
+five that opens a new RNG draw site, and it needs W83's meters to have something to act on.
+
+**The shared `SystemPipeline` ([issue #270](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/270))
+is deliberately not sliced here.** Its recorded trigger — a second tick-driven kind — has fired,
+but extracting a shared runner from a pipeline where a quarter of the systems are stubs would
+extract the shape of the stubs. It becomes sliceable once W85 lands, and it is better for the
+wait: five more real systems is five more constraints on what the abstraction has to carry.
+
+### [ ] W81 — Construction Finishes What `build` Starts {#w81}
+
+**Delivers:** Someone laying out a resort can put up a structure that takes time to build, watch
+their staff work on it, and then use it. Today starting one is a dead end — the site appears, no
+worker is ever sent to it, and it never becomes a building, so a resort is limited forever to
+whatever the scenario placed at the start plus whatever happens to cost nothing to construct.
+
+The `build` action already opens the site and reserves the building and queue ids it will complete
+into, and [12 §13](12-world-graph-kind.md#13-statechange-at-batch-grain) already declares both
+audit rows it may write. Everything after the action is missing: the `build` task kind is never
+generated, never given effort, and never applied.
+- **Spec:** [12 §4](12-world-graph-kind.md#4-the-turn-is-a-tick-batch) §4.11, §4.13, §4.14;
+      [§5](12-world-graph-kind.md#5-batch-invariance--and-the-two-seam-changes-it-forced);
+      [§9](12-world-graph-kind.md#9-determinism-beyond-the-seed);
+      [§12](12-world-graph-kind.md#12-events);
+      [§13](12-world-graph-kind.md#13-statechange-at-batch-grain);
+      [04 §12](04-core.md#12-reason-codes-state-changes-messages).
+- **Touches:** `src/engine/src/kinds/world-graph/tick/pipeline.ts`;
+      `src/engine/src/kinds/world-graph/kind.ts` for the two event names;
+      `src/engine/src/kinds/world-graph/reasons.ts` if an audit reason is added;
+      `src/engine/src/campaigns/world-graph-mvp.ts`; a new fixture pair under
+      `src/engine/fixtures/replay/`.
+- **Depends on:** [W45](#w45), [W46](#w46), [W47](#w47) — all done; they shipped the reducer, the
+      construction-site state and the comparator registry.
+- **Status:** Not started.
+- **Done when:**
+  - W81.1 A building definition declaring construction work, placed through `build`, opens a site
+        whose remaining work falls by the assigned staff member's `build` effort per tick on every
+        tick that member is at the site, clamped once at zero. The test states the exact tick on
+        which it reaches zero, computed from the declared work and rate, not a bound.
+  - W81.2 On completion the building and its queue carry the ids the site reserved, asserted in a
+        test where another entity is allocated between the `build` action and the completion tick
+        — so completion timing cannot renumber a later entity.
+  - W81.3 Completion removes the site, materializes the definition's defaults (status, wear,
+        cleanliness, prices, and the declared initial units), increments the completed-buildings
+        counter, and increments the map revision the path caches are keyed on.
+  - W81.4 System 9 generates one `build` candidate per site, with effort equal to the site's
+        remaining work and priority taken from the building definition's construction task
+        priority and from nowhere else. A staff role whose supported task kinds omit `build` is
+        never assigned one, asserted with a cleaner-only roster that leaves the site untouched.
+  - W81.5 `advance_ticks n` across the whole construction span serializes byte-identically to any
+        split of that batch, asserted for at least one split falling strictly inside the
+        construction rather than only at its ends.
+  - W81.6 `construction.progressed` and `construction.completed` are emitted at the sites
+        [12 §12](12-world-graph-kind.md#12-events) names, declared in `Kind.eventNames`, and both
+        rows' status moves to `delivered` in the same change. Dropping every event still leaves
+        `serialize()` identical ([05 §2](05-observability.md#2-the-determinism-rule)).
+  - W81.7 The `advance_ticks` result carries the batch-grain existence row for the completed
+        building, with a reason registered in the kind's vocabulary and a message resolvable
+        through the string table. If the contract names no reason for completion, that is a
+        finding reported in the pull request, not a code invented quietly.
+  - W81.8 The two committed world-graph replay outcomes are unchanged byte-for-byte — the MVP
+        campaign's only building declares zero construction work, so nothing existing enters this
+        path — and the new behaviour is proved by a new committed fixture. Any outcome that does
+        move is recorded as an intended change per
+        [07 §7](07-replay.md#7-intended-change-versus-regression), naming the fields, rather than
+        re-recorded silently.
+  - W81.9 The known-and-retained tick-system entry in `design/90-decisions.md` is edited in the
+        same pull request: system 12 leaves the list, and the two partial systems this unit found
+        (9 and 11) are named in it. The standing obligation that entry already carries has been
+        walked past twice before; this criterion is what makes it a gate rather than a sentence.
+  - W81.10 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`.
+- **Out of scope:** demolishing or refunding a site that is still under construction — `demolish`
+      targets a building, and whether a site is a legal target is a contract question rather than
+      a slice's; system 13's restock and operational status, which is [W82](#w82); scenery, which
+      has no construction path at all; the shared `SystemPipeline`
+      ([issue #270](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/270)).
+
+### [ ] W82 — A Kiosk That Ran Out Can Be Refilled {#w82}
+
+**Delivers:** A stall that sells a limited number of things can be restocked by staff, so running
+out is a setback rather than the permanent end of that building's usefulness. Today the running-out
+half already works — a guest is refused and stops queueing when the shelf is empty — and there is
+no way to fill it again, which makes finite stock a trap no author would use on purpose.
+
+The consuming side landed with W47: service refuses at zero units and an empty building stops being
+a candidate at all. What never runs is the refilling side, which is systems 9, 11 and 13 together —
+and system 13 also owns the non-wear operational status changes that no other system may make.
+- **Spec:** [12 §4](12-world-graph-kind.md#4-the-turn-is-a-tick-batch) §4.11, §4.13, §4.15;
+      [§10](12-world-graph-kind.md#10-projection);
+      [§12](12-world-graph-kind.md#12-events);
+      [§13](12-world-graph-kind.md#13-statechange-at-batch-grain).
+- **Touches:** `src/engine/src/kinds/world-graph/tick/pipeline.ts`;
+      `src/engine/src/kinds/world-graph/kind.ts`; `src/engine/src/campaigns/world-graph-mvp.ts`;
+      a new fixture pair under `src/engine/fixtures/replay/`.
+- **Depends on:** [W81](#w81), for the systems 9 and 11 task-kind branches it establishes.
+- **Status:** Not started.
+- **Done when:**
+  - W82.1 A service product declaring initial units and a capacity is served down to zero, a
+        restock candidate is generated with effort equal to the missing units and the priority the
+        product declares, a staff member with the `restock` kind carries it out, and the building
+        serves again — asserted as one continuous tick sequence with the serving, empty and
+        refilled ticks each named.
+  - W82.2 Restock never exceeds capacity, and a product whose units are `null` is infinite: it
+        generates no candidate and its inventory is never written.
+  - W82.3 A product's unit cost is recognized exactly once, at service, and system 13 does not
+        recognize it again — asserted by cash and expense totals across a full stock-out and
+        refill cycle, stated as exact figures.
+  - W82.4 A building definition with no restock source, and a decorative one, are honest no-ops:
+        neither generates a candidate nor writes state, asserted rather than assumed.
+  - W82.5 System 13 emits `building.status.changed` and the batch-grain status row only when a
+        public status actually changes, and never applies cleanliness or wear — that is
+        [W83](#w83)'s system, and a test asserts system 13 leaves both meters untouched.
+  - W82.6 `advance_ticks n` serializes byte-identically to any split of that batch across a
+        stock-out and refill.
+  - W82.7 The two committed world-graph replay outcomes are unchanged byte-for-byte — the MVP
+        campaign declares no capacity — and the new behaviour is proved by a new committed
+        fixture; any outcome that does move follows
+        [07 §7](07-replay.md#7-intended-change-versus-regression).
+  - W82.8 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`.
+- **Out of scope:** production operations other than service and restock, which
+      [12 §4](12-world-graph-kind.md#4-the-turn-is-a-tick-batch) §4.15 marks post-MVP no-ops by
+      name; supply chains, warehouses or delivery; pricing behaviour, which `set_price` already
+      owns; cleanliness and wear ([W83](#w83)).
+
+### [ ] W83 — Buildings Get Dirty, Wear Out, and Break {#w83}
+
+**Delivers:** A resort that is left unattended degrades, and one that is looked after does not.
+Buildings get dirty from use and from litter, wear down over time, and eventually break and stop
+serving — which is the whole reason a player hires cleaners and the reason quality affects where
+guests choose to go. Today cleanliness moves only from unresolved litter, and wear never moves at
+all, so a resort is exactly as good on its thousandth tick as on its first.
+
+This is the system the register singles out as the one most likely to be mistaken for finished:
+it looks implemented, applies one of its five delta sources, and never touches the meter the
+system is half named after.
+- **Spec:** [12 §4](12-world-graph-kind.md#4-the-turn-is-a-tick-batch) §4.16, and §4.2 for the
+      typed scratch deltas systems 1, 4 and 11 hand it;
+      [§10](12-world-graph-kind.md#10-projection);
+      [§12](12-world-graph-kind.md#12-events);
+      [§13](12-world-graph-kind.md#13-statechange-at-batch-grain).
+- **Touches:** `src/engine/src/kinds/world-graph/tick/pipeline.ts`;
+      `src/engine/src/kinds/world-graph/tick/scratch.ts`;
+      `src/engine/src/kinds/world-graph/kind.ts`; `src/engine/src/campaigns/world-graph-mvp.ts`;
+      a new fixture pair under `src/engine/fixtures/replay/`.
+- **Depends on:** nothing — it shares no code path with [W81](#w81) or [W82](#w82) and may be
+      taken before either. It is placed here because [W84](#w84) depends on it.
+- **Status:** Not started.
+- **Done when:**
+  - W83.1 For one building receiving deltas from every source in the same tick, the five sources
+        are applied in the contract's stated order — service, litter, incident, staff, policy —
+        summed, then clamped once to 0..100. Asserted with a case where applying the same set in a
+        different order, or clamping between sources, would give a different result, so the test
+        distinguishes the rule from an equivalent-looking one.
+  - W83.2 Wear moves, and wear reaching zero changes an open or closed building to broken; a
+        broken building serves nobody and is not a candidate. Cleanliness reaching zero never
+        closes a building on its own — asserted as a negative case, since that is the rule most
+        likely to be added by intuition.
+  - W83.3 Cleaning increments the cleaned-litter counter by the amount actually removed,
+        independently of any definition effect, and an incident amount reaching zero resolves the
+        occurrence with its transition effects run exactly once — asserted by a repeated tick that
+        must not run them twice.
+  - W83.4 `building.meter.changed` is emitted and declared; the batch-grain audit carries status
+        transitions and does not carry per-tick meter steps, asserted by the returned row count
+        over a long batch.
+  - W83.5 `advance_ticks n` serializes byte-identically to any split of that batch across a
+        degradation-to-broken sequence.
+  - W83.6 The two committed world-graph replay outcomes either stay byte-identical or the change
+        is recorded as intended per [07 §7](07-replay.md#7-intended-change-versus-regression) with
+        the differing fields named in the pull request. Unlike [W81](#w81) and [W82](#w82), this
+        one is not predicted either way: the MVP campaign already has a litter incident, so this
+        unit may legitimately move an existing outcome.
+  - W83.7 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`.
+- **Out of scope:** repair as a player action or a staff task kind — the contract's task kinds are
+      service, clean, restock and build, and adding a fifth is a contract amendment; balance values
+      for the drift rates, which are content and belong with Sun Trap; guest opinion changes driven
+      by quality, which the utility model already reads.
+
+### [ ] W84 — Incidents That Happen On Their Own {#w84}
+
+**Delivers:** Things go wrong in the resort without the player causing them — a breakdown, a
+spill, a security problem — and the player has to deal with them. Today the only incident that can
+ever occur is litter dropped by a guest being served: everything an author writes about weather,
+fires, breakdowns or security is content the game will never use.
+
+This is the one unit of the five that adds a new random draw, so it is where the determinism rules
+get their real test: one handle per system per tick, a draw for every declared scope whether or not
+it succeeds, and a rejected candidate consuming nothing.
+- **Spec:** [12 §4](12-world-graph-kind.md#4-the-turn-is-a-tick-batch) §4.18;
+      [§9](12-world-graph-kind.md#9-determinism-beyond-the-seed);
+      [§12](12-world-graph-kind.md#12-events);
+      [§13](12-world-graph-kind.md#13-statechange-at-batch-grain);
+      [04 §8](04-core.md#8-randomness).
+- **Touches:** `src/engine/src/kinds/world-graph/tick/pipeline.ts`;
+      `src/engine/src/kinds/world-graph/tick/random.ts`;
+      `src/engine/src/kinds/world-graph/kind.ts`; `src/engine/src/campaigns/world-graph-mvp.ts`;
+      a new fixture pair under `src/engine/fixtures/replay/`.
+- **Depends on:** [W83](#w83), so a rolled incident has meters to act on and a resolution path that
+      is not litter-only.
+- **Status:** Not started.
+- **Done when:**
+  - W84.1 An eligible definition rolls against its declared chance from the tick's incidents
+        handle, and a successful roll allocates an occurrence with its start effects applied
+        before system 17 runs — asserted with a seed where the roll succeeds and a seed where it
+        does not, both stated.
+  - W84.2 Scopes are visited world, then zone id, then building id, and every declared scope
+        consumes its draw whether or not it produces an occurrence — asserted by a case where a
+        scope with no eligible definition changes nothing and a *later* scope's outcome is
+        nonetheless identical to a run where that scope was eligible and failed. That is the
+        property a "skip empty scopes" implementation silently breaks.
+  - W84.3 An active occurrence blocks its definition in the same scope, and so does a retained
+        one still inside its cooldown; the block lifts on the exact tick the cooldown ends, stated
+        as a tick number.
+  - W84.4 An occurrence resolves when its resolution condition becomes true as well as when its
+        expiry passes, and its resolved tick is written before its resolve effects run, so it is
+        retained but not active for the rest of that list.
+  - W84.5 An incident started by an effect in an earlier system is not rolled again in the same
+        tick, asserted against the existing guest-litter path.
+  - W84.6 `incident.raised` is emitted and declared, alongside the already-delivered
+        `incident.resolved`.
+  - W84.7 `advance_ticks n` serializes byte-identically to any split of that batch across a batch
+        containing at least one successful and one failed roll — the case where a per-call handle,
+        rather than a per-tick one, would diverge.
+  - W84.8 The two committed world-graph replay outcomes are unchanged byte-for-byte — the MVP
+        campaign's only incident declares a zero roll chance and zero weight — and the new
+        behaviour is proved by a new committed fixture; any outcome that does move follows
+        [07 §7](07-replay.md#7-intended-change-versus-regression).
+  - W84.9 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`.
+- **Out of scope:** authored incident chains or incidents that spawn incidents; guest-visible
+      narrative around an incident, which is a client concern; alerts raised for an active
+      incident, which is [W85](#w85); balance values for chances and cooldowns, which are content.
+
+### [ ] W85 — The Resort Tells You What Needs Attention {#w85}
+
+**Delivers:** A player is told when something needs them — a building has broken, an incident is
+running, the scenario has resolved — instead of having to notice it in the numbers; and the
+achievements a campaign author writes actually unlock. Today the alert list is a feature the
+player can dismiss from and that nothing ever puts anything into, and a world-graph campaign's
+achievements can never be earned no matter what the player does.
+
+This is the last of the five stub systems, and the only one that reaches outside the tick: an
+unlocked achievement mirrors to the player's profile after the whole action succeeds, which is
+core behaviour this kind has never exercised.
+- **Spec:** [12 §4](12-world-graph-kind.md#4-the-turn-is-a-tick-batch) §4.21;
+      [§8](12-world-graph-kind.md#8-status-win-loss-and-terminal-identity);
+      [§10](12-world-graph-kind.md#10-projection);
+      [§12](12-world-graph-kind.md#12-events);
+      [§13](12-world-graph-kind.md#13-statechange-at-batch-grain);
+      [04 §7.1](04-core.md#71-the-profile-store);
+      [§12](04-core.md#12-reason-codes-state-changes-messages).
+- **Touches:** `src/engine/src/kinds/world-graph/tick/pipeline.ts`;
+      `src/engine/src/kinds/world-graph/kind.ts`;
+      `src/engine/src/kinds/world-graph/reasons.ts` for the kind-owned alert strings;
+      `src/engine/src/campaigns/world-graph-mvp.ts`; a new fixture pair under
+      `src/engine/fixtures/replay/`.
+- **Depends on:** [W83](#w83) — the broken-building alert family has no source at all until wear
+      can reach zero. [W84](#w84) is not required, since guest litter already raises incidents,
+      but is sequenced ahead so the incident family is proved against an incident the player did
+      not cause.
+- **Status:** Not started.
+- **Done when:**
+  - W85.1 Still-locked achievements are evaluated by definition id against post-resolution state,
+        an unlock writes the achievement's existence row with the core `achievement_unlocked`
+        reason, and the profile mirror happens only after the whole action succeeds — asserted by
+        a run whose action is refused afterwards leaving the profile untouched.
+  - W85.2 Exactly three alert families exist — active incident, broken building, and scenario
+        resolved — each keyed on published ids only, with no player-facing or authored text in the
+        key. A test asserts a key built from a campaign's own strings would fail, so the rule is
+        checked rather than described.
+  - W85.3 A newly active source raises one alert; a source that is no longer active is marked
+        cleared; and a second tick with the same source still active raises no duplicate,
+        asserted across three consecutive ticks.
+  - W85.4 The two kind-owned alert families resolve their title and message through
+        `world-graph.alert.<type>.title|message` in the kind's built-in strings, validated with
+        the kind's own content, and an incident alert reuses its definition's name and description
+        keys instead. No alert resolves to a bare key.
+  - W85.5 No alert or achievement feeds another system: a test that drops the whole alert list
+        before system 20 leaves the rest of the tick's state identical.
+  - W85.6 `achievement.unlocked`, `alert.raised` and `alert.cleared` are emitted and declared,
+        with alert creation and removal audits hidden as the contract requires.
+  - W85.7 `advance_ticks n` serializes byte-identically to any split of that batch across a batch
+        that raises and clears an alert.
+  - W85.8 The two committed world-graph replay outcomes are unchanged byte-for-byte — the MVP
+        campaign declares no achievements — and the new behaviour is proved by a new committed
+        fixture that unlocks one; any outcome that does move follows
+        [07 §7](07-replay.md#7-intended-change-versus-regression).
+  - W85.9 The known-and-retained tick-system entry in `design/90-decisions.md` is closed out in
+        the same pull request, since this unit removes the last of the five it names.
+  - W85.10 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`.
+- **Out of scope:** alert presentation, ordering or grouping in a client; alert severity policy
+      beyond what the contract fixes; a fourth alert family, which would widen a closed key set
+      and is a contract amendment; cross-kind achievement listing, which
+      [issue #282](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/282) already
+      holds as contract work.
+
+### Rigour: Two Event Streams Specified and Never Emitted
+
+> [05 §2](05-observability.md#2-the-determinism-rule)'s guarantee — that dropping every event
+> changes nothing — is what makes a declared-but-unemitted event safe to leave unbuilt, and also
+> what makes it easy to leave unbuilt indefinitely. Two of the three kinds have event tables whose
+> status column is mostly *specified, not yet delivered*: six of ten rows in
+> [03 §8.4](03-story-graph-kind.md#84-events), and, after W81–W85 deliver the rows their own
+> systems own, the remainder of [12 §12](12-world-graph-kind.md#12-events). `simulation` is the
+> counter-example, and the reason this reads as a gap rather than a policy: all nine of its
+> declared events are emitted today.
+>
+> Both tables say in their own prose that nothing needs redeciding first — the names are fixed,
+> the emit sites are named, and adding one is declaring it and emitting it. These two units are
+> that, and nothing else.
+
+### [ ] W86 — The Story-Graph Kind Says Why {#w86}
+
+**Delivers:** A campaign author can find out why a choice was refused or greyed out, and a
+developer can find out why a replay diverged, without adding logging to the engine by hand. Today
+the kind reports that a requirement was unmet and stops there, which is correct for the player and
+useless for the person who wrote the requirement.
+
+[03 §8.4](03-story-graph-kind.md#84-events) fixes ten event names and the shipped kind declares
+four. Its own prose singles out two of the missing six as carrying most of the value, for the two
+audiences the channel exists to serve.
+- **Spec:** [03 §8.4](03-story-graph-kind.md#84-events), and §8.2 for the step each event is
+      emitted at; [05 §9](05-observability.md#9-kind-events);
+      [§2](05-observability.md#2-the-determinism-rule);
+      [04 §3](04-core.md#3-the-kind-interface--the-seam).
+- **Touches:** `src/engine/src/kinds/story-graph/advance.ts`,
+      `src/engine/src/kinds/story-graph/achievements.ts` and
+      `src/engine/src/kinds/story-graph/kind.ts`.
+      `src/engine/src/core/observability/` is **read, not modified**.
+- **Depends on:** nothing.
+- **Status:** Not started.
+- **Done when:**
+  - W86.1 All six remaining rows are emitted at the step the table names, with exactly the `data`
+        fields it lists and no others, and all ten are declared in `Kind.eventNames`. A test
+        enumerates the declared names against the emitted ones so a future row cannot be declared
+        without an emit site or emitted without being declared.
+  - W86.2 `requirement.evaluated` fires once per requirement rather than once per choice,
+        asserted on a choice carrying more than one requirement with the exact event count stated.
+        **The row's stated purpose does not survive its own `data` column, and that is a finding
+        to report rather than resolve here:** [03 §8.4](03-story-graph-kind.md#84-events) says a
+        compound condition "reports which clause failed", but the row declares `choiceId` and
+        `satisfied` only, which cannot name a clause. Emit what the table declares and state the
+        discrepancy in the pull request; widening the `data` column is a contract amendment.
+  - W86.3 Playing the committed Bureaucracy arc to its ending with a recording sink produces the
+        full expected sequence, asserted as an ordered list of names rather than a set, since
+        ordering is what makes the stream readable.
+  - W86.4 Dropping every event changes nothing: the same arc replayed with a null sink and with a
+        recording sink produces byte-identical `serialize()` output and identical `StateChange`
+        arrays.
+  - W86.5 Every committed story-graph replay outcome is unchanged byte-for-byte.
+  - W86.6 The status column in [03 §8.4](03-story-graph-kind.md#84-events) has no remaining
+        *specified, not yet delivered* row, and the paragraph explaining what that status means is
+        rewritten rather than left describing a state that no longer exists.
+  - W86.7 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`.
+- **Out of scope:** an author-facing presentation of these events, which
+      [05 §13](05-observability.md#13-what-is-deferred) routes to content tooling by name; new
+      event names; changing any severity the table fixes; the sink implementations, which already
+      ship.
+
+### [ ] W87 — The World-Graph Kind Says What Its Ticks Did {#w87}
+
+**Delivers:** Someone diagnosing a resort that behaves oddly can watch what happened inside a tick
+— which guests could not reach a building, which tasks were assigned and cancelled, what each
+charge was for, how an objective moved — instead of inferring it from the state before and after.
+Today the pipeline runs twenty systems and reports on six of them.
+
+The row this unit exists for is stated in the contract itself: a resort where guests silently
+cannot reach a building looks identical to one where they simply do not want to, and the
+difference is invisible in the projection and obvious in the stream.
+- **Spec:** [12 §12](12-world-graph-kind.md#12-events), and
+      [§4](12-world-graph-kind.md#4-the-turn-is-a-tick-batch) for each named emit site;
+      [05 §9](05-observability.md#9-kind-events);
+      [§7](05-observability.md#7-severity-and-volume);
+      [§2](05-observability.md#2-the-determinism-rule).
+- **Touches:** `src/engine/src/kinds/world-graph/tick/pipeline.ts`;
+      `src/engine/src/kinds/world-graph/kind.ts`.
+- **Depends on:** [W81](#w81)–[W85](#w85), which each deliver the rows their own system owns. This
+      unit takes what is left rather than duplicating them.
+- **Status:** Not started.
+- **Done when:**
+  - W87.1 Every row in [12 §12](12-world-graph-kind.md#12-events)'s table is emitted at the system
+        it names and declared in `Kind.eventNames`; the status column has no remaining *specified,
+        not yet delivered* row, and the paragraph explaining that status is rewritten rather than
+        left describing a state that no longer exists.
+  - W87.2 A test enumerates declared names against emitted ones in both directions, so a declared
+        name with no emit site and an emitted name that was never declared each fail. This is the
+        gate the *emitted → registered* gap in the contract's own reason-code section says is
+        missing everywhere it recurs.
+  - W87.3 Events emit in system order and then in the owning comparator order, asserted over a
+        multi-tick batch as an ordered list — the property that makes the stream a readable causal
+        trace rather than an unordered log.
+  - W87.4 Dropping every event changes nothing: the same batch run with a null sink and with a
+        recording sink produces byte-identical `serialize()` output and identical `StateChange`
+        arrays.
+  - W87.5 Severity assignment matches the table exactly, asserted per row, since severity is the
+        only thing standing between a host and the six-figure trace volume a large batch produces.
+  - W87.6 Every committed world-graph replay outcome is unchanged byte-for-byte.
+  - W87.7 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`.
+- **Out of scope:** new event names or severities; the optional candidate-generation diagnostic's
+      shape beyond what the table fixes; any sink, exporter or trace-context work, which
+      [05 §13](05-observability.md#13-what-is-deferred) defers by name; presenting the stream
+      anywhere.
+
 ---
 
 ## Known Open Items Carried In
