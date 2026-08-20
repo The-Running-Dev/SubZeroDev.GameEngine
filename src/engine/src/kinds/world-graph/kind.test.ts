@@ -243,6 +243,52 @@ describe("world-graph W45 source and validation", () => {
       expect.objectContaining({ code: "invalid_effect", path: "content.scenarios[0].scheduledChanges[0].effects[1].kind" }),
     ]));
   });
+
+  it("rejects a building whose initial wear is already zero, since it could never be marked broken", () => {
+    const built = envelope();
+    const base = runtime().content;
+    const invalid = {
+      ...built.campaign,
+      content: { ...base, buildings: base.buildings.map((entry, index) => (index === 0 ? { ...entry, initialWear: 0 } : entry)) },
+    };
+    expect(worldGraphKind.validateCampaign(invalid, built.strings).errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "invalid_initial_wear", path: "content.buildings[0].initialWear" }),
+    ]));
+  });
+
+  it("accepts a nonzero initial wear unchanged", () => {
+    const built = envelope();
+    expect(worldGraphKind.validateCampaign(built.campaign, built.strings).errors).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "invalid_initial_wear" }),
+    ]));
+  });
+
+  it("rejects a building_meter_delta on effect lists that run after cleanliness-wear and never defer to it", () => {
+    const built = envelope();
+    const base = runtime().content;
+    const meterEffect = { kind: "building_meter_delta" as const, meter: "wear" as const, delta: -10, buildings: { kind: "all" as const } };
+    const invalid = {
+      ...built.campaign,
+      content: {
+        ...base,
+        objectives: base.objectives.map((entry) => ({ ...entry, onCompleted: [meterEffect] })),
+        failures: base.failures.map((entry) => ({ ...entry, onTriggered: [meterEffect] })),
+        incidents: base.incidents.map((entry) => ({ ...entry, durationTicks: { min: 2, max: 2 }, onResolve: [meterEffect] })),
+      },
+    };
+    expect(worldGraphKind.validateCampaign(invalid, built.strings).errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "undeferrable_building_meter_effect", path: "content.objectives[0].onCompleted[0]" }),
+      expect.objectContaining({ code: "undeferrable_building_meter_effect", path: "content.failures[0].onTriggered[0]" }),
+      expect.objectContaining({ code: "undeferrable_building_meter_effect", path: "content.incidents[0].onResolve[0]" }),
+    ]));
+  });
+
+  it("accepts a building_meter_delta in onResolve when the incident can only resolve via staff work (durationTicks: null)", () => {
+    const built = envelope();
+    const litter = runtime().content.incidents.find((entry) => entry.id === "litter");
+    expect(litter).toMatchObject({ durationTicks: null, onResolve: [expect.objectContaining({ kind: "building_meter_delta" })] });
+    expect(worldGraphKind.validateCampaign(built.campaign, built.strings)).toMatchObject({ ok: true, errors: [] });
+  });
 });
 
 describe("world-graph W45 engine seam", () => {
