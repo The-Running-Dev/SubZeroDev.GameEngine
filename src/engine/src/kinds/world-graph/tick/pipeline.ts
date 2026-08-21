@@ -2,7 +2,7 @@ import type { KindContext } from "../../../core/kernel/types.js";
 import { assertReferentialIntegrity } from "../actions/common.js";
 import { evaluateCondition, evaluateMetric } from "../conditions.js";
 import type { BuildingDefinition, IncidentDefinition, IncidentRollScope, IntegerCurve, ProductDefinition, WorldGraphCampaign } from "../content.js";
-import type { Building, ConstructionSite, Guest, Incident, IncidentSeverity, Position, StaffTask, WorldGraphKindState } from "../state.js";
+import type { Alert, AlertSeverity, AlertType, Building, ConstructionSite, Guest, Incident, IncidentSeverity, Position, StaffTask, WorldGraphKindState } from "../state.js";
 import { canonicalPath, canonicalPathWithCost, footprintCells, rotateOffset } from "../spatial.js";
 import type { TickChanges } from "./changes.js";
 import { applyWorldEffects, clamp, resolveDuration, safeAdd } from "./effects.js";
@@ -816,8 +816,87 @@ export const failure: WorldGraphSystem = (frame) => {
   }
   return { ...frame, state };
 };
-/** System 19 (`alerts`): W47 implementation boundary. */
-export const alerts: WorldGraphSystem = (frame) => frame;
+const INCIDENT_ALERT_SEVERITY: Readonly<Record<IncidentSeverity, AlertSeverity>> = { info: "info", minor: "warning", major: "warning", critical: "critical" };
+
+interface AlertSource {
+  readonly semanticKey: string;
+  readonly type: AlertType;
+  readonly severity: AlertSeverity;
+  readonly titleKey: string;
+  readonly messageKey: string;
+  readonly entityId: string | null;
+}
+
+/**
+ * System 19: still-locked achievements unlock first (canonical order falls out of iterating
+ * `frame.content.achievements`, already sorted by id — §14.8), then alerts derive from the
+ * closed source set — active incidents, broken buildings, and terminal resolution (§4.21).
+ * A source is represented by an uncleared alert regardless of whether that alert was
+ * dismissed; only clearing frees its semantic key to raise again.
+ */
+export const alerts: WorldGraphSystem = (frame) => {
+  let state = frame.state;
+
+  for (const achievementDefinition of frame.content.achievements) {
+    if (state.unlockedAchievementIds.includes(achievementDefinition.id)) continue;
+    if (!evaluateCondition(achievementDefinition.condition, state, frame.content)) continue;
+    state = { ...state, unlockedAchievementIds: [...state.unlockedAchievementIds, achievementDefinition.id] };
+    frame.changes.record("alerts", `unlockedAchievementIds.${achievementDefinition.id}.exists`, true, "achievement_unlocked", true, false);
+    frame.emit.emit("kind.world-graph.achievement.unlocked", "info", { data: { achievementId: achievementDefinition.id } });
+  }
+
+  const sources: AlertSource[] = [];
+  for (const incident of [...state.incidents].sort((left, right) => compareRuntimeEntityId(left.id, right.id))) {
+    if (incident.resolvedAtTick !== null) continue;
+    const incidentDefinition = definition(frame.content.incidents, incident.definitionId, "incident definition");
+    sources.push({
+      semanticKey: `incident:${incident.id}`, type: "incident_active",
+      severity: INCIDENT_ALERT_SEVERITY[incidentDefinition.severity],
+      titleKey: incidentDefinition.text.nameKey, messageKey: incidentDefinition.text.descriptionKey,
+      entityId: incident.id,
+    });
+  }
+  for (const building of [...state.buildings].sort((left, right) => compareRuntimeEntityId(left.id, right.id))) {
+    if (building.status !== "broken") continue;
+    sources.push({
+      semanticKey: `building-broken:${building.id}`, type: "building_broken", severity: "critical",
+      titleKey: "world-graph.alert.building-broken.title", messageKey: "world-graph.alert.building-broken.message",
+      entityId: building.id,
+    });
+  }
+  if (state.resolution !== null) {
+    sources.push({
+      semanticKey: "scenario-resolved", type: "scenario_resolved", severity: "info",
+      titleKey: "world-graph.alert.scenario-resolved.title", messageKey: "world-graph.alert.scenario-resolved.message",
+      entityId: null,
+    });
+  }
+
+  const activeKeys = new Set(sources.map((source) => source.semanticKey));
+  for (const alert of [...state.alerts].sort((left, right) => compareRuntimeEntityId(left.id, right.id))) {
+    if (alert.clearedAtTick !== null || activeKeys.has(alert.semanticKey)) continue;
+    state = { ...state, alerts: state.alerts.map((entry) => entry.id === alert.id ? { ...entry, clearedAtTick: frame.processingTick } : entry) };
+    frame.changes.record("alerts", `alerts.${alert.id}.clearedAtTick`, frame.processingTick, "alert_cleared", false);
+    frame.emit.emit("kind.world-graph.alert.cleared", "trace", { data: { alertId: alert.id, type: alert.type } });
+  }
+
+  const representedKeys = new Set(state.alerts.filter((entry) => entry.clearedAtTick === null).map((entry) => entry.semanticKey));
+  for (const source of sources) {
+    if (representedKeys.has(source.semanticKey)) continue;
+    const id = `alert:${state.nextEntityOrdinal}`;
+    const alert: Alert = {
+      id, type: source.type, semanticKey: source.semanticKey, severity: source.severity,
+      titleKey: source.titleKey, messageKey: source.messageKey, entityId: source.entityId,
+      issuedAtTick: frame.processingTick, dismissedAtTick: null, clearedAtTick: null,
+    };
+    state = { ...state, alerts: [...state.alerts, alert], nextEntityOrdinal: state.nextEntityOrdinal + 1 };
+    frame.changes.record("alerts", `alerts.${id}.exists`, true, "alert_raised", false, false);
+    frame.emit.emit("kind.world-graph.alert.raised", "debug", { data: { alertId: id, type: alert.type } });
+    representedKeys.add(source.semanticKey);
+  }
+
+  return { ...frame, state };
+};
 
 /** System 20: per-tick cleanup, integrity assertion, and the sole tick write. */
 export const tickFinalize: WorldGraphSystem = (frame) => {

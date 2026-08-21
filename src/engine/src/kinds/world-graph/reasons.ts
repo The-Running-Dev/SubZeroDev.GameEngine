@@ -165,7 +165,23 @@ const WORLD_GRAPH_REASON_TEXT: Readonly<Record<WorldGraphReasonCode, string>> = 
   incident_raised: "An incident occurred.",
 };
 
-/** `world-graph.reason.<code>` → its shipped default-English message, for every code. */
-export const WORLD_GRAPH_REASON_MESSAGES: ReadonlyMap<LocKey, string> = new Map(
-  WORLD_GRAPH_REASON_CODES.map((code) => [`world-graph.reason.${code}`, WORLD_GRAPH_REASON_TEXT[code]] as const),
-);
+/**
+ * The two kind-owned alert families' title/message strings (12 §4.21/W85) — the
+ * `incident_active` family instead reuses its own incident definition's name/description
+ * keys, so it needs no entry here. Merged into `WORLD_GRAPH_REASON_MESSAGES` below the same
+ * way `reasonMessages` merges any kind-owned `LocKey` into the registry's protected string
+ * table (`core/registry/build.ts`), not because these are reason codes.
+ */
+const WORLD_GRAPH_ALERT_TEXT: Readonly<Record<string, string>> = {
+  "world-graph.alert.building-broken.title": "A building broke down",
+  "world-graph.alert.building-broken.message": "One of your buildings has broken down and needs repair before it can reopen.",
+  "world-graph.alert.scenario-resolved.title": "The scenario has ended",
+  "world-graph.alert.scenario-resolved.message": "This scenario has resolved.",
+};
+
+/** `world-graph.reason.<code>` → its shipped default-English message, for every code,
+ *  plus the kind-owned alert strings above. */
+export const WORLD_GRAPH_REASON_MESSAGES: ReadonlyMap<LocKey, string> = new Map([
+  ...WORLD_GRAPH_REASON_CODES.map((code) => [`world-graph.reason.${code}`, WORLD_GRAPH_REASON_TEXT[code]] as const),
+  ...Object.entries(WORLD_GRAPH_ALERT_TEXT),
+]);

@@ -137,7 +137,7 @@ function content(effects: readonly WorldEffect[] = []): WorldGraphCampaign {
       travelPenaltyPerCost: 0, queuePenaltyPerTick: 0, safetyPenaltyPerPoint: 0,
       switchThresholdUtility: 0, fallback: { kind: "leave" }, tags: [],
     }], staffRoles: [],
-    incidents: [{ id: "litter", kind: "litter", cooldownTicks: 0, durationTicks: { min: 2, max: 2 }, onResolve: [] }],
+    incidents: [{ id: "litter", text: { nameKey: "incident.litter.name", descriptionKey: "incident.litter.description" }, kind: "litter", cooldownTicks: 0, durationTicks: { min: 2, max: 2 }, onResolve: [] }],
     objectives: [], failures: [], policies: [], achievements: [],
     scenarios: [{
       id: "opening", scheduledChanges: [{
@@ -1347,5 +1347,132 @@ describe("world-graph W83 cleanliness-wear", () => {
     // The reason is recorded on a `visible: true` row, so 04 §12 owes it a resolvable message.
     expect(WORLD_GRAPH_REASON_CODES).toContain("building_broken");
     expect(WORLD_GRAPH_REASON_MESSAGES.get("world-graph.reason.building_broken")).toBeTypeOf("string");
+  });
+});
+
+describe("world-graph W85 alerts and achievements", () => {
+  function runAlerts(input: WorldGraphKindState, alertContent: WorldGraphCampaign = content(), tick = 0): { readonly state: WorldGraphKindState; readonly events: RecordedResolutionEvent[]; readonly changes: BatchChanges } {
+    const recording = resolutionEmitter();
+    const changes = new BatchChanges();
+    const scratch = createTickScratch();
+    const result = alerts({
+      processingTick: tick, content: alertContent, emit: recording.emit,
+      random: createTickRandom(tick, () => rngHandle(), scratch), scratch, changes, state: input,
+    });
+    return { state: result.state, events: recording.events, changes };
+  }
+
+  const achievementDefinition = (condition: unknown) => ({
+    id: "cleaned", text: { nameKey: "a.name", descriptionKey: "a.desc" },
+    condition, hidden: false, scope: "profile", tags: [],
+  });
+
+  it("W85.1: unlocks a still-locked achievement against post-resolution state, writing the core achievement_unlocked reason", () => {
+    const achievementContent = {
+      ...content(),
+      achievements: [achievementDefinition({ kind: "compare", metric: { kind: "counter", counter: "litterCleaned" }, op: "gte", value: 1 })],
+    } as unknown as WorldGraphCampaign;
+    const initial: WorldGraphKindState = { ...state(), counters: { ...state().counters, litterCleaned: 1 } };
+    const { state: result, changes, events } = runAlerts(initial, achievementContent);
+    expect(result.unlockedAchievementIds).toEqual(["cleaned"]);
+    const row = changes.finish().find((entry) => entry.path === "unlockedAchievementIds.cleaned.exists");
+    expect(row).toMatchObject({ value: true, previous: false, reason: "achievement_unlocked", visible: true });
+    expect(events.some((event) => event.name === "kind.world-graph.achievement.unlocked")).toBe(true);
+  });
+
+  it("W85.1: an already-unlocked achievement is never re-evaluated or re-recorded", () => {
+    const achievementContent = {
+      ...content(), achievements: [achievementDefinition({ kind: "constant", value: true })],
+    } as unknown as WorldGraphCampaign;
+    const initial: WorldGraphKindState = { ...state(), unlockedAchievementIds: ["cleaned"] };
+    const { state: result, changes } = runAlerts(initial, achievementContent);
+    expect(result.unlockedAchievementIds).toEqual(["cleaned"]);
+    expect(changes.finish().some((entry) => entry.reason === "achievement_unlocked")).toBe(false);
+  });
+
+  it("W85.2/W85.4: derives all three closed alert families keyed on published ids only, resolving kind-owned strings for two and the incident definition's own text for the third", () => {
+    const withIncident = runAlerts(state());
+    const incidentAlert = withIncident.state.alerts.find((entry) => entry.type === "incident_active");
+    expect(incidentAlert).toMatchObject({ semanticKey: "incident:incident:3", titleKey: "incident.litter.name", messageKey: "incident.litter.description" });
+
+    const withBroken = runAlerts({ ...state(), incidents: [], buildings: [{ ...state().buildings[0]!, status: "broken" }] });
+    const brokenAlert = withBroken.state.alerts.find((entry) => entry.type === "building_broken");
+    expect(brokenAlert).toMatchObject({ semanticKey: "building-broken:building:0", titleKey: "world-graph.alert.building-broken.title", messageKey: "world-graph.alert.building-broken.message" });
+    expect(WORLD_GRAPH_REASON_MESSAGES.get(brokenAlert!.titleKey)).toBeTypeOf("string");
+    expect(WORLD_GRAPH_REASON_MESSAGES.get(brokenAlert!.messageKey)).toBeTypeOf("string");
+
+    const withResolved = runAlerts({ ...state(), incidents: [], resolution: { resolution: "objectives_met", objectiveIds: [], failureId: null, resolvedAtTick: 0 } });
+    const resolvedAlert = withResolved.state.alerts.find((entry) => entry.type === "scenario_resolved");
+    expect(resolvedAlert).toMatchObject({ semanticKey: "scenario-resolved", titleKey: "world-graph.alert.scenario-resolved.title", messageKey: "world-graph.alert.scenario-resolved.message" });
+    expect(WORLD_GRAPH_REASON_MESSAGES.get(resolvedAlert!.titleKey)).toBeTypeOf("string");
+    expect(WORLD_GRAPH_REASON_MESSAGES.get(resolvedAlert!.messageKey)).toBeTypeOf("string");
+
+    // No campaign-authored text ever reaches a semantic key — each is built only from the
+    // closed family name plus a published id.
+    for (const alert of [...withIncident.state.alerts, ...withBroken.state.alerts, ...withResolved.state.alerts]) {
+      expect(alert.semanticKey).not.toMatch(/name|description/i);
+    }
+  });
+
+  it("W85.3/W85.6: raises one alert for a newly active source, clears it once inactive, never duplicates while uncleared, and hides the creation/removal audit", () => {
+    let workState: WorldGraphKindState = { ...state() }; // one unresolved litter incident already present
+    const changes = new BatchChanges();
+    const recording = resolutionEmitter();
+    const tick = (n: number, resolve: boolean): void => {
+      const scratch = createTickScratch();
+      const input = resolve
+        ? { ...workState, incidents: workState.incidents.map((entry) => entry.resolvedAtTick === null ? { ...entry, resolvedAtTick: n } : entry) }
+        : workState;
+      workState = alerts({
+        processingTick: n, content: content(), emit: recording.emit,
+        random: createTickRandom(n, () => rngHandle(), scratch), scratch, changes, state: input,
+      }).state;
+    };
+
+    tick(0, false); // raise
+    expect(workState.alerts).toHaveLength(1);
+    expect(workState.alerts[0]).toMatchObject({ type: "incident_active", clearedAtTick: null });
+    tick(1, false); // still active — no duplicate
+    expect(workState.alerts).toHaveLength(1);
+    tick(2, true); // source no longer active — cleared, not removed
+    expect(workState.alerts).toHaveLength(1);
+    expect(workState.alerts[0]?.clearedAtTick).toBe(2);
+
+    const rows = changes.finish();
+    const raisedRow = rows.find((entry) => entry.reason === "alert_raised");
+    const clearedRow = rows.find((entry) => entry.reason === "alert_cleared");
+    expect(raisedRow).toMatchObject({ path: `alerts.${workState.alerts[0]!.id}.exists`, value: true, visible: false });
+    expect(clearedRow).toMatchObject({ path: `alerts.${workState.alerts[0]!.id}.clearedAtTick`, value: 2, visible: false });
+    expect(recording.events.some((event) => event.name === "kind.world-graph.alert.raised")).toBe(true);
+    expect(recording.events.some((event) => event.name === "kind.world-graph.alert.cleared")).toBe(true);
+  });
+
+  it("W85.5: alerts and achievements feed nothing downstream — dropping them before tick-finalize leaves the rest of state identical", () => {
+    const achievementContent = {
+      ...content(), achievements: [achievementDefinition({ kind: "compare", metric: { kind: "counter", counter: "litterCleaned" }, op: "gte", value: 1 })],
+    } as unknown as WorldGraphCampaign;
+    const initial: WorldGraphKindState = { ...state(), counters: { ...state().counters, litterCleaned: 1 } };
+
+    const scratchA = createTickScratch();
+    const withAlerts = alerts({
+      processingTick: 0, content: achievementContent, emit: resolutionEmitter().emit,
+      random: createTickRandom(0, () => rngHandle(), scratchA), scratch: scratchA, changes: new BatchChanges(), state: initial,
+    }).state;
+    expect(withAlerts.alerts.length + withAlerts.unlockedAchievementIds.length).toBeGreaterThan(0);
+
+    const stripped: WorldGraphKindState = {
+      ...withAlerts, alerts: initial.alerts, unlockedAchievementIds: initial.unlockedAchievementIds, nextEntityOrdinal: initial.nextEntityOrdinal,
+    };
+    const finalize = (input: WorldGraphKindState): WorldGraphKindState => {
+      const scratch = createTickScratch();
+      return tickFinalize({
+        processingTick: 0, content: achievementContent, emit: resolutionEmitter().emit,
+        random: createTickRandom(0, () => rngHandle(), scratch), scratch, changes: new BatchChanges(), state: input,
+      }).state;
+    };
+    const finalizedWith = finalize(withAlerts);
+    const finalizedWithout = finalize(stripped);
+    const omit = (value: WorldGraphKindState) => ({ ...value, alerts: null, unlockedAchievementIds: null, nextEntityOrdinal: null });
+    expect(omit(finalizedWith)).toEqual(omit(finalizedWithout));
   });
 });

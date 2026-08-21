@@ -6249,18 +6249,19 @@ Namespaced `kind.world-graph.*` (05 §9), declared as `Kind.eventNames`:
 | `objective.progressed` / `objective.met` | `debug` / `info` | System 17 | specified, not yet delivered |
 | `failure.progressed` / `failure.triggered` | `debug` / `info` | System 18 | specified, not yet delivered |
 | `scenario.resolved` | `info` | Win or failure, with the `outcome` ids (§8) | specified, not yet delivered |
-| `achievement.unlocked` | `info` | System 19, before alert derivation | specified, not yet delivered |
-| `alert.raised` / `alert.cleared` | `debug` / `trace` | System 19 active-set transition | specified, not yet delivered |
+| `achievement.unlocked` | `info` | System 19, before alert derivation | delivered |
+| `alert.raised` / `alert.cleared` | `debug` / `trace` | System 19 active-set transition | delivered |
 
 > **The status column tracks emit sites, not decisions.** `Kind.eventNames` on the shipped
 > `worldGraphKind` declares the delivered rows; the rest are named here because an event
 > name is a published identifier a sink filters on (05 §9), so it is fixed once, ahead of the
-> emit site, rather than renamed after every host has configured for it. Undelivered rows
-> cluster where the pipeline itself is still incomplete — systems 12, 13 and 19 are no-op
-> stubs and 14 and 16 are partial, recorded with the rest of the tick-system gaps in
-> `90-decisions.md`. Same treatment as `story-graph` §8.4, and safe for the same reason:
-> 05 §2 guarantees dropping every event changes nothing, so a not-yet-emitted event cannot
-> be load-bearing.
+> emit site, rather than renamed after every host has configured for it. As of W85, every
+> tick system this table names is real — `90-decisions.md`'s tick-system register closes
+> with no rows remaining — so the undelivered rows left below belong to pipeline stages
+> (queue membership, guest movement, per-system diagnostics) that were never blocked on a
+> stub, only not yet built. Same treatment as `story-graph` §8.4, and safe for the same
+> reason: 05 §2 guarantees dropping every event changes nothing, so a not-yet-emitted event
+> cannot be load-bearing.
 
 **`guest.path.failed` earns its place.** A resort where guests silently cannot reach a
 building looks identical to one where they do not want to — the failure is invisible in the
