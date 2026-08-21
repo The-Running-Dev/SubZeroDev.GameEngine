@@ -549,10 +549,12 @@ is `0`, so it *would* work — this is a deliberate workflow choice, not a limit
 `Verify Documentation Build`. The deploy job is *not* required (it runs only on `main`, so
 requiring it would leave every PR pending).
 
-**`required_review_thread_resolution` is on**, and `qodo-code-review` leaves conversation
-threads that do **not** appear in `gh pr view --json reviewRequests,latestReviews`. Query
-threads directly via the GraphQL `reviewThreads` field. Resolve a thread only when a
-validated fix satisfies it; leave ambiguous findings open and report them.
+**`required_review_thread_resolution` is on.** Automated PR review runs via the
+`anthropics/claude-code-action` GitHub Action (Qodo is retired and no longer in use).
+Automated review comments can leave conversation threads that do **not** appear in
+`gh pr view --json reviewRequests,latestReviews`; query threads directly via the GraphQL
+`reviewThreads` field. Resolve a thread only when a validated fix satisfies it; leave
+ambiguous findings open and report them.
 
 ### Validation
 

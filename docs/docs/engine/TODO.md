@@ -3019,7 +3019,7 @@ rather than paper over.
       `export-campaigns.ts` onto the shared catalogue; adding, tightening or relaxing any
       validation rule — this unit surfaces the checks that exist and authors none.
 
-### [ ] W78 — Localization Coverage and String Extraction {#w78}
+### [x] W78 — Localization Coverage and String Extraction {#w78}
 
 **Delivers:** A translator can be handed the exact list of lines a campaign needs, and a
 maintainer can see which campaigns are translated, which are half-translated and which are not
@@ -3040,7 +3040,7 @@ of nine has a second locale.
       `src/engine/src/core/localization/` and `src/engine/src/core/registry/` are **read, not
       modified**.
 - **Depends on:** [W77](#w77), for the shared campaign catalogue.
-- **Status:** Not started.
+- **Status:** Done — [issue #326](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/326).
 - **Done when:**
   - W78.1 For a named campaign the tool emits the complete, sorted set of `LocKey`s its built
         campaign requires — the keys `BuiltCampaign.strings` carries — in a form a translator
@@ -3065,7 +3065,7 @@ of nine has a second locale.
       [09 §9](09-clients.md#9-deferred) leaves to a client; making coverage a CI gate, which is
       the same policy decision W77 declines to take unilaterally.
 
-### [ ] W79 — What Changed Between Two Resolutions {#w79}
+### [x] W79 — What Changed Between Two Resolutions {#w79}
 
 **Delivers:** When two saves say they were played against different content, someone can find
 out what was actually different. The platform can already prove two content resolutions are not
@@ -3086,7 +3086,7 @@ it rather than a widening of it.
       `src/engine/src/core/registry/packs.ts` and `src/engine/src/campaigns/stable-life-packs.ts`
       are **read, not modified**.
 - **Depends on:** [W58](#w58), [W71](#w71) — both done.
-- **Status:** Not started.
+- **Status:** Done — [issue #327](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/327).
 - **Done when:**
   - W79.1 Given two ordered pack sets the tool reports both `ResolutionId`s and, when they
         differ, an itemized difference following [11 §3](11-content-packs.md#3-resolution)'s two
@@ -3113,7 +3113,7 @@ it rather than a widening of it.
       Adventures.Content ([W74](#w74)); pack discovery and loading from disk
       ([11 §8](11-content-packs.md#8-what-is-deferred)).
 
-### [ ] W80 — Seeing a Story Graph {#w80}
+### [x] W80 — Seeing a Story Graph {#w80}
 
 **Delivers:** Anyone looking at an authored adventure can see its shape — where it starts, where
 it branches, which endings hang off which route — instead of reconstructing it from several
@@ -3129,7 +3129,7 @@ any of it.
 - **Touches:** a new script under `src/engine/scripts/`; `src/engine/package.json` scripts.
 - **Depends on:** [W77](#w77), for the shared campaign catalogue and for the Tier 2 warnings
       W80.4 cross-checks against.
-- **Status:** Not started.
+- **Status:** Done — [issue #328](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/328).
 - **Done when:**
   - W80.1 For a named story-graph campaign the tool emits a text graph — Mermaid, which needs no
         dependency to write — with one vertex per node, edges labelled by choice id, and
@@ -3213,7 +3213,7 @@ but extracting a shared runner from a pipeline where a quarter of the systems ar
 extract the shape of the stubs. It becomes sliceable once W85 lands, and it is better for the
 wait: five more real systems is five more constraints on what the abstraction has to carry.
 
-### [ ] W81 — Construction Finishes What `build` Starts {#w81}
+### [x] W81 — Construction Finishes What `build` Starts {#w81}
 
 **Delivers:** Someone laying out a resort can put up a structure that takes time to build, watch
 their staff work on it, and then use it. Today starting one is a dead end — the site appears, no
@@ -3237,7 +3237,7 @@ generated, never given effort, and never applied.
       `src/engine/fixtures/replay/`.
 - **Depends on:** [W45](#w45), [W46](#w46), [W47](#w47) — all done; they shipped the reducer, the
       construction-site state and the comparator registry.
-- **Status:** Not started.
+- **Status:** Done — [PR #345](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/345).
 - **Done when:**
   - W81.1 A building definition declaring construction work, placed through `build`, opens a site
         whose remaining work falls by the assigned staff member's `build` effort per tick on every
@@ -3281,7 +3281,7 @@ generated, never given effort, and never applied.
       has no construction path at all; the shared `SystemPipeline`
       ([issue #270](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/270)).
 
-### [ ] W82 — A Kiosk That Ran Out Can Be Refilled {#w82}
+### [x] W82 — A Kiosk That Ran Out Can Be Refilled {#w82}
 
 **Delivers:** A stall that sells a limited number of things can be restocked by staff, so running
 out is a setback rather than the permanent end of that building's usefulness. Today the running-out
@@ -3299,7 +3299,7 @@ and system 13 also owns the non-wear operational status changes that no other sy
       `src/engine/src/kinds/world-graph/kind.ts`; `src/engine/src/campaigns/world-graph-mvp.ts`;
       a new fixture pair under `src/engine/fixtures/replay/`.
 - **Depends on:** [W81](#w81), for the systems 9 and 11 task-kind branches it establishes.
-- **Status:** Not started.
+- **Status:** Done — [PR #347](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/347).
 - **Done when:**
   - W82.1 A service product declaring initial units and a capacity is served down to zero, a
         restock candidate is generated with effort equal to the missing units and the priority the
@@ -3328,7 +3328,7 @@ and system 13 also owns the non-wear operational status changes that no other sy
       name; supply chains, warehouses or delivery; pricing behaviour, which `set_price` already
       owns; cleanliness and wear ([W83](#w83)).
 
-### [ ] W83 — Buildings Get Dirty, Wear Out, and Break {#w83}
+### [x] W83 — Buildings Get Dirty, Wear Out, and Break {#w83}
 
 **Delivers:** A resort that is left unattended degrades, and one that is looked after does not.
 Buildings get dirty from use and from litter, wear down over time, and eventually break and stop
@@ -3350,7 +3350,7 @@ system is half named after.
       a new fixture pair under `src/engine/fixtures/replay/`.
 - **Depends on:** nothing — it shares no code path with [W81](#w81) or [W82](#w82) and may be
       taken before either. It is placed here because [W84](#w84) depends on it.
-- **Status:** Not started.
+- **Status:** Done — [PR #348](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/348).
 - **Done when:**
   - W83.1 For one building receiving deltas from every source in the same tick, the five sources
         are applied in the contract's stated order — service, litter, incident, staff, policy —
