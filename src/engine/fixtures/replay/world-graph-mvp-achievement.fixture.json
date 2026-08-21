@@ -1,0 +1,11 @@
+{
+  "name": "world-graph-mvp-achievement",
+  "config": { "campaignId": "world-graph-mvp", "seed": "w85-achievement-seed" },
+  "campaignVersion": "1.0.0",
+  "capturedUnder": "0.10.0",
+  "submissions": [
+    { "actionId": "hire_staff", "params": { "definitionId": "cleaner" } },
+    { "actionId": "hire_staff", "params": { "definitionId": "cleaner" } },
+    { "actionId": "advance_ticks", "params": { "ticks": 1 } }
+  ]
+}

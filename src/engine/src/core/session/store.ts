@@ -74,15 +74,24 @@ interface SessionRecord {
 /**
  * The cross-kind, session-store-facing convention for an achievement unlock (plan 15
  * Decision 1) — `04-core.md`/`03-story-graph-kind.md` name the mechanism but not this
- * exact shape, so it's fixed here and recorded as an open item in `TODO.md`.
+ * exact shape, so it's fixed here and recorded as an open item in `TODO.md`. `story-graph`
+ * writes the flat `achieved.<id>` shape; `world-graph` (12 §13/W85) writes its own
+ * member-scoped `unlockedAchievementIds.<id>.exists`, following its own path-addressing
+ * rule (20-contract.md §13) rather than the flat one — both are matched here since neither
+ * kind's own contract is wrong, they simply chose different literal shapes.
  */
 const ACHIEVEMENT_REASON = "achievement_unlocked";
 const ACHIEVEMENT_PATH_PREFIX = "achieved.";
+const ACHIEVEMENT_MEMBER_PATH_PREFIX = "unlockedAchievementIds.";
+const ACHIEVEMENT_MEMBER_PATH_SUFFIX = ".exists";
 
 function achievementIdFrom(change: StateChange): string | undefined {
   if (change.reason !== ACHIEVEMENT_REASON) return undefined;
-  if (!change.path.startsWith(ACHIEVEMENT_PATH_PREFIX)) return undefined;
-  return change.path.slice(ACHIEVEMENT_PATH_PREFIX.length);
+  if (change.path.startsWith(ACHIEVEMENT_PATH_PREFIX)) return change.path.slice(ACHIEVEMENT_PATH_PREFIX.length);
+  if (change.path.startsWith(ACHIEVEMENT_MEMBER_PATH_PREFIX) && change.path.endsWith(ACHIEVEMENT_MEMBER_PATH_SUFFIX)) {
+    return change.path.slice(ACHIEVEMENT_MEMBER_PATH_PREFIX.length, -ACHIEVEMENT_MEMBER_PATH_SUFFIX.length);
+  }
+  return undefined;
 }
 
 function toValidationWarning(warning: ProfileWarning): ValidationWarning {

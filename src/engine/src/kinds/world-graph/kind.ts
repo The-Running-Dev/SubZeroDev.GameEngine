@@ -24,7 +24,7 @@ export const worldGraphKind: Kind<WorldGraphKindState> = {
   version: "1.0.0",
   reasonCodes: WORLD_GRAPH_REASON_CODES,
   reasonMessages: WORLD_GRAPH_REASON_MESSAGES,
-  /** W47 exposes events from the delivered causal systems. */
+  /** Every event the delivered causal systems emit (12 §12; complete as of W85). */
   eventNames: [
     "kind.world-graph.building.placed",
     "kind.world-graph.building.demolished",
@@ -36,6 +36,9 @@ export const worldGraphKind: Kind<WorldGraphKindState> = {
     "kind.world-graph.staff.fired",
     "kind.world-graph.staff.assigned",
     "kind.world-graph.alert.dismissed",
+    "kind.world-graph.alert.raised",
+    "kind.world-graph.alert.cleared",
+    "kind.world-graph.achievement.unlocked",
     "kind.world-graph.batch.started",
     "kind.world-graph.batch.ended",
     "kind.world-graph.scenario.effect.applied",

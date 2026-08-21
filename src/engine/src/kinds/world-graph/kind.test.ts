@@ -11,6 +11,7 @@ import { buildWorldGraphCampaign } from "./source.js";
 import type { WorldGraphKindState, WorldGraphView } from "./state.js";
 import { WORLD_GRAPH_REASON_MESSAGES } from "./reasons.js";
 import { createInMemorySessionStore } from "../../core/session/store.js";
+import { createInMemoryProfileStore } from "../../core/session/profile-store.js";
 import { TextClient } from "../../clients/text/client.js";
 import { worldGraphMvpSource } from "../../campaigns/world-graph-mvp.js";
 
@@ -81,6 +82,19 @@ function create(overrides: Partial<WorldGraphCampaign> = {}) {
   return created.value;
 }
 
+function sessionStoreWithProfiles(profiles: ReturnType<typeof createInMemoryProfileStore>, overrides: Partial<WorldGraphCampaign> = {}) {
+  const builtEnvelope = envelope(overrides);
+  const built = { campaign: builtEnvelope.campaign, strings: builtEnvelope.strings };
+  const registryResult = buildContentRegistry([built], [WORLD_GRAPH_REASON_MESSAGES]);
+  if (!registryResult.ok || !registryResult.value) throw new Error("fixture registry failed");
+  const runtimeEngine = createEngine({
+    registry: registryResult.value,
+    kinds: { "world-graph": worldGraphKind } as unknown as KindRegistry,
+    ids: { newGameId: () => "game:world-profile", newSeed: () => "seed:world-profile" },
+  });
+  return createInMemorySessionStore({ engine: runtimeEngine, registry: registryResult.value, profiles });
+}
+
 const stateOf = (value: { readonly kindState: unknown }): WorldGraphKindState => value.kindState as WorldGraphKindState;
 
 describe("world-graph W45 source and validation", () => {
@@ -106,7 +120,12 @@ describe("world-graph W45 source and validation", () => {
   });
 
   it("lifts text, applies exactly the five defaults, and canonicalizes catalogs", () => {
-    const built = buildWorldGraphCampaign({ ...source, terrain: [...source.terrain].reverse() });
+    // `source` itself now declares an achievement (W85's `double-cleaner`, inherited from
+    // `worldGraphMvpSource`) — omitted here so this test still exercises that field's own
+    // default, independent of what the shared fixture happens to declare.
+    const sourceWithoutAchievements: WorldGraphCampaignSource = { ...source };
+    delete (sourceWithoutAchievements as { achievements?: unknown }).achievements;
+    const built = buildWorldGraphCampaign({ ...sourceWithoutAchievements, terrain: [...source.terrain].reverse() });
     expect(built.authoredText).toHaveLength(34);
     expect(built.content.scenery).toEqual([]);
     expect(built.content.guestConditions).toEqual([]);
@@ -748,7 +767,7 @@ describe("world-graph W84 incidents", () => {
     const rolledContent: WorldGraphCampaign = {
       ...base,
       incidents: [{
-        id: "storm", kind: "weather", severity: "minor",
+        id: "storm", text: { nameKey: "incident.storm.name", descriptionKey: "incident.storm.description" }, kind: "weather", severity: "minor",
         triggerCondition: { kind: "constant", value: true },
         rollScope: "building", rollChanceBasisPoints: 5000, selectionWeight: 1,
         cooldownTicks: 0, durationTicks: { min: 1, max: 1 },
@@ -776,5 +795,74 @@ describe("world-graph W84 incidents", () => {
     // per-tick handle would diverge on (20-contract.md §4.18, §5).
     expect(whole.counters.incidentsRaised).toBeGreaterThan(0);
     expect(whole.counters.incidentsRaised).toBeLessThan(20);
+  });
+});
+
+describe("world-graph W85 alerts and achievements", () => {
+  it("declares the achievement.unlocked, alert.raised and alert.cleared events", () => {
+    expect(worldGraphKind.eventNames).toEqual(expect.arrayContaining([
+      "kind.world-graph.achievement.unlocked",
+      "kind.world-graph.alert.raised",
+      "kind.world-graph.alert.cleared",
+    ]));
+  });
+
+  it("W85.1: mirrors an unlock to the profile only after the whole action succeeds — a refused action never touches it", async () => {
+    const profiles = createInMemoryProfileStore();
+    const store = sessionStoreWithProfiles(profiles);
+    const created = await store.createSession({ campaignId: "world-test", profileId: "p-world" });
+
+    // Rejected before any tick system runs — ticks_not_positive is validated up front, so
+    // system 19 never executes and the profile store is never touched.
+    const refused = await store.submitAction(created.sessionId, "advance_ticks", { ticks: 0 });
+    expect(refused.errors).toHaveLength(1);
+    const untouched = await profiles.load("p-world");
+    expect(untouched.profile.achievements).toEqual([]);
+
+    // The MVP campaign's `double-cleaner` achievement (world-graph-mvp.ts) unlocks once two
+    // cleaners are on staff — inert everywhere but a dedicated scenario like this one.
+    await store.submitAction(created.sessionId, "hire_staff", { definitionId: "cleaner" });
+    await store.submitAction(created.sessionId, "hire_staff", { definitionId: "cleaner" });
+    const advanced = await store.submitAction(created.sessionId, "advance_ticks", { ticks: 1 });
+    expect(advanced.errors).toEqual([]);
+
+    const { profile } = await profiles.load("p-world");
+    expect(profile.achievements).toEqual([{ campaignId: "world-test", achievementId: "double-cleaner" }]);
+  });
+
+  it("W85.7: serializes byte-identically whether advance_ticks n is submitted whole or split across a batch that raises and clears an alert", () => {
+    const base = runtime().content;
+    const rolledContent: WorldGraphCampaign = {
+      ...base,
+      incidents: [{
+        id: "storm", text: { nameKey: "incident.storm.name", descriptionKey: "incident.storm.description" }, kind: "weather", severity: "minor",
+        triggerCondition: { kind: "constant", value: true },
+        rollScope: "building", rollChanceBasisPoints: 10000, selectionWeight: 1,
+        cooldownTicks: 0, durationTicks: { min: 1, max: 1 },
+        resolutionCondition: null, resolverTaskType: null, resolverTaskPriority: null,
+        onStart: [], onResolve: [],
+      }],
+      scenarios: base.scenarios.map((scenario) => ({
+        ...scenario,
+        buildingPlacements: [{ definitionId: "kiosk", x: 1, y: 1, rotation: 0 as const, open: true }],
+        guestSpawning: { everyTicks: 1000, maxActiveGuests: 0, pool: scenario.guestSpawning.pool },
+      })),
+    } as unknown as WorldGraphCampaign;
+
+    const run = (ticks: readonly number[]): WorldGraphKindState => {
+      const runtimeEngine = engine(rolledContent);
+      let game = runtimeEngine.createGame({ campaignId: "world-test" }).value!;
+      for (const count of ticks) game = runtimeEngine.submitAction(game, "advance_ticks", { ticks: count }).value!;
+      return stateOf(game);
+    };
+
+    const whole = run([10, 10]);
+    const split = run([3, 7, 4, 6]);
+    expect(split).toEqual(whole);
+    // A 100% roll chance with a one-tick duration and no cooldown means a fresh storm
+    // starts the tick after the last one resolves — the alert list genuinely cycles
+    // raise/clear pairs across the batch, the case a per-tick derivation would diverge on.
+    expect(whole.alerts.length).toBeGreaterThan(0);
+    expect(whole.alerts.some((alert) => alert.clearedAtTick !== null)).toBe(true);
   });
 });
