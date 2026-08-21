@@ -1,8 +1,8 @@
 import type { KindContext } from "../../../core/kernel/types.js";
 import { assertReferentialIntegrity } from "../actions/common.js";
 import { evaluateCondition, evaluateMetric } from "../conditions.js";
-import type { BuildingDefinition, IntegerCurve, ProductDefinition, WorldGraphCampaign } from "../content.js";
-import type { Building, ConstructionSite, Guest, IncidentSeverity, Position, StaffTask, WorldGraphKindState } from "../state.js";
+import type { BuildingDefinition, IncidentDefinition, IncidentRollScope, IntegerCurve, ProductDefinition, WorldGraphCampaign } from "../content.js";
+import type { Building, ConstructionSite, Guest, Incident, IncidentSeverity, Position, StaffTask, WorldGraphKindState } from "../state.js";
 import { canonicalPath, canonicalPathWithCost, footprintCells, rotateOffset } from "../spatial.js";
 import type { TickChanges } from "./changes.js";
 import { applyWorldEffects, clamp, safeAdd } from "./effects.js";
@@ -640,15 +640,36 @@ export const finance: WorldGraphSystem = (frame) => {
   if (expenses < 0) throw new Error("Validated world-graph recurring costs cannot be negative");
   return expenses === 0 ? frame : { ...frame, state: { ...frame.state, finances: { ...frame.state.finances, cashCents: frame.state.finances.cashCents - expenses, expensesTodayCents: frame.state.finances.expensesTodayCents + expenses, expensesTotalCents: frame.state.finances.expensesTotalCents + expenses } } };
 };
-/** System 16: W46 resolves duration expiry; W47 adds rolls and condition-driven resolution. */
+interface IncidentScopeInstance {
+  readonly scope: IncidentRollScope;
+  readonly zoneId: string | null;
+  readonly buildingId: string | null;
+}
+
+/** §4.18: an active occurrence, or a retained one still inside its cooldown, blocks its own definition/scope. */
+function incidentBlocked(state: WorldGraphKindState, processingTick: number, incidentDefinition: IncidentDefinition, instance: IncidentScopeInstance): boolean {
+  return state.incidents.some((incident) => {
+    if (incident.definitionId !== incidentDefinition.id) return false;
+    if (instance.scope === "building" ? incident.buildingId !== instance.buildingId
+      : instance.scope === "zone" ? incident.zoneId !== instance.zoneId
+        : incident.buildingId !== null || incident.zoneId !== null) return false;
+    if (incident.resolvedAtTick === null) return true;
+    return processingTick < incident.startedAtTick + incidentDefinition.cooldownTicks;
+  });
+}
+
+/** System 16: resolves due/condition-met occurrences, then rolls new ones by declared scope (§4.18). */
 export const incidents: WorldGraphSystem = (frame) => {
-  const expiring = frame.state.incidents.filter((incident) => (
-    incident.resolvedAtTick === null
-    && incident.expiresAtTick !== null
-    && incident.expiresAtTick <= frame.processingTick
-  )).sort((left, right) => compareRuntimeEntityId(left.id, right.id));
   let state = frame.state;
-  for (const incident of expiring) {
+  const resolving = state.incidents
+    .filter((incident) => incident.resolvedAtTick === null)
+    .filter((incident) => {
+      if (incident.expiresAtTick !== null && incident.expiresAtTick <= frame.processingTick) return true;
+      const incidentDefinition = definition(frame.content.incidents, incident.definitionId, "incident definition");
+      return incidentDefinition.resolutionCondition !== null && evaluateCondition(incidentDefinition.resolutionCondition, state, frame.content);
+    })
+    .sort((left, right) => compareRuntimeEntityId(left.id, right.id));
+  for (const incident of resolving) {
     const current = state.incidents.find((entry) => entry.id === incident.id);
     if (!current || current.resolvedAtTick !== null) continue;
     state = {
@@ -657,9 +678,8 @@ export const incidents: WorldGraphSystem = (frame) => {
         ? { ...entry, resolvedAtTick: frame.processingTick } : entry),
     };
     frame.changes.record("incidents", `incidents.${incident.id}.resolvedAtTick`, frame.processingTick, "incident_resolved", false);
-    const definition = frame.content.incidents.find((entry) => entry.id === current.definitionId);
-    if (!definition) throw new Error(`Validated incident definition missing: ${current.definitionId}`);
-    state = applyWorldEffects(state, definition.onResolve, {
+    const incidentDefinition = definition(frame.content.incidents, current.definitionId, "incident definition");
+    state = applyWorldEffects(state, incidentDefinition.onResolve, {
       processingTick: frame.processingTick,
       content: frame.content,
       random: frame.random,
@@ -672,6 +692,62 @@ export const incidents: WorldGraphSystem = (frame) => {
       data: { incidentId: current.id, definitionId: current.definitionId, tick: frame.processingTick },
     });
   }
+
+  const scopeInstances: readonly IncidentScopeInstance[] = [
+    { scope: "world", zoneId: null, buildingId: null },
+    ...[...state.map.zones].sort((left, right) => compareDefinitionId(left.id, right.id)).map((zone) => ({ scope: "zone" as const, zoneId: zone.id, buildingId: null })),
+    ...[...state.buildings].sort((left, right) => compareRuntimeEntityId(left.id, right.id)).map((building) => ({ scope: "building" as const, zoneId: null, buildingId: building.id })),
+  ];
+  const selections: { readonly instance: IncidentScopeInstance; readonly incidentDefinition: IncidentDefinition }[] = [];
+  for (const instance of scopeInstances) {
+    const eligible = frame.content.incidents
+      .filter((entry) => entry.rollScope === instance.scope && entry.triggerCondition !== null && entry.selectionWeight > 0)
+      .filter((entry) => evaluateCondition(entry.triggerCondition!, state, frame.content))
+      .filter((entry) => !incidentBlocked(state, frame.processingTick, entry, instance))
+      .sort((left, right) => compareDefinitionId(left.id, right.id));
+    if (eligible.length === 0) continue;
+    const rng = frame.random.tickRng("incidents");
+    const passed = eligible.filter((entry) => rng.nextInt(1, 10000) <= entry.rollChanceBasisPoints);
+    if (passed.length === 0) continue;
+    const chosen = passed.length === 1 ? passed[0]! : rng.weightedPick(passed.map((entry) => ({ item: entry, weight: entry.selectionWeight })));
+    selections.push({ instance, incidentDefinition: chosen });
+  }
+
+  for (const { instance, incidentDefinition } of selections) {
+    const building = instance.buildingId === null ? null : state.buildings.find((entry) => entry.id === instance.buildingId) ?? null;
+    const duration = incidentDefinition.durationTicks === null ? null
+      : incidentDefinition.durationTicks.min === incidentDefinition.durationTicks.max ? incidentDefinition.durationTicks.min
+        : frame.random.tickRng("incidents").nextInt(incidentDefinition.durationTicks.min, incidentDefinition.durationTicks.max);
+    const id = `incident:${state.nextEntityOrdinal}`;
+    const incident: Incident = {
+      id, definitionId: incidentDefinition.id,
+      buildingId: instance.buildingId, guestId: null, zoneId: instance.zoneId,
+      position: building === null ? null : { x: building.x, y: building.y },
+      amount: 1, startedAtTick: frame.processingTick,
+      expiresAtTick: duration === null ? null : safeAdd(frame.processingTick, duration, `incident ${id} expiry`),
+      resolvedAtTick: null,
+    };
+    state = {
+      ...state,
+      incidents: [...state.incidents, incident],
+      nextEntityOrdinal: state.nextEntityOrdinal + 1,
+      counters: { ...state.counters, incidentsRaised: state.counters.incidentsRaised + 1 },
+    };
+    frame.changes.record("incidents", `incidents.${id}.exists`, true, "incident_raised", false, false);
+    state = applyWorldEffects(state, incidentDefinition.onStart, {
+      processingTick: frame.processingTick,
+      content: frame.content,
+      random: frame.random,
+      changes: frame.changes,
+      system: "incidents",
+      reason: "incident_raised",
+      currentIncidentId: id,
+    }).state;
+    frame.emit.emit("kind.world-graph.incident.raised", "info", {
+      data: { incidentId: id, definitionId: incidentDefinition.id, tick: frame.processingTick },
+    });
+  }
+
   return { ...frame, state };
 };
 /** System 17: evaluate duration-qualified objective progress against this tick's world. */

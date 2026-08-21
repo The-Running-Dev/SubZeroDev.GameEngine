@@ -1,0 +1,12 @@
+{
+  "name": "world-graph-mvp-incidents",
+  "config": { "campaignId": "world-graph-mvp", "seed": "world-graph-mvp-incidents-seed" },
+  "campaignVersion": "1.0.0",
+  "capturedUnder": "0.10.0",
+  "submissions": [
+    { "actionId": "hire_staff", "params": { "definitionId": "cleaner" } },
+    { "actionId": "hire_staff", "params": { "definitionId": "builder" } },
+    { "actionId": "hire_staff", "params": { "definitionId": "restocker" } },
+    { "actionId": "advance_ticks", "params": { "ticks": 9 } }
+  ]
+}
