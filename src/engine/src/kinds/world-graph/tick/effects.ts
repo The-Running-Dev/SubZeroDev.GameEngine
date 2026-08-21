@@ -2,12 +2,14 @@ import type {
   BuildingSelector,
   GuestMeterKind,
   GuestSelector,
+  IntegerRange,
   WorldEffect,
   WorldGraphCampaign,
 } from "../content.js";
 import type { Building, Guest, WorldGraphKindState } from "../state.js";
 import type { TickChanges } from "./changes.js";
 import { compareRuntimeEntityId, type WorldGraphSystemId } from "./order.js";
+import type { RngHandle } from "../../../core/determinism/types.js";
 import type { TickRandom } from "./random.js";
 import type { DeferredBuildingMeterSource, TickScratch } from "./scratch.js";
 
@@ -39,6 +41,11 @@ export function safeAdd(left: number, right: number, owner: string): number {
 export const clamp = (value: number, minimum: number, maximum: number): number => (
   value < minimum ? minimum : value > maximum ? maximum : value
 );
+
+/** Resolves an `IntegerRange` to a concrete tick count, drawing only when the range isn't a single point. */
+export function resolveDuration(range: IntegerRange | null, rng: RngHandle): number | null {
+  return range === null ? null : range.min === range.max ? range.min : rng.nextInt(range.min, range.max);
+}
 
 function guestTargets(state: WorldGraphKindState, selector: GuestSelector, currentIncidentId?: string, currentServiceGuestId?: string): readonly Guest[] {
   const active = state.guests.filter((guest) => guest.lifecycle !== "departed" && guest.lifecycle !== "removed");
@@ -191,9 +198,7 @@ export function applyWorldEffects(
         ? state.buildings.find((building) => building.id === currentIncident.buildingId) : undefined;
       if (effect.target.kind === "current_guest" && !targetGuest) return;
       if (effect.target.kind === "current_building" && !targetBuilding) return;
-      const duration = definition.durationTicks === null ? null
-        : definition.durationTicks.min === definition.durationTicks.max ? definition.durationTicks.min
-          : context.random.tickRng(context.system).nextInt(definition.durationTicks.min, definition.durationTicks.max);
+      const duration = resolveDuration(definition.durationTicks, context.random.tickRng(context.system));
       const id = `incident:${state.nextEntityOrdinal}`;
       const incident = {
         id,

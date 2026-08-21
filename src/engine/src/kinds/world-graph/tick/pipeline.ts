@@ -5,7 +5,7 @@ import type { BuildingDefinition, IncidentDefinition, IncidentRollScope, Integer
 import type { Building, ConstructionSite, Guest, Incident, IncidentSeverity, Position, StaffTask, WorldGraphKindState } from "../state.js";
 import { canonicalPath, canonicalPathWithCost, footprintCells, rotateOffset } from "../spatial.js";
 import type { TickChanges } from "./changes.js";
-import { applyWorldEffects, clamp, safeAdd } from "./effects.js";
+import { applyWorldEffects, clamp, resolveDuration, safeAdd } from "./effects.js";
 import { compareDefinitionId, compareRuntimeEntityId, WORLD_GRAPH_SYSTEM_IDS, type WorldGraphSystemId } from "./order.js";
 import { createTickRandom, type TickRandom } from "./random.js";
 import { createTickScratch, type TickScratch } from "./scratch.js";
@@ -644,15 +644,18 @@ interface IncidentScopeInstance {
   readonly scope: IncidentRollScope;
   readonly zoneId: string | null;
   readonly buildingId: string | null;
+  readonly building: Building | null;
 }
 
-/** §4.18: an active occurrence, or a retained one still inside its cooldown, blocks its own definition/scope. */
+/**
+ * §4.18: an active occurrence, or a retained one still inside its cooldown, blocks its own
+ * definition/scope. Every `IncidentScopeInstance` carries exactly one of `zoneId`/`buildingId`
+ * (or neither, for world), so matching the scope collapses to plain field equality.
+ */
 function incidentBlocked(state: WorldGraphKindState, processingTick: number, incidentDefinition: IncidentDefinition, instance: IncidentScopeInstance): boolean {
   return state.incidents.some((incident) => {
     if (incident.definitionId !== incidentDefinition.id) return false;
-    if (instance.scope === "building" ? incident.buildingId !== instance.buildingId
-      : instance.scope === "zone" ? incident.zoneId !== instance.zoneId
-        : incident.buildingId !== null || incident.zoneId !== null) return false;
+    if (incident.zoneId !== instance.zoneId || incident.buildingId !== instance.buildingId) return false;
     if (incident.resolvedAtTick === null) return true;
     return processingTick < incident.startedAtTick + incidentDefinition.cooldownTicks;
   });
@@ -694,30 +697,33 @@ export const incidents: WorldGraphSystem = (frame) => {
   }
 
   const scopeInstances: readonly IncidentScopeInstance[] = [
-    { scope: "world", zoneId: null, buildingId: null },
-    ...[...state.map.zones].sort((left, right) => compareDefinitionId(left.id, right.id)).map((zone) => ({ scope: "zone" as const, zoneId: zone.id, buildingId: null })),
-    ...[...state.buildings].sort((left, right) => compareRuntimeEntityId(left.id, right.id)).map((building) => ({ scope: "building" as const, zoneId: null, buildingId: building.id })),
+    { scope: "world", zoneId: null, buildingId: null, building: null },
+    ...[...state.map.zones].sort((left, right) => compareDefinitionId(left.id, right.id)).map((zone) => ({ scope: "zone" as const, zoneId: zone.id, buildingId: null, building: null })),
+    ...[...state.buildings].sort((left, right) => compareRuntimeEntityId(left.id, right.id)).map((building) => ({ scope: "building" as const, zoneId: null, buildingId: building.id, building })),
   ];
+  // Eligibility apart from `incidentBlocked` depends only on the scope value, not the instance
+  // (state is fixed for this whole pass), so it's computed once per scope rather than per instance.
+  const eligibleForScope = (scope: IncidentRollScope): readonly IncidentDefinition[] => frame.content.incidents
+    .filter((entry) => entry.rollScope === scope && entry.triggerCondition !== null && entry.selectionWeight > 0)
+    .filter((entry) => evaluateCondition(entry.triggerCondition!, state, frame.content))
+    .sort((left, right) => compareDefinitionId(left.id, right.id));
+  const eligibleByScope: Readonly<Record<IncidentRollScope, readonly IncidentDefinition[]>> = {
+    world: eligibleForScope("world"), zone: eligibleForScope("zone"), building: eligibleForScope("building"),
+  };
   const selections: { readonly instance: IncidentScopeInstance; readonly incidentDefinition: IncidentDefinition }[] = [];
   for (const instance of scopeInstances) {
-    const eligible = frame.content.incidents
-      .filter((entry) => entry.rollScope === instance.scope && entry.triggerCondition !== null && entry.selectionWeight > 0)
-      .filter((entry) => evaluateCondition(entry.triggerCondition!, state, frame.content))
-      .filter((entry) => !incidentBlocked(state, frame.processingTick, entry, instance))
-      .sort((left, right) => compareDefinitionId(left.id, right.id));
+    const eligible = eligibleByScope[instance.scope].filter((entry) => !incidentBlocked(state, frame.processingTick, entry, instance));
     if (eligible.length === 0) continue;
     const rng = frame.random.tickRng("incidents");
     const passed = eligible.filter((entry) => rng.nextInt(1, 10000) <= entry.rollChanceBasisPoints);
     if (passed.length === 0) continue;
-    const chosen = passed.length === 1 ? passed[0]! : rng.weightedPick(passed.map((entry) => ({ item: entry, weight: entry.selectionWeight })));
+    const chosen = rng.weightedPick(passed.map((entry) => ({ item: entry, weight: entry.selectionWeight })));
     selections.push({ instance, incidentDefinition: chosen });
   }
 
   for (const { instance, incidentDefinition } of selections) {
-    const building = instance.buildingId === null ? null : state.buildings.find((entry) => entry.id === instance.buildingId) ?? null;
-    const duration = incidentDefinition.durationTicks === null ? null
-      : incidentDefinition.durationTicks.min === incidentDefinition.durationTicks.max ? incidentDefinition.durationTicks.min
-        : frame.random.tickRng("incidents").nextInt(incidentDefinition.durationTicks.min, incidentDefinition.durationTicks.max);
+    const building = instance.building;
+    const duration = resolveDuration(incidentDefinition.durationTicks, frame.random.tickRng("incidents"));
     const id = `incident:${state.nextEntityOrdinal}`;
     const incident: Incident = {
       id, definitionId: incidentDefinition.id,
