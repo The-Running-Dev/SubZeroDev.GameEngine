@@ -107,7 +107,7 @@ describe("world-graph W45 source and validation", () => {
 
   it("lifts text, applies exactly the five defaults, and canonicalizes catalogs", () => {
     const built = buildWorldGraphCampaign({ ...source, terrain: [...source.terrain].reverse() });
-    expect(built.authoredText).toHaveLength(32);
+    expect(built.authoredText).toHaveLength(34);
     expect(built.content.scenery).toEqual([]);
     expect(built.content.guestConditions).toEqual([]);
     expect(built.content.preferences).toEqual([]);
@@ -281,9 +281,11 @@ describe("world-graph W45 source and validation", () => {
       expect.objectContaining({ code: "undeferrable_building_meter_effect", path: "content.objectives[0].onCompleted[0]" }),
       expect.objectContaining({ code: "undeferrable_building_meter_effect", path: "content.failures[0].onTriggered[0]" }),
       expect.objectContaining({ code: "undeferrable_building_meter_effect", path: "content.incidents[0].onResolve[0]" }),
+      expect.objectContaining({ code: "undeferrable_building_meter_effect", path: "content.incidents[1].onResolve[0]" }),
     ]));
-    // Exactly those three lists, not every list carrying a building_meter_delta.
-    expect(errors.filter((entry) => entry.code === "undeferrable_building_meter_effect")).toHaveLength(3);
+    // Exactly those four lists (one per catalog entry carrying the invalid delta), not every
+    // list carrying a building_meter_delta.
+    expect(errors.filter((entry) => entry.code === "undeferrable_building_meter_effect")).toHaveLength(4);
   });
 
   it("accepts a cleanliness delta on those same lists, which carries no broken transition to miss", () => {
@@ -730,5 +732,49 @@ describe("world-graph W82 restock", () => {
     const state = stateOf(game);
     expect(state.buildings.find((entry) => entry.id === stallId)?.inventory.water).toBe(1);
     expect(state.staff[0]).toMatchObject({ status: "idle", tasksCompleted: 0, task: null });
+  });
+});
+
+describe("world-graph W84 incidents", () => {
+  it("declares the incident.raised event alongside incident.resolved", () => {
+    expect(worldGraphKind.eventNames).toEqual(expect.arrayContaining([
+      "kind.world-graph.incident.resolved",
+      "kind.world-graph.incident.raised",
+    ]));
+  });
+
+  it("W84.7: serializes byte-identically whether advance_ticks n is submitted whole or split across a batch with at least one successful and one failed roll", () => {
+    const base = runtime().content;
+    const rolledContent: WorldGraphCampaign = {
+      ...base,
+      incidents: [{
+        id: "storm", kind: "weather", severity: "minor",
+        triggerCondition: { kind: "constant", value: true },
+        rollScope: "building", rollChanceBasisPoints: 5000, selectionWeight: 1,
+        cooldownTicks: 0, durationTicks: { min: 1, max: 1 },
+        resolutionCondition: null, resolverTaskType: null, resolverTaskPriority: null,
+        onStart: [], onResolve: [],
+      }],
+      scenarios: base.scenarios.map((scenario) => ({
+        ...scenario,
+        buildingPlacements: [{ definitionId: "kiosk", x: 1, y: 1, rotation: 0 as const, open: true }],
+        guestSpawning: { everyTicks: 1000, maxActiveGuests: 0, pool: scenario.guestSpawning.pool },
+      })),
+    } as unknown as WorldGraphCampaign;
+
+    const run = (ticks: readonly number[]): WorldGraphKindState => {
+      const runtimeEngine = engine(rolledContent);
+      let game = runtimeEngine.createGame({ campaignId: "world-test" }).value!;
+      for (const count of ticks) game = runtimeEngine.submitAction(game, "advance_ticks", { ticks: count }).value!;
+      return stateOf(game);
+    };
+
+    const whole = run([10, 10]);
+    const split = run([3, 7, 4, 6]);
+    expect(split).toEqual(whole);
+    // Confirms this batch genuinely mixed outcomes — the case a per-call rather than
+    // per-tick handle would diverge on (20-contract.md §4.18, §5).
+    expect(whole.counters.incidentsRaised).toBeGreaterThan(0);
+    expect(whole.counters.incidentsRaised).toBeLessThan(20);
   });
 });

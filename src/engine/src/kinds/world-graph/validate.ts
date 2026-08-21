@@ -171,6 +171,9 @@ function catalogEffectErrors(content: WorldGraphCampaign, errors: ValidationErro
   content.incidents.forEach((entry, index) => {
     check(entry.onStart, `content.incidents[${index}].onStart`);
     check(entry.onResolve, `content.incidents[${index}].onResolve`);
+    // onStart only ever runs from system 16's roll, always after system 14 closed its
+    // broken-transition check for the tick, so a wear delta there can never be seen (W84).
+    forbidUndeferrableWearDelta(entry.onStart, `content.incidents[${index}].onStart`, errors);
     // A duration-bearing incident can resolve via system 16's expiry, which never defers;
     // only a staff-resolved-only incident (durationTicks: null) can carry a wear delta.
     if (entry.durationTicks !== null) forbidUndeferrableWearDelta(entry.onResolve, `content.incidents[${index}].onResolve`, errors);

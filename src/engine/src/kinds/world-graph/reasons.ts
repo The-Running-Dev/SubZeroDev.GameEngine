@@ -27,11 +27,15 @@
  * registration both missed these five and added two codes (`tick`, `effect`) that no
  * production path emits at all. Recorded in `90-decisions.md`.
  *
+ * **W84 added `incident_raised` the same indirect way** — system 16's roll allocates the
+ * occurrence with a `visible: false` `.exists` record, then threads the same reason through
+ * its `onStart` effects, which can reach a visible record exactly like the five above.
+ *
  * Reasons recorded only with `visible: false` — `alert_dismissed`, `building_demolished`,
  * `staff_fired`, `staff_assigned`, `guest_spawned` — are deliberately not registered here;
- * see `90-decisions.md` for why that line is where it is. Note `incident_resolved` is *not*
- * one of them despite appearing at two `visible: false` sites: its effect-context use above
- * reaches visible records.
+ * see `90-decisions.md` for why that line is where it is. Note `incident_resolved` and
+ * `incident_raised` are *not* among them despite each appearing at a `visible: false` site
+ * too: their effect-context use above reaches visible records.
  */
 
 import type { LocKey } from "../../core/localization/types.js";
@@ -96,6 +100,7 @@ export const WORLD_GRAPH_REASON_CODES = [
   "objective_met",
   "failure_triggered",
   "incident_resolved",
+  "incident_raised",
 ] as const;
 
 export type WorldGraphReasonCode = (typeof WORLD_GRAPH_REASON_CODES)[number];
@@ -157,6 +162,7 @@ const WORLD_GRAPH_REASON_TEXT: Readonly<Record<WorldGraphReasonCode, string>> = 
   objective_met: "An objective was met.",
   failure_triggered: "A failure condition was triggered.",
   incident_resolved: "An incident was resolved.",
+  incident_raised: "An incident occurred.",
 };
 
 /** `world-graph.reason.<code>` → its shipped default-English message, for every code. */

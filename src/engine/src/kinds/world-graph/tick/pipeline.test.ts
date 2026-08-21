@@ -46,6 +46,26 @@ function rngHandle(): RngHandle {
   };
 }
 
+/** Every draw returns exactly `value`, regardless of call count — isolates a roll's pass/fail
+ *  from how many other draws preceded it in the same tick (W84.2). */
+function constantRng(value: number): RngHandle {
+  return {
+    nextInt: () => value,
+    nextPercent: () => value,
+    pick: <T>(items: readonly T[]) => items[0]!,
+    weightedPick: <T>(items: readonly { readonly item: T; readonly weight: number }[]) => items[0]!.item,
+  };
+}
+
+function countingRng(base: RngHandle, counter: { calls: number }): RngHandle {
+  return {
+    nextInt: (minimum, maximum) => { counter.calls += 1; return base.nextInt(minimum, maximum); },
+    nextPercent: () => base.nextPercent(),
+    pick: <T>(items: readonly T[]) => base.pick(items),
+    weightedPick: <T>(items: readonly { readonly item: T; readonly weight: number }[]) => { counter.calls += 1; return base.weightedPick(items); },
+  };
+}
+
 interface RecordedResolutionEvent {
   readonly name: string;
   readonly data?: Readonly<Record<string, string | number | boolean>>;
@@ -608,6 +628,187 @@ describe("world-graph W46 incident expiry", () => {
     for (const change of changes.finish().filter((entry) => entry.path.endsWith(".resolvedAtTick"))) {
       expect(change).not.toHaveProperty("previous");
     }
+  });
+});
+
+describe("world-graph W84 incident rolls", () => {
+  function stormDefinition(overrides: Record<string, unknown> = {}) {
+    return {
+      id: "storm", kind: "weather", severity: "minor",
+      triggerCondition: { kind: "constant", value: true },
+      rollScope: "world", rollChanceBasisPoints: 5000, selectionWeight: 1,
+      cooldownTicks: 5, durationTicks: { min: 3, max: 3 },
+      resolutionCondition: null, resolverTaskType: null, resolverTaskPriority: null,
+      onStart: [{ kind: "finance_delta", field: "cashCents", cents: -7 }], onResolve: [],
+      ...overrides,
+    };
+  }
+
+  it("W84.1: an eligible definition rolls against its declared chance, and a successful roll's start effects apply before objectives runs", () => {
+    const isolated: WorldGraphKindState = {
+      ...state(), incidents: [], buildings: [],
+      map: { ...state().map, zones: [] },
+      objectives: [{ id: "storm-hit", state: "active", value: 0, target: 1, satisfiedSinceTick: null, updatedAtTick: 0 }],
+    };
+    const rolledContent = {
+      ...content(),
+      incidents: [stormDefinition()],
+      objectives: [{
+        id: "storm-hit", completion: { kind: "compare", metric: { kind: "finance", field: "cashCents" }, op: "lte", value: 95 },
+        progressMetric: null, target: 1, requiredDurationTicks: 1, onCompleted: [], tags: [],
+      }],
+    } as unknown as WorldGraphCampaign;
+
+    const run = (rollValue: number) => {
+      const scratch = createTickScratch();
+      const recording = resolutionEmitter();
+      const random = createTickRandom(0, () => constantRng(rollValue), scratch);
+      const frame: WorldGraphTickFrame = { processingTick: 0, content: rolledContent, emit: recording.emit, random, scratch, changes: new BatchChanges(), state: isolated };
+      const afterIncidents = incidents(frame);
+      const afterObjectives = objectives(afterIncidents);
+      return { state: afterObjectives.state, events: recording.events };
+    };
+
+    const succeeded = run(1); // 1 <= 5000 basis points: the roll succeeds.
+    expect(succeeded.state.incidents).toHaveLength(1);
+    expect(succeeded.state.incidents[0]).toMatchObject({ definitionId: "storm", startedAtTick: 0, expiresAtTick: 3, resolvedAtTick: null });
+    expect(succeeded.state.finances.cashCents).toBe(93); // onStart's -7 applied.
+    expect(succeeded.state.counters.incidentsRaised).toBe(1);
+    expect(succeeded.state.objectives[0]?.state).toBe("met"); // proves onStart ran before system 17.
+    expect(succeeded.events.some((event) => event.name === "kind.world-graph.incident.raised"
+      && event.data?.definitionId === "storm")).toBe(true);
+
+    const failed = run(10000); // 10000 > 5000 basis points: the roll fails.
+    expect(failed.state.incidents).toHaveLength(0);
+    expect(failed.state.finances.cashCents).toBe(100);
+    expect(failed.state.counters.incidentsRaised).toBe(0);
+    expect(failed.state.objectives[0]?.state).toBe("active");
+    expect(failed.events.some((event) => event.name === "kind.world-graph.incident.raised")).toBe(false);
+  });
+
+  it("W84.2: consumes a draw only for a scope with an eligible definition, and a later scope's outcome is unaffected by an earlier scope's failed roll", () => {
+    const base: WorldGraphKindState = { ...state(), incidents: [], map: { ...state().map, zones: [] } };
+    const buildingOnly = { ...content(), incidents: [stormDefinition({ id: "hazard", rollScope: "building", rollChanceBasisPoints: 10000 })] } as unknown as WorldGraphCampaign;
+    const worldAndBuilding = {
+      ...content(),
+      incidents: [
+        stormDefinition({ id: "storm", rollScope: "world", rollChanceBasisPoints: 0 }), // always fails against constantRng(1).
+        stormDefinition({ id: "hazard", rollScope: "building", rollChanceBasisPoints: 10000 }),
+      ],
+    } as unknown as WorldGraphCampaign;
+
+    const run = (roundContent: WorldGraphCampaign) => {
+      const scratch = createTickScratch();
+      const counter = { calls: 0 };
+      const random = createTickRandom(0, () => countingRng(constantRng(1), counter), scratch);
+      const frame: WorldGraphTickFrame = { processingTick: 0, content: roundContent, emit: resolutionEmitter().emit, random, scratch, changes: new BatchChanges(), state: base };
+      return { state: incidents(frame).state, draws: counter.calls };
+    };
+
+    const onlyBuilding = run(buildingOnly);
+    const worldThenBuilding = run(worldAndBuilding);
+    expect(onlyBuilding.state.incidents).toHaveLength(1);
+    expect(worldThenBuilding.state.incidents.filter((entry) => entry.definitionId === "hazard")).toEqual(onlyBuilding.state.incidents);
+    expect(worldThenBuilding.state.incidents.some((entry) => entry.definitionId === "storm")).toBe(false); // the world scope's roll failed.
+    expect(worldThenBuilding.draws).toBe(onlyBuilding.draws + 1); // exactly the failing world scope's one extra draw.
+  });
+
+  it("W84.2: visits scopes in world, zone id, then building id order, allocating occurrences in that order", () => {
+    const base: WorldGraphKindState = { ...state(), incidents: [] };
+    const allScopesContent = {
+      ...content(),
+      incidents: [
+        stormDefinition({ id: "world-def", rollScope: "world", rollChanceBasisPoints: 10000 }),
+        stormDefinition({ id: "zone-def", rollScope: "zone", rollChanceBasisPoints: 10000 }),
+        stormDefinition({ id: "building-def", rollScope: "building", rollChanceBasisPoints: 10000 }),
+      ],
+    } as unknown as WorldGraphCampaign;
+    const scratch = createTickScratch();
+    const random = createTickRandom(0, () => constantRng(1), scratch);
+    const frame: WorldGraphTickFrame = { processingTick: 0, content: allScopesContent, emit: resolutionEmitter().emit, random, scratch, changes: new BatchChanges(), state: base };
+    const result = incidents(frame).state;
+    expect(result.incidents.map((entry) => entry.definitionId)).toEqual(["world-def", "zone-def", "building-def"]);
+    expect(result.incidents.map((entry) => ({ zoneId: entry.zoneId, buildingId: entry.buildingId }))).toEqual([
+      { zoneId: null, buildingId: null },
+      { zoneId: "beach", buildingId: null },
+      { zoneId: null, buildingId: "building:0" },
+    ]);
+  });
+
+  it("W84.3: an active occurrence blocks its definition/scope, a retained one blocks through its cooldown, and the block lifts exactly on the cooldown-end tick", () => {
+    const scopedContent = { ...content(), incidents: [stormDefinition({ rollScope: "building", rollChanceBasisPoints: 10000, cooldownTicks: 20 })] } as unknown as WorldGraphCampaign;
+    const runAt = (processingTick: number, existing: WorldGraphKindState["incidents"][number]) => {
+      const scratch = createTickScratch();
+      const random = createTickRandom(processingTick, () => constantRng(1), scratch);
+      const withExisting: WorldGraphKindState = { ...state(), map: { ...state().map, zones: [] }, incidents: [existing] };
+      const frame: WorldGraphTickFrame = { processingTick, content: scopedContent, emit: resolutionEmitter().emit, random, scratch, changes: new BatchChanges(), state: withExisting };
+      return incidents(frame).state;
+    };
+
+    // §4.18's cooldown window is `startedAtTick + cooldownTicks`, not measured from resolution —
+    // cooldownTicks: 20 here so the window still spans past this occurrence's own resolution.
+    const active = { id: "incident:99", definitionId: "storm", buildingId: "building:0", guestId: null, zoneId: null, position: null, amount: 1, startedAtTick: 0, expiresAtTick: null, resolvedAtTick: null };
+    expect(runAt(30, active).incidents).toHaveLength(1); // still active: blocked regardless of cooldown.
+
+    const retained = { ...active, resolvedAtTick: 10 };
+    expect(runAt(19, retained).incidents).toHaveLength(1); // 19 < 0 + 20: still in cooldown.
+    const lifted = runAt(20, retained).incidents;
+    expect(lifted).toHaveLength(2); // 20 >= 0 + 20: cooldown lifted, a new occurrence rolls.
+    expect(lifted.some((entry) => entry.startedAtTick === 20)).toBe(true);
+  });
+
+  it("W84.4: resolves on a true resolution condition as well as on expiry, and the resolved tick is written before resolve effects run", () => {
+    const resolvableContent = {
+      ...content(),
+      incidents: [{
+        ...stormDefinition({ durationTicks: null }),
+        resolutionCondition: { kind: "compare", metric: { kind: "finance", field: "cashCents" }, op: "gte", value: 100 },
+        // A same-definition "current" resolve is a documented no-op once already resolved
+        // (20-contract.md §14.2) — proving resolvedAtTick was written before this list ran.
+        onResolve: [{ kind: "resolve_incident", incidentDefinitionId: "storm", incidents: "current" }],
+      }],
+    } as unknown as WorldGraphCampaign;
+    const active = { id: "incident:5", definitionId: "storm", buildingId: null, guestId: null, zoneId: null, position: null, amount: 1, startedAtTick: 0, expiresAtTick: null, resolvedAtTick: null };
+    const scratch = createTickScratch();
+    const random = createTickRandom(3, () => constantRng(1), scratch);
+    const withActive: WorldGraphKindState = { ...state(), map: { ...state().map, zones: [] }, buildings: [], incidents: [active] };
+    const changes = new BatchChanges();
+    const frame: WorldGraphTickFrame = { processingTick: 3, content: resolvableContent, emit: resolutionEmitter().emit, random, scratch, changes, state: withActive };
+    const result = incidents(frame).state;
+    expect(result.incidents[0]).toMatchObject({ id: "incident:5", resolvedAtTick: 3 });
+    expect(changes.finish().filter((entry) => entry.path === "incidents.incident:5.resolvedAtTick")).toHaveLength(1);
+  });
+
+  it("W84.5: an incident already active from an earlier system this tick is not rolled again, against the guest-litter path", () => {
+    const litterDefinition = {
+      id: "litter", kind: "litter", severity: "minor",
+      triggerCondition: { kind: "constant", value: true }, rollScope: "building",
+      rollChanceBasisPoints: 10000, selectionWeight: 1, cooldownTicks: 0, durationTicks: null,
+      resolutionCondition: null, resolverTaskType: "clean", resolverTaskPriority: 1,
+      onStart: [], onResolve: [],
+    };
+    const serviceContent = {
+      ...content(),
+      products: [{ id: "water", unitCostCents: 0, price: { defaultCents: 0 }, effects: [], litter: { incidentDefinitionId: "litter", unitsPerService: 1 } }],
+      buildings: [{
+        id: "kiosk", footprint: { width: 1, height: 1 }, entrances: [{ x: 0, y: 0 }], adjacencyEffects: [],
+        operation: { kind: "service", products: [{ productId: "water", serviceTicks: 0 }], queueMaxLength: 5, baseServiceTicks: 0, staffRequirements: [], effects: [] },
+      }],
+      incidents: [litterDefinition],
+    } as unknown as WorldGraphCampaign;
+    const served: WorldGraphKindState = {
+      ...state(),
+      incidents: [],
+      buildings: [{ ...state().buildings[0]!, pricesCents: { water: 0 }, inventory: { water: null }, queue: { ...state().buildings[0]!.queue, serviceStartedAtTick: 0 } }],
+      guests: [{ ...state().guests[0]!, cashCents: 0 }],
+    };
+    const scratch = createTickScratch();
+    const random = createTickRandom(0, () => constantRng(1), scratch);
+    const frame: WorldGraphTickFrame = { processingTick: 0, content: serviceContent, emit: resolutionEmitter().emit, random, scratch, changes: new BatchChanges(), state: served };
+    const afterService = guestService(frame);
+    expect(afterService.state.incidents.filter((entry) => entry.definitionId === "litter" && entry.buildingId === "building:0")).toHaveLength(1);
+    const afterIncidents = incidents(afterService).state;
+    expect(afterIncidents.incidents.filter((entry) => entry.definitionId === "litter" && entry.buildingId === "building:0")).toHaveLength(1);
   });
 });
 

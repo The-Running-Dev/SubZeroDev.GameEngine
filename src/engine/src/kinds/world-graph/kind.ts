@@ -42,6 +42,7 @@ export const worldGraphKind: Kind<WorldGraphKindState> = {
     "kind.world-graph.guest.spawned",
     "kind.world-graph.guest.served",
     "kind.world-graph.incident.resolved",
+    "kind.world-graph.incident.raised",
     "kind.world-graph.tick.finalized",
   ],
   initialState: (campaign, ctx) => initialState(campaign, ctx),
