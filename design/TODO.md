@@ -208,19 +208,19 @@
 
 ### [x] W77 — Tier 1 and Tier 2 as an Author-Facing Check {#w77}
 
-### [ ] W78 — Localization Coverage and String Extraction {#w78}
+### [x] W78 — Localization Coverage and String Extraction {#w78}
 
-### [ ] W79 — What Changed Between Two Resolutions {#w79}
+### [x] W79 — What Changed Between Two Resolutions {#w79}
 
-### [ ] W80 — Seeing a Story Graph {#w80}
+### [x] W80 — Seeing a Story Graph {#w80}
 
 ### Correctness Debt — The Tick Pipeline Runs Twenty Systems and Implements Fifteen
 
-### [ ] W81 — Construction Finishes What `build` Starts {#w81}
+### [x] W81 — Construction Finishes What `build` Starts {#w81}
 
-### [ ] W82 — A Kiosk That Ran Out Can Be Refilled {#w82}
+### [x] W82 — A Kiosk That Ran Out Can Be Refilled {#w82}
 
-### [ ] W83 — Buildings Get Dirty, Wear Out, and Break {#w83}
+### [x] W83 — Buildings Get Dirty, Wear Out, and Break {#w83}
 
 ### [ ] W84 — Incidents That Happen On Their Own {#w84}
 
