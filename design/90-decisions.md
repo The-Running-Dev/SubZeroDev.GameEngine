@@ -940,3 +940,17 @@ is the class of latent content bug W83 existed to remove.
 Reversibility: cheap — the guard is one condition and the §9.2 sentence is one clause. Widening it
 back would reject content that is valid under this entry, so it is a one-way door for any campaign
 authored against it.
+
+### 2026-08-21 — `/verify`'s repo-specific gate table moves into a companion, not the core
+Context: `/kit-sync` fast-forwarded `~/.agent-kit` and found this repository's `.claude/commands/verify.md`
+edited with no `.claude/commands/verify-local.md` beside it — an `Unmigrated-Blocked` core, per
+`.claude/COMPANIONS.md`. The edit was the repository's own gate table (`ci.yml`, `verify.yml`,
+`docs-ci.yml`, `host-image.yml` steps and their local-run commands), which the kit's `verify.md`
+core declares as the `gate-commands` category a companion may override.
+Chosen: Move the gate table verbatim into `.claude/commands/verify-local.md` under a `## gate-commands`
+heading, then let the sync take the core outright (`Superseded`). `Test-Companion.ps1` confirmed
+the split (22 cores checked, 0 findings).
+Rejected: **Leave the core edited and skip the sync for this file** — keeps the repository unable
+to receive any future `verify.md` update without repeating this exact reconciliation.
+Reversibility: cheap — the companion is one file under a declared category; deleting it reverts to
+the kit's own default gate discovery.
