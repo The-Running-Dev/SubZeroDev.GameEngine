@@ -8,16 +8,25 @@
   already does - so it needs the same GH_TOKEN. Without it, an unauthenticated gh turns
   S12.5 into a could-not-evaluate (TrackerUnavailable) rather than a check of anything this
   step is meant to gate.
+
+  This regression only applies once the kit's design-state tracking is adopted here and
+  verify.yml has grown the "Check the design state against the tree" step this test compares
+  against - the kit's own compatibility promise (design/90-decisions.md, 2026-08-19) does not
+  migrate that step to installed targets, so its absence here is not a divergence to report.
 #>
+
+$script:CIWorkflowPath = Join-Path (Split-Path $PSScriptRoot -Parent) '.github/workflows/verify.yml'
+$script:SkipCIWorkflowGhTokenTest = -not (Test-Path $script:CIWorkflowPath) -or
+    -not (Select-String -LiteralPath $script:CIWorkflowPath -Pattern '- name: Check the design state against the tree' -Quiet)
 
 Describe 'CI workflow: the Run Pester tests step is authenticated (#79)' {
 
     BeforeAll {
-        $script:WorkflowPath = Join-Path (Split-Path $PSScriptRoot -Parent) '.github/workflows/verify.yml'
+        $script:WorkflowPath = $script:CIWorkflowPath
         $script:Lines = Get-Content -LiteralPath $script:WorkflowPath
     }
 
-    It 'the "Run Pester tests" step carries a GH_TOKEN env, the same as "Check the design state against the tree"' {
+    It 'the "Run Pester tests" step carries a GH_TOKEN env, the same as "Check the design state against the tree"' -Skip:$script:SkipCIWorkflowGhTokenTest {
         $stepIndex = ($script:Lines | Select-String -Pattern '- name: Run Pester tests').LineNumber
         $stepIndex | Should -Not -BeNullOrEmpty
 

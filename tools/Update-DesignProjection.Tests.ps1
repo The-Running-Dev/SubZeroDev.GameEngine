@@ -7,8 +7,14 @@
   Test-DesignState.ps1, Read-DesignState.ps1 and Test-DesignDrift.ps1 already use.
 
   Every fixture below is written into $TestDrive under a throwaway root; the final Describe
-  block is explicit about reading this repository's own tree instead.
+  block is explicit about reading this repository's own tree instead - it asserts on this
+  repo's *own* adopted design-state content, so it is skipped (never a false pass or fail) on
+  a repository the kit's compatibility promise (design/90-decisions.md, 2026-08-19) says is
+  not migrated: no design/state/ at all.
 #>
+
+$script:DesignProjectionSelfTestRoot = Split-Path $PSScriptRoot -Parent
+$script:SkipDesignProjectionSelfTests = -not (Test-Path (Join-Path $script:DesignProjectionSelfTestRoot 'design/state'))
 
 BeforeAll {
     $script:ScriptPath = Join-Path $PSScriptRoot 'Update-DesignProjection.ps1'
@@ -362,7 +368,7 @@ Hand-authored tail, outside every region.
     }
 }
 
-Describe 'Update-DesignProjection against this repository''s own tree' {
+Describe 'Update-DesignProjection against this repository''s own tree' -Skip:$script:SkipDesignProjectionSelfTests {
 
     BeforeAll {
         $script:RepoRoot = Split-Path $PSScriptRoot -Parent

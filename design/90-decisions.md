@@ -954,3 +954,34 @@ Rejected: **Leave the core edited and skip the sync for this file** — keeps th
 to receive any future `verify.md` update without repeating this exact reconciliation.
 Reversibility: cheap — the companion is one file under a declared category; deleting it reverts to
 the kit's own default gate discovery.
+
+### 2026-08-21 — The same kit sync's design-state self-tests are skipped, not satisfied
+Context: the 693fa16 kit sync also brought `tools/Test-DesignState.Tests.ps1`,
+`tools/Read-DesignState.Tests.ps1`, `tools/Update-DesignProjection.Tests.ps1` and
+`tools/Test-CIWorkflow.Tests.ps1`. Each carries a Describe block asserting "against this
+repository's own tree" — literal content of `~/.agent-kit`'s own `design/state/` (9 Contract
+records, `design/state-index.md`, a specific decision file, a `Check the design state against
+the tree` CI step with `GH_TOKEN`). That block is true of the kit repository, which has adopted
+its own design-state mechanism, but this repository has not: the 2026-08-19 kit entry, "Design
+state becomes addressable records...", scoped the mechanism as "proven on this repository's
+[the kit's] own `design/` as its first and only migration; the eighteen installed targets get a
+compatibility promise and are not migrated." The self-tests were never audited against that
+promise, so `verify.yml`'s "Run Pester tests" step (`# verification: true`) went red here with
+12 failures plus one `BeforeAll`/`AfterAll` abort (S12.6, `Remove-Item design/state` on a tree
+that has none), none of which are a defect in this repository's own content.
+Chosen: guard each self-referential `Describe`/`It` with `-Skip:` computed at Pester discovery
+time from whether `design/state/` (or, for `Test-CIWorkflow.Tests.ps1`, the "Check the design
+state against the tree" workflow step) exists in this repository — false and unevaluated rather
+than a false pass or fail, mirroring how `Test-DesignState.ps1` itself already treats an
+installed target's missing `design/state/` (S12.6: `StateSetAbsent`, exit 2, never a silent 0).
+Rejected: **Adopt design-state here to satisfy the tests** — turns a CI fix into an unscoped
+feature adoption the user did not ask for, against "one unit at a time." **Exclude these four
+`.Tests.ps1` files from `Sync-Kit.ps1`'s copy** — leaves the underlying kit defect (a test suite
+not scoped for its own compatibility promise) unfixed upstream, and silently drops future
+coverage this repository's tools/*.ps1 counterparts still need. **Delete the self-referential
+blocks entirely** — loses real regression coverage the kit repository itself relies on when this
+file is later resynced there.
+Reversibility: cheap here — four `-Skip:` guards, reverted by deleting them. Not yet applied
+upstream: `~/.agent-kit`'s own copies of these four files carry the same unguarded blocks, so an
+unmodified future `/kit-sync` will overwrite this fix. Worth raising with the kit maintainer
+directly rather than resolving unattended from this repository.

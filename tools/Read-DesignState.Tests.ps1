@@ -9,8 +9,14 @@
 
   Every fixture below is written into $TestDrive as design/state/... under a throwaway root;
   none of these tests (other than the S4.6 closure checks, which are explicit about reading the
-  real one) read this repository's own design/state/.
+  real one) read this repository's own design/state/. The S4.6 block asserts on this repo's
+  *own* adopted design-state content, so it is skipped (never a false pass or fail) on a
+  repository the kit's compatibility promise (design/90-decisions.md, 2026-08-19) says is not
+  migrated: no design/state/ at all.
 #>
+
+$script:ReadDesignStateSelfTestRoot = Split-Path $PSScriptRoot -Parent
+$script:SkipReadDesignStateSelfTests = -not (Test-Path (Join-Path $script:ReadDesignStateSelfTestRoot 'design/state'))
 
 BeforeAll {
     $script:ScriptPath = Join-Path $PSScriptRoot 'Read-DesignState.ps1'
@@ -219,7 +225,7 @@ Affects: unit/command/track
     }
 }
 
-Describe 'Read-DesignState against this repository''s own state set' {
+Describe 'Read-DesignState against this repository''s own state set' -Skip:$script:SkipReadDesignStateSelfTests {
 
     BeforeAll {
         $script:RepoRoot = Split-Path $PSScriptRoot -Parent

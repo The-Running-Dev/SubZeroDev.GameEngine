@@ -7,8 +7,14 @@
   Test-DesignDrift.ps1, Wait-PullRequestCheck.ps1 and Read-DesignState.ps1 already use.
 
   Every fixture below is written into $TestDrive under a throwaway root; the final Describe
-  block is explicit about reading this repository's own tree instead.
+  block is explicit about reading this repository's own tree instead - it and the other
+  self-referential blocks below assert on this repo's *own* adopted design-state content, so
+  they are skipped (never a false pass or fail) on a repository the kit's compatibility
+  promise (design/90-decisions.md, 2026-08-19) says is not migrated: no design/state/ at all.
 #>
+
+$script:DesignStateSelfTestRoot = Split-Path $PSScriptRoot -Parent
+$script:SkipDesignStateSelfTests = -not (Test-Path (Join-Path $script:DesignStateSelfTestRoot 'design/state'))
 
 BeforeAll {
     $script:ScriptPath = Join-Path $PSScriptRoot 'Test-DesignState.ps1'
@@ -776,7 +782,7 @@ trailing prose
         $result.CouldNotEvaluate.Detail | Should -Match 'GlobTableNotFound'
     }
 
-    It 'this repository''s own table and its own enumeration agree' -Tag 'NearMiss','GlobDisagreement' {
+    It 'this repository''s own table and its own enumeration agree' -Tag 'NearMiss','GlobDisagreement' -Skip:$script:SkipDesignStateSelfTests {
         $repo = Split-Path $PSScriptRoot -Parent
         $result = Test-GlobDisagreement -RepoPath $repo -ContractPath (Join-Path $repo 'design/20-contract.md')
         $result.CouldNotEvaluate | Should -BeNullOrEmpty
@@ -1043,7 +1049,7 @@ Binds: I999
     }
 }
 
-Describe 'Test-DesignState against this repository''s own tree' {
+Describe 'Test-DesignState against this repository''s own tree' -Skip:$script:SkipDesignStateSelfTests {
 
     BeforeAll {
         $script:RepoRoot = Split-Path $PSScriptRoot -Parent
@@ -1300,13 +1306,15 @@ Binds: I999
     }
 }
 
-Describe 'S12.6: a checkout with design/state/ removed' {
+Describe 'S12.6: a checkout with design/state/ removed' -Skip:$script:SkipDesignStateSelfTests {
 
     BeforeAll {
         # A real copy of this repository, minus design/state/ - the shape every installed target
         # has by construction, since nothing under the kit's own design/ is on INSTALL.md's
         # artifact list. Built from the tree rather than from a fixture so that "the state set is
-        # absent" is asserted against a checkout that is otherwise complete.
+        # absent" is asserted against a checkout that is otherwise complete. Requires this repo to
+        # itself have design/state/ to strip - guarded by $script:SkipDesignStateSelfTests same as
+        # the "against this repository's own tree" block above.
         $script:S12RepoRoot = Split-Path $PSScriptRoot -Parent
         $script:S12Checkout = Join-Path $TestDrive 'checkout-without-state'
         New-Item -ItemType Directory -Path $script:S12Checkout -Force | Out-Null

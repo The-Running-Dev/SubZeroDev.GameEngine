@@ -57,7 +57,7 @@ Write `<target>/.github/workflows/claude-code-review.yml` with the chosen trigge
 - Whether the workflow file was created, and its path
 - Whether the GitHub App is already installed on the target (`gh api /repos/{owner}/{repo}/installation` if reachable; otherwise say it could not be checked) — if not, give the user the install URL and ask them to do it and confirm back
 - Whether `ANTHROPIC_API_KEY` (or `CLAUDE_CODE_OAUTH_TOKEN`) already exists as a repository secret (`gh secret list` — this shows names only, never values, so checking existence is safe) — if not, give the user the exact `gh secret set <NAME>` command to run **themselves**, in their own terminal
-- **Do not commit, push, or open a pull request.** This command stops at the report for sign-off, the same as `/install` and `/kit-sync` — a workflow file that grants CI a repository secret is not something this command lands unattended.
+- **Do not commit, push, or open a pull request.** This command stops at the report for sign-off. `/install` and `/kit-sync` no longer do (`INSTALL.md` phase 4 step 8) and this one still does, on its own reason rather than theirs: a workflow file that grants CI a repository secret is not something to land before the user has confirmed the App install and the secret exist.
 
 ## Never
 
