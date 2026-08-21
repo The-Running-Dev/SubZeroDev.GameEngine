@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 5e57cdfffa73d97331c6bdbe5066a39794c4da9285f6f76f64e0b9271a5a9380 -->
+<!-- design-digest: 4ca6b1cf9e90f70473f77f57539a3b493becbd2c3fbd58998f7e4d9ad3263158 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -17,53 +17,51 @@ directly.
 SubZeroDev.GameEngine is a deterministic narrative-game engine written in TypeScript. It
 separates game-independent execution (the core) from game-category rules (a kind) and campaign
 data, then exposes every game through one session API. Text, MCP, and browser clients are
-siblings over that API; none owns rules or holds authoritative state. Node.js is the proven
-runtime, and the same public entry point bundles for a standards-based browser without a reduced
-fork — a downstream client repository ships that browser build today.
+siblings over that API; none owns rules or holds authoritative state.
 
 Use this guide when integrating the package, implementing a client or campaign, or extending an
 engine-owned kind. The exact public types, signatures, error tables, persisted schemas, and
-assertable invariants live in the
-[generated contract](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/design/20-contract.md).
+assertable invariants live in [Core Specification](/docs/engine/core) and the kind contracts it
+links to — this guide never repeats a signature that document already owns.
 
 ## What exists today
 
 - The core engine, content builder, tiered validation, session and profile stores, save
-  migration, observability, the determinism harness, and cross-version replay are all
-  implemented.
-- `story-graph` is the flagship, MVP-complete kind: content, projection, text client and MCP all
-  cover it. Six campaigns — the Bulgaria Bureaucracy arc, four further Bulgaria arcs, and Lucifer
-  Chronicles — provide real fixtures.
-- `simulation` is a real, registered kind: state, content definitions, the weekly resolution
-  pipeline, validation, and a full player projection (`SimulationView`) all exist. Its text-client
-  and MCP coverage now matches `story-graph`'s row of the API coverage checklist one for one, and
-  the Stable Life fixtures prove both a winning and a losing replay path.
-- `world-graph` is a real, registered kind — the same status as the other two. Its twenty-system
-  tick pipeline (build, utility, routing, queues, staff, finance, incidents, terminal precedence)
-  is registered, ordered, and tested for that ordering. Two of the twenty systems are
-  known-and-retained stubs or partial implementations (one no-op, one partial); see
-  `design/90-decisions.md`, *Known-and-retained implementation gaps: `world-graph` tick systems*,
-  for the current list.
-- **There is no browser demo in this repository.** A public `/play/` route existed, ran the
-  shipped `story-graph` campaigns as a story shelf over the same session-store boundary the text
-  and MCP clients use, and was removed from the site build in W69. The play surface is now
+  migration, observability, the determinism harness, and cross-version replay are all specified
+  as a complete, buildable contract.
+- **`story-graph`** is the flagship kind. Its MVP Definition of Done — a playable arc, a
+  requirement-gated retry, a visited-count loop, a seeded random transition, an achievement that
+  fires exactly once, byte-identical replay under two clients, and profile-scoped achievement
+  persistence — is fully specified and checked, one box at a time, against named tests.
+- **`simulation`** is a real, registered kind against the same seam: state, content definitions,
+  the weekly resolution pipeline, validation, reason codes, events, and terminal identity are all
+  specified in full. The contract is explicit that "the shape is whole" is not the same claim as
+  "every system is built" — several end-of-week systems are documented, deliberately inert stubs
+  behind their normative pipeline position, because the flagship slice only needed enough logic to
+  prove a goal can be won and lost. `design/90-decisions.md` carries the current stub list.
+- **`world-graph`** is the third kind: a navigable world with autonomous inhabitants, advanced in
+  fixed ticks through a twenty-system pipeline. As of the current contract, every system that
+  pipeline names is real — the tick-system register in `design/90-decisions.md` closes with no
+  rows outstanding — though the flagship game built on it (Sun Trap) is a separate repository with
+  its own content, balance, and client.
+- **The public browser demo that once lived at `/play/` is retired.** It proved browser
+  portability and clients-never-hold-state; the play surface is now
   [SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures), a client
-  repository that consumes this engine as a pinned git submodule and adds a hosted API, durable
-  persistence, and accounts — with no reciprocal engine change. The retired route's browser
-  adapter and its tests still live under `site/src/play/` and still run: they remain the evidence
-  behind the browser column of the API coverage checklist, not leftovers.
-- A Platform-backed static container exists: an ASP.NET Core host under `src/host/` that packages
-  the verified combined artifact as an immutable image, serving `/`, `/roadmap/`, and `/docs/`.
-  It is an alternative delivery surface for the same bytes, not a hosted engine API, and GitHub
-  Pages remains the public host. Its design block is now historical, but the workflow that builds,
-  smokes, and publishes it still runs on every merge.
-- Content pack resolution and experiment gating are implemented and exported: `resolvePacks`,
-  `applyExperimentGates`, `computeResolutionId`, `resolveBucketKey`, `resolveExperimentAssignments`,
-  and the `ExperimentSource` port. One piece is deliberately unbuilt: `SessionHost.experiments` is
-  declared but read by nothing, because the session layer receives an already-resolved registry
-  and has no way to derive the assignment map itself. Resolve packs above the session seam.
-- Privacy-safe session capture is specified, not implemented — it is deferred to the hosting layer
-  that gates it.
+  repository consuming this engine as a pinned git submodule. The engine-side portability property
+  it proved is still binding — see [Browser portability](#browser-portability) — but this
+  repository no longer asserts it over an emitted bundle, because it no longer emits one.
+- A Platform-backed static container exists as an alternative delivery surface for the same site
+  artifact (`/`, `/roadmap/`, `/docs/`), composed with `SubZeroDev.Platform.Hosting`. It is
+  historical relative to its own design document but its build/smoke/publish workflow still runs;
+  it is not a hosted engine API, and GitHub Pages remains the public host.
+- Content pack resolution and identity (merge, override, dependency, and the `ResolutionId`
+  digest that becomes a campaign's `campaignVersion`) are fully specified. Experiment gating's
+  machinery is specified alongside it, with one explicitly named gap: the composition-root field
+  that would carry a resolved assignment map into the session layer is declared but read by
+  nothing — see [Content packs](#content-packs-and-experiment-gates).
+- Session capture — turning a played session into a committed replay fixture — is specified as a
+  privacy contract, not implemented. It is deliberately gated on a hosting layer this repository
+  defers entirely.
 
 ## The mental model
 
@@ -86,12 +84,21 @@ The split is strict:
 - A **kind** owns one category's turn model, its own state shape, what an action means, scene
   rendering, projection, campaign validation, event names, reason codes, migration, and terminal
   identity.
-- A **campaign** is immutable, validated data for exactly one kind.
+- A **campaign** is immutable, validated data for exactly one kind — a kind is engine code,
+  reviewed and compiled in; a campaign is data anyone (including AI) may author, validated
+  identically regardless of who produced it.
 - The **session store** owns persisted state and command ordering; the pure engine itself keeps
-  no session.
+  no session and does no I/O.
 - A **client** presents projected DTOs and submits declared inputs. The moment it needs to compute
   an outcome, read raw state, or emulate a store operation that does not exist, the boundary has
-  broken.
+  broken — [Clients](#clients) makes this testable rather than aspirational.
+
+Whether something you're adding is a new kind or just a campaign has one test, stated in full in
+[Architecture](/docs/engine/architecture): a kind exists only when its resolution logic cannot be
+expressed as validated data over an *existing* kind's `advance`. A richer state shape, a bigger
+turn quantum, or a new theme never qualifies on their own — story-graph's node graph, simulation's
+weekly plan, and world-graph's tick pipeline all differ by more than that; each needed genuinely
+new code inside `advance`, not just more data.
 
 ## Install and consume the package
 
@@ -101,18 +108,20 @@ surfaces — nothing lets a caller reach into internal modules.
 
 Build one composition root per process:
 
-1. Build and validate a content registry.
+1. Build and validate a content registry (directly, or by resolving an ordered set of content
+   packs — see [Content packs](#content-packs-and-experiment-gates)).
 2. Register the kinds the campaigns in that registry need.
 3. Create the pure engine from the registry, the kinds, and any deterministic id/event ports the
-   host wants.
+   host wants (see [Extensibility](#extensibility-and-ports)).
 4. Create the session service from the engine plus concrete session and profile persistence.
 5. Give clients the session service and nothing else.
 
 The engine performs no filesystem or network I/O while resolving play. Parsing JSON or YAML,
 reading files, database access, clocks, hosting, and process lifetime all belong to outer
-adapters.
+adapters — that boundary is what makes "the full suite passes with no DOM and no network adapter
+installed" a structural property rather than a discipline.
 
-## Published narrative content lives outside this repository
+### Published narrative content lives outside this repository
 
 Narrative campaigns are authored and published by
 [SubZeroDev.Adventures.Content](https://github.com/The-Running-Dev/SubZeroDev.Adventures.Content),
@@ -120,26 +129,21 @@ not by this repository. It builds portable JSON from TypeScript campaign sources
 manifest hosts fetch. This engine stays the authority for deterministic mechanics, kinds,
 validation, and portable hydration.
 
-The package root (`@the-running-dev/game-engine`) is for runtime hosts. A separate subpath,
-`@the-running-dev/game-engine/authoring`, is for repositories that own campaign source: it exports
-the content-registry builder, the story-graph and adventure source builders and their migration
-helpers, portable serialization and manifest-digest functions, and replay-runner types. Import
-from `/authoring` only when writing or publishing campaign content — a runtime host must never
-import authored campaign source merely to play already-published portable JSON.
+The package root is for runtime hosts. A separate subpath, `/authoring`, is for repositories that
+own campaign source: it exports the content-registry builder, the story-graph and adventure source
+builders and their migration helpers, portable serialization and manifest-digest functions, and
+replay-runner types. Import from `/authoring` only when writing or publishing campaign content —
+a runtime host must never import authored campaign source merely to play already-published
+portable JSON. `toPortable` and the manifest-resolution digest are `/authoring`-only;
+`fromPortable` is root-only; the portable-campaign digest function is exported from both, because
+both a runtime host verifying fetched content and a publishing pipeline digesting source before it
+ships need it.
 
-`toPortable` and `digestManifestResolution` are `/authoring`-only. `fromPortable` is root-only.
-`digestPortableCampaign` is exported from both, because both a runtime host verifying fetched
-content and a publishing pipeline digesting source before it ships need it.
-
-A handful of frozen campaigns (the Bulgaria Bureaucracy arc among them) still ship as package-root
-exports for compatibility. They are regression fixtures, not a publication source, and the
-breaking `0.9.0` release removes them from the root — that peg has already moved once, from
-`0.8.0`, because `0.8.0` was spent on an additive release instead, so check
-`src/engine/package.json` against `design/20-contract.md` §19 before assuming which release does
-it. Build against `/authoring` and the Adventures.Content feed, not against these root exports,
-when integrating narrative content going forward. The retired `/play/` route follows the same
-boundary and is removed in the same release; its browser host for published content going forward
-is [SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures).
+A handful of frozen campaigns still ship as package-root exports for compatibility. They are
+regression fixtures, not a publication source, and a later breaking release removes them from the
+root — check `src/engine/package.json` against
+[Core Specification §19](/docs/engine/core) before assuming which release does it, since the
+removal's target version has already moved once.
 
 ## Build content before creating the engine
 
@@ -161,9 +165,10 @@ failure boundary: a Tier 1 error means there is no registry and therefore no pla
 - **Tier 1, hard failure** — duplicate or invalid ids, dangling references, undeclared variables,
   mistyped effects, missing strings, invalid weights, forbidden namespace writes, and other static
   contract violations.
-- **Tier 2, warning** — unreachable content, suspicious cycles, non-interactive story campaigns,
-  and similar structures that may be deliberate.
-- **Tier 3, simulation/replay** — unwinnable states, never-satisfiable actions, and anything that
+- **Tier 2, warning** — unreachable content, suspicious cycles, non-interactive campaigns that
+  settle straight to an ending, and similar structures that may be deliberate (a vignette, a test
+  fixture).
+- **Tier 3, simulation/replay** — unwinnable states, never-satisfiable choices, and anything that
   cannot be decided by reading definitions alone. Not part of load, and not proven by the
   determinism harness either — that harness compares a build against itself, which cannot tell you
   whether an ending is reachable. Tier 3 is an author-facing check run out of band: `npm run
@@ -173,43 +178,40 @@ failure boundary: a Tier 1 error means there is no registry and therefore no pla
   has ever been checked. The search is bounded (an explored-state cap, a turn-depth cap, the same
   settle-step cap the engine itself enforces), and it reports `bounded` whenever any cap was hit
   anywhere. **A bounded result means "not proven," never "passed."** Treat the two as identical and
-  you get a guarantee the checker never offered — it declines to credit an ending found exactly at a
-  cap so it never claims to have explored more than it did.
+  you get a guarantee the checker never offered — it declines to credit an ending found exactly at
+  a cap so it never claims to have explored more than it did.
 
 Every registered code — Tier 1, Tier 2, and the codes a kind uses to reject a player action —
 needs a localized message, or registry construction fails; a validation code never reaches a
 player, because a campaign carrying a Tier 1 finding never produces a registry at all. How
-specific those codes are is a per-kind choice: `story-graph` publishes twelve, `world-graph`
-twenty-nine, because its content is a map, a terrain graph, ten catalogues, and a scenario, and
-one generic "invalid definition" would not tell an author which of them was wrong. The full
-per-kind lists are in
-[the contract](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/design/20-contract.md).
+specific those codes are is a per-kind choice — `story-graph` publishes a dozen, `world-graph`
+closer to thirty, because its content is a map, a terrain graph, ten catalogues, and a scenario,
+and one generic "invalid definition" would tell an author nothing about which shape was wrong. The
+full per-kind lists live in [Story-Graph Kind](/docs/engine/story-graph-kind),
+[Simulation Kind](/docs/engine/simulation-kind), and [World-Graph Kind](/docs/engine/world-graph-kind).
 
 AI-authored content takes this same path. AI may draft campaign data; it never authors or loads
-executable kinds.
+executable kinds — that boundary is what "the engine always validates the final result" means
+concretely.
 
-A **campaign-shape builder** takes the same path for the same reason. `adventure-builder.ts` is the
-built one — a parameterized function that takes authored prose, choices and endings and emits the
-repetitive graph topology around them. Eight of the nine shipped story-graph campaigns are
-constructed through it; `what-would-lucifer-do-engineers-cut` and the Tier 3 reachability fixture
-are written out longhand instead, which is the point proven in practice rather than just stated: a
-campaign whose topology genuinely differs can simply skip the builder. It is tooling, not a layer:
-it runs before the engine, emits an ordinary campaign source, is validated by the tiers above
-exactly as hand-written content is, and leaves no trace in `serialize()`. A campaign is free not to
-use one; that freedom is what keeps a shared shape a convenience rather than an undeclared content
-schema.
+A **campaign-shape builder** takes the same path for the same reason: a parameterized function
+that emits the repetitive graph topology around authored prose, choices, and endings. It runs
+before the engine, produces an ordinary campaign source, is validated by the tiers above exactly
+as hand-written content is, and leaves no trace in `serialize()`. A campaign is free not to use
+one; that freedom is what keeps a shared shape a convenience rather than an undeclared fourth
+content schema.
 
-### Assembling a registry from content packs
+### Content packs and experiment gates
 
 There are two ways to reach a registry, and they differ in what they can say about identity.
-`buildContentRegistry` folds already-built campaigns and knows nothing about packs. `resolvePacks`
-folds an **ordered** array of packs, and the order is significant: a later pack replaces an
-earlier campaign wholesale by id, and replaces strings per key. That asymmetry is deliberate — a
-culture pack must be able to restyle one line without restating a whole campaign, but a campaign
+The direct builder folds already-built campaigns and knows nothing about packs. The pack resolver
+folds an **ordered** array of content packs, and the order is significant: a later pack replaces
+an earlier campaign wholesale by id, and replaces strings per key. That asymmetry is deliberate —
+a culture pack must be able to restyle one line without restating a whole campaign, but a campaign
 is a validated graph, and a field-level merge across packs could produce one no pack author ever
 validated.
 
-`resolvePacks` is pure and total: either every structural check passes and the call returns a
+Pack resolution is pure and total: either every structural check passes and the call returns a
 complete registry, or it returns every conflict at once and no registry. The checks: a pack's
 `kindId` matches every campaign it carries; a `dependsOn` names a pack present in the set at
 exactly that version; no two packs require different versions of the same pack; there is no
@@ -220,15 +222,14 @@ almost always a misspelled key that would otherwise fail invisibly at play.
 Dependencies are exact `{id, version}` pairs; there is no range solving, deliberately — a
 backtracking resolver would make *which content a game ran against* non-deterministic.
 
-A pack's own `version` is not something its author hand-writes. It is derived —
-`1.0.0+<canonical-digest-12>` over the pack's campaigns and its sorted string table — so the
-version moves automatically whenever the pack's content moves, rather than depending on every
-author of a file that feeds a pack remembering to bump a constant nobody's file mentions. Treat it
-as generated identity, not a field to edit by hand. The type does not enforce this — `version` is
-a plain string, and today each pack file (`stable-life-packs.ts`) calls its own local helper to
-compute it, so a new pack is only correct if its author copies the pattern.
+A pack's own `version` is not something its author hand-writes. It is a canonical digest over the
+pack's campaigns and its sorted string table, prefixed `1.0.0+`, so the version moves
+automatically whenever the pack's content moves rather than depending on an author remembering to
+bump a constant. Treat it as generated identity, not a field to edit by hand — the type does not
+enforce this today, so a new pack is only correct if its author follows the same convention as the
+shipped ones.
 
-The identity consequence is the part worth planning around. `resolvePacks` digests the ordered
+The identity consequence is the part worth planning around. Pack resolution digests the ordered
 `{id, version}` list into a `ResolutionId` and stamps it as the `version` of every campaign it
 produces, so a game records the content it actually ran against rather than a campaign version two
 different pack sets could share. **Reordering packs therefore changes every campaign version**,
@@ -236,14 +237,25 @@ and every existing save becomes a save of a different content version. That is c
 means pack order is not a knob to adjust on a live deployment. Experiment gates ride the same
 identity mechanism: two sessions resolving different variants resolve different pack sets, hence
 different `ResolutionId` digests, hence different `campaignVersion`s, with no additional
-machinery.
+machinery — a gate is simply one more reason a pack might not be in the resolved set.
+
+The `ExperimentSource` port resolves a stable variant per `(experimentId, bucketKey)` at
+session-creation time — `bucketKey` is `profileId` when the session is profiled, else the seed —
+and `null` always means "not enrolled," never a value that could accidentally match a gate. That
+resolution has to happen *before* the pack array reaches the resolver above, and it is host-side
+composition: build one `Engine` per distinct assignment combination, keyed by the `ResolutionId`
+that combination's resolution produces, and route each `createSession` call to the right one.
+**One field this composition would use is declared and unread today**: the session host's
+`experiments` field has nowhere to receive an already-resolved assignment map, because the session
+layer only ever sees an already-resolved `ContentRegistry`. Resolve assignments and packs above the
+session seam until that gap closes; see [Content Packs](/docs/engine/content-packs) §5a–§6 for the
+full mechanism this summarizes.
 
 ## Use the session API, not raw engine state
 
 The session service is the application boundary. It provides campaign listing, creation, resume,
 scene/view queries, localization strings, action submission, preview, save, and load. Exact
-operation signatures are in the
-[contract](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/design/20-contract.md#public-signatures).
+operation signatures live in [Core Specification](/docs/engine/core).
 
 Starting a session takes a campaign id, an optional explicit seed, an optional audience, and an
 optional profile id — there is no `locale` parameter. When no seed is supplied the session
@@ -276,8 +288,10 @@ sequenceDiagram
 ```
 
 Different sessions resolve concurrently. Commands for the same `sessionId` are serialized by the
-store, so the second command always reads the first command's committed state. A query returns a
-projection of one complete stored revision, never a half-written one.
+store, so the second command always reads the first command's committed state. A separate lock
+domain, keyed by `profileId`, serializes only the profile upsert — the two never couple, which is
+what lets many players' sessions interleave freely. A query returns a projection of one complete
+stored revision, never a half-written one.
 
 A stored session record carries more than the serialized envelope: an `audience`, an
 `attemptCounter` only `submitAction` increments, an optional `profileId`, a `replayCompatible`
@@ -305,7 +319,7 @@ Failures throw `SessionStoreError`, because none of the store's return shapes ha
 could travel in. It is not opaque: `operation` names the call and `code` is a registered reason
 code with a shipped `core.reason.*` message, so a client renders it through the string table like
 any other rejection and never reads `message`. Whatever exception an adapter raises is caught and
-re-raised as `storage_failure` by default — a Postgres timeout and a browser quota error are
+re-raised as `storage_failure` by default — a database timeout and a browser quota error are
 deliberately indistinguishable to a client, since neither admits a different response.
 
 One failure is classified rather than flattened: a **lost update**. The store's per-session lock
@@ -344,8 +358,8 @@ never reads the profile.
 - A failed profile write warns but never rolls back the completed game action.
 - Never put profile identity or profile contents into `GameState`.
 
-Arbitrary kind-owned profile data is not currently supported; profile-scoped simulation event
-chains in particular remain outside the executable contract.
+Arbitrary kind-owned profile data is not currently supported; a `"profile"`-scoped simulation event
+chain in particular has nowhere to persist yet and remains an open item.
 
 ## Projection is mandatory
 
@@ -373,51 +387,52 @@ kind:
   acts on it without knowing the kind; `consequence_applied` belongs to `story-graph`. A kind
   adding an audit reason registers it like any other code.
 
-### Building a browser client
+### Clients
+
+The contract behind all of this is one testable rule: two different clients, given the same
+campaign, seed, `IdSource`, and action sequence, must produce byte-identical `serialize()` output.
+A client contributes nothing to a game but the order of the actions it submits. A client may only
+call the `SessionStore` surface — it does not import the pure engine, a kind, the registry, or the
+projection machinery. It may render what the store returns, format it for locale, and cache the
+latest scene to redraw; it may never decide which actions are available, evaluate a condition
+itself, compute a consequence, string-match English to infer meaning, or retry a rejected action
+automatically. If removing the client and driving the store directly would change the game, the
+client is doing something it should not.
+
+### Browser portability
 
 This repository no longer ships a browser client. Its own `/play/` route was removed from the site
-build in W69; the play surface is
+build; the play surface is
 [SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures), a client
 repository consuming this engine as a pinned submodule. If you are building a browser client,
-build it the way Adventures does.
+build it the way Adventures does: a composition root separate from the client, assembling the
+engine, the kind, validated campaigns, and the session store, and passing the browser adapter
+nothing but a `SessionStore` and a frozen startup configuration carrying plain titles and campaign
+ids — no registry access, no deep import.
 
-The engine-side constraints below still apply, because they are about the *engine's* browser
-boundary rather than about a specific route. Adventures proves the two rules that matter most: a
-client composes the engine and the engine never learns the client exists, and adding a hosted API,
-durable persistence, and accounts required no reciprocal engine change.
+The engine-side constraints still apply, because they are about the *engine's* browser boundary
+rather than about a specific route:
 
-Keep the composition root separate from the client. The root assembles the engine, the kind,
-validated campaigns, and the session store, resolves each campaign's title before start, and
-passes a frozen startup configuration carrying plain titles and campaign ids to the page. The
-browser adapter and any UI components use `SessionStore` as their only game-facing dependency —
-they do not read a registry, and `Start` remains the action that creates the session.
+- The same supported package entry point must bundle for Node.js and the browser, with no `node:`
+  import and no unguarded Node global in its production graph.
+- Save checksums remain SHA-256 over the same canonical bytes and stay synchronous, computed by a
+  portable library rather than Web Crypto — `crypto.subtle.digest` is async, and adopting it would
+  mean async-ifying the whole envelope path to obtain an identical digest.
+- Browser hosts must define the `__GAME_ENGINE_PRODUCTION__` build-time flag themselves. Node
+  callers fall back to `NODE_ENV`; a browser bundle that omits it silently gets dev-mode emitter
+  behavior.
+- Checkpoints work the same way anywhere: the UI layer holds a `SessionStore` and calls
+  `saveGame`/`loadGame` — it never sees a blob, an envelope, or a storage key. A host composition
+  root supplies a `SessionPersistence` adapter (over `localStorage`, for instance). Storage is
+  best-effort: a quota error or disabled storage surfaces as `storage_failure` and the run
+  continues in memory, and "saved" is claimed only after a write the adapter confirmed.
+- Whatever route a client serves must be a real static document, never an SPA fallback.
 
-The package root exports the committed campaign builders so a composition root needs no deep
-import — a builder and its id constant, never anything that would let a caller assemble or mutate
-nodes. `TextClient` is exported for the same composition reason plus one more: the browser/text
-parity proof cannot instantiate the other client without it.
-
-The same supported engine entry point must bundle for Node.js and the browser, with no `node:`
-import and no unguarded Node global in its production graph. Save checksums remain SHA-256 over
-the same canonical bytes and stay synchronous, computed by a portable library rather than Web
-Crypto — `crypto.subtle.digest` is async, and adopting it would mean async-ifying the whole
-envelope path to obtain an identical digest.
-
-**Nothing in this repository proves browser portability anymore, and that check is now yours.**
-The scan for `node:` specifiers and unguarded Node globals used to run over the emitted `/play/`
-bundle; with that route retired there is no engine code left in this repository's bundles for it
-to see. If you ship a browser build of this package, scan your own emitted bundle — Adventures
-does, and that is now the only place the property is actually asserted.
-
-Browser hosts must define the `__GAME_ENGINE_PRODUCTION__` build-time flag. Node callers fall back
-to `NODE_ENV`; a browser bundle that omits it silently gets dev-mode emitter behavior.
-
-Checkpoints work the same way anywhere: React (or an equivalent UI layer) holds a `SessionStore`
-and calls `saveGame`/`loadGame` — it never sees a blob, an envelope, or a storage key. A host
-composition root supplies a `SessionPersistence` adapter (over `localStorage`, for instance).
-Storage is best-effort: a quota error or disabled storage surfaces as `storage_failure` and the run
-continues in memory, and "saved" is claimed only after a write the adapter confirmed. Whatever
-route a client serves must be a real document in its static artifact, never an SPA fallback.
+**Nothing in this repository proves browser portability anymore, and that check is now yours if
+you ship a bundle.** The scan for `node:` specifiers and unguarded Node globals used to run over
+the emitted `/play/` bundle; with that route retired there is no engine code left in this
+repository's own bundles for it to see. Adventures carries the assertion now, over a bundle it can
+actually see — scan your own emitted bundle the same way.
 
 ## Determinism rules that will bite you
 
@@ -429,67 +444,85 @@ by following these rules in every resolution path:
   math function.
 - Do not persist an RNG cursor — derive a fresh handle from seed and stable stream id every time.
 - Do not let a client supply a time or money cost the engine can derive itself.
-- Sort dictionary keys before any state-affecting traversal.
+- Sort dictionary/record keys before any state-affecting traversal.
 - Define explicit tie-breaks for every unordered candidate set.
-- Keep money in integer cents and simulation rates in integer basis points.
+- Keep money in integer cents and simulation/world rates in integer basis points; keep every other
+  scored or accumulated value integer, with any fraction expressed as fixed-point.
 - Keep wall-clock metadata outside the game envelope.
 - Add a new action parameter to the declared schema before letting it affect behavior.
 
-The stream key matters as much as the generator. Per-action draws use the successful action
-sequence. World-level autonomous draws use simulated tick and system. Agent draws use the agent's
-own stored draw counter, never the number of client submissions that happened first — keying an
-agent's randomness to the action sequence would make it depend on how many actions preceded it,
-which is exactly what a per-agent stream exists to avoid.
+The stream key matters as much as the generator — `deriveStream(seed, streamId)` is a pure
+function of the pair, so which id you key by is the whole determinism story for that draw.
+Per-action draws use the accepted action's sequence number; a start-of-game draw uses its own
+`system:"start"` stream, distinct from the first action's, so the two can never collide even
+though both use sequence zero. World-level autonomous draws (a spawn roll, an incident roll) key
+by simulated tick and the drawing system's own stable id, never by how many API calls it took to
+reach that tick — this is what makes a tick batch reproduce identically however a caller splits
+it. Agent draws use the agent's own stored draw counter, never the number of client submissions
+that happened first — keying an agent's randomness to the action sequence would make it depend on
+how many actions preceded it, which is exactly what a per-agent stream exists to avoid.
 
-The same-build harness proves byte identity, property-seed reproducibility, and emitter
-independence: every golden fixture replays under `nullEmitter` and under `createRecordingEmitter()`
-with byte-identical `serialize()` output. It also proves event-stream reproducibility directly —
-the same fixture, run twice under a recording emitter, is asserted to yield the identical event
-sequence (names, order, data), with `gameId` normalized out because a replay is a new game and
-legitimately carries a new one. None of this by itself detects a deterministic *behavior* change;
-that is the cross-version replay oracle's job, below.
+The same-build determinism harness proves byte identity, property-seed reproducibility, and
+emitter independence: every golden fixture replays under the discarding default emitter and under
+a recording one with byte-identical `serialize()` output. It also proves event-stream
+reproducibility directly — the same fixture, run twice under a recording emitter, is asserted to
+yield the identical event sequence (names, order, data), with `gameId` normalized out because a
+replay is a new game and legitimately carries a new one. None of this by itself detects a
+deterministic *behavior* change; that is the cross-version replay oracle's job, in
+[Replay](#replay-and-incident-diagnosis).
 
 ## Story-graph campaigns
 
 Use `story-graph` for authored branching narrative whose unit of play is one choice.
 
-A campaign declares bool, bounded-int, and enum variables; choice, automatic, random, and ending
-nodes; choices with optional visibility and availability conditions; typed consequences over
-declared variables; conditional achievements; and localization keys with authored text.
+A campaign declares bool, bounded-int, and enum variables (deliberately no free-string type —
+narrative text is localization keys, not state); choice, automatic, random, and ending nodes;
+choices with optional visibility and availability conditions; typed consequences over declared
+variables; conditional achievements; and localization keys with authored text.
 
-There are two different gates on a choice:
+There are two different gates on a choice, and conflating them is the easiest mistake to make:
 
 - `showWhen` removes a choice completely. Submitting its id returns exactly what submitting an
-  unknown id returns, so a client — or an AI agent over MCP — cannot probe for secret paths.
-- `requirements` leaves the choice visible but unavailable and supplies a player-facing reason.
+  unknown id returns, so a client — or an AI agent over MCP — cannot probe for secret paths by
+  telling the two apart.
+- `requirements` leaves the choice visible but unavailable and supplies a player-facing reason —
+  the common case, and the Transparent Consequences principle in practice.
 
 After every transition the kind enters the destination node, increments its visit count and turn,
-applies achievement checks, and settles through automatic/random nodes until it reaches another
-choice or an ending. Random settlement draws from the scoped seeded stream, and a bounded settle
-guard turns a pass-through cycle into a defect rather than an infinite loop.
+and settles through automatic/random nodes until it reaches another choice or an ending; a "turn"
+in this kind is just this transition count, kept as an ordinary kind-owned field rather than a
+core concept, because what a turn means differs by kind. Random settlement draws from the scoped
+seeded stream, and a bounded settle guard turns a pass-through cycle into a defect rather than an
+infinite loop. Achievements are evaluated after every turn, as conditions over state — there is no
+`unlock` consequence, so a campaign fires one at a narrative moment by setting a variable there and
+letting the achievement condition read it.
 
 Only variables declared visible appear in the player view or in text interpolation.
 Relationships, money, and campaign-specific clocks are all ordinary typed variables — the kind
-imposes no relationship or currency model of its own.
+imposes no relationship or currency model of its own; a campaign that wants a mechanical clock
+declares an int and advances it itself, since the built-in turn counter is deliberately just a
+transition count.
 
 The MVP's worked example — the Bulgaria Bureaucracy arc — exercises every part of this at once:
-typed variables and clamping, requirement-gated retries with a real reason, a self-referential
-loop gated on a visit count, a seeded random transition, and a single achievement that fires
-exactly once. The full authored form is in the
-[contract's worked example](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/design/20-contract.md#12-worked-example--the-mvp-bureaucracy-arc).
+typed variables and clamping, a requirement-gated retry with a real reason, a self-referential loop
+gated on a visit count, a seeded random transition, and a single achievement that fires exactly
+once. The full authored form is in [Story-Graph Kind](/docs/engine/story-graph-kind).
 
 ## Simulation campaigns
 
 Use `simulation` for a weekly life simulation whose unit of play is a complete week. The player
 builds an immutable plan with logged `plan.add`, `plan.remove`, and `plan.clear` actions, then
-submits `end_week` to resolve it.
+submits `end_week` to resolve it — assembling a plan is therefore replayable at the same grain as
+playing it, because every one of those calls is its own logged action.
 
 The week pipeline is contract behavior, not an implementation detail. Start-of-week time handling
 splits around effect expiry — the week must increment before checking which effects have expired,
-but commitments must be recomputed after, because an expiring effect changes what those
-commitments are. End-of-week systems then run once in a fixed, tested order: income and expenses
-run before housing so current wages can fund rent, while finance reconciliation runs after housing
-so arrears and eviction see that week's actual rent decision.
+because expiry compares against the new week number, but commitments must be recomputed after,
+because an expiring effect changes what those commitments are. End-of-week systems then run once in
+a fixed, tested order: income and expenses run before housing so current wages can fund rent, while
+finance reconciliation runs after housing so arrears and eviction see that week's actual rent
+decision; a week-limit check runs after goals and failure have already applied the scenario's own
+tie-break between them, and before achievements, which need to see the final resolution.
 
 **State stores base values; modifiers never write to state.** A derived value is computed on every
 read by layering active modifiers over the base, in a fixed order: sum the adds and subtracts,
@@ -501,82 +534,121 @@ would disagree with what the same field shows in the view.
 
 **Being derived does not make a path read-only; having no stored counterpart does.**
 `player.needs.*`, `player.attributes.*`, and `player.skills.*` are derived *and* writable — a
-modifier setting a need for three weeks is the motivating case. The four formula-only paths —
-`player.housing.quality`, `player.career.effectivePerformance`, `calendar.energyRecoveryRate`,
-`world.strangeness` — have no writable field at all, and a `Modifier` targeting one is a Tier 1
+modifier setting a need for three weeks is the motivating case. Four paths — housing quality,
+effective job performance, the calendar's energy-recovery rate, and world strangeness — are
+formula-only with no stored field at all, and a modifier targeting one of them is a Tier 1
 `read_only_field` error.
 
 Important constraints:
 
 - Plan time and money totals derive from the planned actions; they are never serialized fields.
-- Action costs always come from content/engine rules, never caller input.
+- Action costs always come from content/engine rules, never caller input — fourteen zero-cost job
+  applications a week is exactly the failure mode this closes off.
 - The `custom` action is an adapter-translation placeholder with no resolver — translate it to a
-  concrete supported action before submission.
-- Opportunities distinguish acceptance, decline, expiry, and revocation explicitly.
-- Scheduled events fire once committed; cancellation requires an explicit shared chain id.
-- Hidden exact economy values project as bands, not raw optimization inputs.
+  concrete supported action before submission; there is no route around the resolver table for it
+  to take.
+- Opportunities distinguish acceptance, decline, expiry, and revocation explicitly, because turning
+  an offer down and letting it lapse are different acts once NPCs remember things.
+- Scheduled events fire once committed, unconditionally, even if their triggering condition has
+  since drifted; cancellation requires an explicit shared chain id rather than re-checking
+  eligibility at fire time, which would let a multi-week chain break silently in the middle.
+- Hidden exact economy values project as bands (`cold`/`steady`/`hot`), not raw optimization
+  inputs a player could game the job-availability formula with.
 
-The player view (`SimulationView`) carries the calendar, identity, finances, needs, attributes,
-education, career, housing, inventory, and relationships — with `luck` and relationship
-`resentment` stripped, `flags`/`counters` withheld entirely, status effects reduced to their
-visible fields, opportunities limited to what is currently offered and unexpired, and sector demand
-exposed only as a band (`cold`/`steady`/`hot`), never the raw value job-availability rolls read.
-It also carries the pending plan itself and everything a client needs to build one: every
-currently-offerable action type for `plan.add`, and the plan's own action list so a client can
-compute a valid `plan.remove` index.
+The player view carries the calendar, identity, finances, needs, attributes, education, career,
+housing, inventory, and relationships — with the hidden `luck` attribute and relationship
+`resentment` stripped, internal flags and counters withheld entirely, status effects reduced to
+their visible fields, and opportunities limited to what is currently offered and unexpired. It also
+carries the pending plan itself and everything a client needs to build one: every currently
+offerable action type, and the plan's own action list so a client can compute a valid
+`plan.remove` index — `AvailableAction` itself carries no parameter schema for this kind, exactly
+as it does not for `world-graph`.
 
 Terminal identity is a record on state, not a computation. The `goals`, `failure`, and
-`week_limit` end-of-week systems write `SimulationKindState.resolution` once, while campaign data
-is still in scope, and `Kind.outcome` simply reads it back — it cannot derive one, since it
-receives no campaign and a scenario's week limit is campaign data. **Precedence is settled: goals
-and failure always win over the week limit.** A week that both lands every goal and exhausts the
-limit reports `goals_met`; a week that both fails a goal and exhausts the limit reports `failed`,
-the more specific fact; `week_limit_reached` is what a week reports only when neither goals nor
-failure had anything to say. Across multiple goals the resolution stays conservative: any single
-failed goal makes the whole resolution `failed`.
+`week_limit` end-of-week systems write the resolution once, while campaign data is still in scope,
+and `Kind.outcome` simply reads it back — it cannot derive one itself, since it receives no
+campaign and a scenario's week limit is campaign data. **Precedence is settled: goals and failure
+always win over the week limit.** A week that both lands every goal and exhausts the limit reports
+goals met; a week that both fails a goal and exhausts the limit reports failure, the more specific
+fact; the week-limit result is what a week reports only when neither goals nor failure had anything
+to say. The default tie-break between simultaneous goal completion and failure itself favors goals,
+because the alternative — reporting a loss on a player who reached every goal but was also evicted
+in a race they could not see coming — is the worst available ending; a scenario may opt into the
+opposite for a difficulty that prizes survival over achievement.
 
-The Stable Life fixtures prove both winning and losing engine/replay paths. The full state, action,
-and projection catalogue is in the
-[contract's simulation-kind section](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/design/20-contract.md).
+The full state, content-definition, and reason-code catalogue is in
+[Simulation Kind](/docs/engine/simulation-kind).
 
 ## World-graph campaigns
 
 Use `world-graph` for a navigable world with autonomous inhabitants, where the unit of play is a
-batch of simulated ticks rather than a single choice or a week. `worldGraphKind` is exported from
-the package root and registered exactly as `story-graph` and `simulation` are, with all twenty
-tick systems registered, ordered, and tested for that ordering. Two of the twenty are
-known-and-retained stubs or partial implementations — see `design/90-decisions.md` for the current
-list.
+batch of simulated ticks rather than a single choice or a week. This is the third engine-owned
+kind, registered exactly as the other two are.
 
 Its load-bearing property is **batch invariance**: for any two non-negative tick counts, starting
-from identical kind state, campaign, and seed, `advance_ticks (a + b)` and `advance_ticks a`
-followed by `advance_ticks b` must finish in deeply equal canonical kind state. Four rules make
-this hold — no system observes a batch's requested length, cleanup runs only in a dedicated
-finalize system rather than after the outer loop, this kind draws nothing from the per-action RNG
-stream, and world/agent draws key off simulated tick and a stored draw counter rather than off how
-a client happened to batch its requests.
+from identical kind state, campaign, and seed, advancing by their sum and advancing by each in
+sequence must finish in deeply equal canonical kind state (envelope action logs legitimately
+differ; this is a kind-state property, not byte identity). Four rules make it hold: no system
+observes a batch's requested length; cleanup runs only in a dedicated finalize system, never after
+the outer loop; this kind draws nothing from the per-action RNG stream and never references the
+action sequence number; and world draws key off simulated tick plus the drawing system's own
+stable id, while agent draws key off that agent's own stored counter — never off how a client
+happened to batch its requests.
 
-A scenario selects a map from the campaign-owned catalog; a pure builder validates and materializes
-typed definitions before play begins. One atomic tick then runs the fixed, twenty-system pipeline —
-pathfinding and routing, queue and service handling, staff work, finance, incidents, and terminal
-precedence — in that declared order every time.
+One atomic tick runs a fixed, twenty-system pipeline, always in this order:
 
-`AvailableAction` carries no parameter schema, and for this kind that matters: enumerating `build`
-against every definition, every map cell, and every rotation is combinatorial. So the seam splits
-— `availableActions` returns the spatial verbs themselves (`build`, `demolish`, `hire_staff`,
-`assign_staff`, `set_price`, `advance_ticks`, and the rest) with an availability flag and reason,
-while the parameter domain — the build catalogue, staff roster, price ranges — lives entirely in
-the projection. This kind is also why `previewAction` exists at all: a spatial placement has to be
-checkable before it commits, and nothing else in the seam could do that without risking a second,
-drifting copy of the placement rules.
+```mermaid
+flowchart LR
+  S1["1 scenario"] --> S2["2 guest-spawn"] --> S3["3 guest-needs"] --> S4["4 guest-service"]
+  S4 --> S5["5 queues"] --> S6["6 guest-intent"] --> S7["7 guest-path"] --> S8["8 guest-move"]
+  S8 --> S9["9 task-generate"] --> S10["10 task-assign"] --> S11["11 staff-work"]
+  S11 --> S12["12 construction"] --> S13["13 buildings"] --> S14["14 cleanliness-wear"]
+  S14 --> S15["15 finance"] --> S16["16 incidents"] --> S17["17 objectives"]
+  S17 --> S18["18 failure"] --> S19["19 alerts"] --> S20["20 tick-finalize"]
+```
+
+Systems 1–19 all read the same immutable `processingTick`; only system 20 performs cleanup and
+increments the tick, exactly once, whether or not a terminal result was reached earlier in the same
+tick. A scenario selects a map from the campaign-owned catalog, and a pure builder validates and
+materializes typed definitions — terrain, zones, buildings, guest archetypes, staff roles,
+incidents, objectives, failures, policies, achievements, scenarios — before play begins.
+
+System 19 (`alerts`) is also where achievements unlock and player-facing alerts are derived: it
+evaluates still-locked achievements against the post-resolution state, then raises, clears, or
+leaves alone one alert per distinct active condition — an open incident, a broken building, a
+scenario resolution — keyed by an engine-derived semantic key that carries no player-authored text,
+so dismissing and re-triggering the same underlying condition never duplicates an alert.
+
+`AvailableAction` carries no parameter schema, and for this kind that matters most of the three:
+enumerating `build` against every definition, every map cell, and every rotation is combinatorial.
+So the seam splits — `availableActions` returns the spatial verbs themselves (`build`, `demolish`,
+`hire_staff`, `fire_staff`, `assign_staff`, `set_price`, `open_building`/`close_building`,
+`dismiss_alert`, `advance_ticks`) with an availability flag and reason, while the parameter domain —
+the build catalogue with costs and unlock state, the staff roster, the price ranges — lives
+entirely in the projection. This kind is also why `previewAction` exists at all: a spatial
+placement has to be checkable before it commits, and nothing else in the seam could do that without
+risking a second, drifting copy of the placement rules.
+
+Because a 360-tick batch with hundreds of guests can emit on the order of 10⁵ operational events,
+`StateChange` here carries **batch-grain** audit only — money aggregated by category, building
+status transitions, objective progress, scenario resolution — never a record per guest transaction.
+Per-guest and per-tick detail is an event instead, which is safe precisely because dropping every
+event is guaranteed to change nothing. The nine actions that mutate without advancing time are the
+exception: each is a single player-initiated command with no volume problem, and each returns its
+own ordinary `StateChange`.
 
 Win and loss are read through `Kind.outcome`, not through `GameStatus` — the same terminal-identity
-mechanism the replay oracle uses for every kind, not a status field specific to this one. A win
-requires at least one declared objective, with every one met; a scenario declaring none has nothing
-to win, which is why validation warns rather than silently granting a win by vacuous truth.
+mechanism every kind uses, not a status field specific to this one. A win requires at least one
+declared objective, with every one met; a scenario declaring none has nothing to win, which is why
+validation warns rather than silently granting a win by vacuous truth. Cash, guest counts,
+satisfaction, and the tick a game ended on are deliberately excluded from terminal identity — every
+one of them changes legitimately under a balance pass, and a regression oracle that treated a
+balance change as a defect would be worthless within a month.
 
-The full system-by-system pipeline, content model, and reason-code table are in the
-[contract's world-graph section](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/design/20-contract.md).
+The full system-by-system pipeline, content model, and reason-code table are in
+[World-Graph Kind](/docs/engine/world-graph-kind). The flagship game built on this kind — Sun Trap —
+and its concrete content, balance, and client live in a separate repository; this contract owns the
+shapes and mechanics, not the numbers.
 
 ## Saves and migrations
 
@@ -604,93 +676,94 @@ not cleanup.
 Use two complementary checks:
 
 - The **determinism harness** reruns one build and compares canonical bytes and events — it
-  answers *is the engine deterministic*, and compares a build against itself.
+  answers *is the engine deterministic*, comparing a build against itself.
 - The **replay oracle** runs committed inputs across engine versions and compares only stable
   outcomes — submission decisions and reasons, achievements, and kind terminal identity. It
   answers *did this change alter a game that already exists*, which the determinism harness is
   blind to by design: a change that alters every game identically is still perfectly
-  deterministic.
+  deterministic and runs green there.
 
-Fixtures record every submitted action and declared params, not internal action-log entries or raw
-state — a rejected submission never advances the engine's own sequence number, so a fixture cannot
-reuse the action log as its submission history. Results are indexed by submission position for the
-same reason.
+Fixtures record every submitted action and its declared params, not internal action-log entries or
+raw state — a rejected submission never advances the engine's own sequence number, so a fixture
+cannot reuse the action log as its submission history. Results are indexed by submission position
+for the same reason, not by that sequence number.
 
 Do not add prose, timestamps, balance values, or serialization bytes to a cross-version outcome —
 those legitimately change without changing what happened to the player, and including them would
-make the oracle cry wolf on every content edit.
+make the oracle cry wolf on every content edit. A kind's own terminal-identity function is held to
+the identical rule: published ids only, never values a balance pass would legitimately move.
 
 A production incident should become a minimal replay fixture when privacy permits. The specified
 capture flow excludes identity, timing, raw state, and undeclared parameters; capture happens only
-for an explicit report or an error-severity event. Promotion into the committed corpus is reviewed
-and never automatic — that hosting integration is not implemented yet.
+for an explicit report or an error-severity event, never as background collection. Promotion into
+the committed corpus is a reviewed, one-way step — a capture is personal data until a human
+confirms identity and undeclared params are absent, and once committed to git it cannot be deleted
+the way a retention window can delete an unpromoted capture. That hosting integration is not
+implemented yet; the mechanics apply the moment it is, unchanged.
 
 ## Observability without behavioral influence
 
 The engine has two distinct outputs, and conflating them is the mistake this section exists to
 prevent:
 
-- `StateChange` is a localized domain audit record the player may see.
-- `EngineEvent` is operational telemetry for developers and content authors.
+- `StateChange` is a localized domain audit record the player may see, returned in the action
+  result.
+- `EngineEvent` is operational telemetry for developers and content authors, emitted to a sink and
+  never returned, localized, or guaranteed delivered.
 
-Operational events are clock-free inside resolution and use stable names, sequence, ordinal, and
-sanitized scalar data only. The session boundary may add a timestamp, session id, and trace id
-afterward, but never inside resolution itself.
+The one invariant everything else follows from: **removing every event must leave replay
+byte-identical.** `emit` returns `void`, so a kind cannot branch on whether a sink is attached or
+what it did; the core never stamps a timestamp or draws a trace id inside resolution, leaving that
+to the session-store boundary, which is the only layer that legitimately owns a clock. The
+determinism harness enforces this directly — every golden fixture replays under a discarding
+emitter and a recording one with byte-identical output.
 
-Kinds may emit only names they declare under `kind.<kindId>.*`. Emitting an undeclared name, or a
-name outside that namespace, is a coding defect: it throws in every non-production build (dev, CI,
-tests, vitest's own default), so the mistake surfaces long before it ships. In a production build
-(`NODE_ENV=production`) the same violation is silently dropped instead — no event is built or
-emitted, and the resolution that triggered it continues unaffected, on the same "removing every
-event changes nothing" reasoning that already governs a throwing sink.
+Kinds may emit only names they declare under `kind.<kindId>.*`; the core's own `core.*` namespace
+is reserved. Emitting an undeclared name, or a name outside that namespace, is a coding defect that
+the engine construction step and the runtime path both reject in non-production builds. A sink must
+not throw, and the core additionally isolates every `emit` call as defence in depth, so a faulty
+sink cannot abort a resolution or change a game's outcome — attaching a sink is not allowed to be
+able to do that.
 
-An emitter returns nothing. Sink exceptions are isolated by the core, so a throwing sink cannot
-break a game. Removing every event must leave the serialized game byte-identical. Never include
-unresolved caller action ids, free text, identity, or undeclared params in event data.
+Never include unresolved caller action ids, player-authored or campaign-narrative text, or
+undeclared params in event data — an id that resolved to nothing is ordinary play, not a debugging
+fact worth a stream a hosted operator might read without a redaction pass.
 
-## Adding extension points
+## Extensibility and ports
 
-The practical test for a host port is: can it change canonical serialized game state? If yes, it
-does not belong as a host-supplied port at all.
+The practical test for a host port is exactly [Extensibility](/docs/engine/extensibility)'s rule:
+**a host may supply anything that cannot change `serialize()` output.** If an implementation could
+change what a fixture replays to, it does not belong as a host-supplied port at all — it is inside
+the determinism boundary, and the determinism boundary is the trust boundary. Every port below is
+an interface, supplied by value at one composition root, with a default that works, so an embedder
+supplying nothing still gets a functioning engine.
 
-Existing host seams cover deterministic game ids and seeds (`IdSource`), and session and save ids
-(`RecordIdSource`); session-record durability (`SessionPersistence`) and profile persistence
-(`ProfileStore`); operational event sinks; boundary clocks used only for metadata; and experiment
-assignment (`ExperimentSource`), which selects content packs and never reaches a kind.
+- **`IdSource`** supplies `gameId` and `seed` — the two non-deterministic values that *are*
+  written into the envelope. Its default is deliberately random; it is the one place in the
+  platform where that is correct.
+- **`RecordIdSource`** supplies session and save ids, which never enter `GameState` at all — they
+  key host records, not replay state. It is a separate port from `IdSource` for exactly that
+  reason, supplied on the session host rather than the engine host.
+- **`SessionPersistence`** and **`ProfileStore`** cover durability, as already described in
+  [Durability is a host adapter](#durability-is-a-host-adapter-and-the-store-is-not) — note that
+  `SessionStore` itself is *not* a port; what a host replaces sits underneath it.
+- **`Emitter`** is write-only and returns nothing, covered above.
+- **`Clock`** is boundary-only — used for session-record timestamps and event stamping — and is
+  deliberately absent from the engine host, so the pure engine has no route to the wall clock even
+  through a supplied port.
+- **`ExperimentSource`** resolves a variant per session at creation time, described above under
+  [Content packs](#content-packs-and-experiment-gates); a kind can never see or branch on one.
+- **`__GAME_ENGINE_PRODUCTION__`** is not a port at all — it is a build-time flag a bundler
+  substitutes, because a value supplied at construction cannot be tree-shaken. Node hosts define
+  nothing and get the right answer from `NODE_ENV`; browser hosts must define it themselves or
+  silently ship dev-mode emitter behavior.
 
-Note which of the two persistence seams is which. `ProfileStore` is a port in the plain sense —
-supply the whole thing. `SessionStore` is not: it is engine-owned, and what a host replaces is
-`SessionPersistence` underneath it. A store supplied wholesale would be four invariants nobody
-checks.
-
-One further seam is not a port at all and is easy to miss: `__GAME_ENGINE_PRODUCTION__` is a
-build-time flag substituted by the bundler, because a value supplied at construction cannot be
-tree-shaken. Node hosts define nothing and get the right answer from `NODE_ENV`; browser hosts must
-define it themselves.
-
-`RecordIdSource` is easy to mistake for part of `IdSource` and is deliberately separate. `IdSource`
-supplies `gameId` and `seed`, which are written into the envelope and are replay inputs;
-`RecordIdSource` supplies `newSessionId` and `newSaveId`, which never enter `GameState` at all —
-they key the session and save records, which are host metadata. Supply it on the session host, not
-the engine host. Omit it and the layer mints random ids exactly as before. If you implement one:
-return values unique within your store, never derive them from game state, and note that
-`traceId`/`spanId` stay minted internally rather than being covered by this port.
-
-`ExperimentSource` resolves an A/B or feature-flag variant at session-creation time so it can
-select content packs, and it is boundary-only by design — a kind can never see or branch on a
-variant, and the result never enters `GameState`. The port exists and its machinery is built; what
-is not is `SessionHost.experiments`, which is declared and read by nothing. Resolve assignments
-yourself above the session seam: call `resolveBucketKey` (`profileId`, else the seed), then
-`resolveExperimentAssignments` over your candidate packs, then `applyExperimentGates`, then
-`resolvePacks` — and build one `Engine` per resulting registry, keyed by the `ResolutionId` that
-resolution produced. `null` from `resolve` means "not enrolled" and can never match a gate's
-variant, which is what makes "no `ExperimentSource` supplied" safe rather than merely lucky.
-
-Kinds, reducers, migrations, condition meaning, content validation, and deterministic tie-breaks
-remain engine-owned. A new theme, scenario, culture, or body of content is not a new kind. Add a
-kind only when turn model, runtime state, projection, and determinism contract diverge materially
-from every existing one — the [architecture doc's own test](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/design/10-design.md)
-for "is it a kind?" is worth reading before proposing one.
+Kinds and the closed `Condition` operator set are **not** open seams — a third-party kind would put
+unreviewed code inside the determinism boundary, and both are named in
+[Extensibility](/docs/engine/extensibility) as deliberately not a plugin system: no manifest, no
+loader, no dynamic discovery. Adding a kind is engine work, reviewed like any other code, not a
+runtime extension point. A new theme, scenario, or body of content is a campaign, not a new kind —
+apply the "is it a kind?" test in [Architecture](/docs/engine/architecture) before proposing one.
 
 ## Failure handling checklist
 
