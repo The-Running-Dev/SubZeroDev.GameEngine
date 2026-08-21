@@ -837,10 +837,17 @@ interface AlertSource {
 export const alerts: WorldGraphSystem = (frame) => {
   let state = frame.state;
 
+  // One copy of the input up front, then a Set for O(1) membership checks and in-place
+  // pushes instead of an O(n) `.includes` scan and an O(n) array copy per achievement —
+  // same pattern as story-graph/achievements.ts's `evaluateAchievements` (PR #51 review).
+  const unlockedAchievementIds = [...state.unlockedAchievementIds];
+  const unlockedAchievementIdSet = new Set(unlockedAchievementIds);
   for (const achievementDefinition of frame.content.achievements) {
-    if (state.unlockedAchievementIds.includes(achievementDefinition.id)) continue;
+    if (unlockedAchievementIdSet.has(achievementDefinition.id)) continue;
     if (!evaluateCondition(achievementDefinition.condition, state, frame.content)) continue;
-    state = { ...state, unlockedAchievementIds: [...state.unlockedAchievementIds, achievementDefinition.id] };
+    unlockedAchievementIdSet.add(achievementDefinition.id);
+    unlockedAchievementIds.push(achievementDefinition.id);
+    state = { ...state, unlockedAchievementIds };
     frame.changes.record("alerts", `unlockedAchievementIds.${achievementDefinition.id}.exists`, true, "achievement_unlocked", true, false);
     frame.emit.emit("kind.world-graph.achievement.unlocked", "info", { data: { achievementId: achievementDefinition.id } });
   }
@@ -873,11 +880,19 @@ export const alerts: WorldGraphSystem = (frame) => {
   }
 
   const activeKeys = new Set(sources.map((source) => source.semanticKey));
-  for (const alert of [...state.alerts].sort((left, right) => compareRuntimeEntityId(left.id, right.id))) {
-    if (alert.clearedAtTick !== null || activeKeys.has(alert.semanticKey)) continue;
-    state = { ...state, alerts: state.alerts.map((entry) => entry.id === alert.id ? { ...entry, clearedAtTick: frame.processingTick } : entry) };
-    frame.changes.record("alerts", `alerts.${alert.id}.clearedAtTick`, frame.processingTick, "alert_cleared", false);
-    frame.emit.emit("kind.world-graph.alert.cleared", "trace", { data: { alertId: alert.id, type: alert.type } });
+  const toClear = [...state.alerts]
+    .filter((alert) => alert.clearedAtTick === null && !activeKeys.has(alert.semanticKey))
+    .sort((left, right) => compareRuntimeEntityId(left.id, right.id));
+  if (toClear.length > 0) {
+    const clearingIds = new Set(toClear.map((alert) => alert.id));
+    state = {
+      ...state,
+      alerts: state.alerts.map((entry) => clearingIds.has(entry.id) ? { ...entry, clearedAtTick: frame.processingTick } : entry),
+    };
+    for (const alert of toClear) {
+      frame.changes.record("alerts", `alerts.${alert.id}.clearedAtTick`, frame.processingTick, "alert_cleared", false);
+      frame.emit.emit("kind.world-graph.alert.cleared", "trace", { data: { alertId: alert.id, type: alert.type } });
+    }
   }
 
   const representedKeys = new Set(state.alerts.filter((entry) => entry.clearedAtTick === null).map((entry) => entry.semanticKey));

@@ -32,10 +32,10 @@
  * its `onStart` effects, which can reach a visible record exactly like the five above.
  *
  * Reasons recorded only with `visible: false` — `alert_dismissed`, `building_demolished`,
- * `staff_fired`, `staff_assigned`, `guest_spawned` — are deliberately not registered here;
- * see `90-decisions.md` for why that line is where it is. Note `incident_resolved` and
- * `incident_raised` are *not* among them despite each appearing at a `visible: false` site
- * too: their effect-context use above reaches visible records.
+ * `staff_fired`, `staff_assigned`, `guest_spawned`, `alert_raised`, `alert_cleared` — are
+ * deliberately not registered here; see `90-decisions.md` for why that line is where it is.
+ * Note `incident_resolved` and `incident_raised` are *not* among them despite each appearing
+ * at a `visible: false` site too: their effect-context use above reaches visible records.
  */
 
 import type { LocKey } from "../../core/localization/types.js";
