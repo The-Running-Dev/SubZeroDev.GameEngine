@@ -11,6 +11,7 @@
 import type { LocKey } from "../../core/localization/types.js";
 import type { Condition } from "../../core/condition/types.js";
 import type { StateChange } from "../../core/kernel/reasons.js";
+import type { ResolutionEmitter } from "../../core/observability/types.js";
 import { evaluateStoryGraphCondition, toConditionContext } from "./conditions.js";
 import type { StoryGraphKindState } from "./state.js";
 
@@ -35,6 +36,7 @@ export interface AchievementDefinition {
 export function evaluateAchievements(
   achievements: readonly AchievementDefinition[],
   state: StoryGraphKindState,
+  emit?: ResolutionEmitter,
 ): { unlockedAchievements: string[]; changes: StateChange[] } {
   // One copy of the input up front (never mutated after), then a Set for O(1)
   // membership checks and in-place pushes instead of an O(n) `.includes` scan and an
@@ -52,6 +54,7 @@ export function evaluateAchievements(
 
     unlockedIds.add(achievement.id);
     unlocked.push(achievement.id);
+    emit?.emit("kind.story-graph.achievement.unlocked", "info", { data: { achievementId: achievement.id } });
     changes.push({
       path: `achieved.${achievement.id}`,
       op: "set",
