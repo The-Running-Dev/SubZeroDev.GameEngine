@@ -28,6 +28,7 @@
 
 import type { LocKey } from "../../core/localization/types.js";
 import type { StateChange } from "../../core/kernel/reasons.js";
+import type { ResolutionEmitter } from "../../core/observability/types.js";
 
 export type VarType = "bool" | "int" | "enum";
 
@@ -127,6 +128,7 @@ export function applyConsequences(
   schema: VariableSchema,
   variables: Readonly<Record<string, VarValue>>,
   consequences: readonly Consequence[],
+  emit?: ResolutionEmitter,
 ): { variables: Record<string, VarValue>; changes: StateChange[] } {
   const next: Record<string, VarValue> = Object.create(null) as Record<string, VarValue>;
   for (const key of Object.keys(variables)) next[key] = variables[key] as VarValue;
@@ -157,10 +159,14 @@ export function applyConsequences(
   }
 
   const changes: StateChange[] = [];
+  const clampedVars = new Set<string>();
   for (const name of Array.from(before.keys()).sort()) {
     const decl = schema[name]!;
     if (decl.type === "int") {
-      next[name] = clamp(decl, next[name] as number);
+      const raw = next[name] as number;
+      const clampedValue = clamp(decl, raw);
+      if (clampedValue !== raw) clampedVars.add(name);
+      next[name] = clampedValue;
     }
 
     changes.push({
@@ -171,6 +177,16 @@ export function applyConsequences(
       reason: "consequence_applied",
       visible: decl.visible ?? false,
     });
+  }
+
+  // `clamped` reflects the whole batch's clamp for that variable (03 §5), not this
+  // individual effect — clamping happens once, after every effect has applied.
+  if (emit) {
+    for (const c of consequences) {
+      emit.emit("kind.story-graph.consequence.applied", "debug", {
+        data: { variable: c.var, op: c.op, clamped: clampedVars.has(c.var) },
+      });
+    }
   }
 
   return { variables: next, changes };

@@ -83,11 +83,12 @@ export function settle(
     }
 
     if (node.kind === "ending") {
+      emit.emit("kind.story-graph.ending.reached", "info", { data: { endingId: node.endingId } });
       return { state: { ...state, endingId: node.endingId }, status: "ended", changes };
     }
 
     if (node.kind === "auto") {
-      const applied = applyConsequences(schema, state.variables, node.effects ?? []);
+      const applied = applyConsequences(schema, state.variables, node.effects ?? [], emit);
       changes.push(...applied.changes);
       state = enterAndEmit(nodes, { ...state, variables: applied.variables, turn: state.turn + 1 }, node.goto, emit);
       continue;
@@ -98,7 +99,7 @@ export function settle(
     emit.emit("kind.story-graph.random.picked", "debug", {
       data: { nodeId: node.id, goto: picked.goto, weight: picked.weight },
     });
-    const applied = applyConsequences(schema, state.variables, picked.effects ?? []);
+    const applied = applyConsequences(schema, state.variables, picked.effects ?? [], emit);
     changes.push(...applied.changes);
     state = enterAndEmit(nodes, { ...state, variables: applied.variables, turn: state.turn + 1 }, picked.goto, emit);
   }

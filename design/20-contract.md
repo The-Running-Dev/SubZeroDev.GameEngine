@@ -2033,23 +2033,20 @@ is owed, and these are what a developer or a content author needs instead.
 | `node.entered` | `debug` | every `enter(nodeId)` — §8.2 | `nodeId`, `nodeKind`, `visitCount` | delivered |
 | `random.picked` | `debug` | a `random` node chose a transition | `nodeId`, `goto`, `weight` | delivered |
 | `settle.guard_tripped` | `error` | `SETTLE_STEPS` exceeded | `nodeId`; `reason` set | delivered |
-| `choice.submitted` | `debug` | §8.2 step 1, after the choice resolves | `nodeId`, `choiceId` | specified, not yet delivered |
-| `choice.rejected` | `info` | §8.2 step 2 | `choiceId`; `reason` set (§8.3) | specified, not yet delivered |
-| `requirement.evaluated` | `trace` | §8.2 step 2, once per requirement | `choiceId`, `satisfied` | specified, not yet delivered |
-| `consequence.applied` | `debug` | §8.2 steps 3 and 5, per typed effect | `variable`, `op`, `clamped` | specified, not yet delivered |
-| `achievement.unlocked` | `info` | §8.2 step 7 | `achievementId` | specified, not yet delivered |
-| `ending.reached` | `info` | settle landed on an `EndingNode` | `endingId` | specified, not yet delivered |
+| `choice.submitted` | `debug` | §8.2 step 1, after the choice resolves | `nodeId`, `choiceId` | delivered |
+| `choice.rejected` | `info` | §8.2 step 2 | `choiceId`; `reason` set (§8.3) | delivered |
+| `requirement.evaluated` | `trace` | §8.2 step 2, once per requirement | `choiceId`, `satisfied` | delivered |
+| `consequence.applied` | `debug` | §8.2 step 3, and every settle pass-through's own effects (§8.2's settle procedure) | `variable`, `op`, `clamped` | delivered |
+| `achievement.unlocked` | `info` | §8.2 step 7 | `achievementId` | delivered |
+| `ending.reached` | `info` | settle landed on an `EndingNode` | `endingId` | delivered |
 
-> **What "specified, not yet delivered" means, and why the rows stay.** `Kind.eventNames`
-> (04 §3) declares what a kind *may* emit, and the shipped `storyGraphKind` currently
-> declares the four marked delivered. The other six are named here because the names are the
-> contract — an event name is a published identifier a sink filters on (05 §9), so fixing it
-> before the emit site exists costs nothing and renaming it later costs every configured
-> sink. Deleting them instead would lose the design, and leaving them unmarked would claim a
-> stream a host cannot actually observe. Adding one is a matter of declaring it in
-> `eventNames` and emitting it at the step named above; nothing in this table needs
-> redeciding first. This is safe precisely because of 05 §2: dropping every event changes
-> nothing, so a not-yet-emitted event cannot be load-bearing.
+> **All ten rows are delivered.** `Kind.eventNames` (04 §3) declares what a kind *may*
+> emit, and the shipped `storyGraphKind` now declares and emits all ten. Adding an
+> eleventh follows the same shape: declare it in `eventNames`, emit it at the step named
+> above, and it needs no further redeciding — event names are a published identifier a
+> sink filters on (05 §9), fixing the name before the emit site exists costs nothing, and
+> this is safe precisely because of 05 §2: dropping every event changes nothing, so a
+> not-yet-emitted event was never load-bearing.
 
 Two of these carry most of the value, for the two audiences the events exist to serve:
 
