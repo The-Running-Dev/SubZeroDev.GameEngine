@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { RngHandle, StreamId } from "../../../core/determinism/types.js";
 import type { ResolutionEmitter } from "../../../core/observability/types.js";
@@ -6,7 +8,7 @@ import type { WorldGraphKindState } from "../state.js";
 import { worldGraphKind } from "../kind.js";
 import { WORLD_GRAPH_REASON_CODES, WORLD_GRAPH_REASON_MESSAGES } from "../reasons.js";
 import { BatchChanges } from "./changes.js";
-import { compareDefinitionId, WORLD_GRAPH_SYSTEM_IDS } from "./order.js";
+import { compareDefinitionId, WORLD_GRAPH_SYSTEM_IDS, worldGraphSystemIndex, type WorldGraphSystemId } from "./order.js";
 import {
   alerts,
   buildings,
@@ -68,6 +70,7 @@ function countingRng(base: RngHandle, counter: { calls: number }): RngHandle {
 
 interface RecordedResolutionEvent {
   readonly name: string;
+  readonly severity: string;
   readonly data?: Readonly<Record<string, string | number | boolean>>;
 }
 
@@ -75,7 +78,7 @@ function resolutionEmitter(): { readonly emit: ResolutionEmitter; readonly event
   const events: RecordedResolutionEvent[] = [];
   return {
     events,
-    emit: { emit: (name, _severity, detail) => { events.push(detail?.data === undefined ? { name } : { name, data: detail.data }); } },
+    emit: { emit: (name, severity, detail) => { events.push(detail?.data === undefined ? { name, severity } : { name, severity, data: detail.data }); } },
   };
 }
 
@@ -969,7 +972,7 @@ describe("world-graph W81 construction", () => {
     expect(workState.staff[0]).toMatchObject({ status: "idle", tasksCompleted: 1, task: { status: "completed", endedAtTick: 2 } });
     expect(recording.events.filter((entry) => entry.name === "kind.world-graph.construction.progressed")).toHaveLength(3);
     expect(recording.events.filter((entry) => entry.name === "kind.world-graph.construction.completed")).toEqual([
-      { name: "kind.world-graph.construction.completed", data: { constructionSiteId: "construction-site:0", buildingId: "building:1" } },
+      { name: "kind.world-graph.construction.completed", severity: "info", data: { constructionSiteId: "construction-site:0", buildingId: "building:1" } },
     ]);
   });
 
@@ -1474,5 +1477,452 @@ describe("world-graph W85 alerts and achievements", () => {
     const finalizedWithout = finalize(stripped);
     const omit = (value: WorldGraphKindState) => ({ ...value, alerts: null, unlockedAchievementIds: null, nextEntityOrdinal: null });
     expect(omit(finalizedWith)).toEqual(omit(finalizedWithout));
+  });
+});
+
+describe("world-graph W87 tick events", () => {
+  it("W87.1/W87.2: declares every emitted name and emits every declared name — the bidirectional gate against 12 §12's table", () => {
+    const source = (relativePath: string): string => readFileSync(fileURLToPath(new URL(relativePath, import.meta.url)), "utf8");
+    const pipelineSources = [source("./pipeline.ts"), source("./batch.ts")].join("\n");
+    const actionSources = [
+      source("../actions/alerts.ts"), source("../actions/build.ts"),
+      source("../actions/staff.ts"), source("../actions/building.ts"),
+    ].join("\n");
+    const emitted = new Set([
+      ...[...pipelineSources.matchAll(/kind\.world-graph\.[a-z][a-zA-Z0-9_.]*/g)].map((match) => match[0]),
+      ...[...actionSources.matchAll(/emit\(ctx, "([a-z][a-zA-Z0-9_.]*)"/g)].map((match) => `kind.world-graph.${match[1]}`),
+    ]);
+    const declared = new Set(worldGraphKind.eventNames);
+    expect([...declared].filter((name) => !emitted.has(name)), "declared with no emit site").toEqual([]);
+    expect([...emitted].filter((name) => !declared.has(name)), "emitted but never declared").toEqual([]);
+  });
+
+  const kioskContent = {
+    ...content(),
+    terrain: [{ id: "sand", walkable: true, moveCost: 1 }],
+    products: [{ id: "water", unitCostCents: 1, price: { defaultCents: 5 } }],
+    buildings: [{
+      id: "kiosk", footprint: { width: 1, height: 1 }, entrances: [{ x: 1, y: 0 }],
+      operation: {
+        kind: "service",
+        products: [{ productId: "water", serviceTicks: 1, initialUnits: 5, capacity: 5 }],
+        queueMaxLength: 1, baseServiceTicks: 1, staffRequirements: [], staffingTaskPriority: 0, effects: [],
+      },
+    }],
+  } as unknown as WorldGraphCampaign;
+
+  it("W87 guest-needs (system 3): emits guest.meter.changed, trace, for each need that actually drifted, sorted by guest then need", () => {
+    const driftContent = {
+      ...content(),
+      needs: [{ id: "thirst", minimum: 0, maximum: 100, criticalBelow: 0, satisfiedAtOrAbove: 100 }],
+      guestArchetypes: [{
+        ...content().guestArchetypes[0],
+        needs: [{ needId: "thirst", initial: { min: 50, max: 50 }, driftByCurrentValue: { interpolation: "step", points: [{ input: 0, output: -1 }] }, utilityByCurrentValue: { interpolation: "step", points: [{ input: 0, output: 0 }] } }],
+      }],
+    } as unknown as WorldGraphCampaign;
+    const recording = resolutionEmitter();
+    const scratch = createTickScratch();
+    const result = guestNeeds({
+      processingTick: 0, content: driftContent, emit: recording.emit,
+      random: createTickRandom(0, () => rngHandle(), scratch), scratch, changes: new BatchChanges(), state: state(),
+    });
+    expect(result.state.guests[0]?.needs.thirst).toBe(49);
+    expect(recording.events).toEqual([
+      { name: "kind.world-graph.guest.meter.changed", severity: "trace", data: { guestId: "guest:2", meter: "thirst", value: 49 } },
+    ]);
+  });
+
+  it("W87 queues (system 5): emits queue.joined on FIFO admission and service.started once the head is servable", () => {
+    const arriving: WorldGraphKindState = {
+      ...state(),
+      buildings: [{ ...state().buildings[0]!, definitionId: "kiosk", queue: { id: "queue:1", guestIds: [], serviceStartedAtTick: null } }],
+      guests: [{
+        ...state().guests[0]!, lifecycle: "seeking", x: 1, y: 0,
+        intent: { kind: "seek_service", buildingId: "building:0", productId: "water", selectedAtTick: 0 },
+      }],
+    };
+    const recording = resolutionEmitter();
+    const scratch = createTickScratch();
+    const result = queues({
+      processingTick: 0, content: kioskContent, emit: recording.emit,
+      random: createTickRandom(0, () => rngHandle(), scratch), scratch, changes: new BatchChanges(), state: arriving,
+    });
+    expect(result.state.buildings[0]?.queue).toMatchObject({ guestIds: ["guest:2"], serviceStartedAtTick: 0 });
+    expect(recording.events).toEqual([
+      { name: "kind.world-graph.queue.joined", severity: "trace", data: { buildingId: "building:0", guestId: "guest:2" } },
+      { name: "kind.world-graph.service.started", severity: "trace", data: { buildingId: "building:0", guestId: "guest:2", productId: "water" } },
+    ]);
+  });
+
+  it("W87 queues (system 5): emits queue.abandoned, trace, when a queued guest's patience reaches zero", () => {
+    const abandoning: WorldGraphKindState = {
+      ...state(),
+      buildings: [{ ...state().buildings[0]!, definitionId: "kiosk", queue: { id: "queue:1", guestIds: ["guest:2"], serviceStartedAtTick: null } }],
+      guests: [{ ...state().guests[0]!, lifecycle: "queued", patienceRemainingTicks: 0 }],
+    };
+    const recording = resolutionEmitter();
+    const scratch = createTickScratch();
+    queues({
+      processingTick: 0, content: kioskContent, emit: recording.emit,
+      random: createTickRandom(0, () => rngHandle(), scratch), scratch, changes: new BatchChanges(), state: abandoning,
+    });
+    expect(recording.events).toContainEqual({ name: "kind.world-graph.queue.abandoned", severity: "trace", data: { buildingId: "building:0", guestId: "guest:2" } });
+  });
+
+  it("W87 guest-intent (system 6): emits guest.intent.selected, trace, whether the guest commits to a service or falls back", () => {
+    const seeking: WorldGraphKindState = {
+      ...state(),
+      buildings: [{ ...state().buildings[0]!, definitionId: "kiosk", queue: { id: "queue:1", guestIds: [], serviceStartedAtTick: null }, pricesCents: { water: 5 }, inventory: { water: 5 } }],
+      guests: [{ ...state().guests[0]!, lifecycle: "seeking", x: 1, y: 0, intent: { kind: "wait", untilTick: 0, selectedAtTick: 0 } }],
+    };
+    const recording = resolutionEmitter();
+    const scratch = createTickScratch();
+    const result = guestIntent({
+      processingTick: 0, content: kioskContent, emit: recording.emit,
+      random: createTickRandom(0, () => rngHandle(), scratch), scratch, changes: new BatchChanges(), state: seeking,
+    });
+    expect(result.state.guests[0]?.intent.kind).toBe("seek_service");
+    expect(recording.events).toEqual([
+      { name: "kind.world-graph.guest.intent.selected", severity: "trace", data: { guestId: "guest:2", intentKind: "seek_service" } },
+    ]);
+  });
+
+  it("W87 guest-path (system 7): emits guest.path.committed on a real path, guest.path.failed when the goal is unreachable", () => {
+    const committing: WorldGraphKindState = {
+      ...state(), buildings: [{ ...state().buildings[0]!, definitionId: "kiosk" }],
+      guests: [{ ...state().guests[0]!, lifecycle: "seeking", x: 1, y: 0, intent: { kind: "seek_service", buildingId: "building:0", productId: "water", selectedAtTick: 0 } }],
+    };
+    const recordingA = resolutionEmitter();
+    const scratchA = createTickScratch();
+    guestPath({
+      processingTick: 0, content: kioskContent, emit: recordingA.emit,
+      random: createTickRandom(0, () => rngHandle(), scratchA), scratch: scratchA, changes: new BatchChanges(), state: committing,
+    });
+    expect(recordingA.events).toEqual([{ name: "kind.world-graph.guest.path.committed", severity: "trace", data: { guestId: "guest:2" } }]);
+
+    // The building sits far outside the two-cell terrain, so its entrance is simply undefined
+    // — unreachable — while an explicit (0,0)->(1,0) edge keeps the exit reachable for
+    // `leaveIntent`'s own fallback path, exercising the failure branch without also breaking it.
+    const failing: WorldGraphKindState = {
+      ...state(),
+      map: { ...state().map, paths: [{ from: { x: 0, y: 0 }, to: { x: 1, y: 0 }, edgeCost: 1, allowed: true }] },
+      buildings: [{ ...state().buildings[0]!, definitionId: "kiosk", x: 10, y: 10 }],
+      guests: [{ ...state().guests[0]!, lifecycle: "seeking", x: 0, y: 0, intent: { kind: "seek_service", buildingId: "building:0", productId: "water", selectedAtTick: 0 } }],
+    };
+    const recordingB = resolutionEmitter();
+    const scratchB = createTickScratch();
+    guestPath({
+      processingTick: 0, content: kioskContent, emit: recordingB.emit,
+      random: createTickRandom(0, () => rngHandle(), scratchB), scratch: scratchB, changes: new BatchChanges(), state: failing,
+    });
+    expect(recordingB.events).toEqual([{ name: "kind.world-graph.guest.path.failed", severity: "debug", data: { guestId: "guest:2" } }]);
+  });
+
+  it("W87 guest-move (system 8): emits guest.moved on every step and guest.departed, debug, on the exit step", () => {
+    const moving: WorldGraphKindState = {
+      ...state(), buildings: [{ ...state().buildings[0]!, definitionId: "kiosk" }],
+      guests: [{
+        ...state().guests[0]!, lifecycle: "seeking", x: 0, y: 0, path: [{ x: 0, y: 0 }, { x: 1, y: 0 }], pathIndex: 0,
+        intent: { kind: "leave", exit: { x: 1, y: 0 }, reason: "unreachable", selectedAtTick: 0 },
+      }],
+    };
+    const recording = resolutionEmitter();
+    const scratch = createTickScratch();
+    const result = guestMove({
+      processingTick: 0, content: kioskContent, emit: recording.emit,
+      random: createTickRandom(0, () => rngHandle(), scratch), scratch, changes: new BatchChanges(), state: moving,
+    });
+    expect(result.state.guests[0]?.lifecycle).toBe("departed");
+    expect(recording.events).toEqual([{ name: "kind.world-graph.guest.departed", severity: "debug", data: { guestId: "guest:2" } }]);
+
+    const stillMoving: WorldGraphKindState = {
+      ...moving,
+      guests: [{ ...moving.guests[0]!, path: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }], intent: { kind: "seek_service", buildingId: "building:0", productId: "water", selectedAtTick: 0 } }],
+    };
+    const recording2 = resolutionEmitter();
+    const scratch2 = createTickScratch();
+    guestMove({
+      processingTick: 0, content: kioskContent, emit: recording2.emit,
+      random: createTickRandom(0, () => rngHandle(), scratch2), scratch: scratch2, changes: new BatchChanges(), state: stillMoving,
+    });
+    expect(recording2.events).toEqual([{ name: "kind.world-graph.guest.moved", severity: "trace", data: { guestId: "guest:2" } }]);
+  });
+
+  const cleanContent = {
+    ...content(),
+    terrain: [{ id: "sand", walkable: true, moveCost: 1 }],
+    incidents: [{ ...content().incidents[0], id: "litter", resolverTaskType: "clean", resolverTaskPriority: 1, onResolve: [] }],
+    staffRoles: [{ id: "cleaner", moveTicksPerTile: 1, supportedTaskKinds: ["clean"], workRates: [{ taskType: "clean", effortPerTick: 5 }] }],
+  } as unknown as WorldGraphCampaign;
+
+  it("W87 task-generate (system 9): emits task.candidate.generated, trace, an optional diagnostic count — never once nothing is generated", () => {
+    const withIncident: WorldGraphKindState = { ...state(), buildings: [], incidents: [{ ...state().incidents[0]!, position: { x: 0, y: 0 } }] };
+    const recording = resolutionEmitter();
+    const scratch = createTickScratch();
+    taskGenerate({
+      processingTick: 0, content: cleanContent, emit: recording.emit,
+      random: createTickRandom(0, () => rngHandle(), scratch), scratch, changes: new BatchChanges(), state: withIncident,
+    });
+    expect(recording.events).toEqual([{ name: "kind.world-graph.task.candidate.generated", severity: "trace", data: { count: 1 } }]);
+
+    const recordingEmpty = resolutionEmitter();
+    const scratchEmpty = createTickScratch();
+    taskGenerate({
+      processingTick: 0, content: cleanContent, emit: recordingEmpty.emit,
+      random: createTickRandom(0, () => rngHandle(), scratchEmpty), scratch: scratchEmpty, changes: new BatchChanges(), state: { ...state(), buildings: [], incidents: [] },
+    });
+    expect(recordingEmpty.events).toEqual([]);
+  });
+
+  it("W87 task-assign (system 10): emits staff.task.assigned, trace, at the moment a candidate is matched to staff", () => {
+    const withIncident: WorldGraphKindState = {
+      ...state(), buildings: [], incidents: [{ ...state().incidents[0]!, position: { x: 0, y: 0 } }],
+      staff: [{
+        id: "staff:4", roleId: "cleaner", x: 0, y: 0, status: "idle",
+        path: [], pathIndex: 0, moveProgressTicks: 0, assignedBuildingId: null,
+        assignedZoneId: null, drawCount: 0, task: null, tasksCompleted: 0,
+      }],
+    };
+    const recording = resolutionEmitter();
+    const scratch = createTickScratch();
+    scratch.taskCandidates.push({ type: "clean", priority: 1, effort: 1, buildingId: null, incidentId: "incident:3", constructionSiteId: null, productId: null, requiredRoleId: null, slot: 0 });
+    const result = taskAssign({
+      processingTick: 0, content: cleanContent, emit: recording.emit,
+      random: createTickRandom(0, () => rngHandle(), scratch), scratch, changes: new BatchChanges(), state: withIncident,
+    });
+    const taskId = result.state.staff[0]?.task?.id;
+    expect(taskId).toBeTruthy();
+    expect(recording.events).toEqual([{ name: "kind.world-graph.staff.task.assigned", severity: "trace", data: { staffId: "staff:4", taskId: taskId!, type: "clean" } }]);
+  });
+
+  it("W87 staff-work (system 11): emits staff.moved while traversing, staff.task.completed on finish, staff.task.cancelled when the incident is already resolved", () => {
+    const movingStaff: WorldGraphKindState = {
+      ...state(), incidents: [],
+      staff: [{
+        id: "staff:4", roleId: "cleaner", x: 0, y: 0, status: "to_work",
+        path: [{ x: 0, y: 0 }, { x: 1, y: 0 }], pathIndex: 0, moveProgressTicks: 0,
+        assignedBuildingId: null, assignedZoneId: null, drawCount: 0, tasksCompleted: 0,
+        task: { id: "task:5", type: "clean", status: "assigned", guestId: null, queueId: null, buildingId: null, constructionSiteId: null, incidentId: "incident:3", targetProductId: null, startedAtTick: 0, endedAtTick: null, priority: 1, effortRemaining: 1 },
+      }],
+    };
+    const recordingMove = resolutionEmitter();
+    const scratchMove = createTickScratch();
+    staffWork({
+      processingTick: 0, content: cleanContent, emit: recordingMove.emit,
+      random: createTickRandom(0, () => rngHandle(), scratchMove), scratch: scratchMove, changes: new BatchChanges(), state: movingStaff,
+    });
+    expect(recordingMove.events).toEqual([{ name: "kind.world-graph.staff.moved", severity: "trace", data: { staffId: "staff:4", x: 1, y: 0 } }]);
+
+    const finishing: WorldGraphKindState = {
+      ...state(), incidents: [{ ...state().incidents[0]!, amount: 1 }],
+      staff: [{
+        id: "staff:4", roleId: "cleaner", x: 0, y: 0, status: "working",
+        path: [], pathIndex: 0, moveProgressTicks: 0, assignedBuildingId: null, assignedZoneId: null, drawCount: 0, tasksCompleted: 0,
+        task: { id: "task:5", type: "clean", status: "in_progress", guestId: null, queueId: null, buildingId: null, constructionSiteId: null, incidentId: "incident:3", targetProductId: null, startedAtTick: 0, endedAtTick: null, priority: 1, effortRemaining: 1 },
+      }],
+    };
+    const recordingFinish = resolutionEmitter();
+    const scratchFinish = createTickScratch();
+    staffWork({
+      processingTick: 0, content: cleanContent, emit: recordingFinish.emit,
+      random: createTickRandom(0, () => rngHandle(), scratchFinish), scratch: scratchFinish, changes: new BatchChanges(), state: finishing,
+    });
+    expect(recordingFinish.events).toContainEqual({ name: "kind.world-graph.staff.task.completed", severity: "trace", data: { staffId: "staff:4", taskId: "task:5" } });
+
+    const alreadyResolved: WorldGraphKindState = {
+      ...state(), incidents: [{ ...state().incidents[0]!, resolvedAtTick: 0 }],
+      staff: [{
+        id: "staff:4", roleId: "cleaner", x: 0, y: 0, status: "working",
+        path: [], pathIndex: 0, moveProgressTicks: 0, assignedBuildingId: null, assignedZoneId: null, drawCount: 0, tasksCompleted: 0,
+        task: { id: "task:5", type: "clean", status: "in_progress", guestId: null, queueId: null, buildingId: null, constructionSiteId: null, incidentId: "incident:3", targetProductId: null, startedAtTick: 0, endedAtTick: null, priority: 1, effortRemaining: 1 },
+      }],
+    };
+    const recordingCancel = resolutionEmitter();
+    const scratchCancel = createTickScratch();
+    staffWork({
+      processingTick: 0, content: cleanContent, emit: recordingCancel.emit,
+      random: createTickRandom(0, () => rngHandle(), scratchCancel), scratch: scratchCancel, changes: new BatchChanges(), state: alreadyResolved,
+    });
+    expect(recordingCancel.events).toEqual([{ name: "kind.world-graph.staff.task.cancelled", severity: "trace", data: { staffId: "staff:4", taskId: "task:5" } }]);
+  });
+
+  it("W87 construction (system 12): emits staff.task.completed, trace, for a builder whose site just finished", () => {
+    const constructionContent = {
+      ...content(), terrain: [{ id: "sand", walkable: true, moveCost: 1 }],
+      buildings: [{ id: "hut", footprint: { width: 1, height: 1 }, entrances: [{ x: 1, y: 0 }], constructionTaskPriority: 5, initialWear: 100, initialCleanliness: 100, operation: { kind: "decorative" } }],
+      staffRoles: [{ id: "builder", supportedTaskKinds: ["build"], workRates: [{ taskType: "build", effortPerTick: 1 }] }],
+    } as unknown as WorldGraphCampaign;
+    const workState: WorldGraphKindState = {
+      ...state(), buildings: [],
+      constructionSites: [{ id: "construction-site:0", definitionId: "hut", x: 0, y: 0, width: 1, height: 1, rotation: 0, startedAtTick: 0, workRemaining: 1, completedBuildingId: "building:1", completedQueueId: "queue:2" }],
+      staff: [{
+        id: "staff:4", roleId: "builder", x: 1, y: 0, status: "working",
+        path: [], pathIndex: 0, moveProgressTicks: 0, assignedBuildingId: null, assignedZoneId: null, drawCount: 0, tasksCompleted: 0,
+        task: { id: "task:5", type: "build", status: "in_progress", guestId: null, queueId: null, buildingId: null, constructionSiteId: "construction-site:0", incidentId: null, targetProductId: null, startedAtTick: 0, endedAtTick: null, priority: 5, effortRemaining: 1 },
+      }],
+    };
+    const recording = resolutionEmitter();
+    const scratch = createTickScratch();
+    construction({
+      processingTick: 0, content: constructionContent, emit: recording.emit,
+      random: createTickRandom(0, () => rngHandle(), scratch), scratch, changes: new BatchChanges(), state: workState,
+    });
+    expect(recording.events).toContainEqual({ name: "kind.world-graph.staff.task.completed", severity: "trace", data: { staffId: "staff:4", taskId: "task:5" } });
+  });
+
+  it("W87 buildings (system 13): emits staff.task.completed, trace, for a restocker whose product just filled", () => {
+    const restockContent = {
+      ...content(), terrain: [{ id: "sand", walkable: true, moveCost: 1 }],
+      products: [{ id: "water", unitCostCents: 10, price: { defaultCents: 100 } }],
+      buildings: [{
+        id: "kiosk", footprint: { width: 1, height: 1 }, entrances: [{ x: 1, y: 0 }],
+        operation: { kind: "service", products: [{ productId: "water", serviceTicks: 1, initialUnits: 0, capacity: 1, restockTaskPriority: 5 }], queueMaxLength: 5, baseServiceTicks: 1, staffRequirements: [], staffingTaskPriority: 0, effects: [] },
+      }],
+      staffRoles: [{ id: "restocker", supportedTaskKinds: ["restock"], workRates: [{ taskType: "restock", effortPerTick: 5 }] }],
+    } as unknown as WorldGraphCampaign;
+    const workState: WorldGraphKindState = {
+      ...state(),
+      buildings: [{ id: "building:0", definitionId: "kiosk", x: 0, y: 0, width: 1, height: 1, rotation: 0, status: "open", buildStartTick: 0, wear: 100, cleanliness: 100, queue: { id: "queue:1", guestIds: [], serviceStartedAtTick: null }, pricesCents: { water: 100 }, inventory: { water: 0 } }],
+      staff: [{
+        id: "staff:4", roleId: "restocker", x: 1, y: 0, status: "working",
+        path: [], pathIndex: 0, moveProgressTicks: 0, assignedBuildingId: null, assignedZoneId: null, drawCount: 0, tasksCompleted: 0,
+        task: { id: "task:5", type: "restock", status: "in_progress", guestId: null, queueId: null, buildingId: "building:0", constructionSiteId: null, incidentId: null, targetProductId: "water", startedAtTick: 0, endedAtTick: null, priority: 5, effortRemaining: 1 },
+      }],
+    };
+    const recording = resolutionEmitter();
+    const scratch = createTickScratch();
+    buildings({
+      processingTick: 0, content: restockContent, emit: recording.emit,
+      random: createTickRandom(0, () => rngHandle(), scratch), scratch, changes: new BatchChanges(), state: workState,
+    });
+    expect(recording.events).toContainEqual({ name: "kind.world-graph.staff.task.completed", severity: "trace", data: { staffId: "staff:4", taskId: "task:5" } });
+  });
+
+  it("W87 finance (system 15): coalesces wages and operating costs into one finance.charged, debug, per family", () => {
+    const financeContent = {
+      ...content(), ticksPerDay: 1,
+      staffRoles: [{ id: "cleaner", wageCentsPerDay: 10 }],
+      buildings: [{ id: "kiosk", operatingCostCentsPerDay: 4, operation: { kind: "decorative" } }],
+    } as unknown as WorldGraphCampaign;
+    const financeState: WorldGraphKindState = {
+      ...state(),
+      buildings: [{ ...state().buildings[0]!, definitionId: "kiosk", status: "open" }],
+      staff: [{ id: "staff:4", roleId: "cleaner", x: 0, y: 0, status: "idle", path: [], pathIndex: 0, moveProgressTicks: 0, assignedBuildingId: null, assignedZoneId: null, drawCount: 0, task: null, tasksCompleted: 0 }],
+    };
+    const recording = resolutionEmitter();
+    const scratch = createTickScratch();
+    finance({
+      processingTick: 0, content: financeContent, emit: recording.emit,
+      random: createTickRandom(0, () => rngHandle(), scratch), scratch, changes: new BatchChanges(), state: financeState,
+    });
+    expect(recording.events).toEqual([
+      { name: "kind.world-graph.finance.charged", severity: "debug", data: { family: "wages", amountCents: 10 } },
+      { name: "kind.world-graph.finance.charged", severity: "debug", data: { family: "operating", amountCents: 4 } },
+    ]);
+  });
+
+  it("W87 objectives (system 17): emits objective.progressed, debug, on a value change and objective.met, info, once satisfied for its full duration", () => {
+    const objectiveContent = {
+      ...content(),
+      objectives: [{ id: "earn", progressMetric: { kind: "counter", counter: "guestsEntered" }, completion: { kind: "compare", metric: { kind: "counter", counter: "guestsEntered" }, op: "gte", value: 1 }, requiredDurationTicks: 1, onCompleted: [] }],
+    } as unknown as WorldGraphCampaign;
+    const progressed: WorldGraphKindState = { ...state(), counters: { ...state().counters, guestsEntered: 1 }, objectives: [{ id: "earn", state: "active", value: 0, target: 10, satisfiedSinceTick: null, updatedAtTick: 0 }] };
+    const recording = resolutionEmitter();
+    const scratch = createTickScratch();
+    const result = objectives({
+      processingTick: 0, content: objectiveContent, emit: recording.emit,
+      random: createTickRandom(0, () => rngHandle(), scratch), scratch, changes: new BatchChanges(), state: progressed,
+    });
+    expect(result.state.objectives[0]?.state).toBe("met");
+    expect(recording.events).toEqual([
+      { name: "kind.world-graph.objective.progressed", severity: "debug", data: { objectiveId: "earn", value: 1 } },
+      { name: "kind.world-graph.objective.met", severity: "info", data: { objectiveId: "earn" } },
+    ]);
+  });
+
+  it("W87 failure (system 18): emits failure.progressed, debug, failure.triggered, info, and scenario.resolved, info, with the outcome ids", () => {
+    const failureContent = {
+      ...content(),
+      failures: [{ id: "bankrupt", condition: { kind: "compare", metric: { kind: "finance", field: "cashCents" }, op: "lte", value: 0 }, requiredDurationTicks: 1, onTriggered: [] }],
+    } as unknown as WorldGraphCampaign;
+    const failing: WorldGraphKindState = {
+      ...state(), objectives: [], finances: { ...state().finances, cashCents: 0 },
+      failures: [{ id: "bankrupt", state: "active", satisfiedSinceTick: null, updatedAtTick: 0 }],
+    };
+    const recording = resolutionEmitter();
+    const scratch = createTickScratch();
+    const result = failure({
+      processingTick: 0, content: failureContent, emit: recording.emit,
+      random: createTickRandom(0, () => rngHandle(), scratch), scratch, changes: new BatchChanges(), state: failing,
+    });
+    expect(result.state.resolution).toMatchObject({ resolution: "failed", failureId: "bankrupt" });
+    expect(recording.events).toEqual([
+      { name: "kind.world-graph.failure.progressed", severity: "debug", data: { failureId: "bankrupt" } },
+      { name: "kind.world-graph.failure.triggered", severity: "info", data: { failureId: "bankrupt" } },
+      { name: "kind.world-graph.scenario.resolved", severity: "info", data: { resolution: "failed", objectiveIds: "", failureId: "bankrupt" } },
+    ]);
+  });
+
+  // A curated subset — the guest-facing systems plus finalize — rather than all 20: the shared
+  // `kioskContent`/`state()` fixtures don't define guest-spawning, incidents, objectives or
+  // failures, and the full default roster would fail on those unrelated gaps.
+  const guestSystems = [
+    { id: "guest-needs" as WorldGraphSystemId, run: guestNeeds },
+    { id: "guest-service" as WorldGraphSystemId, run: guestService },
+    { id: "queues" as WorldGraphSystemId, run: queues },
+    { id: "guest-intent" as WorldGraphSystemId, run: guestIntent },
+    { id: "guest-path" as WorldGraphSystemId, run: guestPath },
+    { id: "guest-move" as WorldGraphSystemId, run: guestMove },
+    { id: "tick-finalize" as WorldGraphSystemId, run: tickFinalize },
+  ];
+
+  it("W87.3: events emit in system order, then the owning comparator order, across a multi-tick batch", () => {
+    const orderState: WorldGraphKindState = {
+      ...state(),
+      buildings: [{ ...state().buildings[0]!, definitionId: "kiosk" }],
+      guests: [
+        { ...state().guests[0]!, id: "guest:5", lifecycle: "seeking", x: 1, y: 0, intent: { kind: "wait", untilTick: 0, selectedAtTick: 0 } },
+        { ...state().guests[0]!, id: "guest:2" },
+      ],
+    };
+    const tagged: { readonly name: string; readonly systemId: string }[] = [];
+    const recording = resolutionEmitter();
+    const taggingEmit = (systemId: string): ResolutionEmitter => ({
+      emit: (name, severity, detail) => { tagged.push({ name, systemId }); recording.emit.emit(name, severity, detail); },
+    });
+    const taggedSystems = guestSystems.map((entry) => ({
+      id: entry.id,
+      run: (frame: WorldGraphTickFrame) => entry.run({ ...frame, emit: taggingEmit(entry.id) }),
+    }));
+    let workState = orderState;
+    for (let tick = 0; tick < 3; tick += 1) {
+      tagged.length = 0;
+      workState = runWorldGraphTick(workState, kioskContent, { derive: () => rngHandle(), emit: recording.emit }, new BatchChanges(), taggedSystems);
+      const indices = tagged.map((entry) => worldGraphSystemIndex(entry.systemId as WorldGraphSystemId));
+      for (let index = 1; index < indices.length; index += 1) expect(indices[index]).toBeGreaterThanOrEqual(indices[index - 1]!);
+    }
+    expect(tagged.length).toBeGreaterThan(0);
+    const intentEvents = recording.events.filter((event) => event.name === "kind.world-graph.guest.intent.selected");
+    expect(intentEvents.length).toBeGreaterThan(0);
+    const guestIds = intentEvents.map((event) => event.data?.guestId);
+    expect(guestIds).toEqual([...guestIds].sort());
+  });
+
+  it("W87.4: dropping every event changes nothing — a null sink and a recording sink reach byte-identical state and StateChange rows over the same multi-tick batch", () => {
+    const orderState: WorldGraphKindState = {
+      ...state(),
+      buildings: [{ ...state().buildings[0]!, definitionId: "kiosk" }],
+      guests: [{ ...state().guests[0]! }],
+    };
+    const runBatch = (emit: ResolutionEmitter): { readonly state: WorldGraphKindState; readonly changes: readonly unknown[] } => {
+      let workState = orderState;
+      const changes = new BatchChanges();
+      for (let tick = 0; tick < 3; tick += 1) workState = runWorldGraphTick(workState, kioskContent, { derive: () => rngHandle(), emit }, changes, guestSystems);
+      return { state: workState, changes: changes.finish() };
+    };
+    const withEvents = runBatch(resolutionEmitter().emit);
+    const withoutEvents = runBatch({ emit: () => {} });
+    expect(withoutEvents.state).toEqual(withEvents.state);
+    expect(withoutEvents.changes).toEqual(withEvents.changes);
   });
 });

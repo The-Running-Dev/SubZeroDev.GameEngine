@@ -1561,38 +1561,36 @@ Namespaced `kind.world-graph.*` (05 §9), declared as `Kind.eventNames`:
 | `guest.served` | `trace` | System 4 | delivered |
 | `incident.resolved` | `info` | Systems 11 and 16 own the transition today | delivered |
 | `tick.finalized` | `trace` | System 20, after cleanup and increment | delivered |
-| `guest.meter.changed` | `trace` | System 3 | specified, not yet delivered |
-| `service.started` | `trace` | System 5 | specified, not yet delivered |
-| `queue.joined` / `queue.abandoned` | `trace` | FIFO membership changes in system 5 | specified, not yet delivered |
-| `guest.intent.selected` | `trace` | System 6, with optional ordered component trace | specified, not yet delivered |
-| `guest.path.committed` / `guest.path.failed` | `trace` / `debug` | System 7 attempted a commitment | specified, not yet delivered |
-| `guest.moved` / `guest.departed` | `trace` / `debug` | System 8 | specified, not yet delivered |
-| `task.candidate.generated` | `trace` | Optional system-9 diagnostic; never state | specified, not yet delivered |
-| `staff.task.assigned` / `staff.task.completed` / `staff.task.cancelled` | `trace` | Systems 10–11 | specified, not yet delivered |
-| `staff.moved` | `trace` | System 11 traversed one edge | specified, not yet delivered |
+| `guest.meter.changed` | `trace` | System 3, per need that actually drifted | delivered |
+| `service.started` | `trace` | System 5, once the head guest becomes servable | delivered |
+| `queue.joined` / `queue.abandoned` | `trace` | FIFO membership changes in system 5 | delivered |
+| `guest.intent.selected` | `trace` | System 6, with optional ordered component trace | delivered |
+| `guest.path.committed` / `guest.path.failed` | `trace` / `debug` | System 7 attempted a commitment | delivered |
+| `guest.moved` / `guest.departed` | `trace` / `debug` | System 8 | delivered |
+| `task.candidate.generated` | `trace` | Optional system-9 diagnostic; never state | delivered |
+| `staff.task.assigned` | `trace` | System 10, when a candidate is matched to staff | delivered |
+| `staff.task.completed` / `staff.task.cancelled` | `trace` | Wherever the owning system actually finishes the task — system 11 for `clean` and `service`, system 12 for `build`, system 13 for `restock` | delivered |
+| `staff.moved` | `trace` | System 11 traversed one edge | delivered |
 | `construction.progressed` / `construction.completed` | `trace` / `info` | System 12 | delivered |
 | `building.meter.changed` | `trace` | Systems 13–14 | delivered |
-| `finance.charged` | `debug` | System 15 coalesced one charge family | specified, not yet delivered |
+| `finance.charged` | `debug` | System 15, one row per coalesced charge family (wages, operating) | delivered |
 | `incident.raised` | `info` | Systems 4, 11, 14, or 16 own the transition | delivered |
-| `objective.progressed` / `objective.met` | `debug` / `info` | System 17 | specified, not yet delivered |
-| `failure.progressed` / `failure.triggered` | `debug` / `info` | System 18 | specified, not yet delivered |
-| `scenario.resolved` | `info` | Win or failure, with the `outcome` ids (§8) | specified, not yet delivered |
+| `objective.progressed` / `objective.met` | `debug` / `info` | System 17 | delivered |
+| `failure.progressed` / `failure.triggered` | `debug` / `info` | System 18 | delivered |
+| `scenario.resolved` | `info` | System 18, win or failure, with the `outcome` ids (§8) | delivered |
 | `achievement.unlocked` | `info` | System 19, before alert derivation | delivered |
 | `alert.raised` / `alert.cleared` | `debug` / `trace` | System 19 active-set transition | delivered |
 
 > **The status column tracks emit sites, not decisions.** `Kind.eventNames` on the shipped
-> `worldGraphKind` declares the delivered rows; the rest are named here because an event
-> name is a published identifier a sink filters on (05 §9), so it is fixed once, ahead of the
-> emit site, rather than renamed after every host has configured for it. As of W85, every
-> tick system this table names is real — `90-decisions.md`'s tick-system register closes
-> with no rows remaining — and the rows that were blocked on a stub have all been marked
-> delivered as their systems landed: `construction.*` with W81, `building.meter.changed`
-> with W82/W83, `incident.raised` with W84, and the alert and achievement rows with W85.
-> What is left undelivered belongs to pipeline stages (queue membership, guest movement,
-> per-system diagnostics, coalesced finance and objective/failure reporting) that were never
-> blocked on a stub, only not yet built. Same treatment as `story-graph` §8.4, and safe for
-> the same reason: 05 §2 guarantees dropping every event changes nothing, so a not-yet-emitted
-> event cannot be load-bearing.
+> `worldGraphKind` declares every row below; there is no longer a row this kind names but does
+> not emit. As of W85, every tick system this table names was already real —
+> `90-decisions.md`'s tick-system register closed with no rows remaining — and W87 closed the
+> remaining gap between that and the event stream: the pipeline stages left unwired (queue
+> membership, guest movement, per-system diagnostics, coalesced finance and
+> objective/failure reporting, and the terminal `scenario.resolved`) were never blocked on a
+> stub, only not yet built, and are now. Same treatment as `story-graph` §8.4, and safe the same
+> way it always was: 05 §2 guarantees dropping every event changes nothing, so none of this was
+> ever load-bearing while it waited.
 >
 > **Every row's severity is checked against the shipped emit site, not remembered.** Four of
 > them had disagreed with the source since W46/W47 and survived four reconciliations, because
