@@ -47,31 +47,45 @@ function rejected(
  * engine error on a campaign `availableActions` had already greyed out. §8.4 asks these
  * events to say which clause failed, and under `all` the short-circuit lands on exactly
  * that clause.
+ *
+ * `negated` carries the parity of the enclosing `not`s, so a leaf reports its *effective*
+ * contribution rather than its raw result. `not: { achieved.bribed == true }` against a
+ * player who holds it is a requirement that failed; reporting `satisfied: true` because
+ * the leaf alone was true tells the author the opposite of what happened, and it is the
+ * only event that requirement produces. Only the emitted value is negated — the returned
+ * one stays raw, so the tree decides exactly as it did before. Under `not: { all: [...] }`
+ * De Morgan makes per-leaf negation a parity convention rather than a truth; emitting once
+ * for the whole `not` subtree instead would always be truthful but drops the
+ * one-event-per-leaf property §8.4 leans on, so parity is the deliberate trade (PR #362
+ * review).
  */
 function evaluateRequirements(
   condition: Condition,
   context: ConditionContext,
   choiceId: string,
   emit: ResolutionEmitter,
+  negated: boolean,
 ): boolean {
   if ("all" in condition) {
     for (const c of condition.all) {
-      if (!evaluateRequirements(c, context, choiceId, emit)) return false;
+      if (!evaluateRequirements(c, context, choiceId, emit, negated)) return false;
     }
     return true;
   }
   if ("any" in condition) {
     for (const c of condition.any) {
-      if (evaluateRequirements(c, context, choiceId, emit)) return true;
+      if (evaluateRequirements(c, context, choiceId, emit, negated)) return true;
     }
     return false;
   }
   if ("not" in condition) {
-    return !evaluateRequirements(condition.not, context, choiceId, emit);
+    return !evaluateRequirements(condition.not, context, choiceId, emit, !negated);
   }
 
   const satisfied = evaluateStoryGraphCondition(condition, context);
-  emit.emit("kind.story-graph.requirement.evaluated", "trace", { data: { choiceId, satisfied } });
+  emit.emit("kind.story-graph.requirement.evaluated", "trace", {
+    data: { choiceId, satisfied: negated ? !satisfied : satisfied },
+  });
   return satisfied;
 }
 
@@ -109,7 +123,7 @@ export function advance(
     return rejected(state, "unknown_action", "core.reason.unknown_action", { choiceId: actionId, emit: ctx.emit });
   }
 
-  if (choice.requirements && !evaluateRequirements(choice.requirements, context, actionId, ctx.emit)) {
+  if (choice.requirements && !evaluateRequirements(choice.requirements, context, actionId, ctx.emit, false)) {
     return rejected(state, "requirement_unmet", choice.requirementFailKey ?? "core.reason.requirement_unmet", {
       choiceId: actionId,
       emit: ctx.emit,

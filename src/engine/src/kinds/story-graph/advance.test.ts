@@ -310,6 +310,60 @@ describe("advance — events (03 §8.4)", () => {
     ]);
   });
 
+  it("W86.2 reports a leaf under `not` by its effective contribution, not its raw result", () => {
+    // `clean` requires the player *not* to hold `bribed`; `twice` double-negates the same
+    // leaf, so parity — not a single flip — is what decides the reported value.
+    const negation: StoryGraphCampaign = {
+      ...campaign,
+      nodes: {
+        ...campaign.nodes,
+        start: {
+          id: "start",
+          kind: "choice",
+          textKey: "t",
+          choices: [
+            {
+              id: "clean",
+              labelKey: "choice.gated",
+              requirements: { not: { field: "achieved.bribed", operator: "equals", value: true } },
+              goto: "start",
+            },
+            {
+              id: "twice",
+              labelKey: "choice.gated",
+              requirements: { not: { not: { field: "achieved.bribed", operator: "equals", value: true } } },
+              goto: "start",
+            },
+          ],
+        },
+      },
+    };
+
+    const bribed = baseState({ unlockedAchievements: ["bribed"] });
+
+    // The leaf is raw-true, so the un-negated reading would report `satisfied: true` on a
+    // requirement that is the reason the choice was rejected.
+    const held = recordingCtx(negation);
+    expect(advance(bribed, "clean", undefined, held.ctx).error?.code).toBe("requirement_unmet");
+    expect(held.events().filter((e) => e.name === "kind.story-graph.requirement.evaluated").map(simplify)).toEqual([
+      { name: "kind.story-graph.requirement.evaluated", data: { choiceId: "clean", satisfied: false } },
+    ]);
+
+    // Same requirement, player without the achievement — it passes, and reports so.
+    const notHeld = recordingCtx(negation);
+    expect(advance(baseState(), "clean", undefined, notHeld.ctx).error).toBeUndefined();
+    expect(notHeld.events().filter((e) => e.name === "kind.story-graph.requirement.evaluated").map(simplify)).toEqual([
+      { name: "kind.story-graph.requirement.evaluated", data: { choiceId: "clean", satisfied: true } },
+    ]);
+
+    // Two `not`s cancel: back to the leaf's raw result.
+    const doubled = recordingCtx(negation);
+    expect(advance(bribed, "twice", undefined, doubled.ctx).error).toBeUndefined();
+    expect(doubled.events().filter((e) => e.name === "kind.story-graph.requirement.evaluated").map(simplify)).toEqual([
+      { name: "kind.story-graph.requirement.evaluated", data: { choiceId: "twice", satisfied: true } },
+    ]);
+  });
+
   it("W86.1 emits consequence.applied once per typed effect, reporting the batch's own clamp", () => {
     const { ctx, events } = recordingCtx(campaign);
     advance(baseState(), "wait", undefined, ctx);
