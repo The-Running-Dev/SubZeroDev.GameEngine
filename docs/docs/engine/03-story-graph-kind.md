@@ -471,9 +471,9 @@ is owed, and these are what a developer or a content author needs instead.
 | `node.entered` | `debug` | every `enter(nodeId)` — §8.2 | `nodeId`, `nodeKind`, `visitCount` | delivered |
 | `random.picked` | `debug` | a `random` node chose a transition | `nodeId`, `goto`, `weight` | delivered |
 | `settle.guard_tripped` | `error` | `SETTLE_STEPS` exceeded | `nodeId`; `reason` set | delivered |
-| `choice.submitted` | `debug` | §8.2 step 1, after the choice resolves | `nodeId`, `choiceId` | delivered |
+| `choice.submitted` | `debug` | §8.2 step 1, on submission — before the id is resolved | `nodeId`, `choiceId` | delivered |
 | `choice.rejected` | `info` | §8.2 step 2 | `choiceId`; `reason` set (§8.3) | delivered |
-| `requirement.evaluated` | `trace` | §8.2 step 2, once per requirement | `choiceId`, `satisfied` | delivered |
+| `requirement.evaluated` | `trace` | §8.2 step 2, once per *evaluated* requirement leaf | `choiceId`, `satisfied` | delivered |
 | `consequence.applied` | `debug` | §8.2 step 3, and every settle pass-through's own effects (§8.2's settle procedure) | `variable`, `op`, `clamped` | delivered |
 | `achievement.unlocked` | `info` | §8.2 step 7 | `achievementId` | delivered |
 | `ending.reached` | `info` | settle landed on an `EndingNode` | `endingId` | delivered |
@@ -489,9 +489,41 @@ is owed, and these are what a developer or a content author needs instead.
 Two of these carry most of the value, for the two audiences the events exist to serve:
 
 - **`requirement.evaluated`** is the author's answer to *why was my choice greyed out*.
-  It fires per requirement rather than per choice, so a compound condition (§6) reports
+  It fires per requirement leaf rather than per choice, so a compound condition (§6) reports
   which clause failed — something the single `requirement_unmet` reason code (§8.3)
   deliberately cannot say, because the player is not owed the campaign's internals.
+
+> **The walk short-circuits, and a leaf reports its effective contribution.** `all`/`any`
+> stop exactly where `evaluateCondition` (04 §18) stops, so this walk decides the same trees
+> the same way `showWhen` and `availableActions` decide them — and that parity is
+> load-bearing rather than incidental. A comparison against a type-mismatched operand
+> *throws*, so the guard-then-typed-compare idiom (`all: [x is set, x > 3]`) only stays a
+> clean `requirement_unmet` rejection while the guard can stop the walk; evaluating every
+> leaf eagerly would buy one extra `trace` event and turn that rejection into a thrown engine
+> error on a campaign `availableActions` had already greyed out. Under `all`, the
+> short-circuit lands on exactly the clause this event exists to name. Note this is the
+> opposite of the world-graph's rule in [`12-world-graph-kind.md`](12-world-graph-kind.md)
+> §9.1, deliberately: there the leaves are pure and an
+> identical trace is the whole point, here they are not.
+>
+> **`satisfied` carries the parity of the enclosing `not`s**, not the leaf's raw result.
+> `not: { achieved.bribed == true }` against a player who holds it is a requirement that
+> *failed*; reporting `satisfied: true` because the leaf alone was true tells the author the
+> opposite of what happened, and it is the only event that requirement produces. Only the
+> reported value is negated — the tree still decides on raw results. Under `not: { all: […] }`
+> De Morgan makes per-leaf negation a convention rather than a truth; emitting once for the
+> whole `not` subtree would always be truthful but drops the one-event-per-leaf property this
+> section leans on, so parity is the deliberate trade.
+
+> **`choice.submitted` fires on submission, before the id has been resolved**, so it carries
+> whatever `choiceId` the caller sent — including one naming no choice, or one whose
+> `showWhen` fails. That is the point: an unknown or hidden id then shows as a
+> `choice.submitted`/`choice.rejected` pair rather than as silence, and silence is the hardest
+> thing to debug in a stream. It is a deliberate exception to 05 §8's rule that
+> `core.action.rejected` omits an unresolved `actionId` — the core's rule protects a *hosted
+> operator's* log from arbitrary caller text, and this event is namespaced to one kind and
+> emitted at `debug`, where a host running `nullEmitter` (05 §2) never sees it at all. A host
+> that does raise the level and does not want caller-supplied ids should filter this name.
 - **`random.picked`** is the developer's answer to *why did this replay diverge*. Paired
   with `node.entered` and `visitCount`, a stream diff localizes a determinism failure to
   one transition, instead of to a `serialize()` byte offset.

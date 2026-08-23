@@ -300,6 +300,20 @@ fully correct fix, but it touches the shared `applyWorldEffects` interpreter sea
 all six call sites). **Accepted as-is for this MVP slice** — the event is debug severity
 and `scenario` is the only caller reading `.applied` today. Revisit if a second caller
 starts reading `.applied`, or as part of whatever unit closes #349.
+- **A kind's event severities are literals at each `emit` call; only the core fixes them in
+  one table.** `05-observability.md` §7 requires severity to be fixed per event *name*, and
+  `src/engine/src/core/observability/events.ts` holds a `CORE_EVENTS` map that makes the rule
+  structural — all nine core events match §8 exactly. Every kind instead writes the severity
+  inline, so nothing stops two call sites for one name from disagreeing, and nothing compares
+  the emitted set against the contract's table at all. That is how four `world-graph`
+  severities drifted for three weeks across four reconciliations (2026-08-23 decision above),
+  and `incident.resolved`'s two call sites agree only by luck. The fix is a per-kind
+  name→severity table mirroring `CORE_EVENTS`, plus a check that diffs `Kind.eventNames`, the
+  emitted severities, and `20-contract.md`'s tables — comparing three lists by hand is the
+  arithmetic-over-files work `CLAUDE.md` classifies as belonging in code rather than in a
+  model. **Not started here**, because it touches three kinds' emit sites and their tests, and
+  is its own unit under "one unit at a time". **Revisit when** that unit is sliced, or sooner
+  if a fifth severity divergence appears.
 
 ---
 

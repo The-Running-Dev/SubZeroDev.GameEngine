@@ -25,8 +25,11 @@ export interface AchievementDefinition {
 
 /**
  * Evaluates every not-yet-unlocked achievement's `condition` against `state`, in
- * `achievements`' authored order. Pure — no `ctx`, no I/O, matching this unit's own
- * done-criterion ("`advance` performs no I/O").
+ * `achievements`' authored order. Pure with respect to state — it takes a
+ * `ResolutionEmitter` (W86) rather than the full `ctx`, and 05 §2 guarantees dropping every
+ * event changes nothing, so this still satisfies the unit's own done-criterion ("`advance`
+ * performs no I/O"). The emitter is optional only so the unit tests below can call this
+ * without one; every production path passes it.
  *
  * The condition context is rebuilt after each unlock rather than once up front, so an
  * achievement whose `condition` reads `achieved.<id>` can react to another achievement
