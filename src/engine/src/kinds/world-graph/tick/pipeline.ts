@@ -174,16 +174,25 @@ export const guestSpawn: WorldGraphSystem = (frame) => {
 };
 /** System 3: evolve meters and make threshold departures explicit. */
 export const guestNeeds: WorldGraphSystem = (frame) => {
+  const meterChanges: { readonly guestId: string; readonly needId: string; readonly value: number }[] = [];
   const guests = frame.state.guests.map((guest) => {
     if (!activeGuest(guest)) return guest;
     const archetype = definition(frame.content.guestArchetypes, guest.archetypeId, "guest archetype");
     const needs = { ...guest.needs };
-    for (const profile of archetype.needs) needs[profile.needId] = Math.max(definition(frame.content.needs, profile.needId, "need").minimum, Math.min(definition(frame.content.needs, profile.needId, "need").maximum, needs[profile.needId]! + curve(profile.driftByCurrentValue, needs[profile.needId]!)));
+    for (const profile of archetype.needs) {
+      const needDefinition = definition(frame.content.needs, profile.needId, "need");
+      const value = Math.max(needDefinition.minimum, Math.min(needDefinition.maximum, needs[profile.needId]! + curve(profile.driftByCurrentValue, needs[profile.needId]!)));
+      if (value !== needs[profile.needId]) meterChanges.push({ guestId: guest.id, needId: profile.needId, value });
+      needs[profile.needId] = value;
+    }
     const patience = guest.lifecycle === "queued" ? Math.max(0, guest.patienceRemainingTicks - 1) : guest.patienceRemainingTicks;
     const critical = archetype.needs.some((profile) => needs[profile.needId]! <= definition(frame.content.needs, profile.needId, "need").criticalBelow);
     const expired = guest.spentTicks + 1 >= guest.stayDurationTicks;
     return { ...guest, lifecycle: guest.lifecycle === "arriving" ? "seeking" : guest.lifecycle, needs, spentTicks: guest.spentTicks + 1, patienceRemainingTicks: patience, ...(expired || critical ? { intent: leaveIntent(frame.state, frame.content, guest, frame.processingTick, expired ? "stay_complete" : "critical_need"), path: [], pathIndex: 0 } : {}) };
   });
+  for (const change of meterChanges.sort((left, right) => compareRuntimeEntityId(left.guestId, right.guestId) || compareDefinitionId(left.needId, right.needId))) {
+    frame.emit.emit("kind.world-graph.guest.meter.changed", "trace", { data: { guestId: change.guestId, meter: change.needId, value: change.value } });
+  }
   return { ...frame, state: { ...frame.state, guests } };
 };
 /** System 4: complete due FIFO services as one atomic sale. */
@@ -221,7 +230,10 @@ export const queues: WorldGraphSystem = (frame) => {
     if (served.length) state = { ...state, guests: state.guests.map((guest) => served.some((entry) => entry.id === guest.id) ? { ...guest, lifecycle: "seeking", intent: { kind: "wait", untilTick: frame.processingTick, selectedAtTick: frame.processingTick }, path: [], pathIndex: 0 } : guest) };
     let ids = existingIds.filter((id) => { const guest = state.guests.find((entry) => entry.id === id); return guest?.lifecycle === "queued"; });
     const abandon = ids.filter((id) => state.guests.find((guest) => guest.id === id)?.patienceRemainingTicks === 0);
-    if (abandon.length) state = { ...state, guests: state.guests.map((guest) => abandon.includes(guest.id) ? { ...guest, lifecycle: "seeking", intent: { kind: "wait", untilTick: frame.processingTick, selectedAtTick: frame.processingTick }, path: [], pathIndex: 0 } : guest) };
+    if (abandon.length) {
+      state = { ...state, guests: state.guests.map((guest) => abandon.includes(guest.id) ? { ...guest, lifecycle: "seeking", intent: { kind: "wait", untilTick: frame.processingTick, selectedAtTick: frame.processingTick }, path: [], pathIndex: 0 } : guest) };
+      for (const guestId of abandon) frame.emit.emit("kind.world-graph.queue.abandoned", "trace", { data: { buildingId: building.id, guestId } });
+    }
     ids = ids.filter((id) => !abandon.includes(id));
     // §9.1: a queued guest switches away only when the best reachable alternative beats
     // its current committed building/product by more than `switchThresholdUtility`;
@@ -249,12 +261,16 @@ export const queues: WorldGraphSystem = (frame) => {
       if (capacity !== null && ids.length >= capacity) break;
       ids.push(guest.id);
       state = { ...state, guests: state.guests.map((entry) => entry.id === guest.id ? { ...entry, lifecycle: "queued", patienceRemainingTicks: entry.patienceCapacityTicks } : entry) };
+      frame.emit.emit("kind.world-graph.queue.joined", "trace", { data: { buildingId: building.id, guestId: guest.id } });
     }
     const head = state.guests.find((guest) => guest.id === ids[0]);
     const headOffer = head?.intent.kind === "seek_service" ? serviceProduct(building, head.intent.productId, frame.content) : null;
     const canServe = headOffer !== null && head !== undefined && hasServiceLabor(state, building.id, headOffer.definition);
     const headChanged = previousHeadId !== (ids[0] ?? null);
     const clock = canServe ? (headChanged ? frame.processingTick : building.queue.serviceStartedAtTick ?? frame.processingTick) : null;
+    if (clock !== null && clock !== building.queue.serviceStartedAtTick) {
+      frame.emit.emit("kind.world-graph.service.started", "trace", { data: { buildingId: building.id, guestId: head!.id, productId: headOffer!.product.id } });
+    }
     state = { ...state, buildings: state.buildings.map((entry) => entry.id === building.id ? { ...entry, queue: { ...entry.queue, guestIds: ids, serviceStartedAtTick: clock } } : entry) };
   }
   return { ...frame, state };
@@ -375,35 +391,68 @@ function candidate(state: WorldGraphKindState, content: WorldGraphCampaign, proc
 }
 /** System 6: choose the highest reachable, affordable service candidate. */
 export const guestIntent: WorldGraphSystem = (frame) => {
+  const selections: { readonly guestId: string; readonly intentKind: Guest["intent"]["kind"] }[] = [];
   const guests = frame.state.guests.map((guest) => {
     if (guest.lifecycle !== "seeking" || (guest.intent.kind === "wait" && guest.intent.untilTick > frame.processingTick)) return guest;
     const choices = frame.state.buildings.map((building) => ({ building, choice: candidate(frame.state, frame.content, frame.processingTick, guest, building) })).filter((entry): entry is { readonly building: Building; readonly choice: ProductScore } => entry.choice !== null).sort((left, right) => right.choice.score - left.choice.score || compareRuntimeEntityId(left.building.id, right.building.id) || compareDefinitionId(left.choice.productId, right.choice.productId));
-    if (choices.length) return { ...guest, intent: { kind: "seek_service" as const, buildingId: choices[0]!.building.id, productId: choices[0]!.choice.productId, selectedAtTick: frame.processingTick }, path: [], pathIndex: 0 };
+    if (choices.length) {
+      const intent = { kind: "seek_service" as const, buildingId: choices[0]!.building.id, productId: choices[0]!.choice.productId, selectedAtTick: frame.processingTick };
+      selections.push({ guestId: guest.id, intentKind: intent.kind });
+      return { ...guest, intent, path: [], pathIndex: 0 };
+    }
     const archetype = definition(frame.content.guestArchetypes, guest.archetypeId, "guest archetype");
-    return archetype.fallback.kind === "leave" ? { ...guest, intent: leaveIntent(frame.state, frame.content, guest, frame.processingTick, "unreachable"), path: [], pathIndex: 0 } : { ...guest, intent: { kind: "wait" as const, untilTick: frame.processingTick + archetype.fallback.ticks, selectedAtTick: frame.processingTick } };
+    if (archetype.fallback.kind === "leave") {
+      const intent = leaveIntent(frame.state, frame.content, guest, frame.processingTick, "unreachable");
+      selections.push({ guestId: guest.id, intentKind: intent.kind });
+      return { ...guest, intent, path: [], pathIndex: 0 };
+    }
+    const intent = { kind: "wait" as const, untilTick: frame.processingTick + archetype.fallback.ticks, selectedAtTick: frame.processingTick };
+    selections.push({ guestId: guest.id, intentKind: intent.kind });
+    return { ...guest, intent };
   });
+  for (const selection of selections.sort((left, right) => compareRuntimeEntityId(left.guestId, right.guestId))) {
+    frame.emit.emit("kind.world-graph.guest.intent.selected", "trace", { data: { guestId: selection.guestId, intentKind: selection.intentKind } });
+  }
   return { ...frame, state: { ...frame.state, guests } };
 };
 /** Systems 7–8: commit and traverse one canonical path edge per tick. */
-export const guestPath: WorldGraphSystem = (frame) => ({ ...frame, state: { ...frame.state, guests: frame.state.guests.map((guest) => {
-  if (!activeGuest(guest) || guest.lifecycle === "queued" || guest.lifecycle === "served" || guest.intent.kind === "wait") return guest;
-  const goals = guest.intent.kind === "leave" ? [guest.intent.exit] : entrances(definition(frame.state.buildings, guest.intent.buildingId, "building"), frame.content);
-  if (guest.path.length > 0 && samePosition(guest.path.at(-1)!, goals[0]!)) return guest;
-  const path = pathTo(frame.state, frame.content, guest, goals);
-  return path === null ? { ...guest, intent: leaveIntent(frame.state, frame.content, guest, frame.processingTick, "unreachable"), path: [], pathIndex: 0 } : { ...guest, path, pathIndex: 0 };
-}) } });
+export const guestPath: WorldGraphSystem = (frame) => {
+  const outcomes: { readonly guestId: string; readonly failed: boolean }[] = [];
+  const guests = frame.state.guests.map((guest) => {
+    if (!activeGuest(guest) || guest.lifecycle === "queued" || guest.lifecycle === "served" || guest.intent.kind === "wait") return guest;
+    const goals = guest.intent.kind === "leave" ? [guest.intent.exit] : entrances(definition(frame.state.buildings, guest.intent.buildingId, "building"), frame.content);
+    if (guest.path.length > 0 && samePosition(guest.path.at(-1)!, goals[0]!)) return guest;
+    const path = pathTo(frame.state, frame.content, guest, goals);
+    if (path === null) {
+      outcomes.push({ guestId: guest.id, failed: true });
+      return { ...guest, intent: leaveIntent(frame.state, frame.content, guest, frame.processingTick, "unreachable"), path: [], pathIndex: 0 };
+    }
+    outcomes.push({ guestId: guest.id, failed: false });
+    return { ...guest, path, pathIndex: 0 };
+  });
+  for (const outcome of outcomes.sort((left, right) => compareRuntimeEntityId(left.guestId, right.guestId))) {
+    frame.emit.emit(outcome.failed ? "kind.world-graph.guest.path.failed" : "kind.world-graph.guest.path.committed", outcome.failed ? "debug" : "trace", { data: { guestId: outcome.guestId } });
+  }
+  return { ...frame, state: { ...frame.state, guests } };
+};
 export const guestMove: WorldGraphSystem = (frame) => {
   let departed = 0;
+  const moves: { readonly guestId: string; readonly departed: boolean }[] = [];
   const guests = frame.state.guests.map((guest) => {
     if (!activeGuest(guest) || guest.pathIndex >= guest.path.length - 1 || guest.lifecycle === "queued" || guest.lifecycle === "served") return guest;
     const position = guest.path[guest.pathIndex + 1]!; const next = { ...guest, x: position.x, y: position.y, pathIndex: guest.pathIndex + 1 };
-    if (next.intent.kind === "leave" && samePosition(position, next.intent.exit)) { departed += 1; return { ...next, lifecycle: "departed" as const }; }
+    if (next.intent.kind === "leave" && samePosition(position, next.intent.exit)) { departed += 1; moves.push({ guestId: guest.id, departed: true }); return { ...next, lifecycle: "departed" as const }; }
+    moves.push({ guestId: guest.id, departed: false });
     return next;
   });
+  for (const move of moves.sort((left, right) => compareRuntimeEntityId(left.guestId, right.guestId))) {
+    frame.emit.emit(move.departed ? "kind.world-graph.guest.departed" : "kind.world-graph.guest.moved", move.departed ? "debug" : "trace", { data: { guestId: move.guestId } });
+  }
   return { ...frame, state: { ...frame.state, guests, counters: departed ? { ...frame.state.counters, guestsDeparted: frame.state.counters.guestsDeparted + departed } : frame.state.counters } };
 };
 /** Systems 9–11: derive, assign and execute the MVP's service/cleaning work. */
 export const taskGenerate: WorldGraphSystem = (frame) => {
+  const before = frame.scratch.taskCandidates.length;
   for (const incident of frame.state.incidents.filter((entry) => entry.resolvedAtTick === null).sort((left, right) => compareRuntimeEntityId(left.id, right.id))) {
     const incidentDefinition = definition(frame.content.incidents, incident.definitionId, "incident definition");
     if (incidentDefinition.resolverTaskType === "clean" && incidentDefinition.resolverTaskPriority !== null) frame.scratch.taskCandidates.push({ type: "clean", priority: incidentDefinition.resolverTaskPriority, effort: incident.amount, buildingId: incident.buildingId, incidentId: incident.id, constructionSiteId: null, productId: null, requiredRoleId: null, slot: 0 });
@@ -428,6 +477,8 @@ export const taskGenerate: WorldGraphSystem = (frame) => {
       frame.scratch.taskCandidates.push({ type: "restock", priority: service.restockTaskPriority, effort: missing, buildingId: building.id, incidentId: null, constructionSiteId: null, productId: service.productId, requiredRoleId: null, slot: 0 });
     }
   }
+  const generated = frame.scratch.taskCandidates.length - before;
+  if (generated > 0) frame.emit.emit("kind.world-graph.task.candidate.generated", "trace", { data: { count: generated } });
   return frame;
 };
 export const taskAssign: WorldGraphSystem = (frame) => {
@@ -463,6 +514,7 @@ export const taskAssign: WorldGraphSystem = (frame) => {
     const candidate = candidates.splice(candidateIndex, 1)[0]!;
     const task: StaffTask = { id: `task:${state.nextEntityOrdinal}`, type: candidate.type, status: "assigned", guestId: null, queueId: null, buildingId: candidate.buildingId, constructionSiteId: candidate.constructionSiteId, incidentId: candidate.incidentId, targetProductId: candidate.productId, startedAtTick: frame.processingTick, endedAtTick: null, priority: candidate.priority, effortRemaining: candidate.effort };
     state = { ...state, staff: state.staff.map((entry) => entry.id === member.id ? { ...entry, task, path: path!, pathIndex: 0, status: "to_work" } : entry), nextEntityOrdinal: state.nextEntityOrdinal + 1 };
+    frame.emit.emit("kind.world-graph.staff.task.assigned", "trace", { data: { staffId: member.id, taskId: task.id, type: task.type } });
   }
   return { ...frame, state };
 };
@@ -481,6 +533,7 @@ export const staffWork: WorldGraphSystem = (frame) => {
         moveProgressTicks: move ? 0 : moveProgressTicks,
         status: "to_work",
       } : entry) };
+      if (move) frame.emit.emit("kind.world-graph.staff.moved", "trace", { data: { staffId: member.id, x: position.x, y: position.y } });
       continue;
     }
     if (member.task.type === "service" || member.task.type === "build" || member.task.type === "restock") { state = { ...state, staff: state.staff.map((entry) => entry.id === member.id ? { ...entry, status: "working", task: { ...entry.task!, status: "in_progress" } } : entry) }; continue; }
@@ -488,6 +541,7 @@ export const staffWork: WorldGraphSystem = (frame) => {
       const incident = state.incidents.find((entry) => entry.id === member.task!.incidentId);
       if (!incident || incident.resolvedAtTick !== null) {
         state = { ...state, staff: state.staff.map((entry) => entry.id === member.id ? { ...entry, task: { ...entry.task!, status: "cancelled", endedAtTick: frame.processingTick } } : entry) };
+        frame.emit.emit("kind.world-graph.staff.task.cancelled", "trace", { data: { staffId: member.id, taskId: member.task.id } });
         continue;
       }
       const rate = workRate(role, "clean");
@@ -498,6 +552,7 @@ export const staffWork: WorldGraphSystem = (frame) => {
         frame.changes.record("staff-work", `incidents.${incident.id}.resolvedAtTick`, frame.processingTick, "incident_resolved", false);
         state = applyWorldEffects(state, definition(frame.content.incidents, incident.definitionId, "incident definition").onResolve, { processingTick: frame.processingTick, content: frame.content, random: frame.random, changes: frame.changes, system: "staff-work", reason: "incident_resolved", currentIncidentId: incident.id, deferBuildingMeters: { scratch: frame.scratch, source: "staff" } }).state;
         frame.emit.emit("kind.world-graph.incident.resolved", "info", { data: { incidentId: incident.id, definitionId: incident.definitionId, tick: frame.processingTick } });
+        frame.emit.emit("kind.world-graph.staff.task.completed", "trace", { data: { staffId: member.id, taskId: member.task.id } });
       }
     }
   }
@@ -540,9 +595,15 @@ export const construction: WorldGraphSystem = (frame) => {
     scalar(frame, "construction", "map.revision", map.revision, map.revision + 1, "building_completed", false);
     map = { ...map, revision: map.revision + 1 };
     counters = { ...counters, buildingsCompleted: counters.buildingsCompleted + 1 };
-    staff = staff.map((entry) => entry.task?.type === "build" && entry.task.constructionSiteId === site.id
-      ? { ...entry, status: "idle", tasksCompleted: entry.tasksCompleted + 1, task: { ...entry.task, status: "completed", endedAtTick: frame.processingTick } }
-      : entry);
+    const completedBuilders: { readonly staffId: string; readonly taskId: string }[] = [];
+    staff = staff.map((entry) => {
+      if (entry.task?.type !== "build" || entry.task.constructionSiteId !== site.id) return entry;
+      completedBuilders.push({ staffId: entry.id, taskId: entry.task.id });
+      return { ...entry, status: "idle", tasksCompleted: entry.tasksCompleted + 1, task: { ...entry.task, status: "completed", endedAtTick: frame.processingTick } };
+    });
+    for (const builder of completedBuilders.sort((left, right) => compareRuntimeEntityId(left.staffId, right.staffId))) {
+      frame.emit.emit("kind.world-graph.staff.task.completed", "trace", { data: { staffId: builder.staffId, taskId: builder.taskId } });
+    }
     frame.changes.record("construction", `buildings.${building.id}.exists`, true, "building_completed", false);
     frame.changes.record("construction", `constructionSites.${site.id}.exists`, false, "building_completed", false);
     frame.emit.emit("kind.world-graph.construction.completed", "info", { data: { constructionSiteId: site.id, buildingId: building.id } });
@@ -580,11 +641,16 @@ export const buildings: WorldGraphSystem = (frame) => {
     return inventory === building.inventory ? building : { ...building, inventory };
   });
 
+  const completedRestockers: { readonly staffId: string; readonly taskId: string }[] = [];
   const staff = frame.state.staff.map((member) => {
     if (member.task?.type !== "restock" || member.task.status !== "in_progress" || member.task.buildingId === null || member.task.targetProductId === null) return member;
     if (!filledProductKeys.has(`${member.task.buildingId}\u0000${member.task.targetProductId}`)) return member;
+    completedRestockers.push({ staffId: member.id, taskId: member.task.id });
     return { ...member, status: "idle" as const, tasksCompleted: member.tasksCompleted + 1, task: { ...member.task!, status: "completed" as const, endedAtTick: frame.processingTick } };
   });
+  for (const restocker of completedRestockers.sort((left, right) => compareRuntimeEntityId(left.staffId, right.staffId))) {
+    frame.emit.emit("kind.world-graph.staff.task.completed", "trace", { data: { staffId: restocker.staffId, taskId: restocker.taskId } });
+  }
 
   return { ...frame, state: { ...frame.state, buildings: buildingsAfterRestock, staff } };
 };
@@ -636,9 +702,14 @@ export const cleanlinessWear: WorldGraphSystem = (frame) => {
 };
 export const finance: WorldGraphSystem = (frame) => {
   const due = (amount: number): number => Math.floor((amount * (frame.processingTick + 1)) / frame.content.ticksPerDay) - Math.floor((amount * frame.processingTick) / frame.content.ticksPerDay);
-  const expenses = frame.state.staff.reduce((sum, member) => sum + due(definition(frame.content.staffRoles, member.roleId, "staff role").wageCentsPerDay), 0) + frame.state.buildings.filter((building) => building.status === "open").reduce((sum, building) => sum + due(definition(frame.content.buildings, building.definitionId, "building definition").operatingCostCentsPerDay), 0);
+  const wages = frame.state.staff.reduce((sum, member) => sum + due(definition(frame.content.staffRoles, member.roleId, "staff role").wageCentsPerDay), 0);
+  const operating = frame.state.buildings.filter((building) => building.status === "open").reduce((sum, building) => sum + due(definition(frame.content.buildings, building.definitionId, "building definition").operatingCostCentsPerDay), 0);
+  const expenses = wages + operating;
   if (expenses < 0) throw new Error("Validated world-graph recurring costs cannot be negative");
-  return expenses === 0 ? frame : { ...frame, state: { ...frame.state, finances: { ...frame.state.finances, cashCents: frame.state.finances.cashCents - expenses, expensesTodayCents: frame.state.finances.expensesTodayCents + expenses, expensesTotalCents: frame.state.finances.expensesTotalCents + expenses } } };
+  if (expenses === 0) return frame;
+  if (wages > 0) frame.emit.emit("kind.world-graph.finance.charged", "debug", { data: { family: "wages", amountCents: wages } });
+  if (operating > 0) frame.emit.emit("kind.world-graph.finance.charged", "debug", { data: { family: "operating", amountCents: operating } });
+  return { ...frame, state: { ...frame.state, finances: { ...frame.state.finances, cashCents: frame.state.finances.cashCents - expenses, expensesTodayCents: frame.state.finances.expensesTodayCents + expenses, expensesTotalCents: frame.state.finances.expensesTotalCents + expenses } } };
 };
 interface IncidentScopeInstance {
   readonly scope: IncidentRollScope;
@@ -775,7 +846,11 @@ export const objectives: WorldGraphSystem = (frame) => {
   for (const { progress, item, value, since, met } of evaluations) {
     const next = { ...progress, value, satisfiedSinceTick: since, updatedAtTick: frame.processingTick, state: met ? "met" as const : "active" as const };
     state = { ...state, objectives: state.objectives.map((entry) => entry.id === progress.id ? next : entry) };
-    if (met) state = applyWorldEffects(state, item.onCompleted, { processingTick: frame.processingTick, content: frame.content, random: frame.random, changes: frame.changes, system: "objectives", reason: "objective_met" }).state;
+    if (value !== progress.value) frame.emit.emit("kind.world-graph.objective.progressed", "debug", { data: { objectiveId: progress.id, value } });
+    if (met) {
+      frame.emit.emit("kind.world-graph.objective.met", "info", { data: { objectiveId: progress.id } });
+      state = applyWorldEffects(state, item.onCompleted, { processingTick: frame.processingTick, content: frame.content, random: frame.random, changes: frame.changes, system: "objectives", reason: "objective_met" }).state;
+    }
   }
   return { ...frame, state };
 };
@@ -801,18 +876,26 @@ export const failure: WorldGraphSystem = (frame) => {
   const triggered = state.failures.filter((progress) => progress.state === "triggered").map((progress) => progress.id);
   for (const { progress, item, since, fires } of evaluations) {
     state = { ...state, failures: state.failures.map((entry) => entry.id === progress.id ? { ...entry, satisfiedSinceTick: since, updatedAtTick: frame.processingTick, state: fires ? "triggered" as const : "active" as const } : entry) };
-    if (fires) { triggered.push(progress.id); state = applyWorldEffects(state, item.onTriggered, { processingTick: frame.processingTick, content: frame.content, random: frame.random, changes: frame.changes, system: "failure", reason: "failure_triggered" }).state; }
+    if (since !== progress.satisfiedSinceTick) frame.emit.emit("kind.world-graph.failure.progressed", "debug", { data: { failureId: progress.id } });
+    if (fires) {
+      triggered.push(progress.id);
+      frame.emit.emit("kind.world-graph.failure.triggered", "info", { data: { failureId: progress.id } });
+      state = applyWorldEffects(state, item.onTriggered, { processingTick: frame.processingTick, content: frame.content, random: frame.random, changes: frame.changes, system: "failure", reason: "failure_triggered" }).state;
+    }
   }
   const met = state.objectives.filter((entry) => entry.state === "met").map((entry) => entry.id).sort();
   const success = state.objectives.length > 0 && met.length === state.objectives.length;
   const failureId = triggered.sort()[0] ?? null;
   if (success || failureId !== null) {
     const win = success && (failureId === null || scenarioDefinition.resolutionPrecedence === "objectives_win");
+    const resolution = win ? "objectives_met" as const : "failed" as const;
+    const resolvedFailureId = win ? null : failureId;
     state = {
       ...state,
       objectives: win ? state.objectives : state.objectives.map((progress) => progress.state === "active" ? { ...progress, state: "failed", updatedAtTick: frame.processingTick } : progress),
-      resolution: { resolution: win ? "objectives_met" : "failed", objectiveIds: met, failureId: win ? null : failureId, resolvedAtTick: frame.processingTick },
+      resolution: { resolution, objectiveIds: met, failureId: resolvedFailureId, resolvedAtTick: frame.processingTick },
     };
+    frame.emit.emit("kind.world-graph.scenario.resolved", "info", { data: { resolution, objectiveIds: met.join(","), failureId: resolvedFailureId ?? "" } });
   }
   return { ...frame, state };
 };
