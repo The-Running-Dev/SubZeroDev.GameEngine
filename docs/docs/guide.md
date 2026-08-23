@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: e68bc28147e9131fb10fd4c3ecef27eda2fb8cb30c176743ed7ab6517250615c -->
+<!-- design-digest: d735ad0454694c3d6c139fbc9436da70b97cc4a20cbacfb777f795cfd31a8f2a -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -488,6 +488,31 @@ There are two different gates on a choice, and conflating them is the easiest mi
 - `requirements` leaves the choice visible but unavailable and supplies a player-facing reason —
   the common case, and the Transparent Consequences principle in practice.
 
+Debugging *why* a requirement failed goes through the `kind.story-graph.requirement.evaluated`
+event, not the rejection itself — `requirement_unmet` deliberately carries no detail, because the
+player is not owed the campaign's internals. Two things about that event are easy to get wrong:
+
+- **The walk short-circuits.** `all`/`any` stop exactly where the shared condition evaluator stops,
+  so the event fires once per *evaluated* leaf, not once per leaf in the tree. This is deliberate,
+  not an oversight: a comparison against a type-mismatched operand throws, so a guard-then-compare
+  idiom (`all: [x is set, x > 3]`) only stays a clean rejection while the guard can stop the walk
+  before the second clause runs. This is the opposite of `world-graph`'s own condition evaluator
+  (see [World-graph campaigns](#world-graph-campaigns)), which does not short-circuit — deliberately,
+  because those leaves are pure and an identical trace is the point there, while story-graph
+  requirement leaves are not.
+- **`satisfied` reports the parity of the enclosing `not`s, not the leaf's raw result.** A
+  `not: { achieved.bribed == true }` requirement that fails because the player *does* hold the flag
+  reports `satisfied: false` — the negated value, since that is the only signal that requirement
+  ever produces and reporting the raw leaf would say the opposite of what happened. Only the
+  reported value is negated; the tree itself still decides on raw results.
+
+`kind.story-graph.choice.submitted` fires on submission, before the choice id is resolved, so it
+carries whatever id the caller sent — including one naming no choice or one hidden by `showWhen`.
+That is deliberate: an unknown or hidden id then shows as a submitted/rejected pair in the stream
+rather than as silence. It is an intentional exception to the core's own rule of omitting an
+unresolved action id from `core.action.rejected` — this event is namespaced to one kind and emitted
+at `debug`, invisible under the default `nullEmitter`.
+
 After every transition the kind enters the destination node, increments its visit count and turn,
 and settles through automatic/random nodes until it reaches another choice or an ending; a "turn"
 in this kind is just this transition count, kept as an ordinary kind-owned field rather than a
@@ -636,6 +661,17 @@ Per-guest and per-tick detail is an event instead, which is safe precisely becau
 event is guaranteed to change nothing. The nine actions that mutate without advancing time are the
 exception: each is a single player-initiated command with no volume problem, and each returns its
 own ordinary `StateChange`.
+
+This kind's own condition evaluator (`WorldCondition`, distinct from the shared `Condition` tree
+story-graph uses) walks `all`/`any` children in authored order **without** short-circuiting, even
+though its leaves are pure — the point is an identical decision trace every time, the opposite
+trade story-graph's `requirement.evaluated` makes (see [Story-graph
+campaigns](#story-graph-campaigns)) and deliberately so: the two kinds' leaves have different
+purity, so the same short-circuit choice would be wrong for at least one of them. Event severity
+here is also worth checking against the emitting code rather than assuming the contract table is
+current — each kind writes its severity as a literal at the `emit` call site rather than from one
+shared table, so the two can drift; a recent reconciliation caught four world-graph event
+severities that had done exactly that.
 
 Win and loss are read through `Kind.outcome`, not through `GameStatus` — the same terminal-identity
 mechanism every kind uses, not a status field specific to this one. A win requires at least one
