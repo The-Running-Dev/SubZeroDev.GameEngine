@@ -122,7 +122,7 @@ checklist."* This is that checklist.
 real client**, not by inspection and not by a unit test of the store. One row per operation,
 one column per MVP client:
 
-| # | Operation | Text client (W16) | MCP tool (W17) | Simulation kind (W50) | Browser demo (W61) | Hosted transport (Platform G1/S5) |
+| # | Operation | Text client (W16) | MCP tool (W17) | Simulation kind (W50) | Browser client (Adventures) | Hosted transport (Platform G1/S5) |
 |---|---|---|---|---|---|---|
 | 1 | `listCampaigns` | ☑ | `list_campaigns` ☑ | ☑ | ☑ | ☑ |
 | 2 | `createSession` | ☑ | `start_game` ☑ | ☑ | ☑ | ☑ |
@@ -191,13 +191,17 @@ through MCP independently — asserting identical `Scene`/`PlayerView` at every 
 client-free replay of the identical action log reaching the identical, golden-filed
 `serialize()` output on repeat.
 
-**Browser-demo evidence** lives in `site/src/play/browser-client.test.ts`. Its ten numbered
-`it` blocks drive the real browser adapter against Bureaucracy, one per operation; they do not
-call the store directly from a component test. The same file then drives the full committed
-path through that adapter and the text client with the same seed and counting `IdSource`,
-asserting identical `Scene`/`PlayerView` steps and byte-identical final `serialize()` output.
-How the demo presents save/load — a same-page checkpoint, or the locally durable one
-`13-playable-web-demo.md` §5 now specifies — does not weaken the adapter proof either way.
+**The "Browser client" column is `SubZeroDev.Adventures`', and its evidence lives there** — the
+same arrangement as the Hosted transport column below, and for the same reason: this repository
+ships no browser client. W61 proved the column here, in `site/src/play/browser-client.test.ts` —
+ten numbered `it` blocks driving the real browser adapter against Bureaucracy one per operation,
+then the full committed path through that adapter and the text client with the same seed and
+counting `IdSource`, asserting identical `Scene`/`PlayerView` steps and byte-identical final
+`serialize()` output. W74b deleted that file with the rest of `site/src/play/`
+(`13-playable-web-demo.md`, *Succeeded by SubZeroDev.Adventures*), so **the ticks in this column
+record what W61 demonstrated and what Adventures is obliged to keep demonstrating; no gate in this
+repository re-runs them.** That is the honest cost of the extraction, stated rather than left to
+be discovered — the same treatment §4's browser-portability gate already took.
 
 **The mapping is one-to-one, and that is the point.** Every store operation has exactly one
 MCP tool, and there is no tool that is not an operation. That is what *"no AI-specific path"*
