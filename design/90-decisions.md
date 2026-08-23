@@ -310,6 +310,20 @@ fully correct fix, but it touches the shared `applyWorldEffects` interpreter sea
 all six call sites). **Accepted as-is for this MVP slice** — the event is debug severity
 and `scenario` is the only caller reading `.applied` today. Revisit if a second caller
 starts reading `.applied`, or as part of whatever unit closes #349.
+- **A kind's event severities are literals at each `emit` call; only the core fixes them in
+  one table.** `05-observability.md` §7 requires severity to be fixed per event *name*, and
+  `src/engine/src/core/observability/events.ts` holds a `CORE_EVENTS` map that makes the rule
+  structural — all nine core events match §8 exactly. Every kind instead writes the severity
+  inline, so nothing stops two call sites for one name from disagreeing, and nothing compares
+  the emitted set against the contract's table at all. That is how four `world-graph`
+  severities drifted for three weeks across four reconciliations (2026-08-23 decision above),
+  and `incident.resolved`'s two call sites agree only by luck. The fix is a per-kind
+  name→severity table mirroring `CORE_EVENTS`, plus a check that diffs `Kind.eventNames`, the
+  emitted severities, and `20-contract.md`'s tables — comparing three lists by hand is the
+  arithmetic-over-files work `CLAUDE.md` classifies as belonging in code rather than in a
+  model. **Not started here**, because it touches three kinds' emit sites and their tests, and
+  is its own unit under "one unit at a time". **Revisit when** that unit is sliced, or sooner
+  if a fifth severity divergence appears.
 
 ---
 
@@ -424,7 +438,7 @@ Reversibility: cheap — automation can still be revisited as its own decision l
 
 ### 2026-08-05 — Known-and-retained implementation gaps: `world-graph` tick systems
 Context: `20-contract.md` §4.3–§4.22 specifies twenty tick systems in a fixed order, and §12's event table names emit sites in most of them. `src/engine/src/kinds/world-graph/tick/pipeline.ts` registers all twenty and runs them in that order — the ordering, the `processingTick` guard, and the "finalize exactly once" assertion are all real — but five of the twenty are not doing what the contract describes. Read against the source rather than against the delivery plans, the state is: `construction` (system 12), `buildings` (system 13) and `alerts` (system 19) are `(frame) => frame`, fully no-op; `cleanliness-wear` (system 14) implements one delta source only, the unresolved-incident litter penalty against `Building.cleanliness`, and none of the other documented sources, and never touches `wear` at all despite the system's name; `incidents` (system 16) resolves incidents whose `expiresAtTick` has passed and applies their `onResolve` effects, but never *rolls* a new incident, so the only incidents that exist are the ones `guest-service` creates from product litter. Everything else in the pipeline is genuine, including `finance`'s exact proration (§9.4), the objectives/failure terminal-identity logic, and `tick-finalize`'s cleanup.
-Chosen: Record the five as known-and-retained, named individually, rather than softening §4's system descriptions or deleting the undelivered rows from §12's event table. The contract describes the target and is the reason a later unit knows what to build; this register is where "is it built?" is answered. §12's event rows are now marked *specified, not yet delivered* and point here, which is the same treatment `story-graph` §8.4 takes for its own six undelivered events. Naming the partial ones precisely matters more than the fully-stubbed ones: a system that returns `frame` unchanged is obvious in one line of source, whereas `cleanliness-wear` looks implemented and is the one most likely to be mistaken for complete.
+Chosen: Record the five as known-and-retained, named individually, rather than softening §4's system descriptions or deleting the undelivered rows from §12's event table. The contract describes the target and is the reason a later unit knows what to build; this register is where "is it built?" is answered. §12's event rows are now marked *specified, not yet delivered* and point here, which was the same treatment `story-graph` §8.4 took at the time for its own six then-undelivered events (all six landed with W86). Naming the partial ones precisely matters more than the fully-stubbed ones: a system that returns `frame` unchanged is obvious in one line of source, whereas `cleanliness-wear` looks implemented and is the one most likely to be mistaken for complete.
 Rejected: **Rewrite §4.12–§4.21 to describe only what runs today** — rejected; it would destroy the specification that the remaining units build against, and the world-graph contract's whole value is that the tick pipeline was specified in full before it was built (that is what `12-world-graph-kind.md` §5's batch invariance argument depends on). **Leave the gaps recorded only in the delivery plans (`plans/46`, `plans/48`)** — rejected; a plan documents one unit's scope at the moment it was written, and nobody re-reads a merged plan to answer "does this system work?". **Track them as GitHub issues instead of here** — not rejected so much as downstream: `/track` reads `design/30-slices.md`, and this register is the input that lets a work unit be written against a real gap. Revisit when: each system's own build unit lands, at which point its row moves out of this entry rather than the entry being edited in place.
 Reversibility: cheap — documentation only; no code or contract behaviour changes.
 **Amended 2026-08-20 by W81.** `construction` (system 12) is real as of this unit and leaves the list below. Re-reading systems 9 and 11 against the source while slicing W81 found the register incomplete rather than wrong: `task-generate` (system 9) and `staff-work` (system 11) were never on this list — both looked complete because every other documented task kind they touch (`clean`, `service`) was wired — but `StaffTaskType` and the `task-assign` comparator have always included `build` and `restock` as options neither system ever produced or applied. **The gap is seven systems, not five.** W81 wired the `build` half of both (a construction-site candidate in system 9, and status marking in system 11, with the effort application and completion itself living in system 12); the `restock` half is still missing and is W82's scope. `buildings` (system 13) and `alerts` (system 19) remain fully no-op; `cleanliness-wear` (14) and `incidents` (16) are unchanged from the description above.
@@ -987,3 +1001,74 @@ Reversibility: cheap here — four `-Skip:` guards, reverted by deleting them. N
 upstream: `~/.agent-kit`'s own copies of these four files carry the same unguarded blocks, so an
 unmodified future `/kit-sync` will overwrite this fix. Worth raising with the kit maintainer
 directly rather than resolving unattended from this repository.
+
+### 2026-08-23 — Four `world-graph` event severities corrected against the source, three in the code
+Context: `20-contract.md` §12 fixes a severity per event name, and `05-observability.md` §7 states
+why — "a given name always means the same thing to an alert" — with §12's own volume callout
+making severity the operational control for a batch that emits on the order of 10⁵ events. Four
+rows disagreed with `src/engine/src/kinds/world-graph/tick/pipeline.ts`: `guest.spawned`
+(`trace` specified, `debug` emitted), `guest.served` (`trace`/`info`), `incident.resolved`
+(`debug`/`info`, at both its call sites), and `tick.finalized` (`trace`/`debug`). All four date
+from W46/W47 on 2026-08-03/04 and survived four reconciliations. `simulation` and `story-graph`
+severities both matched their tables exactly; the divergence was world-graph-only.
+Chosen: Split by row rather than by document. **The code moved for three.** `guest.served` was the
+sharpest — §7 defines `info` as "one or a few per action" and this fires once per guest served per
+tick, so a 360-tick batch put five-figure volume into the level a host runs to see notable things;
+`guest.spawned` and `tick.finalized` are per-guest and per-tick on the same argument. **The
+contract moved for one.** `incident.resolved` is now `info`, matching the code: incidents are rare,
+and §12 already listed its sibling `incident.raised` at `info`, so raised-at-`info` and
+resolved-at-`debug` would leave a host filtering at `info` watching incidents appear and never
+resolve. §12 also gains a standing instruction to re-derive the severity column from the source
+rather than from memory.
+Rejected: **Move the code in all four** — the tidier rule ("the contract wins"), but it buys
+consistency with a table at the cost of coherence between two halves of one transition.
+**Move the contract in all four** — concedes the volume argument §12's own callout makes, and
+would leave `05` §7's severity ladder describing something the shipped engine does not do.
+Reversibility: cheap — three severity literals and one table cell.
+
+### 2026-08-23 — `requirement.evaluated` short-circuits, and reports each leaf by `not` parity
+Context: `20-contract.md` §8.4 said this event fires "once per requirement". W86 shipped it firing
+once per *evaluated* leaf: `evaluateRequirements` in `src/engine/src/kinds/story-graph/advance.ts`
+short-circuits `all`/`any` in parity with the frozen `evaluateCondition` (04 §18), and negates a
+leaf's reported `satisfied` by the parity of the enclosing `not`s. Both behaviours came out of
+PR #362's review and were written only into that function's doc comment, so the contract described
+neither.
+Chosen: Amend §8.4 to describe what ships, and record the reasoning here rather than leaving it in
+a file header. The short-circuit is load-bearing, not incidental: a comparison against a
+type-mismatched operand *throws*, so the guard-then-typed-compare idiom (`all: [x is set, x > 3]`)
+only stays a clean `requirement_unmet` rejection while the guard can stop the walk — an eager walk
+would buy one extra `trace` event and turn that rejection into a thrown engine error on a campaign
+`availableActions` had already greyed out. Under `all` the short-circuit lands on exactly the
+clause §8.4 exists to name. The parity rule follows from the event being the *only* signal a
+negated requirement produces: `not: { achieved.bribed == true }` against a player who holds it is a
+requirement that failed, and reporting the raw leaf value tells the author the opposite of what
+happened. Under `not: { all: […] }` De Morgan makes per-leaf negation a convention rather than a
+truth, and that is the accepted trade — the alternative, one event for the whole `not` subtree, is
+always truthful but drops the one-event-per-leaf property the section leans on.
+Rejected: **Make the walk exhaustive so the event count is predictable** — consistent with
+`12-world-graph-kind.md` §9.1's no-short-circuit rule, but that rule holds *because* world-graph
+condition leaves are pure; these are not, and the cost here is a thrown engine error on ordinary
+play. **Record the divergence in the open register and change neither** — leaves §8.4 stating
+something false about shipped behaviour, which is the failure this pass exists to prevent.
+Reversibility: cheap — documentation only; the code is unchanged.
+
+### 2026-08-23 — `choice.submitted` fires on submission, deliberately carrying an unresolved id
+Context: §8.4 said this event is emitted "after the choice resolves". `advance.ts` emits it after
+the current node is confirmed a `ChoiceNode` but before `node.choices.find(...)`, so it carries
+whatever `choiceId` the caller sent — including one naming no choice, or one whose `showWhen`
+fails. This is in tension with `05-observability.md` §8, which has the core omit an unresolved
+`actionId` from `core.action.rejected` precisely so a caller cannot write arbitrary text into a
+hosted operator's log.
+Chosen: Amend §8.4 to say "on submission — before the id is resolved", and state the exception
+explicitly rather than let it read as an oversight. An unknown or hidden id now shows as a
+`choice.submitted`/`choice.rejected` pair rather than as silence, and silence is the hardest thing
+to diagnose in a stream. The core's rule is about a hosted operator's log; this event is
+namespaced to one kind and emitted at `debug`, which a host running `nullEmitter` (05 §2) never
+sees, and §8.4 now tells a host that does raise the level how to filter it.
+Rejected: **Move the emit after the choice lookup** — matches the old wording and extends the
+no-player-text guarantee uniformly, but costs the submitted/rejected pairing, so an unknown id
+produces a rejection with nothing showing what was rejected. **Omit `choiceId` when it did not
+resolve**, mirroring 05 §8 exactly — the most internally consistent option and the one to revisit
+first if a host ever runs `debug` in production; declined for now because the pair is the diagnostic
+and no host runs kind-level `debug` today.
+Reversibility: cheap — one table cell and a callout; the alternative is a three-line branch.

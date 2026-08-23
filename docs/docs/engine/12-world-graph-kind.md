@@ -1559,7 +1559,7 @@ Namespaced `kind.world-graph.*` (05 §9), declared as `Kind.eventNames`:
 | `scenario.effect.applied` | `debug` | System 1 applied one scheduled/policy effect | delivered |
 | `guest.spawned` | `trace` | System 2 | delivered |
 | `guest.served` | `trace` | System 4 | delivered |
-| `incident.resolved` | `debug` | Systems 11 and 16 own the transition today | delivered |
+| `incident.resolved` | `info` | Systems 11 and 16 own the transition today | delivered |
 | `tick.finalized` | `trace` | System 20, after cleanup and increment | delivered |
 | `guest.meter.changed` | `trace` | System 3 | specified, not yet delivered |
 | `service.started` | `trace` | System 5 | specified, not yet delivered |
@@ -1570,10 +1570,10 @@ Namespaced `kind.world-graph.*` (05 §9), declared as `Kind.eventNames`:
 | `task.candidate.generated` | `trace` | Optional system-9 diagnostic; never state | specified, not yet delivered |
 | `staff.task.assigned` / `staff.task.completed` / `staff.task.cancelled` | `trace` | Systems 10–11 | specified, not yet delivered |
 | `staff.moved` | `trace` | System 11 traversed one edge | specified, not yet delivered |
-| `construction.progressed` / `construction.completed` | `trace` / `info` | System 12 | specified, not yet delivered |
-| `building.meter.changed` | `trace` | Systems 13–14 | specified, not yet delivered |
+| `construction.progressed` / `construction.completed` | `trace` / `info` | System 12 | delivered |
+| `building.meter.changed` | `trace` | Systems 13–14 | delivered |
 | `finance.charged` | `debug` | System 15 coalesced one charge family | specified, not yet delivered |
-| `incident.raised` | `info` | Systems 4, 11, 14, or 16 own the transition | specified, not yet delivered |
+| `incident.raised` | `info` | Systems 4, 11, 14, or 16 own the transition | delivered |
 | `objective.progressed` / `objective.met` | `debug` / `info` | System 17 | specified, not yet delivered |
 | `failure.progressed` / `failure.triggered` | `debug` / `info` | System 18 | specified, not yet delivered |
 | `scenario.resolved` | `info` | Win or failure, with the `outcome` ids (§8) | specified, not yet delivered |
@@ -1585,11 +1585,20 @@ Namespaced `kind.world-graph.*` (05 §9), declared as `Kind.eventNames`:
 > name is a published identifier a sink filters on (05 §9), so it is fixed once, ahead of the
 > emit site, rather than renamed after every host has configured for it. As of W85, every
 > tick system this table names is real — `90-decisions.md`'s tick-system register closes
-> with no rows remaining — so the undelivered rows left below belong to pipeline stages
-> (queue membership, guest movement, per-system diagnostics) that were never blocked on a
-> stub, only not yet built. Same treatment as `story-graph` §8.4, and safe for the same
-> reason: 05 §2 guarantees dropping every event changes nothing, so a not-yet-emitted event
-> cannot be load-bearing.
+> with no rows remaining — and the rows that were blocked on a stub have all been marked
+> delivered as their systems landed: `construction.*` with W81, `building.meter.changed`
+> with W82/W83, `incident.raised` with W84, and the alert and achievement rows with W85.
+> What is left undelivered belongs to pipeline stages (queue membership, guest movement,
+> per-system diagnostics, coalesced finance and objective/failure reporting) that were never
+> blocked on a stub, only not yet built. Same treatment as `story-graph` §8.4, and safe for
+> the same reason: 05 §2 guarantees dropping every event changes nothing, so a not-yet-emitted
+> event cannot be load-bearing.
+>
+> **Every row's severity is checked against the shipped emit site, not remembered.** Four of
+> them had disagreed with the source since W46/W47 and survived four reconciliations, because
+> a kind writes its severity as a literal at each `emit` call rather than in one table the way
+> `core/observability/events.ts` does (05 §7, and `90-decisions.md`'s open register). Re-derive
+> this column from the source when editing it.
 
 **`guest.path.failed` earns its place.** A resort where guests silently cannot reach a
 building looks identical to one where they do not want to — the failure is invisible in the

@@ -2033,30 +2033,59 @@ is owed, and these are what a developer or a content author needs instead.
 | `node.entered` | `debug` | every `enter(nodeId)` — §8.2 | `nodeId`, `nodeKind`, `visitCount` | delivered |
 | `random.picked` | `debug` | a `random` node chose a transition | `nodeId`, `goto`, `weight` | delivered |
 | `settle.guard_tripped` | `error` | `SETTLE_STEPS` exceeded | `nodeId`; `reason` set | delivered |
-| `choice.submitted` | `debug` | §8.2 step 1, after the choice resolves | `nodeId`, `choiceId` | specified, not yet delivered |
-| `choice.rejected` | `info` | §8.2 step 2 | `choiceId`; `reason` set (§8.3) | specified, not yet delivered |
-| `requirement.evaluated` | `trace` | §8.2 step 2, once per requirement | `choiceId`, `satisfied` | specified, not yet delivered |
-| `consequence.applied` | `debug` | §8.2 steps 3 and 5, per typed effect | `variable`, `op`, `clamped` | specified, not yet delivered |
-| `achievement.unlocked` | `info` | §8.2 step 7 | `achievementId` | specified, not yet delivered |
-| `ending.reached` | `info` | settle landed on an `EndingNode` | `endingId` | specified, not yet delivered |
+| `choice.submitted` | `debug` | §8.2 step 1, on submission — before the id is resolved | `nodeId`, `choiceId` | delivered |
+| `choice.rejected` | `info` | §8.2 step 2 | `choiceId`; `reason` set (§8.3) | delivered |
+| `requirement.evaluated` | `trace` | §8.2 step 2, once per *evaluated* requirement leaf | `choiceId`, `satisfied` | delivered |
+| `consequence.applied` | `debug` | §8.2 step 3, and every settle pass-through's own effects (§8.2's settle procedure) | `variable`, `op`, `clamped` | delivered |
+| `achievement.unlocked` | `info` | §8.2 step 7 | `achievementId` | delivered |
+| `ending.reached` | `info` | settle landed on an `EndingNode` | `endingId` | delivered |
 
-> **What "specified, not yet delivered" means, and why the rows stay.** `Kind.eventNames`
-> (04 §3) declares what a kind *may* emit, and the shipped `storyGraphKind` currently
-> declares the four marked delivered. The other six are named here because the names are the
-> contract — an event name is a published identifier a sink filters on (05 §9), so fixing it
-> before the emit site exists costs nothing and renaming it later costs every configured
-> sink. Deleting them instead would lose the design, and leaving them unmarked would claim a
-> stream a host cannot actually observe. Adding one is a matter of declaring it in
-> `eventNames` and emitting it at the step named above; nothing in this table needs
-> redeciding first. This is safe precisely because of 05 §2: dropping every event changes
-> nothing, so a not-yet-emitted event cannot be load-bearing.
+> **All ten rows are delivered.** `Kind.eventNames` (04 §3) declares what a kind *may*
+> emit, and the shipped `storyGraphKind` now declares and emits all ten. Adding an
+> eleventh follows the same shape: declare it in `eventNames`, emit it at the step named
+> above, and it needs no further redeciding — event names are a published identifier a
+> sink filters on (05 §9), fixing the name before the emit site exists costs nothing, and
+> this is safe precisely because of 05 §2: dropping every event changes nothing, so a
+> not-yet-emitted event was never load-bearing.
 
 Two of these carry most of the value, for the two audiences the events exist to serve:
 
 - **`requirement.evaluated`** is the author's answer to *why was my choice greyed out*.
-  It fires per requirement rather than per choice, so a compound condition (§6) reports
+  It fires per requirement leaf rather than per choice, so a compound condition (§6) reports
   which clause failed — something the single `requirement_unmet` reason code (§8.3)
   deliberately cannot say, because the player is not owed the campaign's internals.
+
+> **The walk short-circuits, and a leaf reports its effective contribution.** `all`/`any`
+> stop exactly where `evaluateCondition` (04 §18) stops, so this walk decides the same trees
+> the same way `showWhen` and `availableActions` decide them — and that parity is
+> load-bearing rather than incidental. A comparison against a type-mismatched operand
+> *throws*, so the guard-then-typed-compare idiom (`all: [x is set, x > 3]`) only stays a
+> clean `requirement_unmet` rejection while the guard can stop the walk; evaluating every
+> leaf eagerly would buy one extra `trace` event and turn that rejection into a thrown engine
+> error on a campaign `availableActions` had already greyed out. Under `all`, the
+> short-circuit lands on exactly the clause this event exists to name. Note this is the
+> opposite of the world-graph's rule in [`12-world-graph-kind.md`](12-world-graph-kind.md)
+> §9.1, deliberately: there the leaves are pure and an
+> identical trace is the whole point, here they are not.
+>
+> **`satisfied` carries the parity of the enclosing `not`s**, not the leaf's raw result.
+> `not: { achieved.bribed == true }` against a player who holds it is a requirement that
+> *failed*; reporting `satisfied: true` because the leaf alone was true tells the author the
+> opposite of what happened, and it is the only event that requirement produces. Only the
+> reported value is negated — the tree still decides on raw results. Under `not: { all: […] }`
+> De Morgan makes per-leaf negation a convention rather than a truth; emitting once for the
+> whole `not` subtree would always be truthful but drops the one-event-per-leaf property this
+> section leans on, so parity is the deliberate trade.
+
+> **`choice.submitted` fires on submission, before the id has been resolved**, so it carries
+> whatever `choiceId` the caller sent — including one naming no choice, or one whose
+> `showWhen` fails. That is the point: an unknown or hidden id then shows as a
+> `choice.submitted`/`choice.rejected` pair rather than as silence, and silence is the hardest
+> thing to debug in a stream. It is a deliberate exception to 05 §8's rule that
+> `core.action.rejected` omits an unresolved `actionId` — the core's rule protects a *hosted
+> operator's* log from arbitrary caller text, and this event is namespaced to one kind and
+> emitted at `debug`, where a host running `nullEmitter` (05 §2) never sees it at all. A host
+> that does raise the level and does not want caller-supplied ids should filter this name.
 - **`random.picked`** is the developer's answer to *why did this replay diverge*. Paired
   with `node.entered` and `visitCount`, a stream diff localizes a determinism failure to
   one transition, instead of to a `serialize()` byte offset.
@@ -6231,7 +6260,7 @@ Namespaced `kind.world-graph.*` (05 §9), declared as `Kind.eventNames`:
 | `scenario.effect.applied` | `debug` | System 1 applied one scheduled/policy effect | delivered |
 | `guest.spawned` | `trace` | System 2 | delivered |
 | `guest.served` | `trace` | System 4 | delivered |
-| `incident.resolved` | `debug` | Systems 11 and 16 own the transition today | delivered |
+| `incident.resolved` | `info` | Systems 11 and 16 own the transition today | delivered |
 | `tick.finalized` | `trace` | System 20, after cleanup and increment | delivered |
 | `guest.meter.changed` | `trace` | System 3 | specified, not yet delivered |
 | `service.started` | `trace` | System 5 | specified, not yet delivered |
@@ -6242,10 +6271,10 @@ Namespaced `kind.world-graph.*` (05 §9), declared as `Kind.eventNames`:
 | `task.candidate.generated` | `trace` | Optional system-9 diagnostic; never state | specified, not yet delivered |
 | `staff.task.assigned` / `staff.task.completed` / `staff.task.cancelled` | `trace` | Systems 10–11 | specified, not yet delivered |
 | `staff.moved` | `trace` | System 11 traversed one edge | specified, not yet delivered |
-| `construction.progressed` / `construction.completed` | `trace` / `info` | System 12 | specified, not yet delivered |
-| `building.meter.changed` | `trace` | Systems 13–14 | specified, not yet delivered |
+| `construction.progressed` / `construction.completed` | `trace` / `info` | System 12 | delivered |
+| `building.meter.changed` | `trace` | Systems 13–14 | delivered |
 | `finance.charged` | `debug` | System 15 coalesced one charge family | specified, not yet delivered |
-| `incident.raised` | `info` | Systems 4, 11, 14, or 16 own the transition | specified, not yet delivered |
+| `incident.raised` | `info` | Systems 4, 11, 14, or 16 own the transition | delivered |
 | `objective.progressed` / `objective.met` | `debug` / `info` | System 17 | specified, not yet delivered |
 | `failure.progressed` / `failure.triggered` | `debug` / `info` | System 18 | specified, not yet delivered |
 | `scenario.resolved` | `info` | Win or failure, with the `outcome` ids (§8) | specified, not yet delivered |
@@ -6257,11 +6286,20 @@ Namespaced `kind.world-graph.*` (05 §9), declared as `Kind.eventNames`:
 > name is a published identifier a sink filters on (05 §9), so it is fixed once, ahead of the
 > emit site, rather than renamed after every host has configured for it. As of W85, every
 > tick system this table names is real — `90-decisions.md`'s tick-system register closes
-> with no rows remaining — so the undelivered rows left below belong to pipeline stages
-> (queue membership, guest movement, per-system diagnostics) that were never blocked on a
-> stub, only not yet built. Same treatment as `story-graph` §8.4, and safe for the same
-> reason: 05 §2 guarantees dropping every event changes nothing, so a not-yet-emitted event
-> cannot be load-bearing.
+> with no rows remaining — and the rows that were blocked on a stub have all been marked
+> delivered as their systems landed: `construction.*` with W81, `building.meter.changed`
+> with W82/W83, `incident.raised` with W84, and the alert and achievement rows with W85.
+> What is left undelivered belongs to pipeline stages (queue membership, guest movement,
+> per-system diagnostics, coalesced finance and objective/failure reporting) that were never
+> blocked on a stub, only not yet built. Same treatment as `story-graph` §8.4, and safe for
+> the same reason: 05 §2 guarantees dropping every event changes nothing, so a not-yet-emitted
+> event cannot be load-bearing.
+>
+> **Every row's severity is checked against the shipped emit site, not remembered.** Four of
+> them had disagreed with the source since W46/W47 and survived four reconciliations, because
+> a kind writes its severity as a literal at each `emit` call rather than in one table the way
+> `core/observability/events.ts` does (05 §7, and `90-decisions.md`'s open register). Re-derive
+> this column from the source when editing it.
 
 **`guest.path.failed` earns its place.** A resort where guests silently cannot reach a
 building looks identical to one where they do not want to — the failure is invisible in the

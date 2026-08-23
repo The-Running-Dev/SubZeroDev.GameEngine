@@ -169,7 +169,7 @@ export const guestSpawn: WorldGraphSystem = (frame) => {
   };
   const state = { ...frame.state, guests: [...frame.state.guests, guest], counters: { ...frame.state.counters, guestsEntered: frame.state.counters.guestsEntered + 1 }, nextEntityOrdinal: frame.state.nextEntityOrdinal + 1 };
   frame.changes.record("guest-spawn", `guests.${id}.exists`, true, "guest_spawned", false, false);
-  frame.emit.emit("kind.world-graph.guest.spawned", "debug", { data: { guestId: id, archetypeId } });
+  frame.emit.emit("kind.world-graph.guest.spawned", "trace", { data: { guestId: id, archetypeId } });
   return { ...frame, state };
 };
 /** System 3: evolve meters and make threshold departures explicit. */
@@ -205,7 +205,7 @@ export const guestService: WorldGraphSystem = (frame) => {
       const incidentId = `incident:${state.nextEntityOrdinal}`;
       state = { ...state, incidents: [...state.incidents, { id: incidentId, definitionId: offer.product.litter.incidentDefinitionId, buildingId: building.id, guestId: null, zoneId: null, position: { x: guest.x, y: guest.y }, amount: offer.product.litter.unitsPerService, startedAtTick: frame.processingTick, expiresAtTick: null, resolvedAtTick: null }], nextEntityOrdinal: state.nextEntityOrdinal + 1, counters: { ...state.counters, incidentsRaised: state.counters.incidentsRaised + 1, litterCreated: state.counters.litterCreated + offer.product.litter.unitsPerService } };
     }
-    frame.emit.emit("kind.world-graph.guest.served", "info", { data: { guestId: guest.id, buildingId: building.id } });
+    frame.emit.emit("kind.world-graph.guest.served", "trace", { data: { guestId: guest.id, buildingId: building.id } });
   }
   return { ...frame, state };
 };
@@ -947,7 +947,7 @@ export const tickFinalize: WorldGraphSystem = (frame) => {
   };
   assertReferentialIntegrity(state);
   frame.changes.record("tick-finalize", "tick", state.tick, "ticks_advanced", true, frame.processingTick);
-  frame.emit.emit("kind.world-graph.tick.finalized", "debug", { data: { tick: frame.processingTick } });
+  frame.emit.emit("kind.world-graph.tick.finalized", "trace", { data: { tick: frame.processingTick } });
   return { ...frame, state };
 };
 

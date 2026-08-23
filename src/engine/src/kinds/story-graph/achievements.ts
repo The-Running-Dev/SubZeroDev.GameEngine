@@ -11,6 +11,7 @@
 import type { LocKey } from "../../core/localization/types.js";
 import type { Condition } from "../../core/condition/types.js";
 import type { StateChange } from "../../core/kernel/reasons.js";
+import type { ResolutionEmitter } from "../../core/observability/types.js";
 import { evaluateStoryGraphCondition, toConditionContext } from "./conditions.js";
 import type { StoryGraphKindState } from "./state.js";
 
@@ -24,8 +25,11 @@ export interface AchievementDefinition {
 
 /**
  * Evaluates every not-yet-unlocked achievement's `condition` against `state`, in
- * `achievements`' authored order. Pure — no `ctx`, no I/O, matching this unit's own
- * done-criterion ("`advance` performs no I/O").
+ * `achievements`' authored order. Pure with respect to state — it takes a
+ * `ResolutionEmitter` (W86) rather than the full `ctx`, and 05 §2 guarantees dropping every
+ * event changes nothing, so this still satisfies the unit's own done-criterion ("`advance`
+ * performs no I/O"). The emitter is optional only so the unit tests below can call this
+ * without one; every production path passes it.
  *
  * The condition context is rebuilt after each unlock rather than once up front, so an
  * achievement whose `condition` reads `achieved.<id>` can react to another achievement
@@ -35,6 +39,7 @@ export interface AchievementDefinition {
 export function evaluateAchievements(
   achievements: readonly AchievementDefinition[],
   state: StoryGraphKindState,
+  emit?: ResolutionEmitter,
 ): { unlockedAchievements: string[]; changes: StateChange[] } {
   // One copy of the input up front (never mutated after), then a Set for O(1)
   // membership checks and in-place pushes instead of an O(n) `.includes` scan and an
@@ -52,6 +57,7 @@ export function evaluateAchievements(
 
     unlockedIds.add(achievement.id);
     unlocked.push(achievement.id);
+    emit?.emit("kind.story-graph.achievement.unlocked", "info", { data: { achievementId: achievement.id } });
     changes.push({
       path: `achieved.${achievement.id}`,
       op: "set",
