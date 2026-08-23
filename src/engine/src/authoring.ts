@@ -8,6 +8,7 @@
 
 export { buildCampaign } from "./core/registry/build.js";
 export { buildStoryGraphCampaign } from "./kinds/story-graph/source.js";
+export { buildSimulationCampaign } from "./kinds/simulation/source.js";
 export {
   buildAdventureCampaign,
   createAdventureSource,
@@ -36,6 +37,27 @@ export type {
 } from "./kinds/story-graph/source.js";
 export type { StoryGraphCampaign } from "./kinds/story-graph/campaign.js";
 export type { StoryGraphKindState } from "./kinds/story-graph/state.js";
+export type {
+  AchievementDefinitionSource as SimulationAchievementDefinitionSource,
+  BackgroundDefinitionSource,
+  CourseDefinitionSource,
+  DifficultyDefinitionSource,
+  EmployerDefinitionSource,
+  EventDefinitionSource,
+  GoalDefinitionSource,
+  HeadlineDefinitionSource,
+  HousingDefinitionSource,
+  ItemDefinitionSource,
+  JobDefinitionSource,
+  LocationDefinitionSource,
+  NPCDefinitionSource,
+  OpportunityDefinitionSource,
+  ScenarioDefinitionSource,
+  SimulationActionLabelKeysSource,
+  SimulationCampaignSource,
+  SkillDefinitionSource,
+  TraitDefinitionSource,
+} from "./kinds/simulation/source.js";
 export type { Consequence, VarValue } from "./kinds/story-graph/variables.js";
 export type { RandomTransition } from "./kinds/story-graph/nodes.js";
 export type {

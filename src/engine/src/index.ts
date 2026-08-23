@@ -81,3 +81,8 @@ export type { Emitter, EngineEvent } from "./core/observability/types.js";
 export type { WorldGraphCampaign, WorldGraphCampaignSource } from "./kinds/world-graph/content.js";
 export type { WorldGraphKindState, WorldGraphView } from "./kinds/world-graph/state.js";
 export type { WorldGraphOutcome } from "./kinds/world-graph/outcome.js";
+export type { SimulationCampaign } from "./kinds/simulation/campaign.js";
+export type { SimulationKindState } from "./kinds/simulation/state.js";
+export type { SimulationView, PublicWorldState } from "./kinds/simulation/view.js";
+export type { SimulationOutcome } from "./kinds/simulation/outcome.js";
+export type { ActionType, GameAction, WeeklyActionPlan } from "./kinds/simulation/plan.js";

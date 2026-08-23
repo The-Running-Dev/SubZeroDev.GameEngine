@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 5a2c5126ec1504b8ee04110ce91843f08484d01673a4055edae77b9dc7e1b0dd -->
+<!-- design-digest: 08a5815ce74135d3e0271b32e1d25f44d2a52e624e2f449e742940bc4475b4b1 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -127,17 +127,25 @@ Narrative campaigns are authored and published by
 [SubZeroDev.Adventures.Content](https://github.com/The-Running-Dev/SubZeroDev.Adventures.Content),
 not by this repository. It builds portable JSON from TypeScript campaign sources and publishes the
 manifest hosts fetch. This engine stays the authority for deterministic mechanics, kinds,
-validation, and portable hydration.
+validation, portable hydration, and the author-time primitives exposed through `/authoring`.
 
-The package root is for runtime hosts. A separate subpath, `/authoring`, is for repositories that
-own campaign source: it exports the generic campaign builder, the story-graph source builder, the
-adventure builder with its source factory and its migration helper, portable serialization and
-manifest-digest functions, and replay-runner types. Import from `/authoring` only when writing or
-publishing campaign content — a runtime host must never import authored campaign source merely to
-play already-published portable JSON. `toPortable` and the manifest-resolution digest are
-`/authoring`-only; `fromPortable` is root-only; the portable-campaign digest function is exported
-from both, because both a runtime host verifying fetched content and a publishing pipeline
-digesting source before it ships need it.
+The package root is the runtime contract; `@the-running-dev/game-engine/authoring` is the separate
+author-time contract for a repository that owns campaign source. It exports the generic campaign
+builder, the story-graph source builder, the simulation source builder with its content-definition
+source types, the shared adventure builder with its source factory and its migration helper,
+portable serialization and manifest-digest functions, and replay-runner types. Import from
+`/authoring` only when writing or publishing campaign content — a runtime host must never import
+authored campaign source merely to play already-published portable JSON. `toPortable` and the
+manifest-resolution digest are `/authoring`-only; `fromPortable` is root-only; the
+portable-campaign digest function is exported from both, because both a runtime host verifying
+fetched content and a publishing pipeline digesting source before it ships need it. Portable
+campaign documents stay at format version 2.
+
+**A kind's export split follows one rule, regardless of which kind it is:** the builder and its
+source types are author-time and belong on `/authoring`; the campaign, state, view, and outcome
+types are what a runtime host compiles against and belong at the root. `buildWorldGraphCampaign`
+is a stated exception — its root placement predates the `/authoring` subpath and was left there
+rather than moved.
 
 A handful of frozen campaigns still ship as package-root exports for compatibility. They are
 regression fixtures, not a publication source, and a later breaking release removes them from the
