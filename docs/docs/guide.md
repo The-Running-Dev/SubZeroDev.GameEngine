@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 4cd4099867b95bef280462a7c52e0449d702b7b163867a2e29fc9fad84c3eab9 -->
+<!-- design-digest: 5a2c5126ec1504b8ee04110ce91843f08484d01673a4055edae77b9dc7e1b0dd -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -130,14 +130,14 @@ manifest hosts fetch. This engine stays the authority for deterministic mechanic
 validation, and portable hydration.
 
 The package root is for runtime hosts. A separate subpath, `/authoring`, is for repositories that
-own campaign source: it exports the content-registry builder, the story-graph and adventure source
-builders and their migration helpers, portable serialization and manifest-digest functions, and
-replay-runner types. Import from `/authoring` only when writing or publishing campaign content —
-a runtime host must never import authored campaign source merely to play already-published
-portable JSON. `toPortable` and the manifest-resolution digest are `/authoring`-only;
-`fromPortable` is root-only; the portable-campaign digest function is exported from both, because
-both a runtime host verifying fetched content and a publishing pipeline digesting source before it
-ships need it.
+own campaign source: it exports the generic campaign builder, the story-graph source builder, the
+adventure builder with its source factory and its migration helper, portable serialization and
+manifest-digest functions, and replay-runner types. Import from `/authoring` only when writing or
+publishing campaign content — a runtime host must never import authored campaign source merely to
+play already-published portable JSON. `toPortable` and the manifest-resolution digest are
+`/authoring`-only; `fromPortable` is root-only; the portable-campaign digest function is exported
+from both, because both a runtime host verifying fetched content and a publishing pipeline
+digesting source before it ships need it.
 
 A handful of frozen campaigns still ship as package-root exports for compatibility. They are
 regression fixtures, not a publication source, and a later breaking release removes them from the
