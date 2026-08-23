@@ -233,3 +233,13 @@
 ### [ ] W87 — The World-Graph Kind Says What Its Ticks Did {#w87}
 
 ## Known Open Items Carried In
+
+## Outstanding
+
+### Contract Prerequisites — Not Sliceable, Route to `/contract`
+
+### Depth: Life in the Fast Lane, End to End
+
+### [ ] W88 — The Simulation Kind Nobody Outside the Package Can Use {#w88}
+
+### [ ] W89 — A Game-Length Life {#w89}

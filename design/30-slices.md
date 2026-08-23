@@ -3687,4 +3687,251 @@ difference is invisible in the projection and obvious in the stream.
     [1](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/3#discussion_r3660515997),
     [2](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/3#discussion_r3660516002),
     [3](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/3#discussion_r3660516006).
+
+---
+
+## Outstanding
+
+**One question: what stands between the `simulation` kind as it runs today and Life in the
+Fast Lane being playable end to end.** The answer is not what the earlier programme headers
+would suggest. W36–W40 built the kind, W50–W57 built the behaviour behind it, and the
+mechanics are very nearly whole — twenty-seven of thirty-one
+[§4.2](10-simulation-kind.md#42-action-types) `ActionType`s have a real resolver, fourteen of
+fifteen [§3](10-simulation-kind.md#3-the-turn-is-a-week) end-of-week systems have real bodies,
+[§9](10-simulation-kind.md#9-projection)'s projection is built, and the kind is proven through
+the replay oracle, the text client and MCP. What is missing sits on either side of the
+mechanics: **nothing outside the package can author or type a simulation campaign, and
+nothing has ever run one for longer than three weeks.**
+
+Two units below close those two. Everything else Life in the Fast Lane still needs is a
+contract decision, listed first so it is not mistaken for work a slice can pick up.
+
+### Contract Prerequisites — Not Sliceable, Route to `/contract`
+
+Named here in the shape *Known Open Items Carried In* uses for the eight downstream-host
+findings, and for the same reason: each either asks for a type the contract does not declare
+or asks it to state a rule it currently leaves unwritten, and slicing one would mean inventing
+the answer first. Several are already carried above and are repeated only because they sit on
+this path; the rest are new to this pass.
+
+- **P1 — Four `ActionType`s have no content-definition type.** Carried above.
+  `start_project`, `work_on_project`, `start_business` and `operate_business` are members of
+  [§4.2](10-simulation-kind.md#42-action-types)'s closed union and
+  [§7](10-simulation-kind.md#7-content-definition-types) declares nothing for them to resolve
+  against. **What has not been recorded is the live consequence**, and it is worse than an
+  unbuilt feature: `ResolverTable`'s completeness check forced a resolver for each, so all
+  four are `stubResolver` — always valid, always a neutral no-op — and `view.ts` derives
+  `SimulationView.plan.availableActionTypes` from the whole union minus `"custom"`. **Every
+  client is therefore offering four actions that accept the plan, consume no time, cost no
+  money and change nothing.** A life sim in which starting a business is a progression path
+  cannot ship that way. The decision is whether
+  [§7](10-simulation-kind.md#7-content-definition-types) gains `ProjectDefinition` and
+  `BusinessDefinition` or §4.2's union loses the four members; which way it goes decides
+  whether the follow-on unit builds two content types or narrows a projection field, so
+  neither side can be sliced first.
+- **P2 — The `relationships` end-of-week system has no rule to implement.** Carried above,
+  unchanged since W37: [§6.11](10-simulation-kind.md#611-relationships) gives
+  `RelationshipState` its full shape and
+  [§7.7](10-simulation-kind.md#77-npcs--definition-and-runtime-state) the NPC, and nothing
+  states what a week does to either. It is the last stub left in §3's order.
+- **P3 — A campaign has no way to set its own numbers.** `SimulationCampaign`
+  (`src/engine/src/kinds/simulation/campaign.ts`) declares seventeen content collections, a
+  scenario id, a precedence flag, optional starting effects and three label keys — and **not
+  one tuning value**. The weekly time budget, every need's drift rate, the late-fee rate, the
+  eviction ladder, performance drift and its work bonus, the strangeness step, and every
+  action's own time cost and restore amount are `const`s in `initial.ts`, `endOfWeek.ts` and
+  `resolvers.ts`. A campaign cannot move any of them, so Life in the Fast Lane would be played
+  at *Stable Life's* physics — a fixture's provisional balance, not a game's. This is the
+  deeper reading of the *provisional numbers* item carried above: the problem is not that the
+  numbers are unbalanced, it is that they sit where no campaign can reach them. A tuning block
+  on `SimulationCampaign` is a new public interface and needs the amendment rather than a
+  slice. **Note what this is not:** [12 §15](12-world-graph-kind.md#15-validation) assigns
+  balance *findings* to a game-side harness, and that stands — this is about where the levers
+  live, not about who turns them.
+- **P4 — Rival agents.**
+  [§7.10](10-simulation-kind.md#710-agents--engine-owned-strategy-definition-and-runtime-state)
+  states outright that how a scenario configures rivals is an open gap; no `ScenarioDefinition`
+  field names them. `PublicWorldState` was declared by [W50](#w50) so `AgentStrategy` could
+  typecheck and is exercised by nothing. [W57](#w57) put agents out of scope for exactly this
+  reason and nothing has changed since.
+- **P5 — `plan_empty` has no field to condition on.**
+  [§10](10-simulation-kind.md#10-reason-codes) specifies it for "`end_week` with nothing
+  planned, where the campaign forbids it", and no campaign can express forbidding it — so
+  `available.ts` documents the gate as deliberately unwired rather than writing dead code. One
+  of the two §10 codes still undispatched.
+- **P6 — `Employment.attendanceRatio` and `wisdom` are declared and read by nothing.** Both
+  carried above; they are the same shape and want the same kind of answer.
+  `attendanceRatio` ([§6.8](10-simulation-kind.md#68-career)) is set to `100` at hire and never
+  moved, so anything built on it reads a perfect record forever; `wisdom`
+  ([§6.6](10-simulation-kind.md#66-attributes)) is resolved through the derived-value layer and
+  consulted by no resolver or system. Each needs a mechanism decision — what a missed work week
+  *is*, and what wisdom changes — before it is a field to fill in.
+- **P7 — A published simulation campaign cannot carry a save migration.** `PortableMigration`
+  is `nodeMap`/`endingMap` and sits on the story-graph arm of `PortableCampaignBody` by
+  construction, which `src/engine/src/portable/format.ts` documents as a deliberate structural
+  fact rather than an omission. Correct for the format as it stands, and a real ceiling for a
+  long-running life sim: once the game is published as portable JSON, no content revision can
+  migrate an existing save. **This does not block first play** — it blocks revising a live
+  game — so it is last here rather than first; it is also the one prerequisite carrying a
+  wire-format cost.
+
+### Depth: Life in the Fast Lane, End to End
+
+Two units. **W88 first, because nobody can start without it**: the kind's authoring surface is
+not exported, so the content repository that would own the campaign cannot build one, and a
+host that fetched it could not type what it renders. **W89 second, because nothing has been
+tested at the scale the game is played at**: every simulation fixture in the corpus is two or
+three weeks long, and a life sim is measured in years.
+
+### [ ] W88 — The Simulation Kind Nobody Outside the Package Can Use {#w88}
+
+**Delivers:** Lets a content repository actually write Life in the Fast Lane, and lets a host
+render it. Today the simulation kind is one you can register and cannot author: the package
+exports `simulationKind` and nothing else about it — not the campaign builder, not the source
+types it takes, not the campaign, state, view or outcome types a host must compile against.
+`world-graph` has that whole set at the package root and `story-graph` has its builder and
+source types on the `/authoring` subpath; `simulation` has neither, and nothing records the
+absence as a decision.
+
+**The gap is exports, not code.** `buildSimulationCampaign` and `SimulationCampaignSource` have
+existed in `src/engine/src/kinds/simulation/source.ts` since [W52](#w52), and `SimulationView`,
+`PublicWorldState` and `SimulationOutcome` since [W50](#w50); every campaign under
+`src/engine/src/campaigns/` reaches them by relative import, which is exactly why nothing
+caught it. The packed tarball is the only place the omission is visible, and `consumer-smoke/`
+has never asked for a simulation type.
+
+**This unit amends [20 §19](04-core.md#19-published-narrative-authoring)'s export list in the
+same change that implements it**, the precedent [W50](#w50) took from [W48](#w48). That is
+deliberate and narrow: §19's *rule* is settled — the root is the runtime contract, the subpath
+is the author-time contract for repositories that own campaign source — and what is missing is
+that its list names the story-graph builder and not the simulation one. If drafting turns out
+to need a decision rather than a list entry, that is `/contract`'s call, not this unit's.
+
+**The placement question has a defensible answer and this unit states it rather than absorbs
+it.** The two existing kinds disagree: `WorldGraphKindState`, `WorldGraphView`,
+`WorldGraphOutcome`, `WorldGraphCampaign` *and* `buildWorldGraphCampaign` are all root exports,
+while `StoryGraphCampaign` and `StoryGraphKindState` are `/authoring`-only. §19 resolves it by
+kind of *thing* rather than by kind: **the builder and its source types are author-time and go
+to `/authoring`; the campaign, state, view and outcome types are what a runtime host compiles
+against and go to the root.** That splits the difference the two precedents straddle without
+disturbing either — `buildWorldGraphCampaign`'s root placement predates the subpath and is
+noted here rather than moved.
+- **Spec:** [20 §19](04-core.md#19-published-narrative-authoring) (the root is the runtime
+      contract, the subpath the author-time one);
+      [10 §13](02-architecture.md#13-published-narrative-content-ownership) (published campaign
+      builders are not package-root API — a *builder* is not a published campaign);
+      [10 §9](10-simulation-kind.md#9-projection) (`SimulationView`, what a host renders);
+      [§7](10-simulation-kind.md#7-content-definition-types) (what the source types cover);
+      [§12](10-simulation-kind.md#12-terminal-identity) (`SimulationOutcome`).
+- **Touches:** `src/engine/src/authoring.ts` and its committed sorted export list
+      ([W74.7](#w74)); `src/engine/src/index.ts`; `consumer-smoke/smoke.ts`;
+      `design/20-contract.md` (the `engine/04-core.md` block, §19).
+- **Depends on:** [W57](#w57), the behaviour these types describe, and [W74c](#w74c), which
+      fixed what the root surface is for. Not on [W89](#w89).
+- **Status:** Not started.
+- **Done when:**
+  - W88.1 `buildSimulationCampaign` and every `*Source` type
+        `src/engine/src/kinds/simulation/source.ts` declares are exported from
+        `@the-running-dev/game-engine/authoring`; `SimulationCampaign`, `SimulationKindState`,
+        `SimulationView`, `PublicWorldState`, `SimulationOutcome`, `ActionType`, `GameAction`
+        and `WeeklyActionPlan` are exported from the package root.
+  - W88.2 `consumer-smoke` builds a simulation campaign from source through the subpath and
+        types a `SimulationView` through the root, **resolving both from the packed tarball**
+        rather than a source link — the bar [W74.6](#w74) already set. Deleting one of the new
+        exports fails the smoke build, verified by deleting one.
+  - W88.3 The subpath stays closed against published content: W74.7's enumeration check passes
+        with the new names in its committed list, and no `stable-life*` or
+        `bulgaria-stable-life` builder or campaign id becomes reachable through either surface.
+  - W88.4 §19's export sentence names the simulation builder and source types and states the
+        author-time/runtime split this unit applies, so the next kind has a rule to follow
+        rather than two precedents to choose between.
+  - W88.5 A test asserts the root exports no simulation *authoring* value — the direction
+        W74c's boundary check does not cover, since it enumerates the subpath and not the root.
+  - W88.6 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`;
+        `install:engine`, `build` and `smoke` pass from `consumer-smoke/`;
+        `./build/Test-Documentation.ps1` passes.
+- **Out of scope:** moving `buildWorldGraphCampaign` or the story-graph types to match — a
+      breaking change to two settled surfaces for consistency alone, which is [W74c](#w74c)'s
+      kind of unit and wants its own decision; exporting any campaign, which §19 forbids and
+      W74c removed; and every prerequisite above — this unit exports what already exists and
+      adds no behaviour.
+
+---
+
+### [ ] W89 — A Game-Length Life {#w89}
+
+**Delivers:** The first evidence that this kind survives being played as a game rather than as
+a test. **The longest simulation run committed anywhere in this repository is three weeks** —
+`stable-life-win` is three `end_week` calls, and all twelve simulation fixtures under
+`src/engine/fixtures/replay/` are two or three. Each was built to prove one system, which is
+what W53–W57 needed and is not what Life in the Fast Lane is: a scenario measured in years,
+where the same fifteen systems run two hundred times over accumulating state.
+
+**What a long run exercises that a short one cannot** is why this is a unit rather than a
+bigger fixture appended to an existing one. Three weeks never reaches the end of the eviction
+ladder; never completes a course, let alone a promotion chain whose `minimumWeeksInRole` gates
+re-measure from each promotion; never accumulates enough expired `activeEffects`, resolved
+`PendingEventResponse`s or achievement counters to say anything about growth in the serialized
+state; never exhausts an event or opportunity pool and finds out what the systems do when one
+is empty; and never draws enough from the weekly RNG substreams to make substream independence
+([§13](10-simulation-kind.md#13-determinism)) an observed property rather than an argued one.
+Each of those is a way a game-length run can diverge or wedge while every current fixture stays
+green.
+
+**The fixture is engine-owned and unpublished, which
+[20 §19](04-core.md#19-published-narrative-authoring) permits explicitly** — "GameEngine may
+retain a frozen campaign solely as a regression fixture; such a fixture is not published and
+not listed in a manifest." It is regression evidence in the shape [W74a](#w74a) froze
+Bureaucracy into, not a second game, and it must not become one: it needs enough content to
+sustain a long run and no more. It is emphatically not Life in the Fast Lane, whose content
+lives in
+[SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife).
+
+**Sized on the argument that the action log is generated, not authored.** A scenario with a
+long horizon plus a scripted weekly policy driving the plan is one session's work;
+hand-writing two hundred weeks of `plan.add` calls is not, and a unit reaching for the second
+has been mis-sized rather than under-resourced.
+- **Spec:** [`07-replay.md`](07-replay.md) §4, §6, §7 (the corpus and the runner's verdicts);
+      [04 §14](04-core.md#14-determinism-harness) (a build against itself);
+      [10 §3](10-simulation-kind.md#3-the-turn-is-a-week) (the two orderings a long run re-runs
+      two hundred times), [§13](10-simulation-kind.md#13-determinism) (substreams),
+      [§12](10-simulation-kind.md#12-terminal-identity);
+      [20 §19](04-core.md#19-published-narrative-authoring) (a retained fixture is not a
+      publication).
+- **Touches:** a new long-horizon fixture campaign under `src/engine/src/campaigns/`; new
+      fixture and outcome pairs under `src/engine/fixtures/replay/`;
+      `src/engine/src/campaigns/replay-corpus.ts`.
+- **Depends on:** [W57](#w57). Independent of [W88](#w88) — the two may land in either order.
+- **Status:** Not started.
+- **Done when:**
+  - W89.1 A committed fixture plays at least one hundred and fifty weeks to a terminal
+        `outcome()` and is in the replay corpus, its outcome frozen the way every other corpus
+        entry is.
+  - W89.2 Both a win and a loss at that length are committed, and the loss reaches the end of
+        the eviction ladder rather than ending on a goal-failure condition — the terminal path
+        no short fixture has ever walked.
+  - W89.3 Every one of the twenty-seven dispatched `ActionType`s resolves at least once across
+        the committed long runs, asserted by counting resolved action types against
+        `RESOLVER_TABLE`'s non-stub entries, so the count moves on its own when P1 is answered.
+  - W89.4 Each of the fifteen [§3](10-simulation-kind.md#3-the-turn-is-a-week) end-of-week
+        systems is observed doing something at least once over the run — a `system.ran` event
+        alone does not count, since a stub emits one too.
+  - W89.5 The run is byte-identical when replayed, and byte-identical when the same weeks are
+        played as one session and as a save/restore split partway through, which is what proves
+        nothing accumulated outside the serialized state.
+  - W89.6 What the run's final state costs is asserted, not printed: serialized size and the
+        count of each unbounded collection at week one against the final week, committed with a
+        stated ceiling. A collection that grows every week is a defect this unit is the first
+        thing able to see.
+  - W89.7 Every existing committed replay outcome is unchanged byte-for-byte; this unit adds
+        fixtures and changes no behaviour.
+  - W89.8 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`.
+- **Out of scope:** fixing anything the run exposes — a defect found here is its own unit, and
+      the whole value of this one is being the first thing capable of finding one; any balance
+      judgement about the run's numbers, which
+      [12 §15](12-world-graph-kind.md#15-validation) assigns to a game-side harness and which
+      P3 shows the engine cannot host anyway; Tier 3 validation for this kind, which
+      [W73](#w73) put out of scope by name and which needs its state space argued before it is
+      built; and wiring a long run into CI as a required gate, a policy change with a runtime
+      cost that wants its own decision.
 <!-- human-doc:end -->
