@@ -220,14 +220,93 @@ describe("advance — events (03 §8.4)", () => {
   });
 
   it("W86.2 fires requirement.evaluated once per leaf of a compound requirement, not once per choice", () => {
-    const { ctx, events } = recordingCtx(campaign);
+    // Two leaves, the failing one second, so a per-choice event would report one and a
+    // per-leaf walk reports both. `all` short-circuits (below), so the passing leaf has to
+    // come first for the second to be reached at all.
+    const compound: StoryGraphCampaign = {
+      ...campaign,
+      nodes: {
+        ...campaign.nodes,
+        start: {
+          id: "start",
+          kind: "choice",
+          textKey: "t",
+          choices: [
+            {
+              id: "gated",
+              labelKey: "choice.gated",
+              requirements: {
+                all: [
+                  { field: "var.documents_collected", operator: "equals", value: false },
+                  { field: "var.money", operator: "greater_or_equal", value: 5 },
+                ],
+              },
+              goto: "start",
+            },
+          ],
+        },
+      },
+    };
+
+    const { ctx, events } = recordingCtx(compound);
     advance(baseState(), "gated", undefined, ctx);
     const evaluated = events().filter((e) => e.name === "kind.story-graph.requirement.evaluated").map(simplify);
-    // "gated"'s requirements are `all: [money >= 5, documents_collected == false]` — the
-    // first leaf fails and the second is still evaluated (and reported) regardless.
     expect(evaluated).toEqual([
-      { name: "kind.story-graph.requirement.evaluated", data: { choiceId: "gated", satisfied: false } },
       { name: "kind.story-graph.requirement.evaluated", data: { choiceId: "gated", satisfied: true } },
+      { name: "kind.story-graph.requirement.evaluated", data: { choiceId: "gated", satisfied: false } },
+    ]);
+  });
+
+  it("W86.2 short-circuits `all` at the first failing leaf, exactly as availableActions does", () => {
+    // The shared fixture's "gated" is `all: [money >= 5, documents_collected == false]`.
+    // `money` is 2, so the first leaf fails and the second is never reached — one event,
+    // and it is the clause that actually failed (03 §8.4).
+    const { ctx, events } = recordingCtx(campaign);
+    advance(baseState(), "gated", undefined, ctx);
+    expect(events().filter((e) => e.name === "kind.story-graph.requirement.evaluated").map(simplify)).toEqual([
+      { name: "kind.story-graph.requirement.evaluated", data: { choiceId: "gated", satisfied: false } },
+    ]);
+  });
+
+  it("W86.2 rejects a guarded requirement rather than throwing on the leaf the guard exists to skip", () => {
+    // The guard-then-typed-compare idiom: the second leaf compares a `bool` with a numeric
+    // operator, which `compare` throws on. `availableActions` short-circuits past it and
+    // reports the choice unavailable; evaluating every leaf for the sake of one extra
+    // `trace` event would make submitting it throw instead of rejecting cleanly.
+    const guarded: StoryGraphCampaign = {
+      ...campaign,
+      nodes: {
+        ...campaign.nodes,
+        start: {
+          id: "start",
+          kind: "choice",
+          textKey: "t",
+          choices: [
+            {
+              id: "guarded",
+              labelKey: "choice.gated",
+              requirements: {
+                all: [
+                  { field: "var.documents_collected", operator: "equals", value: true },
+                  { field: "var.documents_collected", operator: "greater_than", value: 3 },
+                ],
+              },
+              goto: "start",
+            },
+          ],
+        },
+      },
+    };
+
+    const { ctx, events } = recordingCtx(guarded);
+    expect(availableActions(baseState(), fakeCtx(guarded))).toEqual([
+      { id: "guarded", labelKey: "choice.gated", available: false, reasonKey: "core.reason.requirement_unmet" },
+    ]);
+
+    const result = advance(baseState(), "guarded", undefined, ctx);
+    expect(result.error?.code).toBe("requirement_unmet");
+    expect(events().filter((e) => e.name === "kind.story-graph.requirement.evaluated").map(simplify)).toEqual([
+      { name: "kind.story-graph.requirement.evaluated", data: { choiceId: "guarded", satisfied: false } },
     ]);
   });
 

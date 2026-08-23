@@ -36,9 +36,17 @@ function rejected(
 /**
  * Walks `condition`'s leaves (comparisons, `exists`, `count`), evaluating and emitting
  * `requirement.evaluated` once per leaf rather than once for the whole tree — a compound
- * `all`/`any`/`not` is a combinator, not itself a requirement (03 §8.4). Every leaf is
- * evaluated regardless of an earlier sibling's result, so the emitted count always
- * matches the tree's leaf count.
+ * `all`/`any`/`not` is a combinator, not itself a requirement (03 §8.4).
+ *
+ * `all`/`any` **short-circuit exactly as `evaluateCondition` does**, so this walk decides
+ * the same trees the same way `showWhen` and `availableActions` (`scene.ts`) decide them.
+ * That parity is load-bearing rather than incidental: `compare` throws on a type-mismatched
+ * operand, so the guard-then-typed-compare idiom (`all: [x is set, x > 3]`) only stays a
+ * clean `requirement_unmet` rejection while the guard can stop the walk. Evaluating every
+ * leaf eagerly would buy one extra `trace` event and turn that rejection into a thrown
+ * engine error on a campaign `availableActions` had already greyed out. §8.4 asks these
+ * events to say which clause failed, and under `all` the short-circuit lands on exactly
+ * that clause.
  */
 function evaluateRequirements(
   condition: Condition,
@@ -47,10 +55,16 @@ function evaluateRequirements(
   emit: ResolutionEmitter,
 ): boolean {
   if ("all" in condition) {
-    return condition.all.map((c) => evaluateRequirements(c, context, choiceId, emit)).every(Boolean);
+    for (const c of condition.all) {
+      if (!evaluateRequirements(c, context, choiceId, emit)) return false;
+    }
+    return true;
   }
   if ("any" in condition) {
-    return condition.any.map((c) => evaluateRequirements(c, context, choiceId, emit)).some(Boolean);
+    for (const c of condition.any) {
+      if (evaluateRequirements(c, context, choiceId, emit)) return true;
+    }
+    return false;
   }
   if ("not" in condition) {
     return !evaluateRequirements(condition.not, context, choiceId, emit);
