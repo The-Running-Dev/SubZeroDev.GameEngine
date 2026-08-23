@@ -1511,11 +1511,17 @@ them, so a rename breaks old data.
 
 The package root is the runtime contract. `@the-running-dev/game-engine/authoring` is the
 separate author-time contract for repositories that own campaign source. It exports the
-generic campaign builder, the story-graph source builder, the shared adventure builder with
-its source factory and its migration helper, portable serialization and manifest digests, and
-replay-runner types/functions. It is deliberately a
-subpath: a runtime host must not import authored campaign source merely to play published
-portable JSON.
+generic campaign builder, the story-graph source builder, the simulation source builder with
+its content-definition source types, the shared adventure builder with its source factory and
+its migration helper, portable serialization and manifest digests, and replay-runner
+types/functions. It is deliberately a subpath: a runtime host must not import authored
+campaign source merely to play published portable JSON.
+
+A kind's export split follows one rule regardless of which kind it is: the builder and its
+source types are author-time and belong on `/authoring`; the campaign, state, view and outcome
+types are what a runtime host compiles against and belong at the root
+(design/30-slices.md, W88). `buildWorldGraphCampaign`'s root placement predates the subpath
+and is an exception noted here rather than moved.
 
 `SubZeroDev.Adventures.Content` owns the canonical source and publication of narrative
 campaigns. GameEngine owns kinds, validation, portable hydration and authoring primitives.

@@ -32,6 +32,7 @@ const AUTHORING_VALUE_EXPORTS = [
   "buildAdventureCampaign",
   "buildCampaign",
   "buildReplayOutcome",
+  "buildSimulationCampaign",
   "buildStoryGraphCampaign",
   "createAdventureSource",
   "digestManifestResolution",
@@ -49,6 +50,7 @@ const AUTHORING_TYPE_EXPORTS = [
   "AdventureRoute",
   "AuthoredText",
   "AutoNodeSource",
+  "BackgroundDefinitionSource",
   "BuiltCampaign",
   "Campaign",
   "ChoiceNodeSource",
@@ -56,8 +58,20 @@ const AUTHORING_TYPE_EXPORTS = [
   "CommandResult",
   "Condition",
   "Consequence",
+  "CourseDefinitionSource",
+  "DifficultyDefinitionSource",
+  "EmployerDefinitionSource",
   "EndingNodeSource",
+  "EventDefinitionSource",
+  "GoalDefinitionSource",
+  "HeadlineDefinitionSource",
+  "HousingDefinitionSource",
+  "ItemDefinitionSource",
+  "JobDefinitionSource",
+  "LocationDefinitionSource",
+  "NPCDefinitionSource",
   "NodeSource",
+  "OpportunityDefinitionSource",
   "Outcome",
   "PortableCampaign",
   "PortableCampaignBody",
@@ -71,10 +85,16 @@ const AUTHORING_TYPE_EXPORTS = [
   "ReplayResult",
   "ReplayRunnerContext",
   "ReplayVerdict",
+  "ScenarioDefinitionSource",
+  "SimulationAchievementDefinitionSource",
+  "SimulationActionLabelKeysSource",
+  "SimulationCampaignSource",
+  "SkillDefinitionSource",
   "StoryGraphCampaign",
   "StoryGraphCampaignSource",
   "StoryGraphKindState",
   "Submission",
+  "TraitDefinitionSource",
   "VarValue",
   "VariableDeclSource",
   "VariableSchemaSource",
@@ -87,7 +107,7 @@ const AUTHORING_TYPE_EXPORTS = [
  * constant) are all one needle, but an unrelated word that merely contains a family's letters
  * (e.g. "kawasaki") is not.
  */
-const PUBLISHED_NARRATIVE_FAMILIES = ["bulgaria-", "lucifer-", "saki-", "what-would-lucifer-do"];
+const PUBLISHED_NARRATIVE_FAMILIES = ["bulgaria-", "lucifer-", "saki-", "stable-life", "what-would-lucifer-do"];
 
 const WORD_BOUNDARY = " ";
 
@@ -264,5 +284,15 @@ describe("the runtime root publishes no narrative campaign (W74c)", () => {
 
     const basenames = graph.map((file) => (file.split("/").pop() ?? "").replace(/\.ts$/, ""));
     expect(basenames.filter(namesPublishedNarrative)).toEqual([]);
+  });
+
+  // W88.5 — the direction W74c's boundary check above does not cover: it enumerates the
+  // subpath's author-time values, not which of them the root must *not* also carry.
+  it("exports no simulation authoring value — the builder stays subpath-only", () => {
+    expect(Object.keys(root)).not.toContain("buildSimulationCampaign");
+    const rootSourceTypeNames = declaredExports(ROOT_SOURCE).types;
+    for (const sourceTypeName of AUTHORING_TYPE_EXPORTS.filter((name) => name.endsWith("Source"))) {
+      expect(rootSourceTypeNames).not.toContain(sourceTypeName);
+    }
   });
 });
