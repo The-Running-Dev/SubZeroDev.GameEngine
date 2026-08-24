@@ -10,11 +10,14 @@
   block is explicit about reading this repository's own tree instead - it and the other
   self-referential blocks below assert on this repo's *own* adopted design-state content, so
   they are skipped (never a false pass or fail) on a repository the kit's compatibility
-  promise (design/90-decisions.md, 2026-08-19) says is not migrated: no design/state/ at all.
+  promise (design/90-decisions.md, 2026-08-19) says is not migrated: no design/state-index.md
+  at all. This checks for that file, not the design/state/ directory itself - design/state/work/
+  now exists here as the unrelated work-mirror (90-decisions.md, 2026-08-24), so the directory
+  alone is no longer evidence of adoption.
 #>
 
 $script:DesignStateSelfTestRoot = Split-Path $PSScriptRoot -Parent
-$script:SkipDesignStateSelfTests = -not (Test-Path (Join-Path $script:DesignStateSelfTestRoot 'design/state'))
+$script:SkipDesignStateSelfTests = -not (Test-Path (Join-Path $script:DesignStateSelfTestRoot 'design/state-index.md'))
 
 BeforeAll {
     $script:ScriptPath = Join-Path $PSScriptRoot 'Test-DesignState.ps1'

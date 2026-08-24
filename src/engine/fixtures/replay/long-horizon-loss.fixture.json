@@ -1,0 +1,3064 @@
+{
+  "name": "long-horizon-loss",
+  "config": {
+    "campaignId": "long-horizon-loss",
+    "seed": "long-horizon-seed-loss-1"
+  },
+  "campaignVersion": "1.0.0",
+  "capturedUnder": "0.10.0",
+  "submissions": [
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "town"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "home"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "town"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "home"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "town"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "home"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "town"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "home"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "town"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "home"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "town"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "home"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "town"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "home"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "town"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "home"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "town"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "home"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "town"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "home"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "town"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "home"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "town"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "home"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "town"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "home"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "town"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "home"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "town"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "home"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "town"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "home"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "end_week"
+    }
+  ]
+}

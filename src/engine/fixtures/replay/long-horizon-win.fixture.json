@@ -1,0 +1,6358 @@
+{
+  "name": "long-horizon-win",
+  "config": {
+    "campaignId": "long-horizon-win",
+    "seed": "long-horizon-seed-win-1"
+  },
+  "campaignVersion": "1.0.0",
+  "capturedUnder": "0.10.0",
+  "submissions": [
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "search_for_work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "invest",
+        "amountCents": 19000
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "apply_for_job",
+        "targetId": "job-cashier"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-1"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-2"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-3"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "town"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "home"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "negotiate_job_terms"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-4"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-5"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-6"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-1"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-7"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-6"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "enroll_course",
+        "targetId": "course-bookkeeping"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-8"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "attend_class",
+        "targetId": "course-bookkeeping"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "study",
+        "targetId": "course-bookkeeping"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "shop",
+        "targetId": "item-bike"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "deposit_savings",
+        "amountCents": 500
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-9"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work_overtime"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "attend_class",
+        "targetId": "course-bookkeeping"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "study",
+        "targetId": "course-bookkeeping"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-10"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-10"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "pay_bills"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "maintain_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-11"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-12"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-13"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-14"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-14"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-15"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-16"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "town"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "home"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "deposit_savings",
+        "amountCents": 500
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-17"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-18"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "enroll_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-19"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-19"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "withdraw_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-20"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work_overtime"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "negotiate_job_terms"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "enroll_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-21"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "withdraw_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-22"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "enroll_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-23"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-23"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "withdraw_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-24"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "enroll_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "deposit_savings",
+        "amountCents": 500
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-25"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "withdraw_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-26"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "enroll_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-27"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "withdraw_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-28"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-28"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "enroll_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "move_housing",
+        "targetId": "housing-upgraded"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-29"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "withdraw_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-30"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "enroll_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-31"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work_overtime"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "withdraw_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-32"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-32"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "enroll_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "deposit_savings",
+        "amountCents": 500
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-33"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "withdraw_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-34"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "enroll_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-35"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "withdraw_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-36"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "enroll_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-37"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-37"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "negotiate_job_terms"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "withdraw_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-38"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "enroll_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "borrow_money",
+        "amountCents": 5000
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-39"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "withdraw_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-40"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "enroll_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "deposit_savings",
+        "amountCents": 500
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-41"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-41"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "withdraw_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-42"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "town"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "home"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work_overtime"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "enroll_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-43"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "withdraw_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repay_debt",
+        "amountCents": 2000
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-44"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "enroll_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-45"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-45"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "withdraw_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-46"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "enroll_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-47"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "withdraw_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-48"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "enroll_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "deposit_savings",
+        "amountCents": 500
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "invest",
+        "amountCents": 3000
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-49"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "withdraw_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-50"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-50"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "enroll_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-51"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "withdraw_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-52"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "enroll_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-53"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work_overtime"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "withdraw_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-54"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-54"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "negotiate_job_terms"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "enroll_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-55"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "town"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "home"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "withdraw_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-56"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "enroll_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "deposit_savings",
+        "amountCents": 500
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-57"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "withdraw_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "enroll_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-59"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "withdraw_course",
+        "targetId": "course-evening-class"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-60"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-61"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-62"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-63"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-63"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-64"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work_overtime"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "deposit_savings",
+        "amountCents": 500
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-65"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-66"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-67"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-67"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-68"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "town"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "home"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-69"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-70"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-71"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-71"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "negotiate_job_terms"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-72"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "deposit_savings",
+        "amountCents": 500
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-73"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-74"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-75"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-75"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work_overtime"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-76"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-77"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-78"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-79"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-80"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-80"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "deposit_savings",
+        "amountCents": 500
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-81"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "town"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "home"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-82"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-83"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-84"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-84"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-85"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-86"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work_overtime"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-87"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-88"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-88"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "negotiate_job_terms"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "deposit_savings",
+        "amountCents": 500
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-89"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-90"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-91"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-92"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-93"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-93"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-94"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "town"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "home"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-95"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-96"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "deposit_savings",
+        "amountCents": 500
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-97"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-97"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work_overtime"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-98"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-99"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-100"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-101"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-102"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-102"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-103"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-104"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "deposit_savings",
+        "amountCents": 500
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-105"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "negotiate_job_terms"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-106"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-106"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-107"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "town"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "home"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-108"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work_overtime"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-109"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-110"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-111"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-111"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-112"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "deposit_savings",
+        "amountCents": 500
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-113"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-114"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-115"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-115"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-116"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-117"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-118"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-119"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work_overtime"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-120"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-120"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "town"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "home"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "deposit_savings",
+        "amountCents": 500
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-121"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-122"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "negotiate_job_terms"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-123"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-124"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-124"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-125"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-126"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-127"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-128"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-128"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "deposit_savings",
+        "amountCents": 500
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-129"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-130"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work_overtime"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-131"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-132"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-133"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-133"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "town"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "home"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-134"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-135"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-136"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "deposit_savings",
+        "amountCents": 500
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-137"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-137"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-138"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "repair_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-139"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "negotiate_job_terms"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "sell_item",
+        "targetId": "inv-action-58"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-140"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-141"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work_overtime"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-142"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-142"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-143"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-144"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "deposit_savings",
+        "amountCents": 500
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-145"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-146"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-146"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "town"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "travel",
+        "targetId": "home"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-147"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-148"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-149"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-150"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "socialize",
+        "targetId": "npc-friend"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-151"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "choiceId": "choice-a",
+        "targetId": "pending-event-choice-151"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "decline_opportunity",
+        "targetId": "opp-side-gig-152"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "exercise"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "work_overtime"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "deposit_savings",
+        "amountCents": 500
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "accept_opportunity",
+        "targetId": "opp-side-gig-153"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "eat"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "rest"
+      }
+    },
+    {
+      "actionId": "end_week"
+    }
+  ]
+}

@@ -314,6 +314,34 @@ fully correct fix, but it touches the shared `applyWorldEffects` interpreter sea
 all six call sites). **Accepted as-is for this MVP slice** — the event is debug severity
 and `scenario` is the only caller reading `.applied` today. Revisit if a second caller
 starts reading `.applied`, or as part of whatever unit closes #349.
+
+**`relationships` (`endOfWeek.ts`) is the simulation kind's only remaining end-of-week
+stub, and W89 is the first thing able to observe that it stays one.** No weekly
+relationship rule — decay, drift, or otherwise — is specified anywhere in
+[`10-simulation-kind.md`](10-simulation-kind.md): §6.11 declares the state and §7.7 the
+NPC, but nothing names what a week does to either, so the system can never emit anything
+beyond `system.ran` (`resolvers.ts`'s own `socialize` is the only thing that moves a
+`RelationshipState`, and only on the player's own action). W89's coverage
+assertion (`long-horizon.replay.test.ts`) therefore reaches fourteen of the fifteen —
+`relationships` is excluded by name rather than silently passed. Thirteen of those
+fourteen are asserted over the two long runs together; `week_limit`, which neither long run
+can reach without contradicting W89.2's two terminal paths, is the fourteenth and has its
+own isolated test in the same file. **Revisit when** a weekly
+relationship rule is actually specified; writing one is `/contract` work, not a slice's
+(W56's own *Out of scope* already made this call once).
+
+**`long-horizon-loss`'s `pendingEventResponses` grows unbounded across its own 160-week
+run — a real instance of the exact defect shape W89 exists to be the first thing able to
+see, found and deliberately not fixed here (W89's own *Out of scope*).** Nothing in
+`endOfWeek.ts`'s `events` system (or anywhere else) expires a `PendingEventResponse` that
+`respond_to_event` never answers; `long-horizon-loss`'s own weekly policy is deliberately
+inactive (`long-horizon.ts`'s header explains why — the eviction-ladder arithmetic has to
+stay exact), so it never answers one, and the collection grows from 0 to 37 entries over
+the run. `long-horizon.replay.test.ts`'s own W89.6 assertion states this as an observed
+ceiling for this fixture, not a claim of boundedness. **Revisit** by giving a
+`PendingEventResponse` some expiry (an `expiresAtWeek`, mirroring `Opportunity`'s own
+field) or an explicit "declined by default" resolution once its `presentWeek` has passed
+by some stated margin — a real content/contract decision, not a slice-sized fix.
 ---
 
 ## 3. Judgement Calls to Revisit (Settled for the MVP)
@@ -1120,3 +1148,25 @@ ledger is one renumbering away from being unexplained.
 Rejected: **Leave it in §19 alone** — the rule is stated and the reasoning is one link away, which is
 defensible today and gets weaker every time the slice ledger is reorganised.
 Reversibility: cheap — documentation only; no code, contract or behaviour change.
+
+### 2026-08-24 — The work mirror's own directory retripped the design-state skip guard it predates
+Context: the 2026-08-21 entry above guarded `tools/Test-DesignState.Tests.ps1`,
+`tools/Read-DesignState.Tests.ps1` and `tools/Update-DesignProjection.Tests.ps1`'s self-referential
+Describe blocks with `-Skip:` computed from whether `design/state/` exists, on the reasoning that this
+repository's compatibility promise (2026-08-19) leaves it unmigrated. `c26b803`/`c8c2e29` (work-mirror
+sync) then started writing `design/state/work/*.md` — a real, intentional adoption of the WorkRef
+record shape, unrelated to full design-state migration — which made the directory exist and flipped
+the guard, un-skipping 9 tests that immediately failed against a repository with no `state-index.md`,
+no `Contract`/`Unit`/`Invariant`/`Decision` records, and no `Check the design state against the tree`
+CI step. `verify.yml`'s "Run Pester tests" step went red on `main` at `7c86a22` as a result; the prior
+session's `.claude/verify-report.json` entry on this branch's predecessor state (commit `8128a0f`)
+already isolated the failures to this cause without fixing it.
+Chosen: point the three guards at `design/state-index.md` instead of the `design/state/` directory —
+the file the self-tests (S16.5) already treat as the migration's own marker, and one `design/state/`
+can no longer answer now that a subdirectory of it has a second, legitimate occupant.
+Rejected: **Exclude `design/state/work/` from the guard's Test-Path instead** — couples a generic
+design-state guard to one specific mirror subdirectory's name, and breaks again the next time
+something else adopts a `design/state/` subpath without adopting the whole migration. **Adopt
+design-state here to satisfy the tests** — the same unscoped-feature-adoption rejection as
+2026-08-21, unchanged by this branch.
+Reversibility: cheap — three `Test-Path` targets, reverted by pointing them back.
