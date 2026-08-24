@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 08a5815ce74135d3e0271b32e1d25f44d2a52e624e2f449e742940bc4475b4b1 -->
+<!-- design-digest: 4ca6a52a6eb58332a74d33abce472e4d5815111c40a153c6ec64e46908fcd992 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -147,11 +147,21 @@ types are what a runtime host compiles against and belong at the root. `buildWor
 is a stated exception — its root placement predates the `/authoring` subpath and was left there
 rather than moved.
 
-A handful of frozen campaigns still ship as package-root exports for compatibility. They are
-regression fixtures, not a publication source, and a later breaking release removes them from the
-root — check `src/engine/package.json` against
-[Core Specification §19](/docs/engine/core) before assuming which release does it, since the
-removal's target version has already moved once.
+A frozen Bureaucracy campaign may still remain inside the engine as story-graph regression
+evidence only — it is not published and not listed in any manifest. Every other frozen campaign
+left the package root in the breaking 0.9.0 release; `src/engine/package.json` is at `0.10.0`, so
+that removal has already shipped. A version named here as a future removal target is a name to
+check against `package.json` before bumping, not after — this section's own removal estimate moved
+once before it landed.
+
+One further category is sanctioned at the root and is neither a runtime export nor a frozen
+fixture: **a kind's own reference campaign** — engine-owned content that exists to make a kind
+registrable and exercisable at all, never authored by
+[SubZeroDev.Adventures.Content](https://github.com/The-Running-Dev/SubZeroDev.Adventures.Content)
+and never a frozen fixture. `buildWorldGraphMvpCampaign` / `WORLD_GRAPH_MVP_CAMPAIGN_ID` is the
+instance — the only content a host can register the `world-graph` kind against today. The rule
+that keeps this from swallowing the boundary above: the root still publishes no *narrative*
+campaign, which `src/engine/src/authoring.test.ts` enforces in both directions.
 
 ## Build content before creating the engine
 

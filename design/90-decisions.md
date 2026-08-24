@@ -310,21 +310,6 @@ fully correct fix, but it touches the shared `applyWorldEffects` interpreter sea
 all six call sites). **Accepted as-is for this MVP slice** — the event is debug severity
 and `scenario` is the only caller reading `.applied` today. Revisit if a second caller
 starts reading `.applied`, or as part of whatever unit closes #349.
-- **A kind's event severities are literals at each `emit` call; only the core fixes them in
-  one table.** `05-observability.md` §7 requires severity to be fixed per event *name*, and
-  `src/engine/src/core/observability/events.ts` holds a `CORE_EVENTS` map that makes the rule
-  structural — all nine core events match §8 exactly. Every kind instead writes the severity
-  inline, so nothing stops two call sites for one name from disagreeing, and nothing compares
-  the emitted set against the contract's table at all. That is how four `world-graph`
-  severities drifted for three weeks across four reconciliations (2026-08-23 decision above),
-  and `incident.resolved`'s two call sites agree only by luck. The fix is a per-kind
-  name→severity table mirroring `CORE_EVENTS`, plus a check that diffs `Kind.eventNames`, the
-  emitted severities, and `20-contract.md`'s tables — comparing three lists by hand is the
-  arithmetic-over-files work `CLAUDE.md` classifies as belonging in code rather than in a
-  model. **Not started here**, because it touches three kinds' emit sites and their tests, and
-  is its own unit under "one unit at a time". **Revisit when** that unit is sliced, or sooner
-  if a fifth severity divergence appears.
-
 ---
 
 ## 3. Judgement Calls to Revisit (Settled for the MVP)
@@ -1072,3 +1057,62 @@ resolve**, mirroring 05 §8 exactly — the most internally consistent option an
 first if a host ever runs `debug` in production; declined for now because the pair is the diagnostic
 and no host runs kind-level `debug` today.
 Reversibility: cheap — one table cell and a callout; the alternative is a three-line branch.
+
+### 2026-08-23 — `09-clients.md` §4's browser column is Adventures', because its evidence left with W74b
+Context: §4's whole stated value is that the ten-operation mapping is "checkable by counting, not by
+reading intent", and one of its five columns — *Browser demo (W61)* — carried ten ticks resting on
+`site/src/play/browser-client.test.ts`. W74b (`cf2d9eb`, 2026-08-19) deleted that file with the rest
+of `site/src/play/`. The blockquote in `13-playable-web-demo.md`'s retirement narrative still read
+"`site/src/play/` is still in the tree, and still runs", and cited the column as the live claim the
+directory was evidence for — true when Revision 4 was written, false for four days and seven commits
+to `10-design.md` after. The surrounding prose was already correct: §§1–2 and §§6–9 are marked
+historical and §4's browser-portability gate is deleted. The column is what that pass missed.
+Chosen: Repoint the column at `SubZeroDev.Adventures`, in the shape the *Hosted transport* column
+already uses for Platform — name the owning repository, say the evidence lives there, and state
+plainly that **no gate in this repository re-runs it**. The ticks now record what W61 demonstrated
+and what Adventures is obliged to keep demonstrating. §13's peg sentence and the `site/public/`
+campaign-file claim are corrected in the same pass; both were stale from the same commit.
+Rejected: **Strike the column** — leaves §4 with three checkable columns and Platform's, and is the
+tidier table, but it erases a real W61 result and quietly narrows what "no AI-specific path" (04 §13)
+was ever demonstrated against. **Restore the evidence** — reverses W74b to satisfy a table, re-adds a
+browser client to the repository that just retired one, and is a work unit with its own criteria
+rather than a reconciliation edit.
+Reversibility: cheap — one column header, one paragraph, one blockquote. Note the residual honestly:
+this repository can no longer fail a build when the column stops being true.
+
+### 2026-08-23 — A kind's own reference campaign is a sanctioned package-root export, and §19 now says so
+Context: §19 sanctioned two categories of campaign — published narrative ones, which W74c removed
+from the root, and frozen regression fixtures, which the same release removed. `src/engine/src/index.ts`
+root-exports a third at `0.10.0`: `buildWorldGraphMvpCampaign` and `WORLD_GRAPH_MVP_CAMPAIGN_ID`. The
+only statement that this is legitimate was a comment in `authoring.test.ts` — "content the engine
+legitimately still ships" — while W88's own *Out of scope* read §19 as forbidding "exporting any
+campaign". Two defensible readings of one section, with the deciding sentence in a test file.
+Chosen: Name the category in §19. A kind's **reference campaign** — engine-owned, never Content's,
+never a frozen fixture — is a root export, because it is what makes a registrable kind exercisable;
+`world-graph` has no other content a host could register it against. The rule is bounded by the claim
+`authoring.test.ts` actually enforces in both directions: the root publishes no *narrative* campaign.
+A second kind adding one reference campaign follows this sentence; a second reference campaign for one
+kind does not.
+Rejected: **Remove both exports from the root** — the strictest reading, but a breaking change to a
+published surface at 0.10.0 needs a version decision and is a work unit, and it would leave the
+`world-graph` kind registrable with nothing to register. **Record it as known-and-retained** — leaves
+§19 stating a rule the shipped surface breaks, which is the failure this pass exists to catch, and
+leaves the sanction in a test comment where the next reader will not look.
+Reversibility: cheap — one paragraph; the code is unchanged.
+
+### 2026-08-23 — W88's export-split rule gets a decision entry, because a slice ledger is not the register
+Context: W88 amended §19 with the rule that decides a kind's export split — the builder and its source
+types are author-time and belong on `/authoring`; the campaign, state, view and outcome types are what
+a runtime host compiles against and belong at the root — citing `design/30-slices.md, W88`. §19 states
+the rule where a reader needs it, but the fork it resolved lives only in the slice: the two existing
+kinds straddled the question (`world-graph` put all five at the root, `story-graph` put its campaign
+and state types on `/authoring`), and `buildWorldGraphCampaign`'s root placement predates the subpath
+and was noted rather than moved.
+Chosen: Record it here as well, with the entry citing §19 rather than restating the rule — single
+ownership keeps the rule in one place, and puts the *reasoning* where reasoning is indexed. The
+trigger is that slices are retired: `W74.2`–`W74.5` already were, and this repository keeps the gap in
+that numbering precisely as the record of a split. A rule whose only rationale lives in a retirable
+ledger is one renumbering away from being unexplained.
+Rejected: **Leave it in §19 alone** — the rule is stated and the reasoning is one link away, which is
+defensible today and gets weaker every time the slice ledger is reorganised.
+Reversibility: cheap — documentation only; no code, contract or behaviour change.

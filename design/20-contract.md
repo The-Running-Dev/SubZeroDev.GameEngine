@@ -1554,11 +1554,20 @@ and is an exception noted here rather than moved.
 `SubZeroDev.Adventures.Content` owns the canonical source and publication of narrative
 campaigns. GameEngine owns kinds, validation, portable hydration and authoring primitives.
 GameEngine may retain a frozen campaign solely as a regression fixture; such a fixture is not
-published and not listed in a manifest. Existing frozen campaigns stay package-root exports
-through 0.8.0 for compatibility; the breaking 0.9.0 release removes them from the root
-(design/30-slices.md, W74c). The peg moved once already: 0.8.0 was originally named here
-and was then spent on an additive release, so a version reserved by this section is a name
-to check against `src/engine/package.json` before a bump, not after.
+published and not listed in a manifest. Frozen fixtures left the package root in the breaking
+0.9.0 release (design/30-slices.md, W74c), which has shipped — `src/engine/package.json` reads
+`0.10.0`. That peg moved once before it landed: this section originally named 0.8.0 as the
+breaking release, and 0.8.0 was then spent on an additive one. A version reserved by this
+section is a name to check against `src/engine/package.json` before a bump, not after.
+
+A third category is sanctioned and is neither of the two above: **a kind's own reference
+campaign** — engine-owned content that exists to make the kind registrable and exercisable,
+never authored by Content and never a frozen fixture — is a package-root export. The instance is
+`buildWorldGraphMvpCampaign` / `WORLD_GRAPH_MVP_CAMPAIGN_ID`, the only content a host can
+register the `world-graph` kind against. The line that keeps this from swallowing the rule: the
+root publishes no *narrative* campaign, which is the claim `src/engine/src/authoring.test.ts`
+enforces in both directions. A second kind adding a reference campaign to the root follows this
+sentence; a second reference campaign for one kind does not, and wants its own decision.
 
 Portable campaign documents remain format version 2. `toPortable` and
 `digestManifestResolution` are public only through `/authoring`; `fromPortable` remains a

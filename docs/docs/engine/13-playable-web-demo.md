@@ -18,12 +18,14 @@ bundle gate and §5's checkpoint lifetime against what W61 built, and §1's open
 §10's non-goals and §11's first row against the multi-campaign shelf W63 and W64 shipped.
 §§2–3 and §§6–9 are unchanged except where they cited §5's same-page limit.
 
-> **`site/src/play/` is still in the tree, and still runs.** The route is gone from the build;
-> the browser adapter, its ten-operation coverage suite and its parity proof are not.
-> [`09-clients.md`](09-clients.md) §4's browser-demo column cites
-> `site/src/play/browser-client.test.ts`, which still executes under both site test
-> configurations. The directory is live evidence for a live claim, not dead code awaiting
-> deletion.
+> **`site/src/play/` is gone, and Revision 4 said otherwise for four days.** This blockquote
+> read "still in the tree, and still runs" — true when Revision 4 was written, and false from
+> W74b (`cf2d9eb`, 2026-08-19), which deleted the directory, the browser adapter, its
+> ten-operation coverage suite and its parity proof together. Corrected rather than removed,
+> because the claim was load-bearing: [`09-clients.md`](09-clients.md) §4's browser column cited
+> `site/src/play/browser-client.test.ts` as its evidence, and that column is now Adventures' to
+> prove (§4). The engine keeps its landing page and roadmap at `site/`; nothing else of the play
+> surface remains here.
 
 **Reading order:** after [`09-clients.md`](09-clients.md). That document owns what every
 client may do; this one owns the first public browser client's product boundary, composition,
@@ -53,9 +55,10 @@ it, and Adventures is now the only play surface either repository ships.
 - **§§1–2, §§6–9 are historical.** They describe a route, its states, its delivery and its
   failure behaviour, and the route is gone. They are retained as the record of what the first
   public browser client was, not as a target to build against. Two consequences of the removal
-  are worth naming rather than leaving to be discovered: §6's same-origin `campaigns/` fetch
-  has no caller, so the nine campaign JSON files and their manifest still ship in `site/public/`
-  and are copied into every artifact with nothing reading them; and §7's acceptance that "a
+  are worth naming rather than leaving to be discovered: §6's same-origin `campaigns/` fetch has
+  no caller, and W74b deleted `site/public/campaigns/` along with it, so the nine campaign JSON
+  files and their manifest no longer ship — `site/public/` now holds icons only; and §7's
+  acceptance that "a
   direct static request to `/play/` succeeds" is not something any gate now checks, because
   there is no such route to request.
 - **§5's checkpoint lifetime is superseded by a stronger implementation.** Adventures has

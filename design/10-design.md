@@ -605,8 +605,9 @@ inside the engine as story-graph regression evidence only; it is not a publicati
 
 The former in-repository `/play/` route and its campaign artifact directory are superseded:
 Adventures is the browser host now, consuming the deployed Content feed rather than
-Engine-generated campaign files. `/play/` itself stays in the repository through 0.8.0 and is
-removed with the breaking ownership release, 0.9.0 (design/30-slices.md, W74c).
+Engine-generated campaign files. `/play/` and its campaign artifact directory were removed from
+the repository by the breaking ownership release, 0.9.0 (design/30-slices.md, W74c); the package
+is at 0.10.0 and neither remains.
 <!-- human-doc:end -->
 
 <!-- human-doc:start path="engine/05-observability.md" -->
@@ -2393,7 +2394,7 @@ checklist."* This is that checklist.
 real client**, not by inspection and not by a unit test of the store. One row per operation,
 one column per MVP client:
 
-| # | Operation | Text client (W16) | MCP tool (W17) | Simulation kind (W50) | Browser demo (W61) | Hosted transport (Platform G1/S5) |
+| # | Operation | Text client (W16) | MCP tool (W17) | Simulation kind (W50) | Browser client (Adventures) | Hosted transport (Platform G1/S5) |
 |---|---|---|---|---|---|---|
 | 1 | `listCampaigns` | ☑ | `list_campaigns` ☑ | ☑ | ☑ | ☑ |
 | 2 | `createSession` | ☑ | `start_game` ☑ | ☑ | ☑ | ☑ |
@@ -2462,13 +2463,17 @@ through MCP independently — asserting identical `Scene`/`PlayerView` at every 
 client-free replay of the identical action log reaching the identical, golden-filed
 `serialize()` output on repeat.
 
-**Browser-demo evidence** lives in `site/src/play/browser-client.test.ts`. Its ten numbered
-`it` blocks drive the real browser adapter against Bureaucracy, one per operation; they do not
-call the store directly from a component test. The same file then drives the full committed
-path through that adapter and the text client with the same seed and counting `IdSource`,
-asserting identical `Scene`/`PlayerView` steps and byte-identical final `serialize()` output.
-How the demo presents save/load — a same-page checkpoint, or the locally durable one
-`13-playable-web-demo.md` §5 now specifies — does not weaken the adapter proof either way.
+**The "Browser client" column is `SubZeroDev.Adventures`', and its evidence lives there** — the
+same arrangement as the Hosted transport column below, and for the same reason: this repository
+ships no browser client. W61 proved the column here, in `site/src/play/browser-client.test.ts` —
+ten numbered `it` blocks driving the real browser adapter against Bureaucracy one per operation,
+then the full committed path through that adapter and the text client with the same seed and
+counting `IdSource`, asserting identical `Scene`/`PlayerView` steps and byte-identical final
+`serialize()` output. W74b deleted that file with the rest of `site/src/play/`
+(`13-playable-web-demo.md`, *Succeeded by SubZeroDev.Adventures*), so **the ticks in this column
+record what W61 demonstrated and what Adventures is obliged to keep demonstrating; no gate in this
+repository re-runs them.** That is the honest cost of the extraction, stated rather than left to
+be discovered — the same treatment §4's browser-portability gate already took.
 
 **The mapping is one-to-one, and that is the point.** Every store operation has exactly one
 MCP tool, and there is no tool that is not an operation. That is what *"no AI-specific path"*
@@ -2576,12 +2581,14 @@ bundle gate and §5's checkpoint lifetime against what W61 built, and §1's open
 §10's non-goals and §11's first row against the multi-campaign shelf W63 and W64 shipped.
 §§2–3 and §§6–9 are unchanged except where they cited §5's same-page limit.
 
-> **`site/src/play/` is still in the tree, and still runs.** The route is gone from the build;
-> the browser adapter, its ten-operation coverage suite and its parity proof are not.
-> [`09-clients.md`](09-clients.md) §4's browser-demo column cites
-> `site/src/play/browser-client.test.ts`, which still executes under both site test
-> configurations. The directory is live evidence for a live claim, not dead code awaiting
-> deletion.
+> **`site/src/play/` is gone, and Revision 4 said otherwise for four days.** This blockquote
+> read "still in the tree, and still runs" — true when Revision 4 was written, and false from
+> W74b (`cf2d9eb`, 2026-08-19), which deleted the directory, the browser adapter, its
+> ten-operation coverage suite and its parity proof together. Corrected rather than removed,
+> because the claim was load-bearing: [`09-clients.md`](09-clients.md) §4's browser column cited
+> `site/src/play/browser-client.test.ts` as its evidence, and that column is now Adventures' to
+> prove (§4). The engine keeps its landing page and roadmap at `site/`; nothing else of the play
+> surface remains here.
 
 **Reading order:** after [`09-clients.md`](09-clients.md). That document owns what every
 client may do; this one owns the first public browser client's product boundary, composition,
@@ -2611,9 +2618,10 @@ it, and Adventures is now the only play surface either repository ships.
 - **§§1–2, §§6–9 are historical.** They describe a route, its states, its delivery and its
   failure behaviour, and the route is gone. They are retained as the record of what the first
   public browser client was, not as a target to build against. Two consequences of the removal
-  are worth naming rather than leaving to be discovered: §6's same-origin `campaigns/` fetch
-  has no caller, so the nine campaign JSON files and their manifest still ship in `site/public/`
-  and are copied into every artifact with nothing reading them; and §7's acceptance that "a
+  are worth naming rather than leaving to be discovered: §6's same-origin `campaigns/` fetch has
+  no caller, and W74b deleted `site/public/campaigns/` along with it, so the nine campaign JSON
+  files and their manifest no longer ship — `site/public/` now holds icons only; and §7's
+  acceptance that "a
   direct static request to `/play/` succeeds" is not something any gate now checks, because
   there is no such route to request.
 - **§5's checkpoint lifetime is superseded by a stronger implementation.** Adventures has
