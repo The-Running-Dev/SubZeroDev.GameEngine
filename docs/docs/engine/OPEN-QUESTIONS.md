@@ -257,20 +257,24 @@ and was deliberately regularised is the reasoning a later reader of
 [issue #285](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/285) will want. That
 issue's premise no longer holds and it is `/track`'s to close.
 
-**`incidents[].onStart` is the one effect list with no building-meter rule, and W47 has to pick
-one.** After W83, every other list is accounted for: `products[].effects` and a building's
-`operation.effects` defer as `service`, `scheduledChanges` and `policies[].whileActive` as
-`policy`, a staff-resolved `onResolve` as `staff`, and a `wear` delta on `objectives.onCompleted`,
-`failures.onTriggered`, or a duration-bearing `onResolve` is rejected (§9.2). `onStart` is neither,
-and nothing misbehaves today only because no system applies it — it is declared, shape-validated,
-and dead. W47 makes it live, and the answer depends on a choice W47 owns rather than W83: if
-`onStart` runs only for system 16's rolls, it runs after system 14 and a `wear` delta there could
-never reach §4.16's broken transition, so the §9.2 rejection should extend to it; but if W47 also
-applies `onStart` at the `start_incident` call sites in systems 1 and 4, those run *before* 14 and
-could defer legitimately, and extending the rejection would forbid content W47 wants. Both readings
-are defensible, so W83's review pass deliberately left the code alone rather than pick one. Note
-the contract's own MVP worked example (§13's litter incident) puts a `cleanliness` delta in
-`onStart`, not a `wear` one, so the wear-only rule would not contradict it either way.
+**`incidents[].onStart`'s building-meter rule — closed by W84, not W47.** After W83, every
+other effect list was accounted for: `products[].effects` and a building's `operation.effects`
+defer as `service`, `scheduledChanges` and `policies[].whileActive` as `policy`, a
+staff-resolved `onResolve` as `staff`, and a `wear` delta on `objectives.onCompleted`,
+`failures.onTriggered`, or a duration-bearing `onResolve` is rejected (§9.2). `onStart` was
+neither, and nothing misbehaved only because no system applied it yet — it was declared,
+shape-validated, and dead. This entry named W47 as the unit that would make it live and own
+the choice; the incidents family that actually did so is **W84**, and it resolved the
+question this entry left open. `tick/pipeline.ts` calls `applyWorldEffects` on
+`incidentDefinition.onStart` from exactly one site — system 16/17's roll, after system 14 has
+already closed its broken-transition check for the tick — and `validate.ts`'s
+`forbidUndeferrableWearDelta(entry.onStart, …)` extends the §9.2 rejection to it, with the
+comment recording why: "onStart only ever runs from system 16's roll, always after system 14
+closed its broken-transition check for the tick, so a wear delta there can never be seen
+(W84)." No `start_incident` call site in systems 1 or 4 applies `onStart`, so the
+legitimate-deferral reading was not the one built. The contract's own MVP worked example
+(§13's litter incident) puts a `cleanliness` delta in `onStart`, not a `wear` one, so the
+wear-only rule does not contradict it.
 
 **Nothing checks *emitted → registered* for `StateChange.reason`, and it has now failed twice.**
 `20-contract.md` §13 says so in its own words — a reason threaded through `EffectContext` is not

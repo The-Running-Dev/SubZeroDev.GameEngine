@@ -3381,7 +3381,7 @@ system is half named after.
       for the drift rates, which are content and belong with Sun Trap; guest opinion changes driven
       by quality, which the utility model already reads.
 
-### [ ] W84 — Incidents That Happen On Their Own {#w84}
+### [x] W84 — Incidents That Happen On Their Own {#w84}
 
 **Delivers:** Things go wrong in the resort without the player causing them — a breakdown, a
 spill, a security problem — and the player has to deal with them. Today the only incident that can
@@ -3402,7 +3402,7 @@ it succeeds, and a rejected candidate consuming nothing.
       a new fixture pair under `src/engine/fixtures/replay/`.
 - **Depends on:** [W83](#w83), so a rolled incident has meters to act on and a resolution path that
       is not litter-only.
-- **Status:** Not started.
+- **Status:** Done — [PR #360](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/360).
 - **Done when:**
   - W84.1 An eligible definition rolls against its declared chance from the tick's incidents
         handle, and a successful roll allocates an occurrence with its start effects applied
@@ -3435,7 +3435,7 @@ it succeeds, and a rejected candidate consuming nothing.
       narrative around an incident, which is a client concern; alerts raised for an active
       incident, which is [W85](#w85); balance values for chances and cooldowns, which are content.
 
-### [ ] W85 — The Resort Tells You What Needs Attention {#w85}
+### [x] W85 — The Resort Tells You What Needs Attention {#w85}
 
 **Delivers:** A player is told when something needs them — a building has broken, an incident is
 running, the scenario has resolved — instead of having to notice it in the numbers; and the
@@ -3462,7 +3462,7 @@ core behaviour this kind has never exercised.
       can reach zero. [W84](#w84) is not required, since guest litter already raises incidents,
       but is sequenced ahead so the incident family is proved against an incident the player did
       not cause.
-- **Status:** Not started.
+- **Status:** Done — [PR #361](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/361).
 - **Done when:**
   - W85.1 Still-locked achievements are evaluated by definition id against post-resolution state,
         an unlock writes the achievement's existence row with the core `achievement_unlocked`
@@ -3513,7 +3513,7 @@ core behaviour this kind has never exercised.
 > the emit sites are named, and adding one is declaring it and emitting it. These two units are
 > that, and nothing else.
 
-### [ ] W86 — The Story-Graph Kind Says Why {#w86}
+### [x] W86 — The Story-Graph Kind Says Why {#w86}
 
 **Delivers:** A campaign author can find out why a choice was refused or greyed out, and a
 developer can find out why a replay diverged, without adding logging to the engine by hand. Today
@@ -3532,7 +3532,7 @@ audiences the channel exists to serve.
       `src/engine/src/kinds/story-graph/kind.ts`.
       `src/engine/src/core/observability/` is **read, not modified**.
 - **Depends on:** nothing.
-- **Status:** Not started.
+- **Status:** Done — [PR #362](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/362).
 - **Done when:**
   - W86.1 All six remaining rows are emitted at the step the table names, with exactly the `data`
         fields it lists and no others, and all ten are declared in `Kind.eventNames`. A test
@@ -3561,7 +3561,7 @@ audiences the channel exists to serve.
       event names; changing any severity the table fixes; the sink implementations, which already
       ship.
 
-### [ ] W87 — The World-Graph Kind Says What Its Ticks Did {#w87}
+### [x] W87 — The World-Graph Kind Says What Its Ticks Did {#w87}
 
 **Delivers:** Someone diagnosing a resort that behaves oddly can watch what happened inside a tick
 — which guests could not reach a building, which tasks were assigned and cancelled, what each
@@ -3580,7 +3580,7 @@ difference is invisible in the projection and obvious in the stream.
       `src/engine/src/kinds/world-graph/kind.ts`.
 - **Depends on:** [W81](#w81)–[W85](#w85), which each deliver the rows their own system owns. This
       unit takes what is left rather than duplicating them.
-- **Status:** Not started.
+- **Status:** Done — [PR #363](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/363).
 - **Done when:**
   - W87.1 Every row in [12 §12](12-world-graph-kind.md#12-events)'s table is emitted at the system
         it names and declared in `Kind.eventNames`; the status column has no remaining *specified,

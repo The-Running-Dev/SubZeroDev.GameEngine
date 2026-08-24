@@ -1,6 +1,6 @@
 {
-  "manifestHash": "fe74684ae7ca549e563e429d0ce2ae9099f71b3e7dc61db78a48dd7dc7257456",
-  "generated": "2026-08-20",
+  "manifestHash": "9709a22838ae6c721e1bc8cb2777f587a7b02758ca2eabcb0c785e5effb0f108",
+  "generated": "2026-08-24",
   "gates": [
     {
       "name": "Typecheck",
@@ -20,19 +20,19 @@
     },
     {
       "name": "Inspect tarball",
-      "command": "tar -tzf src/engine/*.tgz; assert no src/, no tsconfig*.json, no .test.* artifacts, package/dist/ present"
+      "command": "tar inspect"
     },
     {
       "name": "Consumer smoke",
-      "command": "rm -rf consumer-smoke/{node_modules,package-lock.json,dist}; cd consumer-smoke; npm run install:engine; npm run build; npm run smoke"
+      "command": "consumer-smoke install/build/smoke"
     },
     {
       "name": "Parse-check PowerShell scripts",
-      "command": "pwsh: Parser::ParseFile over Get-ChildItem -Recurse -Filter *.ps1"
+      "command": "pwsh parse *.ps1"
     },
     {
       "name": "Run Pester tests",
-      "command": "pwsh: Invoke-Pester -Path tools -Output Detailed -PassThru"
+      "command": "Invoke-Pester -Path tools"
     },
     {
       "name": "Validate Markdown links, terminology, and generated files",
@@ -40,7 +40,7 @@
     },
     {
       "name": "Build documentation",
-      "command": "./docs.ps1 -BuildOnly (local stand-in for /template/scripts/docs-build.ps1; needs Docker and an installed docs.ps1)"
+      "command": "./docs.ps1 -BuildOnly"
     },
     {
       "name": "Build and verify landing page",
@@ -48,19 +48,19 @@
     },
     {
       "name": "Merge landing page into documentation build",
-      "command": "npm --prefix site run merge (needs a prior docs build in artifacts/docs)"
+      "command": "npm --prefix site run merge"
     },
     {
       "name": "Test the host",
-      "command": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests/SubZeroDev.GameEngine.Host.Tests.csproj (needs NUGET_GITHUB_TOKEN for the sibling-repo package feed)"
+      "command": "dotnet test src/host"
     },
     {
       "name": "Positive route and probe smoke",
-      "command": "docker build -t subzerodev-gameengine-host:smoke .; docker run -d -p 18080:8080; curl /, /roadmap/, /docs/, /health/live, /health/ready -> 200 and an unknown route -> 404"
+      "command": "docker build+run+curl"
     },
     {
       "name": "Negative fixture -- corrupted artifact must fail to start",
-      "command": "docker build -f tools/host-smoke/Dockerfile.negative-fixture --build-arg BASE_IMAGE=subzerodev-gameengine-host:smoke; docker run must exit non-zero"
+      "command": "docker build negative fixture"
     }
   ]
 }
