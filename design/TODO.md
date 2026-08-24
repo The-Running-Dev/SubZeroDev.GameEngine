@@ -222,15 +222,15 @@
 
 ### [x] W83 — Buildings Get Dirty, Wear Out, and Break {#w83}
 
-### [ ] W84 — Incidents That Happen On Their Own {#w84}
+### [x] W84 — Incidents That Happen On Their Own {#w84}
 
-### [ ] W85 — The Resort Tells You What Needs Attention {#w85}
+### [x] W85 — The Resort Tells You What Needs Attention {#w85}
 
 ### Rigour: Two Event Streams Specified and Never Emitted
 
-### [ ] W86 — The Story-Graph Kind Says Why {#w86}
+### [x] W86 — The Story-Graph Kind Says Why {#w86}
 
-### [ ] W87 — The World-Graph Kind Says What Its Ticks Did {#w87}
+### [x] W87 — The World-Graph Kind Says What Its Ticks Did {#w87}
 
 ## Known Open Items Carried In
 
