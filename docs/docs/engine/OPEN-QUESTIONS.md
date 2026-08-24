@@ -311,9 +311,12 @@ relationship rule — decay, drift, or otherwise — is specified anywhere in
 [`10-simulation-kind.md`](10-simulation-kind.md): §6.11 declares the state and §7.7 the
 NPC, but nothing names what a week does to either, so the system can never emit anything
 beyond `system.ran` (`resolvers.ts`'s own `socialize` is the only thing that moves a
-`RelationshipState`, and only on the player's own action). W89's fifteen-system coverage
-assertion (`long-horizon.replay.test.ts`) therefore counts fourteen, not fifteen —
-`relationships` is excluded by name rather than silently passed. **Revisit when** a weekly
+`RelationshipState`, and only on the player's own action). W89's coverage
+assertion (`long-horizon.replay.test.ts`) therefore reaches fourteen of the fifteen —
+`relationships` is excluded by name rather than silently passed. Thirteen of those
+fourteen are asserted over the two long runs together; `week_limit`, which neither long run
+can reach without contradicting W89.2's two terminal paths, is the fourteenth and has its
+own isolated test in the same file. **Revisit when** a weekly
 relationship rule is actually specified; writing one is `/contract` work, not a slice's
 (W56's own *Out of scope* already made this call once).
 

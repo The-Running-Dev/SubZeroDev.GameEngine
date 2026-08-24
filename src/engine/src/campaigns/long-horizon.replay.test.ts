@@ -43,7 +43,7 @@ import { buildLongHorizonWinCampaign, buildLongHorizonLossCampaign } from "./lon
 import { buildSimulationCampaign, type SimulationCampaignSource } from "../kinds/simulation/source.js";
 import { buildCampaign } from "../core/registry/build.js";
 import type { BuiltCampaign, Campaign } from "../core/registry/types.js";
-import { CORPUS_DIR, FIXTURES_DIR, fixtureNamesByPrefix, loadExpectedOutcome, loadFixture } from "./replay-corpus.js";
+import { COMPARING_ACROSS_VERSIONS, CORPUS_DIR, FIXTURES_DIR, fixtureNamesByPrefix, hasFixture, loadExpectedOutcome, loadFixture } from "./replay-corpus.js";
 
 const REPLAY_PROFILE_ID = "long-horizon-replay-profile";
 const PREFIX = "long-horizon-";
@@ -61,14 +61,28 @@ function buildRegistry() {
 }
 
 function makeContext(): ReplayRunnerContext {
+  // One registry, shared by the engine and the context — not two builds of the same
+  // content, which is what `stable-life.replay.test.ts` does and what the runner assumes.
+  const registry = buildRegistry();
   return {
-    engine: createEngine({ kinds, registry: buildRegistry(), ids: createCountingIds() }),
+    engine: createEngine({ kinds, registry, ids: createCountingIds() }),
     kinds,
-    registry: buildRegistry(),
+    registry,
     profiles: createInMemoryProfileStore(),
     profileId: REPLAY_PROFILE_ID,
   };
 }
+
+/** Only meaningful when comparing across versions — in the default run `CORPUS_DIR` is this
+ *  commit's own `FIXTURES_DIR`, so a missing fixture there is a real regression rather than
+ *  the baseline tag predating W89, and must still fail loudly rather than skip. Mirrors
+ *  `stable-life.replay.test.ts`'s own helper, for the reason its comment gives. */
+function hasFixtureInBaseline(...names: string[]): boolean {
+  return !COMPARING_ACROSS_VERSIONS || names.every((name) => hasFixture(name));
+}
+
+const BOTH_RUNS = ["long-horizon-win", "long-horizon-loss"];
+const HAS_BOTH_RUNS = hasFixtureInBaseline(...BOTH_RUNS);
 
 const LONG_HORIZON_FIXTURE_NAMES = fixtureNamesByPrefix(PREFIX, FIXTURES_DIR);
 
@@ -81,23 +95,36 @@ describe("the Long Horizon replay corpus (07-replay.md §4)", () => {
     expect(LONG_HORIZON_FIXTURE_NAMES.length).toBeGreaterThan(0);
   });
 
-  it.for(fixtureNamesByPrefix(PREFIX, CORPUS_DIR))("%s: matches its committed Outcome", async (name) => {
+  it.for(fixtureNamesByPrefix(PREFIX, CORPUS_DIR))("%s: matches its committed Outcome", async (name, ctx) => {
     const fixture = loadFixture(name);
     const expected = loadExpectedOutcome(name);
     const verdict = await runReplayFixture(makeContext(), fixture, expected);
+    // 10-design.md §6: `unrunnable` is "not a failure" between engine versions — only in
+    // cross-version mode, where a withdrawn campaign or moved campaignVersion is a legitimate
+    // content decision rather than a same-commit regression (see stable-life's own loop).
+    ctx.skip(COMPARING_ACROSS_VERSIONS && verdict.kind === "unrunnable", `${name}: unrunnable against the baseline tag's corpus — not a regression (10-design.md §6)`);
     expect(verdict).toEqual({ kind: "match" });
   });
 
-  it("long-horizon-win plays at least 150 weeks to a goals_met outcome", () => {
+  // The week count is asserted from a real run, not from the committed `Outcome`: 07 §2's
+  // cross-version-stable vocabulary carries `finalStatus`/`terminal`/`achievements` and no
+  // notion of elapsed time at all, so "at least a hundred and fifty weeks" — the whole of
+  // W89.1, and the only thing separating these two fixtures from every three-week one in
+  // the corpus — is unprovable from the outcome file alone.
+  it.skipIf(!HAS_BOTH_RUNS)("long-horizon-win plays at least 150 weeks to a goals_met outcome", async () => {
     const outcome = loadExpectedOutcome("long-horizon-win");
     expect(outcome.finalStatus).toBe("ended");
     expect(outcome.terminal).toEqual({ resolution: "goals_met", goalsMet: ["goal-established"], goalsFailed: [] });
+    const { weeksPlayed } = await playFixture("long-horizon-win");
+    expect(weeksPlayed).toBeGreaterThanOrEqual(150);
   });
 
-  it("long-horizon-loss plays at least 150 weeks to a failed outcome via the eviction ladder", () => {
+  it.skipIf(!HAS_BOTH_RUNS)("long-horizon-loss plays at least 150 weeks to a failed outcome via the eviction ladder", async () => {
     const outcome = loadExpectedOutcome("long-horizon-loss");
     expect(outcome.finalStatus).toBe("ended");
     expect(outcome.terminal).toEqual({ resolution: "failed", goalsMet: [], goalsFailed: ["goal-stay-housed"] });
+    const { weeksPlayed } = await playFixture("long-horizon-loss");
+    expect(weeksPlayed).toBeGreaterThanOrEqual(150);
   });
 });
 
@@ -108,23 +135,38 @@ describe("the Long Horizon replay corpus (07-replay.md §4)", () => {
 // which `Outcome` (07 §2) deliberately does not carry.
 // ---------------------------------------------------------------------------
 
-async function playFixture(name: string, ids?: IdSource) {
-  const engine = createEngine({ kinds, registry: buildRegistry(), ...(ids ? { ids } : {}) });
+/** `advance.ts`'s own per-resolved-action event (§5.3) — the only place the engine states
+ *  which `ActionType`s a week's `end_week` actually put through a resolver. Not exported
+ *  from `advance.ts`, but declared in `Kind.eventNames` (`kind.ts`), which is the contract
+ *  surface a reader checks this string against. */
+const ACTION_RESOLVED_EVENT = "kind.simulation.action.resolved";
+
+async function playFixture(name: string) {
+  // A recording emitter, so `actionTypesResolved` below is what the engine *resolved* and
+  // not merely what the fixture planned: a `plan.add` a later `plan.remove`/`plan.clear`
+  // takes back never reaches a resolver, and counting submissions would score it covered.
+  // W89.5 below already proves recording changes no output.
+  const emitter = createRecordingEmitter();
+  const engine = createEngine({ kinds, registry: buildRegistry() }).withEmitter(emitter);
   const fixture = loadFixture(name);
   const created = engine.createGame(fixture.config);
   if (!created.ok || !created.value) throw new Error(`${name}: expected createGame to succeed`);
 
   let state = created.value;
   let weeksPlayed = 0;
-  const actionTypesResolved = new Set<string>();
 
   for (const submission of fixture.submissions) {
     const result = engine.submitAction(state, submission.actionId, submission.params);
     if (!result.ok || !result.value) throw new Error(`${name}: expected "${submission.actionId}" to be accepted`);
     state = result.value;
     if (submission.actionId === "end_week") weeksPlayed += 1;
-    const actionType = submission.params?.["actionType"];
-    if (submission.actionId === "plan.add" && typeof actionType === "string") actionTypesResolved.add(actionType);
+  }
+
+  const actionTypesResolved = new Set<string>();
+  for (const event of emitter.events) {
+    if (event.name !== ACTION_RESOLVED_EVENT) continue;
+    const actionType = event.data?.["actionType"];
+    if (typeof actionType === "string") actionTypesResolved.add(actionType);
   }
 
   return { engine, state, weeksPlayed, actionTypesResolved };
@@ -137,7 +179,7 @@ async function playFixture(name: string, ids?: IdSource) {
 // start_business/operate_business) is answered.
 // ---------------------------------------------------------------------------
 
-describe("W89.3 — every dispatched ActionType resolves at least once", () => {
+describe.skipIf(!HAS_BOTH_RUNS)("W89.3 — every dispatched ActionType resolves at least once", () => {
   const NON_STUB_ACTION_TYPES = Object.entries(RESOLVER_TABLE)
     .filter(([, resolver]) => resolver !== stubResolver)
     .map(([actionType]) => actionType)
@@ -158,11 +200,14 @@ describe("W89.3 — every dispatched ActionType resolves at least once", () => {
 });
 
 // ---------------------------------------------------------------------------
-// W89.4 — each of the fourteen non-relationship end-of-week systems (`relationships` is
-// the fifteenth, excluded per the decision recorded in `design/90-decisions.md`'s open
-// register: no weekly relationship rule exists in the contract yet, so it can never emit
-// anything beyond `system.ran`) is observed doing something at least once over the two
-// runs, combined — a `system.ran` event alone does not count (10-simulation-kind.md's own
+// W89.4 — thirteen of the fifteen end-of-week systems are observed doing something at
+// least once over the two runs, combined. The two this block does not cover, counted off
+// the list below rather than restated: `relationships`, excluded per the decision recorded
+// in `design/90-decisions.md`'s open register (no weekly relationship rule exists in the
+// contract yet, so it can never emit anything beyond `system.ran`), and `week_limit`, which
+// neither long run can reach without contradicting W89.2 and so gets the isolated side test
+// at the bottom of this file. Fourteen of fifteen across the file; thirteen here.
+// A `system.ran` event alone does not count (10-simulation-kind.md's own
 // W89.4 wording), so this reads the actual `StateChange.reason` vocabulary each system
 // produces (`endOfWeek.ts`'s own header), not the trace event every system emits
 // regardless. `employment` has no StateChange of its own, so it is read from a change in
@@ -212,11 +257,13 @@ async function observedSystems(name: string): Promise<Set<string>> {
     if (career !== lastCareer) { seen.add("employment"); lastCareer = career; }
   }
 
-  if (state.status === "ended") { seen.add("goals"); seen.add("failure"); }
+  const resolution = (state.kindState as SimulationKindState).resolution?.resolution;
+  if (resolution === "goals_met") seen.add("goals");
+  if (resolution === "failed") seen.add("failure");
   return seen;
 }
 
-describe("W89.4 — each non-relationship end-of-week system is observed doing something", () => {
+describe.skipIf(!HAS_BOTH_RUNS)("W89.4 — each non-relationship end-of-week system is observed doing something", () => {
   it("the win and loss runs, combined, exercise all thirteen non-relationship, non-week_limit systems", async () => {
     const winSystems = await observedSystems("long-horizon-win");
     const lossSystems = await observedSystems("long-horizon-loss");
@@ -241,8 +288,8 @@ function toActionLog(submissions: readonly { actionId: string; params?: Record<s
   }));
 }
 
-describe("W89.5 — byte-identical replay and a save/restore split", () => {
-  it.for(["long-horizon-win", "long-horizon-loss"])("%s: the determinism harness replays byte-identically", (name) => {
+describe.skipIf(!HAS_BOTH_RUNS)("W89.5 — byte-identical replay and a save/restore split", () => {
+  it.for(BOTH_RUNS)("%s: the determinism harness replays byte-identically", (name) => {
     const fixture = loadFixture(name);
     const playthrough: PlaythroughFixture = {
       name,
@@ -254,7 +301,7 @@ describe("W89.5 — byte-identical replay and a save/restore split", () => {
     expect(runFixture(engineA, playthrough)).toBe(runFixture(engineB, playthrough));
   });
 
-  it.for(["long-horizon-win", "long-horizon-loss"])(
+  it.for(BOTH_RUNS)(
     "%s: one continuous session and a save/restore split partway through end byte-identical",
     async (name) => {
       const fixture = loadFixture(name);
@@ -297,7 +344,7 @@ describe("W89.5 — byte-identical replay and a save/restore split", () => {
     },
   );
 
-  it.for(["long-horizon-win", "long-horizon-loss"])("%s: replays identically under nullEmitter and a recordingEmitter", (name) => {
+  it.for(BOTH_RUNS)("%s: replays identically under nullEmitter and a recordingEmitter", (name) => {
     const fixture = loadFixture(name);
     const playthrough: PlaythroughFixture = { name, config: fixture.config, actionLog: toActionLog(fixture.submissions) };
     const withoutRecording = runFixture(createEngine({ kinds, registry: buildRegistry(), ids: FIXED_IDS }).withEmitter(nullEmitter), playthrough);
@@ -328,8 +375,8 @@ function unboundedCollectionCounts(ks: SimulationKindState) {
   };
 }
 
-describe("W89.6 — serialized size and unbounded-collection counts, week one against final week", () => {
-  it.for(["long-horizon-win", "long-horizon-loss"])("%s: week one is small and well under the stated ceiling", async (name) => {
+describe.skipIf(!HAS_BOTH_RUNS)("W89.6 — serialized size and unbounded-collection counts, week one against final week", () => {
+  it.for(BOTH_RUNS)("%s: week one is small and well under the stated ceiling", async (name) => {
     const engine = createEngine({ kinds, registry: buildRegistry() });
     const fixture = loadFixture(name);
     const created = engine.createGame(fixture.config);
@@ -340,7 +387,7 @@ describe("W89.6 — serialized size and unbounded-collection counts, week one ag
     expect(engine.serialize(created.value).length).toBeLessThan(5_000);
   });
 
-  it.for(["long-horizon-win", "long-horizon-loss"])("%s: the final week stays under a stated ceiling for every collection and the serialized size", async (name) => {
+  it.for(BOTH_RUNS)("%s: the final week stays under a stated ceiling for every collection and the serialized size", async (name) => {
     const { engine, state } = await playFixture(name);
     const final = unboundedCollectionCounts(state.kindState as SimulationKindState);
 

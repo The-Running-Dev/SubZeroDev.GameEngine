@@ -75,10 +75,13 @@ export const CAMPAIGN_CATALOGUE: Readonly<Record<string, CatalogueEntry>> = {
   "stable-life-possessions.ts": { campaignId: STABLE_LIFE_POSSESSIONS_CAMPAIGN_ID, build: buildStableLifePossessionsCampaign },
   "stable-life-effects.ts": { campaignId: STABLE_LIFE_EFFECTS_CAMPAIGN_ID, build: buildStableLifeEffectsCampaign },
   "world-graph-mvp.ts": { campaignId: WORLD_GRAPH_MVP_CAMPAIGN_ID, build: buildWorldGraphMvpCampaign },
-  // W89's two long-horizon fixtures share one module — the win build is the representative
-  // one run through this single-campaign author tool; `long-horizon-loss` is exercised by
-  // its own replay corpus test (`long-horizon.replay.test.ts`), same as this catalogue's
-  // relationship to every other multi-fixture campaign file.
+  // W89's two long-horizon fixtures share one module, and this catalogue is keyed by module
+  // file — so only one of the pair can be addressed here, and the win build is it. No other
+  // `src/campaigns/*.ts` exports two builders, so this is a first rather than a precedent:
+  // `buildLongHorizonLossCampaign` is consequently outside W77.5's "every catalogued
+  // campaign builds and checks cleanly" pass, and a Tier 1 error in the loss campaign's own
+  // `goals`/`scenarios` surfaces as a thrown registry build in `long-horizon.replay.test.ts`
+  // rather than as this checker's itemised report. On the record, per W77.4.
   "long-horizon.ts": { campaignId: LONG_HORIZON_WIN_CAMPAIGN_ID, build: buildLongHorizonWinCampaign },
 };
 
