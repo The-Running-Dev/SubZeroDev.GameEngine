@@ -304,6 +304,31 @@ fully correct fix, but it touches the shared `applyWorldEffects` interpreter sea
 all six call sites). **Accepted as-is for this MVP slice** — the event is debug severity
 and `scenario` is the only caller reading `.applied` today. Revisit if a second caller
 starts reading `.applied`, or as part of whatever unit closes #349.
+
+**`relationships` (`endOfWeek.ts`) is the simulation kind's only remaining end-of-week
+stub, and W89 is the first thing able to observe that it stays one.** No weekly
+relationship rule — decay, drift, or otherwise — is specified anywhere in
+[`10-simulation-kind.md`](10-simulation-kind.md): §6.11 declares the state and §7.7 the
+NPC, but nothing names what a week does to either, so the system can never emit anything
+beyond `system.ran` (`resolvers.ts`'s own `socialize` is the only thing that moves a
+`RelationshipState`, and only on the player's own action). W89's fifteen-system coverage
+assertion (`long-horizon.replay.test.ts`) therefore counts fourteen, not fifteen —
+`relationships` is excluded by name rather than silently passed. **Revisit when** a weekly
+relationship rule is actually specified; writing one is `/contract` work, not a slice's
+(W56's own *Out of scope* already made this call once).
+
+**`long-horizon-loss`'s `pendingEventResponses` grows unbounded across its own 160-week
+run — a real instance of the exact defect shape W89 exists to be the first thing able to
+see, found and deliberately not fixed here (W89's own *Out of scope*).** Nothing in
+`endOfWeek.ts`'s `events` system (or anywhere else) expires a `PendingEventResponse` that
+`respond_to_event` never answers; `long-horizon-loss`'s own weekly policy is deliberately
+inactive (`long-horizon.ts`'s header explains why — the eviction-ladder arithmetic has to
+stay exact), so it never answers one, and the collection grows from 0 to 37 entries over
+the run. `long-horizon.replay.test.ts`'s own W89.6 assertion states this as an observed
+ceiling for this fixture, not a claim of boundedness. **Revisit** by giving a
+`PendingEventResponse` some expiry (an `expiresAtWeek`, mirroring `Opportunity`'s own
+field) or an explicit "declined by default" resolution once its `presentWeek` has passed
+by some stated margin — a real content/contract decision, not a slice-sized fix.
 ---
 
 ## 3. Judgement Calls to Revisit (Settled for the MVP)

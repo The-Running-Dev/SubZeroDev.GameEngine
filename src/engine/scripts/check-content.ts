@@ -46,6 +46,7 @@ import { buildStableLifeEventsCampaign, STABLE_LIFE_EVENTS_CAMPAIGN_ID } from ".
 import { buildStableLifePossessionsCampaign, STABLE_LIFE_POSSESSIONS_CAMPAIGN_ID } from "../src/campaigns/stable-life-possessions.js";
 import { buildStableLifeEffectsCampaign, STABLE_LIFE_EFFECTS_CAMPAIGN_ID } from "../src/campaigns/stable-life-effects.js";
 import { buildWorldGraphMvpCampaign, WORLD_GRAPH_MVP_CAMPAIGN_ID } from "../src/campaigns/world-graph-mvp.js";
+import { buildLongHorizonWinCampaign, LONG_HORIZON_WIN_CAMPAIGN_ID } from "../src/campaigns/long-horizon.js";
 
 export const KINDS: KindRegistry = {
   "story-graph": storyGraphKind,
@@ -74,6 +75,11 @@ export const CAMPAIGN_CATALOGUE: Readonly<Record<string, CatalogueEntry>> = {
   "stable-life-possessions.ts": { campaignId: STABLE_LIFE_POSSESSIONS_CAMPAIGN_ID, build: buildStableLifePossessionsCampaign },
   "stable-life-effects.ts": { campaignId: STABLE_LIFE_EFFECTS_CAMPAIGN_ID, build: buildStableLifeEffectsCampaign },
   "world-graph-mvp.ts": { campaignId: WORLD_GRAPH_MVP_CAMPAIGN_ID, build: buildWorldGraphMvpCampaign },
+  // W89's two long-horizon fixtures share one module — the win build is the representative
+  // one run through this single-campaign author tool; `long-horizon-loss` is exercised by
+  // its own replay corpus test (`long-horizon.replay.test.ts`), same as this catalogue's
+  // relationship to every other multi-fixture campaign file.
+  "long-horizon.ts": { campaignId: LONG_HORIZON_WIN_CAMPAIGN_ID, build: buildLongHorizonWinCampaign },
 };
 
 /**
