@@ -1148,3 +1148,25 @@ ledger is one renumbering away from being unexplained.
 Rejected: **Leave it in §19 alone** — the rule is stated and the reasoning is one link away, which is
 defensible today and gets weaker every time the slice ledger is reorganised.
 Reversibility: cheap — documentation only; no code, contract or behaviour change.
+
+### 2026-08-24 — The work mirror's own directory retripped the design-state skip guard it predates
+Context: the 2026-08-21 entry above guarded `tools/Test-DesignState.Tests.ps1`,
+`tools/Read-DesignState.Tests.ps1` and `tools/Update-DesignProjection.Tests.ps1`'s self-referential
+Describe blocks with `-Skip:` computed from whether `design/state/` exists, on the reasoning that this
+repository's compatibility promise (2026-08-19) leaves it unmigrated. `c26b803`/`c8c2e29` (work-mirror
+sync) then started writing `design/state/work/*.md` — a real, intentional adoption of the WorkRef
+record shape, unrelated to full design-state migration — which made the directory exist and flipped
+the guard, un-skipping 9 tests that immediately failed against a repository with no `state-index.md`,
+no `Contract`/`Unit`/`Invariant`/`Decision` records, and no `Check the design state against the tree`
+CI step. `verify.yml`'s "Run Pester tests" step went red on `main` at `7c86a22` as a result; the prior
+session's `.claude/verify-report.json` entry on this branch's predecessor state (commit `8128a0f`)
+already isolated the failures to this cause without fixing it.
+Chosen: point the three guards at `design/state-index.md` instead of the `design/state/` directory —
+the file the self-tests (S16.5) already treat as the migration's own marker, and one `design/state/`
+can no longer answer now that a subdirectory of it has a second, legitimate occupant.
+Rejected: **Exclude `design/state/work/` from the guard's Test-Path instead** — couples a generic
+design-state guard to one specific mirror subdirectory's name, and breaks again the next time
+something else adopts a `design/state/` subpath without adopting the whole migration. **Adopt
+design-state here to satisfy the tests** — the same unscoped-feature-adoption rejection as
+2026-08-21, unchanged by this branch.
+Reversibility: cheap — three `Test-Path` targets, reverted by pointing them back.
