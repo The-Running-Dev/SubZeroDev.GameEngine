@@ -67,6 +67,34 @@ function New-WorkMirrorResult {
     }
 }
 
+function Invoke-GhRaw {
+    <#
+    Runs gh and returns raw stdout text via StreamReader, bypassing PowerShell's
+    native-command capture - which decodes stdout using the console's OEM code page rather
+    than the UTF-8 gh actually writes, corrupting any non-ASCII byte (an em dash, for
+    example) into mojibake before it ever reaches ConvertFrom-Json. Sync-Kit.ps1's
+    Invoke-GitRaw fixed the identical class of bug for git output under #20 (a24541e); this
+    mirrors that fix for gh. Exit code is returned through -ExitCode since a Mock cannot set
+    $LASTEXITCODE (Update-WorkMirror.Tests.ps1's own rationale for mocking above this seam).
+    #>
+    param([Parameter(Mandatory)][string[]] $GhArgs, [ref] $ExitCode)
+
+    $psi = [System.Diagnostics.ProcessStartInfo]::new()
+    $psi.FileName = 'gh'
+    foreach ($a in $GhArgs) { $psi.ArgumentList.Add($a) }
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.UseShellExecute = $false
+    $psi.StandardOutputEncoding = [System.Text.UTF8Encoding]::new($false)
+
+    $proc = [System.Diagnostics.Process]::Start($psi)
+    $stdout = $proc.StandardOutput.ReadToEnd()
+    $proc.StandardError.ReadToEnd() | Out-Null
+    $proc.WaitForExit()
+    if ($ExitCode) { $ExitCode.Value = $proc.ExitCode }
+    $stdout
+}
+
 <#
     Every checkbox under a "Done when" section in an issue template carries its id as the
     entire bolded lead of the line - `- [ ] **S14.1** ...` - regardless of the id's own scheme
@@ -93,21 +121,22 @@ function Get-OpenIssueList {
     $ghArgs = @('issue', 'list', '--state', 'open', '--limit', '500', '--json', 'number,title,state,body,milestone')
     if ($Repository) { $ghArgs += @('-R', $Repository) }
 
+    $exitCode = 0
     try {
-        $json = & gh @ghArgs 2>$null
-        if ($LASTEXITCODE -ne 0) {
-            return [pscustomobject]@{ Issues = @(); Failure = (New-WorkMirrorFailure -Reason 'GhUnavailable' -Detail "gh exited $LASTEXITCODE") }
+        $json = Invoke-GhRaw -GhArgs $ghArgs -ExitCode ([ref]$exitCode)
+        if ($exitCode -ne 0) {
+            return [pscustomobject]@{ Issues = @(); Failure = (New-WorkMirrorFailure -Reason 'GhUnavailable' -Detail "gh exited $exitCode") }
         }
     } catch {
         return [pscustomobject]@{ Issues = @(); Failure = (New-WorkMirrorFailure -Reason 'GhUnavailable' -Detail $_.Exception.Message) }
     }
 
-    if ([string]::IsNullOrWhiteSpace(($json -join ''))) {
+    if ([string]::IsNullOrWhiteSpace($json)) {
         return [pscustomobject]@{ Issues = @(); Failure = $null }
     }
 
     try {
-        $parsed = ($json -join "`n") | ConvertFrom-Json
+        $parsed = $json | ConvertFrom-Json
     } catch {
         return [pscustomobject]@{ Issues = @(); Failure = (New-WorkMirrorFailure -Reason 'TrackerUnreadable' -Detail $_.Exception.Message) }
     }
@@ -126,9 +155,10 @@ function Get-ProjectItemPositions {
     param([Parameter(Mandatory)][string] $Owner, [Parameter(Mandatory)][string] $RepoName)
 
     try {
-        $projJson = & gh project list --owner $Owner --format json 2>$null
-        if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace(($projJson -join ''))) { return $null }
-        $projects = ($projJson -join "`n") | ConvertFrom-Json
+        $projExit = 0
+        $projJson = Invoke-GhRaw -GhArgs @('project', 'list', '--owner', $Owner, '--format', 'json') -ExitCode ([ref]$projExit)
+        if ($projExit -ne 0 -or [string]::IsNullOrWhiteSpace($projJson)) { return $null }
+        $projects = $projJson | ConvertFrom-Json
     } catch {
         return $null
     }
@@ -137,9 +167,10 @@ function Get-ProjectItemPositions {
     if (-not $project) { return $null }
 
     try {
-        $itemsJson = & gh project item-list $project.number --owner $Owner --format json 2>$null
-        if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace(($itemsJson -join ''))) { return $null }
-        $items = ($itemsJson -join "`n") | ConvertFrom-Json
+        $itemsExit = 0
+        $itemsJson = Invoke-GhRaw -GhArgs @('project', 'item-list', $project.number, '--owner', $Owner, '--format', 'json') -ExitCode ([ref]$itemsExit)
+        if ($itemsExit -ne 0 -or [string]::IsNullOrWhiteSpace($itemsJson)) { return $null }
+        $items = $itemsJson | ConvertFrom-Json
     } catch {
         return $null
     }
@@ -164,9 +195,10 @@ function Get-CurrentRepoOwnerName {
     }
 
     try {
-        $json = & gh repo view --json owner,name 2>$null
-        if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace(($json -join ''))) { return $null }
-        $parsed = ($json -join "`n") | ConvertFrom-Json
+        $repoExit = 0
+        $json = Invoke-GhRaw -GhArgs @('repo', 'view', '--json', 'owner,name') -ExitCode ([ref]$repoExit)
+        if ($repoExit -ne 0 -or [string]::IsNullOrWhiteSpace($json)) { return $null }
+        $parsed = $json | ConvertFrom-Json
     } catch {
         return $null
     }
