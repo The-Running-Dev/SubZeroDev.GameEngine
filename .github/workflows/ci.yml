@@ -155,7 +155,8 @@ jobs:
             exit 1
           fi
 
-          rm -rf consumer-smoke/node_modules consumer-smoke/package-lock.json consumer-smoke/dist
+          rm -rf consumer-smoke/node_modules consumer-smoke/dist
+          (cd consumer-smoke && npm ci)
           (cd consumer-smoke && npm run install:engine)
           (cd consumer-smoke && npm run build && npm run smoke)
 

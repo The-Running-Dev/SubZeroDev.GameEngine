@@ -246,9 +246,9 @@
 
 ## Stabilization Programme
 
-### [ ] W90 — Canonical and Public Truth {#w90}
+### [x] W90 — Canonical and Public Truth {#w90}
 
-### [ ] W91 — Reproducible Package and Release Gate {#w91}
+### [x] W91 — Reproducible Package and Release Gate {#w91}
 
 ### [x] W92 — Local and CI Gate Health {#w92}
 
