@@ -112,6 +112,31 @@ if (-not (Test-Path -LiteralPath $SettingsPath -PathType Leaf)) {
 
 $settings = Import-PowerShellDataFile -LiteralPath $SettingsPath
 
+# Terminology is checked on every prose line in the repository.  Recompiling a
+# separate regex for every variant on every line made this gate quadratic in
+# the vocabulary and pushed the full documentation check well past its two
+# minute budget.  One compiled alternation retains the exact same word-boundary
+# rule and maps each match back to the spelling it requires.
+$terminologyByVariant = [System.Collections.Generic.Dictionary[string, string]]::new(
+    [System.StringComparer]::Ordinal
+)
+$terminologyAlternatives = [System.Collections.Generic.List[string]]::new()
+foreach ($rule in $settings.Terminology) {
+    foreach ($variant in $rule.Variants) {
+        if ($terminologyByVariant.ContainsKey($variant)) {
+            throw "Duplicate terminology variant '$variant' in '$SettingsPath'."
+        }
+        $terminologyByVariant[$variant] = $rule.Required
+        $terminologyAlternatives.Add([regex]::Escape($variant))
+    }
+}
+$terminologyMatcher = if ($terminologyAlternatives.Count -gt 0) {
+    [regex]::new(
+        '(?<![\w-])(?<variant>' + ($terminologyAlternatives -join '|') + ')(?![\w-])',
+        [Text.RegularExpressions.RegexOptions]::CultureInvariant
+    )
+}
+
 if (-not $PSBoundParameters.ContainsKey('Path')) {
     $Path = @($repositoryRoot)
 }
@@ -260,22 +285,35 @@ function Get-MaskedDocumentationLine {
             continue
         }
 
+        # Most prose lines contain none of the syntax we mask.  Avoid three
+        # regex allocations per plain line: this gate scans several megabytes
+        # of Markdown, and the common path must be a cheap copy.
+        $value = $current
+
         # Inline code spans, longest runs first so ``a`b`` is handled correctly.
         # PreserveInlineCode keeps the enclosed text (dropping only the backtick
         # delimiters) instead of blanking the whole span -- callers computing
         # heading anchors need the span's text, since real sluggers keep it.
-        if ($PreserveInlineCode) {
-            $value = [regex]::Replace($current, '(`+)(.*?)\1', { $args[0].Groups[2].Value })
-        }
-        else {
-            $value = [regex]::Replace($current, '(`+)(?:.*?)\1', { ' ' * $args[0].Length })
+        if ($current.Contains('`')) {
+            if ($PreserveInlineCode) {
+                $value = [regex]::Replace($current, '(`+)(.*?)\1', { $args[0].Groups[2].Value })
+            }
+            else {
+                $value = [regex]::Replace($current, '(`+)(?:.*?)\1', { ' ' * $args[0].Length })
+            }
         }
 
         if ($MaskLinkTarget) {
             # Link and image targets plus bare URLs are addresses, not prose.
-            $value = [regex]::Replace($value, '\]\([^)]*\)', { ' ' * $args[0].Length })
-            $value = [regex]::Replace($value, '^\s{0,3}\[[^\]]+\]:\s*\S+', { ' ' * $args[0].Length })
-            $value = [regex]::Replace($value, '<?https?://\S+>?', { ' ' * $args[0].Length })
+            if ($value.Contains('](')) {
+                $value = [regex]::Replace($value, '\]\([^)]*\)', { ' ' * $args[0].Length })
+            }
+            if ($value.StartsWith('[') -or $value.StartsWith('   [') -or $value.StartsWith('  [') -or $value.StartsWith(' [')) {
+                $value = [regex]::Replace($value, '^\s{0,3}\[[^\]]+\]:\s*\S+', { ' ' * $args[0].Length })
+            }
+            if ($value.Contains('http://') -or $value.Contains('https://')) {
+                $value = [regex]::Replace($value, '<?https?://\S+>?', { ' ' * $args[0].Length })
+            }
         }
 
         $masked[$index] = $value
@@ -642,26 +680,29 @@ function Test-DocumentationTerminology {
         [Parameter(Mandatory)]
         [string] $Root,
 
+        [Parameter()]
+        [regex] $Matcher,
+
         [Parameter(Mandatory)]
-        [hashtable] $Settings
+        [hashtable] $RequiredByVariant
     )
 
     $relativePath = Get-RelativeDocumentationPath -FullPath $File.FullName -Root $Root
 
+    if ($null -eq $Matcher) {
+        return
+    }
+
     for ($index = 0; $index -lt $MaskedLine.Count; $index++) {
-        foreach ($rule in $Settings.Terminology) {
-            foreach ($variant in $rule.Variants) {
-                $pattern = '(?<![\w-])' + [regex]::Escape($variant) + '(?![\w-])'
-                foreach ($match in [regex]::Matches($MaskedLine[$index], $pattern)) {
-                    New-DocumentationFinding `
-                        -RelativePath $relativePath `
-                        -Line ($index + 1) `
-                        -Column ($match.Index + 1) `
-                        -Severity 'Warning' `
-                        -Rule 'Terminology' `
-                        -Message "Use '$($rule.Required)' instead of '$variant'."
-                }
-            }
+        foreach ($match in $Matcher.Matches($MaskedLine[$index])) {
+            $variant = $match.Groups['variant'].Value
+            New-DocumentationFinding `
+                -RelativePath $relativePath `
+                -Line ($index + 1) `
+                -Column ($match.Index + 1) `
+                -Severity 'Warning' `
+                -Rule 'Terminology' `
+                -Message "Use '$($RequiredByVariant[$variant])' instead of '$variant'."
         }
     }
 }
@@ -774,7 +815,8 @@ $findings = @(
             -File $file `
             -MaskedLine (Get-MaskedDocumentationLine -Line $lines -MaskLinkTarget) `
             -Root $repositoryRoot `
-            -Settings $settings
+            -Matcher $terminologyMatcher `
+            -RequiredByVariant $terminologyByVariant
     }
 )
 
