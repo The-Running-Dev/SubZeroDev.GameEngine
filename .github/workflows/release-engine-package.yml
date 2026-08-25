@@ -50,6 +50,46 @@ jobs:
           npm --prefix src/engine run typecheck
           npm --prefix src/engine run lint
           npm --prefix src/engine test
+
+      # `prepack` starts by removing dist, so this is the package that would
+      # publish from a clean checkout. Keep its path as an output: the smoke
+      # below must install this inspected archive, never a second pack.
+      - name: Pack clean package
+        id: pack-package
+        working-directory: src/engine
+        run: |
+          tarball="$(npm pack --silent)"
+          test -n "$tarball"
+          test -f "$tarball"
+          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
+
+      - name: Inspect tarball contents
+        working-directory: src/engine
+        env:
+          TARBALL: ${{ steps.pack-package.outputs.tarball }}
+        run: |
+          entries="$(tar -tzf "$TARBALL")"
+          if echo "$entries" | grep -qE '(^|/)src/'; then
+            echo "tarball contains source files under src/"
+            exit 1
+          fi
+          if echo "$entries" | grep -qE '(^|/)tsconfig[^/]*\.json$'; then
+            echo "tarball contains tsconfig JSON files"
+            exit 1
+          fi
+          if echo "$entries" | grep -qE '\.test\.(js|mjs|ts|c?js|d\.ts|js\.map|mjs\.map|ts\.map)$'; then
+            echo "tarball contains test build artifacts"
+            exit 1
+          fi
+          if ! echo "$entries" | grep -q '^package/dist/'; then
+            echo "tarball does not contain dist output"
+            exit 1
+          fi
+
+      - name: Verify packed consumer
+        env:
+          ENGINE_TARBALL: ${{ github.workspace }}/src/engine/${{ steps.pack-package.outputs.tarball }}
+        run: |
           npm --prefix consumer-smoke ci
           npm --prefix consumer-smoke run install:engine
           npm --prefix consumer-smoke run build

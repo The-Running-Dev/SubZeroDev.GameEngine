@@ -21,7 +21,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { join } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 
 const enginePath = fileURLToPath(new URL("../src/engine", import.meta.url));
 const here = fileURLToPath(new URL(".", import.meta.url));
@@ -50,15 +50,24 @@ if (!existsSync(typeScriptBin)) {
   runNpm(["ci"], { cwd: enginePath, stdio: "inherit" });
 }
 
-const tarball = runNpm(["pack", "--silent"], { cwd: enginePath, encoding: "utf8" }).trim();
+// CI's release gate creates and inspects one clean tarball before it asks this
+// consumer to install it. Re-packing here would turn the smoke into a check of
+// a second artifact. Local callers retain the self-contained pack path.
+const tarball = process.env["ENGINE_TARBALL"]
+  ?? runNpm(["pack", "--silent"], { cwd: enginePath, encoding: "utf8" }).trim();
 
 if (!tarball) {
   throw new Error("npm pack produced no tarball name");
 }
 
-console.log(`packed ${tarball}`);
+const tarballPath = isAbsolute(tarball) ? tarball : resolve(enginePath, tarball);
+if (!existsSync(tarballPath)) {
+  throw new Error(`engine package tarball does not exist: ${tarballPath}`);
+}
 
-runNpm(["install", "--no-save", "--no-audit", "--no-fund", `${enginePath}/${tarball}`], {
+console.log(`installing ${tarballPath}`);
+
+runNpm(["install", "--no-save", "--no-audit", "--no-fund", tarballPath], {
   cwd: here,
   stdio: "inherit",
 });

@@ -3936,16 +3936,21 @@ has been mis-sized rather than under-resourced.
 The W88/W89 reconciliation closes the existing defined programme. The following units are
 the additive `0.11.0` programme; W90–W92 make `0.10.0` honest and releasable first.
 
-### [ ] W90 — Canonical and Public Truth {#w90}
+### [x] W90 — Canonical and Public Truth {#w90}
 
 **Delivers:** A canonical ledger, generated documentation, README, landing page, and roadmap
 that describe the three shipped kinds, completed W88/W89 work, the retired in-repository play
 surface, and the ecosystem ownership boundary without rewriting historical evidence.
 
-### [ ] W91 — Reproducible Package and Release Gate {#w91}
+**Status:** Complete — [PR #377](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/377).
+
+### [x] W91 — Reproducible Package and Release Gate {#w91}
 
 **Delivers:** A clean build/pack path, tarball-content assertion, and tag/version-checked
 release workflow that runs the engine and packed-consumer checks before publishing `0.10.0`.
+
+**Status:** Complete — the release workflow packs from a clean build, rejects excluded archive
+content, and installs that same archive into a lockfile-backed consumer smoke before publish.
 
 ### [x] W92 — Local and CI Gate Health {#w92}
 
