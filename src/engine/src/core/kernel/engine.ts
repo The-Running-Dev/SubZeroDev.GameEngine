@@ -258,11 +258,14 @@ function view(host: EngineHost, state: GameState, audience: ProjectionAudience):
   const campaign = host.registry.campaigns.get(state.campaignId)!;
   const kind = host.kinds[state.kindId]!;
   const ctx = buildReadContext(host, campaign, kind, state);
-  return {
+  // Projections are an API boundary, not a reference into the authoritative
+  // state tree.  A kind may legitimately reuse a state value while projecting;
+  // clone the completed envelope so callers cannot mutate later reads or saves.
+  return structuredClone({
     gameId: state.gameId,
     status: state.status,
     kindView: kind.project(state.kindState, audience, ctx),
-  };
+  });
 }
 
 function availableActions(host: EngineHost, state: GameState): AvailableAction[] {

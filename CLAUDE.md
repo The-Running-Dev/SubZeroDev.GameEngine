@@ -8,8 +8,8 @@ narrative-game platform: its **source** (`src/engine/`) and its **specs**
 that canonical design.
 
 The model is **core → kinds → campaigns**: one shared deterministic core, game-*type*
-logic (`kinds`, engine-owned code), and content (`campaigns`, data). v1 ships two kinds,
-`story-graph` (flagship, the MVP vehicle) and `simulation`.
+logic (`kinds`, engine-owned code), and content (`campaigns`, data). v1 ships three kinds:
+`story-graph`, `simulation`, and `world-graph`.
 
 **Companions:**
 - **Game** — [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife):
@@ -29,7 +29,7 @@ logic (`kinds`, engine-owned code), and content (`campaigns`, data). v1 ships tw
   scenarios, balance and client live there. Nothing in these specs depends on it.
 - **Client** — [SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures):
   the browser play surface, extracted from this repository's `/play/` route and **the one going
-  forward** — `site/src/play/` here is transitional (`10-design.md`,
+  forward** — the in-repository `site/src/play/` route has been retired (`10-design.md`,
   *Succeeded by SubZeroDev.Adventures*). It is a **client repository**: no `design/`, no
   pipeline, no contract of its own. It consumes this engine as a pinned git submodule and adds
   a hosted Fastify API, Postgres persistence and accounts — all without a reciprocal engine
@@ -95,8 +95,8 @@ The engine npm package (`package.json`, `tsconfig.json` strict, `eslint.config.j
 the determinism guard, `README.md`). Phase 1 core under `src/engine/src/core/`:
 `determinism/pcg32.ts` (seeded PCG32, verified bit-identical to reference vectors),
 `persistence/canonical.ts` (canonical serialization), each with a `.test.ts` alongside. The
-contracts it builds against are `04-core` and `03-story-graph-kind`; next up is the pure
-engine `advance(state, action) → state`.
+contracts it builds against are the canonical core and kind documents; current work is
+stabilization and release hardening, not Phase 1 bootstrap.
 
 **Numbering is positional.** Inserting a doc between existing ones means renumbering
 everything after it and rewriting every cross-link. Prefer appending. *Reordering* is now

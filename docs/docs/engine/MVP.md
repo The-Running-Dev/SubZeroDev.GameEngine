@@ -211,10 +211,9 @@ platform. Jones is the next milestone, on a core this slice already proves.
 **Portable**
 - [x] The full suite passes in Node with **no DOM and no network/AI adapter installed** —
       the platform has no hidden client or provider dependency.
-      — Structural, not a runtime test: `src/engine/package.json` has no `dependencies`
-      key at all, and its `devDependencies` are only `@types/node`, `eslint`,
-      `typescript`, `typescript-eslint`, `vitest` — no DOM, HTTP, or AI client library
-      exists to install. No `vitest.config.*` file exists either, so the test
+       — Structural, not a runtime test: `src/engine/package.json` has one portable runtime
+       dependency, `@noble/hashes`, for synchronous SHA-256. It has no DOM, HTTP, or AI
+       client dependency. No `vitest.config.*` file exists either, so the test
       environment defaults to plain `node`, never `jsdom`.
 
 **Honest**

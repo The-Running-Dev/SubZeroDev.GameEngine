@@ -13,7 +13,7 @@ title: 'Game Engine'
 - **[Roadmap & milestones](/docs/engine/todo)** — every unit of work, done and remaining
 - **[Changelog](/docs/engine/changelog)** — one entry per merged PR, regenerated automatically
 - **[Current status](#status)** — what's built, what's next, right below
-- **[Engine source](/docs/guide/engine-package)** — `src/engine/`: TypeScript strict, vitest, zero runtime dependencies
+- **[Engine source](/docs/guide/engine-package)** — `src/engine/`: strict TypeScript, Vitest, deterministic portable hashing
 
 ## Why This Exists
 
@@ -359,46 +359,36 @@ The MVP contracts are complete and every MVP-blocking decision has already been 
 [Story Graph](/docs/engine/story-graph-kind). The remaining
 work is implementation. Not philosophy.
 
-### Code — three implemented kinds and a playable public casebook (W0–W73)
+### Code — three implemented kinds and a public authoring surface (W0–W89)
 
 The deterministic core, story-graph kind, simulation kind, and world-graph kind are all built
 and tested, including the world graph's deterministic tick pipeline, playable guest journey,
-validation, and replay guard. `v0.4.0` is published as `@the-running-dev/game-engine`; a clean
-consumer test installs the packed artifact rather than trusting this checkout. All six
-story-graph campaigns — Return, Bureaucracy, Driving, Inheritance, Enterprise, and Lucifer
-Chronicles — now ship as a replayable casebook behind an original adventure-cabinet interface at
-<a href="/play/"><code>/play/</code></a>, with a Bulgarian
-content pack proving the same engine reskins without an engine change. Author-facing validation, a real-browser test
-harness, and a mobile-first recomposition of the play surface followed.
+validation, and replay guard. `v0.8.0` is published as `@the-running-dev/game-engine`, while
+the `0.10.0` source adds the simulation authoring surface and 150+ week replay evidence. A clean
+consumer test installs the packed artifact rather than trusting this checkout. Story adventures
+now live at <a href="https://adventures.subzerodev.com/"><code>adventures.subzerodev.com</code></a>;
+this repository retains the deterministic engine, its fixtures, authoring tools, and contracts.
 
-### Current — publish the completed world-graph kind (T4)
+### Current — release 0.10.0, then stabilize toward 0.11.0
 
-Preview parity across the engine, session store, text client, and MCP is delivered in
-[PR #133](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/133). W49's canonical
-scenario and validation landed in [PR #134](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/134);
-its deterministic win/loss replay pairs and release-corpus coverage landed in
-[PR #136](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/136). Session-parity
-replays, clean-build serialization evidence, and a consumer-smoke rerun landed in
-[PR #138](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/138). The remaining
-T4 release gate is an immutable package version carrying this completed work, so Sun Trap can
-pin it without a sibling checkout. Full sequencing and done-criteria:
-[TODO.md](/docs/engine/todo).
+W88 exported the simulation authoring/runtime boundary in [PR #367](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/367).
+W89 added deterministic 150+ week win/loss proof in [PR #376](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/376).
+The immediate milestone is a reproducible public `0.10.0` package; the next programme closes
+the remaining correctness, host-boundary, and simulation-mechanics work additively for `0.11.0`.
 
 ---
 
 ## Companion Projects
 
-**Life in the Fast Lane** — a deterministic life simulator planned for the Simulation
-Kind. The flagship proving reusable mechanics can support entirely different campaigns,
-once the Kind exists to prove it on. Not playable yet — nobody's is. In
+**Life in the Fast Lane** — the flagship simulation-kind game, owned by
 [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife).
 
-**Bulgaria: Make-Your-Own-Adventure** — a branching narrative planned for the Story
-Graph Kind. Same setting. Different mechanics. Exactly the point, once it's built. Also
-in [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife).
+**Bulgaria: Make-Your-Own-Adventure** — a story-graph adventure now presented by
+[SubZeroDev.Adventures](https://adventures.subzerodev.com/); campaign content is owned outside
+this engine repository.
 
-**Sun Trap** — a satirical resort-management simulation built on World Graph. Currently
-design. Eventually chaos. In
+**Sun Trap** — a satirical resort-management simulation built on World Graph. Its engine kind
+is complete and replay-guarded; game content remains in
 [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap).
 
 **Platform** — the future hosting layer. Deferred, because one impossible project at a

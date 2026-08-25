@@ -1,7 +1,7 @@
 import type { AdvanceResult, KindContext } from "../../../core/kernel/types.js";
 import type { ReasonCode } from "../../../core/kernel/reasons.js";
 import { worldGraphContent, type BuildingDefinition, type ScenarioDefinition } from "../content.js";
-import { checkBuildingPlacement } from "../spatial.js";
+import { canonicalPathWithCost, checkBuildingPlacement } from "../spatial.js";
 import type { Building, ConstructionSite, Guest, WorldGraphKindState } from "../state.js";
 import { accepted, change, emit, integerParam, params, rejected, spend, stringParam } from "./common.js";
 
@@ -92,6 +92,21 @@ export function build(state: WorldGraphKindState, raw: Parameters<typeof params>
   ]);
 }
 
+function nearestReachableExit(
+  state: WorldGraphKindState,
+  terrain: ReturnType<typeof worldGraphContent>["terrain"],
+  guest: Guest,
+  remainingBuildings: readonly Building[],
+): WorldGraphKindState["map"]["exits"][number] {
+  const candidates = state.map.exits.flatMap((exit) => {
+    const route = canonicalPathWithCost(state.map, terrain, guest, [exit], remainingBuildings, state.constructionSites);
+    return route === null ? [] : [{ exit, cost: route.cost }];
+  }).sort((a, b) => a.cost - b.cost || a.exit.y - b.exit.y || a.exit.x - b.exit.x);
+  // A validated map has exits; a guest on a now-invalid/disconnected cell still
+  // leaves deterministically rather than making demolition fail after it mutated.
+  return candidates[0]?.exit ?? state.map.exits[0]!;
+}
+
 function fallbackGuest(guest: Guest, buildingId: string, exit: WorldGraphKindState["map"]["exits"][number], tick: number): Guest {
   if (guest.intent.kind !== "seek_service" || guest.intent.buildingId !== buildingId) return guest;
   return { ...guest, lifecycle: "seeking", intent: { kind: "leave", exit, reason: "scenario", selectedAtTick: tick }, path: [], pathIndex: 0 };
@@ -103,14 +118,20 @@ export function demolish(state: WorldGraphKindState, raw: Parameters<typeof para
   if (buildingId === null) return rejected(state, "core.reason.unknown_action");
   const target = state.buildings.find((entry) => entry.id === buildingId);
   if (!target) return rejected(state, "unknown_entity");
-  const exit = state.map.exits[0];
-  if (!exit) throw new Error("Validated world-graph map has no exit");
+  const content = worldGraphContent(ctx.campaign.content);
+  if (state.map.exits.length === 0) throw new Error("Validated world-graph map has no exit");
+  const remainingBuildings = state.buildings.filter((entry) => entry.id !== buildingId);
   const nextMap = { ...state.map, revision: state.map.revision + 1 };
   const next: WorldGraphKindState = {
     ...state,
     map: nextMap,
-    buildings: state.buildings.filter((entry) => entry.id !== buildingId),
-    guests: state.guests.map((guest) => fallbackGuest(guest, buildingId, exit, state.tick)),
+    buildings: remainingBuildings,
+    guests: state.guests.map((guest) => fallbackGuest(
+      guest,
+      buildingId,
+      nearestReachableExit(state, content.terrain, guest, remainingBuildings),
+      state.tick,
+    )),
     staff: state.staff.map((member) => member.assignedBuildingId === buildingId || member.task?.buildingId === buildingId || member.task?.queueId === target.queue.id
       ? { ...member, assignedBuildingId: member.assignedBuildingId === buildingId ? null : member.assignedBuildingId, status: "idle", task: null, path: [], pathIndex: 0, moveProgressTicks: 0 }
       : member),

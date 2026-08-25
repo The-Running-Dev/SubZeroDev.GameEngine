@@ -317,6 +317,15 @@ describe("read paths (scene, availableActions, view)", () => {
     expect(playerView.kindView).toEqual({ counter: 0 });
   });
 
+  it("returns a defensive structured clone", () => {
+    const engine = createEngine(makeHost());
+    const state = engine.createGame({ campaignId: "test-campaign" }).value as GameState;
+    const first = engine.view(state, "player") as { kindView: { counter: number } };
+    first.kindView.counter = 99;
+
+    expect(engine.view(state, "player").kindView).toEqual({ counter: 0 });
+  });
+
   it("scene bundles body, actions, and view", () => {
     const engine = createEngine(makeHost());
     const created = engine.createGame({ campaignId: "test-campaign" });

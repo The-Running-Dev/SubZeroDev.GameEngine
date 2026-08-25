@@ -15,18 +15,29 @@
   migrate that step to installed targets, so its absence here is not a divergence to report.
 #>
 
-$script:CIWorkflowPath = Join-Path (Split-Path $PSScriptRoot -Parent) '.github/workflows/verify.yml'
-$script:SkipCIWorkflowGhTokenTest = -not (Test-Path $script:CIWorkflowPath) -or
-    -not (Select-String -LiteralPath $script:CIWorkflowPath -Pattern '- name: Check the design state against the tree' -Quiet)
-
 Describe 'CI workflow: the Run Pester tests step is authenticated (#79)' {
-
     BeforeAll {
-        $script:WorkflowPath = $script:CIWorkflowPath
+        # The assertion itself is intentionally skipped until this repository
+        # adopts the design-state workflow step.  Pester still evaluates
+        # BeforeAll for skipped examples, so avoid reading a workflow that is
+        # deliberately absent in that compatibility state.
+        $workflowPath = Join-Path (Split-Path $PSScriptRoot -Parent) '.github/workflows/verify.yml'
+        $script:RunGhTokenTest = (Test-Path $workflowPath) -and
+            (Select-String -LiteralPath $workflowPath -Pattern '- name: Check the design state against the tree' -Quiet)
+        if (-not $script:RunGhTokenTest) {
+            $script:Lines = @()
+            return
+        }
+
+        $script:WorkflowPath = $workflowPath
         $script:Lines = Get-Content -LiteralPath $script:WorkflowPath
     }
 
-    It 'the "Run Pester tests" step carries a GH_TOKEN env, the same as "Check the design state against the tree"' -Skip:$script:SkipCIWorkflowGhTokenTest {
+    It 'the "Run Pester tests" step carries a GH_TOKEN env, the same as "Check the design state against the tree"' {
+        if (-not $script:RunGhTokenTest) {
+            Set-ItResult -Skipped -Because 'This repository has not adopted the design-state workflow step.'
+            return
+        }
         $stepIndex = ($script:Lines | Select-String -Pattern '- name: Run Pester tests').LineNumber
         $stepIndex | Should -Not -BeNullOrEmpty
 

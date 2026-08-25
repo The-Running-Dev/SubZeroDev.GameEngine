@@ -65,20 +65,18 @@ comparison (07 §8) runs the corpus against the previous tag.
 
 ## Companion Consumption
 
-The package is `@the-running-dev/game-engine`, published to GitHub Packages. The first
-version, **`0.4.0`, went out on 2026-08-02** from the `v0.4.0` tag, and it is installable
-today.
+The package is `@the-running-dev/game-engine`, published publicly to GitHub Packages. The
+latest published version is **`0.8.0`**; source is prepared as `0.10.0` for the next tagged
+release.
 
 `release-engine-package.yml` runs on a `v*` tag push and ships whatever
 `src/engine/package.json` says at that tag, so the manifest version and the tag move together.
-`v0.4.0` is the first tag where they do — `v0.1.0` shipped `0.0.0`, and `v0.2.0` and `v0.3.0`
-both shipped `0.1.0`, harmless only because nothing was published from them.
+Release tags are expected to match `src/engine/package.json` exactly; the release workflow
+verifies that relationship before publication.
 
-> **On visibility.** The package published **public**, while the plans behind it specify a
-> private one. Which of the two is wrong is an open question
-> ([`OPEN-QUESTIONS.md`](/docs/engine/open-questions) §2): both repositories are public, so a
-> private package would protect nothing, but the decision has not been taken. Until it is, the
-> install below needs no authentication — and that is a fact about today, not a guarantee.
+> **On visibility.** The package is deliberately public. The repository and its companion
+> consumers are public, so private package visibility would add authentication without adding a
+> meaningful boundary.
 
 Companion projects consume it by registry from a tarball built and published in
 `release-engine-package.yml`, not by source-tree `file:` links — a `file:` link resolves
@@ -91,7 +89,7 @@ Consume it with:
 
 ```bash
 npm config set @the-running-dev:registry https://npm.pkg.github.com
-npm install @the-running-dev/game-engine@0.4.0
+npm install @the-running-dev/game-engine@0.8.0
 ```
 
 Pin the exact version rather than a range. The whole point of the boundary is that a companion

@@ -35,8 +35,8 @@ section number.
 | [Replay](engine/07-replay.md) | The regression oracle: replaying committed fixtures across engine versions, and what "the same game" means when the bytes may differ |
 | [Session Capture](engine/08-session-capture.md) | Turning a played session into a fixture: what may be taken from a person, what is refused, and how long it lives |
 | [Clients](engine/09-clients.md) | The client contract: what a client may and may not do, and the API coverage checklist that verifies it |
-| [Playable Web Demo](engine/13-playable-web-demo.md) | The first public browser client: one complete Bureaucracy playthrough at `/play/`, with the portability and delivery boundaries that keep it an honest engine demo |
-| [Game Interface](engine/14-game-interface.md) | The public play surface as an absurd adventure cabinet: scene stage, tactile choices, projected status, original assets, and accessible responsive behaviour |
+| [Playable Web Demo](engine/13-playable-web-demo.md) | Historical record of the first public browser client; the successor is [SubZeroDev.Adventures](https://adventures.subzerodev.com/) |
+| [Game Interface](engine/14-game-interface.md) | Historical record of the engine repository's adventure cabinet; presentation now belongs to the Adventures client |
 | [Platform Static Host](engine/15-platform-static-host.md) | The first Platform consumer: a product-owned container that serves the same verified static artifact, publishes immutably, and deliberately stops before hosted engine execution or deployment |
 | [Simulation Kind](engine/10-simulation-kind.md) | The second kind, expressed against the Kind seam: the week as a turn, plan actions, and what its state must not duplicate |
 | [Content Packs](engine/11-content-packs.md) | Resolving many packs into one frozen registry — merge, override, dependency — and the identity that keeps a game reproducible |

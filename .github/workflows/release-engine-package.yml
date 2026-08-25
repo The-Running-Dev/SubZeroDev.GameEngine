@@ -4,7 +4,6 @@ on:
   push:
     tags:
       - "v*"
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -30,9 +29,31 @@ jobs:
         run: |
           npm config set @the-running-dev:registry https://npm.pkg.github.com
 
+      - name: Verify tag, version, and package availability
+        working-directory: src/engine
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '//npm.pkg.github.com/:_authToken=%s\n' "$NODE_AUTH_TOKEN" > .npmrc
+          test "v$(node -p \"require('./package.json').version\")" = "$GITHUB_REF_NAME"
+          if npm view "@the-running-dev/game-engine@$(node -p \"require('./package.json').version\")" version >/dev/null 2>&1; then
+            echo "Package version already exists"
+            exit 1
+          fi
+
       - name: Install dependencies
         working-directory: src/engine
         run: npm ci
+
+      - name: Verify engine and packed consumer
+        run: |
+          npm --prefix src/engine run typecheck
+          npm --prefix src/engine run lint
+          npm --prefix src/engine test
+          npm --prefix consumer-smoke ci
+          npm --prefix consumer-smoke run install:engine
+          npm --prefix consumer-smoke run build
+          npm --prefix consumer-smoke run smoke
 
       - name: Publish package
         working-directory: src/engine

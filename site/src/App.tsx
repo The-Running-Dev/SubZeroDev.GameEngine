@@ -26,11 +26,8 @@ const repository = "https://github.com/The-Running-Dev/SubZeroDev.GameEngine";
  * build/Test-Documentation.ps1 skips site-absolute targets by design. Re-read
  * the inventory whenever docs/docs/engine/ is restructured.
  *
- * Hosting is GitHub Pages, at game-engine.subzerodev.com — the docs site's
- * existing deployment, now serving both projects. What still does NOT exist is
- * the build-assembly step: how this project's `dist/` and the docs site's
- * build get merged into the one artifact tree docs-deploy.yml uploads. See
- * 00-repository-reality.md §6.
+ * Hosting is GitHub Pages, at game-engine.subzerodev.com. The published landing-page
+ * package performs the protected merge of this site's output and the docs artifact.
  */
 const routes = {
   architecture: "/docs/engine/architecture",
@@ -446,9 +443,9 @@ function App() {
             <span className="commentary-marker" aria-hidden="true">
               *
             </span>
-            Story-graph now has a playable casebook. Simulation and world-graph
-            still have tested scenarios, not polished games. The distinction
-            matters.
+            Story-graph lives on in Adventures. Simulation now has game-length replay
+            proof; simulation and world-graph are still engine proofs, not polished games.
+            The distinction matters.
           </p>
           <ContinueLink to="#continue" />
         </section>
