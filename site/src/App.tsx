@@ -443,9 +443,9 @@ function App() {
             <span className="commentary-marker" aria-hidden="true">
               *
             </span>
-            Story-graph lives on in Adventures. Simulation now has game-length replay
-            proof; simulation and world-graph are still engine proofs, not polished games.
-            The distinction matters.
+            Story-graph lives on in Adventures. Simulation now has game-length
+            replay proof; simulation and world-graph are still engine proofs,
+            not polished games. The distinction matters.
           </p>
           <ContinueLink to="#continue" />
         </section>

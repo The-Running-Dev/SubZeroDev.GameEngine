@@ -74,7 +74,9 @@ describe("roadmap page", () => {
     ]);
     expect(nextActs.every((chapter) => chapter.status !== "done")).toBe(true);
     expect(currentAct.workUnits).toBe("W90–W92");
-    expect(futureActs.map((chapter) => chapter.workUnits)).toEqual(["W93–W108"]);
+    expect(futureActs.map((chapter) => chapter.workUnits)).toEqual([
+      "W93–W108",
+    ]);
     expect(shippedChapters[0]?.links[0]?.href).toMatch(
       /^https:\/\/github\.com\/The-Running-Dev\/SubZeroDev\.GameEngine\/commit\/[0-9a-f]{40}$/,
     );
