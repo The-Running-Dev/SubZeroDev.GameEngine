@@ -314,7 +314,7 @@ function Get-DocumentationAnchor {
         [string] $FullPath
     )
 
-    $lines = @(Get-Content -LiteralPath $FullPath)
+    $lines = Get-CachedDocumentationLines -FullPath $FullPath
     $masked = Get-MaskedDocumentationLine -Line $lines -PreserveInlineCode
     $anchors = [System.Collections.Generic.HashSet[string]]::new(
         [System.StringComparer]::OrdinalIgnoreCase
@@ -356,6 +356,42 @@ function Get-DocumentationAnchor {
 }
 
 $anchorCache = @{}
+$pathExistsCache = @{}
+$documentationLineCache = @{}
+
+function Get-CachedDocumentationLines {
+    param (
+        [Parameter(Mandatory)]
+        [string] $FullPath
+    )
+
+    if (-not $documentationLineCache.ContainsKey($FullPath)) {
+        # Read every Markdown file at most once.  Anchor validation otherwise
+        # reopens files already scanned for links, which is disproportionately
+        # expensive when the workspace is backed by a sync provider.
+        $documentationLineCache[$FullPath] = [IO.File]::ReadAllLines($FullPath)
+    }
+    return , @($documentationLineCache[$FullPath])
+}
+
+function Test-CachedDocumentationPath {
+    param (
+        [Parameter(Mandatory)]
+        [string] $FullPath,
+
+        [Parameter(Mandatory)]
+        [hashtable] $Cache
+    )
+
+    if (-not $Cache.ContainsKey($FullPath)) {
+        # A Markdown corpus commonly links to the same generated guide, asset,
+        # or canonical document hundreds of times.  Filesystem probes dominate
+        # this gate on synced workspaces, so cache both present and absent paths
+        # for the duration of one immutable validation run.
+        $Cache[$FullPath] = Test-Path -LiteralPath $FullPath
+    }
+    return [bool] $Cache[$FullPath]
+}
 
 function Get-CachedDocumentationAnchor {
     param (
@@ -504,7 +540,10 @@ function Test-DocumentationLink {
         [string] $Root,
 
         [Parameter(Mandatory)]
-        [hashtable] $Cache
+        [hashtable] $Cache,
+
+        [Parameter(Mandatory)]
+        [hashtable] $PathCache
     )
 
     $relativePath = Get-RelativeDocumentationPath -FullPath $File.FullName -Root $Root
@@ -563,7 +602,7 @@ function Test-DocumentationLink {
             $decoded = [uri]::UnescapeDataString($filePart)
             $resolved = [IO.Path]::GetFullPath((Join-Path $directory $decoded))
 
-            if (-not (Test-Path -LiteralPath $resolved)) {
+            if (-not (Test-CachedDocumentationPath -FullPath $resolved -Cache $PathCache)) {
                 New-DocumentationFinding `
                     -RelativePath $relativePath `
                     -Line $lineNumber `
@@ -722,13 +761,14 @@ $findings = @(
     }
 
     foreach ($file in $documentationFiles) {
-        $lines = @(Get-Content -LiteralPath $file.FullName)
+        $lines = Get-CachedDocumentationLines -FullPath $file.FullName
 
         Test-DocumentationLink `
             -File $file `
             -MaskedLine (Get-MaskedDocumentationLine -Line $lines) `
             -Root $repositoryRoot `
-            -Cache $anchorCache
+            -Cache $anchorCache `
+            -PathCache $pathExistsCache
 
         Test-DocumentationTerminology `
             -File $file `

@@ -79,6 +79,12 @@ jobs:
             # a push to main (verify skips push events), so it is also the
             # last thing standing between a broken landing page and a real
             # deploy if a check was ever bypassed getting there.
+            - name: Cache Alpine Chromium packages
+              uses: actions/cache@v4
+              with:
+                path: /tmp/apk-cache
+                key: alpine-chromium-${{ runner.arch }}-v1
+
             # The real-browser suite needs Chromium installed first -- it is
             # not part of the base image, unlike Node. `playwright install
             # --with-deps` shells out to apt-get, but this container
@@ -91,7 +97,8 @@ jobs:
               env:
                   PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH: /usr/bin/chromium-browser
               run: |
-                  apk add --no-cache chromium
+                  mkdir -p /tmp/apk-cache
+                  apk add --cache-dir /tmp/apk-cache chromium
                   npm --prefix src/engine ci
                   npm --prefix src/engine run build
                   npm --prefix site ci

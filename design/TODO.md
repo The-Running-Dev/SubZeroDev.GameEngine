@@ -240,6 +240,46 @@
 
 ### Depth: Life in the Fast Lane, End to End
 
-### [ ] W88 — The Simulation Kind Nobody Outside the Package Can Use {#w88}
+### [x] W88 — The Simulation Kind Nobody Outside the Package Can Use {#w88}
 
-### [ ] W89 — A Game-Length Life {#w89}
+### [x] W89 — A Game-Length Life {#w89}
+
+## Stabilization Programme
+
+### [ ] W90 — Canonical and Public Truth {#w90}
+
+### [ ] W91 — Reproducible Package and Release Gate {#w91}
+
+### [ ] W92 — Local and CI Gate Health {#w92}
+
+### [ ] W93 — World-Graph Spatial and Audit Correctness {#w93}
+
+### [ ] W94 — Simulation Resolution Correctness {#w94}
+
+### [ ] W95 — Effect and Audit Semantics {#w95}
+
+### [ ] W96 — Mechanical Regression Boundaries {#w96}
+
+### [ ] W97 — Immutable Projections and Shared Pipelines {#w97}
+
+### [ ] W98 — Catalog and Projection Completeness {#w98}
+
+### [ ] W99 — Session Lifecycle Operations {#w99}
+
+### [ ] W100 — Campaign-Tunable Weekly Rules {#w100}
+
+### [ ] W101 — Projects, Businesses, and Rival Scarcity {#w101}
+
+### [ ] W102 — Profile Chains and Simulation Save Migration {#w102}
+
+### [ ] W103 — Companion Contracts and Ownership Reconciliation {#w103}
+
+### [ ] W104 — Release 0.11 Compatibility Sweep {#w104}
+
+### [ ] W105 — Documentation and Landing Publication Review {#w105}
+
+### [ ] W106 — Tracker Evidence Closure {#w106}
+
+### [ ] W107 — 0.11 Release Candidate Verification {#w107}
+
+### [ ] W108 — Publish 0.11 Readiness {#w108}

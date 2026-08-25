@@ -164,10 +164,9 @@ README, whose status is deliberately coarse.
 
 ## Orientation in One Paragraph
 
-This repo = the **Game Engine**: source (`src/engine/`, Phase 1 core started) + canonical specs
+This repo = the **Game Engine**: source (`src/engine/`, three shipped kinds) + canonical specs
 (`design/`), with generated human docs under `docs/docs/engine/`. A game-agnostic **core** + **kinds** (engine-owned code) +
-**campaigns** (data); v1 ships two kinds, `story-graph` (flagship, the MVP) and
-`simulation`. A "campaign" is a kind + its data; a "culture pack" reskins a simulation
+**campaigns** (data); v1 ships `story-graph`, `simulation`, and `world-graph`. A "campaign" is a kind + its data; a "culture pack" reskins a simulation
 campaign. The flagship game (Life in the Fast Lane) is the companion
 [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife); a second,
 Sun Trap, sits on the `world-graph` kind in

@@ -5,9 +5,9 @@
 
 # Vision
 
-**Document status:** Revision 1 — architecture settled
+**Document status:** Revision 2 — three kinds delivered; public package release in progress
 
-**Project stage:** Design
+**Project stage:** Stabilization
 
 > **Scope of this document**
 >
@@ -16,7 +16,7 @@
 >
 > - The architecture and every settled decision: [`02-architecture.md`](02-architecture.md)
 > - The platform core as types (the Kind seam, the API): [`04-core.md`](04-core.md)
-> - The two games built on it: `games/life-in-the-fast-lane.md` · `games/bulgaria-adventure.md`
+> - The games built on it: `games/life-in-the-fast-lane.md` · `games/bulgaria-adventure.md`
 > - What to build first, and when it's done: [`MVP.md`](MVP.md) · [`TODO.md`](TODO.md)
 > - The flagship kind's content model: [`03-story-graph-kind.md`](03-story-graph-kind.md)
 > - Shared Bulgarian source material: `games/bulgaria.md`
@@ -69,19 +69,20 @@ So the platform is built in two layers:
 - **A kind** — a game-logic module, written as reviewed engine code, that sits on the
   core and defines how one *category* of game actually plays.
 
-A **campaign** is a *kind plus its data*. Two kinds ship in v1:
+A **campaign** is a *kind plus its data*. Three kinds ship in v1:
 
 | Kind | What it is | Flagship campaign |
 |---|---|---|
 | `simulation` | Weekly-tick life simulation: time budget, needs, economy, systems | Life in the Fast Lane |
 | `story-graph` | Branching narrative: nodes, choices, typed variables, requirements, consequences | Bulgaria: Make-Your-Own-Adventure |
+| `world-graph` | Navigable, tick-driven simulation: space, autonomous inhabitants, and deterministic batches | Sun Trap |
 
 The Game Engine is the platform; **Life in the Fast Lane is a campaign on it** —
 specifically, the flagship campaign of the `simulation` kind, already specified in
 full under `games/`.
 
-**Two games are being built on this engine**, each in its own document under
-`games/`:
+**Three game directions are proven on this engine**. The first two have companion-game
+documentation; the third is the world-graph contract and its Sun Trap companion:
 
 1. **Life in the Fast Lane** — the `simulation` kind.
    The Jones clone. Its Bulgarian culture pack is the customization example. The deep
@@ -89,9 +90,11 @@ full under `games/`.
 2. **Bulgaria: Make-Your-Own-Adventure** — the
    `story-graph` kind. A branching game. The simplest to build, and therefore the MVP.
 
-They share only the Bulgarian setting and the deadpan voice — nothing mechanical.
-Building both is the sharpest demonstration that the engine/kind/campaign separation
-works: one setting, two genuinely different games, one engine.
+3. **Sun Trap** — the `world-graph` kind. A spatial, tick-driven resort simulation in
+   its own companion repository.
+
+They share only the engine boundary — not a forced common mechanic. Building all three
+is the proof that the engine/kind/campaign separation works: distinct games, one engine.
 
 The full reasoning behind this two-layer split, and every other architectural
 decision, is in [`02-architecture.md`](02-architecture.md).
@@ -127,7 +130,7 @@ the same API to the same engine.
   [`neaas-platform-vision.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform) — but it is **deferred**. The
   engine is a pure library first. (This is the source specification's own §33.1
   scope-creep risk, applied to itself.)
-- New game *kinds* authored by third parties. A kind is engine code; v1 ships two.
+- New game *kinds* authored by third parties. A kind is engine code; v1 ships three.
   Adding a kind is a deliberate engine feature, not a content upload.
 - Graphics. Text first, exactly as the source specification insists.
 
@@ -135,8 +138,8 @@ the same API to the same engine.
 
 ## 6. The Bet
 
-Prove the core and the two kinds through automated tests and a plain text client,
-with no UI and no AI in the loop. Once that works, every client is presentation and
-every new game is content.
+Prove the core and all three kinds through automated tests, replay fixtures, and clients
+that remain presentation-only. Once that works, every client is presentation and every
+new game is content.
 
 The engine is the product. Campaigns are the catalogue.

@@ -15,8 +15,8 @@ describe("roadmap page", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
       `How a Quick Question Became ${completedWorkUnitCount} Work Units.`,
     );
-    expect(screen.getAllByText("DONE")).toHaveLength(19);
-    expect(screen.queryAllByText("NEXT")).toHaveLength(0);
+    expect(screen.getAllByText("DONE")).toHaveLength(24);
+    expect(screen.getAllByText("NEXT")).toHaveLength(1);
     expect(screen.getAllByText("LATER")).toHaveLength(3);
     const checkpoint = screen.getByText("02 / NOW").closest("section");
     expect(checkpoint).not.toBeNull();
@@ -30,7 +30,7 @@ describe("roadmap page", () => {
       within(checkpoint as HTMLElement).getByRole("link", {
         name: "Canonical task ledger",
       }),
-    ).toHaveAttribute("href", "/docs/engine/todo#w49");
+    ).toHaveAttribute("href", "/docs/engine/todo#w90");
     const future = screen.getByText("03 / NEXT").closest("section");
     expect(future).not.toBeNull();
     expect(
@@ -62,11 +62,21 @@ describe("roadmap page", () => {
       "W69",
       "W71–W72",
       "W73",
+      "W74–W76",
+      "W77–W80",
+      "W81–W85",
+      "W86–W87",
+      "W88–W89",
     ]);
-    expect(nextActs.map((chapter) => chapter.workUnits)).toEqual(["T4"]);
+    expect(nextActs.map((chapter) => chapter.workUnits)).toEqual([
+      "W90–W92",
+      "W93–W108",
+    ]);
     expect(nextActs.every((chapter) => chapter.status !== "done")).toBe(true);
-    expect(currentAct.workUnits).toBe("T4");
-    expect(futureActs).toEqual([]);
+    expect(currentAct.workUnits).toBe("W90–W92");
+    expect(futureActs.map((chapter) => chapter.workUnits)).toEqual([
+      "W93–W108",
+    ]);
     expect(shippedChapters[0]?.links[0]?.href).toMatch(
       /^https:\/\/github\.com\/The-Running-Dev\/SubZeroDev\.GameEngine\/commit\/[0-9a-f]{40}$/,
     );

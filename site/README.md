@@ -10,15 +10,8 @@ declares this site's two routes (`/`, `/roadmap/`) — each an existing Engine-o
 module and its own static metadata — and the package's CLI builds, serves, and merges them.
 No Vite config lives in this package any more; the site owns pages, styles, and tests only.
 
-The playable demo imports the engine's published public entry point as a local package. Build
-the engine before installing or checking this site from a clean checkout:
-
-```powershell
-npm --prefix ../src/engine ci
-npm --prefix ../src/engine run build
-npm ci
-npm run check
-```
+The site contains only the landing page and roadmap. The player-facing client is
+`https://adventures.subzerodev.com/`; this package does not import the engine at runtime.
 
 ## Development
 
@@ -56,5 +49,5 @@ Review the written/changed `.png` files (a diff viewer or `git diff --stat` on t
 ## Boundaries
 
 - Keep all landing-page work inside `site/`.
-- Documentation destinations are absolute `game-engine.subzerodev.com` URLs.
-- Do not add a host, canonical URL, or Open Graph image until hosting is decided.
+- Documentation destinations are root-relative paths served by the merged public artifact.
+- Hosting and canonical metadata are declared by `landing.config.ts` and verified in the build.

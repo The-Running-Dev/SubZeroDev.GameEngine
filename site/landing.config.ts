@@ -61,7 +61,7 @@ export default defineLandingPage({
       metadata: {
         title: "Roadmap — SubZeroDev Game Engine",
         description:
-          "What SubZeroDev Game Engine has built, what comes next, and why it became 44 work units.",
+          "What SubZeroDev Game Engine has built, what comes next, and why it became a deterministic delivery ledger.",
         canonicalUrl: "https://game-engine.subzerodev.com/roadmap/",
         openGraph: {
           title: "SubZeroDev Game Engine Roadmap",

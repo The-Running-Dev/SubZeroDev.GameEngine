@@ -109,13 +109,13 @@ describe("assertMinGap", () => {
 
 describe("assertNoHorizontalOverflow", () => {
   it("fails when a wide element forces horizontal scroll", async () => {
-    await page.viewport(390, 700);
+    await page.viewport(390, 844);
     mount('<div style="width: 900px; height: 10px;"></div>');
     expect(() => assertNoHorizontalOverflow()).toThrow(/scrolls horizontally/);
   });
 
   it("passes when nothing exceeds the viewport", async () => {
-    await page.viewport(390, 700);
+    await page.viewport(390, 844);
     expect(() => assertNoHorizontalOverflow()).not.toThrow();
   });
 });

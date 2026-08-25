@@ -4,8 +4,9 @@ The code for the deterministic narrative game engine. The design lives in
 [`../../docs/docs/engine/`](../../docs/docs/engine/02-architecture.md); this is the build.
 
 **Status:** Three kinds implemented and tested — `story-graph`, `simulation`, and
-`world-graph` — with a published package, a playable public casebook at `/play/`, and a
-Bulgarian content pack proving a campaign can reskin without an engine change. Full,
+`world-graph` — with a published package, public simulation authoring exports, and a
+Bulgarian content pack proving a campaign can reskin without an engine change. The public
+story client now lives at `https://adventures.subzerodev.com/`. Full,
 unit-by-unit state: [`docs/docs/engine/TODO.md`](../../docs/docs/engine/TODO.md).
 
 ## Layout
@@ -22,8 +23,8 @@ src/
   kinds/                game-logic modules: story-graph, simulation, world-graph
   clients/              text client
   mcp/                  MCP server
-  campaigns/            Bulgaria: Make-Your-Own-Adventure content, built against story-graph
-  portable/             the portable save/campaign format (non-contract spike exports)
+  campaigns/            engine-owned regression fixtures, not published campaign content
+  portable/             the portable save/campaign format and migration contract
   authoring.ts           the public authoring seam consumers build campaigns against
 ```
 

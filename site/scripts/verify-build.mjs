@@ -45,7 +45,7 @@ for (const tag of requiredTags) {
 }
 
 const roadmapTags = [
-  /<meta\s+name="description"\s+content="What SubZeroDev Game Engine has built, what comes next, and why it became 44 work units\."\s*\/?>/,
+  /<meta\s+name="description"\s+content="What SubZeroDev Game Engine has built, what comes next, and why it became a deterministic delivery ledger\."\s*\/?>/,
   /<meta\s+property="og:url"\s+content="https:\/\/game-engine\.subzerodev\.com\/roadmap\/"\s*\/?>/,
   /<link\s+rel="canonical"\s+href="https:\/\/game-engine\.subzerodev\.com\/roadmap\/"\s*\/?>/,
   /<script type="module" crossorigin src="\/assets\//,

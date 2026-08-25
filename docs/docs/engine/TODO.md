@@ -3778,7 +3778,7 @@ host that fetched it could not type what it renders. **W89 second, because nothi
 tested at the scale the game is played at**: every simulation fixture in the corpus is two or
 three weeks long, and a life sim is measured in years.
 
-### [ ] W88 — The Simulation Kind Nobody Outside the Package Can Use {#w88}
+### [x] W88 — The Simulation Kind Nobody Outside the Package Can Use {#w88}
 
 **Delivers:** Lets a content repository actually write Life in the Fast Lane, and lets a host
 render it. Today the simulation kind is one you can register and cannot author: the package
@@ -3823,7 +3823,7 @@ noted here rather than moved.
       `design/20-contract.md` (the `engine/04-core.md` block, §19).
 - **Depends on:** [W57](#w57), the behaviour these types describe, and [W74c](#w74c), which
       fixed what the root surface is for. Not on [W89](#w89).
-- **Status:** Not started.
+- **Status:** Complete — [PR #367](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/367), merged at `8115478`. The root/runtime and `/authoring` export split is covered by the packed-tarball consumer smoke.
 - **Done when:**
   - W88.1 `buildSimulationCampaign` and every `*Source` type
         `src/engine/src/kinds/simulation/source.ts` declares are exported from
@@ -3853,7 +3853,7 @@ noted here rather than moved.
 
 ---
 
-### [ ] W89 — A Game-Length Life {#w89}
+### [x] W89 — A Game-Length Life {#w89}
 
 **Delivers:** The first evidence that this kind survives being played as a game rather than as
 a test. **The longest simulation run committed anywhere in this repository is three weeks** —
@@ -3897,7 +3897,7 @@ has been mis-sized rather than under-resourced.
       fixture and outcome pairs under `src/engine/fixtures/replay/`;
       `src/engine/src/campaigns/replay-corpus.ts`.
 - **Depends on:** [W57](#w57). Independent of [W88](#w88) — the two may land in either order.
-- **Status:** Not started.
+- **Status:** Complete — [PR #376](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/376), merged at `71e7364`. The paired 150+ week replay fixtures prove deterministic win/loss paths and expose the retained pending-response and relationship-rule follow-up work.
 - **Done when:**
   - W89.1 A committed fixture plays at least one hundred and fifty weeks to a terminal
         `outcome()` and is in the replay corpus, its outcome frozen the way every other corpus
@@ -3929,3 +3929,105 @@ has been mis-sized rather than under-resourced.
       [W73](#w73) put out of scope by name and which needs its state space argued before it is
       built; and wiring a long run into CI as a required gate, a policy change with a runtime
       cost that wants its own decision.
+---
+
+## Stabilization Programme
+
+The W88/W89 reconciliation closes the existing defined programme. The following units are
+the additive `0.11.0` programme; W90–W92 make `0.10.0` honest and releasable first.
+
+### [ ] W90 — Canonical and Public Truth {#w90}
+
+**Delivers:** A canonical ledger, generated documentation, README, landing page, and roadmap
+that describe the three shipped kinds, completed W88/W89 work, the retired in-repository play
+surface, and the ecosystem ownership boundary without rewriting historical evidence.
+
+### [ ] W91 — Reproducible Package and Release Gate {#w91}
+
+**Delivers:** A clean build/pack path, tarball-content assertion, and tag/version-checked
+release workflow that runs the engine and packed-consumer checks before publishing `0.10.0`.
+
+### [ ] W92 — Local and CI Gate Health {#w92}
+
+**Delivers:** A single-pass documentation drift check, repaired Pester bootstrap, cached Alpine
+Chromium, and a responsive shared header covered at phone and desktop widths.
+
+### [ ] W93 — World-Graph Spatial and Audit Correctness {#w93}
+
+**Delivers:** Nearest-exit demolition routing, validated scenery placement, exact staff changes,
+and deterministic world-graph regression coverage.
+
+### [ ] W94 — Simulation Resolution Correctness {#w94}
+
+**Delivers:** Mandatory pending-event responses, reachable-item validation, finite job-opening
+decrement, and stable long-horizon behaviour.
+
+### [ ] W95 — Effect and Audit Semantics {#w95}
+
+**Delivers:** Enforced status-effect stacking, correctly reported deferred meter effects, and
+complete documented audit codes.
+
+### [ ] W96 — Mechanical Regression Boundaries {#w96}
+
+**Delivers:** Multi-partition batch-invariance tests, per-kind regression evidence, envelope
+ownership checks, reason-code registration checks, and per-kind event-severity tables.
+
+### [ ] W97 — Immutable Projections and Shared Pipelines {#w97}
+
+**Delivers:** Defensive engine views and a value-preserving internal ordered system-pipeline
+substrate shared by simulation and world-graph.
+
+### [ ] W98 — Catalog and Projection Completeness {#w98}
+
+**Delivers:** Asynchronous resolved catalog listings, visible stat ranges and ending progress,
+and generic terminal identity for built-in kinds.
+
+### [ ] W99 — Session Lifecycle Operations {#w99}
+
+**Delivers:** Store-owned save listing, branching, deletion, and documented replay identity,
+while authorization remains host-owned.
+
+### [ ] W100 — Campaign-Tunable Weekly Rules {#w100}
+
+**Delivers:** Defaulted campaign tuning, empty-plan policy, relationship drift, attendance, and
+visible/content-usable wisdom without changing existing campaign behaviour.
+
+### [ ] W101 — Projects, Businesses, and Rival Scarcity {#w101}
+
+**Delivers:** Content-driven project progress, deterministic business cashflow, and scripted
+rivals competing reproducibly for finite simulation opportunities.
+
+### [ ] W102 — Profile Chains and Simulation Save Migration {#w102}
+
+**Delivers:** Versioned profile-scoped kind data and declarative portable simulation save
+migrations with deterministic remaps and defaults.
+
+### [ ] W103 — Companion Contracts and Ownership Reconciliation {#w103}
+
+**Delivers:** Mirrored GameOfLife lifecycles, Platform/ServiceContract/Adventures integration,
+fixture ownership markers, and resolved public package and retired-browser-proof decisions.
+
+### [ ] W104 — Release 0.11 Compatibility Sweep {#w104}
+
+**Delivers:** Compatibility fixtures proving defaulted additions preserve every 0.10 campaign,
+save, replay, host, and packed-consumer path.
+
+### [ ] W105 — Documentation and Landing Publication Review {#w105}
+
+**Delivers:** A rendered, linked, mobile-reviewed public documentation and landing artifact for
+the stabilization programme.
+
+### [ ] W106 — Tracker Evidence Closure {#w106}
+
+**Delivers:** Every implemented, stale, dissolved, or decision-resolved engine issue closed
+with immutable evidence; unavailable Presentation work remains explicitly blocked.
+
+### [ ] W107 — 0.11 Release Candidate Verification {#w107}
+
+**Delivers:** The full engine, host, site, documentation, container, consumer, and companion
+verification matrix against the additive stabilization candidate.
+
+### [ ] W108 — Publish 0.11 Readiness {#w108}
+
+**Delivers:** A public roadmap and release checklist that identify `0.11.0` as the next
+authorized publication without publishing it as part of this programme.

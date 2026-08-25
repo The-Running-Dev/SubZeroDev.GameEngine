@@ -1,7 +1,7 @@
 # SubZeroDev.GameEngine.Host
 
 The product-owned ASP.NET Core static host — design/15-platform-static-host.md (W62). A
-delivery surround for the combined public site/roadmap/play/docs artifact, composed with
+delivery surround for the combined public site/roadmap/docs artifact, composed with
 `SubZeroDev.Platform.Hosting`. It calls `AddPlatformWebHost()` and maps Platform's probes;
 it adds no worker, persistence, migration, outbox, account, or session facility, and
 exposes no engine API, game action, or runtime content endpoint. The engine still runs
@@ -22,10 +22,10 @@ dotnet build
 ## Running locally
 
 The host serves whatever is in its `wwwroot`. It refuses to start if `index.html`,
-`roadmap/index.html`, `play/index.html`, or `docs/index.html` is missing — that is the
+`roadmap/index.html`, or `docs/index.html` is missing — that is the
 same guard the container image's build proves red in CI (`StaticArtifact` in
 `Program.cs`). To run against a real artifact, build the combined site+docs output first
-(`build/Merge-LandingPage.ps1`, the same script `docs-ci.yml` and `docs-deploy.yml` use)
+(`npm --prefix site run merge`, the same package-backed merge `docs-ci.yml` and `docs-deploy.yml` use)
 and copy it into `SubZeroDev.GameEngine.Host/wwwroot/` before `dotnet run`.
 
 The container image (repository-root `Dockerfile`) does this assembly for you in one

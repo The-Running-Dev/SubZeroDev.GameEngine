@@ -362,32 +362,103 @@ export const shippedChapters: readonly RoadmapChapter[] = [
       },
     ],
   },
+  {
+    id: "content-ownership",
+    workUnits: "W74–W76",
+    status: "done",
+    title: "Campaign ownership leaves the engine",
+    summary:
+      "Authoring moves to the content owner while this repository keeps frozen, deterministic regression fixtures and a stable package boundary.",
+    links: [
+      { label: "W74 evidence", href: `${repo}/pull/332`, kind: "repository" },
+      { label: "W76 evidence", href: `${repo}/pull/337`, kind: "repository" },
+    ],
+  },
+  {
+    id: "authoring-toolchain",
+    workUnits: "W77–W80",
+    status: "done",
+    title: "Content authors get real tools",
+    summary:
+      "Validation, localization coverage, resolution diffs, and story-graph visualization turn the authoring boundary into a usable toolchain.",
+    links: [
+      { label: "W77 evidence", href: `${repo}/pull/338`, kind: "repository" },
+      { label: "W80 evidence", href: `${repo}/pull/343`, kind: "repository" },
+    ],
+  },
+  {
+    id: "world-correctness",
+    workUnits: "W81–W85",
+    status: "done",
+    title: "The world graph learns to finish its work",
+    summary:
+      "Construction, refills, wear, incidents, and attention signals complete the resort's deterministic operational loop.",
+    links: [
+      { label: "W81 evidence", href: `${repo}/pull/345`, kind: "repository" },
+      { label: "W85 evidence", href: `${repo}/pull/361`, kind: "repository" },
+    ],
+  },
+  {
+    id: "event-explanations",
+    workUnits: "W86–W87",
+    status: "done",
+    title: "Kinds explain what happened",
+    summary:
+      "Story-graph reasons and world-graph tick events give clients a contract-level explanation rather than forcing them to infer outcomes.",
+    links: [
+      { label: "W86 evidence", href: `${repo}/pull/362`, kind: "repository" },
+      { label: "W87 evidence", href: `${repo}/pull/363`, kind: "repository" },
+    ],
+  },
+  {
+    id: "simulation-public-proof",
+    workUnits: "W88–W89",
+    status: "done",
+    title: "Simulation becomes public and game-length",
+    summary:
+      "The package now exposes the simulation authoring/runtime split, and paired 150+ week replays prove deterministic life-simulation terminal paths.",
+    links: [
+      { label: "W88 evidence", href: `${repo}/pull/367`, kind: "repository" },
+      { label: "W89 evidence", href: `${repo}/pull/376`, kind: "repository" },
+    ],
+  },
 ];
 
 export const nextActs: readonly RoadmapChapter[] = [
   {
-    id: "world-release",
-    workUnits: "T4",
-    ledgerAnchor: "w49",
+    id: "release-010",
+    workUnits: "W90–W92",
+    ledgerAnchor: "w90",
     status: "now",
-    title: "Publish the completed world-graph kind",
+    title: "Make 0.10.0 reproducible and public",
     summary:
-      "Engineering proof is complete; publish an immutable package version that carries it so Sun Trap can pin the replay-guarded kind without a sibling checkout.",
+      "Reconcile the public story, harden the package and documentation gates, then publish the simulation authoring and game-length proof already merged on main.",
     links: [
       {
-        label: "T4 ledger",
-        href: "/docs/engine/todo#w49",
+        label: "Stabilization ledger",
+        href: "/docs/engine/todo#w90",
         kind: "site",
       },
       {
-        label: "W49 evidence",
-        href: commit("6e3d38e77d0e34686dc4e0956b2ff01da9b8af3d"),
+        label: "W89 evidence",
+        href: `${repo}/pull/376`,
         kind: "repository",
       },
+    ],
+  },
+  {
+    id: "stabilize-011",
+    workUnits: "W93–W108",
+    ledgerAnchor: "w93",
+    status: "next",
+    title: "Close the additive 0.11 stabilization programme",
+    summary:
+      "Correctness, session boundaries, complete simulation mechanics, companion contracts, and release-candidate verification follow without removing the 0.10 surface.",
+    links: [
       {
-        label: "Sun Trap",
-        href: "https://github.com/The-Running-Dev/SubZeroDev.SunTrap",
-        kind: "repository",
+        label: "Stabilization ledger",
+        href: "/docs/engine/todo#w93",
+        kind: "site",
       },
     ],
   },
