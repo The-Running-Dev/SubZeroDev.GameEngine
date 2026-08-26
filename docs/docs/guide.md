@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: a21c51dbf81cef41be62c29e7caa94e8e7b8b4a8593dcf84546b8035a9b5e512 -->
+<!-- design-digest: 7ec4bb80b9e678dfaca9c45af224b17bd136e1c0468fad4ae72fe801e75b4dfd -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -56,9 +56,10 @@ links to — this guide never repeats a signature that document already owns.
   it is not a hosted engine API, and GitHub Pages remains the public host.
 - Content pack resolution and identity (merge, override, dependency, and the `ResolutionId`
   digest that becomes a campaign's `campaignVersion`) are fully specified. Experiment gating's
-  machinery is specified alongside it, with one explicitly named gap: the composition-root field
-  that would carry a resolved assignment map into the session layer is declared but read by
-  nothing — see [Content packs](#content-packs-and-experiment-gates).
+  composition contract is settled too: `ExperimentSource` stays above the session seam, while
+  `SessionHost.experiments` carries only the resolved, non-null map used for event attribution.
+  The current package still needs the declaration and record-stamping implementation brought into
+  line with that contract — see [Content packs](#content-packs-and-experiment-gates).
 - Session capture — turning a played session into a committed replay fixture — is specified as a
   privacy contract, not implemented. It is deliberately gated on a hosting layer this repository
   defers entirely.
@@ -260,14 +261,18 @@ machinery — a gate is simply one more reason a pack might not be in the resolv
 The `ExperimentSource` port resolves a stable variant per `(experimentId, bucketKey)` at
 session-creation time — `bucketKey` is `profileId` when the session is profiled, else the seed —
 and `null` always means "not enrolled," never a value that could accidentally match a gate. That
-resolution has to happen *before* the pack array reaches the resolver above, and it is host-side
-composition: build one `Engine` per distinct assignment combination, keyed by the `ResolutionId`
-that combination's resolution produces, and route each `createSession` call to the right one.
-**One field this composition would use is declared and unread today**: the session host's
-`experiments` field has nowhere to receive an already-resolved assignment map, because the session
-layer only ever sees an already-resolved `ContentRegistry`. Resolve assignments and packs above the
-session seam until that gap closes; see [Content Packs](/docs/engine/content-packs) §5a–§6 for the
-full mechanism this summarizes.
+resolution happens *before* the pack array reaches the resolver and stays host-side: build one
+`Engine` and session layer per distinct assignment combination, keyed by the `ResolutionId` that
+combination produces, and route each `createSession` call to the matching layer. If the caller
+omits a seed, an experimenting host must generate it before bucketing and pass the same seed into
+`createSession`; the ordinary no-experiment path can keep the engine's default generation.
+
+Only the narrowed, non-null assignment map crosses the session seam as
+`SessionHost.experiments`; the layer stamps it unchanged onto emitted records. Candidate packs and
+the `ExperimentSource` itself never cross that boundary, because the layer already has a fixed
+registry and engine. The current package still exposes the old, unused source-typed field and does
+not stamp the map, so do not rely on experiment attribution until the implementation follow-up
+lands. See [Content Packs](/docs/engine/content-packs) §5a–§6 for the full mechanism.
 
 ## Use the session API, not raw engine state
 
@@ -805,8 +810,9 @@ supplying nothing still gets a functioning engine.
 - **`Clock`** is boundary-only — used for session-record timestamps and event stamping — and is
   deliberately absent from the engine host, so the pure engine has no route to the wall clock even
   through a supplied port.
-- **`ExperimentSource`** resolves a variant per session at creation time, described above under
-  [Content packs](#content-packs-and-experiment-gates); a kind can never see or branch on one.
+- **`ExperimentSource`** resolves a variant above the session layer at creation time, described
+  above under [Content packs](#content-packs-and-experiment-gates); only its narrowed assignment
+  map crosses `SessionHost`, and a kind can never see or branch on one.
 - **`__GAME_ENGINE_PRODUCTION__`** is not a port at all — it is a build-time flag a bundler
   substitutes, because a value supplied at construction cannot be tree-shaken. Node hosts define
   nothing and get the right answer from `NODE_ENV`; browser hosts must define it themselves or

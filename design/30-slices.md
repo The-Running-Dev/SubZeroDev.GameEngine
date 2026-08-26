@@ -2567,9 +2567,11 @@ design.
       `ExperimentSource` ([06 §5.5](06-extensibility.md#experimentsource)). Before mods, not before MVP
       ([`neaas-platform-vision.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform) → Known deferred gaps).
       `src/engine/src/core/composition/types.ts` now declares `ExperimentSource`, and the gate
-      machinery ships and is exported; what remains unbuilt is `SessionHost.experiments`'
-      consumer, for the contract reason [06 §4](06-extensibility.md#4-the-composition-root)
-      states.
+      machinery ships and is exported. [06 §4](06-extensibility.md#4-the-composition-root) now
+      settles the remaining seam: `SessionHost.experiments` carries the already-resolved,
+      non-null assignment map for event attribution; candidate packs and `ExperimentSource`
+      remain above the session layer. The declaration and record-stamping implementation still
+      need to be brought into line with that resolved contract.
 
 ### Content Tooling — A First-Class Workstream, Not an Afterthought
 
