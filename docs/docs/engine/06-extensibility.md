@@ -82,7 +82,7 @@ no partial trust to model. A seam is on one side of the line or the other.
 | `ProfileStore` | Outside — durable, beside the session store | **Yes** | §5.2 |
 | `Emitter` | Outside — write-only, returns `void` | **Yes** | 05 §4 |
 | `Clock` | Outside — boundary only, never reaches the core | **Yes** | §5.4 |
-| `ExperimentSource` | Outside — resolves a variant used to select packs and tag events; never reaches the core | **Yes** | §5.5 |
+| `ExperimentSource` | Above the session seam — resolves variants used to select packs; its narrowed result tags events | **Yes** | §5.5 |
 | Clients | Above everything — presentation only | **Yes**, no registration needed | 02 §1 |
 | Campaigns, content packs | Data, validated in tiers | **Yes**, already the content path | 04 §10.1 |
 
@@ -127,7 +127,7 @@ interface SessionHost {
   readonly profiles?: ProfileStore;          // §5.2 — omitted → anonymous-only (04 §7.1)
   readonly clock?: Clock;                    // §5.4 — defaults to the system clock
   readonly recordSink?: EmittedRecordSink;   // 05 §6 — omitted → records are discarded
-  readonly experiments?: ExperimentSource;   // §5.5 — port built, field read by nothing; below
+  readonly experiments?: Readonly<Record<string, string>>; // §5.5 — resolved, enrolled assignments only
   readonly recordIds?: RecordIdSource;       // §5.7 — omitted → the layer mints its own
 }
 
@@ -140,15 +140,17 @@ function createSessionLayer(host: SessionHost): SessionStore;
 > `SessionPersistence` (04 §7.2) is that port, and `createSessionLayer` composes the real
 > store around it.
 
-> **`experiments` is half-arrived, and the half that is missing is a contract question.**
-> W59 built the port itself and the machinery it feeds — `applyExperimentGates`,
-> `resolveBucketKey`, `resolveExperimentAssignments`, all exported from the package root,
-> because §5.5 puts the composition they serve *above* this seam. What no code reads is this
-> field: the session layer receives an already-resolved `ContentRegistry`, never the candidate
-> pack array, so it cannot derive the `experimentId` set an assignment map would be keyed by.
-> Either the field carries a resolved assignment map rather than the port, or the layer gains
-> the candidate packs — and both change this interface. Retained knowingly rather than settled
-> inside an implementation PR; `90-decisions.md` holds the reasoning and the revisit condition.
+> **`experiments` is the resolved assignment map, not the source that produced it.** W59's
+> `ExperimentSource`, `resolveBucketKey`, `resolveExperimentAssignments` and
+> `applyExperimentGates` remain host-side composition *above* this seam. The host filters the
+> candidate packs, resolves the registry, builds the matching `Engine`, removes `null`
+> (not-enrolled) entries from the assignment map, and supplies the remaining assignments here.
+> The session layer stamps that map unchanged onto every `EmittedRecord` (05 §6). Candidate packs
+> never cross this boundary: accepting them here would make the store responsible for content
+> resolution even though both its `Engine` and `ContentRegistry` are already fixed. Omission means
+> no experiment attribution, and the core still never sees an assignment. The map applies to every
+> session created through this layer, so a host running more than one assignment combination builds
+> and routes to one session layer per matching `{Engine, ContentRegistry, experiments}` tuple.
 
 **Three rules make this uniform, and they are the whole convention:**
 
@@ -287,11 +289,12 @@ interface ExperimentSource {
 }
 ```
 
-Resolves an A/B or feature-flag assignment, at session-creation time, for whichever content
-pack selection and event tagging need it (11 §5a, 05 §6). It follows `Clock`'s shape exactly
-— boundary-only, optional, `SessionHost`-scoped — for the same reason: a variant that could
-reach the pure engine and be branched on inside `advance` would reopen the universal-DSL
-pressure architecture N2 already rejected once (§7).
+Resolves an A/B or feature-flag assignment, at session-creation time, for content-pack selection
+(11 §5a). It is a host-side, optional port **above** `SessionHost`: the host uses it while it
+still has the candidate packs, then passes only the resolved, non-null assignment map into
+`SessionHost.experiments` for event attribution (05 §6). A variant that could reach the pure
+engine and be branched on inside `advance` would reopen the universal-DSL pressure architecture
+N2 already rejected once (§7).
 
 **Nothing about a kind's behaviour is gated through this port.** A kind cannot see which
 variant a game is in, cannot ask, and has no field to ask through. What varies is *which
@@ -300,7 +303,7 @@ change `serialize()` output, and a resolved variant only ever changes which pack
 selected before `resolvePacks` runs, at a stage the pure engine never observes.
 
 **`bucketKey` is `profileId` when the session is profiled, else the session's `seed`.** The
-session layer computes this once — the fallback rule the design calls for — before calling
+host computes this once — the fallback rule the design calls for — before calling
 `resolve`, rather than handing every `ExperimentSource` a raw `profileId | null` and asking
 each implementation to reimplement the same fallback; that would be exactly the kind of
 incidental divergence §2's boundary rule exists to prevent. It is also what keeps anonymous
@@ -311,6 +314,13 @@ deterministically — just not *stably across* sessions the way a `profileId` do
 that `GameState` is barred from ever holding — folding it into `bucketKey` crosses no new
 line, because only the *result* of `resolve` continues past the call, exactly as
 `IdSource`'s randomness never crosses in, only its output does (§3).
+
+An experimenting host must materialize an omitted seed **before** choosing the assignment and
+pass that same seed into `createSession`; otherwise it would bucket on one value and persist
+another. It may use the same `IdSource` instance it supplies to `createEngine`, or an equivalent
+host-owned source. The ordinary no-experiment path keeps the existing default in which the engine
+generates an omitted seed — only a host that needs the seed for routing has to move that generation
+one step outward.
 
 **`null` means "not enrolled," and it is a different value from any legal variant.**
 `ExperimentGate.variant` (11 §2) is an unconstrained string, so a *fixed-string* default —
@@ -325,11 +335,11 @@ picked.
 `ContentRegistry` at construction and never swaps it (§4), so a host running experiments
 does not resolve packs once, globally — it resolves once **per distinct assignment
 combination**, via `applyExperimentGates` + `resolvePacks` (11 §5a), and builds one `Engine`
-per resulting registry, keyed by the `ResolutionId` that resolution already produces (11
-§6). Routing a given `createSession` call to the right pre-built `Engine`, having already
-resolved that session's assignments, is host-side composition above this seam — the same
-way wiring a request to `createSession` at all is — and this document does not constrain it
-further.
+and one `SessionStore` per resulting registry and narrowed assignment map, keyed by the
+`ResolutionId` that resolution already produces (11 §6). Routing a given `createSession` call
+to the right pre-built session layer, having already resolved that session's assignments, is
+host-side composition above this seam — the same way wiring a request to `createSession` at all
+is — and this document does not constrain it further.
 
 **A real implementation's only obligation:** be a pure function of its two arguments. Two
 calls with the same `(experimentId, bucketKey)` must return the same variant, or pack

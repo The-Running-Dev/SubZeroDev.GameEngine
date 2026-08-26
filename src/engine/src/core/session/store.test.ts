@@ -107,6 +107,7 @@ function makeEngine(overrides?: Partial<EngineHost>): Engine {
 function makeStore(overrides?: {
   engine?: Engine;
   recordSink?: EmittedRecordSink;
+  experiments?: Readonly<Record<string, string>>;
   profiles?: ProfileStore;
   recordIds?: RecordIdSource;
   persistence?: SessionPersistence;
@@ -116,6 +117,7 @@ function makeStore(overrides?: {
     engine: overrides?.engine ?? makeEngine({ registry }),
     registry,
     ...(overrides?.recordSink ? { recordSink: overrides.recordSink } : {}),
+    ...(overrides?.experiments !== undefined ? { experiments: overrides.experiments } : {}),
     ...(overrides?.profiles ? { profiles: overrides.profiles } : {}),
     ...(overrides?.recordIds ? { recordIds: overrides.recordIds } : {}),
     ...(overrides?.persistence ? { persistence: overrides.persistence } : {}),
@@ -558,7 +560,7 @@ describe("same-session concurrency", () => {
 
 describe("no host-metadata leak", () => {
   it("no store return value ever mentions a host-only field name", async () => {
-    const store = makeStore();
+    const store = makeStore({ experiments: { "homepage-layout": "compact" } });
     const created = await store.createSession({ campaignId: "test-campaign" });
     const scene = await store.getScene(created.sessionId);
     const view = await store.getView(created.sessionId);
@@ -570,7 +572,7 @@ describe("no host-metadata leak", () => {
     const blob = JSON.stringify([created, scene, view, strings, actionResult, saveHandle, loaded, store.listCampaigns()]);
     // "savedAtSeq" (SaveHandle's own field) is legitimate and deliberately excluded from
     // this list — everything below would only appear via a host-metadata leak.
-    for (const forbidden of ["ownerId", "createdAt", "emittedAt", "traceId", "spanId", "\"attempt\""]) {
+    for (const forbidden of ["ownerId", "createdAt", "emittedAt", "traceId", "spanId", "\"attempt\"", "experiments"]) {
       expect(blob).not.toContain(forbidden);
     }
   });
@@ -610,6 +612,30 @@ describe("observability stamping", () => {
     for (const record of records) {
       expect(record.sessionId).toBe(sessionId);
       expect(record.emittedAt).toBe("2026-01-01T00:00:00.000Z");
+    }
+  });
+
+  it("stamps the same resolved experiment assignments onto every record across commands", async () => {
+    const { sink, records } = collectingSink();
+    const experiments = { "homepage-layout": "compact", "reward-curve": "control" } as const;
+    const store = makeStore({ recordSink: sink, experiments });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+    await store.submitAction(sessionId, "increment");
+
+    expect(records.length).toBeGreaterThan(0);
+    for (const record of records) {
+      expect(record.experiments).toBe(experiments);
+    }
+  });
+
+  it("omits experiment attribution entirely when no assignment map is supplied", async () => {
+    const { sink, records } = collectingSink();
+    const store = makeStore({ recordSink: sink });
+    await store.createSession({ campaignId: "test-campaign" });
+
+    expect(records.length).toBeGreaterThan(0);
+    for (const record of records) {
+      expect(Object.hasOwn(record, "experiments")).toBe(false);
     }
   });
 

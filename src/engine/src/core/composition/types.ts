@@ -86,9 +86,10 @@ export interface SessionHost {
   readonly profiles?: ProfileStore;
   readonly clock?: Clock;
   readonly recordSink?: EmittedRecordSink;
-  /** Omitted → "no experiments running": every gated pack is excluded by construction
-   *  (`registry/packs.ts` `applyExperimentGates`), never by a chosen default string. */
-  readonly experiments?: ExperimentSource;
+  /** Resolved, enrolled assignments for event attribution only. Candidate packs and the
+   *  `ExperimentSource` that produced this map stay above the session seam (06 §5.5).
+   *  Omitted → no experiment attribution. */
+  readonly experiments?: Readonly<Record<string, string>>;
   /** Omitted → the session layer mints session and save ids as it does today
    *  (`crypto.randomUUID()`, unseamed). Supplied → the session layer calls it instead. */
   readonly recordIds?: RecordIdSource;
