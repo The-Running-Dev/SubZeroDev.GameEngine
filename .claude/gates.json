@@ -1,6 +1,6 @@
 {
-  "manifestHash": "9709a22838ae6c721e1bc8cb2777f587a7b02758ca2eabcb0c785e5effb0f108",
-  "generated": "2026-08-24",
+  "manifestHash": "58ca2ae512329662771b5afd5ac9b27a5350e9a4917c28ad9cfc51b299c42b3c",
+  "generated": "2026-08-26",
   "gates": [
     {
       "name": "Typecheck",
