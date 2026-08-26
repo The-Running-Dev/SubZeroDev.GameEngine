@@ -90,6 +90,9 @@ export interface EmittedRecord {
   readonly attempt: number;
   /** The store's key; absent for pure-engine-only use. */
   readonly sessionId?: string;
+  /** Resolved, enrolled assignments for this session layer. `null` assignments never
+   *  reach this map, and the pure core never receives it (05 §6, 06 §5.5). */
+  readonly experiments?: Readonly<Record<string, string>>;
 }
 
 /**

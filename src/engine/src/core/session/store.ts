@@ -154,6 +154,9 @@ export interface InMemorySessionStoreOptions {
   clock?: Clock;
   /** Defaults to a no-op — no boundary sink is wired unless a caller asks for one. */
   recordSink?: EmittedRecordSink;
+  /** Resolved, enrolled assignments stamped unchanged onto every emitted record.
+   *  Omitted → no experiment attribution (05 §6, 06 §5.5). */
+  experiments?: Readonly<Record<string, string>>;
   /** Omitted → every session is anonymous: no profile is ever loaded or saved (04 §7.1). */
   profiles?: ProfileStore;
   /** Optional host persistence. The in-memory maps remain the default implementation. */
@@ -193,7 +196,13 @@ function newSaveId(recordIds: RecordIdSource | undefined): string {
 function buildDecorator(
   clock: Clock,
   sink: EmittedRecordSink,
-  ctx: { traceId: string; spanId: string; attempt: number; sessionId?: string },
+  ctx: {
+    traceId: string;
+    spanId: string;
+    attempt: number;
+    sessionId?: string;
+    experiments?: Readonly<Record<string, string>>;
+  },
 ): Emitter {
   return {
     emit(event) {
@@ -204,6 +213,7 @@ function buildDecorator(
         spanId: ctx.spanId,
         attempt: ctx.attempt,
         ...(ctx.sessionId !== undefined ? { sessionId: ctx.sessionId } : {}),
+        ...(ctx.experiments !== undefined ? { experiments: ctx.experiments } : {}),
       };
       // Same "must not throw, and the core defends anyway" contract as safeEmit
       // (observability/emitter.ts, 05 §10) — a faulty EmittedRecordSink must not be able
@@ -240,6 +250,7 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
   const clock = options.clock ?? defaultClock;
   const recordSink = options.recordSink ?? noopRecordSink;
   const recordIds = options.recordIds;
+  const experiments = options.experiments;
 
   const sessions = new Map<string, SessionRecord>();
   const saves = new Map<string, SaveRecord>();
@@ -342,7 +353,13 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
     const traceId = mintId();
     const spanId = mintId();
     await Promise.resolve();
-    const decorator = buildDecorator(clock, recordSink, { traceId, spanId, attempt, ...(sessionId !== undefined ? { sessionId } : {}) });
+    const decorator = buildDecorator(clock, recordSink, {
+      traceId,
+      spanId,
+      attempt,
+      ...(sessionId !== undefined ? { sessionId } : {}),
+      ...(experiments !== undefined ? { experiments } : {}),
+    });
     return await fn(engine.withEmitter(decorator));
   }
 

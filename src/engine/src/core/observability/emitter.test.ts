@@ -89,7 +89,7 @@ describe("jsonlEmitter", () => {
   it("round-trips every EmittedRecord field", () => {
     const lines: string[] = [];
     const sink = jsonlEmitter((line) => lines.push(line));
-    const record = makeRecord({ sessionId: "session-1" });
+    const record = makeRecord({ sessionId: "session-1", experiments: { "homepage-layout": "compact" } });
 
     sink.write(record);
 
