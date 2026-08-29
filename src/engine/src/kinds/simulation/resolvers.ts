@@ -1713,7 +1713,11 @@ export const respondToEventResolver: ActionResolver = {
     const timeCost = choice.timeCost ?? 0;
     if (availableTimeUnits(state) < timeCost) return insufficientTimeError();
     const moneyCost = choice.moneyCostCents ?? NO_MONEY_COST;
-    if (state.player.finances.cashCents < moneyCost) return insufficientFundsError();
+    // `moneyCost > 0` first: a free choice (the common case — most `EventChoice`s carry no
+    // `moneyCostCents` at all) must resolve regardless of the player's balance, including
+    // when it has already gone negative (the eviction ladder's own territory, §6.4) — a bare
+    // `cashCents < moneyCost` compares a negative balance against zero and is always true.
+    if (moneyCost > 0 && state.player.finances.cashCents < moneyCost) return insufficientFundsError();
 
     return { valid: true, errors: [], warnings: [], calculatedTimeCost: timeCost, calculatedMoneyCostCents: moneyCost };
   },

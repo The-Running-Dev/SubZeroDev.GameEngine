@@ -1,6 +1,6 @@
 {
   "finalStatus": "ended",
-  "acceptedActions": 4,
+  "acceptedActions": 5,
   "decisions": [
     {
       "index": 0,
@@ -23,6 +23,12 @@
     {
       "index": 3,
       "seq": 3,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 4,
+      "seq": 4,
       "actionId": "end_week",
       "accepted": true
     }

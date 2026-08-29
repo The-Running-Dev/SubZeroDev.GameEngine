@@ -1,6 +1,6 @@
 {
   "finalStatus": "ended",
-  "acceptedActions": 579,
+  "acceptedActions": 616,
   "decisions": [
     {
       "index": 0,
@@ -41,13 +41,13 @@
     {
       "index": 6,
       "seq": 6,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 7,
       "seq": 7,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -71,13 +71,13 @@
     {
       "index": 11,
       "seq": 11,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 12,
       "seq": 12,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -95,13 +95,13 @@
     {
       "index": 15,
       "seq": 15,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 16,
       "seq": 16,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -113,13 +113,13 @@
     {
       "index": 18,
       "seq": 18,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 19,
       "seq": 19,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -131,13 +131,13 @@
     {
       "index": 21,
       "seq": 21,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 22,
       "seq": 22,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -155,7 +155,7 @@
     {
       "index": 25,
       "seq": 25,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -167,7 +167,7 @@
     {
       "index": 27,
       "seq": 27,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -179,7 +179,7 @@
     {
       "index": 29,
       "seq": 29,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -191,13 +191,13 @@
     {
       "index": 31,
       "seq": 31,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 32,
       "seq": 32,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -209,13 +209,13 @@
     {
       "index": 34,
       "seq": 34,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 35,
       "seq": 35,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -227,13 +227,13 @@
     {
       "index": 37,
       "seq": 37,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 38,
       "seq": 38,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -251,13 +251,13 @@
     {
       "index": 41,
       "seq": 41,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 42,
       "seq": 42,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -275,7 +275,7 @@
     {
       "index": 45,
       "seq": 45,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -293,7 +293,7 @@
     {
       "index": 48,
       "seq": 48,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -347,13 +347,13 @@
     {
       "index": 57,
       "seq": 57,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 58,
       "seq": 58,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -371,13 +371,13 @@
     {
       "index": 61,
       "seq": 61,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 62,
       "seq": 62,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -389,13 +389,13 @@
     {
       "index": 64,
       "seq": 64,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 65,
       "seq": 65,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -455,7 +455,7 @@
     {
       "index": 75,
       "seq": 75,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -467,13 +467,13 @@
     {
       "index": 77,
       "seq": 77,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 78,
       "seq": 78,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -485,7 +485,7 @@
     {
       "index": 80,
       "seq": 80,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -527,13 +527,13 @@
     {
       "index": 87,
       "seq": 87,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 88,
       "seq": 88,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -551,7 +551,7 @@
     {
       "index": 91,
       "seq": 91,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -563,13 +563,13 @@
     {
       "index": 93,
       "seq": 93,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 94,
       "seq": 94,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -605,13 +605,13 @@
     {
       "index": 100,
       "seq": 100,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 101,
       "seq": 101,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -623,13 +623,13 @@
     {
       "index": 103,
       "seq": 103,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 104,
       "seq": 104,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -689,13 +689,13 @@
     {
       "index": 114,
       "seq": 114,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 115,
       "seq": 115,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -713,7 +713,7 @@
     {
       "index": 118,
       "seq": 118,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -725,7 +725,7 @@
     {
       "index": 120,
       "seq": 120,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -737,13 +737,13 @@
     {
       "index": 122,
       "seq": 122,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 123,
       "seq": 123,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -761,7 +761,7 @@
     {
       "index": 126,
       "seq": 126,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -773,7 +773,7 @@
     {
       "index": 128,
       "seq": 128,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -785,13 +785,13 @@
     {
       "index": 130,
       "seq": 130,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 131,
       "seq": 131,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -827,13 +827,13 @@
     {
       "index": 137,
       "seq": 137,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 138,
       "seq": 138,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -845,7 +845,7 @@
     {
       "index": 140,
       "seq": 140,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -857,7 +857,7 @@
     {
       "index": 142,
       "seq": 142,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -869,7 +869,7 @@
     {
       "index": 144,
       "seq": 144,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -881,13 +881,13 @@
     {
       "index": 146,
       "seq": 146,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 147,
       "seq": 147,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -899,13 +899,13 @@
     {
       "index": 149,
       "seq": 149,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 150,
       "seq": 150,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -923,7 +923,7 @@
     {
       "index": 153,
       "seq": 153,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -983,7 +983,7 @@
     {
       "index": 163,
       "seq": 163,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -1019,13 +1019,13 @@
     {
       "index": 169,
       "seq": 169,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 170,
       "seq": 170,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -1061,13 +1061,13 @@
     {
       "index": 176,
       "seq": 176,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 177,
       "seq": 177,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -1103,13 +1103,13 @@
     {
       "index": 183,
       "seq": 183,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 184,
       "seq": 184,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -1127,13 +1127,13 @@
     {
       "index": 187,
       "seq": 187,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 188,
       "seq": 188,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -1151,13 +1151,13 @@
     {
       "index": 191,
       "seq": 191,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 192,
       "seq": 192,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -1223,13 +1223,13 @@
     {
       "index": 203,
       "seq": 203,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 204,
       "seq": 204,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -1241,13 +1241,13 @@
     {
       "index": 206,
       "seq": 206,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 207,
       "seq": 207,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -1259,7 +1259,7 @@
     {
       "index": 209,
       "seq": 209,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -1319,13 +1319,13 @@
     {
       "index": 219,
       "seq": 219,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 220,
       "seq": 220,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -1337,13 +1337,13 @@
     {
       "index": 222,
       "seq": 222,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 223,
       "seq": 223,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -1355,7 +1355,7 @@
     {
       "index": 225,
       "seq": 225,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -1373,7 +1373,7 @@
     {
       "index": 228,
       "seq": 228,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -1385,7 +1385,7 @@
     {
       "index": 230,
       "seq": 230,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -1397,7 +1397,7 @@
     {
       "index": 232,
       "seq": 232,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -1409,13 +1409,13 @@
     {
       "index": 234,
       "seq": 234,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 235,
       "seq": 235,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -1427,13 +1427,13 @@
     {
       "index": 237,
       "seq": 237,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 238,
       "seq": 238,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -1481,13 +1481,13 @@
     {
       "index": 246,
       "seq": 246,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 247,
       "seq": 247,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -1499,13 +1499,13 @@
     {
       "index": 249,
       "seq": 249,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 250,
       "seq": 250,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -1517,13 +1517,13 @@
     {
       "index": 252,
       "seq": 252,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 253,
       "seq": 253,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -1535,7 +1535,7 @@
     {
       "index": 255,
       "seq": 255,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -1547,7 +1547,7 @@
     {
       "index": 257,
       "seq": 257,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -1559,7 +1559,7 @@
     {
       "index": 259,
       "seq": 259,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -1577,7 +1577,7 @@
     {
       "index": 262,
       "seq": 262,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -1673,7 +1673,7 @@
     {
       "index": 278,
       "seq": 278,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -1691,13 +1691,13 @@
     {
       "index": 281,
       "seq": 281,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 282,
       "seq": 282,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -1733,13 +1733,13 @@
     {
       "index": 288,
       "seq": 288,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 289,
       "seq": 289,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -1775,13 +1775,13 @@
     {
       "index": 295,
       "seq": 295,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 296,
       "seq": 296,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -1799,13 +1799,13 @@
     {
       "index": 299,
       "seq": 299,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 300,
       "seq": 300,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -1823,13 +1823,13 @@
     {
       "index": 303,
       "seq": 303,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 304,
       "seq": 304,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -1847,13 +1847,13 @@
     {
       "index": 307,
       "seq": 307,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 308,
       "seq": 308,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -1865,13 +1865,13 @@
     {
       "index": 310,
       "seq": 310,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 311,
       "seq": 311,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -1913,13 +1913,13 @@
     {
       "index": 318,
       "seq": 318,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 319,
       "seq": 319,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -1931,7 +1931,7 @@
     {
       "index": 321,
       "seq": 321,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -1943,13 +1943,13 @@
     {
       "index": 323,
       "seq": 323,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 324,
       "seq": 324,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -1967,13 +1967,13 @@
     {
       "index": 327,
       "seq": 327,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 328,
       "seq": 328,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -1991,13 +1991,13 @@
     {
       "index": 331,
       "seq": 331,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 332,
       "seq": 332,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -2009,7 +2009,7 @@
     {
       "index": 334,
       "seq": 334,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -2027,13 +2027,13 @@
     {
       "index": 337,
       "seq": 337,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 338,
       "seq": 338,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -2045,13 +2045,13 @@
     {
       "index": 340,
       "seq": 340,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 341,
       "seq": 341,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -2063,13 +2063,13 @@
     {
       "index": 343,
       "seq": 343,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 344,
       "seq": 344,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -2087,7 +2087,7 @@
     {
       "index": 347,
       "seq": 347,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -2099,7 +2099,7 @@
     {
       "index": 349,
       "seq": 349,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -2111,7 +2111,7 @@
     {
       "index": 351,
       "seq": 351,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -2123,13 +2123,13 @@
     {
       "index": 353,
       "seq": 353,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 354,
       "seq": 354,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -2147,13 +2147,13 @@
     {
       "index": 357,
       "seq": 357,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 358,
       "seq": 358,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -2189,13 +2189,13 @@
     {
       "index": 364,
       "seq": 364,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 365,
       "seq": 365,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -2207,7 +2207,7 @@
     {
       "index": 367,
       "seq": 367,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -2219,7 +2219,7 @@
     {
       "index": 369,
       "seq": 369,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -2261,13 +2261,13 @@
     {
       "index": 376,
       "seq": 376,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 377,
       "seq": 377,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -2303,13 +2303,13 @@
     {
       "index": 383,
       "seq": 383,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 384,
       "seq": 384,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -2321,13 +2321,13 @@
     {
       "index": 386,
       "seq": 386,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 387,
       "seq": 387,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -2369,7 +2369,7 @@
     {
       "index": 394,
       "seq": 394,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -2405,13 +2405,13 @@
     {
       "index": 400,
       "seq": 400,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 401,
       "seq": 401,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -2447,7 +2447,7 @@
     {
       "index": 407,
       "seq": 407,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -2459,13 +2459,13 @@
     {
       "index": 409,
       "seq": 409,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 410,
       "seq": 410,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -2477,7 +2477,7 @@
     {
       "index": 412,
       "seq": 412,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -2495,13 +2495,13 @@
     {
       "index": 415,
       "seq": 415,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 416,
       "seq": 416,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -2519,13 +2519,13 @@
     {
       "index": 419,
       "seq": 419,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 420,
       "seq": 420,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -2537,13 +2537,13 @@
     {
       "index": 422,
       "seq": 422,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 423,
       "seq": 423,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -2555,13 +2555,13 @@
     {
       "index": 425,
       "seq": 425,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 426,
       "seq": 426,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -2579,13 +2579,13 @@
     {
       "index": 429,
       "seq": 429,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 430,
       "seq": 430,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -2603,7 +2603,7 @@
     {
       "index": 433,
       "seq": 433,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -2615,7 +2615,7 @@
     {
       "index": 435,
       "seq": 435,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -2627,13 +2627,13 @@
     {
       "index": 437,
       "seq": 437,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 438,
       "seq": 438,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -2645,7 +2645,7 @@
     {
       "index": 440,
       "seq": 440,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -2657,7 +2657,7 @@
     {
       "index": 442,
       "seq": 442,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -2675,7 +2675,7 @@
     {
       "index": 445,
       "seq": 445,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -2687,7 +2687,7 @@
     {
       "index": 447,
       "seq": 447,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -2699,13 +2699,13 @@
     {
       "index": 449,
       "seq": 449,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 450,
       "seq": 450,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -2717,13 +2717,13 @@
     {
       "index": 452,
       "seq": 452,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 453,
       "seq": 453,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -2735,13 +2735,13 @@
     {
       "index": 455,
       "seq": 455,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 456,
       "seq": 456,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -2759,7 +2759,7 @@
     {
       "index": 459,
       "seq": 459,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -2771,7 +2771,7 @@
     {
       "index": 461,
       "seq": 461,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -2783,7 +2783,7 @@
     {
       "index": 463,
       "seq": 463,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -2795,13 +2795,13 @@
     {
       "index": 465,
       "seq": 465,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 466,
       "seq": 466,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -2813,13 +2813,13 @@
     {
       "index": 468,
       "seq": 468,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 469,
       "seq": 469,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -2837,13 +2837,13 @@
     {
       "index": 472,
       "seq": 472,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 473,
       "seq": 473,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -2861,7 +2861,7 @@
     {
       "index": 476,
       "seq": 476,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -2873,7 +2873,7 @@
     {
       "index": 478,
       "seq": 478,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -2891,13 +2891,13 @@
     {
       "index": 481,
       "seq": 481,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 482,
       "seq": 482,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -2909,13 +2909,13 @@
     {
       "index": 484,
       "seq": 484,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 485,
       "seq": 485,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -2975,13 +2975,13 @@
     {
       "index": 495,
       "seq": 495,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 496,
       "seq": 496,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -2993,13 +2993,13 @@
     {
       "index": 498,
       "seq": 498,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 499,
       "seq": 499,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -3059,7 +3059,7 @@
     {
       "index": 509,
       "seq": 509,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -3077,13 +3077,13 @@
     {
       "index": 512,
       "seq": 512,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 513,
       "seq": 513,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -3101,13 +3101,13 @@
     {
       "index": 516,
       "seq": 516,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 517,
       "seq": 517,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -3119,7 +3119,7 @@
     {
       "index": 519,
       "seq": 519,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -3131,7 +3131,7 @@
     {
       "index": 521,
       "seq": 521,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -3143,7 +3143,7 @@
     {
       "index": 523,
       "seq": 523,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -3155,7 +3155,7 @@
     {
       "index": 525,
       "seq": 525,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -3167,13 +3167,13 @@
     {
       "index": 527,
       "seq": 527,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 528,
       "seq": 528,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -3185,13 +3185,13 @@
     {
       "index": 530,
       "seq": 530,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 531,
       "seq": 531,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -3209,13 +3209,13 @@
     {
       "index": 534,
       "seq": 534,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
       "index": 535,
       "seq": 535,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -3299,13 +3299,13 @@
     {
       "index": 549,
       "seq": 549,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 550,
       "seq": 550,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -3347,13 +3347,13 @@
     {
       "index": 557,
       "seq": 557,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 558,
       "seq": 558,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -3365,7 +3365,7 @@
     {
       "index": 560,
       "seq": 560,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -3377,7 +3377,7 @@
     {
       "index": 562,
       "seq": 562,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -3389,13 +3389,13 @@
     {
       "index": 564,
       "seq": 564,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 565,
       "seq": 565,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -3413,13 +3413,13 @@
     {
       "index": 568,
       "seq": 568,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 569,
       "seq": 569,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -3431,13 +3431,13 @@
     {
       "index": 571,
       "seq": 571,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 572,
       "seq": 572,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -3449,13 +3449,13 @@
     {
       "index": 574,
       "seq": 574,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 575,
       "seq": 575,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -3473,6 +3473,228 @@
     {
       "index": 578,
       "seq": 578,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 579,
+      "seq": 579,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 580,
+      "seq": 580,
+      "actionId": "end_week",
+      "accepted": true
+    },
+    {
+      "index": 581,
+      "seq": 581,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 582,
+      "seq": 582,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 583,
+      "seq": 583,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 584,
+      "seq": 584,
+      "actionId": "end_week",
+      "accepted": true
+    },
+    {
+      "index": 585,
+      "seq": 585,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 586,
+      "seq": 586,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 587,
+      "seq": 587,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 588,
+      "seq": 588,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 589,
+      "seq": 589,
+      "actionId": "end_week",
+      "accepted": true
+    },
+    {
+      "index": 590,
+      "seq": 590,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 591,
+      "seq": 591,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 592,
+      "seq": 592,
+      "actionId": "end_week",
+      "accepted": true
+    },
+    {
+      "index": 593,
+      "seq": 593,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 594,
+      "seq": 594,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 595,
+      "seq": 595,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 596,
+      "seq": 596,
+      "actionId": "end_week",
+      "accepted": true
+    },
+    {
+      "index": 597,
+      "seq": 597,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 598,
+      "seq": 598,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 599,
+      "seq": 599,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 600,
+      "seq": 600,
+      "actionId": "end_week",
+      "accepted": true
+    },
+    {
+      "index": 601,
+      "seq": 601,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 602,
+      "seq": 602,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 603,
+      "seq": 603,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 604,
+      "seq": 604,
+      "actionId": "end_week",
+      "accepted": true
+    },
+    {
+      "index": 605,
+      "seq": 605,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 606,
+      "seq": 606,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 607,
+      "seq": 607,
+      "actionId": "end_week",
+      "accepted": true
+    },
+    {
+      "index": 608,
+      "seq": 608,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 609,
+      "seq": 609,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 610,
+      "seq": 610,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 611,
+      "seq": 611,
+      "actionId": "end_week",
+      "accepted": true
+    },
+    {
+      "index": 612,
+      "seq": 612,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 613,
+      "seq": 613,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 614,
+      "seq": 614,
+      "actionId": "plan.add",
+      "accepted": true
+    },
+    {
+      "index": 615,
+      "seq": 615,
       "actionId": "end_week",
       "accepted": true
     }

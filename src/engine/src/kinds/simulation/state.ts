@@ -331,3 +331,19 @@ export interface SimulationKindState {
   /** The week being assembled. */
   plan: WeeklyActionPlan | null;
 }
+
+/**
+ * Every `PendingEventResponse` not yet covered by a queued `respond_to_event` action in the
+ * current plan (§2.3, W94.1/W94.2). `end_week` and every plan-add other than
+ * `respond_to_event` reject while this is non-empty — a `respond_to_event` targeting one of
+ * these is always the way out, never blocked by the same gate it exists to satisfy.
+ */
+export function unaddressedPendingResponses(state: SimulationKindState): readonly PendingEventResponse[] {
+  if (state.pendingEventResponses.length === 0) return state.pendingEventResponses;
+  const planned = new Set(
+    (state.plan?.actions ?? [])
+      .filter((action) => action.type === "respond_to_event")
+      .map((action) => action.targetId),
+  );
+  return state.pendingEventResponses.filter((pending) => !planned.has(pending.id));
+}

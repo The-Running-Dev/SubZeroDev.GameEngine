@@ -16,14 +16,15 @@
  * `long-horizon-win` nor `long-horizon-loss` can reach it without contradicting W89.2's
  * own two terminal paths).
  *
- * **One observation this unit's own out-of-scope line explicitly does not fix**:
- * `long-horizon-loss`'s `pendingEventResponses` grows from 0 to 37 over the run, because
- * its own weekly policy never answers one (`long-horizon.ts`'s policy is deliberately
- * inactive so the eviction arithmetic stays exact) — nothing in this kind expires an
- * unanswered `PendingEventResponse`. That is exactly the shape of defect W89 exists to be
- * the first thing able to see (`design/30-slices.md`'s own W89.6 callout); the ceiling
- * below is asserted as an observed fact of this fixture, not a claim that the collection is
- * actually bounded — see the flagged follow-up this PR names.
+ * **W94 regenerated both fixtures.** The defect this file's own header used to flag here —
+ * `long-horizon-loss`'s `pendingEventResponses` growing from 0 to 37 unanswered, because
+ * nothing rejected `end_week` while one sat pending — is what `advance.ts`'s
+ * `event_response_pending` gate (W94.1/W94.2) now closes. Both committed submission logs
+ * were replayed through the gated engine and re-captured: every `PendingEventResponse` this
+ * run generates is answered with a queued `respond_to_event` before the `end_week` that
+ * would otherwise resolve it, `W94.5 — no pending response is ever bypassed` below is the
+ * assertion that stayed unwritable before this unit, and `pendingEventResponses` in the
+ * committed `.outcome.json` for both runs now ends at zero rather than accumulating.
  */
 
 import { describe, it, expect } from "vitest";
@@ -392,9 +393,10 @@ describe.skipIf(!HAS_BOTH_RUNS)("W89.6 — serialized size and unbounded-collect
     const final = unboundedCollectionCounts(state.kindState as SimulationKindState);
 
     // A generous, stated ceiling per collection — not a claim every one of these is
-    // actually bounded by contract. `pendingEventResponses` in particular is not: see
-    // this file's own header for `long-horizon-loss`'s unanswered-response growth, the
-    // exact shape of defect this ceiling exists to make visible rather than to excuse.
+    // actually bounded by contract. `pendingEventResponses` stays well under it now that
+    // W94.1's gate gets a response answered before another week can pass, unlike this
+    // file's own header before W94 — every existing `PendingEventResponse` is answered the
+    // same week it is presented, so this run never lets more than one accumulate at once.
     expect(final.activeEffects).toBeLessThanOrEqual(10);
     expect(final.activeOpportunities).toBeLessThanOrEqual(10);
     expect(final.scheduledEvents).toBeLessThanOrEqual(10);
@@ -409,6 +411,57 @@ describe.skipIf(!HAS_BOTH_RUNS)("W89.6 — serialized size and unbounded-collect
     expect(final.jobMarketOpenings).toBeLessThanOrEqual(10);
 
     expect(engine.serialize(state).length).toBeLessThan(200_000);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// W94.5 — the win and loss paths run their full length without ever bypassing a pending
+// event response: every `end_week` the recorded event log accepts happens with
+// `pendingEventResponses` empty, and `event_response_pending` never appears as a rejection
+// reason — the gate exists to reject, not to be dodged by a submission log that simply
+// never triggers it.
+// ---------------------------------------------------------------------------
+
+function unaddressedPendingIds(kindState: SimulationKindState): readonly string[] {
+  const planned = new Set(
+    (kindState.plan?.actions ?? [])
+      .filter((a) => a.type === "respond_to_event")
+      .map((a) => a.targetId),
+  );
+  return kindState.pendingEventResponses.filter((p) => !planned.has(p.id)).map((p) => p.id);
+}
+
+describe.skipIf(!HAS_BOTH_RUNS)("W94.5 — no pending response is ever bypassed", () => {
+  it.for(BOTH_RUNS)("%s: every accepted end_week runs with no unaddressed pending response", async (name) => {
+    const engine = createEngine({ kinds, registry: buildRegistry() });
+    const fixture = loadFixture(name);
+    const created = engine.createGame(fixture.config);
+    if (!created.ok || !created.value) throw new Error(`${name}: expected createGame to succeed`);
+
+    let state = created.value;
+    let sawEventResponsePending = false;
+    let endWeekCount = 0;
+
+    for (const submission of fixture.submissions) {
+      if (submission.actionId === "end_week") {
+        // The gate's own condition (`unaddressedPendingResponses`, `state.ts`) — not "no
+        // pending at all": a response presented this week is legitimately still in
+        // `pendingEventResponses` right up until this same `end_week` resolves the queued
+        // `respond_to_event` that answers it.
+        expect(unaddressedPendingIds(state.kindState as SimulationKindState)).toEqual([]);
+        endWeekCount += 1;
+      }
+      const result = engine.submitAction(state, submission.actionId, submission.params);
+      if (!result.ok || !result.value) {
+        if (result.errors[0]?.code === "event_response_pending") sawEventResponsePending = true;
+        continue;
+      }
+      state = result.value;
+    }
+
+    expect(sawEventResponsePending).toBe(false);
+    expect(endWeekCount).toBeGreaterThanOrEqual(150);
+    expect((state.kindState as SimulationKindState).pendingEventResponses).toEqual([]);
   });
 });
 

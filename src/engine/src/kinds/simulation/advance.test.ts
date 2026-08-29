@@ -72,7 +72,19 @@ const simulationCampaign: SimulationCampaign = {
     commuteModifier: 0, energyRecoveryModifier: 0, happinessModifier: 0, healthModifier: 0, maintenanceRisk: 0,
     requirements: [], tags: [],
   }],
-  items: [], events: [], npcs: [],
+  items: [],
+  // `conditions` is never true, so the random end-of-week draw never picks this event —
+  // it exists only so `advance — the mandatory-event gate`'s `respond_to_event` resolver
+  // has a real `EventDefinition`/`EventChoice` to resolve `pending-1`/`choice-a` against.
+  events: [{
+    id: "event-1", category: "test", titleKey: "event.title", descriptionKey: "event.description",
+    weight: 1, conditions: { field: "player.needs.health", operator: "less_than", value: -1 }, tags: [],
+    choices: [{
+      id: "choice-a", labelKey: "event.choice-a.label", requirements: [],
+      outcomes: [{ outcome: { effects: [], messages: [] } }],
+    }],
+  }],
+  npcs: [],
   goals: [],
   scenarios: [{
     id: "scenario-1", nameKey: "scenario.name", descriptionKey: "scenario.description",
@@ -169,6 +181,50 @@ describe("advance — plan.clear", () => {
     const withAction = advance(baseState(), "plan.add", { actionType: "rest" }, fakeCtx()).state;
     const result = advance(withAction, "plan.clear", undefined, fakeCtx());
     expect(result.state.plan?.actions).toEqual([]);
+  });
+});
+
+describe("advance — the mandatory-event gate (W94.1, W94.2)", () => {
+  function stateWithPending(): SimulationKindState {
+    return makeState({
+      pendingEventResponses: [{ id: "pending-1", eventId: "event-1", rolledWeek: 1, presentWeek: 1, availableChoiceIds: ["choice-a"] }],
+    });
+  }
+
+  it("rejects plan.add for any ActionType other than respond_to_event, state unchanged", () => {
+    const state = stateWithPending();
+    const result = advance(state, "plan.add", { actionType: "rest" }, fakeCtx());
+    expect(result.error?.code).toBe("event_response_pending");
+    expect(result.state).toBe(state);
+  });
+
+  it("rejects end_week, state unchanged", () => {
+    const state = stateWithPending();
+    const result = advance(state, "end_week", undefined, fakeCtx());
+    expect(result.error?.code).toBe("event_response_pending");
+    expect(result.state).toBe(state);
+  });
+
+  it("permits plan.add for respond_to_event itself", () => {
+    const state = stateWithPending();
+    const result = advance(state, "plan.add", { actionType: "respond_to_event", targetId: "pending-1", choiceId: "choice-a" }, fakeCtx());
+    expect(result.error).toBeUndefined();
+  });
+
+  it("permits end_week once a queued respond_to_event covers every pending response", () => {
+    const withResponse = advance(
+      stateWithPending(), "plan.add",
+      { actionType: "respond_to_event", targetId: "pending-1", choiceId: "choice-a" },
+      fakeCtx(),
+    ).state;
+    const result = advance(withResponse, "end_week", undefined, fakeCtx());
+    expect(result.error).toBeUndefined();
+  });
+
+  it("permits ordinary planning again once no pending response remains (no pending at all)", () => {
+    const state = baseState();
+    const result = advance(state, "plan.add", { actionType: "rest" }, fakeCtx());
+    expect(result.error).toBeUndefined();
   });
 });
 

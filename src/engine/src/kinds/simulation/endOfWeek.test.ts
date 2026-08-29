@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { financeIncome, financeReconcile, housing, runEndOfWeek } from "./endOfWeek.js";
+import { financeIncome, financeReconcile, fillJobOpening, housing, runEndOfWeek } from "./endOfWeek.js";
 import { canonicalStringify } from "../../core/persistence/canonical.js";
 import type { ResolutionEmitter } from "../../core/observability/types.js";
 import type { CourseEnrollment, Employment, InventoryItem, JobApplication, NeedState } from "./actor.js";
@@ -321,6 +321,24 @@ describe("runEndOfWeek — W53 employment, finance_income, housing", () => {
     expect((result.state.world as unknown as SimulationKindState["world"]).jobMarket.openings).toEqual([]);
   });
 
+  it("resolves a due pendingApplication against a finite two-position opening by decrementing, not retiring it (W94.4)", () => {
+    const application: JobApplication = { jobId: "job-cashier", submittedWeek: 4, resolvesWeek: 5, contested: true, outcome: "pending" };
+    const opening: JobOpening = { jobId: "job-cashier", contested: true, positionsAvailable: 2, postedWeek: 4 };
+    const { emit } = recordingEmitter();
+    const state = baseState(NEEDS, {
+      player: {
+        ...baseState(NEEDS).player,
+        career: { history: [], totalWeeksEmployed: 0, pendingApplications: [application], highestTierAchieved: "entry" },
+      },
+      world: { jobMarket: { openings: [opening] } } as unknown as SimulationKindState["world"],
+    });
+    const result = runEndOfWeek(state, emit, [], "goals_win", jobs);
+    expect(result.state.player.career.currentEmployment).toMatchObject({ jobId: "job-cashier" });
+    expect((result.state.world as unknown as SimulationKindState["world"]).jobMarket.openings).toEqual([
+      { jobId: "job-cashier", contested: true, positionsAvailable: 1, postedWeek: 4 },
+    ]);
+  });
+
   it("leaves a pendingApplication whose resolvesWeek is still in the future", () => {
     const application: JobApplication = { jobId: "job-cashier", submittedWeek: 5, resolvesWeek: 6, contested: false, outcome: "pending" };
     const { emit } = recordingEmitter();
@@ -395,6 +413,44 @@ describe("runEndOfWeek — W53 employment, finance_income, housing", () => {
     const { emit } = recordingEmitter();
     const result = runEndOfWeek(baseState(NEEDS), emit, [], "goals_win", jobs);
     expect(result.changes.some((c) => c.reason === "rent_charged")).toBe(false);
+  });
+});
+
+describe("fillJobOpening — job-opening scarcity, actor-agnostic (W94.4)", () => {
+  it("decrements a two-position opening to one and keeps it listed", () => {
+    const openings: JobOpening[] = [{ jobId: "job-cashier", contested: true, positionsAvailable: 2, postedWeek: 1 }];
+    expect(fillJobOpening(openings, "job-cashier")).toEqual([
+      { jobId: "job-cashier", contested: true, positionsAvailable: 1, postedWeek: 1 },
+    ]);
+  });
+
+  it("retires the opening once its last position is filled", () => {
+    const openings: JobOpening[] = [{ jobId: "job-cashier", contested: true, positionsAvailable: 1, postedWeek: 1 }];
+    expect(fillJobOpening(openings, "job-cashier")).toEqual([]);
+  });
+
+  it("leaves every other opening untouched", () => {
+    const openings: JobOpening[] = [
+      { jobId: "job-cashier", contested: true, positionsAvailable: 2, postedWeek: 1 },
+      { jobId: "job-clerk", contested: true, positionsAvailable: 3, postedWeek: 1 },
+    ];
+    expect(fillJobOpening(openings, "job-cashier")).toEqual([
+      { jobId: "job-cashier", contested: true, positionsAvailable: 1, postedWeek: 1 },
+      { jobId: "job-clerk", contested: true, positionsAvailable: 3, postedWeek: 1 },
+    ]);
+  });
+
+  // The function takes no actor identity at all — calling it a second time for the same
+  // opening, unlabeled as to who filled it, is the whole of the "regardless of whether the
+  // successful applicant is the player or a scripted rival" proof W94.4 asks for: the
+  // transition from two positions to zero is identical whether `resolveApplications` calls
+  // it for the player's own hire or a future rival-resolution system calls it for a rival's.
+  it("applies the identical transition on a second call, standing in for a rival's hire filling the same opening", () => {
+    const openings: JobOpening[] = [{ jobId: "job-cashier", contested: true, positionsAvailable: 2, postedWeek: 1 }];
+    const afterFirstHire = fillJobOpening(openings, "job-cashier");
+    const afterSecondHire = fillJobOpening(afterFirstHire, "job-cashier");
+    expect(afterFirstHire).toEqual([{ jobId: "job-cashier", contested: true, positionsAvailable: 1, postedWeek: 1 }]);
+    expect(afterSecondHire).toEqual([]);
   });
 });
 
