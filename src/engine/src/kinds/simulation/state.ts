@@ -14,7 +14,7 @@
 import type { LocKey } from "../../core/localization/types.js";
 import type { Condition } from "../../core/condition/types.js";
 import type { ActorState, PlayerState } from "./actor.js";
-import type { WeeklyActionPlan } from "./plan.js";
+import type { GameAction, WeeklyActionPlan } from "./plan.js";
 
 /** Money is integer cents; rates are integer basis points (§2). Simulation-kind
  *  primitives — no other kind has a money concept. */
@@ -333,6 +333,20 @@ export interface SimulationKindState {
 }
 
 /**
+ * A queued `respond_to_event` addresses a `PendingEventResponse` only when it names a choice
+ * that response actually offers. Matching on `targetId` alone let a `plan.add` with a missing
+ * or unrecognised `choiceId` open the gate, and the caller then hit
+ * `respondToEventResolver`'s own `action_not_available` at `end_week` — a whole-week
+ * rejection three files from the malformed parameter, in place of the
+ * `event_response_pending` the gate exists to report.
+ */
+function addressesPending(action: GameAction, pending: PendingEventResponse): boolean {
+  if (action.type !== "respond_to_event" || action.targetId !== pending.id) return false;
+  const choiceId = action.parameters["choiceId"];
+  return typeof choiceId === "string" && pending.availableChoiceIds.includes(choiceId);
+}
+
+/**
  * Every `PendingEventResponse` not yet covered by a queued `respond_to_event` action in the
  * current plan (§2.3, W94.1/W94.2). `end_week` and every plan-add other than
  * `respond_to_event` reject while this is non-empty — a `respond_to_event` targeting one of
@@ -340,10 +354,8 @@ export interface SimulationKindState {
  */
 export function unaddressedPendingResponses(state: SimulationKindState): readonly PendingEventResponse[] {
   if (state.pendingEventResponses.length === 0) return state.pendingEventResponses;
-  const planned = new Set(
-    (state.plan?.actions ?? [])
-      .filter((action) => action.type === "respond_to_event")
-      .map((action) => action.targetId),
+  const planned = state.plan?.actions ?? [];
+  return state.pendingEventResponses.filter(
+    (pending) => !planned.some((action) => addressesPending(action, pending)),
   );
-  return state.pendingEventResponses.filter((pending) => !planned.has(pending.id));
 }

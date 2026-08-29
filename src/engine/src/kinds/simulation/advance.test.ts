@@ -221,6 +221,27 @@ describe("advance — the mandatory-event gate (W94.1, W94.2)", () => {
     expect(result.error).toBeUndefined();
   });
 
+  // A `respond_to_event` only addresses a pending response when it names a choice that
+  // response actually offers. Matching on `targetId` alone let a malformed `plan.add` open
+  // the gate, and the caller met `respondToEventResolver`'s `action_not_available` at
+  // `end_week` instead — a whole-week rejection in place of the gate's own reason.
+  it("does not count a respond_to_event carrying no choiceId as addressing the response", () => {
+    const withMalformed = advance(
+      stateWithPending(), "plan.add", { actionType: "respond_to_event", targetId: "pending-1" }, fakeCtx(),
+    ).state;
+    expect(advance(withMalformed, "end_week", undefined, fakeCtx()).error?.code).toBe("event_response_pending");
+    expect(advance(withMalformed, "plan.add", { actionType: "rest" }, fakeCtx()).error?.code).toBe("event_response_pending");
+  });
+
+  it("does not count a respond_to_event naming a choice the response does not offer", () => {
+    const withUnofferedChoice = advance(
+      stateWithPending(), "plan.add",
+      { actionType: "respond_to_event", targetId: "pending-1", choiceId: "choice-not-on-offer" },
+      fakeCtx(),
+    ).state;
+    expect(advance(withUnofferedChoice, "end_week", undefined, fakeCtx()).error?.code).toBe("event_response_pending");
+  });
+
   it("permits ordinary planning again once no pending response remains (no pending at all)", () => {
     const state = baseState();
     const result = advance(state, "plan.add", { actionType: "rest" }, fakeCtx());

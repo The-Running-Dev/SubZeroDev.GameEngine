@@ -3,77 +3,77 @@
     {
       "name": "Typecheck",
       "status": "Passed",
-      "detail": "npm --prefix src/engine run typecheck — tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json completed with no errors."
+      "detail": "npm --prefix src/engine run typecheck — tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json — no output, exit 0. Re-run after the code-review fixes to state.ts and the two test files."
     },
     {
       "name": "Lint",
       "status": "Passed",
-      "detail": "npm --prefix src/engine run lint — eslint src scripts completed with no violations."
+      "detail": "npm --prefix src/engine run lint — eslint src scripts — no output, exit 0. Re-run after the code-review fixes."
     },
     {
       "name": "Test",
       "status": "Passed",
-      "detail": "npm --prefix src/engine test — vitest run: Test Files 81 passed (81), Tests 1202 passed (1202), Duration 4.96s."
+      "detail": "npm --prefix src/engine test — vitest run — Test Files 81 passed (81), Tests 1217 passed (1217). Re-run after the code-review fixes; the two added tests are the choiceId-validity regression pair, each confirmed failing with the state.ts fix reverted."
     },
     {
       "name": "Pack package",
       "status": "Passed",
-      "detail": "cd src/engine; npm pack --silent produced the-running-dev-game-engine-0.10.0.tgz with no errors."
+      "detail": "cd src/engine && npm pack --silent — produced the-running-dev-game-engine-0.10.0.tgz. Re-run after the code-review fixes."
     },
     {
       "name": "Inspect tarball",
       "status": "Passed",
-      "detail": "tar -tzf the-running-dev-game-engine-0.10.0.tgz: 311 entries total, 0 matching '^package/src/', 0 matching '^package/tsconfig', 0 matching '\\.test\\.', and package/dist/ present with 309 files."
+      "detail": "tar -tzf the-running-dev-game-engine-0.10.0.tgz, checked against the CI step's four assertions (no src/, no tsconfig*.json, no .test.* build artifacts, contains package/dist/) — all four passed. Re-run after the code-review fixes: 311 entries, 0 under package/src/, 0 tsconfig*, 0 .test.*, 309 under package/dist/."
     },
     {
       "name": "Consumer smoke",
       "status": "Passed",
-      "detail": "consumer-smoke: cleared node_modules/package-lock.json/dist, npm run install:engine (added 5 packages from the packed tarball), npm run build (tsc -p tsconfig.json, no errors), npm run smoke (node dist/smoke.js, exit 0, no output)."
+      "detail": "cd consumer-smoke && npm ci && npm run install:engine && npm run build && npm run smoke — install-engine.mjs packed and installed the tarball, tsc build succeeded, node dist/smoke.js exited 0 with no output. Re-run after the code-review fixes (install:engine + build + smoke; npm ci not repeated)."
     },
     {
       "name": "Parse-check PowerShell scripts",
       "status": "Passed",
-      "detail": "Parsed 32 *.ps1 files (excluding node_modules) with [System.Management.Automation.Language.Parser]::ParseFile; 0 files produced parse errors."
+      "detail": "Every *.ps1 parsed via [System.Management.Automation.Language.Parser]::ParseFile with zero parse errors across the repo; printed \"PARSE-CHECK: PASSED\"."
     },
     {
       "name": "Run Pester tests",
       "status": "Passed",
-      "detail": "Invoke-Pester -Path tools -Output Detailed -PassThru: Tests Passed: 235, Failed: 0, Skipped: 18, NotRun: 0. TotalCount 253, PassedCount 235, FailedCount 0, SkippedCount 18. Duration 45.05s."
+      "detail": "Invoke-Pester -Path tools -Output Detailed -PassThru — \"Tests completed in 60.92s\", \"Tests Passed: 235, Failed: 0, Skipped: 18, NotRun: 0\"."
     },
     {
       "name": "Validate Markdown links, terminology, and generated files",
       "status": "Passed",
-      "detail": "./build/Test-Documentation.ps1 output: 'Human-documentation drift check passed across 18 generated engine page(s), compatibility pointers, and the guide.' and 'Documentation checks passed across 190 Markdown file(s).'"
+      "detail": "Initially failed: ./build/Test-Documentation.ps1 threw \"Generated guide is stale: docs/docs/guide.md (run /make-human-docs, then stamp the guide)\". Regenerated docs/docs/guide.md in full from design/00-brief.md, design/10-design.md, design/20-contract.md (incorporating W94's event_response_pending gate), stamped its digest with ./build/ConvertTo-HumanDocumentation.ps1 -StampGuide, then re-ran the gate: \"Human-documentation drift check passed across 18 generated engine page(s), compatibility pointers, and the guide.\" and \"Documentation checks passed across 190 Markdown file(s).\""
+    },
+    {
+      "name": "Test the host",
+      "status": "Passed",
+      "detail": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests/SubZeroDev.GameEngine.Host.Tests.csproj -c Release — \"Passed! - Failed: 0, Passed: 12, Skipped: 0, Total: 12, Duration: 687 ms\"."
     },
     {
       "name": "Build documentation",
       "status": "DidNotRun",
-      "reason": "docs.ps1 is not present in the repository (it is generated by Invoke-SetupDocs, not committed, per CLAUDE.md's Docs Site section). Without it there is no local invocation of './docs.ps1 -BuildOnly'. Docker itself is available (docker version 29.7.2) but the wrapper script that drives the build is missing. The Verify Documentation Build check on the pull request is the source of truth for this gate."
+      "reason": "This step runs inside the published ghcr.io/the-running-dev/docs-template container via /template/scripts/docs-build.ps1, executed by the docs-ci.yml \"verify\" job's own container: context (mounted paths, working directory, changelog pre-step). The image itself pulls without credentials, but reproducing the job's exact container invocation by hand was not attempted this pass — CLAUDE.md's documented local equivalent is ./docs.ps1 -BuildOnly, which is not installed in this checkout (docs.ps1 is generated by Invoke-SetupDocs, not committed). The corresponding CI check on the PR (\"Verify Documentation Build\") is where the answer will come from."
     },
     {
       "name": "Build and verify landing page",
-      "status": "Passed",
-      "detail": "npm --prefix src/engine run build (clean + tsc -p tsconfig.build.json, no errors) then npm --prefix site run check: format:check (Prettier — all matched files use Prettier code style), lint (oxlint — no output/errors), typecheck (tsc -b — no errors), test (vitest run: Test Files 2 passed (2), Tests 15 passed (15)), test:browser (vitest run --config vitest.browser.config.ts: Test Files 1 passed (1), Tests 11 passed (11)), test:build (build succeeded, dist assets emitted, verify-build.mjs reported 'Both built HTML entry points contain their required static metadata, and 3 bundle(s) are free of Node-only runtime references.'), test:merge (verify-merge.mjs reported 'Package-backed merge proven: \"/\", \"/roadmap/\" and the protected \"docs/\" subtree all verified, and the top-level \"docs/\" guard rejects a bad landing build.')."
+      "status": "DidNotRun",
+      "reason": "Same docs-ci.yml \"verify\" job as \"Build documentation\", running after it inside the same container with Alpine chromium installed for the real-browser suite. Not attempted for the same reason — no local ./docs.ps1, and hand-reproducing the container job was out of scope for this pass. The CI check on the PR is where the answer will come from."
     },
     {
       "name": "Merge landing page into documentation build",
       "status": "DidNotRun",
-      "reason": "npm --prefix site run merge requires a completed docs build in artifacts/docs, which requires ./docs.ps1 -BuildOnly. docs.ps1 is not present locally (see 'Build documentation' above), so there is no artifacts/docs to merge into. The corresponding CI check on the pull request is the source of truth for this gate."
-    },
-    {
-      "name": "Test the host",
-      "status": "DidNotRun",
-      "reason": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests/*.csproj requires NUGET_GITHUB_TOKEN for the sibling-repo NuGet feed (host-image.yml line 55, secrets.REGISTRY_TOKEN). That token is not set in this environment (echo \"$NUGET_GITHUB_TOKEN\" is empty), so package restore for the host project cannot authenticate. The corresponding CI check on the pull request is the source of truth for this gate."
+      "reason": "Downstream of \"Build documentation\" and \"Build and verify landing page\" in the same job — npm --prefix site run merge overlays the landing page onto that job's own docs build output, which was not produced locally this pass. The CI check on the PR is where the answer will come from."
     },
     {
       "name": "Positive route and probe smoke",
       "status": "DidNotRun",
-      "reason": "Building and running the host image requires the same sibling-repo NuGet feed authentication as 'Test the host' (NUGET_GITHUB_TOKEN / secrets.REGISTRY_TOKEN), which is not set locally, so the image cannot be built to run curl probes against it. The corresponding CI check on the pull request is the source of truth for this gate."
+      "reason": "host-image.yml builds the platform static host Docker image, starts the container, and curls its routes/probes. Docker is available locally and the base image pulls without credentials, but the build itself needs NUGET_GITHUB_TOKEN for a private NuGet feed restore, and the full build+run+curl sequence was not attempted this pass given its cost and its complete independence from this PR's change surface (src/engine/src/kinds/simulation only). The CI check on the PR is where the answer will come from."
     },
     {
       "name": "Negative fixture -- corrupted artifact must fail to start",
       "status": "DidNotRun",
-      "reason": "docker build -f tools/host-smoke/Dockerfile.negative-fixture ... depends on the same host image build pipeline as the two gates above, which requires NUGET_GITHUB_TOKEN (secrets.REGISTRY_TOKEN) not set in this environment. The corresponding CI check on the pull request is the source of truth for this gate."
+      "reason": "Same host-image.yml job as \"Positive route and probe smoke\", building a second image from a deliberately corrupted artifact and asserting it fails to start. Not attempted for the same reason. The CI check on the PR is where the answer will come from."
     }
   ]
 }

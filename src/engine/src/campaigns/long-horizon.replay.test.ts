@@ -40,6 +40,7 @@ import type { IdSource } from "../core/composition/types.js";
 import { simulationKind } from "../kinds/simulation/kind.js";
 import { RESOLVER_TABLE, stubResolver } from "../kinds/simulation/resolvers.js";
 import type { SimulationKindState } from "../kinds/simulation/state.js";
+import { unaddressedPendingResponses } from "../kinds/simulation/state.js";
 import { buildLongHorizonWinCampaign, buildLongHorizonLossCampaign } from "./long-horizon.js";
 import { buildSimulationCampaign, type SimulationCampaignSource } from "../kinds/simulation/source.js";
 import { buildCampaign } from "../core/registry/build.js";
@@ -416,20 +417,11 @@ describe.skipIf(!HAS_BOTH_RUNS)("W89.6 — serialized size and unbounded-collect
 
 // ---------------------------------------------------------------------------
 // W94.5 — the win and loss paths run their full length without ever bypassing a pending
-// event response: every `end_week` the recorded event log accepts happens with
-// `pendingEventResponses` empty, and `event_response_pending` never appears as a rejection
-// reason — the gate exists to reject, not to be dodged by a submission log that simply
-// never triggers it.
+// event response: every `end_week` in the recorded log happens with no unaddressed pending
+// response, and every submission is accepted — the gate exists to reject, not to be dodged
+// by a submission log that simply never triggers it, and not to be "passed" by a run in
+// which nothing was accepted at all.
 // ---------------------------------------------------------------------------
-
-function unaddressedPendingIds(kindState: SimulationKindState): readonly string[] {
-  const planned = new Set(
-    (kindState.plan?.actions ?? [])
-      .filter((a) => a.type === "respond_to_event")
-      .map((a) => a.targetId),
-  );
-  return kindState.pendingEventResponses.filter((p) => !planned.has(p.id)).map((p) => p.id);
-}
 
 describe.skipIf(!HAS_BOTH_RUNS)("W94.5 — no pending response is ever bypassed", () => {
   it.for(BOTH_RUNS)("%s: every accepted end_week runs with no unaddressed pending response", async (name) => {
@@ -439,27 +431,32 @@ describe.skipIf(!HAS_BOTH_RUNS)("W94.5 — no pending response is ever bypassed"
     if (!created.ok || !created.value) throw new Error(`${name}: expected createGame to succeed`);
 
     let state = created.value;
-    let sawEventResponsePending = false;
+    let acceptedCount = 0;
     let endWeekCount = 0;
 
-    for (const submission of fixture.submissions) {
+    for (const [index, submission] of fixture.submissions.entries()) {
       if (submission.actionId === "end_week") {
         // The gate's own condition (`unaddressedPendingResponses`, `state.ts`) — not "no
         // pending at all": a response presented this week is legitimately still in
         // `pendingEventResponses` right up until this same `end_week` resolves the queued
-        // `respond_to_event` that answers it.
-        expect(unaddressedPendingIds(state.kindState as SimulationKindState)).toEqual([]);
+        // `respond_to_event` that answers it. Imported rather than re-implemented here, so
+        // this asserts against the gate the engine actually applies.
+        expect(unaddressedPendingResponses(state.kindState as SimulationKindState)).toEqual([]);
         endWeekCount += 1;
       }
       const result = engine.submitAction(state, submission.actionId, submission.params);
+      // Refusing to swallow a rejection is what stops the three closing expectations passing
+      // vacuously: an engine that rejected the whole log would leave `state` at
+      // `createGame`'s own empty `pendingEventResponses`, leave `endWeekCount` counting
+      // submissions rather than acceptances, and still satisfy every one of them.
       if (!result.ok || !result.value) {
-        if (result.errors[0]?.code === "event_response_pending") sawEventResponsePending = true;
-        continue;
+        throw new Error(`${name}: submission ${index} (${submission.actionId}) was rejected as ${result.errors[0]?.code ?? "unknown"}`);
       }
       state = result.value;
+      acceptedCount += 1;
     }
 
-    expect(sawEventResponsePending).toBe(false);
+    expect(acceptedCount).toBe(fixture.submissions.length);
     expect(endWeekCount).toBeGreaterThanOrEqual(150);
     expect((state.kindState as SimulationKindState).pendingEventResponses).toEqual([]);
   });
