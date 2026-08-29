@@ -3970,82 +3970,644 @@ work shipped in [PR #377](https://github.com/The-Running-Dev/SubZeroDev.GameEngi
 
 ### [ ] W93 — World-Graph Spatial and Audit Correctness {#w93}
 
-**Delivers:** Nearest-exit demolition routing, validated scenery placement, exact staff changes,
-and deterministic world-graph regression coverage.
+**Delivers:** World-graph players can demolish, place scenery, and reassign staff without the
+engine choosing the wrong route, accepting invalid geometry, or reporting changes that did not happen.
+
+- **Spec:** [12 §3.3](12-world-graph-kind.md#33-structural-answers-and-what-remains-the-games),
+      [§6](12-world-graph-kind.md#6-actions--one-model-spatial-verbs),
+      [§9.3](12-world-graph-kind.md#93-canonical-shortest-path),
+      [§13](12-world-graph-kind.md#13-statechange-at-batch-grain), and
+      [§15](12-world-graph-kind.md#15-validation).
+- **Touches:** `src/engine/src/kinds/world-graph/` — `actions/build.ts`,
+      `actions/staff.ts`, `initial.ts`, `spatial.ts`, `validate.ts`, `content.ts`,
+      `source.ts`, `tick/effects.ts`, and focused tests beside those seams.
+- **Depends on:** nothing beyond the shipped world-graph kind.
+- **Status:** Not started.
+- **Done when:**
+  - W93.1 Demolishing a building sends each displaced guest to the reachable exit with the
+        lowest canonical path cost from that guest's position; equal-cost exits use the
+        row-major tie-break from §9.3, and a test proves a nearer exit other than
+        `map.exits[0]` wins.
+  - W93.2 Scenario scenery placements are rejected at Tier 1 when their rotated footprint is
+        out of bounds or overlaps another placed footprint, using the same rotation and
+        occupancy rules as runtime building placement; the finding names the exact
+        `sceneryPlacements[n]` path.
+  - W93.3 `assign_staff` returns a `StateChange` only for an assignment field whose value
+        changed. Changing only the building emits no unchanged zone row, changing only the
+        zone emits no unchanged building row, and submitting the current pair emits neither.
+  - W93.4 Direct tests cover the public behaviour of `validate.ts`, `content.ts`, `source.ts`,
+        and deferred/non-deferred effect application in `tick/effects.ts`; deleting any one
+        of those suites makes the engine test gate fail.
+  - W93.5 Every added spatial fixture is deterministic across two runs and across a
+        serialize/deserialize cut immediately before the corrected operation.
+  - W93.6 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/` with every
+        previously committed replay outcome unchanged.
+- **Out of scope:** changing canonical-path cost or tie-breaking, adding new placement rules,
+      adding scenery build/demolish actions, or broadening `StateChange` beyond the scalar-path
+      contract.
 
 ### [ ] W94 — Simulation Resolution Correctness {#w94}
 
-**Delivers:** Mandatory pending-event responses, reachable-item validation, finite job-opening
-decrement, and stable long-horizon behaviour.
+**Delivers:** Simulation players must answer mandatory events, can buy every shop-reachable item,
+and compete for finite jobs without long campaigns accumulating unstable state.
+
+- **Spec:** [10 §2.3](10-simulation-kind.md#23-effects-opportunities-and-scheduled-events),
+      [§3](10-simulation-kind.md#3-the-turn-is-a-week),
+      [§7.2](10-simulation-kind.md#72-jobs),
+      [§7.5](10-simulation-kind.md#75-items), and
+      [§14](10-simulation-kind.md#14-validation).
+- **Touches:** `src/engine/src/kinds/simulation/` — `advance.ts`, `availableActions.ts`,
+      `resolvers.ts`, `endOfWeek.ts`, `validate.ts`, and focused tests; the Stable Life
+      long-horizon campaign and replay fixtures.
+- **Depends on:** [W89](#w89), whose long run supplies the bounded-state baseline. The
+      job-opening scarcity criterion lands with or after [W101](#w101)'s rival contract so
+      the player and rivals cannot acquire different meanings for the same finite count.
+- **Status:** Not started.
+- **Done when:**
+  - W94.1 While `pendingResponses` contains a mandatory event response, the projection offers
+        only the response choices that event permits; `end_week` and every unrelated action
+        are unavailable and reject without changing serialized state.
+  - W94.2 Resolving the pending event removes exactly that response, applies its selected
+        outcome once, and permits ordinary planning again only when no other mandatory
+        response remains; save/load between presentation and response produces the same result.
+  - W94.3 `validateUnreachableItems` treats an item as reachable when at least one reachable
+        location permits `shop`; a shop-only item produces no Tier-2 warning, while an item
+        reachable through neither starting inventory nor a shop still does.
+  - W94.4 Filling one position in a finite job opening decrements
+        `positionsAvailable` from two to one and keeps the opening available; filling its last
+        position retires it. The same transition is used regardless of whether the successful
+        applicant is the player or a scripted rival.
+  - W94.5 The W89 win and loss paths run for at least 150 weeks without bypassing a pending
+        response, with the final serialized-size and unbounded-collection ceilings asserted
+        rather than logged.
+  - W94.6 Each long run is byte-identical on repeat and when split by a save/restore boundary,
+        and every existing replay outcome remains byte-identical.
+  - W94.7 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`.
+- **Out of scope:** balance-tuning the long run, defining rival strategies, changing event
+      content, or adding a new item-acquisition action beyond the shipped `shop` path.
 
 ### [ ] W95 — Effect and Audit Semantics {#w95}
 
-**Delivers:** Enforced status-effect stacking, correctly reported deferred meter effects, and
-complete documented audit codes.
+**Delivers:** Players and observers see status effects, world-meter changes, and audit reasons
+that describe exactly what the engine applied—once, and only when state really changed.
+
+- **Spec:** [10 §2.3](10-simulation-kind.md#23-effects-opportunities-and-scheduled-events),
+      [§6.1](10-simulation-kind.md#61-base-and-derived-values),
+      [§10](10-simulation-kind.md#10-reason-codes);
+      [12 §9.2](12-world-graph-kind.md#92-curves-multiplication-and-rounding),
+      [§11](12-world-graph-kind.md#11-reason-codes), and
+      [§12](12-world-graph-kind.md#12-events).
+- **Touches:** simulation effect insertion and modifier tests; world-graph
+      `tick/effects.ts`, `tick/pipeline.ts`, and tests; the canonical audit-code tables in
+      `design/20-contract.md` and their generated human documentation.
+- **Depends on:** a real status-effect insertion path from [W101](#w101) if none exists when
+      this unit starts; the deferred-meter and audit-table work is otherwise independent.
+- **Status:** Not started.
+- **Done when:**
+  - W95.1 Every simulation code path that inserts a `StatusEffect` goes through one invariant:
+        a same-source `refresh` replaces the prior layer and resets expiry, a same-source
+        `stack` retains independent layers, and different sources always coexist.
+  - W95.2 Focused tests prove same-source refresh, same-source stack, different-source stack,
+        and save/load immediately after insertion; modifier totals and expiry weeks match the
+        persisted layers in every case.
+  - W95.3 A deferred world-graph building-meter effect is reported as applied only when the
+        final system-14 composition and clamp changes the target meter. Equal and opposing
+        same-tick deltas that net to zero emit no `scenario.effect.applied` for that effect.
+  - W95.4 A non-zero deferred result still emits the applied event once, and the result is
+        identical across every partition of the same tick batch.
+  - W95.5 The world-graph audit-code table contains all eleven shipped visible reasons,
+        including `building_broken`, with its exact producer and transport; the stated count
+        equals the table and the runtime registered set.
+  - W95.6 Canonical documentation is regenerated and `./build/Test-Documentation.ps1` passes.
+  - W95.7 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`, with
+        existing replay outcomes unchanged.
+- **Out of scope:** inventing a new effect family, changing meter aggregation or clamp order,
+      changing event severity, or solving the general emitted-to-registered gate delivered by
+      [W96](#w96).
 
 ### [ ] W96 — Mechanical Regression Boundaries {#w96}
 
-**Delivers:** Multi-partition batch-invariance tests, per-kind regression evidence, envelope
-ownership checks, reason-code registration checks, and per-kind event-severity tables.
+**Delivers:** Engine maintainers get required checks that catch determinism, ownership,
+reason-registration, event-severity, or per-kind regression drift before it can ship.
+
+- **Spec:** [04 §3](04-core.md#3-the-kind-interface--the-seam),
+      [§12](04-core.md#12-reason-codes-state-changes-messages),
+      [§14](04-core.md#14-determinism-harness);
+      [05 §7](05-observability.md#7-severity-and-volume);
+      [12 §5](12-world-graph-kind.md#5-batch-invariance--and-the-two-seam-changes-it-forced) and
+      [§15.3](12-world-graph-kind.md#153-resolution-verification-matrix-for-w46w47).
+- **Touches:** core determinism/validation tests and guard scripts; each kind's event and
+      reason declarations and focused test corpus; CI/package scripts that make the guards
+      required.
+- **Depends on:** [W93](#w93)–[W95](#w95), so the new gates record the corrected baseline
+      instead of freezing known defects.
+- **Status:** Not started.
+- **Done when:**
+  - W96.1 World-graph batch invariance compares complete canonical kind state for unsplit runs
+        against `[1,9]`, `[5,5]`, `[2,3,5]`, and ten one-tick calls, across at least two seeds
+        and across service, construction, incident, day-reset, departure, and terminal
+        boundaries.
+  - W96.2 A required manifest or equivalent check names regression evidence for
+        `story-graph`, `simulation`, and `world-graph`; deleting any named per-kind suite or
+        fixture fails the same gate CI runs.
+  - W96.3 A mechanical ownership check fails when a kind state, campaign, or projection repeats
+        a field owned by `GameState`, `Campaign`, `ContentRegistry`, `Scene`, or `PlayerView`,
+        and passes all three shipped kinds without a handwritten exception for a current field.
+  - W96.4 A mechanical reason check proves every visible rejection or audit reason a kind can
+        emit is registered and localized, including values carried indirectly through
+        `EffectContext` and batch-change recorders; a seeded unregistered indirect reason
+        makes the test fail.
+  - W96.5 Each kind owns one name-to-severity table. The declared names, runtime emit sites,
+        and canonical contract table are compared mechanically, and two severities for one
+        event name or a missing/extra name fail the gate.
+  - W96.6 All guards run from existing package/CI entry points, fail with the kind and value
+        that drifted, and do not depend on network access.
+  - W96.7 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`; all
+        committed replays remain byte-identical.
+- **Out of scope:** adding kind names, event names, severities, reason vocabulary, or envelope
+      fields; testing balance; and making per-call audit arrays batch-invariant when the
+      contract requires only final canonical state.
 
 ### [ ] W97 — Immutable Projections and Shared Pipelines {#w97}
 
-**Delivers:** Defensive engine views and a value-preserving internal ordered system-pipeline
-substrate shared by simulation and world-graph.
+**Delivers:** Engine consumers can inspect and manipulate returned views without mutating a game,
+while maintainers can evolve the two tick-driven kinds on one behaviour-preserving pipeline.
+
+- **Spec:** [04 §3](04-core.md#3-the-kind-interface--the-seam),
+      [§9](04-core.md#9-projection),
+      [§14](04-core.md#14-determinism-harness);
+      [10 §3](10-simulation-kind.md#3-the-turn-is-a-week), and
+      [12 §4](12-world-graph-kind.md#4-the-turn-is-a-tick-batch).
+- **Touches:** the `Kind.project`/`Engine.view` seam and all three kind projections; simulation
+      end-of-week and world-graph tick pipeline composition; an engine-internal pipeline module
+      and focused equivalence tests.
+- **Depends on:** a fresh `/contract` decision that assigns defensive-copy ownership at the
+      `Kind.project` seam and a `/design` or `/contract` decision that fixes the shared
+      pipeline's ordering/error semantics. No implementation begins while either shape is
+      unresolved.
+- **Status:** Not started — contract-gated.
+- **Done when:**
+  - W97.1 The canonical contract states whether a kind or the kernel owns defensive copying,
+        including nested arrays/records and the treatment of immutable primitives; the source
+        and all three built-in kinds implement that one rule.
+  - W97.2 Mutating every nested object/array reachable from a returned story-graph,
+        simulation, or world-graph view leaves the originating `GameState`, a fresh second
+        view, `serialize()`, and the action log unchanged.
+  - W97.3 The shared pipeline accepts an explicit ordered system list, threads the existing
+        frame/context, stops or continues only under the contract's stated rule, and is not
+        exported from the package root or `/authoring`.
+  - W97.4 Simulation's ordered end-of-week systems and world-graph's twenty tick systems both
+        execute through that substrate without changing their kind-specific system ids,
+        comparators, event order, or durable handoffs.
+  - W97.5 Before/after golden runs for both kinds produce byte-identical serialization,
+        outcomes, visible changes, and event streams with recording emitters; null emitters
+        produce the same state.
+  - W97.6 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`, and packed
+        consumer smoke proves no new public export was introduced.
+- **Out of scope:** merging the two kinds' state or mechanics, making pipelines campaign data,
+      changing any system order, or general-purpose workflow/middleware infrastructure.
 
 ### [ ] W98 — Catalog and Projection Completeness {#w98}
 
-**Delivers:** Asynchronous resolved catalog listings, visible stat ranges and ending progress,
-and generic terminal identity for built-in kinds.
+**Delivers:** Clients can render campaign choices, stat ranges, ending progress, and terminal
+results through the public store and projection surfaces without reading engine-owned content or state.
+
+- **Spec:** [04 §3](04-core.md#3-the-kind-interface--the-seam),
+      [§7](04-core.md#7-the-session-store-and-the-platform-api),
+      [§9](04-core.md#9-projection);
+      [03 §9](03-story-graph-kind.md#9-projection--what-a-client-sees), and
+      [09 §4](09-clients.md#4-the-api-coverage-checklist).
+- **Touches:** `CampaignSummary`, `SessionStore.listCampaigns`, built-in outcome/projection
+      types and implementations; text client, MCP server, browser composition, service-contract
+      mirrors, and packed-consumer tests.
+- **Depends on:** a fresh `/contract` pass that declares the asynchronous catalog result,
+      session-free title resolution, range/progress projection, and cross-kind terminal
+      identity. Those public shapes do not exist in the current contract and are not to be
+      inferred from this slice.
+- **Status:** Not started — contract-gated.
+- **Done when:**
+  - W98.1 The canonical contract declares an asynchronous campaign-list operation and a result
+        that a client can render as a human-readable campaign selector using only
+        `SessionStore`; a fetch-backed test implementation does not preload a registry.
+  - W98.2 The text client, MCP `list_campaigns`, and browser shelf render the same resolved
+        titles without starting a session or reading `ContentRegistry` directly, and the API
+        coverage checklist matches the chosen operation count.
+  - W98.3 Every projected visible story stat carries its declared lower and upper bounds, so a
+        client renders the current value and range without reading campaign content.
+  - W98.4 Story-graph ending progress exposes the contract-selected discovered and total facts
+        without exposing hidden ending ids; a fresh profile and a profile with one unlocked
+        ending have distinct, exact projections.
+  - W98.5 A host can read the contract-selected common terminal identity from each built-in
+        kind without switching on private kind-state shapes, while kind-specific published ids
+        remain available and balance-sensitive facts remain excluded.
+  - W98.6 Existing in-memory callers have an explicit migration path to the asynchronous
+        listing, and type-level packed-consumer fixtures prove both the new path and the
+        intended rejection of the old signature.
+  - W98.7 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`; site and
+        host checks pass with committed replay outcomes unchanged.
+- **Out of scope:** adding locales, exposing hidden variables/endings, returning campaign
+      content through `SessionStore`, making outcomes a balance report, or changing session
+      creation semantics.
 
 ### [ ] W99 — Session Lifecycle Operations {#w99}
 
-**Delivers:** Store-owned save listing, branching, deletion, and documented replay identity,
-while authorization remains host-owned.
+**Delivers:** Hosts can list, branch, and delete a player's saves through the session store and
+reproduce stored sessions exactly, while retaining responsibility for authorization.
+
+- **Spec:** [04 §7](04-core.md#7-the-session-store-and-the-platform-api),
+      [§10](04-core.md#10-content-saves-migration);
+      [06 §2](06-extensibility.md#2-the-rule),
+      [§5.2](06-extensibility.md#52-sessionpersistence-and-profilestore), and
+      [07 §6](07-replay.md#6-the-runner-and-its-verdicts).
+- **Touches:** session/store and persistence contracts and implementations; `IdSource`, text
+      and MCP/client coverage, service-contract mirrors, host adapters, and replay tests.
+- **Depends on:** a fresh `/contract` pass that chooses the store signatures, result/error
+      shapes, canonical save-list order, and concurrency semantics. Authorization remains a
+      documented host boundary unless that pass explicitly reopens it.
+- **Status:** Not started — contract-gated.
+- **Done when:**
+  - W99.1 A player-keyed save-list operation exists at the contract-selected store boundary,
+        returns only that player's saves in a specified deterministic order, and lets both
+        existing hosts delete their private shadow indexes.
+  - W99.2 Branching a session at a valid action sequence is one store operation: it allocates a
+        new id through `IdSource`, leaves the source session/save untouched, and the branch
+        serializes and replays byte-identically through the fork point.
+  - W99.3 Branching an unknown session or invalid sequence returns the contract-selected typed
+        failure and performs no persistence write.
+  - W99.4 Deleting a save is reachable through the chosen public lifecycle surface; success
+        removes exactly the addressed record, and the specified missing/wrong-player result
+        leaves every record untouched.
+  - W99.5 A delete authorized against an older record cannot erase a concurrent replacement
+        written under the same `saveId`; the race is reproduced deterministically against the
+        persistence conformance suite.
+  - W99.6 The replay/extensibility contract states that reproducing a stored session blob from
+        its log requires `IdSource.newGameId` pinned to the original `gameId`, and a test proves
+        pinned reproduction is exact while an unrelated id is observably different.
+  - W99.7 The contract states that caller identity and authorization are host-owned and
+        `SessionStore` remains caller-agnostic, with the deferred hosting/NEaaS trigger that
+        would reopen the decision.
+  - W99.8 Text, MCP/service-contract, host, and packed-consumer coverage include every new
+        operation; `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`.
+- **Out of scope:** accounts, authentication/authorization policy, cloud synchronization,
+      sharing saves between players, editing historical actions, or changing the save envelope.
 
 ### [ ] W100 — Campaign-Tunable Weekly Rules {#w100}
 
-**Delivers:** Defaulted campaign tuning, empty-plan policy, relationship drift, attendance, and
-visible/content-usable wisdom without changing existing campaign behaviour.
+**Delivers:** Campaign authors can tune weekly rules, empty plans, relationships, attendance, and
+wisdom-driven choices while existing campaigns keep their current behaviour by default.
+
+- **Spec:** [10 §2](10-simulation-kind.md#2-kindstate--what-belongs-here),
+      [§3](10-simulation-kind.md#3-the-turn-is-a-week),
+      [§6](10-simulation-kind.md#6-player-state),
+      [§7](10-simulation-kind.md#7-content-definition-types),
+      [§9](10-simulation-kind.md#9-projection), and
+      [§10](10-simulation-kind.md#10-reason-codes).
+- **Touches:** simulation campaign/source types, builder defaults and validation; planning and
+      end-of-week systems for relationships/employment; projection, conditions/effects,
+      fixtures, and replay tests.
+- **Depends on:** a fresh `/contract` pass that fixes the tuning fields and defaults, the
+      `plan_empty` policy, relationship transition, attendance formula, and the specific
+      wisdom consumer. The current contract explicitly leaves those rules absent or inert.
+- **Status:** Not started — contract-gated.
+- **Done when:**
+  - W100.1 The source/runtime campaign contract contains one closed, validated home for every
+        weekly tuning value this unit changes, with explicit defaults; omitted fields on every
+        0.10 campaign build to the exact former runtime values.
+  - W100.2 The empty-plan policy is campaign-selectable. A forbidding campaign rejects
+        `end_week` with `plan_empty` and unchanged state, while a permitting campaign advances
+        through the ordinary ordered pipeline; the default preserves 0.10 behaviour.
+  - W100.3 The `relationships` system applies the contract's ordered drift once per week to the
+        correct actor/NPC records, clamps at declared bounds, emits exact visible changes, and
+        resumes identically across save/load.
+  - W100.4 Employment attendance is updated from the contract's declared planned/worked inputs,
+        uses the specified rounding and rolling window, affects the existing attendance
+        requirements, and cannot be advanced twice for one week.
+  - W100.5 `wisdom` has the contract-selected visible projection and at least one typed content
+        read with a fixture proving two otherwise identical actors receive different available
+        behaviour; no client reads raw campaign or kind state to obtain it.
+  - W100.6 Builder and validator tests cover every default, invalid bound, and explicit override;
+        the Stable Life campaign builds with no new unexplained finding.
+  - W100.7 Every 0.10 campaign, replay, and save fixture is byte-identical when all new fields
+        are omitted; `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`.
+- **Out of scope:** tuning concrete campaign balance, adding projects/businesses/rivals, profile
+      progression, or changing the ordered list of end-of-week systems.
 
 ### [ ] W101 — Projects, Businesses, and Rival Scarcity {#w101}
 
-**Delivers:** Content-driven project progress, deterministic business cashflow, and scripted
-rivals competing reproducibly for finite simulation opportunities.
+**Delivers:** Campaign authors can offer persistent projects and businesses, and players can face
+scripted rivals who compete reproducibly for the same finite opportunities.
+
+- **Spec:** [10 §2.2](10-simulation-kind.md#22-world-state),
+      [§4.2](10-simulation-kind.md#42-action-types),
+      [§6.2](10-simulation-kind.md#62-the-shared-actor-shape),
+      [§7](10-simulation-kind.md#7-content-definition-types), and
+      [§7.10](10-simulation-kind.md#710-agents--engine-owned-strategy-definition-and-runtime-state).
+- **Touches:** simulation content/source and runtime state; project/business resolvers and
+      end-of-week systems; scenario rival configuration, strategy registry, opportunity/job
+      scarcity, validation, projections, events, and replay fixtures.
+- **Depends on:** [W100](#w100) for the defaulted campaign-tuning boundary, and a fresh
+      `/contract` pass that declares project/business definitions, their durable progress,
+      scenario rival selection, and deterministic competition. The four action names and
+      engine-owned strategy seam alone are not sufficient public contracts.
+- **Status:** Not started — contract-gated.
+- **Done when:**
+  - W101.1 Project definitions are campaign content with closed typed requirements, costs,
+        progress, completion and rewards; resolver selection uses the action/type discriminator
+        declared by the contract and never a tag or id naming convention.
+  - W101.2 Starting and advancing a project consumes the exact planned time/resources, persists
+        partial progress, completes once, and produces the same state and published changes
+        when save/load cuts occur before start, mid-progress, and immediately before completion.
+  - W101.3 Business definitions and runtime records drive start-up cost, weekly revenue,
+        expenses and closure under contract-stated integer/rounding rules; cashflow posts once
+        in the ordered weekly pipeline and is invariant across replay and save boundaries.
+  - W101.4 A scenario declares zero or more rivals by the contract-selected strategy ids and
+        initial conditions. Zero rivals preserves current behaviour; an unknown strategy or
+        invalid advantage is a precise Tier-1 finding.
+  - W101.5 Player and rivals use the same `ActorState` mechanics and the same action resolvers.
+        A fixture that gives both actors identical state and the same chosen action produces
+        identical actor-local results before contested allocation is applied.
+  - W101.6 Each rival derives choices only from its allowed public-world view and its stable RNG
+        stream. Reordering registry construction or enabling a recording emitter does not
+        change choices, allocation, state, or outcome.
+  - W101.7 Two actors contesting a finite opportunity or job opening are resolved by the
+        contract's complete comparator; one filled position decrements the count, the last
+        retires the opening, and the losing actor receives the declared unavailable/revoked
+        result without duplicated rewards.
+  - W101.8 Committed project, business, and rival-scarcity replays are byte-identical on repeat
+        and across a save/restore cut; `npm run typecheck`, `npm run lint` and `npm test` pass
+        from `src/engine/`.
+- **Out of scope:** adaptive/remote AI, hidden-information cheating, multiplayer, arbitrary
+      user-authored code, economic balance of a concrete campaign, or changing `ActorState`
+      into separate player and rival shapes.
 
 ### [ ] W102 — Profile Chains and Simulation Save Migration {#w102}
 
-**Delivers:** Versioned profile-scoped kind data and declarative portable simulation save
-migrations with deterministic remaps and defaults.
+**Delivers:** Simulation players can carry profile-scoped chains into later sessions and resume
+older portable saves through deterministic, declared migrations.
+
+- **Spec:** [04 §7.1](04-core.md#71-the-profile-store),
+      [§10.2](04-core.md#102-save-envelope-and-migration);
+      [10 §2.2](10-simulation-kind.md#22-world-state), and
+      [§15](10-simulation-kind.md#15-what-was-ported-and-what-was-found-along-the-way).
+- **Touches:** `PlayerProfile`, profile persistence and kind integration; simulation chain
+      content/state; campaign/kind migration declarations and dispatch; save/replay fixtures,
+      host adapters, and packed-consumer tests.
+- **Depends on:** [W101](#w101), so the profile and migration contracts are tested against real
+      simulation content rather than a mechanism with no consumer; and a fresh `/contract`
+      pass defining both public shapes before implementation.
+- **Status:** Not started — contract-gated.
+- **Done when:**
+  - W102.1 `PlayerProfile` has a versioned, JSON-serializable, kind-owned data boundary whose
+        ownership, unknown-kind behaviour, size/version validation, and migration order are
+        stated in the canonical contract without importing a simulation type into core.
+  - W102.2 A simulation chain declared with profile scope writes through `ProfileStore`, is
+        visible to a new session for the same profile, remains absent for another profile, and
+        never changes terminal resolution or deterministic state for a session that does not
+        read that chain.
+  - W102.3 Reapplying an already-recorded profile-chain transition is idempotent: it creates no
+        duplicate entry, event, achievement, or reward, including after save/load and process
+        restart against the persistence conformance adapter.
+  - W102.4 The simulation campaign contract declares portable migration steps for published-id
+        remaps, required defaults, removals, and validation. Steps are data or engine-owned
+        declarations, never host callbacks, and their order is deterministic.
+  - W102.5 Loading an older simulation save applies kind-shape migration before campaign-data
+        migration, stamps current versions, sets `replayCompatible: false` sticky-forward, and
+        yields the same canonical result on repeated migration.
+  - W102.6 Missing remaps/defaults and invalid post-migration state return the existing typed
+        migration failures without partially writing a session or save; focused fixtures cover
+        success on both axes and failure on each axis.
+  - W102.7 Every 0.10 profile and save with no profile-chain data loads under the declared
+        default with unchanged projection and outcome; packed host consumers compile against
+        the amended types.
+  - W102.8 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`; all
+        unaffected committed replay outcomes remain byte-identical.
+- **Out of scope:** cloud profile synchronization, merging concurrent profiles, arbitrary
+      executable migration scripts supplied by a host, migrating unpublished development
+      ids, or making profile state part of terminal resolution.
 
 ### [ ] W103 — Companion Contracts and Ownership Reconciliation {#w103}
 
-**Delivers:** Mirrored GameOfLife lifecycles, Platform/ServiceContract/Adventures integration,
-fixture ownership markers, and resolved public package and retired-browser-proof decisions.
+**Delivers:** Ecosystem maintainers get one consistent account of simulation lifecycles, hosted
+operations, fixture ownership, package visibility, and the proof that replaces the retired browser.
+
+- **Spec:** [10 §2.3](10-simulation-kind.md#23-effects-opportunities-and-scheduled-events)
+      and [§15](10-simulation-kind.md#15-what-was-ported-and-what-was-found-along-the-way);
+      [09 §4](09-clients.md#4-the-api-coverage-checklist);
+      [13 §6](13-playable-web-demo.md#6-route-visual-system-and-delivery), and
+      [15 §6](15-platform-static-host.md#6-ci-publication-and-deployment-boundary).
+- **Touches:** canonical companion-mirror sections and generated docs; Platform,
+      `@subzerodev/service-contract`, and Adventures integration evidence; campaign fixture
+      notices; package-visibility and retired-browser-proof decisions; agent-kit metadata and
+      repository-specific companions where the sync is part of the reconciliation.
+- **Depends on:** GameOfLife S6/S7 and its zero-concept-finding gate; [W98](#w98) and
+      [W99](#w99) for the final operation shapes mirrored to Platform/service consumers.
+- **Status:** Not started — blocked on named companion work where it has not landed.
+- **Done when:**
+  - W103.1 GameOfLife S7 is landed and its `Test-SpecSet.ps1` reports zero `concept` findings;
+        every lifecycle it added is mirrored here with both creation and retirement paths. A
+        contradiction with shipped simulation code is reported and stops the mirror rather
+        than being silently reconciled.
+  - W103.2 Platform's hosted MCP contract includes `preview_action` and every W98/W99 operation
+        with the same arguments/results and one-operation/one-tool mapping; immutable links name
+        the companion commits or PRs that carry each row.
+  - W103.3 The service-contract package is regenerated from the final store surface and its
+        missing/extra-operation gate passes; Adventures consumes that version without reaching
+        through `SessionStore` or persistence for catalog, save, branch, or delete behaviour.
+  - W103.4 Every campaign source and exported JSON snapshot retained in this repository says
+        within its owning file that it is a test fixture, names the external Content repository
+        as the publication authority, and leaves fixture behaviour/tests unchanged.
+  - W103.5 The package-visibility decision is recorded once and `package.json`, plans 39/40,
+        release documentation, and consumer access all agree on public or private; no document
+        retains the rejected answer.
+  - W103.6 The no-engine-API browser proof is either assigned to a named replacement owner with
+        an executable check or retired by a recorded decision that updates both design 13 and
+        15; the deleted `/play/` surface is not recreated to satisfy it.
+  - W103.7 The current agent kit is reconciled without losing repository-specific `-Skip:`
+        guards or command companions; the Pester run reports both pass and intentional skip
+        counts, and any third recurrence is raised upstream as the existing issue requires.
+  - W103.8 Canonical docs are regenerated, companion/engine checks pass, and every external
+        dependency is cited by immutable commit or merged PR rather than an unversioned branch.
+- **Out of scope:** authoring GameOfLife lifecycles in this repository, implementing
+      Presentation's scene layer, republishing external packages, moving fixture content back
+      from Content, or adopting a companion's design-state corpus wholesale.
 
 ### [ ] W104 — Release 0.11 Compatibility Sweep {#w104}
 
-**Delivers:** Compatibility fixtures proving defaulted additions preserve every 0.10 campaign,
-save, replay, host, and packed-consumer path.
+**Delivers:** Existing campaign, save, replay, host, and package consumers can move from 0.10 to
+the additive candidate without silently changing behaviour.
+
+- **Spec:** [04 §10](04-core.md#10-content-saves-migration),
+      [07 §6](07-replay.md#6-the-runner-and-its-verdicts), and the compatibility/default rules
+      fixed by [W98](#w98)–[W102](#w102).
+- **Touches:** a committed 0.10 compatibility corpus; campaign builders, save loader, replay
+      runner, host/service adapters, package archive assertions, and consumer smoke projects.
+- **Depends on:** [W93](#w93)–[W103](#w103) complete. This is the first unit allowed to call
+      their combined result a release candidate baseline.
+- **Status:** Not started.
+- **Done when:**
+  - W104.1 A committed manifest names every 0.10 built-in campaign/version, representative
+        active and ended save for each kind, every replay fixture, both hosts, and the packed
+        public consumer surface; the sweep fails if an entry disappears without an explicit
+        replacement/evidence note.
+  - W104.2 Every 0.10 campaign source builds with all 0.11 additive fields omitted and produces
+        the same canonical runtime content, initial projection, available actions, and Tier-1/2
+        findings as its recorded 0.10 baseline unless a separately approved correction is named.
+  - W104.3 Every 0.10 save loads or migrates according to its recorded version boundary, with
+        unchanged projection/outcome for defaulted additions and no partial write on failure.
+  - W104.4 Every pre-existing replay receives the same verdict and byte-identical outcome; any
+        intentionally migrated fixture is separately identified and proves
+        `replayCompatible: false` rather than silently replacing its golden file.
+  - W104.5 The text client, MCP server, static host and Adventures/service-contract integration
+        pass against the same engine archive and use only the declared SessionStore surface.
+  - W104.6 A clean pack contains the asserted files and no private source/plans, installs into
+        the lockfile-backed consumer smoke, and compiles/runs all public and `/authoring`
+        examples without workspace resolution.
+  - W104.7 The compatibility sweep runs from one documented command/CI job and exits non-zero
+        with the exact artifact that drifted; its green result and baseline commit are recorded.
+- **Out of scope:** preserving undocumented implementation details, treating an approved bug
+      fix as a compatibility failure without its evidence, publishing a package, or accepting
+      new feature work after the baseline is cut.
 
 ### [ ] W105 — Documentation and Landing Publication Review {#w105}
 
-**Delivers:** A rendered, linked, mobile-reviewed public documentation and landing artifact for
-the stabilization programme.
+**Delivers:** Prospective users can read and navigate an accurate public account of the
+stabilization release on both documentation and landing surfaces.
+
+- **Spec:** the canonical sections changed by W93–W104; the documentation source/generation
+      boundary in `CLAUDE.md`; and the public claims in the README, guide, roadmap, and landing
+      configuration.
+- **Touches:** canonical design text, generated `docs/docs/engine/` pages, guide/navigation,
+      README/roadmap/release material, landing configuration and rendered browser snapshots.
+- **Depends on:** [W104](#w104), so the public review describes the verified compatibility
+      candidate rather than work still moving underneath it.
+- **Status:** Not started.
+- **Done when:**
+  - W105.1 Canonical-to-human generation produces no diff on a second run, and the generated
+        pages contain every amended contract/slice section with no hand-edited generated copy.
+  - W105.2 Documentation validation passes generated-file freshness, internal/external links,
+        anchors, terminology, navigation, and guide-stamp checks from a clean checkout.
+  - W105.3 README, public guide, roadmap and landing page agree that the engine has three kinds,
+        the in-repository play surface is retired, published content is externally owned, and
+        `0.11.0` is a candidate rather than an already published release.
+  - W105.4 Every public SessionStore, projection, outcome, profile and migration example compiles
+        against the packed candidate; no example uses a removed synchronous signature or reads
+        registry/kind state across a client boundary.
+  - W105.5 The landing and documentation entry pages are rendered at the repository's committed
+        phone and desktop widths with no horizontal overflow, clipped navigation, unreachable
+        primary link, or overlap; reviewed screenshots are committed or attached as immutable
+        CI evidence.
+  - W105.6 The customer/alternative/monetization thesis is either stated in the public brief or
+        explicitly deferred with reasoning and an owner; it is no longer absent from design.
+  - W105.7 `npm --prefix site run check`, `npm --prefix site run build`, and
+        `./build/Test-Documentation.ps1` pass using the same generated artifact.
+- **Out of scope:** redesigning the site, adding a playable client, changing product strategy
+      beyond making its current status explicit, deploying, or publishing the npm package.
 
 ### [ ] W106 — Tracker Evidence Closure {#w106}
 
-**Delivers:** Every implemented, stale, dissolved, or decision-resolved engine issue closed
-with immutable evidence; unavailable Presentation work remains explicitly blocked.
+**Delivers:** Maintainers can trust that every resolved engine issue links to immutable evidence,
+while genuinely unavailable Presentation work remains visibly blocked instead of falsely closed.
+
+- **Spec:** this ledger's stable criterion-id rules, `CLAUDE.md`'s tracking conventions, and
+      the issue/mirror evidence produced by W93–W105.
+- **Touches:** GitHub issue/project state and labels; `design/state/work/` mirrors and index;
+      canonical decisions/slices only where the recorded outcome requires correction.
+- **Depends on:** [W93](#w93)–[W105](#w105). It closes evidence; it does not substitute issue
+      closure for unfinished implementation.
+- **Status:** Not started.
+- **Done when:**
+  - W106.1 A frozen inventory records every open engine issue number, title, current state,
+        owning W criterion or explicit non-programme disposition, and immutable implementation,
+        decision, supersession, or external-blocker evidence.
+  - W106.2 An issue is closed as implemented only when each of its acceptance checkboxes is
+        satisfied by a merged commit/PR and passing verification; stale and dissolved issues
+        cite the exact later contract/commit that removed their premise.
+  - W106.3 Decision-only issues cite the canonical decision that answers them and no longer
+        retain contradictory open-register text; externally owned issues cite the companion
+        issue/commit and remain open when that work is not actually complete.
+  - W106.4 The Presentation spike remains open with its unavailable/blocked state and transfer
+        target unless the Presentation repository and authority are genuinely available; no
+        engine issue or slice claims to implement it.
+  - W106.5 `/track` reports no missing issue for W93–W108, no criterion-id drift, no stale issue
+        body, and no implemented unit whose heading remains unchecked. Historical pre-tracker
+        units retain their recorded exemption rather than receiving fabricated retroactive work.
+  - W106.6 Work mirrors reproduce the live tracker state at one named commit/time, preserve
+        immutable evidence links, and a second mirror run is a no-op.
+  - W106.7 The repository's design-state checks either pass fully or every remaining
+        tool/content incompatibility has one owning issue and an explicit unavailable result;
+        `ContractListUnreadable`, `ProjectorFailed`, and false `TrackerUnavailable` are not
+        reported as successful checks.
+- **Out of scope:** closing blocked work to make counts green, rewriting historical issue
+      narratives, implementing any unresolved issue inside the tracking pass, or transferring
+      work to an unavailable repository.
 
 ### [ ] W107 — 0.11 Release Candidate Verification {#w107}
 
-**Delivers:** The full engine, host, site, documentation, container, consumer, and companion
-verification matrix against the additive stabilization candidate.
+**Delivers:** Release maintainers can judge one additive candidate from a complete, reproducible
+verification record covering the engine and every supported delivery surface.
+
+- **Spec:** [W104](#w104)'s compatibility manifest, [W105](#w105)'s publication artifact, and
+      the repository release/check matrices referenced by `CLAUDE.md`.
+- **Touches:** verification commands and CI workflows only as needed to run the existing
+      engine, host, site, docs, container, consumer and companion gates against one candidate.
+- **Depends on:** [W106](#w106), so verification starts with tracker/design truth reconciled.
+- **Status:** Not started.
+- **Done when:**
+  - W107.1 A candidate commit and one clean packed archive digest are recorded; every consumer
+        and host test uses that archive rather than a workspace import or a separately packed
+        copy.
+  - W107.2 A clean `src/engine/` install passes typecheck, determinism lint, unit/integration
+        tests, build, archive-content assertion, replay corpus, and the W104 compatibility sweep.
+  - W107.3 A clean site install passes lint/typecheck/unit/browser checks and production build;
+        documentation conversion and validation run from canonical sources and are no-op on a
+        second generation.
+  - W107.4 The static host builds and its container smoke proves health, campaign retrieval,
+        session creation, action preview/submission, save/resume and the W98/W99 operations
+        through the declared API, with no source tree mounted at runtime.
+  - W107.5 Packed text/MCP consumers and the lockfile-backed consumer smoke compile and run;
+        Platform, service-contract, Adventures and GameOfLife companion checks name exact
+        compatible versions or commits and have no unresolved contract mismatch.
+  - W107.6 Required CI workflows are green at the candidate commit, including Pester with its
+        pass/skip counts and documentation/deploy Chromium setup; a skipped or unavailable
+        check is listed as such and never rendered as a pass.
+  - W107.7 A release-candidate report records command, exit code, duration, artifact digest and
+        evidence URL for every row, with zero unexplained failure or dirty-tree substitution.
+- **Out of scope:** fixing a failed gate inside the verification unit, changing candidate
+      scope, tagging, creating a GitHub release, deploying, or publishing to npm.
 
 ### [ ] W108 — Publish 0.11 Readiness {#w108}
 
-**Delivers:** A public roadmap and release checklist that identify `0.11.0` as the next
-authorized publication without publishing it as part of this programme.
+**Delivers:** The release owner gets a public roadmap and exact checklist authorizing `0.11.0`
+as the next publication, while the actual publish remains a separate explicit action.
+
+- **Spec:** the repository's version/tag/release contract, [W107](#w107)'s candidate report,
+      and the public roadmap/release material reconciled by [W105](#w105).
+- **Touches:** canonical roadmap/release checklist, README/landing release status, package and
+      changelog metadata required for a future user-triggered publication; no remote release
+      mutation.
+- **Depends on:** [W107](#w107) green and every blocker in [W106](#w106) explicitly resolved or
+      accepted by the user.
+- **Status:** Not started.
+- **Done when:**
+  - W108.1 The canonical roadmap, README, generated public docs and landing page all identify
+        `0.11.0` as the next authorized publication and describe the same additive scope and
+        compatibility claim.
+  - W108.2 The release checklist names the exact candidate commit/archive digest, required tag
+        and package versions, changelog/release-note source, registry access, dry-run commands,
+        post-publish verification, and rollback/deprecation procedure.
+  - W108.3 Every W93–W107 unit is complete with immutable evidence, or the checklist names the
+        remaining blocker and does not claim readiness; no unchecked criterion is hidden by a
+        summary status.
+  - W108.4 Package metadata, archive contents and public documentation agree on version,
+        visibility, supported entry points, three shipped kinds, external content ownership,
+        and the retired play surface.
+  - W108.5 The release workflow's tag/version and clean-build guards are exercised in a
+        non-publishing validation path against the candidate and reject a mismatched tag or
+        dirty/repacked artifact.
+  - W108.6 No npm publish, Git tag, GitHub release, deployment, DNS change, or external package
+        release occurs in this unit; the final checklist states that publication requires a
+        separate explicit user action.
+- **Out of scope:** performing the publication, choosing credentials, deploying the site,
+      announcing the release, or adding any feature/fix after the verified candidate.
 
 <!-- human-doc:end -->
