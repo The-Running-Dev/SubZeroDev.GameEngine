@@ -245,6 +245,41 @@ export function checkBuildingPlacement(
   return reachable ? { ok: true, ...size, entrances } : { ok: false, reason: "placement_unreachable" };
 }
 
-export function scenerySize(definition: SceneryDefinition, rotation: Rotation): { readonly width: number; readonly height: number } {
-  return rotatedDimensions(definition.footprint.width, definition.footprint.height, rotation);
+export type SceneryPlacementFailure = Exclude<PlacementFailure, "placement_unreachable">;
+export type SceneryPlacementResult =
+  | { readonly ok: true; readonly width: number; readonly height: number }
+  | { readonly ok: false; readonly reason: SceneryPlacementFailure };
+
+function occupiedSceneryCells(scenery: readonly { readonly x: number; readonly y: number; readonly width: number; readonly height: number }[]): Set<string> {
+  const occupied = new Set<string>();
+  for (const entity of scenery) {
+    for (const cell of footprintCells(entity.x, entity.y, entity.width, entity.height)) occupied.add(key(cell));
+  }
+  return occupied;
+}
+
+/**
+ * Same rotation, bounds, overlap, terrain and placement-rule checks `checkBuildingPlacement`
+ * applies (20-contract.md §15) — scenery has no entrances, so there is no reachability check.
+ */
+export function checkSceneryPlacement(
+  map: WorldMap,
+  terrainDefinitions: readonly TerrainDefinition[],
+  definition: SceneryDefinition,
+  x: number,
+  y: number,
+  rotation: Rotation,
+  scenery: readonly { readonly x: number; readonly y: number; readonly width: number; readonly height: number }[],
+): SceneryPlacementResult {
+  if (!definition.allowedRotations.includes(rotation)) return { ok: false, reason: "placement_terrain_unsuitable" };
+  const size = rotatedDimensions(definition.footprint.width, definition.footprint.height, rotation);
+  const cells = footprintCells(x, y, size.width, size.height);
+  if (!cells.every((cell) => inBounds(map.width, map.height, cell))) return { ok: false, reason: "placement_out_of_bounds" };
+  const occupied = occupiedSceneryCells(scenery);
+  if (cells.some((cell) => occupied.has(key(cell)))) return { ok: false, reason: "placement_overlaps" };
+  const byCell = terrainIndex(map);
+  const terrain = new Map(terrainDefinitions.map((entry) => [entry.id, entry]));
+  if (cells.some((cell) => terrain.get(byCell.get(key(cell)) ?? "")?.buildable !== true)) return { ok: false, reason: "placement_terrain_unsuitable" };
+  if (!definition.placementRules.every((rule) => ruleAllows(rule, cells, map, byCell))) return { ok: false, reason: "placement_terrain_unsuitable" };
+  return { ok: true, ...size };
 }

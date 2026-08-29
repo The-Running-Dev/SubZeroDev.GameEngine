@@ -8,7 +8,7 @@ import { createRecordingEmitter } from "../../core/observability/emitter.js";
 import type { WorldGraphCampaign, WorldGraphCampaignSource } from "./content.js";
 import { worldGraphKind } from "./kind.js";
 import { buildWorldGraphCampaign } from "./source.js";
-import type { WorldGraphKindState, WorldGraphView } from "./state.js";
+import type { Guest, WorldGraphKindState, WorldGraphView } from "./state.js";
 import { WORLD_GRAPH_REASON_MESSAGES } from "./reasons.js";
 import { createInMemorySessionStore } from "../../core/session/store.js";
 import { createInMemoryProfileStore } from "../../core/session/profile-store.js";
@@ -208,6 +208,36 @@ describe("world-graph W45 source and validation", () => {
       expect.objectContaining({ code: "spawn_not_traversable", path: "content.maps[0].spawnPoints[1]" }),
       expect.objectContaining({ code: "position_out_of_bounds", path: "content.maps[0].exits[0]" }),
     ]));
+  });
+
+  it("rejects out-of-bounds and overlapping scenery placements using building placement's own geometry", () => {
+    const built = envelope();
+    const base = runtime().content;
+    const palm = {
+      id: "palm", text: { nameKey: "scenery.palm.name", descriptionKey: "scenery.palm.description" },
+      footprint: { width: 1, height: 1 }, allowedRotations: [0 as const], placementRules: [], adjacencyEffects: [], tags: [],
+    };
+    const invalid = {
+      ...built.campaign,
+      content: {
+        ...base,
+        scenery: [palm],
+        scenarios: base.scenarios.map((scenario) => ({
+          ...scenario,
+          sceneryPlacements: [
+            { definitionId: "palm", x: 1, y: 1, rotation: 0 as const },
+            { definitionId: "palm", x: 1, y: 1, rotation: 0 as const },
+            { definitionId: "palm", x: 10, y: 10, rotation: 0 as const },
+          ],
+        })),
+      },
+    };
+    const errors = worldGraphKind.validateCampaign(invalid, built.strings).errors;
+    expect(errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "placement_overlaps", path: "content.scenarios[0].sceneryPlacements[1]" }),
+      expect.objectContaining({ code: "placement_out_of_bounds", path: "content.scenarios[0].sceneryPlacements[2]" }),
+    ]));
+    expect(errors.some((entry) => entry.path === "content.scenarios[0].sceneryPlacements[0]")).toBe(false);
   });
 
   it("rejects non-positive edge costs on explicit map topology", () => {
@@ -524,6 +554,60 @@ describe("world-graph W45 engine seam", () => {
     expect(state.map.revision).toBe(2);
     game = runtimeEngine.submitAction(game, "fire_staff", { staffId: "staff:2" }).value!;
     expect(stateOf(game).staff).toEqual([]);
+  });
+
+  it("routes a demolished guest to the nearer reachable exit, not map.exits[0]", () => {
+    const baseMap = runtime().content.maps[0]!;
+    const maps = [{ ...baseMap, width: 9, exits: [{ x: 8, y: 1 }, { x: 1, y: 1 }] }];
+    const runtimeEngine = engine({ maps });
+    const game = runtimeEngine.submitAction(create({ maps }), "build", { definitionId: "kiosk", x: 4, y: 1, rotation: 0 }).value!;
+    const state = stateOf(game);
+    const guest: Guest = {
+      id: "guest:99", archetypeId: "guest", lifecycle: "seeking", tickEntered: 0, stayDurationTicks: 100,
+      x: 0, y: 1, path: [], pathIndex: 0, drawCount: 0, cashCents: 0,
+      intent: { kind: "seek_service", buildingId: "building:0", productId: null, selectedAtTick: 0 },
+      needs: {}, conditions: {}, opinions: {}, preferences: {}, satisfaction: 100,
+      patienceCapacityTicks: 100, patienceRemainingTicks: 100, lastServedTick: null, spentTicks: 0,
+    };
+    const withGuest = { ...game, kindState: { ...state, guests: [guest] } };
+    const demolished = runtimeEngine.submitAction(withGuest, "demolish", { buildingId: "building:0" }).value!;
+    expect(stateOf(demolished).guests[0]?.intent).toMatchObject({ kind: "leave", exit: { x: 1, y: 1 } });
+
+    // W93.5: deterministic across two runs from the same pre-demolition state...
+    const secondRun = runtimeEngine.submitAction(withGuest, "demolish", { buildingId: "building:0" }).value!;
+    expect(secondRun).toEqual(demolished);
+
+    // ...and across a serialize/deserialize cut immediately before the corrected operation.
+    const restored = runtimeEngine.deserialize(runtimeEngine.serialize(withGuest)).value!;
+    const fromRestored = runtimeEngine.submitAction(restored, "demolish", { buildingId: "building:0" }).value!;
+    expect(fromRestored).toEqual(demolished);
+  });
+
+  it("assign_staff emits a StateChange row only for the assignment field that actually changed", () => {
+    const baseMap = runtime().content.maps[0]!;
+    const maps = [{
+      ...baseMap,
+      zones: [{ id: "zone-a", text: { nameKey: "zone.a.name", descriptionKey: "zone.a.description" }, cells: [{ x: 0, y: 0 }], serviceRadius: 5, maxOccupancy: null }],
+    }];
+    const runtimeEngine = engine({ maps });
+    let game = runtimeEngine.submitAction(create({ maps }), "build", { definitionId: "kiosk", x: 2, y: 1, rotation: 0 }).value!;
+    game = runtimeEngine.submitAction(game, "hire_staff", { definitionId: "cleaner" }).value!;
+
+    const buildingOnly = runtimeEngine.submitAction(game, "assign_staff", { staffId: "staff:2", buildingId: "building:0" });
+    expect(buildingOnly.changes).toEqual([
+      expect.objectContaining({ path: "staff.staff:2.assignedBuildingId", value: "building:0", previous: "" }),
+    ]);
+    game = buildingOnly.value!;
+
+    const zoneOnly = runtimeEngine.submitAction(game, "assign_staff", { staffId: "staff:2", buildingId: "building:0", zoneId: "zone-a" });
+    expect(zoneOnly.changes).toEqual([
+      expect.objectContaining({ path: "staff.staff:2.assignedZoneId", value: "zone-a", previous: "" }),
+    ]);
+    game = zoneOnly.value!;
+
+    const samePair = runtimeEngine.submitAction(game, "assign_staff", { staffId: "staff:2", buildingId: "building:0", zoneId: "zone-a" });
+    expect(samePair.ok).toBe(true);
+    expect(samePair.changes).toEqual([]);
   });
 
   it("dismisses a persisted alert once and accepts repeat dismissal as a no-op", () => {
