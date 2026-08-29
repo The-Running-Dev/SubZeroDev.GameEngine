@@ -252,7 +252,7 @@
 
 ### [x] W92 — Local and CI Gate Health {#w92}
 
-### [ ] W93 — World-Graph Spatial and Audit Correctness {#w93}
+### [x] W93 — World-Graph Spatial and Audit Correctness {#w93}
 
 ### [ ] W94 — Simulation Resolution Correctness {#w94}
 

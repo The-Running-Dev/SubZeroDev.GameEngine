@@ -3963,7 +3963,7 @@ Chromium, and a responsive shared header covered at phone and desktop widths.
 and terminology coverage in a 46-second local run; the remaining CI/bootstrap/cache/header
 work shipped in [PR #377](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/377).
 
-### [ ] W93 — World-Graph Spatial and Audit Correctness {#w93}
+### [x] W93 — World-Graph Spatial and Audit Correctness {#w93}
 
 **Delivers:** World-graph players can demolish, place scenery, and reassign staff without the
 engine choosing the wrong route, accepting invalid geometry, or reporting changes that did not happen.
@@ -3977,25 +3977,25 @@ engine choosing the wrong route, accepting invalid geometry, or reporting change
       `actions/staff.ts`, `initial.ts`, `spatial.ts`, `validate.ts`, `content.ts`,
       `source.ts`, `tick/effects.ts`, and focused tests beside those seams.
 - **Depends on:** nothing beyond the shipped world-graph kind.
-- **Status:** Not started.
+- **Status:** Complete — [PR #398](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/398), merged at `f0735fc`.
 - **Done when:**
-  - W93.1 Demolishing a building sends each displaced guest to the reachable exit with the
+  - [x] W93.1 Demolishing a building sends each displaced guest to the reachable exit with the
         lowest canonical path cost from that guest's position; equal-cost exits use the
         row-major tie-break from §9.3, and a test proves a nearer exit other than
         `map.exits[0]` wins.
-  - W93.2 Scenario scenery placements are rejected at Tier 1 when their rotated footprint is
+  - [x] W93.2 Scenario scenery placements are rejected at Tier 1 when their rotated footprint is
         out of bounds or overlaps another placed footprint, using the same rotation and
         occupancy rules as runtime building placement; the finding names the exact
         `sceneryPlacements[n]` path.
-  - W93.3 `assign_staff` returns a `StateChange` only for an assignment field whose value
+  - [x] W93.3 `assign_staff` returns a `StateChange` only for an assignment field whose value
         changed. Changing only the building emits no unchanged zone row, changing only the
         zone emits no unchanged building row, and submitting the current pair emits neither.
-  - W93.4 Direct tests cover the public behaviour of `validate.ts`, `content.ts`, `source.ts`,
+  - [x] W93.4 Direct tests cover the public behaviour of `validate.ts`, `content.ts`, `source.ts`,
         and deferred/non-deferred effect application in `tick/effects.ts`; deleting any one
         of those suites makes the engine test gate fail.
-  - W93.5 Every added spatial fixture is deterministic across two runs and across a
+  - [x] W93.5 Every added spatial fixture is deterministic across two runs and across a
         serialize/deserialize cut immediately before the corrected operation.
-  - W93.6 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/` with every
+  - [x] W93.6 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/` with every
         previously committed replay outcome unchanged.
 - **Out of scope:** changing canonical-path cost or tie-breaking, adding new placement rules,
       adding scenery build/demolish actions, or broadening `StateChange` beyond the scalar-path
