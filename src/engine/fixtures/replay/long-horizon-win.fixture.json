@@ -45,6 +45,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-1",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "apply_for_job",
         "targetId": "job-cashier"
       }
@@ -178,6 +186,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-5",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -232,14 +248,6 @@
     {
       "actionId": "plan.add",
       "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-1"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
         "actionType": "eat"
       }
     },
@@ -263,14 +271,6 @@
       "params": {
         "actionType": "accept_opportunity",
         "targetId": "opp-side-gig-7"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-6"
       }
     },
     {
@@ -328,6 +328,14 @@
     },
     {
       "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-9",
+        "choiceId": "choice-a"
+      }
     },
     {
       "actionId": "plan.add",
@@ -421,14 +429,6 @@
     {
       "actionId": "plan.add",
       "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-10"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
         "actionType": "eat"
       }
     },
@@ -457,7 +457,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "maintain_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -526,7 +526,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -554,6 +554,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-14",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -562,14 +570,6 @@
       "params": {
         "actionType": "decline_opportunity",
         "targetId": "opp-side-gig-14"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-14"
       }
     },
     {
@@ -603,7 +603,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -687,7 +687,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -724,6 +724,14 @@
     },
     {
       "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-18",
+        "choiceId": "choice-a"
+      }
     },
     {
       "actionId": "plan.add",
@@ -770,7 +778,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -778,14 +786,6 @@
       "params": {
         "actionType": "accept_opportunity",
         "targetId": "opp-side-gig-19"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-19"
       }
     },
     {
@@ -880,7 +880,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -904,6 +904,14 @@
     },
     {
       "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-22",
+        "choiceId": "choice-a"
+      }
     },
     {
       "actionId": "plan.add",
@@ -957,7 +965,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -965,14 +973,6 @@
       "params": {
         "actionType": "accept_opportunity",
         "targetId": "opp-side-gig-23"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-23"
       }
     },
     {
@@ -1048,7 +1048,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -1131,6 +1131,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-27",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -1145,7 +1153,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -1193,14 +1201,6 @@
     {
       "actionId": "plan.add",
       "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-28"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
         "actionType": "eat"
       }
     },
@@ -1230,7 +1230,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -1313,6 +1313,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-31",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -1327,7 +1335,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -1381,14 +1389,6 @@
     {
       "actionId": "plan.add",
       "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-32"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
         "actionType": "exercise"
       }
     },
@@ -1424,7 +1424,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -1508,7 +1508,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -1545,6 +1545,14 @@
     },
     {
       "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-36",
+        "choiceId": "choice-a"
+      }
     },
     {
       "actionId": "plan.add",
@@ -1598,7 +1606,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -1606,14 +1614,6 @@
       "params": {
         "actionType": "accept_opportunity",
         "targetId": "opp-side-gig-37"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-37"
       }
     },
     {
@@ -1695,7 +1695,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -1726,6 +1726,14 @@
     },
     {
       "actionId": "end_week"
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-40",
+        "choiceId": "choice-a"
+      }
     },
     {
       "actionId": "plan.add",
@@ -1786,7 +1794,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -1801,14 +1809,6 @@
       "params": {
         "actionType": "accept_opportunity",
         "targetId": "opp-side-gig-41"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-41"
       }
     },
     {
@@ -1904,7 +1904,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -1980,6 +1980,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-45",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -1994,7 +2002,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -2002,14 +2010,6 @@
       "params": {
         "actionType": "accept_opportunity",
         "targetId": "opp-side-gig-45"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-45"
       }
     },
     {
@@ -2086,7 +2086,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -2155,6 +2155,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-49",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -2169,7 +2177,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -2231,14 +2239,6 @@
     {
       "actionId": "plan.add",
       "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-50"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
         "actionType": "exercise"
       }
     },
@@ -2281,7 +2281,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -2358,7 +2358,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -2392,6 +2392,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-54",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -2413,14 +2421,6 @@
       "params": {
         "actionType": "decline_opportunity",
         "targetId": "opp-side-gig-54"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-54"
       }
     },
     {
@@ -2461,7 +2461,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -2565,7 +2565,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -2600,6 +2600,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-58",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -2615,14 +2623,6 @@
       "params": {
         "actionType": "decline_opportunity",
         "targetId": "opp-side-gig-58"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-58"
       }
     },
     {
@@ -2657,7 +2657,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -2740,7 +2740,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -2802,6 +2802,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-63",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -2809,7 +2817,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -2817,14 +2825,6 @@
       "params": {
         "actionType": "accept_opportunity",
         "targetId": "opp-side-gig-63"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-63"
       }
     },
     {
@@ -2886,7 +2886,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -2949,6 +2949,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-67",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -2956,7 +2964,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -2964,14 +2972,6 @@
       "params": {
         "actionType": "accept_opportunity",
         "targetId": "opp-side-gig-67"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-67"
       }
     },
     {
@@ -3047,7 +3047,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -3110,6 +3110,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-71",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -3117,7 +3125,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -3125,14 +3133,6 @@
       "params": {
         "actionType": "accept_opportunity",
         "targetId": "opp-side-gig-71"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-71"
       }
     },
     {
@@ -3200,7 +3200,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -3269,6 +3269,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-75",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -3276,7 +3284,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -3284,14 +3292,6 @@
       "params": {
         "actionType": "accept_opportunity",
         "targetId": "opp-side-gig-75"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-75"
       }
     },
     {
@@ -3360,7 +3360,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -3429,7 +3429,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -3457,6 +3457,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-80",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -3465,14 +3473,6 @@
       "params": {
         "actionType": "decline_opportunity",
         "targetId": "opp-side-gig-80"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-80"
       }
     },
     {
@@ -3513,7 +3513,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -3597,7 +3597,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -3631,6 +3631,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-84",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -3639,14 +3647,6 @@
       "params": {
         "actionType": "decline_opportunity",
         "targetId": "opp-side-gig-84"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-84"
       }
     },
     {
@@ -3674,7 +3674,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -3756,7 +3756,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -3784,6 +3784,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-88",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -3792,14 +3800,6 @@
       "params": {
         "actionType": "decline_opportunity",
         "targetId": "opp-side-gig-88"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-88"
       }
     },
     {
@@ -3833,7 +3833,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -3916,7 +3916,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -3978,6 +3978,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-93",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -3985,7 +3993,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -3993,14 +4001,6 @@
       "params": {
         "actionType": "accept_opportunity",
         "targetId": "opp-side-gig-93"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-93"
       }
     },
     {
@@ -4070,7 +4070,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -4139,6 +4139,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-97",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -4146,7 +4154,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -4161,14 +4169,6 @@
       "params": {
         "actionType": "accept_opportunity",
         "targetId": "opp-side-gig-97"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-97"
       }
     },
     {
@@ -4236,7 +4236,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -4306,7 +4306,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -4340,6 +4340,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-102",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -4348,14 +4356,6 @@
       "params": {
         "actionType": "decline_opportunity",
         "targetId": "opp-side-gig-102"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-102"
       }
     },
     {
@@ -4383,7 +4383,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -4452,7 +4452,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -4494,6 +4494,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-106",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -4508,14 +4516,6 @@
       "params": {
         "actionType": "decline_opportunity",
         "targetId": "opp-side-gig-106"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-106"
       }
     },
     {
@@ -4543,7 +4543,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -4632,7 +4632,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -4701,6 +4701,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-111",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -4708,7 +4716,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -4716,14 +4724,6 @@
       "params": {
         "actionType": "accept_opportunity",
         "targetId": "opp-side-gig-111"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-111"
       }
     },
     {
@@ -4779,7 +4779,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -4848,6 +4848,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-115",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -4855,7 +4863,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -4863,14 +4871,6 @@
       "params": {
         "actionType": "accept_opportunity",
         "targetId": "opp-side-gig-115"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-115"
       }
     },
     {
@@ -4939,7 +4939,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -5002,7 +5002,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -5036,6 +5036,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-120",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -5050,14 +5058,6 @@
       "params": {
         "actionType": "decline_opportunity",
         "targetId": "opp-side-gig-120"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-120"
       }
     },
     {
@@ -5106,7 +5106,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -5188,7 +5188,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -5216,6 +5216,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-124",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -5224,14 +5232,6 @@
       "params": {
         "actionType": "decline_opportunity",
         "targetId": "opp-side-gig-124"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-124"
       }
     },
     {
@@ -5259,7 +5259,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -5335,7 +5335,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -5363,6 +5363,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-128",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -5371,14 +5379,6 @@
       "params": {
         "actionType": "decline_opportunity",
         "targetId": "opp-side-gig-128"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-128"
       }
     },
     {
@@ -5412,7 +5412,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -5495,7 +5495,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -5557,6 +5557,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-133",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -5564,7 +5572,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -5572,14 +5580,6 @@
       "params": {
         "actionType": "accept_opportunity",
         "targetId": "opp-side-gig-133"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-133"
       }
     },
     {
@@ -5655,7 +5655,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -5718,6 +5718,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-137",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -5725,7 +5733,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -5740,14 +5748,6 @@
       "params": {
         "actionType": "accept_opportunity",
         "targetId": "opp-side-gig-137"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-137"
       }
     },
     {
@@ -5809,7 +5809,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "repair_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -5850,7 +5850,7 @@
       "actionId": "plan.add",
       "params": {
         "actionType": "sell_item",
-        "targetId": "inv-action-58"
+        "targetId": "inv-action-59"
       }
     },
     {
@@ -5919,6 +5919,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-142",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -5933,14 +5941,6 @@
       "params": {
         "actionType": "decline_opportunity",
         "targetId": "opp-side-gig-142"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-142"
       }
     },
     {
@@ -6065,6 +6065,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-146",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -6073,14 +6081,6 @@
       "params": {
         "actionType": "decline_opportunity",
         "targetId": "opp-side-gig-146"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-146"
       }
     },
     {
@@ -6246,6 +6246,14 @@
     {
       "actionId": "plan.add",
       "params": {
+        "actionType": "respond_to_event",
+        "targetId": "pending-event-choice-151",
+        "choiceId": "choice-a"
+      }
+    },
+    {
+      "actionId": "plan.add",
+      "params": {
         "actionType": "work"
       }
     },
@@ -6254,14 +6262,6 @@
       "params": {
         "actionType": "accept_opportunity",
         "targetId": "opp-side-gig-151"
-      }
-    },
-    {
-      "actionId": "plan.add",
-      "params": {
-        "actionType": "respond_to_event",
-        "choiceId": "choice-a",
-        "targetId": "pending-event-choice-151"
       }
     },
     {

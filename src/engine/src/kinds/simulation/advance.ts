@@ -36,6 +36,7 @@ import { runEndOfWeek } from "./endOfWeek.js";
 import { outcome as computeOutcome } from "./outcome.js";
 import type { SimulationCampaign } from "./campaign.js";
 import type { SimulationKindState } from "./state.js";
+import { unaddressedPendingResponses } from "./state.js";
 
 const PLAN_CHANGED_EVENT = "kind.simulation.plan.changed";
 const ACTION_RESOLVED_EVENT = "kind.simulation.action.resolved";
@@ -127,6 +128,9 @@ export function advance(
       if (!action) {
         return rejected(state, "unknown_action", "core.reason.unknown_action");
       }
+      if (action.type !== "respond_to_event" && unaddressedPendingResponses(state).length > 0) {
+        return rejected(state, "event_response_pending", "simulation.reason.event_response_pending");
+      }
       const plan = addAction(requirePlan(state), action);
       ctx.emit.emit(PLAN_CHANGED_EVENT, "debug", { data: { actionId: "plan.add" } });
       return { state: { ...state, plan }, status: "active", changes: [], messages: [] };
@@ -150,6 +154,9 @@ export function advance(
     }
 
     case "end_week": {
+      if (unaddressedPendingResponses(state).length > 0) {
+        return rejected(state, "event_response_pending", "simulation.reason.event_response_pending");
+      }
       const plan = requirePlan(state);
       let working = state;
       const changes: StateChange[] = [];

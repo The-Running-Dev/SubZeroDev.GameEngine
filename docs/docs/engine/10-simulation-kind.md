@@ -310,8 +310,9 @@ interface PendingEventResponse {
 `PendingEventResponse` implements the deferred-event model (upstream §11.5): events roll at the
 end of week N; those needing a decision queue here and are presented at the start of week N+1
 (the `events` entry in §12.1's start-of-week order), where their time cost competes against a
-fresh budget. `end_week` (§4) refuses to resolve while `pendingEventResponses` is non-empty —
-the concrete reason code is named once §10 (Reason Codes) has a real caller to attach it to.
+fresh budget. `end_week`, and any `plan.add` other than `respond_to_event`, refuse while a
+`PendingEventResponse` remains unaddressed by the current plan — `event_response_pending`
+(§10, W94).
 
 #### Opportunity Lifecycle
 
@@ -2068,6 +2069,7 @@ author, and a client rendering a history.
 | `wrong_location` | An action's type is not in the current location's `actionTypes` (§7.9), or a `travel` target is not in `connections` | registered (W53) |
 | `plan_empty` | `end_week` with nothing planned, where the campaign forbids it | specified, not yet dispatched |
 | `week_limit_reached` | The scenario's week cap is exhausted | specified, not yet dispatched |
+| `event_response_pending` | `end_week`, or a `plan.add` for any `ActionType` other than `respond_to_event`, while a `PendingEventResponse` (§2.3) remains unaddressed by the current plan | registered (W94) |
 
 Reused from the base set: `unknown_action`, `requirement_unmet`, `session_ended`,
 `action_not_available` (a `"custom"` `GameAction` reaching resolution, §4.2).

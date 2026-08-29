@@ -91,6 +91,7 @@ import { governingMaintenanceRule } from "./resolvers.js";
 import type {
   Cents,
   GoalState,
+  JobOpening,
   Opportunity,
   PendingEventResponse,
   ScheduledEvent,
@@ -271,17 +272,39 @@ function findJob(jobs: readonly JobDefinition[], jobId: string): JobDefinition |
   return jobs.find((j) => j.id === jobId);
 }
 
+/**
+ * Fills one position of the named `JobOpening` (W94.4). A finite opening
+ * (`positionsAvailable` defined, §7.2) decrements and stays listed while more than one
+ * position remains, and is retired — removed — only when the position filled was its last.
+ * An unbounded opening (`positionsAvailable` absent, uncontested) keeps its prior,
+ * single-hire-retires-it behavior, unchanged by this unit.
+ *
+ * Actor-agnostic by construction: nothing here reads who filled the position, so the same
+ * transition applies whether the caller is `resolveApplications`' own player hire or, once
+ * §7.10's rivals are wired into resolution, a scripted rival's — the identity lives entirely
+ * on the caller's side.
+ */
+export function fillJobOpening(openings: readonly JobOpening[], jobId: string): JobOpening[] {
+  return openings.flatMap((opening) => {
+    if (opening.jobId !== jobId) return [opening];
+    if (opening.positionsAvailable === undefined) return [];
+    if (opening.positionsAvailable > 1) return [{ ...opening, positionsAvailable: opening.positionsAvailable - 1 }];
+    return [];
+  });
+}
+
 /** Resolves every `pendingApplications` entry whose `resolvesWeek` has arrived. Hires into
  *  `currentEmployment` if the player isn't already employed; otherwise the application is
  *  simply dropped (this kind has no concept of holding two jobs, and no "decline offer"
  *  action exists yet for the player to have refused it explicitly). At most one hire per
  *  week — this kind's own single-actor scope, not a contested-position race (§7.10's own
- *  "rivals are a real, still-open gap"). Removes the filled `JobOpening` so a second
- *  `apply_for_job` against the same posting fails `requirement_unmet` (no open posting to
- *  find), not because anything here tracks `positionsAvailable` down to zero. An application
- *  whose `jobId` no longer resolves against `jobs` (content removed or renamed) is dropped
- *  the same way, but emits `employment.application_lost` first — the only trace of it
- *  otherwise. */
+ *  "rivals are a real, still-open gap"). Fills the `JobOpening` via `fillJobOpening` (W94.4)
+ *  so a second `apply_for_job` against a now-exhausted finite posting fails
+ *  `requirement_unmet` (no open posting to find) once `positionsAvailable` actually reaches
+ *  zero, not on the first hire regardless of how many positions the posting named. An
+ *  application whose `jobId` no longer resolves against `jobs` (content removed or renamed)
+ *  is dropped the same way, but emits `employment.application_lost` first — the only trace
+ *  of it otherwise. */
 function resolveApplications(
   state: SimulationKindState,
   jobs: readonly JobDefinition[],
@@ -332,7 +355,7 @@ function resolveApplications(
     },
     world: filledJobId === undefined
       ? state.world
-      : { ...state.world, jobMarket: { openings: state.world.jobMarket.openings.filter((o) => o.jobId !== filledJobId) } },
+      : { ...state.world, jobMarket: { openings: fillJobOpening(state.world.jobMarket.openings, filledJobId) } },
   };
 }
 

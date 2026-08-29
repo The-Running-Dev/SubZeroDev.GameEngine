@@ -59,6 +59,11 @@
  * as a `ValidationError`, and this file's own rule is that a code joins when the unit that
  * produces it exists. `plan_empty` keeps its separate gate: no `SimulationCampaign` field
  * exists for a campaign to forbid an empty plan with.
+ *
+ * W94 adds `event_response_pending` — §2.3's own callout that "the concrete reason code is
+ * named once §10 has a real caller to attach it to." `advance.ts`'s `end_week` and `plan.add`
+ * (for any `ActionType` other than `respond_to_event`) are that caller, rejecting while
+ * `unaddressedPendingResponses` (`state.ts`) is non-empty.
  */
 
 import type { LocKey } from "../../core/localization/types.js";
@@ -123,6 +128,8 @@ export const SIMULATION_REASON_CODES = [
   "opportunity_revoked",
   "headline_shown",
   "world_strangeness_shifted",
+  // W94 — the mandatory-event gate (§2.3, §10).
+  "event_response_pending",
 ] as const;
 
 export type SimulationReasonCode = (typeof SIMULATION_REASON_CODES)[number];
@@ -180,6 +187,7 @@ const SIMULATION_REASON_TEXT: Readonly<Record<SimulationReasonCode, string>> = {
   opportunity_revoked: "An opportunity was withdrawn.",
   headline_shown: "This week's news.",
   world_strangeness_shifted: "The world feels a little different.",
+  event_response_pending: "You need to deal with this first.",
 };
 
 /** `simulation.reason.<code>` → its shipped default-English message, for every code. */

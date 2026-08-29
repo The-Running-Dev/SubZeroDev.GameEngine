@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 7ec4bb80b9e678dfaca9c45af224b17bd136e1c0468fad4ae72fe801e75b4dfd -->
+<!-- design-digest: 67a4ac8fe086364a3c2fb63f20d361990504a483a6753dd41287424ca09534e0 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -563,14 +563,17 @@ builds an immutable plan with logged `plan.add`, `plan.remove`, and `plan.clear`
 submits `end_week` to resolve it — assembling a plan is therefore replayable at the same grain as
 playing it, because every one of those calls is its own logged action.
 
-The week pipeline is contract behavior, not an implementation detail. Start-of-week time handling
-splits around effect expiry — the week must increment before checking which effects have expired,
-because expiry compares against the new week number, but commitments must be recomputed after,
-because an expiring effect changes what those commitments are. End-of-week systems then run once in
-a fixed, tested order: income and expenses run before housing so current wages can fund rent, while
-finance reconciliation runs after housing so arrears and eviction see that week's actual rent
-decision; a week-limit check runs after goals and failure have already applied the scenario's own
-tie-break between them, and before achievements, which need to see the final resolution.
+The week pipeline is contract behavior, not an implementation detail. Start-of-week processing
+runs in a fixed order — advance the week and reset spent time, expire effects past their week,
+recompute committed time, then present any event response deferred from the week before. Time
+handling splits around effect expiry deliberately: the week must increment before checking which
+effects have expired, because expiry compares against the new week number, but commitments must be
+recomputed after, because an expiring effect changes what those commitments are. End-of-week
+systems then run once in a fixed, tested order: income and expenses run before housing so current
+wages can fund rent, while finance reconciliation runs after housing so arrears and eviction see
+that week's actual rent decision; a week-limit check runs after goals and failure have already
+applied the scenario's own tie-break between them, and before achievements, which need to see the
+final resolution.
 
 **State stores base values; modifiers never write to state.** A derived value is computed on every
 read by layering active modifiers over the base, in a fixed order: sum the adds and subtracts,
@@ -600,6 +603,12 @@ Important constraints:
 - Scheduled events fire once committed, unconditionally, even if their triggering condition has
   since drifted; cancellation requires an explicit shared chain id rather than re-checking
   eligibility at fire time, which would let a multi-week chain break silently in the middle.
+- **An event needing a decision defers to the following week, and blocks the plan until it is
+  answered.** An event that fires at the end of week N and carries choices queues as a pending
+  response rather than resolving immediately; it is presented at the start of week N+1, where its
+  time cost competes against that week's fresh budget. While one is outstanding, `end_week` and
+  every `plan.add` other than `respond_to_event` are rejected with `event_response_pending` — a
+  player cannot plan or close out a week around an event they have not actually addressed.
 - Hidden exact economy values project as bands (`cold`/`steady`/`hot`), not raw optimization
   inputs a player could game the job-availability formula with.
 
