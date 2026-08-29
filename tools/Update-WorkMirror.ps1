@@ -246,6 +246,25 @@ function ConvertTo-WorkRefLines {
 }
 
 <#
+    The mirrored-field signature: every WorkRef line except MirroredAt, which is the mirror's
+    freshness stamp rather than mirrored content (S14.2) - two records agree here exactly when
+    they differ, if at all, only in which commit last touched them.
+#>
+function Get-WorkRefSignature {
+    param([string[]] $Lines)
+    (@($Lines) | Where-Object { $_ -notmatch '^MirroredAt:' }) -join "`n"
+}
+
+function Get-ExistingWorkRefLines {
+    param([Parameter(Mandatory)][string] $Path)
+    if (-not (Test-Path -LiteralPath $Path)) { return $null }
+    $raw = Get-Content -LiteralPath $Path -Raw
+    $lines = $raw -split "`r?`n"
+    if ($lines.Count -gt 0 -and $lines[-1] -eq '') { $lines = $lines[0..($lines.Count - 2)] }
+    ,@($lines)
+}
+
+<#
     The main entry point. RepoPath scopes both the freeze check and where records land;
     Repository (owner/repo) is passed through to gh exactly as Test-DesignDrift.ps1 does, and
     left empty to let gh resolve the current remote itself.
@@ -281,6 +300,12 @@ function Invoke-WorkMirrorUpdate {
         $rank = Get-IssueRank -Issue $issue -ProjectPositions $projectPositions
         $lines = ConvertTo-WorkRefLines -Issue $issue -Rank $rank -Sha $sha
         $file = Join-Path $workDir "$($issue.number).md"
+
+        $existingLines = Get-ExistingWorkRefLines -Path $file
+        if ($existingLines -and (Get-WorkRefSignature $existingLines) -eq (Get-WorkRefSignature $lines)) {
+            continue
+        }
+
         $text = (($lines -join "`n") + "`n")
         Set-Content -LiteralPath $file -Value $text -NoNewline -Encoding utf8NoBOM
         $written.Add([pscustomobject]@{ Id = "work/$($issue.number)"; Path = $file })

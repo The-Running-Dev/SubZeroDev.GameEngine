@@ -13,8 +13,11 @@
 BeforeAll {
     $script:ScriptPath = Join-Path $PSScriptRoot 'Invoke-CodexCommand.ps1'
     $script:RepoRoot = Split-Path $PSScriptRoot -Parent
+    # -local files are per-repository vocabulary companions (.claude/COMPANIONS.md), not
+    # invocable slash commands in their own right - they carry no profile of their own.
     $script:CommandNames = Get-ChildItem (Join-Path $script:RepoRoot '.claude/commands/*.md') |
-        ForEach-Object { $_.BaseName }
+        ForEach-Object { $_.BaseName } |
+        Where-Object { $_ -notlike '*-local' }
 }
 
 Describe 'Invoke-CodexCommand command map' {
