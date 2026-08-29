@@ -1,4 +1,5 @@
 import type { AdvanceResult, KindContext } from "../../../core/kernel/types.js";
+import type { StateChange } from "../../../core/kernel/reasons.js";
 import { worldGraphContent } from "../content.js";
 import type { WorldGraphKindState } from "../state.js";
 import { accepted, change, emit, optionalStringParam, params, rejected, spend, stringParam } from "./common.js";
@@ -59,7 +60,9 @@ export function assignStaff(state: WorldGraphKindState, raw: Parameters<typeof p
   const zoneId = zoneParam ?? null;
   if (buildingId !== null && !state.buildings.some((entry) => entry.id === buildingId)) return rejected(state, "unknown_entity");
   if (zoneId !== null && !state.map.zones.some((entry) => entry.id === zoneId)) return rejected(state, "unknown_entity");
-  if (target.assignedBuildingId === buildingId && target.assignedZoneId === zoneId && target.task === null) return accepted(state, []);
+  const buildingChanged = target.assignedBuildingId !== buildingId;
+  const zoneChanged = target.assignedZoneId !== zoneId;
+  if (!buildingChanged && !zoneChanged && target.task === null) return accepted(state, []);
   const next = {
     ...state,
     staff: state.staff.map((entry) => entry.id === staffId ? {
@@ -68,8 +71,8 @@ export function assignStaff(state: WorldGraphKindState, raw: Parameters<typeof p
     } : entry),
   };
   emit(ctx, "staff.assigned", "trace", { staffId, ...(buildingId === null ? {} : { buildingId }), ...(zoneId === null ? {} : { zoneId }) });
-  return accepted(next, [
-    change(`staff.${staffId}.assignedBuildingId`, buildingId ?? "", "staff_assigned", false, target.assignedBuildingId ?? ""),
-    change(`staff.${staffId}.assignedZoneId`, zoneId ?? "", "staff_assigned", false, target.assignedZoneId ?? ""),
-  ]);
+  const changes: StateChange[] = [];
+  if (buildingChanged) changes.push(change(`staff.${staffId}.assignedBuildingId`, buildingId ?? "", "staff_assigned", false, target.assignedBuildingId ?? ""));
+  if (zoneChanged) changes.push(change(`staff.${staffId}.assignedZoneId`, zoneId ?? "", "staff_assigned", false, target.assignedZoneId ?? ""));
+  return accepted(next, changes);
 }
