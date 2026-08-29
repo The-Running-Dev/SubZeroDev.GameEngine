@@ -254,7 +254,7 @@
 
 ### [x] W93 — World-Graph Spatial and Audit Correctness {#w93}
 
-### [ ] W94 — Simulation Resolution Correctness {#w94}
+### [x] W94 — Simulation Resolution Correctness {#w94}
 
 ### [ ] W95 — Effect and Audit Semantics {#w95}
 
