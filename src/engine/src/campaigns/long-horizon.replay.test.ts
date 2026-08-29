@@ -16,14 +16,15 @@
  * `long-horizon-win` nor `long-horizon-loss` can reach it without contradicting W89.2's
  * own two terminal paths).
  *
- * **One observation this unit's own out-of-scope line explicitly does not fix**:
- * `long-horizon-loss`'s `pendingEventResponses` grows from 0 to 37 over the run, because
- * its own weekly policy never answers one (`long-horizon.ts`'s policy is deliberately
- * inactive so the eviction arithmetic stays exact) — nothing in this kind expires an
- * unanswered `PendingEventResponse`. That is exactly the shape of defect W89 exists to be
- * the first thing able to see (`design/30-slices.md`'s own W89.6 callout); the ceiling
- * below is asserted as an observed fact of this fixture, not a claim that the collection is
- * actually bounded — see the flagged follow-up this PR names.
+ * **W94 regenerated both fixtures.** The defect this file's own header used to flag here —
+ * `long-horizon-loss`'s `pendingEventResponses` growing from 0 to 37 unanswered, because
+ * nothing rejected `end_week` while one sat pending — is what `advance.ts`'s
+ * `event_response_pending` gate (W94.1/W94.2) now closes. Both committed submission logs
+ * were replayed through the gated engine and re-captured: every `PendingEventResponse` this
+ * run generates is answered with a queued `respond_to_event` before the `end_week` that
+ * would otherwise resolve it, `W94.5 — no pending response is ever bypassed` below is the
+ * assertion that stayed unwritable before this unit, and `pendingEventResponses` in the
+ * committed `.outcome.json` for both runs now ends at zero rather than accumulating.
  */
 
 import { describe, it, expect } from "vitest";
@@ -39,6 +40,7 @@ import type { IdSource } from "../core/composition/types.js";
 import { simulationKind } from "../kinds/simulation/kind.js";
 import { RESOLVER_TABLE, stubResolver } from "../kinds/simulation/resolvers.js";
 import type { SimulationKindState } from "../kinds/simulation/state.js";
+import { unaddressedPendingResponses } from "../kinds/simulation/state.js";
 import { buildLongHorizonWinCampaign, buildLongHorizonLossCampaign } from "./long-horizon.js";
 import { buildSimulationCampaign, type SimulationCampaignSource } from "../kinds/simulation/source.js";
 import { buildCampaign } from "../core/registry/build.js";
@@ -392,9 +394,10 @@ describe.skipIf(!HAS_BOTH_RUNS)("W89.6 — serialized size and unbounded-collect
     const final = unboundedCollectionCounts(state.kindState as SimulationKindState);
 
     // A generous, stated ceiling per collection — not a claim every one of these is
-    // actually bounded by contract. `pendingEventResponses` in particular is not: see
-    // this file's own header for `long-horizon-loss`'s unanswered-response growth, the
-    // exact shape of defect this ceiling exists to make visible rather than to excuse.
+    // actually bounded by contract. `pendingEventResponses` stays well under it now that
+    // W94.1's gate gets a response answered before another week can pass, unlike this
+    // file's own header before W94 — every existing `PendingEventResponse` is answered the
+    // same week it is presented, so this run never lets more than one accumulate at once.
     expect(final.activeEffects).toBeLessThanOrEqual(10);
     expect(final.activeOpportunities).toBeLessThanOrEqual(10);
     expect(final.scheduledEvents).toBeLessThanOrEqual(10);
@@ -409,6 +412,53 @@ describe.skipIf(!HAS_BOTH_RUNS)("W89.6 — serialized size and unbounded-collect
     expect(final.jobMarketOpenings).toBeLessThanOrEqual(10);
 
     expect(engine.serialize(state).length).toBeLessThan(200_000);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// W94.5 — the win and loss paths run their full length without ever bypassing a pending
+// event response: every `end_week` in the recorded log happens with no unaddressed pending
+// response, and every submission is accepted — the gate exists to reject, not to be dodged
+// by a submission log that simply never triggers it, and not to be "passed" by a run in
+// which nothing was accepted at all.
+// ---------------------------------------------------------------------------
+
+describe.skipIf(!HAS_BOTH_RUNS)("W94.5 — no pending response is ever bypassed", () => {
+  it.for(BOTH_RUNS)("%s: every accepted end_week runs with no unaddressed pending response", async (name) => {
+    const engine = createEngine({ kinds, registry: buildRegistry() });
+    const fixture = loadFixture(name);
+    const created = engine.createGame(fixture.config);
+    if (!created.ok || !created.value) throw new Error(`${name}: expected createGame to succeed`);
+
+    let state = created.value;
+    let acceptedCount = 0;
+    let endWeekCount = 0;
+
+    for (const [index, submission] of fixture.submissions.entries()) {
+      if (submission.actionId === "end_week") {
+        // The gate's own condition (`unaddressedPendingResponses`, `state.ts`) — not "no
+        // pending at all": a response presented this week is legitimately still in
+        // `pendingEventResponses` right up until this same `end_week` resolves the queued
+        // `respond_to_event` that answers it. Imported rather than re-implemented here, so
+        // this asserts against the gate the engine actually applies.
+        expect(unaddressedPendingResponses(state.kindState as SimulationKindState)).toEqual([]);
+        endWeekCount += 1;
+      }
+      const result = engine.submitAction(state, submission.actionId, submission.params);
+      // Refusing to swallow a rejection is what stops the three closing expectations passing
+      // vacuously: an engine that rejected the whole log would leave `state` at
+      // `createGame`'s own empty `pendingEventResponses`, leave `endWeekCount` counting
+      // submissions rather than acceptances, and still satisfy every one of them.
+      if (!result.ok || !result.value) {
+        throw new Error(`${name}: submission ${index} (${submission.actionId}) was rejected as ${result.errors[0]?.code ?? "unknown"}`);
+      }
+      state = result.value;
+      acceptedCount += 1;
+    }
+
+    expect(acceptedCount).toBe(fixture.submissions.length);
+    expect(endWeekCount).toBeGreaterThanOrEqual(150);
+    expect((state.kindState as SimulationKindState).pendingEventResponses).toEqual([]);
   });
 });
 

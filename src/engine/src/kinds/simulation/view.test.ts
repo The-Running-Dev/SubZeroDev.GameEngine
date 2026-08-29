@@ -155,11 +155,20 @@ describe("project (10-simulation-kind.md §9)", () => {
     expect(view.calendar.availableTimeUnits).toBe(14 - 2 - 5);
   });
 
-  it("carries the plan's own actions plus the full non-custom ActionType domain", () => {
+  it("narrows availableActionTypes to respond_to_event while a pending response is unaddressed (W94.1)", () => {
+    // `state`'s own `pendingEventResponses` (above) carries one response, and `plan.actions`
+    // (`rest`, not `respond_to_event`) does not address it.
     const view = project(state, "player", fakeCtx());
     expect(view.plan.actions).toEqual(state.plan?.actions);
+    expect(view.plan.availableActionTypes).toEqual(["respond_to_event"]);
+  });
+
+  it("carries the full non-custom ActionType domain once no pending response is unaddressed", () => {
+    const noPending: SimulationKindState = { ...state, pendingEventResponses: [] };
+    const view = project(noPending, "player", fakeCtx());
     expect(view.plan.availableActionTypes).not.toContain("custom");
     expect(view.plan.availableActionTypes).toContain("rest");
+    expect(view.plan.availableActionTypes).toContain("respond_to_event");
   });
 
   it("carries goals through with progressNotes, unfiltered but re-shaped", () => {

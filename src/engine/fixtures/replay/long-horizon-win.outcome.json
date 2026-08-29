@@ -65,13 +65,13 @@
     {
       "index": 10,
       "seq": 10,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 11,
       "seq": 11,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -95,13 +95,13 @@
     {
       "index": 15,
       "seq": 15,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 16,
       "seq": 16,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -137,13 +137,13 @@
     {
       "index": 22,
       "seq": 22,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 23,
       "seq": 23,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -173,13 +173,13 @@
     {
       "index": 28,
       "seq": 28,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 29,
       "seq": 29,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -215,7 +215,7 @@
     {
       "index": 35,
       "seq": 35,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
@@ -227,7 +227,7 @@
     {
       "index": 37,
       "seq": 37,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -251,13 +251,13 @@
     {
       "index": 41,
       "seq": 41,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 42,
       "seq": 42,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -383,13 +383,13 @@
     {
       "index": 63,
       "seq": 63,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 64,
       "seq": 64,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -755,13 +755,13 @@
     {
       "index": 125,
       "seq": 125,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 126,
       "seq": 126,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -941,13 +941,13 @@
     {
       "index": 156,
       "seq": 156,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 157,
       "seq": 157,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -1169,13 +1169,13 @@
     {
       "index": 194,
       "seq": 194,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 195,
       "seq": 195,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -1349,13 +1349,13 @@
     {
       "index": 224,
       "seq": 224,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 225,
       "seq": 225,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -1577,13 +1577,13 @@
     {
       "index": 262,
       "seq": 262,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 263,
       "seq": 263,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -1763,13 +1763,13 @@
     {
       "index": 293,
       "seq": 293,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 294,
       "seq": 294,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {
@@ -2195,13 +2195,13 @@
     {
       "index": 365,
       "seq": 365,
-      "actionId": "end_week",
+      "actionId": "plan.add",
       "accepted": true
     },
     {
       "index": 366,
       "seq": 366,
-      "actionId": "plan.add",
+      "actionId": "end_week",
       "accepted": true
     },
     {

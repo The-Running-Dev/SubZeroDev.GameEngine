@@ -32,7 +32,7 @@ import type {
   LocationState,
   JobOpening,
 } from "./state.js";
-import { demandBand } from "./state.js";
+import { demandBand, unaddressedPendingResponses } from "./state.js";
 import { ACTION_TYPES } from "./plan.js";
 import type { SimulationKindState } from "./state.js";
 import { resolveEffectiveAttributes, resolveEffectiveNeeds, resolveEffectiveSkills } from "./derived.js";
@@ -154,6 +154,12 @@ export interface PublicWorldState {
 }
 
 const PLAN_ACTION_TYPES: readonly ActionType[] = ACTION_TYPES.filter((t) => t !== "custom");
+
+/** W94.1: while a mandatory event response is unaddressed, the only `ActionType` the
+ *  projection offers is `respond_to_event` — `advance.ts`'s `plan.add` gate rejects
+ *  everything else for real; this is what a client reads to avoid offering it in the first
+ *  place. */
+const RESPOND_TO_EVENT_ONLY: readonly ActionType[] = ["respond_to_event"];
 
 function visibleRelationships(relationships: SimulationKindState["player"]["relationships"]): VisibleRelationship[] {
   return relationships.map((r) => ({
@@ -280,7 +286,7 @@ export function project(
     plan: {
       week: state.plan?.week ?? state.calendar.currentWeek,
       actions: state.plan?.actions ?? [],
-      availableActionTypes: PLAN_ACTION_TYPES,
+      availableActionTypes: unaddressedPendingResponses(state).length > 0 ? RESPOND_TO_EVENT_ONLY : PLAN_ACTION_TYPES,
     },
 
     world: {

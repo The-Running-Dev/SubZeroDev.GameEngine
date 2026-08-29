@@ -326,9 +326,35 @@ function validateUnreachableHousing(content: SimulationCampaign): ValidationWarn
     .map((h) => warning("unreachable_content", h.id));
 }
 
-/** An `ItemDefinition` no scenario's starting inventory ever references. */
+/** Every `LocationDefinition.id` reachable from some scenario's `startingLocationId`, by the
+ *  static `connections` adjacency graph (§7.9) — structural reachability, the only kind a
+ *  load-time check can evaluate; a location's own `unlockedBy` needs runtime state this pass
+ *  never has. */
+function reachableLocationIds(content: SimulationCampaign): Set<string> {
+  const byId = new Map(content.locations.map((l) => [l.id, l] as const));
+  const visited = new Set<string>();
+  const queue = content.scenarios.map((s) => s.startingLocationId);
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    if (visited.has(id)) continue;
+    visited.add(id);
+    for (const next of byId.get(id)?.connections ?? []) {
+      if (!visited.has(next)) queue.push(next);
+    }
+  }
+  return visited;
+}
+
+/** An `ItemDefinition` no scenario's starting inventory ever references, and no reachable
+ *  location's `actionTypes` permits `shop` (W94.3) — `shop` (`resolvers.ts`) buys any
+ *  `ItemDefinition` by id from a location that allows it, unconstrained by a per-location
+ *  stock list, so one reachable shop-capable location makes every item reachable, not just
+ *  the one a test happens to name. */
 function validateUnreachableItems(content: SimulationCampaign): ValidationWarning[] {
   const referenced = new Set(content.scenarios.flatMap((s) => s.startingInventory.map((i) => i.definitionId)));
+  const reachable = reachableLocationIds(content);
+  const shopReachable = content.locations.some((l) => reachable.has(l.id) && l.actionTypes.includes("shop"));
+  if (shopReachable) return [];
   return content.items
     .filter((i) => !referenced.has(i.id))
     .map((i) => warning("unreachable_content", i.id));
