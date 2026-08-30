@@ -2,6 +2,7 @@ import type { AdvanceResult, KindContext } from "../../../core/kernel/types.js";
 import type { StateChange } from "../../../core/kernel/reasons.js";
 import { worldGraphContent } from "../content.js";
 import type { WorldGraphKindState } from "../state.js";
+import { WORLD_GRAPH_EVENTS } from "../events.js";
 import { accepted, change, emit, optionalStringParam, params, rejected, spend, stringParam } from "./common.js";
 
 export function hireStaff(state: WorldGraphKindState, raw: Parameters<typeof params>[0], ctx: KindContext): AdvanceResult<WorldGraphKindState> {
@@ -30,7 +31,7 @@ export function hireStaff(state: WorldGraphKindState, raw: Parameters<typeof par
       assignedBuildingId: null, assignedZoneId: null, drawCount: 0, task: null, tasksCompleted: 0,
     }],
   };
-  emit(ctx, "staff.hired", "info", { staffId, definitionId });
+  emit(ctx, WORLD_GRAPH_EVENTS.staffHired, { staffId, definitionId });
   return accepted(next, [
     change("finances.cashCents", finances.cashCents, "staff_hired", true, state.finances.cashCents),
     change(`staff.${staffId}.exists`, true, "staff_hired", false),
@@ -43,7 +44,7 @@ export function fireStaff(state: WorldGraphKindState, raw: Parameters<typeof par
   if (staffId === null) return rejected(state, "core.reason.unknown_action");
   if (!state.staff.some((entry) => entry.id === staffId)) return rejected(state, "unknown_entity");
   const next = { ...state, staff: state.staff.filter((entry) => entry.id !== staffId) };
-  emit(ctx, "staff.fired", "debug", { staffId });
+  emit(ctx, WORLD_GRAPH_EVENTS.staffFired, { staffId });
   return accepted(next, [change(`staff.${staffId}.exists`, false, "staff_fired", false, true)]);
 }
 
@@ -70,7 +71,7 @@ export function assignStaff(state: WorldGraphKindState, raw: Parameters<typeof p
       status: "idle" as const, task: null, path: [], pathIndex: 0, moveProgressTicks: 0,
     } : entry),
   };
-  emit(ctx, "staff.assigned", "trace", { staffId, ...(buildingId === null ? {} : { buildingId }), ...(zoneId === null ? {} : { zoneId }) });
+  emit(ctx, WORLD_GRAPH_EVENTS.staffAssigned, { staffId, ...(buildingId === null ? {} : { buildingId }), ...(zoneId === null ? {} : { zoneId }) });
   const changes: StateChange[] = [];
   if (buildingChanged) changes.push(change(`staff.${staffId}.assignedBuildingId`, buildingId ?? "", "staff_assigned", false, target.assignedBuildingId ?? ""));
   if (zoneChanged) changes.push(change(`staff.${staffId}.assignedZoneId`, zoneId ?? "", "staff_assigned", false, target.assignedZoneId ?? ""));

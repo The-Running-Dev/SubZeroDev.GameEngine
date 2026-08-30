@@ -3,6 +3,7 @@ import type { ReasonCode } from "../../../core/kernel/reasons.js";
 import { worldGraphContent, type BuildingDefinition, type ScenarioDefinition } from "../content.js";
 import { canonicalPathWithCost, checkBuildingPlacement } from "../spatial.js";
 import type { Building, ConstructionSite, Guest, WorldGraphKindState } from "../state.js";
+import { WORLD_GRAPH_EVENTS } from "../events.js";
 import { accepted, change, emit, integerParam, params, rejected, spend, stringParam } from "./common.js";
 
 function scenario(ctx: KindContext): ScenarioDefinition {
@@ -68,7 +69,7 @@ export function build(state: WorldGraphKindState, raw: Parameters<typeof params>
       ...definitionState(content, definition),
     };
     const next = { ...state, map: nextMap, finances, buildings: [...state.buildings, runtime], nextEntityOrdinal: ordinal + 2 };
-    emit(ctx, "building.placed", "info", { buildingId });
+    emit(ctx, WORLD_GRAPH_EVENTS.buildingPlaced, { buildingId });
     return accepted(next, [
       change("finances.cashCents", finances.cashCents, "building_placed", true, state.finances.cashCents),
       change("map.revision", nextMap.revision, "building_placed", false, state.map.revision),
@@ -138,7 +139,7 @@ export function demolish(state: WorldGraphKindState, raw: Parameters<typeof para
     incidents: state.incidents.map((incident) => incident.buildingId === buildingId ? { ...incident, buildingId: null, position: incident.position ?? { x: target.x, y: target.y } } : incident),
     alerts: state.alerts.map((alert) => alert.entityId === buildingId ? { ...alert, entityId: null, clearedAtTick: alert.clearedAtTick ?? state.tick } : alert),
   };
-  emit(ctx, "building.demolished", "debug", { buildingId });
+  emit(ctx, WORLD_GRAPH_EVENTS.buildingDemolished, { buildingId });
   return accepted(next, [
     change("map.revision", nextMap.revision, "building_demolished", false, state.map.revision),
     change(`buildings.${buildingId}.exists`, false, "building_demolished", false, true),

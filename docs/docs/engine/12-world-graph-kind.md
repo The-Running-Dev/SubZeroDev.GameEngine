@@ -1601,9 +1601,13 @@ Namespaced `kind.world-graph.*` (05 §9), declared as `Kind.eventNames`:
 >
 > **Every row's severity is checked against the shipped emit site, not remembered.** Four of
 > them had disagreed with the source since W46/W47 and survived four reconciliations, because
-> a kind writes its severity as a literal at each `emit` call rather than in one table the way
-> `core/observability/events.ts` does (05 §7, and `90-decisions.md`'s open register). Re-derive
-> this column from the source when editing it.
+> the kind wrote its severity as a literal at each `emit` call rather than in one table the way
+> `core/observability/events.ts` does (05 §7). W96 closed that gap: this kind now owns its own
+> name-to-severity table (`src/engine/src/kinds/world-graph/events.ts`), every call site reads
+> both the name and the severity off one entry there, and a mechanical gate
+> (`src/engine/src/campaigns/eventSeverityGuard.test.ts`) compares the table against this row
+> set, `Kind.eventNames`, and a live call site on every run. Re-derive this column from
+> `events.ts`, not from memory, if it is ever edited by hand.
 
 **`guest.path.failed` earns its place.** A resort where guests silently cannot reach a
 building looks identical to one where they do not want to — the failure is invisible in the

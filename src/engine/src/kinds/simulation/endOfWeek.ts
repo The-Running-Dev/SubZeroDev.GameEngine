@@ -87,6 +87,7 @@ import type {
 } from "./content.js";
 import { evaluateSimulationCondition } from "./conditions.js";
 import { derivedValueResolver } from "./derived.js";
+import { SIMULATION_EVENTS } from "./events.js";
 import { insertStatusEffect } from "./modifiers.js";
 import { governingMaintenanceRule } from "./resolvers.js";
 import type {
@@ -101,13 +102,8 @@ import type {
   StatusEffect,
 } from "./state.js";
 
-const SYSTEM_NAME = "kind.simulation.system.ran";
-const GOAL_ACHIEVED_EVENT = "kind.simulation.goal.achieved";
-const GOAL_FAILED_EVENT = "kind.simulation.goal.failed";
-const APPLICATION_LOST_EVENT = "kind.simulation.employment.application_lost";
-
 function ranSystem(emit: ResolutionEmitter, system: string): void {
-  emit.emit(SYSTEM_NAME, "trace", { data: { system, phase: "end_of_week" } });
+  emit.emit(SIMULATION_EVENTS.systemRan.name, SIMULATION_EVENTS.systemRan.severity, { data: { system, phase: "end_of_week" } });
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -326,7 +322,7 @@ function resolveApplications(
     if (alreadyEmployed || hired) continue;
     const job = findJob(jobs, application.jobId);
     if (!job) {
-      emit.emit(APPLICATION_LOST_EVENT, "warn", { data: { jobId: application.jobId } });
+      emit.emit(SIMULATION_EVENTS.employmentApplicationLost.name, SIMULATION_EVENTS.employmentApplicationLost.severity, { data: { jobId: application.jobId } });
       continue;
     }
     hired = {
@@ -1130,7 +1126,7 @@ function goals(
     const required = def.requiredDurationWeeks ?? 1;
 
     if (consecutiveWeeksSatisfied >= required) {
-      emit.emit(GOAL_ACHIEVED_EVENT, "info", { data: { goalId: goal.definitionId } });
+      emit.emit(SIMULATION_EVENTS.goalAchieved.name, SIMULATION_EVENTS.goalAchieved.severity, { data: { goalId: goal.definitionId } });
       return {
         ...goal,
         status: "completed",
@@ -1167,7 +1163,7 @@ function failure(state: SimulationKindState, goalDefs: readonly GoalDefinition[]
     const failed = evaluateSimulationCondition(def.failureConditions, state);
     if (!failed) return goal;
 
-    emit.emit(GOAL_FAILED_EVENT, "info", { data: { goalId: goal.definitionId } });
+    emit.emit(SIMULATION_EVENTS.goalFailed.name, SIMULATION_EVENTS.goalFailed.severity, { data: { goalId: goal.definitionId } });
     return { ...goal, status: "failed", failedWeek: state.calendar.currentWeek };
   });
 

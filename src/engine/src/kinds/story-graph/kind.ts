@@ -19,6 +19,7 @@ import type {
   SceneBody,
 } from "../../core/kernel/types.js";
 import { advance } from "./advance.js";
+import { STORY_GRAPH_EVENT_NAMES } from "./events.js";
 import { STORY_GRAPH_REASON_CODES, STORY_GRAPH_REASON_MESSAGES } from "./reasons.js";
 import { availableActions, scene } from "./scene.js";
 import { initialState } from "./settle.js";
@@ -31,18 +32,9 @@ export const storyGraphKind: Kind<StoryGraphKindState> = {
   version: "1.0.0",
   reasonCodes: STORY_GRAPH_REASON_CODES,
   reasonMessages: STORY_GRAPH_REASON_MESSAGES,
-  eventNames: [
-    "kind.story-graph.settle.step",
-    "kind.story-graph.node.entered",
-    "kind.story-graph.random.picked",
-    "kind.story-graph.settle.guard_tripped",
-    "kind.story-graph.choice.submitted",
-    "kind.story-graph.choice.rejected",
-    "kind.story-graph.requirement.evaluated",
-    "kind.story-graph.consequence.applied",
-    "kind.story-graph.achievement.unlocked",
-    "kind.story-graph.ending.reached",
-  ],
+  /** Generated from `events.ts`'s name-to-severity table so this list and the call sites
+   *  cannot drift (W96). */
+  eventNames: STORY_GRAPH_EVENT_NAMES,
   initialState: (c, ctx): InitialStateResult<StoryGraphKindState> => initialState(c, ctx),
   availableActions: (state, ctx): AvailableAction[] => availableActions(state, ctx),
   scene: (state, ctx): SceneBody => scene(state, ctx),

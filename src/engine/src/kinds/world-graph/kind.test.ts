@@ -996,3 +996,69 @@ describe("world-graph W95 effect and audit semantics", () => {
     expect(whole.state.buildings[0]?.cleanliness).toBe(20);
   });
 });
+
+describe("world-graph W96 mechanical regression boundaries", () => {
+  // A single ten-tick fixture engineered to cross all six named boundaries (20 §5, §15.3):
+  // service (a guest served at the entrance-adjacent kiosk), construction (a hut built by a
+  // hired builder), incident (a 50% storm roll, like the existing W84.7 fixture), day-reset
+  // (`ticksPerDay: 3` crosses the boundary four times in ten ticks), departure (the guest
+  // leaves once its shortened stay expires), and terminal (a `timeLimitTicks: 10` failure
+  // fires on the batch's very last tick, for every partition).
+  function kitchenSinkContent(): WorldGraphCampaign {
+    const base = runtime().content;
+    return {
+      ...base,
+      ticksPerDay: 3,
+      objectives: base.objectives.map((objective) => ({ ...objective, completion: { kind: "constant", value: false }, progressMetric: null })),
+      failures: base.failures.map((failure) => ({ ...failure, condition: { kind: "constant", value: false } })),
+      // Cash raised above the file-level 150-cent kiosk price (`source` above overrides
+      // `defaultCents` to 150; the MVP archetype's own 100 cents could never afford it, so
+      // every guest fell back to `leave` without ever selecting a service candidate).
+      guestArchetypes: base.guestArchetypes.map((archetype) => ({ ...archetype, cashCents: { min: 200, max: 200 }, stayTicks: { min: 6, max: 6 } })),
+      incidents: base.incidents.map((incident) => incident.id === "storm"
+        ? { ...incident, triggerCondition: { kind: "constant", value: true }, rollScope: "building" as const, rollChanceBasisPoints: 5000, cooldownTicks: 0, durationTicks: { min: 1, max: 1 } }
+        : incident),
+      scenarios: base.scenarios.map((scenario) => ({
+        ...scenario,
+        buildingPlacements: [{ definitionId: "kiosk", x: 1, y: 1, rotation: 0 as const, open: true }],
+        timeLimitTicks: 10, timeLimitFailureId: "bankrupt",
+      })),
+    } as unknown as WorldGraphCampaign;
+  }
+
+  function runPartition(ticks: readonly number[], seed: string): WorldGraphKindState {
+    const runtimeEngine = engine(kitchenSinkContent());
+    let game = runtimeEngine.createGame({ campaignId: "world-test", seed }).value!;
+    game = runtimeEngine.submitAction(game, "build", { definitionId: "hut", x: 3, y: 1, rotation: 0 }).value!;
+    game = runtimeEngine.submitAction(game, "hire_staff", { definitionId: "builder" }).value!;
+    game = runtimeEngine.submitAction(game, "hire_staff", { definitionId: "cleaner" }).value!;
+    game = runtimeEngine.submitAction(game, "hire_staff", { definitionId: "restocker" }).value!;
+    for (const count of ticks) game = runtimeEngine.submitAction(game, "advance_ticks", { ticks: count }).value!;
+    return stateOf(game);
+  }
+
+  const PARTITIONS: readonly (readonly number[])[] = [
+    [1, 9], [5, 5], [2, 3, 5], [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+  ];
+  const SEEDS = ["w96-seed-alpha", "w96-seed-beta"];
+
+  it.each(SEEDS)(
+    "W96.1: ten ticks crossing service, construction, incident, day-reset, departure and terminal boundaries deep-equal across [1,9]/[5,5]/[2,3,5]/ten-ones (seed %s)",
+    (seed) => {
+      const whole = runPartition([10], seed);
+
+      // Confirms the fixture genuinely exercises every named boundary, not a quiet no-op.
+      expect(whole.tick).toBe(10);
+      expect(whole.resolution).toMatchObject({ resolution: "failed", failureId: "bankrupt" });
+      expect(whole.constructionSites).toEqual([]);
+      expect(whole.buildings.some((building) => building.definitionId === "hut")).toBe(true);
+      expect(whole.finances.revenueTotalCents).toBeGreaterThan(0);
+      expect(whole.counters.guestsDeparted).toBeGreaterThan(0);
+      expect(whole.incidents.length).toBeGreaterThan(0);
+
+      for (const partition of PARTITIONS) {
+        expect(runPartition(partition, seed)).toEqual(whole);
+      }
+    },
+  );
+});

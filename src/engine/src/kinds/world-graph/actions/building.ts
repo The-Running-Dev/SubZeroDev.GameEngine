@@ -1,6 +1,7 @@
 import type { AdvanceResult, KindContext } from "../../../core/kernel/types.js";
 import { worldGraphContent } from "../content.js";
 import type { WorldGraphKindState } from "../state.js";
+import { WORLD_GRAPH_EVENTS } from "../events.js";
 import { accepted, change, emit, integerParam, params, rejected, stringParam } from "./common.js";
 
 export function setPrice(state: WorldGraphKindState, raw: Parameters<typeof params>[0], ctx: KindContext): AdvanceResult<WorldGraphKindState> {
@@ -51,6 +52,6 @@ export function setBuildingOpen(
       ? { ...entry, status: desired, queue: open ? entry.queue : { ...entry.queue, serviceStartedAtTick: null } }
       : entry),
   };
-  emit(ctx, "building.status.changed", "debug", { buildingId, status: desired });
+  emit(ctx, WORLD_GRAPH_EVENTS.buildingStatusChanged, { buildingId, status: desired });
   return accepted(next, [change(`buildings.${buildingId}.status`, desired, open ? "building_opened" : "building_closed", true, building.status)]);
 }

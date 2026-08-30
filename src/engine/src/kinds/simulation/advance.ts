@@ -28,6 +28,7 @@
 
 import type { ActionParams, AdvanceResult, KindContext } from "../../core/kernel/types.js";
 import type { OutcomeMessage, StateChange } from "../../core/kernel/reasons.js";
+import { SIMULATION_EVENTS } from "./events.js";
 import type { GameAction } from "./plan.js";
 import { addAction, removeAction, clearPlan, isActionType } from "./plan.js";
 import { RESOLVER_TABLE } from "./resolvers.js";
@@ -37,10 +38,6 @@ import { outcome as computeOutcome } from "./outcome.js";
 import type { SimulationCampaign } from "./campaign.js";
 import type { SimulationKindState } from "./state.js";
 import { unaddressedPendingResponses } from "./state.js";
-
-const PLAN_CHANGED_EVENT = "kind.simulation.plan.changed";
-const ACTION_RESOLVED_EVENT = "kind.simulation.action.resolved";
-const WEEK_ENDED_EVENT = "kind.simulation.week.ended";
 
 /** A rejection carries the player-facing message as well as the error (04 §3): `error`
  *  tells the core *that* the action failed, `messages` is what tells the player, and a
@@ -132,7 +129,7 @@ export function advance(
         return rejected(state, "event_response_pending", "simulation.reason.event_response_pending");
       }
       const plan = addAction(requirePlan(state), action);
-      ctx.emit.emit(PLAN_CHANGED_EVENT, "debug", { data: { actionId: "plan.add" } });
+      ctx.emit.emit(SIMULATION_EVENTS.planChanged.name, SIMULATION_EVENTS.planChanged.severity, { data: { actionId: "plan.add" } });
       return { state: { ...state, plan }, status: "active", changes: [], messages: [] };
     }
 
@@ -143,13 +140,13 @@ export function advance(
         const err = result.errors[0]!;
         return rejected(state, err.code, err.messageKey);
       }
-      ctx.emit.emit(PLAN_CHANGED_EVENT, "debug", { data: { actionId: "plan.remove" } });
+      ctx.emit.emit(SIMULATION_EVENTS.planChanged.name, SIMULATION_EVENTS.planChanged.severity, { data: { actionId: "plan.remove" } });
       return { state: { ...state, plan: result.value }, status: "active", changes: [], messages: [] };
     }
 
     case "plan.clear": {
       const plan = clearPlan(requirePlan(state));
-      ctx.emit.emit(PLAN_CHANGED_EVENT, "debug", { data: { actionId: "plan.clear" } });
+      ctx.emit.emit(SIMULATION_EVENTS.planChanged.name, SIMULATION_EVENTS.planChanged.severity, { data: { actionId: "plan.clear" } });
       return { state: { ...state, plan }, status: "active", changes: [], messages: [] };
     }
 
@@ -185,7 +182,7 @@ export function advance(
       }
 
       for (const data of resolvedEvents) {
-        ctx.emit.emit(ACTION_RESOLVED_EVENT, "debug", { data });
+        ctx.emit.emit(SIMULATION_EVENTS.actionResolved.name, SIMULATION_EVENTS.actionResolved.severity, { data });
       }
 
       // Folded before the end-of-week pass, not after it, so a `goals`/`failure`/
@@ -224,7 +221,7 @@ export function advance(
       // player-facing channel (04 §12) — the end-of-week pass is the only place they can
       // enter, and dropping them meant authored event text reached nobody.
       messages.push(...endOfWeekResult.messages);
-      ctx.emit.emit(WEEK_ENDED_EVENT, "info", { data: { week: working.calendar.currentWeek } });
+      ctx.emit.emit(SIMULATION_EVENTS.weekEnded.name, SIMULATION_EVENTS.weekEnded.severity, { data: { week: working.calendar.currentWeek } });
 
       const counted = foldCounters(endOfWeekResult.state, endOfWeekResult.changes);
       const nextWeek = runStartOfWeek(counted, ctx.emit, content.courses);

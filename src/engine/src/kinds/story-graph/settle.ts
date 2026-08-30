@@ -15,6 +15,7 @@ import type { RngHandle } from "../../core/determinism/types.js";
 import type { ResolutionEmitter } from "../../core/observability/types.js";
 import type { StateChange } from "../../core/kernel/reasons.js";
 import { applyConsequences, buildInitialVariables, type VariableSchema } from "./variables.js";
+import { STORY_GRAPH_EVENTS } from "./events.js";
 import { requireNode, type Node } from "./nodes.js";
 import type { StoryGraphCampaign } from "./campaign.js";
 import { enter, type StoryGraphKindState } from "./state.js";
@@ -36,7 +37,7 @@ export function enterAndEmit(
 ): StoryGraphKindState {
   const next = enter(state, nodeId);
   const node = requireNode(nodes, nodeId);
-  emit.emit("kind.story-graph.node.entered", "debug", {
+  emit.emit(STORY_GRAPH_EVENTS.nodeEntered.name, STORY_GRAPH_EVENTS.nodeEntered.severity, {
     data: { nodeId, nodeKind: node.kind, visitCount: next.visitedCounts[nodeId]! },
   });
   return next;
@@ -74,7 +75,7 @@ export function settle(
 
   for (let step = 0; step < SETTLE_STEPS; step++) {
     const node = requireNode(nodes, state.currentNodeId);
-    emit.emit("kind.story-graph.settle.step", "trace", {
+    emit.emit(STORY_GRAPH_EVENTS.settleStep.name, STORY_GRAPH_EVENTS.settleStep.severity, {
       data: { step, nodeId: node.id, nodeKind: node.kind },
     });
 
@@ -83,7 +84,7 @@ export function settle(
     }
 
     if (node.kind === "ending") {
-      emit.emit("kind.story-graph.ending.reached", "info", { data: { endingId: node.endingId } });
+      emit.emit(STORY_GRAPH_EVENTS.endingReached.name, STORY_GRAPH_EVENTS.endingReached.severity, { data: { endingId: node.endingId } });
       return { state: { ...state, endingId: node.endingId }, status: "ended", changes };
     }
 
@@ -96,7 +97,7 @@ export function settle(
 
     // random
     const picked = rng.weightedPick(node.transitions.map((t) => ({ item: t, weight: t.weight })));
-    emit.emit("kind.story-graph.random.picked", "debug", {
+    emit.emit(STORY_GRAPH_EVENTS.randomPicked.name, STORY_GRAPH_EVENTS.randomPicked.severity, {
       data: { nodeId: node.id, goto: picked.goto, weight: picked.weight },
     });
     const applied = applyConsequences(schema, state.variables, picked.effects ?? [], emit);
@@ -104,7 +105,7 @@ export function settle(
     state = enterAndEmit(nodes, { ...state, variables: applied.variables, turn: state.turn + 1 }, picked.goto, emit);
   }
 
-  emit.emit("kind.story-graph.settle.guard_tripped", "error", {
+  emit.emit(STORY_GRAPH_EVENTS.settleGuardTripped.name, STORY_GRAPH_EVENTS.settleGuardTripped.severity, {
     reason: "settle_guard_tripped",
     data: { nodeId: state.currentNodeId },
   });

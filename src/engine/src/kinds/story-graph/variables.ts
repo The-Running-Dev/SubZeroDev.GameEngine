@@ -29,6 +29,7 @@
 import type { LocKey } from "../../core/localization/types.js";
 import type { StateChange } from "../../core/kernel/reasons.js";
 import type { ResolutionEmitter } from "../../core/observability/types.js";
+import { STORY_GRAPH_EVENTS } from "./events.js";
 
 export type VarType = "bool" | "int" | "enum";
 
@@ -183,7 +184,7 @@ export function applyConsequences(
   // individual effect — clamping happens once, after every effect has applied.
   if (emit) {
     for (const c of consequences) {
-      emit.emit("kind.story-graph.consequence.applied", "debug", {
+      emit.emit(STORY_GRAPH_EVENTS.consequenceApplied.name, STORY_GRAPH_EVENTS.consequenceApplied.severity, {
         data: { variable: c.var, op: c.op, clamped: clampedVars.has(c.var) },
       });
     }

@@ -1,4 +1,5 @@
 import type { ActionParams, AdvanceResult, KindContext } from "../../../core/kernel/types.js";
+import type { EventName, Severity } from "../../../core/observability/types.js";
 import type { StateChange } from "../../../core/kernel/reasons.js";
 import { resolveStatus } from "../outcome.js";
 import type { WorldGraphKindState } from "../state.js";
@@ -44,8 +45,10 @@ export function spend(state: WorldGraphKindState, amountCents: number): WorldGra
   };
 }
 
-export function emit(ctx: KindContext, name: string, severity: "trace" | "debug" | "info", data: Record<string, string | number | boolean>): void {
-  ctx.emit.emit(`kind.world-graph.${name}`, severity, { data });
+/** `event` is one `events.ts` table entry — name and severity travel together so a call
+ *  site can no longer pair the right name with the wrong severity (W96, 12 §12). */
+export function emit(ctx: KindContext, event: { readonly name: EventName; readonly severity: Severity }, data: Record<string, string | number | boolean>): void {
+  ctx.emit.emit(event.name, event.severity, { data });
 }
 
 export function assertReferentialIntegrity(state: WorldGraphKindState): void {

@@ -13,6 +13,7 @@ import type { Condition } from "../../core/condition/types.js";
 import type { StateChange } from "../../core/kernel/reasons.js";
 import type { ResolutionEmitter } from "../../core/observability/types.js";
 import { evaluateStoryGraphCondition, toConditionContext } from "./conditions.js";
+import { STORY_GRAPH_EVENTS } from "./events.js";
 import type { StoryGraphKindState } from "./state.js";
 
 export interface AchievementDefinition {
@@ -57,7 +58,7 @@ export function evaluateAchievements(
 
     unlockedIds.add(achievement.id);
     unlocked.push(achievement.id);
-    emit?.emit("kind.story-graph.achievement.unlocked", "info", { data: { achievementId: achievement.id } });
+    emit?.emit(STORY_GRAPH_EVENTS.achievementUnlocked.name, STORY_GRAPH_EVENTS.achievementUnlocked.severity, { data: { achievementId: achievement.id } });
     changes.push({
       path: `achieved.${achievement.id}`,
       op: "set",

@@ -29,6 +29,7 @@ import type {
 import type { ProjectionAudience } from "../../core/projection/types.js";
 import { advance } from "./advance.js";
 import { availableActions } from "./available.js";
+import { SIMULATION_EVENT_NAMES } from "./events.js";
 import { initialState } from "./initial.js";
 import { outcome } from "./outcome.js";
 import { SIMULATION_ENGINE_MESSAGES, SIMULATION_REASON_CODES, SIMULATION_REASON_MESSAGES } from "./reasons.js";
@@ -42,17 +43,9 @@ export const simulationKind: Kind<SimulationKindState> = {
   version: "1.0.0",
   reasonCodes: SIMULATION_REASON_CODES,
   reasonMessages: new Map([...SIMULATION_REASON_MESSAGES, ...SIMULATION_ENGINE_MESSAGES]),
-  eventNames: [
-    "kind.simulation.plan.changed",
-    "kind.simulation.week.started",
-    "kind.simulation.system.ran",
-    "kind.simulation.action.resolved",
-    "kind.simulation.effect.expired",
-    "kind.simulation.goal.achieved",
-    "kind.simulation.goal.failed",
-    "kind.simulation.week.ended",
-    "kind.simulation.employment.application_lost",
-  ],
+  /** Generated from `events.ts`'s name-to-severity table so this list and the call sites
+   *  cannot drift (W96). */
+  eventNames: SIMULATION_EVENT_NAMES,
   initialState: (c): InitialStateResult<SimulationKindState> => initialState(c),
   availableActions: (state, ctx): AvailableAction[] => availableActions(state, ctx),
   scene: (state, ctx): SceneBody => scene(state, ctx),

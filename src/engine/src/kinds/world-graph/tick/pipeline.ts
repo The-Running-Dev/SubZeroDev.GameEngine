@@ -1,6 +1,7 @@
 import type { KindContext } from "../../../core/kernel/types.js";
 import { assertReferentialIntegrity } from "../actions/common.js";
 import { evaluateCondition, evaluateMetric } from "../conditions.js";
+import { WORLD_GRAPH_EVENTS } from "../events.js";
 import type { BuildingDefinition, IncidentDefinition, IncidentRollScope, IntegerCurve, ProductDefinition, WorldGraphCampaign } from "../content.js";
 import type { Alert, AlertSeverity, AlertType, Building, ConstructionSite, Guest, Incident, IncidentSeverity, Position, StaffTask, WorldGraphKindState } from "../state.js";
 import { canonicalPath, canonicalPathWithCost, footprintCells, rotateOffset } from "../spatial.js";
@@ -139,7 +140,7 @@ export const scenario: WorldGraphSystem = (frame) => {
     // delta (W95.3).
     if (effect.kind === "building_meter_delta") return;
     if (!result.applied[index]) return;
-    frame.emit.emit("kind.world-graph.scenario.effect.applied", "debug", {
+    frame.emit.emit(WORLD_GRAPH_EVENTS.scenarioEffectApplied.name, WORLD_GRAPH_EVENTS.scenarioEffectApplied.severity, {
       data: { effect: effect.kind, tick: frame.processingTick },
     });
   });
@@ -174,7 +175,7 @@ export const guestSpawn: WorldGraphSystem = (frame) => {
   };
   const state = { ...frame.state, guests: [...frame.state.guests, guest], counters: { ...frame.state.counters, guestsEntered: frame.state.counters.guestsEntered + 1 }, nextEntityOrdinal: frame.state.nextEntityOrdinal + 1 };
   frame.changes.record("guest-spawn", `guests.${id}.exists`, true, "guest_spawned", false, false);
-  frame.emit.emit("kind.world-graph.guest.spawned", "trace", { data: { guestId: id, archetypeId } });
+  frame.emit.emit(WORLD_GRAPH_EVENTS.guestSpawned.name, WORLD_GRAPH_EVENTS.guestSpawned.severity, { data: { guestId: id, archetypeId } });
   return { ...frame, state };
 };
 /** System 3: evolve meters and make threshold departures explicit. */
@@ -196,7 +197,7 @@ export const guestNeeds: WorldGraphSystem = (frame) => {
     return { ...guest, lifecycle: guest.lifecycle === "arriving" ? "seeking" : guest.lifecycle, needs, spentTicks: guest.spentTicks + 1, patienceRemainingTicks: patience, ...(expired || critical ? { intent: leaveIntent(frame.state, frame.content, guest, frame.processingTick, expired ? "stay_complete" : "critical_need"), path: [], pathIndex: 0 } : {}) };
   });
   for (const change of meterChanges.sort((left, right) => compareRuntimeEntityId(left.guestId, right.guestId) || compareDefinitionId(left.needId, right.needId))) {
-    frame.emit.emit("kind.world-graph.guest.meter.changed", "trace", { data: { guestId: change.guestId, meter: change.needId, value: change.value } });
+    frame.emit.emit(WORLD_GRAPH_EVENTS.guestMeterChanged.name, WORLD_GRAPH_EVENTS.guestMeterChanged.severity, { data: { guestId: change.guestId, meter: change.needId, value: change.value } });
   }
   return { ...frame, state: { ...frame.state, guests } };
 };
@@ -219,7 +220,7 @@ export const guestService: WorldGraphSystem = (frame) => {
       const incidentId = `incident:${state.nextEntityOrdinal}`;
       state = { ...state, incidents: [...state.incidents, { id: incidentId, definitionId: offer.product.litter.incidentDefinitionId, buildingId: building.id, guestId: null, zoneId: null, position: { x: guest.x, y: guest.y }, amount: offer.product.litter.unitsPerService, startedAtTick: frame.processingTick, expiresAtTick: null, resolvedAtTick: null }], nextEntityOrdinal: state.nextEntityOrdinal + 1, counters: { ...state.counters, incidentsRaised: state.counters.incidentsRaised + 1, litterCreated: state.counters.litterCreated + offer.product.litter.unitsPerService } };
     }
-    frame.emit.emit("kind.world-graph.guest.served", "trace", { data: { guestId: guest.id, buildingId: building.id } });
+    frame.emit.emit(WORLD_GRAPH_EVENTS.guestServed.name, WORLD_GRAPH_EVENTS.guestServed.severity, { data: { guestId: guest.id, buildingId: building.id } });
   }
   return { ...frame, state };
 };
@@ -237,7 +238,7 @@ export const queues: WorldGraphSystem = (frame) => {
     const abandon = ids.filter((id) => state.guests.find((guest) => guest.id === id)?.patienceRemainingTicks === 0);
     if (abandon.length) {
       state = { ...state, guests: state.guests.map((guest) => abandon.includes(guest.id) ? { ...guest, lifecycle: "seeking", intent: { kind: "wait", untilTick: frame.processingTick, selectedAtTick: frame.processingTick }, path: [], pathIndex: 0 } : guest) };
-      for (const guestId of abandon) frame.emit.emit("kind.world-graph.queue.abandoned", "trace", { data: { buildingId: building.id, guestId } });
+      for (const guestId of abandon) frame.emit.emit(WORLD_GRAPH_EVENTS.queueAbandoned.name, WORLD_GRAPH_EVENTS.queueAbandoned.severity, { data: { buildingId: building.id, guestId } });
     }
     ids = ids.filter((id) => !abandon.includes(id));
     // §9.1: a queued guest switches away only when the best reachable alternative beats
@@ -266,7 +267,7 @@ export const queues: WorldGraphSystem = (frame) => {
       if (capacity !== null && ids.length >= capacity) break;
       ids.push(guest.id);
       state = { ...state, guests: state.guests.map((entry) => entry.id === guest.id ? { ...entry, lifecycle: "queued", patienceRemainingTicks: entry.patienceCapacityTicks } : entry) };
-      frame.emit.emit("kind.world-graph.queue.joined", "trace", { data: { buildingId: building.id, guestId: guest.id } });
+      frame.emit.emit(WORLD_GRAPH_EVENTS.queueJoined.name, WORLD_GRAPH_EVENTS.queueJoined.severity, { data: { buildingId: building.id, guestId: guest.id } });
     }
     const head = state.guests.find((guest) => guest.id === ids[0]);
     const headOffer = head?.intent.kind === "seek_service" ? serviceProduct(building, head.intent.productId, frame.content) : null;
@@ -274,7 +275,7 @@ export const queues: WorldGraphSystem = (frame) => {
     const headChanged = previousHeadId !== (ids[0] ?? null);
     const clock = canServe ? (headChanged ? frame.processingTick : building.queue.serviceStartedAtTick ?? frame.processingTick) : null;
     if (clock !== null && clock !== building.queue.serviceStartedAtTick) {
-      frame.emit.emit("kind.world-graph.service.started", "trace", { data: { buildingId: building.id, guestId: head!.id, productId: headOffer!.product.id } });
+      frame.emit.emit(WORLD_GRAPH_EVENTS.serviceStarted.name, WORLD_GRAPH_EVENTS.serviceStarted.severity, { data: { buildingId: building.id, guestId: head!.id, productId: headOffer!.product.id } });
     }
     state = { ...state, buildings: state.buildings.map((entry) => entry.id === building.id ? { ...entry, queue: { ...entry.queue, guestIds: ids, serviceStartedAtTick: clock } } : entry) };
   }
@@ -416,7 +417,7 @@ export const guestIntent: WorldGraphSystem = (frame) => {
     return { ...guest, intent };
   });
   for (const selection of selections.sort((left, right) => compareRuntimeEntityId(left.guestId, right.guestId))) {
-    frame.emit.emit("kind.world-graph.guest.intent.selected", "trace", { data: { guestId: selection.guestId, intentKind: selection.intentKind } });
+    frame.emit.emit(WORLD_GRAPH_EVENTS.guestIntentSelected.name, WORLD_GRAPH_EVENTS.guestIntentSelected.severity, { data: { guestId: selection.guestId, intentKind: selection.intentKind } });
   }
   return { ...frame, state: { ...frame.state, guests } };
 };
@@ -436,7 +437,11 @@ export const guestPath: WorldGraphSystem = (frame) => {
     return { ...guest, path, pathIndex: 0 };
   });
   for (const outcome of outcomes.sort((left, right) => compareRuntimeEntityId(left.guestId, right.guestId))) {
-    frame.emit.emit(outcome.failed ? "kind.world-graph.guest.path.failed" : "kind.world-graph.guest.path.committed", outcome.failed ? "debug" : "trace", { data: { guestId: outcome.guestId } });
+    frame.emit.emit(
+      outcome.failed ? WORLD_GRAPH_EVENTS.guestPathFailed.name : WORLD_GRAPH_EVENTS.guestPathCommitted.name,
+      outcome.failed ? WORLD_GRAPH_EVENTS.guestPathFailed.severity : WORLD_GRAPH_EVENTS.guestPathCommitted.severity,
+      { data: { guestId: outcome.guestId } },
+    );
   }
   return { ...frame, state: { ...frame.state, guests } };
 };
@@ -451,7 +456,11 @@ export const guestMove: WorldGraphSystem = (frame) => {
     return next;
   });
   for (const move of moves.sort((left, right) => compareRuntimeEntityId(left.guestId, right.guestId))) {
-    frame.emit.emit(move.departed ? "kind.world-graph.guest.departed" : "kind.world-graph.guest.moved", move.departed ? "debug" : "trace", { data: { guestId: move.guestId } });
+    frame.emit.emit(
+      move.departed ? WORLD_GRAPH_EVENTS.guestDeparted.name : WORLD_GRAPH_EVENTS.guestMoved.name,
+      move.departed ? WORLD_GRAPH_EVENTS.guestDeparted.severity : WORLD_GRAPH_EVENTS.guestMoved.severity,
+      { data: { guestId: move.guestId } },
+    );
   }
   return { ...frame, state: { ...frame.state, guests, counters: departed ? { ...frame.state.counters, guestsDeparted: frame.state.counters.guestsDeparted + departed } : frame.state.counters } };
 };
@@ -483,7 +492,7 @@ export const taskGenerate: WorldGraphSystem = (frame) => {
     }
   }
   const generated = frame.scratch.taskCandidates.length - before;
-  if (generated > 0) frame.emit.emit("kind.world-graph.task.candidate.generated", "trace", { data: { count: generated } });
+  if (generated > 0) frame.emit.emit(WORLD_GRAPH_EVENTS.taskCandidateGenerated.name, WORLD_GRAPH_EVENTS.taskCandidateGenerated.severity, { data: { count: generated } });
   return frame;
 };
 export const taskAssign: WorldGraphSystem = (frame) => {
@@ -519,7 +528,7 @@ export const taskAssign: WorldGraphSystem = (frame) => {
     const candidate = candidates.splice(candidateIndex, 1)[0]!;
     const task: StaffTask = { id: `task:${state.nextEntityOrdinal}`, type: candidate.type, status: "assigned", guestId: null, queueId: null, buildingId: candidate.buildingId, constructionSiteId: candidate.constructionSiteId, incidentId: candidate.incidentId, targetProductId: candidate.productId, startedAtTick: frame.processingTick, endedAtTick: null, priority: candidate.priority, effortRemaining: candidate.effort };
     state = { ...state, staff: state.staff.map((entry) => entry.id === member.id ? { ...entry, task, path: path!, pathIndex: 0, status: "to_work" } : entry), nextEntityOrdinal: state.nextEntityOrdinal + 1 };
-    frame.emit.emit("kind.world-graph.staff.task.assigned", "trace", { data: { staffId: member.id, taskId: task.id, type: task.type } });
+    frame.emit.emit(WORLD_GRAPH_EVENTS.staffTaskAssigned.name, WORLD_GRAPH_EVENTS.staffTaskAssigned.severity, { data: { staffId: member.id, taskId: task.id, type: task.type } });
   }
   return { ...frame, state };
 };
@@ -538,7 +547,7 @@ export const staffWork: WorldGraphSystem = (frame) => {
         moveProgressTicks: move ? 0 : moveProgressTicks,
         status: "to_work",
       } : entry) };
-      if (move) frame.emit.emit("kind.world-graph.staff.moved", "trace", { data: { staffId: member.id, x: position.x, y: position.y } });
+      if (move) frame.emit.emit(WORLD_GRAPH_EVENTS.staffMoved.name, WORLD_GRAPH_EVENTS.staffMoved.severity, { data: { staffId: member.id, x: position.x, y: position.y } });
       continue;
     }
     if (member.task.type === "service" || member.task.type === "build" || member.task.type === "restock") { state = { ...state, staff: state.staff.map((entry) => entry.id === member.id ? { ...entry, status: "working", task: { ...entry.task!, status: "in_progress" } } : entry) }; continue; }
@@ -546,7 +555,7 @@ export const staffWork: WorldGraphSystem = (frame) => {
       const incident = state.incidents.find((entry) => entry.id === member.task!.incidentId);
       if (!incident || incident.resolvedAtTick !== null) {
         state = { ...state, staff: state.staff.map((entry) => entry.id === member.id ? { ...entry, task: { ...entry.task!, status: "cancelled", endedAtTick: frame.processingTick } } : entry) };
-        frame.emit.emit("kind.world-graph.staff.task.cancelled", "trace", { data: { staffId: member.id, taskId: member.task.id } });
+        frame.emit.emit(WORLD_GRAPH_EVENTS.staffTaskCancelled.name, WORLD_GRAPH_EVENTS.staffTaskCancelled.severity, { data: { staffId: member.id, taskId: member.task.id } });
         continue;
       }
       const rate = workRate(role, "clean");
@@ -556,8 +565,8 @@ export const staffWork: WorldGraphSystem = (frame) => {
       if (remaining === 0) {
         frame.changes.record("staff-work", `incidents.${incident.id}.resolvedAtTick`, frame.processingTick, "incident_resolved", false);
         state = applyWorldEffects(state, definition(frame.content.incidents, incident.definitionId, "incident definition").onResolve, { processingTick: frame.processingTick, content: frame.content, random: frame.random, changes: frame.changes, system: "staff-work", reason: "incident_resolved", currentIncidentId: incident.id, deferBuildingMeters: { scratch: frame.scratch, source: "staff" } }).state;
-        frame.emit.emit("kind.world-graph.incident.resolved", "info", { data: { incidentId: incident.id, definitionId: incident.definitionId, tick: frame.processingTick } });
-        frame.emit.emit("kind.world-graph.staff.task.completed", "trace", { data: { staffId: member.id, taskId: member.task.id } });
+        frame.emit.emit(WORLD_GRAPH_EVENTS.incidentResolved.name, WORLD_GRAPH_EVENTS.incidentResolved.severity, { data: { incidentId: incident.id, definitionId: incident.definitionId, tick: frame.processingTick } });
+        frame.emit.emit(WORLD_GRAPH_EVENTS.staffTaskCompleted.name, WORLD_GRAPH_EVENTS.staffTaskCompleted.severity, { data: { staffId: member.id, taskId: member.task.id } });
       }
     }
   }
@@ -583,7 +592,7 @@ export const construction: WorldGraphSystem = (frame) => {
     const delta = builderDeltas.get(site.id) ?? 0;
     if (delta === 0) { remainingSites.push(site); continue; }
     const workRemaining = Math.max(0, site.workRemaining - delta);
-    frame.emit.emit("kind.world-graph.construction.progressed", "trace", { data: { constructionSiteId: site.id, workRemaining } });
+    frame.emit.emit(WORLD_GRAPH_EVENTS.constructionProgressed.name, WORLD_GRAPH_EVENTS.constructionProgressed.severity, { data: { constructionSiteId: site.id, workRemaining } });
     if (workRemaining > 0) { remainingSites.push({ ...site, workRemaining }); continue; }
 
     const buildingDefinition = definition(frame.content.buildings, site.definitionId, "building definition");
@@ -607,11 +616,11 @@ export const construction: WorldGraphSystem = (frame) => {
       return { ...entry, status: "idle", tasksCompleted: entry.tasksCompleted + 1, task: { ...entry.task, status: "completed", endedAtTick: frame.processingTick } };
     });
     for (const builder of completedBuilders.sort((left, right) => compareRuntimeEntityId(left.staffId, right.staffId))) {
-      frame.emit.emit("kind.world-graph.staff.task.completed", "trace", { data: { staffId: builder.staffId, taskId: builder.taskId } });
+      frame.emit.emit(WORLD_GRAPH_EVENTS.staffTaskCompleted.name, WORLD_GRAPH_EVENTS.staffTaskCompleted.severity, { data: { staffId: builder.staffId, taskId: builder.taskId } });
     }
     frame.changes.record("construction", `buildings.${building.id}.exists`, true, "building_completed", false);
     frame.changes.record("construction", `constructionSites.${site.id}.exists`, false, "building_completed", false);
-    frame.emit.emit("kind.world-graph.construction.completed", "info", { data: { constructionSiteId: site.id, buildingId: building.id } });
+    frame.emit.emit(WORLD_GRAPH_EVENTS.constructionCompleted.name, WORLD_GRAPH_EVENTS.constructionCompleted.severity, { data: { constructionSiteId: site.id, buildingId: building.id } });
   }
   return { ...frame, state: { ...frame.state, constructionSites: remainingSites, buildings: [...frame.state.buildings, ...completedBuildings], map, counters, staff } };
 };
@@ -654,7 +663,7 @@ export const buildings: WorldGraphSystem = (frame) => {
     return { ...member, status: "idle" as const, tasksCompleted: member.tasksCompleted + 1, task: { ...member.task!, status: "completed" as const, endedAtTick: frame.processingTick } };
   });
   for (const restocker of completedRestockers.sort((left, right) => compareRuntimeEntityId(left.staffId, right.staffId))) {
-    frame.emit.emit("kind.world-graph.staff.task.completed", "trace", { data: { staffId: restocker.staffId, taskId: restocker.taskId } });
+    frame.emit.emit(WORLD_GRAPH_EVENTS.staffTaskCompleted.name, WORLD_GRAPH_EVENTS.staffTaskCompleted.severity, { data: { staffId: restocker.staffId, taskId: restocker.taskId } });
   }
 
   return { ...frame, state: { ...frame.state, buildings: buildingsAfterRestock, staff } };
@@ -698,12 +707,12 @@ export const cleanlinessWear: WorldGraphSystem = (frame) => {
       const value = clamp(safeAdd(previous, delta, `building meter ${id}.${meter}`), 0, 100);
       if (value === previous) continue;
       building = { ...building, [meter]: value };
-      frame.emit.emit("kind.world-graph.building.meter.changed", "trace", { data: { buildingId: id, meter, value } });
+      frame.emit.emit(WORLD_GRAPH_EVENTS.buildingMeterChanged.name, WORLD_GRAPH_EVENTS.buildingMeterChanged.severity, { data: { buildingId: id, meter, value } });
       // A policy/scheduled effect contributed to this composed change (§9.2): its own
       // `scenario.effect.applied` fires here, once, now the final clamp is known to have
       // actually moved the meter — not at system 1's deferral point (W95.3, W95.4).
       if (policySourced.has(id + " " + meter)) {
-        frame.emit.emit("kind.world-graph.scenario.effect.applied", "debug", {
+        frame.emit.emit(WORLD_GRAPH_EVENTS.scenarioEffectApplied.name, WORLD_GRAPH_EVENTS.scenarioEffectApplied.severity, {
           data: { effect: "building_meter_delta", tick: frame.processingTick },
         });
       }
@@ -711,7 +720,7 @@ export const cleanlinessWear: WorldGraphSystem = (frame) => {
         const previousStatus = building.status;
         building = { ...building, status: "broken" };
         frame.changes.record("cleanliness-wear", `buildings.${id}.status`, "broken", "building_broken", true, previousStatus);
-        frame.emit.emit("kind.world-graph.building.status.changed", "debug", { data: { buildingId: id, status: "broken" } });
+        frame.emit.emit(WORLD_GRAPH_EVENTS.buildingStatusChanged.name, WORLD_GRAPH_EVENTS.buildingStatusChanged.severity, { data: { buildingId: id, status: "broken" } });
       }
     }
     byId.set(id, building);
@@ -725,8 +734,8 @@ export const finance: WorldGraphSystem = (frame) => {
   const expenses = wages + operating;
   if (expenses < 0) throw new Error("Validated world-graph recurring costs cannot be negative");
   if (expenses === 0) return frame;
-  if (wages > 0) frame.emit.emit("kind.world-graph.finance.charged", "debug", { data: { family: "wages", amountCents: wages } });
-  if (operating > 0) frame.emit.emit("kind.world-graph.finance.charged", "debug", { data: { family: "operating", amountCents: operating } });
+  if (wages > 0) frame.emit.emit(WORLD_GRAPH_EVENTS.financeCharged.name, WORLD_GRAPH_EVENTS.financeCharged.severity, { data: { family: "wages", amountCents: wages } });
+  if (operating > 0) frame.emit.emit(WORLD_GRAPH_EVENTS.financeCharged.name, WORLD_GRAPH_EVENTS.financeCharged.severity, { data: { family: "operating", amountCents: operating } });
   return { ...frame, state: { ...frame.state, finances: { ...frame.state.finances, cashCents: frame.state.finances.cashCents - expenses, expensesTodayCents: frame.state.finances.expensesTodayCents + expenses, expensesTotalCents: frame.state.finances.expensesTotalCents + expenses } } };
 };
 interface IncidentScopeInstance {
@@ -780,7 +789,7 @@ export const incidents: WorldGraphSystem = (frame) => {
       reason: "incident_resolved",
       currentIncidentId: incident.id,
     }).state;
-    frame.emit.emit("kind.world-graph.incident.resolved", "info", {
+    frame.emit.emit(WORLD_GRAPH_EVENTS.incidentResolved.name, WORLD_GRAPH_EVENTS.incidentResolved.severity, {
       data: { incidentId: current.id, definitionId: current.definitionId, tick: frame.processingTick },
     });
   }
@@ -838,7 +847,7 @@ export const incidents: WorldGraphSystem = (frame) => {
       reason: "incident_raised",
       currentIncidentId: id,
     }).state;
-    frame.emit.emit("kind.world-graph.incident.raised", "info", {
+    frame.emit.emit(WORLD_GRAPH_EVENTS.incidentRaised.name, WORLD_GRAPH_EVENTS.incidentRaised.severity, {
       data: { incidentId: id, definitionId: incidentDefinition.id, tick: frame.processingTick },
     });
   }
@@ -864,9 +873,9 @@ export const objectives: WorldGraphSystem = (frame) => {
   for (const { progress, item, value, since, met } of evaluations) {
     const next = { ...progress, value, satisfiedSinceTick: since, updatedAtTick: frame.processingTick, state: met ? "met" as const : "active" as const };
     state = { ...state, objectives: state.objectives.map((entry) => entry.id === progress.id ? next : entry) };
-    if (value !== progress.value) frame.emit.emit("kind.world-graph.objective.progressed", "debug", { data: { objectiveId: progress.id, value } });
+    if (value !== progress.value) frame.emit.emit(WORLD_GRAPH_EVENTS.objectiveProgressed.name, WORLD_GRAPH_EVENTS.objectiveProgressed.severity, { data: { objectiveId: progress.id, value } });
     if (met) {
-      frame.emit.emit("kind.world-graph.objective.met", "info", { data: { objectiveId: progress.id } });
+      frame.emit.emit(WORLD_GRAPH_EVENTS.objectiveMet.name, WORLD_GRAPH_EVENTS.objectiveMet.severity, { data: { objectiveId: progress.id } });
       state = applyWorldEffects(state, item.onCompleted, { processingTick: frame.processingTick, content: frame.content, random: frame.random, changes: frame.changes, system: "objectives", reason: "objective_met" }).state;
     }
   }
@@ -894,10 +903,10 @@ export const failure: WorldGraphSystem = (frame) => {
   const triggered = state.failures.filter((progress) => progress.state === "triggered").map((progress) => progress.id);
   for (const { progress, item, since, fires } of evaluations) {
     state = { ...state, failures: state.failures.map((entry) => entry.id === progress.id ? { ...entry, satisfiedSinceTick: since, updatedAtTick: frame.processingTick, state: fires ? "triggered" as const : "active" as const } : entry) };
-    if (since !== progress.satisfiedSinceTick) frame.emit.emit("kind.world-graph.failure.progressed", "debug", { data: { failureId: progress.id } });
+    if (since !== progress.satisfiedSinceTick) frame.emit.emit(WORLD_GRAPH_EVENTS.failureProgressed.name, WORLD_GRAPH_EVENTS.failureProgressed.severity, { data: { failureId: progress.id } });
     if (fires) {
       triggered.push(progress.id);
-      frame.emit.emit("kind.world-graph.failure.triggered", "info", { data: { failureId: progress.id } });
+      frame.emit.emit(WORLD_GRAPH_EVENTS.failureTriggered.name, WORLD_GRAPH_EVENTS.failureTriggered.severity, { data: { failureId: progress.id } });
       state = applyWorldEffects(state, item.onTriggered, { processingTick: frame.processingTick, content: frame.content, random: frame.random, changes: frame.changes, system: "failure", reason: "failure_triggered" }).state;
     }
   }
@@ -913,7 +922,7 @@ export const failure: WorldGraphSystem = (frame) => {
       objectives: win ? state.objectives : state.objectives.map((progress) => progress.state === "active" ? { ...progress, state: "failed", updatedAtTick: frame.processingTick } : progress),
       resolution: { resolution, objectiveIds: met, failureId: resolvedFailureId, resolvedAtTick: frame.processingTick },
     };
-    frame.emit.emit("kind.world-graph.scenario.resolved", "info", { data: { resolution, objectiveIds: met.join(","), failureId: resolvedFailureId ?? "" } });
+    frame.emit.emit(WORLD_GRAPH_EVENTS.scenarioResolved.name, WORLD_GRAPH_EVENTS.scenarioResolved.severity, { data: { resolution, objectiveIds: met.join(","), failureId: resolvedFailureId ?? "" } });
   }
   return { ...frame, state };
 };
@@ -950,7 +959,7 @@ export const alerts: WorldGraphSystem = (frame) => {
     unlockedAchievementIds.push(achievementDefinition.id);
     state = { ...state, unlockedAchievementIds };
     frame.changes.record("alerts", `unlockedAchievementIds.${achievementDefinition.id}.exists`, true, "achievement_unlocked", true, false);
-    frame.emit.emit("kind.world-graph.achievement.unlocked", "info", { data: { achievementId: achievementDefinition.id } });
+    frame.emit.emit(WORLD_GRAPH_EVENTS.achievementUnlocked.name, WORLD_GRAPH_EVENTS.achievementUnlocked.severity, { data: { achievementId: achievementDefinition.id } });
   }
 
   const sources: AlertSource[] = [];
@@ -992,7 +1001,7 @@ export const alerts: WorldGraphSystem = (frame) => {
     };
     for (const alert of toClear) {
       frame.changes.record("alerts", `alerts.${alert.id}.clearedAtTick`, frame.processingTick, "alert_cleared", false);
-      frame.emit.emit("kind.world-graph.alert.cleared", "trace", { data: { alertId: alert.id, type: alert.type } });
+      frame.emit.emit(WORLD_GRAPH_EVENTS.alertCleared.name, WORLD_GRAPH_EVENTS.alertCleared.severity, { data: { alertId: alert.id, type: alert.type } });
     }
   }
 
@@ -1007,7 +1016,7 @@ export const alerts: WorldGraphSystem = (frame) => {
     };
     state = { ...state, alerts: [...state.alerts, alert], nextEntityOrdinal: state.nextEntityOrdinal + 1 };
     frame.changes.record("alerts", `alerts.${id}.exists`, true, "alert_raised", false, false);
-    frame.emit.emit("kind.world-graph.alert.raised", "debug", { data: { alertId: id, type: alert.type } });
+    frame.emit.emit(WORLD_GRAPH_EVENTS.alertRaised.name, WORLD_GRAPH_EVENTS.alertRaised.severity, { data: { alertId: id, type: alert.type } });
     representedKeys.add(source.semanticKey);
   }
 
@@ -1048,7 +1057,7 @@ export const tickFinalize: WorldGraphSystem = (frame) => {
   };
   assertReferentialIntegrity(state);
   frame.changes.record("tick-finalize", "tick", state.tick, "ticks_advanced", true, frame.processingTick);
-  frame.emit.emit("kind.world-graph.tick.finalized", "trace", { data: { tick: frame.processingTick } });
+  frame.emit.emit(WORLD_GRAPH_EVENTS.tickFinalized.name, WORLD_GRAPH_EVENTS.tickFinalized.severity, { data: { tick: frame.processingTick } });
   return { ...frame, state };
 };
 
