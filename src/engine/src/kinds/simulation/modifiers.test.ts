@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { collectModifiers, combineModifiers } from "./modifiers.js";
+import { collectModifiers, combineModifiers, insertStatusEffect } from "./modifiers.js";
 import type { StatusEffect } from "./state.js";
 
 function effect(overrides: Partial<StatusEffect> = {}): StatusEffect {
@@ -107,5 +107,33 @@ describe("combineModifiers", () => {
       { modifier: { target: "x", operation: "set", value: 9, priority: -1, sourceId: "b" }, appliedWeek: 1 },
     ]);
     expect(result).toBe(5);
+  });
+});
+
+describe("insertStatusEffect — §2.3/§6.1's one insertion invariant", () => {
+  it("a same-source refresh replaces the prior layer, including its expiry", () => {
+    const existing = effect({ id: "e-old", sourceId: "s", appliedWeek: 1, expiresAtWeek: 5, stacking: "refresh" });
+    const incoming = effect({ id: "e-new", sourceId: "s", appliedWeek: 10, expiresAtWeek: 20, stacking: "refresh" });
+    expect(insertStatusEffect([existing], incoming)).toEqual([incoming]);
+  });
+
+  it("a same-source stack keeps the prior layer and adds this one as an independent layer", () => {
+    const existing = effect({ id: "e-old", sourceId: "s", stacking: "stack" });
+    const incoming = effect({ id: "e-new", sourceId: "s", stacking: "stack" });
+    expect(insertStatusEffect([existing], incoming)).toEqual([existing, incoming]);
+  });
+
+  it("a different source always coexists, whether the incoming effect refreshes or stacks", () => {
+    const existing = effect({ id: "e-a", sourceId: "a" });
+    const refreshing = effect({ id: "e-b", sourceId: "b", stacking: "refresh" });
+    expect(insertStatusEffect([existing], refreshing)).toEqual([existing, refreshing]);
+
+    const stacking = effect({ id: "e-c", sourceId: "c", stacking: "stack" });
+    expect(insertStatusEffect([existing], stacking)).toEqual([existing, stacking]);
+  });
+
+  it("inserting into an empty list just adds the effect", () => {
+    const incoming = effect({ id: "e-1", sourceId: "s" });
+    expect(insertStatusEffect([], incoming)).toEqual([incoming]);
   });
 });

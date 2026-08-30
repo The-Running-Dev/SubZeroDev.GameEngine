@@ -1224,6 +1224,38 @@ describe("world-graph W83 cleanliness-wear", () => {
     expect(result).toEqual(initial);
   });
 
+  // W95.3/W95.4 — issue #349: a deferred building-meter effect's own `scenario.effect.applied`
+  // must reflect the final composed-and-clamped result, not the raw pre-composition delta.
+  it("emits scenario.effect.applied once when a policy-sourced delta actually moves the meter", () => {
+    const initial: WorldGraphKindState = { ...state(), buildings: [{ ...state().buildings[0]!, cleanliness: 50 }] };
+    const scratch = createTickScratch();
+    scratch.deferredBuildingMeterDeltas.push({ source: "policy", buildingId: "building:0", meter: "cleanliness", delta: 10 });
+    const { state: result, events } = runMeter(initial, scratch);
+    expect(result.buildings[0]?.cleanliness).toBe(60);
+    expect(events.filter((event) => event.name === "kind.world-graph.scenario.effect.applied")).toHaveLength(1);
+  });
+
+  it("emits no scenario.effect.applied when a policy delta nets to zero against another source", () => {
+    const initial: WorldGraphKindState = { ...state(), buildings: [{ ...state().buildings[0]!, cleanliness: 50 }] };
+    const scratch = createTickScratch();
+    scratch.deferredBuildingMeterDeltas.push(
+      { source: "policy", buildingId: "building:0", meter: "cleanliness", delta: 10 },
+      { source: "staff", buildingId: "building:0", meter: "cleanliness", delta: -10 },
+    );
+    const { state: result, events } = runMeter(initial, scratch);
+    expect(result.buildings[0]?.cleanliness).toBe(50);
+    expect(events.some((event) => event.name === "kind.world-graph.scenario.effect.applied")).toBe(false);
+  });
+
+  it("emits no scenario.effect.applied for a policy-untouched meter, even when another source moves it", () => {
+    const initial: WorldGraphKindState = { ...state(), buildings: [{ ...state().buildings[0]!, cleanliness: 50 }] };
+    const scratch = createTickScratch();
+    scratch.deferredBuildingMeterDeltas.push({ source: "staff", buildingId: "building:0", meter: "cleanliness", delta: 10 });
+    const { state: result, events } = runMeter(initial, scratch);
+    expect(result.buildings[0]?.cleanliness).toBe(60);
+    expect(events.some((event) => event.name === "kind.world-graph.scenario.effect.applied")).toBe(false);
+  });
+
   it("moves wear to zero and breaks an open building; cleanliness reaching zero never breaks it on its own", () => {
     const initial: WorldGraphKindState = {
       ...state(),

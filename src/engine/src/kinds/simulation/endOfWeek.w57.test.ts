@@ -12,6 +12,7 @@
 
 import { describe, it, expect } from "vitest";
 import { runEndOfWeek } from "./endOfWeek.js";
+import { canonicalStringify } from "../../core/persistence/canonical.js";
 import { rngHandleFor } from "../../core/determinism/rng.js";
 import type { RngHandle } from "../../core/determinism/types.js";
 import type { ResolutionEmitter } from "../../core/observability/types.js";
@@ -352,6 +353,29 @@ describe("events — §2.3's firing order and deferred responses (W57.2)", () =>
     const result = run(baseState(), { events: [def], rng: rng() });
     expect(result.state.activeEffects).toHaveLength(1);
     expect(result.state.activeEffects[0]).toMatchObject({ sourceKind: "event", sourceId: "event-1", appliedWeek: 5 });
+  });
+
+  it("survives a save/load round trip immediately after insertion (W95.2)", () => {
+    const def = eventDef({ automaticOutcome: { effects: [{ target: "player.needs.happiness", operation: "subtract", value: 5, sourceId: "event-1" }], messages: [] } });
+    const result = run(baseState(), { events: [def], rng: rng() });
+    const restored = JSON.parse(canonicalStringify(result.state)) as SimulationKindState;
+    expect(restored.activeEffects).toEqual(result.state.activeEffects);
+  });
+
+  it("a same-source refresh replaces the prior week's layer rather than stacking it (W95.1) — the defect this unit fixes: two firings of the same event definition in different weeks used to coexist because the old dedup key included the week", () => {
+    const def = eventDef({
+      unique: false,
+      cooldownWeeks: 0,
+      automaticOutcome: { effects: [{ target: "player.needs.happiness", operation: "subtract", value: 5, sourceId: "event-1" }], messages: [] },
+    });
+    const week5 = run(baseState(), { events: [def], rng: rng() });
+    expect(week5.state.activeEffects).toHaveLength(1);
+    const week9 = run(
+      { ...week5.state, calendar: { ...week5.state.calendar, currentWeek: 9 } },
+      { events: [def], rng: rng() },
+    );
+    expect(week9.state.activeEffects).toHaveLength(1);
+    expect(week9.state.activeEffects[0]).toMatchObject({ sourceKind: "event", sourceId: "event-1", appliedWeek: 9 });
   });
 
   it("schedules a follow-up event from an outcome, inheriting the chain", () => {

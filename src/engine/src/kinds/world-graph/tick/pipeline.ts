@@ -133,6 +133,11 @@ export const scenario: WorldGraphSystem = (frame) => {
     deferBuildingMeters: { scratch: frame.scratch, source: "policy" },
   });
   effects.forEach((effect, index) => {
+    // `building_meter_delta` is deferred to system 14 (§9.2): whether it actually moved a
+    // meter is unknown until every source composes and clamps once, so its own
+    // `scenario.effect.applied` fires there instead — never here, on the raw pre-composition
+    // delta (W95.3).
+    if (effect.kind === "building_meter_delta") return;
     if (!result.applied[index]) return;
     frame.emit.emit("kind.world-graph.scenario.effect.applied", "debug", {
       data: { effect: effect.kind, tick: frame.processingTick },
@@ -663,6 +668,7 @@ export const buildings: WorldGraphSystem = (frame) => {
  */
 export const cleanlinessWear: WorldGraphSystem = (frame) => {
   const totals = new Map<string, number>();
+  const policySourced = new Set<string>();
   const addDelta = (buildingId: string, meter: "cleanliness" | "wear", delta: number): void => {
     if (delta === 0) return;
     const key = `${buildingId}\u0000${meter}`;
@@ -675,7 +681,11 @@ export const cleanlinessWear: WorldGraphSystem = (frame) => {
     addDelta(incident.buildingId, "cleanliness", -incident.amount);
   }
   for (const entry of frame.scratch.deferredBuildingMeterDeltas) if (entry.source === "staff") addDelta(entry.buildingId, entry.meter, entry.delta);
-  for (const entry of frame.scratch.deferredBuildingMeterDeltas) if (entry.source === "policy") addDelta(entry.buildingId, entry.meter, entry.delta);
+  for (const entry of frame.scratch.deferredBuildingMeterDeltas) {
+    if (entry.source !== "policy" || entry.delta === 0) continue;
+    addDelta(entry.buildingId, entry.meter, entry.delta);
+    policySourced.add(entry.buildingId + " " + entry.meter);
+  }
   if (totals.size === 0) return frame;
 
   const byId = new Map(frame.state.buildings.map((building) => [building.id, building] as const));
@@ -689,6 +699,14 @@ export const cleanlinessWear: WorldGraphSystem = (frame) => {
       if (value === previous) continue;
       building = { ...building, [meter]: value };
       frame.emit.emit("kind.world-graph.building.meter.changed", "trace", { data: { buildingId: id, meter, value } });
+      // A policy/scheduled effect contributed to this composed change (§9.2): its own
+      // `scenario.effect.applied` fires here, once, now the final clamp is known to have
+      // actually moved the meter — not at system 1's deferral point (W95.3, W95.4).
+      if (policySourced.has(id + " " + meter)) {
+        frame.emit.emit("kind.world-graph.scenario.effect.applied", "debug", {
+          data: { effect: "building_meter_delta", tick: frame.processingTick },
+        });
+      }
       if (meter === "wear" && value === 0 && (building.status === "open" || building.status === "closed")) {
         const previousStatus = building.status;
         building = { ...building, status: "broken" };
