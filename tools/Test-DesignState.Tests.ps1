@@ -7,17 +7,17 @@
   Test-DesignDrift.ps1, Wait-PullRequestCheck.ps1 and Read-DesignState.ps1 already use.
 
   Every fixture below is written into $TestDrive under a throwaway root; the final Describe
-  block is explicit about reading this repository's own tree instead - it and the other
-  self-referential blocks below assert on this repo's *own* adopted design-state content, so
-  they are skipped (never a false pass or fail) on a repository the kit's compatibility
-  promise (design/90-decisions.md, 2026-08-19) says is not migrated: no design/state-index.md
-  at all. This checks for that file, not the design/state/ directory itself - design/state/work/
-  now exists here as the unrelated work-mirror (90-decisions.md, 2026-08-24), so the directory
-  alone is no longer evidence of adoption.
+  block is explicit about reading the containing checkout's own tree instead - it and the other
+  self-referential blocks below assert on adopted design-state content, which only this
+  repository has: the 2026-08-19 compatibility promise (design/90-decisions.md) leaves the
+  installed targets unmigrated, and this file is copied into every one of them. So they are
+  skipped wherever design/state/units/ is absent - false and unevaluated rather than a false pass or a
+  false failure, the same way Test-DesignState.ps1 itself reports StateSetAbsent and exits 2
+  rather than a silent 0.
 #>
 
 $script:DesignStateSelfTestRoot = Split-Path $PSScriptRoot -Parent
-$script:SkipDesignStateSelfTests = -not (Test-Path (Join-Path $script:DesignStateSelfTestRoot 'design/state-index.md'))
+$script:SkipDesignStateSelfTests = -not (Test-Path (Join-Path $script:DesignStateSelfTestRoot 'design/state/units'))
 
 BeforeAll {
     $script:ScriptPath = Join-Path $PSScriptRoot 'Test-DesignState.ps1'
@@ -979,6 +979,44 @@ Describe 'Test-DesignState: end-to-end (S5.2, S5.3, S5.4, S5.9)' {
         (@($result.CouldNotEvaluate | Where-Object { $_.Reason -eq 'StateSetAbsent' })).Count | Should -Be 1
     }
 
+    It '#113: design/state/ holding only WorkRef records still yields StateSetAbsent, not UnrecordedArtifact' {
+        New-StateFile -RelativePath 'work/1.md' -Content @'
+# work/1
+Issue: 1
+Title: x
+State: OPEN
+Rank: 1
+MirroredAt: abc123
+Criteria:
+'@
+        $result = Invoke-DesignStateCheck -RepoPath $TestDrive
+
+        (@($result.CouldNotEvaluate | Where-Object { $_.Reason -eq 'StateSetAbsent' })).Count | Should -Be 1
+        $result.ExitCode | Should -Be 2
+        $result.Findings.Count | Should -Be 0
+    }
+
+    It '#113: design/state/ holding any non-WorkRef record does not yield StateSetAbsent' {
+        New-StateFile -RelativePath 'work/1.md' -Content @'
+# work/1
+Issue: 1
+Title: x
+State: OPEN
+Rank: 1
+MirroredAt: abc123
+Criteria:
+'@
+        New-StateFile -RelativePath 'units/command/a.md' -Content @'
+# unit/command/a
+Kind: command
+Status: active
+Binds: I999
+'@
+        $result = Invoke-DesignStateCheck -RepoPath $TestDrive
+
+        (@($result.CouldNotEvaluate | Where-Object { $_.Reason -eq 'StateSetAbsent' })).Count | Should -Be 0
+    }
+
     It 'S5.2: all three lists are always present, even when empty (checked on the absent-state-set path)' {
         $result = Invoke-DesignStateCheck -RepoPath $TestDrive
         ($null -eq $result.Findings) | Should -BeFalse
@@ -1337,5 +1375,112 @@ Describe 'S12.6: a checkout with design/state/ removed' -Skip:$script:SkipDesign
     It 'S12.6: and never 0' {
         $script:S12Result.ExitCode | Should -Not -Be 0
         $script:S12Result.Findings.Count | Should -Be 0 -Because 'absence of a finding is not a finding of absence (I8''s shape, I19)'
+    }
+}
+
+Describe 'S12.7: an installed target discovers these suites as skipped, not failed' -Skip:$script:SkipDesignStateSelfTests {
+
+    BeforeAll {
+        # The regression guard for the -Skip: conditions at the top of this file and of
+        # Read-DesignState.Tests.ps1, Update-DesignProjection.Tests.ps1 and Test-CIWorkflow.Tests.ps1.
+        # Remove any of them and this block fails. The fixture is S12.6's shape - a real copy of
+        # this repository minus adopted design state, with the work mirror that /track creates,
+        # plus the one line that makes verify.yml look like an installed target's: no "Check the
+        # design state against the tree" step.
+        $script:S127RepoRoot = Split-Path $PSScriptRoot -Parent
+        $script:S127Checkout = Join-Path $TestDrive 'checkout-target-shaped'
+        New-Item -ItemType Directory -Path $script:S127Checkout -Force | Out-Null
+        Get-ChildItem -LiteralPath $script:S127RepoRoot -Force |
+            Where-Object { $_.Name -ne '.git' } |
+            Copy-Item -Destination $script:S127Checkout -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath (Join-Path $script:S127Checkout 'design/state') -Recurse -Force
+        New-Item -ItemType Directory -Path (Join-Path $script:S127Checkout 'design/state/work') -Force | Out-Null
+        Set-Content -LiteralPath (Join-Path $script:S127Checkout 'design/state/work/1.md') -Encoding utf8NoBOM -Value @'
+# work/1
+Issue: 1
+Title: x
+State: OPEN
+Rank: 1
+MirroredAt: abc123
+Criteria:
+'@
+
+        $script:S127Workflow = Join-Path $script:S127Checkout '.github/workflows/verify.yml'
+        @(Get-Content -LiteralPath $script:S127Workflow) |
+            Where-Object { $_ -notmatch '- name: Check the design state against the tree' } |
+            Set-Content -LiteralPath $script:S127Workflow -Encoding utf8NoBOM
+
+        # Discovery alone answers this: -Skip: is evaluated during Pester's discovery pass, so
+        # nothing here runs 139 tests inside one test. It runs in a child process rather than a
+        # nested Invoke-Pester because Pester keeps run state in the session.
+        $script:S127Runner = Join-Path $TestDrive 'discover-skips.ps1'
+        Set-Content -LiteralPath $script:S127Runner -Encoding utf8NoBOM -Value @'
+param([Parameter(Mandatory)][string] $Root)
+$c = New-PesterConfiguration
+$c.Run.Path = @(
+    (Join-Path $Root 'tools/Read-DesignState.Tests.ps1'),
+    (Join-Path $Root 'tools/Test-CIWorkflow.Tests.ps1'),
+    (Join-Path $Root 'tools/Test-DesignState.Tests.ps1'),
+    (Join-Path $Root 'tools/Update-DesignProjection.Tests.ps1'))
+$c.Run.PassThru = $true
+$c.Run.SkipRun = $true
+$c.Output.Verbosity = 'None'
+$r = Invoke-Pester -Configuration $c
+@($r.Tests | ForEach-Object {
+    [pscustomobject]@{ Block = $_.Block.Name; Name = $_.Name; Skip = [bool]$_.Skip }
+}) | ConvertTo-Json -Depth 3 -Compress
+'@
+
+        function Get-DiscoveredSkip {
+            param([Parameter(Mandatory)][string] $Root)
+            # The suites emit a coverage summary during discovery, so take the JSON line only.
+            $output = & pwsh -NoProfile -File $script:S127Runner -Root $Root
+            $json = @($output | Where-Object { $_ -is [string] -and $_.TrimStart().StartsWith('[') }) |
+                Select-Object -Last 1
+            $json | Should -Not -BeNullOrEmpty -Because 'discovery must produce a result to assert on'
+            $json | ConvertFrom-Json
+        }
+
+        $script:S127SelfReferentialBlocks = @(
+            "Read-DesignState against this repository's own state set",
+            "Test-DesignState against this repository's own tree",
+            'S12.6: a checkout with design/state/ removed',
+            "Update-DesignProjection against this repository's own tree")
+        $script:S127GlobTest = "this repository's own table and its own enumeration agree"
+        $script:S127CIBlock = 'CI workflow: the Run Pester tests step is authenticated (#79)'
+
+        $script:S127Target = Get-DiscoveredSkip -Root $script:S127Checkout
+        $script:S127Here = Get-DiscoveredSkip -Root $script:S127RepoRoot
+    }
+
+    It 'S12.7: every self-referential block is skipped where only work-mirror state exists' {
+        foreach ($block in $script:S127SelfReferentialBlocks) {
+            $tests = @($script:S127Target | Where-Object { $_.Block -eq $block })
+            $tests.Count | Should -BeGreaterThan 0 -Because "$block must still be discovered - skipped, not deleted"
+            @($tests | Where-Object { -not $_.Skip }).Count |
+                Should -Be 0 -Because "$block asserts on adopted design-state content an installed target does not have"
+        }
+
+        $glob = @($script:S127Target | Where-Object { $_.Name -eq $script:S127GlobTest })
+        $glob.Count | Should -Be 1
+        $glob[0].Skip | Should -BeTrue
+    }
+
+    It 'S12.7: the #79 CI comparison is skipped where verify.yml carries no design-state step' {
+        $tests = @($script:S127Target | Where-Object { $_.Block -eq $script:S127CIBlock })
+        $tests.Count | Should -BeGreaterThan 0
+        @($tests | Where-Object { -not $_.Skip }).Count |
+            Should -Be 0 -Because 'there is no second step to compare the GH_TOKEN env against'
+    }
+
+    It 'S12.7: and none of them are skipped in this repository, which has both' {
+        $guarded = @($script:S127Here | Where-Object {
+            $_.Block -in $script:S127SelfReferentialBlocks -or
+            $_.Block -eq $script:S127CIBlock -or
+            $_.Name -eq $script:S127GlobTest
+        })
+        $guarded.Count | Should -BeGreaterThan 0
+        @($guarded | Where-Object { $_.Skip }).Count |
+            Should -Be 0 -Because 'the guards must be false here, or they would silence the coverage this repository relies on'
     }
 }
