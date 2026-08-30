@@ -289,21 +289,25 @@ as its own unit, because parsing a markdown table from a test is a new kind of c
 deciding on its own. Until it exists, the tables are kept correct by hand and this is the note
 saying that is a manual control, not an enforced one.
 
-**A deferred building-meter effect is marked `applied` before system 14 composes/clamps it,
-and this is accepted rather than fixed.** `effects.ts`'s deferred branch sets
+**A deferred building-meter effect was marked `applied` before system 14 composed/clamped
+it — closed by W95, not left as accepted.** `effects.ts`'s deferred branch still sets
 `applied[index] = true` as soon as the local per-source delta is nonzero, not once the
 final composed value actually differs from `previous` — unlike the non-deferred and
-`guestMeters` branches, which wait for the clamped outcome. So a same-tick combination of
-`service`/`staff`/`litter`/`policy` deltas that nets to zero after system 14's single clamp
-still fires `kind.world-graph.scenario.effect.applied`. Filed as
+`guestMeters` branches, which wait for the clamped outcome — so `.applied` itself remains
+technically premature for a deferred effect. Filed as
 [issue #349](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/349), which
-also records the three ways out considered during W83's review: leave it; stop marking
-deferred meters applied at all (trades over-reporting for under-reporting, not obviously
-better); or move the event emission into system 14 alongside the composition (the only
-fully correct fix, but it touches the shared `applyWorldEffects` interpreter seam across
-all six call sites). **Accepted as-is for this MVP slice** — the event is debug severity
-and `scenario` is the only caller reading `.applied` today. Revisit if a second caller
-starts reading `.applied`, or as part of whatever unit closes #349.
+recorded three ways out: leave it; stop marking deferred meters applied at all (trades
+over-reporting for under-reporting, not obviously better); or move the event emission into
+system 14 alongside the composition. W95 took the third, narrower than first scoped: rather
+than touching the shared `applyWorldEffects` interpreter seam across all six call sites, it
+moved only the one thing that actually read `.applied` for a `building_meter_delta` effect —
+`scenario` (system 1) now skips emitting for that kind entirely, and `cleanlinessWear`
+(system 14) emits `kind.world-graph.scenario.effect.applied` itself, once, only when a
+policy-sourced contribution's building/meter pair actually changed after the single clamp.
+`effects.ts`'s `applied[index]` value for a deferred effect is therefore still not
+meaningful on its own — it is only correct once combined with the caller no longer trusting
+it for this kind. Revisit if a future caller reads `.applied` for a deferred
+`building_meter_delta` directly, since it would reintroduce the same premature signal.
 
 **`relationships` (`endOfWeek.ts`) is the simulation kind's only remaining end-of-week
 stub, and W89 is the first thing able to observe that it stays one.** No weekly

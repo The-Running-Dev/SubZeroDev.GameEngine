@@ -87,6 +87,7 @@ import type {
 } from "./content.js";
 import { evaluateSimulationCondition } from "./conditions.js";
 import { derivedValueResolver } from "./derived.js";
+import { insertStatusEffect } from "./modifiers.js";
 import { governingMaintenanceRule } from "./resolvers.js";
 import type {
   Cents,
@@ -609,14 +610,13 @@ function inventory(state: SimulationKindState, items: readonly ItemDefinition[])
     return { ...item, weeksSinceMaintenance, condition };
   });
 
-  const carried = state.activeEffects.filter((effect) => effect.sourceKind !== "item");
-  const itemEffects: StatusEffect[] = [];
+  let activeEffects = state.activeEffects.filter((effect) => effect.sourceKind !== "item");
   for (const item of nextInventory) {
     if (item.condition <= 0) continue;
     const def = findItem(item.definitionId);
     if (!def || def.effects.length === 0) continue;
     const id = itemEffectId(item.instanceId);
-    itemEffects.push({
+    activeEffects = insertStatusEffect(activeEffects, {
       id,
       sourceId: item.instanceId,
       sourceKind: "item",
@@ -634,7 +634,7 @@ function inventory(state: SimulationKindState, items: readonly ItemDefinition[])
     state: {
       ...state,
       player: { ...state.player, inventory: nextInventory },
-      activeEffects: [...carried, ...itemEffects],
+      activeEffects,
     },
     changes,
   };
@@ -790,7 +790,7 @@ function applyEventOutcome(
       descriptionKey: def.descriptionKey,
       visible: true,
     };
-    next = { ...next, activeEffects: [...next.activeEffects.filter((e) => e.id !== effect.id), effect] };
+    next = { ...next, activeEffects: insertStatusEffect(next.activeEffects, effect) };
   }
 
   let scheduled = next.scheduledEvents;

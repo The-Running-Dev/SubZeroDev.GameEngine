@@ -6221,13 +6221,16 @@ is deliberate reuse of a meaning, not a collision: `ReasonCode` is a flat string
 namespaced only by the *message* key (`world-graph.reason.duplicate_id`), so the same failure
 reads the same way across kinds and a client switching on it needs no per-kind branch.
 
-**Audit codes — `StateChange.reason` values (04 §12, §13 below).** All eleven ride on
+**Audit codes — `StateChange.reason` values (04 §12, §13 below).** All twelve ride on
 `visible: true` records, so each owes a resolvable message exactly as a rejection does; there
 is no audit namespace exempt from §12's completeness rule. They split by *how the reason
 reaches the record*, which is not decoration — it is the distinction that let five of them go
 unregistered through three units and one reconciliation pass. W83's `building_broken` was the
 second occurrence, caught in review rather than by a gate, which is what the warning below
 predicts and why the count above is stated rather than left to be inferred from the rows.
+W84's `incident_raised` reaches a visible record the same indirect way and is the twelfth —
+this table under-reported it by one until W95 reconciled the two, the same shape as
+`building_broken`'s own miscount, and no gate would have caught it either.
 
 | Code | Emitted by | Arrives as |
 |---|---|---|
@@ -6238,11 +6241,12 @@ predicts and why the count above is stated rather than left to be inferred from 
 | `scenario_effect` | the `scenario` system's scheduled changes and active policies | `EffectContext.reason` |
 | `guest_served` | the `guest-service` system | `EffectContext.reason` |
 | `incident_resolved` | the `staff-work` and `incidents` systems | `EffectContext.reason` |
+| `incident_raised` | the `incidents` system's roll, via a raised incident's own `onStart` effects (e.g. the MVP `storm` incident's `finance_delta`) | `EffectContext.reason` |
 | `objective_met` | the `objectives` system | `EffectContext.reason` |
 | `failure_triggered` | the `failure` system | `EffectContext.reason` |
 | `building_broken` | the `cleanliness-wear` system, on the wear-hits-zero transition (§4.16) | a literal at the `record()` call site |
 
-> **The indirect five are the ones to watch, and the reason this table exists.** A reason
+> **The indirect six are the ones to watch, and the reason this table exists.** A reason
 > threaded through `EffectContext` is not visible at any call site that also names a
 > `visible` flag: it becomes a visible record only where the effects module writes
 > `finances.cashCents`. So the usual way of auditing this — scan for `reason:` beside
@@ -6255,7 +6259,10 @@ Reasons recorded **only** with `visible: false` — `alert_dismissed`, `building
 `staff_fired`, `staff_assigned`, `guest_spawned` — are deliberately unregistered: 04 §12 ties
 the obligation to visibility, so an invisible record owes no message. Flipping one of those
 flags to `true` re-arms the defect above with no gate to catch it, which is why the line is
-recorded rather than merely observed.
+recorded rather than merely observed. `incident_raised` and `incident_resolved` are *not*
+among them despite each also appearing at a `visible: false` site (a `.exists` membership
+record) — their `EffectContext` use above reaches a visible record too, which is why both are
+registered rather than treated the same as the deliberately-invisible five.
 
 The shipped set lives in `src/engine/src/kinds/world-graph/reasons.ts`. `validate.ts` is the
 only producer of the validation half; the actions and the tick pipeline produce the audit

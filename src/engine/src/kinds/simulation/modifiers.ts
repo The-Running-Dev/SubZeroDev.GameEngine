@@ -33,6 +33,22 @@ export function collectModifiers(effects: readonly StatusEffect[], path: string)
   return result;
 }
 
+/**
+ * The one insertion invariant §2.3/§6.1 declare, and every simulation code path that inserts
+ * a `StatusEffect` — item-effect sync and event-outcome application in `endOfWeek.ts` — goes
+ * through this rather than reimplementing the dedup rule per call site: a same-`sourceId`
+ * effect stacking `"refresh"` replaces the prior layer of that source (resetting its expiry,
+ * since the whole effect object is replaced); a same-`sourceId` effect stacking `"stack"`
+ * keeps every existing layer and adds this one as an independent layer; a different
+ * `sourceId` always coexists regardless of stacking.
+ */
+export function insertStatusEffect(effects: readonly StatusEffect[], effect: StatusEffect): StatusEffect[] {
+  if (effect.stacking === "refresh") {
+    return [...effects.filter((existing) => existing.sourceId !== effect.sourceId), effect];
+  }
+  return [...effects, effect];
+}
+
 /** Round half away from zero. `Math.round` rounds half *toward positive infinity*, which is
  *  wrong for a negative half (`Math.round(-0.5) === -0`, not `-1`) — the determinism guard
  *  already rules out the `Math.pow`/string round-tripping banker's-rounding would need, and
