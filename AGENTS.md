@@ -23,3 +23,13 @@ from its source.
 
 A duplicate that can disagree with its original is the failure mode `CLAUDE.md` itself
 tracks, applied to the instructions. One file, one answer.
+
+## Writing a design-state record
+
+This repository has not adopted the kit's `design/state/` system — no `design/state/units/`
+and no `design/state-index.md`. The only thing under `design/state/` is `/track`'s own
+work-mirror (`design/state/work/`), an unrelated feature (`design/90-decisions.md`,
+2026-08-24). The full record-writing sequence the kit's own `AGENTS.md` describes under this
+heading — appending to `90-decisions.md`, writing a decision record, updating unit records,
+regenerating projections — assumes that adoption and does not apply here. Write the
+decision-log entry alone, in `design/90-decisions.md`'s own register, in its existing format.

@@ -1176,3 +1176,71 @@ something else adopts a `design/state/` subpath without adopting the whole migra
 design-state here to satisfy the tests** — the same unscoped-feature-adoption rejection as
 2026-08-21, unchanged by this branch.
 Reversibility: cheap — three `Test-Path` targets, reverted by pointing them back.
+
+### 2026-08-30 — Kit sync to `5095a55`: the 2026-08-24 design-state guard fix reverted, on explicit sign-off
+Context: `/kit-sync` found `tools/Test-DesignState.Tests.ps1` and `tools/Update-DesignProjection.Tests.ps1`
+`Divergent-Skipped` against the kit's newer copies — this repository's 2026-08-24 fix above still
+checked `design/state-index.md`, while upstream still checks `design/state/units`. Recommended keeping
+this repository's fix (the reasoning above is unchanged and neither `state-index.md` nor `state/units`
+exists here, so both checks currently agree); the user chose to take the kit's version as-is instead.
+Chosen: overwrite both files with the kit's copies. Verified with a full `tools/` Pester run before and
+after (263/263 passing, 0 regressions) — today, `design/state/` still holds only `/track`'s work-mirror
+(`design/state/work/`), so `Test-Path design/state/units` correctly evaluates false here regardless.
+Rejected: **Keep this repository's `state-index.md` check** (my recommendation) — declined by the user.
+Reversibility: cheap, but **watch this**: the 2026-08-24 failure mode (9 tests un-skipped and immediately
+red) returns unchanged if `design/state/` ever grows another subdirectory before this repository adopts
+`state-index.md` for real — the exact scenario that motivated the fix just reverted. Nothing distinguishes
+"a real migration" from "another mirror subdirectory" for either check as they now stand.
+
+### 2026-08-30 — Kit sync to `5095a55`: `Invoke-CodexCommand.Tests.ps1` merged, not replaced
+Context: this repository's copy filters `.claude/commands/*-local.md` out of `$script:CommandNames`
+(companions carry no Codex profile of their own); the kit's newer copy adds a "tier stamping" Describe
+block covering `Invoke-CodexCommand.ps1`'s new `AGENTKIT_TIER` environment stamp, without that filter.
+Taking either file whole would have broken the other repository's concern.
+Chosen: take the kit's tier-stamping tests, keep this repository's `-local` filter in the shared
+`$script:CommandNames`, so both the existing "has a mapping for every command file" test and the new
+"stamps a tier for every command file" test exclude companion files correctly.
+Rejected: **Kit's file as-is** — the new tier test would fail against every `*-local.md` companion.
+**This repository's file as-is** — misses regression coverage for the new `AGENTKIT_TIER` stamp entirely.
+Reversibility: cheap — a four-line `BeforeAll` block.
+
+### 2026-08-30 — Kit sync to `5095a55`: `Update-WorkMirror.ps1` taken from the kit wholesale
+Context: this repository had locally added an `Invoke-GhRaw` helper (a `[ref]$ExitCode`-parameter
+signature) fixing gh's stdout being mis-decoded as the console's OEM code page instead of UTF-8, the
+same class of bug Sync-Kit.ps1's `Invoke-GitRaw` fixed for git under #20. The kit's copy — which also
+gained the closed-issue re-fetch/rewrite fix (#155/#156) and a signature-based no-op-write guard since
+this repository's last sync — turned out to already carry its own `Invoke-GhRaw` (a different call
+shape: returns `{Output; ExitCode}` instead of taking a `[ref]` out-param), fixing the identical bug.
+No porting was needed; both fixes are equivalent in effect.
+Chosen: overwrite with the kit's file entirely. Verified with a full `tools/` Pester run (263/263
+passing) after the just-synced `Update-WorkMirror.Tests.ps1` — which already mocks `Get-IssuesByNumber`
+and would not have passed against this repository's older implementation regardless of this decision.
+Rejected: **Port only the closed-issue fix into this repository's file** — would have kept two
+independently-evolving `Invoke-GhRaw` implementations of the same fix for no benefit.
+Reversibility: cheap — one file, fully covered by the existing test suite.
+
+### 2026-08-30 — `codex/PROFILES.md` installed
+Context: the kit's installer skips `codex/PROFILES.md` by default, installing it only on evidence of
+Codex use. This repository has actively maintained `tools/Invoke-CodexCommand.ps1` and its Pester
+coverage since 2026-08-29 (the `/done` → `/clean` regression guard), which is exactly that evidence,
+even though no `.codex/` directory or explicit profile reference exists.
+Chosen: install it, per explicit sign-off.
+Rejected: **Continue skipping** — the default, but no longer accurate once the profile-mapping tooling
+is already load-bearing here.
+Reversibility: cheap — one new file, unreferenced by anything if later deleted.
+
+### 2026-08-30 — `AGENTS.md` gains a "Writing a design-state record" pointer heading
+Context: this kit sync's `reconcile.md`/`contract.md`/`design.md` core updates all cite the
+record-writing sequence as living at `` AGENTS.md § *Writing a design-state record* ``, replacing an
+older citation to `` design/10-design.md § *Record* ``. Neither ever resolved in this repository:
+`design/10-design.md` has no `## Record` heading, and `AGENTS.md` here is a deliberate pointer file
+([`AGENTS.md`](../AGENTS.md), *Why this is a pointer*) carrying no content of its own. Separately, this
+repository has never adopted the kit's full `design/state/` system — only `/track`'s work-mirror
+(`design/state/work/`, 2026-08-24 above) — so the kit's own sequence (append to `90-decisions.md`, write
+a decision record, update unit records, regenerate projections) does not actually apply here regardless.
+Chosen: add a short heading to `AGENTS.md` stating that this repository's `design/state/` adoption
+stops at the work-mirror, and that the full sequence does not apply — write the decision-log entry
+alone. Satisfies the citation honestly without duplicating content this repository does not use.
+Rejected: **Leave the citation broken and log this as a known gap instead** — declined; the fix costs
+one paragraph and closing it now is cheaper than a second look later.
+Reversibility: cheap — one heading, four sentences.
