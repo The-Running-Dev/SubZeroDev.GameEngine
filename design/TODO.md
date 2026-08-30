@@ -256,7 +256,7 @@
 
 ### [x] W94 — Simulation Resolution Correctness {#w94}
 
-### [ ] W95 — Effect and Audit Semantics {#w95}
+### [x] W95 — Effect and Audit Semantics {#w95}
 
 ### [ ] W96 — Mechanical Regression Boundaries {#w96}
 
