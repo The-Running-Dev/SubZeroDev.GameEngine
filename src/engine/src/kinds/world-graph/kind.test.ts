@@ -950,3 +950,49 @@ describe("world-graph W85 alerts and achievements", () => {
     expect(whole.alerts.some((alert) => alert.clearedAtTick !== null)).toBe(true);
   });
 });
+
+describe("world-graph W95 effect and audit semantics", () => {
+  it("W95.4: a deferred policy-sourced building-meter effect emits scenario.effect.applied identically across every partition of the same tick batch", () => {
+    const base = runtime().content;
+    const policiedContent: WorldGraphCampaign = {
+      ...base,
+      policies: [{
+        id: "grime", text: { nameKey: "policy.grime.name", descriptionKey: "policy.grime.description" },
+        availableWhen: { kind: "constant", value: true }, activationCostCents: 0, deactivationCostCents: 0,
+        whileActive: [{ kind: "building_meter_delta", meter: "cleanliness", delta: -3, buildings: { kind: "all" } }],
+        tags: [],
+      }],
+      scenarios: base.scenarios.map((scenario) => ({
+        ...scenario,
+        activePolicyIds: ["grime"],
+        buildingPlacements: [{ definitionId: "kiosk", x: 1, y: 1, rotation: 0 as const, open: true }],
+        guestSpawning: { everyTicks: 1000, maxActiveGuests: 0, pool: scenario.guestSpawning.pool },
+      })),
+    } as unknown as WorldGraphCampaign;
+
+    const run = (ticks: readonly number[]) => {
+      const recording = createRecordingEmitter();
+      const runtimeEngine = engine(policiedContent).withEmitter(recording);
+      let game = runtimeEngine.createGame({ campaignId: "world-test" }).value!;
+      for (const count of ticks) game = runtimeEngine.submitAction(game, "advance_ticks", { ticks: count }).value!;
+      // `seq`/`ordinal` are per-call diagnostics (05 §5), like `batch.started`/`batch.ended` —
+      // they legitimately differ by partition and are excluded, same as 20-contract.md §5's
+      // rule that only tick/entity event substance, not per-call bookkeeping, must match.
+      const applied = recording.events
+        .filter((event) => event.name === "kind.world-graph.scenario.effect.applied")
+        .map((event) => event.data);
+      return { state: stateOf(game), applied };
+    };
+
+    const whole = run([10, 10]);
+    const split = run([3, 7, 4, 6]);
+    expect(split.state).toEqual(whole.state);
+    expect(split.applied).toEqual(whole.applied);
+    // Kiosk starts at initialCleanliness 80 (world-graph-mvp.ts) and drifts -3/tick with no
+    // other source active — 20 ticks never saturates the 0 floor, so every tick's deferred
+    // policy delta genuinely moves the meter and the event fires all 20 times, the case a
+    // per-call rather than per-tick handle of `deferredBuildingMeterDeltas` would diverge on.
+    expect(whole.applied).toHaveLength(20);
+    expect(whole.state.buildings[0]?.cleanliness).toBe(20);
+  });
+});
