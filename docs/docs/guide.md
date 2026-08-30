@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: c5e193653a2ef2a7a66b1ac11eb0b8f4a62c153aec3ceca1e151fcd589ebe6c7 -->
+<!-- design-digest: afbad138d5af6abd05a4b83f44322d5f3f6470d582365b65ba57feaf35cf22f6 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -278,7 +278,26 @@ lands. See [Content Packs](/docs/engine/content-packs) §5a–§6 for the full m
 
 The session service is the application boundary. It provides campaign listing, creation, resume,
 scene/view queries, localization strings, action submission, preview, save, and load. Exact
-operation signatures live in [Core Specification](/docs/engine/core).
+operation signatures live in [Core Specification](/docs/engine/core). All ten operations are
+asynchronous; there is no synchronous path into the store.
+
+**Listing campaigns returns a catalog, and it is the one operation you call before a session
+exists.** It hands back the campaign summaries together with a string table that resolves exactly
+the localization keys those summaries carry — enough to render a campaign selector, and nothing
+more. Titles arrive as keys, not resolved text, so a catalog bakes in no locale, and the table is
+deliberately not the registry's own: that one holds every node's authored prose, and shipping it
+to a visitor choosing a campaign would hand out the whole of every story before play began. The
+catalog carries no campaign content of any kind — no nodes, no variable schema, no choices. If you
+need those, start a session. Ordering is the registry's iteration order; apply your own if you
+want a different one.
+
+Pass a profile id to the listing and each summary may also carry progress — how many distinct
+terminals that profile has reached in that campaign, out of how many the campaign declares. It is
+counts only, never ids, so an unfinished ending is never named to a player who has not found it.
+Omit the profile id and no summary carries progress at all. A kind that does not declare a
+countable terminal set — `simulation` and `world-graph` both, whose resolutions are fixed by the
+contract rather than by a campaign — yields no progress object even with a profile id supplied,
+because a count with no meaningful denominator reads as progress toward an unknown target.
 
 Starting a session takes a campaign id, an optional explicit seed, an optional audience, and an
 optional profile id — there is no `locale` parameter. When no seed is supplied the session
@@ -374,12 +393,20 @@ placement must be checkable before it commits and no client can call the pure en
 
 Pass a `profileId` when achievements should survive a session. After a successful action, the
 session service idempotently mirrors new achievements to the profile store; resolution itself
-never reads the profile.
+never reads the profile. On the same write, an action that ended the game mirrors that game's
+terminal id, which is what campaign progress in the catalog counts. Nothing reads either mirror
+back during resolution or projection, so neither can perturb determinism.
 
 - No profile id means no profile read or write.
 - A missing or corrupt profile behaves as empty and returns a warning.
 - A failed profile write warns but never rolls back the completed game action.
 - Never put profile identity or profile contents into `GameState`.
+
+The profile format is version 2. A version-1 profile — achievements only — reads forward by
+gaining an empty terminal list; nothing is renamed or re-typed, so the migration is total and
+cannot fail. Games finished under version 1 are not reconstructed, so those campaigns start at
+zero discovered and are re-counted as they are finished again. That is deliberate: recovering the
+number would mean deserializing every save a profile ever touched.
 
 Arbitrary kind-owned profile data is not currently supported; a `"profile"`-scoped simulation event
 chain in particular has nowhere to persist yet and remains an open item.
@@ -390,6 +417,15 @@ Clients receive a generic `Scene` and `PlayerView` plus a kind-projected view. T
 the seed or action log, raw `kindState`, non-visible story variables or visit counts, hidden
 choices, unrevealed simulation/world opportunities or entity internals, or achievement conditions
 and other future-state hints.
+
+**A projection must carry everything a client needs to render what it shows.** The rule has an
+inverse that is easy to miss: a field the projection omits is a field every client then reaches
+into campaign content to recover, and content is opaque above the kind. A visible story stat
+therefore carries its declared floor and ceiling alongside its value, so "3 / 12" renders without
+anyone touching `Campaign.content`. Both are optional and mirror the variable declaration exactly:
+present when the declaration bounds the variable, absent when it does not. A visible `enum` stat
+has no equivalent for its allowed-value set yet — no shipped campaign declares one, and the day
+one does, that set belongs in the projection by this same argument.
 
 Do not add a trusted-client escape hatch. The projection is what makes hidden information safe
 across text, MCP, web, and AI audiences. If a new client needs more information, decide whether it
@@ -798,6 +834,21 @@ Fixtures record every submitted action and its declared params, not internal act
 raw state — a rejected submission never advances the engine's own sequence number, so a fixture
 cannot reuse the action log as its submission history. Results are indexed by submission position
 for the same reason, not by that sequence number.
+
+**Every kind's terminal identity has a readable floor.** `Kind.outcome` returns at least two
+fields a host can read without knowing which kind produced them: whether the game has ended, and
+the published id naming how it ended — the ending id for `story-graph`, the resolution token for
+`simulation` and `world-graph`. Kinds widen that with their own fields and none lost anything they
+carried before, but a widened field still requires knowing the kind, exactly as `kindState` does.
+
+The floor is narrower than it looks, and the narrowness is the point. The ids are not one
+vocabulary across kinds — an authored ending id and a declared resolution token are different sorts
+of thing — so do not switch on the value expecting a shared set. What you may rely on is that the
+id is stable across engine versions, unique within its campaign, and safe to persist and compare.
+That is enough to index a finished session, count distinct terminals reached, and detect a replay
+divergence, none of which need the id to mean anything to you. There is deliberately no win/loss
+field: `Kind.outcome` receives kind state and no campaign, and story-graph's win/loss lives on the
+ending node in content it cannot reach. Read `StoryGraphView.ending.outcome` for that instead.
 
 Do not add prose, timestamps, balance values, or serialization bytes to a cross-version outcome —
 those legitimately change without changing what happened to the player, and including them would

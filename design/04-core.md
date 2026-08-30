@@ -14,6 +14,8 @@
 
 ### 3.1 KindContext
 
+### 3.2 `KindOutcome` — Terminal Identity a Host Can Read
+
 ## 4. Registration and the Pure Engine
 
 ## 5. Configuration
@@ -25,6 +27,12 @@
 ### 7.1 The Profile Store
 
 ### 7.2 Host Persistence — The Record Store Beneath the Session Store
+
+### 7.3 The Campaign Catalog
+
+#### Progress, and the `profileId` that gates it
+
+#### Migrating callers
 
 ## 8. Randomness
 

@@ -2181,18 +2181,36 @@ interface SimulationResolution {
 }
 
 outcome(state: SimulationKindState): {
+  terminal: boolean;                                                 // 04 §3.2
+  terminalId: string | null;                                         // 04 §3.2 — the resolution token
   resolution: "goals_met" | "failed" | "week_limit_reached" | null;  // null while active
   goalsMet: readonly string[];      // completed GoalDefinition ids, sorted
   goalsFailed: readonly string[];   // failed GoalDefinition ids, sorted
 } {
   const terminal = state.resolution;
   return {
+    terminal: terminal !== null,
+    terminalId: terminal?.resolution ?? null,
     resolution: terminal?.resolution ?? null,
     goalsMet: terminal?.goalsMet ?? [],
     goalsFailed: terminal?.goalsFailed ?? [],
   };
 }
 ```
+
+**`terminalId` is the `resolution` token**, satisfying the cross-kind floor
+([`04-core.md`](04-core.md) §3.2) without inventing a fourth vocabulary. `resolution` stays as
+its own field: it is the typed union this kind's own readers already switch on, and narrowing it
+to the base's `string | null` would cost every one of them exhaustiveness checking to buy
+nothing. The duplication is a widening, which §3.2 is explicit about permitting — the base is a
+floor, not a ceiling.
+
+**This kind implements no `terminalCount`.** Its terminal set is the three tokens above, fixed by
+this contract rather than declared by a scenario, so a count of them is a fact about the engine
+and not about the campaign a player is looking at. "One of three resolutions reached" is not
+progress; it is a category label with a denominator glued on. Per
+[`04-core.md`](04-core.md) §7.3 the omission means a simulation campaign carries no `progress`
+object at all, which is the correct answer rather than a missing feature.
 
 This kind has **no ending concept** — nothing upstream resembles `story-graph`'s `Ending`
 type — so unlike that kind's `{ endingId: string | null }`, terminal identity here is

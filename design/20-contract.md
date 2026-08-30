@@ -240,9 +240,18 @@ interface Kind<KState> {
 
   /**
    * A minimal, cross-version-stable terminal identity — published ids only, never
-   * values ([`07-replay.md`](07-replay.md) §3.3).
+   * values ([`07-replay.md`](07-replay.md) §3.3). Every kind returns at least
+   * `KindOutcome` (§3.2) and may widen it with its own published ids.
    */
-  outcome(state: KState): unknown;
+  outcome(state: KState): KindOutcome;
+
+  /**
+   * How many distinct `terminalId`s (§3.2) a campaign of this kind declares, for progress
+   * display (§7.3). Optional: a kind whose terminal set is not a bounded, countable
+   * property of its content omits it, and the core reports no total rather than a wrong
+   * one. Pure over content — it reads `campaign`, never state, and never a profile.
+   */
+  terminalCount?(campaign: Campaign): number;
 
   /**
    * Migrates a `KState` produced under an older `version` forward, when this kind's own
@@ -343,6 +352,63 @@ whatever sink the host attached, and `emit` returns `void` precisely so that not
 the sink can reach the game ([`05-observability.md`](05-observability.md) §2). Removing
 every event must leave `serialize()` byte-identical — the determinism harness asserts it
 (§14).
+
+### 3.2 `KindOutcome` — Terminal Identity a Host Can Read
+
+`Kind.outcome` returned `unknown`, so a host holding a finished session could learn nothing
+from it without knowing which kind produced it. That is the one place the seam leaked its own
+purpose: terminal identity exists to be the **cross-version-stable vocabulary**
+([`07-replay.md`](07-replay.md) §3.3), and a vocabulary only one reader can parse is not one.
+The floor is now typed.
+
+```typescript
+interface KindOutcome {
+  readonly terminal: boolean;           // false while the game is still active
+  readonly terminalId: string | null;   // the published id naming how it ended; null while active
+}
+```
+
+**`terminalId` is a published id, and `terminal` is not derivable from it being non-null** —
+they are two facts, and a kind that ever ends without naming a terminal keeps them
+distinguishable rather than forcing `null` to mean two things. `terminal` is the field a host
+branches on; `terminalId` is the field it indexes, stores and compares.
+
+**Each shipped kind widens this rather than replacing it**, so nothing already in a kind's
+outcome moves or is lost:
+
+| Kind | `terminalId` is | Widened with |
+|---|---|---|
+| `story-graph` | `endingId` (03 §8.5) | `endingId` |
+| `simulation` | `resolution` — `goals_met` / `failed` / `week_limit_reached` (10 §12) | `resolution`, `goalsMet`, `goalsFailed` |
+| `world-graph` | `resolution` — `objectives_met` / `failed` (12 §8) | `resolution`, `objectivesMet`, `failureId` |
+
+**The two columns are not one vocabulary, deliberately.** A story-graph terminal is an
+*authored* id drawn from campaign content; a simulation or world-graph terminal is a *declared*
+id drawn from a closed set this contract fixes. Flattening them would mean either inventing
+authored resolutions the two mechanical kinds do not have, or collapsing every ending a
+campaign ships into three buckets. What a host actually needs is weaker and is what is
+guaranteed here: **`terminalId` is stable across engine versions, unique within its campaign,
+and safe to persist and compare** — which is enough to index a finished session, count distinct
+terminals reached (§7.3), and detect a replay divergence, none of which require knowing what
+the id *means*.
+
+**A host still may not read a widened field without knowing the kind.** That is not a
+concession; it is the same rule as `kindState` (§2). The base is a floor, not a lowest common
+denominator that kinds are then discouraged from exceeding.
+
+**Balance-sensitive values remain excluded, unchanged.** Nothing here loosens
+[`07-replay.md`](07-replay.md) §3.4: no money, no needs, no tick or week counts, no satisfaction
+score. `KindOutcome` adds a boolean and an id, both of which a rebalance leaves alone.
+
+> **Why not a win/loss disposition on the base.** It is the field a host wants next and it was
+> deliberately left out. `Kind.outcome` receives `KState` and no campaign — the same constraint
+> 10 §12 already records for `weekLimit` — and story-graph's win/loss lives on `EndingNode`
+> ([`03-story-graph-kind.md`](03-story-graph-kind.md) §3), in content the function cannot reach.
+> Supplying it would mean persisting the disposition into `StoryGraphKindState`, which is a kind-
+> state shape change: a `kindVersion` bump and a `Kind.migrateState` (§10.2) for every existing
+> save. That is a defensible unit of work and it is not this one. Recorded rather than dropped —
+> a host that needs win/loss today reads `StoryGraphView.ending.outcome` (03 §9), which has
+> carried it all along.
 
 ---
 
@@ -545,7 +611,7 @@ useful line between "look" and "change."
 ```typescript
 interface SessionStore {
   // ── Queries (read-only) ──────────────────────────────
-  listCampaigns(): CampaignSummary[];
+  listCampaigns(profileId?: string): Promise<CampaignCatalog>;   // session-free — §7.3
   getScene(sessionId: string): Promise<Scene>;
   getView(sessionId: string): Promise<PlayerView>;
   getStrings(sessionId: string): Promise<StringTable>;   // resolve LocKeys — below
@@ -561,7 +627,23 @@ interface SessionStore {
 
 interface SessionHandle { sessionId: string; scene: Scene; }
 interface SaveHandle { saveId: string; savedAtSeq: number; }
-interface CampaignSummary { campaignId: string; kindId: KindId; titleKey: LocKey; }
+/** §7.3. `strings` resolves every `LocKey` the summaries carry, and nothing else. */
+interface CampaignCatalog {
+  readonly campaigns: readonly CampaignSummary[];
+  readonly strings: StringTable;
+}
+
+interface CampaignSummary {
+  campaignId: string;
+  kindId: KindId;
+  titleKey: LocKey;
+  progress?: CampaignProgress;   // present iff `listCampaigns` was given a `profileId` — §7.3
+}
+
+interface CampaignProgress {
+  discovered: number;            // distinct `terminalId`s this profile has reached here
+  total: number;                 // what `Kind.terminalCount` reports for this campaign
+}
 
 interface CreateSessionConfig extends NewGameConfig {
   profileId?: string;            // omitted → anonymous session; see §7.1
@@ -643,14 +725,20 @@ layer — stateful, I/O-doing, and invisible to the pure engine.
 
 ```typescript
 interface PlayerProfile {
-  formatVersion: 1;
+  formatVersion: 2;
   profileId: string;
   achievements: readonly AchievementRecord[];
+  terminals: readonly TerminalRecord[];   // §7.3 — the cross-session half of campaign progress
 }
 
 interface AchievementRecord {
   campaignId: string;            // achievement ids are only unique within a campaign
   achievementId: string;
+}
+
+interface TerminalRecord {
+  campaignId: string;            // a terminalId is only unique within a campaign (§3.2, §17)
+  terminalId: string;            // `KindOutcome.terminalId` — a published id, never a value
 }
 
 type ProfileWarningCode = "profile_missing" | "profile_corrupt" | "profile_write_failed";
@@ -680,9 +768,24 @@ Rules, all of them determinism-preserving:
 - **Anonymous by default.** No `profileId` → no read, no write; achievements persist only
   for that game. Cross-session persistence is opt-in.
 - **Degradation is a warning, never a failure.** Missing or corrupt loads return an empty
-  `formatVersion: 1` profile plus `profile_missing` / `profile_corrupt`. A failed write
+  `formatVersion: 2` profile plus `profile_missing` / `profile_corrupt`. A failed write
   returns `profile_write_failed` and **does not** roll back the completed game action —
   the game is authoritative, the profile is a mirror.
+- **Terminals mirror exactly as achievements do.** After an action whose `AdvanceResult.status`
+  is `ended`, the session store reads `Kind.outcome` and idempotently upserts one
+  `TerminalRecord` for the `terminalId` it names, on the same write as the achievement upsert.
+  A `null` `terminalId` on a terminal outcome records nothing. Nothing in `advance` or
+  `project` ever reads one back, so this cannot perturb determinism any more than the
+  achievement mirror can.
+
+**`formatVersion` moves 1 → 2, and the migration is the whole story: a version-1 profile reads
+as `{ ...profile, formatVersion: 2, terminals: [] }`.** No field is renamed, removed or
+re-typed, so the migration is total and cannot fail — which is why it is stated here rather
+than seamed as a function. A player who finished games under version 1 starts at
+`discovered: 0` for those campaigns and re-earns the count by finishing again. That loss is
+accepted deliberately: the alternative is reconstructing terminals from stored session blobs,
+which would mean deserializing every save a profile ever touched to recover a number that
+exists only to decorate a shelf.
 
 ### 7.2 Host Persistence — The Record Store Beneath the Session Store
 
@@ -814,6 +917,106 @@ needs both arguments made here; a brand invented downstream is not a contract.
 > read is served from the cache, returns the un-persisted state, and the retry the message asks
 > for cannot succeed. `storage_failure` tolerated this divergence because its own message
 > promises only that the game is still playable; `concurrent_modification` does not.
+
+### 7.3 The Campaign Catalog
+
+`listCampaigns` is the only operation a client calls **before a session exists**, and it was the
+one operation written as though it could not fail and could not wait. Two consequences followed,
+and this section settles both.
+
+```typescript
+listCampaigns(profileId?: string): Promise<CampaignCatalog>;
+```
+
+**It is asynchronous because a store is not required to hold its campaigns in memory.** The
+synchronous signature made that a silent requirement: a `fetch`-backed `SessionStore` could not
+satisfy it at all, so the first host to try prefetched every summary at composition time and
+closed over them. That works and is not what the contract said — it said a store must already be
+a registry before it is a store. Every other query on this interface is already `Promise`-
+returning; this one was the outlier, not the norm.
+
+**The result carries the strings, so a catalog is renderable without a session.** `titleKey`
+stays a `LocKey` — it is not resolved into the summary — and `CampaignCatalog.strings` is the
+table that resolves it. This is `getStrings` (§7) applied one layer earlier, for the same reason
+and with the same property: no locale is baked into a returned DTO, and a client never
+string-matches English.
+
+**`strings` carries exactly the keys the summaries carry, and nothing else.** It is not the
+registry's table. That bound is load-bearing rather than an optimization: the full table holds
+every node's authored prose, so shipping it to a visitor choosing a campaign would hand out the
+whole of every story before a session began — a spoiler leak dressed as a convenience, and
+precisely the reach-past-the-boundary this section exists to close. A catalog that grows a new
+`LocKey` grows its table by that key.
+
+**The catalog is titles and progress. It is never content.** No node, no variable schema, no
+choice, no achievement definition, no `Campaign.content` in any form. A client that needs those
+starts a session.
+
+**Order is the registry's own iteration order**, which registry assembly fixes when it freezes
+(§10.1), and this section does not impose a sort on top of it. Two calls against one registry
+return the same order; a client that wants a different one applies its own.
+
+#### Progress, and the `profileId` that gates it
+
+`progress` is present on a summary **iff** `listCampaigns` was given a `profileId`, and absent
+otherwise — an anonymous catalog reports nothing, matching §7.1's *anonymous by default*. When
+present:
+
+- **`discovered`** is the number of distinct `TerminalRecord.terminalId`s the profile holds for
+  that `campaignId` (§7.1).
+- **`total`** is what `Kind.terminalCount` (§3.2) reports for that campaign. A kind that omits
+  `terminalCount` yields **no `progress` object at all** for its campaigns, even with a
+  `profileId` supplied — a `discovered` with no denominator is worse than silence, because it
+  renders as progress toward an unknown target.
+
+**Counts only. Never ids.** The catalog says *three of seven*, never *which three*, and never
+*which seven*. Ending ids are authored content, and a list of them is a table of contents for
+endings the player has not found — the projection boundary (§9) applied to a surface that sits
+outside any projection. This is the whole of the "hidden ending" protection, and it is
+structural: there is no field for an id to travel in.
+
+**A profile is read here and nowhere near resolution.** This is a query on the store, which
+already owns the `ProfileStore`; `advance`, `project` and `initialState` are untouched and still
+cannot see a profile. That line matters more than it looks: a projection that varied by profile
+would no longer be reproducible from `{ seed, actionLog }`, and the determinism harness (§14)
+would be asserting something weaker than it claims to. Progress is store-assembled precisely so
+that it cannot reach the kind.
+
+**Degradation matches §7.1's.** A missing or corrupt profile yields `discovered: 0` with its
+`ProfileWarning` raised through the same path, never a failed catalog. A player cannot be
+stopped from browsing campaigns because a progress number could not be read.
+
+#### Migrating callers
+
+**This is a breaking change to the package root, and it is meant to be caught by the compiler.**
+`listCampaigns(): CampaignSummary[]` and `listCampaigns(): Promise<CampaignCatalog>` share no
+usable call site: an iteration over the old return value does not type-check against a
+`Promise`, and awaiting it yields an object rather than an array. Every existing caller —
+the text client, the MCP `list_campaigns` tool, and any host — fails to build until it is
+updated, which is the intended outcome. A signature that silently accepted the old shape would
+leave a caller reading `undefined` at runtime.
+
+The migration is mechanical and is stated so no caller has to derive it:
+
+```typescript
+// before
+const campaigns = store.listCampaigns();
+render(campaigns);
+
+// after
+const { campaigns, strings } = await store.listCampaigns(profileId);
+render(campaigns, strings);
+```
+
+**In-memory stores are unaffected in behaviour**, only in shape: a store that holds its
+registry resolves the promise immediately and does no I/O. Asynchrony is what the signature
+*permits*, not what it requires.
+
+**The operation count does not change, and the API coverage checklist stays at ten rows.**
+`listCampaigns` is still one operation and `list_campaigns` is still its one MCP tool
+([`09-clients.md`](09-clients.md) §4). Resolving the catalog's strings *inside* the operation
+rather than beside it is what keeps that one-to-one mapping intact — the count is checkable by
+counting, and this change leaves the count alone.
 
 ---
 
@@ -1456,6 +1659,8 @@ Concrete mapping — and the reconciliation this document forces on
 | `SceneBody` | the node's `textKey`, interpolated (03 §3.1) |
 | `Kind.project` | `StoryGraphView` (03 §9) — turn, visible stats, unlocked achievements, ending; hides non-visible variables and visit counts. Scene text and choices are the generic `Scene`, not repeated here |
 | `Kind.validateCampaign` | 03 §11 |
+| `Kind.outcome` | 03 §8.5 — `terminalId` is the `endingId`; `terminal` is "settled onto an `EndingNode`" (§3.2) |
+| `Kind.terminalCount` | 03 §8.5 — distinct `endingId`s across the campaign's `EndingNode`s; the denominator in `CampaignProgress` (§7.3) |
 | `RngHandle.weightedPick` | random-transition node resolution (03 §3) |
 
 > **Reconciliation (done in 03).** Writing this seam exposed that `03`'s state
@@ -2235,11 +2440,27 @@ Two of these carry most of the value, for the two audiences the events exist to 
 replay oracle ([`07-replay.md`](07-replay.md) §3.3):
 
 ```typescript
-outcome(state: StoryGraphKindState): { endingId: string | null }
+outcome(state: StoryGraphKindState): { terminal: boolean; terminalId: string | null; endingId: string | null }
+
+terminalCount(campaign: Campaign): number   // distinct `endingId`s across the campaign's EndingNodes
 ```
 
 `endingId` when the game has settled onto an `EndingNode` (§8.2), `null` while it is still
 active. Nothing else — not `turn`, not variable values, not `visitedCounts`.
+
+**`terminalId` is `endingId`**, and the two fields are the same value under two names on
+purpose: `terminalId` is the cross-kind floor ([`04-core.md`](04-core.md) §3.2) a host reads
+without knowing which kind it holds, and `endingId` is this kind's own name for it, kept so
+nothing that already reads it has to change. `terminal` is `status === "ended"`, which for this
+kind is exactly "`endingId` is set" — stated as its own field because §3.2 requires the two
+facts to stay separable for kinds where they are not the same.
+
+**`terminalCount` counts distinct `endingId`s, not `EndingNode`s.** Two nodes may legitimately
+publish one ending — the same conclusion reached by different routes — and a progress denominator
+that counted nodes would tell a player there are more endings than the campaign can produce. It
+is pure over `campaign.content`: it reads the node map, never state, never a profile. This is
+the denominator in `CampaignProgress.total` ([`04-core.md`](04-core.md) §7.3); the numerator is
+the profile's, and this kind never sees it.
 
 > **Why so little.** The oracle compares games across engine versions, and anything that a
 > content rebalance may legitimately change would report as a regression. An ending id is a
@@ -2273,8 +2494,38 @@ interface VisibleStat {
   var: string;                    // the declared variable name
   labelKey: LocKey;               // required by §2 when visible
   value: VarValue;
+  min?: number;                   // the declared clamp floor (§2), when the declaration has one
+  max?: number;                   // the declared clamp ceiling (§2), when the declaration has one
 }
 ```
+
+**`min` and `max` mirror `VariableDecl` (§2) exactly, including its optionality.** They are
+present when the declaration declares them and absent otherwise — which for the shipped
+campaigns means every visible stat carries both, since every one is a bounded `int`. A `bool`
+or `enum` stat carries neither, because §2 gives it neither.
+
+They are here because without them a client rendering "3 / 12" had to reach into
+`Campaign.content` for the bound, and `content` is `unknown` to everything above the kind
+([`04-core.md`](04-core.md) §10.1). A downstream host did exactly that, structurally and
+defensively. **That is this ledger's failure mode running in the other direction:
+`CLAUDE.md`'s envelope-duplication entries track a kind carrying a field something else owns;
+this was a projection *omitting* a field, which forces every client past the boundary to
+recover it.** Both end with the boundary no longer load-bearing, and the fix for the omission
+is the same as for the duplication — put the field in exactly one place, here, and let clients
+read it there.
+
+**Copying a declared bound into the view is not duplication.** The declaration in §2 is the
+sole authority and nothing writes back to it; the view narrows content for a reader that has no
+route to content, which is what a projection is for. The value copied is authored data a
+rebalance may change freely — unlike a *terminal* id, it is never compared across engine
+versions.
+
+> **The enum analogue is a real gap and is deliberately not closed here.** A visible `enum`
+> stat's `values` set is unreachable by the same argument that made `min`/`max` unreachable. No
+> campaign declares a visible `enum` — every visible stat in the shipped set is a bounded `int`
+> — so adding the field now would ship public surface with no consumer and no test that could
+> fail. Registered rather than fixed; the day a campaign declares one, this is the paragraph
+> that says what to do.
 
 The choices a player may pick are the core's `AvailableAction[]` (04 §6), produced by
 this kind's `availableActions`: `showWhen`-failing choices are **omitted entirely**, and
@@ -4644,18 +4895,36 @@ interface SimulationResolution {
 }
 
 outcome(state: SimulationKindState): {
+  terminal: boolean;                                                 // 04 §3.2
+  terminalId: string | null;                                         // 04 §3.2 — the resolution token
   resolution: "goals_met" | "failed" | "week_limit_reached" | null;  // null while active
   goalsMet: readonly string[];      // completed GoalDefinition ids, sorted
   goalsFailed: readonly string[];   // failed GoalDefinition ids, sorted
 } {
   const terminal = state.resolution;
   return {
+    terminal: terminal !== null,
+    terminalId: terminal?.resolution ?? null,
     resolution: terminal?.resolution ?? null,
     goalsMet: terminal?.goalsMet ?? [],
     goalsFailed: terminal?.goalsFailed ?? [],
   };
 }
 ```
+
+**`terminalId` is the `resolution` token**, satisfying the cross-kind floor
+([`04-core.md`](04-core.md) §3.2) without inventing a fourth vocabulary. `resolution` stays as
+its own field: it is the typed union this kind's own readers already switch on, and narrowing it
+to the base's `string | null` would cost every one of them exhaustiveness checking to buy
+nothing. The duplication is a widening, which §3.2 is explicit about permitting — the base is a
+floor, not a ceiling.
+
+**This kind implements no `terminalCount`.** Its terminal set is the three tokens above, fixed by
+this contract rather than declared by a scenario, so a count of them is a fact about the engine
+and not about the campaign a player is looking at. "One of three resolutions reached" is not
+progress; it is a category label with a denominator glued on. Per
+[`04-core.md`](04-core.md) §7.3 the omission means a simulation campaign carries no `progress`
+object at all, which is the correct answer rather than a missing feature.
 
 This kind has **no ending concept** — nothing upstream resembles `story-graph`'s `Ending`
 type — so unlike that kind's `{ endingId: string | null }`, terminal identity here is
@@ -5946,7 +6215,7 @@ Both map to `ended`. The win/loss distinction is **terminal identity**, which is
 `Kind.outcome` is for ([`07-replay.md`](07-replay.md) §3.3):
 
 ```typescript
-interface WorldGraphOutcome {
+interface WorldGraphOutcome extends KindOutcome {
   readonly resolution: "objectives_met" | "failed" | null;   // null while active
   readonly objectivesMet: readonly string[];                 // published objective ids
   readonly failureId: string | null;                         // published failure-condition id
@@ -5955,12 +6224,31 @@ interface WorldGraphOutcome {
 outcome(state: WorldGraphKindState): WorldGraphOutcome {
   const terminal = state.resolution;
   return {
+    terminal: terminal !== null,
+    terminalId: terminal?.resolution ?? null,
     resolution: terminal?.resolution ?? null,
     objectivesMet: terminal?.objectiveIds ?? [],
     failureId: terminal?.failureId ?? null,
   };
 }
 ```
+
+**This is the one kind whose outcome type states the `extends` relationship in the tree**, for
+the same reason it is the one kind whose outcome type has a name at all: `WorldGraphOutcome` is
+exported from the package root, so the base it satisfies has to be visible on the declaration
+rather than inferred from a literal. The other two kinds satisfy `KindOutcome`
+([`04-core.md`](04-core.md) §3.2) structurally, through the return type of `outcome` itself.
+
+**`terminalId` is the `resolution` token, not `failureId`.** `failureId` is present only on the
+losing branch, so using it would leave a won game with a null terminal id and make `terminal`
+and `terminalId` disagree on exactly the games a host most wants to index. `resolution` is total
+across both branches, which is what the floor requires.
+
+**This kind implements no `terminalCount`,** for the reason
+[`10-simulation-kind.md`](10-simulation-kind.md) §12 gives for itself: the two resolution tokens
+are fixed here rather than declared by a scenario, so counting them measures the contract and
+not the content. A world-graph campaign therefore carries no `progress` object
+([`04-core.md`](04-core.md) §7.3).
 
 `WorldGraphOutcome` is named here because it is **exported from the package root**, so the
 name is public whether or not anything imports it yet — nothing does today. `story-graph`
