@@ -5,6 +5,7 @@ import type { RngHandle, StreamId } from "../../../core/determinism/types.js";
 import type { ResolutionEmitter } from "../../../core/observability/types.js";
 import type { WorldEffect, WorldGraphCampaign } from "../content.js";
 import type { WorldGraphKindState } from "../state.js";
+import { WORLD_GRAPH_EVENTS } from "../events.js";
 import { worldGraphKind } from "../kind.js";
 import { WORLD_GRAPH_REASON_CODES, WORLD_GRAPH_REASON_MESSAGES } from "../reasons.js";
 import { BatchChanges } from "./changes.js";
@@ -1520,10 +1521,17 @@ describe("world-graph W87 tick events", () => {
       source("../actions/alerts.ts"), source("../actions/build.ts"),
       source("../actions/staff.ts"), source("../actions/building.ts"),
     ].join("\n");
-    const emitted = new Set([
-      ...[...pipelineSources.matchAll(/kind\.world-graph\.[a-z][a-zA-Z0-9_.]*/g)].map((match) => match[0]),
-      ...[...actionSources.matchAll(/emit\(ctx, "([a-z][a-zA-Z0-9_.]*)"/g)].map((match) => `kind.world-graph.${match[1]}`),
-    ]);
+    // W96 centralized every call site's (name, severity) pair into `events.ts`'s
+    // `WORLD_GRAPH_EVENTS` table (12 §12's own callout that a literal at each call site let
+    // the contract table and the source drift). A call site now references a table key
+    // (`WORLD_GRAPH_EVENTS.someKey`) instead of a `kind.world-graph.*` string literal, so the
+    // emitted set is built by finding which keys are actually referenced from production
+    // source and resolving each through the real, imported table — still proving a live
+    // emit site exists for the name, not merely that the table declares it.
+    const referencedKeys = new Set(
+      [...(pipelineSources + actionSources).matchAll(/WORLD_GRAPH_EVENTS\.([a-zA-Z0-9_]+)/g)].map((match) => match[1]!),
+    );
+    const emitted = new Set<string>([...referencedKeys].map((key) => WORLD_GRAPH_EVENTS[key as keyof typeof WORLD_GRAPH_EVENTS].name));
     const declared = new Set(worldGraphKind.eventNames);
     expect([...declared].filter((name) => !emitted.has(name)), "declared with no emit site").toEqual([]);
     expect([...emitted].filter((name) => !declared.has(name)), "emitted but never declared").toEqual([]);

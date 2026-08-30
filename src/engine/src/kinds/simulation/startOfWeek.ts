@@ -34,14 +34,12 @@
 
 import type { ResolutionEmitter } from "../../core/observability/types.js";
 import type { CourseDefinition } from "./content.js";
+import { SIMULATION_EVENTS } from "./events.js";
 import type { SimulationKindState } from "./state.js";
 import { collectModifiers, combineModifiers } from "./modifiers.js";
 
-const SYSTEM_NAME = "kind.simulation.system.ran";
-const WEEK_STARTED_EVENT = "kind.simulation.week.started";
-
 function ranSystem(emit: ResolutionEmitter, system: string): void {
-  emit.emit(SYSTEM_NAME, "trace", { data: { system, phase: "start_of_week" } });
+  emit.emit(SIMULATION_EVENTS.systemRan.name, SIMULATION_EVENTS.systemRan.severity, { data: { system, phase: "start_of_week" } });
 }
 
 /** Increment the week, reset `spentTimeUnits`. Must run *before* `effects` — `expiresAtWeek`
@@ -57,8 +55,6 @@ function timeAdvance(state: SimulationKindState): SimulationKindState {
   };
 }
 
-const EFFECT_EXPIRED_EVENT = "kind.simulation.effect.expired";
-
 /** Expire `activeEffects` whose `expiresAtWeek` is strictly before the new week — an effect
  *  expiring in week 12 still applies throughout week 12 (kept while the new week is still
  *  12), and is only removed once the new week moves past it, at the start of week 13
@@ -70,7 +66,7 @@ function effects(state: SimulationKindState, emit: ResolutionEmitter): Simulatio
   const activeEffects: typeof state.activeEffects = [];
   for (const effect of state.activeEffects) {
     if (effect.expiresAtWeek !== undefined && effect.expiresAtWeek < state.calendar.currentWeek) {
-      emit.emit(EFFECT_EXPIRED_EVENT, "debug", { data: { effectId: effect.id } });
+      emit.emit(SIMULATION_EVENTS.effectExpired.name, SIMULATION_EVENTS.effectExpired.severity, { data: { effectId: effect.id } });
       continue;
     }
     activeEffects.push(effect);
@@ -130,7 +126,7 @@ export function runStartOfWeek(
   next = events(next);
   ranSystem(emit, "events");
 
-  emit.emit(WEEK_STARTED_EVENT, "info", { data: { week: next.calendar.currentWeek } });
+  emit.emit(SIMULATION_EVENTS.weekStarted.name, SIMULATION_EVENTS.weekStarted.severity, { data: { week: next.calendar.currentWeek } });
 
   return next;
 }

@@ -14,6 +14,7 @@ import type { ActionParams, AdvanceResult, KindContext } from "../../core/kernel
 import type { Condition } from "../../core/condition/types.js";
 import type { ResolutionEmitter } from "../../core/observability/types.js";
 import { applyConsequences } from "./variables.js";
+import { STORY_GRAPH_EVENTS } from "./events.js";
 import { requireNode } from "./nodes.js";
 import { enterAndEmit, settle } from "./settle.js";
 import { evaluateStoryGraphCondition, toConditionContext, type ConditionContext } from "./conditions.js";
@@ -28,7 +29,7 @@ function rejected(
   reject?: { choiceId: string; emit: ResolutionEmitter },
 ): AdvanceResult<StoryGraphKindState> {
   if (reject) {
-    reject.emit.emit("kind.story-graph.choice.rejected", "info", { reason: code, data: { choiceId: reject.choiceId } });
+    reject.emit.emit(STORY_GRAPH_EVENTS.choiceRejected.name, STORY_GRAPH_EVENTS.choiceRejected.severity, { reason: code, data: { choiceId: reject.choiceId } });
   }
   return { state, status: "active", changes: [], messages: [{ key: messageKey, visible: true }], error: { code, messageKey } };
 }
@@ -83,7 +84,7 @@ function evaluateRequirements(
   }
 
   const satisfied = evaluateStoryGraphCondition(condition, context);
-  emit.emit("kind.story-graph.requirement.evaluated", "trace", {
+  emit.emit(STORY_GRAPH_EVENTS.requirementEvaluated.name, STORY_GRAPH_EVENTS.requirementEvaluated.severity, {
     data: { choiceId, satisfied: negated ? !satisfied : satisfied },
   });
   return satisfied;
@@ -114,7 +115,7 @@ export function advance(
     return rejected(state, "not_a_choice_node", "story-graph.reason.not_a_choice_node");
   }
 
-  ctx.emit.emit("kind.story-graph.choice.submitted", "debug", { data: { nodeId: node.id, choiceId: actionId } });
+  ctx.emit.emit(STORY_GRAPH_EVENTS.choiceSubmitted.name, STORY_GRAPH_EVENTS.choiceSubmitted.severity, { data: { nodeId: node.id, choiceId: actionId } });
 
   const context = toConditionContext(state);
   const choice = node.choices.find((c) => c.id === actionId);
