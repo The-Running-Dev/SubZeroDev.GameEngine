@@ -30,6 +30,8 @@
 
 ## 9. Projection
 
+### 9.1 The Copy Boundary — the Kernel Owns It
+
 ## 10. Content, Saves, Migration
 
 ### 10.1 Content Registry
@@ -59,3 +61,5 @@
 ## 18. Frozen Primitives
 
 ## 19. Published Narrative Authoring
+
+## 20. The Ordered System Pipeline

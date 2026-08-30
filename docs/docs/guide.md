@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: a9a30b4361d7ae4a8ec272e9190790f690b7a42614efffd7279b2c710e0736e2 -->
+<!-- design-digest: 949e4e3aef2e76de48400f9d327f1b55be39e2c0d408c31d503d3452e7a2d597 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -395,6 +395,17 @@ Do not add a trusted-client escape hatch. The projection is what makes hidden in
 across text, MCP, web, and AI audiences. If a new client needs more information, decide whether it
 is genuinely player-visible and extend the relevant kind's projection deliberately.
 
+**A view you receive is yours to mutate, because it is a copy.** Every core surface that hands you
+a projection — `Engine.view`, and the `view` bundled on a `Scene` — returns a structural clone, so
+mutating anything reachable from it, however deeply nested, cannot reach `GameState`, a later read,
+`serialize()` output, or the action log. Two things follow. A view has no stable object identity:
+two projections of one state are equal and are never the same object, so a view is not a cache key
+and comparing two by reference is always false. And if you are implementing a kind, `project` may
+freely return values that alias `kindState` — that is explicitly allowed, since a projection
+legitimately reuses the value it narrows — but its result must be plain, structurally cloneable
+data. Return a function, or an object whose prototype the view depends on, and the first `view()`
+throws instead of quietly handing out a live reference into game state.
+
 Client code switches on stable reason codes and renders localization keys — it never parses an
 English error sentence, and a missing localization key is a registry-build defect, not a client
 fallback opportunity. Two things follow that are easy to get wrong when implementing a client or a
@@ -717,6 +728,37 @@ The full system-by-system pipeline, content model, and reason-code table are in
 [World-Graph Kind](/docs/engine/world-graph-kind). The flagship game built on this kind — Sun Trap —
 and its concrete content, balance, and client live in a separate repository; this contract owns the
 shapes and mechanics, not the numbers.
+
+## Turn pipelines inside a kind
+
+Two kinds resolve a turn by running an ordered list of systems: simulation's end-of-week pass and
+world-graph's tick. Both orders are normative and covered by tests, and both obey the same rules.
+World-graph already runs on a substrate shaped for exactly that — one frame-to-frame function type
+and a declared id list; simulation's fifteen systems are still fifteen bespoke calls threading a
+local variable.
+
+If you add, move, or reshape a system, these are the constraints that will bite you:
+
+- **The list you supply is the order that runs.** Nothing sorts, filters, deduplicates, or skips
+  it, and there is no system registry to register with. The caller's list is the whole truth.
+- **Every entry runs on every turn.** There is no short-circuit and no early exit. A terminal or
+  failed result is a value carried in the frame, not a control-flow signal — world-graph's rule
+  that a terminal result still runs systems 19 and 20 *is* this rule, not an exception to it.
+  Where a turn stops early, it stops in the loop around the pipeline, never inside it.
+- **A system is a total function from frame to frame,** and it sees only its immediate
+  predecessor's frame. Nothing merges or reconstructs a frame behind you.
+- **The pipeline itself emits nothing, draws no randomness, and reads no clock.** Every event a
+  turn produces comes from a system. Where a kind wants a per-system trace event — simulation
+  emits `kind.simulation.system.ran`, which is how an ordering regression gets localized to the
+  phase that moved — the list entry wraps the system and the emission together, where the list is
+  built. World-graph declares no such event and wraps nothing.
+- **Nothing catches.** A system that throws propagates, with no partial commit and no substitute
+  frame. That is deliberate: a throwing system is an engine defect rather than a game outcome, and
+  converting one into a rejected action would produce a wrong state that still serializes. Do not
+  add a reason code for it.
+
+The pipeline machinery is engine-internal. It is exported from neither the package root nor
+`/authoring`, and a host cannot supply, replace, or observe one.
 
 ## Saves and migrations
 

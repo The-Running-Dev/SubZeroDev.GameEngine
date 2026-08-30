@@ -197,7 +197,9 @@ interface Kind<KState> {
     ctx: KindContext,
   ): AdvanceResult<KState>;
 
-  /** Narrow kind-state to the visible projection for an audience (§9). */
+  /** Narrow kind-state to the visible projection for an audience (§9). May return values
+   *  that alias `state`; the core copies at the boundary (§9.1). The one requirement is
+   *  that the result be plain, structurally cloneable data. */
   project(state: KState, audience: ProjectionAudience, ctx: KindContext): unknown;
 
   /**
@@ -900,6 +902,53 @@ setting, declared and visible (games/04-engine-specification.md §6.1) — never
 > took the new name and `agent` now means exactly one thing: an entity the simulation
 > owns. Renamed before any code existed, which is the only cheap time to do it.
 
+### 9.1 The Copy Boundary — the Kernel Owns It
+
+`project` may return values that alias `kindState`, and every shipped kind does. The core
+neutralizes that at the boundary rather than asking each kind to avoid it: **every core surface
+that carries a `kind.project` result to a caller returns a structural clone of it.** The rule is
+the kernel's, applied in one place, and a kind neither implements nor can defeat it.
+
+Two surfaces carry a projection, and the rule binds both:
+
+- `Engine.view(state, audience)`.
+- `Scene.view` (§6), built by `Engine.scene(state)`. §6 declares that field to *be* the §9
+  projection, so this is the same obligation rather than a parallel one.
+
+Both are declared in `src/engine/src/core/kernel/engine.ts`.
+
+What a caller may rely on: mutating anything reachable from a returned view — nested records and
+arrays, to any depth — leaves `GameState`, every later `view()` or `scene()`, `serialize()`
+output, and the action log unchanged. What a caller may **not** rely on is object identity. Two
+projections of one state are equal and are never the same object, so a client must not use a view
+as a cache key or compare views by reference.
+
+**Immutable primitives are not copied, and need not be.** Strings, numbers, booleans, `null` and
+`undefined` are values; a copy of one is indistinguishable from it. The rule governs reachable
+containers only. `readonly` in a view type is a compile-time annotation this rule does not depend
+on and is not enforced by: `WorldGraphView` marks its arrays `readonly` and `StoryGraphView` does
+not, and both are equally protected, because neither annotation is what protects them.
+
+**The one obligation this places on a kind:** a `project` result must be plain, structurally
+cloneable data — no functions, no class instance whose prototype the view depends on, nothing
+that cannot survive the boundary. A kind that returns such a value fails at its first `view()`
+rather than silently handing out a live reference, which is the failure mode worth having.
+
+`Engine.availableActions` is outside this rule and needs nothing from it: `AvailableAction` (§6)
+is a flat record of primitives and carries no projection.
+
+> **Why the kernel and not the kind.** A kind is the wrong owner for an invariant no kind can be
+> checked against. All three alias state while projecting today, and each is locally reasonable —
+> a projection legitimately reuses the value it is narrowing. Placing the rule on kinds turns it
+> into an instruction every future kind must re-obey with nothing to catch a lapse, and this
+> repository has already recorded that exact shape failing twice (`90-decisions.md` — the
+> *emitted → registered* gap, and the end-of-week stub register: "a rule with no gate, checked
+> only when someone compares the two sets by hand"). At the kernel it holds by construction, for
+> kinds that do not exist yet.
+>
+> The cost is one copy per read, and it is affordable precisely because a projection is narrow by
+> construction — this section and each kind's own projection section exist to keep it so.
+
 ---
 
 ## 10. Content, Saves, Migration
@@ -1546,3 +1595,64 @@ Portable campaign documents remain format version 2. `toPortable` and
 runtime-root export. `digestPortableCampaign` is exported from both surfaces: the root, for
 hosts verifying fetched content, and `/authoring`, for authoring pipelines digesting campaign
 source before publication.
+
+---
+
+## 20. The Ordered System Pipeline
+
+Two kinds resolve a turn by running an ordered list of systems: `simulation`'s end-of-week pass
+([`10-simulation-kind.md`](10-simulation-kind.md) §3) and `world-graph`'s tick
+([`12-world-graph-kind.md`](12-world-graph-kind.md) §4.1). **Those orders are normative and are
+owned there, not here.** This section owns only the *substrate* they run on: what applying an
+ordered list means, and what doing so must never do.
+
+The substrate is engine-internal. It is exported from neither the package root nor `/authoring`,
+and no host supplies, replaces, wraps, or observes one — a pipeline sits inside the determinism
+boundary, which by [`06-extensibility.md`](06-extensibility.md) §2 is the same line as the trust
+boundary.
+
+**It is a fold over an explicit list, and nothing more.**
+
+- **Order is the caller's, verbatim.** The substrate applies entries in exactly the order given.
+  It never sorts, filters, deduplicates, reorders, or skips, and it holds no registry of systems
+  and no opinion about which belong. A caller that supplies a list is the sole authority on its
+  contents — which is what lets the two normative orders stay owned by their kinds while the
+  mechanism is shared.
+- **Every entry runs, every time.** There is no short-circuit and no early exit. A terminal or
+  failed result is a value carried in the frame, never a control-flow signal; §4.1's rule that "a
+  terminal result does not interrupt the tick" is a *consequence* of this, not an exception to
+  it. Where a turn stops early it stops in the caller's own loop around the substrate, never
+  inside it.
+- **Each entry is a total function from frame to frame,** and the substrate threads each returned
+  frame to the next entry. No entry observes a frame from anything but its immediate predecessor,
+  and the substrate never inspects, merges, or reconstructs one. The frame type belongs to the
+  caller; the substrate is generic over it and reads no field of it.
+- **The substrate emits nothing.** It holds no `Emitter`, draws no randomness, and reads no
+  clock. Every event a turn produces is emitted by a system — and per-system trace events are no
+  exception. Where a kind wants one, the entry's own `run` closes over the system and the
+  emission together, at the point the list is built. `simulation` does this for
+  `kind.simulation.system.ran`, which its §11 keeps because a stream naming each system in order
+  localizes an ordering regression to the phase that moved; `world-graph` declares no such event
+  and wraps nothing. Both are the same substrate, with no flag distinguishing them.
+- **It never catches.** A system that throws propagates to the caller, with no partial commit and
+  no substitute frame. A throw is an engine defect rather than a game outcome — both existing
+  pipelines already rely on this, in `world-graph`'s per-entry `processingTick` guard and its
+  finalize-once assertion, and in the dangling-id lookups both kinds share — and catching one
+  would convert a wrong state into a state that still serializes. No reason code covers it, and
+  introducing one would be the mistake.
+
+> **Why the substrate is emission-free rather than emitting per system.** The two callers
+> disagree today, and both are right: `simulation`'s runner emits one trace event per system,
+> `world-graph`'s loop emits none and lets each system speak for itself. A substrate that always
+> emitted would add twenty events to every world-graph tick; one that never emitted would delete
+> the `system.ran` stream its §11 relies on. Moving the emission into the list entry settles it
+> without a flag — the substrate stays a pure fold, each kind's event stream stays byte-identical
+> to what it produces now, and *which events a turn emits* remains a question about systems
+> rather than about the machinery that runs them.
+
+**What this section does not settle.** Whether a given kind's systems are *shaped* to run on this
+substrate is that kind's own internal matter, constrained by the rules above and by nothing else
+here. `world-graph`'s already are — one `(frame) => frame` type and a declared id list.
+`simulation`'s are not: fifteen bespoke signatures, no frame type, and a `missedCents` handoff
+threaded from `housing` into `finance_reconcile`. Reshaping those is a change to that kind's
+internals and must leave its resolution behaviour, its ordering, and its event stream unchanged.
