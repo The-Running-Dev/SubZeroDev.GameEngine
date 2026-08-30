@@ -4046,7 +4046,7 @@ and compete for finite jobs without long campaigns accumulating unstable state.
 - **Out of scope:** balance-tuning the long run, defining rival strategies, changing event
       content, or adding a new item-acquisition action beyond the shipped `shop` path.
 
-### [ ] W95 — Effect and Audit Semantics {#w95}
+### [x] W95 — Effect and Audit Semantics {#w95}
 
 **Delivers:** Players and observers see status effects, world-meter changes, and audit reasons
 that describe exactly what the engine applied—once, and only when state really changed.
@@ -4062,7 +4062,9 @@ that describe exactly what the engine applied—once, and only when state really
       `design/20-contract.md` and their generated human documentation.
 - **Depends on:** a real status-effect insertion path from [W101](#w101) if none exists when
       this unit starts; the deferred-meter and audit-table work is otherwise independent.
-- **Status:** Not started.
+- **Status:** Complete — [PR #403](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/403)
+      (W95.1–3, 5–7) and [PR #404](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/404)
+      (W95.4), merged.
 - **Done when:**
   - W95.1 Every simulation code path that inserts a `StatusEffect` goes through one invariant:
         a same-source `refresh` replaces the prior layer and resets expiry, a same-source
