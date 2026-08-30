@@ -87,6 +87,7 @@ import type {
 } from "./content.js";
 import { evaluateSimulationCondition } from "./conditions.js";
 import { derivedValueResolver } from "./derived.js";
+import { runSystems, type SystemEntry } from "../../core/pipeline/systems.js";
 import { SIMULATION_EVENTS } from "./events.js";
 import { insertStatusEffect } from "./modifiers.js";
 import { governingMaintenanceRule } from "./resolvers.js";
@@ -1290,6 +1291,102 @@ export interface EndOfWeekWorld {
    *  unconditionally. */
   rng?: RngHandle;
 }
+/**
+ * The frame the fifteen end-of-week systems are threaded through (04 §20).
+ *
+ * Everything above the emitter is what a system may change; everything from `emit` down is
+ * this week's fixed input, carried on the frame because §20's substrate threads one value and
+ * reads no field of it. Splitting them into a separate "context" parameter would mean a
+ * second thing to thread, which the substrate has no way to carry.
+ */
+interface EndOfWeekFrame {
+  readonly state: SimulationKindState;
+  readonly changes: readonly StateChange[];
+  readonly messages: readonly OutcomeMessage[];
+  /**
+   * The one durable handoff in this pass: `housing` computes it from this week's own charge
+   * alone, and `finance_reconcile`, immediately after, is its only reader. It lives on the
+   * frame rather than in a closure because that is exactly what a handoff between two systems
+   * in an ordered list is — §3's ordering claim made visible instead of implicit.
+   */
+  readonly missedCents: Cents;
+  readonly emit: ResolutionEmitter;
+  readonly goalDefs: readonly GoalDefinition[];
+  readonly goalFailurePrecedence: GoalFailurePrecedence;
+  readonly jobs: readonly JobDefinition[];
+  readonly courses: readonly CourseDefinition[];
+  readonly items: readonly ItemDefinition[];
+  readonly world: EndOfWeekWorld;
+}
+
+/** A system that returns state alone. */
+function plain(frame: EndOfWeekFrame, state: SimulationKindState): EndOfWeekFrame {
+  return { ...frame, state };
+}
+
+/** A system that returns state plus this week's changes, appended in execution order —
+ *  which is the order `runEndOfWeek` concatenated them in before the fold existed. */
+function withChanges(frame: EndOfWeekFrame, result: { state: SimulationKindState; changes: readonly StateChange[] }): EndOfWeekFrame {
+  return { ...frame, state: result.state, changes: [...frame.changes, ...result.changes] };
+}
+
+/**
+ * Every entry emits its own `kind.simulation.system.ran` after running, which is where §20
+ * puts a per-system trace event: the substrate emits nothing, so the emission closes over the
+ * system and the event together at the point the list is built. `world-graph` wraps nothing
+ * and therefore still emits none, on the same substrate with no flag distinguishing them.
+ *
+ * After, never before — §11 reads the stream as "this system has now run", and moving the
+ * emission ahead of the call would reorder it against every domain event the system itself
+ * emits.
+ */
+function traced(id: string, run: (frame: EndOfWeekFrame) => EndOfWeekFrame): SystemEntry<EndOfWeekFrame> {
+  return {
+    id,
+    run: (frame) => {
+      const next = run(frame);
+      ranSystem(next.emit, id);
+      return next;
+    },
+  };
+}
+
+/**
+ * The normative order (§3, upstream §12.2), as one declared list rather than fifteen
+ * hand-sequenced statements. The ids are the contract's own and are unchanged: the stream a
+ * `system.ran` reader sees is identical to the one the statement sequence produced.
+ */
+const END_OF_WEEK_SYSTEMS: readonly SystemEntry<EndOfWeekFrame>[] = [
+  traced("employment", (frame) => plain(frame, employment(frame.state, frame.jobs, frame.emit))),
+  traced("education", (frame) => withChanges(frame, education(frame.state, frame.courses))),
+  traced("finance_income", (frame) => withChanges(frame, financeIncome(frame.state, frame.jobs))),
+  traced("inventory", (frame) => withChanges(frame, inventory(frame.state, frame.items))),
+  traced("housing", (frame) => {
+    const result = housing(frame.state);
+    return { ...withChanges(frame, result), missedCents: result.missedCents };
+  }),
+  traced("finance_reconcile", (frame) => withChanges(frame, financeReconcile(frame.state, frame.missedCents))),
+  traced("needs", (frame) => withChanges(frame, needs(frame.state))),
+  traced("relationships", (frame) => plain(frame, relationships(frame.state))),
+  traced("opportunities", (frame) => withChanges(frame, opportunities(frame.state, frame.world.opportunities ?? [], frame.world.rng))),
+  traced("events", (frame) => {
+    const result = events(frame.state, frame.world.events ?? [], frame.world.rng);
+    // `events` is the only system that produces player-facing text: an `EventOutcome`'s
+    // `messages` (§7.6). `advance.ts` folds these into the same `AdvanceResult.messages`
+    // channel a resolver's `ActionOutcome.messages` reach (04 §12), so an event's flavour
+    // text arrives by the same route as an action's.
+    return { ...withChanges(frame, result), messages: [...frame.messages, ...result.messages] };
+  }),
+  traced("headline", (frame) => withChanges(frame, headline(frame.state, frame.world.headlines ?? []))),
+  traced("goals", (frame) => plain(frame, goals(frame.state, frame.goalDefs, frame.goalFailurePrecedence, frame.emit))),
+  traced("failure", (frame) => plain(frame, failure(frame.state, frame.goalDefs, frame.emit))),
+  traced("week_limit", (frame) => plain(frame, weekLimit(frame.state, frame.world.weekLimit))),
+  traced("achievements", (frame) => withChanges(frame, achievements(frame.state, frame.world.achievements ?? []))),
+];
+
+/** The declared order, for tests and guards that check it without running a week. Same role
+ *  `WORLD_GRAPH_SYSTEM_IDS` plays for the other tick-driven kind. */
+export const END_OF_WEEK_SYSTEM_IDS: readonly string[] = END_OF_WEEK_SYSTEMS.map(({ id }) => id);
 
 export function runEndOfWeek(
   state: SimulationKindState,
@@ -1301,73 +1398,9 @@ export function runEndOfWeek(
   items: readonly ItemDefinition[] = [],
   world: EndOfWeekWorld = {},
 ): { state: SimulationKindState; changes: StateChange[]; messages: OutcomeMessage[] } {
-  let next = employment(state, jobs, emit);
-  ranSystem(emit, "employment");
-
-  const educationResult = education(next, courses);
-  next = educationResult.state;
-  ranSystem(emit, "education");
-
-  const financeIncomeResult = financeIncome(next, jobs);
-  next = financeIncomeResult.state;
-  ranSystem(emit, "finance_income");
-
-  const inventoryResult = inventory(next, items);
-  next = inventoryResult.state;
-  ranSystem(emit, "inventory");
-
-  const housingResult = housing(next);
-  next = housingResult.state;
-  ranSystem(emit, "housing");
-
-  const financeReconcileResult = financeReconcile(next, housingResult.missedCents);
-  next = financeReconcileResult.state;
-  ranSystem(emit, "finance_reconcile");
-
-  const needsResult = needs(next);
-  next = needsResult.state;
-  ranSystem(emit, "needs");
-
-  next = relationships(next);
-  ranSystem(emit, "relationships");
-
-  const opportunitiesResult = opportunities(next, world.opportunities ?? [], world.rng);
-  next = opportunitiesResult.state;
-  ranSystem(emit, "opportunities");
-
-  const eventsResult = events(next, world.events ?? [], world.rng);
-  next = eventsResult.state;
-  ranSystem(emit, "events");
-
-  const headlineResult = headline(next, world.headlines ?? []);
-  next = headlineResult.state;
-  ranSystem(emit, "headline");
-
-  next = goals(next, goalDefs, goalFailurePrecedence, emit);
-  ranSystem(emit, "goals");
-
-  next = failure(next, goalDefs, emit);
-  ranSystem(emit, "failure");
-
-  next = weekLimit(next, world.weekLimit);
-  ranSystem(emit, "week_limit");
-
-  const achievementsResult = achievements(next, world.achievements ?? []);
-  next = achievementsResult.state;
-  ranSystem(emit, "achievements");
-
-  return {
-    state: next,
-    changes: [
-      ...educationResult.changes, ...financeIncomeResult.changes, ...inventoryResult.changes,
-      ...housingResult.changes, ...financeReconcileResult.changes, ...needsResult.changes,
-      ...opportunitiesResult.changes, ...eventsResult.changes, ...headlineResult.changes,
-      ...achievementsResult.changes,
-    ],
-    // `events` is the only system that produces player-facing text: an `EventOutcome`'s
-    // `messages` (§7.6). `advance.ts` folds these into the same `AdvanceResult.messages`
-    // channel a resolver's `ActionOutcome.messages` reach (04 §12), so an event's flavour
-    // text arrives by the same route as an action's.
-    messages: eventsResult.messages,
-  };
+  const final = runSystems<EndOfWeekFrame>(
+    { state, changes: [], messages: [], missedCents: 0, emit, goalDefs, goalFailurePrecedence, jobs, courses, items, world },
+    END_OF_WEEK_SYSTEMS,
+  );
+  return { state: final.state, changes: [...final.changes], messages: [...final.messages] };
 }

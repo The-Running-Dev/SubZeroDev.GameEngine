@@ -1,4 +1,5 @@
 import type { KindContext } from "../../../core/kernel/types.js";
+import { runSystems, type SystemEntry } from "../../../core/pipeline/systems.js";
 import { assertReferentialIntegrity } from "../actions/common.js";
 import { evaluateCondition, evaluateMetric } from "../conditions.js";
 import { WORLD_GRAPH_EVENTS } from "../events.js";
@@ -26,9 +27,11 @@ export interface WorldGraphTickFrame {
 
 export type WorldGraphSystem = (frame: WorldGraphTickFrame) => WorldGraphTickFrame;
 
-interface WorldGraphSystemEntry {
+/** The shared substrate's entry (04 §20), narrowed to this kind's own closed id union — the
+ *  substrate never reads `id`, so narrowing it costs the substrate nothing and keeps the
+ *  twenty-entry list checkable against `WORLD_GRAPH_SYSTEM_IDS`. */
+interface WorldGraphSystemEntry extends SystemEntry<WorldGraphTickFrame> {
   readonly id: WorldGraphSystemId;
-  readonly run: WorldGraphSystem;
 }
 
 function scalar(
@@ -1108,11 +1111,20 @@ export function runWorldGraphTick(
     changes,
     state,
   };
-  for (const system of systems) {
-    const previousTick = frame.processingTick;
-    frame = system.run(frame);
-    if (frame.processingTick !== previousTick) throw new Error(`World-graph system ${system.id} changed processingTick`);
-  }
+  // The shared fold (04 §20). The per-entry `processingTick` guard wraps the list handed in
+  // rather than living in `WORLD_GRAPH_SYSTEMS`, so a caller supplying its own subset — every
+  // focused test in this module's suite does — is guarded exactly as the full order is. §20
+  // requires the substrate to read no field of the frame; wrapping is how a caller keeps an
+  // invariant that does.
+  frame = runSystems(frame, systems.map((system) => ({
+    id: system.id,
+    run: (current: WorldGraphTickFrame): WorldGraphTickFrame => {
+      const previousTick = current.processingTick;
+      const next = system.run(current);
+      if (next.processingTick !== previousTick) throw new Error(`World-graph system ${system.id} changed processingTick`);
+      return next;
+    },
+  })));
   if (frame.state.tick !== processingTick + 1) throw new Error("World-graph tick did not finalize exactly once");
   return frame.state;
 }

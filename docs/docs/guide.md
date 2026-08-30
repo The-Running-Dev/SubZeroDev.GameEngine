@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 949e4e3aef2e76de48400f9d327f1b55be39e2c0d408c31d503d3452e7a2d597 -->
+<!-- design-digest: c5e193653a2ef2a7a66b1ac11eb0b8f4a62c153aec3ceca1e151fcd589ebe6c7 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -733,9 +733,10 @@ shapes and mechanics, not the numbers.
 
 Two kinds resolve a turn by running an ordered list of systems: simulation's end-of-week pass and
 world-graph's tick. Both orders are normative and covered by tests, and both obey the same rules.
-World-graph already runs on a substrate shaped for exactly that — one frame-to-frame function type
-and a declared id list; simulation's fifteen systems are still fifteen bespoke calls threading a
-local variable.
+Both now run on one shared substrate — a fold over an explicit list of frame-to-frame entries.
+World-graph was already shaped for it, one frame type and a declared id list; simulation's fifteen
+systems, once fifteen bespoke calls threading a local variable, now share a frame that carries the
+rent shortfall from housing to finance_reconcile explicitly.
 
 If you add, move, or reshape a system, these are the constraints that will bite you:
 

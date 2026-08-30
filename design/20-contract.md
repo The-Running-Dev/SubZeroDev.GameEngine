@@ -1678,12 +1678,20 @@ boundary.
 > to what it produces now, and *which events a turn emits* remains a question about systems
 > rather than about the machinery that runs them.
 
+The substrate is declared in `src/engine/src/core/pipeline/systems.ts`: `SystemEntry<Frame>`, an
+`id` the substrate never reads plus a frame-to-frame `run`, and `runSystems`, the fold itself.
+
 **What this section does not settle.** Whether a given kind's systems are *shaped* to run on this
 substrate is that kind's own internal matter, constrained by the rules above and by nothing else
-here. `world-graph`'s already are — one `(frame) => frame` type and a declared id list.
-`simulation`'s are not: fifteen bespoke signatures, no frame type, and a `missedCents` handoff
-threaded from `housing` into `finance_reconcile`. Reshaping those is a change to that kind's
-internals and must leave its resolution behaviour, its ordering, and its event stream unchanged.
+here. Both shipped tick-driven kinds now are, by different routes. `world-graph` already had the
+shape — one `(frame) => frame` type and a declared id list — and keeps its per-entry
+`processingTick` guard by wrapping the list handed to it, since the substrate may read no field of
+the frame. `simulation` had none of it — fifteen bespoke signatures, no frame type, and a
+`missedCents` handoff from `housing` into `finance_reconcile` — and gained an `EndOfWeekFrame` that
+carries that handoff explicitly, with each entry pre-wrapped to emit its own
+`kind.simulation.system.ran`. Both reshapes were constrained to leave resolution behaviour,
+ordering, and the event stream unchanged, which `src/engine/src/campaigns/pipeline-equivalence.test.ts`
+holds against the committed replay corpus.
 <!-- human-doc:end -->
 
 <!-- human-doc:start path="engine/03-story-graph-kind.md" -->

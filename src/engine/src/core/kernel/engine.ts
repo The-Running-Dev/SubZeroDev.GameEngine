@@ -254,14 +254,32 @@ function previewAction(
 // methods can report an error — Engine.scene/availableActions/view return bare values, not
 // a CommandResult — so the guarantee has to live at the boundary instead.
 
+/**
+ * The copy boundary (04 §9.1). Projections are an API boundary, not a reference into the
+ * authoritative state tree: a kind may legitimately reuse a state value while projecting —
+ * §9.1 explicitly permits aliasing, and all three shipped kinds do it — so the kernel
+ * neutralizes it here instead of asking each kind to avoid it.
+ *
+ * Every core surface carrying a `kind.project` result to a caller goes through this one
+ * function, which is what makes the rule the kernel's rather than an instruction each future
+ * kind must re-obey. Two surfaces qualify: `view` and `scene`, whose `view` field §6 declares
+ * to *be* the §9 projection. `availableActions` is outside the rule — `AvailableAction` is a
+ * flat record of primitives and carries no projection.
+ *
+ * `structuredClone` throws on a value that is not structurally cloneable, which is the stated
+ * obligation on a kind and the failure mode worth having: a kind returning a function or a
+ * live class instance fails at its first `view()` rather than silently handing out a
+ * reference into the state tree.
+ */
+function copyProjection(projected: PlayerView): PlayerView {
+  return structuredClone(projected);
+}
+
 function view(host: EngineHost, state: GameState, audience: ProjectionAudience): PlayerView {
   const campaign = host.registry.campaigns.get(state.campaignId)!;
   const kind = host.kinds[state.kindId]!;
   const ctx = buildReadContext(host, campaign, kind, state);
-  // Projections are an API boundary, not a reference into the authoritative
-  // state tree.  A kind may legitimately reuse a state value while projecting;
-  // clone the completed envelope so callers cannot mutate later reads or saves.
-  return structuredClone({
+  return copyProjection({
     gameId: state.gameId,
     status: state.status,
     kindView: kind.project(state.kindState, audience, ctx),
@@ -290,12 +308,14 @@ function scene(host: EngineHost, state: GameState): Scene {
     // Scene.view has no audience parameter, so it's hardcoded to "player" here — nothing
     // connects this to NewGameConfig.audience (GameState carries no audience field; see
     // createGame's own comment). Built inline from the same ctx rather than via
-    // view(host, state, "player"), which would build a second, independent one.
-    view: {
+    // view(host, state, "player"), which would build a second, independent one — but
+    // through the same copyProjection as view(), since §6 declares this field to *be* the
+    // §9 projection and §9.1's boundary binds both surfaces, not just the one named `view`.
+    view: copyProjection({
       gameId: state.gameId,
       status: state.status,
       kindView: kind.project(state.kindState, "player", ctx),
-    },
+    }),
   };
 }
 
