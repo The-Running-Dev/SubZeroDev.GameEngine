@@ -269,6 +269,40 @@ export interface RelationshipState {
 }
 
 // ---------------------------------------------------------------------------
+// §6.12 Projects and Businesses — Runtime State (W101)
+// ---------------------------------------------------------------------------
+
+/** Durable, per-actor progress against a `ProjectDefinition` (`content.ts` §7.12) — the same
+ *  "content declares the shape, state declares the instance" split `JobDefinition`/
+ *  `Employment` and `CourseDefinition`/`CourseEnrollment` already follow. */
+export interface ProjectRuntimeState {
+  /** Natural key for `Modifier`/`Condition` addressing (§7.1). */
+  instanceId: string;
+  definitionId: string;
+
+  startedWeek: number;
+  /** `0 .. ProjectDefinition.requiredUnits`. */
+  progressUnits: number;
+  /** Transitions `"in_progress"` → `"completed"` once, never back. */
+  status: "in_progress" | "completed";
+  completedWeek?: number;
+}
+
+export interface BusinessRecord {
+  /** Natural key for `Modifier`/`Condition` addressing (§7.1). */
+  instanceId: string;
+  definitionId: string;
+
+  startedWeek: number;
+  cashOnHandCents: Cents;
+  weeksOperated: number;
+  /** Transitions `"operating"` → `"closed"` once, never back. */
+  status: "operating" | "closed";
+  closedWeek?: number;
+  closedReason?: ReasonCode;
+}
+
+// ---------------------------------------------------------------------------
 // §6.2 The Shared Actor Shape
 // ---------------------------------------------------------------------------
 
@@ -285,6 +319,9 @@ export interface ActorState {
 
   inventory: InventoryItem[];
   relationships: RelationshipState[];
+
+  projects: ProjectRuntimeState[];
+  businesses: BusinessRecord[];
 
   /** Needs, skills, attributes and reputation values are integers in `0–100` — enforced
    *  by Tier 1 validation and typed reducers on write, not by the `number` type itself. */

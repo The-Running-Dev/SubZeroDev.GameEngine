@@ -38,6 +38,8 @@ import { outcome as computeOutcome } from "./outcome.js";
 import type { SimulationCampaign } from "./campaign.js";
 import type { SimulationKindState } from "./state.js";
 import { unaddressedPendingResponses } from "./state.js";
+import { AGENT_STRATEGIES } from "./agentStrategies.js";
+import { projectPublicWorldState } from "./view.js";
 
 /** A rejection carries the player-facing message as well as the error (04 §3): `error`
  *  tells the core *that* the action failed, `messages` is what tells the player, and a
@@ -185,6 +187,31 @@ export function advance(
         resolvedEvents.push({ actionId: action.id, actionType: action.type, degree: outcome.degree });
       }
 
+      // Rivals resolve after the player's own plan, in `WorldState.agents` order — never
+      // interleaved with it (§7.10, W101; `90-decisions.md`'s W101 gate 4). Each rival's
+      // `AgentStrategy.selectActions` decides from the same public view a client would see
+      // (`projectPublicWorldState`) plus its own, private `AgentState`, and its chosen
+      // actions resolve through the identical `RESOLVER_TABLE` the player's plan just used —
+      // actor-addressed by `agent.id`, not `"player"`. Unlike the player, a rival action that
+      // fails `canExecute` is simply skipped, not a whole-week rejection: nothing about a
+      // scripted rival's own decision should block the player's `end_week`.
+      for (const agent of working.world.agents) {
+        const strategy = AGENT_STRATEGIES[agent.strategyId];
+        if (!strategy) continue;
+        const rivalActions = strategy.selectActions(projectPublicWorldState(working), agent);
+        for (const action of rivalActions) {
+          if (action.type === "custom") continue;
+          const resolver = RESOLVER_TABLE[action.type];
+          const validation = resolver.canExecute(working, action, ctx);
+          if (!validation.valid) continue;
+          const outcome = resolver.calculate(working, action, ctx);
+          working = resolver.apply(working, outcome);
+          changes.push(...outcome.changes);
+          messages.push(...outcome.messages);
+          resolvedEvents.push({ actionId: action.id, actionType: action.type, degree: outcome.degree });
+        }
+      }
+
       for (const data of resolvedEvents) {
         ctx.emit.emit(SIMULATION_EVENTS.actionResolved.name, SIMULATION_EVENTS.actionResolved.severity, { data });
       }
@@ -216,6 +243,7 @@ export function advance(
           opportunities: content.opportunities,
           headlines: content.headlines,
           achievements: content.achievements,
+          businesses: content.businesses,
           ...(scenario?.weekLimit !== undefined ? { weekLimit: scenario.weekLimit } : {}),
           ...(content.relationshipDrift !== undefined ? { relationshipDrift: content.relationshipDrift } : {}),
           ...(content.attendanceTracking !== undefined ? { attendanceTracking: content.attendanceTracking } : {}),

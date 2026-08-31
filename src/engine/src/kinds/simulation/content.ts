@@ -395,6 +395,26 @@ export interface ScenarioDefinition {
   mode: GameMode;
 
   goalFailurePrecedence: GoalFailurePrecedence;
+
+  /** Zero or more scripted rivals this scenario starts with (§7.8, W101). Absent or empty
+   *  builds `WorldState.agents: []` exactly as `initialState` already does — this field adds
+   *  a new source `initialState` reads, not a new default it can silently change. */
+  rivals?: readonly RivalConfig[];
+}
+
+/** §7.10's own open gap, closed: the natural home it named for how a campaign selects a
+ *  rival's engine-owned strategy (W101). One entry per rival this scenario starts with. */
+export interface RivalConfig {
+  /** `AgentState.id` (`state.ts`) — must be unique within this scenario's own `rivals` array. */
+  agentId: string;
+  /** `AgentStrategy.id` (§7.10, below) — Tier 1: `unknown_rival_strategy` when unresolved. */
+  strategyId: string;
+  displayNameKey: LocKey;
+
+  /** Same `BackgroundDefinition` mechanism the player's own starting state uses. */
+  startingBackgroundId: string;
+  /** Applied once, at `initialState`, on top of the background. */
+  initialConditions?: Modifier[];
 }
 
 /** Every rival advantage is declared here and nowhere else — what makes an "any advantage
@@ -523,6 +543,50 @@ export interface SkillDefinition {
   nameKey: LocKey;
   category: string;
   decayPerWeek: number;
+}
+
+// ---------------------------------------------------------------------------
+// §7.12 Projects and Businesses (W101)
+// ---------------------------------------------------------------------------
+
+/** "Definition declares the shape, `Requirement[]`/`Reward[]` reuse the existing vocabulary" —
+ *  the same `JobDefinition`/`Employment` split (§6.8), against `ProjectRuntimeState` (`state.ts`
+ *  §6.12). Neither adds a `RequirementType`, `RewardType`, or `Condition` operator of its own. */
+export interface ProjectDefinition {
+  id: string;
+  nameKey: LocKey;
+  descriptionKey: LocKey;
+
+  /** Gates `start_project`. */
+  requirements: Requirement[];
+  /** Total `ProjectRuntimeState.progressUnits` to complete. */
+  requiredUnits: number;
+  /** `work_on_project`'s own time cost. */
+  weeklyTimeCost: number;
+  startCostCents: Cents;
+
+  /** Granted once, on completion. */
+  rewards: Reward[];
+  tags: string[];
+}
+
+export interface BusinessDefinition {
+  id: string;
+  nameKey: LocKey;
+  descriptionKey: LocKey;
+
+  /** Gates `start_business`. */
+  requirements: Requirement[];
+  startupCostCents: Cents;
+
+  /** Before modifiers (§7.1). */
+  weeklyRevenueCents: Cents;
+  /** Before modifiers (§7.1). */
+  weeklyExpensesCents: Cents;
+  /** Breached ⇒ `closedReason: "business_insolvent"` (`state.ts` §6.12). */
+  minimumCashCents: Cents;
+
+  tags: string[];
 }
 
 // ---------------------------------------------------------------------------

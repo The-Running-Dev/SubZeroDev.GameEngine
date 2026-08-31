@@ -129,6 +129,8 @@ const stableLifePossessionsSource: SimulationCampaignSource = {
     },
   ],
   difficulties: [],
+  projects: [],
+  businesses: [],
   opportunities: [],
   achievements: [],
   headlines: [],

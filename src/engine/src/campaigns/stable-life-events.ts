@@ -147,6 +147,23 @@ const stableLifeEventsSource: SimulationCampaignSource = {
     },
   ],
   difficulties: [],
+  projects: [],
+  // Referenced by `opportunity-market-stall` (§7.9, W101) — a minimal `BusinessDefinition`
+  // so the opportunity's own `targetId` resolves; this fixture's own scenarios never start
+  // or operate it, so its cashflow numbers are placeholders, not balanced content.
+  businesses: [
+    {
+      id: "market-stall",
+      name: { key: "stable-life-events.business.market-stall.name", text: "The Market Stall" },
+      description: { key: "stable-life-events.business.market-stall.description", text: "A modest stall, taken over from someone giving up." },
+      requirements: [],
+      startupCostCents: 20000,
+      weeklyRevenueCents: 3000,
+      weeklyExpensesCents: 1000,
+      minimumCashCents: -50000,
+      tags: [],
+    },
+  ],
   opportunities: [
     {
       id: "opportunity-market-stall",

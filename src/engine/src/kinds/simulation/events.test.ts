@@ -45,7 +45,7 @@ const player = {
   education: { enrollments: [], credentials: [], completedCourseIds: [], failedCourseIds: [] },
   career: { history: [], totalWeeksEmployed: 0, pendingApplications: [], highestTierAchieved: "entry" as const },
   housing: { definitionId: "h", movedInWeek: 1, ownership: "renting" as const, damage: 0, weeklyCostCents: 0, depositPaidCents: 0, rentDueWeek: 1, overdueRentCents: 0, missedPayments: 0, evictionStage: "none" as const },
-  inventory: [], relationships: [], skills: {}, traits: [], reputation: {}, flags: {}, counters: {},
+  inventory: [], relationships: [], projects: [], businesses: [], skills: {}, traits: [], reputation: {}, flags: {}, counters: {},
 };
 const economy = { inflation: 0, unemploymentRate: 0, interestRate: 0, sectorDemand: {}, marketPrices: {}, publishedIndicators: [], flags: {} };
 const world = { npcs: [], locations: [], jobMarket: { openings: [] }, eventCooldowns: {}, firedUniqueEvents: [], chainStates: [], strangenessBase: 0, headlinePool: { remainingIds: [], cyclesCompleted: 0 }, agents: [], flags: {} };
@@ -89,7 +89,7 @@ function makeCampaign(goals: GoalDefinition[]): Campaign {
     goals,
     scenarios: [],
     difficulties: [], opportunities: [], achievements: [], headlines: [], employers: [], locations: [],
-    backgrounds: [], traits: [], skills: [],
+    backgrounds: [], traits: [], skills: [], projects: [], businesses: [],
     scenarioId: "",
     goalFailurePrecedence: "goals_win",
     sceneTemplateKey: "sim.scene.status",

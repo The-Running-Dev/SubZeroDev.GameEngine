@@ -145,12 +145,12 @@ describe("runEndOfWeek — opportunity expiry", () => {
 });
 
 describe("runEndOfWeek — system ordering", () => {
-  it("runs all fifteen systems in the documented order", () => {
+  it("runs all sixteen systems in the documented order", () => {
     const { emit, systems } = recordingEmitter();
     const state = baseState({ health: 50, energy: 50, happiness: 50, stress: 50, satiety: 50 });
     runEndOfWeek(state, emit, NO_GOALS, "goals_win");
     expect(systems).toEqual([
-      "employment", "education", "finance_income", "inventory", "housing",
+      "employment", "education", "finance_income", "business", "inventory", "housing",
       "finance_reconcile", "needs", "relationships", "opportunities", "events",
       "headline", "goals", "failure", "week_limit", "achievements",
     ]);
@@ -314,7 +314,7 @@ describe("runEndOfWeek — W53 employment, finance_income, housing", () => {
         ...baseState(NEEDS).player,
         career: { history: [], totalWeeksEmployed: 0, pendingApplications: [application], highestTierAchieved: "entry" },
       },
-      world: { jobMarket: { openings: [opening] } } as unknown as SimulationKindState["world"],
+      world: { jobMarket: { openings: [opening] }, agents: [] } as unknown as SimulationKindState["world"],
     });
     const result = runEndOfWeek(state, emit, [], "goals_win", jobs);
     expect(result.state.player.career.currentEmployment).toMatchObject({ jobId: "job-cashier", weeklyPayCents: 30000, performance: 50 });
@@ -331,7 +331,7 @@ describe("runEndOfWeek — W53 employment, finance_income, housing", () => {
         ...baseState(NEEDS).player,
         career: { history: [], totalWeeksEmployed: 0, pendingApplications: [application], highestTierAchieved: "entry" },
       },
-      world: { jobMarket: { openings: [opening] } } as unknown as SimulationKindState["world"],
+      world: { jobMarket: { openings: [opening] }, agents: [] } as unknown as SimulationKindState["world"],
     });
     const result = runEndOfWeek(state, emit, [], "goals_win", jobs);
     expect(result.state.player.career.currentEmployment).toMatchObject({ jobId: "job-cashier" });
@@ -883,7 +883,7 @@ describe("runEndOfWeek — W53 review fixes", () => {
         ...baseState(NEEDS).player,
         career: { history: [], totalWeeksEmployed: 0, pendingApplications: [application], highestTierAchieved: "entry" },
       },
-      world: { jobMarket: { openings: [opening] } } as unknown as SimulationKindState["world"],
+      world: { jobMarket: { openings: [opening] }, agents: [] } as unknown as SimulationKindState["world"],
     });
     const result = runEndOfWeek(state, emit, [], "goals_win", [driftingJob, managerJob]);
     expect(result.state.player.career.totalWeeksEmployed).toBe(0);

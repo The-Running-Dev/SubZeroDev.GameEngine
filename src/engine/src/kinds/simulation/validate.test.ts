@@ -11,6 +11,11 @@ import type {
   NPCDefinition,
   CourseDefinition,
   AchievementDefinition,
+  BackgroundDefinition,
+  BusinessDefinition,
+  OpportunityDefinition,
+  ProjectDefinition,
+  RivalConfig,
 } from "./content.js";
 import type { Campaign } from "../../core/registry/types.js";
 import type { StatusEffect } from "./state.js";
@@ -103,6 +108,8 @@ function makeCampaign(content: Partial<SimulationCampaign> = {}): Campaign {
       backgrounds: [],
       traits: [],
       skills: [],
+      projects: [],
+      businesses: [],
       scenarioId: "scenario-1",
       goalFailurePrecedence: "goals_win",
       sceneTemplateKey: "sim.scene.status",
@@ -136,6 +143,13 @@ const VALID_STRINGS = new Map<string, string>([
   ["sim.action.plan-remove", "Remove from plan"],
   ["sim.action.plan-clear", "Clear plan"],
   ["sim.action.end-week", "End week"],
+  ["bg.name", "A background"],
+  ["bg.description", "A background description"],
+  ["rival.name", "A rival"],
+  ["project.name", "A project"],
+  ["project.description", "A project description"],
+  ["business.name", "A business"],
+  ["business.description", "A business description"],
 ]);
 
 describe("validateCampaign", () => {
@@ -501,6 +515,124 @@ describe("validateCampaign", () => {
     const result = validateCampaign(campaign, VALID_STRINGS);
     expect(result.errors).toContainEqual(
       expect.objectContaining({ code: "invalid_attendance_window", path: "attendanceTracking.windowWeeks" }),
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // W101 — projects, businesses, and scenario-declared rivals (§7.8, §7.12, §14)
+  // -------------------------------------------------------------------------
+
+  function makeBackground(overrides: Partial<BackgroundDefinition> = {}): BackgroundDefinition {
+    return {
+      id: "bg-1", nameKey: "bg.name", descriptionKey: "bg.description",
+      startingAttributes: { intelligence: 50, discipline: 50, charisma: 50, creativity: 50, resilience: 50, wisdom: 50, luck: 50 },
+      startingSkills: {}, startingCredentials: [], startingTraits: [], startingCashModifierCents: 0,
+      ...overrides,
+    };
+  }
+
+  function makeRival(overrides: Partial<RivalConfig> = {}): RivalConfig {
+    return { agentId: "agent-1", strategyId: "aggressive", displayNameKey: "rival.name", startingBackgroundId: "bg-1", ...overrides };
+  }
+
+  function makeProject(overrides: Partial<ProjectDefinition> = {}): ProjectDefinition {
+    return {
+      id: "project-1", nameKey: "project.name", descriptionKey: "project.description",
+      requirements: [], requiredUnits: 4, weeklyTimeCost: 2, startCostCents: 0, rewards: [], tags: [],
+      ...overrides,
+    };
+  }
+
+  function makeBusiness(overrides: Partial<BusinessDefinition> = {}): BusinessDefinition {
+    return {
+      id: "business-1", nameKey: "business.name", descriptionKey: "business.description",
+      requirements: [], startupCostCents: 0, weeklyRevenueCents: 0, weeklyExpensesCents: 0, minimumCashCents: 0, tags: [],
+      ...overrides,
+    };
+  }
+
+  it("passes a scenario declaring a real rival against a registered strategy and a resolving background", () => {
+    const campaign = makeCampaign({
+      backgrounds: [makeBackground()],
+      scenarios: [makeScenario({ rivals: [makeRival()] })],
+    });
+    const result = validateCampaign(campaign, VALID_STRINGS);
+    expect(result.ok).toBe(true);
+  });
+
+  it("rejects unknown_rival_strategy when strategyId names no registered AgentStrategy", () => {
+    const campaign = makeCampaign({
+      backgrounds: [makeBackground()],
+      scenarios: [makeScenario({ rivals: [makeRival({ strategyId: "no-such-strategy" })] })],
+    });
+    const result = validateCampaign(campaign, VALID_STRINGS);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ code: "unknown_rival_strategy", path: "no-such-strategy" }),
+    );
+  });
+
+  it("rejects dangling_reference when RivalConfig.startingBackgroundId resolves to no BackgroundDefinition", () => {
+    const campaign = makeCampaign({
+      backgrounds: [],
+      scenarios: [makeScenario({ rivals: [makeRival({ startingBackgroundId: "no-such-background" })] })],
+    });
+    const result = validateCampaign(campaign, VALID_STRINGS);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ code: "dangling_reference", path: "no-such-background" }),
+    );
+  });
+
+  it("rejects duplicate_id when two rivals in one scenario share an agentId", () => {
+    const campaign = makeCampaign({
+      backgrounds: [makeBackground()],
+      scenarios: [makeScenario({ rivals: [makeRival(), makeRival({ displayNameKey: "rival.name" })] })],
+    });
+    const result = validateCampaign(campaign, VALID_STRINGS);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ code: "duplicate_id", path: "agent-1" }),
+    );
+  });
+
+  it("absent/empty rivals is valid — zero rivals is every 0.10 scenario's own value", () => {
+    const campaign = makeCampaign({ scenarios: [makeScenario()] });
+    const result = validateCampaign(campaign, VALID_STRINGS);
+    expect(result.ok).toBe(true);
+  });
+
+  it("rejects duplicate_id when two ProjectDefinitions share an id", () => {
+    const campaign = makeCampaign({ projects: [makeProject(), makeProject()] });
+    const result = validateCampaign(campaign, VALID_STRINGS);
+    expect(result.errors).toContainEqual(expect.objectContaining({ code: "duplicate_id", path: "project-1" }));
+  });
+
+  it("rejects duplicate_id when two BusinessDefinitions share an id", () => {
+    const campaign = makeCampaign({ businesses: [makeBusiness(), makeBusiness()] });
+    const result = validateCampaign(campaign, VALID_STRINGS);
+    expect(result.errors).toContainEqual(expect.objectContaining({ code: "duplicate_id", path: "business-1" }));
+  });
+
+  it("rejects missing_string_key when a ProjectDefinition/BusinessDefinition names an unregistered string", () => {
+    const campaign = makeCampaign({
+      projects: [makeProject({ nameKey: "project.missing" })],
+      businesses: [makeBusiness({ descriptionKey: "business.missing" })],
+    });
+    const result = validateCampaign(campaign, VALID_STRINGS);
+    expect(result.errors).toContainEqual(expect.objectContaining({ code: "missing_string_key", path: "project.missing" }));
+    expect(result.errors).toContainEqual(expect.objectContaining({ code: "missing_string_key", path: "business.missing" }));
+  });
+
+  it("an OpportunityDefinition of kind \"business\" resolves against content.businesses", () => {
+    const opportunity: OpportunityDefinition = {
+      id: "opp-1", kind: "business", targetId: "business-1",
+      nameKey: "business.name", descriptionKey: "business.description",
+      durationWeeks: 1, weight: 1, requirements: [], contested: false, tags: [],
+    };
+    const passing = makeCampaign({ businesses: [makeBusiness()], opportunities: [opportunity] });
+    expect(validateCampaign(passing, VALID_STRINGS).ok).toBe(true);
+
+    const failing = makeCampaign({ businesses: [], opportunities: [opportunity] });
+    expect(validateCampaign(failing, VALID_STRINGS).errors).toContainEqual(
+      expect.objectContaining({ code: "dangling_reference", path: "business-1" }),
     );
   });
 });

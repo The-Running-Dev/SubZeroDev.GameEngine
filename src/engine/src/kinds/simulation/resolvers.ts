@@ -92,15 +92,24 @@ import type { StateChange, OutcomeMessage } from "../../core/kernel/reasons.js";
 import type { ValidationError, ValidationWarning } from "../../core/validation/types.js";
 import type { LocKey } from "../../core/localization/types.js";
 import type {
+  ActorState,
   CourseEnrollment,
   FinancialAccount,
   HousingState,
   InventoryItem,
   JobApplication,
   NeedKey,
+  PlayerState,
+  ProjectRuntimeState,
+  BusinessRecord,
   RelationshipState,
 } from "./actor.js";
-import type { ItemDefinition, MaintenanceRule, NPCDefinition, Requirement } from "./content.js";
+import type {
+  ItemDefinition,
+  MaintenanceRule,
+  NPCDefinition,
+  Requirement,
+} from "./content.js";
 import type { SimulationCampaign } from "./campaign.js";
 import { evaluateSimulationCondition } from "./conditions.js";
 import { INVESTMENT_ACCOUNT_LABEL_KEY } from "./reasons.js";
@@ -360,31 +369,67 @@ export const searchForWorkResolver: ActionResolver = {
 
 const APPLY_FOR_JOB_TIME_PATH = "calendar.spentTimeUnits";
 
+/** `apply_for_job` is the one resolver a rival's shipped `AgentStrategy` actually invokes
+ *  (`agentStrategies.ts`) — actor-addressed by `action.actorId` rather than hardcoded to
+ *  `"player"`, which is what makes W101.5 ("the player and rivals use the same `ActorState`
+ *  mechanics and the same action resolvers") hold for this resolver structurally, not just
+ *  for the player's own plan. `"player"` resolves to `state.player`; anything else looks up
+ *  `state.world.agents` by `id`. Every other resolver in this file still hardcodes
+ *  `"player."` — generalizing them is out of this slice's `Touches` (`design/30-slices.md`
+ *  W101) since only this one is exercised by a rival today. */
+function actorOf(state: SimulationKindState, actorId: string): ActorState {
+  if (actorId === "player") return state.player;
+  const agent = state.world.agents.find((a) => a.id === actorId);
+  if (!agent) throw new Error(`simulation resolvers: unknown actorId "${actorId}"`);
+  return agent.actor;
+}
+
+function withActor(state: SimulationKindState, actorId: string, actor: ActorState): SimulationKindState {
+  if (actorId === "player") return { ...state, player: actor as PlayerState };
+  return {
+    ...state,
+    world: {
+      ...state.world,
+      agents: state.world.agents.map((a) => (a.id === actorId ? { ...a, actor } : a)),
+    },
+  };
+}
+
+/** The natural-key addressing prefix for `actorId`'s own state (§7.1's convention, extended
+ *  to a rival) — `"player"` or `world.agents.<agentId>.actor`. */
+function actorAddressPrefix(actorId: string): string {
+  return actorId === "player" ? "player" : `world.agents.${actorId}.actor`;
+}
+
 export const applyForJobResolver: ActionResolver = {
   canExecute: (state, action, ctx): ActionValidation => {
     const campaign = simulationCampaign(ctx);
     const jobId = action.targetId;
     const job = jobId === undefined ? undefined : campaign.jobs.find((j) => j.id === jobId);
     if (!job) return invalid("unknown_action", "core.reason.unknown_action");
-    if (!locationAllows(state, campaign, "apply_for_job")) return wrongLocationError();
+    const actor = actorOf(state, action.actorId);
+    const location = campaign.locations.find((l) => l.id === actor.currentLocationId);
+    if (!location || !location.actionTypes.includes("apply_for_job")) return wrongLocationError();
     const opening = state.world.jobMarket.openings.find((o) => o.jobId === job.id);
     if (!opening) return requirementUnmetError();
-    if (state.player.career.pendingApplications.some((a) => a.jobId === job.id)) return requirementUnmetError();
+    if (actor.career.pendingApplications.some((a) => a.jobId === job.id)) return requirementUnmetError();
     for (const requirement of job.requirements) {
       if (!evaluateSimulationCondition(requirement.condition, state)) {
         return invalid(requirement.failureCode, requirement.messageKey);
       }
     }
-    if (availableTimeUnits(state) < APPLY_TIME_COST) return insufficientTimeError();
+    if (action.actorId === "player" && availableTimeUnits(state) < APPLY_TIME_COST) return insufficientTimeError();
     return { valid: true, errors: [], warnings: [], calculatedTimeCost: APPLY_TIME_COST, calculatedMoneyCostCents: NO_MONEY_COST };
   },
   calculate: (state, action, ctx): ActionOutcome => {
     const campaign = simulationCampaign(ctx);
     const job = campaign.jobs.find((j) => j.id === action.targetId)!;
-    const base = `player.career.pendingApplications.${job.id}`;
+    const base = `${actorAddressPrefix(action.actorId)}.career.pendingApplications.${job.id}`;
 
     const changes: StateChange[] = [
-      { path: APPLY_FOR_JOB_TIME_PATH, op: "increment", value: APPLY_TIME_COST, reason: "action_apply_for_job", visible: true },
+      ...(action.actorId === "player"
+        ? [{ path: APPLY_FOR_JOB_TIME_PATH, op: "increment" as const, value: APPLY_TIME_COST, reason: "action_apply_for_job", visible: true }]
+        : []),
       { path: `${base}.resolvesWeek`, op: "set", value: state.calendar.currentWeek + APPLICATION_RESOLVE_WEEKS, reason: "action_apply_for_job", visible: true },
       { path: `${base}.contested`, op: "set", value: job.contested, reason: "action_apply_for_job", visible: false },
     ];
@@ -395,10 +440,17 @@ export const applyForJobResolver: ActionResolver = {
     };
   },
   apply: (state, outcome): SimulationKindState => {
-    const resolvesChange = outcome.changes.find((c) => c.path.startsWith("player.career.pendingApplications.") && c.path.endsWith(".resolvesWeek"));
+    const marker = ".career.pendingApplications.";
+    const resolvesChange = outcome.changes.find((c) => c.path.includes(marker) && c.path.endsWith(".resolvesWeek"));
     if (!resolvesChange) return state;
-    const jobId = resolvesChange.path.split(".")[3]!;
-    const contested = outcome.changes.find((c) => c.path === `player.career.pendingApplications.${jobId}.contested`)?.value;
+
+    const markerIndex = resolvesChange.path.indexOf(marker);
+    const prefix = resolvesChange.path.slice(0, markerIndex);
+    const jobId = resolvesChange.path.slice(markerIndex + marker.length, -".resolvesWeek".length);
+    const actorId = prefix === "player" ? "player" : prefix.slice("world.agents.".length, -".actor".length);
+
+    const base = `${prefix}${marker}${jobId}`;
+    const contested = outcome.changes.find((c) => c.path === `${base}.contested`)?.value;
     const spentDelta = outcome.changes.find((c) => c.path === APPLY_FOR_JOB_TIME_PATH)?.value;
 
     const application: JobApplication = {
@@ -409,13 +461,15 @@ export const applyForJobResolver: ActionResolver = {
       outcome: "pending",
     };
 
+    const actor = actorOf(state, actorId);
+    const nextState = withActor(state, actorId, {
+      ...actor,
+      career: { ...actor.career, pendingApplications: [...actor.career.pendingApplications, application] },
+    });
+
     return {
-      ...state,
+      ...nextState,
       calendar: { ...state.calendar, spentTimeUnits: state.calendar.spentTimeUnits + (typeof spentDelta === "number" ? spentDelta : 0) },
-      player: {
-        ...state.player,
-        career: { ...state.player.career, pendingApplications: [...state.player.career.pendingApplications, application] },
-      },
     };
   },
 };
@@ -1782,6 +1836,273 @@ export const respondToEventResolver: ActionResolver = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// W101 — Projects and Businesses
+// ---------------------------------------------------------------------------
+
+const START_PROJECT_TIME_COST = 1;
+const START_BUSINESS_TIME_COST = 1;
+const OPERATE_BUSINESS_TIME_COST = 0;
+/** One `work_on_project` session advances `progressUnits` by this fixed amount — no
+ *  partial-progress formula is stated beyond "consumes the exact planned time" (§6.12,
+ *  W101.2); the same single-session-advance treatment `attend_class`/`study` already give
+ *  their own per-session progress, not a new formula invented for this action. */
+const WORK_ON_PROJECT_PROGRESS_PER_SESSION = 1;
+
+function projectInstanceId(action: GameAction): string {
+  return `project-${action.id}`;
+}
+
+function businessInstanceId(action: GameAction): string {
+  return `business-${action.id}`;
+}
+
+export const startProjectResolver: ActionResolver = {
+  canExecute: (state, action, ctx): ActionValidation => {
+    const campaign = simulationCampaign(ctx);
+    const def = campaign.projects.find((p) => p.id === action.targetId);
+    if (!def) return invalid("unknown_action", "core.reason.unknown_action");
+    if (!locationAllows(state, campaign, "start_project")) return wrongLocationError();
+    for (const requirement of def.requirements) {
+      if (!evaluateSimulationCondition(requirement.condition, state)) {
+        return invalid(requirement.failureCode, requirement.messageKey);
+      }
+    }
+    if (state.player.finances.cashCents < def.startCostCents) return insufficientFundsError();
+    if (availableTimeUnits(state) < START_PROJECT_TIME_COST) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: START_PROJECT_TIME_COST, calculatedMoneyCostCents: def.startCostCents };
+  },
+  calculate: (state, action, ctx): ActionOutcome => {
+    const campaign = simulationCampaign(ctx);
+    const def = campaign.projects.find((p) => p.id === action.targetId)!;
+    const base = `player.projects.${projectInstanceId(action)}`;
+
+    const changes: StateChange[] = [
+      { path: "calendar.spentTimeUnits", op: "increment", value: START_PROJECT_TIME_COST, reason: "action_start_project", visible: true },
+      { path: "player.finances.cashCents", op: "decrement", value: def.startCostCents, previous: state.player.finances.cashCents, reason: "action_start_project", visible: true },
+      { path: `${base}.definitionId`, op: "set", value: def.id, reason: "action_start_project", visible: true },
+      { path: `${base}.startedWeek`, op: "set", value: state.calendar.currentWeek, reason: "action_start_project", visible: false },
+      { path: `${base}.progressUnits`, op: "set", value: 0, reason: "action_start_project", visible: true },
+      { path: `${base}.status`, op: "set", value: "in_progress", reason: "action_start_project", visible: true },
+    ];
+
+    return {
+      actionId: action.id, success: true, degree: "success", reason: "check_succeeded",
+      changes, generatedEvents: [], generatedOpportunities: [], messages: [],
+    };
+  },
+  apply: (state, outcome): SimulationKindState => {
+    const definitionChange = outcome.changes.find((c) => c.path.startsWith("player.projects.") && c.path.endsWith(".definitionId"));
+    if (!definitionChange) return state;
+    const instanceId = instanceIdFromPath(definitionChange.path);
+    const field = (name: string): unknown => outcome.changes.find((c) => c.path === `player.projects.${instanceId}.${name}`)?.value;
+    const spentDelta = outcome.changes.find((c) => c.path === "calendar.spentTimeUnits")?.value;
+    const paid = outcome.changes.find((c) => c.path === "player.finances.cashCents")?.value;
+
+    const project: ProjectRuntimeState = {
+      instanceId,
+      definitionId: definitionChange.value as string,
+      startedWeek: field("startedWeek") as number,
+      progressUnits: field("progressUnits") as number,
+      status: field("status") as "in_progress",
+    };
+
+    return {
+      ...state,
+      calendar: { ...state.calendar, spentTimeUnits: state.calendar.spentTimeUnits + (typeof spentDelta === "number" ? spentDelta : 0) },
+      player: {
+        ...state.player,
+        finances: { ...state.player.finances, cashCents: state.player.finances.cashCents - (typeof paid === "number" ? paid : 0) },
+        projects: [...state.player.projects, project],
+      },
+    };
+  },
+};
+
+export const workOnProjectResolver: ActionResolver = {
+  canExecute: (state, action, ctx): ActionValidation => {
+    const campaign = simulationCampaign(ctx);
+    const instanceId = action.targetId;
+    const project = instanceId === undefined ? undefined : state.player.projects.find((p) => p.instanceId === instanceId);
+    if (!project) return invalid("unknown_action", "core.reason.unknown_action");
+    // "Completes once" (§6.12, W101.2) — never silently re-crediting progress.
+    if (project.status === "completed") return requirementUnmetError();
+    const def = campaign.projects.find((p) => p.id === project.definitionId);
+    if (!def) return requirementUnmetError();
+    if (!locationAllows(state, campaign, "work_on_project")) return wrongLocationError();
+    if (availableTimeUnits(state) < def.weeklyTimeCost) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: def.weeklyTimeCost, calculatedMoneyCostCents: NO_MONEY_COST };
+  },
+  calculate: (state, action, ctx): ActionOutcome => {
+    const campaign = simulationCampaign(ctx);
+    const instanceId = action.targetId!;
+    const project = state.player.projects.find((p) => p.instanceId === instanceId)!;
+    const def = campaign.projects.find((p) => p.id === project.definitionId)!;
+    const base = `player.projects.${instanceId}`;
+
+    const progressUnits = Math.min(def.requiredUnits, project.progressUnits + WORK_ON_PROJECT_PROGRESS_PER_SESSION);
+    const completes = progressUnits >= def.requiredUnits;
+
+    const changes: StateChange[] = [
+      { path: "calendar.spentTimeUnits", op: "increment", value: def.weeklyTimeCost, reason: "action_work_on_project", visible: true },
+      { path: `${base}.progressUnits`, op: "set", value: progressUnits, previous: project.progressUnits, reason: "action_work_on_project", visible: true },
+    ];
+
+    if (completes) {
+      changes.push({ path: `${base}.status`, op: "set", value: "completed", previous: "in_progress", reason: "project_completed", visible: true });
+      changes.push({ path: `${base}.completedWeek`, op: "set", value: state.calendar.currentWeek, reason: "project_completed", visible: false });
+      // Same narrow "skill" `Reward` dispatch `education`'s own course completion already
+      // uses (`endOfWeek.ts`) — raises to at least the reward's value, never lowering an
+      // already-higher skill. `Reward`'s other types stay undispatched here for the same
+      // reason they are there (`content.ts`'s own "provisional, not resolved here" callout).
+      for (const reward of def.rewards) {
+        if (reward.type !== "skill" || reward.target === undefined || typeof reward.value !== "number") continue;
+        const skillId = reward.target;
+        const current = state.player.skills[skillId] ?? 0;
+        const awarded = Math.min(100, Math.max(0, Math.max(current, reward.value)));
+        if (awarded === current) continue;
+        changes.push({ path: `player.skills.${skillId}`, op: "set", value: awarded, previous: current, reason: "project_completed", visible: true });
+      }
+    }
+
+    return {
+      actionId: action.id, success: true, degree: "success", reason: "check_succeeded",
+      changes, generatedEvents: [], generatedOpportunities: [], messages: [],
+    };
+  },
+  apply: (state, outcome): SimulationKindState => {
+    const progressChange = outcome.changes.find((c) => c.path.startsWith("player.projects.") && c.path.endsWith(".progressUnits"));
+    if (!progressChange) return state;
+    const instanceId = instanceIdFromPath(progressChange.path);
+    const statusChange = outcome.changes.find((c) => c.path === `player.projects.${instanceId}.status`);
+    const completedWeekChange = outcome.changes.find((c) => c.path === `player.projects.${instanceId}.completedWeek`);
+    const spentDelta = outcome.changes.find((c) => c.path === "calendar.spentTimeUnits")?.value;
+
+    let skills = state.player.skills;
+    for (const change of outcome.changes) {
+      if (change.path.startsWith("player.skills.")) {
+        const skillId = change.path.slice("player.skills.".length);
+        skills = { ...skills, [skillId]: change.value as number };
+      }
+    }
+
+    const projects = state.player.projects.map((p) => (p.instanceId === instanceId
+      ? {
+        ...p,
+        progressUnits: progressChange.value as number,
+        ...(statusChange ? { status: statusChange.value as ProjectRuntimeState["status"] } : {}),
+        ...(completedWeekChange ? { completedWeek: completedWeekChange.value as number } : {}),
+      }
+      : p));
+
+    return {
+      ...state,
+      calendar: { ...state.calendar, spentTimeUnits: state.calendar.spentTimeUnits + (typeof spentDelta === "number" ? spentDelta : 0) },
+      player: { ...state.player, projects, skills },
+    };
+  },
+};
+
+export const startBusinessResolver: ActionResolver = {
+  canExecute: (state, action, ctx): ActionValidation => {
+    const campaign = simulationCampaign(ctx);
+    const def = campaign.businesses.find((b) => b.id === action.targetId);
+    if (!def) return invalid("unknown_action", "core.reason.unknown_action");
+    if (!locationAllows(state, campaign, "start_business")) return wrongLocationError();
+    for (const requirement of def.requirements) {
+      if (!evaluateSimulationCondition(requirement.condition, state)) {
+        return invalid(requirement.failureCode, requirement.messageKey);
+      }
+    }
+    if (state.player.finances.cashCents < def.startupCostCents) return insufficientFundsError();
+    if (availableTimeUnits(state) < START_BUSINESS_TIME_COST) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: START_BUSINESS_TIME_COST, calculatedMoneyCostCents: def.startupCostCents };
+  },
+  calculate: (state, action, ctx): ActionOutcome => {
+    const campaign = simulationCampaign(ctx);
+    const def = campaign.businesses.find((b) => b.id === action.targetId)!;
+    const base = `player.businesses.${businessInstanceId(action)}`;
+
+    const changes: StateChange[] = [
+      { path: "calendar.spentTimeUnits", op: "increment", value: START_BUSINESS_TIME_COST, reason: "action_start_business", visible: true },
+      { path: "player.finances.cashCents", op: "decrement", value: def.startupCostCents, previous: state.player.finances.cashCents, reason: "action_start_business", visible: true },
+      { path: `${base}.definitionId`, op: "set", value: def.id, reason: "action_start_business", visible: true },
+      { path: `${base}.startedWeek`, op: "set", value: state.calendar.currentWeek, reason: "action_start_business", visible: false },
+      { path: `${base}.cashOnHandCents`, op: "set", value: 0, reason: "action_start_business", visible: true },
+      { path: `${base}.weeksOperated`, op: "set", value: 0, reason: "action_start_business", visible: false },
+      { path: `${base}.status`, op: "set", value: "operating", reason: "action_start_business", visible: true },
+    ];
+
+    return {
+      actionId: action.id, success: true, degree: "success", reason: "check_succeeded",
+      changes, generatedEvents: [], generatedOpportunities: [], messages: [],
+    };
+  },
+  apply: (state, outcome): SimulationKindState => {
+    const definitionChange = outcome.changes.find((c) => c.path.startsWith("player.businesses.") && c.path.endsWith(".definitionId"));
+    if (!definitionChange) return state;
+    const instanceId = instanceIdFromPath(definitionChange.path);
+    const field = (name: string): unknown => outcome.changes.find((c) => c.path === `player.businesses.${instanceId}.${name}`)?.value;
+    const spentDelta = outcome.changes.find((c) => c.path === "calendar.spentTimeUnits")?.value;
+    const paid = outcome.changes.find((c) => c.path === "player.finances.cashCents")?.value;
+
+    const business: BusinessRecord = {
+      instanceId,
+      definitionId: definitionChange.value as string,
+      startedWeek: field("startedWeek") as number,
+      cashOnHandCents: field("cashOnHandCents") as number,
+      weeksOperated: field("weeksOperated") as number,
+      status: field("status") as "operating",
+    };
+
+    return {
+      ...state,
+      calendar: { ...state.calendar, spentTimeUnits: state.calendar.spentTimeUnits + (typeof spentDelta === "number" ? spentDelta : 0) },
+      player: {
+        ...state.player,
+        finances: { ...state.player.finances, cashCents: state.player.finances.cashCents - (typeof paid === "number" ? paid : 0) },
+        businesses: [...state.player.businesses, business],
+      },
+    };
+  },
+};
+
+/** Only the player-initiated close is here — weekly revenue/expenses post from
+ *  `endOfWeek.ts`'s own `business` system, never from this action (`90-decisions.md`'s
+ *  W101 gate 3: cashflow posts once, in the ordered weekly pipeline, not per action). */
+export const operateBusinessResolver: ActionResolver = {
+  canExecute: (state, action): ActionValidation => {
+    const instanceId = action.targetId;
+    const business = instanceId === undefined ? undefined : state.player.businesses.find((b) => b.instanceId === instanceId);
+    if (!business) return invalid("unknown_action", "core.reason.unknown_action");
+    if (business.status === "closed") return requirementUnmetError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: OPERATE_BUSINESS_TIME_COST, calculatedMoneyCostCents: NO_MONEY_COST };
+  },
+  calculate: (_state, action): ActionOutcome => {
+    const instanceId = action.targetId!;
+    const closing = action.parameters["close"] === true;
+    const changes: StateChange[] = closing
+      ? [{ path: `player.businesses.${instanceId}.status`, op: "set", value: "closed", previous: "operating", reason: "business_closed", visible: true }]
+      : [];
+    return {
+      actionId: action.id, success: true, degree: "success", reason: "check_succeeded",
+      changes, generatedEvents: [], generatedOpportunities: [], messages: [],
+    };
+  },
+  apply: (state, outcome): SimulationKindState => {
+    const closeChange = outcome.changes.find((c) => c.path.startsWith("player.businesses.") && c.path.endsWith(".status"));
+    if (!closeChange) return state;
+    const instanceId = instanceIdFromPath(closeChange.path);
+    return {
+      ...state,
+      player: {
+        ...state.player,
+        businesses: state.player.businesses.map((b) => (b.instanceId === instanceId ? { ...b, status: "closed" } : b)),
+      },
+    };
+  },
+};
+
 /**
  * A real object literal, not `Object.fromEntries` over an array — a `Record<K, V>`
  * literal is what actually gives `ResolverTable`'s own exhaustiveness claim teeth.
@@ -1814,10 +2135,10 @@ export const RESOLVER_TABLE: ResolverTable = {
   deposit_savings: depositSavingsResolver,
   invest: investResolver,
   move_housing: moveHousingResolver,
-  start_project: stubResolver,
-  work_on_project: stubResolver,
-  start_business: stubResolver,
-  operate_business: stubResolver,
+  start_project: startProjectResolver,
+  work_on_project: workOnProjectResolver,
+  start_business: startBusinessResolver,
+  operate_business: operateBusinessResolver,
   accept_opportunity: acceptOpportunityResolver,
   decline_opportunity: declineOpportunityResolver,
   respond_to_event: respondToEventResolver,

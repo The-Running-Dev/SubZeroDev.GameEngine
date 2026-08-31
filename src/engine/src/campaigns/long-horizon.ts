@@ -424,6 +424,8 @@ const sharedFields = {
   employers, locations, backgrounds,
   traits: [] as SimulationCampaignSource["traits"],
   skills: [] as SimulationCampaignSource["skills"],
+  projects: [] as SimulationCampaignSource["projects"],
+  businesses: [] as SimulationCampaignSource["businesses"],
 };
 
 const winSource: SimulationCampaignSource = {
