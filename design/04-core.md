@@ -34,6 +34,24 @@
 
 #### Migrating callers
 
+### 7.4 Session Lifecycle — Listing, Branching, Deleting
+
+#### Listing
+
+#### Deleting
+
+#### Branching
+
+#### Reproducing a stored session from its log
+
+#### Authorization is host-owned, and `SessionStore` stays caller-agnostic
+
+#### Error semantics
+
+#### Invariants
+
+#### The coverage checklist moves to thirteen
+
 ## 8. Randomness
 
 ## 9. Projection
