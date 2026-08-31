@@ -423,7 +423,7 @@ describe("validateCampaign — through buildValidatedContentRegistry (integratio
       advance: (state) => ({ state, status: "active", changes: [], messages: [] }),
       project: () => ({}),
       validateCampaign: (campaign, strings): ValidationResult => validateCampaign(campaign, strings),
-      outcome: () => ({}),
+      outcome: () => ({ terminal: false, terminalId: null }),
     };
   }
 

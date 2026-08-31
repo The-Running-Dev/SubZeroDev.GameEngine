@@ -12,12 +12,14 @@ import type { SessionStore } from "../core/session/types.js";
 import type { IdSource } from "../core/composition/types.js";
 import { buildBulgariaBureaucracyCampaign, BULGARIA_BUREAUCRACY_CAMPAIGN_ID } from "../campaigns/bulgaria-bureaucracy.js";
 import { buildStableLifeCampaign, STABLE_LIFE_CAMPAIGN_ID } from "../campaigns/stable-life.js";
+import { createInMemoryProfileStore } from "../core/session/profile-store.js";
+import type { ProfileStore } from "../core/session/types.js";
 
 // The scan-verified seed whose first weighted pick at clerk_review (3 expired : 1 room_14)
 // lands on room_14 — see plans/22-w15-bureaucracy-campaign-and-broken-fixtures.md.
 const SEED = "bureaucracy-seed-3";
 
-function buildStore(ids?: IdSource): SessionStore {
+function buildStore(ids?: IdSource, profiles?: ProfileStore): SessionStore {
   const built = buildBulgariaBureaucracyCampaign();
   if (!built.ok || !built.value) throw new Error("expected the real campaign to build");
   const kinds = { "story-graph": storyGraphKind } as unknown as KindRegistry;
@@ -25,7 +27,7 @@ function buildStore(ids?: IdSource): SessionStore {
   if (!registryResult.ok || !registryResult.value) throw new Error("expected the real campaign to validate");
 
   const engine = createEngine({ kinds, registry: registryResult.value, ...(ids ? { ids } : {}) });
-  return createInMemorySessionStore({ engine, registry: registryResult.value });
+  return createInMemorySessionStore({ engine, registry: registryResult.value, ...(profiles ? { profiles } : {}) });
 }
 
 function makeTools(): McpTools {
@@ -33,10 +35,11 @@ function makeTools(): McpTools {
 }
 
 describe("McpTools — the API coverage checklist (09-clients.md §4)", () => {
-  it("list_campaigns — returns the real campaign summary", () => {
+  it("list_campaigns — returns the real campaign summary", async () => {
     const tools = makeTools();
-    const campaigns = tools.list_campaigns({});
-    expect(campaigns).toEqual([{ campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, kindId: "story-graph", titleKey: "bureaucracy.campaign.title" }]);
+    const catalog = await tools.list_campaigns({});
+    expect(catalog.campaigns).toEqual([{ campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, kindId: "story-graph", titleKey: "bureaucracy.campaign.title" }]);
+    expect(catalog.strings["bureaucracy.campaign.title"]).toBe("The Bureaucracy");
   });
 
   it("start_game — args { campaignId, seed?, profileId? }, returns { sessionId, scene }", async () => {
@@ -56,7 +59,7 @@ describe("McpTools — the API coverage checklist (09-clients.md §4)", () => {
     // difference through get_state alone.
     let capturedConfig: unknown;
     const recordingStore = {
-      listCampaigns: () => [],
+      listCampaigns: () => Promise.resolve({ campaigns: [], strings: {} }),
       getScene: () => Promise.reject(new Error("unused")),
       getView: () => Promise.reject(new Error("unused")),
       getStrings: () => Promise.reject(new Error("unused")),
@@ -167,10 +170,10 @@ function makeSimulationTools(): McpTools {
 // A simulation column (W50) — the same ten operations, proven against a kind whose
 // actions carry declared `params`, mirroring the text-client suite's own "sim.N" numbering.
 describe("McpTools — the API coverage checklist, simulation kind (09-clients.md §4, W50)", () => {
-  it("sim.1. list_campaigns — includes the Stable Life campaign summary", () => {
+  it("sim.1. list_campaigns — includes the Stable Life campaign summary", async () => {
     const tools = makeSimulationTools();
-    const campaigns = tools.list_campaigns({});
-    expect(campaigns).toContainEqual({ campaignId: STABLE_LIFE_CAMPAIGN_ID, kindId: "simulation", titleKey: "stable-life.campaign.title" });
+    const catalog = await tools.list_campaigns({});
+    expect(catalog.campaigns).toContainEqual({ campaignId: STABLE_LIFE_CAMPAIGN_ID, kindId: "simulation", titleKey: "stable-life.campaign.title" });
   });
 
   it("sim.2. start_game — returns { sessionId, scene } for Stable Life", async () => {
@@ -276,6 +279,43 @@ describe("McpTools — an agent is a player (09-clients.md §7)", () => {
     const result = await tools.choose({ sessionId: created.sessionId, actionId: "totally_fake_action" });
     expect(result.ok).toBe(false);
     expect(result.errors).toEqual([{ code: "unknown_action", messageKey: "core.reason.unknown_action" }]);
+  });
+});
+
+describe("catalog progress reflects a reached terminal (W98.4, W98.5)", () => {
+  it("list_campaigns' progress is discovered:0 before finishing and discovered:1 after, gated by profileId", async () => {
+    const profiles = createInMemoryProfileStore();
+    const store = buildStore(undefined, profiles);
+    const tools = createMcpTools(store);
+    const profileId = "mcp-progress-profile";
+
+    const before = await tools.list_campaigns({ profileId });
+    const beforeSummary = before.campaigns.find((c) => c.campaignId === BULGARIA_BUREAUCRACY_CAMPAIGN_ID);
+    expect(beforeSummary?.progress?.discovered).toBe(0);
+    expect(beforeSummary?.progress?.total).toBeGreaterThan(0);
+
+    const created = await tools.start_game({ campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, seed: SEED, profileId });
+    let scene = created.scene;
+    let result;
+    while (scene.status !== "ended") {
+      const action = scene.actions.find((candidate) => candidate.available);
+      if (!action) throw new Error("expected an available action");
+      result = await tools.choose({ sessionId: created.sessionId, actionId: action.id });
+      if (!result.scene) throw new Error("expected a projected scene");
+      scene = result.scene;
+    }
+    expect(result?.scene?.status).toBe("ended");
+
+    const after = await tools.list_campaigns({ profileId });
+    const afterSummary = after.campaigns.find((c) => c.campaignId === BULGARIA_BUREAUCRACY_CAMPAIGN_ID);
+    expect(afterSummary?.progress).toEqual({ discovered: 1, total: beforeSummary?.progress?.total });
+  });
+
+  it("without a profileId, no summary carries a progress field at all", async () => {
+    const tools = createMcpTools(buildStore(undefined, createInMemoryProfileStore()));
+    const catalog = await tools.list_campaigns({});
+    const summary = catalog.campaigns.find((c) => c.campaignId === BULGARIA_BUREAUCRACY_CAMPAIGN_ID);
+    expect(summary?.progress).toBeUndefined();
   });
 });
 

@@ -22,7 +22,7 @@ export {
   resolveExperimentAssignments,
   resolvePacks,
 } from "./core/registry/packs.js";
-export { createInMemorySessionStore, createSessionLayer, upsertAchievements } from "./core/session/store.js";
+export { createInMemorySessionStore, createSessionLayer, upsertAchievements, upsertTerminals } from "./core/session/store.js";
 export { createInMemoryProfileStore } from "./core/session/profile-store.js";
 export { TextClient } from "./clients/text/client.js";
 export { defaultIdSource, defaultClock, defaultRecordIdSource } from "./core/composition/defaults.js";
@@ -64,14 +64,14 @@ export type { Engine } from "./core/kernel/types.js";
 export type { EngineHost, SessionHost } from "./core/composition/types.js";
 export type { IdSource, RecordIdSource, Clock, ExperimentSource } from "./core/composition/types.js";
 export type { GameState, GameStatus } from "./core/kernel/types.js";
-export type { Kind, KindContext, KindRegistry } from "./core/kernel/types.js";
+export type { Kind, KindContext, KindOutcome, KindRegistry } from "./core/kernel/types.js";
 export type { ActionParams, ActionResult, AvailableAction, Scene, SceneBody } from "./core/kernel/types.js";
 export type { PlayerView } from "./core/projection/types.js";
 export type { Campaign, BuiltCampaign, ContentRegistry, AuthoredText } from "./core/registry/types.js";
 export type { ResolutionId } from "./core/registry/types.js";
 export type { ContentPack, ExperimentGate, PackRef } from "./core/registry/packs.js";
 export { SESSION_PERSISTENCE_CONFLICT, SessionStoreError } from "./core/session/types.js";
-export type { AchievementRecord, PlayerProfile, ProfileLoadResult, ProfileSaveResult, CampaignSummary, SessionStore, ProfileStore, SaveHandle, SessionHandle, SessionActionResult, CreateSessionConfig, SessionPersistence, SessionPersistenceConflict, SessionRecordStore, SaveRecordStore, StoredSessionRecord, StoredSaveRecord, SessionStoreErrorCode } from "./core/session/types.js";
+export type { AchievementRecord, TerminalRecord, PlayerProfile, ProfileLoadResult, ProfileSaveResult, CampaignSummary, CampaignCatalog, CampaignProgress, SessionStore, ProfileStore, SaveHandle, SessionHandle, SessionActionResult, CreateSessionConfig, SessionPersistence, SessionPersistenceConflict, SessionRecordStore, SaveRecordStore, StoredSessionRecord, StoredSaveRecord, SessionStoreErrorCode } from "./core/session/types.js";
 export type { ValidationResult, ValidationError, ValidationWarning } from "./core/validation/types.js";
 export type { CommandResult, StateChange, ReasonCode } from "./core/kernel/reasons.js";
 export type { LocKey } from "./core/localization/types.js";

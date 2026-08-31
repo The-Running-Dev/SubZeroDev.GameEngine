@@ -58,6 +58,8 @@
     "it_builds_character"
   ],
   "terminal": {
+    "terminal": true,
+    "terminalId": "document_obtained",
     "endingId": "document_obtained"
   }
 }

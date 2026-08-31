@@ -19,6 +19,8 @@
     "achievement-first-week"
   ],
   "terminal": {
+    "terminal": false,
+    "terminalId": null,
     "resolution": null,
     "goalsMet": [],
     "goalsFailed": []

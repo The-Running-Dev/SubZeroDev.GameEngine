@@ -54,8 +54,8 @@ describe("project", () => {
   it("includes only visible variables as stats, with their labelKey and current value", () => {
     const view = project(baseState(), "player", fakeCtx(campaign()));
     expect(view.stats).toEqual([
-      { var: "money", labelKey: "stat.money", value: 2 },
-      { var: "patience", labelKey: "stat.patience", value: 7 },
+      { var: "money", labelKey: "stat.money", value: 2, min: 0, max: 3 },
+      { var: "patience", labelKey: "stat.patience", value: 7, min: 0, max: 10 },
     ]);
   });
 

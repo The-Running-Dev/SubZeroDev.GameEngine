@@ -10,7 +10,7 @@
  * `isValidGameStateShape` already uses for `GameState`.
  */
 
-import type { AchievementRecord, PlayerProfile, ProfileLoadResult, ProfileSaveResult, ProfileStore } from "./types.js";
+import type { AchievementRecord, PlayerProfile, ProfileLoadResult, ProfileSaveResult, ProfileStore, TerminalRecord } from "./types.js";
 
 export interface InMemoryProfileStoreOptions {
   /** Seeds the backing store — including, deliberately, a malformed entry (plan 15
@@ -30,6 +30,10 @@ function isValidAchievementRecord(v: unknown): v is AchievementRecord {
   return isPlainObject(v) && typeof v["campaignId"] === "string" && typeof v["achievementId"] === "string";
 }
 
+function isValidTerminalRecord(v: unknown): v is TerminalRecord {
+  return isPlainObject(v) && typeof v["campaignId"] === "string" && typeof v["terminalId"] === "string";
+}
+
 /**
  * Requires `raw.profileId === profileId`, not just `typeof ... === "string"` — a stored
  * entry whose internal `profileId` doesn't match the key it's filed under is corruption
@@ -40,14 +44,35 @@ function isValidAchievementRecord(v: unknown): v is AchievementRecord {
  */
 function isValidPlayerProfile(v: unknown, profileId: string): v is PlayerProfile {
   if (!isPlainObject(v)) return false;
+  if (v["formatVersion"] !== 2) return false;
+  if (v["profileId"] !== profileId) return false;
+  if (!Array.isArray(v["achievements"]) || !v["achievements"].every(isValidAchievementRecord)) return false;
+  if (!Array.isArray(v["terminals"])) return false;
+  return v["terminals"].every(isValidTerminalRecord);
+}
+
+interface PlayerProfileV1 {
+  formatVersion: 1;
+  profileId: string;
+  achievements: readonly AchievementRecord[];
+}
+
+function isValidPlayerProfileV1(v: unknown, profileId: string): v is PlayerProfileV1 {
+  if (!isPlainObject(v)) return false;
   if (v["formatVersion"] !== 1) return false;
   if (v["profileId"] !== profileId) return false;
   if (!Array.isArray(v["achievements"])) return false;
   return v["achievements"].every(isValidAchievementRecord);
 }
 
+/** `formatVersion` moves 1 → 2; the migration is total (04 §7.1): no field is renamed,
+ *  removed or re-typed, so this cannot fail. */
+function migrateProfileV1(v: PlayerProfileV1): PlayerProfile {
+  return { formatVersion: 2, profileId: v.profileId, achievements: v.achievements, terminals: [] };
+}
+
 function emptyProfile(profileId: string): PlayerProfile {
-  return { formatVersion: 1, profileId, achievements: [] };
+  return { formatVersion: 2, profileId, achievements: [], terminals: [] };
 }
 
 export function createInMemoryProfileStore(options?: InMemoryProfileStoreOptions): ProfileStore {
@@ -60,13 +85,16 @@ export function createInMemoryProfileStore(options?: InMemoryProfileStoreOptions
         return { profile: emptyProfile(profileId), warnings: [{ code: "profile_missing", profileId }] };
       }
       const raw = store.get(profileId);
-      if (!isValidPlayerProfile(raw, profileId)) {
-        return { profile: emptyProfile(profileId), warnings: [{ code: "profile_corrupt", profileId }] };
-      }
       // Cloned, not returned by reference — a caller mutating the returned profile (or
       // its achievements array) must not silently mutate persisted state without going
       // through save().
-      return { profile: structuredClone(raw), warnings: [] };
+      if (isValidPlayerProfile(raw, profileId)) {
+        return { profile: structuredClone(raw), warnings: [] };
+      }
+      if (isValidPlayerProfileV1(raw, profileId)) {
+        return { profile: migrateProfileV1(structuredClone(raw)), warnings: [] };
+      }
+      return { profile: emptyProfile(profileId), warnings: [{ code: "profile_corrupt", profileId }] };
     },
 
     async save(profile: PlayerProfile): Promise<ProfileSaveResult> {

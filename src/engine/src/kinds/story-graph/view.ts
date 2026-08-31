@@ -21,6 +21,10 @@ export interface VisibleStat {
   var: string;
   labelKey: LocKey;
   value: VarValue;
+  /** The declared clamp floor (03 §2), when the declaration has one. */
+  min?: number;
+  /** The declared clamp ceiling (03 §2), when the declaration has one. */
+  max?: number;
 }
 
 export interface StoryGraphView {
@@ -59,11 +63,18 @@ export function project(
   const stats: VisibleStat[] = Object.keys(visible)
     .sort()
     .map((name) => {
-      const labelKey = content.variables[name]!.labelKey;
+      const decl = content.variables[name]!;
+      const labelKey = decl.labelKey;
       if (labelKey === undefined) {
         throw new Error(`story-graph view: visible variable "${name}" has no labelKey`);
       }
-      return { var: name, labelKey, value: visible[name]! };
+      return {
+        var: name,
+        labelKey,
+        value: visible[name]!,
+        ...(decl.min !== undefined ? { min: decl.min } : {}),
+        ...(decl.max !== undefined ? { max: decl.max } : {}),
+      };
     });
 
   let ending: StoryGraphView["ending"];

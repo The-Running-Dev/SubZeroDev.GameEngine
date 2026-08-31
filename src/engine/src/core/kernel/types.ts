@@ -149,7 +149,15 @@ export interface Kind<KState> {
 
   /** Cross-version-stable terminal identity — published ids only, never values, so a
    *  balance pass cannot read as a regression (07 §3.3–§3.4). */
-  outcome(state: KState): unknown;
+  outcome(state: KState): KindOutcome;
+
+  /**
+   * How many distinct `terminalId`s (§3.2) a campaign of this kind declares, for progress
+   * display (`04-core.md` §7.3). Optional: a kind whose terminal set is not a bounded,
+   * countable property of its content omits it, and the core reports no total rather than
+   * a wrong one. Pure over content — reads `campaign`, never state, never a profile.
+   */
+  terminalCount?(campaign: Campaign): number;
 
   /**
    * Migrates a `KState` produced under an older `version` forward to this one, when the
@@ -163,6 +171,19 @@ export interface Kind<KState> {
 
 /** A fixed, engine-owned set. A missing kind is a construction error. */
 export type KindRegistry = Readonly<Record<KindId, Kind<unknown>>>;
+
+/**
+ * A minimal, cross-version-stable terminal identity — published ids only, never values
+ * (`07-replay.md` §3.3). Every kind returns at least this and may widen it with its own
+ * published ids (04 §3.2).
+ *
+ * `terminalId` is a published id, and `terminal` is not derivable from it being non-null —
+ * they are two facts, kept separable for a kind that ever ends without naming a terminal.
+ */
+export interface KindOutcome {
+  readonly terminal: boolean;
+  readonly terminalId: string | null;
+}
 
 // ---------------------------------------------------------------------------
 // Generic scene and action surface (§6)

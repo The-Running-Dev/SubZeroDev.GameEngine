@@ -107,14 +107,29 @@ describe("renderView", () => {
 });
 
 describe("renderCampaignList", () => {
-  it("renders the raw titleKey — no session exists yet to resolve it through", () => {
+  it("resolves titleKey through the catalog's own strings — no session needed (W98.2)", () => {
     const campaigns: CampaignSummary[] = [{ campaignId: "bulgaria-bureaucracy", kindId: "story-graph", titleKey: "bureaucracy.campaign.title" }];
-    const text = renderCampaignList(campaigns);
+    const strings: StringTable = { "bureaucracy.campaign.title": "The Bureaucracy" };
+    const text = renderCampaignList(campaigns, strings);
+    expect(text).toContain("[bulgaria-bureaucracy] The Bureaucracy (story-graph)");
+  });
+
+  it("falls back to the raw key when the catalog's strings don't carry it", () => {
+    const campaigns: CampaignSummary[] = [{ campaignId: "bulgaria-bureaucracy", kindId: "story-graph", titleKey: "bureaucracy.campaign.title" }];
+    const text = renderCampaignList(campaigns, {});
     expect(text).toContain("[bulgaria-bureaucracy] bureaucracy.campaign.title (story-graph)");
   });
 
+  it("renders discovered/total progress when present", () => {
+    const campaigns: CampaignSummary[] = [
+      { campaignId: "bulgaria-bureaucracy", kindId: "story-graph", titleKey: "t", progress: { discovered: 2, total: 5 } },
+    ];
+    const text = renderCampaignList(campaigns, { t: "Title" });
+    expect(text).toContain("[bulgaria-bureaucracy] Title (story-graph) — 2/5");
+  });
+
   it("renders a placeholder for an empty list", () => {
-    expect(renderCampaignList([])).toBe("(no campaigns available)");
+    expect(renderCampaignList([], {})).toBe("(no campaigns available)");
   });
 });
 

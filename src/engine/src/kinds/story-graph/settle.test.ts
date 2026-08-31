@@ -304,7 +304,10 @@ describe("initialState — through the real engine (integration)", () => {
       },
       project: (state) => state,
       validateCampaign: () => ({ ok: true, errors: [], warnings: [] }),
-      outcome: (state) => ({ endingId: state.endingId ?? null }),
+      outcome: (state) => {
+        const endingId = state.endingId ?? null;
+        return { terminal: endingId !== null, terminalId: endingId, endingId };
+      },
     };
   }
 

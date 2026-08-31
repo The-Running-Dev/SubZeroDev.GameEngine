@@ -6,5 +6,11 @@
     { "index": 1, "seq": 1, "actionId": "advance_ticks", "accepted": true }
   ],
   "achievements": [],
-  "terminal": { "resolution": "failed", "objectivesMet": [], "failureId": "bankrupt" }
+  "terminal": {
+    "terminal": true,
+    "terminalId": "failed",
+    "resolution": "failed",
+    "objectivesMet": [],
+    "failureId": "bankrupt"
+  }
 }

@@ -136,7 +136,7 @@ async function main(): Promise<void> {
     const client = playBulgaria ? bulgarianClient : baseClient;
 
     console.log();
-    console.log(client.listCampaigns().text);
+    console.log((await client.listCampaigns()).text);
     console.log();
 
     const defaultCampaignId = playBulgaria ? BULGARIA_STABLE_LIFE_CAMPAIGN_ID : BULGARIA_BUREAUCRACY_CAMPAIGN_ID;

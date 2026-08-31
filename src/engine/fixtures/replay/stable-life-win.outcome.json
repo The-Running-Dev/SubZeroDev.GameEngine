@@ -10,5 +10,11 @@
     { "index": 5, "seq": 5, "actionId": "end_week", "accepted": true }
   ],
   "achievements": [],
-  "terminal": { "resolution": "goals_met", "goalsMet": ["goal-well-rested"], "goalsFailed": [] }
+  "terminal": {
+    "terminal": true,
+    "terminalId": "goals_met",
+    "resolution": "goals_met",
+    "goalsMet": ["goal-well-rested"],
+    "goalsFailed": []
+  }
 }

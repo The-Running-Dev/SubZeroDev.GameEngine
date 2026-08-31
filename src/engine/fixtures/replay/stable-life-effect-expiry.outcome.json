@@ -23,6 +23,8 @@
   ],
   "achievements": [],
   "terminal": {
+    "terminal": false,
+    "terminalId": null,
     "resolution": null,
     "goalsMet": [],
     "goalsFailed": []
