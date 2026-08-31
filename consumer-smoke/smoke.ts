@@ -388,6 +388,8 @@ async function runAuthoringSmoke(kinds: KindRegistry): Promise<void> {
     backgrounds: [],
     traits: [],
     skills: [],
+    projects: [],
+    businesses: [],
     scenarioId: "smoke-scenario",
     goalFailurePrecedence: "goals_win",
     sceneTemplate: { key: "simulation-authoring.scene", text: "Week {week}." },

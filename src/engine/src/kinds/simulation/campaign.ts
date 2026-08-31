@@ -50,6 +50,8 @@ import type {
   TraitDefinition,
   SkillDefinition,
   GoalFailurePrecedence,
+  ProjectDefinition,
+  BusinessDefinition,
 } from "./content.js";
 
 /** `plan.add`/`plan.remove`/`plan.clear`/`end_week` — one label per §4 verb. */
@@ -82,6 +84,8 @@ export interface SimulationCampaign {
   backgrounds: readonly BackgroundDefinition[];
   traits: readonly TraitDefinition[];
   skills: readonly SkillDefinition[];
+  projects: readonly ProjectDefinition[];
+  businesses: readonly BusinessDefinition[];
 
   /** Which `scenarios` entry `initial.ts` actually plays — the simulation-kind analogue of
    *  `StoryGraphCampaign.startNodeId`. Tier 1 (§14) checks it resolves. */

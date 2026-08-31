@@ -3,12 +3,16 @@
  *
  * Contract: `10-simulation-kind.md` §3.
  *
- * Fifteen systems, in the normative order the contract fixes:
- * `employment, education, finance_income, inventory, housing, finance_reconcile, needs,
- * relationships, opportunities, events, headline, goals, failure, week_limit, achievements`.
- * `history` is deliberately absent, not stubbed — it is not adopted state (§2), so there
- * is nothing for a system to mutate; skipping it entirely is the correct behavior, not a
- * missing one.
+ * Sixteen systems, in the normative order the contract fixes:
+ * `employment, education, finance_income, business, inventory, housing, finance_reconcile,
+ * needs, relationships, opportunities, events, headline, goals, failure, week_limit,
+ * achievements`. `history` is deliberately absent, not stubbed — it is not adopted state
+ * (§2), so there is nothing for a system to mutate; skipping it entirely is the correct
+ * behavior, not a missing one.
+ *
+ * **`business` (§7.12, W101) sits immediately after `finance_income`, before `inventory`/
+ * `housing`** — business revenue/expenses must post before `housing` charges rent, the same
+ * reason `finance_income` itself runs before `housing` (`90-decisions.md`'s W101 gate 3).
  *
  * **W57 closes the last of the stubs.** `opportunities` gains revoke and offer either side
  * of the expiry it already had, `events` fires scheduled and random events, `headline`
@@ -72,10 +76,11 @@
 import type { ResolutionEmitter } from "../../core/observability/types.js";
 import type { RngHandle } from "../../core/determinism/types.js";
 import type { OutcomeMessage, StateChange } from "../../core/kernel/reasons.js";
-import type { Credential, CourseEnrollment, Employment, EvictionStage, NeedKey, RelationshipState } from "./actor.js";
+import type { ActorState, Credential, CourseEnrollment, Employment, EvictionStage, JobApplication, NeedKey, RelationshipState } from "./actor.js";
 import type { AttendanceTrackingConfig, RelationshipDriftRule } from "./campaign.js";
 import type {
   AchievementDefinition,
+  BusinessDefinition,
   CourseDefinition,
   EventDefinition,
   EventOutcome,
@@ -90,10 +95,11 @@ import { evaluateSimulationCondition } from "./conditions.js";
 import { derivedValueResolver } from "./derived.js";
 import { runSystems, type SystemEntry } from "../../core/pipeline/systems.js";
 import { SIMULATION_EVENTS } from "./events.js";
-import { insertStatusEffect } from "./modifiers.js";
+import { collectModifiers, combineModifiers, insertStatusEffect } from "./modifiers.js";
 import { governingMaintenanceRule } from "./resolvers.js";
 import type {
   Cents,
+  ContestClaim,
   GoalState,
   JobOpening,
   Opportunity,
@@ -103,6 +109,7 @@ import type {
   SimulationResolution,
   StatusEffect,
 } from "./state.js";
+import { resolveContest } from "./state.js";
 
 function ranSystem(emit: ResolutionEmitter, system: string): void {
   emit.emit(SIMULATION_EVENTS.systemRan.name, SIMULATION_EVENTS.systemRan.severity, { data: { system, phase: "end_of_week" } });
@@ -292,70 +299,140 @@ export function fillJobOpening(openings: readonly JobOpening[], jobId: string): 
   });
 }
 
-/** Resolves every `pendingApplications` entry whose `resolvesWeek` has arrived. Hires into
- *  `currentEmployment` if the player isn't already employed; otherwise the application is
- *  simply dropped (this kind has no concept of holding two jobs, and no "decline offer"
- *  action exists yet for the player to have refused it explicitly). At most one hire per
- *  week — this kind's own single-actor scope, not a contested-position race (§7.10's own
- *  "rivals are a real, still-open gap"). Fills the `JobOpening` via `fillJobOpening` (W94.4)
- *  so a second `apply_for_job` against a now-exhausted finite posting fails
- *  `requirement_unmet` (no open posting to find) once `positionsAvailable` actually reaches
- *  zero, not on the first hire regardless of how many positions the posting named. An
- *  application whose `jobId` no longer resolves against `jobs` (content removed or renamed)
- *  is dropped the same way, but emits `employment.application_lost` first — the only trace
- *  of it otherwise. */
+/** One actor's pending job application, tagged with who filed it — the unit
+ *  `resolveApplications` groups by `jobId` to build one `ContestClaim[]` per contested
+ *  opening (§2.2, W101). */
+interface DueApplication {
+  actorId: string;
+  application: JobApplication;
+}
+
+/**
+ * Resolves every `pendingApplications` entry whose `resolvesWeek` has arrived, across the
+ * player **and every `world.agents[]`** (§7.10, W101 — the same "one shape, one code path"
+ * `relationships()` already applies). Hires into `currentEmployment` if the actor isn't
+ * already employed and didn't win a hire earlier in this same pass; otherwise the
+ * application is simply dropped (this kind has no concept of holding two jobs, and no
+ * "decline offer" action exists for an actor to have refused it explicitly).
+ *
+ * **Contest, not first-come-first-served, once more than one actor's due application names
+ * the same `jobId` on a finite opening.** Every due applicant for that `jobId` becomes one
+ * `ContestClaim` (§2.2) — `score` is the applicant's `attributes.discipline` (W101's own
+ * judgement call, recorded in the slice's plan/PR: economic balance of what should
+ * determine hiring priority is out of scope, and this is the simplest already-declared
+ * proxy) — resolved by `resolveContest`, never by iteration order. An opening with no
+ * `positionsAvailable` (unbounded) keeps every prior week's behaviour: every due applicant
+ * hired, no contest. Job groups are processed in `jobId` order (sorted, the sorted-
+ * iteration rule, §2), not discovery order, so which job resolves first never depends on
+ * which actor applied to it.
+ *
+ * Fills the `JobOpening` via `fillJobOpening` (W94.4) once per position actually won, so a
+ * second `apply_for_job` against a now-exhausted finite posting fails `requirement_unmet`
+ * once `positionsAvailable` actually reaches zero. An application whose `jobId` no longer
+ * resolves against `jobs` (content removed or renamed) is dropped the same way, but emits
+ * `employment.application_lost` first — the only trace of it otherwise.
+ */
 function resolveApplications(
   state: SimulationKindState,
   jobs: readonly JobDefinition[],
   emit: ResolutionEmitter,
 ): SimulationKindState {
   const week = state.calendar.currentWeek;
-  const alreadyEmployed = state.player.career.currentEmployment !== undefined;
+  const actorRefs: readonly { id: string; actor: ActorState }[] = [
+    { id: "player", actor: state.player },
+    ...state.world.agents.map((a) => ({ id: a.id, actor: a.actor })),
+  ];
 
-  const remaining: typeof state.player.career.pendingApplications = [];
-  let hired: Employment | undefined;
-  let filledJobId: string | undefined;
-
-  for (const application of state.player.career.pendingApplications) {
-    if (application.resolvesWeek > week) {
-      remaining.push(application);
-      continue;
+  const remainingByActor = new Map<string, JobApplication[]>();
+  const dueByJob = new Map<string, DueApplication[]>();
+  for (const ref of actorRefs) {
+    const remaining: JobApplication[] = [];
+    for (const application of ref.actor.career.pendingApplications) {
+      if (application.resolvesWeek > week) {
+        remaining.push(application);
+        continue;
+      }
+      const list = dueByJob.get(application.jobId) ?? [];
+      list.push({ actorId: ref.id, application });
+      dueByJob.set(application.jobId, list);
     }
-    if (alreadyEmployed || hired) continue;
-    const job = findJob(jobs, application.jobId);
-    if (!job) {
-      emit.emit(SIMULATION_EVENTS.employmentApplicationLost.name, SIMULATION_EVENTS.employmentApplicationLost.severity, { data: { jobId: application.jobId } });
-      continue;
-    }
-    hired = {
-      jobId: job.id,
-      employerId: job.employerId,
-      startedWeek: week,
-      performance: 50,
-      attendanceRatio: 100,
-      warnings: 0,
-      weeklyPayCents: job.compensation.baseWeeklyPayCents,
-      weeksAtCurrentPay: 0,
-    };
-    filledJobId = job.id;
+    remainingByActor.set(ref.id, remaining);
   }
 
-  if (!hired && remaining.length === state.player.career.pendingApplications.length) return state;
+  if (dueByJob.size === 0) return state;
 
-  return {
-    ...state,
-    player: {
-      ...state.player,
-      career: {
-        ...state.player.career,
-        pendingApplications: remaining,
-        ...(hired ? { currentEmployment: hired } : {}),
-      },
-    },
-    world: filledJobId === undefined
-      ? state.world
-      : { ...state.world, jobMarket: { openings: fillJobOpening(state.world.jobMarket.openings, filledJobId) } },
-  };
+  const alreadyEmployed = new Set(actorRefs.filter((r) => r.actor.career.currentEmployment !== undefined).map((r) => r.id));
+  const hiredThisPass = new Set<string>();
+  const employmentByActor = new Map<string, Employment>();
+  let openings = state.world.jobMarket.openings;
+
+  const jobIds = [...dueByJob.keys()].sort((a, b) => a.localeCompare(b, "en-US-POSIX"));
+  for (const jobId of jobIds) {
+    const applicants = dueByJob.get(jobId)!;
+    const job = findJob(jobs, jobId);
+    if (!job) {
+      for (let i = 0; i < applicants.length; i += 1) {
+        emit.emit(SIMULATION_EVENTS.employmentApplicationLost.name, SIMULATION_EVENTS.employmentApplicationLost.severity, { data: { jobId } });
+      }
+      continue;
+    }
+
+    const eligible = applicants.filter((a) => !alreadyEmployed.has(a.actorId) && !hiredThisPass.has(a.actorId));
+    if (eligible.length === 0) continue;
+
+    const opening = openings.find((o) => o.jobId === jobId);
+    const positionsAvailable = opening?.positionsAvailable;
+    // No genuine contest when every eligible applicant already fits the opening — every one
+    // hired, the same as an unbounded opening, and no `ContestClaim` score needs computing.
+    const won: readonly string[] = positionsAvailable === undefined || eligible.length <= positionsAvailable
+      ? eligible.map((a) => a.actorId)
+      : resolveContest(
+        eligible.map((a): ContestClaim => ({ actorId: a.actorId, score: actorFor(actorRefs, a.actorId).attributes.discipline })),
+        positionsAvailable,
+      ).won;
+
+    for (const actorId of won) {
+      hiredThisPass.add(actorId);
+      employmentByActor.set(actorId, {
+        jobId: job.id,
+        employerId: job.employerId,
+        startedWeek: week,
+        performance: 50,
+        attendanceRatio: 100,
+        warnings: 0,
+        weeklyPayCents: job.compensation.baseWeeklyPayCents,
+        weeksAtCurrentPay: 0,
+      });
+    }
+
+    if (won.length > 0) {
+      if (positionsAvailable === undefined) {
+        openings = fillJobOpening(openings, jobId);
+      } else {
+        for (let i = 0; i < won.length; i += 1) openings = fillJobOpening(openings, jobId);
+      }
+    }
+  }
+
+  let next = state;
+  for (const ref of actorRefs) {
+    const remaining = remainingByActor.get(ref.id)!;
+    const hired = employmentByActor.get(ref.id);
+    if (remaining.length === ref.actor.career.pendingApplications.length && hired === undefined) continue;
+    const updatedActor: ActorState = {
+      ...ref.actor,
+      career: { ...ref.actor.career, pendingApplications: remaining, ...(hired ? { currentEmployment: hired } : {}) },
+    };
+    next = ref.id === "player"
+      ? { ...next, player: updatedActor }
+      : { ...next, world: { ...next.world, agents: next.world.agents.map((a) => (a.id === ref.id ? { ...a, actor: updatedActor } : a)) } };
+  }
+
+  return { ...next, world: { ...next.world, jobMarket: { openings } } };
+}
+
+function actorFor(actorRefs: readonly { id: string; actor: ActorState }[], actorId: string): ActorState {
+  return actorRefs.find((r) => r.id === actorId)!.actor;
 }
 
 /** Advances `Employment.performance` toward `weeklyDriftToward` absent work this week, or up
@@ -586,6 +663,65 @@ export function financeIncome(state: SimulationKindState, jobs: readonly JobDefi
     },
     changes: [{ path: "player.finances.cashCents", op: "increment", value: pay, previous: before, reason: "wage_payment", visible: true }],
   };
+}
+
+/** One actor's `"operating"` `BusinessRecord`s, posted once (§7.12, W101). Modifier
+ *  composition reuses `modifiers.ts`'s own multiply-once-round-once rule exactly — no new
+ *  rounding rule. A record whose `cashOnHandCents` drops below `minimumCashCents` after this
+ *  post closes immediately (`closedReason: "business_insolvent"`) — no separate grace-period
+ *  ladder distinct from `HousingState.evictionStage`, per `90-decisions.md`'s W101 gate 3. */
+function operateBusinesses(
+  state: SimulationKindState,
+  actor: ActorState,
+  addressPrefix: string,
+  businesses: readonly BusinessDefinition[],
+  week: number,
+): { actor: ActorState; changes: StateChange[] } {
+  const changes: StateChange[] = [];
+  const records = actor.businesses.map((record) => {
+    if (record.status !== "operating") return record;
+    const def = businesses.find((b) => b.id === record.definitionId);
+    if (!def) return record;
+    const base = `${addressPrefix}.businesses.${record.instanceId}`;
+
+    const revenue = combineModifiers(def.weeklyRevenueCents, collectModifiers(state.activeEffects, `${base}.revenue`));
+    const expenses = combineModifiers(def.weeklyExpensesCents, collectModifiers(state.activeEffects, `${base}.expenses`));
+    const after = record.cashOnHandCents + revenue - expenses;
+
+    if (revenue !== 0) changes.push({ path: `${base}.cashOnHandCents`, op: "increment", value: revenue, reason: "business_revenue", visible: true });
+    if (expenses !== 0) changes.push({ path: `${base}.cashOnHandCents`, op: "decrement", value: expenses, reason: "business_expense", visible: true });
+
+    if (after < def.minimumCashCents) {
+      changes.push({ path: `${base}.status`, op: "set", value: "closed", previous: "operating", reason: "business_insolvent", visible: true });
+      return {
+        ...record, cashOnHandCents: after, weeksOperated: record.weeksOperated + 1,
+        status: "closed" as const, closedWeek: week, closedReason: "business_insolvent",
+      };
+    }
+    return { ...record, cashOnHandCents: after, weeksOperated: record.weeksOperated + 1 };
+  });
+
+  return { actor: { ...actor, businesses: records }, changes };
+}
+
+/** Real logic (W101) — runs over the player **and every `world.agents[].actor`**, the same
+ *  forward-compatible shape `relationships()` already uses: businesses are an `ActorState`
+ *  field (§6.12), shared structurally even though no shipped scenario yet gives a rival
+ *  one. */
+export function business(state: SimulationKindState, businesses: readonly BusinessDefinition[]): { state: SimulationKindState; changes: StateChange[] } {
+  if (businesses.length === 0) return { state, changes: [] };
+  const week = state.calendar.currentWeek;
+
+  const playerResult = operateBusinesses(state, state.player, "player", businesses, week);
+  const changes = [...playerResult.changes];
+
+  const agents = state.world.agents.map((agent) => {
+    const result = operateBusinesses(state, agent.actor, `world.agents.${agent.id}.actor`, businesses, week);
+    changes.push(...result.changes);
+    return { ...agent, actor: result.actor };
+  });
+
+  return { state: { ...state, player: playerResult.actor, world: { ...state.world, agents } }, changes };
 }
 
 /** A per-item `StatusEffect`'s id, derived from the instance's own natural key (§6) so the
@@ -1382,6 +1518,9 @@ export interface EndOfWeekWorld {
   opportunities?: readonly OpportunityDefinition[];
   headlines?: readonly HeadlineDefinition[];
   achievements?: readonly AchievementDefinition[];
+  /** `SimulationCampaign.businesses` (§7.12, W101). Absent leaves `business` a no-op, the
+   *  same optional-collection default every other W57+ collection here already has. */
+  businesses?: readonly BusinessDefinition[];
   /** `ScenarioDefinition.weekLimit` (§7.8) — absent means the scenario has no cap, and
    *  `week_limit_reached` is then unreachable by design rather than by omission. */
   weekLimit?: number;
@@ -1464,6 +1603,7 @@ const END_OF_WEEK_SYSTEMS: readonly SystemEntry<EndOfWeekFrame>[] = [
   traced("employment", (frame) => withChanges(frame, employment(frame.state, frame.jobs, frame.emit, frame.world.attendanceTracking))),
   traced("education", (frame) => withChanges(frame, education(frame.state, frame.courses))),
   traced("finance_income", (frame) => withChanges(frame, financeIncome(frame.state, frame.jobs))),
+  traced("business", (frame) => withChanges(frame, business(frame.state, frame.world.businesses ?? []))),
   traced("inventory", (frame) => withChanges(frame, inventory(frame.state, frame.items))),
   traced("housing", (frame) => {
     const result = housing(frame.state);

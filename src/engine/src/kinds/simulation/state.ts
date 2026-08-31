@@ -65,6 +65,35 @@ export interface JobMarketState {
   openings: JobOpening[];
 }
 
+/** One claim on a finite, contested resource — a job opening, a promotion slot, an
+ *  opportunity (§2.2, W101). `score` is resource-specific, computed by whichever resolver
+ *  built the claim; it may itself draw on `ctx.rng`, but `resolveContest` below never does. */
+export interface ContestClaim {
+  /** `"player"` or an `AgentState.id` (§7.10). */
+  actorId: string;
+  score: number;
+}
+
+/**
+ * Deterministic, total-order resolution of `positionsAvailable` slots among `claims` (§2.2).
+ * Ties break on `actorId` ascending (`localeCompare` with the `"en-US-POSIX"` collation this
+ * kind already uses for the sorted-iteration rule) — never on claim order, which is
+ * construction-order-dependent and exactly what that rule forbids.
+ */
+export function resolveContest(
+  claims: readonly ContestClaim[],
+  positionsAvailable: number,
+): { won: readonly string[]; lost: readonly string[] } {
+  const ranked = [...claims].sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return a.actorId.localeCompare(b.actorId, "en-US-POSIX");
+  });
+  return {
+    won: ranked.slice(0, positionsAvailable).map((c) => c.actorId),
+    lost: ranked.slice(positionsAvailable).map((c) => c.actorId),
+  };
+}
+
 export type ChainScope = "game" | "profile";
 
 export interface EventChainState {
@@ -308,6 +337,11 @@ export interface AgentState {
   planningDepth: number;
   /** Hidden — never projected. */
   strategy: Record<string, unknown>;
+
+  /** This agent's own `{ kind: "agent" }` `StreamId` draw counter (§8, W101) — incremented
+   *  once per draw its `AgentStrategy.selectActions` (`content.ts` §7.10) takes, if it takes
+   *  any. */
+  rngSeq: number;
 }
 
 // ---------------------------------------------------------------------------

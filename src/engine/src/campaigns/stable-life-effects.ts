@@ -90,6 +90,8 @@ const stableLifeEffectsSource: SimulationCampaignSource = {
     },
   ],
   difficulties: [],
+  projects: [],
+  businesses: [],
   opportunities: [],
   achievements: [],
   headlines: [],

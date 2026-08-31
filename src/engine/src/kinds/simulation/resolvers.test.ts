@@ -176,7 +176,7 @@ function player(overrides: Partial<SimulationKindState["player"]> = {}): Simulat
       weeklyCostCents: 0, depositPaidCents: 0, rentDueWeek: 1, overdueRentCents: 0,
       missedPayments: 0, evictionStage: "none",
     },
-    inventory: [], relationships: [], skills: {}, traits: [], reputation: {}, flags: {}, counters: {},
+    inventory: [], relationships: [], projects: [], businesses: [], skills: {}, traits: [], reputation: {}, flags: {}, counters: {},
     ...overrides,
   };
 }
@@ -200,6 +200,7 @@ const simulationCampaign: SimulationCampaign = {
   items: [bicycle, trinket, expensiveItem], events: [], npcs: [neighbour, absentNpc], goals: [],
   scenarios: [], difficulties: [], opportunities: [], achievements: [], headlines: [], employers: [],
   locations: [workLocation, bareLocation, farLocation], backgrounds: [], traits: [], skills: [],
+  projects: [], businesses: [],
   scenarioId: "scenario-1", goalFailurePrecedence: "goals_win",
   sceneTemplateKey: "sim.scene.status",
   actionLabelKeys: { planAdd: "a", planRemove: "b", planClear: "c", endWeek: "d" },

@@ -24,6 +24,8 @@ const state: SimulationKindState = {
     relationships: [
       { npcId: "npc-1", category: "personal", affinity: 10, trust: 20, respect: 30, resentment: 888, knownSinceWeek: 1, interactionCount: 2 },
     ],
+    projects: [],
+    businesses: [],
     skills: { cooking: 5 },
     traits: ["stoic"],
     reputation: { landlord: 1 },
@@ -71,7 +73,7 @@ const campaignContent: SimulationCampaign = {
   goals: [],
   scenarios: [],
   difficulties: [], opportunities: [], achievements: [], headlines: [], employers: [], locations: [],
-  backgrounds: [], traits: [], skills: [],
+  backgrounds: [], traits: [], skills: [], projects: [], businesses: [],
   scenarioId: "",
   goalFailurePrecedence: "goals_win",
   sceneTemplateKey: "sim.scene.status",

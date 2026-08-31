@@ -100,6 +100,8 @@ const stableLifeHousingSource: SimulationCampaignSource = {
     },
   ],
   difficulties: [],
+  projects: [],
+  businesses: [],
   opportunities: [],
   achievements: [],
   headlines: [],

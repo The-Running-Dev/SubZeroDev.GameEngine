@@ -31,7 +31,7 @@ const player = {
     weeklyCostCents: 5000, depositPaidCents: 0, rentDueWeek: 1, overdueRentCents: 0,
     missedPayments: 0, evictionStage: "none" as const,
   },
-  inventory: [], relationships: [], skills: {}, traits: [], reputation: {}, flags: {}, counters: {},
+  inventory: [], relationships: [], projects: [], businesses: [], skills: {}, traits: [], reputation: {}, flags: {}, counters: {},
 };
 const economy = { inflation: 200, unemploymentRate: 500, interestRate: 300, sectorDemand: {}, marketPrices: {}, publishedIndicators: [], flags: {} };
 const world = {
@@ -98,7 +98,7 @@ const simulationCampaign: SimulationCampaign = {
     startingAttributes: player.attributes, startingSkills: {}, startingCredentials: [], startingTraits: [],
     startingCashModifierCents: 0,
   }],
-  traits: [], skills: [],
+  traits: [], skills: [], projects: [], businesses: [],
   scenarioId: "scenario-1",
   goalFailurePrecedence: "goals_win",
   sceneTemplateKey: "sim.scene.status",
@@ -275,13 +275,15 @@ describe("advance — end_week", () => {
     expect(result.error?.code).toBe("action_not_available");
   });
 
-  it("resolves every planned, non-custom action through the stub resolver without error", () => {
-    // "start_project" — still `stubResolver`. This test used "shop" until W56 gave it a
-    // real resolver (and real preconditions, which `resolvers.test.ts` covers); the projects,
-    // business and event/opportunity verbs are what remains unwired.
-    const withAction = advance(baseState(), "plan.add", { actionType: "start_project" }, fakeCtx()).state;
+  it("rejects unknown_action for a start_project action naming a definition the campaign doesn't declare", () => {
+    // W101 wires `start_project` for real (`resolvers.ts`) — the last `ActionType` this test
+    // used to exercise via `stubResolver` (previously "start_project", before that "shop"
+    // until W56). Every non-custom `ActionType` now has a genuine resolver; a target naming
+    // no real content rejects the same way `apply_for_job`/`shop` already do for one of
+    // theirs, covered for real content in `resolvers.w101.test.ts`.
+    const withAction = advance(baseState(), "plan.add", { actionType: "start_project", targetId: "no-such-project" }, fakeCtx()).state;
     const result = advance(withAction, "end_week", undefined, fakeCtx());
-    expect(result.error).toBeUndefined();
+    expect(result.error?.code).toBe("unknown_action");
   });
 
   it("resolves a planned eat action through the real eatResolver, restoring satiety", () => {

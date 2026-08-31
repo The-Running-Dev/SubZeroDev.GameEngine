@@ -176,6 +176,8 @@ export const stableLifeSource: SimulationCampaignSource = {
     },
   ],
   difficulties: [],
+  projects: [],
+  businesses: [],
   opportunities: [],
   achievements: [],
   headlines: [],

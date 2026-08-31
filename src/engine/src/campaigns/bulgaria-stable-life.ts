@@ -295,6 +295,8 @@ export const bulgariaStableLifeSource: SimulationCampaignSource = {
   ],
 
   difficulties: [],
+  projects: [],
+  businesses: [],
 
   opportunities: [
     {

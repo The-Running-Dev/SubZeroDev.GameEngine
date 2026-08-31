@@ -17,9 +17,9 @@
  * authoring surface doesn't keep. Revisit both together.
  *
  * **Cross-reference checks cover exactly what §14 names, not every plausible one.**
- * `OpportunityDefinition.targetId`'s `"business"` `kind` has no matching definition type
- * anywhere in §7.9's list (no `BusinessDefinition` exists in this port) — skipped rather than
- * guessed at; every other `OpportunityKind` maps onto a real type. `Reward.target`/`value`
+ * `OpportunityDefinition.targetId`'s `"business"` `kind` now resolves against
+ * `content.businesses` (§7.12, W101) — every `OpportunityKind` maps onto a real type.
+ * `Reward.target`/`value`
  * are untyped (`content.ts`'s own "provisional, not resolved here" callout on `Reward`), so
  * Tier 2's "no Reward ... ever references" clause is read as "no `Reward` of the matching
  * `counter`/`flag` type" for the achievement check below, not as a general reference scan
@@ -35,6 +35,7 @@ import type { Modifier } from "./state.js";
 import type { Reward } from "./content.js";
 import { derivedValueResolver } from "./derived.js";
 import { SIMULATION_REASON_CODES } from "./reasons.js";
+import { AGENT_STRATEGIES } from "./agentStrategies.js";
 
 function error(code: string, path: string): ValidationError {
   return { code, messageKey: `simulation.reason.${code}`, path };
@@ -126,6 +127,13 @@ function validateDuplicateIds(content: SimulationCampaign): ValidationError[] {
     ...duplicateIds(content.backgrounds).map((id) => error("duplicate_id", id)),
     ...duplicateIds(content.traits).map((id) => error("duplicate_id", id)),
     ...duplicateIds(content.skills).map((id) => error("duplicate_id", id)),
+    ...duplicateIds(content.projects).map((id) => error("duplicate_id", id)),
+    ...duplicateIds(content.businesses).map((id) => error("duplicate_id", id)),
+    // RivalConfig.agentId (§7.8, W101) — unique within its own scenario's `rivals` array,
+    // not across the whole campaign (AgentState.id only needs to be unique within the one
+    // WorldState.agents array it populates).
+    ...content.scenarios.flatMap((s) => duplicateIds((s.rivals ?? []).map((r) => ({ id: r.agentId }))))
+      .map((id) => error("duplicate_id", id)),
   ];
 }
 
@@ -143,6 +151,7 @@ function validateReferences(content: SimulationCampaign): ValidationError[] {
   const goalIds = new Set(content.goals.map((g) => g.id));
   const locationIds = new Set(content.locations.map((l) => l.id));
   const backgroundIds = new Set(content.backgrounds.map((b) => b.id));
+  const businessIds = new Set(content.businesses.map((b) => b.id));
 
   // PromotionPath.toJobId → JobDefinition
   for (const job of content.jobs) {
@@ -168,6 +177,16 @@ function validateReferences(content: SimulationCampaign): ValidationError[] {
     for (const entry of scenario.startingInventory) {
       if (!itemIds.has(entry.definitionId)) errors.push(error("dangling_reference", entry.definitionId));
     }
+    // RivalConfig.startingBackgroundId (§7.8, W101) → BackgroundDefinition — the same
+    // reference the player's own startingBackgroundIds check makes, above.
+    for (const rival of scenario.rivals ?? []) {
+      if (!backgroundIds.has(rival.startingBackgroundId)) {
+        errors.push(error("dangling_reference", rival.startingBackgroundId));
+      }
+      if (!(rival.strategyId in AGENT_STRATEGIES)) {
+        errors.push(error("unknown_rival_strategy", rival.strategyId));
+      }
+    }
   }
 
   // EmployerDefinition.jobIds / .npcIds → JobDefinition / NPCDefinition
@@ -187,8 +206,7 @@ function validateReferences(content: SimulationCampaign): ValidationError[] {
     }
   }
 
-  // OpportunityDefinition.targetId → whichever type its own `kind` names. "business" has no
-  // matching definition type in this port — skipped, per this file's own header.
+  // OpportunityDefinition.targetId → whichever type its own `kind` names.
   for (const opportunity of content.opportunities) {
     let resolves: boolean;
     switch (opportunity.kind) {
@@ -206,7 +224,7 @@ function validateReferences(content: SimulationCampaign): ValidationError[] {
         resolves = npcIds.has(opportunity.targetId);
         break;
       case "business":
-        resolves = true;
+        resolves = businessIds.has(opportunity.targetId);
         break;
     }
     if (!resolves) errors.push(error("dangling_reference", opportunity.targetId));
@@ -249,6 +267,11 @@ function validateLocKeys(content: SimulationCampaign, strings: ReadonlyMap<LocKe
   for (const background of content.backgrounds) { check(background.nameKey); check(background.descriptionKey); }
   for (const trait of content.traits) { check(trait.nameKey); check(trait.descriptionKey); }
   for (const skill of content.skills) { check(skill.nameKey); }
+  for (const project of content.projects) { check(project.nameKey); check(project.descriptionKey); }
+  for (const business of content.businesses) { check(business.nameKey); check(business.descriptionKey); }
+  for (const scenario of content.scenarios) {
+    for (const rival of scenario.rivals ?? []) check(rival.displayNameKey);
+  }
 
   for (const effect of content.startingEffects ?? []) check(effect.descriptionKey);
 
@@ -268,6 +291,9 @@ function validateAllModifiers(content: SimulationCampaign): ValidationError[] {
     errors.push(...validateModifiers(difficulty.economyModifiers));
     errors.push(...validateModifiers(difficulty.needDriftModifiers));
     errors.push(...validateModifiers(difficulty.rivalStartingAdvantages));
+  }
+  for (const scenario of content.scenarios) {
+    for (const rival of scenario.rivals ?? []) errors.push(...validateModifiers(rival.initialConditions ?? []));
   }
   return errors;
 }

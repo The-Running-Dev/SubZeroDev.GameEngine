@@ -78,6 +78,8 @@ const simulationCampaign: SimulationCampaign = {
   backgrounds: [background],
   traits: [],
   skills: [],
+  projects: [],
+  businesses: [],
   scenarioId: "scenario-1",
   goalFailurePrecedence: "goals_win",
   sceneTemplateKey: "sim.scene.status",

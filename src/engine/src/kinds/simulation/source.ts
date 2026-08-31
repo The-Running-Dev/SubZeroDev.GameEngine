@@ -39,6 +39,8 @@ import type {
   BackgroundDefinition,
   TraitDefinition,
   SkillDefinition,
+  ProjectDefinition,
+  BusinessDefinition,
 } from "./content.js";
 import type { SimulationCampaign, SimulationActionLabelKeys } from "./campaign.js";
 
@@ -98,6 +100,14 @@ export type TraitDefinitionSource = Omit<TraitDefinition, "nameKey" | "descripti
   description: AuthoredText;
 };
 export type SkillDefinitionSource = Omit<SkillDefinition, "nameKey"> & { name: AuthoredText };
+export type ProjectDefinitionSource = Omit<ProjectDefinition, "nameKey" | "descriptionKey"> & {
+  name: AuthoredText;
+  description: AuthoredText;
+};
+export type BusinessDefinitionSource = Omit<BusinessDefinition, "nameKey" | "descriptionKey"> & {
+  name: AuthoredText;
+  description: AuthoredText;
+};
 
 export type SimulationActionLabelKeysSource = {
   planAdd: AuthoredText;
@@ -126,6 +136,8 @@ export interface SimulationCampaignSource {
   backgrounds: readonly BackgroundDefinitionSource[];
   traits: readonly TraitDefinitionSource[];
   skills: readonly SkillDefinitionSource[];
+  projects: readonly ProjectDefinitionSource[];
+  businesses: readonly BusinessDefinitionSource[];
 
   scenarioId: string;
   goalFailurePrecedence: SimulationCampaign["goalFailurePrecedence"];
@@ -225,6 +237,16 @@ function buildSkill(source: SkillDefinitionSource, take: Take): SkillDefinition 
   return { ...rest, nameKey: take(name) };
 }
 
+function buildProject(source: ProjectDefinitionSource, take: Take): ProjectDefinition {
+  const { name, description, ...rest } = source;
+  return { ...rest, nameKey: take(name), descriptionKey: take(description) };
+}
+
+function buildBusiness(source: BusinessDefinitionSource, take: Take): BusinessDefinition {
+  const { name, description, ...rest } = source;
+  return { ...rest, nameKey: take(name), descriptionKey: take(description) };
+}
+
 function buildActionLabels(source: SimulationActionLabelKeysSource, take: Take): SimulationActionLabelKeys {
   return {
     planAdd: take(source.planAdd),
@@ -271,6 +293,8 @@ export function buildSimulationCampaign(source: SimulationCampaignSource): {
     backgrounds: source.backgrounds.map((s) => buildBackground(s, take)),
     traits: source.traits.map((s) => buildTrait(s, take)),
     skills: source.skills.map((s) => buildSkill(s, take)),
+    projects: source.projects.map((s) => buildProject(s, take)),
+    businesses: source.businesses.map((s) => buildBusiness(s, take)),
 
     scenarioId: source.scenarioId,
     goalFailurePrecedence: source.goalFailurePrecedence,

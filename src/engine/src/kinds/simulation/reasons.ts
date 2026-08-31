@@ -141,6 +141,19 @@ export const SIMULATION_REASON_CODES = [
   "relationship_drift",
   "attendance_updated",
   "invalid_attendance_window",
+  // W101 — projects, businesses, and rival scarcity (§7.8, §7.12, §10, §14). Four action
+  // audit codes, one project completion code, four business end-of-week codes, and the
+  // Tier 1 rival-strategy validation code, registered in the same commit that emits them.
+  "action_start_project",
+  "action_work_on_project",
+  "action_start_business",
+  "action_operate_business",
+  "project_completed",
+  "business_revenue",
+  "business_expense",
+  "business_closed",
+  "business_insolvent",
+  "unknown_rival_strategy",
 ] as const;
 
 export type SimulationReasonCode = (typeof SIMULATION_REASON_CODES)[number];
@@ -203,6 +216,16 @@ const SIMULATION_REASON_TEXT: Readonly<Record<SimulationReasonCode, string>> = {
   relationship_drift: "A relationship shifted a little this week.",
   attendance_updated: "Your attendance record was updated.",
   invalid_attendance_window: "The attendance tracking window must be a positive number of weeks.",
+  action_start_project: "You started the project.",
+  action_work_on_project: "You worked on the project.",
+  action_start_business: "You started the business.",
+  action_operate_business: "You closed the business.",
+  project_completed: "You completed the project.",
+  business_revenue: "The business brought in money this week.",
+  business_expense: "The business spent money this week.",
+  business_closed: "The business closed.",
+  business_insolvent: "The business ran out of cash and closed.",
+  unknown_rival_strategy: "This campaign names a rival strategy the engine doesn't have.",
 };
 
 /** `simulation.reason.<code>` → its shipped default-English message, for every code. */

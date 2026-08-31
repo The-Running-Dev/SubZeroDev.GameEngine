@@ -53,14 +53,17 @@ import type { Campaign } from "../../core/registry/types.js";
 import type { InitialStateResult } from "../../core/kernel/types.js";
 import type { SimulationCampaign } from "./campaign.js";
 import type {
+  AgentState,
   CalendarState,
   EconomyState,
   WorldState,
   GoalState,
+  Modifier,
   SimulationKindState,
 } from "./state.js";
-import type { InventoryItem, PlayerState } from "./actor.js";
-import type { BackgroundDefinition, ScenarioDefinition } from "./content.js";
+import type { ActorState, InventoryItem, PlayerState } from "./actor.js";
+import type { BackgroundDefinition, RivalConfig, ScenarioDefinition } from "./content.js";
+import { combineModifiers, type ResolvedModifier } from "./modifiers.js";
 
 /** Upstream's fixed weekly time budget (§2.1's own callout — not campaign-authored). */
 const WEEKLY_TIME_UNITS = 14;
@@ -168,6 +171,8 @@ function buildPlayer(campaign: SimulationCampaign, scenario: ScenarioDefinition)
     },
     inventory,
     relationships: [],
+    projects: [],
+    businesses: [],
     skills,
     traits,
     reputation: {},
@@ -176,7 +181,118 @@ function buildPlayer(campaign: SimulationCampaign, scenario: ScenarioDefinition)
   };
 }
 
-function buildWorld(): WorldState {
+/** Every `Modifier` targeting the same field, combined by `modifiers.ts`'s own rule (§6.1:
+ *  add/subtract summed, multiply combined into one product and rounded once) and applied
+ *  directly to the field it names — a one-shot construction-time transform, not an ongoing
+ *  `StatusEffect`. Only `player.needs.*`/`player.attributes.*`/`player.skills.*` are
+ *  meaningful on a freshly-built actor (`validate.ts`'s own `WRITABLE_TARGET_PREFIXES`);
+ *  anything else is silently a no-op rather than throwing on a validated campaign's own
+ *  content. Clamped to `0–100`, this kind's declared integer range for all three (§6.2). */
+function applyInitialConditions(actor: ActorState, modifiers: readonly Modifier[]): ActorState {
+  if (modifiers.length === 0) return actor;
+
+  const byTarget = new Map<string, ResolvedModifier[]>();
+  for (const modifier of modifiers) {
+    const list = byTarget.get(modifier.target) ?? [];
+    list.push({ modifier, appliedWeek: 1 });
+    byTarget.set(modifier.target, list);
+  }
+
+  let needs = actor.needs;
+  let attributes = actor.attributes;
+  let skills = actor.skills;
+
+  for (const [target, resolved] of byTarget) {
+    const clamp = (value: number): number => Math.min(100, Math.max(0, value));
+    if (target.startsWith("player.needs.")) {
+      const key = target.slice("player.needs.".length) as keyof typeof needs;
+      needs = { ...needs, [key]: clamp(combineModifiers(needs[key], resolved)) };
+    } else if (target.startsWith("player.attributes.")) {
+      const key = target.slice("player.attributes.".length) as keyof typeof attributes;
+      attributes = { ...attributes, [key]: clamp(combineModifiers(attributes[key], resolved)) };
+    } else if (target.startsWith("player.skills.")) {
+      const key = target.slice("player.skills.".length);
+      skills = { ...skills, [key]: clamp(combineModifiers(skills[key] ?? 0, resolved)) };
+    }
+  }
+
+  return { ...actor, needs, attributes, skills };
+}
+
+/** One `AgentState` per `RivalConfig`, in array order (§7.10, W101 — deterministic content
+ *  order, not a runtime sort). A rival's starting `ActorState` is its own background —
+ *  `RivalConfig.startingBackgroundId`, the same `BackgroundDefinition` mechanism the player's
+ *  own `startingBackgroundIds` uses — with `initialConditions` applied on top.
+ *  `DifficultyDefinition.rivalStartingAdvantages` stays unconsumed: no mechanism anywhere in
+ *  this tree lets a campaign or player select a `DifficultyDefinition` yet, and wiring that
+ *  selection is a different unit's `Touches`, not this one's (recorded in the slice's own
+ *  plan/PR). A rival starts at the scenario's own location and housing — nothing in §7.8
+ *  gives a rival its own, and `ActorState.housing` is not optional. */
+function buildRivalActor(campaign: SimulationCampaign, scenario: ScenarioDefinition, rival: RivalConfig): ActorState {
+  const background = campaign.backgrounds.find((b) => b.id === rival.startingBackgroundId)!;
+  const housingDef = campaign.housing.find((h) => h.id === scenario.startingHousingId)!;
+
+  const base: ActorState = {
+    identity: {
+      actorId: rival.agentId,
+      name: rival.agentId,
+      age: DEFAULT_PLAYER_AGE,
+      backgroundId: background.id,
+    },
+    currentLocationId: scenario.startingLocationId,
+    finances: {
+      cashCents: background.startingCashModifierCents,
+      savingsCents: 0,
+      debtCents: 0,
+      weeklyIncomeCents: 0,
+      weeklyExpensesCents: 0,
+      overdueBalanceCents: 0,
+      accounts: [],
+    },
+    needs: DEFAULT_STARTING_NEEDS,
+    attributes: background.startingAttributes,
+    education: { enrollments: [], credentials: [], completedCourseIds: [], failedCourseIds: [] },
+    career: { history: [], totalWeeksEmployed: 0, pendingApplications: [], highestTierAchieved: "entry" },
+    housing: {
+      definitionId: housingDef.id,
+      movedInWeek: 1,
+      ownership: "renting",
+      damage: 0,
+      weeklyCostCents: housingDef.weeklyCostCents,
+      depositPaidCents: housingDef.depositCents ?? 0,
+      rentDueWeek: 1,
+      overdueRentCents: 0,
+      missedPayments: 0,
+      evictionStage: "none",
+    },
+    inventory: [],
+    relationships: [],
+    projects: [],
+    businesses: [],
+    skills: background.startingSkills,
+    traits: [...background.startingTraits],
+    reputation: {},
+    flags: {},
+    counters: {},
+  };
+
+  return applyInitialConditions(base, rival.initialConditions ?? []);
+}
+
+function buildAgents(campaign: SimulationCampaign, scenario: ScenarioDefinition): AgentState[] {
+  return (scenario.rivals ?? []).map((rival) => ({
+    id: rival.agentId,
+    strategyId: rival.strategyId,
+    displayNameKey: rival.displayNameKey,
+    actor: buildRivalActor(campaign, scenario, rival),
+    goals: [],
+    planningDepth: 0,
+    strategy: {},
+    rngSeq: 0,
+  }));
+}
+
+function buildWorld(campaign: SimulationCampaign, scenario: ScenarioDefinition): WorldState {
   return {
     npcs: [],
     locations: [],
@@ -186,7 +302,7 @@ function buildWorld(): WorldState {
     chainStates: [],
     strangenessBase: 0,
     headlinePool: { remainingIds: [], cyclesCompleted: 0 },
-    agents: [],
+    agents: buildAgents(campaign, scenario),
     flags: {},
   };
 }
@@ -219,7 +335,7 @@ export function initialState(campaign: Campaign): InitialStateResult<SimulationK
     calendar,
     player: buildPlayer(content, scenario),
     economy: STARTING_ECONOMY,
-    world: buildWorld(),
+    world: buildWorld(content, scenario),
 
     activeEffects: content.startingEffects ? [...content.startingEffects] : [],
     activeOpportunities: [],
