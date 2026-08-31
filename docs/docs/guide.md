@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 1cbbcbd1c0bea423e2f5e2a1b4fc239fd507465ba6503b532276a1bf11ffd8c5 -->
+<!-- design-digest: 097edb283d127c68fe0e446fe989b6f2b91d2a3b157c9333ea0e0ea823b5a1bf -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -750,6 +750,29 @@ without changing anything for a campaign that omits them:
 Wisdom needs no new mechanism to matter: it already has a visible projection, and a
 `Requirement` can gate on it exactly like any other attribute — an event choice, opportunity,
 or job can require a minimum wisdom the same way one requires a minimum discipline.
+
+**Projects and businesses are durable, per-actor instances, not one-shot rewards.**
+`start_project`/`start_business` mint a fresh runtime instance (a `ProjectRuntimeState` or
+`BusinessRecord`, each with its own `instanceId` — an actor may run more than one of the same
+definition at once); `work_on_project`/`operate_business` then target that instance, never the
+definition, by id. A project completes once, when its accumulated progress reaches the
+definition's required total, and pays its rewards then; a business posts weekly revenue and
+expenses through a dedicated `business` end-of-week system — positioned right after income, so
+that week's business earnings can help pay rent the same way wages do — and closes itself,
+involuntarily, the week its cash on hand drops below the definition's declared floor. Neither
+completing twice nor closing twice is possible; both transitions are one-way.
+
+**A scenario can now declare rivals, and a rival runs through the exact same code the player
+does.** `ScenarioDefinition.rivals` lists zero or more agents, each naming a strategy, a
+starting background, and any one-time starting conditions; omitting it (every campaign shipped
+before this) leaves the world exactly as agent-free as it always was. Each declared rival
+resolves its actions after the player's own plan, in the campaign's own declared order, through
+the identical action resolvers the player uses — there is no second, rival-only code path to
+drift out of sync — and draws from its own private, per-agent random stream, so neither
+construction order nor another rival's actions can perturb its choices. When a rival and the
+player (or two rivals) contest the same scarce opening — a job, a promotion, a limited
+opportunity — the engine breaks the tie by score, then by actor id, deterministically; the
+losing side is revoked, never left holding a duplicate reward.
 
 The full state, content-definition, and reason-code catalogue is in
 [Simulation Kind](/docs/engine/simulation-kind).

@@ -12,6 +12,8 @@
 
 ### 2.2 World State
 
+#### Contested-Resource Resolution (W101)
+
 #### World Strangeness
 
 #### Chain Scope — and an Item This Raises
@@ -66,6 +68,8 @@
 
 ### 6.11 Relationships
 
+### 6.12 Projects and Businesses — Runtime State (W101)
+
 ## 7. Content Definition Types
 
 ### 7.1 Modifiers and Rewards
@@ -89,6 +93,8 @@
 ### 7.10 Agents — Engine-Owned Strategy, Definition, and Runtime State
 
 ### 7.11 The Campaign Envelope and Weekly Tuning
+
+### 7.12 Projects and Businesses (W101)
 
 ## 8. Conditions and Requirements
 

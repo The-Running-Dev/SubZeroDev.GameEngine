@@ -3230,6 +3230,42 @@ is the same pattern upstream's own `CourseDefinition.seatsAvailable`/`HousingDef
 unitsAvailable` (§7.3, §7.4) already use for an identical "uncapped" concept — `JobOpening` is
 the one place upstream reached for a literal infinity instead of its own more common convention.
 
+#### Contested-Resource Resolution (W101)
+
+`JobOpening.contested`/`positionsAvailable`, `PromotionPath.contested`, and
+`OpportunityDefinition.contested` (§7.9) each name a finite resource two or more actors can
+claim in the same week — the player and, once `ScenarioDefinition.rivals` (§7.8) is non-empty,
+one or more `AgentState`s (§7.10). Every one of them resolves through the same pure function,
+so "who wins a tie" is one rule, not one per resource type:
+
+```typescript
+interface ContestClaim {
+  actorId: string;      // "player" or an AgentState.id (§6.3)
+  score: number;         // resource-specific: e.g. a job application's qualification score
+}
+
+/** Deterministic, total-order resolution of `positionsAvailable` slots among `claims`.
+ *  Ties break on `actorId` ascending (`String.prototype.localeCompare` with the "en-US-POSIX"
+ *  collation this kind already uses for the sorted-iteration rule, §2) — never on claim order,
+ *  which is construction-order-dependent and exactly what the sorted-iteration rule forbids. */
+function resolveContest(claims: readonly ContestClaim[], positionsAvailable: number):
+  { won: readonly string[]; lost: readonly string[] };
+```
+
+**No random draw.** A contest is decided by `score` — itself computed by the resolver that
+built each `ContestClaim` (a job application's qualification, a business opportunity's bid),
+which may draw on `ctx.rng` while computing it — but `resolveContest` itself is pure
+comparison, so replaying the same claims always produces the same winners without consuming a
+stream. This is what makes W101.7's "one filled position decrements the count, the last
+retires the opening" true independent of iteration order: `resolveContest` sorts by
+`(score desc, actorId asc)` and takes the first `positionsAvailable` entries, full stop.
+
+**A losing claim on a contested resource is `Revoked` (§2.3's opportunity-lifecycle table) or
+its job/promotion equivalent — never a duplicate `Reward`.** The resolver that lost applies no
+completion reward; only the resolver(s) in `won` do. This is the same rule §2.3 already states
+for `Opportunity` revocation, generalized to every contested resource `resolveContest` now
+governs rather than restated per resource type.
+
 #### World Strangeness
 
 Content gates events and headlines on a **derived** strangeness value, not the raw
@@ -3494,16 +3530,32 @@ events         present responses deferred from last week
 resolved every planned action (§5):
 
 ```text
-employment          education          finance_income     inventory
-housing              finance_reconcile  needs               relationships
-opportunities        events             headline            goals
-failure              week_limit         achievements        history
+employment          education          finance_income     business
+inventory            housing            finance_reconcile   needs
+relationships         opportunities      events              headline
+goals                 failure            week_limit          achievements
+history
 ```
 
 Order is stable and covered by test, the same as start-of-week. `headline` runs after `events`
 so a week's headline can reference the strangeness level that week's own events just moved.
 `achievements` runs second-to-last because an achievement condition may depend on anything
 earlier in the pass, including a counter a `goals`/`failure` system just incremented.
+
+**`business` (§7.12, W101) sits immediately after `finance_income`, before `inventory`/
+`housing` — the same reasoning `finance_income` itself already states for running before
+`housing`.** Business revenue/expenses (§7.12) must post before `housing` charges rent, so a
+business's own income is spendable against this week's rent the same way wages already are;
+it must post after `finance_income` rather than being folded into it, because
+`finance_income` is specified (upstream, and this contract) as wages-and-scheduled-expenses
+only — widening its own meaning to include business cashflow would be the kind of silent scope
+creep this document's "one system, one concern" pattern (`employment` vs. `education` vs.
+`inventory`, none of which absorb an adjacent concern either) exists to prevent. `business`
+runs before `inventory`/`housing` rather than after `finance_income` alone, because
+`BusinessRecord.status` closing insolvent (§7.12) is itself a cashflow fact this week's
+`housing`/`finance_reconcile` passes should already see, the same "downstream systems see this
+week's own upstream changes" property every other ordering choice in this list already
+protects.
 
 > **Why finance runs twice.** `finance_income` (wages in, scheduled expenses out) must run
 > *before* `housing`, so rent is payable from this week's own wages; `finance_reconcile`
@@ -3871,6 +3923,9 @@ interface ActorState {
   inventory: InventoryItem[];       // §6.10
   relationships: RelationshipState[]; // §6.11
 
+  projects: ProjectRuntimeState[];   // §6.12 (W101)
+  businesses: BusinessRecord[];      // §6.12 (W101)
+
   skills: Record<string, number>;
   traits: string[];
   reputation: Record<string, number>;
@@ -4205,6 +4260,51 @@ availability and memories, none of which differ per observer.
 **Weekly drift, when a campaign declares any, is §7.11's `RelationshipDriftRule[]`.** Absent
 that field, the `relationships` end-of-week system (§3) stays the no-op it has always been;
 `socialize` (§5) remains the only resolver that moves a `RelationshipState` on its own.
+
+### 6.12 Projects and Businesses — Runtime State (W101)
+
+Durable, per-actor progress against a `ProjectDefinition`/`BusinessDefinition` (§7.12) — the
+same "content declares the shape, state declares the instance" split every other content/
+runtime pair in this kind already follows (`JobDefinition`/`Employment`, §6.8;
+`CourseDefinition`/`EducationState.enrollments`, §6.7).
+
+```typescript
+interface ProjectRuntimeState {
+  instanceId: string;                // natural key for Modifier/Condition addressing (§7.1)
+  definitionId: string;               // §7.12 — ProjectDefinition
+
+  startedWeek: number;
+  progressUnits: number;              // 0 .. ProjectDefinition.requiredUnits
+  status: "in_progress" | "completed";
+  completedWeek?: number;
+}
+
+interface BusinessRecord {
+  instanceId: string;                 // natural key for Modifier/Condition addressing (§7.1)
+  definitionId: string;               // §7.12 — BusinessDefinition
+
+  startedWeek: number;
+  cashOnHandCents: Cents;
+  weeksOperated: number;
+  status: "operating" | "closed";
+  closedWeek?: number;
+  closedReason?: ReasonCode;
+}
+```
+
+**A project completes once and only once.** `status` transitions `"in_progress"` →
+`"completed"` the week `progressUnits` reaches `ProjectDefinition.requiredUnits` (§7.12) —
+irreversible, the same one-way transition `EducationState.enrollments[].status` (§6.7) already
+uses for course completion. `work_on_project` (§4.2) on an already-`"completed"` instance is
+rejected the same way `plan.add` already rejects an action against a resource that no longer
+exists — `requirement_unmet` (base set) — rather than silently re-crediting progress, which is
+what "completes once" (W101.2) rules out.
+
+**A business closes once and only once**, the same shape: `status` transitions
+`"operating"` → `"closed"` and never back. Closure is either player-initiated
+(`operate_business` with a `parameters.close: true`, §4.2's own parameter domain) or
+contract-forced — `BusinessDefinition.minimumCashCents` (§7.12) breached at the point weekly
+expenses post, which is `closedReason: "business_insolvent"` (§10).
 
 ---
 
@@ -4698,10 +4798,23 @@ interface ScenarioDefinition {
   mode: GameMode;
 
   goalFailurePrecedence: GoalFailurePrecedence;   // default "goals_win"
+
+  rivals?: readonly RivalConfig[];    // §7.10 (W101). Absent or empty = today's behaviour.
 }
 
 type GameMode = "classic" | "open_life" | "challenge";
 type GoalFailurePrecedence = "goals_win" | "failure_wins";
+
+/** §7.10's own open gap, closed: the natural home it named, "decided against a concrete
+ *  need" (W101). One entry per rival this scenario starts with. */
+interface RivalConfig {
+  agentId: string;               // AgentState.id (§7.10) — must be unique within this scenario
+  strategyId: string;             // AgentStrategy.id (§7.10) — Tier 1: unknown_rival_strategy
+  displayNameKey: LocKey;
+
+  startingBackgroundId: string;   // §7.9 — same BackgroundDefinition mechanism the player uses
+  initialConditions?: Modifier[]; // §7.1 — applied once, at initialState, on top of the background
+}
 
 interface DifficultyDefinition {
   id: string;
@@ -4722,6 +4835,21 @@ here does not repeat that reasoning; §12 carries it. Every rival advantage is d
 `DifficultyDefinition` and nowhere else, which is what makes an "any advantage must be explicit"
 audit possible at all: a rival that is simply better at something the definition doesn't name
 would be undetectable drift, the same class of risk §6.2 raised for actor-state parity.
+
+**`RivalConfig` and `DifficultyDefinition.rivalStartingAdvantages` are two different axes, not
+a duplication.** `rivalStartingAdvantages` is difficulty-wide — every rival in a scenario
+played at that difficulty gets the same bonus, the mechanism an "any advantage must be
+explicit" audit already covers. `RivalConfig.initialConditions` is per-rival and
+scenario-authored — "this particular rival starts with a head start," the same relationship
+`ScenarioDefinition.startingCashCents` has to the player. A rival's actual starting `ActorState`
+is its `startingBackgroundId`'s `BackgroundDefinition` (§7.9), with `initialConditions` applied
+on top the same way any other `Modifier[]` applies, then `rivalStartingAdvantages` on top of
+that — difficulty is the outermost layer because it is the one axis a player, not a campaign
+author, chooses.
+
+**Zero rivals is the only value every 0.10 scenario has**, so `rivals` absent or `[]` must
+build `WorldState.agents: []` exactly as `initialState` already does today (W101.4) — this
+field adds a new source `initialState` reads, not a new default it can silently change.
 
 ### 7.9 Supporting Definitions
 
@@ -4832,17 +4960,14 @@ going to become some. It is **engine-owned code**, the same category `Kind` itse
 (`06-extensibility.md` §7, "Kinds Stay Engine-Owned"): a fixed, in-repository registry of named
 behaviors (`"aggressive"`, `"cautious"`, …), keyed by `id`.
 
-**How a campaign actually selects a strategy is a real, open gap, not settled by this port.**
-`AgentState.strategyId` is *runtime* state, built at `initialState` — not something a campaign
-author writes. Neither `ScenarioDefinition` (§7.8) nor anything else in this contract declares
-how many rivals a scenario has or which strategy each one initializes with; checked directly
-against upstream, and it doesn't specify this either — no `ScenarioDefinition` field, no
-separate agent-configuration type, anywhere in the ~3300-line source. An earlier revision of
-this section claimed `AgentState.strategyId` was "the actual campaign-facing surface," which
-overstated it: a runtime field a campaign never writes cannot be the surface a campaign uses to
-configure anything. **Revisit when** a real scenario needs a rival — the natural home is a new
-`ScenarioDefinition` field (e.g. `rivals: Array<{ strategyId: string }>`), decided against a
-concrete need rather than guessed at here.
+**How a campaign actually selects a strategy was a real, open gap — closed by §7.8's
+`ScenarioDefinition.rivals: RivalConfig[]` (W101), the exact field this section already named
+as the natural home.** `AgentState.strategyId` stays *runtime* state, built at `initialState`
+from `RivalConfig.strategyId` — a campaign author still never writes it directly, but now has
+a real field to declare it through. `initialState` builds one `AgentState` per `RivalConfig`,
+in `rivals` array order (deterministic — this is content, read once, not an iteration this
+kind's own sorted-iteration rule governs), failing campaign validation rather than construction
+when `strategyId` names no registered `AgentStrategy` (`unknown_rival_strategy`, §14).
 
 ```typescript
 /** Engine-owned, never campaign content — the rival-behavior analogue of `KindRegistry`. */
@@ -4861,6 +4986,8 @@ interface AgentState {
 
   planningDepth: number;
   strategy: Record<string, unknown>;   // hidden — never projected
+
+  rngSeq: number;                  // §8's own `{ kind: "agent" }` StreamId draw counter (W101)
 }
 ```
 
@@ -4872,6 +4999,19 @@ actor, and both are hidden from every projection. `AgentStrategy.selectActions`'
 `PublicWorldState` parameter is a projection type (§9, once fully specified) — an agent decides
 from the same visible information a client would see, never from the hidden state a
 `DerivedValueResolver` (§6.1) or a resolver itself can read.
+
+**Rival resolution runs inside `end_week`, after the player's own plan resolves, in
+`WorldState.agents` order.** For each `AgentState`, `selectActions(publicView, agent)` draws —
+if it draws at all — from `deriveStream({ kind: "agent", agentId: agent.id, seq: agent.rngSeq })`
+(§8), incrementing `rngSeq` once per draw; the resulting `GameAction[]` resolves through the
+same `ResolverTable` (§5.1) the player's plan already used, actor-addressed by `agent.id`
+rather than `"player"`. This is what makes W101.5 true structurally — a rival is not a second
+code path that happens to produce similar results, it is the *same* `apply`/`calculate`
+functions given a different `actorId` — and what makes W101.6 true: a rival's stream key names
+only its own `agentId`, so nothing about registry construction order or another agent's action
+count can perturb it. `WorldState.agents` order is itself the campaign's own `rivals` array
+order (above), fixed at `initialState` and never re-sorted at runtime, so "in agent order" is
+as reproducible as the campaign content is.
 
 ### 7.11 The Campaign Envelope and Weekly Tuning
 
@@ -4984,6 +5124,74 @@ other attribute. Content declaring an `EventChoice`/`OpportunityDefinition`/`Job
 operator, `DerivedPath`, or content type is added for it, matching §8's stated bar against
 adding either without a concrete need. Authoring that fixture content is a `/slice` matter
 (W100.5), not a contract addition.
+
+### 7.12 Projects and Businesses (W101)
+
+Two new content-definition types, the same "definition declares the shape, `Requirement[]`/
+`Reward[]` reuse the existing vocabulary" pattern §7.2–§7.5 already establish — neither adds a
+`RequirementType`, `RewardType`, or `Condition` operator of its own.
+
+```typescript
+interface ProjectDefinition {
+  id: string;
+  nameKey: LocKey;
+  descriptionKey: LocKey;
+
+  requirements: Requirement[];       // §8.1 — gates start_project
+  requiredUnits: number;              // total progressUnits (§6.12) to complete
+  weeklyTimeCost: number;              // work_on_project's own time cost (§4.2, §5.2)
+  startCostCents: Cents;
+
+  rewards: Reward[];                  // §7.1 — granted once, on completion
+  tags: string[];
+}
+
+interface BusinessDefinition {
+  id: string;
+  nameKey: LocKey;
+  descriptionKey: LocKey;
+
+  requirements: Requirement[];        // §8.1 — gates start_business
+  startupCostCents: Cents;
+
+  weeklyRevenueCents: Cents;           // before modifiers (§7.1)
+  weeklyExpensesCents: Cents;          // before modifiers (§7.1)
+  minimumCashCents: Cents;             // breached ⇒ closedReason: "business_insolvent" (§6.12)
+
+  tags: string[];
+}
+```
+
+**`start_project`/`start_business` (§4.2) each create exactly one `ProjectRuntimeState`/
+`BusinessRecord` (§6.12) instance on the acting actor, `instanceId` freshly minted the same
+way `InventoryItem.instanceId` (§6.10) already is.** `work_on_project`/`operate_business`
+(§4.2) both take `targetId: instanceId` — never `definitionId` — because an actor may hold
+several instances of the same definition (two courses of the same `CourseDefinition` cannot
+coexist per §6.7's own rule, but nothing here forbids running two identical businesses, and a
+contract that assumed one instance per definition would silently break the moment a campaign
+tried it).
+
+**`weeklyTimeCost`/`startCostCents`/`startupCostCents` are the *only* costs these definitions
+name — `weeklyRevenueCents`/`weeklyExpensesCents` are not client-supplied and not per-action:
+they post once per week, inside the `business` end-of-week system (§3), for every
+`"operating"` `BusinessRecord`.** This is the same "engine-derived cost, never a client
+figure" rule §4.2 already states for time/money cost — extended here to a recurring figure
+rather than a one-time action cost, because a business's whole point is the weekly cadence.
+
+```text
+revenue  = round(weeklyRevenueCents × combined `multiply` factor) + Σ `add`/`subtract` (§7.1)
+expenses = round(weeklyExpensesCents × combined `multiply` factor) + Σ `add`/`subtract` (§7.1)
+cashOnHandCents += revenue − expenses
+```
+
+Rounding and modifier composition follow §7.1's own `multiply` rule exactly — combine every
+`multiply` factor targeting this business's revenue/expense path into one product, round once,
+never per modifier. A `BusinessRecord` whose `cashOnHandCents` drops below its definition's
+`minimumCashCents` after this post closes immediately (§6.12), the same week — there is no
+grace period distinct from `HousingState`'s own `evictionStage` ladder (§6.9), because nothing
+in this unit's `Done when` (W101.3) asks for one, and inventing a second insolvency escalation
+mechanism when housing already has one is exactly the kind of unrequested design §7's own
+`Reward` section (§7.1) already declines to do speculatively.
 
 ---
 
@@ -5207,6 +5415,7 @@ Reused from the base set: `unknown_action`, `requirement_unmet`, `session_ended`
 | `duplicate_id` | 1 | Two definitions of the same content type share an `id` |
 | `dangling_reference` | 1 | A definition references an `id` that resolves to nothing |
 | `numeric_natural_key` | 1 | An addressing path segment is all digits where a natural key is required (§7.1) |
+| `unknown_rival_strategy` | 1 | `RivalConfig.strategyId` (§7.8) names no registered `AgentStrategy` (§7.10) — W101 |
 | `unreachable_content` | 2 | A definition nothing in the campaign ever references |
 | `unsatisfiable_achievement` | 2 | An `AchievementDefinition.condition` reads a counter or flag nothing writes |
 
@@ -5236,6 +5445,11 @@ namespace exempt from §12's completeness rule.
 | `headline_shown`, `world_strangeness_shifted` | the `headline` and `events` systems (W57) |
 | `relationship_drift` | the `relationships` end-of-week system, only when `SimulationCampaign.relationshipDrift` (§7.11) is declared |
 | `attendance_updated` | the `employment` end-of-week system, only when `SimulationCampaign.attendanceTracking` (§7.11) is declared |
+| `action_start_project`, `action_work_on_project`, `action_start_business`, `action_operate_business` | the project/business resolvers (§5.1, W101) |
+| `project_completed` | the `work_on_project` resolver, when `progressUnits` reaches `requiredUnits` (§6.12, W101) |
+| `business_revenue`, `business_expense` | the `business` end-of-week system (§3, §7.12, W101) |
+| `business_closed` | the `operate_business` resolver, voluntary close (§6.12, W101) |
+| `business_insolvent` | the `business` end-of-week system, `cashOnHandCents` below `minimumCashCents` (§6.12, §7.12, W101) |
 
 > **This set grows as the dispatched systems land, and that is deliberate.** A code joins
 > `Kind.reasonCodes` when the unit that actually produces it exists, not when this table
@@ -5406,14 +5620,25 @@ total, run once at registry construction, before the registry is frozen. Tiered 
   `HousingDefinition`, `ItemDefinition`, `EventDefinition`, `NPCDefinition`, `GoalDefinition`,
   `ScenarioDefinition`, `DifficultyDefinition`, `OpportunityDefinition`,
   `AchievementDefinition`, `HeadlineDefinition`, `EmployerDefinition`, `LocationDefinition`,
-  `BackgroundDefinition`, `TraitDefinition`, `SkillDefinition` — §7.2–§7.10, each independently).
+  `BackgroundDefinition`, `TraitDefinition`, `SkillDefinition`, `ProjectDefinition`,
+  `BusinessDefinition` — §7.2–§7.10, §7.12, each independently).
 - Every reference to another definition's `id` resolves: `PromotionPath.toJobId` →
   `JobDefinition`; `ScenarioDefinition.startingBackgroundIds`/`startingHousingId`/
   `startingLocationId`/`goalIds`/`startingInventory[].definitionId` → their respective
   definitions; `EmployerDefinition.jobIds`/`npcIds` → `JobDefinition`/`NPCDefinition`;
   `LocationDefinition.connections` → `LocationDefinition` (the adjacency graph, §7.9);
   `OpportunityDefinition.targetId` → whichever definition type its own `kind` names
-  (`job_offer` → `JobDefinition`, `course_place` → `CourseDefinition`, and so on).
+  (`job_offer` → `JobDefinition`, `course_place` → `CourseDefinition`, and so on);
+  `RivalConfig.startingBackgroundId` (§7.8) → `BackgroundDefinition` (§7.9), the same reference
+  `ScenarioDefinition.startingBackgroundIds` already checks for the player.
+- `RivalConfig.strategyId` (§7.8) names a registered `AgentStrategy` (§7.10) —
+  `unknown_rival_strategy` (§10) when it does not. Unlike every other reference above, the
+  target is not campaign content but the engine's own fixed strategy registry, so this check
+  runs against that registry rather than against the campaign's own definition set.
+- `RivalConfig.agentId` (§7.8) is unique within its own `ScenarioDefinition.rivals` array —
+  `duplicate_id`, the same code the bulleted rule above uses, scoped to one scenario's rival
+  list rather than to the whole campaign, because `AgentState.id` (§7.10) only needs to be
+  unique within the one `WorldState.agents` array it populates.
 - Every field typed `LocKey`, anywhere in a content definition — not an enumerated list of field
   *names*, which this section's own types alone already use eight of (`titleKey`,
   `descriptionKey`, `nameKey`, `labelKey`, `textKey`, `messageKey`, `displayNameKey`, `label`) —
