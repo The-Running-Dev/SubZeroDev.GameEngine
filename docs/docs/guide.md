@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 231363ef315ec19285320184b3b3f6954e26f4c06a0e404df9d46851295d7271 -->
+<!-- design-digest: 1cbbcbd1c0bea423e2f5e2a1b4fc239fd507465ba6503b532276a1bf11ffd8c5 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -733,6 +733,23 @@ to say. The default tie-break between simultaneous goal completion and failure i
 because the alternative — reporting a loss on a player who reached every goal but was also evicted
 in a race they could not see coming — is the worst available ending; a scenario may opt into the
 opposite for a difficulty that prizes survival over achievement.
+
+**Weekly rules are campaign-tunable, and every one defaults to a no-op.** Three optional,
+flat fields on the campaign — an empty-plan policy, a relationship-drift rule set, and
+employment-attendance tracking — let a scenario opt into behavior no campaign had before,
+without changing anything for a campaign that omits them:
+
+- `emptyPlanPolicy: "forbid"` rejects `end_week` with `plan_empty` when nothing was planned;
+  omitted (or `"permit"`) always resolves the week, even empty.
+- `relationshipDrift` applies ordered, per-category, per-dimension deltas to every actor's
+  relationships once a week, clamped to 0–100; omitted, the weekly relationship system stays
+  a no-op and only `socialize` moves a relationship.
+- `attendanceTracking` turns on a rolling average for employment `attendanceRatio`, computed
+  from whether the actor worked that week; omitted, it stays fixed at its hire-time value.
+
+Wisdom needs no new mechanism to matter: it already has a visible projection, and a
+`Requirement` can gate on it exactly like any other attribute — an event choice, opportunity,
+or job can require a minimum wisdom the same way one requires a minimum discipline.
 
 The full state, content-definition, and reason-code catalogue is in
 [Simulation Kind](/docs/engine/simulation-kind).
