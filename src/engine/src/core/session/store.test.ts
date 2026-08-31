@@ -18,8 +18,10 @@ import type { EmittedRecord, EmittedRecordSink } from "../observability/types.js
 import { createInMemoryProfileStore } from "./profile-store.js";
 import {
   SESSION_PERSISTENCE_CONFLICT,
+  type CampaignCatalog,
   type ProfileStore,
   type SessionPersistence,
+  type SessionStore,
   type SessionStoreErrorCode,
   type StoredSessionRecord,
 } from "./types.js";
@@ -388,6 +390,48 @@ describe("listCampaigns catalog (W98)", () => {
     const store = makeStore({ profiles });
     const catalog = await store.listCampaigns("p1");
     expect(catalog.campaigns[0]!.progress).toEqual({ discovered: 2, total: 3 });
+  });
+
+  // W98.1 — the async signature exists precisely so a store need not already be a
+  // registry before it is a store (04 §7.3). This double proves the shape is genuinely
+  // implementable that way: no campaign summary is held in memory ahead of a call, and
+  // `listCampaigns` only "fetches" (an awaited microtask standing in for network I/O)
+  // when actually invoked.
+  it("the signature is satisfiable by a store that fetches on every call and preloads no registry", async () => {
+    let fetchCalls = 0;
+    async function fakeFetchCatalog(): Promise<CampaignCatalog> {
+      fetchCalls += 1;
+      await Promise.resolve(); // stands in for a real network round trip
+      return {
+        campaigns: [{ campaignId: "remote-campaign", kindId: "story-graph", titleKey: "remote.title" }],
+        strings: { "remote.title": "Fetched From Elsewhere" },
+      };
+    }
+
+    // Only `listCampaigns` is exercised — everything else on the interface throws,
+    // which is itself part of the proof: nothing about this test double preloaded
+    // campaign data anywhere else a real fetch-backed implementation would need to.
+    const notImplemented = (): never => {
+      throw new Error("not exercised by this test");
+    };
+    const fetchBackedStore: SessionStore = {
+      listCampaigns: fakeFetchCatalog,
+      getScene: notImplemented,
+      getView: notImplemented,
+      getStrings: notImplemented,
+      previewAction: notImplemented,
+      createSession: notImplemented,
+      resumeSession: notImplemented,
+      submitAction: notImplemented,
+      saveGame: notImplemented,
+      loadGame: notImplemented,
+    };
+
+    expect(fetchCalls).toBe(0); // nothing fetched at construction
+    const catalog = await fetchBackedStore.listCampaigns();
+    expect(fetchCalls).toBe(1);
+    expect(catalog.campaigns).toEqual([{ campaignId: "remote-campaign", kindId: "story-graph", titleKey: "remote.title" }]);
+    expect(catalog.strings).toEqual({ "remote.title": "Fetched From Elsewhere" });
   });
 });
 
