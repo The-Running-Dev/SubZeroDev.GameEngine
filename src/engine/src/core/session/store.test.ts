@@ -16,6 +16,7 @@ import type { EngineHost, RecordIdSource } from "../composition/types.js";
 import { jsonlEmitter } from "../observability/emitter.js";
 import type { EmittedRecord, EmittedRecordSink } from "../observability/types.js";
 import { createInMemoryProfileStore } from "./profile-store.js";
+import { buildSaveEnvelope, serializeSaveEnvelope } from "../persistence/envelope.js";
 import {
   SESSION_PERSISTENCE_CONFLICT,
   type CampaignCatalog,
@@ -23,6 +24,7 @@ import {
   type SessionPersistence,
   type SessionStore,
   type SessionStoreErrorCode,
+  type StoredSaveRecord,
   type StoredSessionRecord,
 } from "./types.js";
 import { BASE_REASON_CODES, CORE_REASON_MESSAGES } from "../kernel/reasons.js";
@@ -119,6 +121,7 @@ function makeStore(overrides?: {
   profiles?: ProfileStore;
   recordIds?: RecordIdSource;
   persistence?: SessionPersistence;
+  clock?: { now(): string };
 }) {
   const registry = makeRegistry();
   return createInMemorySessionStore({
@@ -129,6 +132,7 @@ function makeStore(overrides?: {
     ...(overrides?.profiles ? { profiles: overrides.profiles } : {}),
     ...(overrides?.recordIds ? { recordIds: overrides.recordIds } : {}),
     ...(overrides?.persistence ? { persistence: overrides.persistence } : {}),
+    ...(overrides?.clock ? { clock: overrides.clock } : {}),
   });
 }
 
@@ -144,7 +148,10 @@ function makeCountingRecordIds(): RecordIdSource {
   };
 }
 
-function persistenceWith(overrides?: Partial<SessionPersistence>): SessionPersistence {
+function persistenceWith(overrides?: {
+  sessions?: Partial<SessionPersistence["sessions"]>;
+  saves?: Partial<SessionPersistence["saves"]>;
+}): SessionPersistence {
   return {
     sessions: {
       get: async () => undefined,
@@ -154,6 +161,7 @@ function persistenceWith(overrides?: Partial<SessionPersistence>): SessionPersis
     saves: {
       get: async () => undefined,
       put: async () => {},
+      listByProfile: async () => [],
       delete: async () => {},
       ...overrides?.saves,
     },
@@ -171,6 +179,7 @@ describe("persistence error translation (G2 S1)", () => {
     save_requires_migration: true,
     migration_failed: true,
     concurrent_modification: true,
+    invalid_fork_point: true,
   };
 
   it("S1.1 — maps the branded session-write conflict to concurrent_modification", async () => {
@@ -190,7 +199,7 @@ describe("persistence error translation (G2 S1)", () => {
       operation: "session",
       code: "concurrent_modification",
     });
-    expect(Object.keys(sessionStoreCodes)).toHaveLength(9);
+    expect(Object.keys(sessionStoreCodes)).toHaveLength(10);
   });
 
   it("S1.2 — leaves ordinary and differently named session-write failures as storage_failure", async () => {
@@ -425,6 +434,9 @@ describe("listCampaigns catalog (W98)", () => {
       submitAction: notImplemented,
       saveGame: notImplemented,
       loadGame: notImplemented,
+      listSaves: notImplemented,
+      deleteSave: notImplemented,
+      branchSession: notImplemented,
     };
 
     expect(fetchCalls).toBe(0); // nothing fetched at construction
@@ -560,6 +572,7 @@ describe("RecordIdSource (S1)", () => {
           saves: {
             get: async () => undefined,
             put: async () => {},
+            listByProfile: async () => [],
             delete: async () => {},
           },
         },
@@ -1115,5 +1128,280 @@ describe("profile store wiring (W8)", () => {
       ]),
     );
     expect(profile.achievements).toHaveLength(2);
+  });
+});
+
+describe("session lifecycle — listSaves / deleteSave / branchSession (04 §7.4, W99)", () => {
+  describe("listSaves", () => {
+    it("L1 — returns only the addressed profile's saves, and none of another's", async () => {
+      const store = makeStore();
+      const a = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+      const b = await store.createSession({ campaignId: "test-campaign", profileId: "p2" });
+      const anon = await store.createSession({ campaignId: "test-campaign" });
+      const savedA = await store.saveGame(a.sessionId);
+      await store.saveGame(b.sessionId);
+      await store.saveGame(anon.sessionId);
+
+      const saves = await store.listSaves("p1");
+      expect(saves).toEqual([{ saveId: savedA.saveId, campaignId: "test-campaign", savedAt: expect.any(String), savedAtSeq: 0 }]);
+    });
+
+    it("L2 — total order: savedAt descending, then saveId ascending on a tie", async () => {
+      let now = "2026-01-01T00:00:00.000Z";
+      const clock = { now: () => now };
+      const store = makeStore({ clock });
+      const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+
+      now = "2026-01-01T00:00:02.000Z";
+      const later = await store.saveGame(sessionId);
+      now = "2026-01-01T00:00:01.000Z";
+      const earlier = await store.saveGame(sessionId);
+      now = "2026-01-01T00:00:02.000Z";
+      const tiedWithLater = await store.saveGame(sessionId);
+
+      const saves = await store.listSaves("p1");
+      const ordered = saves.map((s) => s.saveId);
+      const tiedPair = [later.saveId, tiedWithLater.saveId].sort();
+      expect(ordered).toEqual([...tiedPair, earlier.saveId]);
+    });
+
+    it("L3 — a SaveSummary carries no blob and no field StoredSaveRecord doesn't have", async () => {
+      const store = makeStore();
+      const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+      const saved = await store.saveGame(sessionId);
+
+      const [summary] = await store.listSaves("p1");
+      expect(summary).toEqual({ saveId: saved.saveId, campaignId: "test-campaign", savedAt: expect.any(String), savedAtSeq: 0 });
+      expect(summary).not.toHaveProperty("blob");
+    });
+
+    it("a profile with no saves lists nothing, rather than raising an error", async () => {
+      const store = makeStore();
+      expect(await store.listSaves("nobody")).toEqual([]);
+    });
+
+    it("surfaces an adapter failure as storage_failure", async () => {
+      const store = makeStore({
+        persistence: persistenceWith({ saves: { listByProfile: async () => { throw new Error("down"); } } }),
+      });
+      await expect(store.listSaves("p1")).rejects.toMatchObject({ code: "storage_failure" });
+    });
+  });
+
+  describe("deleteSave", () => {
+    it("D1 — removes exactly the addressed record on success", async () => {
+      const store = makeStore();
+      const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+      const kept = await store.saveGame(sessionId);
+      const removed = await store.saveGame(sessionId);
+      const removedSummary = (await store.listSaves("p1")).find((s) => s.saveId === removed.saveId);
+
+      await store.deleteSave("p1", removed.saveId, removedSummary!.savedAt);
+
+      const remaining = await store.listSaves("p1");
+      expect(remaining).toEqual([expect.objectContaining({ saveId: kept.saveId })]);
+    });
+
+    it("D2 — a stale expectedSavedAt is refused with concurrent_modification and removes nothing", async () => {
+      const store = makeStore();
+      const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+      const saved = await store.saveGame(sessionId);
+
+      await expect(store.deleteSave("p1", saved.saveId, "not-the-real-timestamp")).rejects.toMatchObject({
+        operation: "deleteSave",
+        code: "concurrent_modification",
+      });
+      expect(await store.listSaves("p1")).toHaveLength(1);
+    });
+
+    it("D3 — another profile's saveId is indistinguishable from an unknown one", async () => {
+      const store = makeStore();
+      const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+      const saved = await store.saveGame(sessionId);
+      const [summary] = await store.listSaves("p1");
+
+      await expect(store.deleteSave("someone-else", saved.saveId, summary!.savedAt)).rejects.toMatchObject({
+        code: "unknown_save",
+      });
+      await expect(store.deleteSave("someone-else", "does-not-exist", summary!.savedAt)).rejects.toMatchObject({
+        code: "unknown_save",
+      });
+      expect(await store.listSaves("p1")).toHaveLength(1);
+    });
+
+    it("a multi-instance conflict branded by the adapter's own conditional delete surfaces as concurrent_modification", async () => {
+      const conflict = { name: SESSION_PERSISTENCE_CONFLICT };
+      const store = makeStore({
+        persistence: persistenceWith({ saves: { delete: async () => { throw conflict; } } }),
+      });
+      const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+      const saved = await store.saveGame(sessionId);
+      const [summary] = await store.listSaves("p1");
+
+      await expect(store.deleteSave("p1", saved.saveId, summary!.savedAt)).rejects.toMatchObject({
+        code: "concurrent_modification",
+      });
+    });
+  });
+
+  describe("branchSession", () => {
+    it("B1 — replays byte-identically through the fork point, gameId included", async () => {
+      function makeCapturingPersistence(): { blobs: Map<string, string>; persistence: SessionPersistence } {
+        const blobs = new Map<string, string>();
+        return {
+          blobs,
+          persistence: {
+            sessions: {
+              get: async () => undefined,
+              put: async (record) => {
+                blobs.set(record.sessionId, record.blob);
+              },
+            },
+            saves: { get: async () => undefined, put: async () => {}, listByProfile: async () => [], delete: async () => {} },
+          },
+        };
+      }
+
+      const registry = makeRegistry();
+      const { blobs, persistence } = makeCapturingPersistence();
+      const store = createInMemorySessionStore({ engine: makeEngine({ registry }), registry, persistence });
+
+      const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+      await store.submitAction(sessionId, "increment"); // fork point: n=1 stops here
+      const blobAtForkPoint = blobs.get(sessionId);
+      await store.submitAction(sessionId, "increment");
+      await store.submitAction(sessionId, "increment");
+      const blobAtEnd = blobs.get(sessionId);
+
+      const branch = await store.branchSession(sessionId, 1);
+      expect(blobs.get(branch.sessionId)).toBe(blobAtForkPoint);
+
+      // At n = actionLog.length the branch equals the live session exactly.
+      const fullBranch = await store.branchSession(sessionId, 3);
+      expect(blobs.get(fullBranch.sessionId)).toBe(blobAtEnd);
+    });
+
+    it("B2 — no write on any failure path", async () => {
+      let putCalls = 0;
+      const store = makeStore({
+        persistence: persistenceWith({ sessions: { put: async () => { putCalls += 1; } } }),
+      });
+      const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+      putCalls = 0; // reset after createSession's own write
+
+      await expect(store.branchSession(sessionId, 99)).rejects.toMatchObject({ code: "invalid_fork_point" });
+      await expect(store.branchSession(sessionId, -1)).rejects.toMatchObject({ code: "invalid_fork_point" });
+      await expect(store.branchSession("does-not-exist", 0)).rejects.toMatchObject({ code: "unknown_session" });
+      expect(putCalls).toBe(0);
+    });
+
+    it("B3 — a branch's sessionId is distinct from its source, and its gameId equals the source's", async () => {
+      const store = makeStore();
+      const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+      await store.submitAction(sessionId, "increment");
+
+      const branch = await store.branchSession(sessionId, 1);
+      expect(branch.sessionId).not.toBe(sessionId);
+
+      const [sourceView, branchView] = await Promise.all([store.getView(sessionId), store.getView(branch.sessionId)]);
+      expect(branchView.gameId).toBe(sourceView.gameId);
+    });
+
+    it("mints the new sessionId through RecordIdSource, not IdSource", async () => {
+      const store = makeStore({ recordIds: makeCountingRecordIds() });
+      const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+      const branch = await store.branchSession(sessionId, 0);
+      expect(branch.sessionId).toBe("session-1");
+    });
+
+    it("the source session and its saves are untouched by a branch", async () => {
+      const store = makeStore();
+      const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+      await store.submitAction(sessionId, "increment");
+      const saved = await store.saveGame(sessionId);
+      const beforeScene = await store.getScene(sessionId);
+
+      await store.branchSession(sessionId, 1);
+
+      expect(await store.getScene(sessionId)).toEqual(beforeScene);
+      expect(await store.listSaves("p1")).toEqual([expect.objectContaining({ saveId: saved.saveId })]);
+    });
+
+    it("invalid_fork_point — atActionCount outside [0, actionLog.length] writes nothing and is refused", async () => {
+      const store = makeStore();
+      const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+      await store.submitAction(sessionId, "increment");
+      await expect(store.branchSession(sessionId, 2)).rejects.toMatchObject({
+        operation: "branchSession",
+        code: "invalid_fork_point",
+      });
+    });
+
+    it("invalid_state — a session that has passed through a migrated loadGame cannot be branched", async () => {
+      const registry = makeRegistry();
+      const engine = makeEngine({ registry });
+      const kind = makeTestKind();
+      const campaign = makeCampaign();
+
+      const created = engine.createGame({ campaignId: campaign.id });
+      if (!created.ok || !created.value) throw new Error("expected createGame to succeed");
+      const migratedBlob = serializeSaveEnvelope(
+        buildSaveEnvelope({ state: created.value, kind: kind as unknown as Kind<unknown>, campaign, replayCompatible: false }),
+      );
+      const migratedSave: StoredSaveRecord = { saveId: "migrated-save", campaignId: campaign.id, blob: migratedBlob, savedAt: "2026-01-01T00:00:00.000Z", savedAtSeq: 0, audience: "player" };
+
+      const store = createInMemorySessionStore({
+        engine,
+        registry,
+        persistence: persistenceWith({ saves: { get: async (saveId) => (saveId === "migrated-save" ? migratedSave : undefined) } }),
+      });
+
+      const loaded = await store.loadGame("migrated-save");
+      await expect(store.branchSession(loaded.sessionId, 0)).rejects.toMatchObject({
+        operation: "branchSession",
+        code: "invalid_state",
+      });
+    });
+
+    it("unknown_campaign — the source's campaignVersion is no longer registered", async () => {
+      const campaigns = new Map([["test-campaign", makeCampaign({ version: "1" })]]);
+      const mutableRegistry: ContentRegistry = { campaigns, strings: makeRegistry().strings };
+      const store = createInMemorySessionStore({ engine: makeEngine({ registry: mutableRegistry }), registry: mutableRegistry });
+      const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+
+      campaigns.set("test-campaign", makeCampaign({ version: "2" }));
+
+      await expect(store.branchSession(sessionId, 0)).rejects.toMatchObject({
+        operation: "branchSession",
+        code: "unknown_campaign",
+      });
+    });
+  });
+
+  describe("reproducing a stored session from its log (04 §7.4, W99.6)", () => {
+    it("reconstruction under a pinned newGameId matches the stored blob exactly; an unrelated id is observably different", () => {
+      const registry = makeRegistry();
+      const kinds = makeKinds();
+      const stored = createEngine({ kinds, registry }).createGame({ campaignId: "test-campaign", seed: "fixed-seed" });
+      if (!stored.ok || !stored.value) throw new Error("expected createGame to succeed");
+      const original = createEngine({ kinds, registry }).serialize({ ...stored.value, gameId: "the-original-game-id" });
+
+      // Reconstructing from `{ seed, actionLog }` alone, under an `IdSource` pinned to the
+      // original `gameId` — the mechanism 04 §7.4 names — reproduces the stored blob
+      // byte-for-byte.
+      const pinnedEngine = createEngine({ kinds, registry, ids: { newGameId: () => "the-original-game-id", newSeed: () => "unused" } });
+      const pinnedCreated = pinnedEngine.createGame({ campaignId: "test-campaign", seed: "fixed-seed" });
+      if (!pinnedCreated.ok || !pinnedCreated.value) throw new Error("expected createGame to succeed");
+      expect(pinnedEngine.serialize(pinnedCreated.value)).toBe(original);
+
+      // The same reconstruction under any other id differs — and only there, since
+      // `gameId` is the one field the pin controls and everything else is a function of
+      // `{ campaignId, seed }`.
+      const unrelatedEngine = createEngine({ kinds, registry, ids: { newGameId: () => "a-different-game-id", newSeed: () => "unused" } });
+      const unrelatedCreated = unrelatedEngine.createGame({ campaignId: "test-campaign", seed: "fixed-seed" });
+      if (!unrelatedCreated.ok || !unrelatedCreated.value) throw new Error("expected createGame to succeed");
+      expect(unrelatedEngine.serialize(unrelatedCreated.value)).not.toBe(original);
+      expect({ ...unrelatedCreated.value, gameId: "the-original-game-id" }).toEqual(pinnedCreated.value);
+    });
   });
 });

@@ -145,6 +145,50 @@ describe("TextClient — the API coverage checklist (09-clients.md §4)", () => 
     const continued = await client.submitAction(loaded.value.sessionId, "registry_route_listen");
     expect(continued.value.ok).toBe(true);
   });
+
+  it("11. listSaves — a player-keyed, deterministically ordered save list; text renders it (04 §7.4, W99)", async () => {
+    const client = makeClient();
+    const profileId = "text-lifecycle-profile";
+    const created = await client.createSession({ campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, seed: SEEDED_ROOM_14_SEED, profileId });
+    await client.submitAction(created.value.sessionId, "wait");
+    const saved = await client.saveGame(created.value.sessionId);
+
+    const { value, text } = await client.listSaves(profileId);
+    expect(value).toEqual([{ saveId: saved.value.saveId, campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, savedAt: expect.any(String), savedAtSeq: 1 }]);
+    expect(text).toContain(saved.value.saveId);
+
+    expect((await client.listSaves("some-other-profile")).value).toEqual([]);
+  });
+
+  it("12. branchSession — retains the source's gameId and replays byte-identically through the fork point (04 §7.4, W99)", async () => {
+    const client = makeClient();
+    const created = await client.createSession({ campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, seed: SEEDED_ROOM_14_SEED });
+    await client.submitAction(created.value.sessionId, "wait");
+    const sceneAfterWait = await client.getScene(created.value.sessionId);
+
+    const branched = await client.branchSession(created.value.sessionId, 1);
+    expect(branched.value.sessionId).not.toBe(created.value.sessionId);
+    expect(branched.value.scene).toEqual(sceneAfterWait.value);
+    expect(branched.text).toBe(sceneAfterWait.text);
+
+    // The source is untouched — it still advances normally after the branch was taken.
+    const continued = await client.submitAction(created.value.sessionId, "registry_route_listen");
+    expect(continued.value.ok).toBe(true);
+  });
+
+  it("13. deleteSave — removes exactly the addressed record; a stale expectedSavedAt is refused (04 §7.4, W99)", async () => {
+    const client = makeClient();
+    const profileId = "text-delete-profile";
+    const created = await client.createSession({ campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, seed: SEEDED_ROOM_14_SEED, profileId });
+    const saved = await client.saveGame(created.value.sessionId);
+    const [summary] = (await client.listSaves(profileId)).value;
+
+    await expect(client.deleteSave(profileId, saved.value.saveId, "not-the-real-savedAt")).rejects.toMatchObject({ code: "concurrent_modification" });
+    expect((await client.listSaves(profileId)).value).toHaveLength(1);
+
+    await client.deleteSave(profileId, saved.value.saveId, summary!.savedAt);
+    expect((await client.listSaves(profileId)).value).toEqual([]);
+  });
 });
 
 function makeSimulationClient(): TextClient {

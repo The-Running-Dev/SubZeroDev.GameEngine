@@ -1,7 +1,8 @@
 /**
  * MCP server — the same operations as tools (`TODO.md` W17).
  *
- * Contract: `09-clients.md` §4's ten-operation mapping. The broader hosting contract lives in
+ * Contract: `09-clients.md` §4's thirteen-operation mapping (04 §7.4 added three — `list_saves`,
+ * `branch_session`, `delete_save`). The broader hosting contract lives in
  * [SubZeroDev.Platform's `mcp-tool-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.Platform/blob/main/docs/docs/mcp-tool-contract.md):
  * "the MCP server is a client like the text client — a thin adapter over the same store,
  * holding no game logic." That hosting contract is not core engine material, even though
@@ -16,13 +17,13 @@
  *
  * `McpTools`' keys are the literal wire-level tool identifiers the contract assigns
  * (snake_case by contract, not a TypeScript style choice) — the object's own shape is
- * the "ten tools, ten operations, one-to-one" checklist made structural.
+ * the "thirteen tools, thirteen operations, one-to-one" checklist made structural.
  */
 
 import type { ActionParams, Scene } from "../core/kernel/types.js";
 import type { PlayerView } from "../core/projection/types.js";
 import type { StringTable } from "../core/localization/types.js";
-import type { CampaignCatalog, SessionActionResult, SessionStore } from "../core/session/types.js";
+import type { CampaignCatalog, SaveSummary, SessionActionResult, SessionHandle, SessionStore } from "../core/session/types.js";
 
 /** The contract's own documented args — deliberately narrower than `CreateSessionConfig`,
  *  which also carries `audience`. An MCP caller choosing `audience: "ai"` would widen its
@@ -45,9 +46,12 @@ export interface McpTools {
   preview_action(args: { sessionId: string; actionId: string; params?: ActionParams }): Promise<SessionActionResult>;
   save_game(args: { sessionId: string }): Promise<{ saveId: string }>;
   load_game(args: { saveId: string }): Promise<{ sessionId: string; scene: Scene }>;
+  list_saves(args: { profileId: string }): Promise<readonly SaveSummary[]>;
+  branch_session(args: { sessionId: string; atActionCount: number }): Promise<SessionHandle>;
+  delete_save(args: { profileId: string; saveId: string; expectedSavedAt: string }): Promise<void>;
 }
 
-/** Builds the ten tools over `store`. Every handler is a direct delegation — the
+/** Builds the thirteen tools over `store`. Every handler is a direct delegation — the
  *  adapter contributes nothing but the tool's documented name and shape. */
 export function createMcpTools(store: SessionStore): McpTools {
   return {
@@ -72,5 +76,8 @@ export function createMcpTools(store: SessionStore): McpTools {
       return { saveId };
     },
     load_game: (args) => store.loadGame(args.saveId),
+    list_saves: (args) => store.listSaves(args.profileId),
+    branch_session: (args) => store.branchSession(args.sessionId, args.atActionCount),
+    delete_save: (args) => store.deleteSave(args.profileId, args.saveId, args.expectedSavedAt),
   };
 }

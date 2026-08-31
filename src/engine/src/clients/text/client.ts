@@ -1,7 +1,8 @@
 /**
  * Text client — the proving instrument (09-clients.md, `TODO.md` W16).
  *
- * Contract: `09-clients.md` §2 — the ten-operation surface, and nothing else. `TextClient`
+ * Contract: `09-clients.md` §2 — the thirteen-operation surface (04 §7.4 added
+ * `listSaves`/`branchSession`/`deleteSave`), and nothing else. `TextClient`
  * mirrors it 1:1, in the same order the table lists them, calling `SessionStore` and
  * handing the result to `render.ts`. It never imports the pure engine, a kind, or the
  * registry (04 §1.1's dependency arrow; enforced by `eslint.config.js`'s client-boundary
@@ -16,11 +17,12 @@ import type {
   CampaignSummary,
   CreateSessionConfig,
   SaveHandle,
+  SaveSummary,
   SessionActionResult,
   SessionHandle,
   SessionStore,
 } from "../../core/session/types.js";
-import { renderActionResult, renderCampaignList, renderScene, renderSaveHandle, renderView } from "./render.js";
+import { renderActionResult, renderCampaignList, renderSaveList, renderScene, renderSaveHandle, renderView } from "./render.js";
 
 /** What every operation but `getStrings` returns: the store's own value, for a test to
  *  assert on real data, plus the text a human would see for it — never a third shape.
@@ -60,6 +62,11 @@ export class TextClient {
     return this.store.getStrings(sessionId);
   }
 
+  async listSaves(profileId: string): Promise<Rendered<readonly SaveSummary[]>> {
+    const value = await this.store.listSaves(profileId);
+    return { value, text: renderSaveList(value) };
+  }
+
   // ── Prospective query ──
 
   async previewAction(sessionId: string, actionId: string, params?: ActionParams): Promise<Rendered<SessionActionResult>> {
@@ -95,6 +102,16 @@ export class TextClient {
 
   async loadGame(saveId: string): Promise<Rendered<SessionHandle>> {
     const value = await this.store.loadGame(saveId);
+    const strings = await this.store.getStrings(value.sessionId);
+    return { value, text: renderScene(value.scene, strings) };
+  }
+
+  async deleteSave(profileId: string, saveId: string, expectedSavedAt: string): Promise<void> {
+    return this.store.deleteSave(profileId, saveId, expectedSavedAt);
+  }
+
+  async branchSession(sessionId: string, atActionCount: number): Promise<Rendered<SessionHandle>> {
+    const value = await this.store.branchSession(sessionId, atActionCount);
     const strings = await this.store.getStrings(value.sessionId);
     return { value, text: renderScene(value.scene, strings) };
   }

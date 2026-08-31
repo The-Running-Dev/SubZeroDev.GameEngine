@@ -150,6 +150,43 @@ describe("McpTools — the API coverage checklist (09-clients.md §4)", () => {
     expect(loaded.sessionId).not.toBe(created.sessionId);
     expect(loaded.scene).toEqual(sceneAfterWait);
   });
+
+  it("list_saves — a player-keyed save list, args { profileId }", async () => {
+    const store = buildStore();
+    const tools = createMcpTools(store);
+    const profileId = "mcp-lifecycle-profile";
+
+    const created = await tools.start_game({ campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, seed: SEED, profileId });
+    await tools.choose({ sessionId: created.sessionId, actionId: "wait" });
+    const saved = await store.saveGame(created.sessionId);
+
+    const saves = await tools.list_saves({ profileId });
+    expect(saves).toEqual([{ saveId: saved.saveId, campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, savedAt: expect.any(String), savedAtSeq: 1 }]);
+    expect(await tools.list_saves({ profileId: "someone-else" })).toEqual([]);
+  });
+
+  it("branch_session — args { sessionId, atActionCount }, returns { sessionId, scene } for a session identical to the source", async () => {
+    const tools = makeTools();
+    const created = await tools.start_game({ campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, seed: SEED });
+    await tools.choose({ sessionId: created.sessionId, actionId: "wait" });
+
+    const branched = await tools.branch_session({ sessionId: created.sessionId, atActionCount: 1 });
+    expect(branched.sessionId).not.toBe(created.sessionId);
+    expect(branched.scene).toEqual(await tools.get_scene({ sessionId: created.sessionId }));
+  });
+
+  it("delete_save — args { profileId, saveId, expectedSavedAt }, removes exactly the addressed save", async () => {
+    const store = buildStore();
+    const tools = createMcpTools(store);
+    const profileId = "mcp-delete-profile";
+
+    const created = await tools.start_game({ campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, seed: SEED, profileId });
+    const saved = await store.saveGame(created.sessionId);
+    const [summary] = await tools.list_saves({ profileId });
+
+    await tools.delete_save({ profileId, saveId: saved.saveId, expectedSavedAt: summary!.savedAt });
+    expect(await tools.list_saves({ profileId })).toEqual([]);
+  });
 });
 
 function buildSimulationStore(): SessionStore {
