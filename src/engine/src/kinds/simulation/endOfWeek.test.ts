@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import { financeIncome, financeReconcile, fillJobOpening, housing, runEndOfWeek } from "./endOfWeek.js";
 import { canonicalStringify } from "../../core/persistence/canonical.js";
 import type { ResolutionEmitter } from "../../core/observability/types.js";
-import type { CourseEnrollment, Employment, InventoryItem, JobApplication, NeedState } from "./actor.js";
+import type { CourseEnrollment, Employment, InventoryItem, JobApplication, NeedState, RelationshipState } from "./actor.js";
+import type { AttendanceTrackingConfig, RelationshipDriftRule } from "./campaign.js";
 import type { CourseDefinition, GoalDefinition, ItemDefinition, JobDefinition } from "./content.js";
 import type { GoalState, JobOpening, Opportunity, SimulationKindState, StatusEffect } from "./state.js";
 
@@ -413,6 +414,163 @@ describe("runEndOfWeek — W53 employment, finance_income, housing", () => {
     const { emit } = recordingEmitter();
     const result = runEndOfWeek(baseState(NEEDS), emit, [], "goals_win", jobs);
     expect(result.changes.some((c) => c.reason === "rent_charged")).toBe(false);
+  });
+});
+
+describe("runEndOfWeek — W100 attendance tracking (§7.11)", () => {
+  const job: JobDefinition = {
+    id: "job-cashier",
+    titleKey: "job.title", descriptionKey: "job.description",
+    employerId: "employer-1", careerPathId: "career-retail", tier: "entry",
+    schedule: { weeklyTimeCost: 6, flexibility: 50 },
+    compensation: { baseWeeklyPayCents: 30000 },
+    requirements: [],
+    performance: { factors: [], weeklyDriftToward: 50, minimumAcceptable: 0 },
+    promotionPaths: [], terminationRules: [], contested: false, tags: [],
+  };
+  const NEEDS: NeedState = { health: 50, energy: 50, happiness: 50, stress: 50, satiety: 50 };
+  const FOUR_WEEK_WINDOW: AttendanceTrackingConfig = { windowWeeks: 4 };
+
+  function employedState(employment: Employment, workedThisWeek: boolean): SimulationKindState {
+    return baseState(NEEDS, {
+      player: {
+        ...baseState(NEEDS).player,
+        career: { history: [], totalWeeksEmployed: 1, pendingApplications: [], highestTierAchieved: "entry", currentEmployment: employment },
+        flags: { workedThisWeek },
+      },
+    });
+  }
+
+  it("leaves attendanceRatio untouched when attendanceTracking is absent (0.10 behaviour)", () => {
+    const employment: Employment = { jobId: "job-cashier", employerId: "employer-1", startedWeek: 1, performance: 50, attendanceRatio: 100, warnings: 0, weeklyPayCents: 30000, weeksAtCurrentPay: 1 };
+    const { emit } = recordingEmitter();
+    const result = runEndOfWeek(employedState(employment, false), emit, [], "goals_win", [job]);
+    expect(result.state.player.career.currentEmployment?.attendanceRatio).toBe(100);
+    expect(result.changes.some((c) => c.reason === "attendance_updated")).toBe(false);
+  });
+
+  it("rolls attendanceRatio down over a 4-week window when the player did not work", () => {
+    const employment: Employment = { jobId: "job-cashier", employerId: "employer-1", startedWeek: 1, performance: 50, attendanceRatio: 100, warnings: 0, weeklyPayCents: 30000, weeksAtCurrentPay: 1 };
+    const { emit } = recordingEmitter();
+    const result = runEndOfWeek(employedState(employment, false), emit, [], "goals_win", [job], [], [], { attendanceTracking: FOUR_WEEK_WINDOW });
+    // round((100×3 + 0)/4) = 75
+    expect(result.state.player.career.currentEmployment?.attendanceRatio).toBe(75);
+    expect(result.changes).toContainEqual(expect.objectContaining({
+      path: "player.career.currentEmployment.attendanceRatio", reason: "attendance_updated", value: 75, previous: 100, visible: true,
+    }));
+  });
+
+  it("rolls attendanceRatio up over a 4-week window when the player worked", () => {
+    const employment: Employment = { jobId: "job-cashier", employerId: "employer-1", startedWeek: 1, performance: 50, attendanceRatio: 50, warnings: 0, weeklyPayCents: 30000, weeksAtCurrentPay: 1 };
+    const { emit } = recordingEmitter();
+    const result = runEndOfWeek(employedState(employment, true), emit, [], "goals_win", [job], [], [], { attendanceTracking: FOUR_WEEK_WINDOW });
+    // round((50×3 + 100)/4) = round(62.5) = 63
+    expect(result.state.player.career.currentEmployment?.attendanceRatio).toBe(63);
+  });
+
+  it("emits no StateChange when the rolling ratio does not move after rounding", () => {
+    const employment: Employment = { jobId: "job-cashier", employerId: "employer-1", startedWeek: 1, performance: 50, attendanceRatio: 100, warnings: 0, weeklyPayCents: 30000, weeksAtCurrentPay: 1 };
+    const { emit } = recordingEmitter();
+    const result = runEndOfWeek(employedState(employment, true), emit, [], "goals_win", [job], [], [], { attendanceTracking: FOUR_WEEK_WINDOW });
+    expect(result.changes.some((c) => c.reason === "attendance_updated")).toBe(false);
+  });
+
+  it("does not update attendance for a hire landing this same week — no elapsed week to average", () => {
+    const application: JobApplication = { jobId: "job-cashier", submittedWeek: 4, resolvesWeek: 5, contested: false, outcome: "pending" };
+    const { emit } = recordingEmitter();
+    const state = baseState(NEEDS, {
+      player: {
+        ...baseState(NEEDS).player,
+        career: { history: [], totalWeeksEmployed: 0, pendingApplications: [application], highestTierAchieved: "entry" },
+      },
+    });
+    const result = runEndOfWeek(state, emit, [], "goals_win", [job], [], [], { attendanceTracking: FOUR_WEEK_WINDOW });
+    expect(result.state.player.career.currentEmployment?.attendanceRatio).toBe(100);
+    expect(result.changes.some((c) => c.reason === "attendance_updated")).toBe(false);
+  });
+});
+
+describe("runEndOfWeek — W100 relationship drift (§7.11)", () => {
+  const NEEDS: NeedState = { health: 50, energy: 50, happiness: 50, stress: 50, satiety: 50 };
+
+  function relationship(overrides: Partial<RelationshipState> = {}): RelationshipState {
+    return {
+      npcId: "npc-1", category: "personal",
+      affinity: 50, trust: 50, respect: 50, resentment: 50,
+      knownSinceWeek: 1, interactionCount: 0,
+      ...overrides,
+    };
+  }
+
+  function stateWithRelationship(rel: RelationshipState): SimulationKindState {
+    return baseState(NEEDS, { player: { ...baseState(NEEDS).player, relationships: [rel] } });
+  }
+
+  it("leaves relationships untouched when relationshipDrift is absent (0.10 behaviour)", () => {
+    const { emit } = recordingEmitter();
+    const rel = relationship();
+    const result = runEndOfWeek(stateWithRelationship(rel), emit, [], "goals_win");
+    expect(result.state.player.relationships).toEqual([rel]);
+    expect(result.changes.some((c) => c.reason === "relationship_drift")).toBe(false);
+  });
+
+  it("applies a category-scoped rule's deltas, clamped to 0-100, one visible StateChange per changed dimension", () => {
+    const { emit } = recordingEmitter();
+    const rule: RelationshipDriftRule = { categories: ["personal"], affinityDelta: 5, trustDelta: 5 };
+    const result = runEndOfWeek(
+      stateWithRelationship(relationship({ affinity: 98, trust: 10 })), emit, [], "goals_win", [], [], [],
+      { relationshipDrift: [rule] },
+    );
+    const rel = result.state.player.relationships[0]!;
+    expect(rel.affinity).toBe(100);
+    expect(rel.trust).toBe(15);
+    expect(result.changes.filter((c) => c.reason === "relationship_drift")).toEqual([
+      expect.objectContaining({ path: "player.relationships.npc-1.affinity", value: 100, previous: 98, visible: true }),
+      expect.objectContaining({ path: "player.relationships.npc-1.trust", value: 15, previous: 10, visible: true }),
+    ]);
+  });
+
+  it("skips a relationship whose category the rule's categories list does not include", () => {
+    const { emit } = recordingEmitter();
+    const rule: RelationshipDriftRule = { categories: ["personal"], affinityDelta: 10 };
+    const result = runEndOfWeek(
+      stateWithRelationship(relationship({ category: "adversarial", affinity: 50 })), emit, [], "goals_win", [], [], [],
+      { relationshipDrift: [rule] },
+    );
+    expect(result.state.player.relationships[0]!.affinity).toBe(50);
+  });
+
+  it("applies to every category when categories is absent", () => {
+    const { emit } = recordingEmitter();
+    const rule: RelationshipDriftRule = { affinityDelta: 10 };
+    const result = runEndOfWeek(
+      stateWithRelationship(relationship({ category: "adversarial", affinity: 50 })), emit, [], "goals_win", [], [], [],
+      { relationshipDrift: [rule] },
+    );
+    expect(result.state.player.relationships[0]!.affinity).toBe(60);
+  });
+
+  it("emits resentment drift with visible: false, never omitted from the audit trail", () => {
+    const { emit } = recordingEmitter();
+    const rule: RelationshipDriftRule = { resentmentDelta: 5 };
+    const result = runEndOfWeek(
+      stateWithRelationship(relationship({ resentment: 10 })), emit, [], "goals_win", [], [], [],
+      { relationshipDrift: [rule] },
+    );
+    expect(result.state.player.relationships[0]!.resentment).toBe(15);
+    expect(result.changes).toContainEqual(expect.objectContaining({
+      path: "player.relationships.npc-1.resentment", reason: "relationship_drift", visible: false,
+    }));
+  });
+
+  it("emits no StateChange for a dimension already at the clamped value", () => {
+    const { emit } = recordingEmitter();
+    const rule: RelationshipDriftRule = { affinityDelta: 10 };
+    const result = runEndOfWeek(
+      stateWithRelationship(relationship({ affinity: 100 })), emit, [], "goals_win", [], [], [],
+      { relationshipDrift: [rule] },
+    );
+    expect(result.changes.some((c) => c.reason === "relationship_drift")).toBe(false);
   });
 });
 

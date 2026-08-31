@@ -130,6 +130,9 @@ export interface SimulationCampaignSource {
   scenarioId: string;
   goalFailurePrecedence: SimulationCampaign["goalFailurePrecedence"];
   startingEffects?: readonly StatusEffect[];
+  emptyPlanPolicy?: SimulationCampaign["emptyPlanPolicy"];
+  relationshipDrift?: SimulationCampaign["relationshipDrift"];
+  attendanceTracking?: SimulationCampaign["attendanceTracking"];
 
   sceneTemplate: AuthoredText;
   actionLabels: SimulationActionLabelKeysSource;
@@ -272,6 +275,9 @@ export function buildSimulationCampaign(source: SimulationCampaignSource): {
     scenarioId: source.scenarioId,
     goalFailurePrecedence: source.goalFailurePrecedence,
     ...(source.startingEffects !== undefined ? { startingEffects: source.startingEffects } : {}),
+    ...(source.emptyPlanPolicy !== undefined ? { emptyPlanPolicy: source.emptyPlanPolicy } : {}),
+    ...(source.relationshipDrift !== undefined ? { relationshipDrift: source.relationshipDrift } : {}),
+    ...(source.attendanceTracking !== undefined ? { attendanceTracking: source.attendanceTracking } : {}),
 
     sceneTemplateKey: take(source.sceneTemplate),
     actionLabelKeys: buildActionLabels(source.actionLabels, take),

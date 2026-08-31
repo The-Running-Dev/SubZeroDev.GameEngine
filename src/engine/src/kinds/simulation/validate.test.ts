@@ -463,4 +463,44 @@ describe("validateCampaign", () => {
       expect.objectContaining({ code: "unsatisfiable_achievement" }),
     );
   });
+
+  // -------------------------------------------------------------------------
+  // attendanceTracking.windowWeeks — W100.1/W100.6 (§7.11, §14)
+  // -------------------------------------------------------------------------
+
+  it("passes when attendanceTracking is absent (0.10 behaviour)", () => {
+    const campaign = makeCampaign();
+    const result = validateCampaign(campaign, VALID_STRINGS);
+    expect(result.ok).toBe(true);
+  });
+
+  it("passes a positive integer windowWeeks", () => {
+    const campaign = makeCampaign({ attendanceTracking: { windowWeeks: 4 } });
+    const result = validateCampaign(campaign, VALID_STRINGS);
+    expect(result.ok).toBe(true);
+  });
+
+  it("rejects a zero windowWeeks", () => {
+    const campaign = makeCampaign({ attendanceTracking: { windowWeeks: 0 } });
+    const result = validateCampaign(campaign, VALID_STRINGS);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ code: "invalid_attendance_window", path: "attendanceTracking.windowWeeks" }),
+    );
+  });
+
+  it("rejects a negative windowWeeks", () => {
+    const campaign = makeCampaign({ attendanceTracking: { windowWeeks: -2 } });
+    const result = validateCampaign(campaign, VALID_STRINGS);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ code: "invalid_attendance_window", path: "attendanceTracking.windowWeeks" }),
+    );
+  });
+
+  it("rejects a non-integer windowWeeks", () => {
+    const campaign = makeCampaign({ attendanceTracking: { windowWeeks: 2.5 } });
+    const result = validateCampaign(campaign, VALID_STRINGS);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ code: "invalid_attendance_window", path: "attendanceTracking.windowWeeks" }),
+    );
+  });
 });

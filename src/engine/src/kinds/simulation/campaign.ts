@@ -29,6 +29,7 @@
  */
 
 import type { LocKey } from "../../core/localization/types.js";
+import type { RelationshipState } from "./actor.js";
 import type { StatusEffect } from "./state.js";
 import type {
   JobDefinition,
@@ -101,4 +102,38 @@ export interface SimulationCampaign {
    *  `{health}`, `{energy}`, `{happiness}`, `{stress}`, `{satiety}` (`scene.ts`). */
   sceneTemplateKey: LocKey;
   actionLabelKeys: SimulationActionLabelKeys;
+
+  /** Whether `end_week` may resolve an empty plan (§10, §11). Absent, or `"permit"`, is
+   *  every campaign's behaviour before this field existed: `end_week` always resolves, even
+   *  with nothing planned. `"forbid"` rejects `end_week` with `plan_empty` (§10) whenever
+   *  `plan.actions.length === 0`, leaving state and the plan unchanged. */
+  emptyPlanPolicy?: "permit" | "forbid";
+
+  /** Weekly relationship drift the `relationships` end-of-week system (§3, §6.11) applies.
+   *  Absent leaves that system the no-op it has always been. */
+  relationshipDrift?: readonly RelationshipDriftRule[];
+
+  /** Rolling employment-attendance tracking (§6.8). Absent leaves `Employment.
+   *  attendanceRatio` exactly as `resolveApplications` sets it at hire — unmaintained,
+   *  the documented gap this field closes only when a campaign opts in. */
+  attendanceTracking?: AttendanceTrackingConfig;
+}
+
+export interface RelationshipDriftRule {
+  /** Which `RelationshipState.category` (§6.11) values this rule applies to. Absent or
+   *  empty applies to every category. */
+  categories?: readonly RelationshipState["category"][];
+
+  /** Per-week integer delta added to each named dimension before clamping to 0–100 (§6.2's
+   *  declared integer range). Every field is optional; an omitted dimension does not drift. */
+  affinityDelta?: number;
+  trustDelta?: number;
+  respectDelta?: number;
+  resentmentDelta?: number;
+}
+
+export interface AttendanceTrackingConfig {
+  /** Weeks averaged into the rolling `attendanceRatio`. Must be a positive integer — Tier 1
+   *  (§14) rejects zero or negative. */
+  windowWeeks: number;
 }

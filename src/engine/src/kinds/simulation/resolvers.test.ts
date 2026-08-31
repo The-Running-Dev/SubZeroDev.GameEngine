@@ -64,6 +64,16 @@ const course: CourseDefinition = {
   tags: [],
 };
 
+/** W100.5 — proves `wisdom`'s consumer is the existing generic `Requirement.type: "attribute"`
+ *  path (10-simulation-kind.md §7.11), the same mechanism `gatedJob`/`housingGated` already
+ *  exercise for `charisma`. No new `Condition` operator or content type — just a job whose
+ *  `Requirement` targets `player.attributes.wisdom`. */
+const wisdomGatedJob: JobDefinition = {
+  ...job,
+  id: "job-wise",
+  requirements: [{ type: "attribute", condition: { field: "player.attributes.wisdom", operator: "greater_or_equal", value: 80 }, failureCode: "requirement_unmet", messageKey: "core.reason.requirement_unmet" }],
+};
+
 const accountantJob: JobDefinition = {
   ...job,
   id: "job-accountant",
@@ -185,7 +195,7 @@ function state(overrides: Partial<SimulationKindState> = {}): SimulationKindStat
 
 const simulationCampaign: SimulationCampaign = {
   descriptionKey: "sim.description",
-  jobs: [job, gatedJob, accountantJob], courses: [course, gatedCourse],
+  jobs: [job, gatedJob, accountantJob, wisdomGatedJob], courses: [course, gatedCourse],
   housing: [housingAffordable, housingExpensive, housingGated],
   items: [bicycle, trinket, expensiveItem], events: [], npcs: [neighbour, absentNpc], goals: [],
   scenarios: [], difficulties: [], opportunities: [], achievements: [], headlines: [], employers: [],
@@ -235,7 +245,7 @@ describe("W53 — search_for_work", () => {
     const s = state();
     const outcome = searchForWorkResolver.calculate(s, action("search_for_work"), ctx());
     const next = searchForWorkResolver.apply(s, outcome);
-    expect(next.world.jobMarket.openings.map((o) => o.jobId).sort()).toEqual(["job-accountant", "job-cashier", "job-gated"]);
+    expect(next.world.jobMarket.openings.map((o) => o.jobId).sort()).toEqual(["job-accountant", "job-cashier", "job-gated", "job-wise"]);
     expect(next.calendar.spentTimeUnits).toBe(2);
   });
 
@@ -244,7 +254,7 @@ describe("W53 — search_for_work", () => {
     const s = state({ world: { ...state().world, jobMarket: { openings: [opening] } } });
     const outcome = searchForWorkResolver.calculate(s, action("search_for_work"), ctx());
     const next = searchForWorkResolver.apply(s, outcome);
-    expect(next.world.jobMarket.openings.map((o) => o.jobId).sort()).toEqual(["job-accountant", "job-cashier", "job-gated"]);
+    expect(next.world.jobMarket.openings.map((o) => o.jobId).sort()).toEqual(["job-accountant", "job-cashier", "job-gated", "job-wise"]);
   });
 });
 
@@ -953,5 +963,23 @@ describe("W56.5 — exercise", () => {
     expect(outcome.changes.filter((c) => c.path.startsWith("player.needs.")).map((c) => c.path)).toEqual([
       "player.needs.energy", "player.needs.satiety",
     ]);
+  });
+});
+
+describe("W100.5 — wisdom as a Requirement consumer (§7.11)", () => {
+  const posted = (): SimulationKindState =>
+    state({ world: { ...state().world, jobMarket: { openings: [{ jobId: "job-wise", contested: false, postedWeek: 1 }] } } });
+
+  it("rejects requirement_unmet for an actor whose wisdom is below the job's threshold", () => {
+    const s = { ...posted(), player: player({ attributes: { ...player().attributes, wisdom: 50 } }) };
+    const result = applyForJobResolver.canExecute(s, action("apply_for_job", "job-wise"), ctx());
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toEqual({ code: "requirement_unmet", messageKey: "core.reason.requirement_unmet" });
+  });
+
+  it("permits an otherwise identical actor whose wisdom meets the threshold — the same generic Requirement path, no new mechanism", () => {
+    const s = { ...posted(), player: player({ attributes: { ...player().attributes, wisdom: 90 } }) };
+    const result = applyForJobResolver.canExecute(s, action("apply_for_job", "job-wise"), ctx());
+    expect(result.valid).toBe(true);
   });
 });

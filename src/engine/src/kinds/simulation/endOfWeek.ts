@@ -72,7 +72,8 @@
 import type { ResolutionEmitter } from "../../core/observability/types.js";
 import type { RngHandle } from "../../core/determinism/types.js";
 import type { OutcomeMessage, StateChange } from "../../core/kernel/reasons.js";
-import type { Credential, CourseEnrollment, Employment, EvictionStage, NeedKey } from "./actor.js";
+import type { Credential, CourseEnrollment, Employment, EvictionStage, NeedKey, RelationshipState } from "./actor.js";
+import type { AttendanceTrackingConfig, RelationshipDriftRule } from "./campaign.js";
 import type {
   AchievementDefinition,
   CourseDefinition,
@@ -363,12 +364,21 @@ function resolveApplications(
  *  `requirements` are all satisfied — `minimumWeeksInRole` measures tenure *in the role*, so
  *  a promotion resets `startedWeek` to the promotion week along with `weeksAtCurrentPay`;
  *  otherwise a later `PromotionPath` would keep measuring from the original hire date and a
- *  multi-step career path could chain faster than `minimumWeeksInRole` intends. */
-function advanceEmployment(state: SimulationKindState, jobs: readonly JobDefinition[]): SimulationKindState {
+ *  multi-step career path could chain faster than `minimumWeeksInRole` intends.
+ *
+ *  **`attendanceConfig` (W100, §7.11), when present, updates `attendanceRatio` here too** —
+ *  the same "evaluated before `financeIncome`'s reset" timing §7.11 requires, since this
+ *  system runs first and reads the same still-set `workedThisWeek` flag `performance` above
+ *  already does. */
+function advanceEmployment(
+  state: SimulationKindState,
+  jobs: readonly JobDefinition[],
+  attendanceConfig: AttendanceTrackingConfig | undefined,
+): { state: SimulationKindState; changes: StateChange[] } {
   const employment = state.player.career.currentEmployment;
-  if (!employment) return state;
+  if (!employment) return { state, changes: [] };
   const job = findJob(jobs, employment.jobId);
-  if (!job) return state;
+  if (!job) return { state, changes: [] };
 
   const workedThisWeek = state.player.flags["workedThisWeek"] === true;
   const performance = workedThisWeek
@@ -376,6 +386,21 @@ function advanceEmployment(state: SimulationKindState, jobs: readonly JobDefinit
     : clamp(Math.round(employment.performance + PERFORMANCE_DRIFT_RATE * (job.performance.weeklyDriftToward - employment.performance)), 0, 100);
 
   let next: Employment = { ...employment, performance };
+  const changes: StateChange[] = [];
+
+  if (attendanceConfig !== undefined) {
+    const weeklyRatio = workedThisWeek ? 100 : 0;
+    const windowWeeks = attendanceConfig.windowWeeks;
+    const before = next.attendanceRatio;
+    const attendanceRatio = clamp(Math.round((before * (windowWeeks - 1) + weeklyRatio) / windowWeeks), 0, 100);
+    if (attendanceRatio !== before) {
+      next = { ...next, attendanceRatio };
+      changes.push({
+        path: "player.career.currentEmployment.attendanceRatio", op: "set", value: attendanceRatio,
+        previous: before, reason: "attendance_updated", visible: true,
+      });
+    }
+  }
 
   for (const path of job.promotionPaths) {
     if (path.contested) continue;
@@ -396,23 +421,32 @@ function advanceEmployment(state: SimulationKindState, jobs: readonly JobDefinit
   }
 
   return {
-    ...state,
-    player: {
-      ...state.player,
-      career: { ...state.player.career, currentEmployment: next, totalWeeksEmployed: state.player.career.totalWeeksEmployed + 1 },
+    state: {
+      ...state,
+      player: {
+        ...state.player,
+        career: { ...state.player.career, currentEmployment: next, totalWeeksEmployed: state.player.career.totalWeeksEmployed + 1 },
+      },
     },
+    changes,
   };
 }
 
 /** Real logic (W53) — resolves due applications into a hire, then advances whatever
  *  `Employment` results. A hire that lands *this same week* is not advanced yet — the
  *  employee hasn't worked a week under it, so `totalWeeksEmployed` and performance
- *  drift/promotion would otherwise be evaluated against zero elapsed time. */
-function employment(state: SimulationKindState, jobs: readonly JobDefinition[], emit: ResolutionEmitter): SimulationKindState {
+ *  drift/promotion would otherwise be evaluated against zero elapsed time; the same skip
+ *  applies to attendance tracking (W100), for the identical reason. */
+function employment(
+  state: SimulationKindState,
+  jobs: readonly JobDefinition[],
+  emit: ResolutionEmitter,
+  attendanceConfig: AttendanceTrackingConfig | undefined,
+): { state: SimulationKindState; changes: StateChange[] } {
   const wasEmployed = state.player.career.currentEmployment !== undefined;
   const resolved = resolveApplications(state, jobs, emit);
   const hiredThisWeek = !wasEmployed && resolved.player.career.currentEmployment !== undefined;
-  return hiredThisWeek ? resolved : advanceEmployment(resolved, jobs);
+  return hiredThisWeek ? { state: resolved, changes: [] } : advanceEmployment(resolved, jobs, attendanceConfig);
 }
 
 function findCourse(courses: readonly CourseDefinition[], courseId: string): CourseDefinition | undefined {
@@ -726,13 +760,78 @@ export function financeReconcile(state: SimulationKindState, missedCents: Cents)
   };
 }
 
-/** **The one remaining stub, and it stays one after W57.** No weekly relationship rule — decay, drift, or
- *  otherwise — is specified anywhere in this contract: §6.11 declares the state and §7.7 the
- *  NPC, but nothing names what a week does to either. `resolvers.ts`'s `socialize` moves a
- *  `RelationshipState`; writing the missing weekly rule is `/contract`'s work, not a slice's
- *  (W56's own *Out of scope*). */
-function relationships(state: SimulationKindState): SimulationKindState {
-  return state;
+/** Real logic (W100, §7.11) — closes the stub W56/W57 left. Applies every
+ *  `SimulationCampaign.relationshipDrift` rule, in array order, to every actor's
+ *  `RelationshipState[]` — the player's and each `WorldState.agents[].actor`'s alike, the
+ *  same "one shape, one code path" rule §6.2 states for every other actor-state system.
+ *  Absent `rules` (the default) leaves this the no-op it has always been. */
+function applyRelationshipDrift(
+  relationships: readonly RelationshipState[],
+  rules: readonly RelationshipDriftRule[],
+  pathPrefix: string,
+): { relationships: RelationshipState[]; changes: StateChange[] } {
+  const changes: StateChange[] = [];
+  let next = relationships;
+
+  for (const rule of rules) {
+    next = next.map((rel) => {
+      if (rule.categories !== undefined && rule.categories.length > 0 && !rule.categories.includes(rel.category)) {
+        return rel;
+      }
+
+      let updated = rel;
+      const drift = (key: "affinity" | "trust" | "respect" | "resentment", delta: number | undefined, visible: boolean): void => {
+        if (delta === undefined) return;
+        const before = updated[key];
+        const after = clamp(before + delta, 0, 100);
+        if (after === before) return;
+        updated = { ...updated, [key]: after };
+        changes.push({
+          path: `${pathPrefix}.${rel.npcId}.${key}`, op: "set", value: after,
+          previous: before, reason: "relationship_drift", visible,
+        });
+      };
+
+      // Clamp to 0–100 before the next rule runs (§7.11) — each rule's `map` above already
+      // completes over every relationship before the loop moves to the next rule.
+      drift("affinity", rule.affinityDelta, true);
+      drift("trust", rule.trustDelta, true);
+      drift("respect", rule.respectDelta, true);
+      // Hidden from projection (§6.11) — emitted the same way `socialize` already emits it
+      // (`resolvers.ts`): `visible: false`, never omitted from the audit trail entirely.
+      drift("resentment", rule.resentmentDelta, false);
+      return updated;
+    });
+  }
+
+  return { relationships: [...next], changes };
+}
+
+function relationships(
+  state: SimulationKindState,
+  rules: readonly RelationshipDriftRule[],
+): { state: SimulationKindState; changes: StateChange[] } {
+  if (rules.length === 0) return { state, changes: [] };
+
+  const player = applyRelationshipDrift(state.player.relationships, rules, "player.relationships");
+  const changes = [...player.changes];
+
+  // `WorldState.agents` is empty in every shipped scenario (§7.10) — forward compatible with
+  // rivals without changing shape once one exists, exercised by nothing yet.
+  const agents = state.world.agents.map((agent) => {
+    const result = applyRelationshipDrift(agent.actor.relationships, rules, `world.agents.${agent.id}.actor.relationships`);
+    changes.push(...result.changes);
+    return { ...agent, actor: { ...agent.actor, relationships: result.relationships } };
+  });
+
+  return {
+    state: {
+      ...state,
+      player: { ...state.player, relationships: player.relationships },
+      world: { ...state.world, agents },
+    },
+    changes,
+  };
 }
 
 /** How far one fired event moves `world.strangenessBase`. A placeholder rate, the same
@@ -1290,6 +1389,11 @@ export interface EndOfWeekWorld {
    *  random draw is taken at all — scheduled events still fire, since §2.3 fires those
    *  unconditionally. */
   rng?: RngHandle;
+  /** `SimulationCampaign.relationshipDrift` (§7.11). Absent leaves `relationships` a no-op. */
+  relationshipDrift?: readonly RelationshipDriftRule[];
+  /** `SimulationCampaign.attendanceTracking` (§7.11). Absent leaves `Employment.
+   *  attendanceRatio` unmaintained, exactly as it was before W100. */
+  attendanceTracking?: AttendanceTrackingConfig;
 }
 /**
  * The frame the fifteen end-of-week systems are threaded through (04 §20).
@@ -1357,7 +1461,7 @@ function traced(id: string, run: (frame: EndOfWeekFrame) => EndOfWeekFrame): Sys
  * `system.ran` reader sees is identical to the one the statement sequence produced.
  */
 const END_OF_WEEK_SYSTEMS: readonly SystemEntry<EndOfWeekFrame>[] = [
-  traced("employment", (frame) => plain(frame, employment(frame.state, frame.jobs, frame.emit))),
+  traced("employment", (frame) => withChanges(frame, employment(frame.state, frame.jobs, frame.emit, frame.world.attendanceTracking))),
   traced("education", (frame) => withChanges(frame, education(frame.state, frame.courses))),
   traced("finance_income", (frame) => withChanges(frame, financeIncome(frame.state, frame.jobs))),
   traced("inventory", (frame) => withChanges(frame, inventory(frame.state, frame.items))),
@@ -1367,7 +1471,7 @@ const END_OF_WEEK_SYSTEMS: readonly SystemEntry<EndOfWeekFrame>[] = [
   }),
   traced("finance_reconcile", (frame) => withChanges(frame, financeReconcile(frame.state, frame.missedCents))),
   traced("needs", (frame) => withChanges(frame, needs(frame.state))),
-  traced("relationships", (frame) => plain(frame, relationships(frame.state))),
+  traced("relationships", (frame) => withChanges(frame, relationships(frame.state, frame.world.relationshipDrift ?? []))),
   traced("opportunities", (frame) => withChanges(frame, opportunities(frame.state, frame.world.opportunities ?? [], frame.world.rng))),
   traced("events", (frame) => {
     const result = events(frame.state, frame.world.events ?? [], frame.world.rng);

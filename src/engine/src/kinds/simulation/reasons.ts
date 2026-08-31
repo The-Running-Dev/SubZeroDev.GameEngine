@@ -130,6 +130,17 @@ export const SIMULATION_REASON_CODES = [
   "world_strangeness_shifted",
   // W94 — the mandatory-event gate (§2.3, §10).
   "event_response_pending",
+  // W100 — campaign-tunable weekly rules (§7.11, §10). `plan_empty` dispatches from
+  // `advance.ts`'s `end_week` once `SimulationCampaign.emptyPlanPolicy` exists to gate it;
+  // `relationship_drift`/`attendance_updated` are the two new end-of-week audit codes;
+  // `invalid_attendance_window` is `validate.ts`'s Tier 1 rejection of a non-positive-integer
+  // `AttendanceTrackingConfig.windowWeeks` (§14) — §10's table states the rule but leaves the
+  // exact code to the implementation, the same latitude §14's own closing paragraph grants
+  // every other concrete Tier 1/2 check.
+  "plan_empty",
+  "relationship_drift",
+  "attendance_updated",
+  "invalid_attendance_window",
 ] as const;
 
 export type SimulationReasonCode = (typeof SIMULATION_REASON_CODES)[number];
@@ -188,6 +199,10 @@ const SIMULATION_REASON_TEXT: Readonly<Record<SimulationReasonCode, string>> = {
   headline_shown: "This week's news.",
   world_strangeness_shifted: "The world feels a little different.",
   event_response_pending: "You need to deal with this first.",
+  plan_empty: "You haven't planned anything for this week yet.",
+  relationship_drift: "A relationship shifted a little this week.",
+  attendance_updated: "Your attendance record was updated.",
+  invalid_attendance_window: "The attendance tracking window must be a positive number of weeks.",
 };
 
 /** `simulation.reason.<code>` → its shipped default-English message, for every code. */

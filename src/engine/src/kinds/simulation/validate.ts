@@ -288,6 +288,21 @@ function validateNaturalKeys(content: SimulationCampaign): ValidationError[] {
 }
 
 // ---------------------------------------------------------------------------
+// Tier 1 — attendance-tracking window (§7.11, §14)
+// ---------------------------------------------------------------------------
+
+/** `SimulationCampaign.attendanceTracking.windowWeeks` (§7.11), when present, must be a
+ *  positive integer — zero, negative, and non-integer values are rejected (§14). */
+function validateAttendanceTracking(content: SimulationCampaign): ValidationError[] {
+  const config = content.attendanceTracking;
+  if (config === undefined) return [];
+  if (!Number.isInteger(config.windowWeeks) || config.windowWeeks <= 0) {
+    return [error("invalid_attendance_window", "attendanceTracking.windowWeeks")];
+  }
+  return [];
+}
+
+// ---------------------------------------------------------------------------
 // Tier 2 — unreachable content
 // ---------------------------------------------------------------------------
 
@@ -432,6 +447,7 @@ export function validateCampaign(campaign: Campaign, strings: ReadonlyMap<LocKey
     ...validateLocKeys(content, strings),
     ...validateAllModifiers(content),
     ...validateNaturalKeys(content),
+    ...validateAttendanceTracking(content),
   ];
 
   const warnings: ValidationWarning[] = [
