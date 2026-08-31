@@ -155,6 +155,10 @@ export function advance(
         return rejected(state, "event_response_pending", "simulation.reason.event_response_pending");
       }
       const plan = requirePlan(state);
+      const content = ctx.campaign.content as SimulationCampaign;
+      if (plan.actions.length === 0 && content.emptyPlanPolicy === "forbid") {
+        return rejected(state, "plan_empty", "simulation.reason.plan_empty");
+      }
       let working = state;
       const changes: StateChange[] = [];
       const messages: OutcomeMessage[] = [];
@@ -192,7 +196,6 @@ export function advance(
       // (below) and so are not readable within it. Recorded in `90-decisions.md`.
       working = foldCounters(working, changes);
 
-      const content = ctx.campaign.content as SimulationCampaign;
       // `content.items` joins `jobs`/`courses` as a plain parameter (W56) — `endOfWeek.ts`'s
       // `inventory` system needs `ItemDefinition` for decay and effect sync, the same way
       // `employment` needed `jobs` and `education` needed `courses`.
@@ -214,6 +217,8 @@ export function advance(
           headlines: content.headlines,
           achievements: content.achievements,
           ...(scenario?.weekLimit !== undefined ? { weekLimit: scenario.weekLimit } : {}),
+          ...(content.relationshipDrift !== undefined ? { relationshipDrift: content.relationshipDrift } : {}),
+          ...(content.attendanceTracking !== undefined ? { attendanceTracking: content.attendanceTracking } : {}),
           rng: ctx.derive({ kind: "system", system: "end_of_week", seq: ctx.seq }),
         },
       );

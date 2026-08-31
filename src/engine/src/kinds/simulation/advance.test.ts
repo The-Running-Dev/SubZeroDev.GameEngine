@@ -301,6 +301,38 @@ describe("advance — end_week", () => {
   });
 });
 
+describe("advance — end_week's plan_empty gate (W100.2)", () => {
+  function ctxWithCampaign(content: SimulationCampaign): KindContext {
+    return { ...fakeCtx(), campaign: { ...campaign, content } };
+  }
+
+  it("permits end_week with an empty plan when emptyPlanPolicy is absent (0.10 behaviour)", () => {
+    const result = advance(baseState(), "end_week", undefined, fakeCtx());
+    expect(result.error).toBeUndefined();
+  });
+
+  it("permits end_week with an empty plan when emptyPlanPolicy is \"permit\"", () => {
+    const ctx = ctxWithCampaign({ ...simulationCampaign, emptyPlanPolicy: "permit" });
+    const result = advance(baseState(), "end_week", undefined, ctx);
+    expect(result.error).toBeUndefined();
+  });
+
+  it("rejects end_week with plan_empty when emptyPlanPolicy is \"forbid\" and nothing is planned, state unchanged", () => {
+    const ctx = ctxWithCampaign({ ...simulationCampaign, emptyPlanPolicy: "forbid" });
+    const state = baseState();
+    const result = advance(state, "end_week", undefined, ctx);
+    expect(result.error?.code).toBe("plan_empty");
+    expect(result.state).toBe(state);
+  });
+
+  it("advances normally when emptyPlanPolicy is \"forbid\" but a plan action exists", () => {
+    const ctx = ctxWithCampaign({ ...simulationCampaign, emptyPlanPolicy: "forbid" });
+    const withAction = advance(baseState(), "plan.add", { actionType: "rest" }, ctx).state;
+    const result = advance(withAction, "end_week", undefined, ctx);
+    expect(result.error).toBeUndefined();
+  });
+});
+
 describe("advance — end_week ends the game when every goal resolves", () => {
   const happinessGoal: GoalDefinition = {
     id: "goal-happy",

@@ -69,3 +69,26 @@ describe("availableActions (10-simulation-kind.md §4, §9; W50.4)", () => {
     }
   });
 });
+
+describe("availableActions — W100.2 emptyPlanPolicy gate", () => {
+  function ctxWithPolicy(emptyPlanPolicy: SimulationCampaign["emptyPlanPolicy"]): KindContext {
+    const ctx = fakeCtx();
+    return { ...ctx, campaign: { ...ctx.campaign, content: { ...content, emptyPlanPolicy } } };
+  }
+
+  it("leaves end_week available when emptyPlanPolicy is absent, even with nothing planned", () => {
+    const actions = availableActions(state, fakeCtx());
+    expect(actions.find((a) => a.id === "end_week")?.available).toBe(true);
+  });
+
+  it("reports end_week unavailable when emptyPlanPolicy forbids it and the plan has no actions", () => {
+    const actions = availableActions(state, ctxWithPolicy("forbid"));
+    expect(actions.find((a) => a.id === "end_week")?.available).toBe(false);
+  });
+
+  it("reports end_week available when emptyPlanPolicy forbids it but the plan has an action", () => {
+    const withAction: SimulationKindState = { ...state, plan: { week: 1, actions: [{ id: "a", type: "rest", actorId: "player", parameters: {} }] } };
+    const actions = availableActions(withAction, ctxWithPolicy("forbid"));
+    expect(actions.find((a) => a.id === "end_week")?.available).toBe(true);
+  });
+});
