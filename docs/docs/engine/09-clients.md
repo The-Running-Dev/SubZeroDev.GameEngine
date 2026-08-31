@@ -136,6 +136,15 @@ one column per MVP client:
 | 8 | `previewAction` | ☑ | `preview_action` ☑ | ☑ | ☑ | ☑ |
 | 9 | `saveGame` | ☑ | `save_game` ☑ | ☑ | ☑ | ☑ |
 | 10 | `loadGame` | ☑ | `load_game` ☑ | ☑ | ☑ | ☑ |
+| 11 | `listSaves` | ☑ | `list_saves` ☑ | — | — | — |
+| 12 | `branchSession` | ☑ | `branch_session` ☑ | — | — | — |
+| 13 | `deleteSave` | ☑ | `delete_save` ☑ | — | — | — |
+
+**Rows 11–13 are 04 §7.4's session lifecycle operations (W99)**, added after the ten the MVP
+shipped with. The Simulation-kind, Browser client, and Hosted transport columns are unticked
+for them, honestly rather than by omission: none of those three companions had this lifecycle
+surface to exercise as of this unit, and their own reconciliation is the one that ticks these
+boxes when it happens — the same treatment the Browser client column already gets below.
 
 **The "Hosted transport" column is `SubZeroDev.Platform`'s G1**, the fifth column S5 adds — every
 row driven over the network through the hosted JSON wire and compared byte for byte against the
@@ -165,8 +174,11 @@ eleventh operation.
 | 8 | `"8. previewAction — renders the prospective scene without changing the session"` | `"preview_action — returns the prospective scene without committing it"` |
 | 9 | `"9. saveGame — produces a save id; text confirms it"` | `"save_game — narrows the store's SaveHandle to { saveId } only"` |
 | 10 | `"10. loadGame — a fresh session from the save renders the same scene the save point was at"` | `"load_game — a fresh session from the save renders the same scene the save point was at"` |
+| 11 | `"11. listSaves — a player-keyed, deterministically ordered save list; text renders it (04 §7.4, W99)"` | `"list_saves — a player-keyed save list, args { profileId }"` |
+| 12 | `"12. branchSession — retains the source's gameId and replays byte-identically through the fork point (04 §7.4, W99)"` | `"branch_session — args { sessionId, atActionCount }, returns { sessionId, scene } for a session identical to the source"` |
+| 13 | `"13. deleteSave — removes exactly the addressed record; a stale expectedSavedAt is refused (04 §7.4, W99)"` | `"delete_save — args { profileId, saveId, expectedSavedAt }, removes exactly the addressed save"` |
 
-The text-client suite numbers its `it` blocks 1–10 to match this table's rows directly; the MCP
+The text-client suite numbers its `it` blocks 1–13 to match this table's rows directly; the MCP
 suite's own top-level `describe` names itself after this section (`"McpTools — the API coverage
 checklist (09-clients.md §4)"`). Neither test drives `SessionStore` directly — both go through
 the real client, which is what this checklist requires.
