@@ -28,6 +28,10 @@
 import type { SimulationKindState } from "./state.js";
 
 export interface SimulationOutcome {
+  /** `04 §3.2` — false while the game is still active. */
+  terminal: boolean;
+  /** `04 §3.2` — the `resolution` token; the cross-kind floor. */
+  terminalId: string | null;
   resolution: "goals_met" | "failed" | "week_limit_reached" | null;
   goalsMet: readonly string[];
   goalsFailed: readonly string[];
@@ -36,6 +40,8 @@ export interface SimulationOutcome {
 export function outcome(state: SimulationKindState): SimulationOutcome {
   const terminal = state.resolution;
   return {
+    terminal: terminal !== null,
+    terminalId: terminal?.resolution ?? null,
     resolution: terminal?.resolution ?? null,
     goalsMet: terminal?.goalsMet ?? [],
     goalsFailed: terminal?.goalsFailed ?? [],

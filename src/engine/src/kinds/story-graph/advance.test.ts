@@ -458,7 +458,10 @@ describe("story-graph kind — through the real engine (integration)", () => {
       advance: (state, actionId, params, ctx): AdvanceResult<StoryGraphKindState> => advance(state, actionId, params, ctx),
       project: (state, audience, ctx) => project(state, audience, ctx),
       validateCampaign: () => ({ ok: true, errors: [], warnings: [] }),
-      outcome: (state) => ({ endingId: state.endingId ?? null }),
+      outcome: (state) => {
+        const endingId = state.endingId ?? null;
+        return { terminal: endingId !== null, terminalId: endingId, endingId };
+      },
     };
   }
 
@@ -494,7 +497,7 @@ describe("story-graph kind — through the real engine (integration)", () => {
 
     const view = engine.view(result.value, "player");
     const kindView = view.kindView as { stats: { var: string; value: unknown }[] };
-    expect(kindView.stats).toEqual([{ var: "money", labelKey: "stat.money", value: 3 }]);
+    expect(kindView.stats).toEqual([{ var: "money", labelKey: "stat.money", value: 3, min: 0, max: 3 }]);
   });
 
   it("an achievement unlock survives the real engine seam end to end", () => {

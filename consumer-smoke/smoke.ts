@@ -9,12 +9,15 @@ import {
   computeResolutionId,
   createEngine,
   createInMemoryProfileStore,
+  createInMemorySessionStore,
   SESSION_PERSISTENCE_CONFLICT,
   storyGraphKind,
   simulationKind,
   worldGraphKind,
   type ActionType,
   type Campaign,
+  type CampaignCatalog,
+  type CampaignSummary,
   type ContentPack,
   type Engine,
   type GameAction,
@@ -311,6 +314,26 @@ async function runAuthoringSmoke(kinds: KindRegistry): Promise<void> {
     profiles: createInMemoryProfileStore(),
     profileId: "consumer-smoke-authoring",
   };
+  // W98.6 — the async catalog path, reachable through the packed tarball. `listCampaigns`
+  // returns `Promise<CampaignCatalog>` now, not a bare `CampaignSummary[]` (04-core.md §7.3).
+  const store = createInMemorySessionStore({ engine: ctx.engine, registry, profiles: ctx.profiles });
+  const sessionCatalog: CampaignCatalog = await store.listCampaigns(ctx.profileId);
+  assert.ok(
+    sessionCatalog.campaigns.some((c) => c.campaignId === campaign.id),
+    "the async catalog should list the authored campaign",
+  );
+  assert.equal(
+    sessionCatalog.strings[campaign.titleKey],
+    "Authoring Smoke",
+    "the catalog's own strings should resolve the title key",
+  );
+  // The old signature (`listCampaigns(): CampaignSummary[]`) no longer type-checks — a
+  // caller built against it fails to compile rather than reading `undefined` at runtime
+  // (04-core.md §7.3, "Migrating callers").
+  // @ts-expect-error — listCampaigns is async now; this assignment must not type-check.
+  const rejectedOldShape: CampaignSummary[] = store.listCampaigns(ctx.profileId);
+  void rejectedOldShape;
+
   const submissions: readonly Submission[] = [{ actionId: "submit" }];
   const fixture: ReplayFixture = {
     name: "authoring-smoke",

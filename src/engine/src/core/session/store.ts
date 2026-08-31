@@ -27,6 +27,8 @@ import type { Clock, RecordIdSource } from "../composition/types.js";
 import type { Emitter, EmittedRecord, EmittedRecordSink } from "../observability/types.js";
 import { defaultClock } from "../composition/defaults.js";
 import type {
+  CampaignCatalog,
+  CampaignProgress,
   CampaignSummary,
   CreateSessionConfig,
   PlayerProfile,
@@ -39,6 +41,7 @@ import type {
   SessionPersistence,
   StoredSaveRecord,
   StoredSessionRecord,
+  TerminalRecord,
 } from "./types.js";
 import {
   SESSION_PERSISTENCE_CONFLICT,
@@ -130,6 +133,31 @@ export async function upsertAchievements(
   }
 
   const updated: PlayerProfile = { ...profile, achievements: [...profile.achievements, ...newRecords] };
+  const { warnings: saveWarnings } = await profiles.save(updated);
+  return [...loadWarnings, ...saveWarnings].map(toValidationWarning);
+}
+
+/**
+ * The terminal mirror (04 §7.1, §7.3) — same shape and same reasoning as
+ * `upsertAchievements` above, run on the same write. A `null` `terminalId` records
+ * nothing: not every ended game names a terminal (04 §3.2).
+ */
+export async function upsertTerminals(
+  profiles: ProfileStore,
+  profileId: string,
+  campaignId: string,
+  terminalId: string | null,
+): Promise<ValidationWarning[]> {
+  if (terminalId === null) return [];
+
+  const { profile, warnings: loadWarnings } = await profiles.load(profileId);
+  const alreadyRecorded = profile.terminals.some((t) => t.campaignId === campaignId && t.terminalId === terminalId);
+  if (alreadyRecorded) {
+    return loadWarnings.map(toValidationWarning);
+  }
+
+  const newRecord: TerminalRecord = { campaignId, terminalId };
+  const updated: PlayerProfile = { ...profile, terminals: [...profile.terminals, newRecord] };
   const { warnings: saveWarnings } = await profiles.save(updated);
   return [...loadWarnings, ...saveWarnings].map(toValidationWarning);
 }
@@ -365,12 +393,35 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
 
   return {
     // ── Queries — no span, no decorator (05 §6.1 names only the five commands below) ──
-    listCampaigns(): CampaignSummary[] {
-      return [...registry.campaigns.values()].map((campaign) => ({
-        campaignId: campaign.id,
-        kindId: campaign.kindId,
-        titleKey: campaign.titleKey,
-      }));
+    async listCampaigns(profileId?: string): Promise<CampaignCatalog> {
+      // Session-free (04 §7.3) — no session lock, no engine call. Progress is read here,
+      // through the store's own ProfileStore, and nowhere near resolution — `advance`
+      // and `project` never see a profile.
+      const profile = profileId !== undefined && options.profiles ? (await options.profiles.load(profileId)).profile : undefined;
+
+      const strings: Record<string, string> = {};
+      const campaigns: CampaignSummary[] = [...registry.campaigns.values()].map((campaign) => {
+        const titleText = registry.strings.get(campaign.titleKey);
+        if (titleText !== undefined) strings[campaign.titleKey] = titleText;
+
+        let progress: CampaignProgress | undefined;
+        const terminalCount = kinds[campaign.kindId]?.terminalCount;
+        if (profile && terminalCount) {
+          const discovered = new Set(
+            profile.terminals.filter((t) => t.campaignId === campaign.id).map((t) => t.terminalId),
+          ).size;
+          progress = { discovered, total: terminalCount(campaign) };
+        }
+
+        return {
+          campaignId: campaign.id,
+          kindId: campaign.kindId,
+          titleKey: campaign.titleKey,
+          ...(progress !== undefined ? { progress } : {}),
+        };
+      });
+
+      return { campaigns, strings };
     },
 
     async getScene(sessionId: string): Promise<Scene> {
@@ -455,9 +506,10 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
           const result = decoratedEngine.submitAction(state, actionId, params);
 
           if (result.ok && result.value) {
+            const newState = result.value;
             const previousBlob = record.blob;
             const previousUpdatedAt = record.updatedAt;
-            record.blob = decoratedEngine.serialize(result.value);
+            record.blob = decoratedEngine.serialize(newState);
             record.updatedAt = clock.now();
             try {
               await writeSession(record);
@@ -487,9 +539,16 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
             if (profiles && record.profileId) {
               const profileId = record.profileId;
               try {
-                profileWarnings = await runExclusive(profileLocks, profileId, () =>
-                  upsertAchievements(profiles, profileId, state.campaignId, result.changes),
-                );
+                profileWarnings = await runExclusive(profileLocks, profileId, async () => {
+                  const achievementWarnings = await upsertAchievements(profiles, profileId, state.campaignId, result.changes);
+                  // "After an action whose AdvanceResult.status is ended" (04 §7.1) — the
+                  // same write as the achievement upsert, on the same lock.
+                  if (newState.status !== "ended") return achievementWarnings;
+                  const kind = kinds[state.kindId];
+                  const terminalId = kind.outcome(newState.kindState).terminalId;
+                  const terminalWarnings = await upsertTerminals(profiles, profileId, state.campaignId, terminalId);
+                  return [...achievementWarnings, ...terminalWarnings];
+                });
               } catch {
                 profileWarnings = [{ code: "profile_write_failed", messageKey: "core.reason.profile_write_failed", path: profileId }];
               }

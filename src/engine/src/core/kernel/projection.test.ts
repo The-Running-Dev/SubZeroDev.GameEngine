@@ -65,7 +65,7 @@ function makeTestKind(overrides?: Partial<Kind<TestKindState>>): Kind<TestKindSt
     // Well-behaved by default: excludes `secret`, and doesn't widen for "ai".
     project: (state) => ({ counter: state.counter }),
     validateCampaign: (): ValidationResult => ({ ok: true, errors: [], warnings: [] }),
-    outcome: (state) => ({ counter: state.counter }),
+    outcome: (state) => ({ terminal: false, terminalId: null, counter: state.counter }),
     ...overrides,
   };
 }

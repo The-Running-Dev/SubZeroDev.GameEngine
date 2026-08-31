@@ -18,7 +18,9 @@ import type {
   Kind,
   SceneBody,
 } from "../../core/kernel/types.js";
+import type { Campaign } from "../../core/registry/types.js";
 import { advance } from "./advance.js";
+import type { StoryGraphCampaign } from "./campaign.js";
 import { STORY_GRAPH_EVENT_NAMES } from "./events.js";
 import { STORY_GRAPH_REASON_CODES, STORY_GRAPH_REASON_MESSAGES } from "./reasons.js";
 import { availableActions, scene } from "./scene.js";
@@ -26,6 +28,17 @@ import { initialState } from "./settle.js";
 import type { StoryGraphKindState } from "./state.js";
 import { validateCampaign } from "./validate.js";
 import { project } from "./view.js";
+
+/** Distinct `endingId`s across the campaign's `EndingNode`s (03 §8.5) — two nodes may
+ *  publish the same ending, so this counts ids, never nodes. */
+function terminalCount(campaign: Campaign): number {
+  const content = campaign.content as StoryGraphCampaign;
+  const endingIds = new Set<string>();
+  for (const node of Object.values(content.nodes)) {
+    if (node.kind === "ending") endingIds.add(node.endingId);
+  }
+  return endingIds.size;
+}
 
 export const storyGraphKind: Kind<StoryGraphKindState> = {
   id: "story-graph",
@@ -41,5 +54,9 @@ export const storyGraphKind: Kind<StoryGraphKindState> = {
   advance: (state, actionId, params, ctx): AdvanceResult<StoryGraphKindState> => advance(state, actionId, params, ctx),
   project: (state, audience, ctx) => project(state, audience, ctx),
   validateCampaign: (campaign, strings) => validateCampaign(campaign, strings),
-  outcome: (state) => ({ endingId: state.endingId ?? null }),
+  outcome: (state) => {
+    const endingId = state.endingId ?? null;
+    return { terminal: endingId !== null, terminalId: endingId, endingId };
+  },
+  terminalCount,
 };

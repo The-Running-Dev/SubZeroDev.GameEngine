@@ -22,7 +22,7 @@
 import type { ActionParams, Scene } from "../core/kernel/types.js";
 import type { PlayerView } from "../core/projection/types.js";
 import type { StringTable } from "../core/localization/types.js";
-import type { CampaignSummary, SessionActionResult, SessionStore } from "../core/session/types.js";
+import type { CampaignCatalog, SessionActionResult, SessionStore } from "../core/session/types.js";
 
 /** The contract's own documented args — deliberately narrower than `CreateSessionConfig`,
  *  which also carries `audience`. An MCP caller choosing `audience: "ai"` would widen its
@@ -35,7 +35,7 @@ export interface StartGameArgs {
 }
 
 export interface McpTools {
-  list_campaigns(args: Record<string, never>): CampaignSummary[];
+  list_campaigns(args: { profileId?: string }): Promise<CampaignCatalog>;
   start_game(args: StartGameArgs): Promise<{ sessionId: string; scene: Scene }>;
   continue_game(args: { sessionId: string }): Promise<Scene>;
   get_scene(args: { sessionId: string }): Promise<Scene>;
@@ -51,7 +51,7 @@ export interface McpTools {
  *  adapter contributes nothing but the tool's documented name and shape. */
 export function createMcpTools(store: SessionStore): McpTools {
   return {
-    list_campaigns: () => store.listCampaigns(),
+    list_campaigns: (args) => store.listCampaigns(args.profileId),
     // Rebuilt field-by-field from StartGameArgs, not a forwarded caller object — an MCP
     // caller can only ever supply what the table names, and `audience` is never one of
     // them. `store.createSession` defaults a missing `audience` to "player" itself.

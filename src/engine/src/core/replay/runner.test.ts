@@ -65,7 +65,10 @@ function makeTestKind(): Kind<TestKindState> {
     },
     project: (state) => ({ counter: state.counter }),
     validateCampaign: (): ValidationResult => ({ ok: true, errors: [], warnings: [] }),
-    outcome: (state) => ({ endingId: state.endingId ?? null }),
+    outcome: (state) => {
+      const endingId = state.endingId ?? null;
+      return { terminal: endingId !== null, terminalId: endingId, endingId };
+    },
   };
 }
 
@@ -119,7 +122,7 @@ describe("buildReplayOutcome", () => {
       { index: 2, seq: 2, actionId: "end", accepted: true },
     ]);
     expect(result.outcome.achievements).toEqual(["milestone"]);
-    expect(result.outcome.terminal).toEqual({ endingId: "the_end" });
+    expect(result.outcome.terminal).toEqual({ terminal: true, terminalId: "the_end", endingId: "the_end" });
   });
 
   it("a rejected submission records seq: null and a reason, and does not stop the replay", async () => {

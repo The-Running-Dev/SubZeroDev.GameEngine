@@ -85,14 +85,19 @@ export function renderView(view: PlayerView): string {
 }
 
 /**
- * `titleKey` renders unresolved — `getStrings` takes a `sessionId` (09 §2), and no session
- * exists yet at `listCampaigns` time. Not a workaround: a client "never works around a
- * missing operation" (09 §4) by inventing client-side resolution for one that doesn't
- * exist.
+ * `titleKey` resolves against `CampaignCatalog.strings` — `listCampaigns` carries its own
+ * trimmed string table now (04 §7.3), so a title renders before any session exists without
+ * this client reaching past the store boundary for it.
  */
-export function renderCampaignList(campaigns: readonly CampaignSummary[]): string {
+export function renderCampaignList(campaigns: readonly CampaignSummary[], strings: StringTable): string {
   if (campaigns.length === 0) return "(no campaigns available)";
-  return campaigns.map((c) => `  [${c.campaignId}] ${c.titleKey} (${c.kindId})`).join("\n");
+  return campaigns
+    .map((c) => {
+      const title = resolveOrFallback(strings, c.titleKey);
+      const progress = c.progress ? ` — ${c.progress.discovered}/${c.progress.total}` : "";
+      return `  [${c.campaignId}] ${title} (${c.kindId})${progress}`;
+    })
+    .join("\n");
 }
 
 export function renderMessages(messages: readonly OutcomeMessage[], strings: StringTable): string {

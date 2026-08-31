@@ -19,6 +19,8 @@
     "found_registry_route_event_1a"
   ],
   "terminal": {
+    "terminal": false,
+    "terminalId": null,
     "endingId": null
   }
 }

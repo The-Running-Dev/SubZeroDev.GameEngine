@@ -116,7 +116,7 @@ describe("the Long Horizon replay corpus (07-replay.md §4)", () => {
   it.skipIf(!HAS_BOTH_RUNS)("long-horizon-win plays at least 150 weeks to a goals_met outcome", async () => {
     const outcome = loadExpectedOutcome("long-horizon-win");
     expect(outcome.finalStatus).toBe("ended");
-    expect(outcome.terminal).toEqual({ resolution: "goals_met", goalsMet: ["goal-established"], goalsFailed: [] });
+    expect(outcome.terminal).toEqual({ terminal: true, terminalId: "goals_met", resolution: "goals_met", goalsMet: ["goal-established"], goalsFailed: [] });
     const { weeksPlayed } = await playFixture("long-horizon-win");
     expect(weeksPlayed).toBeGreaterThanOrEqual(150);
   });
@@ -124,7 +124,7 @@ describe("the Long Horizon replay corpus (07-replay.md §4)", () => {
   it.skipIf(!HAS_BOTH_RUNS)("long-horizon-loss plays at least 150 weeks to a failed outcome via the eviction ladder", async () => {
     const outcome = loadExpectedOutcome("long-horizon-loss");
     expect(outcome.finalStatus).toBe("ended");
-    expect(outcome.terminal).toEqual({ resolution: "failed", goalsMet: [], goalsFailed: ["goal-stay-housed"] });
+    expect(outcome.terminal).toEqual({ terminal: true, terminalId: "failed", resolution: "failed", goalsMet: [], goalsFailed: ["goal-stay-housed"] });
     const { weeksPlayed } = await playFixture("long-horizon-loss");
     expect(weeksPlayed).toBeGreaterThanOrEqual(150);
   });

@@ -7,5 +7,11 @@
     { "index": 2, "seq": 2, "actionId": "advance_ticks", "accepted": true }
   ],
   "achievements": [],
-  "terminal": { "resolution": "objectives_met", "objectivesMet": ["clean-litter"], "failureId": null }
+  "terminal": {
+    "terminal": true,
+    "terminalId": "objectives_met",
+    "resolution": "objectives_met",
+    "objectivesMet": ["clean-litter"],
+    "failureId": null
+  }
 }

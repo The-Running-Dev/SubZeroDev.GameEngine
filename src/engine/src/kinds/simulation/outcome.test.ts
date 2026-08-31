@@ -14,28 +14,28 @@ function stateWith(resolution: SimulationResolution | null): SimulationKindState
 
 describe("outcome", () => {
   it("returns resolution null while the game is live", () => {
-    expect(outcome(stateWith(null))).toEqual({ resolution: null, goalsMet: [], goalsFailed: [] });
+    expect(outcome(stateWith(null))).toEqual({ terminal: false, terminalId: null, resolution: null, goalsMet: [], goalsFailed: [] });
   });
 
   it("reads goals_met back verbatim, ids and all", () => {
     const result = outcome(stateWith({
       resolution: "goals_met", goalsMet: ["apple", "zebra"], goalsFailed: [], resolvedAtWeek: 6,
     }));
-    expect(result).toEqual({ resolution: "goals_met", goalsMet: ["apple", "zebra"], goalsFailed: [] });
+    expect(result).toEqual({ terminal: true, terminalId: "goals_met", resolution: "goals_met", goalsMet: ["apple", "zebra"], goalsFailed: [] });
   });
 
   it("reads failed back verbatim, carrying both id lists", () => {
     const result = outcome(stateWith({
       resolution: "failed", goalsMet: ["zebra"], goalsFailed: ["apple"], resolvedAtWeek: 4,
     }));
-    expect(result).toEqual({ resolution: "failed", goalsMet: ["zebra"], goalsFailed: ["apple"] });
+    expect(result).toEqual({ terminal: true, terminalId: "failed", resolution: "failed", goalsMet: ["zebra"], goalsFailed: ["apple"] });
   });
 
   it("returns week_limit_reached — the third terminal path, reachable since W57", () => {
     const result = outcome(stateWith({
       resolution: "week_limit_reached", goalsMet: [], goalsFailed: [], resolvedAtWeek: 12,
     }));
-    expect(result).toEqual({ resolution: "week_limit_reached", goalsMet: [], goalsFailed: [] });
+    expect(result).toEqual({ terminal: true, terminalId: "week_limit_reached", resolution: "week_limit_reached", goalsMet: [], goalsFailed: [] });
   });
 
   it("never reconstructs a resolution from goals — a decided-nothing state stays null", () => {
@@ -43,10 +43,10 @@ describe("outcome", () => {
     expect(outcome(undecided).resolution).toBeNull();
   });
 
-  it("does not leak resolvedAtWeek — §12 fixes three fields on the oracle's shape", () => {
+  it("does not leak resolvedAtWeek — §12 fixes three fields on the oracle's shape, plus the terminal floor", () => {
     const result = outcome(stateWith({
       resolution: "goals_met", goalsMet: [], goalsFailed: [], resolvedAtWeek: 9,
     }));
-    expect(Object.keys(result).sort()).toEqual(["goalsFailed", "goalsMet", "resolution"]);
+    expect(Object.keys(result).sort()).toEqual(["goalsFailed", "goalsMet", "resolution", "terminal", "terminalId"]);
   });
 });

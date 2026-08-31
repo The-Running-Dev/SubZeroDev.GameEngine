@@ -56,7 +56,7 @@ function makeKind(version: string, migrateState?: Kind<unknown>["migrateState"])
     advance: (state): AdvanceResult<unknown> => ({ state, status: "active", changes: [], messages: [] }),
     project: (state) => state,
     validateCampaign: (): ValidationResult => ({ ok: true, errors: [], warnings: [] }),
-    outcome: () => null,
+    outcome: () => ({ terminal: false, terminalId: null }),
     ...(migrateState ? { migrateState } : {}),
   };
 }

@@ -32,12 +32,12 @@ function makeClient(): TextClient {
 }
 
 describe("TextClient — the API coverage checklist (09-clients.md §4)", () => {
-  it("1. listCampaigns — returns the real campaign, unresolved titleKey (no session yet)", () => {
+  it("1. listCampaigns — returns the real campaign, title resolved through the catalog's own strings (no session yet)", async () => {
     const client = makeClient();
-    const { value, text } = client.listCampaigns();
+    const { value, text } = await client.listCampaigns();
     expect(value).toEqual([{ campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, kindId: "story-graph", titleKey: "bureaucracy.campaign.title" }]);
     expect(text).toContain(BULGARIA_BUREAUCRACY_CAMPAIGN_ID);
-    expect(text).toContain("bureaucracy.campaign.title");
+    expect(text).toContain("The Bureaucracy");
   });
 
   it("2. createSession — starts the Bureaucracy arc; text renders the real Municipality scene", async () => {
@@ -69,9 +69,14 @@ describe("TextClient — the API coverage checklist (09-clients.md §4)", () => 
     const client = makeClient();
     const created = await client.createSession({ campaignId: BULGARIA_BUREAUCRACY_CAMPAIGN_ID, seed: SEEDED_ROOM_14_SEED });
     const { value, text } = await client.getView(created.value.sessionId);
-    const kindView = value.kindView as { turn: number; stats: { var: string }[] };
+    const kindView = value.kindView as { turn: number; stats: { var: string; min?: number; max?: number }[] };
     expect(kindView.turn).toBe(0);
     expect(kindView.stats.map((s) => s.var).sort()).toEqual(["connections", "preparation", "pressure"]);
+    // W98.3 — every declared bound travels into the projection.
+    for (const stat of kindView.stats) {
+      expect(stat.min).toBe(0);
+      expect(stat.max).toBe(12);
+    }
     expect(text).toContain('"turn": 0');
   });
 
@@ -158,9 +163,9 @@ function makeSimulationClient(): TextClient {
 // against a kind whose actions carry declared `params` (`plan.add`'s `actionType`), not
 // just against story-graph's zero-param `submitAction`.
 describe("TextClient — the API coverage checklist, simulation kind (09-clients.md §4, W50)", () => {
-  it("sim.1. listCampaigns — includes the Stable Life campaign", () => {
+  it("sim.1. listCampaigns — includes the Stable Life campaign", async () => {
     const client = makeSimulationClient();
-    const { value } = client.listCampaigns();
+    const { value } = await client.listCampaigns();
     expect(value.some((c) => c.campaignId === STABLE_LIFE_CAMPAIGN_ID && c.kindId === "simulation")).toBe(true);
   });
 

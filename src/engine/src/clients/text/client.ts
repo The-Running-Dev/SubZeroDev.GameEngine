@@ -36,9 +36,9 @@ export class TextClient {
 
   // ── Queries ──
 
-  listCampaigns(): Rendered<CampaignSummary[]> {
-    const value = this.store.listCampaigns();
-    return { value, text: renderCampaignList(value) };
+  async listCampaigns(profileId?: string): Promise<Rendered<readonly CampaignSummary[]>> {
+    const { campaigns, strings } = await this.store.listCampaigns(profileId);
+    return { value: campaigns, text: renderCampaignList(campaigns, strings) };
   }
 
   async getScene(sessionId: string): Promise<Rendered<Scene>> {

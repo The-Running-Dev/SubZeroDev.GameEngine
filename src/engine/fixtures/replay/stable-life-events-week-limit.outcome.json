@@ -37,6 +37,8 @@
     "achievement-first-week"
   ],
   "terminal": {
+    "terminal": true,
+    "terminalId": "week_limit_reached",
     "resolution": "week_limit_reached",
     "goalsMet": [],
     "goalsFailed": []

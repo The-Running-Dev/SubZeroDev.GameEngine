@@ -7,5 +7,11 @@
     { "index": 2, "seq": 2, "actionId": "advance_ticks", "accepted": true }
   ],
   "achievements": [],
-  "terminal": { "resolution": null, "objectivesMet": [], "failureId": null }
+  "terminal": {
+    "terminal": false,
+    "terminalId": null,
+    "resolution": null,
+    "objectivesMet": [],
+    "failureId": null
+  }
 }

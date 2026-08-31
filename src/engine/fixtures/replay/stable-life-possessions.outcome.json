@@ -15,5 +15,11 @@
     { "index": 10, "seq": 10, "actionId": "end_week", "accepted": true }
   ],
   "achievements": [],
-  "terminal": { "resolution": null, "goalsMet": [], "goalsFailed": [] }
+  "terminal": {
+    "terminal": false,
+    "terminalId": null,
+    "resolution": null,
+    "goalsMet": [],
+    "goalsFailed": []
+  }
 }

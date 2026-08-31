@@ -18,8 +18,10 @@ import type { EmittedRecord, EmittedRecordSink } from "../observability/types.js
 import { createInMemoryProfileStore } from "./profile-store.js";
 import {
   SESSION_PERSISTENCE_CONFLICT,
+  type CampaignCatalog,
   type ProfileStore,
   type SessionPersistence,
+  type SessionStore,
   type SessionStoreErrorCode,
   type StoredSessionRecord,
 } from "./types.js";
@@ -78,7 +80,13 @@ function makeTestKind(): Kind<TestKindState> {
     },
     project: (state, audience) => ({ counter: state.counter, audience }),
     validateCampaign: (): ValidationResult => ({ ok: true, errors: [], warnings: [] }),
-    outcome: (state) => ({ counter: state.counter }),
+    // `counter=0` reports no terminal — lets a test drive "end" both with and without a
+    // terminalId, to exercise the terminal-mirror's null-records-nothing rule (04 §7.1).
+    outcome: (state) => ({
+      terminal: state.counter > 0,
+      terminalId: state.counter > 0 ? `counter-${state.counter}` : null,
+    }),
+    terminalCount: () => 3,
   };
 }
 
@@ -294,9 +302,10 @@ describe("createSession / getScene / getView / getStrings / listCampaigns", () =
     expect(strings["test.title"]).toBe("Test Campaign");
   });
 
-  it("listCampaigns summarizes the registry", () => {
+  it("listCampaigns summarizes the registry, with no profile no progress is present", async () => {
     const store = makeStore();
-    expect(store.listCampaigns()).toEqual([{ campaignId: "test-campaign", kindId: "story-graph", titleKey: "test.title" }]);
+    const catalog = await store.listCampaigns();
+    expect(catalog.campaigns).toEqual([{ campaignId: "test-campaign", kindId: "story-graph", titleKey: "test.title" }]);
   });
 
   it("rejects a query against an unknown sessionId", async () => {
@@ -319,6 +328,181 @@ describe("session isolation", () => {
     const sceneB = await store.getScene(b.sessionId);
     expect(sceneA.body.text).toBe("counter=2");
     expect(sceneB.body.text).toBe("counter=1");
+  });
+});
+
+describe("listCampaigns catalog (W98)", () => {
+  it("resolves the campaign's titleKey and includes nothing else in strings", async () => {
+    const store = makeStore();
+    const catalog = await store.listCampaigns();
+    expect(catalog.strings).toEqual({ "test.title": "Test Campaign" });
+  });
+
+  it("with no profileId, no summary carries a progress field", async () => {
+    const store = makeStore({ profiles: createInMemoryProfileStore() });
+    const catalog = await store.listCampaigns();
+    expect(catalog.campaigns[0]!.progress).toBeUndefined();
+  });
+
+  it("with a profileId and a kind that declares terminalCount, progress is discovered/total", async () => {
+    const profiles = createInMemoryProfileStore({
+      raw: new Map([
+        [
+          "p1",
+          {
+            formatVersion: 2,
+            profileId: "p1",
+            achievements: [],
+            terminals: [{ campaignId: "test-campaign", terminalId: "counter-1" }],
+          },
+        ],
+      ]),
+    });
+    const store = makeStore({ profiles });
+    const catalog = await store.listCampaigns("p1");
+    expect(catalog.campaigns[0]!.progress).toEqual({ discovered: 1, total: 3 });
+  });
+
+  it("degrades to discovered: 0 for a missing profile rather than failing the catalog", async () => {
+    const store = makeStore({ profiles: createInMemoryProfileStore() });
+    const catalog = await store.listCampaigns("never-seen-before");
+    expect(catalog.campaigns[0]!.progress).toEqual({ discovered: 0, total: 3 });
+  });
+
+  it("distinct terminalIds count once each; a repeated terminalId across sessions does not double-count", async () => {
+    const profiles = createInMemoryProfileStore({
+      raw: new Map([
+        [
+          "p1",
+          {
+            formatVersion: 2,
+            profileId: "p1",
+            achievements: [],
+            terminals: [
+              { campaignId: "test-campaign", terminalId: "counter-1" },
+              { campaignId: "test-campaign", terminalId: "counter-1" },
+              { campaignId: "test-campaign", terminalId: "counter-2" },
+            ],
+          },
+        ],
+      ]),
+    });
+    const store = makeStore({ profiles });
+    const catalog = await store.listCampaigns("p1");
+    expect(catalog.campaigns[0]!.progress).toEqual({ discovered: 2, total: 3 });
+  });
+
+  // W98.1 — the async signature exists precisely so a store need not already be a
+  // registry before it is a store (04 §7.3). This double proves the shape is genuinely
+  // implementable that way: no campaign summary is held in memory ahead of a call, and
+  // `listCampaigns` only "fetches" (an awaited microtask standing in for network I/O)
+  // when actually invoked.
+  it("the signature is satisfiable by a store that fetches on every call and preloads no registry", async () => {
+    let fetchCalls = 0;
+    async function fakeFetchCatalog(): Promise<CampaignCatalog> {
+      fetchCalls += 1;
+      await Promise.resolve(); // stands in for a real network round trip
+      return {
+        campaigns: [{ campaignId: "remote-campaign", kindId: "story-graph", titleKey: "remote.title" }],
+        strings: { "remote.title": "Fetched From Elsewhere" },
+      };
+    }
+
+    // Only `listCampaigns` is exercised — everything else on the interface throws,
+    // which is itself part of the proof: nothing about this test double preloaded
+    // campaign data anywhere else a real fetch-backed implementation would need to.
+    const notImplemented = (): never => {
+      throw new Error("not exercised by this test");
+    };
+    const fetchBackedStore: SessionStore = {
+      listCampaigns: fakeFetchCatalog,
+      getScene: notImplemented,
+      getView: notImplemented,
+      getStrings: notImplemented,
+      previewAction: notImplemented,
+      createSession: notImplemented,
+      resumeSession: notImplemented,
+      submitAction: notImplemented,
+      saveGame: notImplemented,
+      loadGame: notImplemented,
+    };
+
+    expect(fetchCalls).toBe(0); // nothing fetched at construction
+    const catalog = await fetchBackedStore.listCampaigns();
+    expect(fetchCalls).toBe(1);
+    expect(catalog.campaigns).toEqual([{ campaignId: "remote-campaign", kindId: "story-graph", titleKey: "remote.title" }]);
+    expect(catalog.strings).toEqual({ "remote.title": "Fetched From Elsewhere" });
+  });
+});
+
+describe("terminal mirror (W98)", () => {
+  it("an ending with a non-null terminalId upserts a TerminalRecord after the action that ends the game", async () => {
+    const profiles = createInMemoryProfileStore();
+    const store = makeStore({ profiles });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    await store.submitAction(sessionId, "increment"); // counter=1
+    const result = await store.submitAction(sessionId, "end");
+
+    expect(result.ok).toBe(true);
+    expect(result.scene?.status).toBe("ended");
+    const { profile } = await profiles.load("p1");
+    expect(profile.terminals).toEqual([{ campaignId: "test-campaign", terminalId: "counter-1" }]);
+  });
+
+  it("a null terminalId records nothing, even though the game ended", async () => {
+    const profiles = createInMemoryProfileStore();
+    const store = makeStore({ profiles });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" }); // counter=0
+    const result = await store.submitAction(sessionId, "end");
+
+    expect(result.ok).toBe(true);
+    expect(result.scene?.status).toBe("ended");
+    const { profile } = await profiles.load("p1");
+    expect(profile.terminals).toEqual([]);
+  });
+
+  it("the same terminal reached twice upserts idempotently — one record, not two", async () => {
+    const profiles = createInMemoryProfileStore();
+    const store = makeStore({ profiles });
+
+    const a = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    await store.submitAction(a.sessionId, "increment");
+    await store.submitAction(a.sessionId, "end");
+
+    const b = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    await store.submitAction(b.sessionId, "increment"); // same counter value, same terminalId
+    await store.submitAction(b.sessionId, "end");
+
+    const { profile } = await profiles.load("p1");
+    expect(profile.terminals).toEqual([{ campaignId: "test-campaign", terminalId: "counter-1" }]);
+  });
+
+  it("no profileId means the ProfileStore is never touched, even on an ending with a terminalId", async () => {
+    let loadCalls = 0;
+    const spyProfiles: ProfileStore = {
+      load: async (profileId) => {
+        loadCalls += 1;
+        return { profile: { formatVersion: 2, profileId, achievements: [], terminals: [] }, warnings: [] };
+      },
+      save: async () => ({ ok: true, warnings: [] }),
+    };
+    const store = makeStore({ profiles: spyProfiles });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign" }); // no profileId
+    await store.submitAction(sessionId, "increment");
+    const result = await store.submitAction(sessionId, "end");
+
+    expect(result.ok).toBe(true);
+    expect(loadCalls).toBe(0);
+  });
+
+  it("a non-ending action never touches the terminal mirror, even when a profile is attached", async () => {
+    const profiles = createInMemoryProfileStore();
+    const store = makeStore({ profiles });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    await store.submitAction(sessionId, "increment");
+
+    const { profile } = await profiles.load("p1");
+    expect(profile.terminals).toEqual([]);
   });
 });
 
@@ -493,7 +677,7 @@ describe("save / load round trip", () => {
     const spyProfiles: ProfileStore = {
       load: async (profileId) => {
         loadCalls += 1;
-        return { profile: { formatVersion: 1, profileId, achievements: [] }, warnings: [] };
+        return { profile: { formatVersion: 2, profileId, achievements: [], terminals: [] }, warnings: [] };
       },
       save: async () => ({ ok: true, warnings: [] }),
     };
@@ -569,7 +753,7 @@ describe("no host-metadata leak", () => {
     const saveHandle = await store.saveGame(created.sessionId);
     const loaded = await store.loadGame(saveHandle.saveId);
 
-    const blob = JSON.stringify([created, scene, view, strings, actionResult, saveHandle, loaded, store.listCampaigns()]);
+    const blob = JSON.stringify([created, scene, view, strings, actionResult, saveHandle, loaded, await store.listCampaigns()]);
     // "savedAtSeq" (SaveHandle's own field) is legitimate and deliberately excluded from
     // this list — everything below would only appear via a host-metadata leak.
     for (const forbidden of ["ownerId", "createdAt", "emittedAt", "traceId", "spanId", "\"attempt\"", "experiments"]) {
@@ -771,7 +955,7 @@ describe("profile store wiring (W8)", () => {
     const spyProfiles: ProfileStore = {
       load: async (profileId) => {
         loadCalls += 1;
-        return { profile: { formatVersion: 1, profileId, achievements: [] }, warnings: [] };
+        return { profile: { formatVersion: 2, profileId, achievements: [], terminals: [] }, warnings: [] };
       },
       save: async () => {
         saveCalls += 1;
@@ -794,7 +978,7 @@ describe("profile store wiring (W8)", () => {
     const spyProfiles: ProfileStore = {
       load: async (profileId) => {
         loadCalls += 1;
-        return { profile: { formatVersion: 1, profileId, achievements: [] }, warnings: [] };
+        return { profile: { formatVersion: 2, profileId, achievements: [], terminals: [] }, warnings: [] };
       },
       save: async () => ({ ok: true, warnings: [] }),
     };

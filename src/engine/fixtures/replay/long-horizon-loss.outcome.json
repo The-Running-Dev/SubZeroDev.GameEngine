@@ -3701,10 +3701,10 @@
   ],
   "achievements": [],
   "terminal": {
+    "terminal": true,
+    "terminalId": "failed",
     "resolution": "failed",
     "goalsMet": [],
-    "goalsFailed": [
-      "goal-stay-housed"
-    ]
+    "goalsFailed": ["goal-stay-housed"]
   }
 }

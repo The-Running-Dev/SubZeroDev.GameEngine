@@ -26,7 +26,7 @@ function makeStubKind(overrides?: Partial<Kind<unknown>>): Kind<unknown> {
     advance: (state) => ({ state, status: "active", changes: [], messages: [] }),
     project: () => ({}),
     validateCampaign: (): ValidationResult => ({ ok: true, errors: [], warnings: [] }),
-    outcome: () => ({}),
+    outcome: () => ({ terminal: false, terminalId: null }),
     ...overrides,
   };
 }

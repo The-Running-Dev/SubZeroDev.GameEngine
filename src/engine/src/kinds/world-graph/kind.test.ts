@@ -680,8 +680,16 @@ describe("world-graph W45 engine seam", () => {
     expect(view).toMatchObject({ tick: 0, map: { buildingCount: 0 }, queuedGuests: 0 });
     expect(JSON.stringify(view)).not.toContain("isOpen");
     const base = stateOf(create());
-    expect(worldGraphKind.outcome({ ...base, objectives: [{ ...base.objectives[0]!, state: "met" }] })).toEqual({ resolution: null, objectivesMet: [], failureId: null });
-    expect(worldGraphKind.outcome({ ...base, resolution: { resolution: "failed", objectiveIds: [], failureId: "bankrupt", resolvedAtTick: 0 } })).toEqual({ resolution: "failed", objectivesMet: [], failureId: "bankrupt" });
+    expect(worldGraphKind.outcome({ ...base, objectives: [{ ...base.objectives[0]!, state: "met" }] })).toEqual({
+      terminal: false,
+      terminalId: null,
+      resolution: null,
+      objectivesMet: [],
+      failureId: null,
+    });
+    expect(
+      worldGraphKind.outcome({ ...base, resolution: { resolution: "failed", objectiveIds: [], failureId: "bankrupt", resolvedAtTick: 0 } }),
+    ).toEqual({ terminal: true, terminalId: "failed", resolution: "failed", objectivesMet: [], failureId: "bankrupt" });
   });
 });
 

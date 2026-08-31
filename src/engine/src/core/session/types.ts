@@ -30,6 +30,21 @@ export interface CampaignSummary {
   campaignId: string;
   kindId: KindId;
   titleKey: LocKey;
+  /** Present iff `listCampaigns` was given a `profileId` (04 §7.3). */
+  progress?: CampaignProgress;
+}
+
+export interface CampaignProgress {
+  /** Distinct `TerminalRecord.terminalId`s this profile has reached for this campaign. */
+  discovered: number;
+  /** What `Kind.terminalCount` reports for this campaign. */
+  total: number;
+}
+
+/** `strings` resolves every `LocKey` the summaries carry, and nothing else (04 §7.3). */
+export interface CampaignCatalog {
+  readonly campaigns: readonly CampaignSummary[];
+  readonly strings: StringTable;
 }
 
 /** Identity lives here and never on `NewGameConfig` or in the serialized envelope. */
@@ -144,7 +159,8 @@ export interface SessionActionResult {
 
 export interface SessionStore {
   // Queries
-  listCampaigns(): CampaignSummary[];
+  /** Session-free (04 §7.3) — the only operation a client calls before a session exists. */
+  listCampaigns(profileId?: string): Promise<CampaignCatalog>;
   getScene(sessionId: string): Promise<Scene>;
   getView(sessionId: string): Promise<PlayerView>;
   /** Resolves `LocKey`s. Without this a compliant client cannot render a single label. */
@@ -180,10 +196,19 @@ export interface AchievementRecord {
   achievementId: string;
 }
 
+export interface TerminalRecord {
+  /** A `terminalId` is only unique within a campaign (04 §3.2, §17). */
+  campaignId: string;
+  /** `KindOutcome.terminalId` — a published id, never a value. */
+  terminalId: string;
+}
+
 export interface PlayerProfile {
-  formatVersion: 1;
+  formatVersion: 2;
   profileId: string;
   achievements: readonly AchievementRecord[];
+  /** The cross-session half of campaign progress (§7.3). */
+  terminals: readonly TerminalRecord[];
 }
 
 export type ProfileWarningCode =

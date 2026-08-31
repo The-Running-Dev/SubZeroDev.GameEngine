@@ -6403,10 +6403,10 @@
     "achievement-hard-worker"
   ],
   "terminal": {
+    "terminal": true,
+    "terminalId": "goals_met",
     "resolution": "goals_met",
-    "goalsMet": [
-      "goal-established"
-    ],
+    "goalsMet": ["goal-established"],
     "goalsFailed": []
   }
 }

@@ -37,10 +37,10 @@
     "achievement-purva-sedmitsa"
   ],
   "terminal": {
+    "terminal": true,
+    "terminalId": "failed",
     "resolution": "failed",
     "goalsMet": [],
-    "goalsFailed": [
-      "goal-well-rested"
-    ]
+    "goalsFailed": ["goal-well-rested"]
   }
 }
