@@ -1,14 +1,14 @@
 /**
  * Session — the store above the pure engine, and the profile store beside it.
  *
- * Contract: `04-core.md` §7, §7.1.
+ * Contract: `04-core.md` §7, §7.1, §7.4.
  *
  * The core is a pure function; sessions are a *store concern*. The client holds a
  * `sessionId`, never authoritative state, which is what preserves "the engine owns the
  * truth" while still allowing resume on another device.
  *
- * This surface is also the client contract's whole vocabulary (09 §4): ten operations,
- * ten MCP tools, one-to-one — so "no AI-specific path" is checkable by counting.
+ * This surface is also the client contract's whole vocabulary (09 §4): thirteen operations,
+ * thirteen MCP tools, one-to-one — so "no AI-specific path" is checkable by counting.
  */
 
 import type { LocKey, StringTable } from "../localization/types.js";
@@ -63,6 +63,15 @@ export interface SaveHandle {
   savedAtSeq: number;
 }
 
+/** Save-list metadata only (04 §7.4) — never a blob, never an envelope, never kind content. */
+export interface SaveSummary {
+  saveId: string;
+  campaignId: string;
+  /** Clock-stamped (06 §5.4); the primary sort key. */
+  savedAt: string;
+  savedAtSeq: number;
+}
+
 /** Host-owned records. They deliberately live outside GameState and are never replayed. */
 export interface StoredSessionRecord {
   sessionId: string;
@@ -79,6 +88,8 @@ export interface StoredSaveRecord {
   saveId: string;
   campaignId: string;
   blob: string;
+  /** Clock-stamped (06 §5.4) — §7.4's `listSaves` sort key and `deleteSave` precondition. */
+  savedAt: string;
   savedAtSeq: number;
   audience: ProjectionAudience;
   profileId?: string;
@@ -92,7 +103,10 @@ export interface SessionRecordStore {
 export interface SaveRecordStore {
   get(saveId: string): Promise<StoredSaveRecord | undefined>;
   put(record: StoredSaveRecord): Promise<void>;
-  delete(saveId: string): Promise<void>;
+  /** §7.4. Every record this adapter holds for one profile, in any order — the store sorts. */
+  listByProfile(profileId: string): Promise<readonly StoredSaveRecord[]>;
+  /** §7.4. Conditional: remove `saveId` only while its stored `savedAt` still matches. */
+  delete(saveId: string, expectedSavedAt: string): Promise<void>;
 }
 
 export interface SessionPersistence {
@@ -112,7 +126,8 @@ export type SessionStoreErrorCode =
   | "unknown_kind"
   | "save_requires_migration"
   | "migration_failed"
-  | "concurrent_modification";
+  | "concurrent_modification"
+  | "invalid_fork_point";
 
 /**
  * The one persistence failure a host may classify for callers: another writer changed
@@ -165,6 +180,9 @@ export interface SessionStore {
   getView(sessionId: string): Promise<PlayerView>;
   /** Resolves `LocKey`s. Without this a compliant client cannot render a single label. */
   getStrings(sessionId: string): Promise<StringTable>;
+  /** Player-keyed, totally ordered (04 §7.4). Every profile's own saves, `savedAt`
+   *  descending then `saveId` ascending, and no other profile's. */
+  listSaves(profileId: string): Promise<readonly SaveSummary[]>;
 
   // Prospective query (resolves, projects, and discards)
   /** Runs an action against the current session without persisting its prospective state. */
@@ -184,6 +202,13 @@ export interface SessionStore {
   ): Promise<SessionActionResult>;
   saveGame(sessionId: string): Promise<SaveHandle>;
   loadGame(saveId: string): Promise<SessionHandle>;
+  /** §7.4. Removes exactly `saveId` when its stored `savedAt` still equals
+   *  `expectedSavedAt`; a wrong profile or an unknown save both raise `unknown_save`. */
+  deleteSave(profileId: string, saveId: string, expectedSavedAt: string): Promise<void>;
+  /** §7.4. Replays the source's retained action-log prefix into a new session under a
+   *  freshly minted `sessionId`, retaining the source's `gameId`. The source session and
+   *  every save it made are left untouched. */
+  branchSession(sessionId: string, atActionCount: number): Promise<SessionHandle>;
 }
 
 // ---------------------------------------------------------------------------

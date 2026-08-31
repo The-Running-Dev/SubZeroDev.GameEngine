@@ -71,7 +71,7 @@ export type { Campaign, BuiltCampaign, ContentRegistry, AuthoredText } from "./c
 export type { ResolutionId } from "./core/registry/types.js";
 export type { ContentPack, ExperimentGate, PackRef } from "./core/registry/packs.js";
 export { SESSION_PERSISTENCE_CONFLICT, SessionStoreError } from "./core/session/types.js";
-export type { AchievementRecord, TerminalRecord, PlayerProfile, ProfileLoadResult, ProfileSaveResult, CampaignSummary, CampaignCatalog, CampaignProgress, SessionStore, ProfileStore, SaveHandle, SessionHandle, SessionActionResult, CreateSessionConfig, SessionPersistence, SessionPersistenceConflict, SessionRecordStore, SaveRecordStore, StoredSessionRecord, StoredSaveRecord, SessionStoreErrorCode } from "./core/session/types.js";
+export type { AchievementRecord, TerminalRecord, PlayerProfile, ProfileLoadResult, ProfileSaveResult, CampaignSummary, CampaignCatalog, CampaignProgress, SessionStore, ProfileStore, SaveHandle, SaveSummary, SessionHandle, SessionActionResult, CreateSessionConfig, SessionPersistence, SessionPersistenceConflict, SessionRecordStore, SaveRecordStore, StoredSessionRecord, StoredSaveRecord, SessionStoreErrorCode } from "./core/session/types.js";
 export type { ValidationResult, ValidationError, ValidationWarning } from "./core/validation/types.js";
 export type { CommandResult, StateChange, ReasonCode } from "./core/kernel/reasons.js";
 export type { LocKey } from "./core/localization/types.js";

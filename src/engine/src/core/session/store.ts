@@ -35,6 +35,7 @@ import type {
   ProfileStore,
   ProfileWarning,
   SaveHandle,
+  SaveSummary,
   SessionActionResult,
   SessionHandle,
   SessionStore,
@@ -166,6 +167,9 @@ interface SaveRecord {
   saveId: string;
   campaignId: string;
   blob: string;
+  /** Clock-stamped (06 §5.4), never `Date.now` — §7.4's `listSaves` sort key and
+   *  `deleteSave`'s compare-and-delete precondition. */
+  savedAt: string;
   savedAtSeq: number;
   audience: ProjectionAudience;
   /** Round-tripped the same way `audience` is — store-record metadata, never written into
@@ -295,6 +299,10 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
   // serialize that. A second, independent lock domain keyed by `profileId` closes it
   // without coupling to session locking at all.
   const profileLocks = new Map<string, Promise<unknown>>();
+  // A third, independent lock domain (04 §7): a save outlives the session that wrote it,
+  // and `deleteSave` is addressed by `saveId` alone, so its compare-and-delete needs its
+  // own queue rather than either of the two above.
+  const saveLocks = new Map<string, Promise<unknown>>();
 
   function runExclusive<T>(locks: Map<string, Promise<unknown>>, key: string, fn: () => Promise<T>): Promise<T> {
     const previous = locks.get(key) ?? Promise.resolve();
@@ -324,7 +332,7 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
     throw new SessionStoreErrorValue("session", "unknown_session", `session store: unknown sessionId "${sessionId}"`);
   }
 
-  async function getSave(saveId: string): Promise<SaveRecord> {
+  async function getSave(saveId: string, operation = "loadGame"): Promise<SaveRecord> {
     const record = saves.get(saveId);
     if (record) return record;
     try {
@@ -335,9 +343,15 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
         return restored;
       }
     } catch {
-      throw new SessionStoreErrorValue("loadGame", "storage_failure");
+      throw new SessionStoreErrorValue(operation, "storage_failure");
     }
-    throw new SessionStoreErrorValue("loadGame", "unknown_save", `session store: unknown saveId "${saveId}"`);
+    throw new SessionStoreErrorValue(operation, "unknown_save", `session store: unknown saveId "${saveId}"`);
+  }
+
+  /** The one persistence failure the store classifies rather than flattening (§7.2) —
+   *  shared by `writeSession`'s inline check and `deleteSave`'s conditional remove. */
+  function isPersistenceConflict(error: unknown): boolean {
+    return typeof error === "object" && error !== null && "name" in error && error.name === SESSION_PERSISTENCE_CONFLICT;
   }
 
   async function writeSession(record: SessionRecord): Promise<void> {
@@ -446,6 +460,38 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
         table[key] = text;
       }
       return table;
+    },
+
+    /** §7.4. Session-free, like `listCampaigns` — no session to lock or resolve. Merges
+     *  the in-memory cache over whatever `persistence.saves.listByProfile` returns, so a
+     *  save this instance just wrote is visible even before an adapter's own read catches
+     *  up; the cache's copy wins on a `saveId` both sides carry, since a write always
+     *  updates it first. */
+    async listSaves(profileId: string): Promise<readonly SaveSummary[]> {
+      const byId = new Map<string, SaveRecord>();
+      try {
+        const persisted = (await options.persistence?.saves.listByProfile(profileId)) ?? [];
+        for (const record of persisted) {
+          if (record.profileId === profileId) byId.set(record.saveId, record);
+        }
+      } catch {
+        throw new SessionStoreErrorValue("listSaves", "storage_failure");
+      }
+      for (const [saveId, record] of saves) {
+        if (record.profileId === profileId) byId.set(saveId, record);
+      }
+
+      return [...byId.values()]
+        .sort((a, b) => {
+          if (a.savedAt !== b.savedAt) return a.savedAt < b.savedAt ? 1 : -1;
+          return a.saveId < b.saveId ? -1 : a.saveId > b.saveId ? 1 : 0;
+        })
+        .map((record) => ({
+          saveId: record.saveId,
+          campaignId: record.campaignId,
+          savedAt: record.savedAt,
+          savedAtSeq: record.savedAtSeq,
+        }));
     },
 
     // ── Commands — spanned and stamped (05 §6.1) ──
@@ -613,6 +659,7 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
             saveId,
             campaignId: state.campaignId,
             blob: serializeSaveEnvelope(envelope),
+            savedAt: clock.now(),
             savedAtSeq: state.actionLog.length,
             audience: record.audience,
             ...(record.profileId !== undefined ? { profileId: record.profileId } : {}),
@@ -658,6 +705,95 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
         await writeSession(record);
         sessions.set(sessionId, record);
         return { sessionId, scene: decoratedEngine.scene(state) };
+      });
+    },
+
+    /**
+     * §7.4. A wrong-profile delete is indistinguishable from a missing save (D3) — both
+     * raise `unknown_save` before the compare-and-delete is ever reached, so this never
+     * confirms a `saveId`'s existence to a caller holding no claim on it. Locked per
+     * `saveId` (D2): the local equality check covers the single-instance case, and a
+     * conflict branded by a multi-instance adapter's own conditional delete covers the
+     * rest — both routes leave every record untouched on failure (D1).
+     */
+    async deleteSave(profileId: string, saveId: string, expectedSavedAt: string): Promise<void> {
+      return runExclusive(saveLocks, saveId, async () => {
+        const record = await getSave(saveId, "deleteSave");
+        if (record.profileId !== profileId) {
+          throw new SessionStoreErrorValue("deleteSave", "unknown_save", `session store: unknown saveId "${saveId}"`);
+        }
+        if (record.savedAt !== expectedSavedAt) {
+          throw new SessionStoreErrorValue("deleteSave", "concurrent_modification");
+        }
+        try {
+          await options.persistence?.saves.delete(saveId, expectedSavedAt);
+        } catch (error) {
+          throw new SessionStoreErrorValue("deleteSave", isPersistenceConflict(error) ? "concurrent_modification" : "storage_failure");
+        }
+        saves.delete(saveId);
+      });
+    },
+
+    /**
+     * §7.4. A lifecycle operation, not a resolution — it never reaches a `Kind` and never
+     * appears in `{ seed, actionLog }` (A1). The branch is replayed, not copied: a fresh
+     * game is created from the source's `{ campaignId, seed }` and its `gameId` is then
+     * pinned to the source's own, because `gameId` is opaque, serialized data the engine
+     * never parses, compares, or derives from (§2) — overwriting it after creation is
+     * exactly what a pinned `IdSource.newGameId` would have produced (§7.4, "Reproducing a
+     * stored session from its log"). The new `sessionId` comes from `RecordIdSource`, not
+     * `IdSource` — the port whose values never enter `GameState` (§7.4).
+     */
+    async branchSession(sessionId: string, atActionCount: number): Promise<SessionHandle> {
+      const source = await getSession(sessionId);
+      if (!source.replayCompatible) {
+        throw new SessionStoreErrorValue("branchSession", "invalid_state");
+      }
+      const sourceState = mustDeserialize(engine, source.blob);
+      if (!Number.isInteger(atActionCount) || atActionCount < 0 || atActionCount > sourceState.actionLog.length) {
+        throw new SessionStoreErrorValue("branchSession", "invalid_fork_point");
+      }
+      const campaign = registry.campaigns.get(sourceState.campaignId);
+      if (!campaign || campaign.version !== sourceState.campaignVersion) {
+        throw new SessionStoreErrorValue("branchSession", "unknown_campaign");
+      }
+
+      const branchSessionId = newSessionId(recordIds);
+      const retained = sourceState.actionLog.slice(0, atActionCount);
+
+      return withCommand(branchSessionId, 0, async (decoratedEngine) => {
+        const created = decoratedEngine.createGame({ campaignId: sourceState.campaignId, seed: sourceState.seed });
+        if (!created.ok || !created.value) {
+          // Defensive, same class as mustDeserialize's own throw above: the campaign was
+          // just resolved from the registry by the same id/version above.
+          throw new Error("session store: branchSession — createGame rejected for an already-validated campaign");
+        }
+        let state: GameState = { ...created.value, gameId: sourceState.gameId };
+        for (const logged of retained) {
+          const result = decoratedEngine.submitAction(state, logged.actionId, logged.params);
+          if (!result.ok || !result.value) {
+            // Defensive: every entry in actionLog was accepted once already (04 §4 only
+            // logs an action that advanced the state), so replaying it deterministically
+            // against the same seed and prefix cannot be rejected.
+            throw new Error(`session store: branchSession — replaying logged action "${logged.actionId}" was rejected`);
+          }
+          state = result.value;
+        }
+
+        const now = clock.now();
+        const record: SessionRecord = {
+          sessionId: branchSessionId,
+          blob: decoratedEngine.serialize(state),
+          audience: source.audience,
+          attemptCounter: 0,
+          replayCompatible: true,
+          createdAt: now,
+          updatedAt: now,
+          ...(source.profileId !== undefined ? { profileId: source.profileId } : {}),
+        };
+        await writeSession(record);
+        sessions.set(branchSessionId, record);
+        return { sessionId: branchSessionId, scene: decoratedEngine.scene(state) };
       });
     },
   };

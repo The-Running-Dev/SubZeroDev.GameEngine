@@ -14,7 +14,7 @@ import type { AvailableAction, Scene } from "../../core/kernel/types.js";
 import type { OutcomeMessage, StateChange } from "../../core/kernel/reasons.js";
 import type { PlayerView } from "../../core/projection/types.js";
 import type { ValidationError, ValidationWarning } from "../../core/validation/types.js";
-import type { CampaignSummary, SaveHandle, SessionActionResult } from "../../core/session/types.js";
+import type { CampaignSummary, SaveHandle, SaveSummary, SessionActionResult } from "../../core/session/types.js";
 
 /**
  * Resolves `key` against `strings`, falling back to the raw key itself when absent —
@@ -149,4 +149,10 @@ export function renderActionResult(result: SessionActionResult, strings: StringT
 
 export function renderSaveHandle(handle: SaveHandle): string {
   return `Saved as "${handle.saveId}" at action ${handle.savedAtSeq}.`;
+}
+
+/** `04 §7.4` — metadata only, already in the store's own sorted order. */
+export function renderSaveList(saves: readonly SaveSummary[]): string {
+  if (saves.length === 0) return "(no saves)";
+  return saves.map((s) => `  [${s.saveId}] ${s.campaignId} — saved ${s.savedAt} at action ${s.savedAtSeq}`).join("\n");
 }
