@@ -1110,7 +1110,7 @@ Both map to `ended`. The win/loss distinction is **terminal identity**, which is
 `Kind.outcome` is for ([`07-replay.md`](07-replay.md) §3.3):
 
 ```typescript
-interface WorldGraphOutcome {
+interface WorldGraphOutcome extends KindOutcome {
   readonly resolution: "objectives_met" | "failed" | null;   // null while active
   readonly objectivesMet: readonly string[];                 // published objective ids
   readonly failureId: string | null;                         // published failure-condition id
@@ -1119,12 +1119,31 @@ interface WorldGraphOutcome {
 outcome(state: WorldGraphKindState): WorldGraphOutcome {
   const terminal = state.resolution;
   return {
+    terminal: terminal !== null,
+    terminalId: terminal?.resolution ?? null,
     resolution: terminal?.resolution ?? null,
     objectivesMet: terminal?.objectiveIds ?? [],
     failureId: terminal?.failureId ?? null,
   };
 }
 ```
+
+**This is the one kind whose outcome type states the `extends` relationship in the tree**, for
+the same reason it is the one kind whose outcome type has a name at all: `WorldGraphOutcome` is
+exported from the package root, so the base it satisfies has to be visible on the declaration
+rather than inferred from a literal. The other two kinds satisfy `KindOutcome`
+([`04-core.md`](04-core.md) §3.2) structurally, through the return type of `outcome` itself.
+
+**`terminalId` is the `resolution` token, not `failureId`.** `failureId` is present only on the
+losing branch, so using it would leave a won game with a null terminal id and make `terminal`
+and `terminalId` disagree on exactly the games a host most wants to index. `resolution` is total
+across both branches, which is what the floor requires.
+
+**This kind implements no `terminalCount`,** for the reason
+[`10-simulation-kind.md`](10-simulation-kind.md) §12 gives for itself: the two resolution tokens
+are fixed here rather than declared by a scenario, so counting them measures the contract and
+not the content. A world-graph campaign therefore carries no `progress` object
+([`04-core.md`](04-core.md) §7.3).
 
 `WorldGraphOutcome` is named here because it is **exported from the package root**, so the
 name is public whether or not anything imports it yet — nothing does today. `story-graph`

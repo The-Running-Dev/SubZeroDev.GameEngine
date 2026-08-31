@@ -2342,7 +2342,7 @@ arrow in 04 §1.1 points downward and clients are above everything.
 
 | Operation | Kind | Returns |
 |---|---|---|
-| `listCampaigns()` | Query | `CampaignSummary[]` |
+| `listCampaigns(profileId?)` | Query | `Promise<CampaignCatalog>` (04 §7.3) |
 | `getScene(sessionId)` | Query | `Scene` |
 | `getView(sessionId)` | Query | `PlayerView` |
 | `getStrings(sessionId)` | Query | `StringTable` |
@@ -2358,7 +2358,9 @@ client would have fallen into:
 
 - **`getStrings` exists because every client-facing type carries `LocKey`s.** A client
   restricted to this surface had no way to resolve `labelKey`, `titleKey` or an
-  `OutcomeMessage` — the contract as first written could not be implemented (04 §7).
+  `OutcomeMessage` — the contract as first written could not be implemented (04 §7). The
+  catalog carries its own table for the same reason one layer earlier: `titleKey` has no
+  session to resolve against (04 §7.3).
 - **`submitAction` returns `SessionActionResult`, not `ActionResult`.** The latter's success
   value is the *envelope* — seed, action log, opaque `kindState` — so returning it would put
   raw state past the projection boundary and make §6 a convention rather than a guarantee.

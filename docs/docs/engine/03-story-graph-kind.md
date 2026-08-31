@@ -540,11 +540,27 @@ Two of these carry most of the value, for the two audiences the events exist to 
 replay oracle ([`07-replay.md`](07-replay.md) §3.3):
 
 ```typescript
-outcome(state: StoryGraphKindState): { endingId: string | null }
+outcome(state: StoryGraphKindState): { terminal: boolean; terminalId: string | null; endingId: string | null }
+
+terminalCount(campaign: Campaign): number   // distinct `endingId`s across the campaign's EndingNodes
 ```
 
 `endingId` when the game has settled onto an `EndingNode` (§8.2), `null` while it is still
 active. Nothing else — not `turn`, not variable values, not `visitedCounts`.
+
+**`terminalId` is `endingId`**, and the two fields are the same value under two names on
+purpose: `terminalId` is the cross-kind floor ([`04-core.md`](04-core.md) §3.2) a host reads
+without knowing which kind it holds, and `endingId` is this kind's own name for it, kept so
+nothing that already reads it has to change. `terminal` is `status === "ended"`, which for this
+kind is exactly "`endingId` is set" — stated as its own field because §3.2 requires the two
+facts to stay separable for kinds where they are not the same.
+
+**`terminalCount` counts distinct `endingId`s, not `EndingNode`s.** Two nodes may legitimately
+publish one ending — the same conclusion reached by different routes — and a progress denominator
+that counted nodes would tell a player there are more endings than the campaign can produce. It
+is pure over `campaign.content`: it reads the node map, never state, never a profile. This is
+the denominator in `CampaignProgress.total` ([`04-core.md`](04-core.md) §7.3); the numerator is
+the profile's, and this kind never sees it.
 
 > **Why so little.** The oracle compares games across engine versions, and anything that a
 > content rebalance may legitimately change would report as a regression. An ending id is a
@@ -578,8 +594,38 @@ interface VisibleStat {
   var: string;                    // the declared variable name
   labelKey: LocKey;               // required by §2 when visible
   value: VarValue;
+  min?: number;                   // the declared clamp floor (§2), when the declaration has one
+  max?: number;                   // the declared clamp ceiling (§2), when the declaration has one
 }
 ```
+
+**`min` and `max` mirror `VariableDecl` (§2) exactly, including its optionality.** They are
+present when the declaration declares them and absent otherwise — which for the shipped
+campaigns means every visible stat carries both, since every one is a bounded `int`. A `bool`
+or `enum` stat carries neither, because §2 gives it neither.
+
+They are here because without them a client rendering "3 / 12" had to reach into
+`Campaign.content` for the bound, and `content` is `unknown` to everything above the kind
+([`04-core.md`](04-core.md) §10.1). A downstream host did exactly that, structurally and
+defensively. **That is this ledger's failure mode running in the other direction:
+`CLAUDE.md`'s envelope-duplication entries track a kind carrying a field something else owns;
+this was a projection *omitting* a field, which forces every client past the boundary to
+recover it.** Both end with the boundary no longer load-bearing, and the fix for the omission
+is the same as for the duplication — put the field in exactly one place, here, and let clients
+read it there.
+
+**Copying a declared bound into the view is not duplication.** The declaration in §2 is the
+sole authority and nothing writes back to it; the view narrows content for a reader that has no
+route to content, which is what a projection is for. The value copied is authored data a
+rebalance may change freely — unlike a *terminal* id, it is never compared across engine
+versions.
+
+> **The enum analogue is a real gap and is deliberately not closed here.** A visible `enum`
+> stat's `values` set is unreachable by the same argument that made `min`/`max` unreachable. No
+> campaign declares a visible `enum` — every visible stat in the shipped set is a bounded `int`
+> — so adding the field now would ship public surface with no consumer and no test that could
+> fail. Registered rather than fixed; the day a campaign declares one, this is the paragraph
+> that says what to do.
 
 The choices a player may pick are the core's `AvailableAction[]` (04 §6), produced by
 this kind's `availableActions`: `showWhen`-failing choices are **omitted entirely**, and
