@@ -88,6 +88,8 @@
 
 ### 7.10 Agents — Engine-Owned Strategy, Definition, and Runtime State
 
+### 7.11 The Campaign Envelope and Weekly Tuning
+
 ## 8. Conditions and Requirements
 
 ### 8.1 Requirements
