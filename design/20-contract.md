@@ -4117,6 +4117,11 @@ job requirement reading "skilled or better" needs an ordering, not just a tag. `
 effectivePerformance` (§6.1's `DerivedPath`) is computed from `Employment.performance` plus
 whatever `PerformanceFactor`s (§7.2) apply — never stored itself.
 
+**`attendanceRatio`'s update rule, when a campaign opts in, is §7.11's
+`AttendanceTrackingConfig`.** Absent that field, it stays exactly what `resolveApplications`
+sets at hire and nothing since has maintained — the documented gap this section used to leave
+open unconditionally.
+
 ### 6.9 Housing
 
 ```typescript
@@ -4196,6 +4201,10 @@ interface RelationshipState {
 The affective dimensions (`affinity`/`trust`/`respect`/`resentment`) live here, on the actor —
 `NPCState` (§7.7) holds only what genuinely belongs to the NPC itself: its role,
 availability and memories, none of which differ per observer.
+
+**Weekly drift, when a campaign declares any, is §7.11's `RelationshipDriftRule[]`.** Absent
+that field, the `relationships` end-of-week system (§3) stays the no-op it has always been;
+`socialize` (§5) remains the only resolver that moves a `RelationshipState` on its own.
 
 ---
 
@@ -4864,6 +4873,118 @@ actor, and both are hidden from every projection. `AgentStrategy.selectActions`'
 from the same visible information a client would see, never from the hidden state a
 `DerivedValueResolver` (§6.1) or a resolver itself can read.
 
+### 7.11 The Campaign Envelope and Weekly Tuning
+
+**`SimulationCampaign` is the campaign-root envelope** — `story-graph`'s `StoryGraphCampaign`
+analogue — carrying every content collection §7.2–§7.10 declare plus the flat, per-campaign
+fields (`scenarioId`, `goalFailurePrecedence`, `startingEffects`, …) this document had not yet
+named. Declared in `src/engine/src/kinds/simulation/campaign.ts`; identity fields
+(`id`/`version`/`titleKey`) stay on the core `Campaign` envelope, not here, the same
+envelope-duplication rule `StoryGraphCampaign` already follows.
+
+**This is the closed, validated home W100 needed** for the weekly tuning values §3's
+end-of-week ordering names but never wires: the empty-plan policy, relationship drift, and
+attendance tracking. All three are optional flat fields on `SimulationCampaign`, matching
+`goalFailurePrecedence`'s own precedent rather than nesting under `ScenarioDefinition`
+(§7.8) — a single campaign here plays exactly one scenario (`scenarioId`), so the two would
+name the same value, and the flat placement is this file's own established convention. Every
+field below is **absent by default**, and absence means exactly the behaviour every campaign
+shipped before this section had — no 0.10 campaign, replay, or save fixture changes when
+these fields are omitted.
+
+```typescript
+interface SimulationCampaign {
+  // … §7.2–§7.10's collections, and campaign.ts's existing flat fields, unchanged …
+
+  /** Whether `end_week` may resolve an empty plan. Absent, or `"permit"`, is every campaign's
+   *  behaviour before this field existed: `end_week` always resolves, even with nothing
+   *  planned. `"forbid"` rejects `end_week` with `plan_empty` (§10) whenever
+   *  `plan.actions.length === 0`, leaving state and the plan unchanged. */
+  emptyPlanPolicy?: "permit" | "forbid";
+
+  /** Weekly relationship drift the `relationships` end-of-week system (§3, §6.11) applies.
+   *  Absent leaves that system the no-op it has always been. */
+  relationshipDrift?: readonly RelationshipDriftRule[];
+
+  /** Rolling employment-attendance tracking (§6.8). Absent leaves `Employment.
+   *  attendanceRatio` exactly as `resolveApplications` sets it at hire — unmaintained,
+   *  the documented gap this field closes only when a campaign opts in. */
+  attendanceTracking?: AttendanceTrackingConfig;
+}
+
+interface RelationshipDriftRule {
+  /** Which `RelationshipState.category` (§6.11) values this rule applies to. Absent or
+   *  empty applies to every category. */
+  categories?: readonly RelationshipState["category"][];
+
+  /** Per-week integer delta added to each named dimension before clamping to 0–100 (§6.2's
+   *  declared integer range). Every field is optional; an omitted dimension does not drift. */
+  affinityDelta?: number;
+  trustDelta?: number;
+  respectDelta?: number;
+  resentmentDelta?: number;
+}
+
+interface AttendanceTrackingConfig {
+  /** Weeks averaged into the rolling `attendanceRatio`. Must be a positive integer — Tier 1
+   *  (§14) rejects zero or negative. */
+  windowWeeks: number;
+}
+```
+
+**`relationshipDrift` runs once per week, in array order, over every actor's relationships —
+the player's and each `WorldState.agents[].actor`'s (§7.10) alike**, the same "one shape, one
+code path" rule §6.2 states for every other actor-state system. For each `RelationshipState`
+whose `category` a rule names (or every relationship, when `categories` is absent), the rule's
+deltas apply and clamp to 0–100 before the next rule runs; a dimension left at the clamped
+value it already held emits nothing, mirroring `needs`' own `if (after === before) continue`
+(`endOfWeek.ts`). A changed dimension emits one `StateChange` per field, `reason:
+"relationship_drift"` (§10), `visible: true` for `affinity`/`trust`/`respect` — `resentment`'s
+change is emitted the same way `socialize` already emits it (`resolvers.ts`): `visible: false`
+per §6.11's hidden-from-projection rule, never omitted from the audit trail entirely.
+Applying to every actor rather than only the
+player is forward compatible with rivals (§7.10) without changing shape once one exists;
+today `WorldState.agents` is empty in every shipped scenario, so the rival half of this rule
+is exercised by nothing yet, the same honest gap §7.10 already states for
+`AgentStrategy.selectActions`.
+
+**`attendanceTracking`, when present, updates `Employment.attendanceRatio` (§6.8) once per
+week inside the `employment` system (§3) — the same system that already reads and resets
+`player.flags.workedThisWeek`, so this cannot run twice for one `end_week`; the pipeline's own
+fixed, tested end-of-week order (§3) guarantees `employment` fires exactly once.** The rule's
+two inputs are the ones already on state: "planned" is having `currentEmployment` at all — an
+employed actor is expected to work that week — and "worked" is `player.flags.workedThisWeek`,
+already set by the `work`/`work_overtime` resolvers (§5) and already reset to `false` at the
+end of `employment`'s own pass. The rolling update, evaluated before that reset:
+
+```text
+weeklyRatio    = workedThisWeek ? 100 : 0
+attendanceRatio = clamp(
+  round(((attendanceRatio × (windowWeeks − 1)) + weeklyRatio) / windowWeeks),
+  0, 100
+)
+```
+
+`round` is the same `Math.round` `education`'s own attendance ratio already uses (§6.8's
+decision log, `endOfWeek.ts`'s course-side computation) — this is that same rounding rule
+extended to the employment side it never reached, not a new one invented for it. A changed
+`attendanceRatio` emits one visible `StateChange`, `reason: "attendance_updated"` (§10),
+mirroring `need_drift`'s own emit-only-on-change rule; an unemployed actor, or one whose
+ratio does not move after rounding, emits nothing. A future firing/probation/performance rule
+that reads `attendanceRatio` is what "affects the existing attendance requirements" (W100.4)
+refers to, and remains that rule's own unit to add, not this section's.
+
+**Wisdom's consumer is the existing generic path, not a new mechanism.** `SimulationView.
+attributes` (§9) already omits only `luck` — `wisdom` has always had a visible projection, the
+"no consumer" gap was never about visibility. `Requirement.type: "attribute"` (§8.1) already
+gates on any `AttributeState` key through a `Condition` (04 §18) over `player.attributes.
+wisdom` (§6.1's own `DerivedPath`), exactly as it does for `intelligence`/`discipline`/every
+other attribute. Content declaring an `EventChoice`/`OpportunityDefinition`/`JobDefinition`
+`Requirement` against `player.attributes.wisdom` is wisdom's consumer — no new `Condition`
+operator, `DerivedPath`, or content type is added for it, matching §8's stated bar against
+adding either without a concrete need. Authoring that fixture content is a `/slice` matter
+(W100.5), not a contract addition.
+
 ---
 
 ## 8. Conditions and Requirements
@@ -5113,14 +5234,16 @@ namespace exempt from §12's completeness rule.
 | `event_fired` | the `events` system (W57) |
 | `opportunity_offered`, `opportunity_expired`, `opportunity_revoked` | the `opportunities` system (W57) |
 | `headline_shown`, `world_strangeness_shifted` | the `headline` and `events` systems (W57) |
+| `relationship_drift` | the `relationships` end-of-week system, only when `SimulationCampaign.relationshipDrift` (§7.11) is declared |
+| `attendance_updated` | the `employment` end-of-week system, only when `SimulationCampaign.attendanceTracking` (§7.11) is declared |
 
 > **This set grows as the dispatched systems land, and that is deliberate.** A code joins
 > `Kind.reasonCodes` when the unit that actually produces it exists, not when this table
 > first names it — the precedent `story-graph` set, whose own codes joined across W10, W11,
 > W12 and W14 rather than being pre-declared. `plan_empty` and `week_limit_reached` are the
-> two still outstanding; `plan_empty` has an additional gate of its own, recorded in
-> `90-decisions.md`: no `SimulationCampaign` field exists yet for a campaign to forbid an
-> empty plan with. The shipped set lives in
+> two still outstanding; `plan_empty`'s additional gate is now closed by §7.11's
+> `emptyPlanPolicy` field, recorded in `90-decisions.md` — dispatching it is a `/slice`
+> matter, not a further contract change. The shipped set lives in
 > `src/engine/src/kinds/simulation/reasons.ts`.
 >
 > **The policy has no gate, and that cost eighteen codes.** Registry validation checks
@@ -5303,6 +5426,8 @@ total, run once at registry construction, before the registry is frozen. Tiered 
   union: `player.needs.*`, `player.attributes.*` and `player.skills.*` are derived *and*
   writable, and are the targets the layering in §6.1 exists to serve. Checked here because this
   is where a concrete `target` string first exists to check.
+- `SimulationCampaign.attendanceTracking.windowWeeks` (§7.11), when present, is a positive
+  integer — zero, negative, and non-integer values are rejected.
 
 **Tier 2 — load-time, warning:**
 
