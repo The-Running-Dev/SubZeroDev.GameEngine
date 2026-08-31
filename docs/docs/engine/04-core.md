@@ -587,6 +587,7 @@ interface SessionStore {
   getScene(sessionId: string): Promise<Scene>;
   getView(sessionId: string): Promise<PlayerView>;
   getStrings(sessionId: string): Promise<StringTable>;   // resolve LocKeys — below
+  listSaves(profileId: string): Promise<readonly SaveSummary[]>; // player-keyed, totally ordered — §7.4
   previewAction(sessionId: string, actionId: string, params?: ActionParams): Promise<SessionActionResult>; // resolves prospectively, then discards
 
   // ── Commands (advance or persist) ────────────────────
@@ -595,10 +596,20 @@ interface SessionStore {
   submitAction(sessionId: string, actionId: string, params?: ActionParams): Promise<SessionActionResult>;
   saveGame(sessionId: string): Promise<SaveHandle>;                  // named/manual save
   loadGame(saveId: string): Promise<SessionHandle>;
+  deleteSave(profileId: string, saveId: string, expectedSavedAt: string): Promise<void>;  // §7.4
+  branchSession(sessionId: string, atActionCount: number): Promise<SessionHandle>;        // §7.4
 }
 
 interface SessionHandle { sessionId: string; scene: Scene; }
-interface SaveHandle { saveId: string; savedAtSeq: number; }
+interface SaveHandle { saveId: string; savedAt: string; savedAtSeq: number; }
+
+/** §7.4. Save-list metadata only — never a blob, never an envelope, never kind content. */
+interface SaveSummary {
+  saveId: string;
+  campaignId: string;
+  savedAt: string;               // Clock-stamped (06 §5.4); the primary sort key
+  savedAtSeq: number;            // actions logged at the moment the save was taken
+}
 /** §7.3. `strings` resolves every `LocKey` the summaries carry, and nothing else. */
 interface CampaignCatalog {
   readonly campaigns: readonly CampaignSummary[];
@@ -675,6 +686,10 @@ back" is a read-modify-write and needs saying who may run concurrently with whom
   *different* sessions may legitimately share one `profileId`; that is what a profile is for.
   Session locking alone does not serialize it, so profile upserts queue on a second,
   independent domain keyed by `profileId`.
+- **Per `saveId`** — a save record is written by `saveGame` and removed by `deleteSave`
+  (§7.4), and neither is reachable from the session lock: a save outlives the session that
+  wrote it, and `deleteSave` is addressed by `saveId` alone. A third domain keyed by `saveId`
+  is what makes §7.4's compare-and-delete a read-modify-write rather than a race.
 
 **Different sessions interleave freely**, which is the property that matters for a host
 serving many players: the domains are keyed, not global, and the two never couple. Nothing
@@ -783,6 +798,7 @@ interface StoredSaveRecord {
   saveId: string;
   campaignId: string;            // host-side routing only; the authority is the embedded GameState
   blob: string;                  // a serialized SaveEnvelope (§10.2)
+  savedAt: string;               // Clock (06 §5.4), never Date.now — §7.4's sort key and delete precondition
   savedAtSeq: number;
   audience: ProjectionAudience;
   profileId?: string;
@@ -796,7 +812,10 @@ interface SessionRecordStore {
 interface SaveRecordStore {
   get(saveId: string): Promise<StoredSaveRecord | undefined>;
   put(record: StoredSaveRecord): Promise<void>;
-  delete(saveId: string): Promise<void>;
+  /** §7.4. Every record this adapter holds for one profile, in any order — the store sorts. */
+  listByProfile(profileId: string): Promise<readonly StoredSaveRecord[]>;
+  /** §7.4. Conditional: remove `saveId` only while its stored `savedAt` still matches. */
+  delete(saveId: string, expectedSavedAt: string): Promise<void>;
 }
 
 interface SessionPersistence {
@@ -988,7 +1007,277 @@ registry resolves the promise immediately and does no I/O. Asynchrony is what th
 `listCampaigns` is still one operation and `list_campaigns` is still its one MCP tool
 ([`09-clients.md`](09-clients.md) §4). Resolving the catalog's strings *inside* the operation
 rather than beside it is what keeps that one-to-one mapping intact — the count is checkable by
-counting, and this change leaves the count alone.
+counting, and this change leaves the count alone. (§7.4 adds three operations and moves the
+count to thirteen; what is stated here — that *this* change left it alone — is unaffected.)
+
+### 7.4 Session Lifecycle — Listing, Branching, Deleting
+
+Three operations a host needs and has had to counterfeit: **list a player's saves**, **branch a
+session at a point in its log**, and **delete a save**. Both existing hosts maintain a private
+shadow index of saves because `SaveRecordStore` could be addressed only by a `saveId` the host
+had to have remembered — a per-host reimplementation of bookkeeping the store already owns,
+which is the same argument 06 §5.2 makes for why `SessionStore` is core-owned in the first
+place.
+
+One rule decides all three: **a lifecycle operation manipulates records, never state.** None of
+them resolves an action, none reaches a `Kind`, and none may perturb `serialize()` output for
+any session it does not create. That is why they belong on the store rather than the engine, and
+why none of them appears in the replay input `{ seed, actionLog }`.
+
+#### Listing
+
+```typescript
+listSaves(profileId: string): Promise<readonly SaveSummary[]>;
+```
+
+**`profileId` is required here, unlike `listCampaigns(profileId?)` (§7.3).** An anonymous save
+is reachable only by the `saveId` its maker kept (§7.1, *anonymous by default*); there is no
+anonymous population to enumerate, so an optional parameter would have to invent one — either
+"every save in the store", which is a cross-player leak, or "none", which is a signature that
+lies. A caller with no profile does not call this operation.
+
+**Records with no `profileId` are never returned**, and neither are another profile's. The
+filter is on the stored `StoredSaveRecord.profileId` (§7.2), the same field `saveGame` writes.
+
+**The order is total, deterministic, and player-meaningful: `savedAt` descending, then `saveId`
+ascending.** Newest first is what a save list is for; `saveId` breaks a tie when a host's
+`Clock` resolution puts two saves in the same instant. Both keys are on the record, so the store
+sorts and the adapter does not — `listByProfile` (§7.2) may return any order at all.
+
+> **`savedAt` is new on `StoredSaveRecord`, and the sort is why.** `savedAtSeq` was the only
+> temporal field available and it could not serve: it counts *actions within one session*, so
+> two saves from two sessions routinely share a value, and ordering by it is not a total order
+> across a player's saves at all. Without a real stamp the tiebreak falls to a random UUID,
+> which is deterministic and meaningless — an order no host could show a player, so no host
+> could retire its shadow index, so the operation would not do the one job it exists for.
+> `StoredSessionRecord` already carries `createdAt`/`updatedAt` on the same reasoning (§7.2);
+> this closes an asymmetry rather than opening a new axis.
+>
+> **It is `Clock`-stamped (06 §5.4), never `Date.now`**, and it lives on the record rather than
+> in `GameState` — the §2 rule, unchanged. It cannot reach a replay because nothing in
+> resolution reads it.
+>
+> **Adapter cost, stated rather than discovered.** An adapter that persists the record as an
+> opaque blob widens for free. One with an explicit column mapping — Adventures' Postgres store
+> is the case in hand — needs a migration that backfills `savedAt` for existing rows. There is
+> no correct value to invent for a save taken before the field existed; backfill them to the
+> epoch so they sort last, which is honest about the fact that their real time was never
+> recorded.
+
+**A summary is metadata, never content.** No blob, no `SaveEnvelope`, no `GameState`, no
+`kindState`, and no campaign title. Resolving `campaignId` to a display name is
+`listCampaigns` (§7.3), which already carries the `LocKey` and the table that resolves it; a
+second string table here would be the projection boundary crossed twice for one string.
+
+**Degradation matches §7.1's.** An adapter that throws surfaces `storage_failure` like any
+other (§7.2). A profile that does not exist is not an error — it lists nothing.
+
+#### Deleting
+
+```typescript
+deleteSave(profileId: string, saveId: string, expectedSavedAt: string): Promise<void>;
+```
+
+**A wrong-profile delete is indistinguishable from a missing save.** Both raise
+`unknown_save`, and this is deliberate rather than lazy: a distinct "not yours" code would
+confirm that a `saveId` exists to a caller holding no claim on it, which is an existence oracle
+over other players' records. One code, no oracle, and a host that wants to log the difference
+can — it has both values.
+
+**`expectedSavedAt` is a precondition, not a convenience.** The delete removes `saveId` only
+while its stored `savedAt` still equals the value the caller observed; otherwise it removes
+nothing and raises `concurrent_modification`. The failure it exists for is the one this unit
+names: a player opens a save list, a second writer replaces a record, and the delete authorized
+against what the player *saw* would otherwise erase a record they never looked at. The stamp is
+returned by both `saveGame` (`SaveHandle.savedAt`) and `listSaves`, so every caller already holds
+one and no extra round-trip is needed to obtain it.
+
+**The compare and the delete are one step, not two.** `SaveRecordStore.delete` takes the
+expected stamp so an adapter can express it as a conditional statement; the store's own
+per-`saveId` lock domain (§7) covers the single-instance case. A host running several instances
+over one database is again the only party positioned to detect the overwrite, and signals it the
+way §7.2 already established — by branding `SessionPersistenceConflict`, which the store maps to
+`concurrent_modification`. **No new brand and no new classified failure**: this reuses the one
+carve-out §7.2 opened, and the argument that earned it holds here unchanged, because "re-read
+the list and try again" is exactly the different, actionable response.
+
+**A refused delete leaves every record untouched** — not merely the addressed one. An
+implementation that removes the record and then discovers the mismatch has already failed the
+criterion; the condition is evaluated before anything is removed.
+
+#### Branching
+
+```typescript
+branchSession(sessionId: string, atActionCount: number): Promise<SessionHandle>;
+```
+
+`atActionCount` is **the number of logged actions the branch retains**, so `0` branches at
+creation and `actionLog.length` branches at the present. Valid range is `[0, actionLog.length]`
+inclusive; anything outside it raises `invalid_fork_point` and writes nothing. A count is used
+rather than a `LoggedAction.seq` because the two coincide only while a log is gap-free, and a
+count states the intended meaning — *how much of this game* — without depending on that.
+
+> **There is a working reference implementation, and it is not quite this.**
+> [Issue #266](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/266) records
+> Adventures forking by replaying a stored log to an `atSeq` and writing a
+> `StoredSessionRecord` **straight through `persistence.sessions.put`**, past the store — which
+> leaves the store's own in-memory session cache unaware of the session it just created, and
+> mints the new id with `randomUUID()` rather than through a port. Both are why this is a store
+> operation rather than a documented recipe.
+>
+> Callers converting from it change one thing: `atSeq: n` becomes `atActionCount: n + 1` for a
+> dense log, which every log this engine writes is. Stated because the two signatures accept the
+> same type and differ by one — the failure mode is a fork one action short, which replays
+> cleanly and is wrong.
+
+**The branch is replayed, not copied.** The store creates a game from the source's
+`{ gameId, seed, campaignId, campaignVersion }` and submits the retained prefix through the
+ordinary path. Truncating the source's blob would leave `kindState` at the present while the log
+claimed the fork point — a state no sequence of actions produces, and one that would serialize
+to something replay could never reach.
+
+> **The branch retains the source's `gameId` and mints only a new `sessionId`. This is the
+> load-bearing decision of the operation.**
+>
+> `gameId` is an envelope field (§2) and therefore in `serialize()` output, so minting a new one
+> would make "the branch serializes byte-identically through the fork point" false by
+> construction — the assertion would have to compare a serialization with `gameId` normalized
+> out, which is precisely the normalization 06 §5.1 records the `IdSource` port as having
+> removed. Retaining it makes the claim literal, and a literal claim is one a golden file can
+> hold.
+>
+> **What this costs, stated plainly: `gameId` identifies a lineage, not a playthrough.** Two
+> live sessions can share one. Nothing in the core is affected — the engine never parses,
+> compares, or derives from the value (06 §3) — and the two places that could have been are
+> not: the §7.1 profile upsert is idempotent on `(campaignId, achievementId)` and
+> `(campaignId, terminalId)`, so a branch re-earning an achievement its parent already recorded
+> writes the same row twice and changes nothing; and a replay fixture (07 §2) holds
+> `{ config, actionLog }`, which addresses the lineage's inputs and never a session at all.
+>
+> **The new `sessionId` comes from `RecordIdSource.newSessionId()` (06 §5.7), not `IdSource`.**
+> That is the port whose values never enter `GameState`, which is exactly what a branch needs a
+> fresh one of. The unit's own wording says `IdSource`; it means this, and the distinction
+> matters because minting from `IdSource` is what would have produced the new `gameId` this
+> decision rejects.
+
+**The source session and every save it made are untouched** — not re-stamped, not re-serialized,
+not re-locked beyond the read. A branch is a new record; it is never a mutation of an old one.
+
+**`profileId` is inherited from the source record**, because a branch is the same player's game.
+An anonymous session branches to an anonymous one.
+
+**A session that is not replay-compatible cannot be branched.** A `StoredSessionRecord` with
+`replayCompatible: false` has passed through a migrated load (§10.2), and its log is no longer
+guaranteed to regenerate its state — which is the entire mechanism a branch depends on. It
+raises `invalid_state` and writes nothing. Failing here is the sticky-forward rule doing its
+job: the alternative is a branch that silently diverges from the game it claims to continue.
+
+#### Reproducing a stored session from its log
+
+**Reconstructing a session's blob from `{ seed, actionLog }` requires `IdSource.newGameId`
+pinned to the original `gameId`.** This is stated because it is the one non-obvious step and
+because it has been rediscovered once already: `gameId` is an *input* to the envelope, not a
+derived value, so a reconstruction run under a fresh `IdSource` differs from the original in
+that field and in nothing else — a difference small enough to be mistaken for a normalization
+problem and large enough to fail a byte comparison. 07 §5 named the port for exactly this, and
+the runner's counting `IdSource` is the same mechanism applied to fixtures.
+
+The obligation is checkable in both directions, and both belong in the proof: reconstruction
+under a pinned `newGameId` is byte-identical to the stored blob, and reconstruction under any
+other id is observably different. A test that asserts only the first cannot tell a correct
+pinning from an engine that ignores `gameId` altogether.
+
+#### Authorization is host-owned, and `SessionStore` stays caller-agnostic
+
+**`profileId` on these operations is a scoping key, not a credential.** The store treats it as
+an assertion already established and never as one it verifies: it has no notion of a caller, no
+session token, no tenancy, and no way to distinguish a host passing a profile it authenticated
+from one passing a profile it read off a query string. Authenticating a caller and proving the
+`profileId` is theirs is the host's job, entirely, on both existing hosts and any future one.
+
+This is 06 §2's rule read the only way it can be. Authorization cannot change `serialize()`
+output, so it is outside the determinism boundary and therefore outside the engine — and a
+`SessionStore` that grew an identity model would be a store that could refuse a replay, which is
+the one thing it must never be able to do.
+
+> **The deferred trigger, named so it is not rediscovered as a gap.** This decision holds while
+> every host owns its own front door. It reopens when the hosting/NEaaS layer
+> (`SubZeroDev.Platform`) serves *multiple tenants from one store instance*, because at that
+> point "the host authenticated this caller" stops being one statement and becomes a claim the
+> store is the only party positioned to scope. That is a contract amendment when it arrives, not
+> a defect now; it is
+> [issue #281](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/281) in
+> `90-decisions.md` §2, *Found by the first downstream host*.
+
+#### Error semantics
+
+Every code is a registered `ReasonCode` with a shipped `core.reason.*` string (§12), raised as
+`SessionStoreError` (§7.2). One code is new; the rest are the existing vocabulary doing what it
+already does.
+
+| Raised by | Code | When | Retryable | Caller does |
+|---|---|---|---|---|
+| `listSaves` | `storage_failure` | the adapter threw | Yes | retry; the list is not authoritative state |
+| `deleteSave` | `unknown_save` | no such `saveId`, **or** it belongs to another profile | No | drop it from the list; it is not the caller's |
+| `deleteSave` | `concurrent_modification` | stored `savedAt` ≠ `expectedSavedAt` | Yes, after re-reading | re-run `listSaves` and re-confirm before deleting |
+| `deleteSave` | `storage_failure` | the adapter threw | Yes | retry; nothing was removed |
+| `branchSession` | `unknown_session` | no such `sessionId` | No | the session is gone |
+| `branchSession` | `invalid_fork_point` | `atActionCount` outside `[0, actionLog.length]` | No | **new** — correct the count |
+| `branchSession` | `invalid_state` | the source is `replayCompatible: false` | No | branching this lineage is impossible, not delayed |
+| `branchSession` | `unknown_campaign` | the source's `campaignVersion` is no longer registered | No | the content was withdrawn (07 §6's `unrunnable`, one layer down) |
+
+`invalid_fork_point` joins `SessionStoreErrorCode` and needs its `core.reason.invalid_fork_point`
+string registered with the rest (§12); registry construction rejects an override of it like any
+other protected core key.
+
+#### Invariants
+
+Each is written to become an assertion. The **session store** maintains all of them; none is
+delegated to an adapter, which is the point of drawing the seam at `SessionPersistence`
+(06 §5.2).
+
+- **L1.** `listSaves(p)` returns every `StoredSaveRecord` whose `profileId === p`, and no other
+  record. *Enforced by code.*
+- **L2.** `listSaves` output is sorted by `savedAt` descending, then `saveId` ascending, and the
+  order is total — no two distinct records compare equal. *Enforced by code.*
+- **L3.** A `SaveSummary` carries no field that is not on `StoredSaveRecord`, and never `blob`.
+  *Enforced by the type; a widening is a contract amendment.*
+- **D1.** `deleteSave` removes exactly one record on success and exactly zero on any failure.
+  *Enforced by code.*
+- **D2.** A `deleteSave` whose `expectedSavedAt` does not match the stored value removes nothing
+  and raises `concurrent_modification`. *Enforced by code, and by the persistence conformance
+  suite deterministically reproducing the interleaving.*
+- **D3.** A `deleteSave` for another profile's `saveId` is indistinguishable in its result from
+  one for a `saveId` that does not exist. *Enforced by code.*
+- **B1.** For a session `S` and any `n` in `[0, |S.actionLog|]`, the branch produced by
+  `branchSession(S, n)` serializes byte-identically to `S` replayed to `n` — `gameId` included,
+  because it is retained. At `n = |S.actionLog|` it equals `serialize(S)` exactly, which is the
+  cheapest form of the assertion and the one a golden file should hold. *Enforced by code.*
+- **B2.** `branchSession` performs no write against the source session's record, and no write of
+  any kind on any failure path. *Enforced by code.*
+- **B3.** A branch's `sessionId` is distinct from every other session's; its `gameId` equals its
+  source's. *Enforced by code.*
+- **A1.** No lifecycle operation reads or writes a `Kind`, and none appears in
+  `{ seed, actionLog }`. *Enforced by instruction and by the determinism harness (§14) — a
+  lifecycle operation that perturbed replay would fail an existing fixture.*
+- **A2.** `SessionStore` never verifies a `profileId`. *Enforced by instruction: there is no
+  credential parameter for it to verify with, which is the structural half of the guarantee.*
+
+#### The coverage checklist moves to thirteen
+
+`listSaves`, `branchSession` and `deleteSave` are three store operations, so 09 §4's checklist
+gains three rows and three MCP tools — `list_saves`, `branch_session`, `delete_save` — and the
+one-to-one mapping that makes *"no AI-specific path"* (§13) checkable by counting is preserved
+at thirteen. 09 §4 states the rule this follows: a client never works around a missing
+operation, and a row added there without an operation here is the signal that logic has leaked
+upward. This is the sanctioned direction — the operation first, the row second.
+
+**`@subzerodev/service-contract` is kept in step by a gate, not by discipline.** Its generation
+step fails the build when a `SessionStore` method has no corresponding row, so these three
+operations produce three rows there or the build stops. That gate is the reason this section can
+state a count and be believed — the alternative, a checklist maintained by remembering to
+maintain it, is the arrangement 09 §4 already calls checkable *by counting* precisely because
+nothing is left to memory.
 
 ---
 
@@ -1448,6 +1737,8 @@ const BASE_REASON_CODES = [
   "save_requires_migration", "migration_failed",
   // host persistence (§7.2)
   "unknown_session", "unknown_save", "storage_failure", "concurrent_modification",
+  // session lifecycle (§7.4)
+  "invalid_fork_point",
   // the audit vocabulary — a `StateChange.reason`, not a rejection (below)
   "achievement_unlocked",
   // content-pack resolution (11 §7) — `resolvePacks`, `registry/packs.ts`
@@ -1460,8 +1751,8 @@ const BASE_REASON_CODES = [
 > vocabulary one *turn* needs. Everything after them was added by a unit that found a
 > cross-kind failure mode with no code that fitted — the kernel's three rejections, registry
 > assembly's three, the core's own Tier-1 four, the profile store's three, the save
-> boundary's two, host persistence's four, the audit vocabulary's one, and content-pack
-> resolution's six. That is the intended shape: a code is registered when a real caller
+> boundary's two, host persistence's four, session lifecycle's one, the audit vocabulary's
+> one, and content-pack resolution's six. That is the intended shape: a code is registered when a real caller
 > produces it, not pre-declared from this list. Because `ReasonCode` is *additive, never
 > renamed* (above), growth costs nothing — a client switching on a code it has never seen
 > falls through to the localized message, which the core ships for every base code. Expect

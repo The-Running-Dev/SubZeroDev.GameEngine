@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: afbad138d5af6abd05a4b83f44322d5f3f6470d582365b65ba57feaf35cf22f6 -->
+<!-- design-digest: f3d27d0f24068377d08d8b69a52f19482a4ef6fe06fac51e07c91d52df993f1d -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -277,9 +277,10 @@ lands. See [Content Packs](/docs/engine/content-packs) §5a–§6 for the full m
 ## Use the session API, not raw engine state
 
 The session service is the application boundary. It provides campaign listing, creation, resume,
-scene/view queries, localization strings, action submission, preview, save, and load. Exact
-operation signatures live in [Core Specification](/docs/engine/core). All ten operations are
-asynchronous; there is no synchronous path into the store.
+scene/view queries, localization strings, action submission, preview, save, load, save listing,
+branching, and save deletion. Exact operation signatures live in
+[Core Specification](/docs/engine/core). All thirteen operations are asynchronous; there is no
+synchronous path into the store.
 
 **Listing campaigns returns a catalog, and it is the one operation you call before a session
 exists.** It hands back the campaign summaries together with a string table that resolves exactly
@@ -330,9 +331,11 @@ sequenceDiagram
 ```
 
 Different sessions resolve concurrently. Commands for the same `sessionId` are serialized by the
-store, so the second command always reads the first command's committed state. A separate lock
-domain, keyed by `profileId`, serializes only the profile upsert — the two never couple, which is
-what lets many players' sessions interleave freely. A query returns a projection of one complete
+store, so the second command always reads the first command's committed state. A second lock
+domain, keyed by `profileId`, serializes only the profile upsert, and a third, keyed by `saveId`,
+covers save writes and deletions — a save outlives the session that wrote it, so the session lock
+cannot reach it. The domains never couple, which is what lets many players' sessions interleave
+freely. A query returns a projection of one complete
 stored revision, never a half-written one.
 
 A stored session record carries more than the serialized envelope: an `audience`, an
@@ -341,13 +344,58 @@ flag that turns false forever once a migrated load touches the lineage, and wall
 `createdAt`/`updatedAt` timestamps set through the `Clock` port — all of it outside the replayable
 `GameState` and never read by `advance`.
 
+### Listing, branching, and deleting saves
+
+Three operations manage saves as records rather than as state. None of them resolves an action or
+reaches a kind, and none appears in the replay input.
+
+**Listing takes a required `profileId`** — unlike campaign listing, where it is optional. An
+anonymous save is reachable only by the `saveId` whoever made it kept, so there is no anonymous
+population to enumerate. You get back only that profile's saves, ordered newest first by a
+`Clock`-stamped `savedAt`, with `saveId` breaking a tie. The order is total and deterministic,
+which is what lets a host delete the private save index it had to invent while no such operation
+existed. A summary is metadata — save id, campaign id, and the two timestamps — never a blob and
+never campaign content; resolve the campaign's display title through campaign listing, which
+already carries the key and the table for it.
+
+**Deleting takes the `savedAt` you observed, as a precondition.** The record is removed only while
+its stored stamp still matches; otherwise nothing is removed and you get
+`concurrent_modification`, and the correct response is to re-list and re-confirm. Both save
+creation and save listing hand you the stamp, so you always already have one. Deleting another
+profile's save is reported identically to deleting one that does not exist — deliberately, so a
+caller cannot use the operation to discover whether someone else's `saveId` is real.
+
+**Branching replays; it does not copy.** Give it a session and the number of logged actions to
+retain — zero branches at creation, the log's full length branches at the present — and the store
+creates a game from the source's identity and seed and resubmits that prefix through the ordinary
+path. Copying and truncating the blob instead would leave the kind's state at the present while
+the log claimed the fork point, which is a state no sequence of actions produces.
+
+Three things about a branch will bite you if you assume otherwise:
+
+- **The new session keeps its source's `gameId`** and gets a new `sessionId` from the
+  `RecordIdSource` port. That is what makes the branch serialize byte-identically to its source
+  through the fork point, and it means `gameId` identifies a lineage rather than one playthrough:
+  two live sessions can share one. Nothing in the engine cares — it never parses or compares the
+  value — but a host indexing by `gameId` alone will collide.
+- **A session that is not replay-compatible cannot be branched.** Once a migrated load has marked
+  the lineage, its action log is no longer guaranteed to regenerate its state, which is exactly
+  the mechanism a branch depends on. It fails rather than diverging quietly.
+- **The source is untouched** — not re-stamped, not re-serialized. A branch is a new record. Its
+  `profileId` is inherited, so an anonymous session branches to an anonymous one.
+
+If you are migrating from a hand-rolled fork that replayed to an `atSeq`, the count is one higher
+than the sequence number for a dense log, which every log this engine writes is. The two arguments
+have the same type, so the compiler will not catch it, and being one action short replays cleanly.
+
 ### Durability is a host adapter, and the store is not
 
 The session store itself is engine-owned. Its two lock domains, its trace-and-stamp decorator,
 save-envelope assembly, and the idempotent profile upsert are behavior you get, not behavior you
 supply. What you may supply is `SessionPersistence` — a pair of record stores that get and put a
-session record, and get, put, and delete a save record. Omit it and the store's own in-memory maps
-are the whole implementation, which is the default and what every test runs against.
+session record, and get, put, list by profile, and conditionally delete a save record. Omit it and
+the store's own in-memory maps are the whole implementation, which is the default and what every
+test runs against.
 
 Two rules an adapter must not get wrong:
 
@@ -356,6 +404,12 @@ Two rules an adapter must not get wrong:
   adapter did exactly that.
 - **Store the bytes you were given.** The record holds a canonical serialization, not a live
   object graph, and nothing on it may be written into `GameState`.
+- **Return whatever order you like from the profile listing.** The store sorts, so an adapter owes
+  only completeness — every record it holds for that profile, and no other profile's.
+- **Honor the delete precondition.** `delete` receives the `savedAt` the caller observed and must
+  remove the record only while the stored value still matches. Express it as a conditional
+  statement where your storage supports one; a single-writer adapter is covered by the store's own
+  per-save lock either way.
 
 Failures throw `SessionStoreError`, because none of the store's return shapes has a field an error
 could travel in. It is not opaque: `operation` names the call and `code` is a registered reason
@@ -800,7 +854,9 @@ The pipeline machinery is engine-internal. It is exported from neither the packa
 ## Saves and migrations
 
 A save wraps canonical serialized `GameState` with independently versioned save, serialization,
-engine, kind, and campaign metadata plus a checksum and a replay-compatibility flag.
+engine, kind, and campaign metadata plus a checksum and a replay-compatibility flag. The stored
+record around it also carries a `Clock`-stamped `savedAt` — outside the replayable state, and the
+key save listings sort by.
 
 Loading follows this order:
 
