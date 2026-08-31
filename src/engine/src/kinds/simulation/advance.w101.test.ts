@@ -76,7 +76,7 @@ const simulationCampaign: SimulationCampaign = {
   backgrounds: [], traits: [], skills: [],
   projects: [{
     id: "project-1", nameKey: "k", descriptionKey: "k",
-    requirements: [], requiredUnits: 1, weeklyTimeCost: 1, startCostCents: 500, rewards: [], tags: [],
+    requirements: [], requiredUnits: 2, weeklyTimeCost: 1, startCostCents: 500, rewards: [], tags: [],
   }],
   businesses: [{
     id: "business-1", nameKey: "k", descriptionKey: "k",
@@ -144,5 +144,48 @@ describe("W101.8 — determinism", () => {
     // Player (discipline 80) beat the rival (discipline 20) for the one-position opening.
     expect(state.player.career.currentEmployment).toMatchObject({ jobId: "job-cashier" });
     expect(state.world.agents[0]!.actor.career.currentEmployment).toBeUndefined();
+  });
+});
+
+/** `project-1` needs two `progressUnits` (§7.12's `requiredUnits`), one per
+ *  `work_on_project` session — three weeks reaches "before start," "mid-progress," and
+ *  "immediately before completion" as three distinct save/load-cut points (W101.2's own
+ *  wording), the last with one more `work_on_project` still needed to actually complete. */
+function playThreeProjectWeeks(state: SimulationKindState, cutAfterEachWeek: boolean): SimulationKindState {
+  let s = state;
+  for (let week = 0; week < 3; week += 1) {
+    const actionType = week === 0 ? "start_project" : "work_on_project";
+    const targetId = week === 0 ? "project-1" : s.player.projects[0]!.instanceId;
+    s = advance(s, "plan.add", { actionType, targetId }, ctx()).state;
+    if (cutAfterEachWeek) s = JSON.parse(canonicalStringify(s)) as SimulationKindState;
+    s = advance(s, "end_week", undefined, ctx()).state;
+    if (cutAfterEachWeek) s = JSON.parse(canonicalStringify(s)) as SimulationKindState;
+  }
+  return s;
+}
+
+describe("W101.2 — save/load cuts before start, mid-progress, and immediately before completion", () => {
+  it("a JSON round trip after every plan.add/end_week reaches the identical final state an uncut run reaches", () => {
+    const uncut = playThreeProjectWeeks(buildState(), false);
+    const cut = playThreeProjectWeeks(buildState(), true);
+    expect(canonicalStringify(cut)).toBe(canonicalStringify(uncut));
+  });
+
+  it("the three weeks actually reach start, mid-progress, and immediately-before-completion", () => {
+    const afterWeekOne = playThreeProjectWeeks(buildState(), false).player.projects[0];
+    expect(afterWeekOne).toBeDefined();
+    // Re-derive week-by-week to name each checkpoint explicitly, not just the final state.
+    let s = buildState();
+    s = advance(s, "plan.add", { actionType: "start_project", targetId: "project-1" }, ctx()).state;
+    s = advance(s, "end_week", undefined, ctx()).state;
+    expect(s.player.projects[0]).toMatchObject({ status: "in_progress", progressUnits: 0 }); // before completion, 0 of 2 units
+
+    s = advance(s, "plan.add", { actionType: "work_on_project", targetId: s.player.projects[0]!.instanceId }, ctx()).state;
+    s = advance(s, "end_week", undefined, ctx()).state;
+    expect(s.player.projects[0]).toMatchObject({ status: "in_progress", progressUnits: 1 }); // mid-progress, 1 of 2
+
+    s = advance(s, "plan.add", { actionType: "work_on_project", targetId: s.player.projects[0]!.instanceId }, ctx()).state;
+    s = advance(s, "end_week", undefined, ctx()).state;
+    expect(s.player.projects[0]).toMatchObject({ status: "completed", progressUnits: 2 }); // completes, once
   });
 });
