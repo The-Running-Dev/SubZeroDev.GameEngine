@@ -26,6 +26,10 @@
 
 ### 7.1 The Profile Store
 
+#### Kind-owned cross-game data
+
+#### Invariants
+
 ### 7.2 Host Persistence — The Record Store Beneath the Session Store
 
 ### 7.3 The Campaign Catalog

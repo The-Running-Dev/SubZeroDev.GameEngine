@@ -3,77 +3,77 @@
     {
       "name": "Typecheck",
       "status": "Passed",
-      "detail": "npm --prefix src/engine run typecheck -> tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json; exit 0, no output."
+      "detail": "npm --prefix src/engine run typecheck — tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json, exit 0. Covers the engine package and its scripts project."
     },
     {
       "name": "Lint",
       "status": "Passed",
-      "detail": "npm --prefix src/engine run lint -> eslint src scripts; exit 0, no output."
+      "detail": "npm --prefix src/engine run lint — eslint src scripts, exit 0. Includes the determinism guard banning Math.random, non-bit-stable Math.*, and Date.now in src/."
     },
     {
       "name": "Test",
       "status": "Passed",
-      "detail": "npm --prefix src/engine test -> vitest run; Test Files 88 passed (88), Tests 1436 passed (1436)."
+      "detail": "npm --prefix src/engine test — vitest run: 91 test files passed, 1502 tests passed, 0 failed."
     },
     {
       "name": "Pack package",
       "status": "Passed",
-      "detail": "cd src/engine && npm pack --silent produced the-running-dev-game-engine-0.10.0.tgz with no errors."
+      "detail": "cd src/engine; npm pack --silent — exit 0, produced the-running-dev-game-engine-0.10.0.tgz."
     },
     {
       "name": "Inspect tarball",
       "status": "Passed",
-      "detail": "tar -tzf the-running-dev-game-engine-0.10.0.tgz entries contain no src/, no tsconfig*.json, no .test. build artifacts, and do contain package/dist/ — all four checks from ci.yml's Inspect tarball step passed."
+      "detail": "tar -tzf over the packed tarball: 326 entries, 0 violations (no package/src/, no tsconfig*.json, no .test.* artifacts), package/dist/ present."
     },
     {
       "name": "Consumer smoke",
       "status": "Passed",
-      "detail": "consumer-smoke: npm ci, npm run install:engine (installed the packed tarball via ENGINE_TARBALL), npm run build (tsc), npm run smoke (node dist/smoke.js) — all exited 0 with no error output."
+      "detail": "Cleared consumer-smoke/{node_modules,package-lock.json,dist}, then npm run install:engine (added 5 packages), npm run build (tsc -p tsconfig.json), npm run smoke (node dist/smoke.js) — all exit 0."
     },
     {
       "name": "Parse-check PowerShell scripts",
       "status": "Passed",
-      "detail": "Parsed every *.ps1 under the repo with [System.Management.Automation.Language.Parser]::ParseFile; output: 'All PowerShell scripts parse cleanly', zero parse errors."
+      "detail": "[System.Management.Automation.Language.Parser]::ParseFile over every *.ps1 outside node_modules/ and artifacts/ — 0 parse errors."
     },
     {
       "name": "Run Pester tests",
-      "status": "Failed",
-      "detail": "Invoke-Pester -Path tools -Output Detailed -PassThru: Tests Passed: 250, Failed: 13, Skipped: 22. All 13 failures are the identical root cause across Update-DesignProjection.Tests.ps1 (1) and Wait-PullRequestCheck.Tests.ps1 (12): 'CommandNotFoundException: Could not find Command gh'. The gh CLI binary is not installed in this sandbox (this session uses the GitHub MCP server instead of gh); these tests shell out to gh directly rather than through a mockable wrapper reachable without the binary present. No file this PR touches is under tools/, and the failures are unrelated to session-lifecycle/store code — the same 13 would fail on main in this same sandbox."
+      "status": "Passed",
+      "detail": "Invoke-Pester -Path tools — 263 passed, 0 failed, 22 skipped, 285 discovered across 17 files."
     },
     {
       "name": "Validate Markdown links, terminology, and generated files",
       "status": "Passed",
-      "detail": "./build/Test-Documentation.ps1 -> 'Human-documentation drift check passed across 18 generated engine page(s), compatibility pointers, and the guide.' and 'Documentation checks passed across 189 Markdown file(s).'"
+      "detail": "./build/Test-Documentation.ps1 — human-documentation drift check passed across 18 generated engine pages, compatibility pointers, and the guide; documentation checks passed across 191 Markdown files. This is the gate that covers the generated pages this change regenerates."
+    },
+    {
+      "name": "Build and verify landing page",
+      "status": "Passed",
+      "detail": "npm --prefix src/engine run build (exit 0), then npm --prefix site run check — built in 320ms, both built HTML entry points contain their required static metadata, 3 bundles free of Node-only runtime references, and the package-backed merge verification proved '/', '/roadmap/' and the protected 'docs/' subtree."
     },
     {
       "name": "Build documentation",
       "status": "DidNotRun",
-      "reason": "docs-ci.yml's verify job runs this step inside the published ghcr.io/the-running-dev/docs-template container image via /template/scripts/docs-build.ps1; no Docker daemon is available in this sandbox (docker CLI present, but 'docker info' fails) to pull or run that image."
-    },
-    {
-      "name": "Build and verify landing page",
-      "status": "DidNotRun",
-      "reason": "Same containerized job as 'Build documentation' (Alpine-based template image, apk-installed Chromium, Playwright checks against the merged site) — no Docker daemon available in this sandbox to run it."
+      "reason": "./docs.ps1 is not present in the working tree. It is installed by Invoke-SetupDocs and deliberately not committed (CLAUDE.md, Docs Site), so the production Docusaurus build with onBrokenLinks: 'throw' — the only gate that resolves routes and heading anchors — cannot be run here. The 'Verify Documentation Build' required check on the pull request is where this answer comes from."
     },
     {
       "name": "Merge landing page into documentation build",
       "status": "DidNotRun",
-      "reason": "Depends on 'Build documentation' and 'Build and verify landing page' having produced the docs build inside the same containerized job; neither ran in this sandbox (no Docker daemon)."
+      "reason": "Requires a completed docs build in artifacts/docs produced from this tree, and 'Build documentation' did not run. The artifacts/docs directory present locally is a stale build dated 2026-08-08/2026-08-30, predating this branch; merging against it would report a pass for a tree that is not this one."
     },
     {
       "name": "Test the host",
       "status": "DidNotRun",
-      "reason": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests/... requires the .NET SDK; 'dotnet' is not installed in this sandbox."
+      "reason": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests requires NUGET_GITHUB_TOKEN for the sibling-repository package feed, and that environment variable is not set in this session. The host-image workflow on the pull request is where this answer comes from."
     },
     {
       "name": "Positive route and probe smoke",
       "status": "DidNotRun",
-      "reason": "host-image.yml's smoke test builds and runs the host Docker image, then curls it; no Docker daemon is available in this sandbox (docker CLI present, but 'docker info' fails)."
+      "reason": "Requires the subzerodev-gameengine-host:smoke image, whose build pulls ghcr.io/the-running-dev/docs-template and consumes the combined docs artifact. This session has Docker (server 29.7.2) but no GHCR authentication and no docs artifact from this tree, so the image cannot be built."
     },
     {
       "name": "Negative fixture -- corrupted artifact must fail to start",
       "status": "DidNotRun",
-      "reason": "Same Docker-image-based negative-fixture smoke test as 'Positive route and probe smoke'; no Docker daemon available in this sandbox."
+      "reason": "Builds FROM subzerodev-gameengine-host:smoke via --build-arg BASE_IMAGE, so it has the same unmet precondition as the positive smoke: that image was not built, for want of GHCR authentication and a docs artifact from this tree."
     }
   ]
 }

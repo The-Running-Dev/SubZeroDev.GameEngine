@@ -114,14 +114,25 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   narrows it, and `Building.entrances` left runtime state as a derived value, leaving only
   the *authored offset shape* open — and that is W43's, where a `BuildingDefinition` exists
   to hold it.
-- **`ChainScope`'s `"profile"` value has nowhere to persist** — a `"profile"`-scoped event
-  chain (10 §2.2) is meant to survive past the game it started in and advance on cumulative
-  weeks played across every game under one profile, but the only cross-game store this
-  platform has is `PlayerProfile` (04 §7.1: `{ formatVersion, profileId, achievements }`),
-  which has no field for arbitrary kind-declared profile-scoped data. Found while porting
-  `WorldState` (10 §2.2, the field-detail port `plans/36-simulation-kind-programme.md`
-  proposed as W27 and cut as **W32**). Tracked as
-  [issue #268](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/268).
+- **`ChainScope`'s `"profile"` value has nowhere to persist — closed by W102's contract gate.**
+  A `"profile"`-scoped event chain (10 §2.2) must survive the game it started in, and
+  `PlayerProfile` had no field for kind-declared data. It has one now:
+  `PlayerProfile.kindData` (04 §7.1), a core-opaque slice per kind, written through the same
+  mirror the achievement and terminal upserts use and read back at `createSession` through
+  `NewGameConfig.kindProfileData`. Found while porting `WorldState` (10 §2.2, the field-detail
+  port `plans/36-simulation-kind-programme.md` proposed as W27 and cut as **W32**); tracked as
+  [issue #268](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/268), which the
+  four W102 gate entries below close. **What did not close** is the next item.
+- **Cumulative weeks played across every game under one profile.** 10 §2.2 described a
+  `"profile"`-scoped chain as advancing on this, and the shape W102 gave it records
+  `furthestStep` only. The aggregate has no formulation that is at once idempotent (which
+  `Kind.profileData.fold` requires), bounded (which §7.1's 65 536-byte slice cap requires), and
+  correct under two live sessions sharing one `profileId` (which §7's second lock domain exists
+  because hosts allow): a sum fails the first, per-game keying fails the second, and a
+  settle-on-game-change counter fails the third. **Revisit when** a campaign actually wants a
+  chain that paces on elapsed play rather than on progress — until one does, the decision about
+  which of the three properties to give up has no evidence to be made on. Carried in
+  `20-contract.md`'s own `## Unresolved` section, which is the checkable copy.
 - **The hosted MCP contract still needs its W48 mirror.** The engine-side contract and façade
   now expose ten operations, including `preview_action`, but SubZeroDev.Platform's
   `mcp-tool-contract.md` still lists the original nine. The engine repository cannot make a

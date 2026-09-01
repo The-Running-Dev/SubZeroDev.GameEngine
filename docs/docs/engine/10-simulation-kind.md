@@ -270,25 +270,74 @@ into a projection. The player is meant to notice the drift, not read the dial.
 content-balance material, out of scope here the same way §6.1's derived-value formulae are
 content-balance material rather than part of the mechanism itself.
 
-#### Chain Scope — and an Item This Raises
+#### Chain Scope, and Where a Profile Chain Lives
 
 Scope is declared per chain, not globally, because event chains are not all the same kind of
 thing: a `"game"`-scoped chain cannot survive past this game (an eviction ladder should not
 follow a new character into their next life), while a `"profile"`-scoped chain is meant to
-outlive any single game and advance on cumulative weeks played across every game under one
-profile.
+outlive any single game.
 
-**This is a real, unresolved item, not a restatement.** A `"profile"`-scoped `EventChainState`
-needs somewhere to live that is *not* `GameState`/`SimulationKindState` — by definition, since
-it must survive past the game that's ending. The only persistent, cross-game store this
-platform has is `PlayerProfile` (04 §7.1: `{ formatVersion, profileId, achievements }`), and it
-has no field for arbitrary kind-declared profile-scoped data today. Whether `PlayerProfile`
-gains one, and what a kind-agnostic core does with a shape it cannot introspect, is a design
-question for whichever unit first needs a `"profile"`-scoped chain to actually persist — not
-this one. Until then, `ChainScope` is specified as a closed union of two values (matching
-upstream) with the second value's storage genuinely unimplemented, the same honest-gap pattern
-`history` already uses in this document. Recorded in
-[`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md) alongside it.
+**Scope is authored, not inferred.** `EventChainState.scope` had no source: the only chain
+vocabulary a campaign could write was `EventDefinition.chainId`/`chainStep` (§7.6), which names
+a chain without saying what kind of thing it is. `SimulationCampaign.eventChains` (§7.13) is
+that source — one `EventChainDefinition` per chain, carrying its `id` and its `ChainScope`, and
+nothing else, because the chain's membership and order are already fully determined by the
+events that declare `chainId`/`chainStep` and duplicating them here is the envelope-duplication
+defect one level down.
+
+**The storage question is closed.** A `"profile"`-scoped `EventChainState` needs somewhere to
+live that is *not* `GameState`/`SimulationKindState` — by definition, since it must survive the
+game that is ending. `PlayerProfile.kindData` (04 §7.1) is that place: one kind-owned,
+core-opaque slice per kind, written through the same mirror the achievement and terminal
+upserts already use. This kind's slice:
+
+```typescript
+/** `Kind.profileData.version` 1. Sorted by `(campaignId, chainId)` ascending, so one
+ *  profile has exactly one canonical serialization. */
+interface SimulationProfileData {
+  chains: readonly SimulationProfileChainRecord[];
+}
+
+interface SimulationProfileChainRecord {
+  campaignId: string;    // a chainId is only unique within a campaign — as AchievementRecord's is
+  chainId: string;
+  furthestStep: number;  // the highest `EventChainState.currentStep` any game reached
+}
+```
+
+**`furthestStep` is a maximum, and every field here is chosen so the fold is idempotent.**
+`fold` reads the `profile_chain_advanced` audit records (§10) out of one action's `changes`,
+takes `max(existing, value)` per `(campaignId, chainId)`, and returns the record set. Applying
+the same records twice reaches the same value, so the store's canonical-equality check (04
+§7.1) sees no change and writes nothing — which is what makes a reloaded, branched or
+re-submitted transition create no duplicate entry, event, achievement or reward. A sum would
+not have this property, and that constraint is what decides the shape rather than decorating
+it.
+
+**Seeding, at `createSession` and nowhere else.** `initialState` receives the migrated slice as
+its `profileData` argument (04 §3, §5) and creates one `EventChainState` per declared
+`"profile"`-scoped chain: `currentStep` from the matching record's `furthestStep`, or `0` when
+the profile has none; `startedWeek: 0`; `active: false`. A seeded chain becomes active when its
+next step fires, exactly as an unseeded one does. `"game"`-scoped chains are **not** seeded —
+`chainStates` starts empty of them, unchanged, and the `events` system (§3) creates each when it
+first fires. An anonymous session, a campaign declaring no `eventChains`, and a `profileData`
+argument that is absent all produce the same thing: no seeded chains, and a `SimulationKindState`
+byte-identical to what 0.10 produced.
+
+**What a profile chain does *not* do.** It does not read back into resolution, does not reach
+`project`, and is not part of terminal identity (§12) — it is an initialization input and an
+audit mirror, nothing else. Two sessions under one profile therefore never observe each other
+mid-game; each sees whatever the profile held when it was created.
+
+> **Cumulative weeks across games is *not* resolved here, and is not part of this shape.**
+> This section previously described a `"profile"`-scoped chain as advancing "on cumulative weeks
+> played across every game under one profile". That phrase survives as intent and not as
+> contract, because it demands an aggregate this design cannot make both idempotent and bounded:
+> a sum is not idempotent under a refold, per-game keying is idempotent but unbounded, and a
+> settle-on-game-change counter is bounded but races the two live sessions §7's own `profileId`
+> lock domain exists because a profile legitimately has. `furthestStep` is the part that is
+> well-defined, and it is the part W102.2 actually asks for. The remainder is recorded in
+> `20-contract.md`'s own *Unresolved* section and in `90-decisions.md`'s open register.
 
 ### 2.3 Effects, Opportunities, and Scheduled Events
 
@@ -2188,6 +2237,51 @@ in this unit's `Done when` (W101.3) asks for one, and inventing a second insolve
 mechanism when housing already has one is exactly the kind of unrequested design §7's own
 `Reward` section (§7.1) already declines to do speculatively.
 
+### 7.13 Event Chains (W102)
+
+The content half of §2.2's `EventChainState`. One entry per chain a campaign declares, and the
+only place `ChainScope` is authored.
+
+```typescript
+interface EventChainDefinition {
+  id: string;              // what an EventDefinition's `chainId` (§7.6) names
+  scope: ChainScope;       // §2.2 — "game" or "profile"
+  labelKey?: LocKey;       // for a client listing chains in progress; nothing requires it
+}
+```
+
+Added to the campaign envelope (§7.11) as one more optional collection:
+
+```typescript
+interface SimulationCampaign {
+  // … §7.2–§7.12's collections and flat fields, unchanged …
+
+  /** Absent means `[]`, which is every campaign shipped before this field: no chain is
+   *  declared, so none is `"profile"`-scoped and none is seeded (§2.2). */
+  eventChains?: readonly EventChainDefinition[];
+}
+```
+
+**It carries no step list, and that is the envelope-duplication rule applied one level down.**
+A chain's membership and order are already fully determined by the events that declare
+`chainId`/`chainStep` (§7.6). Restating them here would create a second source that can
+disagree with the first, and the disagreement would be silent — the ledger in `CLAUDE.md`
+records five instances of exactly this, and none of them was noticed by a gate.
+
+**Tier 1 (§14) checks three things**, all of them the `dangling_reference`/`duplicate_id`
+vocabulary already in §10:
+
+- Two `EventChainDefinition`s sharing an `id` — `duplicate_id`.
+- An `EventDefinition.chainId` naming no declared chain — `dangling_reference`. This is the
+  check that makes `scope` reliably present for every chain that can actually fire, which is
+  what §2.2's seeding rule depends on.
+- A `"profile"`-scoped chain declared by a kind whose build has no `Kind.profileData` support —
+  impossible by construction, since the member is declared alongside this section, and named
+  here only so a reader does not go looking for a check that would have to exist if it were not.
+
+A declared chain no `EventDefinition` ever references is `unreachable_content` at Tier 2, the
+same as any other unreferenced definition.
+
 ---
 
 ## 8. Conditions and Requirements
@@ -2445,6 +2539,17 @@ namespace exempt from §12's completeness rule.
 | `business_revenue`, `business_expense` | the `business` end-of-week system (§3, §7.12, W101) |
 | `business_closed` | the `operate_business` resolver, voluntary close (§6.12, W101) |
 | `business_insolvent` | the `business` end-of-week system, `cashOnHandCents` below `minimumCashCents` (§6.12, §7.12, W101) |
+| `chain_advanced` | the `events` system, when a `"game"`-scoped chain's `currentStep` moves (§2.2, §7.13, W102) |
+| `profile_chain_advanced` | the `events` system, when a `"profile"`-scoped chain's `currentStep` moves — the record `Kind.profileData.fold` reads (§2.2, 04 §7.1, W102) |
+
+> **`profile_chain_advanced` is a separate code rather than a `path` prefix on
+> `chain_advanced`, and the split is what keeps `fold` from string-matching.** 04 §12's own
+> convention is that `path` names *what* changed and `reason` names *why*, with `reason` the
+> field a consumer switches on; a fold that decided scope by inspecting the path would be
+> parsing prose, and a fold that looked the scope up from `EventChainDefinition` would need
+> content it is not given. Both codes carry the same `path` — `chain.<chainId>` — and both are
+> `visible: true`, because a player who is told a thread moved forward is also owed the fact
+> that this one carries into the next life.
 
 > **This set grows as the dispatched systems land, and that is deliberate.** A code joins
 > `Kind.reasonCodes` when the unit that actually produces it exists, not when this table
@@ -2634,6 +2739,16 @@ total, run once at registry construction, before the registry is frozen. Tiered 
   `duplicate_id`, the same code the bulleted rule above uses, scoped to one scenario's rival
   list rather than to the whole campaign, because `AgentState.id` (§7.10) only needs to be
   unique within the one `WorldState.agents` array it populates.
+- No two `EventChainDefinition`s (§7.13) share an `id` — `duplicate_id` — and every
+  `EventDefinition.chainId` (§7.6) resolves to one — `dangling_reference`. The second is what
+  makes `ChainScope` reliably present for every chain that can fire, which §2.2's seeding rule
+  depends on; without it a `"profile"`-scoped chain could advance in a game and be seeded into
+  none.
+- Every `SimulationMigrationStep.domain` (§16) is covered by the engine-owned reference-site
+  table — `dangling_reference`. A `default` step's `id` resolves against its domain's collection
+  in **this** campaign, the version being migrated *to* — `dangling_reference` — because a
+  default that cannot resolve is a migration guaranteed to fail at load rather than at
+  publication, which is the wrong end to find it.
 - Every field typed `LocKey`, anywhere in a content definition — not an enumerated list of field
   *names*, which this section's own types alone already use eight of (`titleKey`,
   `descriptionKey`, `nameKey`, `labelKey`, `textKey`, `messageKey`, `displayNameKey`, `label`) —
@@ -2729,12 +2844,92 @@ exactly as it was before this programme started.
   `trace`-severity observability channel (05-observability.md) already serves the purpose it
   existed for, and `metadata.transparency` — the field it would gate on — lives outside
   `SimulationKindState` entirely (§2).
-- `ChainScope`'s `"profile"` value (§2.2) has nowhere to persist yet, and `Reward`'s own payload
-  (§7.1) stays untyped exactly as upstream leaves it — both recorded as open rather than
-  resolved, the same as `history`'s own status throughout this document.
+- `ChainScope`'s `"profile"` value (§2.2) had nowhere to persist — **closed by W102**, which
+  gave the core `PlayerProfile.kindData` (04 §7.1) and this kind the `SimulationProfileData`
+  slice that sits in it. The finding was right about the gap and right to refuse to invent the
+  answer: what closed it is a core-side seam, not a simulation-side workaround. `Reward`'s own
+  payload (§7.1) stays untyped exactly as upstream leaves it — still recorded as open rather
+  than resolved, the same as `history`'s own status throughout this document.
 
 **Nothing above changes what the seam looked like before this programme** — every finding is
 detail hanging off it, or a genuine gap named rather than guessed at. What has changed is that
 the upstream document is no longer where a reader has to go to find the shape of this kind's
 own state and content; it is here, and upstream stays cited as provenance, exactly as
 `04-core`'s own *Reused, not re-derived* note describes.
+
+---
+
+## 16. Save Migration (W102)
+
+04 §10.2 owns the two-axis mechanism — `Kind.migrateState` for a kind-state shape change, then
+`Campaign.migrateState` for a content-id remap, with `replayCompatible: false` sticky forward
+and idempotence against its own output. This section owns only what is specific to a
+**published** simulation campaign: how the campaign axis is expressed as data, so it survives
+the JSON round trip a portable document makes.
+
+**Why data and not a function.** `Campaign.migrateState` is a function, and JSON carries no
+functions — the same wall `story-graph` hit and answered by splitting the migration into a
+generic engine-owned walk plus a per-campaign table (`src/engine/src/portable/format.ts`,
+`migrateFromContent`). A life sim needs the same answer for a stronger reason: it is the kind
+whose games are measured in years, so it is the kind where "a content revision cannot reach an
+existing save" is a ceiling on the product rather than an inconvenience.
+
+```typescript
+/** Sits on the simulation arm of `PortableCampaignBody` (04 §19), beside the story-graph
+ *  arm's own `PortableMigration`. Reattached as `Campaign.migrateState` by `fromPortable`. */
+interface SimulationMigration {
+  /** The only `fromVersion` this migration accepts; anything else fails the load with
+   *  `migration_failed` (04 §12). Same single-version gate `PortableMigration` uses — a chain
+   *  of versions is a chain of published documents, not a list inside one. */
+  readonly fromVersion: string;
+  /** Applied in array order, left to right. Order is the author's and is deterministic; a
+   *  domain may appear in more than one step. */
+  readonly steps: readonly SimulationMigrationStep[];
+}
+
+type SimulationMigrationStep =
+  /** Every reference to a key of `map`, in the named domain, becomes that key's value. */
+  | { readonly op: "remap"; readonly domain: SimulationIdDomain;
+      readonly map: Readonly<Record<string, string>> }
+  /** Every reference to one of `ids` is dropped: removed from a collection that holds many,
+   *  left absent at a site that holds one. */
+  | { readonly op: "remove"; readonly domain: SimulationIdDomain;
+      readonly ids: readonly string[] }
+  /** A single-valued reference site left absent by the steps before it takes `id`. Never
+   *  overwrites a site that still holds a resolving reference. */
+  | { readonly op: "default"; readonly domain: SimulationIdDomain; readonly id: string }
+  /** Every surviving reference in the domain must resolve against the new campaign's
+   *  collection. One that does not fails the load with `migration_failed`. */
+  | { readonly op: "require"; readonly domain: SimulationIdDomain };
+```
+
+**`SimulationIdDomain` is derived, not enumerated here.** It is a closed union with exactly one
+member per `SimulationCampaign` collection whose ids `SimulationKindState` (§2, §6) actually
+holds a reference to — jobs a player is employed in, courses enrolled, the housing occupied, the
+items owned, the events on cooldown, and so on. The union and the **reference-site table** that
+gives each member its list of state paths are declared together in one engine-owned module, so
+the two cannot disagree; a Tier 1 check (§14) rejects a `SimulationMigration` naming a domain
+the table does not cover. Enumerating the members in this document instead would be the third
+count in this file to outlive the units that changed it — §3's system list and §10's code table
+are the first two, and both are recorded here as having drifted.
+
+**Every step is data, and the walk is engine-owned code.** There is no host callback anywhere
+on this path, and there cannot be: a migration definitionally changes `serialize()` output, and
+06 §2 admits a host only where it cannot. That is the same rule 04 §10.2 already states, and it
+is what makes a published campaign safe to fetch — a portable document can ask for a remap, it
+cannot ship behaviour.
+
+**What the four ops cover, and what they refuse.** Together they express the whole of a content
+revision's reach into an existing save: an id was renamed (`remap`), an id was withdrawn
+(`remove`), a slot the game requires must not be left empty (`default`), and nothing may survive
+pointing at content that no longer exists (`require`). They cannot add state, move a week,
+change a balance, or award anything — 04 §10.2's *neither may invent play* rule, made structural
+here rather than merely asserted, because the vocabulary has no verb for it.
+
+**Failure is the existing vocabulary, unchanged.** A `fromVersion` that does not match, a
+`require` that finds a dangling reference, a `default` naming an id absent from the new campaign,
+or a throw anywhere in the walk all produce `migration_failed`; a `campaignVersion` mismatch on a
+document carrying no migration produces `save_requires_migration`. Both are 04 §12 base codes
+that have existed since W31 and neither is widened. Nothing is partially written: the walk
+produces a new `kindState` or it produces a rejection, and `SessionStore.loadGame` writes no
+session record on a rejection.

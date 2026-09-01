@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 097edb283d127c68fe0e446fe989b6f2b91d2a3b157c9333ea0e0ea823b5a1bf -->
+<!-- design-digest: c3d848ee9ce39ef41deb218339116cf62c2e3ccd9be4c4fb7a1d283519d9f625 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -456,14 +456,41 @@ back during resolution or projection, so neither can perturb determinism.
 - A failed profile write warns but never rolls back the completed game action.
 - Never put profile identity or profile contents into `GameState`.
 
-The profile format is version 2. A version-1 profile — achievements only — reads forward by
-gaining an empty terminal list; nothing is renamed or re-typed, so the migration is total and
-cannot fail. Games finished under version 1 are not reconstructed, so those campaigns start at
-zero discovered and are re-counted as they are finished again. That is deliberate: recovering the
-number would mean deserializing every save a profile ever touched.
+The profile format is version 3, and both earlier versions read forward by a total migration
+that cannot fail: a version-1 profile — achievements only — gains an empty terminal list and an
+empty kind-data list, and a version-2 profile gains the kind-data list. Nothing is renamed or
+re-typed at either step. Your profile adapter owns this migration, because it is what reads the
+stored document; it needs no kind registry to do it. Games finished under version 1 are not
+reconstructed, so those campaigns start at zero discovered and are re-counted as they are
+finished again — recovering the number would mean deserializing every save a profile ever
+touched.
 
-Arbitrary kind-owned profile data is not currently supported; a `"profile"`-scoped simulation event
-chain in particular has nowhere to persist yet and remains an open item.
+### Kind-owned cross-game data
+
+A kind may declare one opaque, versioned slice on the profile — the mechanism a
+`"profile"`-scoped simulation event chain persists through. Everything about it is designed so
+it cannot reach determinism:
+
+- **The core never looks inside it.** It stores, sizes, versions and hands back a
+  `{ kindId, dataVersion, data }` record; only the kind that declared it interprets `data`.
+- **Writing is a fold over audit records**, run on the same profile-keyed write as the
+  achievement and terminal mirrors. It must be pure and idempotent — folding the same changes
+  twice must equal folding them once — and the store writes only when the folded value's
+  canonical serialization actually differs. That is what makes a reloaded, branched, or
+  re-submitted transition produce no duplicate.
+- **Reading happens once, at session creation, and nowhere else.** The store resolves the slice,
+  migrates it, and passes it in as part of the new-game config, so the value is captured by a
+  replay fixture and reproduces. Resuming, loading a save, and branching deliberately do **not**
+  re-seed: the kind already kept what it wanted in `kindState`, and re-reading a profile that
+  has moved on would make a resumed session differ from the one that was saved.
+- **A slice is capped at 65 536 canonical bytes**, checked on the write. Over it, the write is
+  refused, the previous value is kept, and you get a warning. A kind that approaches this has
+  built an unbounded accumulator.
+- **A version this build cannot read degrades, it does not fail.** The slice is dropped for that
+  session with a warning and the record is left in the profile untouched, so a build that can
+  read it still can.
+- **A record for a kind this build does not have registered round-trips untouched.** Running a
+  subset of kinds must not erase a player's progress in one you happen not to have.
 
 ## Projection is mandatory
 
@@ -704,6 +731,14 @@ Important constraints:
 - Scheduled events fire once committed, unconditionally, even if their triggering condition has
   since drifted; cancellation requires an explicit shared chain id rather than re-checking
   eligibility at fire time, which would let a multi-week chain break silently in the middle.
+- **Declare every chain, and declare its scope.** A campaign lists its event chains as `id` plus
+  scope and nothing else — membership and order already come from the events that name the chain,
+  and a second copy would be free to disagree. A `"game"`-scoped chain dies with the character; a
+  `"profile"`-scoped one records how far it got on the player's profile and resumes there in the
+  next game under that profile. Validation rejects an event naming a chain the campaign never
+  declared, which is what stops a chain from quietly never persisting. What a profile chain
+  carries forward is its furthest step, not elapsed play — pacing a chain on cumulative weeks
+  across games is not supported.
 - **An event needing a decision defers to the following week, and blocks the plan until it is
   answered.** An event that fires at the end of week N and carries choices queues as a pending
   response rather than resolving immediately; it is presented at the start of week N+1, where its
@@ -911,8 +946,42 @@ itself is provenance, not by itself a reason to reject a load. Any successful mi
 permanently marks the save lineage not replay-compatible, because the old action log may no longer
 regenerate its current state.
 
+**Migrating twice is a no-op.** The first pass restamps the campaign version, so a save that is
+loaded, saved, and loaded again finds no mismatch and reaches a canonically identical state. Write
+your migration so that property holds even if the mechanism did not give it to you — one that
+mutates in place, accumulates, or appends will fail this and nothing else will catch it.
+
+**A migration may not invent play.** The kind axis may change the *shape* of kind state — add a
+field with a default, drop one, retype one. The campaign axis may only re-address published
+content ids the state references, and drop or default the references that no longer resolve.
+Neither may award money, advance a turn, or unlock anything: the not-replay-compatible flag exists
+to *record* that the rules moved, not to license changing the save while you are there.
+
 Published ids are stable. Renaming a node, definition, reason, or other persisted id is migration,
 not cleanup.
+
+### Migrations in published campaigns
+
+A campaign migration is a function, and a published portable campaign is JSON, which carries no
+functions. Both kinds that can be published solve this the same way — the per-campaign part
+travels as data and the walk over it is engine code, reattached when the document is hydrated.
+
+- **Story-graph** documents carry a node-id map and an ending-id map.
+- **Simulation** documents carry a `fromVersion` plus an ordered list of steps: `remap` an id,
+  `remove` one, `default` a single-valued reference site the earlier steps emptied, and `require`
+  that every surviving reference in a domain still resolves. Steps apply in array order, and that
+  order is the author's.
+
+A step names a *domain* — a content collection whose ids the kind's state references — never a
+path into state. There is no host callback anywhere on this path and there cannot be: a migration
+changes serialized output by definition, and that is precisely the line a host port may not cross.
+Publication-time validation rejects a step naming a domain the engine does not cover, and a
+`default` whose id does not resolve in the version being migrated *to* — both are failures better
+found when you publish than when a player loads.
+
+The portable document format stays at version 2. An older reader ignores a migration it does not
+know about, which matters only when the campaign version actually moved, and that is exactly when
+it rejects the load anyway.
 
 ## Replay and incident diagnosis
 
