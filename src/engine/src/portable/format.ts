@@ -26,6 +26,8 @@ import type { CommandResult } from "../core/kernel/reasons.js";
 import type { KindId } from "../core/kernel/types.js";
 import type { LocKey } from "../core/localization/types.js";
 import type { SimulationCampaign } from "../kinds/simulation/campaign.js";
+import type { SimulationMigration } from "../kinds/simulation/migration.js";
+import { applySimulationMigration } from "../kinds/simulation/migration.js";
 import type { StoryGraphCampaign } from "../kinds/story-graph/campaign.js";
 import type { StoryGraphKindState } from "../kinds/story-graph/state.js";
 import type { VarValue } from "../kinds/story-graph/variables.js";
@@ -88,7 +90,12 @@ export type PortableCampaignBody =
       readonly migration?: PortableMigration;
     })
   | PortableCampaignEnvelope<"world-graph", WorldGraphCampaign>
-  | PortableCampaignEnvelope<"simulation", SimulationCampaign>;
+  | (PortableCampaignEnvelope<"simulation", SimulationCampaign> & {
+      /** §16 (W102) — reattached as `Campaign.migrateState` by `fromPortable`, the same
+       *  "data travels, the walk is engine code" answer the story-graph arm's own
+       *  `PortableMigration` already gives. */
+      readonly migration?: SimulationMigration;
+    });
 
 export interface PortableCampaign {
   /**
@@ -154,16 +161,17 @@ function nullProto<T>(source: Readonly<Record<string, T>>): Record<string, T> {
 /**
  * Author-time: a built campaign plus its catalog card, ready to write as one JSON file.
  *
- * `migration` is only meaningful for a story-graph campaign — `PortableCampaignBody`'s
- * story-graph arm is the only one with a `migration` member. Passing one for another kind is
- * an authoring mistake, not a malformed wire document (this function's input is trusted,
- * first-party `BuiltCampaign` data, not fetched JSON), so it throws rather than silently
- * dropping the migration.
+ * `migration` is only meaningful for a story-graph or a simulation campaign —
+ * `PortableCampaignBody`'s world-graph arm carries no `migration` member at all. Passing one
+ * for a world-graph campaign, or a `SimulationMigration` for a story-graph one (or vice
+ * versa), is an authoring mistake, not a malformed wire document (this function's input is
+ * trusted, first-party `BuiltCampaign` data, not fetched JSON), so it throws rather than
+ * silently dropping the migration.
  */
 export function toPortable(
   built: BuiltCampaign,
   catalog: PortableCatalog,
-  migration?: PortableMigration,
+  migration?: PortableMigration | SimulationMigration,
 ): PortableCampaign {
   const { campaign, strings } = built;
   return {
@@ -176,7 +184,7 @@ export function toPortable(
   };
 }
 
-function toPortableBody(campaign: Campaign, migration: PortableMigration | undefined): PortableCampaignBody {
+function toPortableBody(campaign: Campaign, migration: PortableMigration | SimulationMigration | undefined): PortableCampaignBody {
   const envelope = { id: campaign.id, version: campaign.version, titleKey: campaign.titleKey };
   switch (campaign.kindId) {
     case "story-graph":
@@ -184,22 +192,22 @@ function toPortableBody(campaign: Campaign, migration: PortableMigration | undef
         ...envelope,
         kindId: "story-graph",
         content: campaign.content as StoryGraphCampaign,
-        ...(migration !== undefined ? { migration } : {}),
+        ...(migration !== undefined ? { migration: migration as PortableMigration } : {}),
       };
     case "world-graph":
       if (migration !== undefined) {
         throw new Error(
-          `toPortable: migration is only supported for story-graph campaigns, got world-graph for "${campaign.id}"`,
+          `toPortable: migration is not supported for world-graph campaigns, got one for "${campaign.id}"`,
         );
       }
       return { ...envelope, kindId: "world-graph", content: campaign.content as WorldGraphCampaign };
     case "simulation":
-      if (migration !== undefined) {
-        throw new Error(
-          `toPortable: migration is only supported for story-graph campaigns, got simulation for "${campaign.id}"`,
-        );
-      }
-      return { ...envelope, kindId: "simulation", content: campaign.content as SimulationCampaign };
+      return {
+        ...envelope,
+        kindId: "simulation",
+        content: campaign.content as SimulationCampaign,
+        ...(migration !== undefined ? { migration: migration as SimulationMigration } : {}),
+      };
   }
 }
 
@@ -286,6 +294,12 @@ export function fromPortable(portable: PortableCampaign): {
     const storyContent = content as StoryGraphCampaign;
     const migration = campaign.migration;
     built.migrateState = (state, fromVersion) => migrateFromContent(state, fromVersion, storyContent, migration);
+  }
+
+  if (campaign.kindId === "simulation" && campaign.migration !== undefined) {
+    const simulationContent = content as SimulationCampaign;
+    const migration = campaign.migration;
+    built.migrateState = (state, fromVersion) => applySimulationMigration(state, fromVersion, simulationContent, migration);
   }
 
   return {

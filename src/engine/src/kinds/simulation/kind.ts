@@ -32,6 +32,7 @@ import { availableActions } from "./available.js";
 import { SIMULATION_EVENT_NAMES } from "./events.js";
 import { initialState } from "./initial.js";
 import { outcome } from "./outcome.js";
+import { simulationProfileData } from "./profile.js";
 import { SIMULATION_ENGINE_MESSAGES, SIMULATION_REASON_CODES, SIMULATION_REASON_MESSAGES } from "./reasons.js";
 import { scene } from "./scene.js";
 import type { SimulationKindState } from "./state.js";
@@ -46,11 +47,12 @@ export const simulationKind: Kind<SimulationKindState> = {
   /** Generated from `events.ts`'s name-to-severity table so this list and the call sites
    *  cannot drift (W96). */
   eventNames: SIMULATION_EVENT_NAMES,
-  initialState: (c): InitialStateResult<SimulationKindState> => initialState(c),
+  initialState: (c, ctx, profileData): InitialStateResult<SimulationKindState> => initialState(c, ctx, profileData),
   availableActions: (state, ctx): AvailableAction[] => availableActions(state, ctx),
   scene: (state, ctx): SceneBody => scene(state, ctx),
   advance: (state, actionId, params, ctx): AdvanceResult<SimulationKindState> => advance(state, actionId, params, ctx),
   project: (state, audience: ProjectionAudience, ctx): SimulationView => project(state, audience, ctx),
   validateCampaign: (campaign, strings) => validateCampaign(campaign, strings),
   outcome: (state) => outcome(state),
+  profileData: simulationProfileData,
 };

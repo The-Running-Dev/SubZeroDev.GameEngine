@@ -129,6 +129,7 @@ function validateDuplicateIds(content: SimulationCampaign): ValidationError[] {
     ...duplicateIds(content.skills).map((id) => error("duplicate_id", id)),
     ...duplicateIds(content.projects).map((id) => error("duplicate_id", id)),
     ...duplicateIds(content.businesses).map((id) => error("duplicate_id", id)),
+    ...duplicateIds(content.eventChains ?? []).map((id) => error("duplicate_id", id)),
     // RivalConfig.agentId (§7.8, W101) — unique within its own scenario's `rivals` array,
     // not across the whole campaign (AgentState.id only needs to be unique within the one
     // WorldState.agents array it populates).
@@ -228,6 +229,16 @@ function validateReferences(content: SimulationCampaign): ValidationError[] {
         break;
     }
     if (!resolves) errors.push(error("dangling_reference", opportunity.targetId));
+  }
+
+  // EventDefinition.chainId → EventChainDefinition (§7.13, W102) — the check that makes
+  // `scope` reliably present for every chain that can actually fire, which §2.2's seeding
+  // rule depends on.
+  const chainIds = new Set((content.eventChains ?? []).map((c) => c.id));
+  for (const event of content.events) {
+    if (event.chainId !== undefined && !chainIds.has(event.chainId)) {
+      errors.push(error("dangling_reference", event.chainId));
+    }
   }
 
   return errors;
@@ -401,6 +412,14 @@ function validateUnreachableItems(content: SimulationCampaign): ValidationWarnin
     .map((i) => warning("unreachable_content", i.id));
 }
 
+/** A declared `EventChainDefinition` no `EventDefinition.chainId` ever references (§7.13). */
+function validateUnreachableEventChains(content: SimulationCampaign): ValidationWarning[] {
+  const referenced = new Set(content.events.map((e) => e.chainId).filter((id): id is string => id !== undefined));
+  return (content.eventChains ?? [])
+    .filter((c) => !referenced.has(c.id))
+    .map((c) => warning("unreachable_content", c.id));
+}
+
 // ---------------------------------------------------------------------------
 // Tier 2 — an achievement condition referencing an unwritten counter/flag
 // ---------------------------------------------------------------------------
@@ -481,6 +500,7 @@ export function validateCampaign(campaign: Campaign, strings: ReadonlyMap<LocKey
     ...validateUnreachableJobs(content),
     ...validateUnreachableHousing(content),
     ...validateUnreachableItems(content),
+    ...validateUnreachableEventChains(content),
     ...validateUnsatisfiableAchievements(content),
   ];
 

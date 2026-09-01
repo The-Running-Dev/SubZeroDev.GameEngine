@@ -10,7 +10,15 @@
  * `isValidGameStateShape` already uses for `GameState`.
  */
 
-import type { AchievementRecord, PlayerProfile, ProfileLoadResult, ProfileSaveResult, ProfileStore, TerminalRecord } from "./types.js";
+import type {
+  AchievementRecord,
+  KindProfileRecord,
+  PlayerProfile,
+  ProfileLoadResult,
+  ProfileSaveResult,
+  ProfileStore,
+  TerminalRecord,
+} from "./types.js";
 
 export interface InMemoryProfileStoreOptions {
   /** Seeds the backing store — including, deliberately, a malformed entry (plan 15
@@ -34,6 +42,13 @@ function isValidTerminalRecord(v: unknown): v is TerminalRecord {
   return isPlainObject(v) && typeof v["campaignId"] === "string" && typeof v["terminalId"] === "string";
 }
 
+/** Shape only — `kindId` is deliberately not checked against a closed set of registered
+ *  kinds: a record naming a kind this build doesn't have must still round-trip unchanged
+ *  (04 §7.1's "unknown kinds are preserved, never dropped"). */
+function isValidKindProfileRecord(v: unknown): v is KindProfileRecord {
+  return isPlainObject(v) && typeof v["kindId"] === "string" && typeof v["dataVersion"] === "number" && "data" in v;
+}
+
 /**
  * Requires `raw.profileId === profileId`, not just `typeof ... === "string"` — a stored
  * entry whose internal `profileId` doesn't match the key it's filed under is corruption
@@ -44,11 +59,12 @@ function isValidTerminalRecord(v: unknown): v is TerminalRecord {
  */
 function isValidPlayerProfile(v: unknown, profileId: string): v is PlayerProfile {
   if (!isPlainObject(v)) return false;
-  if (v["formatVersion"] !== 2) return false;
+  if (v["formatVersion"] !== 3) return false;
   if (v["profileId"] !== profileId) return false;
   if (!Array.isArray(v["achievements"]) || !v["achievements"].every(isValidAchievementRecord)) return false;
-  if (!Array.isArray(v["terminals"])) return false;
-  return v["terminals"].every(isValidTerminalRecord);
+  if (!Array.isArray(v["terminals"]) || !v["terminals"].every(isValidTerminalRecord)) return false;
+  if (!Array.isArray(v["kindData"])) return false;
+  return v["kindData"].every(isValidKindProfileRecord);
 }
 
 interface PlayerProfileV1 {
@@ -65,14 +81,37 @@ function isValidPlayerProfileV1(v: unknown, profileId: string): v is PlayerProfi
   return v["achievements"].every(isValidAchievementRecord);
 }
 
-/** `formatVersion` moves 1 → 2; the migration is total (04 §7.1): no field is renamed,
- *  removed or re-typed, so this cannot fail. */
+interface PlayerProfileV2 {
+  formatVersion: 2;
+  profileId: string;
+  achievements: readonly AchievementRecord[];
+  terminals: readonly TerminalRecord[];
+}
+
+function isValidPlayerProfileV2(v: unknown, profileId: string): v is PlayerProfileV2 {
+  if (!isPlainObject(v)) return false;
+  if (v["formatVersion"] !== 2) return false;
+  if (v["profileId"] !== profileId) return false;
+  if (!Array.isArray(v["achievements"]) || !v["achievements"].every(isValidAchievementRecord)) return false;
+  if (!Array.isArray(v["terminals"])) return false;
+  return v["terminals"].every(isValidTerminalRecord);
+}
+
+/** `formatVersion` moves 1 → 3 in one total step: `{ ...profile, formatVersion: 3,
+ *  terminals: [], kindData: [] }` (04 §7.1) — no field is renamed, removed or re-typed, so
+ *  this cannot fail. */
 function migrateProfileV1(v: PlayerProfileV1): PlayerProfile {
-  return { formatVersion: 2, profileId: v.profileId, achievements: v.achievements, terminals: [] };
+  return { formatVersion: 3, profileId: v.profileId, achievements: v.achievements, terminals: [], kindData: [] };
+}
+
+/** `formatVersion` moves 2 → 3: `{ ...profile, formatVersion: 3, kindData: [] }` (04 §7.1) —
+ *  again total, since no version-2 profile ever held kind data. */
+function migrateProfileV2(v: PlayerProfileV2): PlayerProfile {
+  return { formatVersion: 3, profileId: v.profileId, achievements: v.achievements, terminals: v.terminals, kindData: [] };
 }
 
 function emptyProfile(profileId: string): PlayerProfile {
-  return { formatVersion: 2, profileId, achievements: [], terminals: [] };
+  return { formatVersion: 3, profileId, achievements: [], terminals: [], kindData: [] };
 }
 
 export function createInMemoryProfileStore(options?: InMemoryProfileStoreOptions): ProfileStore {
@@ -90,6 +129,9 @@ export function createInMemoryProfileStore(options?: InMemoryProfileStoreOptions
       // through save().
       if (isValidPlayerProfile(raw, profileId)) {
         return { profile: structuredClone(raw), warnings: [] };
+      }
+      if (isValidPlayerProfileV2(raw, profileId)) {
+        return { profile: migrateProfileV2(structuredClone(raw)), warnings: [] };
       }
       if (isValidPlayerProfileV1(raw, profileId)) {
         return { profile: migrateProfileV1(structuredClone(raw)), warnings: [] };

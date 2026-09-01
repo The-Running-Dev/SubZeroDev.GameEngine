@@ -13,6 +13,8 @@ import type {
   AchievementDefinition,
   BackgroundDefinition,
   BusinessDefinition,
+  EventChainDefinition,
+  EventDefinition,
   OpportunityDefinition,
   ProjectDefinition,
   RivalConfig,
@@ -634,5 +636,49 @@ describe("validateCampaign", () => {
     expect(validateCampaign(failing, VALID_STRINGS).errors).toContainEqual(
       expect.objectContaining({ code: "dangling_reference", path: "business-1" }),
     );
+  });
+
+  // ---------------------------------------------------------------------------
+  // W102 — eventChains (§7.13, §14)
+  // ---------------------------------------------------------------------------
+
+  function makeEvent(overrides: Partial<EventDefinition> = {}): EventDefinition {
+    return {
+      id: "event-1",
+      category: "test",
+      titleKey: "sim.description",
+      descriptionKey: "sim.description",
+      weight: 1,
+      conditions: { field: "calendar.currentWeek", operator: "greater_or_equal", value: 1 },
+      tags: [],
+      ...overrides,
+    };
+  }
+
+  it("rejects duplicate_id when two EventChainDefinitions share an id", () => {
+    const chains: EventChainDefinition[] = [{ id: "chain-1", scope: "game" }, { id: "chain-1", scope: "profile" }];
+    const result = validateCampaign(makeCampaign({ eventChains: chains }), VALID_STRINGS);
+    expect(result.errors).toContainEqual(expect.objectContaining({ code: "duplicate_id", path: "chain-1" }));
+  });
+
+  it("rejects dangling_reference when an EventDefinition.chainId names no declared chain", () => {
+    const result = validateCampaign(
+      makeCampaign({ events: [makeEvent({ chainId: "no-such-chain" })], eventChains: [] }),
+      VALID_STRINGS,
+    );
+    expect(result.errors).toContainEqual(expect.objectContaining({ code: "dangling_reference", path: "no-such-chain" }));
+  });
+
+  it("passes when an EventDefinition.chainId resolves against a declared EventChainDefinition", () => {
+    const result = validateCampaign(
+      makeCampaign({ events: [makeEvent({ chainId: "chain-1" })], eventChains: [{ id: "chain-1", scope: "game" }] }),
+      VALID_STRINGS,
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it("warns unreachable_content when a declared chain is never named by any EventDefinition.chainId", () => {
+    const result = validateCampaign(makeCampaign({ eventChains: [{ id: "chain-orphan", scope: "game" }] }), VALID_STRINGS);
+    expect(result.warnings).toContainEqual(expect.objectContaining({ code: "unreachable_content", path: "chain-orphan" }));
   });
 });

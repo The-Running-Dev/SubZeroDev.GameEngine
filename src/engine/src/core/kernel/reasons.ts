@@ -88,6 +88,13 @@ export type ReasonCode = string;
  * needs a code for each of §7's three checks (11-content-packs.md). Base rather than
  * kind-owned because pack resolution is core machinery, same reasoning as the registry's
  * existing `duplicate_campaign_id` and `string_conflict`.
+ *
+ * `profile_kind_data_unreadable` and `profile_kind_data_rejected` were added during W102 —
+ * they mirror `ProfileWarningCode` (`session/types.ts`) exactly as `profile_missing`/
+ * `profile_corrupt`/`profile_write_failed` already do, for the third profile mirror
+ * (`Kind.profileData`, 04 §7.1): a version mismatch with no migration (or one that fails)
+ * drops a kind's profile slice for the session, and a throwing/oversized `fold` result is
+ * refused, in both cases only ever surfacing as a warning.
  */
 export const BASE_REASON_CODES = [
   "action_not_available",
@@ -124,6 +131,8 @@ export const BASE_REASON_CODES = [
   "pack_dependency_version_conflict",
   "pack_dependency_cycle",
   "pack_override_unexpected",
+  "profile_kind_data_unreadable",
+  "profile_kind_data_rejected",
 ] as const;
 
 export type BaseReasonCode = (typeof BASE_REASON_CODES)[number];
@@ -169,6 +178,8 @@ const CORE_REASON_TEXT: Readonly<Record<BaseReasonCode, string>> = {
   pack_dependency_version_conflict: "Two packs require different versions of the same pack.",
   pack_dependency_cycle: "Content packs can't depend on each other in a cycle.",
   pack_override_unexpected: "This pack overrides content no earlier pack supplied.",
+  profile_kind_data_unreadable: "This kind's saved cross-game data couldn't be read for this session; it starts with none.",
+  profile_kind_data_rejected: "This kind's cross-game data couldn't be updated. Your game progress was not affected.",
 };
 
 /** `core.reason.<code>` → its shipped default-English message, for every base code. */

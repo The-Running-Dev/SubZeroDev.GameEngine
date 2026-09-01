@@ -212,3 +212,57 @@ describe("initialState", () => {
     expect(result.messages).toEqual([]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// W102 — seeding `world.chainStates` from a campaign's declared eventChains and the
+// migrated `profileData` argument (§2.2, §7.1)
+// ---------------------------------------------------------------------------
+
+describe("initialState — profile-scoped chain seeding (W102)", () => {
+  const withChains = (): Campaign => ({
+    ...campaign,
+    content: {
+      ...simulationCampaign,
+      eventChains: [
+        { id: "profile-chain", scope: "profile" },
+        { id: "game-chain", scope: "game" },
+      ],
+    } satisfies SimulationCampaign,
+  });
+
+  it("a campaign declaring no eventChains produces a chainStates identical to before this field existed", () => {
+    const result = initialState(campaign);
+    expect(result.state.world.chainStates).toEqual([]);
+  });
+
+  it("an anonymous session (no profileData) seeds every profile-scoped chain at step 0, inactive", () => {
+    const result = initialState(withChains());
+    expect(result.state.world.chainStates).toEqual([
+      { chainId: "profile-chain", scope: "profile", currentStep: 0, startedWeek: 0, active: false },
+    ]);
+  });
+
+  it("never seeds a game-scoped chain — chainStates starts empty of those, unchanged", () => {
+    const result = initialState(withChains());
+    expect(result.state.world.chainStates.some((c) => c.chainId === "game-chain")).toBe(false);
+  });
+
+  it("seeds a profile-scoped chain's currentStep from the matching SimulationProfileChainRecord.furthestStep", () => {
+    const profileData = { chains: [{ campaignId: campaign.id, chainId: "profile-chain", furthestStep: 4 }] };
+    const result = initialState(withChains(), undefined, profileData);
+    expect(result.state.world.chainStates).toEqual([
+      { chainId: "profile-chain", scope: "profile", currentStep: 4, startedWeek: 0, active: false },
+    ]);
+  });
+
+  it("ignores a furthestStep recorded under a different campaignId", () => {
+    const profileData = { chains: [{ campaignId: "some-other-campaign", chainId: "profile-chain", furthestStep: 9 }] };
+    const result = initialState(withChains(), undefined, profileData);
+    expect(result.state.world.chainStates[0]!.currentStep).toBe(0);
+  });
+
+  it("a malformed profileData argument degrades to the same as no cross-game history", () => {
+    const result = initialState(withChains(), undefined, { not: "the right shape" });
+    expect(result.state.world.chainStates[0]!.currentStep).toBe(0);
+  });
+});
