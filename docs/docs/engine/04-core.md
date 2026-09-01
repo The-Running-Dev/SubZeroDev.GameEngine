@@ -180,8 +180,12 @@ interface Kind<KState> {
   readonly reasonMessages: ReadonlyMap<LocKey, string>;
   readonly eventNames: readonly EventName[];     // events this kind may emit (05 §9)
 
-  /** Build the starting kind-state for a fresh game of this campaign. */
-  initialState(campaign: Campaign, ctx: KindContext): InitialStateResult<KState>;
+  /** Build the starting kind-state for a fresh game of this campaign. `profileData` is this
+   *  kind's own cross-game slice, already resolved and migrated by the session store before
+   *  the pure engine ran (§5, §7.1). It is absent for an anonymous session, for a kind that
+   *  declares no `profileData` member, and for a replay whose `NewGameConfig` carries none —
+   *  a kind that reads it must treat absence as "no cross-game history", never as an error. */
+  initialState(campaign: Campaign, ctx: KindContext, profileData?: unknown): InitialStateResult<KState>;
 
   /** What the player can do right now — generic actions for the current scene (§6). */
   availableActions(state: KState, ctx: KindContext): AvailableAction[];
@@ -233,6 +237,57 @@ interface Kind<KState> {
    * silently handing this version a state it wasn't written to read.
    */
   migrateState?(oldState: unknown, fromVersion: string): CommandResult<KState>;
+
+  /**
+   * This kind's cross-game profile slice (§7.1). **Absent means the kind owns no profile
+   * data at all** — no `KindProfileRecord` is ever written for it, `initialState` never
+   * receives a `profileData` argument, and nothing about profiles reaches it. That is the
+   * state every kind is in until it declares this member, and it is the reason the whole
+   * mechanism is one optional property rather than three correlated ones: a kind cannot
+   * declare a version without a fold, or a fold without a version.
+   */
+  readonly profileData?: KindProfileData;
+}
+
+/**
+ * The kind-owned half of §7.1's cross-game data. Engine-owned code, never a host-supplied
+ * port: it decides what a profile records and how a recorded value reads back, and 06 §2's
+ * rule admits a host only where it cannot change `serialize()` output. A seeded slice reaches
+ * `initialState`, so this one can.
+ */
+interface KindProfileData {
+  /** The shape version of this kind's `KindProfileRecord.data`. A positive integer, moving
+   *  only when that shape changes. **Deliberately not `Kind.version`**: a kind's code moves
+   *  far more often than its profile slice's shape does, and sharing the stamp would demand a
+   *  profile migration for every unrelated bump. */
+  readonly version: number;
+
+  /**
+   * Fold one successful action's audit records into this kind's slice. Pure and total — same
+   * `(current, campaign, changes)` gives the same result, it performs no I/O, and it must not
+   * throw; the store treats a throw as a refused write (§7.1) rather than letting it reach the
+   * player, exactly as `resolveSaveEnvelope` already treats a throwing `migrateState`.
+   *
+   * **It must be idempotent**: folding the same `changes` twice must equal folding them once.
+   * That is what makes a transition survive a reload, a branch, or a re-submitted action
+   * without a duplicate entry, and it is why the recorded shapes below are maxima and sets
+   * rather than sums.
+   *
+   * `current` is `undefined` the first time this profile records anything for this kind.
+   * Returning a value whose canonical serialization equals `current`'s means "nothing to
+   * write", and the store skips the write — which is how idempotence becomes observable
+   * rather than merely claimed.
+   */
+  fold(current: unknown, campaign: Campaign, changes: readonly StateChange[]): unknown;
+
+  /**
+   * Migrate a slice written under an older `version` (§7.1). Optional, and its absence is a
+   * *degradation* rather than a failure: a version mismatch with no migration drops the slice
+   * and warns, because a profile is a mirror of games already played and the game is the
+   * system of record. This is the one place a migration may be missing without failing —
+   * §10.2's save-side mismatch fails loudly, because there the payload *is* the record.
+   */
+  migrate?(data: unknown, fromVersion: number): CommandResult<unknown>;
 }
 
 interface AdvanceResult<KState> {
@@ -504,12 +559,35 @@ interface NewGameConfig {
   campaignId: string;
   seed?: string;                 // omitted → the store generates one and records it
   audience?: ProjectionAudience; // default "player"
+  kindProfileData?: unknown;     // §7.1 — the resolved cross-game slice, not the profile
 }
 ```
 
 The kind is not named here — it is a property of the campaign (`Campaign.kindId`),
 resolved from the registry. A client starts a game by campaign; whether that campaign
 is a story graph or a simulation is invisible to it.
+
+> **`kindProfileData` is an *input*, and that is the whole of why it sits here.** §7.1's
+> standing rule is that nothing in resolution reads a profile, and §7's is that `profileId`
+> never appears on this type or in `GameState`. Both survive: the session store reads the
+> profile, extracts and migrates the slice for this campaign's kind, and writes the **resolved
+> value** into the config it hands the pure engine. No identity travels, and no ambient read
+> happens during resolution — by the time `advance` runs, whatever the kind kept from the slice
+> is ordinary `kindState`.
+>
+> **Putting it anywhere else breaks the replay oracle.** `ReplayFixture.config` is a
+> `NewGameConfig` (07 §2), so a value carried here is captured with the fixture and reproduces;
+> a value reaching `initialState` through `KindContext` instead would not be, and a captured
+> session that started from a profile would silently stop being reproducible — the oracle would
+> still pass while asserting something weaker than it claims. That is the same objection
+> `90-decisions.md` records against feeding a profile into `KindContext` for *projection*,
+> applied to initialization, and it points the same way. `08-session-capture.md` §2's privacy
+> rule is met by construction rather than by exception: what travels is kind-declared content
+> ids and integers, the same category as `ActionParams`, and never `profileId`.
+>
+> **The type is `unknown` for the same reason `GameState.kindState` is** (§2): the core must
+> not depend on a kind. It is opaque here, opaque on the profile record (§7.1), and typed only
+> inside the kind that declared it.
 
 ---
 
@@ -712,10 +790,11 @@ layer — stateful, I/O-doing, and invisible to the pure engine.
 
 ```typescript
 interface PlayerProfile {
-  formatVersion: 2;
+  formatVersion: 3;
   profileId: string;
   achievements: readonly AchievementRecord[];
   terminals: readonly TerminalRecord[];   // §7.3 — the cross-session half of campaign progress
+  kindData: readonly KindProfileRecord[]; // below — the kind-owned cross-game slice
 }
 
 interface AchievementRecord {
@@ -728,8 +807,21 @@ interface TerminalRecord {
   terminalId: string;            // `KindOutcome.terminalId` — a published id, never a value
 }
 
-type ProfileWarningCode = "profile_missing" | "profile_corrupt" | "profile_write_failed";
-interface ProfileWarning { code: ProfileWarningCode; profileId: string; }
+/** At most one per kind. Ordered by `kindId` ascending, so a profile has one serialization. */
+interface KindProfileRecord {
+  kindId: string;                // a `KindId` for every kind this build knows; see below
+  dataVersion: number;           // the `Kind.profileData.version` this `data` was written under
+  data: unknown;                 // opaque to the core, exactly as `GameState.kindState` is (§2)
+}
+
+type ProfileWarningCode =
+  | "profile_missing" | "profile_corrupt" | "profile_write_failed"
+  | "profile_kind_data_unreadable" | "profile_kind_data_rejected";
+interface ProfileWarning {
+  code: ProfileWarningCode;
+  profileId: string;
+  kindId?: string;               // present iff the warning is about one `KindProfileRecord`
+}
 
 interface ProfileLoadResult { profile: PlayerProfile; warnings: readonly ProfileWarning[]; }
 interface ProfileSaveResult { ok: boolean; warnings: readonly ProfileWarning[]; }
@@ -755,7 +847,7 @@ Rules, all of them determinism-preserving:
 - **Anonymous by default.** No `profileId` → no read, no write; achievements persist only
   for that game. Cross-session persistence is opt-in.
 - **Degradation is a warning, never a failure.** Missing or corrupt loads return an empty
-  `formatVersion: 2` profile plus `profile_missing` / `profile_corrupt`. A failed write
+  `formatVersion: 3` profile plus `profile_missing` / `profile_corrupt`. A failed write
   returns `profile_write_failed` and **does not** roll back the completed game action —
   the game is authoritative, the profile is a mirror.
 - **Terminals mirror exactly as achievements do.** After an action whose `AdvanceResult.status`
@@ -764,15 +856,143 @@ Rules, all of them determinism-preserving:
   A `null` `terminalId` on a terminal outcome records nothing. Nothing in `advance` or
   `project` ever reads one back, so this cannot perturb determinism any more than the
   achievement mirror can.
+- **Kind-owned data mirrors the same way, and reads back as an input.** A kind that declares
+  `Kind.profileData` (§3) gets one `KindProfileRecord`; the store folds it forward after a
+  successful action, and hands it back through `NewGameConfig.kindProfileData` (§5) when a new
+  session for that profile starts. Both halves keep the two rules above intact — the write is
+  after resolution, and the read is before it. *Kind-owned cross-game data*, below, is the
+  whole of it.
 
-**`formatVersion` moves 1 → 2, and the migration is the whole story: a version-1 profile reads
-as `{ ...profile, formatVersion: 2, terminals: [] }`.** No field is renamed, removed or
-re-typed, so the migration is total and cannot fail — which is why it is stated here rather
-than seamed as a function. A player who finished games under version 1 starts at
-`discovered: 0` for those campaigns and re-earns the count by finishing again. That loss is
-accepted deliberately: the alternative is reconstructing terminals from stored session blobs,
-which would mean deserializing every save a profile ever touched to recover a number that
-exists only to decorate a shelf.
+**`formatVersion` has moved twice, and both migrations are total, which is why both are stated
+here rather than seamed as functions.** A version-1 profile reads as
+`{ ...profile, formatVersion: 3, terminals: [], kindData: [] }`; a version-2 profile reads as
+`{ ...profile, formatVersion: 3, kindData: [] }`. No field is renamed, removed or re-typed at
+either step, so neither can fail. **The `ProfileStore` implementation owns this migration** —
+it is the one part a host adapter must reproduce, because the adapter is what reads the stored
+document, and it needs no kind registry to do it. The per-kind `dataVersion` migration below is
+the opposite, and is core-owned for the same reason inverted.
+
+A player who finished games under version 1 starts at `discovered: 0` for those campaigns and
+re-earns the count by finishing again. That loss is accepted deliberately: the alternative is
+reconstructing terminals from stored session blobs, which would mean deserializing every save a
+profile ever touched to recover a number that exists only to decorate a shelf. The 2 → 3 step
+loses nothing, because no version-2 profile ever held kind data.
+
+> **`formatVersion: 3` is a literal type, and the break is deliberate.** A host constructing a
+> `PlayerProfile` fails to compile rather than writing a `2` document this build then migrates
+> on every load. This is durable player data; a loud break at the one place that constructs it
+> is cheaper than a silent per-load rewrite nobody notices.
+
+#### Kind-owned cross-game data
+
+A kind's own state cannot outlive a game — that is `GameState`'s whole shape (§2). Some of it
+is *meant* to: `simulation`'s `"profile"`-scoped event chains
+([`10-simulation-kind.md`](10-simulation-kind.md) §2.2) exist precisely to advance across games
+a player has already finished. This is where that lives, and the core never learns what it is.
+
+**Ownership.** `KindProfileRecord.data` is owned end to end by the kind whose `kindId` it names.
+The core stores it, sizes it, versions it and hands it back; it never reads inside it, never
+merges it, never validates its contents, and never declares a type for it. The only code that
+interprets a slice is that kind's own `Kind.profileData` (§3), engine-owned per architecture N2
+and [`06-extensibility.md`](06-extensibility.md) §7. **No kind's type appears in the core** as a
+result — not `simulation`'s, and not any later kind's.
+
+**Writing — the third mirror.** After a successful `submitAction` on a profiled session, and on
+the same profile-keyed write as the achievement and terminal upserts (§7's `profileId` lock
+domain), the store calls `kind.profileData.fold(current, campaign, changes)` with the record's
+current `data` (or `undefined`) and that action's `AdvanceResult.changes`. The returned value
+replaces `data`, and `dataVersion` is stamped to `kind.profileData.version`. Three outcomes,
+and only the first writes:
+
+- **A different value** — written, in `kindId` order, on the same `ProfileStore.save` as the
+  other two mirrors.
+- **A canonically equal value** — no write. This is what makes `fold`'s idempotence observable
+  rather than merely claimed: reapplying a transition the profile already holds produces the
+  same bytes, the store skips the save, and no duplicate entry, event, achievement or reward
+  can follow from it.
+- **A throw, or a result the canonical serializer rejects** (`canonicalStringify`,
+  `src/engine/src/core/persistence/canonical.ts` — non-finite numbers, `bigint`, an `undefined`
+  in a value position) — refused. The previous `data` is retained untouched and one
+  `profile_kind_data_rejected` warning names the kind. `fold` is content-adjacent code and is
+  invoked defensively for exactly the reason `resolveSaveEnvelope` already invokes
+  `migrateState` defensively.
+
+**Size is validated, and the limit is on the slice.** The canonical serialization of a folded
+`data` must not exceed **65 536 bytes**. Over it, the write is refused exactly as a throw is:
+prior `data` retained, `profile_kind_data_rejected` warned. The cap is per record rather than
+per profile, so one kind cannot starve another; and it is checked on the *write* rather than the
+read, so a profile can never become unloadable because a limit tightened. A kind whose slice
+approaches this has designed an unbounded accumulator and needs a different shape, not a larger
+number.
+
+**Version is validated, and a mismatch degrades.** On load, for each record whose `kindId` is
+registered:
+
+- `dataVersion === kind.profileData.version` — used as-is.
+- `dataVersion < …` — `kind.profileData.migrate` runs and its result is used. A missing
+  `migrate`, a failed one, or one that throws drops the slice for this session and warns
+  `profile_kind_data_unreadable`.
+- `dataVersion > …` — an older build reading a newer profile. The slice is not read, and the
+  same warning is raised.
+
+**A dropped slice is not a deleted one.** The record stays in the profile byte for byte, so the
+build that can read it still can; the kind simply starts that session with no cross-game
+history, which is the same degradation a missing profile already gets.
+
+**Migration order, and why it is this way round.** The profile's own `formatVersion` migration
+runs first, then the per-record `dataVersion` migration. Same reasoning as §10.2's
+kind-then-campaign order: the envelope's shape is a precondition for addressing the payload
+inside it. The split of *who* runs each is the load-bearing part — `formatVersion` is the
+adapter's, because the adapter is what reads the stored document and it needs nothing else;
+`dataVersion` is the core session store's, because it needs the kind registry, and a host port
+must never hold one.
+
+**Unknown kinds are preserved, never dropped.** A `KindProfileRecord` whose `kindId` names no
+kind in this build's registry is carried through load and save unchanged: not migrated, not
+sized, not handed to any kind, not counted against anything. `kindId` is typed `string` rather
+than `KindId` for exactly this reason — a closed union would make such a record fail shape
+validation and condemn the whole profile as `profile_corrupt`. The case is real and
+one-directional: a host running a subset of kinds, or an older build, must not erase a player's
+progress in a kind it happens not to have.
+
+**Reading — once, at `createSession`, and nowhere else.** When `createSession` is given a
+`profileId` and the campaign's kind declares `profileData`, the store loads the profile,
+resolves the record for that `kindId`, migrates it, and passes the result as
+`NewGameConfig.kindProfileData` (§5) — before the pure engine runs. `resumeSession`, `loadGame`
+and `branchSession` **do not** re-seed: the kind already put whatever it kept into `kindState`
+at `initialState`, and re-reading a profile that has moved on since would make a resumed session
+differ from the one that was saved. An anonymous session reads nothing, so it seeds nothing.
+
+#### Invariants
+
+Each is written to become an assertion. The **session store** maintains P1–P6; P7 and P8 are
+obligations on a kind that declares `profileData`, and the store cannot enforce them for it —
+which is why they are stated here rather than assumed, and why the kind conformance tests are
+where they are checked.
+
+- **P1.** Nothing a profile holds is readable from `advance`, `project`, `scene`,
+  `availableActions` or `outcome`. The only route in is `initialState`'s third argument.
+  *Enforced by the seam's own shape: no other member is given one.*
+- **P2.** `serialize()` output for a session created with `profileId` set and `kindProfileData`
+  absent is byte-identical to one created anonymously with the same `NewGameConfig`.
+  *Enforced by code, and by the determinism harness (§14).*
+- **P3.** A `KindProfileRecord` whose `kindId` is unregistered in this build survives a
+  load-modify-save round trip byte-identically. *Enforced by code.*
+- **P4.** No `ProfileStore` failure, refused fold, dropped slice, or size rejection changes
+  `AdvanceResult`, `GameState`, or whether `submitAction` succeeded. Every one of them surfaces
+  as a `ValidationWarning` and nothing else. *Enforced by code — the same guarantee
+  `profile_write_failed` has held since W8.*
+- **P5.** `PlayerProfile.kindData` holds at most one record per `kindId`, ordered by `kindId`
+  ascending, so one profile has exactly one canonical serialization. *Enforced by code.*
+- **P6.** A profile write happens only when the folded slice's canonical serialization differs
+  from the stored one. *Enforced by code — this is what makes P8 observable.*
+- **P7.** `fold` is pure: no I/O, no ambient clock, no randomness, and the same
+  `(current, campaign, changes)` always returns the same value. *Enforced by
+  `src/engine/eslint.config.js`'s determinism guard for the mechanical half, by instruction for
+  the rest.*
+- **P8.** `fold` is idempotent: `fold(fold(c, k, ch), k, ch)` is canonically equal to
+  `fold(c, k, ch)`. *Enforced by a kind conformance test, and made observable in the store by
+  P6 — a non-idempotent fold shows up as a second write with no second action.*
 
 ### 7.2 Host Persistence — The Record Store Beneath the Session Store
 
@@ -1577,6 +1797,25 @@ load the same way:
 - **A successful migration** sets `replayCompatible: false`, sticky forward — once a
   lineage has passed through a migrated load, it never becomes replay-compatible again,
   even across further saves that need no further migration.
+- **A migration is idempotent against its own output.** Migrating a save, saving it, and
+  migrating again — which is what happens whenever a player loads, plays nothing, and saves,
+  or whenever a fixture is regenerated — must reach a canonically identical `kindState`. The
+  first pass restamps `campaignVersion` to the campaign's own (`resolveSaveEnvelope`), so the
+  second pass finds no mismatch and runs no migration at all; that is *why* it holds, and
+  stating the property rather than the mechanism is what makes it testable against a
+  migration that mutates in place, accumulates, or appends. `replayCompatible` stays `false`
+  through both, which is the sticky-forward rule above doing its work.
+
+**What each axis may do to state, stated as a rule rather than per kind.** `Kind.migrateState`
+may change the *shape* of `kindState` — add a field with a default, drop one, retype one. A
+campaign migration may only re-address *published content ids* the state references, and drop
+or default the references that no longer resolve. Neither may invent play: a migration that
+awarded money, advanced a week, or unlocked an achievement would make the same save load
+differently depending on which version it passed through, which is the class of defect
+`replayCompatible: false` exists to *record* and not to license. A campaign migration that
+finds a reference it can neither remap nor drop fails with `migration_failed` rather than
+guessing — this is architecture §8's "map old ids forward or fail loudly", said from the
+implementation side.
 
 Migration functions are engine-or-content-owned, never a host-supplied port: a port may
 supply anything that cannot change `serialize()` output
@@ -1733,6 +1972,7 @@ const BASE_REASON_CODES = [
   "missing_kind_reason_message",
   // the profile store (§7.1) — mirrors ProfileWarningCode
   "profile_missing", "profile_corrupt", "profile_write_failed",
+  "profile_kind_data_unreadable", "profile_kind_data_rejected",
   // the save-load boundary (§10.2)
   "save_requires_migration", "migration_failed",
   // host persistence (§7.2)
@@ -1750,7 +1990,7 @@ const BASE_REASON_CODES = [
 > **The base set grows; it was never fixed at the MVP.** The original seven were the
 > vocabulary one *turn* needs. Everything after them was added by a unit that found a
 > cross-kind failure mode with no code that fitted — the kernel's three rejections, registry
-> assembly's three, the core's own Tier-1 four, the profile store's three, the save
+> assembly's three, the core's own Tier-1 four, the profile store's five, the save
 > boundary's two, host persistence's four, session lifecycle's one, the audit vocabulary's
 > one, and content-pack resolution's six. That is the intended shape: a code is registered when a real caller
 > produces it, not pre-declared from this list. Because `ReasonCode` is *additive, never
@@ -2091,6 +2331,24 @@ Portable campaign documents remain format version 2. `toPortable` and
 runtime-root export. `digestPortableCampaign` is exported from both surfaces: the root, for
 hosts verifying fetched content, and `/authoring`, for authoring pipelines digesting campaign
 source before publication.
+
+**`PortableCampaignBody`'s simulation arm gains an optional `migration`, and the format version
+does not move.** Until now `migration` existed only on the story-graph arm, which
+`src/engine/src/portable/format.ts` documented as a structural fact rather than an omission —
+correct while `migrateFromContent` was the only reattachable migration there was. It is not a
+structural fact about the *format*; it was one about how many kinds had a declarative migration
+written, and the simulation kind now has one
+([`10-simulation-kind.md`](10-simulation-kind.md) §16). `toPortable`'s throw narrows
+accordingly: it still refuses a migration for `world-graph`, which has none.
+
+The version stays at `2` because the change is additive **and its silent-loss case cannot
+happen**. A `2` reader handed a document carrying a simulation `migration` ignores the member
+and attaches no `migrateState` — which matters only when `campaignVersion` actually moved, and
+that is precisely when `resolveSaveEnvelope` rejects the load with `save_requires_migration`
+(§10.2). The old reader fails loudly at the exact moment the dropped field would have mattered,
+so bumping to `3` would buy a louder failure for documents that load correctly and nothing for
+the ones that do not. `formatVersion` is a literal type, so a bump also breaks every reader
+including the ones that would have been fine.
 
 ---
 

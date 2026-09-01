@@ -16,7 +16,7 @@
 
 #### World Strangeness
 
-#### Chain Scope — and an Item This Raises
+#### Chain Scope, and Where a Profile Chain Lives
 
 ### 2.3 Effects, Opportunities, and Scheduled Events
 
@@ -96,6 +96,8 @@
 
 ### 7.12 Projects and Businesses (W101)
 
+### 7.13 Event Chains (W102)
+
 ## 8. Conditions and Requirements
 
 ### 8.1 Requirements
@@ -113,3 +115,5 @@
 ## 14. Validation
 
 ## 15. What Was Ported, and What Was Found Along the Way
+
+## 16. Save Migration (W102)
