@@ -1,10 +1,10 @@
 /**
  * Content — "Long Horizon" (10-simulation-kind.md §7; W89, "A Game-Length Life").
  *
- * **A pair of engine-owned regression fixtures, not a second game.** `20-contract.md`
- * §19 (`04-core.md#19-published-narrative-authoring`) permits exactly this: "GameEngine
- * may retain a frozen campaign solely as a regression fixture; such a fixture is not
- * published and not listed in a manifest." Neither `buildLongHorizonWinCampaign` nor
+ * **A pair of engine-owned regression fixtures, not a second game.** `20-contract.md` §19
+ * permits exactly this: `SubZeroDev.Adventures.Content` owns canonical narrative source and
+ * publication, and "GameEngine may retain a frozen campaign solely as a regression fixture;
+ * such a fixture is not published and not listed in a manifest." Neither `buildLongHorizonWinCampaign` nor
  * `buildLongHorizonLossCampaign` is exported from `index.ts`/`authoring.ts` — the same
  * unpublished status `stable-life-housing.ts` and its siblings already have.
  *

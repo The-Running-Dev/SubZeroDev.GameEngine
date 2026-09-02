@@ -25,6 +25,9 @@
  * Housing costs nothing here (`weeklyCostCents: 0`): rent and eviction are `stable-life-
  * housing.ts`'s subject, and a rent line would only add noise to a cash trail that has to
  * show a purchase, a repair and a resale cleanly.
+ *
+ * Unpublished regression fixture, not a publication source: `SubZeroDev.Adventures.Content`
+ * owns canonical narrative source and publication (`20-contract.md` §19).
  */
 
 import type { BuiltCampaign, Campaign } from "../core/registry/types.js";

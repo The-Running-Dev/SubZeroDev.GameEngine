@@ -10,6 +10,9 @@
  * entry rather than mutate an existing field — `stableLifeSource` itself declares none, the
  * same reason `unreachableNodeFixture` (bulgaria) adds a node instead of mutating one: there
  * is nothing existing to break for that specific Tier 1 family.
+ *
+ * Unpublished regression fixture, not a publication source: `SubZeroDev.Adventures.Content`
+ * owns canonical narrative source and publication (`20-contract.md` §19).
  */
 
 import type { Modifier, StatusEffect } from "../kinds/simulation/state.js";

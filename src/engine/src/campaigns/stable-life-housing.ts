@@ -22,6 +22,9 @@
  * `financeIncome` running before `housing` in the same pass (§3) — covers every week's rent
  * after that. "Avoiding it by a single week's wages" is literal: `startingCashCents`
  * carries exactly one week, and the job's own pay is exactly the rent, not a cushion.
+ *
+ * Unpublished regression fixture, not a publication source: `SubZeroDev.Adventures.Content`
+ * owns canonical narrative source and publication (`20-contract.md` §19).
  */
 
 import type { BuiltCampaign, Campaign } from "../core/registry/types.js";

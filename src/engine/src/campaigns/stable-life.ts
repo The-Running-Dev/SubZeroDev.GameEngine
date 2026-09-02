@@ -42,6 +42,9 @@
  * `DEFAULT_PLAYER_NAME`/`DEFAULT_PLAYER_AGE`/`STARTING_ECONOMY` cover the fields no §7
  * content type sources), so the committed win/loss replay fixtures and the client-parity
  * golden stay byte-identical — no fixture regeneration needed for this campaign.
+ *
+ * Unpublished regression fixture, not a publication source: `SubZeroDev.Adventures.Content`
+ * owns canonical narrative source and publication (`20-contract.md` §19).
  */
 
 import type { BuiltCampaign, Campaign } from "../core/registry/types.js";
