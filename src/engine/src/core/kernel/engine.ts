@@ -126,7 +126,7 @@ function createGame(host: EngineHost, config: NewGameConfig): CommandResult<Game
   // The start stream (`system:"start"`) is distinct from the per-action `action` stream,
   // so a start-of-game random draw can never collide with an action's (04 §4).
   const ctx = buildKindContext(host.registry, campaign, kind, seed, { kind: "system", system: "start", seq: 0 }, 0, emitters);
-  const init = kind.initialState(campaign, ctx);
+  const init = kind.initialState(campaign, ctx, config.kindProfileData);
 
   // init.changes / init.messages have nowhere to go on CommandResult<GameState> — see
   // plan 09's inline note under createGame. A kind that settles at start and wants its

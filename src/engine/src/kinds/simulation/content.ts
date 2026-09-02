@@ -32,6 +32,7 @@ import type {
   AvailabilityRule,
   OpportunityKind,
   AgentState,
+  ChainScope,
 } from "./state.js";
 import type { AttributeState, CredentialLevel, JobTier } from "./actor.js";
 import type { ActionType, GameAction } from "./plan.js";
@@ -337,6 +338,24 @@ export interface EventDefinition {
   chainStep?: number;
 
   tags: string[];
+}
+
+// ---------------------------------------------------------------------------
+// §7.13 Event Chains (W102) — the content half of §2.2's `EventChainState`
+// ---------------------------------------------------------------------------
+
+/**
+ * One entry per chain a campaign declares, and the only place `ChainScope` is authored. It
+ * carries no step list — a chain's membership and order are already fully determined by the
+ * events that declare `chainId`/`chainStep` above, and restating them here would be the
+ * envelope-duplication defect one level down (§7.13's own callout).
+ */
+export interface EventChainDefinition {
+  /** What an `EventDefinition.chainId` names. */
+  id: string;
+  scope: ChainScope;
+  /** For a client listing chains in progress; nothing requires it. */
+  labelKey?: LocKey;
 }
 
 // ---------------------------------------------------------------------------

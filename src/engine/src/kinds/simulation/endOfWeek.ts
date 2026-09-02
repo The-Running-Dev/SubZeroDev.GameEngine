@@ -82,6 +82,7 @@ import type {
   AchievementDefinition,
   BusinessDefinition,
   CourseDefinition,
+  EventChainDefinition,
   EventDefinition,
   EventOutcome,
   GoalDefinition,
@@ -100,6 +101,7 @@ import { governingMaintenanceRule } from "./resolvers.js";
 import type {
   Cents,
   ContestClaim,
+  EventChainState,
   GoalState,
   JobOpening,
   Opportunity,
@@ -999,17 +1001,72 @@ const STRANGENESS_PER_EVENT = 5;
  * `generatedEvents`/`generatedOpportunities` remain unapplied, and now say so: both name ids
  * whose *creation* semantics §7.6 leaves to the same undesigned dispatcher `rewards` waits on.
  */
+/**
+ * Advances (or creates) the `EventChainState` (§2.2) `def.chainId` names, and records the
+ * scope-split audit code §10's table requires: `chain_advanced` for a `"game"`-scoped chain,
+ * `profile_chain_advanced` for a `"profile"`-scoped one — the record `Kind.profileData.fold`
+ * reads (§7.1). Both carry the same `chain.<chainId>` path.
+ *
+ * **A `"game"`-scoped chain is created here, on its first advance** — §2.2 is explicit that
+ * these are not seeded, `chainStates` starting empty of them. A `"profile"`-scoped chain
+ * always already has an entry (seeded at `initialState`, §2.2), so this only ever updates it.
+ *
+ * **`currentStep` is a maximum, not an overwrite.** `def.chainStep` is this firing event's own
+ * declared step; taking `max(existing, def.chainStep)` keeps the value monotonic even across
+ * a chain whose steps a campaign author reorders, the same reasoning §2.2 gives for why a
+ * profile's own `furthestStep` is a maximum rather than the latest value. Falls back to
+ * `existing + 1` when the definition names no `chainStep` at all — a chain with unnumbered
+ * steps still advances by one per firing.
+ *
+ * A chain whose scope this pass cannot resolve (Tier 1's `dangling_reference` check on
+ * `EventDefinition.chainId` already prevents this from a validated campaign, so this is
+ * defensive only) is treated as `"game"`-scoped, the more conservative of the two.
+ */
+function advanceChainState(
+  chainStates: readonly EventChainState[],
+  chainId: string,
+  chainStep: number | undefined,
+  eventChains: readonly EventChainDefinition[],
+  week: number,
+): { chainStates: EventChainState[]; change: StateChange } {
+  const scope = eventChains.find((c) => c.id === chainId)?.scope ?? "game";
+  const index = chainStates.findIndex((c) => c.chainId === chainId);
+  const existing = index === -1 ? undefined : chainStates[index]!;
+  const nextStep = Math.max(existing?.currentStep ?? 0, chainStep ?? (existing?.currentStep ?? 0) + 1);
+
+  const updated: EventChainState = {
+    chainId,
+    scope,
+    currentStep: nextStep,
+    startedWeek: existing?.active ? existing.startedWeek : week,
+    active: true,
+  };
+
+  const nextStates = index === -1 ? [...chainStates, updated] : chainStates.map((c, i) => (i === index ? updated : c));
+  const reason = scope === "profile" ? "profile_chain_advanced" : "chain_advanced";
+  const change: StateChange = { path: `chain.${chainId}`, op: "set", value: nextStep, reason, visible: true };
+  return { chainStates: nextStates, change };
+}
+
 function applyEventOutcome(
   state: SimulationKindState,
   def: EventDefinition,
   outcome: EventOutcome,
   messages: OutcomeMessage[],
   firing: number,
+  changes: StateChange[],
+  eventChains: readonly EventChainDefinition[],
 ): SimulationKindState {
   const week = state.calendar.currentWeek;
   let next = state;
 
   messages.push(...outcome.messages);
+
+  if (outcome.advancesChain === true && def.chainId !== undefined) {
+    const result = advanceChainState(next.world.chainStates, def.chainId, def.chainStep, eventChains, week);
+    next = { ...next, world: { ...next.world, chainStates: result.chainStates } };
+    changes.push(result.change);
+  }
 
   if (outcome.effects.length > 0) {
     const effect: StatusEffect = {
@@ -1095,6 +1152,7 @@ function fireEvent(
   changes: StateChange[],
   messages: OutcomeMessage[],
   firing: number,
+  eventChains: readonly EventChainDefinition[],
 ): SimulationKindState {
   const week = state.calendar.currentWeek;
 
@@ -1105,7 +1163,7 @@ function fireEvent(
   if (choiceId !== undefined) {
     const choice = def.choices?.find((c) => c.id === choiceId);
     const selected = choice === undefined ? undefined : selectOutcome(choice.outcomes, state, rng);
-    return selected === undefined ? state : applyEventOutcome(state, def, selected, messages, firing);
+    return selected === undefined ? state : applyEventOutcome(state, def, selected, messages, firing, changes, eventChains);
   }
 
   const strangenessBefore = state.world.strangenessBase;
@@ -1143,7 +1201,9 @@ function fireEvent(
     return { ...next, pendingEventResponses: [...next.pendingEventResponses, pending] };
   }
 
-  return def.automaticOutcome === undefined ? next : applyEventOutcome(next, def, def.automaticOutcome, messages, firing);
+  return def.automaticOutcome === undefined
+    ? next
+    : applyEventOutcome(next, def, def.automaticOutcome, messages, firing, changes, eventChains);
 }
 
 /**
@@ -1170,6 +1230,7 @@ function events(
   state: SimulationKindState,
   defs: readonly EventDefinition[],
   rng: RngHandle | undefined,
+  eventChains: readonly EventChainDefinition[],
 ): { state: SimulationKindState; changes: StateChange[]; messages: OutcomeMessage[] } {
   const week = state.calendar.currentWeek;
   const changes: StateChange[] = [];
@@ -1195,7 +1256,7 @@ function events(
     const def = find(entry.eventId);
     if (!def) continue;
     const answered = entry.payload?.["choiceId"];
-    next = fireEvent(next, def, typeof answered === "string" ? answered : undefined, rng, changes, messages, firing);
+    next = fireEvent(next, def, typeof answered === "string" ? answered : undefined, rng, changes, messages, firing, eventChains);
     firing += 1;
   }
 
@@ -1212,7 +1273,7 @@ function events(
 
   if (rng !== undefined && eligible.length > 0) {
     const drawn = rng.weightedPick(eligible.map((item) => ({ item, weight: item.weight })));
-    next = fireEvent(next, drawn, undefined, rng, changes, messages, firing);
+    next = fireEvent(next, drawn, undefined, rng, changes, messages, firing, eventChains);
     firing += 1;
   }
 
@@ -1533,6 +1594,10 @@ export interface EndOfWeekWorld {
   /** `SimulationCampaign.attendanceTracking` (§7.11). Absent leaves `Employment.
    *  attendanceRatio` unmaintained, exactly as it was before W100. */
   attendanceTracking?: AttendanceTrackingConfig;
+  /** `SimulationCampaign.eventChains` (§7.13, W102). Absent leaves every fired `chainId`
+   *  treated as `"game"`-scoped (`advanceChainState`'s own defensive fallback) — the same
+   *  no-op-by-omission default every other optional collection here already has. */
+  eventChains?: readonly EventChainDefinition[];
 }
 /**
  * The frame the fifteen end-of-week systems are threaded through (04 §20).
@@ -1614,7 +1679,7 @@ const END_OF_WEEK_SYSTEMS: readonly SystemEntry<EndOfWeekFrame>[] = [
   traced("relationships", (frame) => withChanges(frame, relationships(frame.state, frame.world.relationshipDrift ?? []))),
   traced("opportunities", (frame) => withChanges(frame, opportunities(frame.state, frame.world.opportunities ?? [], frame.world.rng))),
   traced("events", (frame) => {
-    const result = events(frame.state, frame.world.events ?? [], frame.world.rng);
+    const result = events(frame.state, frame.world.events ?? [], frame.world.rng, frame.world.eventChains ?? []);
     // `events` is the only system that produces player-facing text: an `EventOutcome`'s
     // `messages` (§7.6). `advance.ts` folds these into the same `AdvanceResult.messages`
     // channel a resolver's `ActionOutcome.messages` reach (04 §12), so an event's flavour

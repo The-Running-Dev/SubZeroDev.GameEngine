@@ -41,12 +41,15 @@ describe("toPortable/fromPortable — world-graph and simulation kinds", () => {
 
   it("rejects a migration passed for a world-graph campaign", () => {
     const source = unwrap(buildWorldGraphMvpCampaign());
-    expect(() => toPortable(source, catalog, { fromVersion: "1.0.0" })).toThrow(/only supported for story-graph/);
+    expect(() => toPortable(source, catalog, { fromVersion: "1.0.0" })).toThrow(/migration is not supported for world-graph/);
   });
 
-  it("rejects a migration passed for a simulation campaign", () => {
+  it("carries a SimulationMigration on the simulation arm and reattaches it as migrateState (W102)", () => {
     const source = unwrap(buildStableLifeCampaign());
-    expect(() => toPortable(source, catalog, { fromVersion: "1.0.0" })).toThrow(/only supported for story-graph/);
+    const portable = toPortable(source, catalog, { fromVersion: "0.9.0", steps: [] });
+    expect(portable.campaign.kindId).toBe("simulation");
+    const { built } = fromPortable(portable);
+    expect(built.campaign.migrateState).toBeDefined();
   });
 });
 

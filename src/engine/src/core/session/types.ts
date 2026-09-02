@@ -228,22 +228,41 @@ export interface TerminalRecord {
   terminalId: string;
 }
 
+/** At most one per kind. Ordered by `kindId` ascending, so a profile has one canonical
+ *  serialization (§7.1's P5). */
+export interface KindProfileRecord {
+  /** A `KindId` for every kind this build knows — typed `string` (not `KindId`) so a
+   *  record naming an unregistered kind still passes shape validation and is preserved,
+   *  never dropped (§7.1's "unknown kinds are preserved" rule). */
+  kindId: string;
+  /** The `Kind.profileData.version` this `data` was written under. */
+  dataVersion: number;
+  /** Opaque to the core, exactly as `GameState.kindState` is. */
+  data: unknown;
+}
+
 export interface PlayerProfile {
-  formatVersion: 2;
+  formatVersion: 3;
   profileId: string;
   achievements: readonly AchievementRecord[];
   /** The cross-session half of campaign progress (§7.3). */
   terminals: readonly TerminalRecord[];
+  /** The kind-owned cross-game slice (§7.1). */
+  kindData: readonly KindProfileRecord[];
 }
 
 export type ProfileWarningCode =
   | "profile_missing"
   | "profile_corrupt"
-  | "profile_write_failed";
+  | "profile_write_failed"
+  | "profile_kind_data_unreadable"
+  | "profile_kind_data_rejected";
 
 export interface ProfileWarning {
   code: ProfileWarningCode;
   profileId: string;
+  /** Present iff the warning is about one `KindProfileRecord`. */
+  kindId?: string;
 }
 
 export interface ProfileLoadResult {

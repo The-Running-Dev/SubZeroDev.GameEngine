@@ -52,6 +52,7 @@ import type {
   GoalFailurePrecedence,
   ProjectDefinition,
   BusinessDefinition,
+  EventChainDefinition,
 } from "./content.js";
 
 /** `plan.add`/`plan.remove`/`plan.clear`/`end_week` — one label per §4 verb. */
@@ -121,6 +122,10 @@ export interface SimulationCampaign {
    *  attendanceRatio` exactly as `resolveApplications` sets it at hire — unmaintained,
    *  the documented gap this field closes only when a campaign opts in. */
   attendanceTracking?: AttendanceTrackingConfig;
+
+  /** §7.13, W102. Absent means `[]`, which is every campaign shipped before this field: no
+   *  chain is declared, so none is `"profile"`-scoped and none is seeded (§2.2). */
+  eventChains?: readonly EventChainDefinition[];
 }
 
 export interface RelationshipDriftRule {

@@ -28,6 +28,8 @@ import {
   type StoredSessionRecord,
 } from "./types.js";
 import { BASE_REASON_CODES, CORE_REASON_MESSAGES } from "../kernel/reasons.js";
+import type { StateChange } from "../kernel/reasons.js";
+import type { PlayerProfile } from "./types.js";
 
 interface TestKindState {
   counter: number;
@@ -494,7 +496,7 @@ describe("terminal mirror (W98)", () => {
     const spyProfiles: ProfileStore = {
       load: async (profileId) => {
         loadCalls += 1;
-        return { profile: { formatVersion: 2, profileId, achievements: [], terminals: [] }, warnings: [] };
+        return { profile: { formatVersion: 3, profileId, achievements: [], terminals: [], kindData: [] }, warnings: [] };
       },
       save: async () => ({ ok: true, warnings: [] }),
     };
@@ -690,7 +692,7 @@ describe("save / load round trip", () => {
     const spyProfiles: ProfileStore = {
       load: async (profileId) => {
         loadCalls += 1;
-        return { profile: { formatVersion: 2, profileId, achievements: [], terminals: [] }, warnings: [] };
+        return { profile: { formatVersion: 3, profileId, achievements: [], terminals: [], kindData: [] }, warnings: [] };
       },
       save: async () => ({ ok: true, warnings: [] }),
     };
@@ -968,7 +970,7 @@ describe("profile store wiring (W8)", () => {
     const spyProfiles: ProfileStore = {
       load: async (profileId) => {
         loadCalls += 1;
-        return { profile: { formatVersion: 2, profileId, achievements: [], terminals: [] }, warnings: [] };
+        return { profile: { formatVersion: 3, profileId, achievements: [], terminals: [], kindData: [] }, warnings: [] };
       },
       save: async () => {
         saveCalls += 1;
@@ -991,7 +993,7 @@ describe("profile store wiring (W8)", () => {
     const spyProfiles: ProfileStore = {
       load: async (profileId) => {
         loadCalls += 1;
-        return { profile: { formatVersion: 2, profileId, achievements: [], terminals: [] }, warnings: [] };
+        return { profile: { formatVersion: 3, profileId, achievements: [], terminals: [], kindData: [] }, warnings: [] };
       },
       save: async () => ({ ok: true, warnings: [] }),
     };
@@ -1403,5 +1405,197 @@ describe("session lifecycle — listSaves / deleteSave / branchSession (04 §7.4
       expect(unrelatedEngine.serialize(unrelatedCreated.value)).not.toBe(original);
       expect({ ...unrelatedCreated.value, gameId: "the-original-game-id" }).toEqual(pinnedCreated.value);
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// W102 — the third profile mirror (`Kind.profileData`, 04 §7.1)
+// ---------------------------------------------------------------------------
+
+interface ProfileKindState {
+  counter: number;
+  /** Whatever `initialState` received as `profileData` — asserted directly, so a test can
+   *  observe seeding without a second, parallel read path. */
+  seeded: unknown;
+}
+
+const OVERSIZED_FOLD_MARKER = "oversized";
+const THROWING_FOLD_MARKER = "throw";
+
+/** A minimal `Kind` declaring `profileData`: `fold` takes `max(existing, value)` over a
+ *  `counter_recorded` audit record — the same maximum-not-sum shape §2.2's own
+ *  `SimulationProfileChainRecord.furthestStep` uses, so idempotence is observable the same
+ *  way. Two actions are content-adjacent misbehaviour, exercised on purpose:
+ *  `THROWING_FOLD_MARKER` makes `fold` throw, `OVERSIZED_FOLD_MARKER` makes it return a
+ *  value bigger than the 65 536-byte cap. */
+function makeProfileTestKind(): Kind<ProfileKindState> {
+  return {
+    id: "story-graph",
+    version: "1.0.0",
+    reasonCodes: [],
+    reasonMessages: new Map(),
+    eventNames: [],
+    initialState: (_campaign, _ctx, profileData): InitialStateResult<ProfileKindState> => ({
+      state: { counter: 0, seeded: profileData },
+      status: "active",
+      changes: [],
+      messages: [],
+    }),
+    availableActions: (): AvailableAction[] => [],
+    scene: (state): SceneBody => ({ textKey: "test.scene", text: `counter=${state.counter}` }),
+    advance: (state, actionId): AdvanceResult<ProfileKindState> => {
+      if (actionId === "bump" || actionId === THROWING_FOLD_MARKER || actionId === OVERSIZED_FOLD_MARKER) {
+        const next = state.counter + 1;
+        const changes: StateChange[] = [{ path: "counter", op: "set", value: next, reason: actionId, visible: true }];
+        return { state: { ...state, counter: next }, status: "active", changes, messages: [] };
+      }
+      if (actionId === "end") {
+        return { state, status: "ended", changes: [], messages: [] };
+      }
+      return { state, status: "active", changes: [], messages: [], error: { code: "unknown_action", messageKey: "core.reason.unknown_action" } };
+    },
+    project: (state) => state,
+    validateCampaign: (): ValidationResult => ({ ok: true, errors: [], warnings: [] }),
+    outcome: () => ({ terminal: false, terminalId: null }),
+    profileData: {
+      version: 1,
+      fold: (current, _campaign, changes): unknown => {
+        if (changes.some((c) => c.reason === THROWING_FOLD_MARKER)) throw new Error("fold: deliberately broken");
+        if (changes.some((c) => c.reason === OVERSIZED_FOLD_MARKER)) return { blob: "x".repeat(100_000) };
+        const bump = changes.find((c) => c.reason === "bump");
+        if (!bump) return current;
+        const previousMax = typeof current === "object" && current !== null && "max" in current ? (current as { max: number }).max : 0;
+        return { max: Math.max(previousMax, bump.value as number) };
+      },
+    },
+  };
+}
+
+function makeProfileKinds(): KindRegistry {
+  return { "story-graph": makeProfileTestKind() } as unknown as KindRegistry;
+}
+
+function makeProfileStore(overrides?: { engine?: Engine; profiles?: ProfileStore }) {
+  const registry = makeRegistry();
+  return createInMemorySessionStore({
+    engine: overrides?.engine ?? createEngine({ kinds: makeProfileKinds(), registry }),
+    registry,
+    ...(overrides?.profiles ? { profiles: overrides.profiles } : {}),
+  });
+}
+
+/** Wraps a real in-memory `ProfileStore` and counts `save` calls, so a test can assert
+ *  "no write happened" (idempotence, §7.1's P6) rather than only inspecting the end state. */
+function countingProfileStore(): { profiles: ProfileStore; saveCalls: () => number } {
+  const inner = createInMemoryProfileStore();
+  let saves = 0;
+  const profiles: ProfileStore = {
+    load: (id) => inner.load(id),
+    save: (profile) => {
+      saves += 1;
+      return inner.save(profile);
+    },
+  };
+  return { profiles, saveCalls: () => saves };
+}
+
+describe("W102 — Kind.profileData, the third profile mirror", () => {
+  it("an anonymous session receives no kindProfileData — initialState sees undefined", async () => {
+    const store = makeProfileStore({ profiles: createInMemoryProfileStore() });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+    const view = await store.getView(sessionId);
+    expect((view.kindView as ProfileKindState).seeded).toBeUndefined();
+  });
+
+  it("a profiled session with no prior kind data also seeds undefined", async () => {
+    const store = makeProfileStore({ profiles: createInMemoryProfileStore() });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    const view = await store.getView(sessionId);
+    expect((view.kindView as ProfileKindState).seeded).toBeUndefined();
+  });
+
+  it("after a successful action, the folded slice is written and a later session for the same profile is seeded with it", async () => {
+    const store = makeProfileStore({ profiles: createInMemoryProfileStore() });
+    const first = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    await store.submitAction(first.sessionId, "bump");
+
+    const second = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    const view = await store.getView(second.sessionId);
+    expect((view.kindView as ProfileKindState).seeded).toEqual({ max: 1 });
+  });
+
+  it("a different profile never sees another profile's kind data", async () => {
+    const store = makeProfileStore({ profiles: createInMemoryProfileStore() });
+    const first = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    await store.submitAction(first.sessionId, "bump");
+
+    const other = await store.createSession({ campaignId: "test-campaign", profileId: "p2" });
+    const view = await store.getView(other.sessionId);
+    expect((view.kindView as ProfileKindState).seeded).toBeUndefined();
+  });
+
+  it("reapplying a transition that folds to the same canonical value writes nothing (idempotence, P6)", async () => {
+    const { profiles, saveCalls } = countingProfileStore();
+    const store = makeProfileStore({ profiles });
+
+    const first = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    await store.submitAction(first.sessionId, "bump"); // max: 0 -> 1, writes once
+    const savesAfterFirst = saveCalls();
+    expect(savesAfterFirst).toBeGreaterThan(0);
+
+    // A fresh session under the same profile, reaching the same counter value (1) again —
+    // fold's own max(1, 1) canonically equals what's already stored, so no further write.
+    const second = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    await store.submitAction(second.sessionId, "bump");
+    expect(saveCalls()).toBe(savesAfterFirst);
+  });
+
+  it("a throwing fold is refused: the previous slice is retained and profile_kind_data_rejected is warned", async () => {
+    const profiles = createInMemoryProfileStore();
+    const store = makeProfileStore({ profiles });
+
+    const first = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    await store.submitAction(first.sessionId, "bump"); // records { max: 1 }
+
+    const result = await store.submitAction(first.sessionId, THROWING_FOLD_MARKER);
+    expect(result.ok).toBe(true);
+    expect(result.warnings.some((w) => w.code === "profile_kind_data_rejected")).toBe(true);
+
+    const { profile } = await profiles.load("p1");
+    expect(profile.kindData).toEqual([{ kindId: "story-graph", dataVersion: 1, data: { max: 1 } }]);
+  });
+
+  it("a fold result over the 65 536-byte cap is refused the same way", async () => {
+    const profiles = createInMemoryProfileStore();
+    const store = makeProfileStore({ profiles });
+
+    const first = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    const result = await store.submitAction(first.sessionId, OVERSIZED_FOLD_MARKER);
+    expect(result.ok).toBe(true);
+    expect(result.warnings.some((w) => w.code === "profile_kind_data_rejected")).toBe(true);
+
+    const { profile } = await profiles.load("p1");
+    expect(profile.kindData).toEqual([]);
+  });
+
+  it("a KindProfileRecord this build's kind does not recognise round-trips through the store unchanged", async () => {
+    const seeded: PlayerProfile = {
+      formatVersion: 3,
+      profileId: "p1",
+      achievements: [],
+      terminals: [],
+      kindData: [{ kindId: "some-other-kind", dataVersion: 9, data: { anything: true } }],
+    };
+    const profiles = createInMemoryProfileStore({ raw: new Map([["p1", seeded]]) });
+    const store = makeProfileStore({ profiles });
+
+    const session = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    await store.submitAction(session.sessionId, "bump");
+
+    const { profile } = await profiles.load("p1");
+    expect(profile.kindData).toEqual([
+      { kindId: "some-other-kind", dataVersion: 9, data: { anything: true } },
+      { kindId: "story-graph", dataVersion: 1, data: { max: 1 } },
+    ]);
   });
 });

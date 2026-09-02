@@ -126,7 +126,12 @@ export interface Kind<KState> {
   /** Events this kind may emit, all under `kind.<id>.*` (05 §9). */
   readonly eventNames: readonly EventName[];
 
-  initialState(campaign: Campaign, ctx: KindContext): InitialStateResult<KState>;
+  /** `profileData` is this kind's own cross-game slice (§7.1), already resolved and
+   *  migrated by the session store before the pure engine ran (§5, §7.1). Absent for an
+   *  anonymous session, for a kind declaring no `profileData` member, and for a replay
+   *  whose `NewGameConfig` carries none — a kind that reads it must treat absence as "no
+   *  cross-game history", never as an error. */
+  initialState(campaign: Campaign, ctx: KindContext, profileData?: unknown): InitialStateResult<KState>;
   availableActions(state: KState, ctx: KindContext): AvailableAction[];
   scene(state: KState, ctx: KindContext): SceneBody;
 
@@ -167,6 +172,44 @@ export interface Kind<KState> {
    * rather than silently proceeding with a state this version wasn't written to read.
    */
   migrateState?(oldState: unknown, fromVersion: string): CommandResult<KState>;
+
+  /**
+   * This kind's cross-game profile slice (04 §7.1). **Absent means the kind owns no
+   * profile data at all** — no `KindProfileRecord` is ever written for it, `initialState`
+   * never receives a `profileData` argument, and nothing about profiles reaches it. That
+   * is the state every kind is in until it declares this member.
+   */
+  readonly profileData?: KindProfileData;
+}
+
+/**
+ * The kind-owned half of §7.1's cross-game data. Engine-owned code, never a host-supplied
+ * port: it decides what a profile records and how a recorded value reads back, and 06 §2's
+ * rule admits a host only where it cannot change `serialize()` output.
+ */
+export interface KindProfileData {
+  /** The shape version of this kind's `KindProfileRecord.data`. A positive integer, moving
+   *  only when that shape changes. Deliberately not `Kind.version` — a kind's code moves far
+   *  more often than its profile slice's shape does. */
+  readonly version: number;
+
+  /**
+   * Fold one successful action's audit records into this kind's slice. Pure and total —
+   * same `(current, campaign, changes)` gives the same result, no I/O, no throw; the store
+   * treats a throw as a refused write (§7.1). Must be idempotent: folding the same `changes`
+   * twice equals folding them once. `current` is `undefined` the first time this profile
+   * records anything for this kind. A result canonically equal to `current` means "nothing
+   * to write", and the store skips the write.
+   */
+  fold(current: unknown, campaign: Campaign, changes: readonly StateChange[]): unknown;
+
+  /**
+   * Migrate a slice written under an older `version` (§7.1). Optional, and its absence is a
+   * *degradation* rather than a failure: a version mismatch with no migration drops the
+   * slice and warns, because a profile is a mirror of games already played and the game is
+   * the system of record.
+   */
+  migrate?(data: unknown, fromVersion: number): CommandResult<unknown>;
 }
 
 /** A fixed, engine-owned set. A missing kind is a construction error. */
@@ -237,6 +280,11 @@ export interface NewGameConfig {
   /** Omitted → the store generates one and records it. */
   seed?: string;
   audience?: ProjectionAudience;
+  /** §7.1 — the resolved cross-game slice, not the profile itself. The session store reads
+   *  the profile, extracts and migrates the slice for this campaign's kind, and writes the
+   *  resolved value here; no identity travels, and `ReplayFixture.config` captures it like
+   *  any other input. */
+  kindProfileData?: unknown;
 }
 
 /** Kind-agnostic operations over the envelope. Resolves the kind by `state.kindId`,

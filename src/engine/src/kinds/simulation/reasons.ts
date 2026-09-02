@@ -154,6 +154,11 @@ export const SIMULATION_REASON_CODES = [
   "business_closed",
   "business_insolvent",
   "unknown_rival_strategy",
+  // W102 — profile chains and simulation save migration (§2.2, §7.13, §10). Emitted by the
+  // `events` system when a chain's `currentStep` moves; the two codes split by scope so
+  // `Kind.profileData.fold` can switch on `reason` rather than parsing `path`.
+  "chain_advanced",
+  "profile_chain_advanced",
 ] as const;
 
 export type SimulationReasonCode = (typeof SIMULATION_REASON_CODES)[number];
@@ -226,6 +231,8 @@ const SIMULATION_REASON_TEXT: Readonly<Record<SimulationReasonCode, string>> = {
   business_closed: "The business closed.",
   business_insolvent: "The business ran out of cash and closed.",
   unknown_rival_strategy: "This campaign names a rival strategy the engine doesn't have.",
+  chain_advanced: "A thread in this story moved forward.",
+  profile_chain_advanced: "A thread in this story moved forward — it will carry into your next game.",
 };
 
 /** `simulation.reason.<code>` → its shipped default-English message, for every code. */

@@ -14,12 +14,14 @@ import type {
   ActionParams,
   Engine,
   GameState,
+  Kind,
   NewGameConfig,
   Scene,
 } from "../kernel/types.js";
 import type { StateChange } from "../kernel/reasons.js";
-import type { ContentRegistry } from "../registry/types.js";
+import type { Campaign, ContentRegistry } from "../registry/types.js";
 import { buildSaveEnvelope, resolveSaveEnvelope, serializeSaveEnvelope } from "../persistence/envelope.js";
+import { canonicalStringify } from "../persistence/canonical.js";
 import type { PlayerView, ProjectionAudience } from "../projection/types.js";
 import type { StringTable } from "../localization/types.js";
 import type { ValidationWarning } from "../validation/types.js";
@@ -31,6 +33,7 @@ import type {
   CampaignProgress,
   CampaignSummary,
   CreateSessionConfig,
+  KindProfileRecord,
   PlayerProfile,
   ProfileStore,
   ProfileWarning,
@@ -99,8 +102,14 @@ function achievementIdFrom(change: StateChange): string | undefined {
 }
 
 function toValidationWarning(warning: ProfileWarning): ValidationWarning {
-  return { code: warning.code, messageKey: `core.reason.${warning.code}`, path: warning.profileId };
+  const path = warning.kindId !== undefined ? `${warning.profileId}:${warning.kindId}` : warning.profileId;
+  return { code: warning.code, messageKey: `core.reason.${warning.code}`, path };
 }
+
+/** The canonical serialization of a folded `KindProfileRecord.data` must not exceed this
+ *  many bytes (04 §7.1) — a per-record cap, not per-profile, so one kind cannot starve
+ *  another. */
+const KIND_PROFILE_DATA_MAX_BYTES = 65536;
 
 /**
  * Runs *after* `decoratedEngine.submitAction` has already returned — there is no code
@@ -161,6 +170,103 @@ export async function upsertTerminals(
   const updated: PlayerProfile = { ...profile, terminals: [...profile.terminals, newRecord] };
   const { warnings: saveWarnings } = await profiles.save(updated);
   return [...loadWarnings, ...saveWarnings].map(toValidationWarning);
+}
+
+/**
+ * The third mirror (04 §7.1) — a kind's own cross-game slice, folded through
+ * `Kind.profileData.fold` on the same profile-keyed write as the achievement and terminal
+ * upserts. A no-op when `kind` declares no `profileData` at all: no record is ever created
+ * for it, exactly as the contract states.
+ *
+ * `fold` is invoked defensively — content-adjacent code that may throw, the same treatment
+ * `resolveSaveEnvelope` already gives `migrateState`. A throw, or a result the canonical
+ * serializer rejects (non-finite numbers, `bigint`, an `undefined` in a value position), is
+ * refused: the previous `data` is retained untouched and one `profile_kind_data_rejected`
+ * warning names the kind. A folded value canonically equal to the current one is not
+ * written at all — this is what makes `fold`'s idempotence observable (P6/P8, §7.1).
+ */
+export async function upsertKindProfileData(
+  profiles: ProfileStore,
+  profileId: string,
+  kind: Kind<unknown>,
+  campaign: Campaign,
+  changes: readonly StateChange[],
+): Promise<ValidationWarning[]> {
+  const profileData = kind.profileData;
+  if (!profileData) return [];
+
+  const { profile, warnings: loadWarnings } = await profiles.load(profileId);
+  const existingIndex = profile.kindData.findIndex((r) => r.kindId === kind.id);
+  const current = existingIndex === -1 ? undefined : profile.kindData[existingIndex]!.data;
+  const rejected: ProfileWarning = { code: "profile_kind_data_rejected", profileId, kindId: kind.id };
+
+  let folded: unknown;
+  try {
+    folded = profileData.fold(current, campaign, changes);
+  } catch {
+    return [...loadWarnings, rejected].map(toValidationWarning);
+  }
+
+  let serialized: string | undefined;
+  let currentSerialized: string | undefined;
+  try {
+    serialized = folded === undefined ? undefined : canonicalStringify(folded);
+    currentSerialized = current === undefined ? undefined : canonicalStringify(current);
+  } catch {
+    return [...loadWarnings, rejected].map(toValidationWarning);
+  }
+
+  if (serialized === currentSerialized) {
+    return loadWarnings.map(toValidationWarning);
+  }
+  if (serialized !== undefined && new TextEncoder().encode(serialized).length > KIND_PROFILE_DATA_MAX_BYTES) {
+    return [...loadWarnings, rejected].map(toValidationWarning);
+  }
+
+  const newRecord: KindProfileRecord = { kindId: kind.id, dataVersion: profileData.version, data: folded };
+  const kindData = existingIndex === -1
+    ? [...profile.kindData, newRecord].sort((a, b) => (a.kindId < b.kindId ? -1 : a.kindId > b.kindId ? 1 : 0))
+    : profile.kindData.map((r, i) => (i === existingIndex ? newRecord : r));
+
+  const updated: PlayerProfile = { ...profile, kindData };
+  const { warnings: saveWarnings } = await profiles.save(updated);
+  return [...loadWarnings, ...saveWarnings].map(toValidationWarning);
+}
+
+/**
+ * §7.1: reads the profile once, at `createSession`, and resolves/migrates the one
+ * `KindProfileRecord` matching this campaign's kind — never at `resumeSession`, `loadGame`
+ * or `branchSession`, which must not re-seed from a profile that has moved on since. A
+ * missing record, an unregistered kind declaring no `profileData`, or an anonymous session
+ * (no `profileId`) all resolve to `undefined`, exactly as an absent `NewGameConfig.
+ * kindProfileData` already means "no cross-game history" to `initialState`.
+ *
+ * `SessionHandle` has no warnings channel (same limitation `createSession`'s own header
+ * states for achievements), so a version mismatch with no migration, or a migration that
+ * fails or throws, degrades silently to "no cross-game history" rather than surfacing
+ * `profile_kind_data_unreadable` — the same degradation §7.1 states for the general case.
+ */
+async function resolveKindProfileData(
+  profiles: ProfileStore | undefined,
+  profileId: string | undefined,
+  kind: Kind<unknown> | undefined,
+): Promise<unknown> {
+  if (!profiles || profileId === undefined || !kind?.profileData) return undefined;
+
+  const { profile } = await profiles.load(profileId);
+  const record = profile.kindData.find((r) => r.kindId === kind.id);
+  if (!record) return undefined;
+
+  if (record.dataVersion === kind.profileData.version) return record.data;
+  if (record.dataVersion < kind.profileData.version && kind.profileData.migrate) {
+    try {
+      const migrated = kind.profileData.migrate(record.data, record.dataVersion);
+      return migrated.ok ? migrated.value : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
 }
 
 interface SaveRecord {
@@ -498,7 +604,15 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
     async createSession(config: CreateSessionConfig): Promise<SessionHandle> {
       const sessionId = newSessionId(recordIds);
       const audience = config.audience ?? "player";
-      const newGameConfig: NewGameConfig = { campaignId: config.campaignId, ...(config.seed !== undefined ? { seed: config.seed } : {}), audience };
+      const campaign = registry.campaigns.get(config.campaignId);
+      const kind = campaign ? kinds[campaign.kindId] : undefined;
+      const kindProfileData = await resolveKindProfileData(options.profiles, config.profileId, kind);
+      const newGameConfig: NewGameConfig = {
+        campaignId: config.campaignId,
+        ...(config.seed !== undefined ? { seed: config.seed } : {}),
+        audience,
+        ...(kindProfileData !== undefined ? { kindProfileData } : {}),
+      };
 
       return withCommand(sessionId, 0, async (decoratedEngine) => {
         const created = decoratedEngine.createGame(newGameConfig);
@@ -587,13 +701,15 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
               try {
                 profileWarnings = await runExclusive(profileLocks, profileId, async () => {
                   const achievementWarnings = await upsertAchievements(profiles, profileId, state.campaignId, result.changes);
-                  // "After an action whose AdvanceResult.status is ended" (04 §7.1) — the
-                  // same write as the achievement upsert, on the same lock.
-                  if (newState.status !== "ended") return achievementWarnings;
                   const kind = kinds[state.kindId];
+                  const campaign = registry.campaigns.get(state.campaignId)!;
+                  const kindDataWarnings = await upsertKindProfileData(profiles, profileId, kind, campaign, result.changes);
+                  // "After an action whose AdvanceResult.status is ended" (04 §7.1) — the
+                  // same write as the achievement and kind-data upserts, on the same lock.
+                  if (newState.status !== "ended") return [...achievementWarnings, ...kindDataWarnings];
                   const terminalId = kind.outcome(newState.kindState).terminalId;
                   const terminalWarnings = await upsertTerminals(profiles, profileId, state.campaignId, terminalId);
-                  return [...achievementWarnings, ...terminalWarnings];
+                  return [...achievementWarnings, ...kindDataWarnings, ...terminalWarnings];
                 });
               } catch {
                 profileWarnings = [{ code: "profile_write_failed", messageKey: "core.reason.profile_write_failed", path: profileId }];

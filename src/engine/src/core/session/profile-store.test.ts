@@ -1,28 +1,29 @@
 import { describe, it, expect } from "vitest";
 import { createInMemoryProfileStore } from "./profile-store.js";
-import type { AchievementRecord, TerminalRecord } from "./types.js";
+import type { AchievementRecord, KindProfileRecord, TerminalRecord } from "./types.js";
 
 describe("createInMemoryProfileStore", () => {
-  it("a missing profile loads empty with formatVersion 2 and a profile_missing warning", async () => {
+  it("a missing profile loads empty with formatVersion 3 and a profile_missing warning", async () => {
     const store = createInMemoryProfileStore();
     const { profile, warnings } = await store.load("no-such-profile");
-    expect(profile).toEqual({ formatVersion: 2, profileId: "no-such-profile", achievements: [], terminals: [] });
+    expect(profile).toEqual({ formatVersion: 3, profileId: "no-such-profile", achievements: [], terminals: [], kindData: [] });
     expect(warnings).toEqual([{ code: "profile_missing", profileId: "no-such-profile" }]);
   });
 
   it("a corrupt profile loads empty with a profile_corrupt warning", async () => {
     const store = createInMemoryProfileStore({ raw: new Map([["p1", { totally: "the wrong shape" }]]) });
     const { profile, warnings } = await store.load("p1");
-    expect(profile).toEqual({ formatVersion: 2, profileId: "p1", achievements: [], terminals: [] });
+    expect(profile).toEqual({ formatVersion: 3, profileId: "p1", achievements: [], terminals: [], kindData: [] });
     expect(warnings).toEqual([{ code: "profile_corrupt", profileId: "p1" }]);
   });
 
   it("a well-formed seeded profile loads with no warnings", async () => {
     const seeded = {
-      formatVersion: 2,
+      formatVersion: 3,
       profileId: "p1",
       achievements: [{ campaignId: "c1", achievementId: "a1" }],
       terminals: [{ campaignId: "c1", terminalId: "t1" }],
+      kindData: [{ kindId: "simulation", dataVersion: 1, data: { chains: [] } }],
     };
     const store = createInMemoryProfileStore({ raw: new Map([["p1", seeded]]) });
     const { profile, warnings } = await store.load("p1");
@@ -30,26 +31,61 @@ describe("createInMemoryProfileStore", () => {
     expect(warnings).toEqual([]);
   });
 
-  it("a version-1 profile migrates forward on load: formatVersion 2, terminals empty, no warning", async () => {
+  it("a version-1 profile migrates forward on load: formatVersion 3, terminals/kindData empty, no warning", async () => {
     const v1 = { formatVersion: 1, profileId: "p1", achievements: [{ campaignId: "c1", achievementId: "a1" }] };
     const store = createInMemoryProfileStore({ raw: new Map([["p1", v1]]) });
     const { profile, warnings } = await store.load("p1");
     expect(profile).toEqual({
-      formatVersion: 2,
+      formatVersion: 3,
       profileId: "p1",
       achievements: [{ campaignId: "c1", achievementId: "a1" }],
       terminals: [],
+      kindData: [],
     });
     expect(warnings).toEqual([]);
   });
 
-  it("save then load round-trips the profile, terminals included", async () => {
-    const store = createInMemoryProfileStore();
-    const profile = {
-      formatVersion: 2 as const,
+  it("a version-2 profile migrates forward on load: formatVersion 3, kindData empty, no warning", async () => {
+    const v2 = {
+      formatVersion: 2,
       profileId: "p1",
       achievements: [{ campaignId: "c1", achievementId: "a1" }],
       terminals: [{ campaignId: "c1", terminalId: "t1" }],
+    };
+    const store = createInMemoryProfileStore({ raw: new Map([["p1", v2]]) });
+    const { profile, warnings } = await store.load("p1");
+    expect(profile).toEqual({
+      formatVersion: 3,
+      profileId: "p1",
+      achievements: [{ campaignId: "c1", achievementId: "a1" }],
+      terminals: [{ campaignId: "c1", terminalId: "t1" }],
+      kindData: [],
+    });
+    expect(warnings).toEqual([]);
+  });
+
+  it("a KindProfileRecord naming an unregistered kind is not this store's concern — it round-trips unchanged", async () => {
+    const seeded = {
+      formatVersion: 3,
+      profileId: "p1",
+      achievements: [],
+      terminals: [],
+      kindData: [{ kindId: "some-future-kind", dataVersion: 7, data: { anything: "at all" } }],
+    };
+    const store = createInMemoryProfileStore({ raw: new Map([["p1", seeded]]) });
+    const { profile, warnings } = await store.load("p1");
+    expect(profile).toEqual(seeded);
+    expect(warnings).toEqual([]);
+  });
+
+  it("save then load round-trips the profile, terminals and kindData included", async () => {
+    const store = createInMemoryProfileStore();
+    const profile = {
+      formatVersion: 3 as const,
+      profileId: "p1",
+      achievements: [{ campaignId: "c1", achievementId: "a1" }],
+      terminals: [{ campaignId: "c1", terminalId: "t1" }],
+      kindData: [{ kindId: "simulation", dataVersion: 1, data: { chains: [] } }],
     };
     const saveResult = await store.save(profile);
     expect(saveResult).toEqual({ ok: true, warnings: [] });
@@ -61,14 +97,14 @@ describe("createInMemoryProfileStore", () => {
   it("copies the seeded map at construction — later external mutation has no effect", async () => {
     const raw = new Map<string, unknown>();
     const store = createInMemoryProfileStore({ raw });
-    raw.set("p1", { formatVersion: 2, profileId: "p1", achievements: [], terminals: [] });
+    raw.set("p1", { formatVersion: 3, profileId: "p1", achievements: [], terminals: [], kindData: [] });
     const { warnings } = await store.load("p1");
     expect(warnings).toEqual([{ code: "profile_missing", profileId: "p1" }]);
   });
 
   it("onSave returning false simulates a write failure: no write, profile_write_failed warning", async () => {
     const store = createInMemoryProfileStore({ onSave: () => false });
-    const profile = { formatVersion: 2 as const, profileId: "p1", achievements: [], terminals: [] };
+    const profile = { formatVersion: 3 as const, profileId: "p1", achievements: [], terminals: [], kindData: [] };
     const saveResult = await store.save(profile);
     expect(saveResult).toEqual({ ok: false, warnings: [{ code: "profile_write_failed", profileId: "p1" }] });
 
@@ -78,8 +114,8 @@ describe("createInMemoryProfileStore", () => {
 
   it("onSave can target a specific call by inspecting the profile passed in", async () => {
     const store = createInMemoryProfileStore({ onSave: (profile) => profile.profileId !== "blocked" });
-    expect((await store.save({ formatVersion: 2, profileId: "ok", achievements: [], terminals: [] })).ok).toBe(true);
-    expect((await store.save({ formatVersion: 2, profileId: "blocked", achievements: [], terminals: [] })).ok).toBe(false);
+    expect((await store.save({ formatVersion: 3, profileId: "ok", achievements: [], terminals: [], kindData: [] })).ok).toBe(true);
+    expect((await store.save({ formatVersion: 3, profileId: "blocked", achievements: [], terminals: [], kindData: [] })).ok).toBe(false);
   });
 
   it("a stored entry whose internal profileId doesn't match its key is treated as corrupt", async () => {
@@ -87,29 +123,39 @@ describe("createInMemoryProfileStore", () => {
     // mean a later save() (which always writes under profile.profileId) silently
     // redirects to "p2" instead of the profile that was actually requested.
     const store = createInMemoryProfileStore({
-      raw: new Map([["p1", { formatVersion: 2, profileId: "p2", achievements: [], terminals: [] }]]),
+      raw: new Map([["p1", { formatVersion: 3, profileId: "p2", achievements: [], terminals: [], kindData: [] }]]),
     });
     const { profile, warnings } = await store.load("p1");
-    expect(profile).toEqual({ formatVersion: 2, profileId: "p1", achievements: [], terminals: [] });
+    expect(profile).toEqual({ formatVersion: 3, profileId: "p1", achievements: [], terminals: [], kindData: [] });
     expect(warnings).toEqual([{ code: "profile_corrupt", profileId: "p1" }]);
   });
 
-  it("a formatVersion 2 entry with a malformed terminals array is treated as corrupt", async () => {
+  it("a formatVersion 3 entry with a malformed terminals array is treated as corrupt", async () => {
     const store = createInMemoryProfileStore({
-      raw: new Map([["p1", { formatVersion: 2, profileId: "p1", achievements: [], terminals: [{ campaignId: "c1" }] }]]),
+      raw: new Map([["p1", { formatVersion: 3, profileId: "p1", achievements: [], terminals: [{ campaignId: "c1" }], kindData: [] }]]),
     });
     const { profile, warnings } = await store.load("p1");
-    expect(profile).toEqual({ formatVersion: 2, profileId: "p1", achievements: [], terminals: [] });
+    expect(profile).toEqual({ formatVersion: 3, profileId: "p1", achievements: [], terminals: [], kindData: [] });
+    expect(warnings).toEqual([{ code: "profile_corrupt", profileId: "p1" }]);
+  });
+
+  it("a formatVersion 3 entry with a malformed kindData array is treated as corrupt", async () => {
+    const store = createInMemoryProfileStore({
+      raw: new Map([["p1", { formatVersion: 3, profileId: "p1", achievements: [], terminals: [], kindData: [{ kindId: "simulation" }] }]]),
+    });
+    const { profile, warnings } = await store.load("p1");
+    expect(profile).toEqual({ formatVersion: 3, profileId: "p1", achievements: [], terminals: [], kindData: [] });
     expect(warnings).toEqual([{ code: "profile_corrupt", profileId: "p1" }]);
   });
 
   it("load returns a clone — mutating the returned profile never affects what's persisted", async () => {
     const store = createInMemoryProfileStore();
     await store.save({
-      formatVersion: 2,
+      formatVersion: 3,
       profileId: "p1",
       achievements: [{ campaignId: "c1", achievementId: "a1" }],
       terminals: [],
+      kindData: [],
     });
 
     const { profile: first } = await store.load("p1");
@@ -124,17 +170,20 @@ describe("createInMemoryProfileStore", () => {
   it("save stores a clone — mutating the caller's object after save() never affects what's persisted", async () => {
     const store = createInMemoryProfileStore();
     const profile = {
-      formatVersion: 2 as const,
+      formatVersion: 3 as const,
       profileId: "p1",
       achievements: [{ campaignId: "c1", achievementId: "a1" }],
       terminals: [{ campaignId: "c1", terminalId: "t1" }] as TerminalRecord[],
+      kindData: [{ kindId: "simulation", dataVersion: 1, data: {} }] as KindProfileRecord[],
     };
     await store.save(profile);
     profile.achievements.push({ campaignId: "c1", achievementId: "a2" });
     profile.terminals.push({ campaignId: "c1", terminalId: "t2" });
+    profile.kindData.push({ kindId: "story-graph", dataVersion: 1, data: {} });
 
     const { profile: loaded } = await store.load("p1");
     expect(loaded.achievements).toEqual([{ campaignId: "c1", achievementId: "a1" }]);
     expect(loaded.terminals).toEqual([{ campaignId: "c1", terminalId: "t1" }]);
+    expect(loaded.kindData).toEqual([{ kindId: "simulation", dataVersion: 1, data: {} }]);
   });
 });

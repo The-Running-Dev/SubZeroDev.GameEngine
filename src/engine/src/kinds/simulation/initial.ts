@@ -50,12 +50,13 @@
  */
 
 import type { Campaign } from "../../core/registry/types.js";
-import type { InitialStateResult } from "../../core/kernel/types.js";
+import type { InitialStateResult, KindContext } from "../../core/kernel/types.js";
 import type { SimulationCampaign } from "./campaign.js";
 import type {
   AgentState,
   CalendarState,
   EconomyState,
+  EventChainState,
   WorldState,
   GoalState,
   Modifier,
@@ -64,6 +65,7 @@ import type {
 import type { ActorState, InventoryItem, PlayerState } from "./actor.js";
 import type { BackgroundDefinition, RivalConfig, ScenarioDefinition } from "./content.js";
 import { combineModifiers, type ResolvedModifier } from "./modifiers.js";
+import { furthestStepsFor, resolveProfileData } from "./profile.js";
 
 /** Upstream's fixed weekly time budget (§2.1's own callout — not campaign-authored). */
 const WEEKLY_TIME_UNITS = 14;
@@ -292,14 +294,35 @@ function buildAgents(campaign: SimulationCampaign, scenario: ScenarioDefinition)
   }));
 }
 
-function buildWorld(campaign: SimulationCampaign, scenario: ScenarioDefinition): WorldState {
+/**
+ * `"profile"`-scoped chains only (§2.2) — a `"game"`-scoped chain is never seeded, and
+ * `world.chainStates` starts empty of those exactly as it always has; the `events`
+ * end-of-week system creates one the first time it fires. A `"profile"`-scoped chain's
+ * `currentStep` seeds from the matching `SimulationProfileChainRecord.furthestStep`, or `0`
+ * when the profile (or campaign) has none; `startedWeek: 0`; `active: false` until its next
+ * step fires, the same as an unseeded chain.
+ */
+function seedProfileChains(campaign: SimulationCampaign, campaignId: string, profileData: unknown): EventChainState[] {
+  const furthestSteps = furthestStepsFor(resolveProfileData(profileData), campaignId);
+  return (campaign.eventChains ?? [])
+    .filter((chain) => chain.scope === "profile")
+    .map((chain) => ({
+      chainId: chain.id,
+      scope: "profile" as const,
+      currentStep: furthestSteps.get(chain.id) ?? 0,
+      startedWeek: 0,
+      active: false,
+    }));
+}
+
+function buildWorld(campaign: SimulationCampaign, scenario: ScenarioDefinition, campaignId: string, profileData: unknown): WorldState {
   return {
     npcs: [],
     locations: [],
     jobMarket: { openings: [] },
     eventCooldowns: {},
     firedUniqueEvents: [],
-    chainStates: [],
+    chainStates: seedProfileChains(campaign, campaignId, profileData),
     strangenessBase: 0,
     headlinePool: { remainingIds: [], cyclesCompleted: 0 },
     agents: buildAgents(campaign, scenario),
@@ -321,12 +344,13 @@ function startingGoals(goals: SimulationCampaign["goals"]): GoalState[] {
 }
 
 /**
- * Takes no `KindContext` — nothing here emits an event or draws randomness (week one gets
- * no start-of-week pass; §3's own callout is explicit that it hasn't run yet). A function
- * with fewer parameters than `Kind.initialState` declares still satisfies it structurally,
- * so there is no unused parameter to carry just for the interface match.
+ * `ctx` is unused below — nothing here emits an event or draws randomness (week one gets no
+ * start-of-week pass; §3's own callout is explicit that it hasn't run yet) — but is declared
+ * to match `Kind.initialState`'s signature exactly, the same as every other kind's own
+ * `initialState`. `profileData` (§7.1) is the resolved, already-migrated cross-game slice;
+ * absent for an anonymous session or a campaign declaring no `"profile"`-scoped chains.
  */
-export function initialState(campaign: Campaign): InitialStateResult<SimulationKindState> {
+export function initialState(campaign: Campaign, _ctx?: KindContext, profileData?: unknown): InitialStateResult<SimulationKindState> {
   const content = campaign.content as SimulationCampaign;
   const scenario = findScenario(content);
   const calendar = buildCalendar();
@@ -335,7 +359,7 @@ export function initialState(campaign: Campaign): InitialStateResult<SimulationK
     calendar,
     player: buildPlayer(content, scenario),
     economy: STARTING_ECONOMY,
-    world: buildWorld(content, scenario),
+    world: buildWorld(content, scenario, campaign.id, profileData),
 
     activeEffects: content.startingEffects ? [...content.startingEffects] : [],
     activeOpportunities: [],
