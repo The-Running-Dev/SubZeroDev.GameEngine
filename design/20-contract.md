@@ -3365,7 +3365,7 @@ interface SimulationKindState {
 > what `StateChange[]` already returns from `advance` (04 §12) and to what the event stream
 > carries (05). Three overlapping records of the same events is exactly the duplication rule
 > §2 exists to prevent, so `history` is not adopted until it is established what it holds
-> that `StateChange` does not. Recorded in [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md).
+> that `StateChange` does not. Recorded in [`90-decisions.md`](90-decisions.md) §2.
 >
 > **`WeeklyActionPlan.totalTimeCost` / `totalMoneyCostCents`** — marked "engine-computed"
 > upstream. Derived values do not belong in serialized state: they can disagree with the
@@ -3817,6 +3817,10 @@ anti-exploit rather than decorative.
 `progressNotes` exists for the Transparent Consequences principle — a client can show *which*
 clause of a compound goal (§8, `Condition`'s `all`/`any` tree) is currently unmet, not just that
 the goal isn't done yet.
+
+A `GoalState` is never removed once created: `status` transitions away from `"active"` on
+completion or failure, but the entry stays in the set as a permanent record — matching how
+retirement already works for `LoggedAction` and `StateChange`.
 
 ### 2.5 Economy State
 
