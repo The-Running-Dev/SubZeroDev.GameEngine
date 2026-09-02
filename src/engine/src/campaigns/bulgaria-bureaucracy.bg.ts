@@ -8,6 +8,9 @@
  * text), `buildStoryGraphCampaign` on this source produces byte-identical `content` to
  * the English build — proven in `bulgaria-bureaucracy.locale.test.ts` — and the two
  * differ only in the `strings` table each build produces.
+ *
+ * Unpublished regression fixture, not a publication source: `SubZeroDev.Adventures.Content`
+ * owns canonical narrative source and publication (`20-contract.md` §19).
  */
 
 import type { BuiltCampaign } from "../core/registry/types.js";

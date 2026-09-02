@@ -3680,6 +3680,25 @@ fresh budget. `end_week`, and any `plan.add` other than `respond_to_event`, refu
 `PendingEventResponse` remains unaddressed by the current plan — `event_response_pending`
 (§10, W94).
 
+#### Status Effect Lifecycle
+
+**Application.** A `StatusEffect` is inserted into `activeEffects` by whichever resolver grants
+it — an item's own effects syncing with `activeEffects` on every resolution (`sourceKind:
+"item"`), an event outcome (`sourceKind: "event"`), or any other source named by
+`StatusEffect.sourceKind`. Insertion goes through one shared function regardless of source:
+`stacking: "refresh"` drops any existing effect with the same `sourceId` before adding the new
+one; `stacking: "stack"` adds alongside whatever is already active. `appliedWeek` is stamped from
+the current week at insertion.
+
+**Expiry.** The `effects` step of start-of-week (§12.1), run immediately after the week
+increments and before any other system, removes every effect whose `expiresAtWeek` is strictly
+before the new week — an effect expiring in week 12 still applies throughout week 12 and is
+removed only once the new week moves past it, at the start of week 13. An effect with no
+`expiresAtWeek` is permanent and is never removed by this step; it persists until its own source
+is resynced or replaced (as item effects are, above). Expiry emits `effect.expired` (§11) per
+effect and produces no `StateChange` — there is nothing for a client to undo when a timer
+elapses.
+
 #### Opportunity Lifecycle
 
 **Generation**, three paths, all producing an `Opportunity` from an `OpportunityDefinition`
@@ -3752,6 +3771,18 @@ not implicit.
 > **Deliberate limitation, carried from upstream.** A `ScheduledEvent` with no `chainId` has no
 > cancellation path: it fires regardless of anything that happens between scheduling and
 > firing. Content that wants a scheduled event to be cancellable must put it in a chain.
+
+#### Pending Event Response Lifecycle
+
+**Creation** is stated above: firing a `ScheduledEvent` (or a random roll) that carries choices
+queues a `PendingEventResponse` for presentation at the start of the following week.
+
+**Resolution.** A `respond_to_event` action naming the pending entry's id is its only removal
+path: the resolver removes that entry from `pendingEventResponses` as part of the same
+`StateChange` set that records the chosen `choiceId` and applies the choice's costs. There is no
+expiry — a `PendingEventResponse` has no `expiresAtWeek` field, and `end_week` and every other
+`plan.add` refuse outright while one is unaddressed (`event_response_pending`, §10), so it
+cannot be outlived by the calendar the way an `Opportunity` or `ScheduledEvent` can.
 
 ### 2.4 Goal State
 

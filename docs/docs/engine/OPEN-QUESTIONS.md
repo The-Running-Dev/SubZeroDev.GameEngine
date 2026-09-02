@@ -44,8 +44,15 @@ answer now lives — so a later reader finds the reasoning without re-opening th
 
 Settled as out of MVP scope. Listed so they resurface deliberately, not by accident.
 
-- **The engine package published *public*, and the plans specify private — tracked as
-  [issue #302](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/302).**
+- **Package visibility, decided: public.** `src/engine/package.json` carries no `"private"`
+  field and publishes to `npm.pkg.github.com`; [Engine Package](/docs/guide/engine-package)
+  states the choice is deliberate. `plans/39-world-graph-kind-programme.md` and
+  `plans/40-w41-engine-consumer-boundary.md` both specified private GitHub Packages at the
+  time they were written and are annotated in place ("What shipped did not honour this") —
+  left as historical record of the original plan rather than rewritten, since a plan
+  document records intent at the time, not current fact. This is the final answer;
+  [issue #302](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/302) tracked
+  deciding it and is closed by this entry.
 - **Provisional simulation numbers** — drift rates, scenario economics, `demandBand`
   thresholds, housing-quality formula, travel costs. Need a balancing pass once the sim
   harness runs. Tracked as [issue #267](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/267).

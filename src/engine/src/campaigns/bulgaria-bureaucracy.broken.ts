@@ -10,6 +10,9 @@
  * the shape it emits has no `auto`-kind node left to mutate, so the two fixtures that
  * used to target one now target an equivalent `choice`/`random` node instead. Each
  * fixture's Tier and code are unchanged; only which node stands in for the mutation is.
+ *
+ * Unpublished regression fixture, not a publication source: `SubZeroDev.Adventures.Content`
+ * owns canonical narrative source and publication (`20-contract.md` §19).
  */
 
 import type { ChoiceNodeSource, RandomNodeSource } from "../kinds/story-graph/source.js";

@@ -11,6 +11,9 @@
  * Tier 1 and Tier 2 both pass this campaign clean. Only `scripts/validate-campaign.ts`'s
  * state-space search (Tier 3, 03 §11) can tell `victory` apart from `defeat` — which is
  * this fixture's whole purpose (W73.2).
+ *
+ * Unpublished regression fixture, not a publication source: `SubZeroDev.Adventures.Content`
+ * owns canonical narrative source and publication (`20-contract.md` §19).
  */
 
 import type { AuthoredText, BuiltCampaign, Campaign } from "../core/registry/types.js";

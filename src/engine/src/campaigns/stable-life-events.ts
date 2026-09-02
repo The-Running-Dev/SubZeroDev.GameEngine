@@ -34,6 +34,9 @@
  * `opportunity-market-stall` is uncontested and short-lived: `durationWeeks: 1` means it
  * stands for exactly the week after it is offered, so a fixture can accept or decline it
  * before it expires.
+ *
+ * Unpublished regression fixture, not a publication source: `SubZeroDev.Adventures.Content`
+ * owns canonical narrative source and publication (`20-contract.md` §19).
  */
 
 import type { BuiltCampaign, Campaign } from "../core/registry/types.js";

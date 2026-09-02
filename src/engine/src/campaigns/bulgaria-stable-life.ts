@@ -26,6 +26,9 @@
  * `home` for rest/work/study/events, `bazaar` for `shop`/`sell_item`/`repair_item` on the
  * moped — so `travel` and both possession resolvers are exercised by a real map rather than
  * only by a synthetic fixture campaign.
+ *
+ * Unpublished regression fixture, not a publication source: `SubZeroDev.Adventures.Content`
+ * owns canonical narrative source and publication (`20-contract.md` §19).
  */
 
 import type { BuiltCampaign, Campaign } from "../core/registry/types.js";

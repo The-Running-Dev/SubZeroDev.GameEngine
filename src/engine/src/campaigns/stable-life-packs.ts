@@ -5,6 +5,10 @@
  * base. `bulgariaCulturePack` deliberately replaces that campaign wholesale under the same
  * id, authored independently in `bulgaria-stable-life.ts` — its own jobs, places, events,
  * housing, possessions and effects, not a voice-only reskin of the base's.
+ *
+ * Both packs wrap unpublished regression fixtures, not publication sources:
+ * `SubZeroDev.Adventures.Content` owns canonical narrative source and publication
+ * (`20-contract.md` §19).
  */
 
 import type { ContentPack } from "../core/registry/packs.js";

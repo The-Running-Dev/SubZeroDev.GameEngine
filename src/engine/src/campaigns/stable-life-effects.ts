@@ -16,6 +16,9 @@
  * `initialState` on, still active through week 2 (`startOfWeek.ts`'s `effects()` keeps an
  * effect through the week it expires in), gone once `end_week` advances into week 3 —
  * exactly the applying-then-expiring shape W51.6 asks for.
+ *
+ * Unpublished regression fixture, not a publication source: `SubZeroDev.Adventures.Content`
+ * owns canonical narrative source and publication (`20-contract.md` §19).
  */
 
 import type { BuiltCampaign, Campaign } from "../core/registry/types.js";

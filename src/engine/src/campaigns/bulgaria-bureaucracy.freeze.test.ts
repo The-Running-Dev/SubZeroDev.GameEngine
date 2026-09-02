@@ -1,6 +1,7 @@
 /**
  * The Bureaucracy campaign is frozen regression evidence, not a publication source (W74a,
- * `design/30-slices.md`; `02-architecture.md` §13; `04-core.md` §19). Today
+ * `design/30-slices.md`; `02-architecture.md` §13; `20-contract.md` §19 — `SubZeroDev.
+ * Adventures.Content` owns canonical narrative source and publication). Today
  * `bulgaria-bureaucracy.ts`/`.bg.ts` are both the replay oracle's baseline and a shipped
  * publication, so an edit made for the story's sake — a corrected typo, a rebalanced stat —
  * silently moves the baseline everything else is measured against, and the move only shows

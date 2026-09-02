@@ -20,9 +20,13 @@
 
 ### 2.3 Effects, Opportunities, and Scheduled Events
 
+#### Status Effect Lifecycle
+
 #### Opportunity Lifecycle
 
 #### Scheduled Event Lifecycle
+
+#### Pending Event Response Lifecycle
 
 ### 2.4 Goal State
 
