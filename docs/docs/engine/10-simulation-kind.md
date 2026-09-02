@@ -84,7 +84,7 @@ interface SimulationKindState {
 > what `StateChange[]` already returns from `advance` (04 §12) and to what the event stream
 > carries (05). Three overlapping records of the same events is exactly the duplication rule
 > §2 exists to prevent, so `history` is not adopted until it is established what it holds
-> that `StateChange` does not. Recorded in [`90-decisions.md`](90-decisions.md) §2.
+> that `StateChange` does not. Recorded in `90-decisions.md` §2.
 >
 > **`WeeklyActionPlan.totalTimeCost` / `totalMoneyCostCents`** — marked "engine-computed"
 > upstream. Derived values do not belong in serialized state: they can disagree with the
