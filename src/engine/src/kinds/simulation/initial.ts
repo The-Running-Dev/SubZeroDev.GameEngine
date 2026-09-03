@@ -315,6 +315,21 @@ function seedProfileChains(campaign: SimulationCampaign, campaignId: string, pro
     }));
 }
 
+/** `npcs`/`locations` start unpopulated — a documented gap, not an oversight (issue #425).
+ *  §7.7/§7.9 forward-reference `NPCState`/`LocationState` as content-seeded runtime state,
+ *  and GameOfLife's own lifecycle seeds one `NPCState` per `NPCDefinition` and one
+ *  `LocationState` per reachable `LocationDefinition` at creation. Seeding them here was
+ *  tried and reverted: it changes every committed replay/golden fixture's `world` shape
+ *  (a `ReplayFixture`/corpus promotion is a reviewed one-way door, `08-session-capture.md`
+ *  §7) and several shipped campaigns' `scenarios[].startingLocationId` has no matching
+ *  `LocationDefinition` at all, which only stayed harmless while nothing read `world.
+ *  locations`. Both are real defects this function is not the place to fix. `resolvers.ts`'s
+ *  travel/socialize resolvers already read `campaign.locations`/`campaign.npcs` directly, so
+ *  gameplay is unaffected; `view.ts`'s `PublicLocationState` projection stays empty until
+ *  either the mirror is done deliberately (seeding plus fixing the campaign content that
+ *  assumes it can skip declaring `LocationDefinition`s) or §2.2's `WorldState.npcs`/
+ *  `locations` fields are narrowed to match what's actually shipped — a decision for
+ *  `/contract`, not this file. */
 function buildWorld(campaign: SimulationCampaign, scenario: ScenarioDefinition, campaignId: string, profileData: unknown): WorldState {
   return {
     npcs: [],
@@ -330,17 +345,23 @@ function buildWorld(campaign: SimulationCampaign, scenario: ScenarioDefinition, 
   };
 }
 
-/** One `GoalState` per `GoalDefinition` the campaign declares, all `"active"` — the
+/** One `GoalState` per `GoalDefinition` the *active scenario* declares via its own
+ *  `goalIds` (§7.8) — not every `GoalDefinition` the campaign declares. A campaign's goals
+ *  are scenario-scoped: §14's Tier 2 `unreachable_content` check already treats a
+ *  `GoalDefinition` no scenario's `goalIds` names as unreachable, which only holds if a
+ *  scenario never seeds another scenario's goals into a game it doesn't own. The
  *  `goals`/`failure` end-of-week systems (`endOfWeek.ts`) are what moves a goal off this
  *  starting state, never `initialState` itself. */
-function startingGoals(goals: SimulationCampaign["goals"]): GoalState[] {
-  return goals.map((goal) => ({
-    definitionId: goal.id,
-    status: "active",
-    satisfiedThisWeek: false,
-    consecutiveWeeksSatisfied: 0,
-    progressNotes: [],
-  }));
+function startingGoals(campaign: SimulationCampaign, scenario: ScenarioDefinition): GoalState[] {
+  return scenario.goalIds
+    .map((id) => campaign.goals.find((g) => g.id === id)!)
+    .map((goal) => ({
+      definitionId: goal.id,
+      status: "active",
+      satisfiedThisWeek: false,
+      consecutiveWeeksSatisfied: 0,
+      progressNotes: [],
+    }));
 }
 
 /**
@@ -366,7 +387,7 @@ export function initialState(campaign: Campaign, _ctx?: KindContext, profileData
     scheduledEvents: [],
     pendingEventResponses: [],
 
-    goals: startingGoals(content.goals),
+    goals: startingGoals(content, scenario),
     // §12 — a game starts live. Only `end_week`'s `goals`/`failure`/`week_limit` systems
     // ever write this, and only once (`endOfWeek.ts`).
     resolution: null,

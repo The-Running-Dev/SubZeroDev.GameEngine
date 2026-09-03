@@ -177,8 +177,9 @@ describe("initialState", () => {
     expect(result.state.pendingEventResponses).toEqual([]);
   });
 
-  it("seeds no goals for a campaign that declares none", () => {
-    const noGoalsCampaign: SimulationCampaign = { ...simulationCampaign, goals: [] };
+  it("seeds no goals for a scenario that declares none", () => {
+    const noGoalsScenario: ScenarioDefinition = { ...scenario, goalIds: [] };
+    const noGoalsCampaign: SimulationCampaign = { ...simulationCampaign, goals: [], scenarios: [noGoalsScenario] };
     const result = initialState({ ...campaign, content: noGoalsCampaign });
     expect(result.state.goals).toEqual([]);
   });
@@ -199,6 +200,29 @@ describe("initialState", () => {
         progressNotes: [],
       },
     ]);
+  });
+
+  it("seeds only the active scenario's own goalIds, not every campaign GoalDefinition", () => {
+    const otherGoal: GoalDefinition = {
+      id: "goal-other",
+      labelKey: "goal.other",
+      descriptionKey: "goal.other.description",
+      category: "other",
+      conditions: { field: "player.needs.energy", operator: "greater_or_equal", value: 60 },
+    };
+    const otherScenario: ScenarioDefinition = {
+      ...scenario,
+      id: "scenario-2",
+      goalIds: ["goal-other"],
+    };
+    const multiScenarioCampaign: SimulationCampaign = {
+      ...simulationCampaign,
+      goals: [...goalDefinitions, otherGoal],
+      scenarios: [scenario, otherScenario],
+      scenarioId: "scenario-1",
+    };
+    const result = initialState({ ...campaign, content: multiScenarioCampaign });
+    expect(result.state.goals.map((g) => g.definitionId)).toEqual(["goal-happy"]);
   });
 
   it("status is always active", () => {
