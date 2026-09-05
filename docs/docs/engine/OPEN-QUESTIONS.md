@@ -140,11 +140,18 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   chain that paces on elapsed play rather than on progress — until one does, the decision about
   which of the three properties to give up has no evidence to be made on. Carried in
   `20-contract.md`'s own `## Unresolved` section, which is the checkable copy.
-- **The hosted MCP contract still needs its W48 mirror.** The engine-side contract and façade
-  now expose ten operations, including `preview_action`, but SubZeroDev.Platform's
-  `mcp-tool-contract.md` still lists the original nine. The engine repository cannot make a
-  companion-repository edit in the same commit. Tracked as
-  [issue #269](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/269).
+- **The hosted MCP contract's W48 mirror — resolved, moved rather than edited in place.**
+  [Issue #269](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/269) tracked
+  SubZeroDev.Platform's `docs/docs/mcp-tool-contract.md` lagging the engine's tenth operation,
+  `preview_action`. Platform's own S2.11 retired that copy rather than editing it: the table now
+  lives in `SubZeroDev.ServiceContract`'s `mcp-tool-contract.md`
+  ([`5d3fb8e`](https://github.com/The-Running-Dev/SubZeroDev.ServiceContract/blob/5d3fb8e6ebeb8fb6200e36ebc61df107ad355ce7/mcp-tool-contract.md),
+  package `0.6.0`), which documents all thirteen `SessionStore` operations with `preview_action`
+  named as the tenth. Platform's hosted surface
+  (`workloads/game-service/src/mcp-surface.ts` @
+  [`665103a`](https://github.com/The-Running-Dev/SubZeroDev.Platform/blob/665103a3cdd182b1bc248c5aa08d2202fb6ac041/workloads/game-service/src/mcp-surface.ts))
+  builds its tool table from `contract.operations` at runtime instead of a hand-maintained list,
+  so there is no longer a Platform-side row set that can independently lag. Closed as resolved.
 - **A shared simulation substrate for tick-driven kinds** — `simulation` and
   `world-graph` are the same archetype: mutate pending configuration, then resolve
   a block of simulated time through an ordered system pipeline (12 §2). Both hand-roll that

@@ -4409,12 +4409,32 @@ operations, fixture ownership, package visibility, and the proof that replaces t
         every lifecycle it added is mirrored here with both creation and retirement paths. A
         contradiction with shipped simulation code is reported and stops the mirror rather
         than being silently reconciled.
-  - W103.2 Platform's hosted MCP contract includes `preview_action` and every W98/W99 operation
-        with the same arguments/results and one-operation/one-tool mapping; immutable links name
-        the companion commits or PRs that carry each row.
-  - W103.3 The service-contract package is regenerated from the final store surface and its
-        missing/extra-operation gate passes; Adventures consumes that version without reaching
-        through `SessionStore` or persistence for catalog, save, branch, or delete behaviour.
+  - [x] W103.2 Platform's hosted MCP contract includes `preview_action` and every W98/W99
+        operation with the same arguments/results and one-operation/one-tool mapping. The row
+        set moved out of Platform entirely (its S2.11) into
+        [`SubZeroDev.ServiceContract`'s `mcp-tool-contract.md`](https://github.com/The-Running-Dev/SubZeroDev.ServiceContract/blob/5d3fb8e6ebeb8fb6200e36ebc61df107ad355ce7/mcp-tool-contract.md)
+        (`5d3fb8e`, package `0.6.0`), which names `preview_action` as the tenth of thirteen
+        operations, including W98's revised `list_campaigns` and W99's `list_saves`/
+        `branch_session`/`delete_save`. Platform's
+        [`workloads/game-service/src/mcp-surface.ts`](https://github.com/The-Running-Dev/SubZeroDev.Platform/blob/665103a3cdd182b1bc248c5aa08d2202fb6ac041/workloads/game-service/src/mcp-surface.ts)
+        (`665103a`) builds `listTools()`/`callTool()` directly from that package's
+        `contract.operations`, so the mapping is generated, not hand-mirrored. Closes #269 (see
+        `90-decisions.md`).
+  - [x] W103.3 The service-contract package's `src/generate.ts` (`SubZeroDev.ServiceContract`
+        @ `5d3fb8e`) enforces arity both ways — every engine `SessionStore` method must have a
+        row and every row must name a real method — failing the build on a missing or extra
+        operation. Adventures vendors that same `0.6.0` artifact
+        (`server/package.json`: `file:./vendor/subzerodev-service-contract-0.6.0.tgz`,
+        `SubZeroDev.Adventures` @
+        [`aeef4b4`](https://github.com/The-Running-Dev/SubZeroDev.Adventures/blob/aeef4b4089a50d2d0b55e5c421066f0fd245e9db/server/package.json))
+        and runs its own missing/extra-operation gate,
+        [`server/src/contract.test.ts`](https://github.com/The-Running-Dev/SubZeroDev.Adventures/blob/aeef4b4089a50d2d0b55e5c421066f0fd245e9db/server/src/contract.test.ts),
+        comparing the routes it serves against `loadPublishedContract().operations`. The browser
+        client,
+        [`src/play/remote-store.ts`](https://github.com/The-Running-Dev/SubZeroDev.Adventures/blob/aeef4b4089a50d2d0b55e5c421066f0fd245e9db/src/play/remote-store.ts),
+        implements all thirteen operations — catalog, save, load, branch, and delete included —
+        as `fetch` calls against the server's HTTP routes, never importing `SessionStore` or
+        touching persistence directly.
   - W103.4 Every campaign source and exported JSON snapshot retained in this repository says
         within its owning file that it is a test fixture, names the external Content repository
         as the publication authority, and leaves fixture behaviour/tests unchanged.
@@ -4427,8 +4447,12 @@ operations, fixture ownership, package visibility, and the proof that replaces t
   - W103.7 The current agent kit is reconciled without losing repository-specific `-Skip:`
         guards or command companions; the Pester run reports both pass and intentional skip
         counts, and any third recurrence is raised upstream as the existing issue requires.
-  - W103.8 Canonical docs are regenerated, companion/engine checks pass, and every external
-        dependency is cited by immutable commit or merged PR rather than an unversioned branch.
+  - [x] W103.8 Canonical docs regenerated via `build/ConvertTo-HumanDocumentation.ps1`;
+        `build/Test-Documentation.ps1` passed (18 generated engine pages, compatibility
+        pointers, guide, and 189 Markdown files); `src/engine`'s `typecheck`, `lint`, and
+        `test` (94 files, 1554 tests) all passed. Every companion dependency cited above for
+        W103.2/W103.3 names an immutable commit SHA in a public repository, not an
+        unversioned branch.
 - **Out of scope:** authoring GameOfLife lifecycles in this repository, implementing
       Presentation's scene layer, republishing external packages, moving fixture content back
       from Content, or adopting a companion's design-state corpus wholesale.
