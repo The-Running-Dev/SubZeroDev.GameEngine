@@ -19,10 +19,13 @@ logic (`kinds`, engine-owned code), and content (`campaigns`, data). v1 ships th
   **`games/04-engine-specification.md` is the ancestor, not a second authority.** It is a
   104 KB *engine* spec that `02-architecture` and `04-core` were derived from, and it is
   cited ~21 times across these docs — every citation is provenance. For anything the core
-  owns, the docs here supersede it. It still holds the only written rules for the
-  `simulation` **kind** (its §5, §7–§10, §12, §14), which is engine-owned code that needs a
-  contract *here* against the Kind seam, the way `03-story-graph-kind` is one. Stated in
-  `04-core`, *Reused, not re-derived*.
+  owns, the docs here supersede it. **It is no longer authoritative for anything.** It was, for
+  one thing: the `simulation` **kind's** own content and resolution model (its §5, §7–§10, §12,
+  §14), held upstream until a contract existed *here* against the Kind seam. That contract
+  exists — `10-simulation-kind.md`, whole as of its Revision 2, expressed against the seam the
+  way `03-story-graph-kind` is. What remains upstream is *provisional balance*, not contract:
+  drift rates, scenario economics, `demandBand` thresholds, the housing-quality formula. Stated
+  in `04-core`, *Reused, not re-derived*.
 - **Game** — [SubZeroDev.SunTrap](https://github.com/The-Running-Dev/SubZeroDev.SunTrap):
   Sun Trap, the flagship `world-graph`-kind game — a satirical resort-management sim. Design
   only, no code. Its kind contract is `12-world-graph-kind.md` here; the game's maps,
@@ -37,8 +40,9 @@ logic (`kinds`, engine-owned code), and content (`campaigns`, data). v1 ships th
   **It is the first host to implement the ports outside a browser tab**, and that turned up
   eight contract findings, indexed together in `90-decisions.md` §2, *Found by the first
   downstream host*. Two things to know before touching it: it depends on `fromPortable` and
-  the `Portable*` types, which `src/engine/src/index.ts` marks non-contract spike exports, so a
-  submodule bump can break it legitimately; and its visual identity diverged from
+  the `Portable*` types, which graduated from the spike and are contracted package-root exports
+  (`20-contract.md` §19; `90-decisions.md`, 2026-08-11), so a submodule bump that breaks them is
+  a contract break rather than a legitimate one; and its visual identity diverged from
   `14-game-interface.md` deliberately — do not port it back.
 - **Hosting / NEaaS** — [SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform):
   the deferred hosting / SaaS layer.

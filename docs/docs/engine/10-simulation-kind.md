@@ -2525,7 +2525,7 @@ author, and a client rendering a history.
 | `insufficient_time` | A planned action exceeds available time units | registered (W53) |
 | `insufficient_funds` | A planned action's cost exceeds available money | registered (W54) |
 | `wrong_location` | An action's type is not in the current location's `actionTypes` (§7.9), or a `travel` target is not in `connections` | registered (W53) |
-| `plan_empty` | `end_week` with nothing planned, where the campaign forbids it | specified, not yet dispatched |
+| `plan_empty` | `end_week` with nothing planned, where the campaign forbids it (`SimulationCampaign.emptyPlanPolicy: "forbid"`, §7.11) | registered (W100) |
 | `week_limit_reached` | The scenario's week cap is exhausted | specified, not yet dispatched |
 | `event_response_pending` | `end_week`, or a `plan.add` for any `ActionType` other than `respond_to_event`, while a `PendingEventResponse` (§2.3) remains unaddressed by the current plan | registered (W94) |
 
@@ -2589,10 +2589,10 @@ namespace exempt from §12's completeness rule.
 > **This set grows as the dispatched systems land, and that is deliberate.** A code joins
 > `Kind.reasonCodes` when the unit that actually produces it exists, not when this table
 > first names it — the precedent `story-graph` set, whose own codes joined across W10, W11,
-> W12 and W14 rather than being pre-declared. `plan_empty` and `week_limit_reached` are the
-> two still outstanding; `plan_empty`'s additional gate is now closed by §7.11's
-> `emptyPlanPolicy` field, recorded in `90-decisions.md` — dispatching it is a `/slice`
-> matter, not a further contract change. The shipped set lives in
+> W12 and W14 rather than being pre-declared. `week_limit_reached` is the one still
+> outstanding. `plan_empty` was the other until W100: §7.11's `emptyPlanPolicy` field closed
+> its additional gate, and `advance.ts`'s `end_week` now returns it whenever that field reads
+> `"forbid"` and the plan is empty. The shipped set lives in
 > `src/engine/src/kinds/simulation/reasons.ts`.
 >
 > **The policy has no gate, and that cost eighteen codes.** Registry validation checks
@@ -2896,9 +2896,9 @@ own state and content; it is here, and upstream stays cited as provenance, exact
 
 `SubZeroDev.GameOfLife` S6/S7 gave twelve upstream concepts an explicit `lifecycle-` region —
 a creation paragraph and a retirement paragraph each. This mirrors all twelve against this
-kind's own shape, concept by concept, rather than transcribing upstream prose: five map onto
+kind's own shape, concept by concept, rather than transcribing upstream prose: four map onto
 core-owned envelope fields (§2's own table above) and are cited there rather than duplicated,
-one is a still-open decision, and the remaining six get the explicit creation/retirement
+one is a still-open decision, and the remaining seven get the explicit creation/retirement
 statement upstream's lifecycle region gives them, filling in where an existing section only
 implied it.
 
@@ -2915,9 +2915,10 @@ duplication defect §2 already names:**
   entirely. Its lifecycle is 04-core's own contract.
 - **`LoggedAction`** — the envelope's `actionLog`, the replay spine (04-core §2, §10.3;
   07-replay.md). Its append-only, never-pruned lifecycle is stated there, not per-kind.
-- **`CalendarState`** — *not* envelope-owned upstream naming aside; ported to this kind's own
-  §2.1 (below), because `04-core`'s envelope carries no week/turn concept of its own for this
-  kind to duplicate.
+
+`CalendarState` is *not* in this group despite upstream's naming: `04-core`'s envelope carries
+no week or turn concept of its own, so there is nothing there for this kind to duplicate. It is
+kind-owned (§2.1) and its lifecycle is stated below with the rest.
 
 **Still an open decision, not a gap in this mirror:** **`HistoryEntry`** is not adopted into
 `SimulationKindState`. §2 above states why — it overlaps `StateChange` and the event stream

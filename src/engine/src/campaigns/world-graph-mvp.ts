@@ -1,4 +1,14 @@
-/** Engine-owned deterministic W49 fixture, deliberately smaller than Sun Trap content. */
+/**
+ * The `world-graph` kind's own reference campaign (W49) — engine-owned content that exists to
+ * make the kind registrable and exercisable, deliberately smaller than Sun Trap content.
+ *
+ * `20-contract.md` §19's third category, and not either of the other two: it is **not** a
+ * frozen regression fixture, and **not** narrative content owned by
+ * `SubZeroDev.Adventures.Content`. It is a sanctioned package-root export
+ * (`buildWorldGraphMvpCampaign` / `WORLD_GRAPH_MVP_CAMPAIGN_ID`), because it is the only
+ * content a host can register this kind against. `src/authoring.test.ts` holds the line that
+ * keeps this from swallowing the rule — the root publishes no *narrative* campaign.
+ */
 import type { BuiltCampaign, Campaign } from "../core/registry/types.js";
 import type { CommandResult } from "../core/kernel/reasons.js";
 import { buildCampaign } from "../core/registry/build.js";
