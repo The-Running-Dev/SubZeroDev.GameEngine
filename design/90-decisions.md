@@ -63,6 +63,19 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   document records intent at the time, not current fact. This is the final answer;
   [issue #302](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/302) tracked
   deciding it and is closed by this entry.
+- **The no-engine-API browser smoke — retired, not reassigned.** `design/15-platform-static-host.md`
+  §6 and `13-playable-web-demo.md` §6 named a browser production smoke proving `/play/` made no
+  engine API request and no request outside the same-origin `campaigns/` files; W69 removed the
+  route and the smoke together, leaving open whether the property moved to a replacement owner
+  (`10-design.md` §6, *CI, Publication, and Deployment Boundary*, mirroring §4's disposition for
+  the Node-only-import property) or retired outright. It retires: §4's property survived because
+  it is still true of the package [SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures)
+  bundles, and that repository's `scripts/verify-build.mjs` asserts it there. This property is not
+  still true anywhere — Adventures is deliberately a hosted Fastify API with Postgres persistence
+  and accounts, the opposite of "no backend, no engine API, same-origin files only." There is no
+  surviving host to assert it over, so no replacement check is created.
+  [Issue #273](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/273) tracked
+  deciding it and is closed by this entry.
 - **Provisional simulation numbers** — drift rates, scenario economics, `demandBand`
   thresholds, housing-quality formula, travel costs. Need a balancing pass once the sim
   harness runs. Tracked as [issue #267](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/267).
