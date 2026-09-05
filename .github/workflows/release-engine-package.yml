@@ -35,8 +35,8 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           printf '//npm.pkg.github.com/:_authToken=%s\n' "$NODE_AUTH_TOKEN" > .npmrc
-          test "v$(node -p \"require('./package.json').version\")" = "$GITHUB_REF_NAME"
-          if npm view "@the-running-dev/game-engine@$(node -p \"require('./package.json').version\")" version >/dev/null 2>&1; then
+          test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
+          if npm view "@the-running-dev/game-engine@$(node -p "require('./package.json').version")" version >/dev/null 2>&1; then
             echo "Package version already exists"
             exit 1
           fi
