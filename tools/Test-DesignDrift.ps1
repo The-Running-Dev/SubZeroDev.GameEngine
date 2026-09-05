@@ -126,7 +126,11 @@ function Get-SliceCriteria {
             continue
         }
 
-        if ($null -ne $current -and $line -match '^\s*-\s+W(?<n>\d+)\.(?<m>\d+)\b') {
+        # The optional `[ ]`/`[x]` is not decoration either: this repository ticks individual
+        # criteria in place (`- [x] W103.2 ...`), so a regex requiring the id straight after
+        # the dash reads a completed criterion as missing from the doc and reports it as
+        # InIssueNotDoc - three false findings on W103 before this allowance existed.
+        if ($null -ne $current -and $line -match '^\s*-\s+(?:\[[ xX]\]\s+)?W(?<n>\d+)\.(?<m>\d+)\b') {
             if ([int]$Matches['n'] -ne $current) {
                 # An id numbered for a different slice than the section it sits in. Reported
                 # rather than silently filed under either, because it is a defect in the doc.

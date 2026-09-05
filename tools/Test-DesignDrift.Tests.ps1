@@ -90,6 +90,31 @@ Describe 'Test-DesignDrift' {
             (Invoke-DriftCheck -SlicesPath $path).State | Should -Be 'Clean'
         }
 
+        It 'a criterion the doc has already ticked is still a criterion, not a removal' {
+            # This repository ticks criteria in place, so the doc-side id sits behind a
+            # `- [x] ` the issue-side regex has always tolerated and this one had not. Left
+            # unhandled it reads as InIssueNotDoc - a renumber - which is the one finding
+            # that can invalidate a tick.
+            $path = New-SlicesDoc -Content @'
+# Slices
+
+## Core
+
+### [ ] W1 — A slice
+
+Delivers: something a reader can follow.
+
+- **Done when:**
+  - [x] W1.1 The first criterion holds, and has landed.
+  - W1.2 The second criterion holds.
+'@
+            Mock Get-TrackerIssue { New-Tracker -Issues @(
+                New-Issue -Number 9 -Title 'W1 — A slice' -Body "- [x] **W1.1** first`n- [ ] **W1.2** second"
+            ) }
+
+            (Invoke-DriftCheck -SlicesPath $path).State | Should -Be 'Clean'
+        }
+
         It 'an id in the doc but not the issue is reported as InDocNotIssue, exit 1' {
             $path = New-SlicesDoc -Content $script:TwoCriterionDoc
             Mock Get-TrackerIssue { New-Tracker -Issues @(
