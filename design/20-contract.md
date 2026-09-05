@@ -118,6 +118,29 @@ defeat it (§9.1).
   never replay inputs. *Enforced by the type — neither is a declared envelope field, which is
   why `RecordIdSource` is a second port rather than a widening of `IdSource`.*
 
+**C1–C20 above are this contract's asserted set. The empty table below does not contradict
+them**, and reading it as "no invariants" would be exactly backwards. The two are different
+kinds of thing. C1–C20 are *prose statements*, written so each could become an assertion, and
+they are what this document asserts. The table is a *projection of `Invariant` records* under
+`design/state/` — machine-readable records with an `Owner`, an `Enforcement` and an `Evidence`
+list, which `tools/Update-DesignProjection.ps1` renders into the marked region below and rewrites
+on every `/track` run.
+
+This repository has no `Invariant` records. It adopted the work mirror and its index
+(`design/state-index.md`) and no other record kind, per `AGENTS.md`, *Writing a design-state
+record*, so the table renders its header and nothing else and will keep doing so until that
+changes. The region exists so the projector has the target its own contract names, rather than
+refusing a seventh region forever and leaving a standing failure that a real one cannot be told
+apart from.
+
+Do not hand-write a row here — anything between the two markers is discarded on the next run. To
+give an invariant a row, write it a record; to state one, write it as a C-number above.
+
+<!-- invariants:start -->
+| | Statement | Owner | Enforcement | Evidence |
+|---|---|---|---|---|
+<!-- invariants:end -->
+
 ## Unresolved
 
 Signatures this contract deliberately does not state, because the design does not determine them
