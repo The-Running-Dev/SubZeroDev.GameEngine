@@ -3524,11 +3524,17 @@ Pull requests build the image, start it, and smoke-test:
 > route.** The smoke existed to prove `/play/` made no engine API request and no request
 > outside the same-origin `campaigns/` files; with no `/play/` in the artifact it has nothing
 > left to assert, so the step and its playwright project were removed in W69's follow-up
-> rather than left green over an absent route. Whether the property deserves a replacement is
-> tracked as
-> [issue #273](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/273); it is the
-> same question §4 of `13` now answers for the Node-only half, and the same answer applies —
-> the assertion belongs beside the bundle it guards, which is no longer emitted here.
+> rather than left green over an absent route.
+>
+> **Retired, not reassigned — [issue #273](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/273).**
+> §4's Node-only-import property moved to a named replacement (Adventures' own
+> `scripts/verify-build.mjs`) because that property is still true of the package Adventures
+> bundles. This one is not: it asserted *no backend, no engine API, same-origin files only*,
+> and [SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures) is
+> deliberately the opposite — a hosted Fastify API with Postgres persistence and accounts,
+> reached over the network on every save, load, and catalog call. There is no host left that
+> the property is still true of, so there is no bundle for a replacement check to assert it
+> over. It ends here rather than moving.
 
 The workflow must contain a negative fixture or test mode that deliberately omits or corrupts a
 required artifact and proves the build or startup goes red. A smoke test that has never been
