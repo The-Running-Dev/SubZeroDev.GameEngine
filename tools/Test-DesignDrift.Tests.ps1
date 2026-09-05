@@ -200,6 +200,33 @@ None.
             $r.State | Should -Be 'Drifted'
             $r.Findings.Kind | Should -Contain 'NoIssue'
         }
+
+        It 'a ticked slice with no issue is not reported, while an unticked one still is' {
+            # This repository marks a slice landed with `### [x]` and keeps its body, rather
+            # than retiring it into the `## Landed` table. track.md does not sync a landed
+            # slice, so there is no issue to open for one that predates the tracker - but the
+            # suppression must not swallow an outstanding slice that genuinely lacks one.
+            $path = New-SlicesDoc -Content @'
+# Slices
+
+## Core
+
+### [x] W1 — A slice that landed before the tracker
+
+- **Done when:**
+  - [x] W1.1 The first criterion holds.
+
+### [ ] W2 — A slice still outstanding
+
+- **Done when:**
+  - W2.1 The first criterion holds.
+'@
+            Mock Get-TrackerIssue { New-Tracker }
+
+            $r = Invoke-DriftCheck -SlicesPath $path
+
+            @($r.Findings | Where-Object { $_.Kind -eq 'NoIssue' }).Slice | Should -Be @('W2')
+        }
     }
 
     Context 'pin ancestry' {

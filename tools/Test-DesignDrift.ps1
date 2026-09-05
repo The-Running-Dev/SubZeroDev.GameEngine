@@ -114,9 +114,16 @@ function Get-SliceCriteria {
         if ($line -match '^###\s+\[') {
             # A new third-level `### [ ] W<n>` heading always ends the previous slice's body,
             # so a Done-when line can never be attributed across a section boundary.
-            $current = if ($line -match '^###\s+\[.\]\s+W(?<n>\d+)\b') { [int]$Matches['n'] } else { $null }
-            if ($null -ne $current -and -not $slices.ContainsKey($current)) {
-                $slices[$current] = [System.Collections.Generic.List[string]]::new()
+            $current = if ($line -match '^###\s+\[(?<mark>.)\]\s+W(?<n>\d+)\b') { [int]$Matches['n'] } else { $null }
+            if ($null -ne $current) {
+                # A ticked heading is how this repository marks a slice landed - it keeps the
+                # body rather than retiring it into the kit's `## Landed` table below, so the
+                # table path alone left $landed permanently empty here and every finished
+                # slice was compared as though it were still outstanding.
+                if ($Matches['mark'] -in @('x', 'X')) { $landed.Add($current) }
+                if (-not $slices.ContainsKey($current)) {
+                    $slices[$current] = [System.Collections.Generic.List[string]]::new()
+                }
             }
             continue
         }
@@ -251,6 +258,7 @@ function Invoke-DriftCheck {
     }
 
     $landed = @($doc.Landed)
+    $unissuedLanded = [System.Collections.Generic.List[int]]::new()
     $compared = 0
 
     foreach ($number in ($doc.Slices.Keys | Sort-Object)) {
@@ -258,6 +266,14 @@ function Invoke-DriftCheck {
         $issue  = $tracker.Issues | Where-Object { $_.title -match "^W$number\b" } | Select-Object -First 1
 
         if (-not $issue) {
+            # A landed slice is not synced at all (.claude/commands/track.md, "What syncs"),
+            # so there is no issue for /track to open and this is not a finding. The ones
+            # here predate the tracker; reporting them made the gate permanently red, which
+            # is how three real findings sat unread.
+            if ($number -in $landed) {
+                $unissuedLanded.Add($number)
+                continue
+            }
             $findings.Add((New-Finding -Kind 'NoIssue' -Slice "W$number" -Detail 'slice has no issue; /track opens one' -Issue 0))
             continue
         }
@@ -276,8 +292,8 @@ function Invoke-DriftCheck {
     # In the kit's generic layout, a landed slice's body is retired once its issue closes,
     # so only its pin can be checked. This repository does not retire slice bodies (every
     # `### [x] W<n>` keeps its full "Done when" list - design/30-slices.md, "How this
-    # document is kept"), so `$landed` stays empty here and every slice, closed or open,
-    # is compared on ids above as well as pin below.
+    # document is kept"), so a landed slice that still has an issue IS compared on ids above,
+    # and being landed only suppresses the NoIssue report for one that never had one.
     foreach ($issue in $tracker.Issues) {
         $pin = Get-IssuePin -Body $issue.body
         if (-not $pin) { continue }
@@ -288,8 +304,8 @@ function Invoke-DriftCheck {
         }
     }
 
-    if ($landed.Count -gt 0) {
-        Write-Verbose "Landed slices not compared on ids: $($landed -join ', ')"
+    if ($unissuedLanded.Count -gt 0) {
+        Write-Verbose "Landed slices with no issue, not reported: $($unissuedLanded -join ', ')"
     }
 
     $state = if ($failures.Count -gt 0) { 'NotEvaluated' }
