@@ -90,6 +90,31 @@ Describe 'Test-DesignDrift' {
             (Invoke-DriftCheck -SlicesPath $path).State | Should -Be 'Clean'
         }
 
+        It 'a criterion the doc has already ticked is still a criterion, not a removal' {
+            # This repository ticks criteria in place, so the doc-side id sits behind a
+            # `- [x] ` the issue-side regex has always tolerated and this one had not. Left
+            # unhandled it reads as InIssueNotDoc - a renumber - which is the one finding
+            # that can invalidate a tick.
+            $path = New-SlicesDoc -Content @'
+# Slices
+
+## Core
+
+### [ ] W1 — A slice
+
+Delivers: something a reader can follow.
+
+- **Done when:**
+  - [x] W1.1 The first criterion holds, and has landed.
+  - W1.2 The second criterion holds.
+'@
+            Mock Get-TrackerIssue { New-Tracker -Issues @(
+                New-Issue -Number 9 -Title 'W1 — A slice' -Body "- [x] **W1.1** first`n- [ ] **W1.2** second"
+            ) }
+
+            (Invoke-DriftCheck -SlicesPath $path).State | Should -Be 'Clean'
+        }
+
         It 'an id in the doc but not the issue is reported as InDocNotIssue, exit 1' {
             $path = New-SlicesDoc -Content $script:TwoCriterionDoc
             Mock Get-TrackerIssue { New-Tracker -Issues @(
@@ -174,6 +199,33 @@ None.
 
             $r.State | Should -Be 'Drifted'
             $r.Findings.Kind | Should -Contain 'NoIssue'
+        }
+
+        It 'a ticked slice with no issue is not reported, while an unticked one still is' {
+            # This repository marks a slice landed with `### [x]` and keeps its body, rather
+            # than retiring it into the `## Landed` table. track.md does not sync a landed
+            # slice, so there is no issue to open for one that predates the tracker - but the
+            # suppression must not swallow an outstanding slice that genuinely lacks one.
+            $path = New-SlicesDoc -Content @'
+# Slices
+
+## Core
+
+### [x] W1 — A slice that landed before the tracker
+
+- **Done when:**
+  - [x] W1.1 The first criterion holds.
+
+### [ ] W2 — A slice still outstanding
+
+- **Done when:**
+  - W2.1 The first criterion holds.
+'@
+            Mock Get-TrackerIssue { New-Tracker }
+
+            $r = Invoke-DriftCheck -SlicesPath $path
+
+            @($r.Findings | Where-Object { $_.Kind -eq 'NoIssue' }).Slice | Should -Be @('W2')
         }
     }
 
