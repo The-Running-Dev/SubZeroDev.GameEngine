@@ -1,6 +1,6 @@
 {
-  "manifestHash": "58ca2ae512329662771b5afd5ac9b27a5350e9a4917c28ad9cfc51b299c42b3c",
-  "generated": "2026-08-26",
+  "manifestHash": "f81a89827368c8a332292c8c261576a17bba1e485494e24a84481fc7477df9b6",
+  "generated": "2026-09-05",
   "gates": [
     {
       "name": "Typecheck",
@@ -16,23 +16,23 @@
     },
     {
       "name": "Pack package",
-      "command": "cd src/engine; npm pack --silent"
+      "command": "cd src/engine && npm pack --silent"
     },
     {
       "name": "Inspect tarball",
-      "command": "tar inspect"
+      "command": "tar -tzf <tarball>"
     },
     {
       "name": "Consumer smoke",
-      "command": "consumer-smoke install/build/smoke"
+      "command": "npm run install:engine && npm run build && npm run smoke (in consumer-smoke/)"
     },
     {
       "name": "Parse-check PowerShell scripts",
-      "command": "pwsh parse *.ps1"
+      "command": "Parse every *.ps1 with [System.Management.Automation.Language.Parser]::ParseFile"
     },
     {
       "name": "Run Pester tests",
-      "command": "Invoke-Pester -Path tools"
+      "command": "Invoke-Pester -Path tools -Output Detailed -PassThru"
     },
     {
       "name": "Validate Markdown links, terminology, and generated files",
@@ -52,15 +52,15 @@
     },
     {
       "name": "Test the host",
-      "command": "dotnet test src/host"
+      "command": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests"
     },
     {
       "name": "Positive route and probe smoke",
-      "command": "docker build+run+curl"
+      "command": "build+run host image, curl routes"
     },
     {
       "name": "Negative fixture -- corrupted artifact must fail to start",
-      "command": "docker build negative fixture"
+      "command": "docker build -f tools/host-smoke/Dockerfile.negative-fixture"
     }
   ]
 }
