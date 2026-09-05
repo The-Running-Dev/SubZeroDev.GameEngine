@@ -258,19 +258,19 @@
 
 ### [x] W95 — Effect and Audit Semantics {#w95}
 
-### [ ] W96 — Mechanical Regression Boundaries {#w96}
+### [x] W96 — Mechanical Regression Boundaries {#w96}
 
-### [ ] W97 — Immutable Projections and Shared Pipelines {#w97}
+### [x] W97 — Immutable Projections and Shared Pipelines {#w97}
 
-### [ ] W98 — Catalog and Projection Completeness {#w98}
+### [x] W98 — Catalog and Projection Completeness {#w98}
 
-### [ ] W99 — Session Lifecycle Operations {#w99}
+### [x] W99 — Session Lifecycle Operations {#w99}
 
-### [ ] W100 — Campaign-Tunable Weekly Rules {#w100}
+### [x] W100 — Campaign-Tunable Weekly Rules {#w100}
 
-### [ ] W101 — Projects, Businesses, and Rival Scarcity {#w101}
+### [x] W101 — Projects, Businesses, and Rival Scarcity {#w101}
 
-### [ ] W102 — Profile Chains and Simulation Save Migration {#w102}
+### [x] W102 — Profile Chains and Simulation Save Migration {#w102}
 
 ### [ ] W103 — Companion Contracts and Ownership Reconciliation {#w103}
 
