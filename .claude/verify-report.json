@@ -13,7 +13,7 @@
     {
       "name": "Test",
       "status": "Passed",
-      "detail": "npm --prefix src/engine test — vitest run: 91 test files passed, 1502 tests passed, 0 failed."
+      "detail": "npm --prefix src/engine test — vitest run: 94 test files passed, 1554 tests passed, 0 failed."
     },
     {
       "name": "Pack package",
@@ -23,7 +23,7 @@
     {
       "name": "Inspect tarball",
       "status": "Passed",
-      "detail": "tar -tzf over the packed tarball: 326 entries, 0 violations (no package/src/, no tsconfig*.json, no .test.* artifacts), package/dist/ present."
+      "detail": "tar -tzf over the packed tarball: 233 entries, 0 violations (no package/src/, no tsconfig*.json, no .test.* artifacts), package/dist/ present."
     },
     {
       "name": "Consumer smoke",
@@ -33,7 +33,7 @@
     {
       "name": "Parse-check PowerShell scripts",
       "status": "Passed",
-      "detail": "[System.Management.Automation.Language.Parser]::ParseFile over every *.ps1 outside node_modules/ and artifacts/ — 0 parse errors."
+      "detail": "[System.Management.Automation.Language.Parser]::ParseFile over every *.ps1 outside node_modules/ — 37 files checked, 0 parse errors."
     },
     {
       "name": "Run Pester tests",
@@ -43,12 +43,12 @@
     {
       "name": "Validate Markdown links, terminology, and generated files",
       "status": "Passed",
-      "detail": "./build/Test-Documentation.ps1 — human-documentation drift check passed across 18 generated engine pages, compatibility pointers, and the guide; documentation checks passed across 191 Markdown files. This is the gate that covers the generated pages this change regenerates."
+      "detail": "./build/Test-Documentation.ps1 — human-documentation drift check passed across 18 generated engine pages, compatibility pointers, and the guide; documentation checks passed across 195 Markdown files."
     },
     {
       "name": "Build and verify landing page",
       "status": "Passed",
-      "detail": "npm --prefix src/engine run build (exit 0), then npm --prefix site run check — built in 320ms, both built HTML entry points contain their required static metadata, 3 bundles free of Node-only runtime references, and the package-backed merge verification proved '/', '/roadmap/' and the protected 'docs/' subtree."
+      "detail": "npm --prefix src/engine run build (exit 0), then npm --prefix site run check — oxlint, tsc -b, vitest (15 passed), vitest browser (11 passed), build (222ms, both HTML entry points carry required static metadata, 3 bundles free of Node-only runtime references), and verify-merge.mjs proved '/', '/roadmap/' and the protected 'docs/' subtree."
     },
     {
       "name": "Build documentation",
@@ -58,22 +58,22 @@
     {
       "name": "Merge landing page into documentation build",
       "status": "DidNotRun",
-      "reason": "Requires a completed docs build in artifacts/docs produced from this tree, and 'Build documentation' did not run. The artifacts/docs directory present locally is a stale build dated 2026-08-08/2026-08-30, predating this branch; merging against it would report a pass for a tree that is not this one."
+      "reason": "Requires a completed docs build in artifacts/docs produced from this tree, and 'Build documentation' did not run in this session — there is no artifacts/docs directory present locally at all."
     },
     {
       "name": "Test the host",
       "status": "DidNotRun",
-      "reason": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests requires NUGET_GITHUB_TOKEN for the sibling-repository package feed, and that environment variable is not set in this session. The host-image workflow on the pull request is where this answer comes from."
+      "reason": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests requires NUGET_GITHUB_TOKEN for the sibling-repository package feed (src/host/nuget.config), and that environment variable is not set in this session. The host-image workflow on the pull request is where this answer comes from."
     },
     {
       "name": "Positive route and probe smoke",
       "status": "DidNotRun",
-      "reason": "Requires the subzerodev-gameengine-host:smoke image, whose build pulls ghcr.io/the-running-dev/docs-template and consumes the combined docs artifact. This session has Docker (server 29.7.2) but no GHCR authentication and no docs artifact from this tree, so the image cannot be built."
+      "reason": "Requires the host Docker image, whose build (Dockerfile line 85-89) mounts nuget_github_actor/nuget_github_token BuildKit secrets to restore the sibling-repository package feed. Those secrets are not available in this session, so the image cannot be built. Docker itself is available locally."
     },
     {
       "name": "Negative fixture -- corrupted artifact must fail to start",
       "status": "DidNotRun",
-      "reason": "Builds FROM subzerodev-gameengine-host:smoke via --build-arg BASE_IMAGE, so it has the same unmet precondition as the positive smoke: that image was not built, for want of GHCR authentication and a docs artifact from this tree."
+      "reason": "Builds FROM the host image via --build-arg BASE_IMAGE, so it has the same unmet precondition as the positive smoke: that image cannot be built for want of the NuGet BuildKit secrets."
     }
   ]
 }
