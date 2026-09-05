@@ -12,13 +12,15 @@
   real one) read this repository's own design/state/. The S4.6 block asserts on this repo's
   *own* adopted design-state content, so it is skipped (never a false pass or fail) on a
   repository the kit's compatibility promise (design/90-decisions.md, 2026-08-19) says is not
-  migrated: no design/state-index.md at all. This checks for that file, not the design/state/
-  directory itself - design/state/work/ now exists here as the unrelated work-mirror (90-
-  decisions.md, 2026-08-24), so the directory alone is no longer evidence of adoption.
+  migrated. This checks for design/state/units - the record kind S4.6 actually reads - matching
+  tools/Test-DesignState.Tests.ps1 and tools/Update-DesignProjection.Tests.ps1, which check the
+  same path. Neither design/state/ itself nor design/state-index.md answers the question: both
+  now exist here for the work mirror and its projection alone (90-decisions.md, 2026-08-24 and
+  2026-09-05), with no unit records behind either.
 #>
 
 $script:ReadDesignStateSelfTestRoot = Split-Path $PSScriptRoot -Parent
-$script:SkipReadDesignStateSelfTests = -not (Test-Path (Join-Path $script:ReadDesignStateSelfTestRoot 'design/state-index.md'))
+$script:SkipReadDesignStateSelfTests = -not (Test-Path (Join-Path $script:ReadDesignStateSelfTestRoot 'design/state/units'))
 
 BeforeAll {
     $script:ScriptPath = Join-Path $PSScriptRoot 'Read-DesignState.ps1'
