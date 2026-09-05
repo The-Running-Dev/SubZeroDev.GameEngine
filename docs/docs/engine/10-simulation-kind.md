@@ -2892,6 +2892,83 @@ the upstream document is no longer where a reader has to go to find the shape of
 own state and content; it is here, and upstream stays cited as provenance, exactly as
 `04-core`'s own *Reused, not re-derived* note describes.
 
+### 15.1 Companion Lifecycle Mirror (W103.1)
+
+`SubZeroDev.GameOfLife` S6/S7 gave twelve upstream concepts an explicit `lifecycle-` region —
+a creation paragraph and a retirement paragraph each. This mirrors all twelve against this
+kind's own shape, concept by concept, rather than transcribing upstream prose: five map onto
+core-owned envelope fields (§2's own table above) and are cited there rather than duplicated,
+one is a still-open decision, and the remaining six get the explicit creation/retirement
+statement upstream's lifecycle region gives them, filling in where an existing section only
+implied it.
+
+**Mapped to the envelope, not restated here — duplicating them would be the envelope-
+duplication defect §2 already names:**
+
+- **`RngState`** — has no counterpart at all, deliberately (§2's table: "Nowhere"). A stream
+  derives from `(seed, streamId)` (04-core §8); there is no persisted generator to create or
+  retire.
+- **`GameStatus`** — the envelope's own `status` (04-core §2), narrowed to
+  `"active" | "ended" | "abandoned"` (§2's table). Its creation and mutation are the envelope's;
+  this kind's own win/loss/week-limit distinction is `outcome()` (§12), not a second status.
+- **`GameMetadata`** — the session-store record (04-core §7), outside replayable state
+  entirely. Its lifecycle is 04-core's own contract.
+- **`LoggedAction`** — the envelope's `actionLog`, the replay spine (04-core §2, §10.3;
+  07-replay.md). Its append-only, never-pruned lifecycle is stated there, not per-kind.
+- **`CalendarState`** — *not* envelope-owned upstream naming aside; ported to this kind's own
+  §2.1 (below), because `04-core`'s envelope carries no week/turn concept of its own for this
+  kind to duplicate.
+
+**Still an open decision, not a gap in this mirror:** **`HistoryEntry`** is not adopted into
+`SimulationKindState`. §2 above states why — it overlaps `StateChange` and the event stream
+closely enough that a third copy would be the same duplication defect, and adopting it needs
+that overlap resolved first. Recorded as open in `90-decisions.md` §2; nothing here
+contradicts shipped code, because the concept does not exist in this kind's state to have a
+lifecycle.
+
+**Kind-owned; creation and retirement stated explicitly:**
+
+- **`CalendarState`** (§2.1). **Creation.** Constructed once by `initialState`, per-scenario:
+  `currentWeek` begins at 1, `totalTimeUnits`/`committedTimeUnits`/`spentTimeUnits` at their
+  starting values, satisfying §2.1's invariant from the first week. **Retirement.** No removal
+  path — `end_week` (§3) mutates it every week, but the field itself is never replaced; it
+  persists for the life of `SimulationKindState`.
+- **`WorldState`** (§2.2), as a whole. **Creation.** Constructed once by `initialState`:
+  `npcs` from content definitions (§7.7), `locations`/`jobMarket` from the scenario's starting
+  location and job content (§7.4, §7.8), `chainStates` seeded per the Chain Scope rules already
+  stated above — `"game"`-scoped empty, `"profile"`-scoped from `PlayerProfile.kindData`
+  (W102) — `agents` from `ScenarioDefinition.rivals` (§7.8, W101), empty otherwise.
+  **Retirement.** No removal path for the struct itself; it persists for the life of
+  `SimulationKindState`. Each member's own removal is that member's lifecycle, already stated
+  where it is declared — `StatusEffect` and `PendingEventResponse` immediately below,
+  `Opportunity`/`ScheduledEvent` in §2.3, and a contested `JobOpening` slot's removal in the
+  Contested-Resource Resolution note above.
+- **`StatusEffect`** (§2.3) — already carries its own *Status Effect Lifecycle* subsection
+  above; cited, not repeated.
+- **`PendingEventResponse`** (§2.3) — already carries its own *Pending Event Response
+  Lifecycle* subsection above; cited, not repeated.
+- **`GoalState`** (§2.4). **Creation.** One `GoalState` per id in `ScenarioDefinition.goalIds`
+  (§7.8), instantiated once by `initialState`; no other creation path, so a game's goal set is
+  fixed at the start, matching upstream. **Retirement.** Already stated in §2.4: a `GoalState`
+  is never removed once created — `status` transitions to `"completed"`/`"failed"`, and the
+  entry stands afterward as a permanent record.
+- **`EconomyState`** (§2.5). **Creation.** Constructed once by `initialState`, from a fixed
+  baseline modified by `DifficultyDefinition.economyModifiers` (§7.8, §7.1). **Retirement.**
+  No removal path, and — matching upstream's own finding, not diverging from it — §3's
+  end-of-week system order names no dedicated economy system today, so nothing currently
+  mutates `EconomyState` after creation; it persists unchanged for the life of the game.
+- **`PlayerState`** (§6), as a whole. **Creation.** Constructed once by `initialState` as
+  `SimulationKindState.player`, from the scenario's starting background, finances, location
+  and inventory declarations (§7.8, §7.9) through the shared actor shape (§6.2) every rival
+  also uses. **Retirement.** No removal path — it persists for the life of the game; at game
+  end its `counters` fold into `PlayerProfile.lifetimeCounters`-equivalent profile data (§7.13,
+  W102) through the same profile mirror `SimulationProfileData` already uses, which copies
+  into a separate save artifact rather than retiring the field itself.
+
+No contradiction with shipped simulation code surfaced while writing this mirror; where a
+concept's mechanism turned out to need a decision rather than a citation (`HistoryEntry`,
+`Reward`'s untyped payload), §2 and `90-decisions.md` already carried it before this pass.
+
 ---
 
 ## 16. Save Migration (W102)
