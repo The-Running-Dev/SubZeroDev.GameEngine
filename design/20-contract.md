@@ -29,6 +29,23 @@ owned by Core Specification; kind-specific turn and state invariants are owned b
 The profile mechanism's own assertable set is Core Specification §7.1, *Invariants* (P1–P8);
 session lifecycle's is §7.4.
 
+**That prose is the ownership statement, and it stands on its own.** The table below is a
+different thing: a projection of the `Invariant` records under `design/state/`, rendered by
+`tools/Update-DesignProjection.ps1` into a marked region it rewrites on every `/track` run. It is
+empty, and will stay empty until this repository adopts that record kind — it has the work mirror
+and its index (`design/state-index.md`) and no other record kinds, per `AGENTS.md`, *Writing a
+design-state record*. The region exists so the projector has the target its contract names rather
+than refusing a seventh region forever; an empty projection is the honest render of an empty
+record set, and it is not a claim that this contract asserts nothing.
+
+Do not hand-write a row here. Anything between the two markers is discarded on the next run; the
+invariants this repository actually asserts are stated in the sections the paragraph above names.
+
+<!-- invariants:start -->
+| | Statement | Owner | Enforcement | Evidence |
+|---|---|---|---|---|
+<!-- invariants:end -->
+
 ## Unresolved
 
 Signatures this contract deliberately does not state, because the design does not determine them
