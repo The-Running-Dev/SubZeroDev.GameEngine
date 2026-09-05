@@ -4087,7 +4087,7 @@ that describe exactly what the engine applied—once, and only when state really
       changing event severity, or solving the general emitted-to-registered gate delivered by
       [W96](#w96).
 
-### [ ] W96 — Mechanical Regression Boundaries {#w96}
+### [x] W96 — Mechanical Regression Boundaries {#w96}
 
 **Delivers:** Engine maintainers get required checks that catch determinism, ownership,
 reason-registration, event-severity, or per-kind regression drift before it can ship.
@@ -4103,7 +4103,7 @@ reason-registration, event-severity, or per-kind regression drift before it can 
       required.
 - **Depends on:** [W93](#w93)–[W95](#w95), so the new gates record the corrected baseline
       instead of freezing known defects.
-- **Status:** Not started.
+- **Status:** Complete — [PR #408](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/408), merged at `bb62ffe`.
 - **Done when:**
   - W96.1 World-graph batch invariance compares complete canonical kind state for unsplit runs
         against `[1,9]`, `[5,5]`, `[2,3,5]`, and ten one-tick calls, across at least two seeds
@@ -4130,7 +4130,7 @@ reason-registration, event-severity, or per-kind regression drift before it can 
       fields; testing balance; and making per-call audit arrays batch-invariant when the
       contract requires only final canonical state.
 
-### [ ] W97 — Immutable Projections and Shared Pipelines {#w97}
+### [x] W97 — Immutable Projections and Shared Pipelines {#w97}
 
 **Delivers:** Engine consumers can inspect and manipulate returned views without mutating a game,
 while maintainers can evolve the two tick-driven kinds on one behaviour-preserving pipeline.
@@ -4147,7 +4147,7 @@ while maintainers can evolve the two tick-driven kinds on one behaviour-preservi
       `Kind.project` seam and a `/design` or `/contract` decision that fixes the shared
       pipeline's ordering/error semantics. No implementation begins while either shape is
       unresolved.
-- **Status:** Not started — contract-gated.
+- **Status:** Complete — [PR #409](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/409), merged at `b9ecdc2`.
 - **Done when:**
   - W97.1 The canonical contract states whether a kind or the kernel owns defensive copying,
         including nested arrays/records and the treatment of immutable primitives; the source
@@ -4169,7 +4169,7 @@ while maintainers can evolve the two tick-driven kinds on one behaviour-preservi
 - **Out of scope:** merging the two kinds' state or mechanics, making pipelines campaign data,
       changing any system order, or general-purpose workflow/middleware infrastructure.
 
-### [ ] W98 — Catalog and Projection Completeness {#w98}
+### [x] W98 — Catalog and Projection Completeness {#w98}
 
 **Delivers:** Clients can render campaign choices, stat ranges, ending progress, and terminal
 results through the public store and projection surfaces without reading engine-owned content or state.
@@ -4186,7 +4186,7 @@ results through the public store and projection surfaces without reading engine-
       session-free title resolution, range/progress projection, and cross-kind terminal
       identity. Those public shapes do not exist in the current contract and are not to be
       inferred from this slice.
-- **Status:** Not started — contract-gated.
+- **Status:** Complete — [PR #414](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/414), merged at `d7ca8eb`.
 - **Done when:**
   - W98.1 The canonical contract declares an asynchronous campaign-list operation and a result
         that a client can render as a human-readable campaign selector using only
@@ -4211,7 +4211,7 @@ results through the public store and projection surfaces without reading engine-
       content through `SessionStore`, making outcomes a balance report, or changing session
       creation semantics.
 
-### [ ] W99 — Session Lifecycle Operations {#w99}
+### [x] W99 — Session Lifecycle Operations {#w99}
 
 **Delivers:** Hosts can list, branch, and delete a player's saves through the session store and
 reproduce stored sessions exactly, while retaining responsibility for authorization.
@@ -4226,7 +4226,7 @@ reproduce stored sessions exactly, while retaining responsibility for authorizat
 - **Depends on:** a fresh `/contract` pass that chooses the store signatures, result/error
       shapes, canonical save-list order, and concurrency semantics. Authorization remains a
       documented host boundary unless that pass explicitly reopens it.
-- **Status:** Not started — contract-gated.
+- **Status:** Complete — [PR #416](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/416), merged at `51ad81a`.
 - **Done when:**
   - W99.1 A player-keyed save-list operation exists at the contract-selected store boundary,
         returns only that player's saves in a specified deterministic order, and lets both
@@ -4253,7 +4253,7 @@ reproduce stored sessions exactly, while retaining responsibility for authorizat
 - **Out of scope:** accounts, authentication/authorization policy, cloud synchronization,
       sharing saves between players, editing historical actions, or changing the save envelope.
 
-### [ ] W100 — Campaign-Tunable Weekly Rules {#w100}
+### [x] W100 — Campaign-Tunable Weekly Rules {#w100}
 
 **Delivers:** Campaign authors can tune weekly rules, empty plans, relationships, attendance, and
 wisdom-driven choices while existing campaigns keep their current behaviour by default.
@@ -4270,7 +4270,7 @@ wisdom-driven choices while existing campaigns keep their current behaviour by d
 - **Depends on:** a fresh `/contract` pass that fixes the tuning fields and defaults, the
       `plan_empty` policy, relationship transition, attendance formula, and the specific
       wisdom consumer. The current contract explicitly leaves those rules absent or inert.
-- **Status:** Not started — contract-gated.
+- **Status:** Complete — [PR #419](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/419), merged at `3d496b3`.
 - **Done when:**
   - W100.1 The source/runtime campaign contract contains one closed, validated home for every
         weekly tuning value this unit changes, with explicit defaults; omitted fields on every
@@ -4294,7 +4294,7 @@ wisdom-driven choices while existing campaigns keep their current behaviour by d
 - **Out of scope:** tuning concrete campaign balance, adding projects/businesses/rivals, profile
       progression, or changing the ordered list of end-of-week systems.
 
-### [ ] W101 — Projects, Businesses, and Rival Scarcity {#w101}
+### [x] W101 — Projects, Businesses, and Rival Scarcity {#w101}
 
 **Delivers:** Campaign authors can offer persistent projects and businesses, and players can face
 scripted rivals who compete reproducibly for the same finite opportunities.
@@ -4311,7 +4311,7 @@ scripted rivals who compete reproducibly for the same finite opportunities.
       `/contract` pass that declares project/business definitions, their durable progress,
       scenario rival selection, and deterministic competition. The four action names and
       engine-owned strategy seam alone are not sufficient public contracts.
-- **Status:** Not started — contract-gated.
+- **Status:** Complete — [PR #421](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/421), merged at `b595fe2`.
 - **Done when:**
   - W101.1 Project definitions are campaign content with closed typed requirements, costs,
         progress, completion and rewards; resolver selection uses the action/type discriminator
@@ -4342,7 +4342,7 @@ scripted rivals who compete reproducibly for the same finite opportunities.
       user-authored code, economic balance of a concrete campaign, or changing `ActorState`
       into separate player and rival shapes.
 
-### [ ] W102 — Profile Chains and Simulation Save Migration {#w102}
+### [x] W102 — Profile Chains and Simulation Save Migration {#w102}
 
 **Delivers:** Simulation players can carry profile-scoped chains into later sessions and resume
 older portable saves through deterministic, declared migrations.
@@ -4357,7 +4357,7 @@ older portable saves through deterministic, declared migrations.
 - **Depends on:** [W101](#w101), so the profile and migration contracts are tested against real
       simulation content rather than a mechanism with no consumer; and a fresh `/contract`
       pass defining both public shapes before implementation.
-- **Status:** Not started — contract-gated.
+- **Status:** Complete — [PR #423](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/423), merged at `6e4a7bb`.
 - **Done when:**
   - W102.1 `PlayerProfile` has a versioned, JSON-serializable, kind-owned data boundary whose
         ownership, unknown-kind behaviour, size/version validation, and migration order are
