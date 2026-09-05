@@ -24,10 +24,99 @@ registered reason-code vocabulary.
 
 ## Invariants
 
-Determinism, envelope ownership, projection, migration, validation, and identifier invariants are
-owned by Core Specification; kind-specific turn and state invariants are owned by each kind block.
-The profile mechanism's own assertable set is Core Specification §7.1, *Invariants* (P1–P8);
-session lifecycle's is §7.4.
+Statements that must hold at all times, each written so it could become an assertion. This
+section states the **cross-cutting** set — the invariants no kind block owns, which Core
+Specification's prose settles but no numbered list has carried. Section-scoped sets stay where
+they are and are not restated here: the profile mechanism's is Core Specification §7.1,
+*Invariants* (P1–P8); session lifecycle's is §7.4 (L1–L3, D1–D3, B1–B3, A1–A2). Kind-specific
+turn and state invariants are owned by each kind block.
+
+**Read the enforcement clause.** An invariant marked *enforced by code*, *by the type*, or *by
+the guard* holds by construction and may be trusted without checking. One marked *by
+instruction* is a rule with no gate — it holds only while every author remembers it, and C6
+below is the one this repository has already watched fail five times.
+
+**Determinism.** Maintained by the core kernel, the eslint determinism guard, and the harness
+(Core Specification §14). C5 is the extensibility rule (06 §2) stated as an assertion.
+
+- **C1.** A `{ config, actionLog }` fixture replayed twice produces byte-identical `serialize()`
+  output. *Enforced by code — §14's golden files and property tests.*
+- **C2.** No resolution path calls `Math.random`, `Date.now`, or a non-bit-stable `Math.*`.
+  *Enforced by the guard in `src/engine/eslint.config.js`
+  ([Engine Package](/docs/guide/engine-package)), which fails the `engine` job rather than a
+  review.*
+- **C3.** `{ seed, actionLog }` is the complete replay input. No generator state is persisted;
+  every stream is a pure function of `(seed, streamId)` (§8). *Enforced by the type — `GameState`
+  declares no RNG field, and adding one is a contract amendment.*
+- **C4.** Removing every event changes nothing: a fixture replayed with `nullEmitter` and with
+  `createRecordingEmitter()` yields byte-identical `serialize()` output, an identical
+  `AdvanceResult`, and an identical action log. *Enforced by code — §14's sink-independence
+  check — and by `emit` returning `void`, which leaves a kind nothing to branch on.*
+- **C5.** A host-supplied port cannot change `serialize()` output. *Enforced by the harness —
+  each port replays a fixture under its random default and under a controlled implementation
+  (06 §6, step 6).*
+
+**Envelope ownership.** Maintained by Core Specification §2. C6 is the highest-risk statement in
+this section, because it is the only one here with no gate behind it.
+
+- **C6.** Every field a game has regardless of kind — `formatVersion`, `gameId`, `kindId`,
+  `campaignId`, `campaignVersion`, `seed`, `status`, `actionLog` — lives on `GameState` and is
+  duplicated by no `kindState`, no `Campaign`, no registry entry, and no kind's view type.
+  *Enforced by instruction only. No check exists; `CLAUDE.md`'s ledger records five instances of
+  this being violated, three in state and content and two on the view side.*
+- **C7.** No core module imports a kind. `kindState` is `unknown`, never a union of kind states,
+  and a kind casts its own payload guarded by `kindId`. *Enforced by the type and by module
+  structure.*
+- **C8.** No wall-clock value reaches `GameState`. Timestamps live on the session-store record
+  (§7), outside replayable state. *Enforced by the guard's `Date.now` ban together with the
+  envelope's declared fields.*
+
+**Projection.** Maintained by the kernel, in one place, so that a kind neither implements nor can
+defeat it (§9.1).
+
+- **C9.** Mutating anything reachable from an `Engine.view` or `Scene.view` result, to any depth,
+  leaves `GameState`, every later projection, `serialize()` output, and the action log unchanged.
+  *Enforced by code — a structural clone at the kernel boundary.*
+- **C10.** Two projections of one state are equal and are never the same object. A client may not
+  use a view as a cache key or compare views by reference. *Enforced by construction, as the
+  consequence of C9; a caller relying on identity is relying on something never promised.*
+- **C11.** No value a kind marks hidden appears in any projection. *Owner: each kind's projection
+  section. Enforced by code per kind, not centrally — the core cannot inspect an opaque
+  `kindState` to check it.*
+
+**Migration.** Maintained by Core Specification §10.2.
+
+- **C12.** A save records the `campaignVersion` it was made under, and loading it against a
+  different version either migrates or fails with `save_requires_migration`. It never strands a
+  save silently. *Enforced by code — `resolveSaveEnvelope`.*
+- **C13.** A migration may re-address published ids and drop or default what no longer resolves,
+  and may never invent play. *Enforced by instruction for the second clause; the first is
+  constrained by Tier 1, which rejects a migration naming an id domain outside the engine-owned
+  reference-site table.*
+- **C14.** A migrated save is marked not-replay-compatible. *Enforced by code.*
+
+**Validation.** Maintained by Core Specification §11, tier by tier.
+
+- **C15.** Tier 1 fails the load; Tier 2 loads and flags; Tier 3 never runs at load time at all.
+  *Enforced by the type — `errors` and `warnings` are separate fields, and Tier 3 is an
+  out-of-band author-facing check with no load-time entry point.*
+- **C16.** No Tier 2 warning changes `GameState`, `AdvanceResult`, or whether a submission
+  succeeded. *Enforced by code — the same guarantee §7.1's P4 states for the profile store,
+  generalised.*
+
+**Identifiers.** Maintained by Core Specification §17 and the two id ports (06 §5.1, §5.7).
+
+- **C17.** Every published id is ASCII `[a-z0-9_-]` in the shape §17's table fixes for its
+  category, and is unique within its scope. *Enforced by code — Tier 1 checks both the character
+  set and uniqueness.*
+- **C18.** An id is stable once published; a rename is a migration, never an edit. *Enforced by
+  instruction, with C12 as the backstop that makes a violation loud rather than silent.*
+- **C19.** `gameId` and `seed` are opaque to the core: never parsed, compared, ordered, or
+  derived from. *Enforced by instruction — `IdSource` returns `string`, and nothing stops a
+  reader; the reason it holds is that no core path has cause to look inside one.*
+- **C20.** A session id and a save id never enter `GameState`. They key host records and are
+  never replay inputs. *Enforced by the type — neither is a declared envelope field, which is
+  why `RecordIdSource` is a second port rather than a widening of `IdSource`.*
 
 ## Unresolved
 
