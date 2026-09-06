@@ -8,9 +8,12 @@ the current tree can call itself a compatibility candidate against a prior
 release tag (W104.7):
 
   1. typecheck, lint, and the full test suite from src/engine -- includes the
-     W96.2/W104.1 regression-evidence manifest (regressionManifest.test.ts),
-     which fails the moment a named suite, fixture, host, or packed-consumer
-     file goes missing.
+     W96.2/W104.1 regression-evidence manifest (regressionManifest.test.ts and
+     scripts/w104-manifest.test.ts), which fails the moment a named suite, fixture,
+     host, built-in campaign/version, or packed-consumer file goes missing; the v0.10.0
+     compatibility baseline comparison (W104.2, scripts/capture-compat-baseline.test.ts);
+     and the representative-save load-through-SessionStore proof (W104.3,
+     scripts/capture-save-fixtures.test.ts).
   2. The replay regression oracle (07-replay.md), run locally against the
      baseline tag's own committed fixtures and outcomes -- the same
      REPLAY_BASELINE_DIR mechanism .github/workflows/ci.yml's
