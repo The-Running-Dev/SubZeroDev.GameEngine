@@ -21,9 +21,17 @@ release tag (W104.7):
      from the same source this sweep packs below. Neither is a published export (only `.`
      and `./authoring` are), so there is no separate "against the packed archive" step for
      them the way there is for consumer-smoke. W104.5's other three named consumers --
-     the static host, Adventures, and the service-contract generator -- live in
-     repositories this one does not contain and stay unverified here, the same
-     cross-repo limit #391 recorded for W103.7.
+     the static host (SubZeroDev.Platform's game-service workload), Adventures, and the
+     service-contract generator -- live in repositories this sweep does not contain, so
+     it cannot verify them automatically (the same cross-repo limit #391 recorded for
+     W103.7). They were verified manually against this engine's packed 0.10.0 tarball
+     (commit e52e7a1) on 2026-09-07: SubZeroDev.ServiceContract's full suite (59 tests),
+     SubZeroDev.Platform's game-service suite including its dependency-direction surface
+     guard (197 tests, 1 pre-existing skip) with its durable/Postgres profile, and
+     SubZeroDev.Adventures' lint/typecheck/test/test:browser/test:build (274 tests) with
+     its engine submodule bumped to the same commit -- all green, evidence recorded on
+     issue #392. That check is a point-in-time proof, not a standing gate; it needs
+     re-running the next time any of the three repositories re-vendors this engine.
   2. The replay regression oracle (07-replay.md), run locally against the
      baseline tag's own committed fixtures and outcomes -- the same
      REPLAY_BASELINE_DIR mechanism .github/workflows/ci.yml's
