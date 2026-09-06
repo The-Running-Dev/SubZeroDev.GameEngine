@@ -100,8 +100,6 @@ rendered here.
 | 413 | #413 | 48 slices predate the issue-per-slice convention: W0-W40, W61, W63-65, W90-92 have no GitHub issue | — | `49aa72904ff5ba1151b7c41e60d770a3547649d1` |
 | 418 | #418 | Conditions cannot address an actor-owned array by id | — | `49aa72904ff5ba1151b7c41e60d770a3547649d1` |
 | 425 | #425 | WorldState.npcs and WorldState.locations are declared but permanently unpopulated dead state | — | `49aa72904ff5ba1151b7c41e60d770a3547649d1` |
-| 433 | #433 | Test-DesignDrift.ps1 cannot see a criterion the slices doc has ticked | — | `dc7db7e3ee714ab8bd7237571965dc91aa7eb5c3` |
-| 435 | #435 | Issue #391's checkbox mirror shows all W103 criteria ticked; design/30-slices.md ticks only three | — | `84dab74bd14f1a3c9acd2b86599acf5538b4cc7e` |
 | milestone/3 | #203 | CI: cache Alpine chromium install in Verify Documentation Build | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | milestone/2 | #211 | Assert per-kind regression evidence exists, so deleting a test class fails the build | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | milestone/1 | #212 | Vision doc says "two kinds ship in v1"; the repository ships three | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
