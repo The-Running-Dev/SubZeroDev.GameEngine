@@ -13,7 +13,17 @@ release tag (W104.7):
      host, built-in campaign/version, or packed-consumer file goes missing; the v0.10.0
      compatibility baseline comparison (W104.2, scripts/capture-compat-baseline.test.ts);
      and the representative-save load-through-SessionStore proof (W104.3,
-     scripts/capture-save-fixtures.test.ts).
+     scripts/capture-save-fixtures.test.ts). This is also W104.5's in-repository evidence
+     for the text client and MCP server: `lint` re-runs the client-boundary rule
+     (eslint.config.js) that fails if either imports a kind instead of calling only
+     `SessionStore`, and `test` re-runs their full API-coverage suites
+     (src/clients/text/client.test.ts, src/mcp/server.test.ts) against a real store built
+     from the same source this sweep packs below. Neither is a published export (only `.`
+     and `./authoring` are), so there is no separate "against the packed archive" step for
+     them the way there is for consumer-smoke. W104.5's other three named consumers --
+     the static host, Adventures, and the service-contract generator -- live in
+     repositories this one does not contain and stay unverified here, the same
+     cross-repo limit #391 recorded for W103.7.
   2. The replay regression oracle (07-replay.md), run locally against the
      baseline tag's own committed fixtures and outcomes -- the same
      REPLAY_BASELINE_DIR mechanism .github/workflows/ci.yml's
