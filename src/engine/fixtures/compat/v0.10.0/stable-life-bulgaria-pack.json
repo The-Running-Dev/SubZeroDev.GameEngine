@@ -1,0 +1,422 @@
+{
+  "label": "stable-life-bulgaria-pack",
+  "campaignId": "stable-life",
+  "validation": {
+    "errors": [],
+    "warnings": [
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.campaign.title"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.effect.rakia-lek.description"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.event.power-cut.message"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.event.baba-letter.choice.open"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.event.baba-letter.choice.call"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.event.baba-letter.message.opened"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.event.baba-letter.message.called"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.campaign.description"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.job.vendor.title"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.job.vendor.description"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.job.bookkeeper.title"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.job.bookkeeper.description"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.course.schetovodstvo.name"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.course.schetovodstvo.description"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.housing.panelka.name"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.housing.panelka.description"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.item.moped.name"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.item.moped.description"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.event.power-cut.title"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.event.power-cut.description"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.event.baba-letter.title"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.event.baba-letter.description"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.npc.komshiyka.name"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.npc.komshiyka.description"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.goal.well-rested.label"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.goal.well-rested.description"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.scenario.name"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.scenario.description"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.opportunity.coffee.name"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.opportunity.coffee.description"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.achievement.first-week.name"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.achievement.first-week.description"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.headline.quiet"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.headline.strange"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.employer.bazaar.name"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.location.home.name"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.location.home.description"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.location.bazaar.name"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.location.bazaar.description"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.background.nachalo.name"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.background.nachalo.description"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.scene.status"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.action.plan-add.label"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.action.plan-remove.label"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.action.plan-clear.label"
+      },
+      {
+        "code": "pack_override_unexpected",
+        "messageKey": "core.reason.pack_override_unexpected",
+        "path": "bulgaria-stable-life.action.end-week.label"
+      }
+    ]
+  },
+  "initialScene": {
+    "gameId": "counting-game-id-0",
+    "status": "active",
+    "body": {
+      "textKey": "bulgaria-stable-life.scene.status",
+      "text": "Седмица 1, година 1. Пари: 200.00 лв. Здраве 80 · Енергия 60 · Щастие 60 · Стрес 20 · Ситост 80."
+    },
+    "actions": [
+      {
+        "id": "plan.add",
+        "labelKey": "bulgaria-stable-life.action.plan-add.label",
+        "available": true
+      },
+      {
+        "id": "plan.remove",
+        "labelKey": "bulgaria-stable-life.action.plan-remove.label",
+        "available": true
+      },
+      {
+        "id": "plan.clear",
+        "labelKey": "bulgaria-stable-life.action.plan-clear.label",
+        "available": true
+      },
+      {
+        "id": "end_week",
+        "labelKey": "bulgaria-stable-life.action.end-week.label",
+        "available": true
+      }
+    ],
+    "view": {
+      "gameId": "counting-game-id-0",
+      "status": "active",
+      "kindView": {
+        "calendar": {
+          "currentWeek": 1,
+          "currentYear": 1,
+          "totalTimeUnits": 14,
+          "committedTimeUnits": 0,
+          "availableTimeUnits": 14
+        },
+        "identity": {
+          "actorId": "player",
+          "name": "Alex",
+          "age": 28,
+          "backgroundId": "background-nachalo"
+        },
+        "currentLocationId": "home",
+        "finances": {
+          "cashCents": 20000,
+          "savingsCents": 0,
+          "debtCents": 0,
+          "weeklyIncomeCents": 0,
+          "weeklyExpensesCents": 0,
+          "overdueBalanceCents": 0,
+          "accounts": []
+        },
+        "needs": {
+          "health": 80,
+          "energy": 60,
+          "happiness": 60,
+          "stress": 20,
+          "satiety": 80
+        },
+        "attributes": {
+          "intelligence": 50,
+          "discipline": 50,
+          "charisma": 50,
+          "creativity": 50,
+          "resilience": 50,
+          "wisdom": 50
+        },
+        "education": {
+          "enrollments": [],
+          "credentials": [],
+          "completedCourseIds": [],
+          "failedCourseIds": []
+        },
+        "career": {
+          "history": [],
+          "totalWeeksEmployed": 0,
+          "pendingApplications": [],
+          "highestTierAchieved": "entry"
+        },
+        "housing": {
+          "definitionId": "housing-panelka",
+          "movedInWeek": 1,
+          "ownership": "renting",
+          "damage": 0,
+          "weeklyCostCents": 5000,
+          "depositPaidCents": 0,
+          "rentDueWeek": 1,
+          "overdueRentCents": 0,
+          "missedPayments": 0,
+          "evictionStage": "none"
+        },
+        "inventory": [
+          {
+            "instanceId": "item-0",
+            "definitionId": "item-moped",
+            "quantity": 1,
+            "acquiredWeek": 1,
+            "purchasePriceCents": 8000,
+            "condition": 100,
+            "weeksSinceMaintenance": 0,
+            "broken": false
+          }
+        ],
+        "relationships": [],
+        "skills": {
+          "schetovodstvo": 0
+        },
+        "traits": [],
+        "reputation": {},
+        "activeEffects": [
+          {
+            "id": "effect-rakia-lek",
+            "sourceKind": "system",
+            "descriptionKey": "bulgaria-stable-life.effect.rakia-lek.description",
+            "expiresAtWeek": 2
+          }
+        ],
+        "activeOpportunities": [],
+        "pendingEventResponses": [],
+        "goals": [
+          {
+            "definitionId": "goal-well-rested",
+            "status": "active",
+            "satisfiedThisWeek": false,
+            "consecutiveWeeksSatisfied": 0,
+            "progressNotes": []
+          }
+        ],
+        "plan": {
+          "week": 1,
+          "actions": [],
+          "availableActionTypes": [
+            "work",
+            "work_overtime",
+            "search_for_work",
+            "apply_for_job",
+            "negotiate_job_terms",
+            "attend_class",
+            "study",
+            "enroll_course",
+            "withdraw_course",
+            "shop",
+            "eat",
+            "rest",
+            "exercise",
+            "socialize",
+            "travel",
+            "maintain_item",
+            "repair_item",
+            "sell_item",
+            "pay_bills",
+            "borrow_money",
+            "repay_debt",
+            "deposit_savings",
+            "invest",
+            "move_housing",
+            "start_project",
+            "work_on_project",
+            "start_business",
+            "operate_business",
+            "accept_opportunity",
+            "decline_opportunity",
+            "respond_to_event"
+          ]
+        },
+        "world": {
+          "locations": [],
+          "jobMarket": {
+            "openings": []
+          },
+          "economy": {
+            "sectorDemand": {},
+            "marketPrices": {},
+            "indicators": {}
+          }
+        }
+      }
+    }
+  }
+}

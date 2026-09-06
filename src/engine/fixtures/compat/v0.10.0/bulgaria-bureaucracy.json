@@ -1,0 +1,69 @@
+{
+  "label": "bulgaria-bureaucracy",
+  "campaignId": "bulgaria-bureaucracy",
+  "validation": {
+    "errors": [],
+    "warnings": []
+  },
+  "initialScene": {
+    "gameId": "counting-game-id-0",
+    "status": "active",
+    "body": {
+      "textKey": "bureaucracy.municipality.text",
+      "text": "You arrive at the municipality at 08:03. The office opened at 08:00. A handwritten note says the meeting ends at 11:30; three nearby doors disagree about the year."
+    },
+    "actions": [
+      {
+        "id": "wait",
+        "labelKey": "bureaucracy.municipality.choice_wait",
+        "available": true
+      },
+      {
+        "id": "ask_guard",
+        "labelKey": "bureaucracy.municipality.choice_ask_guard",
+        "available": true
+      },
+      {
+        "id": "coffee",
+        "labelKey": "bureaucracy.municipality.choice_coffee",
+        "available": true
+      },
+      {
+        "id": "try_another_entrance",
+        "labelKey": "bureaucracy.municipality.choice_try_another_entrance",
+        "available": true
+      }
+    ],
+    "view": {
+      "gameId": "counting-game-id-0",
+      "status": "active",
+      "kindView": {
+        "turn": 0,
+        "stats": [
+          {
+            "var": "connections",
+            "labelKey": "bureaucracy.var_connections.label",
+            "value": 0,
+            "min": 0,
+            "max": 12
+          },
+          {
+            "var": "preparation",
+            "labelKey": "bureaucracy.var_preparation.label",
+            "value": 0,
+            "min": 0,
+            "max": 12
+          },
+          {
+            "var": "pressure",
+            "labelKey": "bureaucracy.var_pressure.label",
+            "value": 0,
+            "min": 0,
+            "max": 12
+          }
+        ],
+        "unlockedAchievements": []
+      }
+    }
+  }
+}
