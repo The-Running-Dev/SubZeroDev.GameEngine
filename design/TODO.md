@@ -272,7 +272,7 @@
 
 ### [x] W102 — Profile Chains and Simulation Save Migration {#w102}
 
-### [ ] W103 — Companion Contracts and Ownership Reconciliation {#w103}
+### [x] W103 — Companion Contracts and Ownership Reconciliation {#w103}
 
 ### [ ] W104 — Release 0.11 Compatibility Sweep {#w104}
 

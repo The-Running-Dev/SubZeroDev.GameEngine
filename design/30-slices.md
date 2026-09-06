@@ -4387,7 +4387,7 @@ older portable saves through deterministic, declared migrations.
       executable migration scripts supplied by a host, migrating unpublished development
       ids, or making profile state part of terminal resolution.
 
-### [ ] W103 — Companion Contracts and Ownership Reconciliation {#w103}
+### [x] W103 — Companion Contracts and Ownership Reconciliation {#w103}
 
 **Delivers:** Ecosystem maintainers get one consistent account of simulation lifecycles, hosted
 operations, fixture ownership, package visibility, and the proof that replaces the retired browser.
@@ -4403,12 +4403,15 @@ operations, fixture ownership, package visibility, and the proof that replaces t
       repository-specific companions where the sync is part of the reconciliation.
 - **Depends on:** GameOfLife S6/S7 and its zero-concept-finding gate; [W98](#w98) and
       [W99](#w99) for the final operation shapes mirrored to Platform/service consumers.
-- **Status:** Not started — blocked on named companion work where it has not landed.
+- **Status:** Landed — all eight criteria confirmed met; closed by issue #391.
 - **Done when:**
-  - W103.1 GameOfLife S7 is landed and its `Test-SpecSet.ps1` reports zero `concept` findings;
+  - [x] W103.1 GameOfLife S7 is landed and its `Test-SpecSet.ps1` reports zero `concept` findings;
         every lifecycle it added is mirrored here with both creation and retirement paths. A
         contradiction with shipped simulation code is reported and stops the mirror rather
-        than being silently reconciled.
+        than being silently reconciled. Re-verified by PR #438: `SubZeroDev.GameOfLife` S6/S7
+        are landed (its issues #13, #14); `design/20-contract.md` §15.1 maps all twelve of S7's
+        `lifecycle-` concepts onto this kind's own shape. No contradiction with shipped
+        simulation code surfaced.
   - [x] W103.2 Platform's hosted MCP contract includes `preview_action` and every W98/W99
         operation with the same arguments/results and one-operation/one-tool mapping. The row
         set moved out of Platform entirely (its S2.11) into
@@ -4435,18 +4438,25 @@ operations, fixture ownership, package visibility, and the proof that replaces t
         implements all thirteen operations — catalog, save, load, branch, and delete included —
         as `fetch` calls against the server's HTTP routes, never importing `SessionStore` or
         touching persistence directly.
-  - W103.4 Every campaign source and exported JSON snapshot retained in this repository says
+  - [x] W103.4 Every campaign source and exported JSON snapshot retained in this repository says
         within its owning file that it is a test fixture, names the external Content repository
         as the publication authority, and leaves fixture behaviour/tests unchanged.
-  - W103.5 The package-visibility decision is recorded once and `package.json`, plans 39/40,
+  - [x] W103.5 The package-visibility decision is recorded once and `package.json`, plans 39/40,
         release documentation, and consumer access all agree on public or private; no document
-        retains the rejected answer.
-  - W103.6 The no-engine-API browser proof is either assigned to a named replacement owner with
+        retains the rejected answer. See `90-decisions.md` §2, closing issue #302.
+  - [x] W103.6 The no-engine-API browser proof is either assigned to a named replacement owner with
         an executable check or retired by a recorded decision that updates both design 13 and
-        15; the deleted `/play/` surface is not recreated to satisfy it.
-  - W103.7 The current agent kit is reconciled without losing repository-specific `-Skip:`
+        15; the deleted `/play/` surface is not recreated to satisfy it. PR #436 retires the
+        proof rather than reassigning it: Adventures is deliberately a hosted API with
+        persistence, so the property has no surviving host to assert over. Recorded in
+        `90-decisions.md` §2, closing issue #273.
+  - [x] W103.7 The current agent kit is reconciled without losing repository-specific `-Skip:`
         guards or command companions; the Pester run reports both pass and intentional skip
         counts, and any third recurrence is raised upstream as the existing issue requires.
+        Closed by PR #442: `/kit-sync` fast-forwarded `~/.agent-kit` (`5095a55` → `36f0a7a`,
+        44 commits) and reconciled `tools/*.ps1` and the two divergent command cores via
+        `tools/Sync-Kit.ps1`. `tools/` Pester reports 324 passed, 0 failed, 35 intentional
+        skips.
   - [x] W103.8 Canonical docs regenerated via `build/ConvertTo-HumanDocumentation.ps1`;
         `build/Test-Documentation.ps1` passed (18 generated engine pages, compatibility
         pointers, guide, and 189 Markdown files); `src/engine`'s `typecheck`, `lint`, and
