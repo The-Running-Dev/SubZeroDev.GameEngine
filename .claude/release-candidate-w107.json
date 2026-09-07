@@ -1,0 +1,125 @@
+{
+  "candidateCommit": "31a24c351bf87b0825d60bbebab11fd0d67aa261",
+  "candidateCommittedAt": "2026-09-07T10:59:33+03:00",
+  "archiveDigest": "sha256:ef93453017b60d0bc49f2e38a0b46d78b29ad8af024748d5c6f2ad9c617aa2a2",
+  "archiveFile": "the-running-dev-game-engine-0.10.0.tgz",
+  "gates": [
+    {
+      "name": "W107.1 Candidate commit and archive digest",
+      "status": "Passed",
+      "command": "git rev-parse HEAD; cd src/engine && npm pack --silent && sha256sum <tarball>",
+      "exitCode": 0,
+      "durationSeconds": 2,
+      "artifactDigest": "sha256:ef93453017b60d0bc49f2e38a0b46d78b29ad8af024748d5c6f2ad9c617aa2a2",
+      "evidenceUrl": "https://github.com/The-Running-Dev/SubZeroDev.GameEngine/commit/31a24c351bf87b0825d60bbebab11fd0d67aa261",
+      "detail": "Candidate commit 31a24c351bf87b0825d60bbebab11fd0d67aa261 (main, merge of PR #457). Packed archive the-running-dev-game-engine-0.10.0.tgz, sha256 ef93453017b60d0bc49f2e38a0b46d78b29ad8af024748d5c6f2ad9c617aa2a2. The same tarball was installed into consumer-smoke/ (below) rather than a workspace import or a separately packed copy."
+    },
+    {
+      "name": "W107.2 Clean src/engine install: typecheck, lint, test, build, archive assertion, replay corpus, W104 sweep",
+      "status": "Passed",
+      "command": "build/Test-CompatibilitySweep.ps1 -BaselineTag v0.10.0 (npm ci; typecheck; lint; vitest run; replay oracle vs v0.10.0; npm pack; tarball content assertion; consumer smoke)",
+      "exitCode": 0,
+      "durationSeconds": 95,
+      "artifactDigest": "sha256:ef93453017b60d0bc49f2e38a0b46d78b29ad8af024748d5c6f2ad9c617aa2a2",
+      "evidenceUrl": "n/a (local run, this worktree)",
+      "detail": "npm ci: 140 packages, exit 0. typecheck: tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json, exit 0. lint: eslint src scripts, exit 0, determinism guard reported nothing. test: vitest run, 97 test files passed (97), 1594 tests passed (1594), 7.83s. Replay oracle vs v0.10.0 (W104.4): 3 test files passed, 29 tests passed, 5 skipped, 929ms. Pack + tarball inspection run manually via Bash (the PowerShell script's own tar invocation fails on this Windows checkout only because MSYS tar misparses a 'D:\\...' path as an scp host, not a content defect): 332 entries, no src/, no tsconfig*.json, no .test.* artifacts, package/dist/ present — all four W104.6 assertions hold. Replay/typecheck/lint/test all reproduced the sweep script's own output; the tar step was re-run directly against the same tarball with the same assertions and passed."
+    },
+    {
+      "name": "W107.2 Consumer smoke against the packed archive",
+      "status": "Passed",
+      "command": "cd consumer-smoke && npm run install:engine && npm run build && npm run smoke (ENGINE_TARBALL=<the packed .tgz above>)",
+      "exitCode": 0,
+      "durationSeconds": 19,
+      "artifactDigest": "sha256:ef93453017b60d0bc49f2e38a0b46d78b29ad8af024748d5c6f2ad9c617aa2a2",
+      "evidenceUrl": "n/a (local run, this worktree)",
+      "detail": "install:engine (node install-engine.mjs) exit 0, added 5 packages, no workspace resolution. build (tsc -p tsconfig.json) exit 0. smoke (node dist/smoke.js) exit 0. Exercises the public and ./authoring entry points together, per W104.6/W107.5's 'lockfile-backed consumer smoke'."
+    },
+    {
+      "name": "W107.3 Clean site install: lint/typecheck/unit/browser/build",
+      "status": "Passed",
+      "command": "cd site && npm install && npm run check (format:check, oxlint, tsc -b, vitest, vitest --config vitest.browser.config.ts, build+verify-build.mjs, verify-merge.mjs)",
+      "exitCode": 0,
+      "durationSeconds": 23,
+      "artifactDigest": "n/a",
+      "evidenceUrl": "n/a (local run, this worktree)",
+      "detail": "prettier --check: all matched files use Prettier style. oxlint: clean. tsc -b: clean. vitest run: 2 test files passed, 17 tests passed. vitest --config vitest.browser.config.ts: 2 test files passed, 23 tests passed (Chromium). build + verify-build.mjs: both HTML entry points contain required static metadata, 3 bundles free of Node-only runtime references. verify-merge.mjs: '/', '/roadmap/' and the protected docs/ subtree all verified, bad-landing-build guard rejects correctly."
+    },
+    {
+      "name": "W107.3 Documentation generation and validation, no-op on second run",
+      "status": "Passed",
+      "command": "./build/ConvertTo-HumanDocumentation.ps1 -Check; ./build/Test-Documentation.ps1",
+      "exitCode": 0,
+      "durationSeconds": 8,
+      "artifactDigest": "n/a",
+      "evidenceUrl": "n/a (local run, this worktree)",
+      "detail": "ConvertTo-HumanDocumentation.ps1 -Check: human-documentation drift check passed across 18 generated engine page(s), compatibility pointers, and the guide (no diff — second-generation no-op). Test-Documentation.ps1: same drift result, plus documentation checks passed across 199 Markdown file(s)."
+    },
+    {
+      "name": "W107.3 Production Docusaurus build (onBrokenLinks: throw)",
+      "status": "DidNotRun",
+      "reason": "docs.ps1 is not present in this checkout — it is generated by Invoke-SetupDocs rather than committed (CLAUDE.md, Docs Site), so the production build that resolves routes and heading anchors cannot be run here even though Docker itself is available. The 'Verify Documentation Build' check on PR #457 is where this answer comes from for the candidate commit.",
+      "evidenceUrl": "https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/34097817868/job/101665254868",
+      "detail": null
+    },
+    {
+      "name": "W107.4 Host container build, health/routing smoke, negative fixture",
+      "status": "Passed",
+      "command": "CI: .github/workflows/host-image.yml 'Build, run, and smoke the image' job at the candidate commit",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": "n/a",
+      "evidenceUrl": "https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/34098227937",
+      "detail": "Could not run locally: the image build restores SubZeroDev.Platform.Hosting from GitHub Packages using the REGISTRY_TOKEN build secret, which is not available in this environment. CI ran it at the exact candidate commit 31a24c351bf87b0825d60bbebab11fd0d67aa261 (run 34098227937): 'Test the host' (dotnet test, 12/12 passed), 'Build the image', 'Positive route and probe smoke' (GET /health/live -> 200, GET /health/ready -> 200, GET /this-route-does-not-exist -> 404), 'Negative fixture -- corrupted artifact must fail to start' — all succeeded. 'Publish immutable image to GHCR' also succeeded and recorded a digest."
+    },
+    {
+      "name": "W107.4 Container smoke through the declared API (campaign retrieval, session creation, action preview/submission, save/resume, W98/W99 operations)",
+      "status": "Failed",
+      "command": "n/a — no such endpoint exists in this repository's host to check",
+      "exitCode": null,
+      "durationSeconds": null,
+      "artifactDigest": "n/a",
+      "evidenceUrl": "https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/31a24c351bf87b0825d60bbebab11fd0d67aa261/design/10-design.md#L3419-L3431",
+      "detail": "Initially read as a missing test and asked whether to add one to host-image.yml's smoke step. Investigating that request found the criterion itself does not apply to this repository: src/host/SubZeroDev.GameEngine.Host/Program.cs's own comment says 'this host is a delivery surround for a static artifact, not a game service', calling only AddPlatformWebHost() and MapPlatformProbes() -- three static routes plus two health probes, nothing else. design/10-design.md's canonical 'Platform Static Host' section (feeding design/15-platform-static-host.md), lines 3419-3431, states the host 'must not receive actions, own sessions, calculate results, persist saves, or expose the engine package over HTTP', and its Explicit Non-Goals (line ~3568) name 'a Node.js engine process, JSON/HTTP engine API, MCP transport, remote session, or server-side action execution' as belonging to 'a later hosted-engine-edge slice's .NET Platform edge -> Node engine workload boundary' -- not this one. That document is itself marked 'Document status: Revision 2 -- historical... nothing here is a specification to build to', and records that 'the hosted direction moved out of this repository along with the play surface'. The session/campaign/action/save-resume API W107.4 describes lives in SubZeroDev.Platform's game-service workload (an external repository, exercised only as the point-in-time proof cited under W107.5/issue #392) -- not in anything host-image.yml builds here. Extending the workflow to assert these operations would mean fabricating endpoints into src/host/ that design/10-design.md Section 8 explicitly forbids, which is outside what a /slice session may do unilaterally (AGENTS.md: an acceptance criterion, invariant, or non-goal is not descriptive drift). This looks like a drafting error in W107.4 that conflated 'the static host' (this repository) with the game-service host (SubZeroDev.Platform). Recommend routing the correction through /slices rather than adding code here. No workflow or host changes were made."
+    },
+    {
+      "name": "W107.5 Text client and MCP server against a real store built from the candidate source",
+      "status": "Passed",
+      "command": "src/engine: npm test (src/clients/text/client.test.ts, src/mcp/server.test.ts) + npm run lint (client-boundary ESLint rule)",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": "n/a",
+      "evidenceUrl": "n/a (included in the W107.2 sweep run above)",
+      "detail": "Both suites are part of the 97-file/1594-test vitest run recorded under W107.2; lint re-runs the client-boundary rule that fails if either client imports a kind instead of calling only SessionStore. Neither is a published export (only '.' and './authoring' are), so there is no separate against-the-packed-archive step for them, matching W104.5's own reasoning."
+    },
+    {
+      "name": "W107.5 Companion compatibility: Platform, service-contract, Adventures, GameOfLife",
+      "status": "Passed",
+      "command": "git diff --stat e52e7a1 31a24c351bf87b0825d60bbebab11fd0d67aa261 -- src/engine",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": "sha256:ef93453017b60d0bc49f2e38a0b46d78b29ad8af024748d5c6f2ad9c617aa2a2",
+      "evidenceUrl": "https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/392",
+      "detail": "src/engine has zero diff between e52e7a1 (the commit W104.5 packed and vendored into the three companions on 2026-09-07, issue #392) and this candidate, 31a24c351bf87b0825d60bbebab11fd0d67aa261 — the two commits between them (design/contract prose and the generated guide) touch no engine source, so the packed archive's runtime content, and therefore compatibility, is unchanged. Citing rather than re-running: SubZeroDev.ServiceContract (59 tests), SubZeroDev.Platform's game-service suite (197 tests, 1 pre-existing skip) with its durable/Postgres profile, and SubZeroDev.Adventures' lint/typecheck/test/test:browser/test:build (274 tests) with its engine submodule at the same commit — all green per issue #392. SubZeroDev.GameOfLife S6/S7's lifecycle mapping was independently re-verified against this repository's contract by W103.1 (PR #438, closing issue #391): 'design/20-contract.md §15.1 maps all twelve of S7's lifecycle- concepts onto this kind's own shape. No contradiction with shipped simulation code surfaced.' None of the four companion repositories are checked out in this environment, so none of the four suites were re-run directly; this is a point-in-time proof carried forward because nothing it depended on changed, not a fresh run."
+    },
+    {
+      "name": "W107.6 Required CI workflows green at the candidate commit",
+      "status": "Passed",
+      "command": "gh api repos/.../commits/31a24c3.../check-runs; gh run list --commit 31a24c3...; gh pr checks 457",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": "n/a",
+      "evidenceUrl": "https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/457",
+      "detail": "At the candidate commit itself: CI, verify, Docs Deploy, and Platform Static Host Image workflows all completed 'success' (run ids 34098228007, 34098227958, 34098228033, 34098227937). Docs CI shows 'skipped' on this push — it is a pull_request-triggered workflow, not a push-triggered one, so it does not re-run on main; its required checks ('Documentation links and terminology', 'Verify Documentation Build') both reported SUCCESS on PR #457 (the PR that produced this exact commit via squash merge), alongside 'engine' and 'powershell', which are this repository's three branch-protection-required checks. Local Pester matches CI's own count: tools/Pester run here reported Tests Passed: 324, Failed: 0, Skipped: 35 (359 total) — the same pass/skip counts as the powershell CI job."
+    },
+    {
+      "name": "W107.7 This release-candidate report",
+      "status": "Passed",
+      "command": "n/a — this artifact",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": "n/a",
+      "evidenceUrl": "n/a",
+      "detail": "This file records command, exit code (where one exists), duration (where measured), artifact digest, and evidence URL for every row above, including the one unexplained-by-environment gap this run surfaced (W107.4's deeper API smoke) rather than folding it into a passing row or omitting it. tools/Test-VerifyReport.ps1 -Path .claude/release-candidate-w107.json validates the same {name,status,detail|reason} invariants it enforces for the repository's own /verify report; this file adds command/exitCode/durationSeconds/artifactDigest/evidenceUrl per row without breaking that schema."
+    }
+  ]
+}
