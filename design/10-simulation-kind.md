@@ -106,6 +106,8 @@
 
 ### 8.1 Requirements
 
+### 8.2 Collections for `exists`/`count` (W105.5)
+
 ## 9. Projection
 
 ## 10. Reason Codes
