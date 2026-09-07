@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 2de5547d528006a06b5cbed9150acca8f52e4cc639d59a049026e7e992be0b64 -->
+<!-- design-digest: 6688ad0c7f138e897ca540aea8b49615102a194a2e5e692233724d7245e32e6a -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -710,11 +710,14 @@ Every reader must resolve through that layer, not just the projection, or a goal
 reading a raw stored need would disagree with what the same field shows in the view.
 
 **Being derived does not make a path read-only; having no stored counterpart does.**
-`player.needs.*`, `player.attributes.*`, and `player.skills.*` are derived *and* writable — a
-modifier setting a need for three weeks is the motivating case. Four paths — housing quality,
-effective job performance, the calendar's energy-recovery rate, and world strangeness — are
-formula-only with no stored field at all, and a modifier targeting one of them is a Tier 1
-`read_only_field` error.
+`player.needs.*`, `player.attributes.*`, `player.skills.*`, and `player.reputation.*` are
+derived *and* writable — a modifier setting a need for three weeks is the motivating case, and
+an item modifier is how content gives a player, say, more employability (`player.reputation.
+employability`). Four paths — housing quality, effective job performance, the calendar's
+energy-recovery rate, and world strangeness — are formula-only with no stored field at all, and
+a modifier targeting one of them is a Tier 1 `read_only_field` error. `calendar.
+committedTimeUnits` is a third case: a genuinely stored field, writable, but not derived — it is
+recomputed once a week by its own system rather than layered on every read.
 
 Important constraints:
 
@@ -746,6 +749,22 @@ Important constraints:
   player cannot plan or close out a week around an event they have not actually addressed.
 - Hidden exact economy values project as bands (`cold`/`steady`/`hot`), not raw optimization
   inputs a player could game the job-availability formula with.
+- **An item's `weeklyCostCents` is a running cost, charged per owned instance.** The inventory
+  system sums it across every unbroken owned item and charges the total unconditionally,
+  alongside condition decay, in the same pass and by the same "wages before costs" rule rent
+  already follows — there is no arrears or repossession mechanism for an unpaid item cost.
+- **Housing's weekly charge can carry three components, not just rent.** `weeklyCostCents`,
+  `utilitiesCents`, and `transportCents` post as one combined levy, and any shortfall feeds the
+  same arrears/eviction pipeline rent alone used to drive. Transport is waived for a week the
+  player owns an unbroken item tagged the reserved literal `"vehicle"` — the one tag value this
+  kind's engine code itself reads, everywhere else `tags` is free-text content metadata.
+- An NPC definition may declare `startingMemories` — copied into that NPC's runtime memory list
+  the first time it is instantiated, so a scenario can open with an NPC who already remembers
+  something.
+- `exists`/`count` conditions can test a closed set of state collections (owned items,
+  relationships, pending job applications, course enrollments, projects, businesses, world
+  NPCs) — each resolves only its own stored fields, never a joined content definition, so "any
+  item tagged X" needs an explicit id list rather than a category test.
 
 The player view carries the calendar, identity, finances, needs, attributes, education, career,
 housing, inventory, and relationships — with the hidden `luck` attribute and relationship
