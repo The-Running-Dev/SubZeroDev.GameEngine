@@ -1,4 +1,5 @@
 import todo from "../../../docs/docs/engine/TODO.md?raw";
+import { adventures } from "../shared";
 
 export type RoadmapStatus = "done" | "now" | "next" | "later";
 export type RoadmapChapter = {
@@ -12,7 +13,7 @@ export type RoadmapChapter = {
   links: readonly {
     label: string;
     href: string;
-    kind: "site" | "repository";
+    kind: "site" | "repository" | "external";
   }[];
 };
 
@@ -233,6 +234,8 @@ export const shippedChapters: readonly RoadmapChapter[] = [
     title: "The demo leaves the repository",
     summary:
       "A static, public /play/ route and an immutable container image put the running engine somewhere a stranger can actually click it.",
+    aside:
+      "That route is retired. The adventures moved out and got their own address.",
     links: [
       {
         label: "W61 evidence (part 1)",
@@ -272,8 +275,8 @@ export const shippedChapters: readonly RoadmapChapter[] = [
       },
       {
         label: "Play the adventures",
-        href: "/play/",
-        kind: "site",
+        href: adventures,
+        kind: "external",
       },
     ],
   },

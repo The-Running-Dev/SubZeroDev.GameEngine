@@ -44,6 +44,20 @@ answer now lives — so a later reader finds the reasoning without re-opening th
 
 Settled as out of MVP scope. Listed so they resurface deliberately, not by accident.
 
+- **No customer, alternative, or monetization thesis — deferred, and now recorded as deferred
+  rather than merely absent.** The brief states what the platform is, who plays it, and what it
+  refuses to do; it says nothing about who would buy it, what they would otherwise use, or how it
+  would earn. That silence is deliberate, not an oversight. This repository ships a deterministic
+  engine, its specifications, and its authoring tools; the commercial layer is a different
+  repository —
+  [SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform), the deferred
+  hosting / NEaaS layer. Stating a monetization thesis here would put product strategy in the
+  document that owns *engine* scope, and every reader of the non-goals would then have to work out
+  which of the two they bind. **Owner:** the repository owner
+  ([@The-Running-Dev](https://github.com/The-Running-Dev)); this is a product decision, and no
+  specification pass settles it on their behalf. **Revisit when** Platform work actually starts —
+  the first point at which a named customer, a named alternative, and a price have somewhere to
+  live that is not this repository.
 - **Package visibility, decided: public.** `src/engine/package.json` carries no `"private"`
   field and publishes to `npm.pkg.github.com`; [Engine Package](/docs/guide/engine-package)
   states the choice is deliberate. `plans/39-world-graph-kind-programme.md` and

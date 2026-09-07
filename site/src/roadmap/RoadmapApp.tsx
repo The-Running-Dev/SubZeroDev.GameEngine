@@ -12,14 +12,14 @@ function Links({ chapter }: { chapter: RoadmapChapter }) {
   return (
     <p className="roadmap-links">
       {chapter.links.map((link) =>
-        link.kind === "repository" ? (
-          <ExternalLink key={link.href} href={link.href}>
-            {link.label}
-          </ExternalLink>
-        ) : (
+        link.kind === "site" ? (
           <a key={link.href} href={link.href}>
             {link.label}
           </a>
+        ) : (
+          <ExternalLink key={link.href} href={link.href}>
+            {link.label}
+          </ExternalLink>
         ),
       )}
     </p>
