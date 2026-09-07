@@ -82,6 +82,33 @@ describe("roadmap page", () => {
     );
   });
 
+  /**
+   * W105.3/W105.5: the merged deployment serves exactly "/", "/roadmap/" and
+   * the protected "docs/" subtree (site/scripts/verify-merge.mjs). A
+   * site-relative href outside that set is a link to nowhere on the published
+   * page -- which is how the retired "/play/" route survived here after W74b
+   * removed it. Anything hosted elsewhere is an external link, and carries
+   * ExternalLink's new-tab affordance rather than looking like a same-site route.
+   */
+  it("keeps every site-relative link inside a route the merged site serves", () => {
+    const served = /^\/$|^\/roadmap\/$|^\/docs\//;
+    const siteLinks = [...shippedChapters, ...nextActs]
+      .flatMap((chapter) => chapter.links)
+      .filter((link) => link.kind === "site");
+
+    expect(siteLinks.length).toBeGreaterThan(0);
+    for (const link of siteLinks) {
+      expect(link.href).toMatch(served);
+    }
+  });
+
+  it("opens links that leave the site in a new tab", () => {
+    render(<RoadmapApp />);
+    const play = screen.getByRole("link", { name: /^Play the adventures/ });
+    expect(play).toHaveAttribute("href", "https://adventures.subzerodev.com");
+    expect(play).toHaveAttribute("target", "_blank");
+  });
+
   it("marks the roadmap navigation as the current page", () => {
     render(<RoadmapApp />);
     expect(screen.getByRole("link", { name: "Roadmap" })).toHaveAttribute(
