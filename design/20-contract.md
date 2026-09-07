@@ -6594,7 +6594,7 @@ sidebar_label: World-Graph Kind
 
 # World-Graph Kind — Contract
 
-**Document status:** Revision 4 — **authoritative runtime-state, campaign-content, and
+**Document status:** Revision 5 — **authoritative runtime-state, campaign-content, and
 resolution contract.** Concrete content and balance live with the game; §17 says exactly
 what and why.
 
@@ -7945,66 +7945,197 @@ per-tick result. Product sales and restock costs remain atomic integer-cent tran
 
 ## 10. Projection
 
-`WorldGraphView` is the `kindView` inside the core's `PlayerView` (04 §9), and it carries only what
-the generic surface does not. It does not include:
-
-- seed or any RNG/stream state
-- future incident weights or hidden scenario triggers
-- undiscovered preferences/thresholds
-- internal path caches
-- per-candidate utility breakdowns
+`WorldGraphView` is the `kindView` inside the core's `PlayerView` (04 §9). It is the complete
+player-observable read model for this kind: a client can render the map, open an inspector and
+discover every parameter domain accepted by §7 without reading `WorldGraphKindState` or
+`WorldGraphCampaign`. The projection is additive to the generic envelope and repeats none of its
+`gameId`, `status`, scene, action-list or outcome fields.
 
 ```typescript
+interface WorldGraphViewText {
+  id: string;
+  nameKey: LocKey;
+  descriptionKey: LocKey;
+}
+
+type WorldGraphViewMeterDefinition =
+  | (WorldGraphViewText & {
+      kind: "need";
+      minimum: number;
+      maximum: number;
+      criticalBelow: number;
+      satisfiedAtOrAbove: number;
+    })
+  | (WorldGraphViewText & {
+      kind: "condition";
+      minimum: number;
+      maximum: number;
+    })
+  | (WorldGraphViewText & {
+      kind: "opinion";
+      minimum: number;
+      maximum: number;
+      neutral: number;
+    });
+
+interface WorldGraphViewValue {
+  definitionId: string;
+  value: number;
+}
+
+interface WorldGraphBuildOption extends WorldGraphViewText {
+  footprint: { width: number; height: number };
+  allowedRotations: readonly Rotation[];
+  constructionCostCents: number;
+  operatingCostCentsPerDay: number;
+  operation:
+    | {
+        kind: "service";
+        products: readonly {
+          productId: string;
+          serviceTicks: number | null;
+          initialUnits: number | null;
+          capacity: number | null;
+        }[];
+        queueMaxLength: number | null;
+        baseServiceTicks: number;
+        staffRequirements: readonly { roleId: string; count: number }[];
+      }
+    | { kind: "waste"; capacity: number | null }
+    | { kind: "decorative" }
+    | { kind: "support"; generatedTaskKinds: readonly StaffTaskType[] };
+  canBuild: boolean;
+  /** Every §11 code that rejects this definition regardless of placement. */
+  blockedBy: readonly ReasonCode[];
+}
+
+interface WorldGraphStaffOption extends WorldGraphViewText {
+  hireCostCents: number;
+  wageCentsPerDay: number;
+  supportedTaskKinds: readonly StaffTaskType[];
+  canHire: boolean;
+  /** Every §11 code that rejects this role regardless of assignment. */
+  blockedBy: readonly ReasonCode[];
+}
+
 interface WorldGraphView {
   tick: number;
   finances: {
     cashCents: number;
     revenueTodayCents: number;
     expensesTodayCents: number;
+    revenueTotalCents: number;
+    expensesTotalCents: number;
+  };
+
+  scenario: WorldGraphViewText & {
+    mapId: string;
+    ticksPerDay: number;
+    maxTicksPerAction: number;
+    timeLimitTicks: number | null;
+  };
+
+  definitions: {
+    terrain: readonly (WorldGraphViewText & {
+      walkable: boolean;
+      buildable: boolean;
+      moveCost: number;
+    })[];
+    scenery: readonly (WorldGraphViewText & {
+      footprint: { width: number; height: number };
+      allowedRotations: readonly Rotation[];
+    })[];
+    products: readonly (WorldGraphViewText & {
+      unitCostCents: number;
+      price: {
+        minimumCents: number;
+        maximumCents: number;
+        defaultCents: number;
+      };
+    })[];
+    guestArchetypes: readonly WorldGraphViewText[];
+    meters: readonly WorldGraphViewMeterDefinition[];
+    objectives: readonly WorldGraphViewText[];
+    incidents: readonly (WorldGraphViewText & {
+      kind: IncidentKind;
+      severity: IncidentSeverity;
+    })[];
   };
 
   map: {
+    id: string;
+    nameKey: LocKey;
+    descriptionKey: LocKey;
     width: number;
     height: number;
     revision: number;
+    terrain: readonly TerrainCell[];
+    paths: readonly PathCell[];
+    zones: readonly Zone[];
     spawnPoints: readonly Position[];
     exits: readonly Position[];
-    zones: readonly string[];
+    scenery: readonly Scenery[];
     buildingCount: number;
     guestCount: number;
     staffCount: number;
   };
 
-  buildOptions: readonly {
-    definitionId: string;
-    canBuild: boolean;
-    /** Every §11 code that would reject a build of this definition *regardless of where*
-     *  it is placed: `building_locked`, `insufficient_funds`, `building_limit_reached`.
-     *  Placement-dependent rejections — bounds, terrain, overlap, reachability — are not
-     *  knowable without `(x, y, rotation)` and are what `previewAction` (§7) is for.
-     *  Every entry is a §11 code; this list never invents one. */
-    blockedBy: readonly ReasonCode[];
-  }[];
+  buildOptions: readonly WorldGraphBuildOption[];
+  staffOptions: readonly WorldGraphStaffOption[];
 
   buildings: readonly {
     id: string;
     definitionId: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    rotation: Rotation;
     status: BuildingStatus;
-    queueLength: number;
+    queue: {
+      id: string;
+      guestIds: readonly string[];
+      serviceStartedAtTick: number | null;
+    };
+    prices: readonly { productId: string; priceCents: number }[];
+    inventory: readonly { productId: string; units: number | null }[];
     cleanliness: number;
     wear: number;
+  }[];
+
+  constructionSites: readonly ConstructionSite[];
+
+  guests: readonly {
+    id: string;
+    archetypeId: string;
+    lifecycle: GuestLifecycle;
+    x: number;
+    y: number;
+    cashCents: number;
+    intent: GuestIntent;
+    needs: readonly WorldGraphViewValue[];
+    conditions: readonly WorldGraphViewValue[];
+    opinions: readonly WorldGraphViewValue[];
+    satisfaction: number;
+    patienceCapacityTicks: number;
+    patienceRemainingTicks: number;
   }[];
 
   staff: readonly {
     id: string;
     roleId: string;
     status: StaffStatus;
-    zoneId: string | null;        // from `Staff.assignedZoneId` — there is no second, derived one (§3.3)
-    buildingId: string | null;    // from `Staff.assignedBuildingId`
+    x: number;
+    y: number;
+    assignedZoneId: string | null;
+    assignedBuildingId: string | null;
+    task: StaffTask | null;
+    tasksCompleted: number;
   }[];
 
+  incidents: readonly Incident[];
   objectives: readonly Pick<ObjectiveProgress, "id" | "state" | "value" | "target">[];
-  alerts: readonly Pick<Alert, "id" | "type" | "severity" | "titleKey" | "messageKey" | "issuedAtTick">[];
+  alerts: readonly Pick<Alert, "id" | "type" | "severity" | "titleKey" | "messageKey" | "entityId" | "issuedAtTick">[];
   queuedGuests: number; // across all building queues
 }
 ```
@@ -8012,19 +8143,46 @@ interface WorldGraphView {
 `outcome(state)` in §8 is reconciled with this view by using only published objective ids for
 `objectivesMet` and `failureId`, and excluding all other runtime internals.
 
-**The view repeats nothing the generic surface already carries.** Checked field by field
-against 04 §6's `Scene` and 04 §9's `PlayerView`: `gameId`, `status`, the scene body and the
-action list all live there and appear nowhere above — the sixth check against `CLAUDE.md`'s
-envelope-duplication ledger and the second on the view side, after `StoryGraphView`
-duplicated scene and status fields (03 §9). `tick` is *not* a repeat: the envelope has no
-clock, and §4 makes `tick` this kind's own.
+**Derivation and ownership.** Every field above is rebuilt from the current validated state and
+campaign on each projection. Nothing in the view is persisted, accepted back as authority or
+assigned an independent version. The expanded shape changes neither the save schema nor the
+campaign schema. It adds no `SessionStore` operation and no projection-specific failure result;
+an unresolved id after campaign validation is an engine invariant defect, not a player rejection.
+The definition collections are the smallest safe catalog that closes the present client domain:
+the current scenario and map, their objective ids, terrain and placed scenery; products referenced
+by build options; guest archetypes reachable from the scenario pool; and incident definitions for
+currently unresolved incidents. Build and staff options include locked entries deliberately so the
+client can explain `blockedBy`; neither collection exposes the hidden rule that will unlock one.
 
-**`buildOptions`, `availableActions` and the reducer must agree.** A definition the reducer
-would reject for a placement-independent reason must be `canBuild: false` here and must
-carry the same code in `blockedBy`; `build` is `available: false` in §7 only when *no*
-definition can be built at all. §7 makes clients render the build menu from this projection,
-so a disagreement is a client showing an option the engine will refuse — the failure mode
-"shown-but-disabled with a reason" exists to prevent.
+**Completeness invariants.** `buildOptions`, `staffOptions`, `definitions` and the reducer are one
+domain. Every id a client may submit to `build`, `hire_staff` or `set_price` appears in the view.
+A definition the reducer would reject for a placement-independent reason has `canBuild` or
+`canHire` false and carries the same §11 code in `blockedBy`. Placement-dependent build failures
+remain a `previewAction` question because they depend on `(x, y, rotation)`. Every extant target a
+client may submit to `demolish`, `fire_staff`, `assign_staff`, `open_building`, `close_building`,
+`set_price` or `dismiss_alert` appears in the corresponding entity or alert collection.
+`scenario.maxTicksPerAction` closes the numeric domain for `advance_ticks`; the minimum remains the
+positive-integer rule in §7. `alerts` contains only undismissed, uncleared alerts, and `incidents`
+contains only unresolved incidents, so every projected entry remains a current action or inspector
+target rather than an implicit history API.
+
+All definition and entity collections are ordered by id. Terrain cells, zone cells, spawn points
+and exits are row-major (`y`, then `x`); path edges are ordered by `from` then `to`; rotations are
+numeric ascending; product/value collections are ordered by definition id; staff requirements are
+ordered by role id. `queue.guestIds` alone preserves its authoritative FIFO order. Projection is
+pure: identical state and campaign inputs produce a structurally equal view.
+
+**Deliberate exclusions.** The view does not contain seed or RNG counters, future incident weights
+or triggers, scheduled changes, failure conditions, objective conditions, authored placement
+rules, adjacency effects, guest preference profiles, utility curves or candidate scores, entity
+path caches, hidden achievements, `nextEntityOrdinal`, or full unlocked-content bookkeeping.
+Those fields are engine authority or undiscovered content. A client renders what is observable
+above and asks `previewAction` for a proposed placement; it never reimplements those rules.
+
+Historical per-building sales/revenue and guest thought history are not claimed by this shape:
+neither exists in authoritative state, and a projector must not invent history. Adding either is a
+separate state-and-save contract change. The current inspector contract is present state: identity,
+position, status, queue, prices, inventory, condition, task, intent, meters and patience.
 
 ---
 
