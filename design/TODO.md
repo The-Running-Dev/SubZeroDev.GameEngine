@@ -274,7 +274,7 @@
 
 ### [x] W103 — Companion Contracts and Ownership Reconciliation {#w103}
 
-### [ ] W104 — Release 0.11 Compatibility Sweep {#w104}
+### [x] W104 — Release 0.11 Compatibility Sweep {#w104}
 
 ### [ ] W105 — Documentation and Landing Publication Review {#w105}
 
