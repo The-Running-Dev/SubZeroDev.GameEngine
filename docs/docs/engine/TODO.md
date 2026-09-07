@@ -4610,9 +4610,13 @@ verification record covering the engine and every supported delivery surface.
   - W107.3 A clean site install passes lint/typecheck/unit/browser checks and production build;
         documentation conversion and validation run from canonical sources and are no-op on a
         second generation.
-  - W107.4 The static host builds and its container smoke proves health, campaign retrieval,
-        session creation, action preview/submission, save/resume and the W98/W99 operations
-        through the declared API, with no source tree mounted at runtime.
+  - W107.4 The static host builds and its container smoke proves `200` for `/`, `/roadmap/`,
+        `/docs/`, liveness and readiness, `404` for a named unknown route, and a negative
+        fixture that fails to start on a missing required artifact, with no source tree
+        mounted at runtime. Per `15-platform-static-host.md` §8, the host receives no action,
+        owns no session, and exposes no engine API — session creation, action
+        preview/submission, save/resume, and the W98/W99 operations are contract-gated on the
+        engine's own API, not this host's, and this criterion must not require them.
   - W107.5 Packed text/MCP consumers and the lockfile-backed consumer smoke compile and run;
         Platform, service-contract, Adventures and GameOfLife companion checks name exact
         compatible versions or commits and have no unresolved contract mismatch.
