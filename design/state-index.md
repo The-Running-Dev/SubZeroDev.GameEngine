@@ -115,7 +115,6 @@ rendered here.
 | milestone/6 | #292 | Content packs compose at campaign granularity, but dynamic content injection needs node granularity | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | milestone/6 | #293 | A session belongs to exactly one campaign, and nothing decides what happens if content spans two | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | milestone/1 | #300 | Campaign sources here are fixtures now, but nothing in the tree says so | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
-| milestone/6 | #392 | W104 — Release 0.11 Compatibility Sweep | W104.1, W104.2, W104.3, W104.4, W104.5, W104.6, W104.7 | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | milestone/6 | #393 | W105 — Documentation and Landing Publication Review | W105.1, W105.2, W105.3, W105.4, W105.5, W105.6, W105.7 | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | milestone/6 | #394 | W106 — Tracker Evidence Closure | W106.1, W106.2, W106.3, W106.4, W106.5, W106.6, W106.7 | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | milestone/6 | #395 | W107 — 0.11 Release Candidate Verification | W107.1, W107.2, W107.3, W107.4, W107.5, W107.6, W107.7 | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |

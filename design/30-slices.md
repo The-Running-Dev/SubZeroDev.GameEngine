@@ -4467,7 +4467,7 @@ operations, fixture ownership, package visibility, and the proof that replaces t
       Presentation's scene layer, republishing external packages, moving fixture content back
       from Content, or adopting a companion's design-state corpus wholesale.
 
-### [ ] W104 — Release 0.11 Compatibility Sweep {#w104}
+### [x] W104 — Release 0.11 Compatibility Sweep {#w104}
 
 **Delivers:** Existing campaign, save, replay, host, and package consumers can move from 0.10 to
 the additive candidate without silently changing behaviour.
@@ -4479,27 +4479,45 @@ the additive candidate without silently changing behaviour.
       runner, host/service adapters, package archive assertions, and consumer smoke projects.
 - **Depends on:** [W93](#w93)–[W103](#w103) complete. This is the first unit allowed to call
       their combined result a release candidate baseline.
-- **Status:** Not started.
+- **Status:** Landed — all seven criteria confirmed met; closed by issue #392.
 - **Done when:**
-  - W104.1 A committed manifest names every 0.10 built-in campaign/version, representative
+  - [x] W104.1 A committed manifest names every 0.10 built-in campaign/version, representative
         active and ended save for each kind, every replay fixture, both hosts, and the packed
         public consumer surface; the sweep fails if an entry disappears without an explicit
-        replacement/evidence note.
-  - W104.2 Every 0.10 campaign source builds with all 0.11 additive fields omitted and produces
+        replacement/evidence note. Closed by PR #448: `scripts/w104-manifest.test.ts` names every
+        0.10 built-in campaign/version and the save/compat-baseline fixture sets, on top of the
+        hosts/packed-consumer-surface entries PR #447 added to `regressionManifest.test.ts`.
+  - [x] W104.2 Every 0.10 campaign source builds with all 0.11 additive fields omitted and produces
         the same canonical runtime content, initial projection, available actions, and Tier-1/2
         findings as its recorded 0.10 baseline unless a separately approved correction is named.
-  - W104.3 Every 0.10 save loads or migrates according to its recorded version boundary, with
+        Closed by PR #448: `fixtures/compat/v0.10.0/*.json` freezes the canonical initial `Scene`
+        and Tier-1/2 findings per built-in campaign, captured at the `v0.10.0` tag; a HEAD rerun
+        is byte-identical across all five entries.
+  - [x] W104.3 Every 0.10 save loads or migrates according to its recorded version boundary, with
         unchanged projection/outcome for defaulted additions and no partial write on failure.
-  - W104.4 Every pre-existing replay receives the same verdict and byte-identical outcome; any
+        Closed by PR #448: `fixtures/saves/*.json` (one active/ended pair per kind) load through
+        a real `SessionStore.loadGame` and match an independent re-run; a tampered-checksum case
+        proves no partial write.
+  - [x] W104.4 Every pre-existing replay receives the same verdict and byte-identical outcome; any
         intentionally migrated fixture is separately identified and proves
-        `replayCompatible: false` rather than silently replacing its golden file.
-  - W104.5 The text client, MCP server, static host and Adventures/service-contract integration
+        `replayCompatible: false` rather than silently replacing its golden file. Closed by
+        PR #447: 29 fixtures replayed against `v0.10.0`'s own committed corpus, byte-identical.
+  - [x] W104.5 The text client, MCP server, static host and Adventures/service-contract integration
         pass against the same engine archive and use only the declared SessionStore surface.
-  - W104.6 A clean pack contains the asserted files and no private source/plans, installs into
+        Closed by PR #452, after PR #449 covered the in-repository text client and MCP server via
+        the client-boundary ESLint rule and their own API-coverage suites: the engine packed at
+        `e52e7a1` was re-vendored into `SubZeroDev.Platform`, `SubZeroDev.Adventures`, and
+        `SubZeroDev.ServiceContract`, each passing its full suite with no reach past
+        `SessionStore`/`Portable*`/`fromPortable`. Recorded as a point-in-time proof, not a
+        standing cross-repo CI gate, since none of the three repos live inside this one.
+  - [x] W104.6 A clean pack contains the asserted files and no private source/plans, installs into
         the lockfile-backed consumer smoke, and compiles/runs all public and `/authoring`
-        examples without workspace resolution.
-  - W104.7 The compatibility sweep runs from one documented command/CI job and exits non-zero
+        examples without workspace resolution. Closed by PR #447: clean tarball, no workspace
+        resolution, `/authoring` exports exercised in the consumer smoke.
+  - [x] W104.7 The compatibility sweep runs from one documented command/CI job and exits non-zero
         with the exact artifact that drifted; its green result and baseline commit are recorded.
+        Closed by PR #447: `build/Test-CompatibilitySweep.ps1` composes typecheck/lint/test, the
+        replay oracle, and the packed-tarball consumer smoke into one documented command.
 - **Out of scope:** preserving undocumented implementation details, treating an approved bug
       fix as a compatibility failure without its evidence, publishing a package, or accepting
       new feature work after the baseline is cut.
