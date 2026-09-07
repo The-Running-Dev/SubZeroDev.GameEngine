@@ -5087,7 +5087,7 @@ value this kind computes rather than stores.
 **`utilitiesCents`/`transportCents` (W105.3; [issue #109](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/issues/109)).**
 Charged separately from rent means itemized as distinct cost lines a player can see, not a
 separate consequence track: the `housing` end-of-week system (§3) charges
-`weeklyCostCents + utilitiesCents + transportCents` as one combined levy against
+`weeklyCostCents + utilitiesCents + effectiveTransportCents` as one combined levy against
 `cashCents`, unconditionally, in the same pass and by the same rule §3's own W53/W55 decision
 already gives rent alone (`90-decisions.md`, 2026-08-08 entry) — `cashCents` may go negative,
 proving the same "wages before costs" ordering claim. `missedCents` is computed from that
@@ -5098,6 +5098,20 @@ content that declares neither is unaffected. `HousingState` (§6.9) gains matchi
 `utilitiesCents`/`transportCents` fields, stamped from the definition at move-in exactly as
 `weeklyCostCents` already is — a `kindVersion` bump and `Kind.migrateState` default both to `0`
 for a save with no such fields (§10.2).
+
+**`transportCents` is waived when the player owns a vehicle; `utilitiesCents` is not.** The
+companion game design (`games/03-game-design.md` §16.4, mirrored from GameOfLife) states this
+asymmetry directly for its own baseline scenario: "Transport ... waived if the player owns a
+vehicle," with no equivalent stated for utilities. `effectiveTransportCents` (above) is
+`0` for a week in which `player.inventory` (§6.10) contains at least one `InventoryItem` with
+`condition > 0` whose `ItemDefinition.tags` (§7.5) includes the reserved literal `"vehicle"`,
+and `HousingState.transportCents` otherwise. **`"vehicle"` is this kind's first
+engine-recognized tag value** — every other `tags: string[]` field in this kind (§7.2, §7.5,
+§7.6, §7.9) is free-text content-author metadata nothing in `src/engine` branches on; this is
+the first tag the `housing` system itself reads, the same kind of reserved-namespace
+precedent `core.reason.*` (04 §12) already sets for reason codes. `housing` (§3) is threaded
+`items: readonly ItemDefinition[]` to evaluate this, the same parameter shape `jobs`/`goalDefs`
+already use for their own end-of-week systems.
 
 ### 7.5 Items
 
