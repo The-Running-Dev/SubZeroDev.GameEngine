@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 6688ad0c7f138e897ca540aea8b49615102a194a2e5e692233724d7245e32e6a -->
+<!-- design-digest: 34f548bc3fb61737c2a166c0b25796549023e80c24a1a61c19e30a71b9e2f5bb -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -882,6 +882,17 @@ roster, the price ranges — lives entirely in the projection. This kind is also
 `previewAction` exists at all: a spatial placement has to be checkable before it commits, and
 nothing else in the seam could do that without risking a second, drifting copy of the placement
 rules.
+
+Treat `WorldGraphView` as the client's complete spatial read model. It carries the scenario clock
+and map identity; terrain, paths, zones, and placed scenery; the safe labels and ranges needed to
+render catalogues; build and staff options with placement-independent blockers; and current
+building, construction, guest, staff, incident, objective, and alert data. Entity positions,
+queues, prices, inventory, condition meters, tasks, intents, and patience are inspector-ready.
+Collections are canonically ordered except queue membership, which retains authoritative FIFO
+order. Active incidents and alerts are current state, not history. Do not infer hidden placement
+rules, future triggers, guest utility, or pathfinding from the view: ask `previewAction` where the
+contract requires it. Historical per-building sales or guest thoughts require an explicit
+state-and-save extension before a projector can expose them truthfully.
 
 Because a 360-tick batch with hundreds of guests can emit on the order of 10⁵ operational events,
 `StateChange` here carries **batch-grain** audit only — money aggregated by category, building
