@@ -1533,3 +1533,44 @@ Chosen: §8.2 states the closed set this kind's `collection` resolves — `playe
 Rejected: **Join collection items against their content definition** (so "any owned car" is authorable as a `category` test rather than an enumerated id list) — the more ergonomic authoring surface, rejected here because `ConditionResolver` (04 §18) has no seam for campaign content, only state; adding one is a core-level widening this single-kind gap does not justify inventing unasked. Recorded as an open item: revisit if a real campaign need (not just ergonomics) shows up. **An open `collection: string` with no closed set, validated only by "does it resolve to an array at runtime"** — rejected as the one pattern this kind consistently avoids (§7.1, §14): every other addressable-path surface fails at load time, not at first evaluation, and a `Condition` reachable only from a rare goal branch could otherwise ship broken and go undetected for a long time.
 
 Reversibility: cheap — a documentation-and-validation-rule change; the seven-entry table is additive and does not remove `unresolvableCollection`'s existing "not yet" honesty for anything outside it.
+
+### 2026-09-08 — Open, routed to `/contract`: the 2026-09-07 amendments were not mirrored into §10 and §14
+
+Context: found while slicing the five amendments as [W109–W113](30-slices.md) — not by review, and
+not by the amendments' own authoring session, which is the point worth recording. Each of the five
+was written into the section that *declares* the rule and none was written into the sections that
+*enumerate* it, so `10-simulation-kind` now states two of its own rules twice and disagrees with
+itself in both places:
+
+- **`unknown_collection` is declared by §8.2 and enumerated nowhere.** §8.2 names it as the Tier 1
+  failure for a `collection` path outside its seven-entry table, and cites §14 for it. §14's Tier 1
+  bullet list does not carry it, and §10's campaign-validation reason-code table does not list it —
+  so the one section that tells an implementer *which* Tier 1 checks exist omits this one, and the
+  one table a client reads to enumerate validation codes omits it too.
+- **§14's `read_only_field` bullet contradicts §6.1's own partition.** It still enumerates the
+  writable derived paths as `player.needs.*`, `player.attributes.*` and `player.skills.*`. W105.1
+  added `player.reputation.*` to that partition in both §6.1's table and §7.1's, so §14 now names a
+  three-member set where the two sections it is derived from name four.
+
+This is the **envelope-duplication ledger's failure mode one level down**: not a kind duplicating
+the envelope, but one document duplicating its own rule across a declaring section and an
+enumerating one, and updating only the declaring half. `CLAUDE.md`'s *Reference, never restate*
+predicted exactly this — two copies of a rule is a promise they will diverge — and the divergence
+took one day.
+
+**Not a slice, and deliberately not folded into `W109`/`W111`.** The answer is not in question:
+§6.1, §7.1 and §8.2 already state what §10 and §14 should say, so nothing here needs deciding, only
+mirroring. It is routed to `/contract` rather than sliced because an implementation unit editing
+the contract it is implementing against is the drift the design freeze exists to prevent — and
+because `W109` and `W111` are written against the declaring sections, so they remain implementable
+whether this lands before them or after.
+
+**The three edits, stated so `/contract` need not re-derive them:** add `unknown_collection` to
+§10's campaign-validation reason-code table (Tier 1); add its bullet to §14's Tier 1 list beside
+`numeric_natural_key`; add `player.reputation.*` to §14's `read_only_field` bullet. No new type, no
+signature, no behaviour change.
+
+Reversibility: cheap — three prose/table edits in one canonical file, revertible as one commit.
+Leaving it open is the more expensive direction: an implementer who reads §14 first implements the
+wrong writable set, and a client author who reads §10's table ships without a code the validator
+can return.
