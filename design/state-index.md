@@ -90,8 +90,12 @@ rendered here.
 | 371 | #371 | A kind's event severities are literals at each emit call; only the core fixes them in one table | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | 375 | #375 | Test-DesignState.ps1: 9 findings against this repository's own tree (ContractListUnreadable, ProjectorFailed, TrackerUnavailable, etc.) | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | 413 | #413 | 48 slices predate the issue-per-slice convention: W0-W40, W61, W63-65, W90-92 have no GitHub issue | — | `49aa72904ff5ba1151b7c41e60d770a3547649d1` |
-| 418 | #418 | Conditions cannot address an actor-owned array by id | — | `49aa72904ff5ba1151b7c41e60d770a3547649d1` |
 | 425 | #425 | WorldState.npcs and WorldState.locations are declared but permanently unpopulated dead state | — | `49aa72904ff5ba1151b7c41e60d770a3547649d1` |
+| 465 | #465 | W109 — A Uniform That Makes Its Wearer More Employable | W109.1, W109.2, W109.3, W109.4, W109.5, W109.6 | `3f2121db187e020d84618c5d3c39aa2884edecda` |
+| 466 | #466 | W110 — An NPC Who Already Remembers You | W110.1, W110.2, W110.3, W110.4 | `3f2121db187e020d84618c5d3c39aa2884edecda` |
+| 467 | #467 | W111 — Conditions That Can Ask "Do You Own One?" | W111.1, W111.2, W111.3, W111.4, W111.5, W111.6 | `3f2121db187e020d84618c5d3c39aa2884edecda` |
+| 468 | #468 | W112 — A Car That Costs Money to Run | W112.1, W112.2, W112.3, W112.4, W112.5, W112.6 | `3f2121db187e020d84618c5d3c39aa2884edecda` |
+| 469 | #469 | W113 — Utilities and Transport on the Weekly Bill | W113.1, W113.2, W113.3, W113.4, W113.5, W113.6, W113.7 | `3f2121db187e020d84618c5d3c39aa2884edecda` |
 | milestone/1 | #213 | Dead references to bulgaria-bureaucracy.determinism.test.ts, deleted in #189 | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | milestone/2 | #215 | Batch invariance (world-graph's load-bearing property) is tested at exactly one data point | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | milestone/2 | #216 | world-graph: 21 source modules (~2,100 LOC) have no adjacent test file | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
