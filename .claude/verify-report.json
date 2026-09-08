@@ -1,79 +1,82 @@
 {
+  "generated": "2026-09-08",
+  "branch": "feature/gameoflife-engine-blockers-362ff6",
+  "commit": "2c5a390",
   "gates": [
     {
       "name": "Typecheck",
       "status": "Passed",
-      "detail": "npm --prefix src/engine run typecheck: tsc --noEmit and tsc --noEmit -p tsconfig.scripts.json both exited 0."
+      "detail": "npm --prefix src/engine run typecheck — tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json, exit 0"
     },
     {
       "name": "Lint",
       "status": "Passed",
-      "detail": "npm --prefix src/engine run lint: eslint src scripts exited 0."
+      "detail": "npm --prefix src/engine run lint — eslint src scripts, exit 0; the determinism guard is part of this config"
     },
     {
       "name": "Test",
       "status": "Passed",
-      "detail": "npm --prefix src/engine test: 97 test files passed, 1594 tests passed, 0 failed."
+      "detail": "npm --prefix src/engine test — vitest run: 97 test files passed, 1594 tests passed, 0 failed"
     },
     {
       "name": "Pack package",
       "status": "Passed",
-      "detail": "npm pack --silent produced the-running-dev-game-engine-0.10.0.tgz and exited 0."
+      "detail": "cd src/engine; npm pack --silent — produced the-running-dev-game-engine-0.10.0.tgz"
     },
     {
       "name": "Inspect tarball",
       "status": "Passed",
-      "detail": "tar -tzf inspected 332 entries: no package/src/, tsconfig JSON, or test artifacts were present, and package/dist/ was present."
+      "detail": "tar -tzf the-running-dev-game-engine-0.10.0.tgz — 332 entries: 0 under package/src/, 0 tsconfig*.json, 0 .test.* artifacts, 330 under package/dist/"
     },
     {
       "name": "Consumer smoke",
       "status": "Passed",
-      "detail": "npm ci completed, compiler clean removed prior emitted files, install:engine installed the inspected tarball, and npm run build plus npm run smoke exited 0."
+      "detail": "Cleared consumer-smoke/{node_modules,package-lock.json,dist}, then npm run install:engine (installed the packed tarball, 5 packages), npm run build (tsc), npm run smoke (node dist/smoke.js) — all exit 0. consumer-smoke/package-lock.json restored from git afterwards; working tree clean."
     },
     {
       "name": "Parse-check PowerShell scripts",
       "status": "Passed",
-      "detail": "Every repository *.ps1 parsed with System.Management.Automation.Language.Parser.ParseFile; 0 parse errors."
+      "detail": "[System.Management.Automation.Language.Parser]::ParseFile over every *.ps1 outside node_modules — no parse errors"
     },
     {
       "name": "Run Pester tests",
       "status": "Passed",
-      "detail": "Invoke-Pester -Path tools -PassThru: 324 passed, 0 failed, 35 skipped, 359 total."
+      "detail": "Invoke-Pester -Path tools — Tests Passed: 324, Failed: 0, Skipped: 35, NotRun: 0, in 114.66s"
     },
     {
       "name": "Validate Markdown links, terminology, and generated files",
       "status": "Passed",
-      "detail": "./build/Test-Documentation.ps1: drift checks passed across 18 generated engine pages, compatibility pointers, and the guide; documentation checks passed across 199 Markdown files."
+      "detail": "pwsh -File build/Test-Documentation.ps1 — drift check passed across 18 generated engine pages, compatibility pointers and the guide; documentation checks passed across 200 Markdown files"
     },
     {
       "name": "Build documentation",
-      "status": "Passed",
-      "detail": "The authenticated Docker host build ran the docs-template command pwsh /template/scripts/docs-build.ps1 -SourceDocs ./docs -OutputPath artifacts/docs; Docusaurus generated the static site successfully."
+      "status": "DidNotRun",
+      "reason": "docs.ps1 is not present in this worktree. It is installed by Invoke-SetupDocs and deliberately not committed (CLAUDE.md, Docs Site), so there is nothing to invoke. The production Docusaurus build also pulls ghcr.io/the-running-dev/docs-template, which needs registry credentials this session does not hold. The Verify Documentation Build check on the PR is where this answer comes from."
     },
     {
       "name": "Build and verify landing page",
       "status": "Passed",
-      "detail": "npm --prefix src/engine run build and npm --prefix site run check exited 0: formatting, lint, typecheck, 17 unit tests, 23 browser tests, production-build inspection, and merge-fixture verification passed."
+      "detail": "npm --prefix src/engine run build; npm --prefix site run check — vite built both entry points, both built HTML entry points carry their required static metadata, 3 bundles free of Node-only runtime references, and the package-backed merge verification passed for '/', '/roadmap/' and the protected docs/ subtree"
     },
     {
       "name": "Merge landing page into documentation build",
-      "status": "Passed",
-      "detail": "The authenticated Docker host build ran npm --prefix site run merge against the completed artifacts/docs tree; the landing pages merged while preserving the protected docs subtree."
+      "status": "DidNotRun",
+      "reason": "Requires a completed documentation build in artifacts/docs, and the Build documentation gate above did not run. Note that the landing gate's own package-backed merge fixture did pass, but that is a different assertion and is not a substitute for this one."
     },
     {
       "name": "Test the host",
       "status": "Passed",
-      "detail": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests/SubZeroDev.GameEngine.Host.Tests.csproj -c Release: 12 passed, 0 failed, 0 skipped."
+      "detail": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests/SubZeroDev.GameEngine.Host.Tests.csproj -c Release — Passed! Failed: 0, Passed: 12, Skipped: 0, Total: 12. NUGET_GITHUB_TOKEN is unset here; restore nevertheless succeeded from cached packages, so this gate was run rather than assumed."
     },
     {
       "name": "Positive route and probe smoke",
-      "status": "Passed",
-      "detail": "The locally built host image returned 200 for /, /roadmap/, /docs/, /health/live, and /health/ready, and 404 for /this-route-does-not-exist."
+      "status": "DidNotRun",
+      "reason": "The step depends on an earlier unflagged step building subzerodev-gameengine-host:smoke, which needs secrets.REGISTRY_TOKEN twice over — to pull the ghcr.io/the-running-dev/docs-template base image and to restore SubZeroDev.Platform.Hosting from the private GitHub Packages feed. Neither credential is available in this session, and handling one is not something this session does. Docker itself is running; the credentials are the blocker."
     },
     {
       "name": "Negative fixture -- corrupted artifact must fail to start",
-      "status": "Passed",
-      "detail": "The negative-fixture image removed roadmap/index.html and its container exited 1 as required, proving the missing-artifact startup guard."
+      "status": "DidNotRun",
+      "reason": "Builds from the same subzerodev-gameengine-host:smoke image as the positive smoke above, so it is blocked by the same missing secrets.REGISTRY_TOKEN."
     }
   ]
 }
