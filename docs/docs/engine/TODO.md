@@ -4517,7 +4517,7 @@ the additive candidate without silently changing behaviour.
       fix as a compatibility failure without its evidence, publishing a package, or accepting
       new feature work after the baseline is cut.
 
-### [ ] W105 — Documentation and Landing Publication Review {#w105}
+### [x] W105 — Documentation and Landing Publication Review {#w105}
 
 **Delivers:** Prospective users can read and navigate an accurate public account of the
 stabilization release on both documentation and landing surfaces.
@@ -4529,7 +4529,7 @@ stabilization release on both documentation and landing surfaces.
       README/roadmap/release material, landing configuration and rendered browser snapshots.
 - **Depends on:** [W104](#w104), so the public review describes the verified compatibility
       candidate rather than work still moving underneath it.
-- **Status:** Not started.
+- **Status:** Complete. Closed via #393; all criteria (W105.1–W105.7) verified.
 - **Done when:**
   - W105.1 Canonical-to-human generation produces no diff on a second run, and the generated
         pages contain every amended contract/slice section with no hand-edited generated copy.
@@ -4552,7 +4552,7 @@ stabilization release on both documentation and landing surfaces.
 - **Out of scope:** redesigning the site, adding a playable client, changing product strategy
       beyond making its current status explicit, deploying, or publishing the npm package.
 
-### [ ] W106 — Tracker Evidence Closure {#w106}
+### [x] W106 — Tracker Evidence Closure {#w106}
 
 **Delivers:** Maintainers can trust that every resolved engine issue links to immutable evidence,
 while genuinely unavailable Presentation work remains visibly blocked instead of falsely closed.
@@ -4563,7 +4563,7 @@ while genuinely unavailable Presentation work remains visibly blocked instead of
       canonical decisions/slices only where the recorded outcome requires correction.
 - **Depends on:** [W93](#w93)–[W105](#w105). It closes evidence; it does not substitute issue
       closure for unfinished implementation.
-- **Status:** Not started.
+- **Status:** Complete. Closed via #394; all criteria (W106.1–W106.7) verified.
 - **Done when:**
   - W106.1 A frozen inventory records every open engine issue number, title, current state,
         owning W criterion or explicit non-programme disposition, and immutable implementation,

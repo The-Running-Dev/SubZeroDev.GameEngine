@@ -276,9 +276,9 @@
 
 ### [x] W104 — Release 0.11 Compatibility Sweep {#w104}
 
-### [ ] W105 — Documentation and Landing Publication Review {#w105}
+### [x] W105 — Documentation and Landing Publication Review {#w105}
 
-### [ ] W106 — Tracker Evidence Closure {#w106}
+### [x] W106 — Tracker Evidence Closure {#w106}
 
 ### [ ] W107 — 0.11 Release Candidate Verification {#w107}
 
