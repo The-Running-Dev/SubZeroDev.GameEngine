@@ -4662,3 +4662,198 @@ as the next publication, while the actual publish remains a separate explicit ac
         separate explicit user action.
 - **Out of scope:** performing the publication, choosing credentials, deploying the site,
       announcing the release, or adding any feature/fix after the verified candidate.
+
+### Depth: The Five GameOfLife Engine Blockers
+
+Five contract amendments dated 2026-09-07 in `90-decisions.md` each close a gap a *Life in the
+Fast Lane* issue named, and **every one is contract-only**: the types and rules are stated, and
+nothing in `src/engine` reads them. They are **0.12 scope** — [W108](#w108)'s own scope forbids
+adding a feature after the verified 0.11 candidate — and they stay **1:1 with their upstream
+issues**, so one engine unit answers one game issue rather than one unit answering two.
+
+Ordered by blast radius, not by issue number: the two that change no state and move no fixture
+first, the two that move cash trajectories next, and the one that bumps `kindVersion` last and
+alone. `plans/50-gameoflife-engine-blockers.md` carries the sizing this ordering came from, and
+the four user decisions behind it. **[W111](#w111) closes the already-open engine issue #418**;
+the other four have no engine issue yet.
+
+### [ ] W109 — A Uniform That Makes Its Wearer More Employable {#w109}
+
+**Delivers:** Lets a campaign author write an item or trait whose effect is on how the world
+regards the player — a work uniform that makes its wearer more employable, a scandal that fades
+when it expires — instead of only on their needs, attributes and skills. Reputation is something
+the game already stores and already reads; until now nothing an author could write was able to
+move it.
+
+- **Spec:** [§6.1](10-simulation-kind.md#61-base-and-derived-values)'s `DerivedPath` union and
+      its writable/formula-only partition, [§6.2](10-simulation-kind.md#62-the-shared-actor-shape)'s
+      stored `reputation` record, [§7.1](10-simulation-kind.md#7-content-definition-types)'s
+      writable-target table, and `90-decisions.md`'s 2026-09-07 `W105.1` entry.
+- **Touches:** the kind's derived-value layer and its Tier 1 modifier-target check, plus their
+      tests. No state shape change, no campaign change, no fixture regeneration.
+- **Depends on:** [W108](#w108), for scheduling only — this is the first unit of 0.12 and must
+      not land against the verified 0.11 candidate.
+- **Status:** Not started.
+- **Done when:**
+  - W109.1 A campaign whose `Modifier.target` is `player.reputation.<key>` passes Tier 1
+        validation, and the same campaign is rejected before this unit; the writable prefix set
+        grows by exactly one entry and the `calendar.committedTimeUnits` exception is unchanged.
+  - W109.2 Resolving `player.reputation.<key>` returns the stored base with every active
+        modifier layered over it in §6.1's fixed `add`/`subtract` → `multiply` → `set` order,
+        clamped to `0–100` — the same treatment `player.skills.*` already gets.
+  - W109.3 When the effect expires, the same read returns the stored base again, unchanged;
+        nothing was written back to state at any point.
+  - W109.4 Resolving a reputation key the actor does not store returns no value rather than
+        `0`, matching the `player.skills.*` precedent line for line.
+  - W109.5 A `Modifier` targeting any of the four formula-only paths still fails Tier 1
+        `read_only_field`; state both counts — targets newly accepted, and targets still
+        rejected.
+  - W109.6 The replay corpus is byte-identical: no committed fixture moves, because no existing
+        campaign targets reputation.
+- **Out of scope:** travel-time effects — issue #108's bicycle is deliberately left unamended
+      and stays unexpressible after this unit; consuming reputation through
+      `CheckModifier.source`/`PerformanceFactor.source`, neither of which is dispatched by any
+      resolver today; authoring a campaign that uses the new target.
+
+### [ ] W110 — An NPC Who Already Remembers You {#w110}
+
+**Delivers:** Lets a scenario begin with an NPC who already has history with the player — a
+landlord who already distrusts them, a rival carrying an old grudge — instead of every
+acquaintance starting blank and accumulating a past only through play.
+
+- **Spec:** [§7.7](10-simulation-kind.md#77-npcs--definition-and-runtime-state)'s
+      `NPCDefinition.startingMemories` and the `NPCMemory` shape it carries, §14's
+      every-`LocKey`-resolves rule, and `90-decisions.md`'s 2026-09-07 `W105.4` entry.
+- **Touches:** the kind's NPC content type and whichever reducer first materialises an NPC's
+      runtime state, plus their tests.
+- **Depends on:** none.
+- **Status:** Not started.
+- **Done when:**
+  - W110.1 A campaign may author starting memories on an NPC definition; the resulting NPC's
+        memory list equals the authored list in authored order, with the author-supplied ids
+        preserved and no id minted from an `IdSource`.
+  - W110.2 A definition declaring no starting memories, or an empty list, produces an empty
+        memory list — today's behaviour — and every committed simulation fixture replays
+        byte-identically.
+  - W110.3 Memories are seeded once, at NPC creation: a memory removed or expired during play
+        does not reappear in a later week.
+  - W110.4 A starting memory whose `descriptionKey` resolves to nothing in the string table
+        fails Tier 1 validation; state both counts — campaigns accepted, and campaigns rejected
+        by this check.
+- **Out of scope:** what a week does to memories or relationships — the `relationships`
+      end-of-week system is contract prerequisite **P2** and has no rule to implement; memory
+      expiry mechanics; authoring starting memories into the *Stable Life* scenario.
+
+### [ ] W111 — Conditions That Can Ask "Do You Own One?" {#w111}
+
+**Delivers:** Lets an author write a goal or event that asks whether something exists in the
+player's world at all, and how many there are — a pending job application, an owned car, a
+course they are enrolled in. Every condition until now could only compare one value against
+another, which is why four planned *Stable Life* events could not be written.
+
+- **Spec:** [§8.2](10-simulation-kind.md#82-collections-for-existscount-w1055)'s closed
+      seven-path table, `04 §18`'s already-frozen `ExistsCondition`/`CountCondition` and
+      `ConditionResolver.collection` seam, §14's Tier 1 list, and `90-decisions.md`'s 2026-09-07
+      `W105.5` entry. Closes engine issue #418.
+- **Touches:** the kind's condition resolver, which throws unconditionally on any collection
+      today, and its Tier 1 validator, plus their tests.
+- **Depends on:** none.
+- **Status:** Not started.
+- **Done when:**
+  - W111.1 Each of §8.2's seven declared collection paths resolves to its state array and
+        supports both `exists` and `count`; state the count of paths accepted.
+  - W111.2 A `where` clause reads fields relative to a single array element: an `exists` over
+        the player's inventory testing `definitionId` `in` a list of ids matches when one of
+        those items is owned and does not match when none is.
+  - W111.3 Naming any other path — a scalar path, an unlisted array, a typo — fails Tier 1
+        `unknown_collection` at load time, never at first evaluation; state both counts, cases
+        accepted and cases rejected, and prove the load-time-not-runtime claim with a condition
+        placed on a branch the test never evaluates.
+  - W111.4 A `count` condition compares the match total against a number and is correct at
+        zero, at the comparison boundary, and above it.
+  - W111.5 A `where` naming a field the array element does not carry — an item's `category`,
+        which lives on the definition and never reaches the resolver — does not match, and a
+        test pins that outcome rather than leaving it to be discovered by an author.
+  - W111.6 No new core condition operator is introduced; `04 §18`'s `Condition` type is
+        unchanged by this unit.
+- **Out of scope:** joining a collection member against its content definition, which would need
+      a core-level `ConditionResolver` widening and is recorded as an open item; adding a new
+      core operator; authoring the four *Stable Life* events themselves.
+
+### [ ] W112 — A Car That Costs Money to Run {#w112}
+
+**Delivers:** Makes owning something cost money week after week, not only at the moment of
+purchase. A vehicle, a subscription, anything with a declared running cost now drains cash every
+week it is owned and working — which is what turns a cheap car with expensive upkeep into a real
+decision instead of a free asset.
+
+- **Spec:** [§7.5](10-simulation-kind.md#75-items)'s `ItemDefinition.weeklyCostCents`,
+      [§3](10-simulation-kind.md#3-the-turn-is-a-week)'s fixed end-of-week system order, and
+      `90-decisions.md`'s 2026-09-07 `W105.2` entry.
+- **Touches:** the `inventory` end-of-week system, its tests, and the replay fixtures whose cash
+      trajectories move.
+- **Depends on:** none mechanically. It is the first of the two units that move committed
+      fixtures, so it is scheduled after [W111](#w111) to keep the fixture churn off the three
+      units that cause none.
+- **Status:** Not started.
+- **Done when:**
+  - W112.1 The weekly cost of every owned item is summed and charged against cash in the same
+        pass that already decays condition, running after income and before housing — §3's
+        existing order, unchanged.
+  - W112.2 The charge is per owned instance, not per definition: a player holding three
+        instances of one definition is charged three times.
+  - W112.3 An item declaring no weekly cost contributes zero, and an item at zero condition
+        contributes zero — the same broken-item rule that already stops its effects applying.
+  - W112.4 The charge is unconditional and may take cash negative; no missed amount is recorded,
+        no arrears field is added, and nothing is repossessed or disabled for non-payment.
+  - W112.5 The regression test is the charge itself, verified by reverting the charge and
+        confirming the test fails.
+  - W112.6 Every regenerated replay fixture is named in the pull request with the cash delta
+        that explains it; no fixture is regenerated without an explanation.
+- **Out of scope:** any arrears, repossession or collections mechanism for unpaid running costs;
+      charging conditional on the item having been used that week; branching charge semantics on
+      an item's free-text `category`; housing's own utilities and transport, which are
+      [W113](#w113).
+
+### [ ] W113 — Utilities and Transport on the Weekly Bill {#w113}
+
+**Delivers:** Makes the weekly cost of a home read like an actual bill — rent, utilities and
+transport as separate lines — and gives owning a vehicle a payoff, because the transport line is
+waived for anyone who has one. A player weighing a cheap flat with a long commute against a
+dearer one nearby finally has the numbers in front of them.
+
+- **Spec:** [§7.4](10-simulation-kind.md#74-housing)'s `utilitiesCents`/`transportCents` and the
+      reserved `"vehicle"` tag, [§6.9](10-simulation-kind.md#69-housing)'s `HousingState`,
+      [§3](10-simulation-kind.md#3-the-turn-is-a-week)'s `housing` and `finance_reconcile`
+      systems, `04 §10.2`'s `kindVersion`/`Kind.migrateState` axis, and `90-decisions.md`'s
+      2026-09-07 `W105.3` entry including its same-day revision.
+- **Touches:** the kind's housing content and runtime types, the `housing` end-of-week system
+      and the item definitions threaded into it, the kind's version and migration hook, migration
+      tests, and the replay fixtures whose cash trajectories move.
+- **Depends on:** [W112](#w112). **Do this one last and alone** — it is the only one of the five
+      that changes a persisted state shape, so batching it means either two version bumps or a
+      unit that does not fit one session.
+- **Status:** Not started.
+- **Done when:**
+  - W113.1 A housing definition may declare utilities and transport costs; both absent means
+        zero, and a campaign declaring neither charges exactly what it charges today.
+  - W113.2 Both are stamped onto the player's housing state at move-in, exactly as rent already
+        is; editing the definition afterwards does not change an existing tenancy's charge.
+  - W113.3 The weekly charge is rent plus utilities plus effective transport as one combined
+        levy against cash, in the pass rent already used, and cash may go negative — the same
+        "wages before costs" ordering rent alone already proves.
+  - W113.4 A shortfall against the combined total advances the same
+        overdue/missed-payments/eviction ladder rent alone drove; no separate utilities or
+        transport arrears state exists, and no second reconciliation rule is added.
+  - W113.5 Transport is charged as zero for a week in which the player holds at least one
+        inventory item above zero condition whose definition tags include the literal
+        `"vehicle"`; a broken vehicle does not waive it, and utilities are never waived.
+  - W113.6 The kind version is bumped and a migration is attached; a fixture holding a save
+        written at the previous version round-trips through load with both new fields defaulted
+        to zero.
+  - W113.7 Every regenerated replay fixture is named in the pull request with the cash delta
+        that explains it.
+- **Out of scope:** separate arrears tracking or a bill-paying action for utilities and
+      transport; promoting `"vehicle"` from a reserved literal to a type; scaling utilities by
+      housing tier in engine code — the game's own baseline scales it per definition, as
+      authored numbers; the per-actor travel-time mechanism still deferred by [W109](#w109).
