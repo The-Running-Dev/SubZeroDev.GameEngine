@@ -1,6 +1,6 @@
 {
-  "manifestHash": "f81a89827368c8a332292c8c261576a17bba1e485494e24a84481fc7477df9b6",
-  "generated": "2026-09-05",
+  "manifestHash": "99613504a79e33642cfb4ca87cea6cebbd275850755e3509b9dd073c8fa13b66",
+  "generated": "2026-09-12",
   "gates": [
     {
       "name": "Typecheck",
@@ -61,6 +61,10 @@
     {
       "name": "Negative fixture -- corrupted artifact must fail to start",
       "command": "docker build negative fixture"
+    },
+    {
+      "name": "Release guards (non-publishing)",
+      "command": "node src/engine/scripts/verify-release.mjs tag --tag v<version>; ... clean; ... archive; ... registry"
     }
   ]
 }
