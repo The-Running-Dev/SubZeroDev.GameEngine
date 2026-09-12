@@ -95,7 +95,7 @@ jobs:
       - name: Record the registry guard's outcome
         if: always()
         run: |
-          printf '- Registry availability guard: **%s** (mode `%s`)\n' \
+          printf -- '- Registry availability guard: **%s** (mode `%s`)\n' \
             "${{ steps.registry.outcome }}" "${{ steps.mode.outputs.mode }}" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Install dependencies

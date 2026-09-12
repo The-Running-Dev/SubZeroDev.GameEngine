@@ -35,6 +35,12 @@ cannot be computed before that commit exists. So the release-only change is comm
 nothing the archive contains. That second commit is **not** the tested candidate, and the
 authorization in §8 binds to the SHA it names, never to wherever `main` has since moved.
 
+The same applies to any commit after the evidence one. Commits on this branch that follow
+`2b525d3` fix the verification path, not the package: the archive contains `dist/`,
+`package.json` and `README.md` only, so a change to a workflow, a guard test or this checklist
+cannot alter its bytes. The digest in §1.1 is the check on that claim — re-pack and compare
+rather than trusting this paragraph.
+
 ### 1.1 Recorded candidate
 
 <!-- candidate:start -->

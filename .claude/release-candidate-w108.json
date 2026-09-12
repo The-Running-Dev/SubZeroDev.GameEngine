@@ -12,7 +12,13 @@
   "archiveEntries": 332,
   "archiveRetainedAt": "%TEMP%/w108-artifacts/the-running-dev-game-engine-0.11.0.tgz (local run; not committed — a 400 KB binary does not belong in the tree, and the digest is the identity)",
   "baselineTag": "v0.10.0",
-  "toolchain": { "node": "v25.3.0", "npm": "11.7.0", "pwsh": "7.6.6", "dotnet": "10.0.401", "os": "Windows 11 Enterprise 10.0.26200" },
+  "toolchain": {
+    "node": "v25.3.0",
+    "npm": "11.7.0",
+    "pwsh": "7.6.6",
+    "dotnet": "10.0.401",
+    "os": "Windows 11 Enterprise 10.0.26200"
+  },
   "toolchainNote": "CI pins Node 24; this run used the locally installed Node 25.3.0. The package declares engines.node >= 24, so both satisfy it, but this is a difference from the CI image and is recorded rather than glossed.",
   "companionCommits": {
     "SubZeroDev.ServiceContract": "5d3fb8e6ebeb8fb6200e36ebc61df107ad355ce7",
@@ -280,5 +286,6 @@
       "W108.3 — W98.2 stays unchecked: its browser half is in a companion repository and the criterion has no cross-repository form."
     ],
     "statement": "This records release preparation and a full fresh verification pass. It does not authorize publication. Two of the six blockers are environmental and close on the pull request's own CI; two are decisions for the user; one is a companion-side fix outside W108; one is an unavailable database profile."
-  }
+  },
+  "postCandidateCommits": "Commits after 2b525d3 on this branch touch the verification path only (the release workflow, this record, RELEASE.md). The archive contains dist/, package.json and README.md, so none of them can change its bytes; the digest above is the check on that. The first of them fixes a defect the new validation path found in itself: the summary step ran `printf '- Registry availability guard...'`, whose format string starts with a dash, so bash read it as an option and the job exited 2. The guards themselves all passed in that run — the registry guard reported success in validate mode. That is the validation path doing its job on its first real execution, and it is the reason W108.5 asked for one."
 }
