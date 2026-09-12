@@ -3943,6 +3943,12 @@ has been mis-sized rather than under-resourced.
 The W88/W89 reconciliation closes the existing defined programme. The following units are
 the additive `0.11.0` programme; W90–W92 make `0.10.0` honest and releasable first.
 
+**`0.10.0` was tagged and never published.** Its release run failed in 11 seconds on a shell
+syntax error inside the tag/version guard, before any publish step, so the registry still holds
+`0.4.0`, `0.5.0` and `0.8.0` only. W90–W92 made the package reproducible, which is not the same
+as shipped — and the failure is why [W108](#w108)'s W108.5 requires those guards to be
+executable without pushing a tag.
+
 ### [x] W90 — Canonical and Public Truth {#w90}
 
 **Delivers:** A canonical ledger, generated documentation, README, landing page, and roadmap

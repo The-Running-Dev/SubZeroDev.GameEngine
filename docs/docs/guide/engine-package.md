@@ -66,13 +66,30 @@ comparison (07 §8) runs the corpus against the previous tag.
 ## Companion Consumption
 
 The package is `@the-running-dev/game-engine`, published publicly to GitHub Packages. The
-latest published version is **`0.8.0`**; source is prepared as `0.10.0` for the next tagged
-release.
+registry holds `0.4.0`, `0.5.0` and `0.8.0`, so the latest published version is **`0.8.0`**;
+source is prepared as `0.11.0` for the next tagged release. `0.10.0` was tagged and never
+published — its release run failed before the publish step — which is why the version on the
+registry is two releases behind the source.
 
 `release-engine-package.yml` runs on a `v*` tag push and ships whatever
 `src/engine/package.json` says at that tag, so the manifest version and the tag move together.
 Release tags are expected to match `src/engine/package.json` exactly; the release workflow
 verifies that relationship before publication.
+
+It also runs in a **non-publishing validation mode** — on `workflow_dispatch` with a
+prospective tag, and on any pull request that touches the package manifest, the lockfile, the
+guards or the workflow. Validation runs the same guards, the same clean pack, the same archive
+inspection and the same packed-consumer smoke, then proves each guard rejects: a mismatched
+tag, a dirty candidate tree, and an archive modified after its digest was recorded. The publish
+step is unreachable there, because the mode is derived from the trigger rather than from an
+input — only a real `refs/tags/v*` push returns `publish`.
+
+The guards themselves are `src/engine/scripts/verify-release.mjs`, unit-tested alongside the
+engine, so they can be run and fixed without pushing a tag. That matters: the previous inline
+shell version could only execute by doing the one thing a release-readiness check must not do.
+Two of its behaviours were wrong until the guards moved here — `npm publish` re-packed instead
+of publishing the inspected archive, and a failing `npm view` was read as "this version is
+free" when an unauthenticated, forbidden or unreachable registry fails identically.
 
 > **On visibility.** The package is deliberately public. The repository and its companion
 > consumers are public, so private package visibility would add authentication without adding a

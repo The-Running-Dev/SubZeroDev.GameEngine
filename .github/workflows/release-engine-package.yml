@@ -1,19 +1,45 @@
 name: release-engine-package
 
+# Two paths through one job, so the guards that gate a publication are the guards a
+# validation run exercises (W108.5):
+#
+#   * `push` of a `v*` tag  -> mode `publish`. The only path that reaches `npm publish`.
+#   * `workflow_dispatch` / `pull_request` -> mode `validate`. Same guards, same pack, same
+#     archive inspection, same consumer smoke, plus the guard negatives — and the publish
+#     step is unreachable, because `mode` only ever returns `publish` for a real tag push.
+#
+# Before this split the guards could only run by pushing a tag, which is why the
+# escaped-quote bug that failed the `v0.10.0` run (run 33721497785) was fixed blind and
+# never executed. The guard logic itself now lives in `src/engine/scripts/verify-release.mjs`
+# so it is unit-tested (`scripts/verify-release.test.ts`) rather than inlined here.
+
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Prospective release tag to validate, e.g. v0.11.0. Nothing is published."
+        required: true
+        type: string
+  pull_request:
+    paths:
+      - "src/engine/package.json"
+      - "src/engine/package-lock.json"
+      - "src/engine/scripts/verify-release.mjs"
+      - "src/engine/scripts/verify-release.test.ts"
+      - ".github/workflows/release-engine-package.yml"
 
 permissions:
   contents: read
   packages: write
 
 jobs:
-  publish:
-    name: publish game-engine package
+  release:
+    name: release game-engine package
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -24,81 +50,176 @@ jobs:
           node-version: 24
           registry-url: https://npm.pkg.github.com
 
-      - name: Configure scoped registry
+      # A validation run has no tag of its own, so it validates against the tag the current
+      # manifest would require. That is the whole point: the candidate is checked before a
+      # tag exists, not after one has been pushed.
+      - name: Resolve release mode and tag
+        id: mode
         working-directory: src/engine
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          GIT_REF: ${{ github.ref }}
+          INPUT_TAG: ${{ inputs.tag }}
         run: |
-          npm config set @the-running-dev:registry https://npm.pkg.github.com
+          input_tag="$INPUT_TAG"
+          if [ -z "$input_tag" ]; then
+            input_tag="v$(node -p "require('./package.json').version")"
+          fi
+          node scripts/verify-release.mjs mode \
+            --event "$EVENT_NAME" --ref "$GIT_REF" --input-tag "$input_tag" | tee mode.txt
+          grep -E '^(mode|tag)=' mode.txt >> "$GITHUB_OUTPUT"
+          rm mode.txt
 
-      - name: Verify tag, version, and package availability
+      - name: Guard — the tag and the manifest name the same release
+        working-directory: src/engine
+        run: node scripts/verify-release.mjs tag --tag "${{ steps.mode.outputs.tag }}"
+
+      - name: Guard — the candidate is a committed tree
+        working-directory: src/engine
+        run: node scripts/verify-release.mjs clean --root "$GITHUB_WORKSPACE"
+
+      # Exit 2 is "could not be evaluated", which is not a pass. In validation mode that is
+      # recorded and the run continues; a publish run requires a real answer.
+      - name: Guard — this version is not already published
+        id: registry
+        continue-on-error: ${{ steps.mode.outputs.mode != 'publish' }}
         working-directory: src/engine
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          printf '//npm.pkg.github.com/:_authToken=%s\n' "$NODE_AUTH_TOKEN" > .npmrc
-          test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
-          if npm view "@the-running-dev/game-engine@$(node -p "require('./package.json').version")" version >/dev/null 2>&1; then
-            echo "Package version already exists"
-            exit 1
-          fi
+          node scripts/verify-release.mjs registry \
+            --package "$(node -p "require('./package.json').name")" \
+            --version "$(node -p "require('./package.json').version")" | tee registry.txt
+          rm registry.txt
+
+      - name: Record the registry guard's outcome
+        if: always()
+        run: |
+          printf '- Registry availability guard: **%s** (mode `%s`)\n' \
+            "${{ steps.registry.outcome }}" "${{ steps.mode.outputs.mode }}" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Install dependencies
         working-directory: src/engine
         run: npm ci
 
-      - name: Verify engine and packed consumer
+      - name: Verify engine
         run: |
           npm --prefix src/engine run typecheck
           npm --prefix src/engine run lint
           npm --prefix src/engine test
 
-      # `prepack` starts by removing dist, so this is the package that would
-      # publish from a clean checkout. Keep its path as an output: the smoke
-      # below must install this inspected archive, never a second pack.
+      # `prepack` starts by removing dist, so this is the package that would publish from a
+      # clean checkout. The sentinel proves that: a file planted in dist beforehand must not
+      # survive into the archive. Keep the tarball path as an output — every later step must
+      # use this archive, never a second pack.
       - name: Pack clean package
-        id: pack-package
+        id: pack
         working-directory: src/engine
         run: |
+          mkdir -p dist
+          printf 'stale output from a previous build\n' > dist/stale-sentinel.txt
           tarball="$(npm pack --silent)"
           test -n "$tarball"
           test -f "$tarball"
+          if tar -tzf "$tarball" | grep -q 'stale-sentinel'; then
+            echo "the clean build did not remove stale dist output"
+            exit 1
+          fi
           echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
 
-      - name: Inspect tarball contents
+      - name: Guard — inspect the archive and record its digest
+        id: archive
         working-directory: src/engine
-        env:
-          TARBALL: ${{ steps.pack-package.outputs.tarball }}
         run: |
-          entries="$(tar -tzf "$TARBALL")"
-          if echo "$entries" | grep -qE '(^|/)src/'; then
-            echo "tarball contains source files under src/"
-            exit 1
-          fi
-          if echo "$entries" | grep -qE '(^|/)tsconfig[^/]*\.json$'; then
-            echo "tarball contains tsconfig JSON files"
-            exit 1
-          fi
-          if echo "$entries" | grep -qE '\.test\.(js|mjs|ts|c?js|d\.ts|js\.map|mjs\.map|ts\.map)$'; then
-            echo "tarball contains test build artifacts"
-            exit 1
-          fi
-          if ! echo "$entries" | grep -q '^package/dist/'; then
-            echo "tarball does not contain dist output"
-            exit 1
-          fi
+          node scripts/verify-release.mjs archive \
+            --archive "${{ steps.pack.outputs.tarball }}" | tee archive.txt
+          grep -E '^digest=' archive.txt >> "$GITHUB_OUTPUT"
+          rm archive.txt
 
-      - name: Verify packed consumer
+      - name: Verify packed consumer against that archive
         env:
-          ENGINE_TARBALL: ${{ github.workspace }}/src/engine/${{ steps.pack-package.outputs.tarball }}
+          ENGINE_TARBALL: ${{ github.workspace }}/src/engine/${{ steps.pack.outputs.tarball }}
         run: |
           npm --prefix consumer-smoke ci
           npm --prefix consumer-smoke run install:engine
           npm --prefix consumer-smoke run build
           npm --prefix consumer-smoke run smoke
 
+      - name: Guard — the archive the consumer used is still the inspected archive
+        working-directory: src/engine
+        run: |
+          node scripts/verify-release.mjs archive \
+            --archive "${{ steps.pack.outputs.tarball }}" \
+            --expect "${{ steps.archive.outputs.digest }}"
+
+      # Negative evidence. A guard that has never rejected anything is not known to
+      # constrain anything, so a validation run proves each rejection against this very
+      # candidate. Each case must exit 1; exiting 0 fails the step.
+      - name: Guard negatives — mismatched tag, dirty tree, substituted archive
+        if: steps.mode.outputs.mode != 'publish'
+        working-directory: src/engine
+        run: |
+          set -u
+          # `set +e` around the call is load-bearing: `if cmd; then` would swallow the exit
+          # code, and this asserts the exact code — 1 is "rejected", 2 is "could not be
+          # evaluated", and only 1 is evidence that the guard fired.
+          expect_rejected() {
+            label="$1"
+            shift
+            set +e
+            "$@"
+            status=$?
+            set -e
+            if [ "$status" -eq 0 ]; then
+              echo "NOT REJECTED: $label"
+              exit 1
+            fi
+            if [ "$status" -ne 1 ]; then
+              echo "WRONG EXIT for $label: expected 1 (rejected), got $status"
+              exit 1
+            fi
+            printf -- '- Rejected as expected: %s\n' "$label" >> "$GITHUB_STEP_SUMMARY"
+          }
+
+          expect_rejected "a tag that does not match the manifest version" \
+            node scripts/verify-release.mjs tag --tag v0.0.0
+
+          printf '\n' >> ../../README.md
+          expect_rejected "a candidate tree with a tracked modification" \
+            node scripts/verify-release.mjs clean --root "$GITHUB_WORKSPACE"
+          git -C "$GITHUB_WORKSPACE" checkout -- README.md
+
+          cp "${{ steps.pack.outputs.tarball }}" substituted.tgz
+          printf 'appended\n' >> substituted.tgz
+          expect_rejected "an archive modified after its digest was recorded" \
+            node scripts/verify-release.mjs archive --archive substituted.tgz \
+              --expect "${{ steps.archive.outputs.digest }}"
+          rm substituted.tgz
+
+      # The only step that publishes, and it is reachable only when `mode` returned
+      # `publish` — which needs a real `refs/tags/v*` push. It re-verifies the digest first
+      # and then publishes that exact archive, so the bytes inspected above are the bytes
+      # that ship; `npm publish` with no argument would pack a second, unverified time.
       - name: Publish package
+        if: steps.mode.outputs.mode == 'publish'
         working-directory: src/engine
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          node scripts/verify-release.mjs archive \
+            --archive "${{ steps.pack.outputs.tarball }}" \
+            --expect "${{ steps.archive.outputs.digest }}"
           printf '//npm.pkg.github.com/:_authToken=%s\n' "$NODE_AUTH_TOKEN" > .npmrc
-          npm publish
+          npm publish "${{ steps.pack.outputs.tarball }}"
+
+      - name: Report the candidate
+        if: always()
+        run: |
+          {
+            printf '\n## Candidate\n\n'
+            printf -- '- Mode: `%s`\n' "${{ steps.mode.outputs.mode }}"
+            printf -- '- Tag: `%s`\n' "${{ steps.mode.outputs.tag }}"
+            printf -- '- Commit: `%s`\n' "$GITHUB_SHA"
+            printf -- '- Archive: `%s`\n' "${{ steps.pack.outputs.tarball }}"
+            printf -- '- Archive sha256: `%s`\n' "${{ steps.archive.outputs.digest }}"
+          } >> "$GITHUB_STEP_SUMMARY"

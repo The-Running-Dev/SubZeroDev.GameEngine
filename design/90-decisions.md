@@ -1574,3 +1574,62 @@ Reversibility: cheap — three prose/table edits in one canonical file, revertib
 Leaving it open is the more expensive direction: an implementer who reads §14 first implements the
 wrong writable set, and a client author who reads §10's table ships without a code the validator
 can return.
+
+### 2026-09-12 — Open: no registry-supported withdrawal operation is known to work on GitHub Packages
+
+Context: found while writing W108's release checklist. W108.2 requires the checklist to name a
+"rollback/deprecation procedure", and the honest answer is that this repository has never run one.
+`npm deprecate` and `dist-tag` management are the operations a release owner would reach for, and
+both are documented against the npmjs registry; this package publishes to GitHub Packages, where
+neither has been exercised here. Writing an npmjs procedure into the checklist would be describing
+a capability nobody has tested.
+
+What `RELEASE.md` §7 says instead: `0.11.0` is never overwritten, republished or reused and its
+tag never moves; the last known-good published version is `0.8.0` (`dist-tags.latest`); recovery
+is consumer-side rollback to a pinned `0.8.0` plus publishing a corrected higher version. Every
+companion pins exact versions rather than ranges, so that rollback is a one-line change per
+consumer and needs no registry operation at all — which is why the gap is a documentation gap and
+not an operational one.
+
+**This is why W108.2 is not claimed complete.** The criterion asks for a procedure, and a stated
+limitation is not a procedure. Closing it needs one real experiment: deprecate a published version
+that is already superseded — `0.4.0` or `0.5.0`, never `latest` — record whether GitHub Packages
+accepts it, and write the result up. That is a mutation of the public registry, so it is the user's
+call and not something W108 may do under its own W108.6.
+
+Reversibility: the experiment is the expensive direction, not the documentation. A deprecation
+cannot be cleanly undone on every registry, which is the reason to run it against a version nothing
+consumes rather than to keep deferring it.
+
+### 2026-09-12 — Open: W98.2's browser half now lives in a companion repository, and the criterion has no cross-repository form
+
+Context: found while reconciling W93–W107 criterion-level evidence for W108.3. W98.2 requires the
+text client, MCP `list_campaigns`, and "the browser shelf" to render the same resolved titles
+without starting a session or reading `ContentRegistry`. The text and MCP halves are covered by
+this repository's own suites. The browser half is not in this repository any more: `/play/` was
+retired (`10-design.md`, *Succeeded by SubZeroDev.Adventures*), and the browser surface is
+`SubZeroDev.Adventures`, where `src/play/browser-client.ts` exposes a session-free
+`listCampaigns()` over the store and `src/play/PlayerHome.tsx` renders the catalog entry's resolved
+`title`.
+
+So the behaviour exists and is tested — in a repository this one does not gate. Three things are
+worth separating, because conflating them is how this criterion would get quietly closed:
+
+- **Retiring `/play/` did not retire catalog parity.** W107.4's correction retired a *separate*
+  "no engine API" container smoke. That is a different assertion about a different surface.
+- **A companion's own green suite is not this criterion's proof.** The criterion is about three
+  surfaces agreeing. Evidence for the third at an unpinned companion commit does not establish
+  agreement at this candidate.
+- **Recreating a browser shelf here to satisfy the wording would be the worst outcome** — it
+  reintroduces the surface `10-design.md` retired, to prove a claim about a surface that moved.
+
+Two defensible resolutions, neither of which W108 may pick unilaterally: a cross-repository parity
+proof that pins the Adventures commit and asserts the same resolved titles against the same
+candidate archive; or a narrowly scoped amendment restating W98.2 over the surfaces this
+repository actually ships, with the browser half reassigned to the client contract. **Until one
+lands, W98.2 stays unchecked and W108.3 is not satisfiable** — which is exactly what `RELEASE.md`
+§8 records rather than absorbing into a summary status.
+
+Reversibility: the amendment is cheap and revertible; the parity proof is a standing
+cross-repository dependency, which is the more expensive commitment of the two and the reason this
+is a decision rather than a task.
