@@ -21,9 +21,9 @@ Readiness status, and the wording that authorizes publication, is in
 | Package | `@the-running-dev/game-engine` |
 | Version | `0.11.0` |
 | Required tag | `v0.11.0` (the guard rejects any other tag against this manifest) |
-| Candidate commit | _recorded in §1.1 by the evidence commit — see the note below_ |
-| Archive | _recorded in §1.1_ |
-| Archive SHA-256 | _recorded in §1.1_ |
+| Candidate commit | `2b525d38d6876829b35e9f5ff5fcf22af421f082` (see §1.1) |
+| Archive | `the-running-dev-game-engine-0.11.0.tgz` |
+| Archive SHA-256 | `53d5c1787d548e6b1defa35b48fe2301c9484a8e2d03f7523509abd9266b9db0` |
 | Baseline for compatibility | tag `v0.10.0` |
 | Registry | `https://npm.pkg.github.com` (GitHub Packages) |
 | Intended visibility | public — the decision is in `design/90-decisions.md` §2 and is **not** reopened here |
@@ -40,14 +40,17 @@ authorization in §8 binds to the SHA it names, never to wherever `main` has sin
 <!-- candidate:start -->
 | | |
 |---|---|
-| Candidate commit | NOT YET RECORDED |
-| Candidate committed | NOT YET RECORDED |
-| Archive | NOT YET RECORDED |
-| Archive SHA-256 | NOT YET RECORDED |
-| Node / npm | NOT YET RECORDED |
+| Candidate commit | `2b525d38d6876829b35e9f5ff5fcf22af421f082` |
+| Candidate committed | 2026-09-12T17:41:02+03:00 |
+| Archive | `the-running-dev-game-engine-0.11.0.tgz` |
+| Archive SHA-256 | `53d5c1787d548e6b1defa35b48fe2301c9484a8e2d03f7523509abd9266b9db0` |
+| Archive entries | 332 |
+| Node / npm | Node v25.3.0, npm 11.7.0 |
 
-> Filled in by the evidence commit that follows the candidate. While any row reads NOT YET
-> RECORDED, nothing in this file authorizes anything.
+The archive digest was re-verified after the packed-consumer smoke and again after every
+companion run, unchanged each time. CI pins Node 24 and this run used Node 25.3.0; the package
+declares `engines.node >= 24`, so both satisfy it, but the difference is recorded rather than
+glossed.
 <!-- candidate:end -->
 
 The full per-gate record — command, exit code, duration, digest, evidence link, and every row
@@ -201,17 +204,25 @@ is a registry-supported deprecation of that exact version, leaving it installabl
 
 **0.11.0 readiness blocked.**
 
-The candidate is prepared and verified as far as this environment allows, but three criteria are
-not established, so the authorization wording is deliberately not used:
+The full W107 matrix was rerun against the candidate in §1.1 — not carried forward from the
+September 7 record, which is history. Most of it holds. Six things do not, and the authorization
+wording in the brief is therefore deliberately not used:
 
-| Criterion | Blocker |
-|---|---|
-| W108.2 | The registry-supported deprecation/withdrawal operation for GitHub Packages is undocumented and untested here. §7 states the limitation instead of a procedure, which is honest but is not the criterion. |
-| W108.3 | W98.2 and W98.7 remain unchecked on [#386](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/386). §9 below records the evidence found for each and what is still missing. |
-| W107.3 / W107.4 | The production Docusaurus build and the host container smoke need Docker, which was unavailable in this run. Both are listed as unavailable in the report, not as passes. |
+| # | Criterion | Blocker | Whose call |
+|---|---|---|---|
+| 1 | W107.5 | **SubZeroDev.GameOfLife does not compile against the candidate engine.** `stable-life.ts` is missing `projects` and `businesses`, required on `SimulationCampaignSource` since W101. One typecheck error, 18 of 71 tests failing from it. **Not caused by 0.11.0** — re-pinning the submodule to the W107 candidate `31a24c3` reproduces the identical error, so it has existed since 2026-08-31 and W107's cited companion row did not detect it. | A companion-side fix, out of W108's scope by that unit's own terms |
+| 2 | W107.3 | The production Docusaurus build did not run: the Docker daemon is down and `docs.ps1` is not installed in this worktree. It is the only gate that resolves routes and heading anchors. | Closes on this pull request's **Verify Documentation Build** check |
+| 3 | W107.4 | The host container smoke, its route/probe 200s, its 404, its missing-artifact negative fixture and the host image digest did not run — same missing Docker daemon. The host's own 12 tests pass. | Closes on the **Platform Static Host Image** workflow |
+| 4 | W107.5 | SubZeroDev.Platform's durable/Postgres profile could not run — `ECONNREFUSED 127.0.0.1:5432`, and no Docker to start a database. 52 of 198 tests unrun; the 145 in-memory tests pass against the retained archive. | Needs a Postgres, or a CI run of that profile |
+| 5 | W108.2 | No registry-supported withdrawal operation is known to work on GitHub Packages, so §7 states a limitation rather than a procedure. | The user — closing it means deprecating a published version |
+| 6 | W108.3 | W98.2 stays unchecked; its browser half is in a companion repository and the criterion has no cross-repository form. See §9. | The user — a parity proof or a scoped amendment |
 
-The full per-criterion position is in `.claude/release-candidate-w108.json` and in
-`design/30-slices.md`'s W107/W108 entries. No aggregate status overrides an unchecked criterion.
+Blockers 2, 3 and 4 are environmental, not findings about the candidate. Blocker 1 is a real
+finding, and the most valuable thing the rerun produced: it is exactly what carrying the W107
+companion evidence forward would have hidden.
+
+The full per-gate record is `.claude/release-candidate-w108.json`. No aggregate status overrides
+an unchecked criterion, and nothing in this file authorizes publication.
 
 ## 9. W93–W107 criterion-level reconciliation
 
@@ -241,6 +252,17 @@ thing as the criterion's own proof, and retiring `/play/` did not retire catalog
 criterion needs either a cross-repository parity proof or a narrowly scoped amendment through the
 design process. **It stays blocked**; `/play/` was not recreated and the browser was not quietly
 dropped.
+
+
+**W107.5's companion row, reconciled.** The W107 report recorded this as Passed by citing issue
+#392's point-in-time proof, because none of the four companion repositories were checked out in
+that environment. All four were available for this rerun and all four were run fresh —
+ServiceContract at its own commit (59 tests), Adventures and GameOfLife with their engine
+submodules temporarily detached to the candidate SHA, and Platform with the retained 0.11.0
+archive vendored in place of its 0.10.0 one. Every substitution was reverted and verified
+afterwards. The run found what the citation could not: GameOfLife has not compiled against a
+candidate engine since W101. The citation was not wrong about anything it claimed; it simply
+could not have detected this, which is the argument for running rather than carrying forward.
 
 ## 10. Scope fence
 

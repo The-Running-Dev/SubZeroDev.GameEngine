@@ -1,0 +1,284 @@
+{
+  "unit": "W108",
+  "supersedes": ".claude/release-candidate-w107.json",
+  "note": "A fresh rerun of the complete W107 matrix against the final 0.11.0 candidate, per the W108 completion brief of 2026-09-12. The W107 record is history: its candidate, its archive and its W107.4 requirement have all been superseded. No row here carries a W107 result forward.",
+  "candidateCommit": "2b525d38d6876829b35e9f5ff5fcf22af421f082",
+  "candidateCommittedAt": "2026-09-12T17:41:02+03:00",
+  "candidateBranch": "feature/w108-completion-brief-9fd7d2",
+  "packageVersion": "0.11.0",
+  "lockfileVersion": "0.11.0",
+  "archiveFile": "the-running-dev-game-engine-0.11.0.tgz",
+  "archiveDigest": "sha256:53d5c1787d548e6b1defa35b48fe2301c9484a8e2d03f7523509abd9266b9db0",
+  "archiveEntries": 332,
+  "archiveRetainedAt": "%TEMP%/w108-artifacts/the-running-dev-game-engine-0.11.0.tgz (local run; not committed — a 400 KB binary does not belong in the tree, and the digest is the identity)",
+  "baselineTag": "v0.10.0",
+  "toolchain": { "node": "v25.3.0", "npm": "11.7.0", "pwsh": "7.6.6", "dotnet": "10.0.401", "os": "Windows 11 Enterprise 10.0.26200" },
+  "toolchainNote": "CI pins Node 24; this run used the locally installed Node 25.3.0. The package declares engines.node >= 24, so both satisfy it, but this is a difference from the CI image and is recorded rather than glossed.",
+  "companionCommits": {
+    "SubZeroDev.ServiceContract": "5d3fb8e6ebeb8fb6200e36ebc61df107ad355ce7",
+    "SubZeroDev.Platform": "94eabac73f534d92ae7c59ccb4051dc756e95d9f",
+    "SubZeroDev.Adventures": "ecb1cc645ce53bb11392e7f34b22384482fbf486",
+    "SubZeroDev.GameOfLife": "f35f977823ff5f3ab9cf29304a3e71aa20f09fa5"
+  },
+  "temporarySubstitutions": [
+    "SubZeroDev.Adventures: engine submodule detached from b7e21e712a1e72e32d327ecebac72a2af1c27ebd to the candidate 2b525d3 for the run, then restored to b7e21e7. Verified restored.",
+    "SubZeroDev.GameOfLife: engine submodule detached from 54e2467c6338aa9a92d9c83750cf8d1b607b27c4 to the candidate 2b525d3, and separately to the W107 candidate 31a24c3 as a control, then restored to 54e2467. Verified restored.",
+    "SubZeroDev.Platform: workloads/game-service vendored the retained 0.11.0 tarball in place of the-running-dev-game-engine-0.10.0.tgz, with package.json/package-lock.json repointed, then reverted via git checkout and the 0.11.0 tarball deleted. Verified restored."
+  ],
+  "gates": [
+    {
+      "name": "W108.1 Candidate identity: commit, package/lock version, archive and digest",
+      "status": "Passed",
+      "command": "node src/engine/scripts/verify-release.mjs clean --root .; node src/engine/scripts/verify-release.mjs tag --tag v0.11.0; npm pack; node src/engine/scripts/verify-release.mjs archive --archive <tarball>",
+      "exitCode": 0,
+      "durationSeconds": 4,
+      "artifactDigest": "sha256:53d5c1787d548e6b1defa35b48fe2301c9484a8e2d03f7523509abd9266b9db0",
+      "evidenceUrl": "local run, this worktree; commit 2b525d38d6876829b35e9f5ff5fcf22af421f082",
+      "detail": "clean guard: OK, head=2b525d38d6876829b35e9f5ff5fcf22af421f082, no tracked modification. tag guard: OK, tag=v0.11.0 matches manifest version 0.11.0 for @the-running-dev/game-engine; package-lock.json carries 0.11.0 at both the root and packages[''] . One archive was packed and retained; its digest was re-verified after the consumer smoke and again after the companion runs, unchanged each time."
+    },
+    {
+      "name": "W108.1 / W107.2 Clean src/engine install: typecheck, determinism lint, tests, build, archive assertion, replay corpus, W104 compatibility sweep",
+      "status": "Passed",
+      "command": "./build/Test-CompatibilitySweep.ps1 -BaselineTag v0.10.0",
+      "exitCode": 0,
+      "durationSeconds": 36,
+      "artifactDigest": "sha256:53d5c1787d548e6b1defa35b48fe2301c9484a8e2d03f7523509abd9266b9db0",
+      "evidenceUrl": "local run, this worktree",
+      "detail": "npm ci: 140 packages. typecheck (tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json): exit 0. lint (eslint src scripts): exit 0, determinism guard silent. test (vitest run): 98 test files passed (98), 1618 tests passed (1618) — up from W107's 97/1594 by exactly the 24 new release-guard tests plus their file. Replay oracle vs v0.10.0 (W104.4): 3 files passed, 29 passed, 5 skipped. Pack + archive inspection: 332 entries, all four content rules hold. Consumer smoke against that archive: install/build/smoke all exit 0. The whole sweep ran end to end, which it could not do before this candidate — see the next row."
+    },
+    {
+      "name": "W108.1 Archive inspection now runs on Windows (defect found and fixed in this unit)",
+      "status": "Passed",
+      "command": "./build/Test-CompatibilitySweep.ps1 (step 'Inspect tarball contents and record its digest')",
+      "exitCode": 0,
+      "durationSeconds": 1,
+      "artifactDigest": "sha256:53d5c1787d548e6b1defa35b48fe2301c9484a8e2d03f7523509abd9266b9db0",
+      "evidenceUrl": "commit 2b525d38d6876829b35e9f5ff5fcf22af421f082",
+      "detail": "The first sweep attempt on this candidate failed: 'tar (child): Cannot connect to D: resolve failed' — MSYS tar reads the D:\\... argument as an scp host, so the gate could not run on a Windows checkout at all. The W107 report worked around this by asserting the four content rules by hand, which is not the gate running. The step now calls the shared release guard, which parses the tar headers in Node. This is the only functional change the rerun forced, it is verification-only (it changes nothing the archive contains), and it produced the new candidate this whole record is against."
+    },
+    {
+      "name": "W108.4 Packed public surface: both entry points, three kinds, external content ownership, no play surface",
+      "status": "Passed",
+      "command": "consumer-smoke install:engine/build/smoke with ENGINE_TARBALL=<retained archive>; archive entry enumeration",
+      "exitCode": 0,
+      "durationSeconds": 19,
+      "artifactDigest": "sha256:53d5c1787d548e6b1defa35b48fe2301c9484a8e2d03f7523509abd9266b9db0",
+      "evidenceUrl": "local run, this worktree",
+      "detail": "consumer-smoke imports '@the-running-dev/game-engine' and '@the-running-dev/game-engine/authoring' from the retained tarball via ENGINE_TARBALL — no workspace link, no file: into src/. dist/index.{js,d.ts} and dist/authoring.{js,d.ts} all present. Exactly three kind directories ship: dist/kinds/story-graph, dist/kinds/simulation, dist/kinds/world-graph. Top-level archive content is dist/, package.json and README.md only. The only shipped campaigns are adventure-builder and world-graph-mvp (the kind's reference campaign, 90-decisions 2026-08-23) — the Bulgaria and stable-life campaigns are not in the archive, so external content ownership holds. Six entries match /play/i and all six are core/replay/*."
+    },
+    {
+      "name": "W108.5 Release guards: tag/version, clean tree, archive digest, registry availability, non-publishing mode",
+      "status": "Passed",
+      "command": "npx vitest run scripts/verify-release.test.ts; plus each guard invoked directly",
+      "exitCode": 0,
+      "durationSeconds": 3,
+      "artifactDigest": null,
+      "evidenceUrl": "src/engine/scripts/verify-release.mjs, src/engine/scripts/verify-release.test.ts",
+      "detail": "24 tests passed (24). Positive: the matching tag is accepted; a real refs/tags/v* push resolves mode=publish; a well-formed archive is accepted and its digest reported; the recorded digest re-verifies; a clean repository passes the clean guard."
+    },
+    {
+      "name": "W108.5 Guard negatives: each guard has actually rejected something",
+      "status": "Passed",
+      "command": "node scripts/verify-release.mjs {tag,mode,archive,clean,registry} against deliberately wrong inputs",
+      "exitCode": 1,
+      "durationSeconds": 3,
+      "artifactDigest": null,
+      "evidenceUrl": "local run, this worktree",
+      "detail": "Ten distinct rejections, each asserting exit code 1 rather than merely non-zero. Tag: v0.10.0 and v9.9.9 against the 0.11.0 manifest; a manifest whose version is 'next'. Mode: a tag not shaped like a release tag; workflow_dispatch with a tag-shaped input still resolves validate, never publish; a push to refs/heads/v0.11.0 resolves validate. Archive: modified after its digest was recorded; a different archive substituted for the recorded one (verified against the real retained tarball, not only a synthetic one); source under src/; a tsconfig JSON; a .test.js artifact; no dist output. Clean: a tracked modification in a scratch repository. Registry: 0.8.0 reported as already published (exit 1). Separately, exit 2 — could not be evaluated — is proven distinct and never reads as a pass: absent credential, unreachable registry, missing manifest, missing archive, non-repository path, unparseable package name."
+    },
+    {
+      "name": "W108.5 The publish step is unreachable from a validation run",
+      "status": "Passed",
+      "command": "node scripts/verify-release.mjs mode --event workflow_dispatch --ref refs/heads/main --input-tag v0.11.0",
+      "exitCode": 0,
+      "durationSeconds": 1,
+      "artifactDigest": null,
+      "evidenceUrl": ".github/workflows/release-engine-package.yml",
+      "detail": "mode=validate. The workflow's publish step is gated on steps.mode.outputs.mode == 'publish', and the guard returns publish only when the event is a push and the ref starts with refs/tags/v — an input cannot produce it. Two release-workflow defects were fixed in the same change: npm publish now publishes the inspected archive by path after re-verifying its digest, instead of packing a second uninspected time; and the availability check no longer reads the ambient registry. No tag was pushed and no publish job ran."
+    },
+    {
+      "name": "W108.2 Registry access and availability, read-only",
+      "status": "Passed",
+      "command": "node src/engine/scripts/verify-release.mjs registry --package @the-running-dev/game-engine --version 0.11.0",
+      "exitCode": 0,
+      "durationSeconds": 2,
+      "artifactDigest": null,
+      "evidenceUrl": "https://npm.pkg.github.com/@the-running-dev%2fgame-engine (HTTP 200, read-only)",
+      "detail": "state=publishable. The scoped registry answered 200 with three published versions — 0.4.0, 0.5.0, 0.8.0 — and dist-tags.latest = 0.8.0; 0.11.0 is not among them. This is affirmative: the same guard rejects 0.8.0 as already published. The credential was a read-scoped GitHub token supplied to the guard for this check only; no credential was created, chosen or written. IMPORTANT: the guard's earlier npm-shell form reported the published 0.8.0 as publishable on this machine, because it read the ambient registry rather than the scoped one — the exact false positive the brief warned about, found and fixed in this unit."
+    },
+    {
+      "name": "W107.3 Clean site install: format, lint, typecheck, unit, browser, build, merge",
+      "status": "Passed",
+      "command": "npm --prefix site ci; format:check; lint; typecheck; test; test:browser; test:build; test:merge",
+      "exitCode": 0,
+      "durationSeconds": 62,
+      "artifactDigest": null,
+      "evidenceUrl": "local run, this worktree",
+      "detail": "prettier --check: all matched files clean. oxlint: clean. tsc -b: clean. vitest run: 2 files, 17 tests passed. vitest browser (Chromium): 2 files, 23 tests passed. build + verify-build.mjs: both HTML entry points carry their required static metadata, 3 bundles free of Node-only runtime references. verify-merge.mjs: '/', '/roadmap/' and the protected docs/ subtree verified, and the top-level docs/ guard rejects a bad landing build. The roadmap now names 0.11.0 as the next authorized publication; its test expectations moved with it (25 DONE chapters, current act W93–W108, next act W109–W113)."
+    },
+    {
+      "name": "W107.3 Documentation generation and validation, no-op on a second run",
+      "status": "Passed",
+      "command": "./build/ConvertTo-HumanDocumentation.ps1; ./build/ConvertTo-DocumentationHomepage.ps1; ./build/Test-Documentation.ps1",
+      "exitCode": 0,
+      "durationSeconds": 34,
+      "artifactDigest": null,
+      "evidenceUrl": "local run, this worktree",
+      "detail": "Generation ran, then Test-Documentation.ps1's own -Check pass reported no drift across 18 generated engine pages, the compatibility pointers and the guide — a second generation is a no-op. Documentation checks passed across 206 Markdown files (199 at W107; the difference is RELEASE.md plus this unit's additions). One real failure was found and fixed on the way: the README's relative RELEASE.md link resolved to nothing on the generated homepage, which is CLAUDE.md's own rule about relative links out of the docs build."
+    },
+    {
+      "name": "W107.3 Production Docusaurus build (onBrokenLinks: throw)",
+      "status": "Unavailable",
+      "command": "./docs.ps1 -BuildOnly",
+      "exitCode": null,
+      "durationSeconds": null,
+      "artifactDigest": null,
+      "evidenceUrl": null,
+      "detail": "DID NOT RUN. Two reasons, both environmental: the Docker daemon is not running (docker ps: 'failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine'), and docs.ps1 is not present — it is installed by Invoke-SetupDocs rather than committed, and this is a worktree. This is the only gate that resolves Docusaurus routes and heading anchors, so it is not covered by Test-Documentation.ps1. It must be confirmed via the pull request's 'Verify Documentation Build' check before 0.11.0 is authorized. Not a pass. Same status as in the W107 report, for the same reason."
+    },
+    {
+      "name": "W107.4 Static host: fresh host tests",
+      "status": "Passed",
+      "command": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests/SubZeroDev.GameEngine.Host.Tests.csproj -c Release",
+      "exitCode": 0,
+      "durationSeconds": 12,
+      "artifactDigest": null,
+      "evidenceUrl": "local run, this worktree",
+      "detail": "Failed: 0, Passed: 12, Skipped: 0, Total: 12. Restore needed a cross-repository read:packages credential for SubZeroDev.Platform.Hosting, exactly as host-image.yml documents; supplied read-only for this run."
+    },
+    {
+      "name": "W107.4 Static host: container build, route/probe smoke, negative fixture",
+      "status": "Unavailable",
+      "command": "docker build + run + curl / (roadmap|docs)/ and the health probes; negative missing-artifact fixture",
+      "exitCode": null,
+      "durationSeconds": null,
+      "artifactDigest": null,
+      "evidenceUrl": null,
+      "detail": "DID NOT RUN — the Docker daemon is not running in this environment. The 200s for '/', '/roadmap/', '/docs/', /health/live and /health/ready, the 404 for a named unknown route, the missing-artifact fixture failing to start, and the host image digest are all unestablished on this candidate. Not a pass. It must be confirmed via the Platform Static Host Image workflow before 0.11.0 is authorized. RECONCILIATION: the W107 report also carries a *failed* W107.4 row demanding campaign retrieval, session creation, action preview/submission and save/resume of this host. That requirement was superseded by merged PR #461 (a84d9c99824b7cc9ca4f7735961a3a4fdf7b814d), which states that the host receives no action, owns no session and exposes no engine API. This rerun exercises only the corrected requirement; no engine API was added to the host, and the old failed row is history, not an open finding."
+    },
+    {
+      "name": "W107.5 Text client and MCP server against a real store built from the candidate source",
+      "status": "Passed",
+      "command": "npm --prefix src/engine test (src/clients/text/client.test.ts, src/mcp/server.test.ts); npm --prefix src/engine run lint",
+      "exitCode": 0,
+      "durationSeconds": 0,
+      "artifactDigest": null,
+      "evidenceUrl": "local run, this worktree; candidate 2b525d3",
+      "detail": "Both suites are part of the 98-file/1618-test run above, at the candidate SHA. Lint re-runs the client-boundary rule that fails if either imports a kind rather than calling only SessionStore. Neither is a published export — only '.' and './authoring' are — so there is deliberately no against-the-archive step for them, and none is claimed."
+    },
+    {
+      "name": "W107.5 Companion: SubZeroDev.ServiceContract",
+      "status": "Passed",
+      "command": "npm ci; npm run build; npm test; npm run typecheck",
+      "exitCode": 0,
+      "durationSeconds": 340,
+      "artifactDigest": null,
+      "evidenceUrl": "SubZeroDev.ServiceContract @ 5d3fb8e6ebeb8fb6200e36ebc61df107ad355ce7",
+      "detail": "Fresh run, not a citation. Generator: 13 operations, 26 schemas; content contract formatVersion 2, 2 documents, 2 schemas. 3 test files passed, 59 tests passed, 329s — including the arity/opaque-payload/version rows and 'the generator is deterministic' (two runs over an unchanged row set produce byte-identical artifacts). typecheck clean. Working tree clean afterwards."
+    },
+    {
+      "name": "W107.5 Companion: SubZeroDev.Adventures against the candidate SHA",
+      "status": "Passed",
+      "command": "engine submodule -> 2b525d3; npm ci; npm run lint; npm run typecheck; npm test; npm run test:browser; npm run test:build",
+      "exitCode": 0,
+      "durationSeconds": 420,
+      "artifactDigest": null,
+      "evidenceUrl": "SubZeroDev.Adventures @ ecb1cc645ce53bb11392e7f34b22384482fbf486, engine submodule temporarily at the candidate",
+      "detail": "Fresh run against the candidate SHA, which is what a submodule consumer must be checked at. oxlint clean, tsc -b clean, 16 files/198 unit tests passed, 4 files/38 browser tests passed, build verified. No contract mismatch. Its own pin b7e21e7 differs from the candidate only in fixtures, the capture scripts, the W104 manifest test, world-graph-mvp.ts (12 lines), the version bump and this unit's new files. Submodule restored to b7e21e7 afterwards and verified."
+    },
+    {
+      "name": "W107.5 Companion: SubZeroDev.Platform game-service against the retained archive",
+      "status": "Partial",
+      "command": "vendor the retained 0.11.0 tarball; npm install; npm run typecheck; npm test",
+      "exitCode": 1,
+      "durationSeconds": 60,
+      "artifactDigest": "sha256:53d5c1787d548e6b1defa35b48fe2301c9484a8e2d03f7523509abd9266b9db0",
+      "evidenceUrl": "SubZeroDev.Platform @ 94eabac73f534d92ae7c59ccb4051dc756e95d9f",
+      "detail": "Platform is an archive consumer — it vendors a tarball rather than a submodule — so the retained 0.11.0 archive was vendored in place of its 0.10.0 one. typecheck: exit 0 against the candidate archive. Tests: 13 files / 145 tests passed, 1 skipped; 11 files / 52 tests could not run. Every one of those 52 fails on 'connect ECONNREFUSED 127.0.0.1:5432' inside migrateToHead — the durable/Postgres profile needs a database, and no Postgres is running here (nor can one be started: the Docker daemon is down). That is an UNAVAILABLE profile, not a failure against the candidate, and it is not claimed as a pass. The in-memory half compiling and passing against the retained archive is genuine evidence; the durable profile is an open row. Vendoring reverted and verified."
+    },
+    {
+      "name": "W107.5 Companion: SubZeroDev.GameOfLife against the candidate SHA",
+      "status": "Failed",
+      "command": "engine submodule -> 2b525d3; npm run setup; npm ci; npm run typecheck; npm test; ./tools/Test-SpecSet.ps1",
+      "exitCode": 1,
+      "durationSeconds": 300,
+      "artifactDigest": null,
+      "evidenceUrl": "SubZeroDev.GameOfLife @ f35f977823ff5f3ab9cf29304a3e71aa20f09fa5, engine submodule temporarily at the candidate",
+      "detail": "UNRESOLVED CONTRACT MISMATCH, and the single most important thing this rerun found. GameOfLife's content does not compile against the candidate engine: 'src/campaigns/stable-life.ts(2615,14): error TS2739: ... is missing the following properties from type SimulationCampaignSource: projects, businesses'. One typecheck error, one root cause, 18 of 71 vitest tests failing from it (2 files failed, 2 passed) — buildSimulationCampaign then throws 'Cannot read properties of undefined (reading map)' at simulation/source.ts:296. Test-SpecSet.ps1 itself completed: 8 documents, 936 declarations, 0 unchecked, 2 mirror obligations, 205 references, 8 cross-repository-unresolvable references into SubZeroDev.GameEngine (its known, expected state). NOT CAUSED BY 0.11.0: projects and businesses became required in W101 (b595fe2, 2026-08-31), which is already an ancestor of the W107 candidate 31a24c3 — and re-pinning the submodule to 31a24c3 as a control reproduces the identical single error. So the mismatch has existed since W101 and the W107 report's 'Passed' companion row did not detect it, because it cited a point-in-time proof rather than running GameOfLife against a candidate. This is a companion-side gap: stable-life must declare the two collections. Fixing it is out of W108's scope by that unit's own terms. Submodule restored to 54e2467 afterwards and verified."
+    },
+    {
+      "name": "W107.6 Repository checks: PowerShell parse and Pester, with pass/skip reasons",
+      "status": "Passed",
+      "command": "pwsh parse of build/*.ps1 and tools/*.ps1; Invoke-Pester -Path tools",
+      "exitCode": 0,
+      "durationSeconds": 38,
+      "artifactDigest": null,
+      "evidenceUrl": "local run, this worktree",
+      "detail": "Parse: 40 scripts, 0 parse failures. Pester: Passed 324, Failed 0, Skipped 35 — the same counts CI's powershell job reports. Every skip is accounted for: 23 Test-DesignState, 3 Update-DesignProjection, 2 Read-DesignState, 2 'a checkout with design/state/ removed', 3 'an installed target discovers these suites as skipped, not failed', 1 GlobDisagreement, and 1 'this repository has not adopted the design-state workflow step'. All are the kit's design-state compatibility skips, which this repository has deliberately not adopted; none is a requested gate that silently did not run."
+    },
+    {
+      "name": "W107.6 Required CI workflows green at the candidate commit",
+      "status": "Unavailable",
+      "command": "gh api repos/.../commits/2b525d3/check-runs",
+      "exitCode": null,
+      "durationSeconds": null,
+      "artifactDigest": null,
+      "evidenceUrl": null,
+      "detail": "DID NOT RUN AT REPORT TIME. The candidate is not yet pushed, so no CI run exists for 2b525d38d6876829b35e9f5ff5fcf22af421f082 — this record is written before the push that creates the pull request. The three branch-protection-required checks (engine, 'Documentation links and terminology', 'Verify Documentation Build') must be green on that pull request, and the release-engine-package validation job must be green too, before 0.11.0 is authorized. Not a pass."
+    },
+    {
+      "name": "W108.3 W93–W107 criterion-level reconciliation",
+      "status": "Failed",
+      "command": "criterion-by-criterion review of the W93–W107 issues and their Done-when checkboxes",
+      "exitCode": null,
+      "durationSeconds": null,
+      "artifactDigest": null,
+      "evidenceUrl": "https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/386",
+      "detail": "W107.4 is reconciled with merged PR #461; its superseded requirement is preserved as history. W98.7's engine and site halves are established on this candidate, and the 'committed replay outcomes unchanged' clause is qualified honestly: PR #414 deliberately moved terminal-shape replay fixtures, the corpus has not moved since, and the 0.11.0 version bump regenerated no fixture; its host half is unavailable with the Docker rows above. W98.2 remains UNCHECKED: its browser half left this repository with /play/, and while the behaviour is now demonstrated in SubZeroDev.Adventures against this very candidate (BrowserClient.listCampaigns is session-free, PlayerHome renders the resolved title, both passing in the Adventures run above), a companion's suite is not this criterion's own proof and the criterion has no cross-repository form. Recorded in design/90-decisions.md's open register. W108.3 is therefore not satisfied, and no aggregate status overrides that."
+    },
+    {
+      "name": "W108.2 Release checklist completeness",
+      "status": "Failed",
+      "command": "review of RELEASE.md against W108.2's enumerated requirements",
+      "exitCode": null,
+      "durationSeconds": null,
+      "artifactDigest": null,
+      "evidenceUrl": "RELEASE.md",
+      "detail": "Everything W108.2 enumerates is filled in with real values except one: the rollback/deprecation procedure. Consumer-side rollback is real and stated (0.8.0 is the last known-good published version, and every companion pins exact versions, so rollback is a one-line change per consumer needing no registry operation). The registry-supported withdrawal half is not: npm deprecate and dist-tag management are npmjs features whose GitHub Packages support this repository has never exercised, and writing an untested npmjs procedure into a release checklist would be describing a capability nobody has. RELEASE.md §7 states the limitation instead, which is honest but is not the criterion. Recorded in design/90-decisions.md's open register with the one experiment that would close it — a decision for the user, since it mutates the public registry."
+    },
+    {
+      "name": "W108.6 No publication, tag, release, deployment or external release occurred",
+      "status": "Passed",
+      "command": "n/a — an assertion about what was not done",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": null,
+      "evidenceUrl": "git tag (unchanged); gh run list --workflow release-engine-package.yml (unchanged)",
+      "detail": "No npm publish. No git tag created or pushed — the newest release tag is still v0.10.0. No GitHub release. No deployment: the branch is deliberately left unmerged, because docs-deploy.yml runs on pushes to main and host-image.yml has a main-only publication job, so merging would not be a neutral way to collect evidence. No DNS change. No companion release; all three temporary substitutions were reverted and verified. The only registry contact was one read-only availability GET, and one control GET listing published versions."
+    },
+    {
+      "name": "W108.7 This record",
+      "status": "Passed",
+      "command": "n/a",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": "sha256:53d5c1787d548e6b1defa35b48fe2301c9484a8e2d03f7523509abd9266b9db0",
+      "evidenceUrl": "RELEASE.md",
+      "detail": "Every row above carries its command, exit code, duration where meaningful, artifact digest where one applies, and evidence pointer. Four rows are not passes and say so in their status: two Unavailable for Docker, one Unavailable for unpushed CI, one Partial for an unavailable Postgres profile, one Failed for a real companion mismatch, and two Failed for unmet W108 criteria. This record is committed after the candidate it describes; that commit is not the candidate, and the authorization binds to 2b525d38d6876829b35e9f5ff5fcf22af421f082."
+    }
+  ],
+  "conclusion": {
+    "verdict": "0.11.0 readiness blocked",
+    "candidate": "2b525d38d6876829b35e9f5ff5fcf22af421f082",
+    "archive": "the-running-dev-game-engine-0.11.0.tgz sha256:53d5c1787d548e6b1defa35b48fe2301c9484a8e2d03f7523509abd9266b9db0",
+    "blockers": [
+      "W107.5 — SubZeroDev.GameOfLife's stable-life campaign does not compile against the candidate engine: SimulationCampaignSource requires projects and businesses since W101. Pre-existing, reproduced at the W107 candidate, and a companion-side fix that W108 may not make.",
+      "W107.3 / W107.4 — the production Docusaurus build, the host container smoke and its negative fixture need Docker, which is unavailable here. Confirm via the pull request's 'Verify Documentation Build' and the Platform Static Host Image workflow.",
+      "W107.5 — SubZeroDev.Platform's durable/Postgres profile could not run: no Postgres, and no Docker to start one. 52 of 198 tests unrun.",
+      "W107.6 — no CI run exists for the candidate at report time; the three required checks must be green on the pull request.",
+      "W108.2 — no registry-supported withdrawal operation is known to work on GitHub Packages, so the checklist states a limitation rather than a procedure.",
+      "W108.3 — W98.2 stays unchecked: its browser half is in a companion repository and the criterion has no cross-repository form."
+    ],
+    "statement": "This records release preparation and a full fresh verification pass. It does not authorize publication. Two of the six blockers are environmental and close on the pull request's own CI; two are decisions for the user; one is a companion-side fix outside W108; one is an unavailable database profile."
+  }
+}
