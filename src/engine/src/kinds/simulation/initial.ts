@@ -60,10 +60,11 @@ import type {
   WorldState,
   GoalState,
   Modifier,
+  NPCMemory,
   SimulationKindState,
 } from "./state.js";
 import type { ActorState, InventoryItem, PlayerState } from "./actor.js";
-import type { BackgroundDefinition, RivalConfig, ScenarioDefinition } from "./content.js";
+import type { BackgroundDefinition, NPCDefinition, RivalConfig, ScenarioDefinition } from "./content.js";
 import { combineModifiers, type ResolvedModifier } from "./modifiers.js";
 import { furthestStepsFor, resolveProfileData } from "./profile.js";
 
@@ -313,6 +314,23 @@ function seedProfileChains(campaign: SimulationCampaign, campaignId: string, pro
       startedWeek: 0,
       active: false,
     }));
+}
+
+/** `NPCDefinition.startingMemories` → `NPCState.memories`, copied once at creation (W110;
+ *  20-contract.md §7.7, `90-decisions.md`'s 2026-09-07 W105.4 entry). Author-supplied
+ *  `NPCMemory.id`s are preserved verbatim and in authored order — never minted from an
+ *  `IdSource`, the same convention every other content id in this kind already follows.
+ *  Absent or empty `startingMemories` produces `[]`, today's behaviour, so no existing
+ *  campaign is affected. Returns a fresh array each call — a `NPCState` this seeds never
+ *  shares its `memories` array with the definition's own `startingMemories`, so removing or
+ *  expiring one during play cannot reach back and mutate the authored content.
+ *
+ *  Not called below: `buildWorld` still seeds no `NPCState` at all (its own comment,
+ *  immediately following, explains why — issue #425's still-open question of whether
+ *  `world.npcs` should be populated from content). This function is ready for whichever
+ *  reducer resolves that; exported and tested directly until then. */
+export function seedNPCMemories(definition: NPCDefinition): NPCMemory[] {
+  return definition.startingMemories ? [...definition.startingMemories] : [];
 }
 
 /** `npcs`/`locations` start unpopulated — a documented gap, not an oversight (issue #425).
