@@ -280,7 +280,7 @@
 
 ### [x] W106 — Tracker Evidence Closure {#w106}
 
-### [ ] W107 — 0.11 Release Candidate Verification {#w107}
+### [x] W107 — 0.11 Release Candidate Verification {#w107}
 
 ### [ ] W108 — Publish 0.11 Readiness {#w108}
 
