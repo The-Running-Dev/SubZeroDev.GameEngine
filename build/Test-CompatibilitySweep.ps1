@@ -149,12 +149,16 @@ try {
         $script:tarballPath = Join-Path $enginePath $tarballName
     }
 
-    Invoke-Step 'Inspect tarball contents (W104.6)' {
-        $entries = tar -tzf $tarballPath
-        if ($entries | Select-String -Pattern '(^|/)src/') { throw 'tarball contains source files under src/' }
-        if ($entries | Select-String -Pattern '(^|/)tsconfig[^/]*\.json$') { throw 'tarball contains tsconfig JSON files' }
-        if ($entries | Select-String -Pattern '\.test\.(js|mjs|ts|d\.ts|js\.map|mjs\.map|ts\.map)$') { throw 'tarball contains test build artifacts' }
-        if (-not ($entries | Select-String -Pattern '^package/dist/')) { throw 'tarball does not contain dist output' }
+    # The four archive assertions, and the digest, come from the shared release guard
+    # (src/engine/scripts/verify-release.mjs, W108.5) rather than from `tar -tzf`. MSYS tar on
+    # Windows reads a `D:\...` argument as an scp host and fails on an archive it never opened,
+    # so this step could not run on a Windows checkout at all -- W107 asserted the four by hand
+    # instead, which is not the same thing as the gate running. The guard parses the tar headers
+    # in Node, so one implementation now covers this sweep, the release workflow and a local run.
+    Invoke-Step 'Inspect tarball contents and record its digest (W104.6)' {
+        $guard = Join-Path $enginePath 'scripts/verify-release.mjs'
+        node $guard archive --archive $tarballPath
+        if ($LASTEXITCODE -ne 0) { throw "the archive guard rejected $tarballPath (exit $LASTEXITCODE)" }
     }
 
     if (-not $SkipConsumerSmoke) {

@@ -425,17 +425,15 @@ export const shippedChapters: readonly RoadmapChapter[] = [
       { label: "W89 evidence", href: `${repo}/pull/376`, kind: "repository" },
     ],
   },
-];
-
-export const nextActs: readonly RoadmapChapter[] = [
   {
     id: "release-010",
     workUnits: "W90–W92",
     ledgerAnchor: "w90",
-    status: "now",
-    title: "Make 0.10.0 reproducible and public",
+    status: "done",
+    title: "0.10.0 becomes reproducible, then never ships",
     summary:
-      "Reconcile the public story, harden the package and documentation gates, then publish the simulation authoring and game-length proof already merged on main.",
+      "A clean build/pack path, a tarball-content assertion, a tag-checked release workflow and repaired gates made 0.10.0 releasable. The tag went up; the publish step did not, so 0.8.0 is still the latest published version.",
+    aside: "Reproducible is not the same as published. Ask the v0.10.0 tag.",
     links: [
       {
         label: "Stabilization ledger",
@@ -449,18 +447,42 @@ export const nextActs: readonly RoadmapChapter[] = [
       },
     ],
   },
+];
+
+export const nextActs: readonly RoadmapChapter[] = [
   {
-    id: "stabilize-011",
+    id: "authorize-011",
     workUnits: "W93–W108",
     ledgerAnchor: "w93",
-    status: "next",
-    title: "Close the additive 0.11 stabilization programme",
+    status: "now",
+    title: "0.11.0 becomes the next authorized publication",
     summary:
-      "Correctness, session boundaries, complete simulation mechanics, companion contracts, and release-candidate verification follow without removing the 0.10 surface.",
+      "Correctness, session boundaries, complete simulation mechanics, companion contracts and release-candidate verification landed without removing the 0.10 surface, so 0.11.0 is a compatible superset of it. The candidate, its archive digest and the v0.11.0 tag are recorded; publishing stays a separate explicit action.",
     links: [
       {
         label: "Stabilization ledger",
         href: "/docs/engine/todo#w93",
+        kind: "site",
+      },
+      {
+        label: "Release checklist",
+        href: `${repo}/blob/main/RELEASE.md`,
+        kind: "repository",
+      },
+    ],
+  },
+  {
+    id: "gameoflife-blockers-012",
+    workUnits: "W109–W113",
+    ledgerAnchor: "w109",
+    status: "next",
+    title: "Five things Life in the Fast Lane cannot say yet",
+    summary:
+      "Reputation-targeting modifiers, NPCs who start out already remembering you, conditions that can ask whether you own one, cars that cost money to run, and utilities on the weekly bill. Contract-only today; 0.12 scope, and none of them may touch the pinned 0.11.0 candidate.",
+    links: [
+      {
+        label: "Stabilization ledger",
+        href: "/docs/engine/todo#w109",
         kind: "site",
       },
     ],

@@ -363,18 +363,24 @@ work is implementation. Not philosophy.
 
 The deterministic core, story-graph kind, simulation kind, and world-graph kind are all built
 and tested, including the world graph's deterministic tick pipeline, playable guest journey,
-validation, and replay guard. `v0.8.0` is published as `@the-running-dev/game-engine`, while
-the `0.10.0` source adds the simulation authoring surface and 150+ week replay evidence. A clean
+validation, and replay guard. `v0.8.0` is the latest published `@the-running-dev/game-engine`;
+the `0.11.0` source adds the simulation authoring surface and 150+ week replay evidence. A clean
 consumer test installs the packed artifact rather than trusting this checkout. Story adventures
 now live at <a href="https://adventures.subzerodev.com/"><code>adventures.subzerodev.com</code></a>;
 this repository retains the deterministic engine, its fixtures, authoring tools, and contracts.
 
-### Current — release 0.10.0, then stabilize toward 0.11.0
+### Current — `0.11.0` is the next authorized publication candidate
 
-W88 exported the simulation authoring/runtime boundary in [PR #367](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/367).
-W89 added deterministic 150+ week win/loss proof in [PR #376](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/376).
-The immediate milestone is a reproducible public `0.10.0` package; the next programme closes
-the remaining correctness, host-boundary, and simulation-mechanics work additively for `0.11.0`.
+The additive `0.11.0` stabilization programme (W93–W108) closed the correctness, session-boundary,
+simulation-mechanics, companion-contract and release-verification work without removing anything
+the `0.10.0` surface exposed: three shipped kinds, the same two entry points (`.` and
+`./authoring`), campaign content owned outside this repository, and no in-repository play surface.
+`0.11.0` is therefore a compatible superset of `0.10.0`, and `0.10.0` was tagged but never
+published — `0.8.0` remains the latest version on the registry.
+
+`0.11.0` is prepared, not released. Publication is a separate, explicit action: see
+[`RELEASE.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/RELEASE.md) for the candidate commit, the archive and its digest, the required
+`v0.11.0` tag, and the checks that must hold first.
 
 ---
 
