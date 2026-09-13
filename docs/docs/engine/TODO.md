@@ -4607,16 +4607,20 @@ verification record covering the engine and every supported delivery surface.
       engine, host, site, docs, container, consumer and companion gates against one candidate.
 - **Depends on:** [W106](#w106), so verification starts with tracker/design truth reconciled.
 - **Status:** Rerun against the `0.11.0` candidate `2b525d3` and **not complete**. W107.1, W107.2,
-      W107.5's engine-side rows, W107.6's PowerShell/Pester rows and W107.7 hold; the record is
-      `.claude/release-candidate-w108.json`. Four rows do not: the production Docusaurus build and
-      the host container smoke both need Docker, which was unavailable; SubZeroDev.Platform's
-      durable/Postgres profile could not run; and SubZeroDev.GameOfLife does not compile against
-      the candidate — `stable-life.ts` lacks the `projects` and `businesses` that [W101](#w101)
-      made required on `SimulationCampaignSource`. That last one is **pre-existing, not caused by
-      `0.11.0`**: re-pinning its submodule to the earlier candidate reproduces the identical
-      error. W107.4's own text was corrected by PR #461 before this rerun, so the rerun exercised
-      the corrected requirement and added no engine API to the static host; the superseded failure
-      in `.claude/release-candidate-w107.json` is history, not an open finding.
+      W107.3, W107.4, W107.6 and W107.7 all hold; the record is
+      `.claude/release-candidate-w108.json`. W107.3's production Docusaurus build and W107.4's
+      container smoke could not run locally — no Docker daemon — and were established instead as
+      required checks on PR #471, green at branch head `14f4323`; re-packing there reproduced the
+      candidate archive's digest bit-for-bit, so nothing in the archive moved between the two.
+      **W107.5 does not hold.** SubZeroDev.GameOfLife does not compile against the candidate:
+      `stable-life.ts` lacks the `projects` and `businesses` that [W101](#w101) made required on
+      `SimulationCampaignSource`. That is **pre-existing, not caused by `0.11.0`** — re-pinning
+      its submodule to the earlier candidate reproduces the identical error, which means the
+      W107 report's cited companion row could never have detected it. SubZeroDev.Platform's
+      durable/Postgres profile is separately unavailable. W107.4's own text was corrected by
+      PR #461 before this rerun, so the rerun exercised the corrected requirement and added no
+      engine API to the static host; the superseded failure in
+      `.claude/release-candidate-w107.json` is history, not an open finding.
 - **Done when:**
   - W107.1 A candidate commit and one clean packed archive digest are recorded; every consumer
         and host test uses that archive rather than a workspace import or a separately packed
@@ -4669,8 +4673,9 @@ as the next publication, while the actual publish remains a separate explicit ac
       W108.6 holds — nothing was published, tagged, released or deployed. **W108.2 and W108.3 do
       not.** W108.2 has no tested registry-supported withdrawal operation on GitHub Packages, and
       W108.3 cannot be satisfied while W98.2 stays unchecked; both are in `90-decisions.md`'s open
-      register, and neither is a decision this unit may take. The W107 rows above are the other
-      half of the blockers.
+      register, and neither is a decision this unit may take. W107.3, W107.4 and W107.6 closed on PR #471's own CI; W107.5's
+      GameOfLife mismatch and Platform's unavailable Postgres profile are the other half of the
+      blockers.
 - **Done when:**
   - W108.1 The canonical roadmap, README, generated public docs and landing page all identify
         `0.11.0` as the next authorized publication and describe the same additive scope and

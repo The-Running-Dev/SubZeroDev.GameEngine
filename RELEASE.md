@@ -211,21 +211,34 @@ is a registry-supported deprecation of that exact version, leaving it installabl
 **0.11.0 readiness blocked.**
 
 The full W107 matrix was rerun against the candidate in §1.1 — not carried forward from the
-September 7 record, which is history. Most of it holds. Six things do not, and the authorization
-wording in the brief is therefore deliberately not used:
+September 7 record, which is history. Most of it holds, and three blockers that were merely
+environmental at report time have since closed on [pull request #471](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/471)'s
+own CI. **Four remain**, so the authorization wording in the brief is still deliberately not used:
 
 | # | Criterion | Blocker | Whose call |
 |---|---|---|---|
 | 1 | W107.5 | **SubZeroDev.GameOfLife does not compile against the candidate engine.** `stable-life.ts` is missing `projects` and `businesses`, required on `SimulationCampaignSource` since W101. One typecheck error, 18 of 71 tests failing from it. **Not caused by 0.11.0** — re-pinning the submodule to the W107 candidate `31a24c3` reproduces the identical error, so it has existed since 2026-08-31 and W107's cited companion row did not detect it. | A companion-side fix, out of W108's scope by that unit's own terms |
-| 2 | W107.3 | The production Docusaurus build did not run: the Docker daemon is down and `docs.ps1` is not installed in this worktree. It is the only gate that resolves routes and heading anchors. | Closes on this pull request's **Verify Documentation Build** check |
-| 3 | W107.4 | The host container smoke, its route/probe 200s, its 404, its missing-artifact negative fixture and the host image digest did not run — same missing Docker daemon. The host's own 12 tests pass. | Closes on the **Platform Static Host Image** workflow |
-| 4 | W107.5 | SubZeroDev.Platform's durable/Postgres profile could not run — `ECONNREFUSED 127.0.0.1:5432`, and no Docker to start a database. 52 of 198 tests unrun; the 145 in-memory tests pass against the retained archive. | Needs a Postgres, or a CI run of that profile |
-| 5 | W108.2 | No registry-supported withdrawal operation is known to work on GitHub Packages, so §7 states a limitation rather than a procedure. | The user — closing it means deprecating a published version |
-| 6 | W108.3 | W98.2 stays unchecked; its browser half is in a companion repository and the criterion has no cross-repository form. See §9. | The user — a parity proof or a scoped amendment |
+| 2 | W107.5 | SubZeroDev.Platform's durable/Postgres profile could not run — `ECONNREFUSED 127.0.0.1:5432`, and no Docker to start a database. 52 of 198 tests unrun; the 145 in-memory tests pass against the retained archive. | Needs a Postgres, or a CI run of that profile |
+| 3 | W108.2 | No registry-supported withdrawal operation is known to work on GitHub Packages, so §7 states a limitation rather than a procedure. | The user — closing it means deprecating a published version |
+| 4 | W108.3 | W98.2 stays unchecked; its browser half is in a companion repository and the criterion has no cross-repository form. See §9. | The user — a parity proof or a scoped amendment |
 
-Blockers 2, 3 and 4 are environmental, not findings about the candidate. Blocker 1 is a real
-finding, and the most valuable thing the rerun produced: it is exactly what carrying the W107
-companion evidence forward would have hidden.
+**Closed on CI**, at branch head `14f4323`:
+
+| Criterion | Established by |
+|---|---|
+| W107.3 | **Verify Documentation Build** — green in 2m15s. The production Docusaurus build under `onBrokenLinks: 'throw'`, the only gate that resolves routes and heading anchors. It could not run locally: no Docker daemon, and `docs.ps1` is installed rather than committed. |
+| W107.4 | **Build, run, and smoke the image** — green in 1m58s. Image build, positive route and probe smoke, and the negative missing-artifact fixture failing to start. The main-only GHCR publication job correctly skipped, so no image was published. |
+| W107.6 | All three required checks green — `engine` (42s), *Documentation links and terminology* (58s), *Verify Documentation Build* (2m15s) — plus `powershell` (55s, matching the local 324/0/35 Pester counts) and the new `release game-engine package` validation job (41s). |
+
+**Those rows ran at `14f4323`, not at the candidate.** The delta is five files — this checklist,
+the report, `design/30-slices.md`, its generated `TODO.md` page, and one `printf` in the release
+workflow — with no `src/engine` source among them. That is proven, not asserted: re-packing at
+`14f4323` produced sha256 `53d5c178…`, **bit-identical** to the candidate archive, which also
+demonstrates the pack is reproducible. The documentation rows are strictly better for having run
+at head, since they cover the ledger edits the evidence commit made.
+
+Blocker 1 is a real finding, and the most valuable thing the rerun produced: it is exactly what
+carrying the W107 companion evidence forward would have hidden.
 
 The full per-gate record is `.claude/release-candidate-w108.json`. No aggregate status overrides
 an unchecked criterion, and nothing in this file authorizes publication.

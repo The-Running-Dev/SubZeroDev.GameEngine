@@ -134,13 +134,13 @@
     },
     {
       "name": "W107.3 Production Docusaurus build (onBrokenLinks: throw)",
-      "status": "Unavailable",
+      "status": "Passed",
       "command": "./docs.ps1 -BuildOnly",
-      "exitCode": null,
-      "durationSeconds": null,
+      "exitCode": 0,
+      "durationSeconds": 135,
       "artifactDigest": null,
-      "evidenceUrl": null,
-      "detail": "DID NOT RUN. Two reasons, both environmental: the Docker daemon is not running (docker ps: 'failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine'), and docs.ps1 is not present — it is installed by Invoke-SetupDocs rather than committed, and this is a worktree. This is the only gate that resolves Docusaurus routes and heading anchors, so it is not covered by Test-Documentation.ps1. It must be confirmed via the pull request's 'Verify Documentation Build' check before 0.11.0 is authorized. Not a pass. Same status as in the W107 report, for the same reason."
+      "evidenceUrl": "https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/34701561852/job/103574122301",
+      "detail": "NOW ESTABLISHED. Could not run locally -- no Docker daemon, and docs.ps1 is installed by Invoke-SetupDocs rather than committed, so it is absent from a worktree. It ran instead as the \"Verify Documentation Build\" required check on pull request #471, green in 2m15s at branch head 14f4323. This is the only gate that resolves Docusaurus routes and heading anchors under onBrokenLinks: throw, and it is the correct place for it: CLAUDE.md says to verify it on the pull request rather than report it as locally passing when Docker is missing."
     },
     {
       "name": "W107.4 Static host: fresh host tests",
@@ -154,13 +154,13 @@
     },
     {
       "name": "W107.4 Static host: container build, route/probe smoke, negative fixture",
-      "status": "Unavailable",
+      "status": "Passed",
       "command": "docker build + run + curl / (roadmap|docs)/ and the health probes; negative missing-artifact fixture",
-      "exitCode": null,
-      "durationSeconds": null,
+      "exitCode": 0,
+      "durationSeconds": 118,
       "artifactDigest": null,
-      "evidenceUrl": null,
-      "detail": "DID NOT RUN — the Docker daemon is not running in this environment. The 200s for '/', '/roadmap/', '/docs/', /health/live and /health/ready, the 404 for a named unknown route, the missing-artifact fixture failing to start, and the host image digest are all unestablished on this candidate. Not a pass. It must be confirmed via the Platform Static Host Image workflow before 0.11.0 is authorized. RECONCILIATION: the W107 report also carries a *failed* W107.4 row demanding campaign retrieval, session creation, action preview/submission and save/resume of this host. That requirement was superseded by merged PR #461 (a84d9c99824b7cc9ca4f7735961a3a4fdf7b814d), which states that the host receives no action, owns no session and exposes no engine API. This rerun exercises only the corrected requirement; no engine API was added to the host, and the old failed row is history, not an open finding."
+      "evidenceUrl": "https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/34701561835/job/103574153530",
+      "detail": "NOW ESTABLISHED. Could not run locally -- no Docker daemon. It ran instead as the \"Build, run, and smoke the image\" job of the Platform Static Host Image workflow on pull request #471, green in 1m58s at branch head 14f4323: the image builds, the positive route and probe smoke passes, and the negative missing-artifact fixture fails to start as required. The main-only \"Publish immutable image to GHCR\" job correctly skipped, so no image was published -- W108.6 holds. RECONCILIATION unchanged: the W107 report also carries a failed W107.4 row demanding campaign retrieval, session creation, action preview/submission and save/resume of this host. Merged PR #461 (a84d9c9) superseded that requirement -- the host receives no action, owns no session and exposes no engine API. Only the corrected requirement was exercised; no engine API was added."
     },
     {
       "name": "W107.5 Text client and MCP server against a real store built from the candidate source",
@@ -224,13 +224,13 @@
     },
     {
       "name": "W107.6 Required CI workflows green at the candidate commit",
-      "status": "Unavailable",
+      "status": "Passed",
       "command": "gh api repos/.../commits/2b525d3/check-runs",
-      "exitCode": null,
+      "exitCode": 0,
       "durationSeconds": null,
       "artifactDigest": null,
-      "evidenceUrl": null,
-      "detail": "DID NOT RUN AT REPORT TIME. The candidate is not yet pushed, so no CI run exists for 2b525d38d6876829b35e9f5ff5fcf22af421f082 — this record is written before the push that creates the pull request. The three branch-protection-required checks (engine, 'Documentation links and terminology', 'Verify Documentation Build') must be green on that pull request, and the release-engine-package validation job must be green too, before 0.11.0 is authorized. Not a pass."
+      "evidenceUrl": "https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/34701561810/job/103574122151",
+      "detail": "NOW ESTABLISHED at branch head 14f4323, on pull request #471. All three branch-protection-required checks are green: engine (42s), \"Documentation links and terminology\" (58s), \"Verify Documentation Build\" (2m15s). Alongside them: powershell (55s, matching the local 324/0/35 Pester counts), \"Build, run, and smoke the image\" (1m58s), claude-review (3m52s), and the new \"release game-engine package\" validation job (41s). Two jobs report skipping and neither is a required check nor rendered as a pass: \"Publish immutable image to GHCR\" is main-only, and \"replay oracle -- release tag comparison\" runs on a release tag. No check is failing."
     },
     {
       "name": "W108.3 W93–W107 criterion-level reconciliation",
@@ -271,6 +271,15 @@
       "artifactDigest": "sha256:53d5c1787d548e6b1defa35b48fe2301c9484a8e2d03f7523509abd9266b9db0",
       "evidenceUrl": "RELEASE.md",
       "detail": "Every row above carries its command, exit code, duration where meaningful, artifact digest where one applies, and evidence pointer. Four rows are not passes and say so in their status: two Unavailable for Docker, one Unavailable for unpushed CI, one Partial for an unavailable Postgres profile, one Failed for a real companion mismatch, and two Failed for unmet W108 criteria. This record is committed after the candidate it describes; that commit is not the candidate, and the authorization binds to 2b525d38d6876829b35e9f5ff5fcf22af421f082."
+    },
+    {
+      "name": "W108.5 The validation path executed, found a defect in itself, and now passes",
+      "status": "Passed",
+      "exitCode": 0,
+      "durationSeconds": 41,
+      "artifactDigest": "sha256:53d5c1787d548e6b1defa35b48fe2301c9484a8e2d03f7523509abd9266b9db0",
+      "evidenceUrl": "https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/34701561854/job/103574122639",
+      "detail": "The non-publishing validation job ran for real on pull request #471. Its FIRST run (run 34701472881) failed exit 2 -- not in a guard, but in the step that reports them: printf with a format string starting with \"- \" had its dash read as a bash option. Every guard in that run passed, the registry guard reporting success in validate mode. Fixed in 14f4323 by adding the -- that three other printf calls in the same workflow already had, and the job is now green in 41s: mode resolved validate, the tag/version and clean-tree guards passed, the stale-dist sentinel was removed by the clean build, the archive was inspected and its digest recorded, the packed consumer ran against that archive, the digest re-verified unchanged, and all three guard negatives rejected as expected. The publish step did not run. This is the argument for W108.5 in one run: the inline shell this replaced could only have surfaced that defect by pushing a v* tag."
     }
   ],
   "conclusion": {
@@ -278,14 +287,20 @@
     "candidate": "2b525d38d6876829b35e9f5ff5fcf22af421f082",
     "archive": "the-running-dev-game-engine-0.11.0.tgz sha256:53d5c1787d548e6b1defa35b48fe2301c9484a8e2d03f7523509abd9266b9db0",
     "blockers": [
-      "W107.5 — SubZeroDev.GameOfLife's stable-life campaign does not compile against the candidate engine: SimulationCampaignSource requires projects and businesses since W101. Pre-existing, reproduced at the W107 candidate, and a companion-side fix that W108 may not make.",
-      "W107.3 / W107.4 — the production Docusaurus build, the host container smoke and its negative fixture need Docker, which is unavailable here. Confirm via the pull request's 'Verify Documentation Build' and the Platform Static Host Image workflow.",
-      "W107.5 — SubZeroDev.Platform's durable/Postgres profile could not run: no Postgres, and no Docker to start one. 52 of 198 tests unrun.",
-      "W107.6 — no CI run exists for the candidate at report time; the three required checks must be green on the pull request.",
-      "W108.2 — no registry-supported withdrawal operation is known to work on GitHub Packages, so the checklist states a limitation rather than a procedure.",
-      "W108.3 — W98.2 stays unchecked: its browser half is in a companion repository and the criterion has no cross-repository form."
+      "W107.5 -- SubZeroDev.GameOfLife stable-life campaign does not compile against the candidate engine: SimulationCampaignSource requires projects and businesses since W101. Pre-existing, reproduced at the W107 candidate 31a24c3, and a companion-side fix W108 may not make.",
+      "W107.5 -- SubZeroDev.Platform durable/Postgres profile could not run: ECONNREFUSED 127.0.0.1:5432, and no Docker to start a database. 52 of 198 tests unrun; the 145 in-memory tests pass against the retained archive.",
+      "W108.2 -- no registry-supported withdrawal operation is known to work on GitHub Packages, so the checklist states a limitation rather than a procedure. A decision for the user.",
+      "W108.3 -- W98.2 stays unchecked: its browser half is in a companion repository and the criterion has no cross-repository form. A decision for the user."
     ],
-    "statement": "This records release preparation and a full fresh verification pass. It does not authorize publication. Two of the six blockers are environmental and close on the pull request's own CI; two are decisions for the user; one is a companion-side fix outside W108; one is an unavailable database profile."
+    "statement": "This records release preparation and a full fresh verification pass. It does not authorize publication. Four blockers remain: one real companion mismatch that predates this candidate, one unavailable database profile, and two decisions for the user. Three blockers that were environmental at report time closed on the pull request own CI.",
+    "testedHead": "14f4323512f92f0bb22b77ce2bf6fd380e69c6cb",
+    "closedOnCI": [
+      "W107.3 production Docusaurus build -- green as Verify Documentation Build on PR #471.",
+      "W107.4 host container build, route/probe smoke and negative fixture -- green as Build, run, and smoke the image on PR #471.",
+      "W107.6 required CI workflows -- all three required checks green on PR #471."
+    ]
   },
-  "postCandidateCommits": "Commits after 2b525d3 on this branch touch the verification path only (the release workflow, this record, RELEASE.md). The archive contains dist/, package.json and README.md, so none of them can change its bytes; the digest above is the check on that. The first of them fixes a defect the new validation path found in itself: the summary step ran `printf '- Registry availability guard...'`, whose format string starts with a dash, so bash read it as an option and the job exited 2. The guards themselves all passed in that run — the registry guard reported success in validate mode. That is the validation path doing its job on its first real execution, and it is the reason W108.5 asked for one."
+  "postCandidateCommits": "Commits after 2b525d3 on this branch touch the verification path only (the release workflow, this record, RELEASE.md). The archive contains dist/, package.json and README.md, so none of them can change its bytes; the digest above is the check on that. The first of them fixes a defect the new validation path found in itself: the summary step ran `printf '- Registry availability guard...'`, whose format string starts with a dash, so bash read it as an option and the job exited 2. The guards themselves all passed in that run — the registry guard reported success in validate mode. That is the validation path doing its job on its first real execution, and it is the reason W108.5 asked for one.",
+  "testedHead": "14f4323512f92f0bb22b77ce2bf6fd380e69c6cb",
+  "testedHeadNote": "The CI rows below ran at branch head 14f4323, not at the candidate 2b525d3. The delta is five files -- this record, RELEASE.md, design/30-slices.md, its generated TODO.md page, and one printf in the release workflow -- and no src/engine source. Proven rather than asserted: re-packing at 14f4323 produced sha256 53d5c1787d548e6b1defa35b48fe2301c9484a8e2d03f7523509abd9266b9db0, bit-identical to the candidate archive. So the archive is unchanged and the pack is reproducible. The docs rows are strictly better for having run at head, since they cover the ledger edits the evidence commit made."
 }
