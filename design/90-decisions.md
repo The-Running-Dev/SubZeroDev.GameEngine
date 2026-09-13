@@ -1575,7 +1575,16 @@ Leaving it open is the more expensive direction: an implementer who reads §14 f
 wrong writable set, and a client author who reads §10's table ships without a code the validator
 can return.
 
-### 2026-09-12 — Open: no registry-supported withdrawal operation is known to work on GitHub Packages
+### 2026-09-12 — Resolved 2026-09-13: no registry-supported withdrawal operation is known to work on GitHub Packages
+
+**Decision: accept the documented limitation. No deprecation experiment will be run.** The
+user's call — `RELEASE.md` §7's consumer-side rollback (pin to `0.8.0`, publish a corrected
+higher version) is the procedure, full stop, not a placeholder for one. W108.2 is satisfied by
+that documentation, not blocked by the absence of a tested registry deprecation: the criterion
+asks the checklist to name a rollback/deprecation procedure, and it does, honestly scoped to what
+this repository has actually exercised. Running the experiment described below remains available
+later if a real withdrawal is ever needed, but it is no longer a precondition for `0.11.0`
+readiness.
 
 Context: found while writing W108's release checklist. W108.2 requires the checklist to name a
 "rollback/deprecation procedure", and the honest answer is that this repository has never run one.
@@ -1601,7 +1610,15 @@ Reversibility: the experiment is the expensive direction, not the documentation.
 cannot be cleanly undone on every registry, which is the reason to run it against a version nothing
 consumes rather than to keep deferring it.
 
-### 2026-09-12 — Open: W98.2's browser half now lives in a companion repository, and the criterion has no cross-repository form
+### 2026-09-12 — Resolved 2026-09-13: W98.2's browser half now lives in a companion repository, and the criterion has no cross-repository form
+
+**Decision: the narrowly scoped amendment, not the cross-repository parity proof.** The user's
+call — W98.2 is restated over the two surfaces this repository ships and gates (text client, MCP
+`list_campaigns`); the browser-shelf parity requirement is reassigned to the client contract
+governing `SubZeroDev.Adventures`, which already carries the identical pattern for W99's rows
+11–13 in `10-design.md` §4 (unticked for a companion, "their own reconciliation is the one that
+ticks these boxes"). No standing cross-repository dependency is taken on. See the amended
+criterion text below and its mirror in `30-slices.md`.
 
 Context: found while reconciling W93–W107 criterion-level evidence for W108.3. W98.2 requires the
 text client, MCP `list_campaigns`, and "the browser shelf" to render the same resolved titles

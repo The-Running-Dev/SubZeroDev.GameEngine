@@ -4197,9 +4197,14 @@ results through the public store and projection surfaces without reading engine-
   - W98.1 The canonical contract declares an asynchronous campaign-list operation and a result
         that a client can render as a human-readable campaign selector using only
         `SessionStore`; a fetch-backed test implementation does not preload a registry.
-  - W98.2 The text client, MCP `list_campaigns`, and browser shelf render the same resolved
-        titles without starting a session or reading `ContentRegistry` directly, and the API
-        coverage checklist matches the chosen operation count.
+  - W98.2 The text client and MCP `list_campaigns` render the same resolved titles without
+        starting a session or reading `ContentRegistry` directly, and the API coverage checklist
+        matches the chosen operation count. Browser-shelf parity with these two surfaces is the
+        client contract's requirement, not this repository's — `/play/` was retired in favor of
+        `SubZeroDev.Adventures` (`10-design.md`, *Succeeded by SubZeroDev.Adventures*), and its
+        own reconciliation ticks that box, the same treatment `10-design.md` §4 already gives the
+        Browser client column for W99's rows 11–13. Amended 2026-09-13 (`90-decisions.md`) after
+        `/play/`'s retirement moved the browser surface out of this repository.
   - W98.3 Every projected visible story stat carries its declared lower and upper bounds, so a
         client renders the current value and range without reading campaign content.
   - W98.4 Story-graph ending progress exposes the contract-selected discovered and total facts
@@ -4670,9 +4675,9 @@ as the next publication, while the actual publish remains a separate explicit ac
       mutation.
 - **Depends on:** [W107](#w107) green and every blocker in [W106](#w106) explicitly resolved or
       accepted by the user.
-- **Status:** Prepared and verified; **readiness blocked**. `0.11.0` is set in the package and
-      lockfile, and the roadmap, README, generated docs and landing page all name it as the next
-      authorized publication (W108.1). The checklist is `RELEASE.md`, naming the candidate
+- **Status:** Prepared and verified. `0.11.0` is set in the package and lockfile, and the
+      roadmap, README, generated docs and landing page all name it as the next authorized
+      publication (W108.1). The checklist is `RELEASE.md`, naming the candidate
       `2b525d38d6876829b35e9f5ff5fcf22af421f082`, the archive
       `the-running-dev-game-engine-0.11.0.tgz` and its SHA-256, the required `v0.11.0` tag, the
       registry and its read-only availability result, the release-note source, and the
@@ -4680,12 +4685,15 @@ as the next publication, while the actual publish remains a separate explicit ac
       points, no campaign content the engine does not own, and no play surface. W108.5 holds: the
       guards moved to `src/engine/scripts/verify-release.mjs`, run in a non-publishing validation
       path, and each has rejected a mismatched tag, a dirty tree and a substituted archive.
-      W108.6 holds — nothing was published, tagged, released or deployed. **W108.2 and W108.3 do
-      not.** W108.2 has no tested registry-supported withdrawal operation on GitHub Packages, and
-      W108.3 cannot be satisfied while W98.2 stays unchecked; both are in `90-decisions.md`'s open
-      register, and neither is a decision this unit may take. Every other blocker the rerun found
-      has closed: W107.3, W107.4 and W107.6 on PR #471's own CI, W107.5's GameOfLife half with
+      W108.6 holds — nothing was published, tagged, released or deployed. **W108.2 and W108.3 now
+      hold too**, both resolved 2026-09-13 by the user in `90-decisions.md`: W108.2 accepts
+      `RELEASE.md` §7's consumer-side rollback as the procedure outright rather than holding out
+      for a tested GitHub Packages deprecation, and W108.3 is satisfied against W98.2 as amended
+      that day, scoping browser-shelf parity to the client contract governing
+      `SubZeroDev.Adventures` instead of this repository. Every other blocker the rerun found has
+      closed: W107.3, W107.4 and W107.6 on PR #471's own CI, W107.5's GameOfLife half with
       SubZeroDev.GameOfLife#120, and W107.5's Platform half once Docker became available.
+      **Readiness is no longer blocked; publication remains a separate explicit action.**
 - **Done when:**
   - W108.1 The canonical roadmap, README, generated public docs and landing page all identify
         `0.11.0` as the next authorized publication and describe the same additive scope and
