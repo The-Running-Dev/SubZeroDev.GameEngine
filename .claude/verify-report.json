@@ -3,77 +3,77 @@
     {
       "name": "Typecheck",
       "status": "Passed",
-      "detail": "npm --prefix src/engine run typecheck — tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json — exited 0, no diagnostics."
+      "detail": "npm --prefix src/engine run typecheck -- tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json, exit 0, no output."
     },
     {
       "name": "Lint",
       "status": "Passed",
-      "detail": "npm --prefix src/engine run lint — eslint src scripts — exited 0, no findings."
+      "detail": "npm --prefix src/engine run lint -- eslint src scripts, exit 0, no output."
     },
     {
       "name": "Test",
-      "status": "Passed",
-      "detail": "npm --prefix src/engine test — vitest run — Test Files 98 passed (98); Tests 1622 passed (1622)."
+      "status": "Failed",
+      "detail": "npm --prefix src/engine test -- vitest run. 1628/1629 pass; scripts/verify-release.test.ts > release guards — registry availability is not inferred from a failure > reports an unreachable registry as unknown, never as publishable fails: 'Error: Test timed out in 5000ms. If this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\".' at scripts/verify-release.test.ts:252:3. Reproduced three times across two /verify passes (full suite runs and an isolated -t run), same ~11s duration and outcome each time — not flaky, and unrelated to this branch's src/engine/src/kinds/simulation/* changes (confirmed failing identically before those edits, via git stash). Filed as engine issue #480."
     },
     {
       "name": "Pack package",
       "status": "Passed",
-      "detail": "cd src/engine; npm pack --silent — exited 0, produced the-running-dev-game-engine-0.11.0.tgz."
+      "detail": "npm --prefix src/engine pack --silent produced the-running-dev-game-engine-0.11.0.tgz (411213 bytes), exit 0. Re-run fresh for this /pr pass."
     },
     {
       "name": "Inspect tarball",
       "status": "Passed",
-      "detail": "tar -tzf the-running-dev-game-engine-0.11.0.tgz — 330 entries, all under package/dist/ or package/package.json or package/README.md. grep counts: package/src/ = 0, tsconfig = 0, .test. = 0, package/dist/ = 330 (present)."
+      "detail": "tar -tzf the-running-dev-game-engine-0.11.0.tgz: no src/ entries, no tsconfig*.json entries, no .test.* build artifacts, package/dist/ present. All four assertions from ci.yml's Inspect tarball step held."
     },
     {
       "name": "Consumer smoke",
       "status": "Passed",
-      "detail": "Cleared consumer-smoke/{node_modules,package-lock.json,dist}; npm run install:engine (repacked and installed the-running-dev-game-engine-0.11.0.tgz, added 5 packages) && npm run build (tsc -p tsconfig.json, exit 0) && npm run smoke (node dist/smoke.js, exit 0, no output)."
+      "detail": "rm -rf consumer-smoke/{node_modules,dist}; npm ci; npm run install:engine (installed the freshly packed tarball); npm run build (tsc -p tsconfig.json, exit 0); npm run smoke (node dist/smoke.js, exit 0). No output on success, matching CI's own script."
     },
     {
       "name": "Parse-check PowerShell scripts",
       "status": "Passed",
-      "detail": "Parsed every *.ps1 (53 files found under the repo) with [System.Management.Automation.Language.Parser]::ParseFile — 0 files produced parse errors. Output: 'Checked 53 files' / 'PARSE_OK'."
+      "detail": "Parsed every *.ps1 recursively with [System.Management.Automation.Language.Parser]::ParseFile; zero files reported parse errors. 'All PowerShell scripts parse cleanly'."
     },
     {
       "name": "Run Pester tests",
       "status": "Passed",
-      "detail": "Invoke-Pester -Path tools -Output Detailed -PassThru — Tests completed in 76.05s. Tests Passed: 324, Failed: 0, Skipped: 35, NotRun: 0. TotalCount 359 / PassedCount 324 / FailedCount 0 / SkippedCount 35. The 35 skips are this repository's own self-referential design-state/tracker suites that declare themselves skipped rather than failed when a precondition (e.g. no design-state adoption) does not hold, per the suite's own S12.7 tests."
+      "detail": "Invoke-Pester -Path tools -Output Detailed -PassThru: 'Tests completed in 43.1s' / 'Tests Passed: 324, Failed: 0, Skipped: 35, NotRun: 0'. FailedCount: 0. Re-run fresh for this /pr pass, same result as the prior /verify run."
     },
     {
       "name": "Validate Markdown links, terminology, and generated files",
       "status": "Passed",
-      "detail": "./build/Test-Documentation.ps1 — 'Human-documentation drift check passed across 18 generated engine page(s), compatibility pointers, and the guide.' / 'Documentation checks passed across 207 Markdown file(s).' $? = True."
+      "detail": "./build/Test-Documentation.ps1: 'Human-documentation drift check passed across 18 generated engine page(s), compatibility pointers, and the guide.' / 'Documentation checks passed across 207 Markdown file(s).' Exit 0."
     },
     {
       "name": "Build documentation",
       "status": "DidNotRun",
-      "reason": "docs.ps1 does not exist in this worktree. Per this repository's own AGENTS.md ('Docs Site' section): docs.ps1 is generated by Invoke-SetupDocs and is deliberately not committed to the repository; a missing docs.ps1 means the installer has not been run here. Docker itself is available (docker info succeeds), but there is no local docs.ps1 to invoke -BuildOnly against. The corresponding CI check on the pull request ('Build documentation' in docs-ci.yml) is where this answer will come from."
+      "reason": "CI's step is `/template/scripts/docs-build.ps1`, a script inside the ghcr.io/the-running-dev/docs-template container image, invoked via the local `docs.ps1` wrapper per CLAUDE.md's docs tooling section. `docs.ps1` is not present in this worktree (it is generated by Invoke-SetupDocs, not committed — confirmed by find, no docs.ps1 or *SetupDocs* script anywhere in the repo) even though Docker itself is available. Per CLAUDE.md: when docs.ps1 is missing, verify the PR's own 'Verify Documentation Build' check instead of reporting this as locally passing."
     },
     {
       "name": "Build and verify landing page",
       "status": "Passed",
-      "detail": "npm --prefix src/engine run build (npm run clean && tsc -p tsconfig.build.json, exit 0) followed by npm --prefix site run check, which itself ran format:check, lint, typecheck, test, test:browser, test:build, test:merge in sequence. format:check: 'All matched files use Prettier code style!'. lint (oxlint): no output, exit 0. typecheck (tsc -b): no output, exit 0. test (vitest): Test Files 2 passed (2), Tests 17 passed (17). test:browser (vitest --config vitest.browser.config.ts): Test Files 2 passed (2), Tests 23 passed (23). test:build: tsc -b && landing-page build succeeded, dist/ produced, then 'Both built HTML entry points contain their required static metadata, and 3 bundle(s) are free of Node-only runtime references.'. test:merge: 'Package-backed merge proven: '/', '/roadmap/' and the protected 'docs/' subtree all verified, and the top-level 'docs/' guard rejects a bad landing build.'"
+      "detail": "npm --prefix src/engine run build (tsc -p tsconfig.build.json, exit 0), then npm --prefix site ci && npm --prefix site run check (format:check, lint, typecheck, test: 17/17 passed, test:browser: 23/23 passed using the locally installed Playwright Chromium — PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH left unset as the config comment specifies for non-Alpine environments —, test:build, test:merge: 'Package-backed merge proven'). Exit 0 throughout."
     },
     {
       "name": "Merge landing page into documentation build",
       "status": "DidNotRun",
-      "reason": "npm --prefix site run merge (subzerodev-platform-ui-landing-page merge --landing-dist dist --docs-output ../artifacts/docs --protected-path docs) needs a completed documentation build at ../artifacts/docs. No artifacts/docs directory exists in this worktree (ls: cannot access 'artifacts': No such file or directory), and the 'Build documentation' gate above that would produce it did not run (docs.ps1 missing). The site's own test:merge script (covered under 'Build and verify landing page') exercises the same merge logic against a self-produced fixture output directory, but that is a different invocation from this gate's real target. The corresponding CI check ('Merge landing page into documentation build' in docs-ci.yml) is where this answer will come from."
+      "reason": "CI's step runs `npm --prefix site run merge`, which invokes the package-backed merge against `--docs-output ../artifacts/docs` — the real Docusaurus build produced by the prior 'Build documentation' step. That step did not run locally (docs.ps1 absent), so `artifacts/docs` does not exist in this worktree (confirmed: `ls artifacts/docs` — no such file or directory) and the real merge has nothing to merge against. The synthetic `test:merge` check inside 'Build and verify landing page' above already exercises the merge logic independently of this dependency and passed."
     },
     {
       "name": "Test the host",
       "status": "Passed",
-      "detail": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests/SubZeroDev.GameEngine.Host.Tests.csproj — 'A total of 1 test files matched the specified pattern.' 'Passed!  - Failed: 0, Passed: 12, Skipped: 0, Total: 12, Duration: 864 ms - SubZeroDev.GameEngine.Host.Tests.dll (net10.0)'. NUGET_GITHUB_TOKEN was not set in this shell, but restore succeeded anyway (SubZeroDev.Platform.Hosting resolved, likely from an already-populated local NuGet cache), so this ran for real rather than being skipped."
+      "detail": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests/SubZeroDev.GameEngine.Host.Tests.csproj -c Release: 'Passed!  - Failed: 0, Passed: 12, Skipped: 0, Total: 12, Duration: 296 ms - SubZeroDev.GameEngine.Host.Tests.dll (net10.0)'. Restore used the existing local NuGet cache ('All projects are up-to-date for restore') so no NUGET_GITHUB_TOKEN was needed this run."
     },
     {
       "name": "Positive route and probe smoke",
       "status": "DidNotRun",
-      "reason": "This gate needs a running container built from this repository's root Dockerfile. That build requires the nuget_github_token/nuget_github_actor BuildKit secrets (host-image.yml's 'Build the image' step) to restore SubZeroDev.Platform.Hosting from the cross-repo GitHub Packages feed inside the container — no local NuGet cache is available inside a fresh Docker build context the way it is for a host-side dotnet restore. Attempting `docker build -t subzerodev-gameengine-host:smoke .` without those secrets failed at the host-build restore stage: \"cat: can't open '/run/secrets/nuget_github_actor': No such file or directory\", \"cat: can't open '/run/secrets/nuget_github_token': No such file or directory\", then \"error : Value cannot be null or empty string. (Parameter 'username')\" from NuGet.targets, and the build step exited 1. This is a GitHub Actions secret (REGISTRY_TOKEN) not present in this environment; entering or fabricating one here is out of scope for a local verification pass. The corresponding CI check ('Platform Static Host Image / smoke') is where this answer will come from."
+      "reason": "Requires building the host Docker image, which restores the private SubZeroDev.Platform.Hosting package from GitHub Packages inside an isolated BuildKit build context via `RUN --mount=type=secret,id=nuget_github_token` (Dockerfile:85-88) — independent of the host NuGet cache that let 'Test the host' pass locally. No NUGET_GITHUB_TOKEN/REGISTRY_TOKEN (a PAT scoped to read:packages on the sibling SubZeroDev.Platform repo) is available in this session's environment; `echo $NUGET_GITHUB_TOKEN` / `echo $REGISTRY_TOKEN` are both empty. CI's 'Positive route and probe smoke' check on the pull request is where this answer comes from."
     },
     {
       "name": "Negative fixture -- corrupted artifact must fail to start",
       "status": "DidNotRun",
-      "reason": "This gate builds tools/host-smoke/Dockerfile.negative-fixture with --build-arg BASE_IMAGE=subzerodev-gameengine-host:smoke, i.e. it depends directly on the 'Positive route and probe smoke' gate's base image, which could not be built locally (see that gate's reason: missing REGISTRY_TOKEN/nuget_github_token build secret). With no smoke image to build from, this step cannot run. The corresponding CI check ('Platform Static Host Image / smoke') is where this answer will come from."
+      "reason": "Same blocker as 'Positive route and probe smoke': this step builds a second image FROM the first (`--build-arg BASE_IMAGE=subzerodev-gameengine-host:smoke`), which was never built locally for lack of the same GitHub Packages credential. CI's 'Negative fixture -- corrupted artifact must fail to start' check on the pull request is where this answer comes from."
     }
   ]
 }
