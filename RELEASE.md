@@ -197,31 +197,30 @@ consumer and needs no registry operation.
 `v0.11.0` tag is never moved. If a published `0.11.0` must be withdrawn, the intended operation
 is a registry-supported deprecation of that exact version, leaving it installable but marked.
 
-> **This has not been tested on GitHub Packages, and npmjs behaviour must not be assumed.**
+> **This has not been tested on GitHub Packages, and npmjs behaviour must not be assumed —**
 > `npm deprecate` and `dist-tag` management are npmjs-registry features whose GitHub Packages
-> support has not been exercised by this repository. Until one of them is actually run against a
-> published version here, the only recovery this checklist can promise is **consumer-side
-> rollback to `0.8.0` plus publishing a corrected higher version**. Establishing which
-> registry-supported withdrawal operation works is open work, recorded in
-> `design/90-decisions.md`'s open register — see [§8](#8-authorization), which is why W108.2 is
-> not claimed complete.
+> support has not been exercised by this repository. **The recovery procedure this checklist
+> promises is consumer-side rollback to `0.8.0` plus publishing a corrected higher version, full
+> stop** — decided 2026-09-13 (`design/90-decisions.md`) rather than left open pending a
+> deprecation experiment. Every companion pins exact versions, so that rollback needs no registry
+> operation at all. A registry-supported deprecation remains available to test later if a real
+> withdrawal is ever needed, but it is not a precondition for this procedure or for W108.2.
 
 ## 8. Authorization
 
-**0.11.0 readiness blocked.**
+**0.11.0 readiness is no longer blocked.**
 
 The full W107 matrix was rerun against the candidate in §1.1 — not carried forward from the
 September 7 record, which is history. Most of it holds. Three blockers that were merely
 environmental at report time have since closed on [pull request #471](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/471)'s
 own CI, one real companion mismatch has been fixed in the companion itself, and the fourth
-environmental blocker closed once Docker became available in this environment. **Two remain**,
-both decisions for the user, so the authorization wording in the brief is still deliberately not
-used:
+environmental blocker closed once Docker became available in this environment. **The remaining
+two were decisions for the user and were made 2026-09-13**, recorded in `design/90-decisions.md`:
 
-| # | Criterion | Blocker | Whose call |
+| # | Criterion | Was blocked by | Resolved |
 |---|---|---|---|
-| 1 | W108.2 | No registry-supported withdrawal operation is known to work on GitHub Packages, so §7 states a limitation rather than a procedure. | The user — closing it means deprecating a published version |
-| 2 | W108.3 | W98.2 stays unchecked; its browser half is in a companion repository and the criterion has no cross-repository form. See §9. | The user — a parity proof or a scoped amendment |
+| 1 | W108.2 | No registry-supported withdrawal operation is known to work on GitHub Packages. | Accepted §7's consumer-side rollback as the procedure outright; a registry deprecation was decided not to be a precondition. |
+| 2 | W108.3 | W98.2 stayed unchecked; its browser half is in a companion repository and the criterion had no cross-repository form. See §9. | W98.2 amended (`design/30-slices.md`) to scope browser-shelf parity to the client contract governing `SubZeroDev.Adventures`; text/MCP evidence already satisfies the amended criterion. |
 
 **Closed by a companion fix:**
 
@@ -251,11 +250,11 @@ demonstrates the pack is reproducible. The documentation rows are strictly bette
 at head, since they cover the ledger edits the evidence commit made.
 
 The GameOfLife mismatch and the Platform-profile gap were the two real blockers this rerun could
-close outright, once its evidence was acted on rather than left as a finding. Neither of the two
-remaining blockers is something this unit can close by running more checks — both are decisions.
+close outright, once its evidence was acted on rather than left as a finding. The remaining two
+could not be closed by running more checks — both were decisions, and both are now made.
 
-The full per-gate record is `.claude/release-candidate-w108.json`. No aggregate status overrides
-an unchecked criterion, and nothing in this file authorizes publication.
+The full per-gate record is `.claude/release-candidate-w108.json`. Publishing `0.11.0` remains a
+separate explicit action that nothing in this file performs.
 
 ## 9. W93–W107 criterion-level reconciliation
 
@@ -274,17 +273,18 @@ terminal-shape replay fixtures, so the corpus did move in that unit. It has not 
 it did not move for `0.11.0` — the version bump regenerated no fixture. The host half needs
 Docker and is unavailable here.
 
-**W98.2** (text client, MCP `list_campaigns`, and the browser shelf render the same resolved
-titles without starting a session or reading `ContentRegistry`) — the text and MCP halves are
-covered in this repository's own suites. The browser half is no longer in this repository: the
-in-repository `/play/` route was retired, and the browser surface is
+**W98.2** (text client and MCP `list_campaigns` render the same resolved titles without starting
+a session or reading `ContentRegistry`) — covered in this repository's own suites; **holds.**
+The criterion originally also named a browser shelf. That surface is no longer in this
+repository: the in-repository `/play/` route was retired, and the browser surface is
 [SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures), where
 `BrowserClient.listCampaigns()` is session-free and `PlayerHome` renders the catalog's resolved
-`title`. That evidence is in a companion repository at a pinned commit, which is not the same
-thing as the criterion's own proof, and retiring `/play/` did not retire catalog parity. The
-criterion needs either a cross-repository parity proof or a narrowly scoped amendment through the
-design process. **It stays blocked**; `/play/` was not recreated and the browser was not quietly
-dropped.
+`title`. Rather than stand up a cross-repository parity proof, the criterion was amended
+2026-09-13 (`design/90-decisions.md`, `design/30-slices.md`) to scope browser-shelf parity to the
+client contract governing `SubZeroDev.Adventures` instead — the same treatment already given to
+W99's session-lifecycle rows in `10-design.md` §4's coverage checklist. `/play/` was not
+recreated and the browser was not quietly dropped; the requirement moved to the document that now
+owns that surface.
 
 
 **W107.5's companion row, reconciled.** The W107 report recorded this as Passed by citing issue
