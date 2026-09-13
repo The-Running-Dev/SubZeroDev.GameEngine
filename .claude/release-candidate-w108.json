@@ -194,13 +194,15 @@
     },
     {
       "name": "W107.5 Companion: SubZeroDev.Platform game-service against the retained archive",
-      "status": "Partial",
+      "status": "Passed",
       "command": "vendor the retained 0.11.0 tarball; npm install; npm run typecheck; npm test",
-      "exitCode": 1,
-      "durationSeconds": 60,
+      "exitCode": 0,
+      "durationSeconds": 42,
       "artifactDigest": "sha256:53d5c1787d548e6b1defa35b48fe2301c9484a8e2d03f7523509abd9266b9db0",
-      "evidenceUrl": "SubZeroDev.Platform @ 94eabac73f534d92ae7c59ccb4051dc756e95d9f",
-      "detail": "Platform is an archive consumer — it vendors a tarball rather than a submodule — so the retained 0.11.0 archive was vendored in place of its 0.10.0 one. typecheck: exit 0 against the candidate archive. Tests: 13 files / 145 tests passed, 1 skipped; 11 files / 52 tests could not run. Every one of those 52 fails on 'connect ECONNREFUSED 127.0.0.1:5432' inside migrateToHead — the durable/Postgres profile needs a database, and no Postgres is running here (nor can one be started: the Docker daemon is down). That is an UNAVAILABLE profile, not a failure against the candidate, and it is not claimed as a pass. The in-memory half compiling and passing against the retained archive is genuine evidence; the durable profile is an open row. Vendoring reverted and verified."
+      "evidenceUrl": "local run, this worktree; SubZeroDev.Platform @ 94eabac73f534d92ae7c59ccb4051dc756e95d9f",
+      "detail": "RESOLVED AFTER THE REPORT RUN. Docker became available in this environment; the report run had no Docker daemon, so this profile could not be exercised at all. Re-ran with the retained 0.11.0 archive vendored the same way as the report run: `docker compose up -d` in workloads/game-service brought up the postgres:17 service its own docker-compose.yml already provisions (S3.15, invariant 93) -- no new infrastructure was added. First run: 195 of 198 tests passed, 1 skipped, 2 failed in tests/replay-edge.test.ts on `spawn dotnet ENOENT` -- the sibling .NET game-edge workload had never been built in this checkout, unrelated to Postgres or to this candidate. `dotnet build workloads/game-edge/SubZeroDev.Platform.GameEdge` (0 warnings, 0 errors) resolved it. Second run: 197 of 198 passed, 1 pre-existing skip (tests/trace-evidence.test.ts), matching the skip count issue #392 already recorded historically. typecheck clean. Vendoring reverted and verified afterwards (git status clean, vendor/ back to the-running-dev-game-engine-0.10.0.tgz); the postgres container was torn down (docker compose down).",
+      "statusAtReport": "Partial",
+      "detailAtReport": "Platform is an archive consumer — it vendors a tarball rather than a submodule — so the retained 0.11.0 archive was vendored in place of its 0.10.0 one. typecheck: exit 0 against the candidate archive. Tests: 13 files / 145 tests passed, 1 skipped; 11 files / 52 tests could not run. Every one of those 52 fails on 'connect ECONNREFUSED 127.0.0.1:5432' inside migrateToHead — the durable/Postgres profile needs a database, and no Postgres is running here (nor can one be started: the Docker daemon is down). That is an UNAVAILABLE profile, not a failure against the candidate, and it is not claimed as a pass. The in-memory half compiling and passing against the retained archive is genuine evidence; the durable profile is an open row. Vendoring reverted and verified."
     },
     {
       "name": "W107.5 Companion: SubZeroDev.GameOfLife against the candidate SHA",
@@ -272,7 +274,7 @@
       "durationSeconds": null,
       "artifactDigest": "sha256:53d5c1787d548e6b1defa35b48fe2301c9484a8e2d03f7523509abd9266b9db0",
       "evidenceUrl": "RELEASE.md",
-      "detail": "Every row above carries its command, exit code, duration where meaningful, artifact digest where one applies, and evidence pointer. Rows that are not passes say so in their status. At the time of this update there are 3: Partial: W107.5 Companion: SubZeroDev.Platform game-service against the retained archive; Failed: W108.3 W93–W107 criterion-level reconciliation; Failed: W108.2 Release checklist completeness. A row that changed after the report run keeps its original status and detail alongside the new ones. This record is committed after the candidate it describes; that commit is not the candidate, and the authorization binds to 2b525d38d6876829b35e9f5ff5fcf22af421f082."
+      "detail": "Every row above carries its command, exit code, duration where meaningful, artifact digest where one applies, and evidence pointer. Rows that are not passes say so in their status. At the time of this update there are 2: Failed: W108.3 W93–W107 criterion-level reconciliation; Failed: W108.2 Release checklist completeness. A row that changed after the report run keeps its original status and detail alongside the new ones. This record is committed after the candidate it describes; that commit is not the candidate, and the authorization binds to 2b525d38d6876829b35e9f5ff5fcf22af421f082."
     },
     {
       "name": "W108.5 The validation path executed, found a defect in itself, and now passes",
@@ -289,11 +291,10 @@
     "candidate": "2b525d38d6876829b35e9f5ff5fcf22af421f082",
     "archive": "the-running-dev-game-engine-0.11.0.tgz sha256:53d5c1787d548e6b1defa35b48fe2301c9484a8e2d03f7523509abd9266b9db0",
     "blockers": [
-      "W107.5 -- SubZeroDev.Platform durable/Postgres profile could not run: ECONNREFUSED 127.0.0.1:5432, and no Docker to start a database. 52 of 198 tests unrun; the 145 in-memory tests pass against the retained archive.",
       "W108.2 -- no registry-supported withdrawal operation is known to work on GitHub Packages, so the checklist states a limitation rather than a procedure. A decision for the user.",
       "W108.3 -- W98.2 stays unchecked: its browser half is in a companion repository and the criterion has no cross-repository form. A decision for the user."
     ],
-    "statement": "This records release preparation and a full fresh verification pass. It does not authorize publication. 3 blockers remain: one unavailable database profile and two decisions for the user. Three blockers that were environmental at report time closed on the pull request's own CI, and the one real companion mismatch was fixed in SubZeroDev.GameOfLife.",
+    "statement": "This records release preparation and a full fresh verification pass. It does not authorize publication. 2 blockers remain, both decisions for the user. All companion-compatibility and environmental blockers found by the original rerun have since closed: three on CI, one by a companion-side fix (GameOfLife), and one once Docker became available in this environment (Platform).",
     "testedHead": "14f4323512f92f0bb22b77ce2bf6fd380e69c6cb",
     "closedOnCI": [
       "W107.3 production Docusaurus build -- green as Verify Documentation Build on PR #471.",
@@ -301,7 +302,8 @@
       "W107.6 required CI workflows -- all three required checks green on PR #471."
     ],
     "resolvedAfterReport": [
-      "W107.5 -- SubZeroDev.GameOfLife stable-life compile failure against the candidate engine -- resolved by SubZeroDev.GameOfLife#120 (8ea9441), verified against engine 6910bf5, whose src/engine is byte-identical to the candidate."
+      "W107.5 -- SubZeroDev.GameOfLife stable-life compile failure against the candidate engine -- resolved by SubZeroDev.GameOfLife#120 (8ea9441), verified against engine 6910bf5, whose src/engine is byte-identical to the candidate.",
+      "W107.5 -- SubZeroDev.Platform durable/Postgres profile was unavailable (no Docker) at report time; re-run with Docker available found 197 of 198 tests passing (1 pre-existing skip) against the retained candidate archive. The two initial failures were an unbuilt sibling .NET workload, not a Postgres or candidate defect, and cleared after building it."
     ]
   },
   "postCandidateCommits": "Commits after 2b525d3 on this branch touch the verification path only (the release workflow, this record, RELEASE.md). The archive contains dist/, package.json and README.md, so none of them can change its bytes; the digest above is the check on that. The first of them fixes a defect the new validation path found in itself: the summary step ran `printf '- Registry availability guard...'`, whose format string starts with a dash, so bash read it as an option and the job exited 2. The guards themselves all passed in that run — the registry guard reported success in validate mode. That is the validation path doing its job on its first real execution, and it is the reason W108.5 asked for one.",

@@ -213,20 +213,27 @@ is a registry-supported deprecation of that exact version, leaving it installabl
 The full W107 matrix was rerun against the candidate in §1.1 — not carried forward from the
 September 7 record, which is history. Most of it holds. Three blockers that were merely
 environmental at report time have since closed on [pull request #471](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/471)'s
-own CI, and the one real companion mismatch has been fixed in the companion itself. **Three
-remain**, so the authorization wording in the brief is still deliberately not used:
+own CI, one real companion mismatch has been fixed in the companion itself, and the fourth
+environmental blocker closed once Docker became available in this environment. **Two remain**,
+both decisions for the user, so the authorization wording in the brief is still deliberately not
+used:
 
 | # | Criterion | Blocker | Whose call |
 |---|---|---|---|
-| 1 | W107.5 | SubZeroDev.Platform's durable/Postgres profile could not run — `ECONNREFUSED 127.0.0.1:5432`, and no Docker to start a database. 52 of 198 tests unrun; the 145 in-memory tests pass against the retained archive. | Needs a Postgres, or a CI run of that profile |
-| 2 | W108.2 | No registry-supported withdrawal operation is known to work on GitHub Packages, so §7 states a limitation rather than a procedure. | The user — closing it means deprecating a published version |
-| 3 | W108.3 | W98.2 stays unchecked; its browser half is in a companion repository and the criterion has no cross-repository form. See §9. | The user — a parity proof or a scoped amendment |
+| 1 | W108.2 | No registry-supported withdrawal operation is known to work on GitHub Packages, so §7 states a limitation rather than a procedure. | The user — closing it means deprecating a published version |
+| 2 | W108.3 | W98.2 stays unchecked; its browser half is in a companion repository and the criterion has no cross-repository form. See §9. | The user — a parity proof or a scoped amendment |
 
 **Closed by a companion fix:**
 
 | Criterion | Resolved by |
 |---|---|
-| W107.5 (GameOfLife) | [SubZeroDev.GameOfLife#120](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/pull/120), merged as `8ea9441`, closing [#119](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/issues/119). `stable-life` did not compile against the candidate engine: it lacked `projects` and `businesses`, required since W101. Once that was fixed, a second break appeared: its two event chains were never declared, which W102 requires. Both are fixed. GameOfLife `main` now pins engine `6910bf5`, and `git diff 2b525d3 6910bf5 -- src/engine` is **empty**, so it compiles against source byte-identical to this candidate's. Typecheck clean, 71 of 71 tests, content export and clean-tree checks pass, and the post-merge [Verify run](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/actions/runs/34743822580) is green. W107.5 still does not fully hold, because of the Platform row above. |
+| W107.5 (GameOfLife) | [SubZeroDev.GameOfLife#120](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/pull/120), merged as `8ea9441`, closing [#119](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/issues/119). `stable-life` did not compile against the candidate engine: it lacked `projects` and `businesses`, required since W101. Once that was fixed, a second break appeared: its two event chains were never declared, which W102 requires. Both are fixed. GameOfLife `main` now pins engine `6910bf5`, and `git diff 2b525d3 6910bf5 -- src/engine` is **empty**, so it compiles against source byte-identical to this candidate's. Typecheck clean, 71 of 71 tests, content export and clean-tree checks pass, and the post-merge [Verify run](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/actions/runs/34743822580) is green. |
+
+**Closed once Docker became available in this environment:**
+
+| Criterion | Established by |
+|---|---|
+| W107.5 (Platform) | The report run had no Docker daemon, so Platform's durable/Postgres profile could not be exercised at all. Docker is now running here. `docker compose up -d` in `workloads/game-service` brought up the same `postgres:17` service its own committed `docker-compose.yml` provisions — no new infrastructure. Against the retained candidate archive: **197 of 198 tests pass, 1 pre-existing skip**, matching the skip count issue #392 already recorded. Two initial failures turned out to be an unbuilt sibling `.NET` workload (`spawn dotnet ENOENT`), unrelated to Postgres or the candidate; building it (0 warnings, 0 errors) cleared them. Vendoring was reverted and verified, and the Postgres container was torn down afterward. |
 
 **Closed on CI**, at branch head `14f4323`:
 
@@ -243,9 +250,9 @@ workflow — with no `src/engine` source among them. That is proven, not asserte
 demonstrates the pack is reproducible. The documentation rows are strictly better for having run
 at head, since they cover the ledger edits the evidence commit made.
 
-The GameOfLife mismatch was a real finding, and the most valuable thing the rerun produced: it is
-exactly what carrying the W107 companion evidence forward would have hidden. It is now fixed in
-the companion rather than in this candidate, which is where the defect was.
+The GameOfLife mismatch and the Platform-profile gap were the two real blockers this rerun could
+close outright, once its evidence was acted on rather than left as a finding. Neither of the two
+remaining blockers is something this unit can close by running more checks — both are decisions.
 
 The full per-gate record is `.claude/release-candidate-w108.json`. No aggregate status overrides
 an unchecked criterion, and nothing in this file authorizes publication.
