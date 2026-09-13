@@ -24,7 +24,7 @@
     "SubZeroDev.ServiceContract": "5d3fb8e6ebeb8fb6200e36ebc61df107ad355ce7",
     "SubZeroDev.Platform": "94eabac73f534d92ae7c59ccb4051dc756e95d9f",
     "SubZeroDev.Adventures": "ecb1cc645ce53bb11392e7f34b22384482fbf486",
-    "SubZeroDev.GameOfLife": "f35f977823ff5f3ab9cf29304a3e71aa20f09fa5"
+    "SubZeroDev.GameOfLife": "8ea9441661a17f5cd64a50c31ab1bb5a68de8360"
   },
   "temporarySubstitutions": [
     "SubZeroDev.Adventures: engine submodule detached from b7e21e712a1e72e32d327ecebac72a2af1c27ebd to the candidate 2b525d3 for the run, then restored to b7e21e7. Verified restored.",
@@ -204,13 +204,15 @@
     },
     {
       "name": "W107.5 Companion: SubZeroDev.GameOfLife against the candidate SHA",
-      "status": "Failed",
+      "status": "Passed",
       "command": "engine submodule -> 2b525d3; npm run setup; npm ci; npm run typecheck; npm test; ./tools/Test-SpecSet.ps1",
-      "exitCode": 1,
+      "exitCode": 0,
       "durationSeconds": 300,
       "artifactDigest": null,
-      "evidenceUrl": "https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/issues/119",
-      "detail": "UNRESOLVED CONTRACT MISMATCH, and the single most important thing this rerun found. GameOfLife's content does not compile against the candidate engine: 'src/campaigns/stable-life.ts(2615,14): error TS2739: ... is missing the following properties from type SimulationCampaignSource: projects, businesses'. One typecheck error, one root cause, 18 of 71 vitest tests failing from it (2 files failed, 2 passed) — buildSimulationCampaign then throws 'Cannot read properties of undefined (reading map)' at simulation/source.ts:296. Test-SpecSet.ps1 itself completed: 8 documents, 936 declarations, 0 unchecked, 2 mirror obligations, 205 references, 8 cross-repository-unresolvable references into SubZeroDev.GameEngine (its known, expected state). NOT CAUSED BY 0.11.0: projects and businesses became required in W101 (b595fe2, 2026-08-31), which is already an ancestor of the W107 candidate 31a24c3 — and re-pinning the submodule to 31a24c3 as a control reproduces the identical single error. So the mismatch has existed since W101 and the W107 report's 'Passed' companion row did not detect it, because it cited a point-in-time proof rather than running GameOfLife against a candidate. This is a companion-side gap: stable-life must declare the two collections. Fixing it is out of W108's scope by that unit's own terms. Submodule restored to 54e2467 afterwards and verified."
+      "evidenceUrl": "https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/actions/runs/34743822580",
+      "detail": "RESOLVED AFTER THE REPORT RUN by a companion-side fix, SubZeroDev.GameOfLife#120, merged as 8ea9441 and closing SubZeroDev.GameOfLife#119. The original failure is preserved in detailAtReport. The fix needed two changes, not one: stable-life now declares projects and businesses (required since engine W101), and it declares its two event chains, tax-filing-chain and storm-damage-chain, as \"game\"-scoped (required since engine W102, #423). The second was hidden behind the first and did not show until the typecheck error cleared. GameOfLife main now pins its engine submodule to 6910bf5, and `git diff 2b525d3 6910bf5 -- src/engine` is empty, so the engine it compiles against is byte-identical to this candidate's engine source. Evidence: typecheck clean, 71 of 71 tests passing, export:content and check:clean passing locally against 6910bf5; the four checks on PR #120 green; and the post-merge Verify run on GameOfLife main (content and verify jobs) green. Declaring the chains is validation-only: the engine already treats an undeclared chain as game-scoped at runtime. One engine-side gap surfaced and is tracked separately, not fixed here: SimulationCampaignSource cannot declare eventChains (SubZeroDev.GameEngine#472), so GameOfLife attaches them to the built content.",
+      "statusAtReport": "Failed",
+      "detailAtReport": "UNRESOLVED CONTRACT MISMATCH, and the single most important thing this rerun found. GameOfLife's content does not compile against the candidate engine: 'src/campaigns/stable-life.ts(2615,14): error TS2739: ... is missing the following properties from type SimulationCampaignSource: projects, businesses'. One typecheck error, one root cause, 18 of 71 vitest tests failing from it (2 files failed, 2 passed) — buildSimulationCampaign then throws 'Cannot read properties of undefined (reading map)' at simulation/source.ts:296. Test-SpecSet.ps1 itself completed: 8 documents, 936 declarations, 0 unchecked, 2 mirror obligations, 205 references, 8 cross-repository-unresolvable references into SubZeroDev.GameEngine (its known, expected state). NOT CAUSED BY 0.11.0: projects and businesses became required in W101 (b595fe2, 2026-08-31), which is already an ancestor of the W107 candidate 31a24c3 — and re-pinning the submodule to 31a24c3 as a control reproduces the identical single error. So the mismatch has existed since W101 and the W107 report's 'Passed' companion row did not detect it, because it cited a point-in-time proof rather than running GameOfLife against a candidate. This is a companion-side gap: stable-life must declare the two collections. Fixing it is out of W108's scope by that unit's own terms. Submodule restored to 54e2467 afterwards and verified."
     },
     {
       "name": "W107.6 Repository checks: PowerShell parse and Pester, with pass/skip reasons",
@@ -270,7 +272,7 @@
       "durationSeconds": null,
       "artifactDigest": "sha256:53d5c1787d548e6b1defa35b48fe2301c9484a8e2d03f7523509abd9266b9db0",
       "evidenceUrl": "RELEASE.md",
-      "detail": "Every row above carries its command, exit code, duration where meaningful, artifact digest where one applies, and evidence pointer. Four rows are not passes and say so in their status: two Unavailable for Docker, one Unavailable for unpushed CI, one Partial for an unavailable Postgres profile, one Failed for a real companion mismatch, and two Failed for unmet W108 criteria. This record is committed after the candidate it describes; that commit is not the candidate, and the authorization binds to 2b525d38d6876829b35e9f5ff5fcf22af421f082."
+      "detail": "Every row above carries its command, exit code, duration where meaningful, artifact digest where one applies, and evidence pointer. Rows that are not passes say so in their status. At the time of this update there are 3: Partial: W107.5 Companion: SubZeroDev.Platform game-service against the retained archive; Failed: W108.3 W93–W107 criterion-level reconciliation; Failed: W108.2 Release checklist completeness. A row that changed after the report run keeps its original status and detail alongside the new ones. This record is committed after the candidate it describes; that commit is not the candidate, and the authorization binds to 2b525d38d6876829b35e9f5ff5fcf22af421f082."
     },
     {
       "name": "W108.5 The validation path executed, found a defect in itself, and now passes",
@@ -287,20 +289,26 @@
     "candidate": "2b525d38d6876829b35e9f5ff5fcf22af421f082",
     "archive": "the-running-dev-game-engine-0.11.0.tgz sha256:53d5c1787d548e6b1defa35b48fe2301c9484a8e2d03f7523509abd9266b9db0",
     "blockers": [
-      "W107.5 -- SubZeroDev.GameOfLife stable-life campaign does not compile against the candidate engine: SimulationCampaignSource requires projects and businesses since W101. Pre-existing, reproduced at the W107 candidate 31a24c3, and a companion-side fix W108 may not make. Tracked as https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/issues/119.",
       "W107.5 -- SubZeroDev.Platform durable/Postgres profile could not run: ECONNREFUSED 127.0.0.1:5432, and no Docker to start a database. 52 of 198 tests unrun; the 145 in-memory tests pass against the retained archive.",
       "W108.2 -- no registry-supported withdrawal operation is known to work on GitHub Packages, so the checklist states a limitation rather than a procedure. A decision for the user.",
       "W108.3 -- W98.2 stays unchecked: its browser half is in a companion repository and the criterion has no cross-repository form. A decision for the user."
     ],
-    "statement": "This records release preparation and a full fresh verification pass. It does not authorize publication. Four blockers remain: one real companion mismatch that predates this candidate, one unavailable database profile, and two decisions for the user. Three blockers that were environmental at report time closed on the pull request own CI.",
+    "statement": "This records release preparation and a full fresh verification pass. It does not authorize publication. 3 blockers remain: one unavailable database profile and two decisions for the user. Three blockers that were environmental at report time closed on the pull request's own CI, and the one real companion mismatch was fixed in SubZeroDev.GameOfLife.",
     "testedHead": "14f4323512f92f0bb22b77ce2bf6fd380e69c6cb",
     "closedOnCI": [
       "W107.3 production Docusaurus build -- green as Verify Documentation Build on PR #471.",
       "W107.4 host container build, route/probe smoke and negative fixture -- green as Build, run, and smoke the image on PR #471.",
       "W107.6 required CI workflows -- all three required checks green on PR #471."
+    ],
+    "resolvedAfterReport": [
+      "W107.5 -- SubZeroDev.GameOfLife stable-life compile failure against the candidate engine -- resolved by SubZeroDev.GameOfLife#120 (8ea9441), verified against engine 6910bf5, whose src/engine is byte-identical to the candidate."
     ]
   },
   "postCandidateCommits": "Commits after 2b525d3 on this branch touch the verification path only (the release workflow, this record, RELEASE.md). The archive contains dist/, package.json and README.md, so none of them can change its bytes; the digest above is the check on that. The first of them fixes a defect the new validation path found in itself: the summary step ran `printf '- Registry availability guard...'`, whose format string starts with a dash, so bash read it as an option and the job exited 2. The guards themselves all passed in that run — the registry guard reported success in validate mode. That is the validation path doing its job on its first real execution, and it is the reason W108.5 asked for one.",
   "testedHead": "14f4323512f92f0bb22b77ce2bf6fd380e69c6cb",
-  "testedHeadNote": "The CI rows below ran at branch head 14f4323, not at the candidate 2b525d3. The delta is five files -- this record, RELEASE.md, design/30-slices.md, its generated TODO.md page, and one printf in the release workflow -- and no src/engine source. Proven rather than asserted: re-packing at 14f4323 produced sha256 53d5c1787d548e6b1defa35b48fe2301c9484a8e2d03f7523509abd9266b9db0, bit-identical to the candidate archive. So the archive is unchanged and the pack is reproducible. The docs rows are strictly better for having run at head, since they cover the ledger edits the evidence commit made."
+  "testedHeadNote": "The CI rows below ran at branch head 14f4323, not at the candidate 2b525d3. The delta is five files -- this record, RELEASE.md, design/30-slices.md, its generated TODO.md page, and one printf in the release workflow -- and no src/engine source. Proven rather than asserted: re-packing at 14f4323 produced sha256 53d5c1787d548e6b1defa35b48fe2301c9484a8e2d03f7523509abd9266b9db0, bit-identical to the candidate archive. So the archive is unchanged and the pack is reproducible. The docs rows are strictly better for having run at head, since they cover the ledger edits the evidence commit made.",
+  "companionCommitsAtReport": {
+    "SubZeroDev.GameOfLife": "f35f977823ff5f3ab9cf29304a3e71aa20f09fa5"
+  },
+  "companionCommitsNote": "SubZeroDev.GameOfLife moved from f35f977 (the commit the W107.5 run failed against) to 8ea9441 (the merged fix, SubZeroDev.GameOfLife#120). The other three companions are unchanged from the report run."
 }
