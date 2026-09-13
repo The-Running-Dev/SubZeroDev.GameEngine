@@ -4601,7 +4601,7 @@ while genuinely unavailable Presentation work remains visibly blocked instead of
       narratives, implementing any unresolved issue inside the tracking pass, or transferring
       work to an unavailable repository.
 
-### [ ] W107 — 0.11 Release Candidate Verification {#w107}
+### [x] W107 — 0.11 Release Candidate Verification {#w107}
 
 **Delivers:** Release maintainers can judge one additive candidate from a complete, reproducible
 verification record covering the engine and every supported delivery surface.
@@ -4611,8 +4611,9 @@ verification record covering the engine and every supported delivery surface.
 - **Touches:** verification commands and CI workflows only as needed to run the existing
       engine, host, site, docs, container, consumer and companion gates against one candidate.
 - **Depends on:** [W106](#w106), so verification starts with tracker/design truth reconciled.
-- **Status:** Rerun against the `0.11.0` candidate `2b525d3` and **not complete**. W107.1, W107.2,
-      W107.3, W107.4, W107.6 and W107.7 all hold; the record is
+- **Status:** Complete. Closed via #395; all criteria (W107.1–W107.7) verified. Rerun against the
+      `0.11.0` candidate `2b525d3`. W107.1, W107.2, W107.3, W107.4, W107.6 and W107.7 all hold;
+      the record is
       `.claude/release-candidate-w108.json`. W107.3's production Docusaurus build and W107.4's
       container smoke could not run locally — no Docker daemon — and were established instead as
       required checks on PR #471, green at branch head `14f4323`; re-packing there reproduced the
