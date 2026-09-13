@@ -106,5 +106,4 @@ rendered here.
 | milestone/6 | #292 | Content packs compose at campaign granularity, but dynamic content injection needs node granularity | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | milestone/6 | #293 | A session belongs to exactly one campaign, and nothing decides what happens if content spans two | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | milestone/1 | #300 | Campaign sources here are fixtures now, but nothing in the tree says so | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
-| milestone/6 | #396 | W108 — Publish 0.11 Readiness | W108.1, W108.2, W108.3, W108.4, W108.5, W108.6 | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 <!-- outstanding:end -->

@@ -282,7 +282,7 @@
 
 ### [x] W107 — 0.11 Release Candidate Verification {#w107}
 
-### [ ] W108 — Publish 0.11 Readiness {#w108}
+### [x] W108 — Publish 0.11 Readiness {#w108}
 
 ### Depth: The Five GameOfLife Engine Blockers
 
