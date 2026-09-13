@@ -211,16 +211,22 @@ is a registry-supported deprecation of that exact version, leaving it installabl
 **0.11.0 readiness blocked.**
 
 The full W107 matrix was rerun against the candidate in §1.1 — not carried forward from the
-September 7 record, which is history. Most of it holds, and three blockers that were merely
+September 7 record, which is history. Most of it holds. Three blockers that were merely
 environmental at report time have since closed on [pull request #471](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/471)'s
-own CI. **Four remain**, so the authorization wording in the brief is still deliberately not used:
+own CI, and the one real companion mismatch has been fixed in the companion itself. **Three
+remain**, so the authorization wording in the brief is still deliberately not used:
 
 | # | Criterion | Blocker | Whose call |
 |---|---|---|---|
-| 1 | W107.5 | **SubZeroDev.GameOfLife does not compile against the candidate engine.** `stable-life.ts` is missing `projects` and `businesses`, required on `SimulationCampaignSource` since W101. One typecheck error, 18 of 71 tests failing from it. **Not caused by 0.11.0** — re-pinning the submodule to the W107 candidate `31a24c3` reproduces the identical error, so it has existed since 2026-08-31 and W107's cited companion row did not detect it. | A companion-side fix, out of W108's scope — tracked as [SubZeroDev.GameOfLife#119](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/issues/119) |
-| 2 | W107.5 | SubZeroDev.Platform's durable/Postgres profile could not run — `ECONNREFUSED 127.0.0.1:5432`, and no Docker to start a database. 52 of 198 tests unrun; the 145 in-memory tests pass against the retained archive. | Needs a Postgres, or a CI run of that profile |
-| 3 | W108.2 | No registry-supported withdrawal operation is known to work on GitHub Packages, so §7 states a limitation rather than a procedure. | The user — closing it means deprecating a published version |
-| 4 | W108.3 | W98.2 stays unchecked; its browser half is in a companion repository and the criterion has no cross-repository form. See §9. | The user — a parity proof or a scoped amendment |
+| 1 | W107.5 | SubZeroDev.Platform's durable/Postgres profile could not run — `ECONNREFUSED 127.0.0.1:5432`, and no Docker to start a database. 52 of 198 tests unrun; the 145 in-memory tests pass against the retained archive. | Needs a Postgres, or a CI run of that profile |
+| 2 | W108.2 | No registry-supported withdrawal operation is known to work on GitHub Packages, so §7 states a limitation rather than a procedure. | The user — closing it means deprecating a published version |
+| 3 | W108.3 | W98.2 stays unchecked; its browser half is in a companion repository and the criterion has no cross-repository form. See §9. | The user — a parity proof or a scoped amendment |
+
+**Closed by a companion fix:**
+
+| Criterion | Resolved by |
+|---|---|
+| W107.5 (GameOfLife) | [SubZeroDev.GameOfLife#120](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/pull/120), merged as `8ea9441`, closing [#119](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/issues/119). `stable-life` did not compile against the candidate engine: it lacked `projects` and `businesses`, required since W101. Once that was fixed, a second break appeared: its two event chains were never declared, which W102 requires. Both are fixed. GameOfLife `main` now pins engine `6910bf5`, and `git diff 2b525d3 6910bf5 -- src/engine` is **empty**, so it compiles against source byte-identical to this candidate's. Typecheck clean, 71 of 71 tests, content export and clean-tree checks pass, and the post-merge [Verify run](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/actions/runs/34743822580) is green. W107.5 still does not fully hold, because of the Platform row above. |
 
 **Closed on CI**, at branch head `14f4323`:
 
@@ -237,8 +243,9 @@ workflow — with no `src/engine` source among them. That is proven, not asserte
 demonstrates the pack is reproducible. The documentation rows are strictly better for having run
 at head, since they cover the ledger edits the evidence commit made.
 
-Blocker 1 is a real finding, and the most valuable thing the rerun produced: it is exactly what
-carrying the W107 companion evidence forward would have hidden.
+The GameOfLife mismatch was a real finding, and the most valuable thing the rerun produced: it is
+exactly what carrying the W107 companion evidence forward would have hidden. It is now fixed in
+the companion rather than in this candidate, which is where the defect was.
 
 The full per-gate record is `.claude/release-candidate-w108.json`. No aggregate status overrides
 an unchecked criterion, and nothing in this file authorizes publication.
@@ -279,9 +286,14 @@ that environment. All four were available for this rerun and all four were run f
 ServiceContract at its own commit (59 tests), Adventures and GameOfLife with their engine
 submodules temporarily detached to the candidate SHA, and Platform with the retained 0.11.0
 archive vendored in place of its 0.10.0 one. Every substitution was reverted and verified
-afterwards. The run found what the citation could not: GameOfLife has not compiled against a
+afterwards. The run found what the citation could not: GameOfLife had not compiled against a
 candidate engine since W101. The citation was not wrong about anything it claimed; it simply
 could not have detected this, which is the argument for running rather than carrying forward.
+The mismatch has since been fixed in GameOfLife by
+[SubZeroDev.GameOfLife#120](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/pull/120).
+The fix surfaced one engine-side gap, tracked rather than fixed here:
+`SimulationCampaignSource` cannot declare `eventChains`
+([SubZeroDev.GameEngine#472](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/472)).
 
 ## 10. Scope fence
 

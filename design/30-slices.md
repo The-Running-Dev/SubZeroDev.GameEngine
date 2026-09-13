@@ -4617,12 +4617,14 @@ verification record covering the engine and every supported delivery surface.
       container smoke could not run locally — no Docker daemon — and were established instead as
       required checks on PR #471, green at branch head `14f4323`; re-packing there reproduced the
       candidate archive's digest bit-for-bit, so nothing in the archive moved between the two.
-      **W107.5 does not hold.** SubZeroDev.GameOfLife does not compile against the candidate:
-      `stable-life.ts` lacks the `projects` and `businesses` that [W101](#w101) made required on
-      `SimulationCampaignSource`. That is **pre-existing, not caused by `0.11.0`** — re-pinning
-      its submodule to the earlier candidate reproduces the identical error, which means the
-      W107 report's cited companion row could never have detected it. SubZeroDev.Platform's
-      durable/Postgres profile is separately unavailable. W107.4's own text was corrected by
+      **W107.5 does not yet hold.** Its GameOfLife half is resolved: that companion did not
+      compile against the candidate because `stable-life.ts` lacked the `projects` and
+      `businesses` that [W101](#w101) made required, and, once that cleared, the event-chain
+      declarations [W102](#w102) requires. Both were **pre-existing, not caused by `0.11.0`**, and
+      both are fixed in the companion by SubZeroDev.GameOfLife#120 (`8ea9441`). GameOfLife now
+      compiles against engine `6910bf5`, whose `src/engine` is byte-identical to the candidate's.
+      What still stands is SubZeroDev.Platform's durable/Postgres profile, which is unavailable.
+      W107.4's own text was corrected by
       PR #461 before this rerun, so the rerun exercised the corrected requirement and added no
       engine API to the static host; the superseded failure in
       `.claude/release-candidate-w107.json` is history, not an open finding.
@@ -4678,9 +4680,9 @@ as the next publication, while the actual publish remains a separate explicit ac
       W108.6 holds — nothing was published, tagged, released or deployed. **W108.2 and W108.3 do
       not.** W108.2 has no tested registry-supported withdrawal operation on GitHub Packages, and
       W108.3 cannot be satisfied while W98.2 stays unchecked; both are in `90-decisions.md`'s open
-      register, and neither is a decision this unit may take. W107.3, W107.4 and W107.6 closed on PR #471's own CI; W107.5's
-      GameOfLife mismatch and Platform's unavailable Postgres profile are the other half of the
-      blockers.
+      register, and neither is a decision this unit may take. W107.3, W107.4 and W107.6 closed on
+      PR #471's own CI, and W107.5's GameOfLife mismatch closed with SubZeroDev.GameOfLife#120;
+      Platform's unavailable Postgres profile is the other half of the blockers.
 - **Done when:**
   - W108.1 The canonical roadmap, README, generated public docs and landing page all identify
         `0.11.0` as the next authorized publication and describe the same additive scope and
