@@ -406,6 +406,30 @@ describe("validateCampaign", () => {
     expect(result.ok).toBe(true);
   });
 
+  it("W109.1 — accepts a startingEffects modifier targeting player.reputation.<key>", () => {
+    const campaign = makeCampaign({
+      startingEffects: [makeStartingEffect({ modifiers: [{ target: "player.reputation.employability", operation: "add", value: 10, sourceId: "campaign" }] })],
+    });
+    const result = validateCampaign(campaign, VALID_STRINGS);
+    expect(result).toEqual({ ok: true, errors: [], warnings: [] });
+  });
+
+  it("W109.5 — the four formula-only paths still fail read_only_field once reputation is writable", () => {
+    for (const target of [
+      "player.housing.quality",
+      "player.career.effectivePerformance",
+      "calendar.energyRecoveryRate",
+      "world.strangeness",
+    ]) {
+      const campaign = makeCampaign({
+        startingEffects: [makeStartingEffect({ modifiers: [{ target, operation: "add", value: 1, sourceId: "campaign" }] })],
+      });
+      const result = validateCampaign(campaign, VALID_STRINGS);
+      expect(result.ok).toBe(false);
+      expect(result.errors).toContainEqual(expect.objectContaining({ code: "read_only_field", path: target }));
+    }
+  });
+
   // -------------------------------------------------------------------------
   // Tier 2 — unreachable content
   // -------------------------------------------------------------------------

@@ -26,6 +26,7 @@ describe("derivedValueResolver.resolve", () => {
       ["player.needs.energy", 50],
       ["player.attributes.discipline", 50],
       ["player.skills.cooking", 50],
+      ["player.reputation.landlord", 50],
       ["player.housing.quality", 50],
       ["player.career.effectivePerformance", 50],
       ["calendar.energyRecoveryRate", 50],
@@ -70,7 +71,7 @@ describe("derivedValueResolver.resolve", () => {
     expect(steppedRounded).not.toBe(combinedOnce);
   });
 
-  it("clamps player.needs.*/player.attributes.*/player.skills.* to 0-100", () => {
+  it("clamps player.needs.*/player.attributes.*/player.skills.*/player.reputation.* to 0-100", () => {
     const effects: StatusEffect[] = [
       effect({ modifiers: [{ target: "player.needs.energy", operation: "add", value: 1000, sourceId: "a" }] }),
     ];
@@ -80,6 +81,18 @@ describe("derivedValueResolver.resolve", () => {
       effect({ modifiers: [{ target: "player.needs.energy", operation: "subtract", value: 1000, sourceId: "a" }] }),
     ];
     expect(derivedValueResolver.resolve("player.needs.energy", 50, negativeEffects)).toBe(0);
+  });
+
+  it("W109.2 — layers an active modifier over the stored reputation base, clamped 0-100", () => {
+    const effects: StatusEffect[] = [
+      effect({ modifiers: [{ target: "player.reputation.employability", operation: "add", value: 20, sourceId: "uniform" }] }),
+    ];
+    expect(derivedValueResolver.resolve("player.reputation.employability", 50, effects)).toBe(70);
+    expect(derivedValueResolver.resolve("player.reputation.employability", 90, effects)).toBe(100);
+  });
+
+  it("W109.3 — once the modifier's effect is gone, resolving returns the stored base unchanged", () => {
+    expect(derivedValueResolver.resolve("player.reputation.employability", 50, [])).toBe(50);
   });
 
   it("leaves the four read-only formula paths unclamped (no declared range in this contract)", () => {
@@ -98,10 +111,11 @@ describe("derivedValueResolver.isReadOnly", () => {
     expect(derivedValueResolver.isReadOnly("world.strangeness")).toBe(true);
   });
 
-  it("is false for needs/attributes/skills, which have a real stored counterpart", () => {
+  it("is false for needs/attributes/skills/reputation, which have a real stored counterpart", () => {
     expect(derivedValueResolver.isReadOnly("player.needs.energy")).toBe(false);
     expect(derivedValueResolver.isReadOnly("player.attributes.discipline")).toBe(false);
     expect(derivedValueResolver.isReadOnly("player.skills.cooking")).toBe(false);
+    expect(derivedValueResolver.isReadOnly("player.reputation.employability")).toBe(false);
   });
 
   it("is false for an arbitrary path outside the DerivedPath union entirely", () => {

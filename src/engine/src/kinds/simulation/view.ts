@@ -35,7 +35,7 @@ import type {
 import { demandBand, unaddressedPendingResponses } from "./state.js";
 import { ACTION_TYPES } from "./plan.js";
 import type { SimulationKindState } from "./state.js";
-import { resolveEffectiveAttributes, resolveEffectiveNeeds, resolveEffectiveSkills } from "./derived.js";
+import { resolveEffectiveAttributes, resolveEffectiveNeeds, resolveEffectiveReputation, resolveEffectiveSkills } from "./derived.js";
 
 export interface VisibleRelationship {
   npcId: string;
@@ -275,7 +275,7 @@ export function project(
 
     skills: resolveEffectiveSkills(state),
     traits: state.player.traits,
-    reputation: state.player.reputation,
+    reputation: resolveEffectiveReputation(state),
 
     activeEffects: visibleEffects(state.activeEffects),
     activeOpportunities: visibleOpportunities(state.activeOpportunities),
