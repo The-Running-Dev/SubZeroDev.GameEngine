@@ -222,6 +222,47 @@ describe("validateCampaign", () => {
     );
   });
 
+  it("rejects an NPCDefinition.startingMemories entry whose descriptionKey has no authored string (W110.4)", () => {
+    const npc: NPCDefinition = {
+      id: "npc-landlord",
+      nameKey: "npc.name",
+      descriptionKey: "npc.description",
+      defaultRole: "landlord",
+      initialRelationship: { affinity: 0, trust: 0, respect: 0, resentment: 0 },
+      availability: [],
+      startingMemories: [
+        { id: "memory-1", aboutActorId: "player", week: 0, category: "grudge", magnitude: -20, descriptionKey: "npc.memory.missing" },
+      ],
+      tags: [],
+    };
+    const campaign = makeCampaign({ npcs: [npc] });
+    const result = validateCampaign(campaign, VALID_STRINGS);
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ code: "missing_string_key", path: "npc.memory.missing" }),
+    );
+  });
+
+  it("accepts an NPCDefinition.startingMemories entry whose descriptionKey resolves (W110.4)", () => {
+    const npc: NPCDefinition = {
+      id: "npc-landlord",
+      nameKey: "npc.name",
+      descriptionKey: "npc.description",
+      defaultRole: "landlord",
+      initialRelationship: { affinity: 0, trust: 0, respect: 0, resentment: 0 },
+      availability: [],
+      startingMemories: [
+        { id: "memory-1", aboutActorId: "player", week: 0, category: "grudge", magnitude: -20, descriptionKey: "sim.description" },
+      ],
+      tags: [],
+    };
+    const campaign = makeCampaign({ npcs: [npc] });
+    const result = validateCampaign(campaign, VALID_STRINGS);
+    expect(result.errors).not.toContainEqual(
+      expect.objectContaining({ code: "missing_string_key", path: "sim.description" }),
+    );
+  });
+
   it("collects every error rather than stopping at the first", () => {
     const campaign = makeCampaign({
       descriptionKey: "sim.missing",

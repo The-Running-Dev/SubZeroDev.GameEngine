@@ -266,7 +266,11 @@ function validateLocKeys(content: SimulationCampaign, strings: ReadonlyMap<LocKe
   for (const housing of content.housing) { check(housing.nameKey); check(housing.descriptionKey); }
   for (const item of content.items) { check(item.nameKey); check(item.descriptionKey); }
   for (const event of content.events) { check(event.titleKey); check(event.descriptionKey); }
-  for (const npc of content.npcs) { check(npc.nameKey); check(npc.descriptionKey); }
+  for (const npc of content.npcs) {
+    check(npc.nameKey);
+    check(npc.descriptionKey);
+    for (const memory of npc.startingMemories ?? []) check(memory.descriptionKey);
+  }
   for (const goal of content.goals) { check(goal.labelKey); check(goal.descriptionKey); }
   for (const scenario of content.scenarios) { check(scenario.nameKey); check(scenario.descriptionKey); }
   for (const difficulty of content.difficulties) { check(difficulty.labelKey); }
