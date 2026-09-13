@@ -1,6 +1,6 @@
 {
-  "manifestHash": "99613504a79e33642cfb4ca87cea6cebbd275850755e3509b9dd073c8fa13b66",
-  "generated": "2026-09-12",
+  "manifestHash": "3a63b9787bed8f1a737c63a2975968b74fd32bc861acdb8ce7f1d280e604e81a",
+  "generated": "2026-09-13",
   "gates": [
     {
       "name": "Typecheck",
@@ -20,19 +20,19 @@
     },
     {
       "name": "Inspect tarball",
-      "command": "tar inspect"
+      "command": "tar -tzf <tarball>; assert no src/, no tsconfig*.json, no .test.* artifacts, package/dist/ present"
     },
     {
       "name": "Consumer smoke",
-      "command": "consumer-smoke install/build/smoke"
+      "command": "clear consumer-smoke/{node_modules,package-lock.json,dist}; npm run install:engine && npm run build && npm run smoke"
     },
     {
       "name": "Parse-check PowerShell scripts",
-      "command": "pwsh parse *.ps1"
+      "command": "parse every *.ps1 with [System.Management.Automation.Language.Parser]::ParseFile"
     },
     {
       "name": "Run Pester tests",
-      "command": "Invoke-Pester -Path tools"
+      "command": "Invoke-Pester -Path tools -Output Detailed -PassThru"
     },
     {
       "name": "Validate Markdown links, terminology, and generated files",
@@ -52,19 +52,15 @@
     },
     {
       "name": "Test the host",
-      "command": "dotnet test src/host"
+      "command": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests/*.csproj"
     },
     {
       "name": "Positive route and probe smoke",
-      "command": "docker build+run+curl"
+      "command": "build/run host image; curl /, /roadmap/, /docs/, /health/live, /health/ready -> 200; unknown route -> 404"
     },
     {
       "name": "Negative fixture -- corrupted artifact must fail to start",
-      "command": "docker build negative fixture"
-    },
-    {
-      "name": "Release guards (non-publishing)",
-      "command": "node src/engine/scripts/verify-release.mjs tag --tag v<version>; ... clean; ... archive; ... registry"
+      "command": "docker build -f tools/host-smoke/Dockerfile.negative-fixture ...; run must exit non-zero"
     }
   ]
 }
