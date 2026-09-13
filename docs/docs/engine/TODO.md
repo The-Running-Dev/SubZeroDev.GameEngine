@@ -4658,7 +4658,7 @@ verification record covering the engine and every supported delivery surface.
 - **Out of scope:** fixing a failed gate inside the verification unit, changing candidate
       scope, tagging, creating a GitHub release, deploying, or publishing to npm.
 
-### [ ] W108 — Publish 0.11 Readiness {#w108}
+### [x] W108 — Publish 0.11 Readiness {#w108}
 
 **Delivers:** The release owner gets a public roadmap and exact checklist authorizing `0.11.0`
 as the next publication, while the actual publish remains a separate explicit action.
@@ -4670,7 +4670,8 @@ as the next publication, while the actual publish remains a separate explicit ac
       mutation.
 - **Depends on:** [W107](#w107) green and every blocker in [W106](#w106) explicitly resolved or
       accepted by the user.
-- **Status:** Prepared and verified. `0.11.0` is set in the package and lockfile, and the
+- **Status:** Complete. Closed via #396; all criteria (W108.1–W108.6) verified. `0.11.0` is set
+      in the package and lockfile, and the
       roadmap, README, generated docs and landing page all name it as the next authorized
       publication (W108.1). The checklist is `RELEASE.md`, naming the candidate
       `2b525d38d6876829b35e9f5ff5fcf22af421f082`, the archive
