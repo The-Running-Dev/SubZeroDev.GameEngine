@@ -73,7 +73,7 @@ function duplicateIds(items: readonly { id: string }[]): string[] {
  *  `calendar.committedTimeUnits` (`modifiers.ts`'s `time_commit` exception). Anything else —
  *  one of §6.1's four read-only formula paths, or a name this kind's addressing scheme has
  *  no field for — is `read_only_field`. */
-const WRITABLE_TARGET_PREFIXES = ["player.needs.", "player.attributes.", "player.skills."];
+const WRITABLE_TARGET_PREFIXES = ["player.needs.", "player.attributes.", "player.skills.", "player.reputation."];
 
 function isWritableModifierTarget(target: string): boolean {
   return target === "calendar.committedTimeUnits"

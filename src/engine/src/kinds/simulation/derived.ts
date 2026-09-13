@@ -32,6 +32,7 @@ export type DerivedPath =
   | `player.needs.${NeedKey}`
   | `player.attributes.${keyof AttributeState}`
   | `player.skills.${string}`
+  | `player.reputation.${string}`
   | "player.housing.quality"
   | "player.career.effectivePerformance"
   | "calendar.energyRecoveryRate"
@@ -49,15 +50,16 @@ const READ_ONLY_PATHS: ReadonlySet<string> = new Set<string>([
   "world.strangeness",
 ]);
 
-/** `player.needs.*`/`player.attributes.*`/`player.skills.*` clamp to the shared 0–100
- *  integer range (§6.2). The four read-only formula paths have no declared range stated in
- *  this contract yet, so `resolve` leaves them unclamped — provisional, the same status
- *  §6.1's own caching-strategy callout already carries for this section. */
+/** `player.needs.*`/`player.attributes.*`/`player.skills.*`/`player.reputation.*` clamp to
+ *  the shared 0–100 integer range (§6.2). The four read-only formula paths have no declared
+ *  range stated in this contract yet, so `resolve` leaves them unclamped — provisional, the
+ *  same status §6.1's own caching-strategy callout already carries for this section. */
 function clampToDeclaredRange(path: DerivedPath, value: number): number {
   if (
     path.startsWith("player.needs.")
     || path.startsWith("player.attributes.")
     || path.startsWith("player.skills.")
+    || path.startsWith("player.reputation.")
   ) {
     return Math.min(100, Math.max(0, value));
   }
@@ -77,15 +79,16 @@ export const derivedValueResolver: DerivedValueResolver = {
 
 /**
  * Resolves one dotted field path to its effective (derived) value when `path` names a
- * `player.needs.*`, `player.attributes.*`, or `player.skills.*` field — the three
- * `DerivedPath` members with a real stored base this unit wires. Returns `undefined` for
- * every other path (including the four formula-only paths, which need a caller-supplied
- * `base` this function has no way to produce), so a caller with its own generic field
- * resolution — `conditions.ts`'s `resolveField` — can fall back to it. Every reader of a
- * `player.needs.*`/`player.attributes.*`/`player.skills.*` value must resolve through here
- * (or `resolveEffective{Needs,Attributes,Skills}` below): §6.1's "computed on read" is not
- * scoped to the projection alone, and a second, un-modifier-aware read path is exactly the
- * `Scene.body`-vs-`Scene.view`/goal-condition disagreement this function closes.
+ * `player.needs.*`, `player.attributes.*`, `player.skills.*`, or `player.reputation.*`
+ * field — the four `DerivedPath` members with a real stored base this unit wires. Returns
+ * `undefined` for every other path (including the four formula-only paths, which need a
+ * caller-supplied `base` this function has no way to produce), so a caller with its own
+ * generic field resolution — `conditions.ts`'s `resolveField` — can fall back to it. Every
+ * reader of a `player.needs.*`/`player.attributes.*`/`player.skills.*`/`player.reputation.*`
+ * value must resolve through here (or `resolveEffective{Needs,Attributes,Skills,Reputation}`
+ * below): §6.1's "computed on read" is not scoped to the projection alone, and a second,
+ * un-modifier-aware read path is exactly the `Scene.body`-vs-`Scene.view`/goal-condition
+ * disagreement this function closes.
  */
 export function resolveEffectiveField(state: SimulationKindState, path: string): number | undefined {
   if (path.startsWith("player.needs.")) {
@@ -101,6 +104,11 @@ export function resolveEffectiveField(state: SimulationKindState, path: string):
   if (path.startsWith("player.skills.")) {
     const key = path.slice("player.skills.".length);
     const base = state.player.skills[key];
+    return base === undefined ? undefined : derivedValueResolver.resolve(path as DerivedPath, base, state.activeEffects);
+  }
+  if (path.startsWith("player.reputation.")) {
+    const key = path.slice("player.reputation.".length);
+    const base = state.player.reputation[key];
     return base === undefined ? undefined : derivedValueResolver.resolve(path as DerivedPath, base, state.activeEffects);
   }
   return undefined;
@@ -143,4 +151,14 @@ export function resolveEffectiveSkills(state: SimulationKindState): Record<strin
     skills[key] = derivedValueResolver.resolve(`player.skills.${key}`, state.player.skills[key]!, state.activeEffects);
   }
   return skills;
+}
+
+/** Effective (derived) reputation (W109) — same treatment as `resolveEffectiveSkills`,
+ *  §6.1's `player.skills.*` precedent this section ports line for line. */
+export function resolveEffectiveReputation(state: SimulationKindState): Record<string, number> {
+  const reputation: Record<string, number> = {};
+  for (const key of Object.keys(state.player.reputation).sort()) {
+    reputation[key] = derivedValueResolver.resolve(`player.reputation.${key}`, state.player.reputation[key]!, state.activeEffects);
+  }
+  return reputation;
 }
