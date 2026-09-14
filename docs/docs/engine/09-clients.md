@@ -164,13 +164,13 @@ eleventh operation.
 
 | # | Text client (`clients/text/client.test.ts`) | MCP tool (`mcp/server.test.ts`) |
 |---|---|---|
-| 1 | `"1. listCampaigns — returns the real campaign, unresolved titleKey (no session yet)"` | `"list_campaigns — returns the real campaign summary"` |
+| 1 | `"1. listCampaigns — returns the real campaign, title resolved through the catalog's own strings (no session yet)"` | `"list_campaigns — returns the real campaign summary"` |
 | 2 | `"2. createSession — starts the Bureaucracy arc; text renders the real Municipality scene"` | `"start_game — args { campaignId, seed?, profileId? }, returns { sessionId, scene }"` |
 | 3 | `"3. resumeSession — returns the current scene unchanged, no side effect"` | `"continue_game — returns the current scene unchanged, no side effect"` |
 | 4 | `"4. getScene — matches what createSession returned for the same session"` | `"get_scene — matches what start_game returned for the same session"` |
 | 5 | `"5. getView — value carries the real StoryGraphView; text is the opaque JSON rendering"` | `"get_state — returns the real StoryGraphView through PlayerView"` |
 | 6 | `"6. getStrings — resolves the same table the store returns; a known key is present"` | `"get_strings — resolves LocKeys through the registry"` |
-| 7 | `"7. submitAction — success renders the new scene; a gated choice renders unavailable with its real reason"` | `"choose — submitAction under the MCP name; carries the new Scene, never the envelope"` |
+| 7 | `"7. submitAction — success renders the new material route and its projected choices"` | `"choose — submitAction under the MCP name; carries the new Scene, never the envelope"` |
 | 8 | `"8. previewAction — renders the prospective scene without changing the session"` | `"preview_action — returns the prospective scene without committing it"` |
 | 9 | `"9. saveGame — produces a save id; text confirms it"` | `"save_game — narrows the store's SaveHandle to { saveId } only"` |
 | 10 | `"10. loadGame — a fresh session from the save renders the same scene the save point was at"` | `"load_game — a fresh session from the save renders the same scene the save point was at"` |

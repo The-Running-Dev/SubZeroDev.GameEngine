@@ -1,6 +1,6 @@
 {
-  "manifestHash": "f81a89827368c8a332292c8c261576a17bba1e485494e24a84481fc7477df9b6",
-  "generated": "2026-09-05",
+  "manifestHash": "3a63b9787bed8f1a737c63a2975968b74fd32bc861acdb8ce7f1d280e604e81a",
+  "generated": "2026-09-13",
   "gates": [
     {
       "name": "Typecheck",
@@ -16,19 +16,19 @@
     },
     {
       "name": "Pack package",
-      "command": "cd src/engine && npm pack --silent"
+      "command": "cd src/engine; npm pack --silent"
     },
     {
       "name": "Inspect tarball",
-      "command": "tar -tzf <tarball>"
+      "command": "tar -tzf <tarball>; assert no src/, no tsconfig*.json, no .test.* artifacts, package/dist/ present"
     },
     {
       "name": "Consumer smoke",
-      "command": "npm run install:engine && npm run build && npm run smoke (in consumer-smoke/)"
+      "command": "clear consumer-smoke/{node_modules,package-lock.json,dist}; npm run install:engine && npm run build && npm run smoke"
     },
     {
       "name": "Parse-check PowerShell scripts",
-      "command": "Parse every *.ps1 with [System.Management.Automation.Language.Parser]::ParseFile"
+      "command": "parse every *.ps1 with [System.Management.Automation.Language.Parser]::ParseFile"
     },
     {
       "name": "Run Pester tests",
@@ -52,15 +52,15 @@
     },
     {
       "name": "Test the host",
-      "command": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests"
+      "command": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests/*.csproj"
     },
     {
       "name": "Positive route and probe smoke",
-      "command": "build+run host image, curl routes"
+      "command": "build/run host image; curl /, /roadmap/, /docs/, /health/live, /health/ready -> 200; unknown route -> 404"
     },
     {
       "name": "Negative fixture -- corrupted artifact must fail to start",
-      "command": "docker build -f tools/host-smoke/Dockerfile.negative-fixture"
+      "command": "docker build -f tools/host-smoke/Dockerfile.negative-fixture ...; run must exit non-zero"
     }
   ]
 }

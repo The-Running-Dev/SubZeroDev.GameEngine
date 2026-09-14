@@ -921,6 +921,7 @@ type DerivedPath =
   | `player.needs.${NeedKey}`                     // §6.5
   | `player.attributes.${keyof AttributeState}`    // §6.6
   | `player.skills.${string}`
+  | `player.reputation.${string}`                  // §6.2 — W105.1
   | "player.housing.quality"                       // §6.9
   | "player.career.effectivePerformance"           // §6.8
   | "calendar.energyRecoveryRate"
@@ -931,6 +932,19 @@ interface DerivedValueResolver {
   isReadOnly(path: string): boolean;
 }
 ```
+
+**`player.reputation.${string}` joins the union as a fourth stored-base row (W105.1;
+[issue #108](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/issues/108), first
+half).** It follows exactly the `player.skills.${string}` precedent: `ActorState.reputation`
+(§6.2) is already a stored, open-keyed `Record<string, number>` in `0–100` (§6.2's own
+range rule already covers it — no new clamping rule is needed), and it is already read by
+`PerformanceFactor.source`/`CheckModifier.source: "reputation"` (§7.2, §7.6). The only gap
+was the write side: no content type could target it with a `Modifier`, so an item like a work
+uniform had no way to make its wearer more employable. Authored as
+`player.reputation.employability` (or any campaign-chosen key) — `reputation` has no closed
+key set, the same as `skills`. **Travel-time effects (issue #108's other example, "a bicycle
+cutting travel time") are deliberately not addressed by this amendment** — see
+`90-decisions.md`'s W105.1 entry for why.
 
 `DerivedPath` is a closed union — the same reason `ActionType` is (§4.2): it is what
 lets Tier 1 validation (§14) reject a `Modifier` targeting a derived field at load time, rather
@@ -962,7 +976,7 @@ makes a path unwritable — having no stored counterpart is:
 
 | Derived paths | Stored base? | A `Modifier` may target it? |
 |---|---|---|
-| `player.needs.*`, `player.attributes.*`, `player.skills.*` | Yes | **Yes** — this is what the layering above is *for* |
+| `player.needs.*`, `player.attributes.*`, `player.skills.*`, `player.reputation.*` | Yes | **Yes** — this is what the layering above is *for* |
 | `player.housing.quality`, `player.career.effectivePerformance`, `calendar.energyRecoveryRate`, `world.strangeness` | No — formula-only | **No** — Tier 1 `read_only_field` (§14) |
 
 The first row is this section's own motivating example: *a modifier that sets a need to a fixed
@@ -1267,6 +1281,8 @@ interface HousingState {
 
   damage: number;                // 0–100, mutable
   weeklyCostCents: Cents;
+  utilitiesCents: Cents;         // §7.4 — W105.3, stamped from HousingDefinition at move-in; 0 if absent there
+  transportCents: Cents;         // §7.4 — W105.3, stamped from HousingDefinition at move-in; 0 if absent there
   depositPaidCents: Cents;
 
   rentDueWeek: number;
@@ -1438,6 +1454,21 @@ interface Modifier {
 
 Application order, stacking and expiry are §6.1's — this is the content shape that produces the
 `StatusEffect.modifiers` (§2.3) `resolve` reads.
+
+**The writable target set, stated exactly (W105.1).** Two different mechanisms make a
+`target` legal, and both are closed sets:
+
+| Mechanism | Legal targets | How the value is produced |
+|---|---|---|
+| Read-time layering (§6.1) | `player.needs.*`, `player.attributes.*`, `player.skills.*`, `player.reputation.*` | `derivedValueResolver.resolve` recombines `activeEffects` against the stored base on every read — nothing is ever written back to state |
+| A specific system's own recompute | `calendar.committedTimeUnits` | Not a `DerivedPath` — a genuinely stored field with no per-read layering. `time_commit` (§3) is the one place this contract describes recomputing it, by applying this same order/stacking/rounding rule once, at the start of the week |
+
+Nothing else is writable: the four formula-only `DerivedPath` members (§6.1's table above) are
+`read_only_field`, and any `target` naming a field outside both rows — a plain stored value
+with no recompute system of its own, such as `player.finances.cashCents` — is equally
+`read_only_field`, because nothing exists to apply the modifier's `operation` to it. This
+table is the Tier 1 check (§14) stated as data rather than as a rule to re-derive from the two
+paragraphs it was previously scattered across.
 
 **`multiply`'s arithmetic, stated precisely.** `value` is basis-points-shaped: `value/100` is
 the percentage change, so `value: 250` means "+2.50%" (a factor of `1.0250`), matching this
@@ -1633,7 +1664,9 @@ interface HousingDefinition {
   descriptionKey: LocKey;
 
   upfrontCostCents: Cents;
-  weeklyCostCents: Cents;
+  weeklyCostCents: Cents;          // rent
+  utilitiesCents?: Cents;          // W105.3 — absent = 0, folded into the same weekly charge as rent
+  transportCents?: Cents;          // W105.3 — absent = 0, folded into the same weekly charge as rent
   depositCents?: Cents;
 
   capacity: number;
@@ -1657,6 +1690,35 @@ interface HousingDefinition {
 
 `comfort`/`safety`/`damage` feed `player.housing.quality` (§6.1, §6.9) — the derived, read-only
 value this kind computes rather than stores.
+
+**`utilitiesCents`/`transportCents` (W105.3; [issue #109](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/issues/109)).**
+Charged separately from rent means itemized as distinct cost lines a player can see, not a
+separate consequence track: the `housing` end-of-week system (§3) charges
+`weeklyCostCents + utilitiesCents + effectiveTransportCents` as one combined levy against
+`cashCents`, unconditionally, in the same pass and by the same rule §3's own W53/W55 decision
+already gives rent alone (`90-decisions.md`, 2026-08-08 entry) — `cashCents` may go negative,
+proving the same "wages before costs" ordering claim. `missedCents` is computed from that
+combined total, so a shortfall against any of the three components alike advances the same
+`HousingState.overdueRentCents`/`missedPayments`/`evictionStage` ladder via `finance_reconcile`
+(§3) — one arrears mechanism, not three. Both fields are optional; absent means 0, so existing
+content that declares neither is unaffected. `HousingState` (§6.9) gains matching
+`utilitiesCents`/`transportCents` fields, stamped from the definition at move-in exactly as
+`weeklyCostCents` already is — a `kindVersion` bump and `Kind.migrateState` default both to `0`
+for a save with no such fields (§10.2).
+
+**`transportCents` is waived when the player owns a vehicle; `utilitiesCents` is not.** The
+companion game design (`games/03-game-design.md` §16.4, mirrored from GameOfLife) states this
+asymmetry directly for its own baseline scenario: "Transport ... waived if the player owns a
+vehicle," with no equivalent stated for utilities. `effectiveTransportCents` (above) is
+`0` for a week in which `player.inventory` (§6.10) contains at least one `InventoryItem` with
+`condition > 0` whose `ItemDefinition.tags` (§7.5) includes the reserved literal `"vehicle"`,
+and `HousingState.transportCents` otherwise. **`"vehicle"` is this kind's first
+engine-recognized tag value** — every other `tags: string[]` field in this kind (§7.2, §7.5,
+§7.6, §7.9) is free-text content-author metadata nothing in `src/engine` branches on; this is
+the first tag the `housing` system itself reads, the same kind of reserved-namespace
+precedent `core.reason.*` (04 §12) already sets for reason codes. `housing` (§3) is threaded
+`items: readonly ItemDefinition[]` to evaluate this, the same parameter shape `jobs`/`goalDefs`
+already use for their own end-of-week systems.
 
 ### 7.5 Items
 
@@ -1690,6 +1752,26 @@ interface MaintenanceRule {
   breakageChanceAtZeroCondition: number;
 }
 ```
+
+**`weeklyCostCents`, charged (W105.2; [issue #108](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/issues/108),
+second half).** Declared but unread before this amendment. Charged **per owned instance, not
+per definition** — a definition is a template, `InventoryItem` (§6.10) the thing actually
+owned, and a player may hold zero, one, or several instances of the same `ItemDefinition`.
+The `inventory` end-of-week system (§3) — the same pass that already decays `condition` and
+resyncs `activeEffects` from every owned instance — additionally sums `weeklyCostCents` (absent
+= 0) across every `InventoryItem` whose `condition > 0` (mirroring the existing rule that a
+broken item's `effects` stop contributing, §3) and charges the total against `cashCents`,
+**unconditionally**, running after `finance_income` and before `housing` — the same position
+and the same "wages before costs" ordering claim §3's own W53/W55 entry already states for
+rent, extended to a second cost that can also make `cashCents` go negative.
+
+**No arrears or repossession mechanism is created.** Unlike rent, an unpaid item running cost
+has no `finance_reconcile`-style follow-up: no `missedCents` is threaded out of `inventory`,
+no `InventoryItem` field tracks it, and nothing repossesses or disables an item for
+non-payment. This is a deliberate scope cut, not an oversight — a vehicle should cost money to
+run, not gate on a second collections system this issue never asked for. Recorded as a
+known-and-retained gap in `90-decisions.md`'s W105.2 entry: revisit if a scenario needs an
+item's running cost to have teeth beyond draining `cashCents`.
 
 ### 7.6 Events
 
@@ -1793,6 +1875,7 @@ interface NPCDefinition {
   defaultRole: string;
   initialRelationship: NPCRelationship;
   availability: AvailabilityRule[];
+  startingMemories?: NPCMemory[];    // W105.4 — seeds NPCState.memories; absent = []
 
   tags: string[];
 }
@@ -1839,6 +1922,21 @@ interface AvailabilityRule {
   condition?: Condition;      // §8
 }
 ```
+
+**`startingMemories` (W105.4; [issue #110](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/issues/110)).**
+Before this amendment `NPCMemory` existed only as runtime state populated by play — a
+scenario had no way to author an NPC who already remembers something at game start (a
+landlord who already distrusts the player, a rival's old grudge). `startingMemories` is an
+array of full `NPCMemory` values, author-supplied `id` included (the same convention every
+other content id in this kind already uses — `JobDefinition.id`, `ItemDefinition.id`, and so
+on — never minted by an `IdSource`). Whichever reducer first creates a `NPCState` for a given
+`NPCDefinition` (§2.2's `WorldState.npcs`) seeds `memories` from this field — copied once, at
+creation, the same "content declares the shape, state declares the instance" split every
+content/state pair in this kind already follows (§6.7, §6.8, §6.12). Absent or empty produces
+`memories: []`, today's behaviour, so no existing campaign is affected. `aboutActorId` (already
+declared on `NPCMemory`, above) is ordinary authored data here, not a new field — a starting
+memory almost always names `"player"` (§6.3), though nothing prevents authoring one about a
+`RivalConfig.agentId` (§7.10) a scenario also declares.
 
 `WorldState.npcs: NPCState[]` (§2.2) forward-referenced this shape; it lands here. `NPCState`
 holds only what genuinely belongs to the NPC — role, availability, memories — never the
@@ -2352,6 +2450,54 @@ requirement is — the condition tree itself (`04 §18`) already expresses the c
 enum is what lets a validator or a client render "you need Attribute: Discipline 60" as a
 labeled category rather than a bare expression.
 
+### 8.2 Collections for `exists`/`count` (W105.5)
+
+**No new operator.** `04 §18`'s `Condition` already carries `ExistsCondition`/`CountCondition`
+and a `ConditionResolver.collection(name): readonly ConditionResolver[]` seam for them — frozen,
+kind-agnostic, and unused here only because nothing wired `collection` to a real answer.
+`kinds/simulation/conditions.ts` documented this honestly as "not yet" rather than "never," the
+gap this section closes ([issue #107](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/issues/107)):
+a goal or event `Condition` still could not test "does a pending application exist" or "how
+many owned items match X" without it.
+
+**`collection` names one of a closed set of array-typed state paths** — the same closed-set
+discipline §7.1's natural-key addressing table already applies to `Modifier`, extended here to
+whole-collection tests rather than single-member addressing:
+
+| `collection` | Array | Item type |
+|---|---|---|
+| `player.inventory` | `InventoryItem[]` | §6.10 |
+| `player.relationships` | `RelationshipState[]` | §6.11 |
+| `player.career.pendingApplications` | `JobApplication[]` | §6.8 |
+| `player.education.enrollments` | `CourseEnrollment[]` | §6.7 |
+| `player.projects` | `ProjectRuntimeState[]` | §6.12 |
+| `player.businesses` | `BusinessRecord[]` | §6.12 |
+| `world.npcs` | `NPCState[]` | §7.7 |
+
+Naming anything else — a scalar path, an unlisted array, a typo — is Tier 1 `unknown_collection`
+(§14), the same load-time rather than run-time failure `read_only_field` and
+`numeric_natural_key` already give a malformed `Modifier`/id.
+
+**Each item resolves only its own declared fields — never a joined content definition.** The
+resolver `collection` returns is, per item, the same generic dotted-path walk `resolveField`
+(above) already does over `SimulationKindState` — `where`'s `field` paths are relative to one
+array element, so `{ field: "condition", operator: "greater_than", value: 0 }` inside an
+`exists.where` against `player.inventory` reads `InventoryItem.condition` directly. **This is
+a real, stated limitation, not an oversight:** an `InventoryItem` carries `definitionId` but
+not the `ItemDefinition.category` it names, so "any owned car" is authorable as
+`{ exists: { collection: "player.inventory", where: { field: "definitionId", operator: "in",
+value: ["item-sedan", "item-hatchback"] } } }` — enumerating the matching definition ids — but
+not as a `category` test, exactly as `resolveField`'s own generic walk never resolves anything
+`SimulationKindState` doesn't literally store. Joining a collection member against its content
+definition would need the resolver to carry campaign content alongside state, which
+`ConditionResolver` (04 §18) has no seam for; widening that seam is out of scope here and is
+recorded as an open item in `90-decisions.md`'s W105.5 entry rather than invented on the spot.
+
+`count`'s own comparison (04 §18's `CountCondition`) is always a match total against a number —
+"a pending application exists" is `exists`, "at least two owned cars" is `count`. Neither needs
+a per-kind extension beyond the table above; both are the frozen core mechanism, finally given
+somewhere real to point.
+
 ---
 
 ## 9. Projection
@@ -2525,7 +2671,7 @@ author, and a client rendering a history.
 | `insufficient_time` | A planned action exceeds available time units | registered (W53) |
 | `insufficient_funds` | A planned action's cost exceeds available money | registered (W54) |
 | `wrong_location` | An action's type is not in the current location's `actionTypes` (§7.9), or a `travel` target is not in `connections` | registered (W53) |
-| `plan_empty` | `end_week` with nothing planned, where the campaign forbids it | specified, not yet dispatched |
+| `plan_empty` | `end_week` with nothing planned, where the campaign forbids it (`SimulationCampaign.emptyPlanPolicy: "forbid"`, §7.11) | registered (W100) |
 | `week_limit_reached` | The scenario's week cap is exhausted | specified, not yet dispatched |
 | `event_response_pending` | `end_week`, or a `plan.add` for any `ActionType` other than `respond_to_event`, while a `PendingEventResponse` (§2.3) remains unaddressed by the current plan | registered (W94) |
 
@@ -2589,10 +2735,10 @@ namespace exempt from §12's completeness rule.
 > **This set grows as the dispatched systems land, and that is deliberate.** A code joins
 > `Kind.reasonCodes` when the unit that actually produces it exists, not when this table
 > first names it — the precedent `story-graph` set, whose own codes joined across W10, W11,
-> W12 and W14 rather than being pre-declared. `plan_empty` and `week_limit_reached` are the
-> two still outstanding; `plan_empty`'s additional gate is now closed by §7.11's
-> `emptyPlanPolicy` field, recorded in `90-decisions.md` — dispatching it is a `/slice`
-> matter, not a further contract change. The shipped set lives in
+> W12 and W14 rather than being pre-declared. `week_limit_reached` is the one still
+> outstanding. `plan_empty` was the other until W100: §7.11's `emptyPlanPolicy` field closed
+> its additional gate, and `advance.ts`'s `end_week` now returns it whenever that field reads
+> `"forbid"` and the plan is empty. The shipped set lives in
 > `src/engine/src/kinds/simulation/reasons.ts`.
 >
 > **The policy has no gate, and that cost eighteen codes.** Registry validation checks
@@ -2891,6 +3037,84 @@ detail hanging off it, or a genuine gap named rather than guessed at. What has c
 the upstream document is no longer where a reader has to go to find the shape of this kind's
 own state and content; it is here, and upstream stays cited as provenance, exactly as
 `04-core`'s own *Reused, not re-derived* note describes.
+
+### 15.1 Companion Lifecycle Mirror (W103.1)
+
+`SubZeroDev.GameOfLife` S6/S7 gave twelve upstream concepts an explicit `lifecycle-` region —
+a creation paragraph and a retirement paragraph each. This mirrors all twelve against this
+kind's own shape, concept by concept, rather than transcribing upstream prose: four map onto
+core-owned envelope fields (§2's own table above) and are cited there rather than duplicated,
+one is a still-open decision, and the remaining seven get the explicit creation/retirement
+statement upstream's lifecycle region gives them, filling in where an existing section only
+implied it.
+
+**Mapped to the envelope, not restated here — duplicating them would be the envelope-
+duplication defect §2 already names:**
+
+- **`RngState`** — has no counterpart at all, deliberately (§2's table: "Nowhere"). A stream
+  derives from `(seed, streamId)` (04-core §8); there is no persisted generator to create or
+  retire.
+- **`GameStatus`** — the envelope's own `status` (04-core §2), narrowed to
+  `"active" | "ended" | "abandoned"` (§2's table). Its creation and mutation are the envelope's;
+  this kind's own win/loss/week-limit distinction is `outcome()` (§12), not a second status.
+- **`GameMetadata`** — the session-store record (04-core §7), outside replayable state
+  entirely. Its lifecycle is 04-core's own contract.
+- **`LoggedAction`** — the envelope's `actionLog`, the replay spine (04-core §2, §10.3;
+  07-replay.md). Its append-only, never-pruned lifecycle is stated there, not per-kind.
+
+`CalendarState` is *not* in this group despite upstream's naming: `04-core`'s envelope carries
+no week or turn concept of its own, so there is nothing there for this kind to duplicate. It is
+kind-owned (§2.1) and its lifecycle is stated below with the rest.
+
+**Still an open decision, not a gap in this mirror:** **`HistoryEntry`** is not adopted into
+`SimulationKindState`. §2 above states why — it overlaps `StateChange` and the event stream
+closely enough that a third copy would be the same duplication defect, and adopting it needs
+that overlap resolved first. Recorded as open in `90-decisions.md` §2; nothing here
+contradicts shipped code, because the concept does not exist in this kind's state to have a
+lifecycle.
+
+**Kind-owned; creation and retirement stated explicitly:**
+
+- **`CalendarState`** (§2.1). **Creation.** Constructed once by `initialState`, per-scenario:
+  `currentWeek` begins at 1, `totalTimeUnits`/`committedTimeUnits`/`spentTimeUnits` at their
+  starting values, satisfying §2.1's invariant from the first week. **Retirement.** No removal
+  path — `end_week` (§3) mutates it every week, but the field itself is never replaced; it
+  persists for the life of `SimulationKindState`.
+- **`WorldState`** (§2.2), as a whole. **Creation.** Constructed once by `initialState`:
+  `npcs` from content definitions (§7.7), `locations`/`jobMarket` from the scenario's starting
+  location and job content (§7.4, §7.8), `chainStates` seeded per the Chain Scope rules already
+  stated above — `"game"`-scoped empty, `"profile"`-scoped from `PlayerProfile.kindData`
+  (W102) — `agents` from `ScenarioDefinition.rivals` (§7.8, W101), empty otherwise.
+  **Retirement.** No removal path for the struct itself; it persists for the life of
+  `SimulationKindState`. Each member's own removal is that member's lifecycle, already stated
+  where it is declared — `StatusEffect` and `PendingEventResponse` immediately below,
+  `Opportunity`/`ScheduledEvent` in §2.3, and a contested `JobOpening` slot's removal in the
+  Contested-Resource Resolution note above.
+- **`StatusEffect`** (§2.3) — already carries its own *Status Effect Lifecycle* subsection
+  above; cited, not repeated.
+- **`PendingEventResponse`** (§2.3) — already carries its own *Pending Event Response
+  Lifecycle* subsection above; cited, not repeated.
+- **`GoalState`** (§2.4). **Creation.** One `GoalState` per id in `ScenarioDefinition.goalIds`
+  (§7.8), instantiated once by `initialState`; no other creation path, so a game's goal set is
+  fixed at the start, matching upstream. **Retirement.** Already stated in §2.4: a `GoalState`
+  is never removed once created — `status` transitions to `"completed"`/`"failed"`, and the
+  entry stands afterward as a permanent record.
+- **`EconomyState`** (§2.5). **Creation.** Constructed once by `initialState`, from a fixed
+  baseline modified by `DifficultyDefinition.economyModifiers` (§7.8, §7.1). **Retirement.**
+  No removal path, and — matching upstream's own finding, not diverging from it — §3's
+  end-of-week system order names no dedicated economy system today, so nothing currently
+  mutates `EconomyState` after creation; it persists unchanged for the life of the game.
+- **`PlayerState`** (§6), as a whole. **Creation.** Constructed once by `initialState` as
+  `SimulationKindState.player`, from the scenario's starting background, finances, location
+  and inventory declarations (§7.8, §7.9) through the shared actor shape (§6.2) every rival
+  also uses. **Retirement.** No removal path — it persists for the life of the game; at game
+  end its `counters` fold into `PlayerProfile.lifetimeCounters`-equivalent profile data (§7.13,
+  W102) through the same profile mirror `SimulationProfileData` already uses, which copies
+  into a separate save artifact rather than retiring the field itself.
+
+No contradiction with shipped simulation code surfaced while writing this mirror; where a
+concept's mechanism turned out to need a decision rather than a citation (`HistoryEntry`,
+`Reward`'s untyped payload), §2 and `90-decisions.md` already carried it before this pass.
 
 ---
 

@@ -3943,6 +3943,12 @@ has been mis-sized rather than under-resourced.
 The W88/W89 reconciliation closes the existing defined programme. The following units are
 the additive `0.11.0` programme; W90–W92 make `0.10.0` honest and releasable first.
 
+**`0.10.0` was tagged and never published.** Its release run failed in 11 seconds on a shell
+syntax error inside the tag/version guard, before any publish step, so the registry still holds
+`0.4.0`, `0.5.0` and `0.8.0` only. W90–W92 made the package reproducible, which is not the same
+as shipped — and the failure is why [W108](#w108)'s W108.5 requires those guards to be
+executable without pushing a tag.
+
 ### [x] W90 — Canonical and Public Truth {#w90}
 
 **Delivers:** A canonical ledger, generated documentation, README, landing page, and roadmap
@@ -4191,9 +4197,14 @@ results through the public store and projection surfaces without reading engine-
   - W98.1 The canonical contract declares an asynchronous campaign-list operation and a result
         that a client can render as a human-readable campaign selector using only
         `SessionStore`; a fetch-backed test implementation does not preload a registry.
-  - W98.2 The text client, MCP `list_campaigns`, and browser shelf render the same resolved
-        titles without starting a session or reading `ContentRegistry` directly, and the API
-        coverage checklist matches the chosen operation count.
+  - W98.2 The text client and MCP `list_campaigns` render the same resolved titles without
+        starting a session or reading `ContentRegistry` directly, and the API coverage checklist
+        matches the chosen operation count. Browser-shelf parity with these two surfaces is the
+        client contract's requirement, not this repository's — `/play/` was retired in favor of
+        `SubZeroDev.Adventures` (`10-design.md`, *Succeeded by SubZeroDev.Adventures*), and its
+        own reconciliation ticks that box, the same treatment `10-design.md` §4 already gives the
+        Browser client column for W99's rows 11–13. Amended 2026-09-13 (`90-decisions.md`) after
+        `/play/`'s retirement moved the browser surface out of this repository.
   - W98.3 Every projected visible story stat carries its declared lower and upper bounds, so a
         client renders the current value and range without reading campaign content.
   - W98.4 Story-graph ending progress exposes the contract-selected discovered and total facts
@@ -4387,7 +4398,7 @@ older portable saves through deterministic, declared migrations.
       executable migration scripts supplied by a host, migrating unpublished development
       ids, or making profile state part of terminal resolution.
 
-### [ ] W103 — Companion Contracts and Ownership Reconciliation {#w103}
+### [x] W103 — Companion Contracts and Ownership Reconciliation {#w103}
 
 **Delivers:** Ecosystem maintainers get one consistent account of simulation lifecycles, hosted
 operations, fixture ownership, package visibility, and the proof that replaces the retired browser.
@@ -4403,12 +4414,15 @@ operations, fixture ownership, package visibility, and the proof that replaces t
       repository-specific companions where the sync is part of the reconciliation.
 - **Depends on:** GameOfLife S6/S7 and its zero-concept-finding gate; [W98](#w98) and
       [W99](#w99) for the final operation shapes mirrored to Platform/service consumers.
-- **Status:** Not started — blocked on named companion work where it has not landed.
+- **Status:** Landed — all eight criteria confirmed met; closed by issue #391.
 - **Done when:**
-  - W103.1 GameOfLife S7 is landed and its `Test-SpecSet.ps1` reports zero `concept` findings;
+  - [x] W103.1 GameOfLife S7 is landed and its `Test-SpecSet.ps1` reports zero `concept` findings;
         every lifecycle it added is mirrored here with both creation and retirement paths. A
         contradiction with shipped simulation code is reported and stops the mirror rather
-        than being silently reconciled.
+        than being silently reconciled. Re-verified by PR #438: `SubZeroDev.GameOfLife` S6/S7
+        are landed (its issues #13, #14); `design/20-contract.md` §15.1 maps all twelve of S7's
+        `lifecycle-` concepts onto this kind's own shape. No contradiction with shipped
+        simulation code surfaced.
   - [x] W103.2 Platform's hosted MCP contract includes `preview_action` and every W98/W99
         operation with the same arguments/results and one-operation/one-tool mapping. The row
         set moved out of Platform entirely (its S2.11) into
@@ -4435,18 +4449,25 @@ operations, fixture ownership, package visibility, and the proof that replaces t
         implements all thirteen operations — catalog, save, load, branch, and delete included —
         as `fetch` calls against the server's HTTP routes, never importing `SessionStore` or
         touching persistence directly.
-  - W103.4 Every campaign source and exported JSON snapshot retained in this repository says
+  - [x] W103.4 Every campaign source and exported JSON snapshot retained in this repository says
         within its owning file that it is a test fixture, names the external Content repository
         as the publication authority, and leaves fixture behaviour/tests unchanged.
-  - W103.5 The package-visibility decision is recorded once and `package.json`, plans 39/40,
+  - [x] W103.5 The package-visibility decision is recorded once and `package.json`, plans 39/40,
         release documentation, and consumer access all agree on public or private; no document
-        retains the rejected answer.
-  - W103.6 The no-engine-API browser proof is either assigned to a named replacement owner with
+        retains the rejected answer. See `90-decisions.md` §2, closing issue #302.
+  - [x] W103.6 The no-engine-API browser proof is either assigned to a named replacement owner with
         an executable check or retired by a recorded decision that updates both design 13 and
-        15; the deleted `/play/` surface is not recreated to satisfy it.
-  - W103.7 The current agent kit is reconciled without losing repository-specific `-Skip:`
+        15; the deleted `/play/` surface is not recreated to satisfy it. PR #436 retires the
+        proof rather than reassigning it: Adventures is deliberately a hosted API with
+        persistence, so the property has no surviving host to assert over. Recorded in
+        `90-decisions.md` §2, closing issue #273.
+  - [x] W103.7 The current agent kit is reconciled without losing repository-specific `-Skip:`
         guards or command companions; the Pester run reports both pass and intentional skip
         counts, and any third recurrence is raised upstream as the existing issue requires.
+        Closed by PR #442: `/kit-sync` fast-forwarded `~/.agent-kit` (`5095a55` → `36f0a7a`,
+        44 commits) and reconciled `tools/*.ps1` and the two divergent command cores via
+        `tools/Sync-Kit.ps1`. `tools/` Pester reports 324 passed, 0 failed, 35 intentional
+        skips.
   - [x] W103.8 Canonical docs regenerated via `build/ConvertTo-HumanDocumentation.ps1`;
         `build/Test-Documentation.ps1` passed (18 generated engine pages, compatibility
         pointers, guide, and 189 Markdown files); `src/engine`'s `typecheck`, `lint`, and
@@ -4457,7 +4478,7 @@ operations, fixture ownership, package visibility, and the proof that replaces t
       Presentation's scene layer, republishing external packages, moving fixture content back
       from Content, or adopting a companion's design-state corpus wholesale.
 
-### [ ] W104 — Release 0.11 Compatibility Sweep {#w104}
+### [x] W104 — Release 0.11 Compatibility Sweep {#w104}
 
 **Delivers:** Existing campaign, save, replay, host, and package consumers can move from 0.10 to
 the additive candidate without silently changing behaviour.
@@ -4469,32 +4490,50 @@ the additive candidate without silently changing behaviour.
       runner, host/service adapters, package archive assertions, and consumer smoke projects.
 - **Depends on:** [W93](#w93)–[W103](#w103) complete. This is the first unit allowed to call
       their combined result a release candidate baseline.
-- **Status:** Not started.
+- **Status:** Landed — all seven criteria confirmed met; closed by issue #392.
 - **Done when:**
-  - W104.1 A committed manifest names every 0.10 built-in campaign/version, representative
+  - [x] W104.1 A committed manifest names every 0.10 built-in campaign/version, representative
         active and ended save for each kind, every replay fixture, both hosts, and the packed
         public consumer surface; the sweep fails if an entry disappears without an explicit
-        replacement/evidence note.
-  - W104.2 Every 0.10 campaign source builds with all 0.11 additive fields omitted and produces
+        replacement/evidence note. Closed by PR #448: `scripts/w104-manifest.test.ts` names every
+        0.10 built-in campaign/version and the save/compat-baseline fixture sets, on top of the
+        hosts/packed-consumer-surface entries PR #447 added to `regressionManifest.test.ts`.
+  - [x] W104.2 Every 0.10 campaign source builds with all 0.11 additive fields omitted and produces
         the same canonical runtime content, initial projection, available actions, and Tier-1/2
         findings as its recorded 0.10 baseline unless a separately approved correction is named.
-  - W104.3 Every 0.10 save loads or migrates according to its recorded version boundary, with
+        Closed by PR #448: `fixtures/compat/v0.10.0/*.json` freezes the canonical initial `Scene`
+        and Tier-1/2 findings per built-in campaign, captured at the `v0.10.0` tag; a HEAD rerun
+        is byte-identical across all five entries.
+  - [x] W104.3 Every 0.10 save loads or migrates according to its recorded version boundary, with
         unchanged projection/outcome for defaulted additions and no partial write on failure.
-  - W104.4 Every pre-existing replay receives the same verdict and byte-identical outcome; any
+        Closed by PR #448: `fixtures/saves/*.json` (one active/ended pair per kind) load through
+        a real `SessionStore.loadGame` and match an independent re-run; a tampered-checksum case
+        proves no partial write.
+  - [x] W104.4 Every pre-existing replay receives the same verdict and byte-identical outcome; any
         intentionally migrated fixture is separately identified and proves
-        `replayCompatible: false` rather than silently replacing its golden file.
-  - W104.5 The text client, MCP server, static host and Adventures/service-contract integration
+        `replayCompatible: false` rather than silently replacing its golden file. Closed by
+        PR #447: 29 fixtures replayed against `v0.10.0`'s own committed corpus, byte-identical.
+  - [x] W104.5 The text client, MCP server, static host and Adventures/service-contract integration
         pass against the same engine archive and use only the declared SessionStore surface.
-  - W104.6 A clean pack contains the asserted files and no private source/plans, installs into
+        Closed by PR #452, after PR #449 covered the in-repository text client and MCP server via
+        the client-boundary ESLint rule and their own API-coverage suites: the engine packed at
+        `e52e7a1` was re-vendored into `SubZeroDev.Platform`, `SubZeroDev.Adventures`, and
+        `SubZeroDev.ServiceContract`, each passing its full suite with no reach past
+        `SessionStore`/`Portable*`/`fromPortable`. Recorded as a point-in-time proof, not a
+        standing cross-repo CI gate, since none of the three repos live inside this one.
+  - [x] W104.6 A clean pack contains the asserted files and no private source/plans, installs into
         the lockfile-backed consumer smoke, and compiles/runs all public and `/authoring`
-        examples without workspace resolution.
-  - W104.7 The compatibility sweep runs from one documented command/CI job and exits non-zero
+        examples without workspace resolution. Closed by PR #447: clean tarball, no workspace
+        resolution, `/authoring` exports exercised in the consumer smoke.
+  - [x] W104.7 The compatibility sweep runs from one documented command/CI job and exits non-zero
         with the exact artifact that drifted; its green result and baseline commit are recorded.
+        Closed by PR #447: `build/Test-CompatibilitySweep.ps1` composes typecheck/lint/test, the
+        replay oracle, and the packed-tarball consumer smoke into one documented command.
 - **Out of scope:** preserving undocumented implementation details, treating an approved bug
       fix as a compatibility failure without its evidence, publishing a package, or accepting
       new feature work after the baseline is cut.
 
-### [ ] W105 — Documentation and Landing Publication Review {#w105}
+### [x] W105 — Documentation and Landing Publication Review {#w105}
 
 **Delivers:** Prospective users can read and navigate an accurate public account of the
 stabilization release on both documentation and landing surfaces.
@@ -4506,7 +4545,7 @@ stabilization release on both documentation and landing surfaces.
       README/roadmap/release material, landing configuration and rendered browser snapshots.
 - **Depends on:** [W104](#w104), so the public review describes the verified compatibility
       candidate rather than work still moving underneath it.
-- **Status:** Not started.
+- **Status:** Complete. Closed via #393; all criteria (W105.1–W105.7) verified.
 - **Done when:**
   - W105.1 Canonical-to-human generation produces no diff on a second run, and the generated
         pages contain every amended contract/slice section with no hand-edited generated copy.
@@ -4529,7 +4568,7 @@ stabilization release on both documentation and landing surfaces.
 - **Out of scope:** redesigning the site, adding a playable client, changing product strategy
       beyond making its current status explicit, deploying, or publishing the npm package.
 
-### [ ] W106 — Tracker Evidence Closure {#w106}
+### [x] W106 — Tracker Evidence Closure {#w106}
 
 **Delivers:** Maintainers can trust that every resolved engine issue links to immutable evidence,
 while genuinely unavailable Presentation work remains visibly blocked instead of falsely closed.
@@ -4540,7 +4579,7 @@ while genuinely unavailable Presentation work remains visibly blocked instead of
       canonical decisions/slices only where the recorded outcome requires correction.
 - **Depends on:** [W93](#w93)–[W105](#w105). It closes evidence; it does not substitute issue
       closure for unfinished implementation.
-- **Status:** Not started.
+- **Status:** Complete. Closed via #394; all criteria (W106.1–W106.7) verified.
 - **Done when:**
   - W106.1 A frozen inventory records every open engine issue number, title, current state,
         owning W criterion or explicit non-programme disposition, and immutable implementation,
@@ -4567,7 +4606,7 @@ while genuinely unavailable Presentation work remains visibly blocked instead of
       narratives, implementing any unresolved issue inside the tracking pass, or transferring
       work to an unavailable repository.
 
-### [ ] W107 — 0.11 Release Candidate Verification {#w107}
+### [x] W107 — 0.11 Release Candidate Verification {#w107}
 
 **Delivers:** Release maintainers can judge one additive candidate from a complete, reproducible
 verification record covering the engine and every supported delivery surface.
@@ -4577,7 +4616,26 @@ verification record covering the engine and every supported delivery surface.
 - **Touches:** verification commands and CI workflows only as needed to run the existing
       engine, host, site, docs, container, consumer and companion gates against one candidate.
 - **Depends on:** [W106](#w106), so verification starts with tracker/design truth reconciled.
-- **Status:** Not started.
+- **Status:** Complete. Closed via #395; all criteria (W107.1–W107.7) verified. Rerun against the
+      `0.11.0` candidate `2b525d3`. W107.1, W107.2, W107.3, W107.4, W107.6 and W107.7 all hold;
+      the record is
+      `.claude/release-candidate-w108.json`. W107.3's production Docusaurus build and W107.4's
+      container smoke could not run locally — no Docker daemon — and were established instead as
+      required checks on PR #471, green at branch head `14f4323`; re-packing there reproduced the
+      candidate archive's digest bit-for-bit, so nothing in the archive moved between the two.
+      **W107.5 now holds.** Its GameOfLife half was resolved first: that companion did not
+      compile against the candidate because `stable-life.ts` lacked the `projects` and
+      `businesses` that [W101](#w101) made required, and, once that cleared, the event-chain
+      declarations [W102](#w102) requires. Both were **pre-existing, not caused by `0.11.0`**, and
+      both are fixed in the companion by SubZeroDev.GameOfLife#120 (`8ea9441`). GameOfLife now
+      compiles against engine `6910bf5`, whose `src/engine` is byte-identical to the candidate's.
+      SubZeroDev.Platform's durable/Postgres profile was the other half — unavailable at report
+      time for want of a Docker daemon, and green (197 of 198, 1 pre-existing skip) once Docker
+      became available in this environment and the same committed `docker-compose.yml` service
+      was brought up. W107.4's own text was corrected by
+      PR #461 before this rerun, so the rerun exercised the corrected requirement and added no
+      engine API to the static host; the superseded failure in
+      `.claude/release-candidate-w107.json` is history, not an open finding.
 - **Done when:**
   - W107.1 A candidate commit and one clean packed archive digest are recorded; every consumer
         and host test uses that archive rather than a workspace import or a separately packed
@@ -4587,9 +4645,13 @@ verification record covering the engine and every supported delivery surface.
   - W107.3 A clean site install passes lint/typecheck/unit/browser checks and production build;
         documentation conversion and validation run from canonical sources and are no-op on a
         second generation.
-  - W107.4 The static host builds and its container smoke proves health, campaign retrieval,
-        session creation, action preview/submission, save/resume and the W98/W99 operations
-        through the declared API, with no source tree mounted at runtime.
+  - W107.4 The static host builds and its container smoke proves `200` for `/`, `/roadmap/`,
+        `/docs/`, liveness and readiness, `404` for a named unknown route, and a negative
+        fixture that fails to start on a missing required artifact, with no source tree
+        mounted at runtime. Per `15-platform-static-host.md` §8, the host receives no action,
+        owns no session, and exposes no engine API — session creation, action
+        preview/submission, save/resume, and the W98/W99 operations are contract-gated on the
+        engine's own API, not this host's, and this criterion must not require them.
   - W107.5 Packed text/MCP consumers and the lockfile-backed consumer smoke compile and run;
         Platform, service-contract, Adventures and GameOfLife companion checks name exact
         compatible versions or commits and have no unresolved contract mismatch.
@@ -4601,7 +4663,7 @@ verification record covering the engine and every supported delivery surface.
 - **Out of scope:** fixing a failed gate inside the verification unit, changing candidate
       scope, tagging, creating a GitHub release, deploying, or publishing to npm.
 
-### [ ] W108 — Publish 0.11 Readiness {#w108}
+### [x] W108 — Publish 0.11 Readiness {#w108}
 
 **Delivers:** The release owner gets a public roadmap and exact checklist authorizing `0.11.0`
 as the next publication, while the actual publish remains a separate explicit action.
@@ -4613,7 +4675,26 @@ as the next publication, while the actual publish remains a separate explicit ac
       mutation.
 - **Depends on:** [W107](#w107) green and every blocker in [W106](#w106) explicitly resolved or
       accepted by the user.
-- **Status:** Not started.
+- **Status:** Complete. Closed via #396; all criteria (W108.1–W108.6) verified. `0.11.0` is set
+      in the package and lockfile, and the
+      roadmap, README, generated docs and landing page all name it as the next authorized
+      publication (W108.1). The checklist is `RELEASE.md`, naming the candidate
+      `2b525d38d6876829b35e9f5ff5fcf22af421f082`, the archive
+      `the-running-dev-game-engine-0.11.0.tgz` and its SHA-256, the required `v0.11.0` tag, the
+      registry and its read-only availability result, the release-note source, and the
+      non-publishing commands. W108.4 holds — the archive ships exactly three kinds, two entry
+      points, no campaign content the engine does not own, and no play surface. W108.5 holds: the
+      guards moved to `src/engine/scripts/verify-release.mjs`, run in a non-publishing validation
+      path, and each has rejected a mismatched tag, a dirty tree and a substituted archive.
+      W108.6 holds — nothing was published, tagged, released or deployed. **W108.2 and W108.3 now
+      hold too**, both resolved 2026-09-13 by the user in `90-decisions.md`: W108.2 accepts
+      `RELEASE.md` §7's consumer-side rollback as the procedure outright rather than holding out
+      for a tested GitHub Packages deprecation, and W108.3 is satisfied against W98.2 as amended
+      that day, scoping browser-shelf parity to the client contract governing
+      `SubZeroDev.Adventures` instead of this repository. Every other blocker the rerun found has
+      closed: W107.3, W107.4 and W107.6 on PR #471's own CI, W107.5's GameOfLife half with
+      SubZeroDev.GameOfLife#120, and W107.5's Platform half once Docker became available.
+      **Readiness is no longer blocked; publication remains a separate explicit action.**
 - **Done when:**
   - W108.1 The canonical roadmap, README, generated public docs and landing page all identify
         `0.11.0` as the next authorized publication and describe the same additive scope and
@@ -4635,5 +4716,200 @@ as the next publication, while the actual publish remains a separate explicit ac
         separate explicit user action.
 - **Out of scope:** performing the publication, choosing credentials, deploying the site,
       announcing the release, or adding any feature/fix after the verified candidate.
+
+### Depth: The Five GameOfLife Engine Blockers
+
+Five contract amendments dated 2026-09-07 in `90-decisions.md` each close a gap a *Life in the
+Fast Lane* issue named, and **every one is contract-only**: the types and rules are stated, and
+nothing in `src/engine` reads them. They are **0.12 scope** — [W108](#w108)'s own scope forbids
+adding a feature after the verified 0.11 candidate — and they stay **1:1 with their upstream
+issues**, so one engine unit answers one game issue rather than one unit answering two.
+
+Ordered by blast radius, not by issue number: the two that change no state and move no fixture
+first, the two that move cash trajectories next, and the one that bumps `kindVersion` last and
+alone. `plans/50-gameoflife-engine-blockers.md` carries the sizing this ordering came from, and
+the four user decisions behind it. **[W111](#w111) closes the already-open engine issue #418**;
+the other four have no engine issue yet.
+
+### [ ] W109 — A Uniform That Makes Its Wearer More Employable {#w109}
+
+**Delivers:** Lets a campaign author write an item or trait whose effect is on how the world
+regards the player — a work uniform that makes its wearer more employable, a scandal that fades
+when it expires — instead of only on their needs, attributes and skills. Reputation is something
+the game already stores and already reads; until now nothing an author could write was able to
+move it.
+
+- **Spec:** [§6.1](10-simulation-kind.md#61-base-and-derived-values)'s `DerivedPath` union and
+      its writable/formula-only partition, [§6.2](10-simulation-kind.md#62-the-shared-actor-shape)'s
+      stored `reputation` record, [§7.1](10-simulation-kind.md#7-content-definition-types)'s
+      writable-target table, and `90-decisions.md`'s 2026-09-07 `W105.1` entry.
+- **Touches:** the kind's derived-value layer and its Tier 1 modifier-target check, plus their
+      tests. No state shape change, no campaign change, no fixture regeneration.
+- **Depends on:** [W108](#w108), for scheduling only — this is the first unit of 0.12 and must
+      not land against the verified 0.11 candidate.
+- **Status:** Not started.
+- **Done when:**
+  - W109.1 A campaign whose `Modifier.target` is `player.reputation.<key>` passes Tier 1
+        validation, and the same campaign is rejected before this unit; the writable prefix set
+        grows by exactly one entry and the `calendar.committedTimeUnits` exception is unchanged.
+  - W109.2 Resolving `player.reputation.<key>` returns the stored base with every active
+        modifier layered over it in §6.1's fixed `add`/`subtract` → `multiply` → `set` order,
+        clamped to `0–100` — the same treatment `player.skills.*` already gets.
+  - W109.3 When the effect expires, the same read returns the stored base again, unchanged;
+        nothing was written back to state at any point.
+  - W109.4 Resolving a reputation key the actor does not store returns no value rather than
+        `0`, matching the `player.skills.*` precedent line for line.
+  - W109.5 A `Modifier` targeting any of the four formula-only paths still fails Tier 1
+        `read_only_field`; state both counts — targets newly accepted, and targets still
+        rejected.
+  - W109.6 The replay corpus is byte-identical: no committed fixture moves, because no existing
+        campaign targets reputation.
+- **Out of scope:** travel-time effects — issue #108's bicycle is deliberately left unamended
+      and stays unexpressible after this unit; consuming reputation through
+      `CheckModifier.source`/`PerformanceFactor.source`, neither of which is dispatched by any
+      resolver today; authoring a campaign that uses the new target.
+
+### [ ] W110 — An NPC Who Already Remembers You {#w110}
+
+**Delivers:** Lets a scenario begin with an NPC who already has history with the player — a
+landlord who already distrusts them, a rival carrying an old grudge — instead of every
+acquaintance starting blank and accumulating a past only through play.
+
+- **Spec:** [§7.7](10-simulation-kind.md#77-npcs--definition-and-runtime-state)'s
+      `NPCDefinition.startingMemories` and the `NPCMemory` shape it carries, §14's
+      every-`LocKey`-resolves rule, and `90-decisions.md`'s 2026-09-07 `W105.4` entry.
+- **Touches:** the kind's NPC content type and whichever reducer first materialises an NPC's
+      runtime state, plus their tests.
+- **Depends on:** none.
+- **Status:** Not started.
+- **Done when:**
+  - W110.1 A campaign may author starting memories on an NPC definition; the resulting NPC's
+        memory list equals the authored list in authored order, with the author-supplied ids
+        preserved and no id minted from an `IdSource`.
+  - W110.2 A definition declaring no starting memories, or an empty list, produces an empty
+        memory list — today's behaviour — and every committed simulation fixture replays
+        byte-identically.
+  - W110.3 Memories are seeded once, at NPC creation: a memory removed or expired during play
+        does not reappear in a later week.
+  - W110.4 A starting memory whose `descriptionKey` resolves to nothing in the string table
+        fails Tier 1 validation; state both counts — campaigns accepted, and campaigns rejected
+        by this check.
+- **Out of scope:** what a week does to memories or relationships — the `relationships`
+      end-of-week system is contract prerequisite **P2** and has no rule to implement; memory
+      expiry mechanics; authoring starting memories into the *Stable Life* scenario.
+
+### [ ] W111 — Conditions That Can Ask "Do You Own One?" {#w111}
+
+**Delivers:** Lets an author write a goal or event that asks whether something exists in the
+player's world at all, and how many there are — a pending job application, an owned car, a
+course they are enrolled in. Every condition until now could only compare one value against
+another, which is why four planned *Stable Life* events could not be written.
+
+- **Spec:** [§8.2](10-simulation-kind.md#82-collections-for-existscount-w1055)'s closed
+      seven-path table, `04 §18`'s already-frozen `ExistsCondition`/`CountCondition` and
+      `ConditionResolver.collection` seam, §14's Tier 1 list, and `90-decisions.md`'s 2026-09-07
+      `W105.5` entry. Closes engine issue #418.
+- **Touches:** the kind's condition resolver, which throws unconditionally on any collection
+      today, and its Tier 1 validator, plus their tests.
+- **Depends on:** none.
+- **Status:** Not started.
+- **Done when:**
+  - W111.1 Each of §8.2's seven declared collection paths resolves to its state array and
+        supports both `exists` and `count`; state the count of paths accepted.
+  - W111.2 A `where` clause reads fields relative to a single array element: an `exists` over
+        the player's inventory testing `definitionId` `in` a list of ids matches when one of
+        those items is owned and does not match when none is.
+  - W111.3 Naming any other path — a scalar path, an unlisted array, a typo — fails Tier 1
+        `unknown_collection` at load time, never at first evaluation; state both counts, cases
+        accepted and cases rejected, and prove the load-time-not-runtime claim with a condition
+        placed on a branch the test never evaluates.
+  - W111.4 A `count` condition compares the match total against a number and is correct at
+        zero, at the comparison boundary, and above it.
+  - W111.5 A `where` naming a field the array element does not carry — an item's `category`,
+        which lives on the definition and never reaches the resolver — does not match, and a
+        test pins that outcome rather than leaving it to be discovered by an author.
+  - W111.6 No new core condition operator is introduced; `04 §18`'s `Condition` type is
+        unchanged by this unit.
+- **Out of scope:** joining a collection member against its content definition, which would need
+      a core-level `ConditionResolver` widening and is recorded as an open item; adding a new
+      core operator; authoring the four *Stable Life* events themselves.
+
+### [ ] W112 — A Car That Costs Money to Run {#w112}
+
+**Delivers:** Makes owning something cost money week after week, not only at the moment of
+purchase. A vehicle, a subscription, anything with a declared running cost now drains cash every
+week it is owned and working — which is what turns a cheap car with expensive upkeep into a real
+decision instead of a free asset.
+
+- **Spec:** [§7.5](10-simulation-kind.md#75-items)'s `ItemDefinition.weeklyCostCents`,
+      [§3](10-simulation-kind.md#3-the-turn-is-a-week)'s fixed end-of-week system order, and
+      `90-decisions.md`'s 2026-09-07 `W105.2` entry.
+- **Touches:** the `inventory` end-of-week system, its tests, and the replay fixtures whose cash
+      trajectories move.
+- **Depends on:** none mechanically. It is the first of the two units that move committed
+      fixtures, so it is scheduled after [W111](#w111) to keep the fixture churn off the three
+      units that cause none.
+- **Status:** Not started.
+- **Done when:**
+  - W112.1 The weekly cost of every owned item is summed and charged against cash in the same
+        pass that already decays condition, running after income and before housing — §3's
+        existing order, unchanged.
+  - W112.2 The charge is per owned instance, not per definition: a player holding three
+        instances of one definition is charged three times.
+  - W112.3 An item declaring no weekly cost contributes zero, and an item at zero condition
+        contributes zero — the same broken-item rule that already stops its effects applying.
+  - W112.4 The charge is unconditional and may take cash negative; no missed amount is recorded,
+        no arrears field is added, and nothing is repossessed or disabled for non-payment.
+  - W112.5 The regression test is the charge itself, verified by reverting the charge and
+        confirming the test fails.
+  - W112.6 Every regenerated replay fixture is named in the pull request with the cash delta
+        that explains it; no fixture is regenerated without an explanation.
+- **Out of scope:** any arrears, repossession or collections mechanism for unpaid running costs;
+      charging conditional on the item having been used that week; branching charge semantics on
+      an item's free-text `category`; housing's own utilities and transport, which are
+      [W113](#w113).
+
+### [ ] W113 — Utilities and Transport on the Weekly Bill {#w113}
+
+**Delivers:** Makes the weekly cost of a home read like an actual bill — rent, utilities and
+transport as separate lines — and gives owning a vehicle a payoff, because the transport line is
+waived for anyone who has one. A player weighing a cheap flat with a long commute against a
+dearer one nearby finally has the numbers in front of them.
+
+- **Spec:** [§7.4](10-simulation-kind.md#74-housing)'s `utilitiesCents`/`transportCents` and the
+      reserved `"vehicle"` tag, [§6.9](10-simulation-kind.md#69-housing)'s `HousingState`,
+      [§3](10-simulation-kind.md#3-the-turn-is-a-week)'s `housing` and `finance_reconcile`
+      systems, `04 §10.2`'s `kindVersion`/`Kind.migrateState` axis, and `90-decisions.md`'s
+      2026-09-07 `W105.3` entry including its same-day revision.
+- **Touches:** the kind's housing content and runtime types, the `housing` end-of-week system
+      and the item definitions threaded into it, the kind's version and migration hook, migration
+      tests, and the replay fixtures whose cash trajectories move.
+- **Depends on:** [W112](#w112). **Do this one last and alone** — it is the only one of the five
+      that changes a persisted state shape, so batching it means either two version bumps or a
+      unit that does not fit one session.
+- **Status:** Not started.
+- **Done when:**
+  - W113.1 A housing definition may declare utilities and transport costs; both absent means
+        zero, and a campaign declaring neither charges exactly what it charges today.
+  - W113.2 Both are stamped onto the player's housing state at move-in, exactly as rent already
+        is; editing the definition afterwards does not change an existing tenancy's charge.
+  - W113.3 The weekly charge is rent plus utilities plus effective transport as one combined
+        levy against cash, in the pass rent already used, and cash may go negative — the same
+        "wages before costs" ordering rent alone already proves.
+  - W113.4 A shortfall against the combined total advances the same
+        overdue/missed-payments/eviction ladder rent alone drove; no separate utilities or
+        transport arrears state exists, and no second reconciliation rule is added.
+  - W113.5 Transport is charged as zero for a week in which the player holds at least one
+        inventory item above zero condition whose definition tags include the literal
+        `"vehicle"`; a broken vehicle does not waive it, and utilities are never waived.
+  - W113.6 The kind version is bumped and a migration is attached; a fixture holding a save
+        written at the previous version round-trips through load with both new fields defaulted
+        to zero.
+  - W113.7 Every regenerated replay fixture is named in the pull request with the cash delta
+        that explains it.
+- **Out of scope:** separate arrears tracking or a bill-paying action for utilities and
+      transport; promoting `"vehicle"` from a reserved literal to a type; scaling utilities by
+      housing tier in engine code — the game's own baseline scales it per definition, as
+      authored numbers; the per-actor travel-time mechanism still deferred by [W109](#w109).
 
 <!-- human-doc:end -->

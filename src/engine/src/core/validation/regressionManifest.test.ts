@@ -17,6 +17,7 @@ import { describe, expect, it } from "vitest";
 import { FIXTURES_DIR } from "../../campaigns/replay-corpus.js";
 
 const SRC_ROOT = fileURLToPath(new URL("../../", import.meta.url));
+const REPO_ROOT = fileURLToPath(new URL("../../../../../", import.meta.url));
 
 interface KindManifest {
   readonly kind: string;
@@ -101,4 +102,36 @@ describe("W96.2 regression evidence manifest", () => {
       });
     });
   }
+});
+
+/**
+ * W104.1 — the two in-repository hosts and the packed public consumer surface named
+ * in the compatibility-sweep manifest (30-slices.md § W104). Neither is a kind's own
+ * regression evidence, so it does not belong in `MANIFEST` above; both are still
+ * artifacts the sweep must notice going missing rather than silently losing coverage.
+ */
+const HOSTS: readonly string[] = [
+  // The MCP server — one of the two composition roots this repository ships.
+  "src/engine/src/mcp/server.ts",
+  // The static ASP.NET host (design 15) — the other composition root.
+  "src/host/SubZeroDev.GameEngine.Host/Program.cs",
+  "src/host/SubZeroDev.GameEngine.Host/SubZeroDev.GameEngine.Host.csproj",
+];
+
+const PACKED_CONSUMER_SURFACE: readonly string[] = [
+  // The packed-tarball consumer smoke (W104.6) — the proof the public surface installs
+  // and compiles with no workspace resolution back into src/engine.
+  "consumer-smoke/package.json",
+  "consumer-smoke/install-engine.mjs",
+  "consumer-smoke/smoke.ts",
+];
+
+describe("W104.1 compatibility-sweep manifest — hosts and packed consumer surface", () => {
+  it.each(HOSTS)("names host file %s, and it exists", (relativePath) => {
+    expect(existsSync(`${REPO_ROOT}${relativePath}`), relativePath).toBe(true);
+  });
+
+  it.each(PACKED_CONSUMER_SURFACE)("names packed-consumer-surface file %s, and it exists", (relativePath) => {
+    expect(existsSync(`${REPO_ROOT}${relativePath}`), relativePath).toBe(true);
+  });
 });

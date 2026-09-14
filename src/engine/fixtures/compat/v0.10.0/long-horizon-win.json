@@ -1,0 +1,184 @@
+{
+  "label": "long-horizon-win",
+  "campaignId": "long-horizon-win",
+  "validation": {
+    "errors": [],
+    "warnings": [
+      {
+        "code": "unreachable_content",
+        "messageKey": "simulation.reason.unreachable_content",
+        "path": "housing-upgraded"
+      },
+      {
+        "code": "unreachable_content",
+        "messageKey": "simulation.reason.unreachable_content",
+        "path": "housing-upgraded"
+      }
+    ]
+  },
+  "initialScene": {
+    "gameId": "counting-game-id-0",
+    "status": "active",
+    "body": {
+      "textKey": "long-horizon.scene.status",
+      "text": "Week 1 of Year 1. Cash: $200.00. Health 80 · Energy 50 · Happiness 60 · Stress 20 · Satiety 80."
+    },
+    "actions": [
+      {
+        "id": "plan.add",
+        "labelKey": "long-horizon.action.plan-add.label",
+        "available": true
+      },
+      {
+        "id": "plan.remove",
+        "labelKey": "long-horizon.action.plan-remove.label",
+        "available": true
+      },
+      {
+        "id": "plan.clear",
+        "labelKey": "long-horizon.action.plan-clear.label",
+        "available": true
+      },
+      {
+        "id": "end_week",
+        "labelKey": "long-horizon.action.end-week.label",
+        "available": true
+      }
+    ],
+    "view": {
+      "gameId": "counting-game-id-0",
+      "status": "active",
+      "kindView": {
+        "calendar": {
+          "currentWeek": 1,
+          "currentYear": 1,
+          "totalTimeUnits": 14,
+          "committedTimeUnits": 0,
+          "availableTimeUnits": 14
+        },
+        "identity": {
+          "actorId": "player",
+          "name": "Alex",
+          "age": 28,
+          "backgroundId": "background-default"
+        },
+        "currentLocationId": "home",
+        "finances": {
+          "cashCents": 20000,
+          "savingsCents": 0,
+          "debtCents": 0,
+          "weeklyIncomeCents": 0,
+          "weeklyExpensesCents": 0,
+          "overdueBalanceCents": 0,
+          "accounts": []
+        },
+        "needs": {
+          "health": 80,
+          "energy": 50,
+          "happiness": 60,
+          "stress": 20,
+          "satiety": 80
+        },
+        "attributes": {
+          "intelligence": 50,
+          "discipline": 50,
+          "charisma": 50,
+          "creativity": 50,
+          "resilience": 50,
+          "wisdom": 50
+        },
+        "education": {
+          "enrollments": [],
+          "credentials": [],
+          "completedCourseIds": [],
+          "failedCourseIds": []
+        },
+        "career": {
+          "history": [],
+          "totalWeeksEmployed": 0,
+          "pendingApplications": [],
+          "highestTierAchieved": "entry"
+        },
+        "housing": {
+          "definitionId": "housing-modest",
+          "movedInWeek": 1,
+          "ownership": "renting",
+          "damage": 0,
+          "weeklyCostCents": 4000,
+          "depositPaidCents": 0,
+          "rentDueWeek": 1,
+          "overdueRentCents": 0,
+          "missedPayments": 0,
+          "evictionStage": "none"
+        },
+        "inventory": [],
+        "relationships": [],
+        "skills": {
+          "bookkeeping": 0
+        },
+        "traits": [],
+        "reputation": {},
+        "activeEffects": [],
+        "activeOpportunities": [],
+        "pendingEventResponses": [],
+        "goals": [
+          {
+            "definitionId": "goal-established",
+            "status": "active",
+            "satisfiedThisWeek": false,
+            "consecutiveWeeksSatisfied": 0,
+            "progressNotes": []
+          }
+        ],
+        "plan": {
+          "week": 1,
+          "actions": [],
+          "availableActionTypes": [
+            "work",
+            "work_overtime",
+            "search_for_work",
+            "apply_for_job",
+            "negotiate_job_terms",
+            "attend_class",
+            "study",
+            "enroll_course",
+            "withdraw_course",
+            "shop",
+            "eat",
+            "rest",
+            "exercise",
+            "socialize",
+            "travel",
+            "maintain_item",
+            "repair_item",
+            "sell_item",
+            "pay_bills",
+            "borrow_money",
+            "repay_debt",
+            "deposit_savings",
+            "invest",
+            "move_housing",
+            "start_project",
+            "work_on_project",
+            "start_business",
+            "operate_business",
+            "accept_opportunity",
+            "decline_opportunity",
+            "respond_to_event"
+          ]
+        },
+        "world": {
+          "locations": [],
+          "jobMarket": {
+            "openings": []
+          },
+          "economy": {
+            "sectorDemand": {},
+            "marketPrices": {},
+            "indicators": {}
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,143 @@
+{
+  "label": "world-graph-mvp",
+  "campaignId": "world-graph-mvp",
+  "validation": {
+    "errors": [],
+    "warnings": []
+  },
+  "initialScene": {
+    "gameId": "counting-game-id-0",
+    "status": "active",
+    "body": {
+      "textKey": "world-graph.scene.summary",
+      "text": "Tick 0 • cash 20.00 • guests 0 • buildings 1 • objectives clean-litter:0/1"
+    },
+    "actions": [
+      {
+        "id": "build",
+        "labelKey": "world-graph.action.build",
+        "available": true
+      },
+      {
+        "id": "demolish",
+        "labelKey": "world-graph.action.demolish",
+        "available": true
+      },
+      {
+        "id": "hire_staff",
+        "labelKey": "world-graph.action.hire_staff",
+        "available": true
+      },
+      {
+        "id": "fire_staff",
+        "labelKey": "world-graph.action.fire_staff",
+        "available": false,
+        "reasonKey": "world-graph.reason.unknown_entity"
+      },
+      {
+        "id": "assign_staff",
+        "labelKey": "world-graph.action.assign_staff",
+        "available": false,
+        "reasonKey": "world-graph.reason.unknown_entity"
+      },
+      {
+        "id": "set_price",
+        "labelKey": "world-graph.action.set_price",
+        "available": true
+      },
+      {
+        "id": "open_building",
+        "labelKey": "world-graph.action.open_building",
+        "available": false,
+        "reasonKey": "world-graph.reason.unknown_entity"
+      },
+      {
+        "id": "close_building",
+        "labelKey": "world-graph.action.close_building",
+        "available": true
+      },
+      {
+        "id": "dismiss_alert",
+        "labelKey": "world-graph.action.dismiss_alert",
+        "available": false,
+        "reasonKey": "world-graph.reason.unknown_entity"
+      },
+      {
+        "id": "advance_ticks",
+        "labelKey": "world-graph.action.advance_ticks",
+        "available": true
+      }
+    ],
+    "view": {
+      "gameId": "counting-game-id-0",
+      "status": "active",
+      "kindView": {
+        "tick": 0,
+        "finances": {
+          "cashCents": 2000,
+          "revenueTodayCents": 0,
+          "expensesTodayCents": 0
+        },
+        "map": {
+          "width": 5,
+          "height": 3,
+          "revision": 0,
+          "spawnPoints": [
+            {
+              "x": 0,
+              "y": 1
+            }
+          ],
+          "exits": [
+            {
+              "x": 4,
+              "y": 1
+            }
+          ],
+          "zones": [],
+          "buildingCount": 1,
+          "guestCount": 0,
+          "staffCount": 0
+        },
+        "buildOptions": [
+          {
+            "definitionId": "hut",
+            "canBuild": true,
+            "blockedBy": []
+          },
+          {
+            "definitionId": "kiosk",
+            "canBuild": true,
+            "blockedBy": []
+          },
+          {
+            "definitionId": "stall",
+            "canBuild": true,
+            "blockedBy": []
+          }
+        ],
+        "buildings": [
+          {
+            "id": "building:0",
+            "definitionId": "kiosk",
+            "status": "open",
+            "queueLength": 0,
+            "cleanliness": 80,
+            "wear": 90
+          }
+        ],
+        "staff": [],
+        "objectives": [
+          {
+            "id": "clean-litter",
+            "state": "active",
+            "value": 0,
+            "target": 1
+          }
+        ],
+        "alerts": [],
+        "queuedGuests": 0
+      }
+    }
+  }
+}

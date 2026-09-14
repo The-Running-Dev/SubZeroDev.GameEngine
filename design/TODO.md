@@ -272,14 +272,26 @@
 
 ### [x] W102 — Profile Chains and Simulation Save Migration {#w102}
 
-### [ ] W103 — Companion Contracts and Ownership Reconciliation {#w103}
+### [x] W103 — Companion Contracts and Ownership Reconciliation {#w103}
 
-### [ ] W104 — Release 0.11 Compatibility Sweep {#w104}
+### [x] W104 — Release 0.11 Compatibility Sweep {#w104}
 
-### [ ] W105 — Documentation and Landing Publication Review {#w105}
+### [x] W105 — Documentation and Landing Publication Review {#w105}
 
-### [ ] W106 — Tracker Evidence Closure {#w106}
+### [x] W106 — Tracker Evidence Closure {#w106}
 
-### [ ] W107 — 0.11 Release Candidate Verification {#w107}
+### [x] W107 — 0.11 Release Candidate Verification {#w107}
 
-### [ ] W108 — Publish 0.11 Readiness {#w108}
+### [x] W108 — Publish 0.11 Readiness {#w108}
+
+### Depth: The Five GameOfLife Engine Blockers
+
+### [ ] W109 — A Uniform That Makes Its Wearer More Employable {#w109}
+
+### [ ] W110 — An NPC Who Already Remembers You {#w110}
+
+### [ ] W111 — Conditions That Can Ask "Do You Own One?" {#w111}
+
+### [ ] W112 — A Car That Costs Money to Run {#w112}
+
+### [ ] W113 — Utilities and Transport on the Weekly Bill {#w113}

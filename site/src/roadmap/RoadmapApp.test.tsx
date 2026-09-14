@@ -15,7 +15,7 @@ describe("roadmap page", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
       `How a Quick Question Became ${completedWorkUnitCount} Work Units.`,
     );
-    expect(screen.getAllByText("DONE")).toHaveLength(24);
+    expect(screen.getAllByText("DONE")).toHaveLength(25);
     expect(screen.getAllByText("NEXT")).toHaveLength(1);
     expect(screen.getAllByText("LATER")).toHaveLength(3);
     const checkpoint = screen.getByText("02 / NOW").closest("section");
@@ -30,7 +30,7 @@ describe("roadmap page", () => {
       within(checkpoint as HTMLElement).getByRole("link", {
         name: "Canonical task ledger",
       }),
-    ).toHaveAttribute("href", "/docs/engine/todo#w90");
+    ).toHaveAttribute("href", "/docs/engine/todo#w93");
     const future = screen.getByText("03 / NEXT").closest("section");
     expect(future).not.toBeNull();
     expect(
@@ -67,19 +67,47 @@ describe("roadmap page", () => {
       "W81–W85",
       "W86–W87",
       "W88–W89",
+      "W90–W92",
     ]);
     expect(nextActs.map((chapter) => chapter.workUnits)).toEqual([
-      "W90–W92",
       "W93–W108",
+      "W109–W113",
     ]);
     expect(nextActs.every((chapter) => chapter.status !== "done")).toBe(true);
-    expect(currentAct.workUnits).toBe("W90–W92");
+    expect(currentAct.workUnits).toBe("W93–W108");
     expect(futureActs.map((chapter) => chapter.workUnits)).toEqual([
-      "W93–W108",
+      "W109–W113",
     ]);
     expect(shippedChapters[0]?.links[0]?.href).toMatch(
       /^https:\/\/github\.com\/The-Running-Dev\/SubZeroDev\.GameEngine\/commit\/[0-9a-f]{40}$/,
     );
+  });
+
+  /**
+   * W105.3/W105.5: the merged deployment serves exactly "/", "/roadmap/" and
+   * the protected "docs/" subtree (site/scripts/verify-merge.mjs). A
+   * site-relative href outside that set is a link to nowhere on the published
+   * page -- which is how the retired "/play/" route survived here after W74b
+   * removed it. Anything hosted elsewhere is an external link, and carries
+   * ExternalLink's new-tab affordance rather than looking like a same-site route.
+   */
+  it("keeps every site-relative link inside a route the merged site serves", () => {
+    const served = /^\/$|^\/roadmap\/$|^\/docs\//;
+    const siteLinks = [...shippedChapters, ...nextActs]
+      .flatMap((chapter) => chapter.links)
+      .filter((link) => link.kind === "site");
+
+    expect(siteLinks.length).toBeGreaterThan(0);
+    for (const link of siteLinks) {
+      expect(link.href).toMatch(served);
+    }
+  });
+
+  it("opens links that leave the site in a new tab", () => {
+    render(<RoadmapApp />);
+    const play = screen.getByRole("link", { name: /^Play the adventures/ });
+    expect(play).toHaveAttribute("href", "https://adventures.subzerodev.com");
+    expect(play).toHaveAttribute("target", "_blank");
   });
 
   it("marks the roadmap navigation as the current page", () => {

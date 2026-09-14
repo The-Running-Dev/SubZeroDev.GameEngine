@@ -106,6 +106,8 @@
 
 ### 8.1 Requirements
 
+### 8.2 Collections for `exists`/`count` (W105.5)
+
 ## 9. Projection
 
 ## 10. Reason Codes
@@ -119,5 +121,7 @@
 ## 14. Validation
 
 ## 15. What Was Ported, and What Was Found Along the Way
+
+### 15.1 Companion Lifecycle Mirror (W103.1)
 
 ## 16. Save Migration (W102)

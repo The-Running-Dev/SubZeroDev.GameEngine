@@ -54,6 +54,20 @@ answer now lives — so a later reader finds the reasoning without re-opening th
 
 Settled as out of MVP scope. Listed so they resurface deliberately, not by accident.
 
+- **No customer, alternative, or monetization thesis — deferred, and now recorded as deferred
+  rather than merely absent.** The brief states what the platform is, who plays it, and what it
+  refuses to do; it says nothing about who would buy it, what they would otherwise use, or how it
+  would earn. That silence is deliberate, not an oversight. This repository ships a deterministic
+  engine, its specifications, and its authoring tools; the commercial layer is a different
+  repository —
+  [SubZeroDev.Platform](https://github.com/The-Running-Dev/SubZeroDev.Platform), the deferred
+  hosting / NEaaS layer. Stating a monetization thesis here would put product strategy in the
+  document that owns *engine* scope, and every reader of the non-goals would then have to work out
+  which of the two they bind. **Owner:** the repository owner
+  ([@The-Running-Dev](https://github.com/The-Running-Dev)); this is a product decision, and no
+  specification pass settles it on their behalf. **Revisit when** Platform work actually starts —
+  the first point at which a named customer, a named alternative, and a price have somewhere to
+  live that is not this repository.
 - **Package visibility, decided: public.** `src/engine/package.json` carries no `"private"`
   field and publishes to `npm.pkg.github.com`; [Engine Package](/docs/guide/engine-package)
   states the choice is deliberate. `plans/39-world-graph-kind-programme.md` and
@@ -1412,3 +1426,227 @@ Context: `/track`'s final step runs `tools/Update-DesignProjection.ps1` to regen
 Chosen: record the absence as intended. This repository adopts the work mirror and not the projection over it. `Update-DesignProjection.ps1` reporting `DocumentMissing` is the expected outcome of a `/track` run here, not a gate failure, and `ProjectionStale` cannot fire against a projection that does not exist.
 Rejected: **Creating `design/state-index.md` so the script has a target** — rejected because a projection document is a canonical `design/` artifact, and inventing one as a side effect of a tracker sync is precisely the authoring `/track` is not allowed to do; it belongs to `/design` or `/contract` if it is wanted. **Leaving it unrecorded** — rejected because the step then reports as not-run on every future invocation with nothing saying whether that is a gap or a decision, which is the rediscovery cost this register exists to stop.
 Reversibility: cheap. Adopting the projection later means writing the document with its named regions and re-running the script; nothing here forecloses it, and no committed record changes shape.
+
+**Superseded, 2026-09-05** — the file was adopted the same day on an explicit instruction, which supplied the *if it is wanted* this entry’s rejection turned on. See *`design/state-index.md` adopted after all* below; the reversibility promised here is what made that cheap.
+
+### 2026-09-05 — W103.7 kit sync to `36f0a7a`: `Measure-Session.ps1` taken from the kit, three drift-checker files kept as this repository's
+
+Context: `~/.agent-kit` was 44 commits behind `origin/main` (last synced `5095a55`). `tools/Sync-Kit.ps1 -DryRun` reported four `Divergent-Skipped` files against the kit's current copies: `tools/Measure-Session.ps1`, `tools/Read-DesignState.Tests.ps1`, `tools/Test-DesignDrift.ps1`, and `tools/Test-DesignDrift.Tests.ps1`. The last three carry deliberate, already-decided repository content — the `W`-vocabulary drift checker (`80d374b`, `582c914`, and this run's own `10e566a` parser-defect fix) and the design-state work-mirror skip guard (`68ec922`) — and were left untouched. `Measure-Session.ps1` was different: its divergence traced to `bb97138` (Slice W50-W60, 2026-08-05), predating two kit improvements with no repository-specific override in between — per-subagent usage accounting (`36650a2`) and a worktree-safe cost-log path (`84ce80d`, resolving the exact failure this repository's own `/clean` causes by deleting worktrees after merge).
+Chosen: overwrite `tools/Measure-Session.ps1` with the kit's copy; keep the other three as this repository's. Verified with a full `tools/` Pester run before and after (324/324 passing, 35 intentional skips, 0 regressions) and `tools/Test-Companion.ps1` (23 cores, 14 companions, 9 absent, `Valid`, exit 0).
+Rejected: **Keep this repository's `Measure-Session.ps1` as-is** — the recommended default for a `Divergent-Skipped` file, declined here because nothing in the divergence was a deliberate override to protect; it was staleness with a real cost (silently under-reporting subagent spend, and losing cost-log rows to worktree deletion). **Take the kit's `Test-DesignDrift.ps1`/`.Tests.ps1` or `Read-DesignState.Tests.ps1`** — would silently drop the `W`-vocabulary parsing this repository's slices depend on, or reintroduce the design-state self-test false-positive `68ec922` fixed.
+Reversibility: cheap — four files, each fully covered by the existing Pester suite; no schema or contract surface changed.
+
+### 2026-09-05 — Reconciliation: four documented statements corrected against the tree, none of them the code's
+Context: a reconciliation pass against a green tree (`typecheck`, `lint`, 94 test files / 1554 tests, `build/Test-Documentation.ps1`) found four divergences and no undocumented decision. Every `src/engine/…` path named in `10-design.md` and `20-contract.md` resolves, and all thirteen MCP-column quotes in 09 §4's evidence table match the shipped `it` names exactly, so the drift is narrower than the ledger below makes it look.
+Chosen: the documentation moves in all four, because in each the code is the thing that was agreed and the prose is what fell behind. (1) **`CLAUDE.md`'s two falsified statements.** It said `games/04-engine-specification.md` "still holds the only written rules for the `simulation` kind," citing `04-core` — which now reads "It is no longer authoritative for anything," `10-simulation-kind.md` Revision 2 being that contract; and it described `fromPortable`/`Portable*` as "non-contract spike exports," where `src/engine/src/index.ts` reads "A real contract export" and §19 makes `fromPortable` a contracted root export (see 2026-08-11, the portable format's graduation). Both rewritten. (2) **§10's `plan_empty` status.** Marked "specified, not yet dispatched" with a note calling its dispatch "a `/slice` matter"; `advance.ts` has dispatched it since W100, gated on §7.11's `emptyPlanPolicy`. Status is now `registered (W100)` and `week_limit_reached` is named as the one remaining. (3) **§15.1's `CalendarState`.** Filed under "Mapped to the envelope" while its own bullet opened "*not* envelope-owned," and repeated in the kind-owned list; the counts read five/one/six for lists of 5/1/7. The envelope-list bullet is gone, the prose recounted to four/one/seven from the lists. (4) **`world-graph-mvp.ts`'s header** called the file a "fixture"; §19's third category says a kind's reference campaign is "never a frozen fixture," and this one is the only content a host can register `world-graph` against. Header rewritten to §19's own vocabulary — which also settles that W103.4's fixture/Content-authority marker must not be applied to this file.
+Rejected: **Moving the code in any of the four** — rejected in each case because the behaviour was signed off and recorded (W98 gate 1 for the resolved catalog title, W100 gate 1 for `emptyPlanPolicy`, 2026-08-11 for the portable graduation, 2026-08-23 for the reference-campaign export category), and a stale sentence is not new evidence. **Retaining any as a known-and-retained issue** — rejected because all four are facts about the tree rather than judgements, so there is nothing to retain; the §15.1 miscount in particular is a recurrence of `agent.md`'s "count the list, never increment the number," inside a section that landed the same day.
+Reversibility: cheap throughout. Two paragraphs in `CLAUDE.md`, two cells and a sentence in §10, one bullet and three number words in §15.1, one comment block in `world-graph-mvp.ts`, and two quoted test names in 09 §4's evidence table. No type, behaviour, test name, or generated page content changed; only the guide's design digest was re-stamped.
+
+### 2026-09-05 — `design/state-index.md` adopted after all, superseding the same-day decision to leave it absent
+Context: earlier today this register recorded the file's absence as intended (*`design/state-index.md` is deliberately absent; this repository mirrors work but does not project it*), rejecting its creation on the grounds that a projection document is a canonical `design/` artifact and inventing one as a side effect of a tracker sync is authoring `/track` may not do — "it belongs to `/design` or `/contract` if it is wanted." The user has now asked for it directly, which supplies the *if it is wanted* that rejection turned on. The procedural objection was to an unasked-for artifact, not to the artifact.
+Chosen: write `design/state-index.md` with the six regions `tools/Update-DesignProjection.ps1` names — `units`, `bound-by`, `consumers`, `decision-affects`, `question-affects`, `outstanding` — and regenerate it in the same commit as the work-mirror refresh it projects, which is what `/track` already prescribes. Five of the six render their empty-set placeholder and will keep doing so: this repository still has no `Unit`, `Invariant`, `Contract`, `Decision` or `Question` records, and `AGENTS.md`, *Writing a design-state record* is unchanged — decisions are still written here in prose, not as records. Only `outstanding` carries rows, 51 of them, projected from `design/state/work/`. Verified idempotent: two consecutive runs produce byte-identical output.
+Rejected: **Leaving the earlier entry standing and creating the file anyway** — rejected outright; two records disagreeing about the same file is the duplication this register exists to prevent, and the earlier one is the more discoverable of the two. **Deferring to a fresh `/design` or `/contract` session** — the letter of the superseded entry, and declined because what it was protecting against was `/track` inventing a canonical artifact nobody asked for; an explicit instruction is not that, and routing an already-decided one-file write through another command buys a session boundary and no judgement. **Leaving the seventh region, `invariants`, out of `design/20-contract.md`** — held back on the first pass and then added on the same instruction, so `Update-DesignProjection.ps1` now exits 0 with no refusals. The hesitation was that with zero `Invariant` records the region renders a header-only table inside § Invariants; that is answered by placement and framing rather than by omission — the region sits at the end of the section, after the stated set, behind a paragraph distinguishing the two kinds of thing (C1–C20 are prose statements this contract asserts; the table projects `design/state/` `Invariant` records, of which there are none) and saying that a hand-written row is discarded on the next run. Written before #445 landed C1–C20 in the same section, and rebased onto it: the framing was rewritten rather than replayed, because the pre-#445 wording called § Invariants an ownership statement and #445 made it an asserted set. § Invariants is outside every `human-doc` block, so no generated page changes.
+Reversibility: cheap, and symmetrical with what the superseded entry promised. Deleting the file returns the script to refusing all six regions; no committed record changes shape, and nothing else reads it.
+
+### 2026-09-05 — `/track`'s slice-retirement step does not apply here, recorded as a `document-map` companion override
+Context: `/track` runs `tools/Update-SlicesDocument.ps1` to retire a landed slice's body from `design/30-slices.md` § *Outstanding* to a row under § *Landed*. This repository's slices document has neither section: a unit's state is carried on its own heading — `### [x] W102 — …`, `### [ ] W103 — …`, `### [~] W68 — … — cancelled` — inside the topical section that explains why the unit exists. The script exits 2 with `NoLandedSection` on every run, which `/track` must then report as a step that did not run. Left unrecorded, that is an unactionable exit 2 on every future invocation, which is how a real exit 2 gets ignored.
+Chosen: record it as a `document-map` override in `.claude/commands/track-local.md`, per `.claude/COMPANIONS.md` — the category is *where a document the command reads or writes actually lives, and how to read it*, and the override states the heading-marker convention and that retirement has no structure to move a body into. `tools/Test-Companion.ps1` reports `Valid` with the addition (23 cores, 14 companions, 9 absent).
+Rejected: **Restructuring `design/30-slices.md` into the `## Outstanding` / `## Landed` split** — rejected as expensive and hard to reverse: ~4,600 lines, every `{#w<n>}` anchor's containing section, and every cross-link into them across `design/` and the generated pages. It would also break what the current shape is for — a topical section like *Correctness Debt — The Tick Pipeline Runs Twenty Systems and Implements Fifteen* is only legible with its five units, landed or not, still under it. **Leaving it as an unexplained exit 2** — the status quo, rejected for the reason in *Context*. **Suppressing the step in the core command file** — rejected; `.claude/commands/` cores are kit-owned and a consuming repository never edits them, which is the entire reason the companion mechanism exists.
+Reversibility: cheap. One heading's worth of companion prose; deleting it restores the core's unmodified behaviour, and no script, gate, or document changed.
+
+### 2026-09-05 — `Read-DesignState.Tests.ps1`'s skip guard moved to `design/state/units`, the failure 2026-08-30 predicted
+Context: adopting `design/state-index.md` (above) immediately fired the exact regression the 2026-08-30 kit-sync entry told this register to watch for. That entry reverted two of the three design-state skip guards to the kit's `design/state/units` check and warned that the 2026-08-24 failure mode "returns unchanged if `design/state/` ever grows another subdirectory before this repository adopts `state-index.md` for real." `Read-DesignState.Tests.ps1` was the one guard still pointing at `state-index.md` — kept as this repository's own through the W103.7 sync — so creating that file un-skipped its `S4.6` closure block, which reads this repository's *real* `design/state/` and asserts `unit/command/track` and `unit/document/agents-md` exist. They do not. `tools/` went 325 passed / **1 failed** / 33 skipped against a 324 / 0 / 35 baseline.
+Chosen: point the guard at `design/state/units`, matching `Test-DesignState.Tests.ps1` and `Update-DesignProjection.Tests.ps1` line for line, and rewrite the comment block that justified the old target. The guard's question is "has this repository adopted unit records," and `S4.6` reads unit records; `design/state/units` answers it directly where both `design/state/` and `design/state-index.md` are now proxies falsified by the work mirror and its projection respectively. All three guards agree again. Verified in both directions: the failure was observed with the old target before the change, and `tools/` returns to 324 passed / 0 failed / 35 skipped after it.
+Rejected: **Creating `design/state/units/` records so the assertion passes** — the unscoped-feature-adoption rejection of 2026-08-21 and 2026-08-24, unchanged; `S4.6` demands a specific closure this repository has no use for. **Reverting `design/state-index.md`** — would trade a real, asked-for artifact for a stale guard. **Leaving the suite red** — a red gate that everyone knows is red stops being a gate.
+Reversibility: cheap — one `Test-Path` target and its comment, reverted by pointing it back. Note for the next `/kit-sync`: this file is now divergent from the kit on this line again, deliberately, and the reasoning is here rather than in the diff.
+
+### 2026-09-05 — `20-contract.md` § Invariants states the cross-cutting set as prose; the projector's `invariants` region stays unwritten
+
+Context: `/contract` was invoked for "the invariants region", which resolves two ways. `tools/Update-DesignProjection.ps1:363` targets an `invariants` marked region in `design/20-contract.md`, rendering `Invariant` records from `design/state/`; the 2026-09-05 entry recording `design/state-index.md` as deliberately absent said writing a region "belongs to `/design` or `/contract` if it is wanted"; that entry has since been superseded for `state-index.md`, which #444 adopted the same day — but expressly not for this region, which #444 left unwritten on the same arithmetic reached here independently: "with zero `Invariant` records it would insert an empty machine-owned table into prose the Core Specification owns." Separately, `/contract` calls § Invariants "the highest-value section in the document," and this repository's copy was four lines of pure delegation: it named six cross-cutting families — determinism, envelope ownership, projection, migration, validation, identifiers — and stated none of them. The repository's only assertable invariants were the 19 in two section-scoped `#### Invariants` blocks (§7.1's P1–P8, §7.4's L1–L3/D1–D3/B1–B3/A1–A2), both added by recent slices. Every one of the six named families had zero.
+
+Chosen: author § Invariants as twenty numbered statements, `C1`–`C20`, grouped under the six families and written in the existing house style — a bolded lead naming the maintaining module, then one bullet per invariant closing with an italic enforcement clause. Each is derived from a statement `10-design.md` or Core Specification already fixes; none is new behaviour. The section opens by declaring itself the cross-cutting set only, and names the two section-scoped sets rather than restating them. `C6` — the envelope-ownership invariant — is stated as *enforced by instruction only*, citing `CLAUDE.md`'s five-instance ledger, because a reader is entitled to know which of these hold by construction and which hold only while an author remembers them; that distinction is what the enforcement clause exists to carry, and `C6`, `C13`, `C18` and `C19` are the four that fail it.
+
+Rejected: **Adding the `invariants:start`/`:end` markers** — the literal reading, and rejected on its own arithmetic: with zero `Invariant` records under `design/state/`, `Get-InvariantsProjectionContent` renders a bare table header with no rows and no `_(no … records yet)_` placeholder, unlike its six siblings, so the section's highest-value content would become an empty table. It would also newly arm `ProjectionStale` as a blocking finding on every `/track` — a gate over content nothing produces — and reverse the judgement #444 reached independently the same day. **Adopting the projection properly**, writing an `Invariant` record per statement so the table is machine-checked against records, is the version worth having and is not foreclosed: it needs the records and the region, and it is `/design`'s call whether this repository keeps `Invariant` records at all. #444 adopted the projection for `state-index.md` while declining exactly this region, so the mechanism is now in use here and only its invariant arm is unwired — which lowers the cost of adopting it later rather than raising it. **Leaving § Invariants as delegation** — rejected because delegation to a section that does not carry the statement is not single ownership, it is an unowned invariant.
+
+Reversibility: cheap. Ninety-three lines in one canonical section, no type, signature, behaviour, test, or generated page changed — the section sits outside every `human-doc` block, so it publishes nowhere and only the guide's design digest was re-stamped. Adopting the projection later replaces this prose with records and a region, and the `C`-prefix is free for that: it collides with no existing invariant id.
+
+### 2026-09-07 — `world-graph` exposes one complete player-observable read model, not client-specific escape hatches
+
+Context: the first external visual client to consume the published `world-graph` kind found a contract contradiction. §7 says a client discovers the build catalogue, staff roster and price bands from the projection and never reads raw state; §10's actual `WorldGraphView` omitted the terrain grid, path graph, entity positions, guests, incidents, construction sites, price bands, staff options and most build definition data. A headless client could print the scene summary, but a map client could neither render authoritative play nor construct several actions without reaching through the `SessionStore` boundary.
+
+Chosen: expand `WorldGraphView` into the complete player-observable spatial read model. It carries scenario/map identity, renderable terrain/path/zone/scenery data, safe definition metadata, actionable build/staff/product domains, and present-state building/guest/staff/incident inspector data. Every collection has canonical ordering; placement-dependent legality remains behind `previewAction`. The view is derived afresh from validated state and campaign, is never persisted, and does not change the save, campaign or session-store schemas. Hidden triggers, rules, preferences, utility inputs, RNG state and path caches remain private. Historical building sales/revenue and guest thought history remain out because the authoritative state does not contain them; either feature requires its own state-and-save design rather than fabricated projection data.
+
+Rejected: **Expose `WorldGraphKindState` and `WorldGraphCampaign` to visual clients** — rejected because it makes private simulation inputs into a permanent public API, leaks hidden content and bypasses the defensive-copy projection seam. **Add map- and inspector-specific `SessionStore` methods** — rejected because the data is kind-owned and belongs in `kindView`; new store operations would make the generic host know one kind and create two read authorities. **Let each client cache or reconstruct the missing state from actions and audit events** — rejected because joining late, loading a save or missing one event would produce a different world, and clients would reimplement engine rules. **Add historical metrics in this amendment** — rejected because projection is a view over authoritative facts, while those histories do not yet exist; silently approximating them from current totals would be false.
+
+Reversibility: moderate. The change is additive to the returned TypeScript/JSON object and leaves persisted formats untouched, so existing consumers continue to read their old subset. New consumers may depend on any added field, making later removal or semantic change a breaking release even though the first implementation is localized to the kind projector.
+
+### 2026-09-07 — W105.1: `Modifier.target` grows `player.reputation.*`; travel-time deferred, not amended
+
+Context: [SubZeroDev.GameOfLife#108](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/issues/108) (first half) named two item effects Stable Life content can't express: a work uniform making its wearer "more employable," and a bicycle "cutting travel time." Neither fits `WRITABLE_TARGET_PREFIXES` (`validate.ts`): `player.needs.*`/`player.attributes.*`/`player.skills.*`, plus the `calendar.committedTimeUnits` exception. Checked against the rest of the contract before amending: `ActorState.reputation` (§6.2) is already a stored, open-keyed `Record<string, number>` in the same declared `0–100` range as skills, and is already a legal *read* source — `PerformanceFactor.source`/`CheckModifier.source: "reputation"` (§7.2, §7.6) both name it — just never a legal `Modifier` *target*. Travel time has no comparable stored counterpart anywhere: `LocationDefinition.travelTimeUnits` (§7.9) is fixed content, no resolver varies it per-actor, and `HousingDefinition.commuteModifier` (§7.4) — the one field that reads as if it might already cover this — is itself unread by any system, the same unwired-provisional status `maintenanceRisk` and this kind's other declared-not-consumed balance fields already carry.
+
+Chosen: widen `DerivedPath` (§6.1) by exactly one member, `player.reputation.${string}`, following the `player.skills.${string}` precedent line for line — open-keyed, stored base, layered through the existing `derivedValueResolver`, no new clamping rule needed. §7.1 states the full writable-target set as a table rather than the two-mechanism prose it was scattered across before. "Employability" is authored as `player.reputation.employability` (or any campaign-chosen key); nothing engine-owned narrows the key space, matching `skills`. Travel-time is explicitly left unamended — the user chose this over adding a new stored field with a resolver that reads it, on the grounds this repository's own precedent (§7.1's `Reward`-payload callout: "risks inventing a contract this port has no way to check") already argues against contracting a read-side mechanism with nothing built to check it against. Recorded here as the open item: a per-actor, per-week multiplier on `travel`'s cost against `LocationDefinition.travelTimeUnits` is the shape most consistent with how `commuteModifier`/`energyRecoveryModifier` are already declared, when a unit is ready to wire both the field and its resolver together.
+
+Rejected: **A new stored field (e.g. `calendar.travelCostModifierBps`) for travel-time, contracted now** — the alternative the user was offered and declined; would have let §7.1's writable set close both halves of #108 in one amendment, at the cost of specifying a read-side mechanism (how `travel`'s resolver would consume the multiplier) this contract has never described and no code exercises yet. **A discriminated `Modifier.target` union instead of a string prefix set** — considered and dropped without asking; it would mean re-deriving every existing target (`player.needs.*` and friends) into the same union for consistency, a much larger change than either GameOfLife issue asked for.
+
+Reversibility: cheap — one `DerivedPath` union member, one table row, no runtime code. `player.reputation.*` becomes an authorable Modifier target the moment `derived.ts`/`resolveEffectiveField` gain the matching case (not this session's scope); until then the type exists and Tier 1 validation accepts it, but nothing in `endOfWeek.ts`'s systems or `conditions.ts` reads it any differently than it already does today.
+
+### 2026-09-07 — W105.2: `ItemDefinition.weeklyCostCents` is charged per owned instance, unconditionally, with no arrears mechanism
+
+Context: [SubZeroDev.GameOfLife#108](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/issues/108) (second half) — `ItemDefinition.weeklyCostCents` (§7.5) is declared and never read: `inventory` (`endOfWeek.ts`) decays `condition` and resyncs `activeEffects` from every owned `InventoryItem` but never touches `cashCents`, unlike `housing`, which charges `HousingState.weeklyCostCents` unconditionally against it (W53/W55, 2026-08-08 entry). A vehicle's running cost is free today.
+
+Chosen: charge it in the `inventory` system itself — already the pass that iterates every owned `InventoryItem`, already positioned after `finance_income` and before `housing` (§3's fixed order) — summing `weeklyCostCents` (absent = 0) across every instance with `condition > 0` (an item whose `effects` have already stopped contributing per the existing broken-item rule stops costing too) and charging the total against `cashCents` unconditionally, the same "wages before costs" rule §3 states for rent, extended to a second cost. No `missedCents`, no arrears field, no repossession: unlike housing, nothing about an unpaid running cost escalates. This is deliberate scope discipline, not an oversight — the issue asked for the cost to exist, not for a second collections system.
+
+Rejected: **Conditional on usage** (charge only when the item was actually used that week) — rejected; nothing in this kind tracks per-item "used this week," and inventing that tracking to gate a running cost is a larger mechanism than the gap being closed. **Conditional on ownership only for durables, unconditional for consumables, split by `category`** — rejected; `category` is a free-text string with no declared vocabulary (§7.5), so branching charge semantics on it would make the rule content-dependent in a way nothing else in this kind is. **Give it the same arrears/repossession machinery as rent** — rejected as disproportionate; #108 names a running cost, not a "what happens when a player can't afford their car" mechanic, and building one on spec with no scenario asking for it is exactly what `Reward`'s own "no dispatcher to check it against" caution (§7.1) warns off. Revisit when: a Stable Life scenario needs an unpaid item cost to have a consequence beyond draining cash.
+
+Reversibility: cheap as a contract statement; the charge itself becomes part of committed replay fixtures once implemented, the same reversibility class W53/W55's rent charge already carries.
+
+### 2026-09-07 — W105.3: `HousingDefinition` gains `utilitiesCents`/`transportCents`, folded into the existing rent arrears pipeline
+
+Context: [SubZeroDev.GameOfLife#109](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/issues/109) — the game design wants utilities and transport charged separately from rent; `HousingDefinition` (§7.4) has only `weeklyCostCents`. The companion repository's own design document describing this in full (`docs/docs/games/03-game-design.md` §16.4) is not present in this repository's tree — mirrored content that has not (yet) been mirrored here — so this decision is made from the issue's own description of intent, not from reading §16.4 directly; if the mirrored text turns out to say more, that is new evidence to revisit against.
+
+Chosen (user-selected over the alternative below): two new optional `Cents` fields, `utilitiesCents`/`transportCents`, absent = 0. "Charged separately from rent" is read as itemization, not a separate consequence track: the `housing` system charges `weeklyCostCents + utilitiesCents + transportCents` as one combined levy in the same pass rent already used, and any shortfall feeds the same `missedCents` → `finance_reconcile` → `HousingState.overdueRentCents`/`missedPayments`/`evictionStage` pipeline rent alone drove before. One arrears mechanism, not three; `HousingState` gains matching stamped-at-move-in fields (a `kindVersion` bump, migrated to `0` for existing saves, §10.2).
+
+Rejected: **Separate arrears tracking** (independent `overdueUtilitiesCents`-style state, no eviction consequence for utilities/transport specifically) — presented to the user as the alternative and declined; more faithful to "separate from rent" as a full consequence split, but adds new runtime state and a second reconciliation rule with no player action (a `pay_bills`-equivalent) specified to clear it, for a distinction (eviction only ever follows unpaid rent, never unpaid utilities) the issue never asked for.
+
+**Revised the same day, against new evidence.** The user supplied `games/03-game-design.md` §16.4 directly after this entry was first written from the issue text alone. It states the recurring-cost baseline as a table — Rent $95, Utilities $18 ("scales with housing tier"), Transport $15 ("**waived if the player owns a vehicle**") — and §10.2 independently confirms both W105.1 and W105.2's examples verbatim ("Clothing improves employability or prestige"; "A vehicle reduces travel time but creates fuel, insurance, and repair expenses"). The combined-levy/one-arrears-mechanism call above is unchanged — nothing in §16.4 contradicts it — but the unconditional charge was wrong for `transportCents` specifically: §16.4 states a waiver this entry's original text did not capture, because the source document wasn't available to read. Amended: `effectiveTransportCents` is `0` for a week in which `player.inventory` (§6.10) holds an unbroken `InventoryItem` whose `ItemDefinition.tags` (§7.5) includes the reserved literal `"vehicle"`, and `HousingState.transportCents` otherwise; `utilitiesCents` keeps no such waiver, matching §16.4's own asymmetry (only the Transport row states one). This is this kind's first engine-reserved tag value — every other `tags: string[]` field is free-text content metadata nothing in `src/engine` reads — the same kind of reserved-namespace move `core.reason.*` already made for reason codes (04 §12). `housing` (§3) is threaded `items: readonly ItemDefinition[]`, the same shape `employment`/`goals` already thread `jobs`/`goalDefs`.
+
+Rejected (for the amendment): **Record the waiver as a known-and-retained gap instead of amending** — offered to the user as the lower-scope alternative and declined; §16.4 states the behavior plainly enough, and the tag mechanism needed to express it is small and additive rather than speculative. **A `Requirement`-shaped check instead of a reserved tag** — considered and dropped without asking; `Requirement` (§8.1) gates an action or eligibility, not a per-week automatic waiver with no failure code or message to attach, so reusing it would be forcing an ill-fitting shape onto a simpler rule.
+
+Reversibility: cheap as a contract statement; a `kindVersion` bump and `Kind.migrateState` are real once implemented, and the combined-levy choice becomes a compatibility surface for any Stable Life save that predates it. The reserved `"vehicle"` tag is a soft convention, not a type — reversible by simply not checking for it, though any campaign that has already tagged an item `"vehicle"` for the waiver would then need a replacement mechanism.
+
+### 2026-09-07 — W105.4: `NPCDefinition` gains `startingMemories`
+
+Context: [SubZeroDev.GameOfLife#110](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/issues/110) — `NPCMemory[]` exists only on runtime `NPCState`, populated by play; a scenario has no way to author an NPC who already remembers something at game start (a landlord who already distrusts the player).
+
+Chosen: `NPCDefinition.startingMemories?: NPCMemory[]` (§7.7), author-supplied `id` included — the same convention every other content id in this kind already uses, never minted by an `IdSource`. Whichever reducer first creates a `NPCState` for a definition seeds `memories` from this field, copied once at creation, the same content/state instantiation split §6.7/§6.8/§6.12 already follow. Absent or empty produces `memories: []`, today's behaviour — no existing campaign is affected.
+
+Rejected: **A `NPCDefinitionSource`-only field, resolved at content-build time rather than carried on `NPCDefinition` itself** — considered because `source.ts` converts some fields to `AuthoredText` at build time; dropped because `startingMemories` needs no localization-key resolution `NPCMemory.descriptionKey` doesn't already carry on its own, so routing it through a separate source-only path would add a build step with nothing for it to do.
+
+Reversibility: cheap — one optional field, no runtime code in this session's scope; becomes load-bearing content the moment a campaign author uses it.
+
+### 2026-09-07 — W105.5: simulation-kind `Condition.collection` resolves against a closed set of seven state arrays; no new core operator
+
+Context: [SubZeroDev.GameOfLife#107](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/issues/107) — four Stable Life events need `exists`/`count` over a collection (a pending job application, any owned car of a given kind). `conditions.ts`'s own header already named this as a known future need ("Revisit when a goal or event condition needs `exists`/`count` over a real collection") and its `ConditionResolver.collection` throws unconditionally. Checked against `04-core.md` §18 before amending: the frozen `Condition` type **already** declares `ExistsCondition`/`CountCondition` and the `collection(name): readonly ConditionResolver[]` seam — ported from `games/04-engine-specification.md` §13.1 alongside the rest of `Condition`, deliberately generic (`collection: string`, not a closed union) because upstream's own `CollectionSelector` was simulation-kind-specific and the core is kind-agnostic (`core/condition/types.ts`'s own header). So this was never a missing *operator* — it is a missing simulation-kind *wiring* of an already-frozen mechanism, the same shape the closed-set `WRITABLE_TARGET_PREFIXES`/natural-key addressing gap would be if `Modifier` itself were unwritten rather than under-scoped.
+
+Chosen: §8.2 states the closed set this kind's `collection` resolves — `player.inventory`, `player.relationships`, `player.career.pendingApplications`, `player.education.enrollments`, `player.projects`, `player.businesses`, `world.npcs` — naming an unlisted path as new Tier 1 `unknown_collection`, the same load-time-not-runtime failure `read_only_field`/`numeric_natural_key` already give a malformed `Modifier`/id. Each item resolves only its own declared state fields via the same generic dotted-path walk `resolveField` already does for scalar conditions — explicitly not joined against its content definition, so `player.inventory`'s `exists.where` can test `InventoryItem.definitionId` (e.g. `in` a list of car ids) but not `ItemDefinition.category`, which the resolver never sees.
+
+Rejected: **Join collection items against their content definition** (so "any owned car" is authorable as a `category` test rather than an enumerated id list) — the more ergonomic authoring surface, rejected here because `ConditionResolver` (04 §18) has no seam for campaign content, only state; adding one is a core-level widening this single-kind gap does not justify inventing unasked. Recorded as an open item: revisit if a real campaign need (not just ergonomics) shows up. **An open `collection: string` with no closed set, validated only by "does it resolve to an array at runtime"** — rejected as the one pattern this kind consistently avoids (§7.1, §14): every other addressable-path surface fails at load time, not at first evaluation, and a `Condition` reachable only from a rare goal branch could otherwise ship broken and go undetected for a long time.
+
+Reversibility: cheap — a documentation-and-validation-rule change; the seven-entry table is additive and does not remove `unresolvableCollection`'s existing "not yet" honesty for anything outside it.
+
+### 2026-09-08 — Open, routed to `/contract`: the 2026-09-07 amendments were not mirrored into §10 and §14
+
+Context: found while slicing the five amendments as [W109–W113](30-slices.md) — not by review, and
+not by the amendments' own authoring session, which is the point worth recording. Each of the five
+was written into the section that *declares* the rule and none was written into the sections that
+*enumerate* it, so `10-simulation-kind` now states two of its own rules twice and disagrees with
+itself in both places:
+
+- **`unknown_collection` is declared by §8.2 and enumerated nowhere.** §8.2 names it as the Tier 1
+  failure for a `collection` path outside its seven-entry table, and cites §14 for it. §14's Tier 1
+  bullet list does not carry it, and §10's campaign-validation reason-code table does not list it —
+  so the one section that tells an implementer *which* Tier 1 checks exist omits this one, and the
+  one table a client reads to enumerate validation codes omits it too.
+- **§14's `read_only_field` bullet contradicts §6.1's own partition.** It still enumerates the
+  writable derived paths as `player.needs.*`, `player.attributes.*` and `player.skills.*`. W105.1
+  added `player.reputation.*` to that partition in both §6.1's table and §7.1's, so §14 now names a
+  three-member set where the two sections it is derived from name four.
+
+This is the **envelope-duplication ledger's failure mode one level down**: not a kind duplicating
+the envelope, but one document duplicating its own rule across a declaring section and an
+enumerating one, and updating only the declaring half. `CLAUDE.md`'s *Reference, never restate*
+predicted exactly this — two copies of a rule is a promise they will diverge — and the divergence
+took one day.
+
+**Not a slice, and deliberately not folded into `W109`/`W111`.** The answer is not in question:
+§6.1, §7.1 and §8.2 already state what §10 and §14 should say, so nothing here needs deciding, only
+mirroring. It is routed to `/contract` rather than sliced because an implementation unit editing
+the contract it is implementing against is the drift the design freeze exists to prevent — and
+because `W109` and `W111` are written against the declaring sections, so they remain implementable
+whether this lands before them or after.
+
+**The three edits, stated so `/contract` need not re-derive them:** add `unknown_collection` to
+§10's campaign-validation reason-code table (Tier 1); add its bullet to §14's Tier 1 list beside
+`numeric_natural_key`; add `player.reputation.*` to §14's `read_only_field` bullet. No new type, no
+signature, no behaviour change.
+
+Reversibility: cheap — three prose/table edits in one canonical file, revertible as one commit.
+Leaving it open is the more expensive direction: an implementer who reads §14 first implements the
+wrong writable set, and a client author who reads §10's table ships without a code the validator
+can return.
+
+### 2026-09-12 — Resolved 2026-09-13: no registry-supported withdrawal operation is known to work on GitHub Packages
+
+**Decision: accept the documented limitation. No deprecation experiment will be run.** The
+user's call — `RELEASE.md` §7's consumer-side rollback (pin to `0.8.0`, publish a corrected
+higher version) is the procedure, full stop, not a placeholder for one. W108.2 is satisfied by
+that documentation, not blocked by the absence of a tested registry deprecation: the criterion
+asks the checklist to name a rollback/deprecation procedure, and it does, honestly scoped to what
+this repository has actually exercised. Running the experiment described below remains available
+later if a real withdrawal is ever needed, but it is no longer a precondition for `0.11.0`
+readiness.
+
+Context: found while writing W108's release checklist. W108.2 requires the checklist to name a
+"rollback/deprecation procedure", and the honest answer is that this repository has never run one.
+`npm deprecate` and `dist-tag` management are the operations a release owner would reach for, and
+both are documented against the npmjs registry; this package publishes to GitHub Packages, where
+neither has been exercised here. Writing an npmjs procedure into the checklist would be describing
+a capability nobody has tested.
+
+What `RELEASE.md` §7 says instead: `0.11.0` is never overwritten, republished or reused and its
+tag never moves; the last known-good published version is `0.8.0` (`dist-tags.latest`); recovery
+is consumer-side rollback to a pinned `0.8.0` plus publishing a corrected higher version. Every
+companion pins exact versions rather than ranges, so that rollback is a one-line change per
+consumer and needs no registry operation at all — which is why the gap is a documentation gap and
+not an operational one.
+
+**This is why W108.2 is not claimed complete.** The criterion asks for a procedure, and a stated
+limitation is not a procedure. Closing it needs one real experiment: deprecate a published version
+that is already superseded — `0.4.0` or `0.5.0`, never `latest` — record whether GitHub Packages
+accepts it, and write the result up. That is a mutation of the public registry, so it is the user's
+call and not something W108 may do under its own W108.6.
+
+Reversibility: the experiment is the expensive direction, not the documentation. A deprecation
+cannot be cleanly undone on every registry, which is the reason to run it against a version nothing
+consumes rather than to keep deferring it.
+
+### 2026-09-12 — Resolved 2026-09-13: W98.2's browser half now lives in a companion repository, and the criterion has no cross-repository form
+
+**Decision: the narrowly scoped amendment, not the cross-repository parity proof.** The user's
+call — W98.2 is restated over the two surfaces this repository ships and gates (text client, MCP
+`list_campaigns`); the browser-shelf parity requirement is reassigned to the client contract
+governing `SubZeroDev.Adventures`, which already carries the identical pattern for W99's rows
+11–13 in `10-design.md` §4 (unticked for a companion, "their own reconciliation is the one that
+ticks these boxes"). No standing cross-repository dependency is taken on. See the amended
+criterion text below and its mirror in `30-slices.md`.
+
+Context: found while reconciling W93–W107 criterion-level evidence for W108.3. W98.2 requires the
+text client, MCP `list_campaigns`, and "the browser shelf" to render the same resolved titles
+without starting a session or reading `ContentRegistry`. The text and MCP halves are covered by
+this repository's own suites. The browser half is not in this repository any more: `/play/` was
+retired (`10-design.md`, *Succeeded by SubZeroDev.Adventures*), and the browser surface is
+`SubZeroDev.Adventures`, where `src/play/browser-client.ts` exposes a session-free
+`listCampaigns()` over the store and `src/play/PlayerHome.tsx` renders the catalog entry's resolved
+`title`.
+
+So the behaviour exists and is tested — in a repository this one does not gate. Three things are
+worth separating, because conflating them is how this criterion would get quietly closed:
+
+- **Retiring `/play/` did not retire catalog parity.** W107.4's correction retired a *separate*
+  "no engine API" container smoke. That is a different assertion about a different surface.
+- **A companion's own green suite is not this criterion's proof.** The criterion is about three
+  surfaces agreeing. Evidence for the third at an unpinned companion commit does not establish
+  agreement at this candidate.
+- **Recreating a browser shelf here to satisfy the wording would be the worst outcome** — it
+  reintroduces the surface `10-design.md` retired, to prove a claim about a surface that moved.
+
+Two defensible resolutions, neither of which W108 may pick unilaterally: a cross-repository parity
+proof that pins the Adventures commit and asserts the same resolved titles against the same
+candidate archive; or a narrowly scoped amendment restating W98.2 over the surfaces this
+repository actually ships, with the browser half reassigned to the client contract. **Until one
+lands, W98.2 stays unchecked and W108.3 is not satisfiable** — which is exactly what `RELEASE.md`
+§8 records rather than absorbing into a summary status.
+
+Reversibility: the amendment is cheap and revertible; the parity proof is a standing
+cross-repository dependency, which is the more expensive commitment of the two and the reason this
+is a decision rather than a task.
