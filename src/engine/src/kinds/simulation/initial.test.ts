@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { initialState } from "./initial.js";
+import { initialState, seedNPCMemories } from "./initial.js";
 import type { SimulationCampaign } from "./campaign.js";
 import type { Campaign } from "../../core/registry/types.js";
-import type { GoalDefinition, BackgroundDefinition, HousingDefinition, ScenarioDefinition, ItemDefinition } from "./content.js";
+import type { GoalDefinition, BackgroundDefinition, HousingDefinition, NPCDefinition, ScenarioDefinition, ItemDefinition } from "./content.js";
+import type { NPCMemory } from "./state.js";
 
 const background: BackgroundDefinition = {
   id: "bg-1",
@@ -288,5 +289,68 @@ describe("initialState — profile-scoped chain seeding (W102)", () => {
   it("a malformed profileData argument degrades to the same as no cross-game history", () => {
     const result = initialState(withChains(), undefined, { not: "the right shape" });
     expect(result.state.world.chainStates[0]!.currentStep).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// W110 — NPCDefinition.startingMemories seeds NPCState.memories, once, at creation
+// (20-contract.md §7.7; not yet wired into buildWorld — issue #425)
+// ---------------------------------------------------------------------------
+
+describe("seedNPCMemories (W110)", () => {
+  const npcDefinition = (startingMemories?: NPCMemory[]): NPCDefinition => ({
+    id: "npc-landlord",
+    nameKey: "npc.landlord.name",
+    descriptionKey: "npc.landlord.description",
+    defaultRole: "landlord",
+    initialRelationship: { affinity: 0, trust: 0, respect: 0, resentment: 0 },
+    availability: [],
+    ...(startingMemories !== undefined && { startingMemories }),
+    tags: [],
+  });
+
+  const memory: NPCMemory = {
+    id: "memory-late-rent",
+    aboutActorId: "player",
+    week: 0,
+    category: "grudge",
+    magnitude: -20,
+    descriptionKey: "npc.memory.late-rent",
+  };
+
+  it("W110.1 — the seeded list equals the authored list in authored order, ids preserved", () => {
+    const secondMemory: NPCMemory = { ...memory, id: "memory-broken-promise", category: "distrust" };
+    const result = seedNPCMemories(npcDefinition([memory, secondMemory]));
+    expect(result).toEqual([memory, secondMemory]);
+    expect(result.map((m) => m.id)).toEqual(["memory-late-rent", "memory-broken-promise"]);
+  });
+
+  it("W110.2 — no startingMemories field produces an empty list", () => {
+    expect(seedNPCMemories(npcDefinition(undefined))).toEqual([]);
+  });
+
+  it("W110.2 — an empty startingMemories list produces an empty list", () => {
+    expect(seedNPCMemories(npcDefinition([]))).toEqual([]);
+  });
+
+  it("W110.3 — the seeded list is a fresh copy: mutating it never reaches the definition's own array", () => {
+    const definition = npcDefinition([memory]);
+    const seeded = seedNPCMemories(definition);
+
+    seeded.pop();
+
+    expect(seeded).toEqual([]);
+    expect(definition.startingMemories).toEqual([memory]);
+  });
+
+  it("W110.3 — two seedings from the same definition are independent arrays", () => {
+    const definition = npcDefinition([memory]);
+    const first = seedNPCMemories(definition);
+    const second = seedNPCMemories(definition);
+
+    first.pop();
+
+    expect(first).toEqual([]);
+    expect(second).toEqual([memory]);
   });
 });
