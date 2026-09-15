@@ -202,6 +202,10 @@ export interface HousingDefinition {
 
   upfrontCostCents: Cents;
   weeklyCostCents: Cents;
+  /** W105.3 — absent = 0, folded into the same weekly charge as rent. */
+  utilitiesCents?: Cents;
+  /** W105.3 — absent = 0; waived when the player holds an unbroken `"vehicle"`-tagged item. */
+  transportCents?: Cents;
   depositCents?: Cents;
 
   capacity: number;

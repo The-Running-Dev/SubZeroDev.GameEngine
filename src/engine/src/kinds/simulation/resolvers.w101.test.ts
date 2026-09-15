@@ -56,7 +56,7 @@ function state(overrides: Partial<SimulationKindState> = {}): SimulationKindStat
       skills: {},
       flags: {}, counters: {}, inventory: [], relationships: [],
       career: { history: [], totalWeeksEmployed: 0, pendingApplications: [], highestTierAchieved: "entry" },
-      housing: { weeklyCostCents: 0 },
+      housing: { weeklyCostCents: 0, utilitiesCents: 0, transportCents: 0 },
       education: { enrollments: [], credentials: [], completedCourseIds: [], failedCourseIds: [] },
     } as unknown as SimulationKindState["player"],
     economy: {} as SimulationKindState["economy"],

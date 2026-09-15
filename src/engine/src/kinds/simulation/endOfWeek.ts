@@ -836,8 +836,10 @@ function inventory(state: SimulationKindState, items: readonly ItemDefinition[])
   };
 }
 
-/** Real logic (W53; revised W55) — levies `HousingState.weeklyCostCents` against
- *  `cashCents` unconditionally, same as W53: `cashCents` may go negative (§3's own ordering
+/** Real logic (W53; revised W55, W113) — levies rent plus utilities plus effective transport
+ *  (W113 — `HousingState.weeklyCostCents + utilitiesCents + effectiveTransportCents`, the
+ *  latter zeroed while an unbroken `"vehicle"`-tagged item is owned) as one combined charge
+ *  against `cashCents` unconditionally, same as W53: `cashCents` may go negative (§3's own ordering
  *  claim is proved by exactly this — rent charged before wages arrive genuinely overdraws,
  *  not merely "goes unpaid"). `missedCents` is *not* read back off the resulting negative
  *  balance, though — that would double-count an already-negative balance carried in from a
@@ -845,17 +847,27 @@ function inventory(state: SimulationKindState, items: readonly ItemDefinition[])
  *  this week's own charge alone could and couldn't cover against the cash on hand *before*
  *  this charge, so `finance_reconcile` (below) only ever levies a fee against balances
  *  `housing` charged this week, per its own contract. */
-export function housing(state: SimulationKindState): { state: SimulationKindState; changes: StateChange[]; missedCents: Cents } {
-  const rent = state.player.housing.weeklyCostCents;
-  if (rent === 0) return { state, changes: [], missedCents: 0 };
+export function housing(state: SimulationKindState, items: readonly ItemDefinition[]): { state: SimulationKindState; changes: StateChange[]; missedCents: Cents } {
+  const housingState = state.player.housing;
+  // W113 — transport is waived while the player holds an unbroken (`condition > 0`)
+  // inventory item whose definition is tagged `"vehicle"` (the kind's first
+  // engine-reserved tag literal, §7.4/90-decisions W105.3). Utilities are never waived.
+  const hasVehicle = state.player.inventory.some((item) => {
+    if (item.condition <= 0) return false;
+    const def = items.find((d) => d.id === item.definitionId);
+    return def !== undefined && def.tags.includes("vehicle");
+  });
+  const effectiveTransportCents = hasVehicle ? 0 : housingState.transportCents;
+  const total = housingState.weeklyCostCents + housingState.utilitiesCents + effectiveTransportCents;
+  if (total === 0) return { state, changes: [], missedCents: 0 };
   const before = state.player.finances.cashCents;
-  const missedCents = Math.max(0, rent - Math.max(0, before));
+  const missedCents = Math.max(0, total - Math.max(0, before));
   return {
     state: {
       ...state,
-      player: { ...state.player, finances: { ...state.player.finances, cashCents: before - rent } },
+      player: { ...state.player, finances: { ...state.player.finances, cashCents: before - total } },
     },
-    changes: [{ path: "player.finances.cashCents", op: "decrement", value: rent, previous: before, reason: "rent_charged", visible: true }],
+    changes: [{ path: "player.finances.cashCents", op: "decrement", value: total, previous: before, reason: "rent_charged", visible: true }],
     missedCents,
   };
 }
@@ -1698,7 +1710,7 @@ const END_OF_WEEK_SYSTEMS: readonly SystemEntry<EndOfWeekFrame>[] = [
   traced("business", (frame) => withChanges(frame, business(frame.state, frame.world.businesses ?? []))),
   traced("inventory", (frame) => withChanges(frame, inventory(frame.state, frame.items))),
   traced("housing", (frame) => {
-    const result = housing(frame.state);
+    const result = housing(frame.state, frame.items);
     return { ...withChanges(frame, result), missedCents: result.missedCents };
   }),
   traced("finance_reconcile", (frame) => withChanges(frame, financeReconcile(frame.state, frame.missedCents))),

@@ -107,6 +107,8 @@ describe("initialState", () => {
       ownership: "renting",
       damage: 0,
       weeklyCostCents: 5000,
+      utilitiesCents: 0,
+      transportCents: 0,
       depositPaidCents: 0,
       rentDueWeek: 1,
       overdueRentCents: 0,
