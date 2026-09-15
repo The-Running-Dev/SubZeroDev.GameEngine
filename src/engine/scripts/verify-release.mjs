@@ -37,6 +37,12 @@ import { gunzipSync } from "node:zlib";
 
 const DEFAULT_REGISTRY = "https://npm.pkg.github.com";
 
+/** How long `registry` waits for an answer before calling the registry unreachable. Without
+ *  a bound, a registry that accepts the connection and never answers holds the guard open
+ *  indefinitely (#480). It does not shorten a DNS failure: the report appears on time, but
+ *  Node still waits for the operating system's lookup to give up before the process exits. */
+const REGISTRY_TIMEOUT_MS = 3000;
+
 const EXIT_OK = 0;
 const EXIT_REJECTED = 1;
 const EXIT_UNEVALUATED = 2;
@@ -288,10 +294,12 @@ async function commandRegistry(options) {
   try {
     response = await fetch(url, {
       headers: { authorization: `Bearer ${token}`, accept: "application/json" },
+      signal: AbortSignal.timeout(REGISTRY_TIMEOUT_MS),
     });
   } catch (error) {
+    const reason = error.name === "TimeoutError" ? `no answer within ${REGISTRY_TIMEOUT_MS}ms` : error.message;
     throw new Unevaluated(
-      `${registry} was unreachable while checking ${spec}, so publishability is unknown, not proven: ${error.message}`,
+      `${registry} was unreachable while checking ${spec}, so publishability is unknown, not proven: ${reason}`,
     );
   }
 
