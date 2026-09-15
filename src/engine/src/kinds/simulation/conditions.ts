@@ -10,14 +10,19 @@
  * this unit's own goal/failure conditions need (`player.needs.*`, `player.finances.*`,
  * `calendar.currentWeek`, …) without hand-maintaining a list.
  *
- * **Collections are not supported yet.** §7.1's addressing table (`player.relationships.
- * <npcId>.affinity` and friends) exists for *content* targeting a collection member by its
- * natural key — a different concern from a `Condition`'s own `exists`/`count` operators,
- * which need a `ConditionResolver.collection` that returns one resolver per array item.
- * Nothing this unit wires needs that yet (goal/failure conditions here only ever compare
- * scalar fields), so `collection` throws — the same honest-gap pattern `story-graph`'s own
- * conditions module uses for what it doesn't support, adjusted from "never" to "not yet."
- * **Revisit when** a goal or event condition needs `exists`/`count` over a real collection.
+ * **Collections (W111, §8.2).** `ConditionResolver.collection` supports exactly the seven
+ * paths §8.2's closed table names — `player.inventory`, `player.relationships`,
+ * `player.career.pendingApplications`, `player.education.enrollments`, `player.projects`,
+ * `player.businesses`, `world.npcs` — each resolving to its state array. `where` reads a
+ * field relative to one array element (`resolveItemField`, a non-throwing walk: an absent
+ * field, such as an item's `category` which lives only on its content definition, resolves
+ * to `undefined` and so never matches, rather than raising the "loud" error `resolveField`
+ * raises for a bad top-level path). A collection name outside the seven throws here too —
+ * defence in depth — but the load-bearing check is `validate.ts`'s Tier 1 `unknown_collection`,
+ * which rejects an unlisted name at load time, before any condition naming it is ever
+ * evaluated. A nested `exists`/`count` inside a `where` clause still resolves its own
+ * `collection` against this same state-rooted table, never against the enclosing item —
+ * §8.2 gives every collection name one fixed meaning regardless of nesting depth.
  */
 
 import type { Condition, ConditionResolver } from "../../core/condition/types.js";
@@ -67,14 +72,44 @@ export function resolveField(state: SimulationKindState, path: string): unknown 
   return current;
 }
 
-function unresolvableCollection(name: string): never {
-  throw new Error(`simulation conditions: no collection support yet ("${name}")`);
+/** §8.2's closed seven-path table — the only names `resolveCollection` accepts. */
+const COLLECTION_ACCESSORS: Readonly<Record<string, (state: SimulationKindState) => readonly unknown[]>> = {
+  "player.inventory": (state) => state.player.inventory,
+  "player.relationships": (state) => state.player.relationships,
+  "player.career.pendingApplications": (state) => state.player.career.pendingApplications,
+  "player.education.enrollments": (state) => state.player.education.enrollments,
+  "player.projects": (state) => state.player.projects,
+  "player.businesses": (state) => state.player.businesses,
+  "world.npcs": (state) => state.world.npcs,
+};
+
+/** A `where` field is relative to one collection item, not the full state — an absent field
+ *  (an item's `category`, which lives only on its content definition and never reaches the
+ *  resolver) resolves to `undefined` rather than throwing, so it simply never matches. */
+function resolveItemField(item: unknown, path: string): unknown {
+  let current: unknown = item;
+  for (const segment of path.split(".")) {
+    if (current === null || typeof current !== "object") return undefined;
+    current = (current as Record<string, unknown>)[segment];
+  }
+  return current;
+}
+
+function resolveCollection(state: SimulationKindState, name: string): readonly ConditionResolver[] {
+  const accessor = COLLECTION_ACCESSORS[name];
+  if (accessor === undefined) {
+    throw new Error(`simulation conditions: unknown collection "${name}"`);
+  }
+  return accessor(state).map((item) => ({
+    field: (path: string) => resolveItemField(item, path),
+    collection: (nested: string) => resolveCollection(state, nested),
+  }));
 }
 
 export function evaluateSimulationCondition(condition: Condition, state: SimulationKindState): boolean {
   const resolver: ConditionResolver = {
     field: (path) => resolveField(state, path),
-    collection: unresolvableCollection,
+    collection: (name) => resolveCollection(state, name),
   };
   return evaluateCondition(condition, resolver);
 }

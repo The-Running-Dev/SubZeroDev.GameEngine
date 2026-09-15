@@ -32,7 +32,7 @@ import type { ValidationError, ValidationResult, ValidationWarning } from "../..
 import type { Condition } from "../../core/condition/types.js";
 import type { SimulationCampaign } from "./campaign.js";
 import type { Modifier } from "./state.js";
-import type { Reward } from "./content.js";
+import type { Reward, Requirement } from "./content.js";
 import { derivedValueResolver } from "./derived.js";
 import { SIMULATION_REASON_CODES } from "./reasons.js";
 import { AGENT_STRATEGIES } from "./agentStrategies.js";
@@ -344,6 +344,100 @@ function validateAttendanceTracking(content: SimulationCampaign): ValidationErro
 }
 
 // ---------------------------------------------------------------------------
+// Tier 1 — collection names an `exists`/`count` condition addresses (§8.2, W111)
+// ---------------------------------------------------------------------------
+
+/** §8.2's closed seven-path table — the only legal `exists`/`count` collection names. */
+const KNOWN_COLLECTIONS = new Set<string>([
+  "player.inventory",
+  "player.relationships",
+  "player.career.pendingApplications",
+  "player.education.enrollments",
+  "player.projects",
+  "player.businesses",
+  "world.npcs",
+]);
+
+/** Every `collection` name an `exists`/`count` node names, walking the same tree shape as
+ *  `collectFieldPaths` — plus recursing into `where` too, since a nested `exists`/`count`
+ *  inside it names a collection of its own. */
+function collectCollectionNames(condition: Condition): string[] {
+  if ("field" in condition) return [];
+  if ("all" in condition) return condition.all.flatMap(collectCollectionNames);
+  if ("any" in condition) return condition.any.flatMap(collectCollectionNames);
+  if ("not" in condition) return collectCollectionNames(condition.not);
+  if ("exists" in condition) {
+    return [condition.exists.collection, ...collectCollectionNames(condition.exists.where)];
+  }
+  return [condition.count.collection, ...collectCollectionNames(condition.count.where)];
+}
+
+function conditionsFromRequirements(requirements: readonly Requirement[]): Condition[] {
+  return requirements.map((r) => r.condition);
+}
+
+/** Every `Condition` this campaign shape can carry, across the whole §7 content surface —
+ *  what `validateCollectionNames` below must walk so an unlisted collection name is caught
+ *  wherever it's authored, not only in the few places a goal or achievement happens to use. */
+function allConditions(content: SimulationCampaign): Condition[] {
+  const conditions: Condition[] = [];
+
+  for (const job of content.jobs) {
+    conditions.push(...conditionsFromRequirements(job.requirements));
+    for (const path of job.promotionPaths) conditions.push(...conditionsFromRequirements(path.requirements));
+    for (const rule of job.terminationRules) conditions.push(rule.condition);
+  }
+  for (const course of content.courses) conditions.push(...conditionsFromRequirements(course.requirements));
+  for (const housing of content.housing) conditions.push(...conditionsFromRequirements(housing.requirements));
+  for (const item of content.items) conditions.push(...conditionsFromRequirements(item.requirements));
+
+  for (const event of content.events) {
+    conditions.push(event.conditions);
+    for (const choice of event.choices ?? []) {
+      conditions.push(...conditionsFromRequirements(choice.requirements ?? []));
+      for (const outcome of choice.outcomes) {
+        if (outcome.condition !== undefined) conditions.push(outcome.condition);
+      }
+    }
+  }
+
+  for (const goal of content.goals) {
+    conditions.push(goal.conditions);
+    if (goal.failureConditions !== undefined) conditions.push(goal.failureConditions);
+  }
+
+  for (const opportunity of content.opportunities) {
+    if (opportunity.conditions !== undefined) conditions.push(opportunity.conditions);
+    conditions.push(...conditionsFromRequirements(opportunity.requirements ?? []));
+  }
+
+  for (const project of content.projects) conditions.push(...conditionsFromRequirements(project.requirements));
+  for (const business of content.businesses) conditions.push(...conditionsFromRequirements(business.requirements));
+
+  for (const achievement of content.achievements) conditions.push(achievement.condition);
+
+  for (const headline of content.headlines) {
+    if (headline.conditions !== undefined) conditions.push(headline.conditions);
+  }
+
+  for (const location of content.locations) {
+    if (location.unlockedBy !== undefined) conditions.push(location.unlockedBy);
+  }
+
+  return conditions;
+}
+
+/** An `exists`/`count` naming a collection outside §8.2's closed table — a scalar path, an
+ *  unlisted array, a typo — fails here at load time, never at first evaluation
+ *  (`conditions.ts`'s `resolveCollection` throws too, but only as defence in depth). */
+function validateCollectionNames(content: SimulationCampaign): ValidationError[] {
+  return allConditions(content)
+    .flatMap(collectCollectionNames)
+    .filter((name) => !KNOWN_COLLECTIONS.has(name))
+    .map((name) => error("unknown_collection", name));
+}
+
+// ---------------------------------------------------------------------------
 // Tier 2 — unreachable content
 // ---------------------------------------------------------------------------
 
@@ -497,6 +591,7 @@ export function validateCampaign(campaign: Campaign, strings: ReadonlyMap<LocKey
     ...validateAllModifiers(content),
     ...validateNaturalKeys(content),
     ...validateAttendanceTracking(content),
+    ...validateCollectionNames(content),
   ];
 
   const warnings: ValidationWarning[] = [

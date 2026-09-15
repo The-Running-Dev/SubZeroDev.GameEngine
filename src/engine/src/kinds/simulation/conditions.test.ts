@@ -19,6 +19,56 @@ function makeState(overrides: Partial<SimulationKindState> = {}): SimulationKind
   };
 }
 
+/** A state carrying one item in each of §8.2's seven collections, for the `exists`/`count`
+ *  tests below — `car-1`'s `definitionId` is the one W111.2/W111.5 tests key off of. */
+function makeCollectionsState(): SimulationKindState {
+  return makeState({
+    player: {
+      needs: { health: 80, energy: 80, happiness: 60, stress: 20, satiety: 80 },
+      inventory: [
+        {
+          instanceId: "i1", definitionId: "car-1", quantity: 1, acquiredWeek: 1,
+          purchasePriceCents: 100000, condition: 90, weeksSinceMaintenance: 0, broken: false,
+        },
+      ],
+      relationships: [
+        {
+          npcId: "n1", category: "personal", affinity: 10, trust: 10, respect: 10,
+          resentment: 0, knownSinceWeek: 1, interactionCount: 0,
+        },
+      ],
+      career: {
+        pendingApplications: [
+          { jobId: "j1", submittedWeek: 1, resolvesWeek: 2, contested: false },
+        ],
+      },
+      education: {
+        enrollments: [
+          {
+            courseId: "c1", startedWeek: 1, weeksCompleted: 0, attendedUnits: 0, studyUnits: 0,
+            missedSessions: 0, tuitionPaidCents: 0, tuitionOutstandingCents: 0,
+            retainedProgress: 0, status: "active",
+          },
+        ],
+      },
+      projects: [
+        { instanceId: "p1", definitionId: "proj-1", startedWeek: 1, progressUnits: 0, status: "in_progress" },
+      ],
+      businesses: [
+        {
+          instanceId: "b1", definitionId: "biz-1", startedWeek: 1, cashOnHandCents: 0,
+          weeksOperated: 0, status: "operating",
+        },
+      ],
+    } as SimulationKindState["player"],
+    world: {
+      npcs: [
+        { id: "n1", definitionId: "npc-1", memories: [], currentRole: "landlord", availability: [], flags: {} },
+      ],
+    } as unknown as SimulationKindState["world"],
+  });
+}
+
 describe("resolveField", () => {
   it("resolves a nested dotted path", () => {
     expect(resolveField(makeState(), "player.needs.happiness")).toBe(60);
@@ -60,9 +110,95 @@ describe("evaluateSimulationCondition", () => {
     expect(evaluateSimulationCondition(condition, makeState())).toBe(true);
   });
 
-  it("throws for a condition needing collection support", () => {
-    const condition = { count: { collection: "world.npcs", where: { field: "id", operator: "equals" as const, value: "x" } }, operator: "equals" as const, value: 1 };
-    expect(() => evaluateSimulationCondition(condition, makeState())).toThrow(/no collection support/);
+  describe("collections (§8.2, W111)", () => {
+    const SEVEN_COLLECTIONS = [
+      "player.inventory",
+      "player.relationships",
+      "player.career.pendingApplications",
+      "player.education.enrollments",
+      "player.projects",
+      "player.businesses",
+      "world.npcs",
+    ] as const;
+
+    it("resolves exists/count over each of the seven declared collections (W111.1)", () => {
+      const state = makeCollectionsState();
+      expect(SEVEN_COLLECTIONS).toHaveLength(7);
+      for (const collection of SEVEN_COLLECTIONS) {
+        // Every item resolves a field that is absent on it, so `not_equals` against any value
+        // is trivially true — this proves the collection resolves and has exactly one item,
+        // without needing a per-collection field name here.
+        const trivialWhere = { field: "__does_not_exist__", operator: "not_equals" as const, value: "anything" };
+        const existsCondition = { exists: { collection, where: trivialWhere } };
+        const countCondition = { count: { collection, where: trivialWhere }, operator: "equals" as const, value: 1 };
+        expect(evaluateSimulationCondition(existsCondition, state)).toBe(true);
+        expect(evaluateSimulationCondition(countCondition, state)).toBe(true);
+      }
+    });
+
+    it("fails Tier 1 defence-in-depth for an unlisted collection, and accepts every legal one (W111.1, W111.3)", () => {
+      const state = makeCollectionsState();
+      const legalCount = SEVEN_COLLECTIONS.filter((collection) => {
+        try {
+          evaluateSimulationCondition(
+            { count: { collection, where: { field: "__does_not_exist__", operator: "equals" as const, value: 1 } }, operator: "equals" as const, value: 0 },
+            state,
+          );
+          return true;
+        } catch {
+          return false;
+        }
+      }).length;
+      expect(legalCount).toBe(7);
+
+      const condition = { count: { collection: "player.scoreboard", where: { field: "id", operator: "equals" as const, value: "x" } }, operator: "equals" as const, value: 1 };
+      expect(() => evaluateSimulationCondition(condition, state)).toThrow(/unknown collection/);
+    });
+
+    it("a where clause reads fields relative to one array element (W111.2)", () => {
+      const state = makeCollectionsState();
+      const ownsOneOf = (ids: string[]) => ({
+        exists: { collection: "player.inventory", where: { field: "definitionId", operator: "in" as const, value: ids } },
+      });
+      expect(evaluateSimulationCondition(ownsOneOf(["car-1", "car-2"]), state)).toBe(true);
+      expect(evaluateSimulationCondition(ownsOneOf(["car-2", "car-3"]), state)).toBe(false);
+    });
+
+    it("naming an unlisted collection fails at load time, never at evaluation — a condition on an unreached branch never throws (W111.3)", () => {
+      const state = makeCollectionsState();
+      const reachedCondition = { field: "player.needs.happiness", operator: "greater_or_equal" as const, value: 0 };
+      const unreachedCondition = { count: { collection: "player.scoreboard", where: { field: "id", operator: "equals" as const, value: "x" } }, operator: "equals" as const, value: 1 };
+      const branch = { any: [reachedCondition, unreachedCondition] };
+      // `any` short-circuits on the first true branch, so `unreachedCondition` is never evaluated.
+      expect(evaluateSimulationCondition(branch, state)).toBe(true);
+    });
+
+    it("count compares the match total at zero, at the boundary, and above it (W111.4)", () => {
+      const state = makeCollectionsState();
+      const matchesOwned = { field: "definitionId", operator: "equals" as const, value: "car-1" };
+      const matchesNothing = { field: "definitionId", operator: "equals" as const, value: "__none__" };
+
+      expect(evaluateSimulationCondition(
+        { count: { collection: "player.inventory", where: matchesNothing }, operator: "equals" as const, value: 0 },
+        state,
+      )).toBe(true);
+      expect(evaluateSimulationCondition(
+        { count: { collection: "player.inventory", where: matchesOwned }, operator: "equals" as const, value: 1 },
+        state,
+      )).toBe(true);
+      expect(evaluateSimulationCondition(
+        { count: { collection: "player.inventory", where: matchesOwned }, operator: "greater_than" as const, value: 1 },
+        state,
+      )).toBe(false);
+    });
+
+    it("a where naming a field the array element doesn't carry never matches (W111.5)", () => {
+      const state = makeCollectionsState();
+      // `category` lives on `ItemDefinition`, not on the runtime `InventoryItem` the resolver
+      // actually sees, so this must not match even though the owned item's definition has one.
+      const condition = { exists: { collection: "player.inventory", where: { field: "category", operator: "equals" as const, value: "vehicle" } } };
+      expect(evaluateSimulationCondition(condition, state)).toBe(false);
+    });
   });
 
   it("evaluates a goal/failure condition against the effective need, agreeing with what a client would see (§6.1)", () => {

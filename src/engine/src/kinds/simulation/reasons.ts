@@ -64,6 +64,10 @@
  * named once §10 has a real caller to attach it to." `advance.ts`'s `end_week` and `plan.add`
  * (for any `ActionType` other than `respond_to_event`) are that caller, rejecting while
  * `unaddressedPendingResponses` (`state.ts`) is non-empty.
+ *
+ * W111 adds `unknown_collection` — `validate.ts`'s Tier 1 rejection of an `exists`/`count`
+ * naming a collection outside §8.2's closed seven-path table, registered in the same commit
+ * that emits it (this file's own header discipline).
  */
 
 import type { LocKey } from "../../core/localization/types.js";
@@ -159,6 +163,8 @@ export const SIMULATION_REASON_CODES = [
   // `Kind.profileData.fold` can switch on `reason` rather than parsing `path`.
   "chain_advanced",
   "profile_chain_advanced",
+  // W111 — conditions over collections (§8.2, §14).
+  "unknown_collection",
 ] as const;
 
 export type SimulationReasonCode = (typeof SIMULATION_REASON_CODES)[number];
@@ -233,6 +239,7 @@ const SIMULATION_REASON_TEXT: Readonly<Record<SimulationReasonCode, string>> = {
   unknown_rival_strategy: "This campaign names a rival strategy the engine doesn't have.",
   chain_advanced: "A thread in this story moved forward.",
   profile_chain_advanced: "A thread in this story moved forward — it will carry into your next game.",
+  unknown_collection: "This campaign names a collection the engine doesn't have.",
 };
 
 /** `simulation.reason.<code>` → its shipped default-English message, for every code. */
