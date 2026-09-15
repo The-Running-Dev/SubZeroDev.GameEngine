@@ -746,4 +746,84 @@ describe("validateCampaign", () => {
     const result = validateCampaign(makeCampaign({ eventChains: [{ id: "chain-orphan", scope: "game" }] }), VALID_STRINGS);
     expect(result.warnings).toContainEqual(expect.objectContaining({ code: "unreachable_content", path: "chain-orphan" }));
   });
+
+  // ---------------------------------------------------------------------------
+  // Tier 1 — unknown_collection (§8.2, W111)
+  // ---------------------------------------------------------------------------
+
+  const LEGAL_COLLECTIONS = [
+    "player.inventory",
+    "player.relationships",
+    "player.career.pendingApplications",
+    "player.education.enrollments",
+    "player.projects",
+    "player.businesses",
+    "world.npcs",
+  ] as const;
+
+  it("accepts every one of §8.2's seven legal collection names on a goal's own condition", () => {
+    expect(LEGAL_COLLECTIONS).toHaveLength(7);
+    for (const collection of LEGAL_COLLECTIONS) {
+      const goal = makeGoal({
+        conditions: { exists: { collection, where: { field: "id", operator: "equals", value: "x" } } },
+      });
+      const result = validateCampaign(makeCampaign({ goals: [goal] }), VALID_STRINGS);
+      expect(result.errors).not.toContainEqual(expect.objectContaining({ code: "unknown_collection" }));
+    }
+  });
+
+  it("rejects unknown_collection when a GoalDefinition.conditions names a collection outside §8.2's table", () => {
+    const goal = makeGoal({
+      conditions: { exists: { collection: "player.scoreboard", where: { field: "id", operator: "equals", value: "x" } } },
+    });
+    const result = validateCampaign(makeCampaign({ goals: [goal] }), VALID_STRINGS);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ code: "unknown_collection", path: "player.scoreboard" }),
+    );
+  });
+
+  it("rejects unknown_collection from an AchievementDefinition.condition naming a bad collection", () => {
+    const achievement: AchievementDefinition = {
+      id: "ach-1", nameKey: "ach.name", descriptionKey: "ach.description",
+      condition: { count: { collection: "not.a.real.collection", where: { field: "id", operator: "equals", value: "x" } }, operator: "equals", value: 1 },
+      hidden: false, scope: "profile",
+    };
+    const result = validateCampaign(makeCampaign({ achievements: [achievement] }), VALID_STRINGS);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ code: "unknown_collection", path: "not.a.real.collection" }),
+    );
+  });
+
+  it("catches an unknown_collection nested inside a where clause", () => {
+    const goal = makeGoal({
+      conditions: {
+        exists: {
+          collection: "player.inventory",
+          where: { count: { collection: "no.such.nested", where: { field: "id", operator: "equals", value: "x" } }, operator: "equals", value: 1 },
+        },
+      },
+    });
+    const result = validateCampaign(makeCampaign({ goals: [goal] }), VALID_STRINGS);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ code: "unknown_collection", path: "no.such.nested" }),
+    );
+  });
+
+  it("catches an unknown_collection on a branch that would never be reached at runtime — validation is a static content walk, not tied to reachability", () => {
+    // At evaluation time, `any` short-circuits on the first true branch and the bad-collection
+    // condition is never reached (see conditions.test.ts's matching W111.3 case). Validation
+    // still rejects it here, because it walks the content tree statically at load time.
+    const goal = makeGoal({
+      conditions: {
+        any: [
+          { field: "player.needs.happiness", operator: "greater_or_equal", value: 0 },
+          { exists: { collection: "player.scoreboard", where: { field: "id", operator: "equals", value: "x" } } },
+        ],
+      },
+    });
+    const result = validateCampaign(makeCampaign({ goals: [goal] }), VALID_STRINGS);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ code: "unknown_collection", path: "player.scoreboard" }),
+    );
+  });
 });
