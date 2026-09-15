@@ -37,7 +37,7 @@ function actor(overrides: Partial<ActorState> = {}): ActorState {
     attributes: { intelligence: 50, discipline: 50, charisma: 50, creativity: 50, resilience: 50, wisdom: 50, luck: 50 },
     education: { enrollments: [], credentials: [], completedCourseIds: [], failedCourseIds: [] },
     career: { history: [], totalWeeksEmployed: 0, pendingApplications: [], highestTierAchieved: "entry" },
-    housing: { definitionId: "h", movedInWeek: 1, ownership: "renting", damage: 0, weeklyCostCents: 0, depositPaidCents: 0, rentDueWeek: 1, overdueRentCents: 0, missedPayments: 0, evictionStage: "none" },
+    housing: { definitionId: "h", movedInWeek: 1, ownership: "renting", damage: 0, weeklyCostCents: 0, utilitiesCents: 0, transportCents: 0, depositPaidCents: 0, rentDueWeek: 1, overdueRentCents: 0, missedPayments: 0, evictionStage: "none" },
     inventory: [], relationships: [], projects: [], businesses: [],
     skills: {}, traits: [], reputation: {}, flags: {}, counters: {},
     ...overrides,

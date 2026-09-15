@@ -28,7 +28,7 @@ const player = {
   career: { history: [], totalWeeksEmployed: 0, pendingApplications: [], highestTierAchieved: "entry" as const },
   housing: {
     definitionId: "housing-1", movedInWeek: 1, ownership: "renting" as const, damage: 0,
-    weeklyCostCents: 5000, depositPaidCents: 0, rentDueWeek: 1, overdueRentCents: 0,
+    weeklyCostCents: 5000, utilitiesCents: 0, transportCents: 0, depositPaidCents: 0, rentDueWeek: 1, overdueRentCents: 0,
     missedPayments: 0, evictionStage: "none" as const,
   },
   inventory: [], relationships: [], projects: [], businesses: [], skills: {}, traits: [], reputation: {}, flags: {}, counters: {},

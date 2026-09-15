@@ -221,6 +221,12 @@ export interface HousingState {
   /** 0–100, mutable. */
   damage: number;
   weeklyCostCents: Cents;
+  /** Stamped from `HousingDefinition.utilitiesCents` at move-in (0 if absent there); never
+   *  re-read from the definition afterwards. */
+  utilitiesCents: Cents;
+  /** Stamped from `HousingDefinition.transportCents` at move-in (0 if absent there); never
+   *  re-read from the definition afterwards. */
+  transportCents: Cents;
   depositPaidCents: Cents;
 
   rentDueWeek: number;

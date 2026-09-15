@@ -43,7 +43,7 @@ function baseState(overrides: Partial<SimulationKindState> = {}): SimulationKind
     player: {
       needs: { ...NEEDS },
       career: { history: [], totalWeeksEmployed: 0, pendingApplications: [], highestTierAchieved: "entry" },
-      housing: { weeklyCostCents: 0 },
+      housing: { weeklyCostCents: 0, utilitiesCents: 0, transportCents: 0 },
       finances: { cashCents: 0 },
       education: { enrollments: [], credentials: [], completedCourseIds: [], failedCourseIds: [] },
       skills: {},

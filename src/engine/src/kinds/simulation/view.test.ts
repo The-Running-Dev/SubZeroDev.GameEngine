@@ -17,7 +17,7 @@ const state: SimulationKindState = {
     career: { history: [], totalWeeksEmployed: 0, pendingApplications: [], highestTierAchieved: "entry" },
     housing: {
       definitionId: "housing-1", movedInWeek: 1, ownership: "renting", damage: 0,
-      weeklyCostCents: 5000, depositPaidCents: 0, rentDueWeek: 1, overdueRentCents: 0,
+      weeklyCostCents: 5000, utilitiesCents: 0, transportCents: 0, depositPaidCents: 0, rentDueWeek: 1, overdueRentCents: 0,
       missedPayments: 0, evictionStage: "none",
     },
     inventory: [],

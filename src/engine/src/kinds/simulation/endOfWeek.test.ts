@@ -44,7 +44,7 @@ function baseState(needs: NeedState, overrides: Partial<SimulationKindState> = {
     player: {
       needs,
       career: { history: [], totalWeeksEmployed: 0, pendingApplications: [], highestTierAchieved: "entry" },
-      housing: { weeklyCostCents: 0 },
+      housing: { weeklyCostCents: 0, utilitiesCents: 0, transportCents: 0 },
       finances: { cashCents: 0 },
       education: { enrollments: [], credentials: [], completedCourseIds: [], failedCourseIds: [] },
       skills: {},
@@ -399,7 +399,7 @@ describe("runEndOfWeek — W53 employment, finance_income, housing", () => {
       player: {
         ...baseState(NEEDS).player,
         career: { history: [], totalWeeksEmployed: 1, pendingApplications: [], highestTierAchieved: "entry", currentEmployment: employment },
-        housing: { weeklyCostCents: 25000 },
+        housing: { weeklyCostCents: 25000, utilitiesCents: 0, transportCents: 0 },
         // Rent (25000) exceeds starting cash (10000) — only payable once this week's own
         // wage (30000) has landed, proving finance_income runs before housing (§3).
         finances: { cashCents: 10000 },
@@ -634,7 +634,7 @@ describe("runEndOfWeek — W55 housing and finance_reconcile", () => {
       player: {
         ...baseState(NEEDS).player,
         career: { history: [], totalWeeksEmployed: 1, pendingApplications: [], highestTierAchieved: "entry", currentEmployment: employment },
-        housing: { weeklyCostCents: 0, overdueRentCents: 0, missedPayments: 0, evictionStage: "none" },
+        housing: { weeklyCostCents: 0, utilitiesCents: 0, transportCents: 0, overdueRentCents: 0, missedPayments: 0, evictionStage: "none" },
       } as unknown as SimulationKindState["player"],
       ...overrides,
     });
@@ -653,14 +653,14 @@ describe("runEndOfWeek — W55 housing and finance_reconcile", () => {
       } as unknown as SimulationKindState["player"],
     });
 
-    const documentedOrder = housing(financeIncome(starting, jobs).state);
+    const documentedOrder = housing(financeIncome(starting, jobs).state, []);
     expect(documentedOrder.missedCents).toBe(0);
     expect((documentedOrder.state.player.finances as unknown as { cashCents: number }).cashCents).toBe(0);
 
     // Housing runs first, against the same starting cash (0): the charge goes through in
     // full regardless, and the balance is genuinely negative — an actual overdraw, not
     // merely "unpaid" — the moment rent is charged before the wage has landed.
-    const swapped = housing(starting);
+    const swapped = housing(starting, []);
     expect(swapped.missedCents).toBe(30000);
     expect((swapped.state.player.finances as unknown as { cashCents: number }).cashCents).toBe(-30000);
 
@@ -677,7 +677,7 @@ describe("runEndOfWeek — W55 housing and finance_reconcile", () => {
         housing: { ...employedState().player.housing, weeklyCostCents: 25000 },
         finances: { ...employedState().player.finances, cashCents: 10000 },
       } as unknown as SimulationKindState["player"],
-    }));
+    }), []);
     expect(result.missedCents).toBe(15000);
     expect((result.state.player.finances as unknown as { cashCents: number }).cashCents).toBe(-15000);
   });
@@ -689,7 +689,7 @@ describe("runEndOfWeek — W55 housing and finance_reconcile", () => {
         housing: { ...employedState().player.housing, weeklyCostCents: 5000 },
         finances: { ...employedState().player.finances, cashCents: -20000 },
       } as unknown as SimulationKindState["player"],
-    }));
+    }), []);
     // Cash was already -20000 before this week's own charge; only this week's rent (5000)
     // counts as missed, not the compounded -25000 balance the charge leaves behind.
     expect(result.missedCents).toBe(5000);
@@ -788,6 +788,121 @@ describe("runEndOfWeek — W55 housing and finance_reconcile", () => {
     const canonical = canonicalStringify(result.state);
     expect(canonical).not.toMatch(/"(cashCents|overdueRentCents|weeklyCostCents|debtCents|savingsCents)":-?\d+\.\d/);
     expect(Number.isInteger(result.state.player.housing.overdueRentCents)).toBe(true);
+  });
+});
+
+describe("housing — W113 combined utilities/transport levy", () => {
+  const NEEDS: NeedState = { health: 50, energy: 50, happiness: 50, stress: 50, satiety: 50 };
+
+  const car: ItemDefinition = {
+    id: "item-car", nameKey: "item.name", descriptionKey: "item.description", category: "transport",
+    purchasePriceCents: 800000, baseResaleValueCents: 400000,
+    effects: [], stacking: "refresh", maintenanceRules: [], requirements: [], tags: ["vehicle"],
+  };
+  const nonVehicle: ItemDefinition = { ...car, id: "item-trinket", tags: [] };
+  const items: readonly ItemDefinition[] = [car, nonVehicle];
+
+  function ownedCar(overrides: Partial<InventoryItem> = {}): InventoryItem {
+    return {
+      instanceId: "inv-car-1", definitionId: "item-car", quantity: 1, acquiredWeek: 1,
+      purchasePriceCents: 800000, condition: 100, weeksSinceMaintenance: 0, broken: false,
+      ...overrides,
+    };
+  }
+
+  function housingState(overrides: Partial<SimulationKindState["player"]["housing"]> = {}): SimulationKindState["player"]["housing"] {
+    return {
+      definitionId: "housing-1", movedInWeek: 1, ownership: "renting", damage: 0,
+      weeklyCostCents: 5000, utilitiesCents: 1200, transportCents: 800,
+      depositPaidCents: 0, rentDueWeek: 1, overdueRentCents: 0, missedPayments: 0, evictionStage: "none",
+      ...overrides,
+    } as SimulationKindState["player"]["housing"];
+  }
+
+  function housedState(overrides: Partial<SimulationKindState["player"]["housing"]> = {}, inventory: readonly InventoryItem[] = []): SimulationKindState {
+    const base = baseState(NEEDS);
+    return {
+      ...base,
+      player: { ...base.player, housing: housingState(overrides), inventory: [...inventory], finances: { cashCents: 100000 } as SimulationKindState["player"]["finances"] },
+    };
+  }
+
+  // W113.3 — rent + utilities + transport as one combined levy, same pass rent already used.
+  it("W113.3 — charges rent plus utilities plus transport as a single combined levy against cashCents", () => {
+    const result = housing(housedState(), items);
+    // 5000 + 1200 + 800 = 7000.
+    expect(result.missedCents).toBe(0);
+    expect(result.changes).toEqual([
+      { path: "player.finances.cashCents", op: "decrement", value: 7000, previous: 100000, reason: "rent_charged", visible: true },
+    ]);
+  });
+
+  it("W113.3 — a campaign declaring neither utilities nor transport charges exactly rent alone", () => {
+    const result = housing(housedState({ utilitiesCents: 0, transportCents: 0 }), items);
+    expect(result.changes).toEqual([
+      { path: "player.finances.cashCents", op: "decrement", value: 5000, previous: 100000, reason: "rent_charged", visible: true },
+    ]);
+  });
+
+  it("W113.3 — the combined levy is unconditional and may take cashCents negative", () => {
+    const starved = housing({
+      ...housedState(),
+      player: { ...housedState().player, finances: { cashCents: 1000 } as SimulationKindState["player"]["finances"] },
+    }, items);
+    expect(starved.missedCents).toBe(6000);
+    expect((starved.state.player.finances as unknown as { cashCents: number }).cashCents).toBe(-6000);
+  });
+
+  // W113.4 — a shortfall against the combined total drives the same overdue/missed-payments/
+  // eviction ladder rent alone used; no separate utilities or transport arrears state exists.
+  it("W113.4 — a combined-total shortfall advances the same overdue/missed-payments/eviction ladder as rent alone", () => {
+    const state = {
+      ...housedState({}, []),
+      player: { ...housedState().player, finances: { cashCents: 0 } as SimulationKindState["player"]["finances"] },
+    };
+    const housed = housing(state, items);
+    // 7000 short entirely: missedCents 7000, so financeReconcile levies 7000 + 10% = 7700.
+    expect(housed.missedCents).toBe(7000);
+    const reconciled = financeReconcile(housed.state, housed.missedCents);
+    expect((reconciled.state.player.housing as unknown as { overdueRentCents: number }).overdueRentCents).toBe(7700);
+    expect((reconciled.state.player.housing as unknown as { missedPayments: number }).missedPayments).toBe(1);
+    expect((reconciled.state.player.housing as unknown as { evictionStage: string }).evictionStage).toBe("warning");
+    // No separate utilities/transport arrears field exists on HousingState.
+    expect(reconciled.state.player.housing).not.toHaveProperty("overdueUtilitiesCents");
+    expect(reconciled.state.player.housing).not.toHaveProperty("overdueTransportCents");
+  });
+
+  // W113.5 — transport is waived for a week the player holds at least one unbroken
+  // "vehicle"-tagged item; a broken vehicle does not waive it, and utilities are never waived.
+  it("W113.5 — an unbroken vehicle-tagged item zeroes transport for the week", () => {
+    const result = housing(housedState({}, [ownedCar()]), items);
+    // 5000 rent + 1200 utilities + 0 transport (waived) = 6200.
+    expect(result.changes).toEqual([
+      { path: "player.finances.cashCents", op: "decrement", value: 6200, previous: 100000, reason: "rent_charged", visible: true },
+    ]);
+  });
+
+  it("W113.5 — a broken (zero-condition) vehicle does not waive transport", () => {
+    const result = housing(housedState({}, [ownedCar({ condition: 0 })]), items);
+    // Full 7000 charged: the vehicle owned is broken, so transport is not waived.
+    expect(result.changes).toEqual([
+      { path: "player.finances.cashCents", op: "decrement", value: 7000, previous: 100000, reason: "rent_charged", visible: true },
+    ]);
+  });
+
+  it("W113.5 — an owned item without the 'vehicle' tag does not waive transport", () => {
+    const result = housing(housedState({}, [{ ...ownedCar(), instanceId: "inv-trinket-1", definitionId: "item-trinket" }]), items);
+    expect(result.changes).toEqual([
+      { path: "player.finances.cashCents", op: "decrement", value: 7000, previous: 100000, reason: "rent_charged", visible: true },
+    ]);
+  });
+
+  it("W113.5 — utilities are never waived, even while an unbroken vehicle is held", () => {
+    const result = housing(housedState({ transportCents: 0 }, [ownedCar()]), items);
+    // Utilities (1200) still charged in full regardless of the vehicle.
+    expect(result.changes).toEqual([
+      { path: "player.finances.cashCents", op: "decrement", value: 6200, previous: 100000, reason: "rent_charged", visible: true },
+    ]);
   });
 });
 

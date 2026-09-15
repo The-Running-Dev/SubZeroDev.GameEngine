@@ -173,7 +173,7 @@ function player(overrides: Partial<SimulationKindState["player"]> = {}): Simulat
     career: { history: [], totalWeeksEmployed: 0, pendingApplications: [], highestTierAchieved: "entry" },
     housing: {
       definitionId: "housing-1", movedInWeek: 1, ownership: "renting", damage: 0,
-      weeklyCostCents: 0, depositPaidCents: 0, rentDueWeek: 1, overdueRentCents: 0,
+      weeklyCostCents: 0, utilitiesCents: 0, transportCents: 0, depositPaidCents: 0, rentDueWeek: 1, overdueRentCents: 0,
       missedPayments: 0, evictionStage: "none",
     },
     inventory: [], relationships: [], projects: [], businesses: [], skills: {}, traits: [], reputation: {}, flags: {}, counters: {},
@@ -540,7 +540,7 @@ describe("W55 — move_housing", () => {
     expect(next.player.finances.cashCents).toBe(9000);
     expect(next.player.housing).toEqual({
       definitionId: "housing-affordable", movedInWeek: 3, ownership: "renting", damage: 0,
-      weeklyCostCents: 2000, depositPaidCents: 500, rentDueWeek: 3, overdueRentCents: 0,
+      weeklyCostCents: 2000, utilitiesCents: 0, transportCents: 0, depositPaidCents: 500, rentDueWeek: 3, overdueRentCents: 0,
       missedPayments: 0, evictionStage: "none",
     });
     expect(next.calendar.spentTimeUnits).toBe(4);
@@ -553,7 +553,7 @@ describe("W55 — move_housing", () => {
       player: player({
         housing: {
           definitionId: "housing-1", movedInWeek: 1, ownership: "renting", damage: 0,
-          weeklyCostCents: 3000, depositPaidCents: 0, rentDueWeek: 1, overdueRentCents: 5000,
+          weeklyCostCents: 3000, utilitiesCents: 0, transportCents: 0, depositPaidCents: 0, rentDueWeek: 1, overdueRentCents: 5000,
           missedPayments: 2, evictionStage: "penalty",
         },
       }),
@@ -564,12 +564,57 @@ describe("W55 — move_housing", () => {
   });
 });
 
+describe("W113 — utilities and transport stamped at move-in", () => {
+  const housingWithUtilities: HousingDefinition = {
+    ...housingAffordable, id: "housing-utilities",
+    utilitiesCents: 1500, transportCents: 800,
+  };
+  const campaignWithUtilities: SimulationCampaign = {
+    ...simulationCampaign, housing: [...simulationCampaign.housing, housingWithUtilities],
+  };
+  const ctxWithUtilities = (): KindContext => ctx({ campaign: { ...campaign, content: campaignWithUtilities } });
+
+  // W113.1 — `housingAffordable` declares neither field; the existing W55 stamping test
+  // above already proves this charges exactly what it charged before W113 (both 0).
+  it("W113.1 — a housing definition declaring neither field stamps both as zero", () => {
+    const s = state();
+    const outcome = moveHousingResolver.calculate(s, action("move_housing", "housing-affordable"), ctx());
+    const next = moveHousingResolver.apply(s, outcome);
+    expect(next.player.housing.utilitiesCents).toBe(0);
+    expect(next.player.housing.transportCents).toBe(0);
+  });
+
+  it("W113.1/.2 — stamps declared utilitiesCents/transportCents onto housing state at move-in", () => {
+    const s = state();
+    const outcome = moveHousingResolver.calculate(s, action("move_housing", "housing-utilities"), ctxWithUtilities());
+    const next = moveHousingResolver.apply(s, outcome);
+    expect(next.player.housing.utilitiesCents).toBe(1500);
+    expect(next.player.housing.transportCents).toBe(800);
+  });
+
+  it("W113.2 — editing the definition after move-in does not change the existing tenancy's stamped charge", () => {
+    const mutableDef: HousingDefinition = { ...housingWithUtilities };
+    const campaignHere: SimulationCampaign = { ...simulationCampaign, housing: [...simulationCampaign.housing, mutableDef] };
+    const s = state();
+    const outcome = moveHousingResolver.calculate(s, action("move_housing", "housing-utilities"), ctx({ campaign: { ...campaign, content: campaignHere } }));
+    const tenant = moveHousingResolver.apply(s, outcome);
+
+    // Mutate the definition in place, as a later campaign edit would — the already-stamped
+    // tenancy is a snapshot, never re-read from the definition.
+    mutableDef.utilitiesCents = 9000;
+    mutableDef.transportCents = 9000;
+
+    expect(tenant.player.housing.utilitiesCents).toBe(1500);
+    expect(tenant.player.housing.transportCents).toBe(800);
+  });
+});
+
 describe("W55 — pay_bills", () => {
   const inArrears = (): SimulationKindState => state({
     player: player({
       housing: {
         definitionId: "housing-1", movedInWeek: 1, ownership: "renting", damage: 0,
-        weeklyCostCents: 2000, depositPaidCents: 0, rentDueWeek: 1, overdueRentCents: 3300,
+        weeklyCostCents: 2000, utilitiesCents: 0, transportCents: 0, depositPaidCents: 0, rentDueWeek: 1, overdueRentCents: 3300,
         missedPayments: 1, evictionStage: "warning",
       },
     }),

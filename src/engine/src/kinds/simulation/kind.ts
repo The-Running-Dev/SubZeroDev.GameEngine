@@ -31,6 +31,7 @@ import { advance } from "./advance.js";
 import { availableActions } from "./available.js";
 import { SIMULATION_EVENT_NAMES } from "./events.js";
 import { initialState } from "./initial.js";
+import { migrateSimulationKindState } from "./kindMigration.js";
 import { outcome } from "./outcome.js";
 import { simulationProfileData } from "./profile.js";
 import { SIMULATION_ENGINE_MESSAGES, SIMULATION_REASON_CODES, SIMULATION_REASON_MESSAGES } from "./reasons.js";
@@ -41,7 +42,7 @@ import { project, type SimulationView } from "./view.js";
 
 export const simulationKind: Kind<SimulationKindState> = {
   id: "simulation",
-  version: "1.0.0",
+  version: "1.1.0",
   reasonCodes: SIMULATION_REASON_CODES,
   reasonMessages: new Map([...SIMULATION_REASON_MESSAGES, ...SIMULATION_ENGINE_MESSAGES]),
   /** Generated from `events.ts`'s name-to-severity table so this list and the call sites
@@ -54,5 +55,6 @@ export const simulationKind: Kind<SimulationKindState> = {
   project: (state, audience: ProjectionAudience, ctx): SimulationView => project(state, audience, ctx),
   validateCampaign: (campaign, strings) => validateCampaign(campaign, strings),
   outcome: (state) => outcome(state),
+  migrateState: migrateSimulationKindState,
   profileData: simulationProfileData,
 };
