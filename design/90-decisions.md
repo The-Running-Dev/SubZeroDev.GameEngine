@@ -1650,3 +1650,56 @@ lands, W98.2 stays unchecked and W108.3 is not satisfiable** — which is exactl
 Reversibility: the amendment is cheap and revertible; the parity proof is a standing
 cross-repository dependency, which is the more expensive commitment of the two and the reason this
 is a decision rather than a task.
+
+### 2026-09-15 — #108's other three items: the computer needs no engine change; the toolkit and sewing kit are deferred with the bicycle
+
+Context: [SubZeroDev.GameOfLife#108](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/issues/108)
+names six items. W105.1 settled two of them: the uniform (and the coat, the same effect) through
+`player.reputation.*`, and the bicycle's travel time, deferred. The other three were never
+dispositioned by any decision, slice or open item: `item-basic-computer` ("unlocks remote jobs and
+online courses"), and `item-basic-toolkit` and `item-sewing-kit` ("make maintenance easier").
+
+**The computer is a gate, and gates already exist.** `JobDefinition.requirements` and
+`CourseDefinition.requirements` are `Requirement[]`. `apply_for_job` and `enroll_course`'s
+`canExecute` (`resolvers.ts`) refuse on the first unmet one, evaluated by the same
+`evaluateSimulationCondition` W111 wired collections into, and `validate.ts` walks both for
+`unknown_collection`. Since W111 (#481), a job or
+course can require
+`{ exists: { collection: "player.inventory", where: { field: "definitionId", operator: "equals", value: "item-basic-computer" } } }`,
+with its own `failureCode` and `messageKey`. The id-keyed addressing that condition relies on is
+regression-tested against a built campaign by #484 (closing #418).
+
+**"Maintenance easier" has a declared shape and no reader.** The contract already spells out what
+it would mean: `MaintenanceRule.skillCheck?: CheckDefinition` (§7.5), whose
+`CheckDefinition.modifiers` accept `CheckModifier { source: "item", key, weight }` (§7.6). A toolkit
+would be a positive item-sourced modifier on a vehicle's maintenance check. But nothing consumes
+either half. `maintainItemResolver` (`resolvers.ts`) charges `costCents` and `timeCost` and resets
+`weeksSinceMaintenance`, and always succeeds without reading `skillCheck`. No code in the kind
+evaluates a `CheckDefinition` at all; `difficulty`, `modifiers` and the chance bounds are read
+nowhere. So maintenance cannot be made easier, because it cannot currently be hard. The plan that
+first raised this (`plans/51-gameoflife-blockers-status.md`) named `maintenanceRisk` as the candidate
+mechanism. That was wrong: `maintenanceRisk` is a `HousingDefinition` field (§7.4), not an item field,
+and it is equally unread.
+
+Chosen (user-selected):
+
+- **Computer:** no engine change. GameOfLife authors the requirement above on the jobs and courses
+  the item unlocks, and #108 records that as this item's resolution.
+- **Toolkit and sewing kit:** deferred, not amended, on W105.1's own ground for the bicycle. Wiring
+  them means giving `maintain_item` a check with a failure outcome, and giving check evaluation an
+  item source. That is a read-side mechanism the contract declares but has never described
+  resolving, and no code exercises it. Until then both items stay named per CP10, as the bicycle
+  does. Recorded as an open item: when a unit wires `CheckDefinition` resolution for any consumer,
+  `maintain_item`'s `skillCheck` and the `"item"` modifier source should be wired in the same unit,
+  and these two items can then be authored as content.
+
+Rejected: **A new slice wiring maintenance checks now**, offered and declined. It would make
+maintenance fallible, a gameplay change #108 does not ask for, in order to give two items a bonus
+against it. It is also a contract amendment and an implementation unit in the middle of the
+W112/W113 blocker set. **Removing the maintenance claim from the two items' GameOfLife text**,
+offered and declined. It is honest, but it discards a design intent that the contract already has
+a shape for. **Settling only the computer and leaving the other two undispositioned**, offered and
+declined, because #108 could then never close.
+
+Reversibility: cheap. It is documentation only, with no contract or code change. The computer
+resolution is content in GameOfLife. The deferral lifts as soon as a unit wires check resolution.
