@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 34f548bc3fb61737c2a166c0b25796549023e80c24a1a61c19e30a71b9e2f5bb -->
+<!-- design-digest: add0e3fe78bbebd12ff4c5fc3b66c5dd70c8b748faa28434db6e5bd8455c9f4c -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -757,14 +757,27 @@ Important constraints:
   `utilitiesCents`, and `transportCents` post as one combined levy, and any shortfall feeds the
   same arrears/eviction pipeline rent alone used to drive. Transport is waived for a week the
   player owns an unbroken item tagged the reserved literal `"vehicle"` — the one tag value this
-  kind's engine code itself reads, everywhere else `tags` is free-text content metadata.
-- An NPC definition may declare `startingMemories` — copied into that NPC's runtime memory list
-  the first time it is instantiated, so a scenario can open with an NPC who already remembers
-  something.
+  kind's engine code itself reads, everywhere else `tags` is free-text content metadata. **The
+  waiver is invisible in the projection.** It only changes the amount charged; the player view's
+  `HousingState` fields still show the stamped, non-zero `transportCents` regardless of whether
+  the week's charge actually included it, and there is no `effectiveTransportCents` field. A
+  client that wants to display the discounted bill has to re-run the same `"vehicle"`-tag test
+  against `player.inventory` itself.
+- An NPC definition may declare `startingMemories` — meant to be copied into that NPC's runtime
+  memory list the first time it is instantiated, so a scenario can open with an NPC who already
+  remembers something. **Not wired up yet:** no reducer creates an `NPCState` at all today, so
+  `world.npcs` is always empty and a declared `startingMemories` is validated and carried but
+  never actually copied into play. Treat this field as forward-declared contract, not working
+  behavior, until the NPC-seeding unit lands.
 - `exists`/`count` conditions can test a closed set of state collections (owned items,
   relationships, pending job applications, course enrollments, projects, businesses, world
   NPCs) — each resolves only its own stored fields, never a joined content definition, so "any
-  item tagged X" needs an explicit id list rather than a category test.
+  item tagged X" needs an explicit id list rather than a category test. **A `where` field the
+  item type doesn't declare fails silently, not loudly:** it resolves to `undefined`, so the
+  clause never matches and the whole `exists`/`count` is just `false` — a typo'd field name is
+  indistinguishable from a legitimate empty result. Validating `where` fields against the
+  collection's item type at load time is planned but not yet built; until then, double-check
+  field names by hand.
 
 The player view carries the calendar, identity, finances, needs, attributes, education, career,
 housing, inventory, and relationships — with the hidden `luck` attribute and relationship
@@ -882,6 +895,14 @@ roster, the price ranges — lives entirely in the projection. This kind is also
 `previewAction` exists at all: a spatial placement has to be checkable before it commits, and
 nothing else in the seam could do that without risking a second, drifting copy of the placement
 rules.
+
+**`WorldGraphView` as specified below is not yet what the code returns.** The contract describes
+the complete Revision 5 view; the shipped projector (`src/engine/src/kinds/world-graph/state.ts`)
+still returns the earlier, smaller shape — tick, finances, map counts, build options, buildings,
+staff, objectives, alerts, and a queued-guest count, with no `definitions`, `scenario`, staff
+options, construction sites, guests, incidents, positions, or alert `entityId`. A client built
+against the full shape below has to wait for that unit to land; until it does, treat this section
+as the target contract, not the current runtime output.
 
 Treat `WorldGraphView` as the client's complete spatial read model. It carries the scenario clock
 and map identity; terrain, paths, zones, and placed scenery; the safe labels and ranges needed to
