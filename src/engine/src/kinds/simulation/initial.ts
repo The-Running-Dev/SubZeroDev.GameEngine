@@ -330,9 +330,10 @@ function seedProfileChains(campaign: SimulationCampaign, campaignId: string, pro
  *  expiring one during play cannot reach back and mutate the authored content.
  *
  *  Not called below: `buildWorld` still seeds no `NPCState` at all (its own comment,
- *  immediately following, explains why — issue #425's still-open question of whether
- *  `world.npcs` should be populated from content). This function is ready for whichever
- *  reducer resolves that; exported and tested directly until then. */
+ *  immediately following, explains why). Whether `world.npcs` should be populated from
+ *  content is decided: yes, one `NPCState` per `NPCDefinition` at creation, through this
+ *  function (`90-decisions.md`, 2026-09-15; issue #425). That change is its own unit because
+ *  it reshapes the committed fixtures; exported and tested directly until then. */
 export function seedNPCMemories(definition: NPCDefinition): NPCMemory[] {
   return definition.startingMemories ? [...definition.startingMemories] : [];
 }

@@ -1534,7 +1534,14 @@ Rejected: **Join collection items against their content definition** (so "any ow
 
 Reversibility: cheap — a documentation-and-validation-rule change; the seven-entry table is additive and does not remove `unresolvableCollection`'s existing "not yet" honesty for anything outside it.
 
-### 2026-09-08 — Open, routed to `/contract`: the 2026-09-07 amendments were not mirrored into §10 and §14
+### 2026-09-08 — Resolved 2026-09-15: the 2026-09-07 amendments were not mirrored into §10 and §14
+
+**Decision: the three edits below were applied as descriptive corrections by `/reconcile`.**
+Nothing needed deciding, as the entry already said. §10's campaign-validation table now carries
+`unknown_collection` (Tier 1). §14's Tier 1 list carries its bullet beside the natural-key one.
+§14's `read_only_field` bullet names `player.reputation.*`. The same pass added W112's
+`item_cost_charged` to §10's audit table, a fourth case of the same failure: a code registered in
+`reasons.ts` and never listed in the section that enumerates codes.
 
 Context: found while slicing the five amendments as [W109–W113](30-slices.md) — not by review, and
 not by the amendments' own authoring session, which is the point worth recording. Each of the five
@@ -1703,3 +1710,99 @@ declined, because #108 could then never close.
 
 Reversibility: cheap. It is documentation only, with no contract or code change. The computer
 resolution is content in GameOfLife. The deferral lifts as soon as a unit wires check resolution.
+
+### 2026-09-15 — Open, routed to `/slices`: `WorldGraphView` Revision 5 is contracted but not built
+
+Context: `/reconcile` found that `12-world-graph-kind` §10 (Revision 5, the 2026-09-07 entry above)
+describes the complete player-observable read model. The projector in
+`src/engine/src/kinds/world-graph/state.ts` still returns the earlier subset, unchanged since #125.
+It has no `definitions`, `scenario`, `staffOptions`, `constructionSites`, `guests`, `incidents`,
+building or staff positions, or alert `entityId`. No slice in `30-slices.md` implements the
+revision, so nothing would ever close the gap.
+
+Chosen (user-selected): **the contract stays as the target and is marked unbuilt.** §10 now opens
+with a status paragraph stating what ships. The implementation unit (expand the projector to §10,
+with canonical ordering and the completeness invariants, and no save or campaign schema change) is
+routed to `/slices`.
+
+Rejected: **Narrowing §10 back to what ships.** That would retract a decision made for a real
+external client, recorded above, and throw away its specification. **Implementing it inside this
+reconcile.** It is a public-surface implementation unit, not a correction.
+
+Reversibility: cheap. The status paragraph is deleted in the same commit as the unit that
+implements the view.
+
+### 2026-09-15 — Open, routed to `/slices`: seed one `NPCState` per `NPCDefinition` at game creation
+
+Context: §7.7's `startingMemories` (W105.4, W110) says the reducer that first creates an `NPCState`
+seeds its memories. No reducer does. `buildWorld` (`initial.ts`) returns `npcs: []`, so W110's
+`seedNPCMemories` is exported, tested and never called, and `world.npcs`, one of §8.2's seven
+collections, is always empty. [#425](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/425)
+asked whether `world.npcs` should be populated at all. It was closed by #479 (W110), which shipped
+the seeding function but did not settle the question.
+
+Chosen (user-selected): **the code moves to the contract.** `initialState` creates one `NPCState`
+per `NPCDefinition`, with `memories` from `seedNPCMemories`. This is its own unit, not a reconcile
+edit: seeding was tried once and reverted because it changes the `world` shape of every committed
+replay and golden fixture, and promoting fixtures is a reviewed one-way door
+(`08-session-capture.md` §7). The unit covers **NPCs only**. The other blocker recorded in
+`buildWorld`'s comment, scenarios whose `startingLocationId` has no `LocationDefinition`, affects
+`world.locations` alone and stays with #425's locations half. #425 is reopened. §7.7 now carries a
+"not yet seeded" paragraph, which the unit deletes.
+
+Rejected: **Amending §7.7 and §8.2 to say `world.npcs` is unpopulated and removing `world.npcs`
+from the collections table.** It matches the shipped code, but it makes every authored starting
+memory permanently inert and drops a collection GameOfLife's lifecycle expects. **Leaving it
+unrouted.** W110 already showed that a function ready for "whichever reducer" never gets a caller
+on its own.
+
+Reversibility: moderate. The contract paragraph is cheap. The unit is the expensive part, because
+the fixture regeneration it needs is reviewed and is not reverted casually.
+
+### 2026-09-15 — Open, routed to `/contract` then `/slices`: a Tier 1 check for `where` fields the collection's item type does not declare
+
+Context: §8.2 (W105.5, W111) resolves each `where` field against one collection element. W111's
+`resolveItemField` is non-throwing, so a field the item type does not carry resolves to
+`undefined` and the clause silently evaluates to `false`. The motivating case is §8.2's own
+example of a mistake, `category` against `player.inventory`. Nothing rejects it at load time.
+§8.2's reasoning for `unknown_collection` is that a malformed path should fail at load time, not
+at first evaluation, and this is the one kind of malformed path that still does not. W111 made
+the silent behaviour a deliberate choice, and no decision recorded it. §8.2 now records it as
+interim, along with the shipped nesting rule: a nested `collection` is rooted at state, never at
+the enclosing item.
+
+Chosen (user-selected): **add a Tier 1 check that validates every `where` field path, at any
+depth, against the declared fields of its collection's item type.** That needs a contract
+amendment first, covering the reason code, how an item type's field set is declared (the seven
+§8.2 item types are closed, so a static per-collection field table is the likely form), and the
+treatment of optional fields. So it goes to `/contract` to specify and then `/slices` to
+implement. The runtime walk stays non-throwing either way. Once the check lands, an unknown
+field can no longer reach it.
+
+Rejected: **Document the silent `false` as the rule.** It costs nothing, but it keeps the exact
+authoring failure §8.2 names as its own example undetectable. **Make the runtime walk throw.** A
+malformed campaign would then fail during play, not at load, which is the ordering §8.2 argues
+against.
+
+Reversibility: cheap until the check ships. After that, removing it loosens validation, which
+never breaks a valid campaign.
+
+### 2026-09-15 — W105.3's transport waiver is applied at charge time and not projected
+
+Context: §7.4 says `utilitiesCents`/`transportCents` are "distinct cost lines a player can see", and
+that `transportCents` is waived for a week in which the player owns a working `"vehicle"`-tagged
+item. §9 projects `HousingState` as stored, so a vehicle owner sees a non-zero `transportCents`
+that `housing` (W113) does not charge. The contract never said which one the player sees.
+
+Chosen (user-selected): **clarify §7.4 to match what ships.** The visible lines are the rates
+stamped at move-in. The waiver is applied when the levy is charged and is not projected. A client
+that wants to show the effective bill applies the `"vehicle"`-tag test to `player.inventory`
+itself.
+
+Rejected: **Project an effective bill or waived-transport field on `SimulationView`.** It is the
+more player-friendly view, but it is a public interface change, which means a `/contract`
+amendment and a unit, and nothing has asked for it yet. **Record it as known and retained without
+changing the text.** That leaves a sentence a later reconcile would flag again.
+
+Reversibility: cheap. It is one paragraph. Adding a projected field later is additive and does
+not contradict it.

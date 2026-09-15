@@ -63,7 +63,7 @@ this section, because it is the only one here with no gate behind it.
   `campaignId`, `campaignVersion`, `seed`, `status`, `actionLog` — lives on `GameState` and is
   duplicated by no `kindState`, no `Campaign`, no registry entry, and no kind's view type.
   *Enforced by instruction only. No check exists; `CLAUDE.md`'s ledger records five instances of
-  this being violated, three in state and content and two on the view side.*
+  this being violated, four in state and content and one on the view side.*
 - **C7.** No core module imports a kind. `kindState` is `unknown`, never a union of kind states,
   and a kind casts its own payload guarded by `kindId`. *Enforced by the type and by module
   structure.*
@@ -5113,6 +5113,14 @@ precedent `core.reason.*` (04 §12) already sets for reason codes. `housing` (§
 `items: readonly ItemDefinition[]` to evaluate this, the same parameter shape `jobs`/`goalDefs`
 already use for their own end-of-week systems.
 
+**What "a player can see" means for the waiver.** The distinct cost lines are
+`HousingState`'s stamped `weeklyCostCents`/`utilitiesCents`/`transportCents`, which §9 projects
+as stored. The vehicle waiver is applied when `housing` charges the levy, and nothing projects
+it: a player who owns a vehicle still sees the stamped, non-zero `transportCents`, and the
+week's actual `cashCents` change is smaller by that amount. A client that wants to show the
+effective bill applies the same `"vehicle"`-tag test to `player.inventory` itself. No view
+field carries `effectiveTransportCents` (`90-decisions.md`, 2026-09-15).
+
 ### 7.5 Items
 
 ```typescript
@@ -5330,6 +5338,13 @@ content/state pair in this kind already follows (§6.7, §6.8, §6.12). Absent o
 declared on `NPCMemory`, above) is ordinary authored data here, not a new field — a starting
 memory almost always names `"player"` (§6.3), though nothing prevents authoring one about a
 `RivalConfig.agentId` (§7.10) a scenario also declares.
+
+**Not yet seeded.** No reducer creates an `NPCState` yet. `initialState` starts `world.npcs`
+empty, so `startingMemories` is validated and carried but never copied into play, and
+`world.npcs` (§8.2) is always an empty collection. The decision is that the code moves to this
+section: one `NPCState` per `NPCDefinition`, created at game creation with `memories` seeded
+from this field. That change reshapes the committed replay and golden fixtures, so it is its
+own unit (`90-decisions.md`, 2026-09-15, routed to `/slices`).
 
 `WorldState.npcs: NPCState[]` (§2.2) forward-referenced this shape; it lands here. `NPCState`
 holds only what genuinely belongs to the NPC — role, availability, memories — never the
@@ -5886,6 +5901,17 @@ definition would need the resolver to carry campaign content alongside state, wh
 `ConditionResolver` (04 §18) has no seam for; widening that seam is out of scope here and is
 recorded as an open item in `90-decisions.md`'s W105.5 entry rather than invented on the spot.
 
+**What ships today for a `where` field the item type does not declare, and for nesting.** A
+`where` path is resolved by a non-throwing walk. A field the element does not carry, such as
+`category` against `player.inventory`, resolves to `undefined`, so the clause never matches
+and the enclosing `exists` is silently `false`. Nothing rejects it at load time. A nested
+`exists`/`count` inside a `where` resolves its own `collection` against this same table,
+rooted at state, never at the enclosing item: every collection name has one meaning at every
+depth. The silent `false` is interim. It contradicts this section's own reasoning that a
+malformed path should fail at load time, like `unknown_collection`. A Tier 1 check that
+validates each `where` field against its collection's item type has been decided on, and is
+routed to `/contract` to specify and then to `/slices` (`90-decisions.md`, 2026-09-15).
+
 `count`'s own comparison (04 §18's `CountCondition`) is always a match total against a number —
 "a pending application exists" is `exists`, "at least two owned cars" is `count`. Neither needs
 a per-kind extension beyond the table above; both are the frozen core mechanism, finally given
@@ -6079,6 +6105,7 @@ Reused from the base set: `unknown_action`, `requirement_unmet`, `session_ended`
 | `dangling_reference` | 1 | A definition references an `id` that resolves to nothing |
 | `numeric_natural_key` | 1 | An addressing path segment is all digits where a natural key is required (§7.1) |
 | `unknown_rival_strategy` | 1 | `RivalConfig.strategyId` (§7.8) names no registered `AgentStrategy` (§7.10) — W101 |
+| `unknown_collection` | 1 | An `exists`/`count` `collection` names a path outside §8.2's seven-entry table — W111 |
 | `unreachable_content` | 2 | A definition nothing in the campaign ever references |
 | `unsatisfiable_achievement` | 2 | An `AchievementDefinition.condition` reads a counter or flag nothing writes |
 
@@ -6103,6 +6130,7 @@ namespace exempt from §12's completeness rule.
 | `rent_overdue`, `eviction_advanced` | `finance_reconcile` (W55) |
 | `education_course_completed`, `education_course_failed`, `education_skill_awarded`, `education_credential_awarded` | the `education` system (W54) |
 | `item_condition_decayed` | the `inventory` system (W56) |
+| `item_cost_charged` | the `inventory` system (§7.5, W112) |
 | `event_fired` | the `events` system (W57) |
 | `opportunity_offered`, `opportunity_expired`, `opportunity_revoked` | the `opportunities` system (W57) |
 | `headline_shown`, `world_strangeness_shifted` | the `headline` and `events` systems (W57) |
@@ -6329,11 +6357,13 @@ total, run once at registry construction, before the registry is frozen. Tiered 
   resolves in the registry's string table (04 §10.1).
 - A `Modifier.target`/addressing path naming an array collection uses the collection's natural
   key, never a numeric index (§7.1) — a numeric path segment is rejected outright.
+- Every `exists`/`count` `collection`, at any nesting depth, names one of §8.2's seven
+  array-typed paths. Anything else fails with `unknown_collection`.
 - A `Modifier` targeting one of §6.1's four **formula-only** paths — `player.housing.quality`,
   `player.career.effectivePerformance`, `calendar.energyRecoveryRate`, `world.strangeness` —
   fails with `read_only_field`. That is `isReadOnly`'s partition, not the whole `DerivedPath`
-  union: `player.needs.*`, `player.attributes.*` and `player.skills.*` are derived *and*
-  writable, and are the targets the layering in §6.1 exists to serve. Checked here because this
+  union: `player.needs.*`, `player.attributes.*`, `player.skills.*` and `player.reputation.*`
+  are derived *and* writable, and are the targets the layering in §6.1 exists to serve. Checked here because this
   is where a concrete `target` string first exists to check.
 - `SimulationCampaign.attendanceTracking.windowWeeks` (§7.11), when present, is a positive
   integer — zero, negative, and non-integer values are rejected.
@@ -7950,6 +7980,14 @@ player-observable read model for this kind: a client can render the map, open an
 discover every parameter domain accepted by §7 without reading `WorldGraphKindState` or
 `WorldGraphCampaign`. The projection is additive to the generic envelope and repeats none of its
 `gameId`, `status`, scene, action-list or outcome fields.
+
+**Specified, not yet implemented.** This section is the Revision 5 view (`90-decisions.md`,
+2026-09-07). The shipped projector in `src/engine/src/kinds/world-graph/state.ts` still returns
+the earlier subset: tick, finances, map counts, build options, buildings, staff, objectives,
+alerts and queued guests. It has no definitions, scenario, staff options, construction sites,
+guests, incidents, positions or alert `entityId`. A client built against this section must
+wait for that unit, which is routed to `/slices` (`90-decisions.md`, 2026-09-15). Until it
+lands, the contract here is the target and the code is behind it.
 
 ```typescript
 interface WorldGraphViewText {
