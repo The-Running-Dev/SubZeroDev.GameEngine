@@ -68,6 +68,10 @@
  * W111 adds `unknown_collection` — `validate.ts`'s Tier 1 rejection of an `exists`/`count`
  * naming a collection outside §8.2's closed seven-path table, registered in the same commit
  * that emits it (this file's own header discipline).
+ *
+ * W112 adds `item_cost_charged` — `endOfWeek.ts`'s `inventory` system levying the summed
+ * `ItemDefinition.weeklyCostCents` of every owned, unbroken instance against `cashCents`
+ * (§7.5, 90-decisions W105.2), the same single-total-charge shape as `rent_charged`.
  */
 
 import type { LocKey } from "../../core/localization/types.js";
@@ -165,6 +169,8 @@ export const SIMULATION_REASON_CODES = [
   "profile_chain_advanced",
   // W111 — conditions over collections (§8.2, §14).
   "unknown_collection",
+  // W112 — a car that costs money to run (§7.5).
+  "item_cost_charged",
 ] as const;
 
 export type SimulationReasonCode = (typeof SIMULATION_REASON_CODES)[number];
@@ -240,6 +246,7 @@ const SIMULATION_REASON_TEXT: Readonly<Record<SimulationReasonCode, string>> = {
   chain_advanced: "A thread in this story moved forward.",
   profile_chain_advanced: "A thread in this story moved forward — it will carry into your next game.",
   unknown_collection: "This campaign names a collection the engine doesn't have.",
+  item_cost_charged: "You paid to keep your things running.",
 };
 
 /** `simulation.reason.<code>` → its shipped default-English message, for every code. */

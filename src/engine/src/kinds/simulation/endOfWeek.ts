@@ -799,6 +799,33 @@ function inventory(state: SimulationKindState, items: readonly ItemDefinition[])
     });
   }
 
+  // W112 — a broken item stops contributing its `weeklyCostCents`, the same rule the
+  // effects loop above already applies to `ItemDefinition.effects`. Unconditional and may
+  // take `cashCents` negative, same as `housing`: no arrears mechanism (§7.5, 90-decisions
+  // W105.2).
+  const runningCostCents = nextInventory.reduce((total, item) => {
+    if (item.condition <= 0) return total;
+    return total + (findItem(item.definitionId)?.weeklyCostCents ?? 0);
+  }, 0);
+  if (runningCostCents !== 0) {
+    const before = state.player.finances.cashCents;
+    changes.push({
+      path: "player.finances.cashCents", op: "decrement", value: runningCostCents,
+      previous: before, reason: "item_cost_charged", visible: true,
+    });
+    return {
+      state: {
+        ...state,
+        player: {
+          ...state.player, inventory: nextInventory,
+          finances: { ...state.player.finances, cashCents: before - runningCostCents },
+        },
+        activeEffects,
+      },
+      changes,
+    };
+  }
+
   return {
     state: {
       ...state,
