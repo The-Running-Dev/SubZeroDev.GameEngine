@@ -30,7 +30,7 @@ import { evaluateCondition } from "../../core/condition/evaluate.js";
 import type { SimulationKindState } from "./state.js";
 import { resolveEffectiveField } from "./derived.js";
 
-/** `player.needs.*`/`player.attributes.*`/`player.skills.*` resolve through
+/** `player.needs.*`/`player.attributes.*`/`player.skills.*`/`player.reputation.*` resolve through
  *  `resolveEffectiveField` first — §6.1's derived values are computed on every read, and a
  *  goal or failure condition reading the raw stored value instead would disagree with what
  *  `SimulationView` and `scene.ts` show for the same field. Every other path falls through to

@@ -379,7 +379,7 @@ export interface NPCDefinition {
   /** W110/W105.4 — seeds `NPCState.memories` once, at NPC creation; absent or empty
    *  produces `[]`, today's behaviour. Author-supplied `id`s, never minted from an
    *  `IdSource` (20-contract.md §7.7). No reducer in this engine creates `NPCState` yet
-   *  (issue #425) — `seedNPCState` (`state.ts`) is ready for whichever one does. */
+   *  (issue #425) — `seedNPCMemories` (`initial.ts`) is ready for whichever one does. */
   startingMemories?: NPCMemory[];
 
   tags: string[];
