@@ -90,7 +90,9 @@ rendered here.
 | 371 | #371 | A kind's event severities are literals at each emit call; only the core fixes them in one table | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | 375 | #375 | Test-DesignState.ps1: 9 findings against this repository's own tree (ContractListUnreadable, ProjectorFailed, TrackerUnavailable, etc.) | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | 413 | #413 | 48 slices predate the issue-per-slice convention: W0-W40, W61, W63-65, W90-92 have no GitHub issue | — | `49aa72904ff5ba1151b7c41e60d770a3547649d1` |
+| 425 | #425 | WorldState.npcs and WorldState.locations are declared but permanently unpopulated dead state | — | `7d8850df21d99d6b224d38fea6b9cd720e3d3e38` |
 | 472 | #472 | SimulationCampaignSource cannot declare eventChains, which Tier 1 requires for any chainId | — | `be2f12c055697ff8179c5a0923edf962d5e00b99` |
+| 494 | #494 | A player who finishes their education can't have that credential checked by a game rule | — | `7d8850df21d99d6b224d38fea6b9cd720e3d3e38` |
 | milestone/1 | #213 | Dead references to bulgaria-bureaucracy.determinism.test.ts, deleted in #189 | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | milestone/2 | #215 | Batch invariance (world-graph's load-bearing property) is tested at exactly one data point | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | milestone/2 | #216 | world-graph: 21 source modules (~2,100 LOC) have no adjacent test file | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
