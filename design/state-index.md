@@ -90,8 +90,6 @@ rendered here.
 | 371 | #371 | A kind's event severities are literals at each emit call; only the core fixes them in one table | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | 375 | #375 | Test-DesignState.ps1: 9 findings against this repository's own tree (ContractListUnreadable, ProjectorFailed, TrackerUnavailable, etc.) | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | 413 | #413 | 48 slices predate the issue-per-slice convention: W0-W40, W61, W63-65, W90-92 have no GitHub issue | — | `49aa72904ff5ba1151b7c41e60d770a3547649d1` |
-| 468 | #468 | W112 — A Car That Costs Money to Run | W112.1, W112.2, W112.3, W112.4, W112.5, W112.6 | `3f2121db187e020d84618c5d3c39aa2884edecda` |
-| 469 | #469 | W113 — Utilities and Transport on the Weekly Bill | W113.1, W113.2, W113.3, W113.4, W113.5, W113.6, W113.7 | `3f2121db187e020d84618c5d3c39aa2884edecda` |
 | 472 | #472 | SimulationCampaignSource cannot declare eventChains, which Tier 1 requires for any chainId | — | `be2f12c055697ff8179c5a0923edf962d5e00b99` |
 | milestone/1 | #213 | Dead references to bulgaria-bureaucracy.determinism.test.ts, deleted in #189 | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | milestone/2 | #215 | Batch invariance (world-graph's load-bearing property) is tested at exactly one data point | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
