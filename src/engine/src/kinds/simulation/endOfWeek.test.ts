@@ -1163,3 +1163,89 @@ describe("runEndOfWeek — W56.3 inventory", () => {
     expect(result.state.activeEffects).toEqual([]);
   });
 });
+
+describe("runEndOfWeek — W112 item running cost", () => {
+  const INVENTORY_NEEDS: NeedState = { health: 50, energy: 50, happiness: 50, stress: 50, satiety: 50 };
+
+  const car: ItemDefinition = {
+    id: "item-car", nameKey: "item.name", descriptionKey: "item.description", category: "transport",
+    purchasePriceCents: 800000, baseResaleValueCents: 400000, weeklyCostCents: 3000,
+    effects: [], stacking: "refresh", maintenanceRules: [], requirements: [], tags: ["vehicle"],
+  };
+  /** No `weeklyCostCents` declared at all — §7.5's absent-means-zero rule. */
+  const heirloom: ItemDefinition = {
+    id: "item-heirloom", nameKey: "item.name", descriptionKey: "item.description", category: "transport",
+    purchasePriceCents: 800000, baseResaleValueCents: 400000,
+    effects: [], stacking: "refresh", maintenanceRules: [], requirements: [], tags: ["vehicle"],
+  };
+  const items: readonly ItemDefinition[] = [car, heirloom];
+
+  function ownedItem(overrides: Partial<InventoryItem> = {}): InventoryItem {
+    return {
+      instanceId: "inv-car-1", definitionId: "item-car", quantity: 1, acquiredWeek: 1,
+      purchasePriceCents: 800000, condition: 100, weeksSinceMaintenance: 0, broken: false,
+      ...overrides,
+    };
+  }
+
+  function owning(inventory: readonly InventoryItem[], overrides: Partial<SimulationKindState> = {}): SimulationKindState {
+    const base = baseState(INVENTORY_NEEDS, overrides);
+    return { ...base, player: { ...base.player, inventory: [...inventory] } };
+  }
+
+  it("charges the owned instance's weeklyCostCents against cashCents", () => {
+    const { emit } = recordingEmitter();
+    const state = owning([ownedItem()], { player: { ...baseState(INVENTORY_NEEDS).player, finances: { cashCents: 10000 } } as SimulationKindState["player"] });
+    const result = runEndOfWeek(state, emit, NO_GOALS, "goals_win", [], [], items);
+    expect(result.state.player.finances.cashCents).toBe(7000);
+  });
+
+  it("charges per owned instance, not per definition — three cars, three charges", () => {
+    const { emit } = recordingEmitter();
+    const state = owning(
+      [ownedItem({ instanceId: "inv-1" }), ownedItem({ instanceId: "inv-2" }), ownedItem({ instanceId: "inv-3" })],
+      { player: { ...baseState(INVENTORY_NEEDS).player, finances: { cashCents: 10000 } } as SimulationKindState["player"] },
+    );
+    const result = runEndOfWeek(state, emit, NO_GOALS, "goals_win", [], [], items);
+    expect(result.state.player.finances.cashCents).toBe(1000);
+  });
+
+  it("contributes zero for an item declaring no weeklyCostCents", () => {
+    const { emit } = recordingEmitter();
+    const state = owning([ownedItem({ definitionId: "item-heirloom" })], { player: { ...baseState(INVENTORY_NEEDS).player, finances: { cashCents: 10000 } } as SimulationKindState["player"] });
+    const result = runEndOfWeek(state, emit, NO_GOALS, "goals_win", [], [], items);
+    expect(result.state.player.finances.cashCents).toBe(10000);
+  });
+
+  it("contributes zero for an item at zero condition — the same broken-item rule effects already follow", () => {
+    const { emit } = recordingEmitter();
+    const state = owning([ownedItem({ condition: 0 })], { player: { ...baseState(INVENTORY_NEEDS).player, finances: { cashCents: 10000 } } as SimulationKindState["player"] });
+    const result = runEndOfWeek(state, emit, NO_GOALS, "goals_win", [], [], items);
+    expect(result.state.player.finances.cashCents).toBe(10000);
+  });
+
+  it("is unconditional and may take cashCents negative, with no arrears recorded", () => {
+    const { emit } = recordingEmitter();
+    const state = owning([ownedItem()], { player: { ...baseState(INVENTORY_NEEDS).player, finances: { cashCents: 1000 } } as SimulationKindState["player"] });
+    const result = runEndOfWeek(state, emit, NO_GOALS, "goals_win", [], [], items);
+    expect(result.state.player.finances.cashCents).toBe(-2000);
+    expect(result.state.player.housing).not.toHaveProperty("overdueItemCents");
+  });
+
+  it("emits one visible StateChange for the total charge, before housing runs", () => {
+    const { emit } = recordingEmitter();
+    const state = owning([ownedItem()], { player: { ...baseState(INVENTORY_NEEDS).player, finances: { cashCents: 10000 } } as SimulationKindState["player"] });
+    const result = runEndOfWeek(state, emit, NO_GOALS, "goals_win", [], [], items);
+    expect(result.changes).toContainEqual({
+      path: "player.finances.cashCents", op: "decrement", value: 3000, previous: 10000,
+      reason: "item_cost_charged", visible: true,
+    });
+  });
+
+  it("emits no StateChange when the total charge is zero — no phantom entry", () => {
+    const { emit } = recordingEmitter();
+    const state = owning([ownedItem({ definitionId: "item-heirloom" })], { player: { ...baseState(INVENTORY_NEEDS).player, finances: { cashCents: 10000 } } as SimulationKindState["player"] });
+    const result = runEndOfWeek(state, emit, NO_GOALS, "goals_win", [], [], items);
+    expect(result.changes.some((c) => c.reason === "item_cost_charged")).toBe(false);
+  });
+});
