@@ -61,6 +61,7 @@ import type {
   GoalState,
   Modifier,
   NPCMemory,
+  NPCState,
   SimulationKindState,
 } from "./state.js";
 import type { ActorState, InventoryItem, PlayerState } from "./actor.js";
@@ -327,35 +328,41 @@ function seedProfileChains(campaign: SimulationCampaign, campaignId: string, pro
  *  Absent or empty `startingMemories` produces `[]`, today's behaviour, so no existing
  *  campaign is affected. Returns a fresh array each call — a `NPCState` this seeds never
  *  shares its `memories` array with the definition's own `startingMemories`, so removing or
- *  expiring one during play cannot reach back and mutate the authored content.
- *
- *  Not called below: `buildWorld` still seeds no `NPCState` at all (its own comment,
- *  immediately following, explains why). Whether `world.npcs` should be populated from
- *  content is decided: yes, one `NPCState` per `NPCDefinition` at creation, through this
- *  function (`90-decisions.md`, 2026-09-15; issue #425). That change is its own unit because
- *  it reshapes the committed fixtures; exported and tested directly until then. */
+ *  expiring one during play cannot reach back and mutate the authored content. */
 export function seedNPCMemories(definition: NPCDefinition): NPCMemory[] {
   return definition.startingMemories ? [...definition.startingMemories] : [];
 }
 
-/** `npcs`/`locations` start unpopulated — a documented gap, not an oversight (issue #425).
- *  §7.7/§7.9 forward-reference `NPCState`/`LocationState` as content-seeded runtime state,
- *  and GameOfLife's own lifecycle seeds one `NPCState` per `NPCDefinition` and one
- *  `LocationState` per reachable `LocationDefinition` at creation. Seeding them here was
- *  tried and reverted: it changes every committed replay/golden fixture's `world` shape
- *  (a `ReplayFixture`/corpus promotion is a reviewed one-way door, `08-session-capture.md`
- *  §7) and several shipped campaigns' `scenarios[].startingLocationId` has no matching
- *  `LocationDefinition` at all, which only stayed harmless while nothing read `world.
- *  locations`. Both are real defects this function is not the place to fix. `resolvers.ts`'s
- *  travel/socialize resolvers already read `campaign.locations`/`campaign.npcs` directly, so
- *  gameplay is unaffected; `view.ts`'s `PublicLocationState` projection stays empty until
- *  either the mirror is done deliberately (seeding plus fixing the campaign content that
- *  assumes it can skip declaring `LocationDefinition`s) or §2.2's `WorldState.npcs`/
- *  `locations` fields are narrowed to match what's actually shipped — a decision for
- *  `/contract`, not this file. */
+/** One `NPCState` per `NPCDefinition`, in content order, at game creation (W114; §7.7,
+ *  `90-decisions.md` 2026-09-15; issue #425). Every definition the campaign declares, not
+ *  only those a scenario names — §7.8 gives a scenario no NPC list to scope by. `id` is the
+ *  definition's own id: §7.1 addresses `world.npcs.<id>` by natural key, and there is one
+ *  state per definition, so nothing is minted from an `IdSource`. `currentRole` starts at
+ *  `defaultRole`, `availability` is a fresh copy of the authored rules (the same no-sharing
+ *  rule `seedNPCMemories` follows), and `flags` starts empty. `initialRelationship` is not
+ *  copied: it seeds an actor's `RelationshipState` (§6.11), never the NPC's own state. */
+function seedNPCs(campaign: SimulationCampaign): NPCState[] {
+  return campaign.npcs.map((definition) => ({
+    id: definition.id,
+    definitionId: definition.id,
+    memories: seedNPCMemories(definition),
+    currentRole: definition.defaultRole,
+    availability: [...definition.availability],
+    flags: {},
+  }));
+}
+
+/** `locations` still starts unpopulated — a documented gap, not an oversight (issue #425's
+ *  locations half). §7.9 forward-references `LocationState` as content-seeded runtime state,
+ *  but several shipped campaigns' `scenarios[].startingLocationId` has no matching
+ *  `LocationDefinition` at all, which only stays harmless while nothing reads `world.
+ *  locations`. `resolvers.ts`'s travel resolver reads `campaign.locations` directly, so
+ *  gameplay is unaffected; `view.ts`'s `PublicLocationState` projection stays empty until the
+ *  mirror is done deliberately, together with the campaign content that skips declaring
+ *  `LocationDefinition`s. */
 function buildWorld(campaign: SimulationCampaign, scenario: ScenarioDefinition, campaignId: string, profileData: unknown): WorldState {
   return {
-    npcs: [],
+    npcs: seedNPCs(campaign),
     locations: [],
     jobMarket: { openings: [] },
     eventCooldowns: {},

@@ -295,3 +295,5 @@
 ### [ ] W112 — A Car That Costs Money to Run {#w112}
 
 ### [ ] W113 — Utilities and Transport on the Weekly Bill {#w113}
+
+### [ ] W114 — The NPCs Are Actually There {#w114}

@@ -4906,3 +4906,31 @@ dearer one nearby finally has the numbers in front of them.
       transport; promoting `"vehicle"` from a reserved literal to a type; scaling utilities by
       housing tier in engine code — the game's own baseline scales it per definition, as
       authored numbers; the per-actor travel-time mechanism still deferred by [W109](#w109).
+
+### [ ] W114 — The NPCs Are Actually There {#w114}
+
+**Delivers:** Puts every NPC a campaign declares into the running game from week one, carrying
+the history an author gave them. Until now [W110](#w110)'s starting memories were validated and
+then never used, because nothing created an NPC's runtime state at all.
+
+- **Spec:** [§7.7](10-simulation-kind.md#77-npcs--definition-and-runtime-state)'s `NPCState`
+      and its seeding rule, [§8.2](10-simulation-kind.md#82-collections-for-existscount-w1055)'s
+      `world.npcs` collection, and `90-decisions.md`'s 2026-09-15 entry routing it here. Closes
+      the NPC half of engine issue #425.
+- **Touches:** the kind's `initialState`, its tests, and the golden snapshots of campaigns that
+      declare NPCs.
+- **Depends on:** [W110](#w110).
+- **Status:** Not started.
+- **Done when:**
+  - W114.1 A new game holds one NPC state per NPC definition, in content order, keyed by the
+        definition's id, with its role, availability and starting memories taken from that
+        definition.
+  - W114.2 A campaign declaring no NPCs starts with an empty collection, as today.
+  - W114.3 Seeded state shares no array with the authored definition: changing an NPC's memories
+        or availability during play cannot reach back into content.
+  - W114.4 An NPC's own state never carries its definition's initial relationship.
+  - W114.5 Every moved golden snapshot or replay fixture is named in the pull request, and each
+        moves in `world.npcs` alone.
+- **Out of scope:** seeding `world.locations`, which is blocked on campaigns whose starting
+      location has no definition and stays with #425's locations half; any end-of-week system
+      that reads or changes NPC state; projecting NPCs into the view.

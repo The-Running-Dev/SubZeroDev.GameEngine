@@ -296,7 +296,7 @@ describe("initialState — profile-scoped chain seeding (W102)", () => {
 
 // ---------------------------------------------------------------------------
 // W110 — NPCDefinition.startingMemories seeds NPCState.memories, once, at creation
-// (20-contract.md §7.7; not yet wired into buildWorld — issue #425)
+// (20-contract.md §7.7; wired into buildWorld by W114 below)
 // ---------------------------------------------------------------------------
 
 describe("seedNPCMemories (W110)", () => {
@@ -354,5 +354,84 @@ describe("seedNPCMemories (W110)", () => {
 
     expect(first).toEqual([]);
     expect(second).toEqual([memory]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// W114 — initialState creates one NPCState per NPCDefinition, seeded via seedNPCMemories
+// (20-contract.md §7.7; 90-decisions.md 2026-09-15; issue #425)
+// ---------------------------------------------------------------------------
+
+describe("initialState seeds world.npcs (W114)", () => {
+  const memory: NPCMemory = {
+    id: "memory-late-rent",
+    aboutActorId: "player",
+    week: 0,
+    category: "grudge",
+    magnitude: -20,
+    descriptionKey: "npc.memory.late-rent",
+  };
+
+  const landlord: NPCDefinition = {
+    id: "npc-landlord",
+    nameKey: "npc.landlord.name",
+    descriptionKey: "npc.landlord.description",
+    defaultRole: "landlord",
+    initialRelationship: { affinity: 0, trust: -10, respect: 0, resentment: 5 },
+    availability: [{ locationId: "loc-1", fromWeek: 1 }],
+    startingMemories: [memory],
+    tags: ["housing"],
+  };
+
+  const neighbour: NPCDefinition = {
+    id: "npc-neighbour",
+    nameKey: "npc.neighbour.name",
+    descriptionKey: "npc.neighbour.description",
+    defaultRole: "neighbour",
+    initialRelationship: { affinity: 10, trust: 10, respect: 10, resentment: 0 },
+    availability: [],
+    tags: [],
+  };
+
+  const withNPCs = (npcs: NPCDefinition[]): Campaign => ({
+    ...campaign,
+    content: { ...simulationCampaign, npcs },
+  });
+
+  it("W114.1 — one NPCState per NPCDefinition, in content order, keyed by the definition's id", () => {
+    const result = initialState(withNPCs([neighbour, landlord]));
+    expect(result.state.world.npcs).toEqual([
+      { id: "npc-neighbour", definitionId: "npc-neighbour", memories: [], currentRole: "neighbour", availability: [], flags: {} },
+      {
+        id: "npc-landlord",
+        definitionId: "npc-landlord",
+        memories: [memory],
+        currentRole: "landlord",
+        availability: [{ locationId: "loc-1", fromWeek: 1 }],
+        flags: {},
+      },
+    ]);
+  });
+
+  it("W114.2 — a campaign declaring no NPCs still starts with an empty collection", () => {
+    expect(initialState(campaign).state.world.npcs).toEqual([]);
+  });
+
+  it("W114.3 — seeded state shares no array with the authored definition", () => {
+    const definition: NPCDefinition = { ...landlord, startingMemories: [memory], availability: [{ locationId: "loc-1" }] };
+    const [npc] = initialState(withNPCs([definition])).state.world.npcs;
+
+    npc!.memories.pop();
+    npc!.availability.pop();
+
+    expect(definition.startingMemories).toEqual([memory]);
+    expect(definition.availability).toEqual([{ locationId: "loc-1" }]);
+    expect(initialState(withNPCs([definition])).state.world.npcs[0]!.memories).toEqual([memory]);
+  });
+
+  it("W114.4 — the NPC's own state never carries initialRelationship", () => {
+    const [npc] = initialState(withNPCs([landlord])).state.world.npcs;
+    expect(npc).toBeDefined();
+    expect(npc).not.toHaveProperty("initialRelationship");
   });
 });
