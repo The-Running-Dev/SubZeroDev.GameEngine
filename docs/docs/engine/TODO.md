@@ -4907,7 +4907,7 @@ dearer one nearby finally has the numbers in front of them.
       housing tier in engine code — the game's own baseline scales it per definition, as
       authored numbers; the per-actor travel-time mechanism still deferred by [W109](#w109).
 
-### [ ] W114 — The NPCs Are Actually There {#w114}
+### [x] W114 — The NPCs Are Actually There {#w114}
 
 **Delivers:** Puts every NPC a campaign declares into the running game from week one, carrying
 the history an author gave them. Until now [W110](#w110)'s starting memories were validated and
@@ -4920,7 +4920,7 @@ then never used, because nothing created an NPC's runtime state at all.
 - **Touches:** the kind's `initialState`, its tests, and the golden snapshots of campaigns that
       declare NPCs.
 - **Depends on:** [W110](#w110).
-- **Status:** Not started.
+- **Status:** Landed in [#495](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/495).
 - **Done when:**
   - W114.1 A new game holds one NPC state per NPC definition, in content order, keyed by the
         definition's id, with its role, availability and starting memories taken from that
