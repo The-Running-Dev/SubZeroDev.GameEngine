@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: add0e3fe78bbebd12ff4c5fc3b66c5dd70c8b748faa28434db6e5bd8455c9f4c -->
+<!-- design-digest: 9706968f5f84100be12d22a97a9f7d8b291bd956fb568cc781eecd4d9fda2e02 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -763,12 +763,12 @@ Important constraints:
   the week's charge actually included it, and there is no `effectiveTransportCents` field. A
   client that wants to display the discounted bill has to re-run the same `"vehicle"`-tag test
   against `player.inventory` itself.
-- An NPC definition may declare `startingMemories` — meant to be copied into that NPC's runtime
-  memory list the first time it is instantiated, so a scenario can open with an NPC who already
-  remembers something. **Not wired up yet:** no reducer creates an `NPCState` at all today, so
-  `world.npcs` is always empty and a declared `startingMemories` is validated and carried but
-  never actually copied into play. Treat this field as forward-declared contract, not working
-  behavior, until the NPC-seeding unit lands.
+- An NPC definition may declare `startingMemories`, so a scenario can open with an NPC who
+  already remembers something. A new game creates one `NPCState` per NPC definition, in content
+  order and keyed by the definition's id, with `memories` copied from `startingMemories`,
+  `currentRole` from `defaultRole`, and a copy of the authored availability rules. The NPC's
+  `initialRelationship` is not stored on it; that seeds an actor's relationship instead.
+  `world.locations` is still not seeded.
 - `exists`/`count` conditions can test a closed set of state collections (owned items,
   relationships, pending job applications, course enrollments, projects, businesses, world
   NPCs) — each resolves only its own stored fields, never a joined content definition, so "any

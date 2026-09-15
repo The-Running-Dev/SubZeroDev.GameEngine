@@ -5339,12 +5339,12 @@ declared on `NPCMemory`, above) is ordinary authored data here, not a new field 
 memory almost always names `"player"` (§6.3), though nothing prevents authoring one about a
 `RivalConfig.agentId` (§7.10) a scenario also declares.
 
-**Not yet seeded.** No reducer creates an `NPCState` yet. `initialState` starts `world.npcs`
-empty, so `startingMemories` is validated and carried but never copied into play, and
-`world.npcs` (§8.2) is always an empty collection. The decision is that the code moves to this
-section: one `NPCState` per `NPCDefinition`, created at game creation with `memories` seeded
-from this field. That change reshapes the committed replay and golden fixtures, so it is its
-own unit (`90-decisions.md`, 2026-09-15, routed to `/slices`).
+**Seeded at game creation (W114).** `initialState` creates one `NPCState` per `NPCDefinition`
+the campaign declares, in content order: `id` and `definitionId` are the definition's `id`
+(§7.1's natural key), `memories` is seeded from `startingMemories` as above, `currentRole` is
+`defaultRole`, `availability` is a copy of the authored rules, and `flags` starts empty.
+`initialRelationship` is not copied onto the NPC; it seeds an actor's `RelationshipState`
+(§6.11).
 
 `WorldState.npcs: NPCState[]` (§2.2) forward-referenced this shape; it lands here. `NPCState`
 holds only what genuinely belongs to the NPC — role, availability, memories — never the

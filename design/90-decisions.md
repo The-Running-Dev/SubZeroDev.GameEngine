@@ -1759,6 +1759,12 @@ on its own.
 Reversibility: moderate. The contract paragraph is cheap. The unit is the expensive part, because
 the fixture regeneration it needs is reviewed and is not reverted casually.
 
+Status: sliced and implemented as [W114](30-slices.md#w114). The measured churn was smaller than
+the reverted attempt implied: no replay fixture moved, because `ReplayFixture` outcomes carry no
+`world` shape. Three golden snapshots in `pipeline-equivalence.test.ts` moved, one per shipped
+campaign declaring NPCs (`long-horizon-win`, `long-horizon-loss`, `stable-life-possessions`),
+each in `world.npcs` alone. §7.7's "not yet seeded" paragraph is replaced by the seeding rule.
+
 ### 2026-09-15 — Open, routed to `/contract` then `/slices`: a Tier 1 check for `where` fields the collection's item type does not declare
 
 Context: §8.2 (W105.5, W111) resolves each `where` field against one collection element. W111's
