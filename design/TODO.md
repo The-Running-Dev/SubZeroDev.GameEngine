@@ -286,15 +286,15 @@
 
 ### Depth: The Five GameOfLife Engine Blockers
 
-### [ ] W109 — A Uniform That Makes Its Wearer More Employable {#w109}
+### [x] W109 — A Uniform That Makes Its Wearer More Employable {#w109}
 
-### [ ] W110 — An NPC Who Already Remembers You {#w110}
+### [x] W110 — An NPC Who Already Remembers You {#w110}
 
-### [ ] W111 — Conditions That Can Ask "Do You Own One?" {#w111}
+### [x] W111 — Conditions That Can Ask "Do You Own One?" {#w111}
 
-### [ ] W112 — A Car That Costs Money to Run {#w112}
+### [x] W112 — A Car That Costs Money to Run {#w112}
 
-### [ ] W113 — Utilities and Transport on the Weekly Bill {#w113}
+### [x] W113 — Utilities and Transport on the Weekly Bill {#w113}
 
 ### [x] W114 — The NPCs Are Actually There {#w114}
 

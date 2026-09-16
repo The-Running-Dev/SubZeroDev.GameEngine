@@ -4726,7 +4726,7 @@ alone. `plans/50-gameoflife-engine-blockers.md` carries the sizing this ordering
 the four user decisions behind it. **[W111](#w111) closes the already-open engine issue #418**;
 the other four have no engine issue yet.
 
-### [ ] W109 — A Uniform That Makes Its Wearer More Employable {#w109}
+### [x] W109 — A Uniform That Makes Its Wearer More Employable {#w109}
 
 **Delivers:** Lets a campaign author write an item or trait whose effect is on how the world
 regards the player — a work uniform that makes its wearer more employable, a scandal that fades
@@ -4742,7 +4742,7 @@ move it.
       tests. No state shape change, no campaign change, no fixture regeneration.
 - **Depends on:** [W108](#w108), for scheduling only — this is the first unit of 0.12 and must
       not land against the verified 0.11 candidate.
-- **Status:** Not started.
+- **Status:** Done — [PR #478](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/478).
 - **Done when:**
   - W109.1 A campaign whose `Modifier.target` is `player.reputation.<key>` passes Tier 1
         validation, and the same campaign is rejected before this unit; the writable prefix set
@@ -4764,7 +4764,7 @@ move it.
       `CheckModifier.source`/`PerformanceFactor.source`, neither of which is dispatched by any
       resolver today; authoring a campaign that uses the new target.
 
-### [ ] W110 — An NPC Who Already Remembers You {#w110}
+### [x] W110 — An NPC Who Already Remembers You {#w110}
 
 **Delivers:** Lets a scenario begin with an NPC who already has history with the player — a
 landlord who already distrusts them, a rival carrying an old grudge — instead of every
@@ -4776,7 +4776,7 @@ acquaintance starting blank and accumulating a past only through play.
 - **Touches:** the kind's NPC content type and whichever reducer first materialises an NPC's
       runtime state, plus their tests.
 - **Depends on:** none.
-- **Status:** Not started.
+- **Status:** Done — [PR #479](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/479).
 - **Done when:**
   - W110.1 A campaign may author starting memories on an NPC definition; the resulting NPC's
         memory list equals the authored list in authored order, with the author-supplied ids
@@ -4793,7 +4793,7 @@ acquaintance starting blank and accumulating a past only through play.
       end-of-week system is contract prerequisite **P2** and has no rule to implement; memory
       expiry mechanics; authoring starting memories into the *Stable Life* scenario.
 
-### [ ] W111 — Conditions That Can Ask "Do You Own One?" {#w111}
+### [x] W111 — Conditions That Can Ask "Do You Own One?" {#w111}
 
 **Delivers:** Lets an author write a goal or event that asks whether something exists in the
 player's world at all, and how many there are — a pending job application, an owned car, a
@@ -4807,7 +4807,7 @@ another, which is why four planned *Stable Life* events could not be written.
 - **Touches:** the kind's condition resolver, which throws unconditionally on any collection
       today, and its Tier 1 validator, plus their tests.
 - **Depends on:** none.
-- **Status:** Not started.
+- **Status:** Done — [PR #481](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/481).
 - **Done when:**
   - W111.1 Each of §8.2's seven declared collection paths resolves to its state array and
         supports both `exists` and `count`; state the count of paths accepted.
@@ -4829,7 +4829,7 @@ another, which is why four planned *Stable Life* events could not be written.
       a core-level `ConditionResolver` widening and is recorded as an open item; adding a new
       core operator; authoring the four *Stable Life* events themselves.
 
-### [ ] W112 — A Car That Costs Money to Run {#w112}
+### [x] W112 — A Car That Costs Money to Run {#w112}
 
 **Delivers:** Makes owning something cost money week after week, not only at the moment of
 purchase. A vehicle, a subscription, anything with a declared running cost now drains cash every
@@ -4844,7 +4844,7 @@ decision instead of a free asset.
 - **Depends on:** none mechanically. It is the first of the two units that move committed
       fixtures, so it is scheduled after [W111](#w111) to keep the fixture churn off the three
       units that cause none.
-- **Status:** Not started.
+- **Status:** Done — [PR #490](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/490).
 - **Done when:**
   - W112.1 The weekly cost of every owned item is summed and charged against cash in the same
         pass that already decays condition, running after income and before housing — §3's
@@ -4864,7 +4864,7 @@ decision instead of a free asset.
       an item's free-text `category`; housing's own utilities and transport, which are
       [W113](#w113).
 
-### [ ] W113 — Utilities and Transport on the Weekly Bill {#w113}
+### [x] W113 — Utilities and Transport on the Weekly Bill {#w113}
 
 **Delivers:** Makes the weekly cost of a home read like an actual bill — rent, utilities and
 transport as separate lines — and gives owning a vehicle a payoff, because the transport line is
@@ -4882,7 +4882,7 @@ dearer one nearby finally has the numbers in front of them.
 - **Depends on:** [W112](#w112). **Do this one last and alone** — it is the only one of the five
       that changes a persisted state shape, so batching it means either two version bumps or a
       unit that does not fit one session.
-- **Status:** Not started.
+- **Status:** Done — [PR #491](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/491).
 - **Done when:**
   - W113.1 A housing definition may declare utilities and transport costs; both absent means
         zero, and a campaign declaring neither charges exactly what it charges today.
