@@ -13,7 +13,7 @@
     {
       "name": "Test",
       "status": "Passed",
-      "detail": "npm --prefix src/engine test -- vitest run: Test Files 100 passed (100), Tests 1677 passed (1677), Duration 11.52s."
+      "detail": "npm --prefix src/engine test -- vitest run: Test Files 100 passed (100), Tests 1677 passed (1677), Duration 9.26s."
     },
     {
       "name": "Pack package",
@@ -28,7 +28,7 @@
     {
       "name": "Consumer smoke",
       "status": "Passed",
-      "detail": "In consumer-smoke/: cleared node_modules/package-lock.json/dist, then npm run install:engine (installed the packed tarball, added 5 packages), npm run build (tsc -p tsconfig.json, no errors), npm run smoke (node dist/smoke.js) exited 0 with no error output."
+      "detail": "In consumer-smoke/: cleared node_modules/dist, restored package-lock.json, then npm run install:engine (installed the packed tarball, added 5 packages), npm run build (tsc -p tsconfig.json, no errors), npm run smoke (node dist/smoke.js) exited 0 with no error output. git status --short --branch after cleanup showed no changes."
     },
     {
       "name": "Parse-check PowerShell scripts",
@@ -38,12 +38,12 @@
     {
       "name": "Run Pester tests",
       "status": "Passed",
-      "detail": "Invoke-Pester -Path tools -Output Detailed -PassThru: Tests completed in 58.23s. Tests Passed: 324, Failed: 0, Skipped: 35, NotRun: 0 (RESULT: Passed=324 Failed=0 Total=359)."
+      "detail": "Invoke-Pester -Path tools -Output Detailed -PassThru: Tests Passed: 324, Failed: 0, Skipped: 35, NotRun: 0 (RESULT: Passed=324 Failed=0 Total=359)."
     },
     {
       "name": "Validate Markdown links, terminology, and generated files",
-      "status": "Failed",
-      "detail": "./build/Test-Documentation.ps1 threw at line 855: \"Generated human documentation differs from the canonical design documents: Human-documentation generation failed: Generated document is stale: engine/TODO.md (source design/30-slices.md) Generated compatibility pointer is stale: design/TODO.md\". Exit code 1. Caused by this branch's edit to design/30-slices.md (marking W109-W113 done) without re-running build/ConvertTo-HumanDocumentation.ps1 to regenerate the derived engine/TODO.md and design/TODO.md pointer."
+      "status": "Passed",
+      "detail": "./build/Test-Documentation.ps1 exit 0: \"Human-documentation drift check passed across 18 generated engine page(s), compatibility pointers, and the guide.\" \"Documentation checks passed across 211 Markdown file(s).\" Re-run after commit d558912 regenerated engine/TODO.md and design/TODO.md via build/ConvertTo-HumanDocumentation.ps1, resolving the earlier staleness caused by this branch's design/30-slices.md edit."
     },
     {
       "name": "Build documentation",
@@ -63,7 +63,7 @@
     {
       "name": "Test the host",
       "status": "Passed",
-      "detail": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests/*.csproj: 'Passed! - Failed: 0, Passed: 12, Skipped: 0, Total: 12, Duration: 621 ms - SubZeroDev.GameEngine.Host.Tests.dll (net10.0)'."
+      "detail": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests/*.csproj -c Release: 'Passed! - Failed: 0, Passed: 12, Skipped: 0, Total: 12, Duration: 416 ms - SubZeroDev.GameEngine.Host.Tests.dll (net10.0)'."
     },
     {
       "name": "Positive route and probe smoke",
