@@ -4934,3 +4934,12 @@ then never used, because nothing created an NPC's runtime state at all.
 - **Out of scope:** seeding `world.locations`, which is blocked on campaigns whose starting
       location has no definition and stays with #425's locations half; any end-of-week system
       that reads or changes NPC state; projecting NPCs into the view.
+
+## Landed
+
+A slice's full body lives under `## Outstanding` only until its issue closes; once closed, the
+body retires here to a single row — name, closing issue, criteria range, and the commit the body
+was last complete at. Nothing here yet.
+
+| Slice | Name | Issue | Criteria | Commit |
+|---|---|---|---|---|
