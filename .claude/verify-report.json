@@ -3,77 +3,77 @@
     {
       "name": "Typecheck",
       "status": "Passed",
-      "detail": "npm --prefix src/engine run typecheck -- tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json completed with no output, exit 0."
+      "detail": "npm --prefix src/engine run typecheck completed successfully: tsc --noEmit and tsc --noEmit -p tsconfig.scripts.json both exited 0."
     },
     {
       "name": "Lint",
       "status": "Passed",
-      "detail": "npm --prefix src/engine run lint -- eslint src scripts completed with no output, exit 0."
+      "detail": "npm --prefix src/engine run lint completed successfully: eslint src scripts exited 0 with no findings."
     },
     {
       "name": "Test",
       "status": "Passed",
-      "detail": "npm --prefix src/engine test -- vitest run: Test Files 100 passed (100), Tests 1677 passed (1677), Duration 9.26s."
+      "detail": "npm --prefix src/engine test completed successfully: 100 test files passed and 1,678 tests passed."
     },
     {
       "name": "Pack package",
       "status": "Passed",
-      "detail": "cd src/engine; npm pack --silent produced the-running-dev-game-engine-0.11.0.tgz with no errors."
+      "detail": "cd src/engine; npm pack --silent completed successfully and produced the-running-dev-game-engine-0.11.0.tgz."
     },
     {
       "name": "Inspect tarball",
       "status": "Passed",
-      "detail": "tar -tzf the-running-dev-game-engine-0.11.0.tgz: 335 entries. grep for '^package/src/' -> 0 matches, grep for '^package/tsconfig' -> 0 matches, grep for '.test.' -> 0 matches, grep -c '^package/dist/' -> 333 (dist/ present)."
+      "detail": "The packed tarball contains package/dist/ and contains no src/ tree, tsconfig JSON files, or test build artifacts."
     },
     {
       "name": "Consumer smoke",
       "status": "Passed",
-      "detail": "In consumer-smoke/: cleared node_modules/dist, restored package-lock.json, then npm run install:engine (installed the packed tarball, added 5 packages), npm run build (tsc -p tsconfig.json, no errors), npm run smoke (node dist/smoke.js) exited 0 with no error output. git status --short --branch after cleanup showed no changes."
+      "detail": "consumer-smoke npm ci, packed-engine installation, TypeScript build, and node dist/smoke.js all completed successfully."
     },
     {
       "name": "Parse-check PowerShell scripts",
-      "status": "Passed",
-      "detail": "Parsed every *.ps1 file under the repo with [System.Management.Automation.Language.Parser]::ParseFile; result: PARSE_OK: all ps1 files parsed cleanly (0 files with parse errors)."
+      "status": "DidNotRun",
+      "reason": "PowerShell (pwsh) is not installed in this environment; the corresponding remote verify workflow provides this result."
     },
     {
       "name": "Run Pester tests",
-      "status": "Passed",
-      "detail": "Invoke-Pester -Path tools -Output Detailed -PassThru: Tests Passed: 324, Failed: 0, Skipped: 35, NotRun: 0 (RESULT: Passed=324 Failed=0 Total=359)."
+      "status": "DidNotRun",
+      "reason": "PowerShell (pwsh) is not installed in this environment, so Invoke-Pester could not run locally; the corresponding remote verify workflow provides this result."
     },
     {
       "name": "Validate Markdown links, terminology, and generated files",
-      "status": "Passed",
-      "detail": "./build/Test-Documentation.ps1 exit 0: \"Human-documentation drift check passed across 18 generated engine page(s), compatibility pointers, and the guide.\" \"Documentation checks passed across 211 Markdown file(s).\" Re-run after commit d558912 regenerated engine/TODO.md and design/TODO.md via build/ConvertTo-HumanDocumentation.ps1, resolving the earlier staleness caused by this branch's design/30-slices.md edit."
+      "status": "DidNotRun",
+      "reason": "PowerShell (pwsh) is not installed in this environment, so build/Test-Documentation.ps1 could not run locally; the corresponding remote Docs CI workflow provides this result."
     },
     {
       "name": "Build documentation",
       "status": "DidNotRun",
-      "reason": "./docs.ps1 does not exist in this checkout. Per CLAUDE.md 'Tooling > Docs Site', docs.ps1 is installed by Invoke-SetupDocs and is not committed; running it also needs Docker Desktop. Neither the installer nor a prior installed copy is present in this worktree, so the production Docusaurus build (onBrokenLinks: 'throw') could not be attempted locally. The corresponding CI check ('Verify Documentation Build') on the pull request is where this answer comes from."
+      "reason": "Docker and the generated local docs.ps1 launcher are unavailable in this checkout; the corresponding remote Docs CI workflow provides this result."
     },
     {
       "name": "Build and verify landing page",
-      "status": "Passed",
-      "detail": "npm --prefix src/engine run build (clean + tsc -p tsconfig.build.json) completed with no errors. npm --prefix site run check (format:check, lint, typecheck, test, test:browser, test:build, test:merge) all passed: format clean; oxlint clean; tsc -b clean; vitest run 'Test Files 2 passed (2), Tests 17 passed (17)'; vitest --config vitest.browser.config.ts 'Test Files 2 passed (2), Tests 23 passed (23)'; test:build produced dist/ and verify-build.mjs confirmed both HTML entry points carry required static metadata with 3 Node-free bundles; test:merge (verify-merge.mjs) reported 'Package-backed merge proven: /, /roadmap/ and the protected docs/ subtree all verified, and the top-level docs/ guard rejects a bad landing build.'"
+      "status": "DidNotRun",
+      "reason": "The workflow's required Chromium executable is unavailable locally; the corresponding remote Docs CI workflow provides this result."
     },
     {
       "name": "Merge landing page into documentation build",
       "status": "DidNotRun",
-      "reason": "npm --prefix site run merge failed with 'Documentation output .../artifacts/docs has no protected docs subtree' (exit 1) because this step consumes the output of the 'Build documentation' gate above, which did not run (docs.ps1 unavailable locally) and so never populated artifacts/docs/docs. This is an unmet local precondition, not a defect in the merge script itself; the corresponding CI check is where this answer comes from."
+      "reason": "The prerequisite local documentation build did not run, so artifacts/docs was not produced; the corresponding remote Docs CI workflow provides this result."
     },
     {
       "name": "Test the host",
-      "status": "Passed",
-      "detail": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests/*.csproj -c Release: 'Passed! - Failed: 0, Passed: 12, Skipped: 0, Total: 12, Duration: 416 ms - SubZeroDev.GameEngine.Host.Tests.dll (net10.0)'."
+      "status": "DidNotRun",
+      "reason": ".NET is not installed and the sibling-package feed credential is unavailable locally; the remote Platform Static Host Image workflow provides this result."
     },
     {
       "name": "Positive route and probe smoke",
       "status": "DidNotRun",
-      "reason": "Requires building the Docker image 'subzerodev-gameengine-host:smoke' first (.github/workflows/host-image.yml, 'Build the image'), which needs the REGISTRY_TOKEN cross-repo GitHub Packages credential to restore SubZeroDev.Platform.Hosting from the sibling SubZeroDev.Platform repository, plus a GHCR login to pull ghcr.io/the-running-dev/docs-template as the docs build stage's base image. Neither credential is available in this local session, so the image could not be built and this route/probe smoke could not be attempted. The corresponding CI job ('Platform Static Host Image / smoke') on the pull request is where this answer comes from."
+      "reason": "Docker and the cross-repository package credential needed to build the host image are unavailable locally; the remote Platform Static Host Image workflow provides this result."
     },
     {
       "name": "Negative fixture -- corrupted artifact must fail to start",
       "status": "DidNotRun",
-      "reason": "Depends on the base image 'subzerodev-gameengine-host:smoke' built by the same step as 'Positive route and probe smoke' above, which did not run for the same credential reason (REGISTRY_TOKEN, GHCR login). Could not be attempted locally; the CI job is where this answer comes from."
+      "reason": "Docker and the prerequisite locally built host image are unavailable; the remote Platform Static Host Image workflow provides this result."
     }
   ]
 }

@@ -10,14 +10,15 @@
  * this unit's own goal/failure conditions need (`player.needs.*`, `player.finances.*`,
  * `calendar.currentWeek`, …) without hand-maintaining a list.
  *
- * **Collections (W111, §8.2).** `ConditionResolver.collection` supports exactly the seven
- * paths §8.2's closed table names — `player.inventory`, `player.relationships`,
- * `player.career.pendingApplications`, `player.education.enrollments`, `player.projects`,
- * `player.businesses`, `world.npcs` — each resolving to its state array. `where` reads a
+ * **Collections (W111, §8.2; issue #494).** `ConditionResolver.collection` supports exactly
+ * eight paths — §8.2's seven plus earned credentials: `player.inventory`, `player.relationships`,
+ * `player.career.pendingApplications`, `player.education.enrollments`,
+ * `player.education.credentials`, `player.projects`, `player.businesses`, `world.npcs` —
+ * each resolving to its state array. `where` reads a
  * field relative to one array element (`resolveItemField`, a non-throwing walk: an absent
  * field, such as an item's `category` which lives only on its content definition, resolves
  * to `undefined` and so never matches, rather than raising the "loud" error `resolveField`
- * raises for a bad top-level path). A collection name outside the seven throws here too —
+ * raises for a bad top-level path). A collection name outside the eight throws here too —
  * defence in depth — but the load-bearing check is `validate.ts`'s Tier 1 `unknown_collection`,
  * which rejects an unlisted name at load time, before any condition naming it is ever
  * evaluated. A nested `exists`/`count` inside a `where` clause still resolves its own
@@ -72,12 +73,14 @@ export function resolveField(state: SimulationKindState, path: string): unknown 
   return current;
 }
 
-/** §8.2's closed seven-path table — the only names `resolveCollection` accepts. */
+/** §8.2's closed collection table plus issue #494's earned credentials path — the only
+ * names `resolveCollection` accepts. */
 const COLLECTION_ACCESSORS: Readonly<Record<string, (state: SimulationKindState) => readonly unknown[]>> = {
   "player.inventory": (state) => state.player.inventory,
   "player.relationships": (state) => state.player.relationships,
   "player.career.pendingApplications": (state) => state.player.career.pendingApplications,
   "player.education.enrollments": (state) => state.player.education.enrollments,
+  "player.education.credentials": (state) => state.player.education.credentials,
   "player.projects": (state) => state.player.projects,
   "player.businesses": (state) => state.player.businesses,
   "world.npcs": (state) => state.world.npcs,

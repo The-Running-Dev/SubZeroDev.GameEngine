@@ -347,12 +347,14 @@ function validateAttendanceTracking(content: SimulationCampaign): ValidationErro
 // Tier 1 — collection names an `exists`/`count` condition addresses (§8.2, W111)
 // ---------------------------------------------------------------------------
 
-/** §8.2's closed seven-path table — the only legal `exists`/`count` collection names. */
+/** §8.2's closed collection table plus issue #494's earned credentials path — the only legal
+ * `exists`/`count` collection names. */
 const KNOWN_COLLECTIONS = new Set<string>([
   "player.inventory",
   "player.relationships",
   "player.career.pendingApplications",
   "player.education.enrollments",
+  "player.education.credentials",
   "player.projects",
   "player.businesses",
   "world.npcs",
