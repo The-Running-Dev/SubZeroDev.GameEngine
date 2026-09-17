@@ -49,13 +49,19 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # Markdown-escapes a commit subject before it's embedded as link text or a
-# plain list item -- an unescaped '[' or ']' in a PR title would otherwise
-# corrupt the surrounding link syntax (backslash escaped first, so escaping
-# the brackets afterwards can't double up on a subject that already contains
-# a literal backslash).
+# plain list item. '<' and '>' are HTML-entity-encoded first -- otherwise a
+# literal "<name>"-style placeholder in a commit subject (a PR title showing
+# a path template, for instance) is parsed by MDX/Docusaurus as an unclosed
+# JSX/HTML tag and fails the documentation build. Then an unescaped '[' or
+# ']' in a PR title would otherwise corrupt the surrounding link syntax
+# (backslash escaped first, so escaping the brackets afterwards can't double
+# up on a subject that already contains a literal backslash). The entity
+# encoding runs before the backslash/bracket escaping and introduces no
+# backslash, bracket, or ampersand-based sequence itself, so it cannot be
+# double-escaped by the steps that follow it.
 function ConvertTo-EscapedMarkdown {
     param([Parameter(Mandatory)][string] $Text)
-    $Text.Replace('\', '\\').Replace('[', '\[').Replace(']', '\]')
+    $Text.Replace('<', '&lt;').Replace('>', '&gt;').Replace('\', '\\').Replace('[', '\[').Replace(']', '\]')
 }
 
 $entryLines = foreach ($entry in ($rawLog -split "`n")) {
