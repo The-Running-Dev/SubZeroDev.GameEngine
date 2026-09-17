@@ -19,7 +19,7 @@ function makeState(overrides: Partial<SimulationKindState> = {}): SimulationKind
   };
 }
 
-/** A state carrying one item in each of §8.2's seven collections, for the `exists`/`count`
+/** A state carrying one item in each of the eight supported collections, for the `exists`/`count`
  *  tests below — `car-1`'s `definitionId` is the one W111.2/W111.5 tests key off of. */
 function makeCollectionsState(): SimulationKindState {
   return makeState({
@@ -49,6 +49,9 @@ function makeCollectionsState(): SimulationKindState {
             missedSessions: 0, tuitionPaidCents: 0, tuitionOutstandingCents: 0,
             retainedProgress: 0, status: "active",
           },
+        ],
+        credentials: [
+          { id: "credential-1", courseId: "c1", awardedWeek: 6, level: "certificate", labelKey: "credential.c1" },
         ],
       },
       projects: [
@@ -111,20 +114,21 @@ describe("evaluateSimulationCondition", () => {
   });
 
   describe("collections (§8.2, W111)", () => {
-    const SEVEN_COLLECTIONS = [
+    const EIGHT_COLLECTIONS = [
       "player.inventory",
       "player.relationships",
       "player.career.pendingApplications",
       "player.education.enrollments",
+      "player.education.credentials",
       "player.projects",
       "player.businesses",
       "world.npcs",
     ] as const;
 
-    it("resolves exists/count over each of the seven declared collections (W111.1)", () => {
+    it("resolves exists/count over each of the eight supported collections (W111.1, issue #494)", () => {
       const state = makeCollectionsState();
-      expect(SEVEN_COLLECTIONS).toHaveLength(7);
-      for (const collection of SEVEN_COLLECTIONS) {
+      expect(EIGHT_COLLECTIONS).toHaveLength(8);
+      for (const collection of EIGHT_COLLECTIONS) {
         // Every item resolves a field that is absent on it, so `not_equals` against any value
         // is trivially true — this proves the collection resolves and has exactly one item,
         // without needing a per-collection field name here.
@@ -138,7 +142,7 @@ describe("evaluateSimulationCondition", () => {
 
     it("fails Tier 1 defence-in-depth for an unlisted collection, and accepts every legal one (W111.1, W111.3)", () => {
       const state = makeCollectionsState();
-      const legalCount = SEVEN_COLLECTIONS.filter((collection) => {
+      const legalCount = EIGHT_COLLECTIONS.filter((collection) => {
         try {
           evaluateSimulationCondition(
             { count: { collection, where: { field: "__does_not_exist__", operator: "equals" as const, value: 1 } }, operator: "equals" as const, value: 0 },
@@ -149,10 +153,35 @@ describe("evaluateSimulationCondition", () => {
           return false;
         }
       }).length;
-      expect(legalCount).toBe(7);
+      expect(legalCount).toBe(8);
 
       const condition = { count: { collection: "player.scoreboard", where: { field: "id", operator: "equals" as const, value: "x" } }, operator: "equals" as const, value: 1 };
       expect(() => evaluateSimulationCondition(condition, state)).toThrow(/unknown collection/);
+    });
+
+    it("checks earned education credentials with the existing condition operators (issue #494)", () => {
+      const state = makeCollectionsState();
+      const certificateOrBetter = {
+        exists: {
+          collection: "player.education.credentials",
+          where: {
+            field: "level",
+            operator: "in" as const,
+            value: ["certificate", "diploma", "degree", "postgraduate"],
+          },
+        },
+      };
+      const schoolOnly = {
+        count: {
+          collection: "player.education.credentials",
+          where: { field: "level", operator: "equals" as const, value: "school" },
+        },
+        operator: "equals" as const,
+        value: 1,
+      };
+
+      expect(evaluateSimulationCondition(certificateOrBetter, state)).toBe(true);
+      expect(evaluateSimulationCondition(schoolOnly, state)).toBe(false);
     });
 
     it("a where clause reads fields relative to one array element (W111.2)", () => {

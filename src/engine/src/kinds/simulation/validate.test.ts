@@ -756,13 +756,14 @@ describe("validateCampaign", () => {
     "player.relationships",
     "player.career.pendingApplications",
     "player.education.enrollments",
+    "player.education.credentials",
     "player.projects",
     "player.businesses",
     "world.npcs",
   ] as const;
 
-  it("accepts every one of §8.2's seven legal collection names on a goal's own condition", () => {
-    expect(LEGAL_COLLECTIONS).toHaveLength(7);
+  it("accepts every one of the eight supported collection names on a goal's own condition", () => {
+    expect(LEGAL_COLLECTIONS).toHaveLength(8);
     for (const collection of LEGAL_COLLECTIONS) {
       const goal = makeGoal({
         conditions: { exists: { collection, where: { field: "id", operator: "equals", value: "x" } } },
