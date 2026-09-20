@@ -62,6 +62,7 @@ const AUTHORING_TYPE_EXPORTS = [
   "DifficultyDefinitionSource",
   "EmployerDefinitionSource",
   "EndingNodeSource",
+  "EventChainDefinitionSource",
   "EventDefinitionSource",
   "GoalDefinitionSource",
   "HeadlineDefinitionSource",

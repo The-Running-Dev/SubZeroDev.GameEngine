@@ -43,6 +43,7 @@ export type {
   CourseDefinitionSource,
   DifficultyDefinitionSource,
   EmployerDefinitionSource,
+  EventChainDefinitionSource,
   EventDefinitionSource,
   GoalDefinitionSource,
   HeadlineDefinitionSource,

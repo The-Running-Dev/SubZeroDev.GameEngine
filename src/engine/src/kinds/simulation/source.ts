@@ -26,6 +26,7 @@ import type {
   CourseDefinition,
   HousingDefinition,
   ItemDefinition,
+  EventChainDefinition,
   EventDefinition,
   NPCDefinition,
   GoalDefinition,
@@ -59,6 +60,9 @@ export type HousingDefinitionSource = Omit<HousingDefinition, "nameKey" | "descr
 export type ItemDefinitionSource = Omit<ItemDefinition, "nameKey" | "descriptionKey"> & {
   name: AuthoredText;
   description: AuthoredText;
+};
+export type EventChainDefinitionSource = Omit<EventChainDefinition, "labelKey"> & {
+  label?: AuthoredText;
 };
 export type EventDefinitionSource = Omit<EventDefinition, "titleKey" | "descriptionKey"> & {
   title: AuthoredText;
@@ -138,6 +142,7 @@ export interface SimulationCampaignSource {
   skills: readonly SkillDefinitionSource[];
   projects: readonly ProjectDefinitionSource[];
   businesses: readonly BusinessDefinitionSource[];
+  eventChains?: readonly EventChainDefinitionSource[];
 
   scenarioId: string;
   goalFailurePrecedence: SimulationCampaign["goalFailurePrecedence"];
@@ -170,6 +175,11 @@ function buildHousing(source: HousingDefinitionSource, take: Take): HousingDefin
 function buildItem(source: ItemDefinitionSource, take: Take): ItemDefinition {
   const { name, description, ...rest } = source;
   return { ...rest, nameKey: take(name), descriptionKey: take(description) };
+}
+
+function buildEventChain(source: EventChainDefinitionSource, take: Take): EventChainDefinition {
+  const { label, ...rest } = source;
+  return { ...rest, ...(label !== undefined ? { labelKey: take(label) } : {}) };
 }
 
 function buildEvent(source: EventDefinitionSource, take: Take): EventDefinition {
@@ -295,6 +305,9 @@ export function buildSimulationCampaign(source: SimulationCampaignSource): {
     skills: source.skills.map((s) => buildSkill(s, take)),
     projects: source.projects.map((s) => buildProject(s, take)),
     businesses: source.businesses.map((s) => buildBusiness(s, take)),
+    ...(source.eventChains !== undefined
+      ? { eventChains: source.eventChains.map((s) => buildEventChain(s, take)) }
+      : {}),
 
     scenarioId: source.scenarioId,
     goalFailurePrecedence: source.goalFailurePrecedence,

@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 7c1142be54e29cedf1d879d34f64352b390a4dca226124dddc1ffc74c8776ae9 -->
+<!-- design-digest: d2ae2a4df79838169bddfa3f64e6c1d4a3dff9eff9505b06bc65c3c296a6523a -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -740,12 +740,11 @@ Important constraints:
   described above. Validation rejects an event naming a chain the campaign never declared, which
   is what stops a chain from quietly never persisting. What a profile chain carries forward is
   its furthest step, not elapsed play — pacing a chain on cumulative weeks across games is not
-  supported. The authoring amendment for #472 requires declarations on
+  supported. Author declarations on
   `SimulationCampaignSource.eventChains`, using the public `/authoring` type
   `EventChainDefinitionSource`. An optional inline label is lifted into the string table by
-  `buildSimulationCampaign`; omission of the collection must leave existing output unchanged.
-  This source-builder support is contracted but not yet implemented; the current workaround
-  appends runtime declarations after building and does not collect inline labels. See
+  `buildSimulationCampaign`; omission of the collection leaves existing output unchanged. No
+  post-build addition of runtime declarations is needed. See
   [Simulation Kind](/docs/engine/simulation-kind#713-event-chains-w102) for the contract.
 - **An event needing a decision defers to the following week, and blocks the plan until it is
   answered.** An event that fires at the end of week N and carries choices queues as a pending

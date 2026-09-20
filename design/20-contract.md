@@ -5806,21 +5806,10 @@ interface SimulationCampaign {
 **Authoring boundary (#472).** `SimulationCampaignSource` carries the optional
 `eventChains` collection too. Its entries follow the core's source/runtime mirror rule
 (04 §10.1): player-facing text is authored as `AuthoredText`, not as a raw `LocKey`.
-The new source declaration is scaffolded here until implemented in
-`src/engine/src/kinds/simulation/source.ts`:
-
-```typescript
-interface EventChainDefinitionSource {
-  id: string;
-  scope: ChainScope;
-  label?: AuthoredText;
-}
-
-interface SimulationCampaignSource {
-  // … existing source fields, unchanged …
-  eventChains?: readonly EventChainDefinitionSource[];
-}
-```
+The implemented `EventChainDefinitionSource` and `SimulationCampaignSource` declarations
+live in `src/engine/src/kinds/simulation/source.ts`. The former mirrors
+`EventChainDefinition` with `label?: AuthoredText` in place of `labelKey`; the latter carries
+`eventChains?: readonly EventChainDefinitionSource[]`.
 
 `EventChainDefinitionSource` is a public type export from `/authoring`, alongside
 `EventDefinitionSource`; it is not added to the package root. `buildSimulationCampaign`
