@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 9706968f5f84100be12d22a97a9f7d8b291bd956fb568cc781eecd4d9fda2e02 -->
+<!-- design-digest: d2ae2a4df79838169bddfa3f64e6c1d4a3dff9eff9505b06bc65c3c296a6523a -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -740,7 +740,12 @@ Important constraints:
   described above. Validation rejects an event naming a chain the campaign never declared, which
   is what stops a chain from quietly never persisting. What a profile chain carries forward is
   its furthest step, not elapsed play — pacing a chain on cumulative weeks across games is not
-  supported.
+  supported. Author declarations on
+  `SimulationCampaignSource.eventChains`, using the public `/authoring` type
+  `EventChainDefinitionSource`. An optional inline label is lifted into the string table by
+  `buildSimulationCampaign`; omission of the collection leaves existing output unchanged. No
+  post-build addition of runtime declarations is needed. See
+  [Simulation Kind](/docs/engine/simulation-kind#713-event-chains-w102) for the contract.
 - **An event needing a decision defers to the following week, and blocks the plan until it is
   answered.** An event that fires at the end of week N and carries choices queues as a pending
   response rather than resolving immediately; it is presented at the start of week N+1, where its
