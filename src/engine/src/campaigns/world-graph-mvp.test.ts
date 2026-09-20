@@ -64,16 +64,40 @@ describe("world-graph MVP campaign", () => {
     expect(lost.value!.kindState).toMatchObject({ resolution: { resolution: "failed", objectiveIds: [], failureId: "bankrupt" } });
   });
 
-  it("keeps batch partitions, saved sessions, and previews replay-equivalent", async () => {
+  it("keeps batch partitions invariant across seeds", () => {
+    const partitions = [[1, 9], [5, 5], [2, 3, 5], Array.from({ length: 10 }, () => 1)];
+    const seeds = ["world-graph-parity-a", "world-graph-parity-b"];
+
+    const runPartition = (seed: string, partition: readonly number[]): string => {
+      const fixture = makeEngine();
+      const started = fixture.engine.createGame({ campaignId: fixture.built.campaign.id, seed });
+      if (!started.ok || !started.value) throw new Error("expected parity fixture to start");
+
+      let state = started.value;
+      for (const ticks of partition) {
+        const advanced = fixture.engine.submitAction(state, "advance_ticks", { ticks });
+        if (!advanced.ok || !advanced.value) throw new Error("expected parity partition to advance");
+        state = advanced.value;
+      }
+
+      // Batch invariance is a kind-state property: split calls legitimately produce a
+      // different envelope action log. Normalizing only that log makes serialize() compare
+      // the complete canonical result rather than a selected subset of world fields.
+      return fixture.engine.serialize({ ...state, actionLog: [] });
+    };
+
+    for (const seed of seeds) {
+      const unsplit = runPartition(seed, [10]);
+      for (const partition of partitions) {
+        expect(runPartition(seed, partition), `${seed}: ${partition.join("+")}`).toBe(unsplit);
+      }
+    }
+  });
+
+  it("keeps saved sessions and previews replay-equivalent", async () => {
     const direct = makeEngine();
     const start = direct.engine.createGame({ campaignId: direct.built.campaign.id, seed: "world-graph-parity" });
     if (!start.ok || !start.value) throw new Error("expected parity fixture to start");
-    const oneBatch = direct.engine.submitAction(start.value, "advance_ticks", { ticks: 10 });
-    const firstPartition = direct.engine.submitAction(start.value, "advance_ticks", { ticks: 3 });
-    if (!firstPartition.ok || !firstPartition.value) throw new Error("expected first partition to advance");
-    const splitBatch = direct.engine.submitAction(firstPartition.value, "advance_ticks", { ticks: 7 });
-    if (!oneBatch.ok || !oneBatch.value || !splitBatch.ok || !splitBatch.value) throw new Error("expected parity batches to advance");
-    expect(splitBatch.value.kindState).toEqual(oneBatch.value.kindState);
 
     const hiredDirect = direct.engine.submitAction(start.value, "hire_staff", { definitionId: "cleaner" });
     if (!hiredDirect.ok || !hiredDirect.value) throw new Error("expected save fixture cleaner hire to succeed");
