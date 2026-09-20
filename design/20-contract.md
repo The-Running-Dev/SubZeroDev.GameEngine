@@ -5803,6 +5803,39 @@ interface SimulationCampaign {
 }
 ```
 
+**Authoring boundary (#472).** `SimulationCampaignSource` carries the optional
+`eventChains` collection too. Its entries follow the core's source/runtime mirror rule
+(04 §10.1): player-facing text is authored as `AuthoredText`, not as a raw `LocKey`.
+The new source declaration is scaffolded here until implemented in
+`src/engine/src/kinds/simulation/source.ts`:
+
+```typescript
+interface EventChainDefinitionSource {
+  id: string;
+  scope: ChainScope;
+  label?: AuthoredText;
+}
+
+interface SimulationCampaignSource {
+  // … existing source fields, unchanged …
+  eventChains?: readonly EventChainDefinitionSource[];
+}
+```
+
+`EventChainDefinitionSource` is a public type export from `/authoring`, alongside
+`EventDefinitionSource`; it is not added to the package root. `buildSimulationCampaign`
+preserves each entry's `id` and `scope`, converts a present `label` through its existing
+`take()` collector into `labelKey`, and includes that text in `authoredText` for registry
+assembly. An omitted label produces no `labelKey` and registers no text. The core's existing
+duplicate-key/text rules apply unchanged.
+
+An omitted `eventChains` means no declared chains, exactly as on the runtime campaign.
+The builder must omit the output key when the source omits it: existing source campaigns
+produce byte-identical content and authored text. An explicitly supplied empty array remains
+an empty array; declarations are mapped in source order. Event membership, chain progression,
+validation, persistence and replay semantics are unchanged. Authors must not need to append
+chain declarations after building a source campaign to satisfy Tier 1.
+
 **It carries no step list, and that is the envelope-duplication rule applied one level down.**
 A chain's membership and order are already fully determined by the events that declare
 `chainId`/`chainStep` (§7.6). Restating them here would create a second source that can

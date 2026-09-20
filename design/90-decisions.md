@@ -1812,3 +1812,24 @@ changing the text.** That leaves a sentence a later reconcile would flag again.
 
 Reversibility: cheap. It is one paragraph. Adding a projected field later is additive and does
 not contradict it.
+
+### 2026-09-20 — #472: contract simulation event-chain authoring and its public source type
+
+Context: #472's recorded decision requires an explicit authoring amendment before fixing
+the source builder, which currently drops declarations required by Tier 1. The user approved
+the amendment and the `/authoring` export before implementation.
+
+Chosen: §7.13 contracts `SimulationCampaignSource.eventChains` and
+`EventChainDefinitionSource`, applying the core §10.1 source/runtime mirror rule to optional
+chain labels. The builder registers labels through its existing text collector and preserves
+omission, so existing sources retain byte-identical output. Export the source type from
+`/authoring`, alongside `EventDefinitionSource`, not from the runtime package root.
+
+Rejected: relying only on the generic mirror rule, because the issue explicitly requires the
+public surface to be settled first; keeping the source type unexported, because authors should
+be able to type standalone chain declarations using the same public entry point as events;
+appending runtime chains after building, because that bypasses authored-text registration.
+
+Reversibility: cheap before implementation. Once released, the named type is an additive public
+authoring API; removing it would break consumers. Runtime chain semantics and replay data are
+unchanged. This amendment does not claim #472's implementation criteria complete.
