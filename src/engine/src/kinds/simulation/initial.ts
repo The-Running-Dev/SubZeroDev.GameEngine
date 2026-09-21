@@ -59,6 +59,7 @@ import type {
   EventChainState,
   WorldState,
   GoalState,
+  LocationState,
   Modifier,
   NPCMemory,
   NPCState,
@@ -352,18 +353,18 @@ function seedNPCs(campaign: SimulationCampaign): NPCState[] {
   }));
 }
 
-/** `locations` still starts unpopulated — a documented gap, not an oversight (issue #425's
- *  locations half). §7.9 forward-references `LocationState` as content-seeded runtime state,
- *  but several shipped campaigns' `scenarios[].startingLocationId` has no matching
- *  `LocationDefinition` at all, which only stays harmless while nothing reads `world.
- *  locations`. `resolvers.ts`'s travel resolver reads `campaign.locations` directly, so
- *  gameplay is unaffected; `view.ts`'s `PublicLocationState` projection stays empty until the
- *  mirror is done deliberately, together with the campaign content that skips declaring
- *  `LocationDefinition`s. */
+/** The active scenario's starting location is the only location discovered and accessible at
+ *  game creation (issue #425). Additional authored locations remain absent until a separate
+ *  discovery or unlock lifecycle adds them. A fresh object is created for every game so
+ *  runtime state never aliases campaign content. */
+function seedStartingLocation(scenario: ScenarioDefinition): LocationState[] {
+  return [{ definitionId: scenario.startingLocationId, discovered: true, accessible: true }];
+}
+
 function buildWorld(campaign: SimulationCampaign, scenario: ScenarioDefinition, campaignId: string, profileData: unknown): WorldState {
   return {
     npcs: seedNPCs(campaign),
-    locations: [],
+    locations: seedStartingLocation(scenario),
     jobMarket: { openings: [] },
     eventCooldowns: {},
     firedUniqueEvents: [],

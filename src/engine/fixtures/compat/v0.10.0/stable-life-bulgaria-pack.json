@@ -408,7 +408,13 @@
           ]
         },
         "world": {
-          "locations": [],
+          "locations": [
+            {
+              "definitionId": "home",
+              "discovered": true,
+              "accessible": true
+            }
+          ],
           "jobMarket": {
             "openings": []
           },
