@@ -2,7 +2,15 @@ import { describe, it, expect } from "vitest";
 import { initialState, seedNPCMemories } from "./initial.js";
 import type { SimulationCampaign } from "./campaign.js";
 import type { Campaign } from "../../core/registry/types.js";
-import type { GoalDefinition, BackgroundDefinition, HousingDefinition, NPCDefinition, ScenarioDefinition, ItemDefinition } from "./content.js";
+import type {
+  GoalDefinition,
+  BackgroundDefinition,
+  HousingDefinition,
+  ItemDefinition,
+  LocationDefinition,
+  NPCDefinition,
+  ScenarioDefinition,
+} from "./content.js";
 import type { NPCMemory } from "./state.js";
 
 const background: BackgroundDefinition = {
@@ -34,6 +42,15 @@ const housing: HousingDefinition = {
   maintenanceRisk: 10,
   requirements: [],
   tags: [],
+};
+
+const location: LocationDefinition = {
+  id: "loc-1",
+  nameKey: "location.name",
+  descriptionKey: "location.description",
+  connections: [],
+  travelTimeUnits: 0,
+  actionTypes: [],
 };
 
 const scenario: ScenarioDefinition = {
@@ -75,7 +92,7 @@ const simulationCampaign: SimulationCampaign = {
   achievements: [],
   headlines: [],
   employers: [],
-  locations: [],
+  locations: [location],
   backgrounds: [background],
   traits: [],
   skills: [],
@@ -115,6 +132,38 @@ describe("initialState", () => {
       missedPayments: 0,
       evictionStage: "none",
     });
+  });
+
+  it("seeds exactly the active scenario's starting location as discovered and accessible", () => {
+    const otherLocation: LocationDefinition = { ...location, id: "loc-2" };
+    const result = initialState({
+      ...campaign,
+      content: { ...simulationCampaign, locations: [otherLocation, location] },
+    });
+
+    expect(result.state.world.locations).toEqual([
+      { definitionId: "loc-1", discovered: true, accessible: true },
+    ]);
+  });
+
+  it("returns location runtime state independent of the authored campaign content", () => {
+    const authoredLocation: LocationDefinition = { ...location };
+    const authoredCampaign: SimulationCampaign = {
+      ...simulationCampaign,
+      locations: [authoredLocation],
+    };
+    const first = initialState({ ...campaign, content: authoredCampaign });
+    const runtimeLocation = first.state.world.locations[0]!;
+
+    expect(runtimeLocation).not.toBe(authoredLocation);
+    runtimeLocation.definitionId = "mutated";
+    runtimeLocation.discovered = false;
+    runtimeLocation.accessible = false;
+
+    expect(authoredLocation).toEqual(location);
+    expect(initialState({ ...campaign, content: authoredCampaign }).state.world.locations).toEqual([
+      { definitionId: "loc-1", discovered: true, accessible: true },
+    ]);
   });
 
   it("takes attributes, skills, traits, and the cash modifier from the scenario's backgrounds", () => {
