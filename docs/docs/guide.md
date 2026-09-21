@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: d2ae2a4df79838169bddfa3f64e6c1d4a3dff9eff9505b06bc65c3c296a6523a -->
+<!-- design-digest: dd8c11ef0c30f62972fcbd13346e26c6bde5290f5ac0aaee0c131e387cc282f2 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -775,9 +775,10 @@ Important constraints:
   `initialRelationship` is not stored on it; that seeds an actor's relationship instead.
   `world.locations` is still not seeded.
 - `exists`/`count` conditions can test a closed set of state collections (owned items,
-  relationships, pending job applications, course enrollments, projects, businesses, world
-  NPCs) — each resolves only its own stored fields, never a joined content definition, so "any
-  item tagged X" needs an explicit id list rather than a category test. **A `where` field the
+  relationships, pending job applications, course enrollments, earned credentials, projects,
+  businesses, world NPCs) — each resolves only its own stored fields, never a joined content
+  definition, so "any item tagged X" needs an explicit id list rather than a category test. **A
+  `where` field the
   item type doesn't declare fails silently, not loudly:** it resolves to `undefined`, so the
   clause never matches and the whole `exists`/`count` is just `false` — a typo'd field name is
   indistinguishable from a legitimate empty result. Validating `where` fields against the

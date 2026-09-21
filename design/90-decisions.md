@@ -1853,3 +1853,22 @@ preserved this repository's own read on reasoning-effort budget instead of the k
 
 Reversibility: cheap. The file is config, not code; the effort values can be re-customized in
 a follow-up edit if the kit defaults prove wrong for this repository's usage.
+
+### 2026-09-21 — `/align`: add earned credentials to the closed `exists`/`count` collection set
+
+Context: issue #494 added `player.education.credentials` to the simulation condition evaluator
+and Tier 1 collection validator so downstream GameOfLife content can test earned credentials.
+The implementation and its tests shipped in #500, but §8.2 still described the collection set
+as seven paths and therefore classified that implemented path as `unknown_collection`.
+
+Chosen (user-selected): **amend §8.2 to match the shipped eight-path behavior.** Add
+`player.education.credentials` with item type `Credential` to the closed collection table, and
+update the two prose references that counted seven entries. The collection remains closed;
+this admits exactly the already-implemented path and no other education arrays.
+
+Rejected: **remove credential support from the evaluator and validator.** That would restore
+the seven-path contract, but it would reverse the narrow downstream capability intentionally
+shipped by #500 and make credential-based campaign conditions impossible again.
+
+Reversibility: moderate. Removing the path would now tighten validation and can invalidate
+campaign content that relies on the additive support shipped in #500.
