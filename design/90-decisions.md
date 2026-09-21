@@ -1833,3 +1833,23 @@ appending runtime chains after building, because that bypasses authored-text reg
 Reversibility: cheap before implementation. Once released, the named type is an additive public
 authoring API; removing it would break consumers. Runtime chain semantics and replay data are
 unchanged. This amendment does not claim #472's implementation criteria complete.
+
+### 2026-09-21 — `/sync` reconciliation: kit updated to v2026.09.20; `codex/PROFILES.md` taken wholesale
+
+Context: `/sync` updated the machine-wide kit checkout from the commit recorded 2026-09-05
+(`36f0a7a`) to v2026.09.20 (`e4e9955`), 427 commits of drift, then reconciled this repository
+against it. `AGENTS.md`/`CLAUDE.md`'s pointer arrangement, the pointer section's resolved path,
+`agent.md`, `design/`, and the two issue templates were all already correct or already
+target-owned and needed no change. `codex/PROFILES.md`, installed 2026-09-05, had drifted from
+the kit's current version: the kit added an `author` profile, an "Output and context budget"
+section, and `project_doc_max_bytes` guidance, while this repository's copy customized
+`model_reasoning_effort` to `xhigh`/`low` against the kit's `high`/`medium` defaults.
+
+Chosen: take the kit's `codex/PROFILES.md` wholesale, discarding the local effort
+customization back to the kit defaults, per explicit user sign-off.
+
+Rejected: merging the new sections while keeping the custom effort values, which would have
+preserved this repository's own read on reasoning-effort budget instead of the kit's.
+
+Reversibility: cheap. The file is config, not code; the effort values can be re-customized in
+a follow-up edit if the kit defaults prove wrong for this repository's usage.
