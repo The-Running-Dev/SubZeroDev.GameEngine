@@ -3,7 +3,7 @@
     {
       "name": "Typecheck",
       "status": "Passed",
-      "detail": "npm --prefix src/engine run typecheck completed successfully: tsc --noEmit and tsc --noEmit -p tsconfig.scripts.json both exited 0."
+      "detail": "npm --prefix src/engine run typecheck completed successfully: both TypeScript no-emit checks exited 0."
     },
     {
       "name": "Lint",
@@ -13,67 +13,67 @@
     {
       "name": "Test",
       "status": "Passed",
-      "detail": "npm --prefix src/engine test completed successfully: 100 test files passed and 1,678 tests passed."
+      "detail": "npm --prefix src/engine test completed successfully: 104 test files passed and 1,694 tests passed."
     },
     {
       "name": "Pack package",
       "status": "Passed",
-      "detail": "cd src/engine; npm pack --silent completed successfully and produced the-running-dev-game-engine-0.11.0.tgz."
+      "detail": "npm pack --silent completed successfully and produced the-running-dev-game-engine-0.11.0.tgz."
     },
     {
       "name": "Inspect tarball",
       "status": "Passed",
-      "detail": "The packed tarball contains package/dist/ and contains no src/ tree, tsconfig JSON files, or test build artifacts."
+      "detail": "The packed tarball contained package/dist/ and contained no src/ tree, tsconfig JSON files, or test build artifacts."
     },
     {
       "name": "Consumer smoke",
       "status": "Passed",
-      "detail": "consumer-smoke npm ci, packed-engine installation, TypeScript build, and node dist/smoke.js all completed successfully."
+      "detail": "consumer-smoke completed npm ci, installed the packed engine, compiled with TypeScript, and ran node dist/smoke.js successfully."
     },
     {
       "name": "Parse-check PowerShell scripts",
-      "status": "DidNotRun",
-      "reason": "PowerShell (pwsh) is not installed in this environment; the corresponding remote verify workflow provides this result."
+      "status": "Passed",
+      "detail": "Every repository *.ps1 file was parsed with System.Management.Automation.Language.Parser.ParseFile; no parse errors were reported."
     },
     {
       "name": "Run Pester tests",
-      "status": "DidNotRun",
-      "reason": "PowerShell (pwsh) is not installed in this environment, so Invoke-Pester could not run locally; the corresponding remote verify workflow provides this result."
+      "status": "Passed",
+      "detail": "Invoke-Pester -Path tools completed with 17 tests passed, 0 failed, and 1 intentionally skipped."
     },
     {
       "name": "Validate Markdown links, terminology, and generated files",
-      "status": "DidNotRun",
-      "reason": "PowerShell (pwsh) is not installed in this environment, so build/Test-Documentation.ps1 could not run locally; the corresponding remote Docs CI workflow provides this result."
+      "status": "Passed",
+      "detail": "build/Test-Documentation.ps1 passed across 18 generated engine pages, compatibility pointers, the guide, and 225 Markdown files."
     },
     {
       "name": "Build documentation",
       "status": "DidNotRun",
-      "reason": "Docker and the generated local docs.ps1 launcher are unavailable in this checkout; the corresponding remote Docs CI workflow provides this result."
+      "reason": "Docker is reachable, but the repository-local docs.ps1 launcher required by the local gate is not installed in this checkout; the remote Docs CI workflow provides this result."
     },
     {
       "name": "Build and verify landing page",
-      "status": "DidNotRun",
-      "reason": "The workflow's required Chromium executable is unavailable locally; the corresponding remote Docs CI workflow provides this result."
+      "status": "Passed",
+      "detail": "The engine build and npm --prefix site run check completed successfully, including formatting, lint, typecheck, 17 jsdom tests, 23 browser tests, production build verification, and merge-fixture verification."
     },
     {
       "name": "Merge landing page into documentation build",
       "status": "DidNotRun",
-      "reason": "The prerequisite local documentation build did not run, so artifacts/docs was not produced; the corresponding remote Docs CI workflow provides this result."
+      "reason": "The prerequisite local documentation build did not run, so artifacts/docs was not produced for npm --prefix site run merge; the remote Docs CI workflow provides this result."
     },
     {
       "name": "Test the host",
       "status": "DidNotRun",
-      "reason": ".NET is not installed and the sibling-package feed credential is unavailable locally; the remote Platform Static Host Image workflow provides this result."
+      "reason": "The NUGET_GITHUB_ACTOR and NUGET_GITHUB_TOKEN credentials required to restore the sibling-package feed are unavailable locally; the remote Platform Static Host Image workflow provides this result."
     },
     {
       "name": "Positive route and probe smoke",
       "status": "DidNotRun",
-      "reason": "Docker and the cross-repository package credential needed to build the host image are unavailable locally; the remote Platform Static Host Image workflow provides this result."
+      "reason": "The private-package credentials required to build the prerequisite host image are unavailable locally; the remote Platform Static Host Image workflow provides this result."
     },
     {
       "name": "Negative fixture -- corrupted artifact must fail to start",
       "status": "DidNotRun",
-      "reason": "Docker and the prerequisite locally built host image are unavailable; the remote Platform Static Host Image workflow provides this result."
+      "reason": "The prerequisite host image could not be built locally without the private-package credentials; the remote Platform Static Host Image workflow provides this result."
     }
   ]
 }
