@@ -5900,6 +5900,7 @@ whole-collection tests rather than single-member addressing:
 | `player.relationships` | `RelationshipState[]` | §6.11 |
 | `player.career.pendingApplications` | `JobApplication[]` | §6.8 |
 | `player.education.enrollments` | `CourseEnrollment[]` | §6.7 |
+| `player.education.credentials` | `Credential[]` | §6.7 |
 | `player.projects` | `ProjectRuntimeState[]` | §6.12 |
 | `player.businesses` | `BusinessRecord[]` | §6.12 |
 | `world.npcs` | `NPCState[]` | §7.7 |
@@ -6127,7 +6128,7 @@ Reused from the base set: `unknown_action`, `requirement_unmet`, `session_ended`
 | `dangling_reference` | 1 | A definition references an `id` that resolves to nothing |
 | `numeric_natural_key` | 1 | An addressing path segment is all digits where a natural key is required (§7.1) |
 | `unknown_rival_strategy` | 1 | `RivalConfig.strategyId` (§7.8) names no registered `AgentStrategy` (§7.10) — W101 |
-| `unknown_collection` | 1 | An `exists`/`count` `collection` names a path outside §8.2's seven-entry table — W111 |
+| `unknown_collection` | 1 | An `exists`/`count` `collection` names a path outside §8.2's eight-entry table — W111 |
 | `unreachable_content` | 2 | A definition nothing in the campaign ever references |
 | `unsatisfiable_achievement` | 2 | An `AchievementDefinition.condition` reads a counter or flag nothing writes |
 
@@ -6379,7 +6380,7 @@ total, run once at registry construction, before the registry is frozen. Tiered 
   resolves in the registry's string table (04 §10.1).
 - A `Modifier.target`/addressing path naming an array collection uses the collection's natural
   key, never a numeric index (§7.1) — a numeric path segment is rejected outright.
-- Every `exists`/`count` `collection`, at any nesting depth, names one of §8.2's seven
+- Every `exists`/`count` `collection`, at any nesting depth, names one of §8.2's eight
   array-typed paths. Anything else fails with `unknown_collection`.
 - A `Modifier` targeting one of §6.1's four **formula-only** paths — `player.housing.quality`,
   `player.career.effectivePerformance`, `calendar.energyRecoveryRate`, `world.strangeness` —
