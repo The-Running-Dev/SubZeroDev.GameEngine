@@ -1872,3 +1872,27 @@ shipped by #500 and make credential-based campaign conditions impossible again.
 
 Reversibility: moderate. Removing the path would now tighten validation and can invalidate
 campaign content that relies on the additive support shipped in #500.
+
+### 2026-09-21 — W106's frozen tracker inventory belongs with implementation history, outside the WorkRef namespace
+
+Context: W106.1 preserved its issue inventory as `design/state/work/index.md`. This repository's
+adopted `design/state/work/` contract is narrower: every Markdown file there is one `WorkRef`, and
+the shared reader recursively treats every Markdown file under `design/state/` as a state record.
+The prose inventory was therefore parsed as a malformed `WorkRef`, producing 85
+`RecordUnparseable` results and obscuring the intended WorkRef-only `StateSetAbsent` result in
+issue #375's checker output.
+
+Chosen (user-selected): **move the frozen W106 inventory, otherwise unchanged, to
+`plans/52-w106-tracker-evidence-closure.md`.** `plans/` owns implementation history and handoff
+material, so the inventory continues to satisfy W106.1 without occupying the closed WorkRef record
+namespace. `design/state/work/` remains one numeric issue mirror per file, and the reader needs no
+filename exception.
+
+Rejected: **teach the reader to ignore `design/state/work/index.md`**, because a special filename
+would weaken the closed directory contract and let another non-record Markdown file recreate the
+same failure; **move the inventory elsewhere under `design/state/`**, because the reader walks that
+tree recursively; **delete the inventory**, because that would discard W106.1's frozen evidence.
+
+Reversibility: cheap. Moving the historical inventory again is mechanical so long as it stays
+outside `design/state/`; putting prose back in that tree deliberately restores the malformed-record
+results.
