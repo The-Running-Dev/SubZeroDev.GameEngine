@@ -22,6 +22,95 @@ kind-internal signatures remain in their respective blocks.
 Core reason codes and validation errors are owned by Core Specification. Each kind adds only its
 registered reason-code vocabulary.
 
+## Design-state mechanics
+
+This section is infrastructure for `tools/Test-DesignState.ps1` (installed from AgentKit), not
+part of the game engine's own contract. It exists so the checker's two closed lists — the
+artifact globs and the divergence classes — have somewhere to be read from in this repository,
+matching every other repository the kit is installed into.
+
+### Artifacts of a unit kind
+
+A design-state record's kind determines which glob it must be found under. This repository has
+adopted only the `WorkRef` record kind (`design/state-index.md`), so the `Unit`/`Invariant`/
+`Contract`/`Decision`/`Question` kinds below have no records of their own yet — the glob still
+has to be readable so `GlobDisagreement` can compare it against the tree.
+
+| Kind | Glob | Excluded |
+|---|---|---|
+| command | `skills/*/SKILL.md` | — |
+| script | `tools/*.ps1` | `*.Tests.ps1` |
+| document | `design/*.md`, `templates/design/*.md`, `*.md`, `.claude/COMPANIONS.md`, `.github/ISSUE_TEMPLATE/*.md`, `codex/PROFILES.md` | `design/FROZEN.md`, `CLAUDE.md` |
+| invariant | not a tree path | — |
+| component | none in this repository | — |
+
+The `command` row matches nothing here: this repository's skills carry `SKILL-local.md`, not the
+literal `SKILL.md` leaf the glob requires, so the empty set on both sides is agreement, not a gap.
+The `component` row is empty for the same reason the `Unit`/`Contract`/`Decision`/`Question` kinds
+are: this repository has not adopted a record kind for it, so declaring no pattern here is the
+correct statement of that fact rather than an omission.
+
+### The divergence classes
+
+`Test-DesignState.ps1` raises every finding as one of a fixed set of classes. The three tiers
+below are that checker's own arrays, restated here because `ClassListDisagreement` compares this
+table against them.
+
+**Blocking.**
+
+| Class | Raised when |
+|---|---|
+| `UnresolvedId` | A reference names a record id that has no record. |
+| `AnchorMissing` | A record's anchor does not resolve to a real file or heading. |
+| `OwnerMismatch` | A record's declared owner disagrees with what the artifact itself states. |
+| `UnrecordedArtifact` | A tracked-kind artifact in the tree has no record for it. |
+| `ProjectionStale` | A generated projection disagrees with the records it was built from. |
+| `RegionMalformed` | A marked region's start/end markers are missing or unbalanced. |
+| `IdCollision` | Two records share the same id. |
+| `DecisionAnchorAmbiguous` | A decision's anchor could resolve to more than one site. |
+| `LogEntryUnrecorded` | A decision-log entry has no matching record. |
+| `EnforcementUnevidenced` | An invariant's enforcement claim has no evidence that it runs. |
+| `ClosureOverBudget` | A record's one-hop closure exceeds the byte budget. |
+| `ClassListDisagreement` | This table disagrees with the checker's own class arrays. |
+| `GlobDisagreement` | The glob table above disagrees with the checker's own enumeration for that kind. |
+| `HeadingCollision` | Two headings in the same document normalize to the same anchor. |
+| `RecordPairMalformed` | A paired record is missing its counterpart or fails to parse. |
+| `HalfStatusMismatch` | A paired record's two halves disagree on status. |
+| `HalfOverlap` | A paired record's two halves cover overlapping scope. |
+| `SiteAmbiguous` | A record's site could resolve to more than one location. |
+| `SiteOutOfReach` | A record's site falls outside anywhere that record kind may point. |
+| `SiteContradictsLive` | A record's site disagrees with what is actually live in the tree. |
+| `DecisionUnplaced` | A decision has no site recorded at all. |
+| `SupersessionCycle` | A chain of decision supersessions loops back on itself. |
+
+**Reported, never blocking.**
+
+| Class | Raised when |
+|---|---|
+| `MirrorStale` | The work mirror lags behind the tracker it mirrors. |
+| `WorkStateDivergence` | A work-mirror record disagrees with the live state of the work it mirrors. |
+| `PinAncestry` | A pinned reference's ancestry cannot be walked to confirm what it claims to descend from. |
+| `SemanticDisagreement` | Two records appear to state the same thing in conflicting words — a judgement call, not a structural one. |
+| `LiveAlreadyStated` | A decision's terms already stand at a heading with no site naming it. |
+
+**Could not evaluate.**
+
+| `DesignStateFailure` | Raised when | Caller does |
+|---|---|---|
+| `StateSetAbsent` | `design/state/` is missing or holds no records of the kind being checked. | Skips that check rather than failing it. |
+| `RecordUnparseable` | A record file exists but does not parse as its declared shape. | Reports the offending text verbatim. |
+| `TrackerUnavailable` | The issue tracker could not be reached to compare against. | Skips the comparison. |
+| `ShallowCheckout` | The checkout is too shallow for a check that needs history. | Skips that check. |
+| `ProjectorFailed` | The projection generator itself failed to run. | Skips projection-staleness checks. |
+| `ContractListUnreadable` | One of this contract's own canonical lists (this class table, the glob table, or the invariants table) could not be parsed. | Skips whatever comparison depends on that list — read-and-disagrees is a finding, cannot-read is not. |
+
+### The freeze
+
+While `design/FROZEN.md` exists, every blocking class above is downgraded to reported, the count
+downgraded is stated, and the marker's `Frozen because` and `Lifts when` are reproduced verbatim.
+A freeze permits known staleness; it does not permit a checker that could not run, so a
+`CouldNotEvaluate` result stands regardless of whether a freeze is in effect.
+
 ## Invariants
 
 Statements that must hold at all times, each written so it could become an assertion. This
