@@ -81,24 +81,12 @@ rendered here.
 | 28 | #280 | Reproducing a stored session's blob requires pinning `IdSource.newGameId` | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | 29 | #281 | `SessionStore` has no concept of a caller, so authorization lives entirely outside it | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | 30 | #282 | `Kind.outcome` has no shape a host can read generically | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
-| 225 | #225 | Migrate pre-resume orphaned local saves to the new save-index scheme | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
-| 226 | #226 | SaveRecordStore.delete() has a TOCTOU race with a concurrent put() for the same saveId | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
-| 229 | #229 | resolveApplications removes a JobOpening entirely on hire, not decrementing positionsAvailable | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | 234 | #234 | Spike: generic scene-presentation layer (Municipality reference) — not engine work, will move to SubZeroDev.Presentation | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
-| 237 | #237 | validateUnreachableItems predates `shop`: a purchasable item is reported unreachable | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | 364 | #364 | Mirror the simulation-kind lifecycles once GameOfLife S7 lands — and do not write them here first | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
-| 371 | #371 | A kind's event severities are literals at each emit call; only the core fixes them in one table | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
-| 375 | #375 | Test-DesignState.ps1: 9 findings against this repository's own tree (ContractListUnreadable, ProjectorFailed, TrackerUnavailable, etc.) | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | 413 | #413 | 48 slices predate the issue-per-slice convention: W0-W40, W61, W63-65, W90-92 have no GitHub issue | — | `49aa72904ff5ba1151b7c41e60d770a3547649d1` |
-| 425 | #425 | WorldState.npcs and WorldState.locations are declared but permanently unpopulated dead state | — | `7d8850df21d99d6b224d38fea6b9cd720e3d3e38` |
-| 472 | #472 | SimulationCampaignSource cannot declare eventChains, which Tier 1 requires for any chainId | — | `be2f12c055697ff8179c5a0923edf962d5e00b99` |
-| 494 | #494 | A player who finishes their education can't have that credential checked by a game rule | — | `7d8850df21d99d6b224d38fea6b9cd720e3d3e38` |
-| milestone/1 | #213 | Dead references to bulgaria-bureaucracy.determinism.test.ts, deleted in #189 | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
-| milestone/2 | #215 | Batch invariance (world-graph's load-bearing property) is tested at exactly one data point | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
-| milestone/2 | #216 | world-graph: 21 source modules (~2,100 LOC) have no adjacent test file | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
+| 514 | #514 | W115 — A Resort a Client Can Actually Draw | W115.1, W115.2, W115.3, W115.4, W115.5, W115.6, W115.7, W115.8, W115.9, W115.10, W115.11 | `1c64808ba4c0b19d80047dc37a76f85d93fbf427` |
 | milestone/13 | #266 | Forking a session at an earlier point should be a store operation | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | milestone/13 | #287 | `CampaignSummary` carries only a `titleKey`, and no session-free way to resolve it, so campaign selection cannot render | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | milestone/6 | #292 | Content packs compose at campaign granularity, but dynamic content injection needs node granularity | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | milestone/6 | #293 | A session belongs to exactly one campaign, and nothing decides what happens if content spans two | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
-| milestone/1 | #300 | Campaign sources here are fixtures now, but nothing in the tree says so | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 <!-- outstanding:end -->
