@@ -6013,16 +6013,41 @@ definition would need the resolver to carry campaign content alongside state, wh
 `ConditionResolver` (04 §18) has no seam for; widening that seam is out of scope here and is
 recorded as an open item in `90-decisions.md`'s W105.5 entry rather than invented on the spot.
 
-**What ships today for a `where` field the item type does not declare, and for nesting.** A
-`where` path is resolved by a non-throwing walk. A field the element does not carry, such as
-`category` against `player.inventory`, resolves to `undefined`, so the clause never matches
-and the enclosing `exists` is silently `false`. Nothing rejects it at load time. A nested
-`exists`/`count` inside a `where` resolves its own `collection` against this same table,
-rooted at state, never at the enclosing item: every collection name has one meaning at every
-depth. The silent `false` is interim. It contradicts this section's own reasoning that a
-malformed path should fail at load time, like `unknown_collection`. A Tier 1 check that
-validates each `where` field against its collection's item type has been decided on, and is
-routed to `/contract` to specify and then to `/slices` (`90-decisions.md`, 2026-09-15).
+**Nesting.** A nested `exists`/`count` inside a `where` resolves its own `collection` against
+this same table, rooted at state, never at the enclosing item: every collection name has one
+meaning at every depth. Its own `where` is relative to *its* collection's item, not the
+enclosing one.
+
+**A `where` field must be declared by its collection's item type.** Every `field` leaf inside a
+`where` — at any depth under `all`/`any`/`not`, up to the next nested `exists`/`count`, which
+re-roots it — is checked at load time against the item type the table above names for that
+collection:
+
+- **The legal fields are the item type's own properties whose declared type is a scalar** —
+  `number` (including `Cents`), `string` (including `LocKey` and string-literal unions), or
+  `boolean`. A path is exactly one segment. A dotted path into an array- or object-typed
+  property is not legal, even where the property itself is declared: `NPCState.memories`,
+  `.availability` and `.flags` are the three such properties among the eight item types today,
+  so `{ field: "flags.met", … }` against `world.npcs` is rejected. Anything else — a field the
+  type does not declare, such as `category` against `player.inventory` — fails with
+  `unknown_collection_field` (§10, §14).
+- **An optional property (declared `?`) is legal, but only under `equals`, `not_equals`, `in`
+  and `not_in`.** Any other operator on an optional field fails with `optional_field_operator`.
+  The reason is the frozen evaluator (04 §18), not this kind: a present field compares
+  normally, but an absent one reaches `compare` as `undefined`, where `equals`/`in` do not match,
+  `not_equals`/`not_in` do — which is §18's own idiom for authoring "field is absent" — and
+  every other operator throws during play. The Tier 1 rule is what keeps a load-valid campaign
+  from reaching that throw. It covers optionality only: an operator mismatched with a
+  *present* field's type (`has_tag` against a `number`) is not checked here.
+
+The runtime walk stays non-throwing; once this check holds, an undeclared field can no longer
+reach it. Neither check depends on content — the eight item types are closed — so the legal
+set is engine-owned and fixed per engine version, like the collection table itself.
+
+**Status: contracted, not built.** `validate.ts` checks collection names only, and neither
+code is registered in `reasons.ts`, so today an undeclared field still resolves to `undefined`
+at evaluation with the per-operator outcome above. The implementing unit deletes this paragraph
+(`90-decisions.md`, 2026-09-24).
 
 `count`'s own comparison (04 §18's `CountCondition`) is always a match total against a number —
 "a pending application exists" is `exists`, "at least two owned cars" is `count`. Neither needs
@@ -6218,6 +6243,8 @@ Reused from the base set: `unknown_action`, `requirement_unmet`, `session_ended`
 | `numeric_natural_key` | 1 | An addressing path segment is all digits where a natural key is required (§7.1) |
 | `unknown_rival_strategy` | 1 | `RivalConfig.strategyId` (§7.8) names no registered `AgentStrategy` (§7.10) — W101 |
 | `unknown_collection` | 1 | An `exists`/`count` `collection` names a path outside §8.2's eight-entry table — W111 |
+| `unknown_collection_field` | 1 | A `where` `field` is not a scalar property its collection's item type declares (§8.2) — contracted, not built |
+| `optional_field_operator` | 1 | A `where` `field` names an optional property under an operator other than `equals`/`not_equals`/`in`/`not_in` (§8.2) — contracted, not built |
 | `unreachable_content` | 2 | A definition nothing in the campaign ever references |
 | `unsatisfiable_achievement` | 2 | An `AchievementDefinition.condition` reads a counter or flag nothing writes |
 
@@ -6471,6 +6498,12 @@ total, run once at registry construction, before the registry is frozen. Tiered 
   key, never a numeric index (§7.1) — a numeric path segment is rejected outright.
 - Every `exists`/`count` `collection`, at any nesting depth, names one of §8.2's eight
   array-typed paths. Anything else fails with `unknown_collection`.
+- Every `field` inside a `where`, at any depth, is a single-segment scalar property declared by
+  its collection's item type (§8.2) — `unknown_collection_field` when it is not — and one that
+  is declared optional appears only under `equals`, `not_equals`, `in` or `not_in` —
+  `optional_field_operator` otherwise. The legal set is engine-owned: the validator's
+  per-collection field table is keyed exhaustively by each item type's own properties, so a
+  field added to, renamed in, or removed from a type fails typecheck until the table follows.
 - A `Modifier` targeting one of §6.1's four **formula-only** paths — `player.housing.quality`,
   `player.career.effectivePerformance`, `calendar.energyRecoveryRate`, `world.strangeness` —
   fails with `read_only_field`. That is `isReadOnly`'s partition, not the whole `DerivedPath`

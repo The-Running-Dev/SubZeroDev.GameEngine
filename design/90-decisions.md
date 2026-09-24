@@ -1793,6 +1793,8 @@ against.
 Reversibility: cheap until the check ships. After that, removing it loosens validation, which
 never breaks a valid campaign.
 
+Status: specified 2026-09-24 (the entry of that date); open, routed to `/slices`.
+
 ### 2026-09-15 — W105.3's transport waiver is applied at charge time and not projected
 
 Context: §7.4 says `utilitiesCents`/`transportCents` are "distinct cost lines a player can see", and
@@ -1896,3 +1898,53 @@ tree recursively; **delete the inventory**, because that would discard W106.1's 
 Reversibility: cheap. Moving the historical inventory again is mechanical so long as it stays
 outside `design/state/`; putting prose back in that tree deliberately restores the malformed-record
 results.
+
+### 2026-09-24 — `/contract`: the `where`-field Tier 1 check, specified; routed to `/slices`
+
+Context: the 2026-09-15 entry decided on a Tier 1 check for `where` fields a collection's item
+type does not declare, and left three things for `/contract`: the reason code, how an item
+type's field set is declared, and how optional fields are treated. Specifying the third turned up
+an inaccuracy in §8.2 itself. It said an undeclared field makes the clause "silently `false`".
+That holds for `equals`, `in`, `has_tag` and `has_flag` only. In the frozen evaluator
+(`core/condition/evaluate.ts`, 04 §18), `not_equals` and `not_in` *match* `undefined`, and the
+four ordering operators, `contains`, `has_tag` and `has_flag` throw during play.
+
+Chosen (user-selected), now in `10-simulation-kind` §8.2, §10 and §14:
+
+- **`unknown_collection_field`**, a new Tier 1 code beside `unknown_collection`, for a `where`
+  field the item type does not declare. It is additive (04 §18: codes are never renamed), and a
+  client can tell a bad collection from a bad field inside one.
+- **The legal set is the item type's own scalar properties, one segment deep.** A dotted path
+  into an array- or object-typed property is rejected, which today excludes `NPCState.memories`,
+  `.availability` and `.flags`. It is engine-owned, because the eight item types are closed, and
+  kept in step with the types by keying the validator's table exhaustively on each type's
+  properties, so it fails typecheck rather than drifting.
+- **An optional property is legal, but only under `equals`/`not_equals`/`in`/`not_in`**, with a
+  second new code, `optional_field_operator`. That is the one way to close the run-time throw
+  without amending a frozen primitive. The user approved the rule as
+  `optional_field_ordering`. It was renamed while writing it up, because `contains`/`has_tag`/
+  `has_flag` throw on `undefined` too, so the rule is about operators in general, not ordering.
+- **§8.2's "silently `false`" sentence was corrected in the same pass**, as descriptive drift in
+  the paragraph being rewritten.
+
+Rejected: **reusing `unknown_collection`**, which costs no code but gives one code to two
+different author mistakes. **Accepting `NPCState.flags.<key>`**, which is more expressive, but a
+flag key cannot be checked, so a typo still misses silently. **Checking only a path's first
+segment**, which is cheaper but misses deeper typos. **Stating the per-operator behaviour and
+leaving the throw**, which is cheapest but leaves a load-valid campaign that can crash during play.
+**"Absent fails every operator"**, first chosen on a wrong premise that it was a resolver change.
+It is actually an amendment to 04 §18's frozen evaluator for all three kinds, and it contradicts
+§18's own `not_equals undefined` idiom for authoring absence.
+
+Not covered, and deliberately left open: an operator mismatched with a *present* field's type
+(`has_tag` against a `number`, `contains` against a `boolean`) still throws during play. Checking
+that needs per-field types, not just names and optionality, which is a larger table than this
+check needed. It belongs to a future `/contract` pass if a campaign ever hits it.
+
+Status: open, routed to `/slices`. The unit implements both checks in `validate.ts`, registers
+both codes with messages in `reasons.ts`, and deletes §8.2's "contracted, not built" paragraph
+along with the two "contracted, not built" markers in §10. No save or campaign schema changes.
+Only campaigns that are invalid under the new rule fail to load.
+
+Reversibility: cheap until the unit ships, since it is prose in one canonical file. After that,
+removing either check loosens validation, which never breaks a valid campaign.
