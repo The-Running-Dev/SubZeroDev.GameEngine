@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 608f5a988b955a73b10fd73f65d866c1ce4a693ddad3aefb6ba8864ba3b66a0a -->
+<!-- design-digest: 60400fb1120db5aac6bd8baba104f7f146e310bbd3b70961bed70b240eb63878 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -777,12 +777,14 @@ Important constraints:
 - `exists`/`count` conditions can test a closed set of state collections (owned items,
   relationships, pending job applications, course enrollments, earned credentials, projects,
   businesses, world NPCs) — each resolves only its own stored fields, never a joined content
-  definition, so "any item tagged X" needs an explicit id list rather than a category test. **A
-  `where` field the
-  item type doesn't declare fails silently, not loudly:** it resolves to `undefined`, so the
-  clause never matches and the whole `exists`/`count` is just `false` — a typo'd field name is
-  indistinguishable from a legitimate empty result. Validating `where` fields against the
-  collection's item type at load time is planned but not yet built; until then, double-check
+  definition, so "any item tagged X" needs an explicit id list rather than a category test. A
+  `where` field must be a single-segment scalar field the item type declares, and an optional
+  field may appear only under `equals`, `not_equals`, `in` or `not_in` — campaign load will reject
+  anything else with `unknown_collection_field` or `optional_field_operator`. **Those two checks
+  are specified but not yet built.** Until they are, a field the item type doesn't declare (or an
+  optional one that is absent) resolves to `undefined`: `equals`/`in` never match it,
+  `not_equals`/`not_in` always do, and every other operator throws mid-play. A typo'd field name
+  therefore either looks like a legitimate empty result or crashes the week, so double-check
   field names by hand.
 
 The player view carries the calendar, identity, finances, needs, attributes, education, career,
