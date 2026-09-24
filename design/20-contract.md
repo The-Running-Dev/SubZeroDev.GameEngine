@@ -226,7 +226,7 @@ Do not hand-write a row here — anything between the two markers is discarded o
 give an invariant a row, write it a record; to state one, write it as a C-number above.
 
 <!-- invariants:start -->
-| | Statement | Owner | Enforcement | Evidence |
+| | Statement | Held by | Enforcement | Evidence |
 |---|---|---|---|---|
 <!-- invariants:end -->
 
