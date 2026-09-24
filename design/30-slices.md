@@ -4940,6 +4940,92 @@ then never used, because nothing created an NPC's runtime state at all.
       location has no definition and stays with #425's locations half; any end-of-week system
       that reads or changes NPC state; projecting NPCs into the view.
 
+### Depth: The World-Graph Client Read Model
+
+One unit. `90-decisions.md`'s 2026-09-15 `/reconcile` found that
+[12 §10](12-world-graph-kind.md#10-projection)'s Revision 5 view is contracted and marked
+unbuilt, and routed its implementation here. It is the only item that entry routed to
+`/slices` still unimplemented; its sibling, NPC seeding, landed as [W114](#w114). The third
+entry of that date — a Tier 1 check for `where` fields a collection's item type does not
+declare — is routed to `/contract` **first** and is deliberately not sliced: the reason code,
+the per-collection field table and the treatment of optional fields are all unwritten, and
+slicing it would mean inventing them.
+
+### [ ] W115 — A Resort a Client Can Actually Draw {#w115}
+
+**Delivers:** Lets anyone building a screen for a world-graph game — a resort map, an inspector
+panel, a build menu — draw everything the player can see and offer every action the player can
+take, from what the engine hands them alone. Today the engine hands over counts and ids, so a
+client cannot place a building on a map, show a guest's mood, or explain why a building is
+locked without reading the game's internals.
+
+- **Spec:** [12 §10](12-world-graph-kind.md#10-projection) — the Revision 5 `WorldGraphView`,
+      its *Derivation and ownership*, *Completeness invariants* and *Deliberate exclusions*
+      paragraphs, and the ordering rules; [§11](12-world-graph-kind.md#11-reason-codes) for the
+      `blockedBy` vocabulary; `90-decisions.md`'s 2026-09-15 entry routing it here.
+- **Touches:** the kind's projector (`src/engine/src/kinds/world-graph/view.ts`) and the
+      `WorldGraphView` type in its state module, their tests, and any golden snapshot that
+      records a world-graph view.
+- **Depends on:** none.
+- **Status:** Not started.
+- **Done when:**
+  - W115.1 The projected view carries every field §10's `WorldGraphView` declares, with the
+        declared types: `finances` gains `revenueTotalCents`/`expensesTotalCents`; the view gains
+        `scenario`, `definitions`, `staffOptions`, `constructionSites`, `guests` and `incidents`;
+        `map` carries `id`, name/description keys, `terrain`, `paths` and placed `scenery`, and
+        its `zones` are full `Zone` records rather than ids; each building carries position,
+        size, rotation, full queue, prices and inventory; each staff member carries position,
+        task and `tasksCompleted`; each alert carries `entityId`. `npm run typecheck` passes with
+        the §10 declaration in place of the old one.
+  - W115.2 The view contains none of §10's *Deliberate exclusions*: a test serializes the view
+        of the MVP campaign after at least one incident has occurred and asserts that none of
+        the state or campaign field names backing those exclusions — RNG state,
+        `nextEntityOrdinal`, incident weights and triggers, scheduled changes, failure and
+        objective conditions, placement rules, adjacency effects, guest preference profiles,
+        utility curves and scores, entity path caches, hidden achievements, unlock bookkeeping
+        — appears as a key at any depth. The pull request lists the exact key names checked.
+  - W115.3 For the MVP campaign, every build definition id the reducer accepts for `build`,
+        every role id it accepts for `hire_staff` and every product id it accepts for
+        `set_price` appears in `buildOptions`, `staffOptions` and `definitions.products`
+        respectively. Locked entries are present with `canBuild`/`canHire` false.
+  - W115.4 For every definition and role, `canBuild`/`canHire` is false exactly when submitting
+        it at a placement-valid position (or to a valid assignment) is rejected, and `blockedBy`
+        equals the set of placement-independent §11 codes the reducer returns — asserted for
+        at least `building_locked`, `building_limit_reached`, `staff_limit_reached` and
+        `insufficient_funds`, each driven by a state constructed to trigger it.
+  - W115.5 Every building, staff member and alert id that `demolish`, `fire_staff`,
+        `assign_staff`, `open_building`, `close_building`, `set_price` or `dismiss_alert` would
+        accept in a given state appears in the corresponding view collection, and no id the
+        reducer would reject with `unknown_entity` does.
+  - W115.6 `alerts` omits every alert with a non-null `dismissedAtTick` or `clearedAtTick`, and
+        `incidents` omits every incident with a non-null `resolvedAtTick`: a test dismisses one
+        alert and resolves one incident and asserts both disappear from the next projection.
+  - W115.7 `definitions` is the smallest safe catalog §10 names and no larger: `guestArchetypes`
+        equals the archetypes reachable from the current scenario's pool, `products` equals the
+        products referenced by `buildOptions`, and `incidents` equals the definitions of
+        currently unresolved incidents — each asserted by exact id list against the MVP
+        campaign.
+  - W115.8 Ordering follows §10: every definition and entity collection is sorted by id;
+        terrain cells, zone cells, spawn points and exits are row-major (`y`, then `x`); path
+        edges are sorted by `from` then `to`; rotations are numeric ascending; per-product and
+        per-meter value lists are sorted by definition id; staff requirements by role id; and
+        `queue.guestIds` equals the state's FIFO order unchanged. A test builds state whose
+        arrays are deliberately out of order and asserts each sorted result.
+  - W115.9 Projection is pure and non-aliasing: projecting the same state and campaign twice
+        yields structurally equal views, and mutating any array of a returned view leaves both
+        the state and a fresh projection unchanged.
+  - W115.10 No save or campaign schema moves: `kindVersion`, every committed save fixture and
+        every replay fixture are byte-identical before and after. Every moved golden snapshot is
+        named in the pull request and moves only inside a world-graph view.
+  - W115.11 §10's *Specified, not yet implemented* status paragraph is deleted from
+        `design/20-contract.md` in the same pull request, and the human docs are regenerated.
+- **Out of scope:** exporting the helper types (`WorldGraphViewText`, `WorldGraphBuildOption`,
+      `WorldGraphStaffOption`, `WorldGraphViewMeterDefinition`, `WorldGraphViewValue`) from the
+      package root, which the contract does not list; per-building sales history or guest
+      thought history, which §10 says need a state-and-save change first; placement-dependent
+      build previews, which stay `previewAction`'s; any change to a client, including
+      SubZeroDev.Adventures; the `where`-field Tier 1 check routed to `/contract` above.
+
 ## Landed
 
 A slice's full body lives under `## Outstanding` only until its issue closes; once closed, the
