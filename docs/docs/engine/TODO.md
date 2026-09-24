@@ -4942,9 +4942,8 @@ One unit. `90-decisions.md`'s 2026-09-15 `/reconcile` found that
 unbuilt, and routed its implementation here. It is the only item that entry routed to
 `/slices` still unimplemented; its sibling, NPC seeding, landed as [W114](#w114). The third
 entry of that date — a Tier 1 check for `where` fields a collection's item type does not
-declare — is routed to `/contract` **first** and is deliberately not sliced: the reason code,
-the per-collection field table and the treatment of optional fields are all unwritten, and
-slicing it would mean inventing them.
+declare — went to `/contract` first, was specified on 2026-09-24, and is a separate unit, not
+part of this one.
 
 ### [ ] W115 — A Resort a Client Can Actually Draw {#w115}
 
@@ -5019,7 +5018,7 @@ locked without reading the game's internals.
       package root, which the contract does not list; per-building sales history or guest
       thought history, which §10 says need a state-and-save change first; placement-dependent
       build previews, which stay `previewAction`'s; any change to a client, including
-      SubZeroDev.Adventures; the `where`-field Tier 1 check routed to `/contract` above.
+      SubZeroDev.Adventures; the simulation kind's `where`-field Tier 1 check.
 
 ## Landed
 
