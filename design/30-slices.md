@@ -4950,7 +4950,7 @@ entry of that date — a Tier 1 check for `where` fields a collection's item typ
 declare — went to `/contract` first, was specified on 2026-09-24, and is a separate unit, not
 part of this one.
 
-### [ ] W115 — A Resort a Client Can Actually Draw {#w115}
+### [x] W115 — A Resort a Client Can Actually Draw {#w115}
 
 **Delivers:** Lets anyone building a screen for a world-graph game — a resort map, an inspector
 panel, a build menu — draw everything the player can see and offer every action the player can
