@@ -1363,14 +1363,6 @@ discover every parameter domain accepted by §7 without reading `WorldGraphKindS
 `WorldGraphCampaign`. The projection is additive to the generic envelope and repeats none of its
 `gameId`, `status`, scene, action-list or outcome fields.
 
-**Specified, not yet implemented.** This section is the Revision 5 view (`90-decisions.md`,
-2026-09-07). The shipped projector in `src/engine/src/kinds/world-graph/state.ts` still returns
-the earlier subset: tick, finances, map counts, build options, buildings, staff, objectives,
-alerts and queued guests. It has no definitions, scenario, staff options, construction sites,
-guests, incidents, positions or alert `entityId`. A client built against this section must
-wait for that unit, which is routed to `/slices` (`90-decisions.md`, 2026-09-15). Until it
-lands, the contract here is the target and the code is behind it.
-
 ```typescript
 interface WorldGraphViewText {
   id: string;

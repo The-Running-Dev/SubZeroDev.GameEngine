@@ -8,7 +8,7 @@ import { createRecordingEmitter } from "../../core/observability/emitter.js";
 import type { WorldGraphCampaign, WorldGraphCampaignSource } from "./content.js";
 import { worldGraphKind } from "./kind.js";
 import { buildWorldGraphCampaign } from "./source.js";
-import type { Guest, WorldGraphKindState, WorldGraphView } from "./state.js";
+import type { Guest, Rotation, WorldGraphKindState, WorldGraphView } from "./state.js";
 import { WORLD_GRAPH_REASON_MESSAGES } from "./reasons.js";
 import { createInMemorySessionStore } from "../../core/session/store.js";
 import { createInMemoryProfileStore } from "../../core/session/profile-store.js";
@@ -690,6 +690,321 @@ describe("world-graph W45 engine seam", () => {
     expect(
       worldGraphKind.outcome({ ...base, resolution: { resolution: "failed", objectiveIds: [], failureId: "bankrupt", resolvedAtTick: 0 } }),
     ).toEqual({ terminal: true, terminalId: "failed", resolution: "failed", objectivesMet: [], failureId: "bankrupt" });
+  });
+});
+
+describe("world-graph W115 contract view", () => {
+  function collectKeys(value: unknown, keys: Set<string> = new Set()): Set<string> {
+    if (Array.isArray(value)) {
+      for (const entry of value) collectKeys(entry, keys);
+    } else if (value !== null && typeof value === "object") {
+      for (const [key, entry] of Object.entries(value)) {
+        keys.add(key);
+        collectKeys(entry, keys);
+      }
+    }
+    return keys;
+  }
+
+  it("W115.1 projects the full §10 contract shape", () => {
+    const runtimeEngine = engine();
+    let game = runtimeEngine.submitAction(create(), "build", { definitionId: "kiosk", x: 2, y: 1, rotation: 0 }).value!;
+    game = runtimeEngine.submitAction(game, "hire_staff", { definitionId: "cleaner" }).value!;
+    const view = (runtimeEngine.view(game, "player") as { kindView: WorldGraphView }).kindView;
+
+    expect(view.finances).toMatchObject({
+      cashCents: expect.any(Number),
+      revenueTodayCents: expect.any(Number),
+      expensesTodayCents: expect.any(Number),
+      revenueTotalCents: expect.any(Number),
+      expensesTotalCents: expect.any(Number),
+    });
+    expect(view.scenario).toMatchObject({ id: "opening", mapId: "beach", ticksPerDay: expect.any(Number), maxTicksPerAction: expect.any(Number) });
+    expect(view.definitions).toEqual(expect.objectContaining({
+      terrain: expect.any(Array), scenery: expect.any(Array), products: expect.any(Array),
+      guestArchetypes: expect.any(Array), meters: expect.any(Array), objectives: expect.any(Array), incidents: expect.any(Array),
+    }));
+    expect(view.buildOptions.length).toBeGreaterThan(0);
+    expect(view.buildOptions.every((option) => option.canBuild)).toBe(true);
+    expect(view.staffOptions.length).toBeGreaterThan(0);
+    expect(view.staffOptions.every((option) => option.canHire)).toBe(true);
+
+    expect(view.map).toMatchObject({
+      id: "beach", nameKey: expect.any(String), descriptionKey: expect.any(String),
+      width: expect.any(Number), height: expect.any(Number), revision: expect.any(Number),
+      terrain: expect.any(Array), paths: expect.any(Array), scenery: expect.any(Array),
+      spawnPoints: expect.any(Array), exits: expect.any(Array),
+      buildingCount: 1, guestCount: 0, staffCount: 1,
+    });
+    expect(view.map.zones).toEqual([]);
+
+    expect(view.buildings).toHaveLength(1);
+    expect(view.buildings[0]).toMatchObject({
+      id: expect.any(String), definitionId: "kiosk", x: 2, y: 1, width: expect.any(Number), height: expect.any(Number),
+      rotation: 0, status: "open",
+      queue: { id: expect.any(String), guestIds: [], serviceStartedAtTick: null },
+      prices: expect.any(Array), inventory: expect.any(Array), cleanliness: expect.any(Number), wear: expect.any(Number),
+    });
+
+    expect(view.staff).toHaveLength(1);
+    expect(view.staff[0]).toMatchObject({
+      id: expect.any(String), roleId: "cleaner", status: expect.any(String), x: expect.any(Number), y: expect.any(Number),
+      assignedZoneId: null, assignedBuildingId: null, task: null, tasksCompleted: 0,
+    });
+
+    expect(view.constructionSites).toEqual([]);
+    expect(view.guests).toEqual([]);
+    expect(view.incidents).toEqual([]);
+    expect(view.objectives.length).toBeGreaterThan(0);
+    expect(view.objectives[0]).toMatchObject({ id: expect.any(String), state: expect.any(String), value: expect.any(Number), target: expect.any(Number) });
+    expect(view.alerts).toEqual([]);
+    expect(view.queuedGuests).toBe(0);
+  });
+
+  it("W115.2 never surfaces the deliberately excluded keys", () => {
+    const runtimeEngine = engine();
+    const game = create();
+    const withIncident = {
+      ...game,
+      kindState: {
+        ...stateOf(game),
+        incidents: [{
+          id: "incident:0", definitionId: "litter", buildingId: null, guestId: null, zoneId: null,
+          position: null, amount: 1, startedAtTick: 0, expiresAtTick: null, resolvedAtTick: null,
+        }],
+      },
+    };
+    const view = (runtimeEngine.view(withIncident, "player") as { kindView: WorldGraphView }).kindView;
+    const keys = collectKeys(view);
+    const excluded = [
+      "nextEntityOrdinal", "unlockedContent", "activePolicyIds", "unlockedAchievementIds",
+      "triggerCondition", "rollScope", "rollChanceBasisPoints", "selectionWeight", "cooldownTicks",
+      "resolutionCondition", "resolverTaskType", "resolverTaskPriority", "onStart", "onResolve",
+      "scheduledChanges", "dueTick", "condition", "effects", "completion",
+      "placementRules", "adjacencyEffects", "preferences", "priceResistance",
+      "preferenceUtilityPerPoint", "qualityUtilityPerPoint", "attractivenessUtilityPerPoint",
+      "travelPenaltyPerCost", "queuePenaltyPerTick", "safetyPenaltyPerPoint", "switchThresholdUtility",
+      "path", "pathIndex", "drawCount", "moveProgressTicks", "hidden",
+    ];
+    for (const key of excluded) expect(keys.has(key)).toBe(false);
+  });
+
+  it("W115.3 buildOptions/staffOptions/definitions.products list every reducer-accepted id, including locked", () => {
+    const runtimeEngine = engine();
+    const view = (runtimeEngine.view(create(), "player") as { kindView: WorldGraphView }).kindView;
+    expect(view.buildOptions.map((entry) => entry.id)).toEqual(["hut", "kiosk", "stall"]);
+    expect(view.staffOptions.map((entry) => entry.id)).toEqual(["builder", "cleaner", "restocker"]);
+    expect(view.definitions.products.map((entry) => entry.id)).toEqual(["water"]);
+
+    const content = runtime().content;
+    const lockedScenarios = content.scenarios.map((entry) => ({ ...entry, unlockedContent: [] }));
+    const lockedView = (engine({ scenarios: lockedScenarios }).view(create({ scenarios: lockedScenarios }), "player") as { kindView: WorldGraphView }).kindView;
+    expect(lockedView.buildOptions.map((entry) => entry.id)).toEqual(["hut", "kiosk", "stall"]);
+    expect(lockedView.buildOptions.every((entry) => entry.canBuild === false)).toBe(true);
+    expect(lockedView.buildOptions.every((entry) => entry.blockedBy.includes("building_locked"))).toBe(true);
+  });
+
+  it("W115.4 canBuild/canHire and blockedBy mirror reducer rejections", () => {
+    const content = runtime().content;
+
+    const lockedScenarios = content.scenarios.map((entry) => ({ ...entry, unlockedContent: entry.unlockedContent.filter((reference) => reference.kind !== "building") }));
+    const lockedView = (engine({ scenarios: lockedScenarios }).view(create({ scenarios: lockedScenarios }), "player") as { kindView: WorldGraphView }).kindView;
+    const lockedKiosk = lockedView.buildOptions.find((entry) => entry.id === "kiosk")!;
+    expect(lockedKiosk.canBuild).toBe(false);
+    expect(lockedKiosk.blockedBy).toContain("building_locked");
+
+    const limitedScenarios = content.scenarios.map((entry) => ({ ...entry, buildingLimits: [{ definitionId: "kiosk", maximum: 0 }], staffLimits: [{ definitionId: "cleaner", maximum: 0 }] }));
+    const limitedView = (engine({ scenarios: limitedScenarios }).view(create({ scenarios: limitedScenarios }), "player") as { kindView: WorldGraphView }).kindView;
+    const limitedKiosk = limitedView.buildOptions.find((entry) => entry.id === "kiosk")!;
+    expect(limitedKiosk.canBuild).toBe(false);
+    expect(limitedKiosk.blockedBy).toContain("building_limit_reached");
+    const limitedCleaner = limitedView.staffOptions.find((entry) => entry.id === "cleaner")!;
+    expect(limitedCleaner.canHire).toBe(false);
+    expect(limitedCleaner.blockedBy).toContain("staff_limit_reached");
+
+    const poorScenarios = content.scenarios.map((entry) => ({ ...entry, startingCashCents: 0 }));
+    const poorView = (engine({ scenarios: poorScenarios }).view(create({ scenarios: poorScenarios }), "player") as { kindView: WorldGraphView }).kindView;
+    const poorKiosk = poorView.buildOptions.find((entry) => entry.id === "kiosk")!;
+    expect(poorKiosk.canBuild).toBe(false);
+    expect(poorKiosk.blockedBy).toContain("insufficient_funds");
+    const poorCleaner = poorView.staffOptions.find((entry) => entry.id === "cleaner")!;
+    expect(poorCleaner.canHire).toBe(false);
+    expect(poorCleaner.blockedBy).toContain("insufficient_funds");
+  });
+
+  it("W115.5 view entity collections match reducer-acceptable ids for entity-targeted actions", () => {
+    const runtimeEngine = engine();
+    let game = runtimeEngine.submitAction(create(), "build", { definitionId: "kiosk", x: 2, y: 1, rotation: 0 }).value!;
+    game = runtimeEngine.submitAction(game, "hire_staff", { definitionId: "cleaner" }).value!;
+    const buildingId = stateOf(game).buildings[0]!.id;
+    const staffId = stateOf(game).staff[0]!.id;
+    const view = (runtimeEngine.view(game, "player") as { kindView: WorldGraphView }).kindView;
+    expect(view.buildings.map((entry) => entry.id)).toContain(buildingId);
+    expect(view.staff.map((entry) => entry.id)).toContain(staffId);
+
+    expect(runtimeEngine.submitAction(game, "demolish", { buildingId: `${buildingId}-missing` }).errors[0]?.code).toBe("unknown_entity");
+    expect(runtimeEngine.submitAction(game, "fire_staff", { staffId: `${staffId}-missing` }).errors[0]?.code).toBe("unknown_entity");
+    expect(runtimeEngine.submitAction(game, "dismiss_alert", { alertId: "alert:missing" }).errors[0]?.code).toBe("unknown_entity");
+    expect(runtimeEngine.submitAction(game, "open_building", { buildingId }).ok).toBe(true);
+    expect(runtimeEngine.submitAction(game, "close_building", { buildingId }).ok).toBe(true);
+    expect(runtimeEngine.submitAction(game, "set_price", { buildingId, productId: "water", priceCents: 150 }).ok).toBe(true);
+    expect(runtimeEngine.submitAction(game, "assign_staff", { staffId, buildingId }).ok).toBe(true);
+    expect(runtimeEngine.submitAction(game, "demolish", { buildingId }).ok).toBe(true);
+    expect(runtimeEngine.submitAction(game, "fire_staff", { staffId }).ok).toBe(true);
+  });
+
+  it("W115.6 omits dismissed alerts and resolved incidents from the next projection", () => {
+    const runtimeEngine = engine();
+    const game = create();
+    const state = stateOf(game);
+    const withBoth = {
+      ...game,
+      kindState: {
+        ...state,
+        alerts: [{
+          id: "alert:0", type: "incident_active" as const, semanticKey: "incident:litter",
+          severity: "warning" as const, titleKey: "world.incident.litter.name",
+          messageKey: "world.incident.litter.description", entityId: null,
+          issuedAtTick: 0, dismissedAtTick: null, clearedAtTick: null,
+        }],
+        incidents: [{
+          id: "incident:0", definitionId: "litter", buildingId: null, guestId: null, zoneId: null,
+          position: null, amount: 0, startedAtTick: 0, expiresAtTick: null, resolvedAtTick: null,
+        }],
+      },
+    };
+    const beforeView = (runtimeEngine.view(withBoth, "player") as { kindView: WorldGraphView }).kindView;
+    expect(beforeView.alerts.map((entry) => entry.id)).toEqual(["alert:0"]);
+    expect(beforeView.incidents.map((entry) => entry.id)).toEqual(["incident:0"]);
+
+    const dismissed = runtimeEngine.submitAction(withBoth, "dismiss_alert", { alertId: "alert:0" }).value!;
+    const withResolvedIncident = {
+      ...dismissed,
+      kindState: { ...stateOf(dismissed), incidents: [{ ...stateOf(dismissed).incidents[0]!, resolvedAtTick: stateOf(dismissed).tick }] },
+    };
+    const afterView = (runtimeEngine.view(withResolvedIncident, "player") as { kindView: WorldGraphView }).kindView;
+    expect(afterView.alerts).toEqual([]);
+    expect(afterView.incidents).toEqual([]);
+  });
+
+  it("W115.7 definitions is the smallest safe catalog", () => {
+    const runtimeEngine = engine();
+    const baseView = (runtimeEngine.view(create(), "player") as { kindView: WorldGraphView }).kindView;
+    expect(baseView.definitions.guestArchetypes.map((entry) => entry.id)).toEqual(["guest"]);
+    expect(baseView.definitions.products.map((entry) => entry.id)).toEqual(["water"]);
+    expect(baseView.definitions.incidents).toEqual([]);
+
+    const content = runtime().content;
+    const widenedArchetypes = [...content.guestArchetypes, { ...content.guestArchetypes[0]!, id: "guest-unreachable" }];
+    const widenedView = (
+      engine({ guestArchetypes: widenedArchetypes }).view(create({ guestArchetypes: widenedArchetypes }), "player") as { kindView: WorldGraphView }
+    ).kindView;
+    expect(widenedView.definitions.guestArchetypes.map((entry) => entry.id)).toEqual(["guest"]);
+
+    const game = create();
+    const withIncident = {
+      ...game,
+      kindState: {
+        ...stateOf(game),
+        incidents: [{
+          id: "incident:0", definitionId: "litter", buildingId: null, guestId: null, zoneId: null,
+          position: null, amount: 0, startedAtTick: 0, expiresAtTick: null, resolvedAtTick: null,
+        }],
+      },
+    };
+    const incidentView = (runtimeEngine.view(withIncident, "player") as { kindView: WorldGraphView }).kindView;
+    expect(incidentView.definitions.incidents.map((entry) => entry.id)).toEqual(["litter"]);
+  });
+
+  it("W115.8 orders every positional and definitional collection deterministically", () => {
+    const runtimeEngine = engine();
+    const game = create();
+    const state = stateOf(game);
+    const outOfOrderMap: WorldGraphKindState["map"] = {
+      ...state.map,
+      terrain: [
+        { x: 4, y: 1, terrainId: "sand" },
+        { x: 0, y: 0, terrainId: "sand" },
+        { x: 2, y: 0, terrainId: "sand" },
+      ],
+      paths: [
+        { from: { x: 4, y: 1 }, to: { x: 3, y: 1 }, edgeCost: 1, allowed: true },
+        { from: { x: 0, y: 0 }, to: { x: 1, y: 0 }, edgeCost: 1, allowed: true },
+      ],
+      zones: [
+        { id: "zone-b", nameKey: "world.zone.b", cells: [{ x: 2, y: 0 }, { x: 0, y: 0 }], serviceRadius: 1, maxOccupancy: null },
+        { id: "zone-a", nameKey: "world.zone.a", cells: [{ x: 1, y: 1 }, { x: 0, y: 1 }], serviceRadius: 1, maxOccupancy: null },
+      ],
+      spawnPoints: [{ x: 4, y: 2 }, { x: 0, y: 0 }],
+      exits: [{ x: 4, y: 2 }, { x: 0, y: 0 }],
+    };
+    const withMap = { ...game, kindState: { ...state, map: outOfOrderMap } };
+    const mapView = (runtimeEngine.view(withMap, "player") as { kindView: WorldGraphView }).kindView;
+    expect(mapView.map.terrain).toEqual([
+      { x: 0, y: 0, terrainId: "sand" }, { x: 2, y: 0, terrainId: "sand" }, { x: 4, y: 1, terrainId: "sand" },
+    ]);
+    expect(mapView.map.paths).toEqual([
+      { from: { x: 0, y: 0 }, to: { x: 1, y: 0 }, edgeCost: 1, allowed: true },
+      { from: { x: 4, y: 1 }, to: { x: 3, y: 1 }, edgeCost: 1, allowed: true },
+    ]);
+    expect(mapView.map.zones.map((zone) => zone.id)).toEqual(["zone-a", "zone-b"]);
+    expect(mapView.map.zones.find((zone) => zone.id === "zone-b")!.cells).toEqual([{ x: 0, y: 0 }, { x: 2, y: 0 }]);
+    expect(mapView.map.spawnPoints).toEqual([{ x: 0, y: 0 }, { x: 4, y: 2 }]);
+    expect(mapView.map.exits).toEqual([{ x: 0, y: 0 }, { x: 4, y: 2 }]);
+
+    const content = runtime().content;
+    const reorderedBuildings = content.buildings.map((entry) => entry.id === "kiosk" ? {
+      ...entry,
+      allowedRotations: [180, 0, 90, 270] as Rotation[],
+      operation: entry.operation.kind === "service"
+        ? { ...entry.operation, staffRequirements: [{ roleId: "restocker", count: 1 }, { roleId: "builder", count: 1 }] }
+        : entry.operation,
+    } : entry);
+    const reorderedView = (
+      engine({ buildings: reorderedBuildings }).view(create({ buildings: reorderedBuildings }), "player") as { kindView: WorldGraphView }
+    ).kindView;
+    const kiosk = reorderedView.buildOptions.find((entry) => entry.id === "kiosk")!;
+    expect(kiosk.allowedRotations).toEqual([0, 90, 180, 270]);
+    expect(kiosk.operation.kind === "service" ? kiosk.operation.staffRequirements.map((entry) => entry.roleId) : []).toEqual(["builder", "restocker"]);
+
+    const guest: Guest = {
+      id: "guest:0", archetypeId: "guest", lifecycle: "seeking", tickEntered: 0, stayDurationTicks: 10,
+      x: 0, y: 1, path: [], pathIndex: 0, drawCount: 0, cashCents: 100,
+      intent: { kind: "wait", untilTick: 5, selectedAtTick: 0 },
+      needs: { zeta: 1, alpha: 2 }, conditions: { zeta: 1, alpha: 2 }, opinions: { zeta: 1, alpha: 2 },
+      preferences: {}, satisfaction: 50, patienceCapacityTicks: 5, patienceRemainingTicks: 5,
+      lastServedTick: null, spentTicks: 0,
+    };
+    const withGuest = { ...game, kindState: { ...state, guests: [guest] } };
+    const guestView = (runtimeEngine.view(withGuest, "player") as { kindView: WorldGraphView }).kindView;
+    expect(guestView.guests[0]!.needs.map((entry) => entry.definitionId)).toEqual(["alpha", "zeta"]);
+    expect(guestView.guests[0]!.conditions.map((entry) => entry.definitionId)).toEqual(["alpha", "zeta"]);
+    expect(guestView.guests[0]!.opinions.map((entry) => entry.definitionId)).toEqual(["alpha", "zeta"]);
+
+    const builtGame = runtimeEngine.submitAction(create(), "build", { definitionId: "kiosk", x: 2, y: 1, rotation: 0 }).value!;
+    const builtBuilding = stateOf(builtGame).buildings[0]!;
+    const withQueue = {
+      ...builtGame,
+      kindState: {
+        ...stateOf(builtGame),
+        buildings: [{ ...builtBuilding, queue: { ...builtBuilding.queue, guestIds: ["guest:z", "guest:a"] } }],
+      },
+    };
+    const queueView = (runtimeEngine.view(withQueue, "player") as { kindView: WorldGraphView }).kindView;
+    expect(queueView.buildings[0]!.queue.guestIds).toEqual(["guest:z", "guest:a"]);
+  });
+
+  it("W115.9 projects purely and without aliasing", () => {
+    const runtimeEngine = engine();
+    const game = create();
+    const view1 = (runtimeEngine.view(game, "player") as { kindView: WorldGraphView }).kindView;
+    const view2 = (runtimeEngine.view(game, "player") as { kindView: WorldGraphView }).kindView;
+    expect(view1).toEqual(view2);
+    expect(view1.buildOptions).not.toBe(view2.buildOptions);
+
+    (view1.buildOptions as unknown as unknown[]).push(view1.buildOptions[0]);
+    const view3 = (runtimeEngine.view(game, "player") as { kindView: WorldGraphView }).kindView;
+    expect(view3).toEqual(view2);
   });
 });
 

@@ -76,12 +76,696 @@
         "finances": {
           "cashCents": 2000,
           "revenueTodayCents": 0,
-          "expensesTodayCents": 0
+          "expensesTodayCents": 0,
+          "revenueTotalCents": 0,
+          "expensesTotalCents": 0
+        },
+        "scenario": {
+          "id": "opening",
+          "nameKey": "world-graph-mvp.scenario-opening.name",
+          "descriptionKey": "world-graph-mvp.scenario-opening.description",
+          "mapId": "beach",
+          "ticksPerDay": 100,
+          "maxTicksPerAction": 10,
+          "timeLimitTicks": null
+        },
+        "definitions": {
+          "terrain": [
+            {
+              "id": "sand",
+              "nameKey": "world-graph-mvp.terrain-sand.name",
+              "descriptionKey": "world-graph-mvp.terrain-sand.description",
+              "walkable": true,
+              "buildable": true,
+              "moveCost": 1
+            }
+          ],
+          "scenery": [],
+          "products": [
+            {
+              "id": "water",
+              "nameKey": "world-graph-mvp.product-water.name",
+              "descriptionKey": "world-graph-mvp.product-water.description",
+              "unitCostCents": 50,
+              "price": {
+                "minimumCents": 100,
+                "maximumCents": 300,
+                "defaultCents": 100
+              }
+            }
+          ],
+          "guestArchetypes": [
+            {
+              "id": "guest",
+              "nameKey": "world-graph-mvp.guest-guest.name",
+              "descriptionKey": "world-graph-mvp.guest-guest.description"
+            }
+          ],
+          "meters": [
+            {
+              "id": "price",
+              "nameKey": "world-graph-mvp.opinion-price.name",
+              "descriptionKey": "world-graph-mvp.opinion-price.description",
+              "kind": "opinion",
+              "minimum": -100,
+              "maximum": 100,
+              "neutral": 0
+            },
+            {
+              "id": "thirst",
+              "nameKey": "world-graph-mvp.need-thirst.name",
+              "descriptionKey": "world-graph-mvp.need-thirst.description",
+              "kind": "need",
+              "minimum": 0,
+              "maximum": 100,
+              "criticalBelow": 20,
+              "satisfiedAtOrAbove": 70
+            }
+          ],
+          "objectives": [
+            {
+              "id": "clean-litter",
+              "nameKey": "world-graph-mvp.objective-clean-litter.name",
+              "descriptionKey": "world-graph-mvp.objective-clean-litter.description"
+            }
+          ],
+          "incidents": []
         },
         "map": {
+          "id": "beach",
+          "nameKey": "world-graph-mvp.map-beach.name",
+          "descriptionKey": "world-graph-mvp.map-beach.description",
           "width": 5,
           "height": 3,
           "revision": 0,
+          "terrain": [
+            {
+              "x": 0,
+              "y": 0,
+              "terrainId": "sand"
+            },
+            {
+              "x": 1,
+              "y": 0,
+              "terrainId": "sand"
+            },
+            {
+              "x": 2,
+              "y": 0,
+              "terrainId": "sand"
+            },
+            {
+              "x": 3,
+              "y": 0,
+              "terrainId": "sand"
+            },
+            {
+              "x": 4,
+              "y": 0,
+              "terrainId": "sand"
+            },
+            {
+              "x": 0,
+              "y": 1,
+              "terrainId": "sand"
+            },
+            {
+              "x": 1,
+              "y": 1,
+              "terrainId": "sand"
+            },
+            {
+              "x": 2,
+              "y": 1,
+              "terrainId": "sand"
+            },
+            {
+              "x": 3,
+              "y": 1,
+              "terrainId": "sand"
+            },
+            {
+              "x": 4,
+              "y": 1,
+              "terrainId": "sand"
+            },
+            {
+              "x": 0,
+              "y": 2,
+              "terrainId": "sand"
+            },
+            {
+              "x": 1,
+              "y": 2,
+              "terrainId": "sand"
+            },
+            {
+              "x": 2,
+              "y": 2,
+              "terrainId": "sand"
+            },
+            {
+              "x": 3,
+              "y": 2,
+              "terrainId": "sand"
+            },
+            {
+              "x": 4,
+              "y": 2,
+              "terrainId": "sand"
+            }
+          ],
+          "paths": [
+            {
+              "from": {
+                "x": 0,
+                "y": 0
+              },
+              "to": {
+                "x": 1,
+                "y": 0
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 0,
+                "y": 0
+              },
+              "to": {
+                "x": 0,
+                "y": 1
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 1,
+                "y": 0
+              },
+              "to": {
+                "x": 0,
+                "y": 0
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 1,
+                "y": 0
+              },
+              "to": {
+                "x": 2,
+                "y": 0
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 1,
+                "y": 0
+              },
+              "to": {
+                "x": 1,
+                "y": 1
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 2,
+                "y": 0
+              },
+              "to": {
+                "x": 1,
+                "y": 0
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 2,
+                "y": 0
+              },
+              "to": {
+                "x": 3,
+                "y": 0
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 2,
+                "y": 0
+              },
+              "to": {
+                "x": 2,
+                "y": 1
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 3,
+                "y": 0
+              },
+              "to": {
+                "x": 2,
+                "y": 0
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 3,
+                "y": 0
+              },
+              "to": {
+                "x": 4,
+                "y": 0
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 3,
+                "y": 0
+              },
+              "to": {
+                "x": 3,
+                "y": 1
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 4,
+                "y": 0
+              },
+              "to": {
+                "x": 3,
+                "y": 0
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 4,
+                "y": 0
+              },
+              "to": {
+                "x": 4,
+                "y": 1
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 0,
+                "y": 1
+              },
+              "to": {
+                "x": 0,
+                "y": 0
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 0,
+                "y": 1
+              },
+              "to": {
+                "x": 1,
+                "y": 1
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 0,
+                "y": 1
+              },
+              "to": {
+                "x": 0,
+                "y": 2
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 1,
+                "y": 1
+              },
+              "to": {
+                "x": 1,
+                "y": 0
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 1,
+                "y": 1
+              },
+              "to": {
+                "x": 0,
+                "y": 1
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 1,
+                "y": 1
+              },
+              "to": {
+                "x": 2,
+                "y": 1
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 1,
+                "y": 1
+              },
+              "to": {
+                "x": 1,
+                "y": 2
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 2,
+                "y": 1
+              },
+              "to": {
+                "x": 2,
+                "y": 0
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 2,
+                "y": 1
+              },
+              "to": {
+                "x": 1,
+                "y": 1
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 2,
+                "y": 1
+              },
+              "to": {
+                "x": 3,
+                "y": 1
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 2,
+                "y": 1
+              },
+              "to": {
+                "x": 2,
+                "y": 2
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 3,
+                "y": 1
+              },
+              "to": {
+                "x": 3,
+                "y": 0
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 3,
+                "y": 1
+              },
+              "to": {
+                "x": 2,
+                "y": 1
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 3,
+                "y": 1
+              },
+              "to": {
+                "x": 4,
+                "y": 1
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 3,
+                "y": 1
+              },
+              "to": {
+                "x": 3,
+                "y": 2
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 4,
+                "y": 1
+              },
+              "to": {
+                "x": 4,
+                "y": 0
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 4,
+                "y": 1
+              },
+              "to": {
+                "x": 3,
+                "y": 1
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 4,
+                "y": 1
+              },
+              "to": {
+                "x": 4,
+                "y": 2
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 0,
+                "y": 2
+              },
+              "to": {
+                "x": 0,
+                "y": 1
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 0,
+                "y": 2
+              },
+              "to": {
+                "x": 1,
+                "y": 2
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 1,
+                "y": 2
+              },
+              "to": {
+                "x": 1,
+                "y": 1
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 1,
+                "y": 2
+              },
+              "to": {
+                "x": 0,
+                "y": 2
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 1,
+                "y": 2
+              },
+              "to": {
+                "x": 2,
+                "y": 2
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 2,
+                "y": 2
+              },
+              "to": {
+                "x": 2,
+                "y": 1
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 2,
+                "y": 2
+              },
+              "to": {
+                "x": 1,
+                "y": 2
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 2,
+                "y": 2
+              },
+              "to": {
+                "x": 3,
+                "y": 2
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 3,
+                "y": 2
+              },
+              "to": {
+                "x": 3,
+                "y": 1
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 3,
+                "y": 2
+              },
+              "to": {
+                "x": 2,
+                "y": 2
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 3,
+                "y": 2
+              },
+              "to": {
+                "x": 4,
+                "y": 2
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 4,
+                "y": 2
+              },
+              "to": {
+                "x": 4,
+                "y": 1
+              },
+              "edgeCost": 0,
+              "allowed": true
+            },
+            {
+              "from": {
+                "x": 4,
+                "y": 2
+              },
+              "to": {
+                "x": 3,
+                "y": 2
+              },
+              "edgeCost": 0,
+              "allowed": true
+            }
+          ],
+          "zones": [],
           "spawnPoints": [
             {
               "x": 0,
@@ -94,25 +778,127 @@
               "y": 1
             }
           ],
-          "zones": [],
+          "scenery": [],
           "buildingCount": 1,
           "guestCount": 0,
           "staffCount": 0
         },
         "buildOptions": [
           {
-            "definitionId": "hut",
+            "id": "hut",
+            "nameKey": "world-graph-mvp.building-hut.name",
+            "descriptionKey": "world-graph-mvp.building-hut.description",
+            "footprint": {
+              "width": 1,
+              "height": 1
+            },
+            "allowedRotations": [
+              0
+            ],
+            "constructionCostCents": 200,
+            "operatingCostCentsPerDay": 0,
+            "operation": {
+              "kind": "decorative"
+            },
             "canBuild": true,
             "blockedBy": []
           },
           {
-            "definitionId": "kiosk",
+            "id": "kiosk",
+            "nameKey": "world-graph-mvp.building-kiosk.name",
+            "descriptionKey": "world-graph-mvp.building-kiosk.description",
+            "footprint": {
+              "width": 1,
+              "height": 1
+            },
+            "allowedRotations": [
+              0
+            ],
+            "constructionCostCents": 500,
+            "operatingCostCentsPerDay": 10,
+            "operation": {
+              "kind": "service",
+              "products": [
+                {
+                  "productId": "water",
+                  "serviceTicks": 2,
+                  "initialUnits": null,
+                  "capacity": null
+                }
+              ],
+              "queueMaxLength": 5,
+              "baseServiceTicks": 2,
+              "staffRequirements": []
+            },
             "canBuild": true,
             "blockedBy": []
           },
           {
-            "definitionId": "stall",
+            "id": "stall",
+            "nameKey": "world-graph-mvp.building-stall.name",
+            "descriptionKey": "world-graph-mvp.building-stall.description",
+            "footprint": {
+              "width": 1,
+              "height": 1
+            },
+            "allowedRotations": [
+              0
+            ],
+            "constructionCostCents": 200,
+            "operatingCostCentsPerDay": 0,
+            "operation": {
+              "kind": "service",
+              "products": [
+                {
+                  "productId": "water",
+                  "serviceTicks": 1,
+                  "initialUnits": 1,
+                  "capacity": 3
+                }
+              ],
+              "queueMaxLength": 5,
+              "baseServiceTicks": 1,
+              "staffRequirements": []
+            },
             "canBuild": true,
+            "blockedBy": []
+          }
+        ],
+        "staffOptions": [
+          {
+            "id": "builder",
+            "nameKey": "world-graph-mvp.staff-builder.name",
+            "descriptionKey": "world-graph-mvp.staff-builder.description",
+            "hireCostCents": 200,
+            "wageCentsPerDay": 20,
+            "supportedTaskKinds": [
+              "build"
+            ],
+            "canHire": true,
+            "blockedBy": []
+          },
+          {
+            "id": "cleaner",
+            "nameKey": "world-graph-mvp.staff-cleaner.name",
+            "descriptionKey": "world-graph-mvp.staff-cleaner.description",
+            "hireCostCents": 200,
+            "wageCentsPerDay": 20,
+            "supportedTaskKinds": [
+              "clean"
+            ],
+            "canHire": true,
+            "blockedBy": []
+          },
+          {
+            "id": "restocker",
+            "nameKey": "world-graph-mvp.staff-restocker.name",
+            "descriptionKey": "world-graph-mvp.staff-restocker.description",
+            "hireCostCents": 200,
+            "wageCentsPerDay": 20,
+            "supportedTaskKinds": [
+              "restock"
+            ],
+            "canHire": true,
             "blockedBy": []
           }
         ],
@@ -120,13 +906,37 @@
           {
             "id": "building:0",
             "definitionId": "kiosk",
+            "x": 1,
+            "y": 1,
+            "width": 1,
+            "height": 1,
+            "rotation": 0,
             "status": "open",
-            "queueLength": 0,
+            "queue": {
+              "id": "queue:1",
+              "guestIds": [],
+              "serviceStartedAtTick": null
+            },
+            "prices": [
+              {
+                "productId": "water",
+                "priceCents": 100
+              }
+            ],
+            "inventory": [
+              {
+                "productId": "water",
+                "units": null
+              }
+            ],
             "cleanliness": 80,
             "wear": 90
           }
         ],
+        "constructionSites": [],
+        "guests": [],
         "staff": [],
+        "incidents": [],
         "objectives": [
           {
             "id": "clean-litter",
