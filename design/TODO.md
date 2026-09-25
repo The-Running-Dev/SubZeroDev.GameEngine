@@ -300,6 +300,6 @@
 
 ### Depth: The World-Graph Client Read Model
 
-### [ ] W115 — A Resort a Client Can Actually Draw {#w115}
+### [x] W115 — A Resort a Client Can Actually Draw {#w115}
 
 ## Landed
