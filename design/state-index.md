@@ -84,7 +84,6 @@ rendered here.
 | 234 | #234 | Spike: generic scene-presentation layer (Municipality reference) — not engine work, will move to SubZeroDev.Presentation | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | 364 | #364 | Mirror the simulation-kind lifecycles once GameOfLife S7 lands — and do not write them here first | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | 413 | #413 | 48 slices predate the issue-per-slice convention: W0-W40, W61, W63-65, W90-92 have no GitHub issue | — | `49aa72904ff5ba1151b7c41e60d770a3547649d1` |
-| 514 | #514 | W115 — A Resort a Client Can Actually Draw | W115.1, W115.2, W115.3, W115.4, W115.5, W115.6, W115.7, W115.8, W115.9, W115.10, W115.11 | `1c64808ba4c0b19d80047dc37a76f85d93fbf427` |
 | milestone/13 | #266 | Forking a session at an earlier point should be a store operation | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | milestone/13 | #287 | `CampaignSummary` carries only a `titleKey`, and no session-free way to resolve it, so campaign selection cannot render | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | milestone/6 | #292 | Content packs compose at campaign granularity, but dynamic content injection needs node granularity | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
