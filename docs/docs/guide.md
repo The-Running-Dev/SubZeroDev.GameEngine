@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 1c47a524c9a36dceebf1206525f73298598f8409aebff073f066076bdf8da0f6 -->
+<!-- design-digest: 376c59d56dbee4da8f8faf08674a60b302d19e7b353039b4acf60671c22d92ef -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -903,14 +903,6 @@ roster, the price ranges — lives entirely in the projection. This kind is also
 `previewAction` exists at all: a spatial placement has to be checkable before it commits, and
 nothing else in the seam could do that without risking a second, drifting copy of the placement
 rules.
-
-**`WorldGraphView` as specified below is not yet what the code returns.** The contract describes
-the complete Revision 5 view; the shipped projector (`src/engine/src/kinds/world-graph/state.ts`)
-still returns the earlier, smaller shape — tick, finances, map counts, build options, buildings,
-staff, objectives, alerts, and a queued-guest count, with no `definitions`, `scenario`, staff
-options, construction sites, guests, incidents, positions, or alert `entityId`. A client built
-against the full shape below has to wait for that unit to land; until it does, treat this section
-as the target contract, not the current runtime output.
 
 Treat `WorldGraphView` as the client's complete spatial read model. It carries the scenario clock
 and map identity; terrain, paths, zones, and placed scenery; the safe labels and ranges needed to

@@ -1,6 +1,6 @@
 import type { LocKey } from "../../core/localization/types.js";
 import type { ReasonCode } from "../../core/kernel/reasons.js";
-import type { ContentReference } from "./content.js";
+import type { ContentReference, IncidentKind } from "./content.js";
 
 export type Position = { readonly x: number; readonly y: number };
 export type Rotation = 0 | 90 | 180 | 270;
@@ -242,27 +242,183 @@ export interface WorldCounters {
   readonly litterCleaned: number;
 }
 
+export interface WorldGraphViewText {
+  readonly id: string;
+  readonly nameKey: LocKey;
+  readonly descriptionKey: LocKey;
+}
+
+export type WorldGraphViewMeterDefinition =
+  | (WorldGraphViewText & {
+      readonly kind: "need";
+      readonly minimum: number;
+      readonly maximum: number;
+      readonly criticalBelow: number;
+      readonly satisfiedAtOrAbove: number;
+    })
+  | (WorldGraphViewText & {
+      readonly kind: "condition";
+      readonly minimum: number;
+      readonly maximum: number;
+    })
+  | (WorldGraphViewText & {
+      readonly kind: "opinion";
+      readonly minimum: number;
+      readonly maximum: number;
+      readonly neutral: number;
+    });
+
+export interface WorldGraphViewValue {
+  readonly definitionId: string;
+  readonly value: number;
+}
+
+export interface WorldGraphBuildOption extends WorldGraphViewText {
+  readonly footprint: { readonly width: number; readonly height: number };
+  readonly allowedRotations: readonly Rotation[];
+  readonly constructionCostCents: number;
+  readonly operatingCostCentsPerDay: number;
+  readonly operation:
+    | {
+        readonly kind: "service";
+        readonly products: readonly {
+          readonly productId: string;
+          readonly serviceTicks: number | null;
+          readonly initialUnits: number | null;
+          readonly capacity: number | null;
+        }[];
+        readonly queueMaxLength: number | null;
+        readonly baseServiceTicks: number;
+        readonly staffRequirements: readonly { readonly roleId: string; readonly count: number }[];
+      }
+    | { readonly kind: "waste"; readonly capacity: number | null }
+    | { readonly kind: "decorative" }
+    | { readonly kind: "support"; readonly generatedTaskKinds: readonly StaffTaskType[] };
+  readonly canBuild: boolean;
+  /** Every §11 code that rejects this definition regardless of placement. */
+  readonly blockedBy: readonly ReasonCode[];
+}
+
+export interface WorldGraphStaffOption extends WorldGraphViewText {
+  readonly hireCostCents: number;
+  readonly wageCentsPerDay: number;
+  readonly supportedTaskKinds: readonly StaffTaskType[];
+  readonly canHire: boolean;
+  /** Every §11 code that rejects this role regardless of assignment. */
+  readonly blockedBy: readonly ReasonCode[];
+}
+
 export interface WorldGraphView {
   readonly tick: number;
-  readonly finances: Pick<Finances, "cashCents" | "revenueTodayCents" | "expensesTodayCents">;
-  readonly map: {
-    readonly width: number; readonly height: number; readonly revision: number;
-    readonly spawnPoints: readonly Position[]; readonly exits: readonly Position[];
-    readonly zones: readonly string[]; readonly buildingCount: number;
-    readonly guestCount: number; readonly staffCount: number;
+  readonly finances: Pick<Finances, "cashCents" | "revenueTodayCents" | "expensesTodayCents" | "revenueTotalCents" | "expensesTotalCents">;
+
+  readonly scenario: WorldGraphViewText & {
+    readonly mapId: string;
+    readonly ticksPerDay: number;
+    readonly maxTicksPerAction: number;
+    readonly timeLimitTicks: number | null;
   };
-  readonly buildOptions: readonly {
-    readonly definitionId: string; readonly canBuild: boolean; readonly blockedBy: readonly ReasonCode[];
-  }[];
+
+  readonly definitions: {
+    readonly terrain: readonly (WorldGraphViewText & {
+      readonly walkable: boolean;
+      readonly buildable: boolean;
+      readonly moveCost: number;
+    })[];
+    readonly scenery: readonly (WorldGraphViewText & {
+      readonly footprint: { readonly width: number; readonly height: number };
+      readonly allowedRotations: readonly Rotation[];
+    })[];
+    readonly products: readonly (WorldGraphViewText & {
+      readonly unitCostCents: number;
+      readonly price: {
+        readonly minimumCents: number;
+        readonly maximumCents: number;
+        readonly defaultCents: number;
+      };
+    })[];
+    readonly guestArchetypes: readonly WorldGraphViewText[];
+    readonly meters: readonly WorldGraphViewMeterDefinition[];
+    readonly objectives: readonly WorldGraphViewText[];
+    readonly incidents: readonly (WorldGraphViewText & {
+      readonly kind: IncidentKind;
+      readonly severity: IncidentSeverity;
+    })[];
+  };
+
+  readonly map: {
+    readonly id: string;
+    readonly nameKey: LocKey;
+    readonly descriptionKey: LocKey;
+    readonly width: number;
+    readonly height: number;
+    readonly revision: number;
+    readonly terrain: readonly TerrainCell[];
+    readonly paths: readonly PathCell[];
+    readonly zones: readonly Zone[];
+    readonly spawnPoints: readonly Position[];
+    readonly exits: readonly Position[];
+    readonly scenery: readonly Scenery[];
+    readonly buildingCount: number;
+    readonly guestCount: number;
+    readonly staffCount: number;
+  };
+
+  readonly buildOptions: readonly WorldGraphBuildOption[];
+  readonly staffOptions: readonly WorldGraphStaffOption[];
+
   readonly buildings: readonly {
-    readonly id: string; readonly definitionId: string; readonly status: BuildingStatus;
-    readonly queueLength: number; readonly cleanliness: number; readonly wear: number;
+    readonly id: string;
+    readonly definitionId: string;
+    readonly x: number;
+    readonly y: number;
+    readonly width: number;
+    readonly height: number;
+    readonly rotation: Rotation;
+    readonly status: BuildingStatus;
+    readonly queue: {
+      readonly id: string;
+      readonly guestIds: readonly string[];
+      readonly serviceStartedAtTick: number | null;
+    };
+    readonly prices: readonly { readonly productId: string; readonly priceCents: number }[];
+    readonly inventory: readonly { readonly productId: string; readonly units: number | null }[];
+    readonly cleanliness: number;
+    readonly wear: number;
   }[];
+
+  readonly constructionSites: readonly ConstructionSite[];
+
+  readonly guests: readonly {
+    readonly id: string;
+    readonly archetypeId: string;
+    readonly lifecycle: GuestLifecycle;
+    readonly x: number;
+    readonly y: number;
+    readonly cashCents: number;
+    readonly intent: GuestIntent;
+    readonly needs: readonly WorldGraphViewValue[];
+    readonly conditions: readonly WorldGraphViewValue[];
+    readonly opinions: readonly WorldGraphViewValue[];
+    readonly satisfaction: number;
+    readonly patienceCapacityTicks: number;
+    readonly patienceRemainingTicks: number;
+  }[];
+
   readonly staff: readonly {
-    readonly id: string; readonly roleId: string; readonly status: StaffStatus;
-    readonly zoneId: string | null; readonly buildingId: string | null;
+    readonly id: string;
+    readonly roleId: string;
+    readonly status: StaffStatus;
+    readonly x: number;
+    readonly y: number;
+    readonly assignedZoneId: string | null;
+    readonly assignedBuildingId: string | null;
+    readonly task: StaffTask | null;
+    readonly tasksCompleted: number;
   }[];
+
+  readonly incidents: readonly Incident[];
   readonly objectives: readonly Pick<ObjectiveProgress, "id" | "state" | "value" | "target">[];
-  readonly alerts: readonly Pick<Alert, "id" | "type" | "severity" | "titleKey" | "messageKey" | "issuedAtTick">[];
+  readonly alerts: readonly Pick<Alert, "id" | "type" | "severity" | "titleKey" | "messageKey" | "entityId" | "issuedAtTick">[];
   readonly queuedGuests: number;
 }
