@@ -1948,3 +1948,73 @@ Only campaigns that are invalid under the new rule fail to load.
 
 Reversibility: cheap until the unit ships, since it is prose in one canonical file. After that,
 removing either check loosens validation, which never breaks a valid campaign.
+
+### 2026-09-26 — `/align`: world-graph ordering uses host-locale `localeCompare`; the code moves to §9
+
+Context: world-graph §9 names the only canonical orders systems may use. Runtime entity ids sort
+by prefix and then by numeric ordinal, and definition ids by ordinal code unit, never the host
+locale. `view.ts` (W115) sorts every id with bare `localeCompare()`, so `guest:10` precedes
+`guest:2`. The same call sorts persisted `unlockedContent` and `activePolicyIds` in
+`tick/effects.ts`, batch change paths in `tick/changes.ts`, and content in `source.ts`, all since
+W46. On the contracted `[a-z0-9_-]` alphabet the two orders really do differ:
+`"a_x".localeCompare("a1")` is `-1`, while code-unit order gives `1`. Tests never created more than
+nine entities of one prefix, so nothing caught it.
+
+Chosen (user-selected): **the code moves to the contract, as its own `/fix` unit**,
+[#522](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/522). It swaps in
+`compareRuntimeEntityId`/`compareDefinitionId` from `tick/order.ts` and adds a test with ten or
+more entities of one prefix. Any fixture reordering is reviewed there, not in a reconciliation
+pass.
+
+Rejected: **fixing it inside this `/align` pass**, because a determinism change that may reorder
+persisted state and committed fixtures is a unit, not a reconciliation edit. **Amending §9 to
+accept locale order**, because that makes ordering depend on the host, which is the defect §9
+exists to prevent.
+
+Status: open, [#522](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/522).
+
+Reversibility: cheap now. After #522 lands, reverting would reintroduce host-dependent order.
+
+### 2026-09-26 — `/align`: a simulation game starts with exactly one `LocationState`, and nothing adds more
+
+Context: #509 closed #425's locations half by seeding `world.locations` with one entry, the active
+scenario's `startingLocationId`, marked `discovered` and `accessible`. Its code comment defers
+every other authored location to "a separate discovery or unlock lifecycle". No such lifecycle
+exists, and none is sliced. Travel (`resolvers.ts`) reads `campaign.locations` and never checks
+`discovered`/`accessible`. The contract's `WorldState` creation line still said
+`locations`/`jobMarket` came "from the scenario's starting location and job content", and that
+was wrong for `jobMarket` too, which starts empty and is written only by `search_for_work`
+(§3931).
+
+Chosen (user-selected): **the document moves to the code.** The creation line in `20-contract.md`
+now states the one-entry rule and the empty `jobMarket` (the `jobMarket` half is a descriptive
+correction).
+
+Rejected: **seeding every authored `LocationDefinition` at creation.** It would make
+`view.world.locations` useful to a client, but it re-promotes every simulation fixture, which is a
+reviewed one-way door (`08-session-capture.md` §7), and it still leaves `discovered`/`accessible`
+inert.
+
+Status: open. **`LocationState.discovered`/`accessible` are write-once and unread.** A client
+reading `view.world.locations` sees only the starting location while travel can reach any
+connected one. A discovery lifecycle, or retiring the two flags, is a `/contract` question, not
+yet asked.
+
+Reversibility: cheap. It is prose. Seeding more locations later is additive to state, but it
+changes fixtures.
+
+### 2026-09-26 — `/align`: `view.ts` copies `hireStaff`'s rejection checks
+
+Context: W115's §10 completeness invariant requires a role the reducer would reject for a
+placement-independent reason to show `canHire: false` with the same §11 code. `buildOptions`
+satisfies it by construction, because it calls the reducer's own `buildBlockers`. `staffOptions`
+instead uses `staffBlockers`, a copy of `hireStaff`'s checks, kept separate so W115 stayed inside
+its `Touches`. The two agree today, and nothing keeps them in step.
+
+Chosen (user-selected): **record it, and change nothing in this pass.** The follow-up is to
+extract a shared `hireBlockers` in `actions/staff.ts`, the way `buildBlockers` already is, so the
+invariant holds by construction.
+
+Status: open, unrouted.
+
+Reversibility: trivial.
