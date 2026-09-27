@@ -71,20 +71,17 @@ rendered here.
 <!-- outstanding:start -->
 | Rank | Issue | Title | Criteria | Mirrored at |
 |---|---|---|---|---|
-| 19 | #267 | Provisional simulation-kind numbers need a balancing pass | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | 22 | #270 | Extract a shared SystemPipeline substrate for tick-driven kinds (simulation + world-graph) | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | 23 | #275 | `wisdom` attribute has no consumer in the simulation kind | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
-| 24 | #276 | `SaveRecordStore.delete` has no caller anywhere | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
-| 25 | #277 | There is no per-player save query, and two hosts have now invented one | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | 26 | #278 | `VisibleStat` omits the declared range, so clients read `Campaign.content` to get it | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | 27 | #279 | `listCampaigns()` is synchronous, so no remote store can implement it | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
-| 28 | #280 | Reproducing a stored session's blob requires pinning `IdSource.newGameId` | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | 29 | #281 | `SessionStore` has no concept of a caller, so authorization lives entirely outside it | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | 30 | #282 | `Kind.outcome` has no shape a host can read generically | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | 234 | #234 | Spike: generic scene-presentation layer (Municipality reference) — not engine work, will move to SubZeroDev.Presentation | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | 364 | #364 | Mirror the simulation-kind lifecycles once GameOfLife S7 lands — and do not write them here first | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | 413 | #413 | 48 slices predate the issue-per-slice convention: W0-W40, W61, W63-65, W90-92 have no GitHub issue | — | `49aa72904ff5ba1151b7c41e60d770a3547649d1` |
-| milestone/13 | #266 | Forking a session at an earlier point should be a store operation | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
+| 522 | #522 | World-graph sorts with host-locale localeCompare instead of the §9 canonical comparators | — | `bc0bf617023a3661a6576fc2617f93758e4d9d16` |
+| 524 | #524 | A simulation campaign cannot set its remaining weekly constants | — | `bc0bf617023a3661a6576fc2617f93758e4d9d16` |
 | milestone/13 | #287 | `CampaignSummary` carries only a `titleKey`, and no session-free way to resolve it, so campaign selection cannot render | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | milestone/6 | #292 | Content packs compose at campaign granularity, but dynamic content injection needs node granularity | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | milestone/6 | #293 | A session belongs to exactly one campaign, and nothing decides what happens if content spans two | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
