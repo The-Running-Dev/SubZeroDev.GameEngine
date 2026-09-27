@@ -2018,3 +2018,27 @@ invariant holds by construction.
 Status: open, unrouted.
 
 Reversibility: trivial.
+
+### 2026-09-27 — `/make-human-docs` cannot hold its inputs in one context
+
+Context: the command reads `00-brief.md`, `10-design.md` and `20-contract.md` in full and then
+rewrites `docs/docs/guide.md` in one pass. Together those files are about 770 KB, roughly 190K
+tokens. A Sonnet run on PR #523 first declined to rewrite, because the digest already matched.
+Asked again, it failed on repeated autocompaction and wrote nothing. The digest matching proves
+nothing about the content: `87e04df` hand-corrected one stale guide sentence and then restamped.
+Every design change since the last full generation reaches the guide this way, as a hand patch
+the stamp certifies.
+
+Chosen (user-selected): **keep the current guide, and record the defect.** The guide passes the
+gate, and its one known stale sentence is corrected.
+
+Rejected: **regenerating section by section across 6–8 agents**, at roughly 1–2M tokens, with
+uneven voice and facts that span sections at risk. **Regenerating in the session that edited
+`design/`** could thrash the same way, and crosses a fresh-session boundary.
+
+Status: open, unrouted. The command needs a shape that fits: per-section generation against
+named slices of `design/`, or a guide that is itself assembled from marked blocks, the way
+`build/ConvertTo-HumanDocumentation.ps1` builds the engine pages. Until then, the guide is kept
+current by targeted edits plus `-StampGuide`, and the stamp certifies only that someone looked.
+
+Reversibility: trivial. Nothing changed.
