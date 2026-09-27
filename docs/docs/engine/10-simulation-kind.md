@@ -3167,8 +3167,10 @@ lifecycle.
   path — `end_week` (§3) mutates it every week, but the field itself is never replaced; it
   persists for the life of `SimulationKindState`.
 - **`WorldState`** (§2.2), as a whole. **Creation.** Constructed once by `initialState`:
-  `npcs` from content definitions (§7.7), `locations`/`jobMarket` from the scenario's starting
-  location and job content (§7.4, §7.8), `chainStates` seeded per the Chain Scope rules already
+  `npcs` from content definitions (§7.7), `locations` as exactly one entry — the scenario's
+  `startingLocationId`, `discovered` and `accessible` both `true` (§7.9, #425); no other
+  authored location is added, and nothing adds one later — `jobMarket` empty, since only
+  `search_for_work` writes it (§5.2), `chainStates` seeded per the Chain Scope rules already
   stated above — `"game"`-scoped empty, `"profile"`-scoped from `PlayerProfile.kindData`
   (W102) — `agents` from `ScenarioDefinition.rivals` (§7.8, W101), empty otherwise.
   **Retirement.** No removal path for the struct itself; it persists for the life of

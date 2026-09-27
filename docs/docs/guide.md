@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 376c59d56dbee4da8f8faf08674a60b302d19e7b353039b4acf60671c22d92ef -->
+<!-- design-digest: a0339cde9a7584bd6d1560b0892e04bde3a1293188c498afcdfefc3d34921a23 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -773,7 +773,9 @@ Important constraints:
   order and keyed by the definition's id, with `memories` copied from `startingMemories`,
   `currentRole` from `defaultRole`, and a copy of the authored availability rules. The NPC's
   `initialRelationship` is not stored on it; that seeds an actor's relationship instead.
-  `world.locations` is still not seeded.
+  `world.locations` starts with exactly one entry, the scenario's starting location, both
+  `discovered` and `accessible`; nothing adds another. `world.jobMarket` starts empty, since only
+  `search_for_work` posts openings.
 - `exists`/`count` conditions can test a closed set of state collections (owned items,
   relationships, pending job applications, course enrollments, earned credentials, projects,
   businesses, world NPCs) — each resolves only its own stored fields, never a joined content
