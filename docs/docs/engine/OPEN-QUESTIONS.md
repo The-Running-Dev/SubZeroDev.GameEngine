@@ -81,8 +81,16 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   [Issue #273](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/273) tracked
   deciding it and is closed by this entry.
 - **Provisional simulation numbers** — drift rates, scenario economics, `demandBand`
-  thresholds, housing-quality formula, travel costs. Need a balancing pass once the sim
-  harness runs. Tracked as [issue #267](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/267).
+  thresholds, housing-quality formula. **Balancing them is the game's work, not the
+  engine's** (`20-contract.md`'s *Reused, not re-derived*; [12 §15](12-world-graph-kind.md#15-validation)).
+  What the engine owes is the levers: need drift, the late fee, the eviction ladder,
+  performance drift and every action's time cost and restore amount are still `const`s no
+  campaign can reach ([TODO.md](TODO.md) P3). Tracked as
+  [issue #524](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/524), which
+  supersedes [issue #267](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/267).
+  Two of the four have no running input at all: the housing-quality formula is contracted
+  and never computed, and `sectorDemand` never moves (`design/90-decisions.md`, the 2026-09-27
+  `/align` entry on #267).
 - **`end_week`'s `plan_empty` gate is declared but not wired — W50.4.** §10 names
   `plan_empty` for "`end_week` with nothing planned, where the campaign forbids it," and
   `availableActions` (`src/engine/src/kinds/simulation/available.ts`) always returns

@@ -91,8 +91,16 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   [Issue #273](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/273) tracked
   deciding it and is closed by this entry.
 - **Provisional simulation numbers** — drift rates, scenario economics, `demandBand`
-  thresholds, housing-quality formula, travel costs. Need a balancing pass once the sim
-  harness runs. Tracked as [issue #267](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/267).
+  thresholds, housing-quality formula. **Balancing them is the game's work, not the
+  engine's** (`20-contract.md`'s *Reused, not re-derived*; [12 §15](12-world-graph-kind.md#15-validation)).
+  What the engine owes is the levers: need drift, the late fee, the eviction ladder,
+  performance drift and every action's time cost and restore amount are still `const`s no
+  campaign can reach ([TODO.md](TODO.md) P3). Tracked as
+  [issue #524](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/524), which
+  supersedes [issue #267](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/267).
+  Two of the four have no running input at all: the housing-quality formula is contracted
+  and never computed, and `sectorDemand` never moves (`design/90-decisions.md`, the 2026-09-27
+  `/align` entry on #267).
 - **`end_week`'s `plan_empty` gate is declared but not wired — W50.4.** §10 names
   `plan_empty` for "`end_week` with nothing planned, where the campaign forbids it," and
   `availableActions` (`src/engine/src/kinds/simulation/available.ts`) always returns
@@ -2042,3 +2050,53 @@ named slices of `design/`, or a guide that is itself assembled from marked block
 current by targeted edits plus `-StampGuide`, and the stamp certifies only that someone looked.
 
 Reversibility: trivial. Nothing changed.
+
+### 2026-09-27 — `/align` on #267: the engine owes the levers, not the balance
+
+Context: #267 asked for the simulation kind's provisional numbers to be reviewed against Stable
+Life play and either confirmed or tuned. The design already says otherwise in three places.
+`20-contract.md`'s *Reused, not re-derived* keeps provisional balance upstream. [12
+§15](12-world-graph-kind.md#15-validation) gives balance findings to a harness on the game side.
+`30-slices.md`'s P3 says the constants are `const`s in `initial.ts`, `endOfWeek.ts` and
+`resolvers.ts`, so tuning them tunes a fixture rather than a game. W100 moved three weekly rules
+onto `SimulationCampaign` (§7.11). Need drift, the late fee, the eviction ladder, performance
+drift, the weekly time budget and every action's own costs did not move. The pass found two more
+things the register did not say:
+
+- **The housing-quality formula is contracted and never computed.** §6.9 states
+  `clamp(round((comfort + safety) / 2) − round(damage × 0.6), 0, 100)`. `derived.ts` declares
+  `player.housing.quality` a formula-only path, and nothing in the kind computes, projects or
+  reads it.
+- **`sectorDemand` never moves.** `initial.ts` seeds it `{}`, and no system in §3's end-of-week
+  order writes it. No `ScenarioDefinition` field seeds it either. `demandBand` matches the
+  contract exactly, but its `35`/`65` thresholds have no distribution to be tuned against, and
+  "scenario economics" has no input.
+
+Chosen (user-selected, four decisions):
+
+1. **Re-scope #267.** The §2 entry now says the balancing is the game's work and the engine owes
+   the levers. The lever work is [issue
+   #524](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/524), routed to
+   `/contract` because it is a new public interface. #267 closes as superseded.
+2. **Record the housing-quality gap and keep the formula.** The contract states the target. The
+   alternative, removing the formula, was rejected for the same reason the counters fold was not
+   deleted on 2026-08-08: the contract was right, only unbuilt.
+3. **Record the static-demand gap.** Whether an end-of-week system moves `sectorDemand`, or a
+   scenario seeds it, is a `/contract` question that has not been asked yet.
+4. **Drop "travel costs" from the provisional list.** Simulation travel time is
+   `LocationDefinition.travelTimeUnits`, which is campaign content already. World-graph travel
+   cost uses campaign-supplied weights (12 §15). Neither is an engine constant. The contract's
+   own list already had four items, not five.
+
+Rejected: **balance the constants in the engine against Stable Life.** It changes `serialize()`
+output, which regenerates replay fixtures and golden snapshots. It also tunes a test campaign, so
+the work is redone once a game tunes its own values. **Leave #267 and only drop its `ready`
+label.** That stops `/next` picking it up, but the P3 lever work stays untracked.
+
+Status: two gaps open, unrouted. The housing-quality gap: revisit when a system, condition or
+projection first reads `player.housing.quality`. Static demand: revisit when a scenario needs
+labour-market variation. `30-slices.md`'s *Known Open Items Carried In* still lists "travel
+costs" and "needs a balancing pass". That file is outside `/align`'s scope, so it is left for
+`/slices`.
+
+Reversibility: trivial. It is prose and an issue.
