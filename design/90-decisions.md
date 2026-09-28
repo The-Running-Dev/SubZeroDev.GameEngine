@@ -2051,6 +2051,26 @@ current by targeted edits plus `-StampGuide`, and the stamp certifies only that 
 
 Reversibility: trivial. Nothing changed.
 
+### 2026-09-28 — #524 contract: optional campaign physics with per-key legacy defaults
+
+Context: `initial.ts`, `endOfWeek.ts` and `resolvers.ts` retain engine-owned weekly and action
+numbers after W100. The issue requires an exact omission path before implementation; the
+current zero-time actions are not all represented by a spent-time audit change.
+
+Chosen: §7.14 adds flat optional fields on `SimulationCampaign`, with homogeneous partial
+records for need deltas and fixed-cost actions. Defaults are resolved per key at use, never
+materialized by the source builder. The six-stage eviction sequence is the exact default;
+a configured sequence can skip stages and handles a saved state at an omitted stage by moving
+to the next canonical stage. Content-owned job, travel, maintenance, project and event-choice
+costs retain their existing homes. Zero-default actions may be priced; a zero value retains each resolver's existing
+validation and audit shape. Tier 1 validates supplied numbers, map keys and ladder order. The first slice proves
+one `needDriftPerWeek.satiety` difference under an identical seed and action log, and the
+omission oracle remains byte-identical.
+
+Rejected: one `weeklyRules` object for unrelated lifecycle and validation, duplication on
+`ScenarioDefinition`, and replacing an entire default record when an author supplies one key.
+No balancing number or existing fixture changes in this contract step. A future change to the meaning of a content-owned cost needs its own contract.
+
 ### 2026-09-27 — `/align` on #267: the engine owes the levers, not the balance
 
 Context: #267 asked for the simulation kind's provisional numbers to be reviewed against Stable
