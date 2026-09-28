@@ -2454,6 +2454,122 @@ same as any other unreferenced definition.
 
 ---
 
+### 7.14 Remaining Campaign Physics (#524)
+
+The remaining engine-owned simulation numbers are optional **flat fields on
+`SimulationCampaign`**, alongside §7.11's three independent weekly rules. Related dimensions
+are records inside a field; there is no `weeklyRules`/`tuning` wrapper and no duplicate on
+`ScenarioDefinition`. A missing field, or a missing key within a supplied record, resolves to
+the exact current value below. Resolution is per key, never replacement of an entire default
+record. Zero is a supplied value, not absence. Defaults are resolved at the point of use; the
+builder does not materialize them into campaign content, and a saved state gains no field.
+
+```typescript
+type SimulationFixedTimeAction =
+  | "search_for_work" | "apply_for_job" | "negotiate_job_terms" | "work_overtime"
+  | "study" | "move_housing" | "borrow_money" | "repay_debt"
+  | "deposit_savings" | "invest" | "shop" | "repair_item" | "sell_item"
+  | "socialize" | "exercise" | "start_project" | "start_business"
+  | "eat" | "rest" | "enroll_course" | "attend_class" | "withdraw_course"
+  | "pay_bills" | "accept_opportunity" | "decline_opportunity"
+  | "operate_business";
+type SimulationNeedDeltas = Partial<Record<NeedKey, number>>;
+interface SimulationCampaign {
+  weeklyTimeUnits?: number;
+  needDriftPerWeek?: SimulationNeedDeltas;
+  lateFeeBasisPoints?: number;
+  evictionStages?: readonly EvictionStage[];
+  performanceDriftRate?: number;
+  performanceWorkBonus?: number;
+  strangenessPerEvent?: number;
+  actionTimeCosts?: Partial<Record<SimulationFixedTimeAction, number>>;
+  eatNeedDeltas?: SimulationNeedDeltas;
+  restNeedDeltas?: SimulationNeedDeltas;
+  exerciseNeedDeltas?: SimulationNeedDeltas;
+  socializeAffinityGain?: number;
+  socializeTrustGain?: number;
+  applicationResolveWeeks?: number;
+  negotiateRaiseBasisPoints?: number;
+  studyUnitsPerSession?: number;
+  projectProgressPerSession?: number;
+}
+```
+
+`NeedKey` is the existing five-member need key union. All need deltas are **signed** integer
+changes to base needs, clamped to 0–100 at the same point as today. `restNeedDeltas.stress`
+is negative; the public value is a delta rather than the internal positive “relief” magnitude.
+The nine zero-default keys can be priced by a campaign. When positive they check available
+time and emit a matching spent-time change, and `apply` consumes exactly that outcome value.
+When zero, they preserve each resolver's present validation and audit shape: notably `eat`
+and `rest` currently omit `calculatedTimeCost` as well as the spent-time change, whereas the
+other zero actions report `calculatedTimeCost: 0`. This applies to explicit zero as well as
+absence. `work`,
+`travel`, `maintain_item`, `work_on_project`, and `respond_to_event` already get time from
+`JobDefinition.schedule.weeklyTimeCost`, `LocationDefinition.travelTimeUnits`, the governing
+maintenance rule, `ProjectDefinition.weeklyTimeCost`, and `EventChoice.timeCost` respectively;
+those content-owned costs are unchanged. The fixed-cost map keys correspond to the current
+literal or shared-constant resolver paths, not every `ActionType`.
+
+| Campaign field | Defaults from `initial.ts`, `endOfWeek.ts`, `resolvers.ts` |
+|---|---|
+| `weeklyTimeUnits` | 14 (`initialState`'s week-one `totalTimeUnits`) |
+| `needDriftPerWeek` | health −1, energy −3, happiness −2, satiety −4, stress +2 |
+| `lateFeeBasisPoints` | 1000 (10%; `Math.round(missedCents × bps / 10_000)`) |
+| `evictionStages` | `none`, `warning`, `penalty`, `formal_notice`, `hearing_scheduled`, `evicted` |
+| `performanceDriftRate`, `performanceWorkBonus` | 0.2 of the gap to the job's `weeklyDriftToward` when no work, rounded once; +8 when worked |
+| `strangenessPerEvent` | +5, clamped to 0–100 per fired event |
+| `actionTimeCosts` | `search_for_work: 2`; `apply_for_job: 1`; `negotiate_job_terms: 1`; `work_overtime: 4`; `study: 2`; `move_housing: 4`; `borrow_money: 1`; `repay_debt: 1`; `deposit_savings: 1`; `invest: 1`; `shop: 1`; `repair_item: 2`; `sell_item: 1`; `socialize: 2`; `exercise: 2`; `start_project: 1`; `start_business: 1`; `eat: 0`; `rest: 0`; `enroll_course: 0`; `attend_class: 0`; `withdraw_course: 0`; `pay_bills: 0`; `accept_opportunity: 0`; `decline_opportunity: 0`; `operate_business: 0` |
+| `eatNeedDeltas` | satiety +25 |
+| `restNeedDeltas` | energy +20, stress −5 |
+| `exerciseNeedDeltas` | energy −10, happiness +3, health +5, satiety −5, stress −5 |
+| `socializeAffinityGain`, `socializeTrustGain` | +5, +2 (preserve the resolver's current arithmetic and audit behavior) |
+| `applicationResolveWeeks`, `negotiateRaiseBasisPoints` | 1 week; 500 bps (5%, with current rounding) |
+| `studyUnitsPerSession`, `projectProgressPerSession` | 1 each |
+
+The other numeric resolver constants are identities, invariants or content/state values, not
+balance levers: `NO_MONEY_COST = 0`, `NEW_ITEM_CONDITION = 100`, `NEW_ITEM_QUANTITY = 1`,
+`INVESTMENT_INTEREST_RATE = 0`. In particular, repair
+sets condition to the existing maximum 100 and prices the missing condition against the
+stored purchase price; this formula is unchanged. `FINANCE_ACTION_TIME_COST = 1` is represented
+by four explicit map keys, and the other shared constants similarly resolve per action.
+`OPERATE_BUSINESS_TIME_COST = 0` is the `operate_business` map default.
+
+`evictionStages` is an ordered subsequence of the six fixed `EvictionStage` members in the
+order shown, containing `none` first and `evicted` last, with no duplicates. On a missed week,
+advance exactly one listed stage beyond the current stage; if the current state is an omitted
+stage (for example a loaded save from another tuning), advance to the first listed stage
+*later in the canonical six-stage order*. `evicted` stays terminal. This permits shortening
+the ladder without changing the persisted union or making existing saves unreadable. No missed
+balance means no fee or advancement, and `pay_bills` retains its reset to `none`. The default
+six stages reproduce the current index-plus-one ladder exactly.
+
+All numeric fields must be finite. Time units, need deltas, bonuses, strangeness steps, basis
+points, gains, study units, project units and resolve weeks must be integers. `weeklyTimeUnits`
+is positive; action costs and basis points are nonnegative; `applicationResolveWeeks`,
+`studyUnitsPerSession` and `projectProgressPerSession` are positive. Need deltas and social
+and performance changes may be negative. `performanceDriftRate` is finite in [0, 1]. Tier 1
+rejects invalid values and an invalid stage sequence with a path identifying the field/key;
+it rejects unknown action or need keys in untyped input rather than ignoring them. `validate.ts`
+owns this check before play; no resolver silently normalizes invalid campaign input.
+
+`SimulationCampaignSource` declares the same optional fields with indexed runtime types;
+`buildSimulationCampaign` copies **only fields actually supplied**, preserving an omitted
+field as absent and preserving explicit zero and partial records. No `AuthoredText`, string
+registration, or post-build mutation is involved. The package-root `SimulationCampaign` and
+`/authoring` source/export surface follow the existing §7.11 boundary. No existing campaign,
+replay input, outcome or golden is rewritten for omission; calculate/apply paths must use the
+same resolved value, and default paths preserve their current `StateChange` order and shape.
+
+The first follow-on slice can wire `needDriftPerWeek` alone: two otherwise identical synthetic
+campaigns with the same seed, initial state and `end_week` action log set only `satiety` drift
+to −4 versus −5. Choose an initial satiety away from clamps; assert one-point divergence in
+the final base need and `need_drift` audit, repeat and replay across a save/load cut. Compare
+an omitted-field campaign against today's committed replay/golden oracle byte for byte. Later
+wiring covers the remaining fields and validates a partial record, explicit zero, shortened
+ladder from an omitted saved stage, and fixed time costs in both validation and outcome.
+
+---
+
 ## 8. Conditions and Requirements
 
 Reused verbatim from the core's frozen operator set (04 §18), which originated here

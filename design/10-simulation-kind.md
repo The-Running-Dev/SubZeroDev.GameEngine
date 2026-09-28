@@ -102,6 +102,8 @@
 
 ### 7.13 Event Chains (W102)
 
+### 7.14 Remaining Campaign Physics (#524)
+
 ## 8. Conditions and Requirements
 
 ### 8.1 Requirements
