@@ -12,7 +12,7 @@
  * registry already goes through (`validation/tiered.ts`), now over the folded result.
  */
 
-import { canonicalStringify, sha256Hex } from "../persistence/canonical.js";
+import { canonicalize as canonicalStringify, sha256Hex } from "subzerodev-data-json";
 import type { LocKey } from "../localization/types.js";
 import type { KindId } from "../kernel/types.js";
 import type { CommandResult } from "../kernel/reasons.js";

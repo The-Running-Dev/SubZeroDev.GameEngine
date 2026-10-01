@@ -16,7 +16,7 @@ import type { ActionResult, Engine, GameState, KindRegistry } from "../kernel/ty
 import type { ContentRegistry } from "../registry/types.js";
 import type { ProfileStore } from "../session/types.js";
 import { upsertAchievements } from "../session/store.js";
-import { canonicalStringify } from "../persistence/canonical.js";
+import { canonicalize as canonicalStringify } from "subzerodev-data-json";
 import type { Decision, Outcome, ReplayFixture, ReplayVerdict } from "./types.js";
 
 export interface ReplayRunnerContext {

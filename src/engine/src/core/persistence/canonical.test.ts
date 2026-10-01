@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { canonicalStringify, serialize, deserialize } from "./canonical.js";
+import { canonicalize as canonicalStringify } from "subzerodev-data-json";
 
 describe("canonicalStringify", () => {
   it("is independent of key insertion order", () => {
@@ -13,10 +13,10 @@ describe("canonicalStringify", () => {
     expect(canonicalStringify(v)).toBe('{"a":[{"m":1,"n":2}],"z":{"x":2,"y":1}}');
   });
 
-  it("round-trips: serialize(deserialize(serialize(x))) is stable", () => {
+  it("round-trips through JSON.parse without changing canonical output", () => {
     const state = { rng: { algorithm: "pcg32", state: "00ff", increment: "0001" }, turn: 4, vars: { b: true, a: 3 } };
-    const once = serialize(state);
-    const twice = serialize(deserialize(once));
+    const once = canonicalStringify(state);
+    const twice = canonicalStringify(JSON.parse(once));
     expect(twice).toBe(once);
   });
 

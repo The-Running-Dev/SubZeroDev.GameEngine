@@ -127,11 +127,10 @@ export interface PortableManifestEntry {
 export interface PortableManifest {
   readonly formatVersion: 2;
   readonly campaigns: readonly PortableManifestEntry[];
-  /** Canonical digest over the ordered `{id, version}` list — the manifest-level analogue of
-   *  `ResolutionId` (`core/registry/packs.ts`, `computeResolutionId`), over this format's own
-   *  entries rather than a `ContentPack[]`. Changes if a campaign is added, removed,
-   *  reordered, or re-versioned; does not change if only file names or digests change for an
-   *  otherwise-identical `{id, version}` list. See `digestManifestResolution` (`./digest.js`). */
+  /** Canonical digest over the ordered `{id, version, digest}` list — the manifest-level
+   *  identity of the verified campaign set. A host verifies each entry's `digest` against
+   *  its fetched file before accepting this value; `file` is excluded because it is only a
+   *  transport path. See `digestManifestResolution` (`./digest.js`). */
   readonly resolution: string;
 }
 

@@ -12,7 +12,7 @@
 import type { Campaign, ContentRegistry } from "../registry/types.js";
 import type { GameState, Kind, KindRegistry } from "../kernel/types.js";
 import { isValidGameStateShape } from "../kernel/engine.js";
-import { canonicalStringify, sha256Hex } from "./canonical.js";
+import { canonicalize as canonicalStringify, sha256Hex } from "subzerodev-data-json";
 import type { SaveEnvelope } from "./types.js";
 import { ENGINE_VERSION } from "../../version.js";
 import type { CommandResult } from "../kernel/reasons.js";

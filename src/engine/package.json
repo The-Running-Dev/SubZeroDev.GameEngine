@@ -50,6 +50,6 @@
     "vitest": "^4.0.0"
   },
   "dependencies": {
-    "@noble/hashes": "^2.2.0"
+    "subzerodev-data-json": "^0.3.0"
   }
 }

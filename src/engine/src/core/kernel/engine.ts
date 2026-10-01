@@ -30,7 +30,7 @@ import type { PlayerView, ProjectionAudience } from "../projection/types.js";
 import type { ValidationError } from "../validation/types.js";
 import type { EngineHost } from "../composition/types.js";
 import { defaultIdSource } from "../composition/defaults.js";
-import { canonicalStringify } from "../persistence/canonical.js";
+import { canonicalize as canonicalStringify } from "subzerodev-data-json";
 import { makeResolutionEmitters, nullEmitter, emitSystemEvent, type ResolutionEmitters } from "../observability/emitter.js";
 import { CORE_EVENTS } from "../observability/events.js";
 

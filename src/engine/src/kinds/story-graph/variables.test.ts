@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { applyConsequences, buildInitialVariables, visibleVariables, type VariableSchema } from "./variables.js";
-import { canonicalStringify } from "../../core/persistence/canonical.js";
+import { canonicalize as canonicalStringify } from "subzerodev-data-json";
 
 const schema: VariableSchema = {
   money: { type: "int", initial: 2, min: 0, max: 3 },

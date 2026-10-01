@@ -17,7 +17,7 @@ import type { LocKey } from "../core/localization/types.js";
 import type { KindRegistry } from "../core/kernel/types.js";
 import type { CommandResult } from "../core/kernel/reasons.js";
 import { buildValidatedPackRegistry } from "../core/validation/tiered.js";
-import { canonicalStringify, sha256Hex } from "../core/persistence/canonical.js";
+import { canonicalize as canonicalStringify, sha256Hex } from "subzerodev-data-json";
 import { buildStableLifeCampaign } from "./stable-life.js";
 import { buildBulgariaStableLifeCampaign } from "./bulgaria-stable-life.js";
 

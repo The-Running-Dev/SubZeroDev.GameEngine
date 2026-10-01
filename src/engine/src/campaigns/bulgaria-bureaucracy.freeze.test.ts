@@ -18,7 +18,7 @@
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
-import { canonicalStringify } from "../core/persistence/canonical.js";
+import { canonicalize as canonicalStringify } from "subzerodev-data-json";
 import { toPortable } from "../portable/format.js";
 import { digestPortableCampaign } from "../portable/digest.js";
 import { buildBulgariaBureaucracyCampaign, bulgariaBureaucracyCatalog, bulgariaBureaucracyMigration } from "./bulgaria-bureaucracy.js";
