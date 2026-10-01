@@ -28,7 +28,7 @@ import type { ValidationWarning } from "../src/core/validation/types.js";
 import type { Campaign, ContentRegistry } from "../src/core/registry/types.js";
 import type { ContentPack } from "../src/core/registry/packs.js";
 import { resolvePacks } from "../src/core/registry/packs.js";
-import { canonicalStringify } from "../src/core/persistence/canonical.js";
+import { canonicalize as canonicalStringify } from "subzerodev-data-json";
 import { runIfMainModule } from "./run-if-main.js";
 import { joinOrNone } from "./format-list.js";
 

@@ -12,7 +12,7 @@
 
 import { describe, it, expect } from "vitest";
 import { runEndOfWeek } from "./endOfWeek.js";
-import { canonicalStringify } from "../../core/persistence/canonical.js";
+import { canonicalize as canonicalStringify } from "subzerodev-data-json";
 import { rngHandleFor } from "../../core/determinism/rng.js";
 import type { RngHandle } from "../../core/determinism/types.js";
 import type { ResolutionEmitter } from "../../core/observability/types.js";

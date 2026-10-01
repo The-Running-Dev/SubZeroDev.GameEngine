@@ -300,9 +300,10 @@ async function runAuthoringSmoke(kinds: KindRegistry): Promise<void> {
   const digest = digestPortableCampaign(portable);
   assert.equal(digest, digestPortableCampaign(portable), "campaign digests should be stable");
   assert.notEqual(digest, digestPortableCampaign({ ...portable, catalog: { ...catalog, featured: true } }));
+  const manifestEntry = { file: `${campaign.id}.json`, id: campaign.id, version: campaign.version, digest };
   assert.equal(
-    digestManifestResolution([{ id: campaign.id, version: campaign.version }]),
-    digestManifestResolution([{ id: campaign.id, version: campaign.version }]),
+    digestManifestResolution([manifestEntry]),
+    digestManifestResolution([manifestEntry]),
     "manifest resolution digests should be stable",
   );
 

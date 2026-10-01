@@ -43,14 +43,11 @@ export { ENGINE_VERSION } from "./version.js";
 
 // Portable campaign format (graduated from the spike — plans/spike-notes.md). A real
 // contract export: `SubZeroDev.ServiceContract`'s content contract projects its schema
-// straight from `PortableCampaign`/`PortableManifest` below. `toPortable` and
-// `digestManifestResolution` stay unexported here — they are author-time-only, reachable
-// through the `./authoring` subpath, which is what Adventures.Content's own
-// `scripts/export-content.ts` publishes from. `digestPortableCampaign` is exported here too,
-// so a runtime host can re-verify a fetched file against the digest its manifest entry
-// recorded.
+// straight from `PortableCampaign`/`PortableManifest` below. `toPortable` remains
+// author-time-only through the `./authoring` subpath. Runtime hosts use both digest helpers:
+// one verifies each fetched campaign and the other identifies the resulting verified set.
 export { fromPortable } from "./portable/format.js";
-export { digestPortableCampaign } from "./portable/digest.js";
+export { digestManifestResolution, digestPortableCampaign } from "./portable/digest.js";
 export type {
   PortableCampaign,
   PortableCampaignBody,

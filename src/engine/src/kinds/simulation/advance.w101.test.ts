@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from "vitest";
 import { advance } from "./advance.js";
-import { canonicalStringify } from "../../core/persistence/canonical.js";
+import { canonicalize as canonicalStringify } from "subzerodev-data-json";
 import type { KindContext } from "../../core/kernel/types.js";
 import type { Campaign } from "../../core/registry/types.js";
 import type { SimulationCampaign } from "./campaign.js";

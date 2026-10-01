@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { financeIncome, financeReconcile, fillJobOpening, housing, runEndOfWeek } from "./endOfWeek.js";
-import { canonicalStringify } from "../../core/persistence/canonical.js";
+import { canonicalize as canonicalStringify } from "subzerodev-data-json";
 import type { ResolutionEmitter } from "../../core/observability/types.js";
 import type { CourseEnrollment, Employment, InventoryItem, JobApplication, NeedState, RelationshipState } from "./actor.js";
 import type { AttendanceTrackingConfig, RelationshipDriftRule } from "./campaign.js";

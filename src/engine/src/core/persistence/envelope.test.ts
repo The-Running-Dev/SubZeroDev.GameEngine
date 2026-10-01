@@ -7,7 +7,7 @@ import {
   CURRENT_SAVE_FORMAT_VERSION,
   CURRENT_SERIALIZATION_VERSION,
 } from "./envelope.js";
-import { canonicalStringify } from "./canonical.js";
+import { canonicalize as canonicalStringify } from "subzerodev-data-json";
 import { ENGINE_VERSION } from "../../version.js";
 import type {
   AdvanceResult,

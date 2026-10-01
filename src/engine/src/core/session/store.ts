@@ -21,7 +21,7 @@ import type {
 import type { StateChange } from "../kernel/reasons.js";
 import type { Campaign, ContentRegistry } from "../registry/types.js";
 import { buildSaveEnvelope, resolveSaveEnvelope, serializeSaveEnvelope } from "../persistence/envelope.js";
-import { canonicalStringify } from "../persistence/canonical.js";
+import { canonicalize as canonicalStringify } from "subzerodev-data-json";
 import type { PlayerView, ProjectionAudience } from "../projection/types.js";
 import type { StringTable } from "../localization/types.js";
 import type { ValidationWarning } from "../validation/types.js";

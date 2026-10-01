@@ -3,7 +3,7 @@ import { project, projectPublicWorldState, type SimulationView } from "./view.js
 import type { SimulationCampaign } from "./campaign.js";
 import type { SimulationKindState } from "./state.js";
 import type { KindContext } from "../../core/kernel/types.js";
-import { canonicalStringify } from "../../core/persistence/canonical.js";
+import { canonicalize as canonicalStringify } from "subzerodev-data-json";
 
 const state: SimulationKindState = {
   calendar: { currentWeek: 3, currentYear: 1, totalTimeUnits: 14, committedTimeUnits: 2, spentTimeUnits: 5 },
