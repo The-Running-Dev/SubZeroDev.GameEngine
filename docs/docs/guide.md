@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: a0339cde9a7584bd6d1560b0892e04bde3a1293188c498afcdfefc3d34921a23 -->
+<!-- design-digest: a3eef7f894dde6c81a7c58315011af525adbd86ec4c00df4ff8ad3652fb8d0f5 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -746,6 +746,14 @@ Important constraints:
   `buildSimulationCampaign`; omission of the collection leaves existing output unchanged. No
   post-build addition of runtime declarations is needed. See
   [Simulation Kind](/docs/engine/simulation-kind#713-event-chains-w102) for the contract.
+- **The remaining weekly physics are optional flat fields on `SimulationCampaign`.** Weekly time
+  budget, need drift, late fees, the eviction ladder, performance drift, per-action time costs,
+  eat/rest/exercise need deltas and the socialize, negotiate, study and project gains each default
+  to today's exact value when omitted, resolved per key at the point of use — an explicit zero is a
+  supplied value, and a saved state gains no field. Tier 1 rejects non-finite or non-integer
+  values, unknown action or need keys, and an invalid eviction-stage sequence with a path naming
+  the field. The contract owns the exact defaults and validation rules:
+  [Simulation Kind](/docs/engine/simulation-kind).
 - **An event needing a decision defers to the following week, and blocks the plan until it is
   answered.** An event that fires at the end of week N and carries choices queues as a pending
   response rather than resolving immediately; it is presented at the start of week N+1, where its

@@ -3745,6 +3745,13 @@ this path; the rest are new to this pass.
   slice. **Note what this is not:** [12 §15](12-world-graph-kind.md#15-validation) assigns
   balance *findings* to a game-side harness, and that stands — this is about where the levers
   live, not about who turns them.
+- **P3 contract gate (#524, 2026-09-28):** §7.14 fixes the optional flat campaign fields,
+  per-key defaults, validation, source-builder omission behavior and a six-stage default
+  eviction ladder. Implementation remains open. The smallest first slice wires
+  `needDriftPerWeek` through source, validator and weekly system and proves two otherwise
+  identical campaigns diverge with `satiety: -4` versus `-5` under the same seed and action
+  log, including repeat/save-load determinism; omitted tuning remains byte-identical to
+  committed replay and golden oracles. Subsequent slices wire the remaining §7.14 fields.
 - **P4 — Rival agents.**
   [§7.10](10-simulation-kind.md#710-agents--engine-owned-strategy-definition-and-runtime-state)
   states outright that how a scenario configures rivals is an open gap; no `ScenarioDefinition`
