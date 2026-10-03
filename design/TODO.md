@@ -304,7 +304,7 @@
 
 ### Depth: The Simulation Campaign's Own Rules
 
-### [ ] W116 — A Campaign Cannot Ask About a Field Its Collection Lacks {#w116}
+### [x] W116 — A Campaign Cannot Ask About a Field Its Collection Lacks {#w116}
 
 ### [ ] W117 — Two Campaigns, One Lever, Different Weeks {#w117}
 

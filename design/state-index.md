@@ -80,7 +80,6 @@ rendered here.
 | 413 | #413 | 48 slices predate the issue-per-slice convention: W0-W40, W61, W63-65, W90-92 have no GitHub issue | — | `49aa72904ff5ba1151b7c41e60d770a3547649d1` |
 | 522 | #522 | World-graph sorts with host-locale localeCompare instead of the §9 canonical comparators | — | `bc0bf617023a3661a6576fc2617f93758e4d9d16` |
 | 524 | #524 | A simulation campaign cannot set its remaining weekly constants | — | `bc0bf617023a3661a6576fc2617f93758e4d9d16` |
-| 533 | #533 | W116 — A Campaign Cannot Ask About a Field Its Collection Lacks | W116.1, W116.2, W116.3, W116.4, W116.5, W116.6, W116.7, W116.8 | `911cc6152d7311fdc46d95387c48ef9d9905a183` |
 | 534 | #534 | W117 — Two Campaigns, One Lever, Different Weeks | W117.1, W117.2, W117.3, W117.4, W117.5, W117.6, W117.7 | `911cc6152d7311fdc46d95387c48ef9d9905a183` |
 | 535 | #535 | W118 — The Week's Own Rules Belong to the Campaign | W118.1, W118.2, W118.3, W118.4, W118.5, W118.6, W118.7 | `911cc6152d7311fdc46d95387c48ef9d9905a183` |
 | 536 | #536 | W119 — Every Fixed Action Price Is the Campaign's | W119.1, W119.2, W119.3, W119.4, W119.5, W119.6, W119.7 | `911cc6152d7311fdc46d95387c48ef9d9905a183` |

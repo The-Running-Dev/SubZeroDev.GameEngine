@@ -5074,7 +5074,7 @@ start. W118 covers the week's own rules and W119 the per-action prices. Neither 
 depends on the other. All three physics units wait on P8 (under *Contract Prerequisites*
 above), the reason code §7.14's validation never named.
 
-### [ ] W116 — A Campaign Cannot Ask About a Field Its Collection Lacks {#w116}
+### [x] W116 — A Campaign Cannot Ask About a Field Its Collection Lacks {#w116}
 
 **Delivers:** As a campaign author, a condition that asks about a property its collection's
 items do not have is rejected when the campaign loads, and so is a comparison on an optional
