@@ -169,6 +169,9 @@ export const SIMULATION_REASON_CODES = [
   "profile_chain_advanced",
   // W111 — conditions over collections (§8.2, §14).
   "unknown_collection",
+  // W116 — `where` fields an item type declares (§8.2, §14).
+  "unknown_collection_field",
+  "optional_field_operator",
   // W112 — a car that costs money to run (§7.5).
   "item_cost_charged",
 ] as const;
@@ -246,6 +249,8 @@ const SIMULATION_REASON_TEXT: Readonly<Record<SimulationReasonCode, string>> = {
   chain_advanced: "A thread in this story moved forward.",
   profile_chain_advanced: "A thread in this story moved forward — it will carry into your next game.",
   unknown_collection: "This campaign names a collection the engine doesn't have.",
+  unknown_collection_field: "This campaign asks about a property its collection's items don't have.",
+  optional_field_operator: "This campaign compares an optional property in a way that can fail during play.",
   item_cost_charged: "You paid to keep your things running.",
 };
 

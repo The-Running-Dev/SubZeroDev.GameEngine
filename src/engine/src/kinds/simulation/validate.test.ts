@@ -20,6 +20,7 @@ import type {
   RivalConfig,
 } from "./content.js";
 import type { Campaign } from "../../core/registry/types.js";
+import type { Condition } from "../../core/condition/types.js";
 import type { StatusEffect } from "./state.js";
 
 function makeGoal(overrides: Partial<GoalDefinition> = {}): GoalDefinition {
@@ -826,5 +827,214 @@ describe("validateCampaign", () => {
     expect(result.errors).toContainEqual(
       expect.objectContaining({ code: "unknown_collection", path: "player.scoreboard" }),
     );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Tier 1 — unknown_collection_field / optional_field_operator (§8.2, W116)
+  // ---------------------------------------------------------------------------
+
+  const WHERE_CODES = ["unknown_collection_field", "optional_field_operator"];
+
+  /** Tier 1 findings a goal's `conditions` produce for the two W116 codes, nothing else. */
+  function whereFindings(conditions: Condition) {
+    const result = validateCampaign(makeCampaign({ goals: [makeGoal({ conditions })] }), VALID_STRINGS);
+    return result.errors.filter((e) => WHERE_CODES.includes(e.code));
+  }
+
+  function existsWhere(collection: string, where: Condition): Condition {
+    return { exists: { collection, where } };
+  }
+
+  // A required scalar property each collection's item type declares, so any operator is legal.
+  const SCALAR_FIELD: Readonly<Record<(typeof LEGAL_COLLECTIONS)[number], string>> = {
+    "player.inventory": "condition",
+    "player.relationships": "affinity",
+    "player.career.pendingApplications": "jobId",
+    "player.education.enrollments": "courseId",
+    "player.education.credentials": "level",
+    "player.projects": "status",
+    "player.businesses": "cashOnHandCents",
+    "world.npcs": "currentRole",
+  };
+
+  it.each(LEGAL_COLLECTIONS)("W116.1 accepts a scalar property of %s's item type", (collection) => {
+    const where: Condition = { field: SCALAR_FIELD[collection], operator: "greater_than", value: 0 };
+    expect(whereFindings(existsWhere(collection, where))).toEqual([]);
+  });
+
+  it.each(LEGAL_COLLECTIONS)("W116.1 rejects a field %s's item type does not declare", (collection) => {
+    const where: Condition = { field: "not_declared", operator: "equals", value: "x" };
+    expect(whereFindings(existsWhere(collection, where))).toEqual([
+      expect.objectContaining({
+        code: "unknown_collection_field",
+        messageKey: "simulation.reason.unknown_collection_field",
+        path: `${collection}.not_declared`,
+      }),
+    ]);
+  });
+
+  it("W116.1 rejects `category` against player.inventory — it lives on ItemDefinition, not InventoryItem", () => {
+    const where: Condition = { field: "category", operator: "equals", value: "car" };
+    expect(whereFindings(existsWhere("player.inventory", where)).map((e) => e.code)).toEqual(["unknown_collection_field"]);
+  });
+
+  it.each(["flags.met", "memories.week", "availability.day", "flags.met.deeper"])(
+    "W116.2 rejects the dotted path %s against world.npcs",
+    (field) => {
+      const where: Condition = { field, operator: "equals", value: true };
+      expect(whereFindings(existsWhere("world.npcs", where)).map((e) => e.code)).toEqual(["unknown_collection_field"]);
+    },
+  );
+
+  it.each(["memories", "availability", "flags"])(
+    "W116.2 rejects the one-segment array/object property %s against world.npcs",
+    (field) => {
+      const where: Condition = { field, operator: "equals", value: true };
+      expect(whereFindings(existsWhere("world.npcs", where)).map((e) => e.code)).toEqual(["unknown_collection_field"]);
+    },
+  );
+
+  it("W116.2 rejects a dotted path even where its first segment is a declared scalar", () => {
+    const where: Condition = { field: "condition.value", operator: "equals", value: 1 };
+    expect(whereFindings(existsWhere("player.inventory", where)).map((e) => e.code)).toEqual(["unknown_collection_field"]);
+  });
+
+  it.each(["constructor", "toString", "__proto__"])(
+    "W116.2 rejects the inherited-property name %s — only own declared properties are legal",
+    (field) => {
+      const where: Condition = { field, operator: "equals", value: 1 };
+      expect(whereFindings(existsWhere("player.inventory", where)).map((e) => e.code)).toEqual(["unknown_collection_field"]);
+    },
+  );
+
+  it("W116.3 reaches a bad field two levels deep under all/any/not, and names the innermost one", () => {
+    const where: Condition = {
+      all: [
+        { field: "condition", operator: "greater_than", value: 0 },
+        { any: [{ not: { all: [{ field: "no_such_field", operator: "equals", value: 1 }] } }] },
+      ],
+    };
+    expect(whereFindings(existsWhere("player.inventory", where))).toEqual([
+      expect.objectContaining({ code: "unknown_collection_field", path: "player.inventory.no_such_field" }),
+    ]);
+  });
+
+  it("W116.3 reports every bad leaf, not just the first", () => {
+    const where: Condition = {
+      any: [
+        { field: "bad_one", operator: "equals", value: 1 },
+        { field: "condition", operator: "equals", value: 1 },
+        { field: "bad_two", operator: "equals", value: 1 },
+      ],
+    };
+    expect(whereFindings(existsWhere("player.inventory", where)).map((e) => e.path)).toEqual([
+      "player.inventory.bad_one",
+      "player.inventory.bad_two",
+    ]);
+  });
+
+  it("W116.3 checks a nested exists against its own collection — a field legal only on the outer type is rejected", () => {
+    // `currentRole` is declared by NPCState (the outer type) but not by InventoryItem (the inner).
+    const nested = existsWhere(
+      "world.npcs",
+      existsWhere("player.inventory", { field: "currentRole", operator: "equals", value: "x" }),
+    );
+    expect(whereFindings(nested)).toEqual([
+      expect.objectContaining({ code: "unknown_collection_field", path: "player.inventory.currentRole" }),
+    ]);
+  });
+
+  it("W116.3 accepts a field legal only on the nested collection's own type", () => {
+    // `condition` is declared by InventoryItem (the inner) but not by NPCState (the outer).
+    const nested = existsWhere(
+      "world.npcs",
+      existsWhere("player.inventory", { field: "condition", operator: "greater_than", value: 0 }),
+    );
+    expect(whereFindings(nested)).toEqual([]);
+  });
+
+  it("W116.3 checks a nested count's where against the count's own collection", () => {
+    const nested = existsWhere("world.npcs", {
+      count: { collection: "player.relationships", where: { field: "currentRole", operator: "equals", value: "x" } },
+      operator: "greater_or_equal",
+      value: 1,
+    });
+    expect(whereFindings(nested)).toEqual([
+      expect.objectContaining({ code: "unknown_collection_field", path: "player.relationships.currentRole" }),
+    ]);
+  });
+
+  it("W116.3 leaves a top-level field alone — a state path is not a collection field", () => {
+    expect(whereFindings({ field: "player.needs.happiness", operator: "greater_or_equal", value: 0 })).toEqual([]);
+    expect(whereFindings({ all: [{ field: "player.flags.met", operator: "equals", value: true }] })).toEqual([]);
+  });
+
+  it("W116.3 checks fields under an unknown collection name against nothing — unknown_collection reports it", () => {
+    const goal = makeGoal({
+      conditions: existsWhere("player.scoreboard", { field: "anything", operator: "equals", value: 1 }),
+    });
+    const result = validateCampaign(makeCampaign({ goals: [goal] }), VALID_STRINGS);
+    expect(result.errors.map((e) => e.code)).toEqual(["unknown_collection"]);
+  });
+
+  it("W116.3 checks conditions wherever the content carries them, not only on goals", () => {
+    const achievement: AchievementDefinition = {
+      id: "ach-1", nameKey: "ach.name", descriptionKey: "ach.description",
+      condition: { count: { collection: "world.npcs", where: { field: "flags", operator: "equals", value: true } }, operator: "equals", value: 1 },
+      hidden: false, scope: "profile",
+    };
+    const result = validateCampaign(makeCampaign({ achievements: [achievement] }), VALID_STRINGS);
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({ code: "unknown_collection_field", path: "world.npcs.flags" }),
+    );
+  });
+
+  // `lastInteractionWeek` is `RelationshipState`'s optional number.
+  it.each(["equals", "not_equals", "in", "not_in"] as const)(
+    "W116.4 accepts an optional property under %s",
+    (operator) => {
+      const where: Condition = { field: "lastInteractionWeek", operator, value: operator.endsWith("in") ? [1, 2] : 1 };
+      expect(whereFindings(existsWhere("player.relationships", where))).toEqual([]);
+    },
+  );
+
+  it.each(["less_than", "less_or_equal", "greater_than", "greater_or_equal", "contains", "has_tag", "has_flag"] as const)(
+    "W116.4 rejects an optional property under %s with optional_field_operator",
+    (operator) => {
+      const where: Condition = { field: "lastInteractionWeek", operator, value: 1 };
+      expect(whereFindings(existsWhere("player.relationships", where))).toEqual([
+        expect.objectContaining({
+          code: "optional_field_operator",
+          messageKey: "simulation.reason.optional_field_operator",
+          path: "player.relationships.lastInteractionWeek",
+        }),
+      ]);
+    },
+  );
+
+  it("W116.4 rejects an optional property under a bad operator inside a count's where too", () => {
+    const where: Condition = { field: "completedWeek", operator: "greater_than", value: 0 };
+    const count: Condition = { count: { collection: "player.projects", where }, operator: "greater_or_equal", value: 1 };
+    expect(whereFindings(count).map((e) => e.code)).toEqual(["optional_field_operator"]);
+  });
+
+  it("W116.4 does not restrict a required property's operator — only optionality is checked", () => {
+    for (const operator of ["less_than", "greater_or_equal", "contains", "has_tag", "has_flag"] as const) {
+      const where: Condition = { field: "condition", operator, value: 1 };
+      expect(whereFindings(existsWhere("player.inventory", where))).toEqual([]);
+    }
+  });
+
+  it("W116.4 reports a missing field and a bad optional operator as the two different codes", () => {
+    const where: Condition = {
+      all: [
+        { field: "nope", operator: "equals", value: 1 },
+        { field: "outcome", operator: "greater_than", value: 1 },
+      ],
+    };
+    expect(whereFindings(existsWhere("player.career.pendingApplications", where)).map((e) => e.code)).toEqual([
+      "unknown_collection_field",
+      "optional_field_operator",
+    ]);
   });
 });
