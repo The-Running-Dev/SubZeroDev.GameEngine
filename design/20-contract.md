@@ -4640,9 +4640,9 @@ interface AttributeState {
 }
 ```
 
-`wisdom` has no consumer specified anywhere in this contract or upstream — already tracked in
-`TODO.md`'s *Known Open Items* ("`wisdom` attribute has no consumer... needs one to earn its
-place"), not repeated as a second open item here.
+`wisdom`'s consumer is the generic `Requirement.type: "attribute"` path over
+`player.attributes.wisdom`, the same as every other attribute — no wisdom-specific mechanism
+(§7.11, *Wisdom's consumer is the existing generic path*).
 
 ### 6.7 Education
 
