@@ -306,7 +306,7 @@
 
 ### [x] W116 — A Campaign Cannot Ask About a Field Its Collection Lacks {#w116}
 
-### [ ] W117 — Two Campaigns, One Lever, Different Weeks {#w117}
+### [x] W117 — Two Campaigns, One Lever, Different Weeks {#w117}
 
 ### [ ] W118 — The Week's Own Rules Belong to the Campaign {#w118}
 

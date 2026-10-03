@@ -5122,7 +5122,7 @@ first quietly matches the wrong things and the second fails during play.
   - Collection-name validation, which is [W111](#w111)'s.
   - Condition validation in other kinds.
 
-### [ ] W117 — Two Campaigns, One Lever, Different Weeks {#w117}
+### [x] W117 — Two Campaigns, One Lever, Different Weeks {#w117}
 
 **Delivers:** As a game author, I can set how fast each need drains per week in my own campaign.
 Two campaigns that differ only in that setting play out differently. Every campaign that does not
