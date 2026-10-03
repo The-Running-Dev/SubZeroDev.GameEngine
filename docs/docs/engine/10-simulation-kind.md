@@ -2552,6 +2552,27 @@ rejects invalid values and an invalid stage sequence with a path identifying the
 it rejects unknown action or need keys in untyped input rather than ignoring them. `validate.ts`
 owns this check before play; no resolver silently normalizes invalid campaign input.
 
+Each failure belongs to exactly one of three rule families, and each family has its own §10 code:
+
+| Code | Raised when | `path` |
+|---|---|---|
+| `invalid_tuning_value` | A supplied scalar or record value is not a finite number, breaks its integer rule, or falls outside its range above; or a record-typed field (`needDriftPerWeek`, `actionTimeCosts`, the three `*NeedDeltas`) is not a plain object | the field, or `<field>.<key>` for a record entry |
+| `unknown_tuning_key` | A record-typed field carries a key outside its closed union: `NeedKey` for the four need-delta records, `SimulationFixedTimeAction` for `actionTimeCosts` | `<field>.<key>` |
+| `invalid_eviction_stages` | `evictionStages` is not an array, names a member outside the six-member `EvictionStage` union, repeats a member, breaks canonical order, or does not start at `none` and end at `evicted` | `evictionStages` |
+
+One error is reported per offending scalar field or record key, so a campaign with three bad
+keys yields three errors. An invalid ladder yields one error, whatever the number of defects
+in it. An unknown key's value is not also checked: the key is the failure. The `path` is the
+field name as declared on `SimulationCampaign`, dotted with the record key where there is one.
+It never carries an array index, so it obeys §7.1's natural-key rule.
+
+The code says what kind of failure it is, and the path says where. Neither carries the other's
+information. A client may switch on the code alone to separate a mistyped key from an
+out-of-range number. **`invalid_attendance_window` (§7.11) is not one of these and is not
+folded into them.** It shipped in W100, and a reason code is additive and never renamed (04 §12).
+A future §7.11 or §7.14 tuning field's value or key failure uses the first two codes above. It
+does not add a field-specific code.
+
 `SimulationCampaignSource` declares the same optional fields with indexed runtime types;
 `buildSimulationCampaign` copies **only fields actually supplied**, preserving an omitted
 field as absent and preserving explicit zero and partial records. No `AuthoredText`, string
@@ -2874,6 +2895,10 @@ Reused from the base set: `unknown_action`, `requirement_unmet`, `session_ended`
 | `unknown_collection` | 1 | An `exists`/`count` `collection` names a path outside §8.2's eight-entry table — W111 |
 | `unknown_collection_field` | 1 | A `where` `field` is not a scalar property its collection's item type declares (§8.2) |
 | `optional_field_operator` | 1 | A `where` `field` names an optional property under an operator other than `equals`/`not_equals`/`in`/`not_in` (§8.2) |
+| `invalid_attendance_window` | 1 | `SimulationCampaign.attendanceTracking.windowWeeks` (§7.11) is not a positive integer — W100 |
+| `invalid_tuning_value` | 1 | A §7.14 campaign-physics value is non-finite, breaks its integer rule, falls outside its range, or a record-typed field is not an object — W117–W119 |
+| `unknown_tuning_key` | 1 | A §7.14 need-delta or `actionTimeCosts` record names a key outside its closed union — W117–W119 |
+| `invalid_eviction_stages` | 1 | `SimulationCampaign.evictionStages` (§7.14) is not a valid ordered subsequence of the six `EvictionStage` members — W118 |
 | `unreachable_content` | 2 | A definition nothing in the campaign ever references |
 | `unsatisfiable_achievement` | 2 | An `AchievementDefinition.condition` reads a counter or flag nothing writes |
 
@@ -3140,7 +3165,13 @@ total, run once at registry construction, before the registry is frozen. Tiered 
   are derived *and* writable, and are the targets the layering in §6.1 exists to serve. Checked here because this
   is where a concrete `target` string first exists to check.
 - `SimulationCampaign.attendanceTracking.windowWeeks` (§7.11), when present, is a positive
-  integer — zero, negative, and non-integer values are rejected.
+  integer — zero, negative, and non-integer values are rejected with
+  `invalid_attendance_window`.
+- Every supplied §7.14 campaign-physics field satisfies §7.14's numeric rules, and every record
+  key is in that record's closed union. The ladder is a valid ordered subsequence. Failures use
+  `invalid_tuning_value`, `unknown_tuning_key` and `invalid_eviction_stages` respectively, each
+  with the path §7.14's table names. An omitted field is never an error: absence is the
+  default (§7.14).
 
 **Tier 2 — load-time, warning:**
 
