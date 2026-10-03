@@ -2165,3 +2165,37 @@ case where extracting one costs nothing in value.
 
 Reversibility: cheap. It is prose and a closed issue. Reopening #270 restores the tracking, and
 nothing in code depends on this entry.
+
+### 2026-10-03 — P8 contract: §7.14's Tier 1 rejection gets one reason code per rule family
+
+Context: §7.14 says Tier 1 rejects an invalid campaign-physics value or eviction ladder "with a
+path identifying the field/key", and §10's Tier 1 table named no code for it. `30-slices.md`
+recorded this as P8, which blocks W117–W119. The one precedent did not settle it.
+`invalid_attendance_window` shipped in W100 as a field-specific code, and §10 never listed it.
+`reasons.ts` justified the omission as latitude §14 grants. §10's own rule says otherwise: when
+the table and `reasons.ts` disagree, the table is the one that moves.
+
+Chosen (user-selected): **three codes, one per rule family.** `invalid_tuning_value` covers a
+value that is non-finite, breaks its integer rule, is out of range, or is a record field that is
+not an object. `unknown_tuning_key` covers a record key outside `NeedKey` or
+`SimulationFixedTimeAction`. `invalid_eviction_stages` covers any defect in the ladder. The path
+names the field, and the record key where there is one, so the code only has to say what kind
+of failure it is. That split follows simulation §10's own vocabulary, where `unknown_collection`
+and `unknown_collection_field` sit apart from value checks. It also follows world-graph §11's
+reasoning that author-facing precision is worth a larger vocabulary. **`invalid_attendance_window`
+is listed in §10 and stays separate,** because reason codes are additive and never renamed
+(04 §12). Future tuning fields reuse the first two codes rather than adding field-specific ones.
+
+Added beyond §7.14's text, so recorded here: one error per offending scalar field or record key,
+and one per invalid ladder. An unknown key's value is not checked as well. The path format is
+`<field>` or `<field>.<key>`, never with an array index.
+
+Rejected: **one shared `invalid_campaign_physics`.** It is the smallest vocabulary, but a client
+could not tell a mistyped key from an out-of-range number without parsing the path. Splitting it
+later would leave a permanent catch-all beside the new codes. **One code per field,** about
+seventeen. It repeats what the path already says, and every future tuning field would add
+another permanent name.
+
+Reversibility: cheap until W117 registers the first code, because nothing emits them yet. After
+that, the codes are additive and never renamed. Narrowing the vocabulary would mean adding a
+catch-all beside them, not replacing them.

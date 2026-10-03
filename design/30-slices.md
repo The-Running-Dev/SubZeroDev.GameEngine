@@ -3724,13 +3724,16 @@ or asks it to state a rule it currently leaves unwritten, and slicing one would 
 the answer first. Several are already carried above and are repeated only because they sit on
 this path; the rest are new to this pass.
 
-**Status, 2026-10-03.** Every prerequisite below except P8 has since been contracted. P1 and P4
+**Status, 2026-10-03.** Every prerequisite below has since been contracted. P1 and P4
 were settled by [W101](#w101) (§7.12's project and business definitions; §7.8's `RivalConfig`).
 P2, P5 and P6's `attendanceRatio` were settled by [W100](#w100) (§7.11's `relationshipDrift`,
 `emptyPlanPolicy` and `attendanceTracking`), and P6's `wisdom` by W100's generic attribute
 `Requirement` path (#275). P7 was settled by [W102](#w102) (§16; the portable simulation arm
-carries `migration`). P3 is contracted as §7.14 and sliced as [W117](#w117)–[W119](#w119), which
-also wait on P8. The bullets below are kept as found.
+carries `migration`). P3 is contracted as §7.14 and sliced as [W117](#w117)–[W119](#w119). P8
+is contracted as three rule-family codes in §7.14 and §10: `invalid_tuning_value`,
+`unknown_tuning_key` and `invalid_eviction_stages`. §10 now also lists
+`invalid_attendance_window` (`90-decisions.md`, 2026-10-03). Where W117–W119 say "P8's code",
+read the §7.14 code for the rule being tested. The bullets below are kept as found.
 
 - **P1 — Four `ActionType`s have no content-definition type.** Carried above.
   `start_project`, `work_on_project`, `start_business` and `operate_business` are members of
