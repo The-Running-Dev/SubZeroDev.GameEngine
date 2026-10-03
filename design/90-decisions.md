@@ -197,15 +197,15 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   [`665103a`](https://github.com/The-Running-Dev/SubZeroDev.Platform/blob/665103a3cdd182b1bc248c5aa08d2202fb6ac041/workloads/game-service/src/mcp-surface.ts))
   builds its tool table from `contract.operations` at runtime instead of a hand-maintained list,
   so there is no longer a Platform-side row set that can independently lag. Closed as resolved.
-- **A shared simulation substrate for tick-driven kinds** — `simulation` and
-  `world-graph` are the same archetype: mutate pending configuration, then resolve
-  a block of simulated time through an ordered system pipeline (12 §2). Both hand-roll that
-  pipeline, and it is where determinism defects concentrate — the two-phase time ordering in
-  10 §3 is exactly the class of bug a shared, tested runner would stop recurring per kind. A
-  `SystemPipeline` in the core (ordered registration, deterministic per-system stream keying,
-  stable iteration, derived entity ids) would make kind N+1 cheaper. **Not extracted while
-  `simulation` was the only tick-driven kind; `world-graph` (W41–W49) now makes it two.**
-  Tracked as [issue #270](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/270).
+- **A shared simulation substrate for tick-driven kinds — resolved by W97, closed as done.**
+  [Issue #270](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/270) asked for a
+  `SystemPipeline` once `simulation` and `world-graph` both existed. W97
+  ([PR #409](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/409)) had already
+  built the part that is shared: the contract's §20 ordered system runner, which both kinds now
+  run on, held against the replay corpus. Per-system stream keying and derived entity ids were
+  not extracted, because unifying either would change one kind's replay output. The full
+  reasoning and the revisit trigger, a third tick-driven kind, are in the 2026-10-03 entry
+  below.
 - **Third-party kinds, and the sandbox they would require** — architecture §1 **N2**
   rejected downloadable code kinds as a security and reproducibility hazard, and
   [`06-extensibility.md`](06-extensibility.md) §7 leaves that standing. It is a rejected
@@ -2120,3 +2120,48 @@ costs" and "needs a balancing pass". That file is outside `/align`'s scope, so i
 `/slices`.
 
 Reversibility: trivial. It is prose and an issue.
+
+### 2026-10-03 — `/align` on #270: W97 already extracted the shared system pipeline; stream keying and derived ids stay per kind
+
+Context: [Issue #270](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/270)
+asked for a core `SystemPipeline` covering ordered registration, deterministic per-system stream
+keying, stable iteration and derived entity ids, to be extracted once a second tick-driven kind
+existed. That trigger had fired: `world-graph` (W41–W49) and `simulation` are both built. The
+work had also already been done under another name. W97
+([PR #409](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/409), `b9ecdc2`) added
+`20-contract.md` §20, the ordered system runner, through the 2026-08-30 *W97 contract gate 2*
+entry. It is `src/engine/src/core/pipeline/systems.ts`, and both kinds run on it:
+`kinds/simulation/endOfWeek.ts` and `kinds/world-graph/tick/pipeline.ts`.
+`campaigns/pipeline-equivalence.test.ts` holds both against the replay corpus. That covers
+ordered registration and stable iteration, value-preserving. PR #409 never cited #270, so the
+issue stayed open and `/next` picked it up as owed. The two remaining pieces do not unify
+without changing output:
+
+- **Per-system stream keying.** §20 forbids the runner from drawing randomness, and
+  `ctx.derive(StreamId)` already lives in core (04 §3.1). The two kinds key it differently.
+  `simulation` draws one stream for the whole end-of-week pass,
+  `{ kind: "system", system: "end_of_week", seq }` (`kinds/simulation/advance.ts`). `world-graph`
+  draws one per tick and system, `{ kind: "tick", tick, system }`, plus per-agent streams
+  (`kinds/world-graph/tick/random.ts`). Making either kind adopt the other's keying changes
+  every draw it makes.
+- **Derived entity ids.** `world-graph` counts ordinals up from `nextEntityOrdinal`
+  (`actions/build.ts`, `actions/staff.ts`). `simulation` derives an inventory id from the
+  action, `` `inv-${action.id}` `` (`resolvers.ts`). A shared scheme changes serialized ids in
+  one kind or the other.
+
+Chosen (user-selected): **close #270 as done by W97.** The shared part is extracted. Stream
+keying and derived entity ids stay owned by each kind, for the reasons above.
+
+Rejected: **Keep #270 open, re-scoped to the two remaining pieces.** It would track work this
+entry has just shown cannot meet #270's own value-preserving criterion. The issue would stay
+`ready` and be picked again with nothing doable in it. **Extract the remaining pieces as opt-in
+core helpers that neither kind adopts.** That is public-looking surface with no consumer and no
+test that could fail, and it contradicts §20's rule that the runner draws no randomness unless
+it is placed outside the runner, where `ctx.derive` already is.
+
+Revisit when: a third tick-driven kind is designed. It is the first kind that could adopt a
+shared keying or id scheme from birth without changing an existing replay, and so the first
+case where extracting one costs nothing in value.
+
+Reversibility: cheap. It is prose and a closed issue. Reopening #270 restores the tracking, and
+nothing in code depends on this entry.

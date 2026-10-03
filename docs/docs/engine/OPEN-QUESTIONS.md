@@ -187,15 +187,15 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   [`665103a`](https://github.com/The-Running-Dev/SubZeroDev.Platform/blob/665103a3cdd182b1bc248c5aa08d2202fb6ac041/workloads/game-service/src/mcp-surface.ts))
   builds its tool table from `contract.operations` at runtime instead of a hand-maintained list,
   so there is no longer a Platform-side row set that can independently lag. Closed as resolved.
-- **A shared simulation substrate for tick-driven kinds** — `simulation` and
-  `world-graph` are the same archetype: mutate pending configuration, then resolve
-  a block of simulated time through an ordered system pipeline (12 §2). Both hand-roll that
-  pipeline, and it is where determinism defects concentrate — the two-phase time ordering in
-  10 §3 is exactly the class of bug a shared, tested runner would stop recurring per kind. A
-  `SystemPipeline` in the core (ordered registration, deterministic per-system stream keying,
-  stable iteration, derived entity ids) would make kind N+1 cheaper. **Not extracted while
-  `simulation` was the only tick-driven kind; `world-graph` (W41–W49) now makes it two.**
-  Tracked as [issue #270](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/270).
+- **A shared simulation substrate for tick-driven kinds — resolved by W97, closed as done.**
+  [Issue #270](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/270) asked for a
+  `SystemPipeline` once `simulation` and `world-graph` both existed. W97
+  ([PR #409](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/409)) had already
+  built the part that is shared: the contract's §20 ordered system runner, which both kinds now
+  run on, held against the replay corpus. Per-system stream keying and derived entity ids were
+  not extracted, because unifying either would change one kind's replay output. The full
+  reasoning and the revisit trigger, a third tick-driven kind, are in the 2026-10-03 entry
+  below.
 - **Third-party kinds, and the sandbox they would require** — architecture §1 **N2**
   rejected downloadable code kinds as a security and reproducibility hazard, and
   [`06-extensibility.md`](06-extensibility.md) §7 leaves that standing. It is a rejected
