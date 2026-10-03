@@ -336,7 +336,9 @@ Two distinctions that are easy to get wrong:
 - **No new dependencies** without a decision-log entry naming the alternatives rejected and
   why.
 - **No new public interfaces** that are not in `20-contract.md`. If you need one, stop and
-  ask for a contract amendment.
+  ask for a contract amendment. **Exception:** host ports and observability types
+  (`SessionHost`, `ExperimentSource`, `EmittedRecord`, `RecordIdSource`, and their siblings) are
+  contracted in `10-design.md`'s 05/06 blocks, which count as contract for this rule.
 - **Ask instead of assuming.** If two readings of a spec are both defensible, stop and
   present both. Do not pick one and proceed.
 - **Every unit ends runnable.** No half-wired states committed.
