@@ -302,4 +302,14 @@
 
 ### [x] W115 — A Resort a Client Can Actually Draw {#w115}
 
+### Depth: The Simulation Campaign's Own Rules
+
+### [ ] W116 — A Campaign Cannot Ask About a Field Its Collection Lacks {#w116}
+
+### [ ] W117 — Two Campaigns, One Lever, Different Weeks {#w117}
+
+### [ ] W118 — The Week's Own Rules Belong to the Campaign {#w118}
+
+### [ ] W119 — Every Fixed Action Price Is the Campaign's {#w119}
+
 ## Landed
