@@ -29,7 +29,7 @@
  */
 
 import type { LocKey } from "../../core/localization/types.js";
-import type { RelationshipState } from "./actor.js";
+import type { NeedKey, RelationshipState } from "./actor.js";
 import type { StatusEffect } from "./state.js";
 import type {
   JobDefinition,
@@ -62,6 +62,9 @@ export interface SimulationActionLabelKeys {
   planClear: LocKey;
   endWeek: LocKey;
 }
+
+/** A signed per-need change to base needs (§7.14). Every key is optional. */
+export type SimulationNeedDeltas = Partial<Record<NeedKey, number>>;
 
 export interface SimulationCampaign {
   descriptionKey: LocKey;
@@ -126,6 +129,12 @@ export interface SimulationCampaign {
   /** §7.13, W102. Absent means `[]`, which is every campaign shipped before this field: no
    *  chain is declared, so none is `"profile"`-scoped and none is seeded (§2.2). */
   eventChains?: readonly EventChainDefinition[];
+
+  /** §7.14, W117. The signed integer each need drifts by at `end_week`, before the 0–100
+   *  clamp. Resolved per key at the point of use: an omitted key, or an omitted field, is the
+   *  default (health −1, energy −3, happiness −2, satiety −4, stress +2); an explicit `0`
+   *  leaves that need undrifted. */
+  needDriftPerWeek?: SimulationNeedDeltas;
 }
 
 export interface RelationshipDriftRule {

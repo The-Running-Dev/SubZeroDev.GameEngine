@@ -31,6 +31,7 @@ import type { LocKey } from "../../core/localization/types.js";
 import type { ValidationError, ValidationResult, ValidationWarning } from "../../core/validation/types.js";
 import type { Condition } from "../../core/condition/types.js";
 import type { SimulationCampaign } from "./campaign.js";
+import type { NeedKey } from "./actor.js";
 import type { Modifier } from "./state.js";
 import type { Reward, Requirement } from "./content.js";
 import { derivedValueResolver } from "./derived.js";
@@ -345,6 +346,40 @@ function validateAttendanceTracking(content: SimulationCampaign): ValidationErro
 }
 
 // ---------------------------------------------------------------------------
+// Tier 1 — campaign physics (§7.14, §14)
+// ---------------------------------------------------------------------------
+
+/** `NeedKey`'s members, keyed exhaustively so a need added to or removed from `NeedState` fails
+ *  typecheck until this closed union follows. */
+const NEED_KEYS: Readonly<Record<NeedKey, true>> = { health: true, energy: true, happiness: true, stress: true, satiety: true };
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const proto = Object.getPrototypeOf(value) as unknown;
+  return proto === Object.prototype || proto === null;
+}
+
+/** `needDriftPerWeek` (§7.14), when present. One error per offending key: a key outside
+ *  `NeedKey` is `unknown_tuning_key` and its value is not also checked; a value that is not a
+ *  finite integer is `invalid_tuning_value`. A non-object field is one `invalid_tuning_value`
+ *  at the field. Absence is never an error. */
+function validateNeedDriftPerWeek(content: SimulationCampaign): ValidationError[] {
+  const drift: unknown = content.needDriftPerWeek;
+  if (drift === undefined) return [];
+  if (!isPlainObject(drift)) return [error("invalid_tuning_value", "needDriftPerWeek")];
+  const errors: ValidationError[] = [];
+  for (const key of Object.keys(drift)) {
+    const path = `needDriftPerWeek.${key}`;
+    if (!Object.prototype.hasOwnProperty.call(NEED_KEYS, key)) {
+      errors.push(error("unknown_tuning_key", path));
+    } else if (!Number.isInteger(drift[key])) {
+      errors.push(error("invalid_tuning_value", path));
+    }
+  }
+  return errors;
+}
+
+// ---------------------------------------------------------------------------
 // Tier 1 — collection names an `exists`/`count` condition addresses (§8.2, W111)
 // ---------------------------------------------------------------------------
 
@@ -624,6 +659,7 @@ export function validateCampaign(campaign: Campaign, strings: ReadonlyMap<LocKey
     ...validateAllModifiers(content),
     ...validateNaturalKeys(content),
     ...validateAttendanceTracking(content),
+    ...validateNeedDriftPerWeek(content),
     ...validateCollectionNames(content),
     ...validateWhereFields(content),
   ];

@@ -77,7 +77,7 @@ import type { ResolutionEmitter } from "../../core/observability/types.js";
 import type { RngHandle } from "../../core/determinism/types.js";
 import type { OutcomeMessage, StateChange } from "../../core/kernel/reasons.js";
 import type { ActorState, Credential, CourseEnrollment, Employment, EvictionStage, JobApplication, NeedKey, RelationshipState } from "./actor.js";
-import type { AttendanceTrackingConfig, RelationshipDriftRule } from "./campaign.js";
+import type { AttendanceTrackingConfig, RelationshipDriftRule, SimulationNeedDeltas } from "./campaign.js";
 import type {
   AchievementDefinition,
   BusinessDefinition,
@@ -137,13 +137,19 @@ const DRIFT_PER_WEEK: Readonly<Record<NeedKey, number>> = {
   stress: 2,
 };
 
-function needs(state: SimulationKindState): { state: SimulationKindState; changes: StateChange[] } {
+function needs(
+  state: SimulationKindState,
+  campaignDrift: SimulationNeedDeltas | undefined,
+): { state: SimulationKindState; changes: StateChange[] } {
   const changes: StateChange[] = [];
   const nextNeeds = { ...state.player.needs };
 
   for (const key of (Object.keys(DRIFT_PER_WEEK) as NeedKey[]).sort()) {
     const before = state.player.needs[key];
-    const after = clamp(before + DRIFT_PER_WEEK[key], 0, 100);
+    // §7.14: resolved per key at the point of use — a supplied key (zero included) wins, an
+    // omitted key or field is the default. Nothing is materialized into the campaign.
+    const drift = campaignDrift?.[key] ?? DRIFT_PER_WEEK[key];
+    const after = clamp(before + drift, 0, 100);
     if (after === before) continue;
     nextNeeds[key] = after;
     changes.push({
@@ -1633,6 +1639,9 @@ export interface EndOfWeekWorld {
   /** `SimulationCampaign.attendanceTracking` (§7.11). Absent leaves `Employment.
    *  attendanceRatio` unmaintained, exactly as it was before W100. */
   attendanceTracking?: AttendanceTrackingConfig;
+  /** `SimulationCampaign.needDriftPerWeek` (§7.14, W117). Absent, or a missing key, takes
+   *  `DRIFT_PER_WEEK`. */
+  needDriftPerWeek?: SimulationNeedDeltas;
   /** `SimulationCampaign.eventChains` (§7.13, W102). Absent leaves every fired `chainId`
    *  treated as `"game"`-scoped (`advanceChainState`'s own defensive fallback) — the same
    *  no-op-by-omission default every other optional collection here already has. */
@@ -1714,7 +1723,7 @@ const END_OF_WEEK_SYSTEMS: readonly SystemEntry<EndOfWeekFrame>[] = [
     return { ...withChanges(frame, result), missedCents: result.missedCents };
   }),
   traced("finance_reconcile", (frame) => withChanges(frame, financeReconcile(frame.state, frame.missedCents))),
-  traced("needs", (frame) => withChanges(frame, needs(frame.state))),
+  traced("needs", (frame) => withChanges(frame, needs(frame.state, frame.world.needDriftPerWeek))),
   traced("relationships", (frame) => withChanges(frame, relationships(frame.state, frame.world.relationshipDrift ?? []))),
   traced("opportunities", (frame) => withChanges(frame, opportunities(frame.state, frame.world.opportunities ?? [], frame.world.rng))),
   traced("events", (frame) => {
