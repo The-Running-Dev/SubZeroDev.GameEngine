@@ -150,6 +150,7 @@ export interface SimulationCampaignSource {
   emptyPlanPolicy?: SimulationCampaign["emptyPlanPolicy"];
   relationshipDrift?: SimulationCampaign["relationshipDrift"];
   attendanceTracking?: SimulationCampaign["attendanceTracking"];
+  needDriftPerWeek?: SimulationCampaign["needDriftPerWeek"];
 
   sceneTemplate: AuthoredText;
   actionLabels: SimulationActionLabelKeysSource;
@@ -315,6 +316,7 @@ export function buildSimulationCampaign(source: SimulationCampaignSource): {
     ...(source.emptyPlanPolicy !== undefined ? { emptyPlanPolicy: source.emptyPlanPolicy } : {}),
     ...(source.relationshipDrift !== undefined ? { relationshipDrift: source.relationshipDrift } : {}),
     ...(source.attendanceTracking !== undefined ? { attendanceTracking: source.attendanceTracking } : {}),
+    ...(source.needDriftPerWeek !== undefined ? { needDriftPerWeek: source.needDriftPerWeek } : {}),
 
     sceneTemplateKey: take(source.sceneTemplate),
     actionLabelKeys: buildActionLabels(source.actionLabels, take),

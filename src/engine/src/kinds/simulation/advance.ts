@@ -247,6 +247,7 @@ export function advance(
           ...(scenario?.weekLimit !== undefined ? { weekLimit: scenario.weekLimit } : {}),
           ...(content.relationshipDrift !== undefined ? { relationshipDrift: content.relationshipDrift } : {}),
           ...(content.attendanceTracking !== undefined ? { attendanceTracking: content.attendanceTracking } : {}),
+          ...(content.needDriftPerWeek !== undefined ? { needDriftPerWeek: content.needDriftPerWeek } : {}),
           ...(content.eventChains !== undefined ? { eventChains: content.eventChains } : {}),
           rng: ctx.derive({ kind: "system", system: "end_of_week", seq: ctx.seq }),
         },
