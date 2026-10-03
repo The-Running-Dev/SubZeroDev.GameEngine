@@ -6160,11 +6160,6 @@ The runtime walk stays non-throwing; once this check holds, an undeclared field 
 reach it. Neither check depends on content — the eight item types are closed — so the legal
 set is engine-owned and fixed per engine version, like the collection table itself.
 
-**Status: contracted, not built.** `validate.ts` checks collection names only, and neither
-code is registered in `reasons.ts`, so today an undeclared field still resolves to `undefined`
-at evaluation with the per-operator outcome above. The implementing unit deletes this paragraph
-(`90-decisions.md`, 2026-09-24).
-
 `count`'s own comparison (04 §18's `CountCondition`) is always a match total against a number —
 "a pending application exists" is `exists`, "at least two owned cars" is `count`. Neither needs
 a per-kind extension beyond the table above; both are the frozen core mechanism, finally given
@@ -6359,8 +6354,8 @@ Reused from the base set: `unknown_action`, `requirement_unmet`, `session_ended`
 | `numeric_natural_key` | 1 | An addressing path segment is all digits where a natural key is required (§7.1) |
 | `unknown_rival_strategy` | 1 | `RivalConfig.strategyId` (§7.8) names no registered `AgentStrategy` (§7.10) — W101 |
 | `unknown_collection` | 1 | An `exists`/`count` `collection` names a path outside §8.2's eight-entry table — W111 |
-| `unknown_collection_field` | 1 | A `where` `field` is not a scalar property its collection's item type declares (§8.2) — contracted, not built |
-| `optional_field_operator` | 1 | A `where` `field` names an optional property under an operator other than `equals`/`not_equals`/`in`/`not_in` (§8.2) — contracted, not built |
+| `unknown_collection_field` | 1 | A `where` `field` is not a scalar property its collection's item type declares (§8.2) |
+| `optional_field_operator` | 1 | A `where` `field` names an optional property under an operator other than `equals`/`not_equals`/`in`/`not_in` (§8.2) |
 | `unreachable_content` | 2 | A definition nothing in the campaign ever references |
 | `unsatisfiable_achievement` | 2 | An `AchievementDefinition.condition` reads a counter or flag nothing writes |
 

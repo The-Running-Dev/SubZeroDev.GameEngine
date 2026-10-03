@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: e154e2c1f9d62d1c671ab17dc836f16eb8d46797da07bdb67296a4984dc21358 -->
+<!-- design-digest: 8c5162864c5fdae7a9280bbffebaa9857b232e7edd111dd78ba2dbd26bc92138 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -790,12 +790,11 @@ Important constraints:
   definition, so "any item tagged X" needs an explicit id list rather than a category test. A
   `where` field must be a single-segment scalar field the item type declares, and an optional
   field may appear only under `equals`, `not_equals`, `in` or `not_in` — campaign load will reject
-  anything else with `unknown_collection_field` or `optional_field_operator`. **Those two checks
-  are specified but not yet built.** Until they are, a field the item type doesn't declare (or an
-  optional one that is absent) resolves to `undefined`: `equals`/`in` never match it,
-  `not_equals`/`not_in` always do, and every other operator throws mid-play. A typo'd field name
-  therefore either looks like a legitimate empty result or crashes the week, so double-check
-  field names by hand.
+  anything else with `unknown_collection_field` or `optional_field_operator`. The optional-field
+  rule exists because an absent optional field resolves to `undefined` at evaluation:
+  `equals`/`in` never match it, `not_equals`/`not_in` always do, and every other operator throws
+  mid-play. A typo'd field name can no longer reach the evaluator, so it cannot pass as an empty
+  result.
 
 The player view carries the calendar, identity, finances, needs, attributes, education, career,
 housing, inventory, and relationships — with the hidden `luck` attribute and relationship

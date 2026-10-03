@@ -36,6 +36,7 @@ import type { Reward, Requirement } from "./content.js";
 import { derivedValueResolver } from "./derived.js";
 import { SIMULATION_REASON_CODES } from "./reasons.js";
 import { AGENT_STRATEGIES } from "./agentStrategies.js";
+import { COLLECTION_FIELDS } from "./collectionFields.js";
 
 function error(code: string, path: string): ValidationError {
   return { code, messageKey: `simulation.reason.${code}`, path };
@@ -348,17 +349,8 @@ function validateAttendanceTracking(content: SimulationCampaign): ValidationErro
 // ---------------------------------------------------------------------------
 
 /** §8.2's closed collection table plus issue #494's earned credentials path — the only legal
- * `exists`/`count` collection names. */
-const KNOWN_COLLECTIONS = new Set<string>([
-  "player.inventory",
-  "player.relationships",
-  "player.career.pendingApplications",
-  "player.education.enrollments",
-  "player.education.credentials",
-  "player.projects",
-  "player.businesses",
-  "world.npcs",
-]);
+ * `exists`/`count` collection names, read off the field table so the eight names live once. */
+const KNOWN_COLLECTIONS = new Set<string>(Object.keys(COLLECTION_FIELDS));
 
 /** Every `collection` name an `exists`/`count` node names, walking the same tree shape as
  *  `collectFieldPaths` — plus recursing into `where` too, since a nested `exists`/`count`
@@ -437,6 +429,45 @@ function validateCollectionNames(content: SimulationCampaign): ValidationError[]
     .flatMap(collectCollectionNames)
     .filter((name) => !KNOWN_COLLECTIONS.has(name))
     .map((name) => error("unknown_collection", name));
+}
+
+// ---------------------------------------------------------------------------
+// Tier 1 — `where` fields a collection's item type declares (§8.2, W116)
+// ---------------------------------------------------------------------------
+
+/** The only operators an optional property may sit under: an absent field reaches the frozen
+ *  evaluator's `compare` as `undefined`, where these four answer without throwing (04 §18). */
+const OPTIONAL_FIELD_OPERATORS: ReadonlySet<string> = new Set(["equals", "not_equals", "in", "not_in"]);
+
+/** Every `where` `field` leaf under `condition`, checked against `collection`'s item type —
+ *  `undefined` while still at the top level, where a `field` is a state path and nothing is
+ *  checked. A nested `exists`/`count` re-roots to its own collection, so its `where` is never
+ *  held to the enclosing item's type (§8.2, *Nesting*). An unknown collection name checks
+ *  nothing beneath it: `unknown_collection` already reports that. */
+function collectWhereFieldErrors(condition: Condition, collection: string | undefined): ValidationError[] {
+  if ("field" in condition) {
+    if (collection === undefined) return [];
+    const fields = COLLECTION_FIELDS[collection];
+    if (fields === undefined) return [];
+    const path = `${collection}.${condition.field}`;
+    const kind = Object.hasOwn(fields, condition.field) ? fields[condition.field] : undefined;
+    if (kind === undefined || kind === "composite") return [error("unknown_collection_field", path)];
+    if (kind === "optional" && !OPTIONAL_FIELD_OPERATORS.has(condition.operator)) {
+      return [error("optional_field_operator", path)];
+    }
+    return [];
+  }
+  if ("all" in condition) return condition.all.flatMap((c) => collectWhereFieldErrors(c, collection));
+  if ("any" in condition) return condition.any.flatMap((c) => collectWhereFieldErrors(c, collection));
+  if ("not" in condition) return collectWhereFieldErrors(condition.not, collection);
+  if ("exists" in condition) return collectWhereFieldErrors(condition.exists.where, condition.exists.collection);
+  return collectWhereFieldErrors(condition.count.where, condition.count.collection);
+}
+
+/** A `where` `field` its collection's item type does not declare as a single-segment scalar —
+ *  or an optional one under an operator that would throw during play — fails here at load. */
+function validateWhereFields(content: SimulationCampaign): ValidationError[] {
+  return allConditions(content).flatMap((condition) => collectWhereFieldErrors(condition, undefined));
 }
 
 // ---------------------------------------------------------------------------
@@ -594,6 +625,7 @@ export function validateCampaign(campaign: Campaign, strings: ReadonlyMap<LocKey
     ...validateNaturalKeys(content),
     ...validateAttendanceTracking(content),
     ...validateCollectionNames(content),
+    ...validateWhereFields(content),
   ];
 
   const warnings: ValidationWarning[] = [
