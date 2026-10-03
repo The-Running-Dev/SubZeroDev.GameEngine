@@ -3641,9 +3641,12 @@ difference is invisible in the projection and obvious in the stream.
       closure and the reason its original "revisit when" was the wrong trigger. The replay
       oracle still drives `Engine` directly, but for its own stated reason — it needs the raw
       `GameState` no `SessionStore` returns ([07 §3.2](07-replay.md)) — not for want of a root.
-- [ ] `wisdom` attribute has no consumer in the simulation kind — needs one to earn its
-      place (`games/04-engine-specification.md` §8.4).
-- [ ] **Four simulation `ActionType`s have no content-definition type to resolve against.**
+- [x] **`wisdom` has a consumer — closed.** [W100](#w100)'s 2026-08-31 decision made the
+      generic attribute `Requirement` path its consumer, and W100.5 proved two otherwise
+      identical actors receive different available behaviour. Confirmed by `/align` on #275.
+- [x] **Four simulation `ActionType`s have no content-definition type to resolve against — closed.**
+      [§7.12](10-simulation-kind.md#712-projects-and-businesses-w101) declares `ProjectDefinition` and
+      `BusinessDefinition`, and [W101](#w101) built the four resolvers against them. As first found:
       `start_project`, `work_on_project`, `start_business` and `operate_business` are members
       of [10 §4.2](10-simulation-kind.md#42-action-types)'s closed union, so `ResolverTable`'s
       completeness check compels a resolver for each — but
@@ -3652,7 +3655,9 @@ difference is invisible in the projection and obvious in the stream.
       the thirty that no unit W53–W57 can implement. **Revisit when** a scenario needs one:
       either §7 gains the definitions or the union loses the members, and deciding that is
       `/contract`'s work, not a slice's. Found while slicing W53–W57.
-- [ ] **The simulation `relationships` end-of-week system has no rule to implement.**
+- [x] **The simulation `relationships` end-of-week system has no rule to implement — closed.**
+      [§7.11](10-simulation-kind.md#711-the-campaign-envelope-and-weekly-tuning)'s `relationshipDrift` is the rule,
+      and [W100](#w100).3 built the system against it. As first found:
       [10 §3](10-simulation-kind.md#3-the-turn-is-a-week) names it in `END_WEEK_SYSTEM_ORDER`
       and [§6.11](10-simulation-kind.md#611-relationships) gives `RelationshipState` its full
       shape, but no weekly movement rule for it is stated anywhere in the contract — the stub's
@@ -3660,8 +3665,11 @@ difference is invisible in the projection and obvious in the stream.
       W56 builds `socialize` against the shape and leaves the system a documented stub for
       exactly this reason. **Revisit when** the rule is written, which is `/contract`'s work.
 - [ ] Provisional numbers across the simulation kind (drift rates, scenario economics,
-      `demandBand` thresholds, housing-quality formula, travel costs) need a balancing
-      pass once the sim harness runs.
+      `demandBand` thresholds, housing-quality formula) are placeholder balance. **Balancing is
+      game-side**; the engine owes the levers, not the numbers (`90-decisions.md`, 2026-09-27,
+      `/align` on #267). The levers are [§7.14](10-simulation-kind.md#714-remaining-campaign-physics-524),
+      sliced as [W117](#w117)–[W119](#w119). Travel costs are already content-owned
+      (`LocationDefinition.travelTimeUnits`) and were never a lever to add.
 - [ ] **Three `docs-template` hardening findings, to raise upstream — after this PR
       merges, not before.** Surfaced by automated review on
       [PR #3](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/3); all three
@@ -3715,6 +3723,14 @@ findings, and for the same reason: each either asks for a type the contract does
 or asks it to state a rule it currently leaves unwritten, and slicing one would mean inventing
 the answer first. Several are already carried above and are repeated only because they sit on
 this path; the rest are new to this pass.
+
+**Status, 2026-10-03.** Every prerequisite below except P8 has since been contracted. P1 and P4
+were settled by [W101](#w101) (§7.12's project and business definitions; §7.8's `RivalConfig`).
+P2, P5 and P6's `attendanceRatio` were settled by [W100](#w100) (§7.11's `relationshipDrift`,
+`emptyPlanPolicy` and `attendanceTracking`), and P6's `wisdom` by W100's generic attribute
+`Requirement` path (#275). P7 was settled by [W102](#w102) (§16; the portable simulation arm
+carries `migration`). P3 is contracted as §7.14 and sliced as [W117](#w117)–[W119](#w119), which
+also wait on P8. The bullets below are kept as found.
 
 - **P1 — Four `ActionType`s have no content-definition type.** Carried above.
   `start_project`, `work_on_project`, `start_business` and `operate_business` are members of
@@ -3783,6 +3799,15 @@ this path; the rest are new to this pass.
   migrate an existing save. **This does not block first play** — it blocks revising a live
   game — so it is last here rather than first; it is also the one prerequisite carrying a
   wire-format cost.
+- **P8 — §7.14's Tier 1 rejection has no reason code.**
+  [§7.14](10-simulation-kind.md#714-remaining-campaign-physics-524) says Tier 1 rejects an invalid
+  physics value or stage sequence "with a path identifying the field/key", but
+  [§10](10-simulation-kind.md#10-reason-codes)'s Tier 1 table names no code for it. The one
+  precedent does not settle it either: W100 shipped `invalid_attendance_window` for §7.11's
+  window, and §10 does not list that code. One shared code, one per field, or one per rule
+  family is a choice of public, cross-version-stable vocabulary, so a slice cannot pick it.
+  Found while slicing [W117](#w117); it blocks W117–W119 and nothing else. The same pass should
+  either list `invalid_attendance_window` in §10 or record why it stays unlisted.
 
 ### Depth: Life in the Fast Lane, End to End
 
@@ -5031,6 +5056,228 @@ locked without reading the game's internals.
       thought history, which §10 says need a state-and-save change first; placement-dependent
       build previews, which stay `previewAction`'s; any change to a client, including
       SubZeroDev.Adventures; the simulation kind's `where`-field Tier 1 check.
+
+### Depth: The Simulation Campaign's Own Rules
+
+Four units. Two `/contract` passes routed work here, and neither has a unit yet. The 2026-09-24
+entry specified the Tier 1 check for `where` fields
+([§8.2](10-simulation-kind.md#82-collections-for-existscount-w1055)), which [W115](#w115) named
+as separate. The 2026-09-28 entry specified #524's campaign physics
+([§7.14](10-simulation-kind.md#714-remaining-campaign-physics-524)): the numbers a campaign
+cannot yet set.
+
+Ordered by risk. [W116](#w116) is fully contracted, depends on nothing, and closes a gap where a
+campaign that loads can still throw during play. [W117](#w117) wires one field so it can test
+the assumption all of §7.14 rests on: that a per-key default resolved at use reproduces today's
+output byte for byte. If it cannot, #524's stop condition applies, and W118 and W119 should not
+start. W118 covers the week's own rules and W119 the per-action prices. Neither W118 nor W119
+depends on the other. All three physics units wait on P8 (under *Contract Prerequisites*
+above), the reason code §7.14's validation never named.
+
+### [ ] W116 — A Campaign Cannot Ask About a Field Its Collection Lacks {#w116}
+
+**Delivers:** As a campaign author, a condition that asks about a property its collection's
+items do not have is rejected when the campaign loads, and so is a comparison on an optional
+property that would crash mid-game. The rejection says which of the two went wrong. Today the
+first quietly matches the wrong things and the second fails during play.
+
+- **Spec:** [10 §8.2](10-simulation-kind.md#82-collections-for-existscount-w1055),
+      [§10](10-simulation-kind.md#10-reason-codes) and
+      [§14](10-simulation-kind.md#14-validation); `90-decisions.md`, 2026-09-15 and 2026-09-24.
+- **Touches:** the simulation validator and reason-code registry, and their tests; the §8.2
+      status paragraph and §10 markers in `design/20-contract.md`; the regenerated human docs.
+- **Depends on:** none.
+- **Status:** Not started.
+- **Done when:**
+  - W116.1 For each of §8.2's eight collections, a test shows a `where` `field` naming a scalar
+        property of the collection's item type passing Tier 1. The same test shows a field the
+        item type does not declare failing with `unknown_collection_field`.
+  - W116.2 Each of the following fails with `unknown_collection_field`:
+        - a dotted path against `world.npcs` into `memories`, `availability` or `flags` (for
+          example `flags.met`);
+        - a one-segment field naming a property of array or object type.
+  - W116.3 The check reaches every `field` leaf at any depth under `all`, `any` and `not`. A
+        `where` nested two or more levels deep is rejected for its innermost bad field.
+        Inside a `where`, a nested `exists` or `count` is checked against its own collection's
+        item type, not the outer one: a field legal only on the outer type is rejected there.
+  - W116.4 An optional property passes under `equals`, `not_equals`, `in` and `not_in`. It fails
+        with `optional_field_operator` under each other operator, with one test case per
+        operator.
+  - W116.5 The engine's table of legal fields is typed against each item type's properties, so
+        leaving a property out is a compile error. A type-level test proves this, for example
+        with `@ts-expect-error`.
+  - W116.6 Both codes are registered in `reasons.ts` with messages.
+  - W116.7 Every committed simulation campaign, including Stable Life and every test campaign,
+        loads with no new finding. The pull request states how many rejecting cases and how many
+        passing cases the new tests contain.
+  - W116.8 In the same pull request:
+        - §8.2's *Status: contracted, not built* paragraph is deleted;
+        - both "contracted, not built" markers in §10's Tier 1 table are deleted;
+        - the human docs are regenerated.
+
+        `./build/Test-Documentation.ps1` passes, and `npm run typecheck`, `npm run lint` and
+        `npm test` pass from `src/engine/`.
+- **Out of scope:**
+  - An operator that does not fit a *present* field's type, for example `has_tag` against a
+    number. §8.2 leaves this out explicitly.
+  - Any change to the runtime condition evaluator, which stays non-throwing.
+  - Collection-name validation, which is [W111](#w111)'s.
+  - Condition validation in other kinds.
+
+### [ ] W117 — Two Campaigns, One Lever, Different Weeks {#w117}
+
+**Delivers:** As a game author, I can set how fast each need drains per week in my own campaign.
+Two campaigns that differ only in that setting play out differently. Every campaign that does not
+set it plays exactly as it does today.
+
+- **Spec:** [10 §7.14](10-simulation-kind.md#714-remaining-campaign-physics-524) and
+      [§14](10-simulation-kind.md#14-validation); `90-decisions.md`, 2026-09-28;
+      [#524](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/524).
+- **Touches:** the simulation campaign and source types, the source builder, the validator, and
+      the `needs` end-of-week system; their tests and synthetic fixtures.
+- **Depends on:** P8 under *Contract Prerequisites* above, the reason code for an invalid
+      physics value.
+- **Status:** Not started.
+- **Done when:**
+  - W117.1 `needDriftPerWeek` is declared on `SimulationCampaign` and `SimulationCampaignSource`
+        exactly as §7.14 states. The builder copies it only when it is supplied:
+        - an omitted field stays absent from the built campaign;
+        - a partial record keeps only the keys supplied.
+  - W117.2 The `needs` system resolves each need key at the point of use:
+        - a supplied key takes the campaign's value;
+        - an omitted key, or an omitted field, takes §7.14's default (health −1, energy −3,
+          happiness −2, satiety −4, stress +2);
+        - an explicit `0` for a key leaves that need undrifted.
+  - W117.3 Take two synthetic campaigns that differ only in `needDriftPerWeek: { satiety: -5 }`
+        versus omission. Give them the same seed, the same `end_week` log, and a starting satiety
+        away from either clamp. After one `end_week`:
+        - base satiety differs by exactly 1;
+        - the `need_drift` change for satiety differs by exactly 1;
+        - every other need and every other change is identical.
+  - W117.4 The W117.3 divergence is identical on a repeat run, and across a save/load cut taken
+        mid-log: `serialize()` output matches the uncut run.
+  - W117.5 A campaign that omits the field is byte-identical to the committed replay and golden
+        oracles, and no committed fixture file changes.
+  - W117.6 Tier 1 rejects a non-finite delta, a non-integer delta and an unknown need key. Each
+        rejection uses P8's code and a path naming the key. The pull request states how many
+        rejecting cases and how many passing cases the tests contain.
+  - W117.7 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`.
+- **Out of scope:**
+  - Every other §7.14 field.
+  - Any change to a default number, or to Stable Life's content.
+  - Balancing, which is game-side (`90-decisions.md`, 2026-09-27).
+
+### [ ] W118 — The Week's Own Rules Belong to the Campaign {#w118}
+
+**Delivers:** As a game author, I can set my campaign's weekly time budget, late-fee rate and
+eviction ladder. I can also set how job performance drifts and how much each event shifts the
+world's strangeness. A save made under one ladder still loads and progresses under another.
+
+- **Spec:** [10 §7.14](10-simulation-kind.md#714-remaining-campaign-physics-524) and
+      [§14](10-simulation-kind.md#14-validation); `90-decisions.md`, 2026-09-28.
+- **Touches:** the simulation campaign and source types, the source builder and the validator;
+      the initial state and start-of-week time budget; the `finance_reconcile`, `employment` and
+      `events` end-of-week systems; their tests and synthetic fixtures.
+- **Depends on:** P8, and [W117](#w117), whose omission oracle this extends.
+- **Status:** Not started.
+- **Done when:**
+  - W118.1 These six fields are declared on the campaign and source types as §7.14 states:
+        `weeklyTimeUnits`, `lateFeeBasisPoints`, `evictionStages`, `performanceDriftRate`,
+        `performanceWorkBonus` and `strangenessPerEvent`. The builder copies each only when it
+        is supplied.
+  - W118.2 Each field has a fixture pair that differs in that field alone. Each pair diverges
+        only on the path that field governs:
+        - the week's time budget;
+        - the late fee in cents;
+        - the eviction stage;
+        - employment performance;
+        - `strangenessBase`.
+  - W118.3 Under a shortened ladder `none, penalty, evicted`:
+        - a missed week advances one listed stage;
+        - a loaded state at the omitted `warning` stage advances to `penalty`;
+        - `evicted` stays terminal;
+        - `pay_bills` still resets the stage to `none`.
+  - W118.4 With `performanceDriftRate: 0`, a week without work leaves performance unchanged. With
+        `1`, such a week moves it to the job's `weeklyDriftToward`. Rounding happens once, as
+        §7.14 states.
+  - W118.5 Tier 1 rejects each of the following, using P8's code and a path:
+        - a `weeklyTimeUnits` that is not a positive integer;
+        - a negative or non-integer `lateFeeBasisPoints`;
+        - a `performanceDriftRate` that is non-finite or outside [0, 1];
+        - a non-integer bonus or strangeness step;
+        - a stage sequence that does not start at `none`, does not end at `evicted`, repeats a
+          stage, breaks canonical order, or names an unknown stage.
+
+        The pull request states how many rejecting cases and how many passing cases the tests
+        contain.
+  - W118.6 A campaign that omits all six fields is byte-identical to the committed replay and
+        golden oracles. Default paths keep their `StateChange` order and shape, and no committed
+        fixture file changes.
+  - W118.7 `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`.
+- **Out of scope:**
+  - Per-action time costs and need deltas, which are [W119](#w119)'s.
+  - Any change to the persisted `EvictionStage` union.
+  - Any change to a default number, and any balancing.
+
+### [ ] W119 — Every Fixed Action Price Is the Campaign's {#w119}
+
+**Delivers:** As a game author, I can price every fixed-cost action in time, including actions
+that are free today. I can also set what eating, resting and exercising do to needs, how much
+socializing moves a relationship, and how fast applications, raises, study and projects
+progress. Every action I leave alone costs exactly what it costs today.
+
+- **Spec:** [10 §7.14](10-simulation-kind.md#714-remaining-campaign-physics-524) and
+      [§14](10-simulation-kind.md#14-validation); `90-decisions.md`, 2026-09-28.
+- **Touches:** the simulation campaign and source types, the source builder and the validator;
+      the action resolvers named by §7.14's `actionTimeCosts` keys and per-action fields; their
+      tests and synthetic fixtures.
+- **Depends on:** P8, and [W117](#w117).
+- **Status:** Not started.
+- **Done when:**
+  - W119.1 These fields are declared on the campaign and source types as §7.14 states:
+        `actionTimeCosts`, `eatNeedDeltas`, `restNeedDeltas`, `exerciseNeedDeltas`,
+        `socializeAffinityGain`, `socializeTrustGain`, `applicationResolveWeeks`,
+        `negotiateRaiseBasisPoints`, `studyUnitsPerSession` and `projectProgressPerSession`. The
+        builder copies each only when it is supplied, and keeps partial records partial.
+  - W119.2 A table-driven test covers all twenty-six `actionTimeCosts` keys. For each, an omitted
+        key reproduces today's calculated time cost and audit shape exactly.
+  - W119.3 When a zero-default action such as `eat` is given a positive price:
+        - it checks available time, and fails with `insufficient_time` when time is short;
+        - it emits the spent-time change;
+        - `apply` consumes exactly the calculated value.
+
+        An explicit `0` keeps today's shape. `eat` and `rest` still omit `calculatedTimeCost`
+        and the spent-time change; the other zero-default actions still report
+        `calculatedTimeCost: 0`.
+  - W119.4 Need-delta records resolve per key: supplying one `exerciseNeedDeltas` key changes
+        only that need. `restNeedDeltas.stress` is a signed delta, and its default of −5 lowers
+        stress.
+  - W119.5 Each of the six scalar fields has a fixture pair that differs in that field alone, and
+        each pair diverges only on the path that field governs. These action costs are unchanged
+        by every new field:
+        - `work`;
+        - `travel`;
+        - `maintain_item`;
+        - `work_on_project`;
+        - `respond_to_event`.
+  - W119.6 Tier 1 rejects each of the following, using P8's code and a path:
+        - a negative or non-integer action cost;
+        - an unknown action key or an unknown need key;
+        - a non-integer need delta or gain;
+        - a resolve-week, study or project value that is not a positive integer;
+        - a negative or non-integer raise in basis points.
+
+        The pull request states how many rejecting cases and how many passing cases the tests
+        contain.
+  - W119.7 A campaign that omits every field is byte-identical to the committed replay and golden
+        oracles. Default paths keep their `StateChange` order and shape, and no committed fixture
+        file changes. `npm run typecheck`, `npm run lint` and `npm test` pass from `src/engine/`.
+- **Out of scope:**
+  - The identity constants §7.14 lists as non-levers: `NO_MONEY_COST`, `NEW_ITEM_CONDITION`,
+    `NEW_ITEM_QUANTITY` and `INVESTMENT_INTEREST_RATE`.
+  - The repair formula.
+  - Content-owned costs.
+  - Any change to a default number, and any balancing.
 
 ## Landed
 
