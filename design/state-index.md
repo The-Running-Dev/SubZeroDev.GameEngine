@@ -71,7 +71,6 @@ rendered here.
 <!-- outstanding:start -->
 | Rank | Issue | Title | Criteria | Mirrored at |
 |---|---|---|---|---|
-| 22 | #270 | Extract a shared SystemPipeline substrate for tick-driven kinds (simulation + world-graph) | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | 23 | #275 | `wisdom` attribute has no consumer in the simulation kind | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | 26 | #278 | `VisibleStat` omits the declared range, so clients read `Campaign.content` to get it | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | 27 | #279 | `listCampaigns()` is synchronous, so no remote store can implement it | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
