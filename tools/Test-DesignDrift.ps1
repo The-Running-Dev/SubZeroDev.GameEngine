@@ -85,7 +85,7 @@ function New-Failure {
     whole file. Prose cites ids too - "exercised by W1.10" would appear in this document's
     own cross-references - and a whole-file regex would count those as criteria that exist.
     This repository retains its established `W` slice prefix in place of the kit's generic
-    `S` (design/30-slices.md, "How this document is kept"; .claude/commands/track-local.md).
+    `S` (design/30-slices.md, "How this document is kept"; skills/track/SKILL-local.md).
 #>
 function Get-SliceCriteria {
     param([Parameter(Mandatory)][string] $Path)
@@ -266,15 +266,15 @@ function Invoke-DriftCheck {
         $issue  = $tracker.Issues | Where-Object { $_.title -match "^W$number\b" } | Select-Object -First 1
 
         if (-not $issue) {
-            # A landed slice is not synced at all (.claude/commands/track.md, "What syncs"),
-            # so there is no issue for /track to open and this is not a finding. The ones
+            # A landed slice is not synced at all (the kit's skills/track/SKILL.md, "What syncs"),
+            # so there is no issue for /agentkit:track to open and this is not a finding. The ones
             # here predate the tracker; reporting them made the gate permanently red, which
             # is how three real findings sat unread.
             if ($number -in $landed) {
                 $unissuedLanded.Add($number)
                 continue
             }
-            $findings.Add((New-Finding -Kind 'NoIssue' -Slice "W$number" -Detail 'slice has no issue; /track opens one' -Issue 0))
+            $findings.Add((New-Finding -Kind 'NoIssue' -Slice "W$number" -Detail 'slice has no issue; /agentkit:track opens one' -Issue 0))
             continue
         }
 

@@ -27,7 +27,7 @@ tracks, applied to the instructions. One file, one answer.
 ## Writing a design-state record
 
 This repository has adopted **half** of the kit's `design/state/` system, and the half it did
-not adopt is the half this heading is about. What exists: `/track`'s work-mirror
+not adopt is the half this heading is about. What exists: `/agentkit:track`'s work-mirror
 (`design/state/work/`, one `WorkRef` per issue — `design/90-decisions.md`, 2026-08-24) and
 `design/state-index.md`, the projection over it (2026-09-05). What does not: `design/state/units/`,
 and every other record kind. There are no `Unit`, `Invariant`, `Contract`, `Decision` or
@@ -38,5 +38,5 @@ So the full record-writing sequence the kit's own `AGENTS.md` describes under th
 appending to `90-decisions.md`, writing a decision record, updating unit records, regenerating
 projections — still does not apply. **Write the decision-log entry alone**, in
 `design/90-decisions.md`'s own register, in its existing format. Do not hand-write
-`design/state-index.md`: it is generated, `/track` regenerates it, and an edit between two of
+`design/state-index.md`: it is generated, `/agentkit:track` regenerates it, and an edit between two of
 its markers is discarded on the next run.
