@@ -30,7 +30,7 @@ import type { Campaign } from "../../core/registry/types.js";
 import type { LocKey } from "../../core/localization/types.js";
 import type { ValidationError, ValidationResult, ValidationWarning } from "../../core/validation/types.js";
 import type { Condition } from "../../core/condition/types.js";
-import type { SimulationCampaign } from "./campaign.js";
+import type { SimulationCampaign, SimulationFixedTimeAction } from "./campaign.js";
 import type { EvictionStage, NeedKey } from "./actor.js";
 import type { Modifier } from "./state.js";
 import type { Reward, Requirement } from "./content.js";
@@ -359,21 +359,50 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return proto === Object.prototype || proto === null;
 }
 
-/** `needDriftPerWeek` (§7.14), when present. One error per offending key: a key outside
- *  `NeedKey` is `unknown_tuning_key` and its value is not also checked; a value that is not a
- *  finite integer is `invalid_tuning_value`. A non-object field is one `invalid_tuning_value`
- *  at the field. Absence is never an error. */
-function validateNeedDriftPerWeek(content: SimulationCampaign): ValidationError[] {
-  const drift: unknown = content.needDriftPerWeek;
-  if (drift === undefined) return [];
-  if (!isPlainObject(drift)) return [error("invalid_tuning_value", "needDriftPerWeek")];
+/** `SimulationFixedTimeAction`'s members, keyed exhaustively for the same reason as
+ *  `NEED_KEYS`: a fixed-price action added to or removed from the union fails typecheck until
+ *  this follows. */
+const FIXED_TIME_ACTIONS: Readonly<Record<SimulationFixedTimeAction, true>> = {
+  search_for_work: true, apply_for_job: true, negotiate_job_terms: true, work_overtime: true,
+  study: true, move_housing: true, borrow_money: true, repay_debt: true, deposit_savings: true,
+  invest: true, shop: true, repair_item: true, sell_item: true, socialize: true, exercise: true,
+  start_project: true, start_business: true, eat: true, rest: true, enroll_course: true,
+  attend_class: true, withdraw_course: true, pay_bills: true, accept_opportunity: true,
+  decline_opportunity: true, operate_business: true,
+};
+
+type TuningRecordField = "needDriftPerWeek" | "actionTimeCosts" | "eatNeedDeltas" | "restNeedDeltas" | "exerciseNeedDeltas";
+
+/** The §7.14 record fields, each with its closed key union and its value rule. Need deltas are
+ *  signed; an action's time cost cannot be negative. */
+const RECORD_RULES: readonly (readonly [TuningRecordField, Readonly<Record<string, true>>, ScalarRule])[] = [
+  ["needDriftPerWeek", NEED_KEYS, "integer"],
+  ["actionTimeCosts", FIXED_TIME_ACTIONS, "nonnegative_integer"],
+  ["eatNeedDeltas", NEED_KEYS, "integer"],
+  ["restNeedDeltas", NEED_KEYS, "integer"],
+  ["exerciseNeedDeltas", NEED_KEYS, "integer"],
+];
+
+/** The §7.14 record fields, when present. One error per offending key: a key outside the
+ *  field's closed union is `unknown_tuning_key` and its value is not also checked; a value
+ *  that breaks the field's rule is `invalid_tuning_value`. A non-object field is one
+ *  `invalid_tuning_value` at the field. Absence is never an error. */
+function validateTuningRecords(content: SimulationCampaign): ValidationError[] {
   const errors: ValidationError[] = [];
-  for (const key of Object.keys(drift)) {
-    const path = `needDriftPerWeek.${key}`;
-    if (!Object.prototype.hasOwnProperty.call(NEED_KEYS, key)) {
-      errors.push(error("unknown_tuning_key", path));
-    } else if (!Number.isInteger(drift[key])) {
-      errors.push(error("invalid_tuning_value", path));
+  for (const [field, keys, rule] of RECORD_RULES) {
+    const record: unknown = content[field];
+    if (record === undefined) continue;
+    if (!isPlainObject(record)) {
+      errors.push(error("invalid_tuning_value", field));
+      continue;
+    }
+    for (const key of Object.keys(record)) {
+      const path = `${field}.${key}`;
+      if (!Object.prototype.hasOwnProperty.call(keys, key)) {
+        errors.push(error("unknown_tuning_key", path));
+      } else if (!satisfies(record[key], rule)) {
+        errors.push(error("invalid_tuning_value", path));
+      }
     }
   }
   return errors;
@@ -414,6 +443,12 @@ const SCALAR_RULES: readonly (readonly [keyof SimulationCampaign, ScalarRule])[]
   ["performanceDriftRate", "unit_interval"],
   ["performanceWorkBonus", "integer"],
   ["strangenessPerEvent", "integer"],
+  ["socializeAffinityGain", "integer"],
+  ["socializeTrustGain", "integer"],
+  ["applicationResolveWeeks", "positive_integer"],
+  ["negotiateRaiseBasisPoints", "nonnegative_integer"],
+  ["studyUnitsPerSession", "positive_integer"],
+  ["projectProgressPerSession", "positive_integer"],
 ];
 
 function satisfies(value: unknown, rule: ScalarRule): boolean {
@@ -425,7 +460,7 @@ function satisfies(value: unknown, rule: ScalarRule): boolean {
   }
 }
 
-/** The §7.14 scalar fields of W118, when present: one `invalid_tuning_value` per offending
+/** The §7.14 scalar fields of W118 and W119, when present: one `invalid_tuning_value` per offending
  *  field, at the field. Absence is never an error; `null` is a supplied non-number. */
 function validateWeekScalars(content: SimulationCampaign): ValidationError[] {
   const errors: ValidationError[] = [];
@@ -716,7 +751,7 @@ export function validateCampaign(campaign: Campaign, strings: ReadonlyMap<LocKey
     ...validateAllModifiers(content),
     ...validateNaturalKeys(content),
     ...validateAttendanceTracking(content),
-    ...validateNeedDriftPerWeek(content),
+    ...validateTuningRecords(content),
     ...validateWeekScalars(content),
     ...validateEvictionStages(content),
     ...validateCollectionNames(content),

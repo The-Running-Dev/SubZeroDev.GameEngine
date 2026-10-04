@@ -66,6 +66,18 @@ export interface SimulationActionLabelKeys {
 /** A signed per-need change to base needs (§7.14). Every key is optional. */
 export type SimulationNeedDeltas = Partial<Record<NeedKey, number>>;
 
+/** The actions whose time cost is a resolver literal rather than content (§7.14). `work`,
+ *  `travel`, `maintain_item`, `work_on_project` and `respond_to_event` take theirs from
+ *  content and are not members. */
+export type SimulationFixedTimeAction =
+  | "search_for_work" | "apply_for_job" | "negotiate_job_terms" | "work_overtime"
+  | "study" | "move_housing" | "borrow_money" | "repay_debt"
+  | "deposit_savings" | "invest" | "shop" | "repair_item" | "sell_item"
+  | "socialize" | "exercise" | "start_project" | "start_business"
+  | "eat" | "rest" | "enroll_course" | "attend_class" | "withdraw_course"
+  | "pay_bills" | "accept_opportunity" | "decline_opportunity"
+  | "operate_business";
+
 export interface SimulationCampaign {
   descriptionKey: LocKey;
 
@@ -155,6 +167,28 @@ export interface SimulationCampaign {
   performanceWorkBonus?: number;
   /** §7.14, W118. The integer `world.strangenessBase` moves per fired event. Absent is 5. */
   strangenessPerEvent?: number;
+  /** §7.14, W119. Per-action time cost, resolved per key. An absent key is the action's
+   *  current cost; the nine free actions are 0 and, priced, check and spend time. */
+  actionTimeCosts?: Partial<Record<SimulationFixedTimeAction, number>>;
+  /** §7.14, W119. Signed need changes `eat` makes, per key. Absent is satiety +25. */
+  eatNeedDeltas?: SimulationNeedDeltas;
+  /** §7.14, W119. Signed need changes `rest` makes, per key. Absent is energy +20, stress −5. */
+  restNeedDeltas?: SimulationNeedDeltas;
+  /** §7.14, W119. Signed need changes `exercise` makes, per key. Absent is energy −10,
+   *  happiness +3, health +5, satiety −5, stress −5. */
+  exerciseNeedDeltas?: SimulationNeedDeltas;
+  /** §7.14, W119. Integer affinity one `socialize` adds. Absent is 5. */
+  socializeAffinityGain?: number;
+  /** §7.14, W119. Integer trust one `socialize` adds. Absent is 2. */
+  socializeTrustGain?: number;
+  /** §7.14, W119. Weeks from `apply_for_job` to its resolution. Absent is 1. */
+  applicationResolveWeeks?: number;
+  /** §7.14, W119. Basis points a successful `negotiate_job_terms` adds to pay. Absent is 500. */
+  negotiateRaiseBasisPoints?: number;
+  /** §7.14, W119. `studyUnits` one `study` session adds. Absent is 1. */
+  studyUnitsPerSession?: number;
+  /** §7.14, W119. `progressUnits` one `work_on_project` session adds. Absent is 1. */
+  projectProgressPerSession?: number;
 }
 
 export interface RelationshipDriftRule {
