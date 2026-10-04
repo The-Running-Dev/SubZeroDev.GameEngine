@@ -300,7 +300,7 @@ issue is the authority for those seven, not this section:
 | [#276](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/276) | `SaveRecordStore.delete` has no caller anywhere |
 | [#277](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/277) | No per-player save query, and two hosts have now invented one |
 | [#278](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/278) | `VisibleStat` omits the declared range, so clients read `Campaign.content` to get it — resolved by W98 (#414): gates 2 and 3 below |
-| [#279](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/279) | `listCampaigns()` is synchronous, so no remote store can implement it |
+| [#279](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/279) | `listCampaigns()` is synchronous, so no remote store can implement it — resolved by W98 (#414): gate 1 below |
 | [#280](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/280) | Reproducing a stored session's blob requires pinning `IdSource.newGameId` |
 | [#281](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/281) | `SessionStore` has no concept of a caller, so authorization lives outside it |
 | [#282](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/282) | `Kind.outcome` has no shape a host can read generically |
