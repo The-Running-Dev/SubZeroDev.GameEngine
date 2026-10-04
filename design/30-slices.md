@@ -5222,7 +5222,7 @@ world's strangeness. A save made under one ladder still loads and progresses und
   - Any change to the persisted `EvictionStage` union.
   - Any change to a default number, and any balancing.
 
-### [ ] W119 — Every Fixed Action Price Is the Campaign's {#w119}
+### [x] W119 — Every Fixed Action Price Is the Campaign's {#w119}
 
 **Delivers:** As a game author, I can price every fixed-cost action in time, including actions
 that are free today. I can also set what eating, resting and exercising do to needs, how much
