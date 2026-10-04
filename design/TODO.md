@@ -310,6 +310,6 @@
 
 ### [x] W118 — The Week's Own Rules Belong to the Campaign {#w118}
 
-### [ ] W119 — Every Fixed Action Price Is the Campaign's {#w119}
+### [x] W119 — Every Fixed Action Price Is the Campaign's {#w119}
 
 ## Landed
