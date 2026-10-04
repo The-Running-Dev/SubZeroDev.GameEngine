@@ -1,6 +1,6 @@
 # Project Instructions
 
-**Read `AGENTS.shared.md` (home install: `C:/Users/Ben/.agent-kit/AGENTS.shared.md`) completely before this file.** It holds the rules every repository using the kit shares.
+**Read `AGENTS.shared.md` completely before this file.** It holds the rules every repository using the kit shares, resolved from `$env:AGENTKIT_HOME` if set, else `$HOME/.agent-kit`.
 
 
 ## What This Project Is
@@ -154,7 +154,7 @@ build context:
   matching the stated reading order. **A new page is invisible until it is listed there**;
   an id that does not resolve fails the build.
 - `build/ConvertTo-HumanDocumentation.ps1` — the design → human-doc generator. Run it after
-  editing marked blocks in `design/`; run `/make-human-docs` for `docs/docs/guide.md`, then
+  editing marked blocks in `design/`; run `/agentkit:docs` for `docs/docs/guide.md`, then
   stamp the guide with `./build/ConvertTo-HumanDocumentation.ps1 -StampGuide`. Never edit a
   generated engine page directly. `./build/Test-Documentation.ps1` runs the corresponding
   `-Check` automatically.
@@ -239,14 +239,14 @@ bulk. When a suggestion is declined, record it in the affected document (or
 `OPEN-QUESTIONS.md`) as a known-and-retained issue rather than dropping it silently.
 
 **A reconciliation ends in a decision, not a report.** Any time you compare two things and
-find they disagree — `/reconcile`, `/install`, `/track` drift, a spec checked against the
+find they disagree — `/agentkit:align`, `/agentkit:install`, `/agentkit:track` drift, a spec checked against the
 code, or any time the user says "reconcile" — the work is not finished at the findings.
 Close by asking, one divergence at a time, each with a recommendation and what the
 alternatives cost. **A report the user has to turn into questions is half the job.**
 Recommend the *resolution*: what changes, in which file, and what reversing it costs. If
 nothing diverged, say so plainly rather than manufacturing a fork.
 
-`/redteam` is the one exception, and only partly: it must not propose fixes, since naming a
+`/agentkit:redteam` is the one exception, and only partly: it must not propose fixes, since naming a
 fix frames the problem. It still recommends a **classification** — defect, accepted risk,
 brief conflict, or not sustained.
 
@@ -297,7 +297,7 @@ just proceed; do not interrupt to say so.
 - Spend frontier-model reasoning on decisions that are expensive to reverse, not on
   producing more prose.
 - Never recommend re-running a phase gate. The user decides when a phase repeats;
-  `/redteam` carries its own stopping rule.
+  `/agentkit:redteam` carries its own stopping rule.
 
 **What should stop being model work.** The tiers above decide *which* model does a job. This
 decides whether a model should be doing it at all.
@@ -310,7 +310,7 @@ decides whether a model should be doing it at all.
 
 A red item is a defect in the tooling, not in the run. Noticing one is worth a line; performing it
 repeatedly and never saying so is the failure. When a red item recurs, add it to the open register
-in `design/90-decisions.md` so `/track` can turn it into an issue — that is the existing path, and
+in `design/90-decisions.md` so `/agentkit:track` can turn it into an issue — that is the existing path, and
 there is no separate mechanism for this. This repository has already taken that route once:
 `build/ConvertTo-HumanDocumentation.ps1` exists because regenerating human pages by hand was red.
 
@@ -345,19 +345,19 @@ Two distinctions that are easy to get wrong:
 
 ### The Design Freeze
 
-The pipeline's normal loop keeps `design/` live: a unit lands, `/reconcile` writes reality
-back, `/track` resyncs the tracker. That is right while the design is still being settled
+The pipeline's normal loop keeps `design/` live: a unit lands, `/agentkit:align` writes reality
+back, `/agentkit:track` resyncs the tracker. That is right while the design is still being settled
 and **wrong once implementation is the bottleneck**, because each pass is generative rather
 than merely checking — landing W<n> rewrites W<n+1>'s specification, which desyncs the
-tracker, which needs `/track`, which finds drift, which needs `/reconcile`. The loop has no
+tracker, which needs `/agentkit:track`, which finds drift, which needs `/agentkit:align`. The loop has no
 fixed point. Freezing is how it is escaped.
 
 **`design/FROZEN.md` is the marker, and its existence is the whole mechanism.** It is
 tracked, not ignored — a freeze is a statement to everyone working in the repository, not
 local state. While it exists:
 
-- **`/reconcile` and `/track` do not run.** The tracker is deliberately allowed to go stale.
-- **`/design`, `/contract` and `/slices` refuse.** Authoring is gated too, so the docs
+- **`/agentkit:align` and `/agentkit:track` do not run.** The tracker is deliberately allowed to go stale.
+- **`/agentkit:design`, `/agentkit:spec` and `/agentkit:plan` refuse.** Authoring is gated too, so the docs
   cannot drift forward while the implementation is being checked against them.
 - **Units implement against `20-contract.md` as a fixed artifact**, at the SHA the marker
   names.
@@ -365,10 +365,10 @@ local state. While it exists:
   in the document.** Do not fix it in `design/`. The staleness is the point; recording it in
   the PR is what makes the eventual reconciliation cheap.
 
-**`/freeze` writes the marker; `/unfreeze` lifts it** — deletes the file, then runs one
-reconciliation pass, `/reconcile` then `/track`, in the same session. `/unfreeze` runs
+**`/agentkit:hold` writes the marker; `/agentkit:resume` lifts it** — deletes the file, then runs one
+reconciliation pass, `/agentkit:align` then `/agentkit:track`, in the same session. `/agentkit:resume` runs
 unattended, without a confirmation prompt; the freeze itself is still the user's decision,
-made when `/freeze` is invoked, and lifting it early is one command call away rather than
+made when `/agentkit:hold` is invoked, and lifting it early is one command call away rather than
 gated a second time. A unit that turns out to need a contract amendment still stops and
 says so; that escalation is the user's to answer, and answering it may well be "thaw,
 amend, re-freeze."
@@ -382,7 +382,7 @@ Frozen at: <sha>, <YYYY-MM-DD>
 Frozen because: <what the freeze is escaping>
 Lifts when: <the checkable condition — "tier one is code-complete", not "when we are ready">
 
-To lift: run `/unfreeze`, or delete this file by hand and run `/reconcile`, then `/track`.
+To lift: run `/agentkit:resume`, or delete this file by hand and run `/agentkit:align`, then `/agentkit:track`.
 ```
 
 A command that refuses reports `Frozen because` and `Lifts when` **verbatim** rather than
@@ -391,8 +391,11 @@ paraphrase is where it stops being checkable.
 
 ### The Agent Kit — Canonical Workflow
 
-`.claude/commands/` holds the
-[agent kit](https://github.com/The-Running-Dev/SubZeroDev.AgentKit)'s pipeline commands.
+The [agent kit](https://github.com/The-Running-Dev/SubZeroDev.AgentKit)'s pipeline commands
+load machine-wide as the `agentkit` plugin — `/agentkit:<name>`, each read live from the kit
+checkout — so this repository holds no copies of them, only its companions,
+`skills/<name>/SKILL-local.md`. Bare `/plan`, `/help` and `/design` are Claude Code's own; the
+namespace is not optional.
 `design/00-brief.md`, `10-design.md`, `20-contract.md`, `30-slices.md`, and
 `90-decisions.md` are now their real canonical inputs. This repository extends the generic kit
 in two deliberate ways:
@@ -408,7 +411,7 @@ executed, but it never overrides the five canonical design files.
 **Generation workflow.** After a canonical edit:
 
 1. Run `./build/ConvertTo-HumanDocumentation.ps1` to regenerate detailed engine pages.
-2. Run `/make-human-docs` to regenerate `docs/docs/guide.md` when the brief, design, or contract
+2. Run `/agentkit:docs` to regenerate `docs/docs/guide.md` when the brief, design, or contract
    changed semantically.
 3. Run `./build/ConvertTo-HumanDocumentation.ps1 -StampGuide` after regenerating the guide.
 4. Run `./build/Test-Documentation.ps1`; it checks both exact generated pages and guide digest.
@@ -417,29 +420,29 @@ Routing, when a command is run:
 
 | Command | Tier |
 |---|---|
-| `/brief-check`, `/design`, `/contract`, `/slices` | Opus, high |
-| `/redteam` | strongest model, **different vendor from the design author**; if it must be Claude, a fresh Opus session |
-| `/slice` | Sonnet, medium — high for a large or difficult work unit |
-| `/reconcile` | Opus, high to decide which side of a drift is correct; Sonnet, medium to apply the edits |
-| `/install` | Sonnet, medium |
-| `/install-all` | Sonnet, medium — escalate only to judge whether a per-repo hard stop is actually safe to resolve; never to resolve it unattended |
-| `/make-human-docs` | Sonnet, medium — generate the developer guide from canonical `design/`, then stamp its digest |
-| `/track` | Sonnet, medium — escalate only to judge whether a drifted work unit is a design change |
-| `/verify` | Sonnet, medium — escalate to deep reasoning only to diagnose a failure, never to run the gates |
-| `/pr` | Sonnet, medium |
-| `/resolve` | Sonnet, medium — escalate to judge a contested finding, not to triage the obvious ones |
-| `/refine` | Sonnet, medium — never escalates; an architectural ask is routed to the command that owns it, not refined |
-| `/kit-help` | Haiku, low — orientation from file existence and a tracker listing; escalate only where the repository's state matches no stage |
-| `/done` | Haiku, low — mechanical git housekeeping; escalate only to judge whether an unmerged-looking branch is actually safe to delete |
-| `/freeze` | Sonnet, medium — `Frozen because`/`Lifts when` come from the user, never invented |
-| `/unfreeze` | Sonnet, medium for the sequencing; runs `/reconcile` (Opus, high) and `/track` (Sonnet, medium) as its own phases |
+| `/agentkit:brief`, `/agentkit:design`, `/agentkit:spec`, `/agentkit:plan` | Opus, high |
+| `/agentkit:redteam` | strongest model, **different vendor from the design author**; if it must be Claude, a fresh Opus session |
+| `/agentkit:slice` | Sonnet, medium — high for a large or difficult work unit |
+| `/agentkit:align` | Opus, high to decide which side of a drift is correct; Sonnet, medium to apply the edits |
+| `/agentkit:install` | Sonnet, medium |
+| `/agentkit:install-all` | Sonnet, medium — escalate only to judge whether a per-repo hard stop is actually safe to resolve; never to resolve it unattended |
+| `/agentkit:docs` | Sonnet, medium — generate the developer guide from canonical `design/`, then stamp its digest |
+| `/agentkit:track` | Sonnet, medium — escalate only to judge whether a drifted work unit is a design change |
+| `/agentkit:check` | Sonnet, medium — escalate to deep reasoning only to diagnose a failure, never to run the gates |
+| `/agentkit:pr` | Sonnet, medium |
+| `/agentkit:resolve` | Sonnet, medium — escalate to judge a contested finding, not to triage the obvious ones |
+| `/agentkit:tune` | Sonnet, medium — never escalates; an architectural ask is routed to the command that owns it, not refined |
+| `/agentkit:help` | Haiku, low — orientation from file existence and a tracker listing; escalate only where the repository's state matches no stage |
+| `/agentkit:clean` | Haiku, low — mechanical git housekeeping; escalate only to judge whether an unmerged-looking branch is actually safe to delete |
+| `/agentkit:hold` | Sonnet, medium — `Frozen because`/`Lifts when` come from the user, never invented |
+| `/agentkit:resume` | Sonnet, medium for the sequencing; runs `/agentkit:align` (Opus, high) and `/agentkit:track` (Sonnet, medium) as its own phases |
 
-**`/track` reads `design/30-slices.md`.** It opens one issue per unvisited W-numbered work unit;
+**`/agentkit:track` reads `design/30-slices.md`.** It opens one issue per unvisited W-numbered work unit;
 W is this repository's retained slice prefix. New units carry stable per-criterion ids
 (`W42.1`, `W42.2`, never reused or renumbered — the same discipline as the existing positional
-`W3a` unit numbering, one level down), and issues open in the shape `.claude/commands/track.md`
+`W3a` unit numbering, one level down), and issues open in the shape the kit's `skills/track/SKILL.md`
 defines: a human-first narrative, `### Done when` checkboxes, and a fenced `<!-- agent:start -->`
-block that `/track` regenerates but never overwrites outside the fence. Existing checked units
+block that `/agentkit:track` regenerates but never overwrites outside the fence. Existing checked units
 predate this and are not retrofitted or reopened.
 
 **Tracking work.** Opening, labelling, closing, commenting on, and editing an issue — including
@@ -449,8 +452,8 @@ deleting either is not, since that direction is not cheaply reversible. Writing 
 the user does not own is never carved out. **Resolving or replying to a review thread is not
 covered by this carve-out** — a pull request's review threads are a different object and stay
 authorized regardless, same as any other external write in **Git and Pull Requests** below.
-`/track` owns every GitHub write it can make idempotent; closing an issue and ticking a
-checkbox are the exceptions — the command that observes the work done (`/track`, `/slice`)
+`/agentkit:track` owns every GitHub write it can make idempotent; closing an issue and ticking a
+checkbox are the exceptions — the command that observes the work done (`/agentkit:track`, `/agentkit:slice`)
 does those directly, in the same run, rather than waiting for a sync pass.
 
 **Session boundaries.** Routing above says which model runs a command. This says **when a session
@@ -461,12 +464,12 @@ entitled to.
 
 | Boundary | Rule | Why |
 |---|---|---|
-| `/design` → `/redteam` | **Fresh session, and a different vendor.** | A model recognises its own output distribution and defends it. Fresh context on the same model is already the weak form; the same session is not a review at all. |
+| `/agentkit:design` → `/agentkit:redteam` | **Fresh session, and a different vendor.** | A model recognises its own output distribution and defends it. Fresh context on the same model is already the weak form; the same session is not a review at all. |
 | Any stage that writes a canonical `design/` file → the next | Fresh. | The next stage's input is the committed file. A session that also remembers the arguments behind it will design against the arguments. |
-| `/slices` → `/slice` | Fresh, and **one work unit per session**. | A unit that does not fit one session without compaction is too large — that is a `/slices` defect, so say so rather than pressing on. |
-| `/slice` → `/verify` → `/pr` → `/resolve` | **Same session.** | These act on the branch and worktree the unit just produced, and `/pr` must carry `/verify`'s did-not-run list into the description **verbatim**. A fresh session would restate it from a summary, which is the fabricated gate result **Validation** below exists to prevent. |
-| merge → `/track` | Fresh. | `/track` reads the tracker and `design/` as they now stand. The session that just implemented the unit holds an opinion about whether it is done, and doneness is the user's mark, not an agent's. |
-| implementation → `/reconcile` | Fresh. | It compares the tree against the canonical documents. The session that wrote the code carries what it *intended* to write, which is the one thing the comparison must not be given. |
+| `/agentkit:plan` → `/agentkit:slice` | Fresh, and **one work unit per session**. | A unit that does not fit one session without compaction is too large — that is a `/agentkit:plan` defect, so say so rather than pressing on. |
+| `/agentkit:slice` → `/agentkit:check` → `/agentkit:pr` → `/agentkit:resolve` | **Same session.** | These act on the branch and worktree the unit just produced, and `/agentkit:pr` must carry `/agentkit:check`'s did-not-run list into the description **verbatim**. A fresh session would restate it from a summary, which is the fabricated gate result **Validation** below exists to prevent. |
+| merge → `/agentkit:track` | Fresh. | `/agentkit:track` reads the tracker and `design/` as they now stand. The session that just implemented the unit holds an opinion about whether it is done, and doneness is the user's mark, not an agent's. |
+| implementation → `/agentkit:align` | Fresh. | It compares the tree against the canonical documents. The session that wrote the code carries what it *intended* to write, which is the one thing the comparison must not be given. |
 
 **Compaction is a boundary you did not choose.** If a session compacts mid-unit, report it — the
 unit was mis-sized, and the work after the compaction was done against a summary of the contract
@@ -480,8 +483,8 @@ next command, and its tier from the routing table above. For example:
 
 ```
 ---
-**Session boundary.** This context should not carry into `/track`.
-Next: `/track`, fresh session, Sonnet, medium.
+**Session boundary.** This context should not carry into `/agentkit:track`.
+Next: `/agentkit:track`, fresh session, Sonnet, medium.
 ---
 ```
 
@@ -531,8 +534,8 @@ in CI, with nothing saying why.
 feature branches do not, so it is discipline rather than enforcement. If a pushed commit
 needs changing, add a follow-up commit.
 
-**Deleting a local branch `/done` independently confirms via `git branch --merged` is
-delegated in this repository.** `/done` (`.claude/commands/done.md`) runs proactively — as
+**Deleting a local branch `/agentkit:clean` independently confirms via `git branch --merged` is
+delegated in this repository.** `/agentkit:clean` (the kit's `skills/clean/SKILL.md`) runs proactively — as
 soon as a merge is on the table, not only when asked — and deletes every branch on that
 confirmed list without a chat confirmation first; the `--merged` check is the authorization.
 It also may stash (never discard) a dirty tree to unblock its own branch switch, and always
@@ -540,10 +543,10 @@ reports the stash back rather than popping it silently. This delegation stops ex
 `--merged` stops: a branch it did not confirm, or a `-d` refusal on one it did, still needs a
 separate ask before anything stronger (`-D`) is even considered.
 
-**`/slice` may push the branch it creates and open its PR as a draft, without asking** —
+**`/agentkit:slice` may push the branch it creates and open its PR as a draft, without asking** —
 carved out of the authorization rule the same as an issue: a draft blocks no one and requests
 no review, so opening one carries the same reversibility argument. Marking that PR ready for
-review, and merging it, are not carved out and stay `/pr`'s and the user's respectively.
+review, and merging it, are not carved out and stay `/agentkit:pr`'s and the user's respectively.
 
 **Do not enable auto-merge.** Open the PR, report the check outcomes, and leave the merge to
 the user. (Auto-merge is enabled at the repository level and `required_approving_review_count`

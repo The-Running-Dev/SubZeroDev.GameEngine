@@ -6,13 +6,13 @@ Generates the human-facing engine documentation from the canonical agent-kit des
 The canonical documents under design/ contain marked human-document blocks. This script
 extracts those blocks into docs/docs/engine/, adds a generated-file notice after front matter,
 and stamps or verifies the generated developer guide against a digest of the canonical files
-that /make-human-docs reads.
+that /agentkit:docs reads.
 
 .PARAMETER Check
 Compare generated output and the guide digest without writing files.
 
 .PARAMETER StampGuide
-Update the design digest embedded in docs/docs/guide.md after /make-human-docs regenerates it.
+Update the design digest embedded in docs/docs/guide.md after /agentkit:docs regenerates it.
 #>
 [CmdletBinding()]
 param (
@@ -291,7 +291,7 @@ else {
         Write-Host '[HUMAN-DOCS] Stamped docs/docs/guide.md with the canonical design digest.'
     }
     elseif (-not $guide.Contains($expectedMarker, [StringComparison]::Ordinal)) {
-        $failures.Add('Generated guide is stale: docs/docs/guide.md (run /make-human-docs, then stamp the guide)')
+        $failures.Add('Generated guide is stale: docs/docs/guide.md (run /agentkit:docs, then stamp the guide)')
     }
 }
 
