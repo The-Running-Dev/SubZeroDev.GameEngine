@@ -157,6 +157,16 @@ export interface SimulationCampaignSource {
   performanceDriftRate?: SimulationCampaign["performanceDriftRate"];
   performanceWorkBonus?: SimulationCampaign["performanceWorkBonus"];
   strangenessPerEvent?: SimulationCampaign["strangenessPerEvent"];
+  actionTimeCosts?: SimulationCampaign["actionTimeCosts"];
+  eatNeedDeltas?: SimulationCampaign["eatNeedDeltas"];
+  restNeedDeltas?: SimulationCampaign["restNeedDeltas"];
+  exerciseNeedDeltas?: SimulationCampaign["exerciseNeedDeltas"];
+  socializeAffinityGain?: SimulationCampaign["socializeAffinityGain"];
+  socializeTrustGain?: SimulationCampaign["socializeTrustGain"];
+  applicationResolveWeeks?: SimulationCampaign["applicationResolveWeeks"];
+  negotiateRaiseBasisPoints?: SimulationCampaign["negotiateRaiseBasisPoints"];
+  studyUnitsPerSession?: SimulationCampaign["studyUnitsPerSession"];
+  projectProgressPerSession?: SimulationCampaign["projectProgressPerSession"];
 
   sceneTemplate: AuthoredText;
   actionLabels: SimulationActionLabelKeysSource;
@@ -329,6 +339,16 @@ export function buildSimulationCampaign(source: SimulationCampaignSource): {
     ...(source.performanceDriftRate !== undefined ? { performanceDriftRate: source.performanceDriftRate } : {}),
     ...(source.performanceWorkBonus !== undefined ? { performanceWorkBonus: source.performanceWorkBonus } : {}),
     ...(source.strangenessPerEvent !== undefined ? { strangenessPerEvent: source.strangenessPerEvent } : {}),
+    ...(source.actionTimeCosts !== undefined ? { actionTimeCosts: source.actionTimeCosts } : {}),
+    ...(source.eatNeedDeltas !== undefined ? { eatNeedDeltas: source.eatNeedDeltas } : {}),
+    ...(source.restNeedDeltas !== undefined ? { restNeedDeltas: source.restNeedDeltas } : {}),
+    ...(source.exerciseNeedDeltas !== undefined ? { exerciseNeedDeltas: source.exerciseNeedDeltas } : {}),
+    ...(source.socializeAffinityGain !== undefined ? { socializeAffinityGain: source.socializeAffinityGain } : {}),
+    ...(source.socializeTrustGain !== undefined ? { socializeTrustGain: source.socializeTrustGain } : {}),
+    ...(source.applicationResolveWeeks !== undefined ? { applicationResolveWeeks: source.applicationResolveWeeks } : {}),
+    ...(source.negotiateRaiseBasisPoints !== undefined ? { negotiateRaiseBasisPoints: source.negotiateRaiseBasisPoints } : {}),
+    ...(source.studyUnitsPerSession !== undefined ? { studyUnitsPerSession: source.studyUnitsPerSession } : {}),
+    ...(source.projectProgressPerSession !== undefined ? { projectProgressPerSession: source.projectProgressPerSession } : {}),
 
     sceneTemplateKey: take(source.sceneTemplate),
     actionLabelKeys: buildActionLabels(source.actionLabels, take),

@@ -85,6 +85,14 @@
  * `maintenanceRules` as a *list* with no selection rule, so the **first listed** rule governs,
  * the same "listed order, first match" convention `advanceEmployment` already applies to
  * `promotionPaths`.
+ *
+ * **W119 makes every fixed action price the campaign's (§7.14).** The fixed time costs, the
+ * `eat`/`rest`/`exercise` need deltas, `socialize`'s gains, `apply_for_job`'s resolve delay,
+ * `negotiate_job_terms`'s raise, `study`'s units and `work_on_project`'s progress each resolve
+ * per key at the point of use — `campaign.X ?? <the literal used before>` — so a campaign that
+ * omits them plays exactly as before. The nine actions free by default go through
+ * `pricedByCampaign`, which is transparent at zero and adds the time check, audit cost and
+ * spent-time change only when a campaign prices one positive.
  */
 
 import type { KindContext } from "../../core/kernel/types.js";
@@ -110,7 +118,7 @@ import type {
   NPCDefinition,
   Requirement,
 } from "./content.js";
-import type { SimulationCampaign } from "./campaign.js";
+import type { SimulationCampaign, SimulationFixedTimeAction, SimulationNeedDeltas } from "./campaign.js";
 import { evaluateSimulationCondition } from "./conditions.js";
 import { INVESTMENT_ACCOUNT_LABEL_KEY } from "./reasons.js";
 import type {
@@ -177,96 +185,157 @@ function clampNeed(value: number): number {
   return Math.min(100, Math.max(0, value));
 }
 
-const EAT_SATIETY_RESTORE = 25;
-
-/** Real logic — restores `satiety` by a fixed amount, clamped to 100. The only resolver
- *  the "Stable Life" vertical slice needs to counter `needs.satiety`'s own weekly drift
- *  (`endOfWeek.ts`'s `DRIFT_PER_WEEK`). Placeholder amount, same caveat as the drift rates
- *  themselves (`TODO.md`'s *Known Open Items*). */
-export const eatResolver: ActionResolver = {
-  canExecute: (): ActionValidation => ({ valid: true, errors: [], warnings: [] }),
-  calculate: (state, action): ActionOutcome => {
-    const before = state.player.needs.satiety;
-    const after = clampNeed(before + EAT_SATIETY_RESTORE);
-    const changes: StateChange[] = after === before ? [] : [{
-      path: "player.needs.satiety",
-      op: "set",
-      value: after,
-      previous: before,
-      reason: "action_eat",
-      visible: true,
-    }];
-    return {
-      actionId: action.id,
-      success: true,
-      degree: "success",
-      reason: "check_succeeded",
-      changes,
-      generatedEvents: [],
-      generatedOpportunities: [],
-      messages: [],
-    };
-  },
-  apply: (state): SimulationKindState => {
-    const satiety = clampNeed(state.player.needs.satiety + EAT_SATIETY_RESTORE);
-    return { ...state, player: { ...state.player, needs: { ...state.player.needs, satiety } } };
-  },
+/** §7.14 (W119) — every fixed action price is the campaign's. A key the campaign omits
+ *  resolves here, per key and at the point of use, to exactly the literal its resolver used
+ *  before W119; the builder never materializes these. `work`, `travel`, `maintain_item`,
+ *  `work_on_project` and `respond_to_event` take their time from content and are absent.
+ *  `pay_bills` settles a debt already owed rather than negotiating a new transaction, so it
+ *  costs nothing while the four other finance actions — paperwork, not labor — cost one. */
+const DEFAULT_ACTION_TIME_COSTS: Readonly<Record<SimulationFixedTimeAction, number>> = {
+  search_for_work: 2,
+  apply_for_job: 1,
+  negotiate_job_terms: 1,
+  work_overtime: 4,
+  study: 2,
+  move_housing: 4,
+  borrow_money: 1,
+  repay_debt: 1,
+  deposit_savings: 1,
+  invest: 1,
+  shop: 1,
+  repair_item: 2,
+  sell_item: 1,
+  socialize: 2,
+  exercise: 2,
+  start_project: 1,
+  start_business: 1,
+  eat: 0,
+  rest: 0,
+  enroll_course: 0,
+  attend_class: 0,
+  withdraw_course: 0,
+  pay_bills: 0,
+  accept_opportunity: 0,
+  decline_opportunity: 0,
+  operate_business: 0,
 };
 
-const REST_ENERGY_RESTORE = 20;
-const REST_STRESS_RELIEF = 5;
+function fixedTimeCost(ctx: KindContext, action: SimulationFixedTimeAction): number {
+  return simulationCampaign(ctx).actionTimeCosts?.[action] ?? DEFAULT_ACTION_TIME_COSTS[action];
+}
 
-/** Real logic — restores `energy` and relieves `stress` by fixed amounts, both clamped.
- *  Counters two of `DRIFT_PER_WEEK`'s five rates; same placeholder-numbers caveat as
- *  `eatResolver`. */
-export const restResolver: ActionResolver = {
+const SPENT_TIME_PATH = "calendar.spentTimeUnits";
+
+function withSpentTime(state: SimulationKindState, outcome: ActionOutcome): SimulationKindState {
+  const spent = outcome.changes.find((c) => c.path === SPENT_TIME_PATH)?.value;
+  if (typeof spent !== "number") return state;
+  return { ...state, calendar: { ...state.calendar, spentTimeUnits: state.calendar.spentTimeUnits + spent } };
+}
+
+/** §7.14 (W119) — the nine actions free by default can be priced. Priced positive, the
+ *  action checks available time last, reports the price as `calculatedTimeCost`, leads its
+ *  outcome with the matching spent-time change, and `apply` consumes exactly that outcome
+ *  value. At zero — explicit or absent — this wrapper is transparent: each resolver keeps the
+ *  validation and audit shape it had, which for `eat`/`rest` means no `calculatedTimeCost`
+ *  at all. */
+function pricedByCampaign(type: SimulationFixedTimeAction, resolver: ActionResolver): ActionResolver {
+  return {
+    canExecute: (state, action, ctx): ActionValidation => {
+      const validation = resolver.canExecute(state, action, ctx);
+      const cost = fixedTimeCost(ctx, type);
+      if (!validation.valid || !(cost > 0)) return validation;
+      if (availableTimeUnits(state) < cost) return insufficientTimeError();
+      return { ...validation, calculatedTimeCost: cost };
+    },
+    calculate: (state, action, ctx): ActionOutcome => {
+      const outcome = resolver.calculate(state, action, ctx);
+      const cost = fixedTimeCost(ctx, type);
+      if (!(cost > 0)) return outcome;
+      return {
+        ...outcome,
+        changes: [{ path: SPENT_TIME_PATH, op: "increment", value: cost, reason: `action_${type}`, visible: true }, ...outcome.changes],
+      };
+    },
+    apply: (state, outcome): SimulationKindState => withSpentTime(resolver.apply(state, outcome), outcome),
+  };
+}
+
+/** §7.14 (W119) — signed deltas to base needs, clamped once. Placeholder amounts, the same
+ *  caveat as `endOfWeek.ts`'s weekly drift (`TODO.md`'s *Known Open Items*). `rest`'s stress
+ *  is a delta, so its relief is negative. */
+const DEFAULT_EAT_NEED_DELTAS: SimulationNeedDeltas = { satiety: 25 };
+const DEFAULT_REST_NEED_DELTAS: SimulationNeedDeltas = { energy: 20, stress: -5 };
+const DEFAULT_EXERCISE_NEED_DELTAS: SimulationNeedDeltas = { energy: -10, happiness: 3, health: 5, satiety: -5, stress: -5 };
+
+/** Per key, never whole-record replacement: a key the campaign supplies wins, any other key
+ *  keeps its default. Iterated in sorted key order so the emitted `StateChange` sequence
+ *  cannot depend on declaration order (§2's sorted-iteration rule), exactly as `endOfWeek.ts`'s
+ *  `needs` drift does — which is also the order every default path already emitted. A changed
+ *  need is the only one recorded, and `apply` reads those values back rather than
+ *  recomputing them. */
+function needChanges(
+  state: SimulationKindState,
+  supplied: SimulationNeedDeltas | undefined,
+  defaults: SimulationNeedDeltas,
+  reason: string,
+): StateChange[] {
+  const keys = new Set([...Object.keys(defaults), ...Object.keys(supplied ?? {})] as NeedKey[]);
+  const changes: StateChange[] = [];
+  for (const key of [...keys].sort()) {
+    const before = state.player.needs[key];
+    const after = clampNeed(before + (supplied?.[key] ?? defaults[key] ?? 0));
+    if (after === before) continue;
+    changes.push({ path: `player.needs.${key}`, op: "set", value: after, previous: before, reason, visible: true });
+  }
+  return changes;
+}
+
+function withNeedChanges(state: SimulationKindState, outcome: ActionOutcome): SimulationKindState {
+  const changed = outcome.changes.filter((c) => c.path.startsWith("player.needs."));
+  if (changed.length === 0) return state;
+  const needs = { ...state.player.needs };
+  for (const change of changed) needs[change.path.slice("player.needs.".length) as NeedKey] = change.value as number;
+  return { ...state, player: { ...state.player, needs } };
+}
+
+/** Real logic — restores `satiety`, clamped to 100. The only resolver the "Stable Life"
+ *  vertical slice needs to counter `needs.satiety`'s own weekly drift. */
+export const eatResolver: ActionResolver = pricedByCampaign("eat", {
   canExecute: (): ActionValidation => ({ valid: true, errors: [], warnings: [] }),
-  calculate: (state, action): ActionOutcome => {
-    const beforeEnergy = state.player.needs.energy;
-    const afterEnergy = clampNeed(beforeEnergy + REST_ENERGY_RESTORE);
-    const beforeStress = state.player.needs.stress;
-    const afterStress = clampNeed(beforeStress - REST_STRESS_RELIEF);
+  calculate: (state, action, ctx): ActionOutcome => ({
+    actionId: action.id,
+    success: true,
+    degree: "success",
+    reason: "check_succeeded",
+    changes: needChanges(state, simulationCampaign(ctx).eatNeedDeltas, DEFAULT_EAT_NEED_DELTAS, "action_eat"),
+    generatedEvents: [],
+    generatedOpportunities: [],
+    messages: [],
+  }),
+  apply: withNeedChanges,
+});
 
-    const changes: StateChange[] = [];
-    if (afterEnergy !== beforeEnergy) {
-      changes.push({
-        path: "player.needs.energy", op: "set", value: afterEnergy, previous: beforeEnergy,
-        reason: "action_rest", visible: true,
-      });
-    }
-    if (afterStress !== beforeStress) {
-      changes.push({
-        path: "player.needs.stress", op: "set", value: afterStress, previous: beforeStress,
-        reason: "action_rest", visible: true,
-      });
-    }
-
-    return {
-      actionId: action.id,
-      success: true,
-      degree: "success",
-      reason: "check_succeeded",
-      changes,
-      generatedEvents: [],
-      generatedOpportunities: [],
-      messages: [],
-    };
-  },
-  apply: (state): SimulationKindState => {
-    const energy = clampNeed(state.player.needs.energy + REST_ENERGY_RESTORE);
-    const stress = clampNeed(state.player.needs.stress - REST_STRESS_RELIEF);
-    return { ...state, player: { ...state.player, needs: { ...state.player.needs, energy, stress } } };
-  },
-};
+/** Real logic — restores `energy` and relieves `stress`, both clamped. Counters two of the
+ *  weekly drift's five rates; same placeholder-numbers caveat as `eatResolver`. */
+export const restResolver: ActionResolver = pricedByCampaign("rest", {
+  canExecute: (): ActionValidation => ({ valid: true, errors: [], warnings: [] }),
+  calculate: (state, action, ctx): ActionOutcome => ({
+    actionId: action.id,
+    success: true,
+    degree: "success",
+    reason: "check_succeeded",
+    changes: needChanges(state, simulationCampaign(ctx).restNeedDeltas, DEFAULT_REST_NEED_DELTAS, "action_rest"),
+    generatedEvents: [],
+    generatedOpportunities: [],
+    messages: [],
+  }),
+  apply: withNeedChanges,
+});
 
 // ---------------------------------------------------------------------------
 // W53 — Employment and Income
 // ---------------------------------------------------------------------------
 
-const SEARCH_TIME_COST = 2;
-const APPLY_TIME_COST = 1;
-const NEGOTIATE_TIME_COST = 1;
-const OVERTIME_TIME_COST = 4;
 /** Weeks between `apply_for_job` and its resolution — deliberately 1, not immediate:
  *  §5.1's `JobApplication.resolvesWeek` exists precisely so hiring happens in
  *  `endOfWeek.ts`'s `employment` system, not inside this resolver's own `apply`. */
@@ -318,8 +387,9 @@ export const searchForWorkResolver: ActionResolver = {
   canExecute: (state, _action, ctx): ActionValidation => {
     const campaign = simulationCampaign(ctx);
     if (!locationAllows(state, campaign, "search_for_work")) return wrongLocationError();
-    if (availableTimeUnits(state) < SEARCH_TIME_COST) return insufficientTimeError();
-    return { valid: true, errors: [], warnings: [], calculatedTimeCost: SEARCH_TIME_COST, calculatedMoneyCostCents: NO_MONEY_COST };
+    const cost = fixedTimeCost(ctx, "search_for_work");
+    if (availableTimeUnits(state) < cost) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: cost, calculatedMoneyCostCents: NO_MONEY_COST };
   },
   calculate: (state, action, ctx): ActionOutcome => {
     const campaign = simulationCampaign(ctx);
@@ -327,7 +397,7 @@ export const searchForWorkResolver: ActionResolver = {
     const newJobs = campaign.jobs.filter((j) => !existingIds.has(j.id));
 
     const changes: StateChange[] = [
-      { path: SEARCH_FOR_WORK_TIME_PATH, op: "increment", value: SEARCH_TIME_COST, reason: "action_search_for_work", visible: true },
+      { path: SEARCH_FOR_WORK_TIME_PATH, op: "increment", value: fixedTimeCost(ctx, "search_for_work"), reason: "action_search_for_work", visible: true },
     ];
     for (const job of newJobs) {
       const base = `world.jobMarket.openings.${job.id}`;
@@ -418,8 +488,9 @@ export const applyForJobResolver: ActionResolver = {
         return invalid(requirement.failureCode, requirement.messageKey);
       }
     }
-    if (action.actorId === "player" && availableTimeUnits(state) < APPLY_TIME_COST) return insufficientTimeError();
-    return { valid: true, errors: [], warnings: [], calculatedTimeCost: APPLY_TIME_COST, calculatedMoneyCostCents: NO_MONEY_COST };
+    const cost = fixedTimeCost(ctx, "apply_for_job");
+    if (action.actorId === "player" && availableTimeUnits(state) < cost) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: cost, calculatedMoneyCostCents: NO_MONEY_COST };
   },
   calculate: (state, action, ctx): ActionOutcome => {
     const campaign = simulationCampaign(ctx);
@@ -428,9 +499,9 @@ export const applyForJobResolver: ActionResolver = {
 
     const changes: StateChange[] = [
       ...(action.actorId === "player"
-        ? [{ path: APPLY_FOR_JOB_TIME_PATH, op: "increment" as const, value: APPLY_TIME_COST, reason: "action_apply_for_job", visible: true }]
+        ? [{ path: APPLY_FOR_JOB_TIME_PATH, op: "increment" as const, value: fixedTimeCost(ctx, "apply_for_job"), reason: "action_apply_for_job", visible: true }]
         : []),
-      { path: `${base}.resolvesWeek`, op: "set", value: state.calendar.currentWeek + APPLICATION_RESOLVE_WEEKS, reason: "action_apply_for_job", visible: true },
+      { path: `${base}.resolvesWeek`, op: "set", value: state.calendar.currentWeek + (campaign.applicationResolveWeeks ?? APPLICATION_RESOLVE_WEEKS), reason: "action_apply_for_job", visible: true },
       { path: `${base}.contested`, op: "set", value: job.contested, reason: "action_apply_for_job", visible: false },
     ];
 
@@ -520,12 +591,13 @@ export const workOvertimeResolver: ActionResolver = {
     if (employmentError) return employmentError;
     const campaign = simulationCampaign(ctx);
     if (!locationAllows(state, campaign, "work_overtime")) return wrongLocationError();
-    if (availableTimeUnits(state) < OVERTIME_TIME_COST) return insufficientTimeError();
-    return { valid: true, errors: [], warnings: [], calculatedTimeCost: OVERTIME_TIME_COST, calculatedMoneyCostCents: NO_MONEY_COST };
+    const cost = fixedTimeCost(ctx, "work_overtime");
+    if (availableTimeUnits(state) < cost) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: cost, calculatedMoneyCostCents: NO_MONEY_COST };
   },
-  calculate: (state, action): ActionOutcome => {
+  calculate: (state, action, ctx): ActionOutcome => {
     const changes: StateChange[] = [
-      { path: "calendar.spentTimeUnits", op: "increment", value: OVERTIME_TIME_COST, reason: "action_work_overtime", visible: true },
+      { path: "calendar.spentTimeUnits", op: "increment", value: fixedTimeCost(ctx, "work_overtime"), reason: "action_work_overtime", visible: true },
       { path: "player.flags.workedOvertimeThisWeek", op: "set", value: true, previous: state.player.flags["workedOvertimeThisWeek"] ?? false, reason: "action_work_overtime", visible: true },
     ];
     return {
@@ -556,8 +628,9 @@ export const negotiateJobTermsResolver: ActionResolver = {
     if (employmentError) return employmentError;
     const campaign = simulationCampaign(ctx);
     if (!locationAllows(state, campaign, "negotiate_job_terms")) return wrongLocationError();
-    if (availableTimeUnits(state) < NEGOTIATE_TIME_COST) return insufficientTimeError();
-    return { valid: true, errors: [], warnings: [], calculatedTimeCost: NEGOTIATE_TIME_COST, calculatedMoneyCostCents: NO_MONEY_COST };
+    const cost = fixedTimeCost(ctx, "negotiate_job_terms");
+    if (availableTimeUnits(state) < cost) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: cost, calculatedMoneyCostCents: NO_MONEY_COST };
   },
   calculate: (state, action, ctx): ActionOutcome => {
     const roll = ctx.derive({ kind: "system", system: `simulation.negotiate.${action.id}`, seq: 0 }).nextPercent();
@@ -565,11 +638,12 @@ export const negotiateJobTermsResolver: ActionResolver = {
     const succeeded = roll < chance;
 
     const changes: StateChange[] = [
-      { path: "calendar.spentTimeUnits", op: "increment", value: NEGOTIATE_TIME_COST, reason: "action_negotiate_job_terms", visible: true },
+      { path: "calendar.spentTimeUnits", op: "increment", value: fixedTimeCost(ctx, "negotiate_job_terms"), reason: "action_negotiate_job_terms", visible: true },
     ];
     if (succeeded) {
       const employment = state.player.career.currentEmployment!;
-      const raise = Math.round(employment.weeklyPayCents * NEGOTIATE_RAISE_BPS / 10_000);
+      const bps = simulationCampaign(ctx).negotiateRaiseBasisPoints ?? NEGOTIATE_RAISE_BPS;
+      const raise = Math.round(employment.weeklyPayCents * bps / 10_000);
       changes.push({
         path: "player.career.currentEmployment.weeklyPayCents", op: "increment", value: raise,
         previous: employment.weeklyPayCents, reason: "action_negotiate_job_terms", visible: true,
@@ -603,7 +677,6 @@ export const negotiateJobTermsResolver: ActionResolver = {
 // W54 — Education and Skills
 // ---------------------------------------------------------------------------
 
-const STUDY_TIME_COST = 2;
 const STUDY_UNITS_PER_SESSION = 1;
 
 function attendanceFlagKey(courseId: string): string {
@@ -617,7 +690,7 @@ function activeEnrollment(state: SimulationKindState, courseId: string | undefin
   return state.player.education.enrollments.find((e) => e.courseId === courseId && e.status === "active");
 }
 
-export const enrollCourseResolver: ActionResolver = {
+export const enrollCourseResolver: ActionResolver = pricedByCampaign("enroll_course", {
   canExecute: (state, action, ctx): ActionValidation => {
     const campaign = simulationCampaign(ctx);
     const courseId = action.targetId;
@@ -688,9 +761,9 @@ export const enrollCourseResolver: ActionResolver = {
       },
     };
   },
-};
+});
 
-export const attendClassResolver: ActionResolver = {
+export const attendClassResolver: ActionResolver = pricedByCampaign("attend_class", {
   canExecute: (state, action, ctx): ActionValidation => {
     if (!activeEnrollment(state, action.targetId)) return requirementUnmetError();
     const campaign = simulationCampaign(ctx);
@@ -714,23 +787,24 @@ export const attendClassResolver: ActionResolver = {
     const flagKey = change.path.slice("player.flags.".length);
     return { ...state, player: { ...state.player, flags: { ...state.player.flags, [flagKey]: true } } };
   },
-};
+});
 
 export const studyResolver: ActionResolver = {
   canExecute: (state, action, ctx): ActionValidation => {
     if (!activeEnrollment(state, action.targetId)) return requirementUnmetError();
     const campaign = simulationCampaign(ctx);
     if (!locationAllows(state, campaign, "study")) return wrongLocationError();
-    if (availableTimeUnits(state) < STUDY_TIME_COST) return insufficientTimeError();
-    return { valid: true, errors: [], warnings: [], calculatedTimeCost: STUDY_TIME_COST, calculatedMoneyCostCents: NO_MONEY_COST };
+    const cost = fixedTimeCost(ctx, "study");
+    if (availableTimeUnits(state) < cost) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: cost, calculatedMoneyCostCents: NO_MONEY_COST };
   },
-  calculate: (state, action): ActionOutcome => {
+  calculate: (state, action, ctx): ActionOutcome => {
     const courseId = action.targetId!;
     const enrollment = activeEnrollment(state, courseId)!;
     const changes: StateChange[] = [
-      { path: "calendar.spentTimeUnits", op: "increment", value: STUDY_TIME_COST, reason: "action_study", visible: true },
+      { path: "calendar.spentTimeUnits", op: "increment", value: fixedTimeCost(ctx, "study"), reason: "action_study", visible: true },
       {
-        path: `player.education.enrollments.${courseId}.studyUnits`, op: "increment", value: STUDY_UNITS_PER_SESSION,
+        path: `player.education.enrollments.${courseId}.studyUnits`, op: "increment", value: simulationCampaign(ctx).studyUnitsPerSession ?? STUDY_UNITS_PER_SESSION,
         previous: enrollment.studyUnits, reason: "action_study", visible: true,
       },
     ];
@@ -756,7 +830,7 @@ export const studyResolver: ActionResolver = {
   },
 };
 
-export const withdrawCourseResolver: ActionResolver = {
+export const withdrawCourseResolver: ActionResolver = pricedByCampaign("withdraw_course", {
   canExecute: (state, action, ctx): ActionValidation => {
     if (!activeEnrollment(state, action.targetId)) return requirementUnmetError();
     const campaign = simulationCampaign(ctx);
@@ -782,18 +856,11 @@ export const withdrawCourseResolver: ActionResolver = {
     const flags = flagKey in state.player.flags ? { ...state.player.flags, [flagKey]: false } : state.player.flags;
     return { ...state, player: { ...state.player, flags, education: { ...state.player.education, enrollments } } };
   },
-};
+});
 
 // ---------------------------------------------------------------------------
 // W55 — Housing, Debt, and Reconciliation
 // ---------------------------------------------------------------------------
-
-const MOVE_HOUSING_TIME_COST = 4;
-/** `pay_bills`/`borrow_money`/`repay_debt`/`deposit_savings`/`invest` are paperwork, not
- *  labor — a small fixed cost, same placeholder status as every other unbalanced constant
- *  in this file. `pay_bills` alone costs none: it settles a debt already owed, not a new
- *  transaction the player negotiates. */
-const FINANCE_ACTION_TIME_COST = 1;
 
 function totalMoveCost(def: { upfrontCostCents: Cents; depositCents?: Cents }): Cents {
   return def.upfrontCostCents + (def.depositCents ?? 0);
@@ -847,8 +914,9 @@ export const moveHousingResolver: ActionResolver = {
     }
     const cost = totalMoveCost(def);
     if (state.player.finances.cashCents < cost) return insufficientFundsError();
-    if (availableTimeUnits(state) < MOVE_HOUSING_TIME_COST) return insufficientTimeError();
-    return { valid: true, errors: [], warnings: [], calculatedTimeCost: MOVE_HOUSING_TIME_COST, calculatedMoneyCostCents: cost };
+    const timeCost = fixedTimeCost(ctx, "move_housing");
+    if (availableTimeUnits(state) < timeCost) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: timeCost, calculatedMoneyCostCents: cost };
   },
   calculate: (state, action, ctx): ActionOutcome => {
     const campaign = simulationCampaign(ctx);
@@ -858,7 +926,7 @@ export const moveHousingResolver: ActionResolver = {
     const week = state.calendar.currentWeek;
 
     const changes: StateChange[] = [
-      { path: "calendar.spentTimeUnits", op: "increment", value: MOVE_HOUSING_TIME_COST, reason: "action_move_housing", visible: true },
+      { path: "calendar.spentTimeUnits", op: "increment", value: fixedTimeCost(ctx, "move_housing"), reason: "action_move_housing", visible: true },
       { path: "player.finances.cashCents", op: "decrement", value: cost, previous: cashBefore, reason: "action_move_housing", visible: true },
       { path: "player.housing.definitionId", op: "set", value: def.id, previous: state.player.housing.definitionId, reason: "action_move_housing", visible: true },
       { path: "player.housing.movedInWeek", op: "set", value: week, reason: "action_move_housing", visible: true },
@@ -919,7 +987,7 @@ export const moveHousingResolver: ActionResolver = {
  *  to pay (`overdueRentCents === 0`) is `requirement_unmet`, not a silent no-op success —
  *  the same "nothing to act on" reading `activeEnrollment`'s callers already give that
  *  code. */
-export const payBillsResolver: ActionResolver = {
+export const payBillsResolver: ActionResolver = pricedByCampaign("pay_bills", {
   canExecute: (state, _action, ctx): ActionValidation => {
     const campaign = simulationCampaign(ctx);
     if (!locationAllows(state, campaign, "pay_bills")) return wrongLocationError();
@@ -954,7 +1022,7 @@ export const payBillsResolver: ActionResolver = {
       },
     };
   },
-};
+});
 
 export const borrowMoneyResolver: ActionResolver = {
   canExecute: (state, action, ctx): ActionValidation => {
@@ -963,13 +1031,14 @@ export const borrowMoneyResolver: ActionResolver = {
     const amount = amountCentsParam(action);
     if (amount === undefined) return requirementUnmetError();
     if (wouldOverflow(state.player.finances.cashCents + amount, state.player.finances.debtCents + amount)) return requirementUnmetError();
-    if (availableTimeUnits(state) < FINANCE_ACTION_TIME_COST) return insufficientTimeError();
-    return { valid: true, errors: [], warnings: [], calculatedTimeCost: FINANCE_ACTION_TIME_COST, calculatedMoneyCostCents: NO_MONEY_COST };
+    const cost = fixedTimeCost(ctx, "borrow_money");
+    if (availableTimeUnits(state) < cost) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: cost, calculatedMoneyCostCents: NO_MONEY_COST };
   },
-  calculate: (state, action): ActionOutcome => {
+  calculate: (state, action, ctx): ActionOutcome => {
     const amount = amountCentsParam(action)!;
     const changes: StateChange[] = [
-      { path: "calendar.spentTimeUnits", op: "increment", value: FINANCE_ACTION_TIME_COST, reason: "action_borrow_money", visible: true },
+      { path: "calendar.spentTimeUnits", op: "increment", value: fixedTimeCost(ctx, "borrow_money"), reason: "action_borrow_money", visible: true },
       { path: "player.finances.cashCents", op: "increment", value: amount, previous: state.player.finances.cashCents, reason: "action_borrow_money", visible: true },
       { path: "player.finances.debtCents", op: "increment", value: amount, previous: state.player.finances.debtCents, reason: "action_borrow_money", visible: true },
     ];
@@ -1001,13 +1070,14 @@ export const repayDebtResolver: ActionResolver = {
     if (amount === undefined) return requirementUnmetError();
     if (amount > state.player.finances.debtCents) return requirementUnmetError();
     if (state.player.finances.cashCents < amount) return insufficientFundsError();
-    if (availableTimeUnits(state) < FINANCE_ACTION_TIME_COST) return insufficientTimeError();
-    return { valid: true, errors: [], warnings: [], calculatedTimeCost: FINANCE_ACTION_TIME_COST, calculatedMoneyCostCents: amount };
+    const cost = fixedTimeCost(ctx, "repay_debt");
+    if (availableTimeUnits(state) < cost) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: cost, calculatedMoneyCostCents: amount };
   },
-  calculate: (state, action): ActionOutcome => {
+  calculate: (state, action, ctx): ActionOutcome => {
     const amount = amountCentsParam(action)!;
     const changes: StateChange[] = [
-      { path: "calendar.spentTimeUnits", op: "increment", value: FINANCE_ACTION_TIME_COST, reason: "action_repay_debt", visible: true },
+      { path: "calendar.spentTimeUnits", op: "increment", value: fixedTimeCost(ctx, "repay_debt"), reason: "action_repay_debt", visible: true },
       { path: "player.finances.cashCents", op: "decrement", value: amount, previous: state.player.finances.cashCents, reason: "action_repay_debt", visible: true },
       { path: "player.finances.debtCents", op: "decrement", value: amount, previous: state.player.finances.debtCents, reason: "action_repay_debt", visible: true },
     ];
@@ -1039,13 +1109,14 @@ export const depositSavingsResolver: ActionResolver = {
     if (amount === undefined) return requirementUnmetError();
     if (wouldOverflow(state.player.finances.savingsCents + amount)) return requirementUnmetError();
     if (state.player.finances.cashCents < amount) return insufficientFundsError();
-    if (availableTimeUnits(state) < FINANCE_ACTION_TIME_COST) return insufficientTimeError();
-    return { valid: true, errors: [], warnings: [], calculatedTimeCost: FINANCE_ACTION_TIME_COST, calculatedMoneyCostCents: amount };
+    const cost = fixedTimeCost(ctx, "deposit_savings");
+    if (availableTimeUnits(state) < cost) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: cost, calculatedMoneyCostCents: amount };
   },
-  calculate: (state, action): ActionOutcome => {
+  calculate: (state, action, ctx): ActionOutcome => {
     const amount = amountCentsParam(action)!;
     const changes: StateChange[] = [
-      { path: "calendar.spentTimeUnits", op: "increment", value: FINANCE_ACTION_TIME_COST, reason: "action_deposit_savings", visible: true },
+      { path: "calendar.spentTimeUnits", op: "increment", value: fixedTimeCost(ctx, "deposit_savings"), reason: "action_deposit_savings", visible: true },
       { path: "player.finances.cashCents", op: "decrement", value: amount, previous: state.player.finances.cashCents, reason: "action_deposit_savings", visible: true },
       { path: "player.finances.savingsCents", op: "increment", value: amount, previous: state.player.finances.savingsCents, reason: "action_deposit_savings", visible: true },
     ];
@@ -1089,17 +1160,18 @@ export const investResolver: ActionResolver = {
     const existingBalance = state.player.finances.accounts.find((a) => a.id === INVESTMENT_ACCOUNT_ID)?.balanceCents ?? 0;
     if (wouldOverflow(existingBalance + amount)) return requirementUnmetError();
     if (state.player.finances.cashCents < amount) return insufficientFundsError();
-    if (availableTimeUnits(state) < FINANCE_ACTION_TIME_COST) return insufficientTimeError();
-    return { valid: true, errors: [], warnings: [], calculatedTimeCost: FINANCE_ACTION_TIME_COST, calculatedMoneyCostCents: amount };
+    const cost = fixedTimeCost(ctx, "invest");
+    if (availableTimeUnits(state) < cost) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: cost, calculatedMoneyCostCents: amount };
   },
-  calculate: (state, action): ActionOutcome => {
+  calculate: (state, action, ctx): ActionOutcome => {
     const amount = amountCentsParam(action)!;
     const existing = state.player.finances.accounts.find((a) => a.id === INVESTMENT_ACCOUNT_ID);
     const balanceBefore = existing?.balanceCents ?? 0;
     const openedWeek = existing?.openedWeek ?? state.calendar.currentWeek;
     const accountPath = (field: string): string => `player.finances.accounts.${INVESTMENT_ACCOUNT_ID}.${field}`;
     const changes: StateChange[] = [
-      { path: "calendar.spentTimeUnits", op: "increment", value: FINANCE_ACTION_TIME_COST, reason: "action_invest", visible: true },
+      { path: "calendar.spentTimeUnits", op: "increment", value: fixedTimeCost(ctx, "invest"), reason: "action_invest", visible: true },
       { path: "player.finances.cashCents", op: "decrement", value: amount, previous: state.player.finances.cashCents, reason: "action_invest", visible: true },
       { path: accountPath("kind"), op: "set", value: "investment", reason: "action_invest", visible: false },
       { path: accountPath("label"), op: "set", value: INVESTMENT_ACCOUNT_LABEL_KEY, reason: "action_invest", visible: false },
@@ -1145,12 +1217,6 @@ export const investResolver: ActionResolver = {
 // ---------------------------------------------------------------------------
 // W56 — Possessions, Places, and People
 // ---------------------------------------------------------------------------
-
-const SHOP_TIME_COST = 1;
-const REPAIR_TIME_COST = 2;
-const SELL_TIME_COST = 1;
-const SOCIALIZE_TIME_COST = 2;
-const EXERCISE_TIME_COST = 2;
 
 /** A bought item arrives undamaged and unmaintained; `shop` buys exactly one unit per
  *  action, since nothing in §4's action model carries a quantity for it to buy more. */
@@ -1199,8 +1265,9 @@ export const shopResolver: ActionResolver = {
       }
     }
     if (state.player.finances.cashCents < def.purchasePriceCents) return insufficientFundsError();
-    if (availableTimeUnits(state) < SHOP_TIME_COST) return insufficientTimeError();
-    return { valid: true, errors: [], warnings: [], calculatedTimeCost: SHOP_TIME_COST, calculatedMoneyCostCents: def.purchasePriceCents };
+    const cost = fixedTimeCost(ctx, "shop");
+    if (availableTimeUnits(state) < cost) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: cost, calculatedMoneyCostCents: def.purchasePriceCents };
   },
   calculate: (state, action, ctx): ActionOutcome => {
     const campaign = simulationCampaign(ctx);
@@ -1208,7 +1275,7 @@ export const shopResolver: ActionResolver = {
     const base = `player.inventory.${inventoryInstanceId(action)}`;
 
     const changes: StateChange[] = [
-      { path: "calendar.spentTimeUnits", op: "increment", value: SHOP_TIME_COST, reason: "action_shop", visible: true },
+      { path: "calendar.spentTimeUnits", op: "increment", value: fixedTimeCost(ctx, "shop"), reason: "action_shop", visible: true },
       { path: "player.finances.cashCents", op: "decrement", value: def.purchasePriceCents, previous: state.player.finances.cashCents, reason: "action_shop", visible: true },
       { path: `${base}.definitionId`, op: "set", value: def.id, reason: "action_shop", visible: true },
       { path: `${base}.quantity`, op: "set", value: NEW_ITEM_QUANTITY, reason: "action_shop", visible: true },
@@ -1322,15 +1389,16 @@ export const repairItemResolver: ActionResolver = {
     if (item.condition >= NEW_ITEM_CONDITION && !item.broken) return requirementUnmetError();
     const cost = repairCostCents(item);
     if (state.player.finances.cashCents < cost) return insufficientFundsError();
-    if (availableTimeUnits(state) < REPAIR_TIME_COST) return insufficientTimeError();
-    return { valid: true, errors: [], warnings: [], calculatedTimeCost: REPAIR_TIME_COST, calculatedMoneyCostCents: cost };
+    const timeCost = fixedTimeCost(ctx, "repair_item");
+    if (availableTimeUnits(state) < timeCost) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: timeCost, calculatedMoneyCostCents: cost };
   },
-  calculate: (state, action): ActionOutcome => {
+  calculate: (state, action, ctx): ActionOutcome => {
     const item = findInventoryItem(state, action.targetId)!;
     const base = `player.inventory.${item.instanceId}`;
 
     const changes: StateChange[] = [
-      { path: "calendar.spentTimeUnits", op: "increment", value: REPAIR_TIME_COST, reason: "action_repair_item", visible: true },
+      { path: "calendar.spentTimeUnits", op: "increment", value: fixedTimeCost(ctx, "repair_item"), reason: "action_repair_item", visible: true },
       { path: "player.finances.cashCents", op: "decrement", value: repairCostCents(item), previous: state.player.finances.cashCents, reason: "action_repair_item", visible: true },
       { path: `${base}.condition`, op: "set", value: NEW_ITEM_CONDITION, previous: item.condition, reason: "action_repair_item", visible: true },
       { path: `${base}.broken`, op: "set", value: false, previous: item.broken, reason: "action_repair_item", visible: true },
@@ -1386,8 +1454,9 @@ export const sellItemResolver: ActionResolver = {
     if (!locationAllows(state, campaign, "sell_item")) return wrongLocationError();
     const def = findItemDefinition(campaign, item.definitionId);
     if (!def) return requirementUnmetError();
-    if (availableTimeUnits(state) < SELL_TIME_COST) return insufficientTimeError();
-    return { valid: true, errors: [], warnings: [], calculatedTimeCost: SELL_TIME_COST, calculatedMoneyCostCents: NO_MONEY_COST };
+    const cost = fixedTimeCost(ctx, "sell_item");
+    if (availableTimeUnits(state) < cost) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: cost, calculatedMoneyCostCents: NO_MONEY_COST };
   },
   calculate: (state, action, ctx): ActionOutcome => {
     const campaign = simulationCampaign(ctx);
@@ -1395,7 +1464,7 @@ export const sellItemResolver: ActionResolver = {
     const def = findItemDefinition(campaign, item.definitionId)!;
 
     const changes: StateChange[] = [
-      { path: "calendar.spentTimeUnits", op: "increment", value: SELL_TIME_COST, reason: "action_sell_item", visible: true },
+      { path: "calendar.spentTimeUnits", op: "increment", value: fixedTimeCost(ctx, "sell_item"), reason: "action_sell_item", visible: true },
       { path: "player.finances.cashCents", op: "increment", value: resaleValueCents(def, item), previous: state.player.finances.cashCents, reason: "action_sell_item", visible: true },
       { path: `player.inventory.${item.instanceId}.quantity`, op: "set", value: 0, previous: item.quantity, reason: "action_sell_item", visible: true },
     ];
@@ -1510,8 +1579,9 @@ export const socializeResolver: ActionResolver = {
     if (!npc) return invalid("unknown_action", "core.reason.unknown_action");
     if (!locationAllows(state, campaign, "socialize")) return wrongLocationError();
     if (!npcAvailableHere(npc, state)) return requirementUnmetError();
-    if (availableTimeUnits(state) < SOCIALIZE_TIME_COST) return insufficientTimeError();
-    return { valid: true, errors: [], warnings: [], calculatedTimeCost: SOCIALIZE_TIME_COST, calculatedMoneyCostCents: NO_MONEY_COST };
+    const cost = fixedTimeCost(ctx, "socialize");
+    if (availableTimeUnits(state) < cost) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: cost, calculatedMoneyCostCents: NO_MONEY_COST };
   },
   calculate: (state, action, ctx): ActionOutcome => {
     const campaign = simulationCampaign(ctx);
@@ -1528,10 +1598,10 @@ export const socializeResolver: ActionResolver = {
     const base = `player.relationships.${npc.id}`;
 
     const changes: StateChange[] = [
-      { path: "calendar.spentTimeUnits", op: "increment", value: SOCIALIZE_TIME_COST, reason: "action_socialize", visible: true },
+      { path: "calendar.spentTimeUnits", op: "increment", value: fixedTimeCost(ctx, "socialize"), reason: "action_socialize", visible: true },
       { path: `${base}.category`, op: "set", value: before.category, reason: "action_socialize", visible: false },
-      { path: `${base}.affinity`, op: "set", value: before.affinity + SOCIALIZE_AFFINITY_GAIN, previous: before.affinity, reason: "action_socialize", visible: true },
-      { path: `${base}.trust`, op: "set", value: before.trust + SOCIALIZE_TRUST_GAIN, previous: before.trust, reason: "action_socialize", visible: true },
+      { path: `${base}.affinity`, op: "set", value: before.affinity + (campaign.socializeAffinityGain ?? SOCIALIZE_AFFINITY_GAIN), previous: before.affinity, reason: "action_socialize", visible: true },
+      { path: `${base}.trust`, op: "set", value: before.trust + (campaign.socializeTrustGain ?? SOCIALIZE_TRUST_GAIN), previous: before.trust, reason: "action_socialize", visible: true },
       { path: `${base}.respect`, op: "set", value: before.respect, reason: "action_socialize", visible: true },
       // Hidden dimension (§6.11) — carried so `apply` can rebuild the record, never shown.
       { path: `${base}.resentment`, op: "set", value: before.resentment, reason: "action_socialize", visible: false },
@@ -1575,61 +1645,29 @@ export const socializeResolver: ActionResolver = {
   },
 };
 
-/** Costs energy and satiety, buys health, happiness and calm — the same fixed-delta,
- *  clamp-once shape `eat`/`rest` (W39) already use, and the same placeholder-numbers caveat.
- *  Iterated in sorted key order so the emitted `StateChange` sequence cannot depend on
- *  declaration order (§2's sorted-iteration rule), exactly as `endOfWeek.ts`'s `needs` drift
- *  does. */
-const EXERCISE_NEED_DELTAS: Readonly<Record<NeedKey, number>> = {
-  energy: -10,
-  happiness: 3,
-  health: 5,
-  satiety: -5,
-  stress: -5,
-};
-
-function exercisedNeeds(state: SimulationKindState): SimulationKindState["player"]["needs"] {
-  const needs = { ...state.player.needs };
-  for (const key of Object.keys(EXERCISE_NEED_DELTAS) as NeedKey[]) {
-    needs[key] = clampNeed(needs[key] + EXERCISE_NEED_DELTAS[key]);
-  }
-  return needs;
-}
-
+/** Costs energy and satiety, buys health, happiness and calm — the same per-key, clamp-once
+ *  `needChanges` shape `eat`/`rest` use (`DEFAULT_EXERCISE_NEED_DELTAS`), and the same
+ *  placeholder-numbers caveat. */
 export const exerciseResolver: ActionResolver = {
   canExecute: (state, _action, ctx): ActionValidation => {
     const campaign = simulationCampaign(ctx);
     if (!locationAllows(state, campaign, "exercise")) return wrongLocationError();
-    if (availableTimeUnits(state) < EXERCISE_TIME_COST) return insufficientTimeError();
-    return { valid: true, errors: [], warnings: [], calculatedTimeCost: EXERCISE_TIME_COST, calculatedMoneyCostCents: NO_MONEY_COST };
+    const cost = fixedTimeCost(ctx, "exercise");
+    if (availableTimeUnits(state) < cost) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: cost, calculatedMoneyCostCents: NO_MONEY_COST };
   },
-  calculate: (state, action): ActionOutcome => {
-    const after = exercisedNeeds(state);
+  calculate: (state, action, ctx): ActionOutcome => {
     const changes: StateChange[] = [
-      { path: "calendar.spentTimeUnits", op: "increment", value: EXERCISE_TIME_COST, reason: "action_exercise", visible: true },
+      { path: "calendar.spentTimeUnits", op: "increment", value: fixedTimeCost(ctx, "exercise"), reason: "action_exercise", visible: true },
+      ...needChanges(state, simulationCampaign(ctx).exerciseNeedDeltas, DEFAULT_EXERCISE_NEED_DELTAS, "action_exercise"),
     ];
-    for (const key of (Object.keys(EXERCISE_NEED_DELTAS) as NeedKey[]).sort()) {
-      const before = state.player.needs[key];
-      if (after[key] === before) continue;
-      changes.push({
-        path: `player.needs.${key}`, op: "set", value: after[key], previous: before,
-        reason: "action_exercise", visible: true,
-      });
-    }
 
     return {
       actionId: action.id, success: true, degree: "success", reason: "check_succeeded",
       changes, generatedEvents: [], generatedOpportunities: [], messages: [],
     };
   },
-  apply: (state, outcome): SimulationKindState => {
-    const spentDelta = outcome.changes.find((c) => c.path === "calendar.spentTimeUnits")?.value;
-    return {
-      ...state,
-      calendar: { ...state.calendar, spentTimeUnits: state.calendar.spentTimeUnits + (typeof spentDelta === "number" ? spentDelta : 0) },
-      player: { ...state.player, needs: exercisedNeeds(state) },
-    };
-  },
+  apply: (state, outcome): SimulationKindState => withSpentTime(withNeedChanges(state, outcome), outcome),
 };
 
 // ---------------------------------------------------------------------------
@@ -1701,7 +1739,7 @@ function removeNamedOpportunity(state: SimulationKindState, outcome: ActionOutco
  * offer and records it; what an accepted `job_offer` *does* is the dispatcher's job, not this
  * resolver's, and writing per-type semantics here would hide that decision inside an action.
  */
-export const acceptOpportunityResolver: ActionResolver = {
+export const acceptOpportunityResolver: ActionResolver = pricedByCampaign("accept_opportunity", {
   canExecute: (state, action, ctx): ActionValidation => {
     const opportunity = findOpportunity(state, action.targetId);
     if (!opportunity) return invalid("unknown_action", "core.reason.unknown_action");
@@ -1712,19 +1750,19 @@ export const acceptOpportunityResolver: ActionResolver = {
   },
   calculate: (state, action): ActionOutcome => resolveOpportunityExit(state, action, "action_accept_opportunity"),
   apply: removeNamedOpportunity,
-};
+});
 
 /** Real logic (W57) — refuses a standing offer outright. No requirements gate a refusal:
  *  `OpportunityDefinition.requirements` is what *accepting* demands (§7.9), and a player who
  *  cannot meet them must still be able to say no. */
-export const declineOpportunityResolver: ActionResolver = {
+export const declineOpportunityResolver: ActionResolver = pricedByCampaign("decline_opportunity", {
   canExecute: (state, action): ActionValidation => {
     if (!findOpportunity(state, action.targetId)) return invalid("unknown_action", "core.reason.unknown_action");
     return { valid: true, errors: [], warnings: [], calculatedTimeCost: 0, calculatedMoneyCostCents: NO_MONEY_COST };
   },
   calculate: (state, action): ActionOutcome => resolveOpportunityExit(state, action, "action_decline_opportunity"),
   apply: removeNamedOpportunity,
-};
+});
 
 const RESPONSE_SCHEDULED_PREFIX = "scheduledEvents.";
 
@@ -1844,9 +1882,6 @@ export const respondToEventResolver: ActionResolver = {
 // W101 — Projects and Businesses
 // ---------------------------------------------------------------------------
 
-const START_PROJECT_TIME_COST = 1;
-const START_BUSINESS_TIME_COST = 1;
-const OPERATE_BUSINESS_TIME_COST = 0;
 /** One `work_on_project` session advances `progressUnits` by this fixed amount — no
  *  partial-progress formula is stated beyond "consumes the exact planned time" (§6.12,
  *  W101.2); the same single-session-advance treatment `attend_class`/`study` already give
@@ -1873,8 +1908,9 @@ export const startProjectResolver: ActionResolver = {
       }
     }
     if (state.player.finances.cashCents < def.startCostCents) return insufficientFundsError();
-    if (availableTimeUnits(state) < START_PROJECT_TIME_COST) return insufficientTimeError();
-    return { valid: true, errors: [], warnings: [], calculatedTimeCost: START_PROJECT_TIME_COST, calculatedMoneyCostCents: def.startCostCents };
+    const cost = fixedTimeCost(ctx, "start_project");
+    if (availableTimeUnits(state) < cost) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: cost, calculatedMoneyCostCents: def.startCostCents };
   },
   calculate: (state, action, ctx): ActionOutcome => {
     const campaign = simulationCampaign(ctx);
@@ -1882,7 +1918,7 @@ export const startProjectResolver: ActionResolver = {
     const base = `player.projects.${projectInstanceId(action)}`;
 
     const changes: StateChange[] = [
-      { path: "calendar.spentTimeUnits", op: "increment", value: START_PROJECT_TIME_COST, reason: "action_start_project", visible: true },
+      { path: "calendar.spentTimeUnits", op: "increment", value: fixedTimeCost(ctx, "start_project"), reason: "action_start_project", visible: true },
       { path: "player.finances.cashCents", op: "decrement", value: def.startCostCents, previous: state.player.finances.cashCents, reason: "action_start_project", visible: true },
       { path: `${base}.definitionId`, op: "set", value: def.id, reason: "action_start_project", visible: true },
       { path: `${base}.startedWeek`, op: "set", value: state.calendar.currentWeek, reason: "action_start_project", visible: false },
@@ -1944,7 +1980,7 @@ export const workOnProjectResolver: ActionResolver = {
     const def = campaign.projects.find((p) => p.id === project.definitionId)!;
     const base = `player.projects.${instanceId}`;
 
-    const progressUnits = Math.min(def.requiredUnits, project.progressUnits + WORK_ON_PROJECT_PROGRESS_PER_SESSION);
+    const progressUnits = Math.min(def.requiredUnits, project.progressUnits + (campaign.projectProgressPerSession ?? WORK_ON_PROJECT_PROGRESS_PER_SESSION));
     const completes = progressUnits >= def.requiredUnits;
 
     const changes: StateChange[] = [
@@ -2019,8 +2055,9 @@ export const startBusinessResolver: ActionResolver = {
       }
     }
     if (state.player.finances.cashCents < def.startupCostCents) return insufficientFundsError();
-    if (availableTimeUnits(state) < START_BUSINESS_TIME_COST) return insufficientTimeError();
-    return { valid: true, errors: [], warnings: [], calculatedTimeCost: START_BUSINESS_TIME_COST, calculatedMoneyCostCents: def.startupCostCents };
+    const cost = fixedTimeCost(ctx, "start_business");
+    if (availableTimeUnits(state) < cost) return insufficientTimeError();
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: cost, calculatedMoneyCostCents: def.startupCostCents };
   },
   calculate: (state, action, ctx): ActionOutcome => {
     const campaign = simulationCampaign(ctx);
@@ -2028,7 +2065,7 @@ export const startBusinessResolver: ActionResolver = {
     const base = `player.businesses.${businessInstanceId(action)}`;
 
     const changes: StateChange[] = [
-      { path: "calendar.spentTimeUnits", op: "increment", value: START_BUSINESS_TIME_COST, reason: "action_start_business", visible: true },
+      { path: "calendar.spentTimeUnits", op: "increment", value: fixedTimeCost(ctx, "start_business"), reason: "action_start_business", visible: true },
       { path: "player.finances.cashCents", op: "decrement", value: def.startupCostCents, previous: state.player.finances.cashCents, reason: "action_start_business", visible: true },
       { path: `${base}.definitionId`, op: "set", value: def.id, reason: "action_start_business", visible: true },
       { path: `${base}.startedWeek`, op: "set", value: state.calendar.currentWeek, reason: "action_start_business", visible: false },
@@ -2074,13 +2111,13 @@ export const startBusinessResolver: ActionResolver = {
 /** Only the player-initiated close is here — weekly revenue/expenses post from
  *  `endOfWeek.ts`'s own `business` system, never from this action (`90-decisions.md`'s
  *  W101 gate 3: cashflow posts once, in the ordered weekly pipeline, not per action). */
-export const operateBusinessResolver: ActionResolver = {
+export const operateBusinessResolver: ActionResolver = pricedByCampaign("operate_business", {
   canExecute: (state, action): ActionValidation => {
     const instanceId = action.targetId;
     const business = instanceId === undefined ? undefined : state.player.businesses.find((b) => b.instanceId === instanceId);
     if (!business) return invalid("unknown_action", "core.reason.unknown_action");
     if (business.status === "closed") return requirementUnmetError();
-    return { valid: true, errors: [], warnings: [], calculatedTimeCost: OPERATE_BUSINESS_TIME_COST, calculatedMoneyCostCents: NO_MONEY_COST };
+    return { valid: true, errors: [], warnings: [], calculatedTimeCost: 0, calculatedMoneyCostCents: NO_MONEY_COST };
   },
   calculate: (_state, action): ActionOutcome => {
     const instanceId = action.targetId!;
@@ -2105,7 +2142,7 @@ export const operateBusinessResolver: ActionResolver = {
       },
     };
   },
-};
+});
 
 /**
  * A real object literal, not `Object.fromEntries` over an array — a `Record<K, V>`
