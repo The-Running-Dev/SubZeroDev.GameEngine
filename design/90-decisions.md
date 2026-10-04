@@ -303,7 +303,7 @@ issue is the authority for those seven, not this section:
 | [#279](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/279) | `listCampaigns()` is synchronous, so no remote store can implement it — resolved by W98 (#414): gate 1 below |
 | [#280](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/280) | Reproducing a stored session's blob requires pinning `IdSource.newGameId` |
 | [#281](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/281) | `SessionStore` has no concept of a caller, so authorization lives outside it — resolved by W99 (#415): `20-contract.md` §7.4, *Authorization is host-owned, and `SessionStore` stays caller-agnostic*, with its reopening trigger |
-| [#282](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/282) | `Kind.outcome` has no shape a host can read generically |
+| [#282](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/282) | `Kind.outcome` has no shape a host can read generically — resolved by W98 (#414): gate 4 below, `20-contract.md` §3.2, *`KindOutcome` — Terminal Identity a Host Can Read*; win/loss disposition deliberately left off the base |
 
 The eighth is kept in full because it is the only one that arrived with a working
 implementation, and the caution attached to it is what a reader needs *before* copying that
