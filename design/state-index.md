@@ -71,10 +71,6 @@ rendered here.
 <!-- outstanding:start -->
 | Rank | Issue | Title | Criteria | Mirrored at |
 |---|---|---|---|---|
-| 26 | #278 | `VisibleStat` omits the declared range, so clients read `Campaign.content` to get it | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
-| 27 | #279 | `listCampaigns()` is synchronous, so no remote store can implement it | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
-| 29 | #281 | `SessionStore` has no concept of a caller, so authorization lives entirely outside it | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
-| 30 | #282 | `Kind.outcome` has no shape a host can read generically | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | 234 | #234 | Spike: generic scene-presentation layer (Municipality reference) — not engine work, will move to SubZeroDev.Presentation | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | 364 | #364 | Mirror the simulation-kind lifecycles once GameOfLife S7 lands — and do not write them here first | — | `f0735fc59fcfd879911771fefdeb1f41cc90f252` |
 | 413 | #413 | 48 slices predate the issue-per-slice convention: W0-W40, W61, W63-65, W90-92 have no GitHub issue | — | `49aa72904ff5ba1151b7c41e60d770a3547649d1` |
