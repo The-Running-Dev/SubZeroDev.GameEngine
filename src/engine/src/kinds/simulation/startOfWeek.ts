@@ -44,12 +44,16 @@ function ranSystem(emit: ResolutionEmitter, system: string): void {
 
 /** Increment the week, reset `spentTimeUnits`. Must run *before* `effects` — `expiresAtWeek`
  *  is compared against the new week number (§3). */
-function timeAdvance(state: SimulationKindState): SimulationKindState {
+function timeAdvance(state: SimulationKindState, weeklyTimeUnits: number | undefined): SimulationKindState {
   return {
     ...state,
     calendar: {
       ...state.calendar,
       currentWeek: state.calendar.currentWeek + 1,
+      // §7.14, W118: a campaign that sets `weeklyTimeUnits` owns the budget every week, so a
+      // save made under another budget picks this one up at its next week. Absent leaves the
+      // stored budget alone, which is every campaign before the field.
+      ...(weeklyTimeUnits !== undefined ? { totalTimeUnits: weeklyTimeUnits } : {}),
       spentTimeUnits: 0,
     },
   };
@@ -113,8 +117,9 @@ export function runStartOfWeek(
   state: SimulationKindState,
   emit: ResolutionEmitter,
   courses: readonly CourseDefinition[] = [],
+  weeklyTimeUnits?: number,
 ): SimulationKindState {
-  let next = timeAdvance(state);
+  let next = timeAdvance(state, weeklyTimeUnits);
   ranSystem(emit, "time_advance");
 
   next = effects(next, emit);

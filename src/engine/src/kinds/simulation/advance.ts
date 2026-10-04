@@ -248,6 +248,11 @@ export function advance(
           ...(content.relationshipDrift !== undefined ? { relationshipDrift: content.relationshipDrift } : {}),
           ...(content.attendanceTracking !== undefined ? { attendanceTracking: content.attendanceTracking } : {}),
           ...(content.needDriftPerWeek !== undefined ? { needDriftPerWeek: content.needDriftPerWeek } : {}),
+          ...(content.lateFeeBasisPoints !== undefined ? { lateFeeBasisPoints: content.lateFeeBasisPoints } : {}),
+          ...(content.evictionStages !== undefined ? { evictionStages: content.evictionStages } : {}),
+          ...(content.performanceDriftRate !== undefined ? { performanceDriftRate: content.performanceDriftRate } : {}),
+          ...(content.performanceWorkBonus !== undefined ? { performanceWorkBonus: content.performanceWorkBonus } : {}),
+          ...(content.strangenessPerEvent !== undefined ? { strangenessPerEvent: content.strangenessPerEvent } : {}),
           ...(content.eventChains !== undefined ? { eventChains: content.eventChains } : {}),
           rng: ctx.derive({ kind: "system", system: "end_of_week", seq: ctx.seq }),
         },
@@ -259,7 +264,7 @@ export function advance(
       ctx.emit.emit(SIMULATION_EVENTS.weekEnded.name, SIMULATION_EVENTS.weekEnded.severity, { data: { week: working.calendar.currentWeek } });
 
       const counted = foldCounters(endOfWeekResult.state, endOfWeekResult.changes);
-      const nextWeek = runStartOfWeek(counted, ctx.emit, content.courses);
+      const nextWeek = runStartOfWeek(counted, ctx.emit, content.courses, content.weeklyTimeUnits);
       const finalState: SimulationKindState = {
         ...nextWeek,
         plan: { week: nextWeek.calendar.currentWeek, actions: [] },

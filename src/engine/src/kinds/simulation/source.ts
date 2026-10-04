@@ -151,6 +151,12 @@ export interface SimulationCampaignSource {
   relationshipDrift?: SimulationCampaign["relationshipDrift"];
   attendanceTracking?: SimulationCampaign["attendanceTracking"];
   needDriftPerWeek?: SimulationCampaign["needDriftPerWeek"];
+  weeklyTimeUnits?: SimulationCampaign["weeklyTimeUnits"];
+  lateFeeBasisPoints?: SimulationCampaign["lateFeeBasisPoints"];
+  evictionStages?: SimulationCampaign["evictionStages"];
+  performanceDriftRate?: SimulationCampaign["performanceDriftRate"];
+  performanceWorkBonus?: SimulationCampaign["performanceWorkBonus"];
+  strangenessPerEvent?: SimulationCampaign["strangenessPerEvent"];
 
   sceneTemplate: AuthoredText;
   actionLabels: SimulationActionLabelKeysSource;
@@ -317,6 +323,12 @@ export function buildSimulationCampaign(source: SimulationCampaignSource): {
     ...(source.relationshipDrift !== undefined ? { relationshipDrift: source.relationshipDrift } : {}),
     ...(source.attendanceTracking !== undefined ? { attendanceTracking: source.attendanceTracking } : {}),
     ...(source.needDriftPerWeek !== undefined ? { needDriftPerWeek: source.needDriftPerWeek } : {}),
+    ...(source.weeklyTimeUnits !== undefined ? { weeklyTimeUnits: source.weeklyTimeUnits } : {}),
+    ...(source.lateFeeBasisPoints !== undefined ? { lateFeeBasisPoints: source.lateFeeBasisPoints } : {}),
+    ...(source.evictionStages !== undefined ? { evictionStages: source.evictionStages } : {}),
+    ...(source.performanceDriftRate !== undefined ? { performanceDriftRate: source.performanceDriftRate } : {}),
+    ...(source.performanceWorkBonus !== undefined ? { performanceWorkBonus: source.performanceWorkBonus } : {}),
+    ...(source.strangenessPerEvent !== undefined ? { strangenessPerEvent: source.strangenessPerEvent } : {}),
 
     sceneTemplateKey: take(source.sceneTemplate),
     actionLabelKeys: buildActionLabels(source.actionLabels, take),

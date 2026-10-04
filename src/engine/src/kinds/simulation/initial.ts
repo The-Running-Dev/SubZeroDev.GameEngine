@@ -108,11 +108,11 @@ function findBackgrounds(campaign: SimulationCampaign, scenario: ScenarioDefinit
   return scenario.startingBackgroundIds.map((id) => campaign.backgrounds.find((b) => b.id === id)!);
 }
 
-function buildCalendar(): CalendarState {
+function buildCalendar(campaign: SimulationCampaign): CalendarState {
   return {
     currentWeek: 1,
     currentYear: 1,
-    totalTimeUnits: WEEKLY_TIME_UNITS,
+    totalTimeUnits: campaign.weeklyTimeUnits ?? WEEKLY_TIME_UNITS,
     committedTimeUnits: 0,
     spentTimeUnits: 0,
   };
@@ -405,7 +405,7 @@ function startingGoals(campaign: SimulationCampaign, scenario: ScenarioDefinitio
 export function initialState(campaign: Campaign, _ctx?: KindContext, profileData?: unknown): InitialStateResult<SimulationKindState> {
   const content = campaign.content as SimulationCampaign;
   const scenario = findScenario(content);
-  const calendar = buildCalendar();
+  const calendar = buildCalendar(content);
 
   const state: SimulationKindState = {
     calendar,

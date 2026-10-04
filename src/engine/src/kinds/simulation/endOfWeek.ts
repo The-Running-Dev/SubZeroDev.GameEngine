@@ -459,6 +459,8 @@ function advanceEmployment(
   state: SimulationKindState,
   jobs: readonly JobDefinition[],
   attendanceConfig: AttendanceTrackingConfig | undefined,
+  driftRate: number = PERFORMANCE_DRIFT_RATE,
+  workBonus: number = PERFORMANCE_WORK_BONUS,
 ): { state: SimulationKindState; changes: StateChange[] } {
   const employment = state.player.career.currentEmployment;
   if (!employment) return { state, changes: [] };
@@ -467,8 +469,8 @@ function advanceEmployment(
 
   const workedThisWeek = state.player.flags["workedThisWeek"] === true;
   const performance = workedThisWeek
-    ? clamp(employment.performance + PERFORMANCE_WORK_BONUS, 0, 100)
-    : clamp(Math.round(employment.performance + PERFORMANCE_DRIFT_RATE * (job.performance.weeklyDriftToward - employment.performance)), 0, 100);
+    ? clamp(employment.performance + workBonus, 0, 100)
+    : clamp(Math.round(employment.performance + driftRate * (job.performance.weeklyDriftToward - employment.performance)), 0, 100);
 
   let next: Employment = { ...employment, performance };
   const changes: StateChange[] = [];
@@ -527,11 +529,12 @@ function employment(
   jobs: readonly JobDefinition[],
   emit: ResolutionEmitter,
   attendanceConfig: AttendanceTrackingConfig | undefined,
+  world: EndOfWeekWorld,
 ): { state: SimulationKindState; changes: StateChange[] } {
   const wasEmployed = state.player.career.currentEmployment !== undefined;
   const resolved = resolveApplications(state, jobs, emit);
   const hiredThisWeek = !wasEmployed && resolved.player.career.currentEmployment !== undefined;
-  return hiredThisWeek ? { state: resolved, changes: [] } : advanceEmployment(resolved, jobs, attendanceConfig);
+  return hiredThisWeek ? { state: resolved, changes: [] } : advanceEmployment(resolved, jobs, attendanceConfig, world.performanceDriftRate, world.performanceWorkBonus);
 }
 
 function findCourse(courses: readonly CourseDefinition[], courseId: string): CourseDefinition | undefined {
@@ -882,9 +885,14 @@ const EVICTION_LADDER: readonly EvictionStage[] = [
   "none", "warning", "penalty", "formal_notice", "hearing_scheduled", "evicted",
 ];
 
-function advanceEvictionStage(stage: EvictionStage): EvictionStage {
-  const index = EVICTION_LADDER.indexOf(stage);
-  return EVICTION_LADDER[Math.min(index + 1, EVICTION_LADDER.length - 1)]!;
+/** One listed stage beyond `stage` on `ladder` (§7.14, W118). A stage the ladder omits — a
+ *  loaded save from another tuning — advances to the first listed stage *later in the
+ *  canonical six-stage order*; `evicted` is always listed and stays terminal. The default
+ *  ladder is the canonical one, so it reproduces the old index-plus-one step exactly. */
+function advanceEvictionStage(stage: EvictionStage, ladder: readonly EvictionStage[] = EVICTION_LADDER): EvictionStage {
+  const position = EVICTION_LADDER.indexOf(stage);
+  const next = ladder.find((listed) => EVICTION_LADDER.indexOf(listed) > position);
+  return next ?? stage;
 }
 
 /** Basis points — 10%, levied on the rent `housing` (above) just failed to collect in
@@ -901,13 +909,18 @@ const LATE_FEE_BPS = 1000;
  *  full rent (`missedCents === 0`) is a no-op: arrears already on the books stay exactly
  *  where they are until the player clears them with `pay_bills` (`resolvers.ts`) — this
  *  system only ever escalates, never cures. */
-export function financeReconcile(state: SimulationKindState, missedCents: Cents): { state: SimulationKindState; changes: StateChange[] } {
+export function financeReconcile(
+  state: SimulationKindState,
+  missedCents: Cents,
+  lateFeeBasisPoints: number = LATE_FEE_BPS,
+  evictionStages: readonly EvictionStage[] = EVICTION_LADDER,
+): { state: SimulationKindState; changes: StateChange[] } {
   if (missedCents <= 0) return { state, changes: [] };
 
-  const lateFee = Math.round((missedCents * LATE_FEE_BPS) / 10_000);
+  const lateFee = Math.round((missedCents * lateFeeBasisPoints) / 10_000);
   const arrears = missedCents + lateFee;
   const housingBefore = state.player.housing;
-  const nextStage = advanceEvictionStage(housingBefore.evictionStage);
+  const nextStage = advanceEvictionStage(housingBefore.evictionStage, evictionStages);
 
   const changes: StateChange[] = [
     {
@@ -1198,6 +1211,7 @@ function fireEvent(
   messages: OutcomeMessage[],
   firing: number,
   eventChains: readonly EventChainDefinition[],
+  strangenessPerEvent: number,
 ): SimulationKindState {
   const week = state.calendar.currentWeek;
 
@@ -1212,7 +1226,7 @@ function fireEvent(
   }
 
   const strangenessBefore = state.world.strangenessBase;
-  const strangenessBase = clamp(strangenessBefore + STRANGENESS_PER_EVENT, 0, 100);
+  const strangenessBase = clamp(strangenessBefore + strangenessPerEvent, 0, 100);
   const next: SimulationKindState = {
     ...state,
     world: {
@@ -1276,6 +1290,7 @@ function events(
   defs: readonly EventDefinition[],
   rng: RngHandle | undefined,
   eventChains: readonly EventChainDefinition[],
+  strangenessPerEvent: number = STRANGENESS_PER_EVENT,
 ): { state: SimulationKindState; changes: StateChange[]; messages: OutcomeMessage[] } {
   const week = state.calendar.currentWeek;
   const changes: StateChange[] = [];
@@ -1301,7 +1316,7 @@ function events(
     const def = find(entry.eventId);
     if (!def) continue;
     const answered = entry.payload?.["choiceId"];
-    next = fireEvent(next, def, typeof answered === "string" ? answered : undefined, rng, changes, messages, firing, eventChains);
+    next = fireEvent(next, def, typeof answered === "string" ? answered : undefined, rng, changes, messages, firing, eventChains, strangenessPerEvent);
     firing += 1;
   }
 
@@ -1318,7 +1333,7 @@ function events(
 
   if (rng !== undefined && eligible.length > 0) {
     const drawn = rng.weightedPick(eligible.map((item) => ({ item, weight: item.weight })));
-    next = fireEvent(next, drawn, undefined, rng, changes, messages, firing, eventChains);
+    next = fireEvent(next, drawn, undefined, rng, changes, messages, firing, eventChains, strangenessPerEvent);
     firing += 1;
   }
 
@@ -1642,6 +1657,16 @@ export interface EndOfWeekWorld {
   /** `SimulationCampaign.needDriftPerWeek` (§7.14, W117). Absent, or a missing key, takes
    *  `DRIFT_PER_WEEK`. */
   needDriftPerWeek?: SimulationNeedDeltas;
+  /** `SimulationCampaign.lateFeeBasisPoints` (§7.14, W118). Absent is `LATE_FEE_BPS`. */
+  lateFeeBasisPoints?: number;
+  /** `SimulationCampaign.evictionStages` (§7.14, W118). Absent is `EVICTION_LADDER`. */
+  evictionStages?: readonly EvictionStage[];
+  /** `SimulationCampaign.performanceDriftRate` (§7.14, W118). Absent is `PERFORMANCE_DRIFT_RATE`. */
+  performanceDriftRate?: number;
+  /** `SimulationCampaign.performanceWorkBonus` (§7.14, W118). Absent is `PERFORMANCE_WORK_BONUS`. */
+  performanceWorkBonus?: number;
+  /** `SimulationCampaign.strangenessPerEvent` (§7.14, W118). Absent is `STRANGENESS_PER_EVENT`. */
+  strangenessPerEvent?: number;
   /** `SimulationCampaign.eventChains` (§7.13, W102). Absent leaves every fired `chainId`
    *  treated as `"game"`-scoped (`advanceChainState`'s own defensive fallback) — the same
    *  no-op-by-omission default every other optional collection here already has. */
@@ -1713,7 +1738,7 @@ function traced(id: string, run: (frame: EndOfWeekFrame) => EndOfWeekFrame): Sys
  * `system.ran` reader sees is identical to the one the statement sequence produced.
  */
 const END_OF_WEEK_SYSTEMS: readonly SystemEntry<EndOfWeekFrame>[] = [
-  traced("employment", (frame) => withChanges(frame, employment(frame.state, frame.jobs, frame.emit, frame.world.attendanceTracking))),
+  traced("employment", (frame) => withChanges(frame, employment(frame.state, frame.jobs, frame.emit, frame.world.attendanceTracking, frame.world))),
   traced("education", (frame) => withChanges(frame, education(frame.state, frame.courses))),
   traced("finance_income", (frame) => withChanges(frame, financeIncome(frame.state, frame.jobs))),
   traced("business", (frame) => withChanges(frame, business(frame.state, frame.world.businesses ?? []))),
@@ -1722,12 +1747,12 @@ const END_OF_WEEK_SYSTEMS: readonly SystemEntry<EndOfWeekFrame>[] = [
     const result = housing(frame.state, frame.items);
     return { ...withChanges(frame, result), missedCents: result.missedCents };
   }),
-  traced("finance_reconcile", (frame) => withChanges(frame, financeReconcile(frame.state, frame.missedCents))),
+  traced("finance_reconcile", (frame) => withChanges(frame, financeReconcile(frame.state, frame.missedCents, frame.world.lateFeeBasisPoints, frame.world.evictionStages))),
   traced("needs", (frame) => withChanges(frame, needs(frame.state, frame.world.needDriftPerWeek))),
   traced("relationships", (frame) => withChanges(frame, relationships(frame.state, frame.world.relationshipDrift ?? []))),
   traced("opportunities", (frame) => withChanges(frame, opportunities(frame.state, frame.world.opportunities ?? [], frame.world.rng))),
   traced("events", (frame) => {
-    const result = events(frame.state, frame.world.events ?? [], frame.world.rng, frame.world.eventChains ?? []);
+    const result = events(frame.state, frame.world.events ?? [], frame.world.rng, frame.world.eventChains ?? [], frame.world.strangenessPerEvent);
     // `events` is the only system that produces player-facing text: an `EventOutcome`'s
     // `messages` (§7.6). `advance.ts` folds these into the same `AdvanceResult.messages`
     // channel a resolver's `ActionOutcome.messages` reach (04 §12), so an event's flavour
