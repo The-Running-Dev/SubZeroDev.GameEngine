@@ -29,7 +29,7 @@
  */
 
 import type { LocKey } from "../../core/localization/types.js";
-import type { NeedKey, RelationshipState } from "./actor.js";
+import type { EvictionStage, NeedKey, RelationshipState } from "./actor.js";
 import type { StatusEffect } from "./state.js";
 import type {
   JobDefinition,
@@ -135,6 +135,26 @@ export interface SimulationCampaign {
    *  default (health −1, energy −3, happiness −2, satiety −4, stress +2); an explicit `0`
    *  leaves that need undrifted. */
   needDriftPerWeek?: SimulationNeedDeltas;
+
+  /** §7.14, W118. The week's time budget, a positive integer. Absent is 14, the budget every
+   *  campaign shipped before this field has. Applied at `initialState` and at each
+   *  start-of-week `time_advance`. */
+  weeklyTimeUnits?: number;
+  /** §7.14, W118. Late fee on a missed week, in basis points of the missed rent: a
+   *  nonnegative integer. Absent is 1000 (10%). Zero is a supplied value: no fee. */
+  lateFeeBasisPoints?: number;
+  /** §7.14, W118. The eviction ladder: an ordered subsequence of the six `EvictionStage`
+   *  members in canonical order, starting at `none` and ending at `evicted`. A missed week
+   *  advances one listed stage; a stored stage the ladder omits advances to the first listed
+   *  stage later in canonical order. Absent is all six. */
+  evictionStages?: readonly EvictionStage[];
+  /** §7.14, W118. Fraction, in [0, 1], of the gap to `JobPerformanceRules.weeklyDriftToward`
+   *  that a week without work closes. Absent is 0.2. Rounding happens once. */
+  performanceDriftRate?: number;
+  /** §7.14, W118. The integer `Employment.performance` gains in a week worked. Absent is 8. */
+  performanceWorkBonus?: number;
+  /** §7.14, W118. The integer `world.strangenessBase` moves per fired event. Absent is 5. */
+  strangenessPerEvent?: number;
 }
 
 export interface RelationshipDriftRule {

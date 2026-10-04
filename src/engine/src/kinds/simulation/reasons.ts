@@ -174,10 +174,11 @@ export const SIMULATION_REASON_CODES = [
   "optional_field_operator",
   // W112 — a car that costs money to run (§7.5).
   "item_cost_charged",
-  // W117 — campaign physics (§7.14, §10, §14). The two rule families `needDriftPerWeek` can
-  // break; `invalid_eviction_stages`, the third, is registered with the field it belongs to.
+  // W117/W118 — campaign physics (§7.14, §10, §14). The three rule families: a bad value, an
+  // unknown key, and an invalid eviction ladder (registered with `evictionStages`, W118).
   "invalid_tuning_value",
   "unknown_tuning_key",
+  "invalid_eviction_stages",
 ] as const;
 
 export type SimulationReasonCode = (typeof SIMULATION_REASON_CODES)[number];
@@ -242,6 +243,7 @@ const SIMULATION_REASON_TEXT: Readonly<Record<SimulationReasonCode, string>> = {
   invalid_attendance_window: "The attendance tracking window must be a positive number of weeks.",
   invalid_tuning_value: "A campaign setting has a value that isn't allowed.",
   unknown_tuning_key: "A campaign setting names something that doesn't exist.",
+  invalid_eviction_stages: "The eviction stages must run in order from none to evicted, each at most once.",
   action_start_project: "You started the project.",
   action_work_on_project: "You worked on the project.",
   action_start_business: "You started the business.",

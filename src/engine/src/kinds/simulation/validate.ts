@@ -31,7 +31,7 @@ import type { LocKey } from "../../core/localization/types.js";
 import type { ValidationError, ValidationResult, ValidationWarning } from "../../core/validation/types.js";
 import type { Condition } from "../../core/condition/types.js";
 import type { SimulationCampaign } from "./campaign.js";
-import type { NeedKey } from "./actor.js";
+import type { EvictionStage, NeedKey } from "./actor.js";
 import type { Modifier } from "./state.js";
 import type { Reward, Requirement } from "./content.js";
 import { derivedValueResolver } from "./derived.js";
@@ -379,6 +379,63 @@ function validateNeedDriftPerWeek(content: SimulationCampaign): ValidationError[
   return errors;
 }
 
+/** The six `EvictionStage` members in canonical order, keyed exhaustively so a stage added to
+ *  or removed from the union fails typecheck until this follows. Its order is the ladder's. */
+const CANONICAL_EVICTION_STAGES: readonly EvictionStage[] = ["none", "warning", "penalty", "formal_notice", "hearing_scheduled", "evicted"];
+const EVICTION_STAGE_CHECK: Readonly<Record<EvictionStage, true>> = {
+  none: true, warning: true, penalty: true, formal_notice: true, hearing_scheduled: true, evicted: true,
+};
+
+/** `evictionStages` (§7.14), when present. One `invalid_eviction_stages` at the field,
+ *  whatever the number of defects: not an array, an unknown member, a repeat, canonical order
+ *  broken, not starting at `none`, or not ending at `evicted`. */
+function validateEvictionStages(content: SimulationCampaign): ValidationError[] {
+  const stages: unknown = content.evictionStages;
+  if (stages === undefined) return [];
+  const bad = [error("invalid_eviction_stages", "evictionStages")];
+  if (!Array.isArray(stages)) return bad;
+  let previous = -1;
+  for (const stage of stages as unknown[]) {
+    if (typeof stage !== "string" || !Object.prototype.hasOwnProperty.call(EVICTION_STAGE_CHECK, stage)) return bad;
+    const position = CANONICAL_EVICTION_STAGES.indexOf(stage as EvictionStage);
+    // Strictly increasing rules out both a repeat and an order break in one comparison.
+    if (position <= previous) return bad;
+    previous = position;
+  }
+  if (stages[0] !== "none" || stages[stages.length - 1] !== "evicted") return bad;
+  return [];
+}
+
+type ScalarRule = "positive_integer" | "nonnegative_integer" | "integer" | "unit_interval";
+
+const SCALAR_RULES: readonly (readonly [keyof SimulationCampaign, ScalarRule])[] = [
+  ["weeklyTimeUnits", "positive_integer"],
+  ["lateFeeBasisPoints", "nonnegative_integer"],
+  ["performanceDriftRate", "unit_interval"],
+  ["performanceWorkBonus", "integer"],
+  ["strangenessPerEvent", "integer"],
+];
+
+function satisfies(value: unknown, rule: ScalarRule): boolean {
+  switch (rule) {
+    case "positive_integer": return Number.isInteger(value) && (value as number) > 0;
+    case "nonnegative_integer": return Number.isInteger(value) && (value as number) >= 0;
+    case "integer": return Number.isInteger(value);
+    case "unit_interval": return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
+  }
+}
+
+/** The §7.14 scalar fields of W118, when present: one `invalid_tuning_value` per offending
+ *  field, at the field. Absence is never an error; `null` is a supplied non-number. */
+function validateWeekScalars(content: SimulationCampaign): ValidationError[] {
+  const errors: ValidationError[] = [];
+  for (const [field, rule] of SCALAR_RULES) {
+    const value: unknown = content[field];
+    if (value !== undefined && !satisfies(value, rule)) errors.push(error("invalid_tuning_value", field));
+  }
+  return errors;
+}
+
 // ---------------------------------------------------------------------------
 // Tier 1 — collection names an `exists`/`count` condition addresses (§8.2, W111)
 // ---------------------------------------------------------------------------
@@ -660,6 +717,8 @@ export function validateCampaign(campaign: Campaign, strings: ReadonlyMap<LocKey
     ...validateNaturalKeys(content),
     ...validateAttendanceTracking(content),
     ...validateNeedDriftPerWeek(content),
+    ...validateWeekScalars(content),
+    ...validateEvictionStages(content),
     ...validateCollectionNames(content),
     ...validateWhereFields(content),
   ];
