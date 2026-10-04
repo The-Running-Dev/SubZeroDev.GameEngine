@@ -308,7 +308,7 @@
 
 ### [x] W117 — Two Campaigns, One Lever, Different Weeks {#w117}
 
-### [ ] W118 — The Week's Own Rules Belong to the Campaign {#w118}
+### [x] W118 — The Week's Own Rules Belong to the Campaign {#w118}
 
 ### [ ] W119 — Every Fixed Action Price Is the Campaign's {#w119}
 

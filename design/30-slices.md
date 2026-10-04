@@ -5170,7 +5170,7 @@ set it plays exactly as it does today.
   - Any change to a default number, or to Stable Life's content.
   - Balancing, which is game-side (`90-decisions.md`, 2026-09-27).
 
-### [ ] W118 — The Week's Own Rules Belong to the Campaign {#w118}
+### [x] W118 — The Week's Own Rules Belong to the Campaign {#w118}
 
 **Delivers:** As a game author, I can set my campaign's weekly time budget, late-fee rate and
 eviction ladder. I can also set how job performance drifts and how much each event shifts the
