@@ -266,6 +266,11 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   [issue #303](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/303) — the
   friction this entry named is resolved in practice, not merely worked around.
 
+### 2026-10-06 — Remove the per-repository SessionEnd cost hook
+Context: `.claude/settings.json` ran `pwsh … tools/Measure-Session.ps1` on `SessionEnd`, but that script no longer exists — it left this repository when the kit moved to a single home install, and the kit later ported it to Node as `measure-session.ts` — so the hook failed at the end of every session. The kit's setup installs one global `SessionEnd` hook in `~/.claude/settings.json` that logs every project.
+Chosen: remove this repository's `hooks.SessionEnd` entry, in the AgentKit sync to `v2026.10.06.1`. Nothing else in `settings.json` changes.
+Rejected: point it at `measure-session.ts` — the global hook already runs that script, so every session would be logged twice; leave it — it keeps failing at every session end.
+
 ### Found by the first downstream host — SubZeroDev.Adventures
 
 [SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures) is the play
