@@ -119,6 +119,20 @@ describe("landing page", () => {
     expect(targets).toEqual(chain.slice(2));
   });
 
+  it("renders the suspiciously Keanu-shaped fictional testimonial panel", () => {
+    render(<App />);
+    const section = document.getElementById("testimonials");
+    expect(section).not.toBeNull();
+    expect(section?.textContent).toContain("John Wick, Conflict Resolution Specialist");
+    expect(section?.textContent).toContain("Neo, Reality Architect");
+    expect(section?.textContent).toContain("Ted Logan, Senior Simulation Engineer");
+    expect(section?.textContent).toContain("Theodore Logan, Junior Simulation Engineer");
+    expect(section?.textContent).toContain("Jack Traven, Real-Time Systems Consultant");
+    expect(section?.textContent).toContain("Klaatu, External Compliance Auditor");
+    expect(section?.textContent).toContain("Johnny Mnemonic, Data Retention Specialist");
+    expect(section?.textContent).toContain("purely deterministic");
+  });
+
   it("names the real campaigns in the closing payoff, not placeholder titles", () => {
     // The engine has no announced projects beyond the three flagship
     // campaigns already verified in the architecture diagram. This section
