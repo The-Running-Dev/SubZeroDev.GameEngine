@@ -133,6 +133,29 @@ describe("landing page", () => {
     expect(section?.textContent).toContain("purely deterministic");
   });
 
+  it("documents the creator's plan and God's overdue retrospective", () => {
+    render(<App />);
+    const testimonials = document.getElementById("testimonials");
+    expect(testimonials?.textContent).toContain("I have no fucking clue");
+    expect(testimonials?.textContent).toContain(
+      "The Creator, Acting Project Lead (unsupervised)",
+    );
+    expect(testimonials?.textContent).toContain(
+      "How did that work out for you, Father?",
+    );
+    expect(testimonials?.textContent).toContain(
+      "You've had 13.8 billion fucking years.",
+    );
+    expect(testimonials?.textContent).toContain("Scope creep.");
+    expect(testimonials?.textContent).toContain(
+      "Divine Retrospective, Sprint 13,800,000,000",
+    );
+    expect(testimonials?.querySelector("footer")).toBeNull();
+    expect(
+      testimonials?.querySelectorAll(".testimonial-attribution"),
+    ).toHaveLength(9);
+  });
+
   it("names the real campaigns in the closing payoff, not placeholder titles", () => {
     // The engine has no announced projects beyond the three flagship
     // campaigns already verified in the architecture diagram. This section
