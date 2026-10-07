@@ -31,7 +31,7 @@ const baseUrl = '/';
 
 const config: Config = {
   title: 'GodComplex',
-  tagline: 'God does not play dice. Neither do we.',
+  tagline: 'Consequences.',
   url: 'https://game-engine.subzerodev.com',
   baseUrl,
 
