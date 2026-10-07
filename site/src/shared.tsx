@@ -38,9 +38,9 @@ export function SiteHeader({
 }) {
   return (
     <header className="site-header">
-      <a className="wordmark" href="/" aria-label="SubZeroDev Game Engine home">
+      <a className="wordmark" href="/" aria-label="SubZeroDev GodComplex home">
         <span>SUBZERODEV</span>
-        <strong>GAME ENGINE</strong>
+        <strong>GODCOMPLEX</strong>
       </a>
       <nav aria-label="Explore the project">
         {current !== "home" && <a href="/">Home</a>}
