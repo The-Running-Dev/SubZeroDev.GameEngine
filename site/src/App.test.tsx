@@ -7,9 +7,9 @@ describe("landing page", () => {
     render(<App />);
 
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-      "God Doesn't Play Dice. Neither Do We.",
+      "GodComplex. Consequences.",
     );
-    expect(screen.getByText("Build mechanics once. Create infinite worlds.")).toBeInTheDocument();
+    expect(screen.getByText("Build rules once. Explore every consequence.")).toBeInTheDocument();
   });
 
   it("uses the verified root-relative documentation routes", () => {
