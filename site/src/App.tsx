@@ -469,6 +469,19 @@ function App() {
             “We were promised free will. Turns out it was a configuration
             option.” — Humanity, pending verification
           </blockquote>
+          <blockquote className="testimonial-headline">
+            “I have no fucking clue what I am doing or where I am going with
+            this.”
+            <footer>— The Creator, Acting Project Lead (unsupervised)</footer>
+          </blockquote>
+          <blockquote className="testimonial-headline testimonial-dialogue">
+            <p>“I had a plan.” — God</p>
+            <p>“How did that work out for you, Father?” — Lucifer</p>
+            <p>“It&apos;s still in beta.” — God</p>
+            <p>“You&apos;ve had 13.8 billion fucking years.” — Lucifer</p>
+            <p>“Scope creep.” — God</p>
+            <footer>— Divine Retrospective, Sprint 13,800,000,000</footer>
+          </blockquote>
           <p className="testimonial-lead">Seven additional, entirely independent experts have reviewed this technology. Their striking resemblance is under investigation.</p>
           <blockquote className="testimonial-headline">
             “Consequences.”
