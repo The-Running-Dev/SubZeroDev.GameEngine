@@ -97,8 +97,8 @@ function App() {
         <section id="top" className="hero" aria-labelledby="hero-title">
           <p className="eyebrow">SUBZERODEV / GODCOMPLEX</p>
           <h1 id="hero-title">
-            God Doesn&apos;t Play Dice.
-            <br /> Neither Do We.
+            GodComplex.
+            <br /> Consequences.
           </h1>
           <p className="hero-pause" aria-hidden="true">
             ...
@@ -110,7 +110,7 @@ function App() {
             assistive technology so the line reads once, not twice.
           */}
           <p className="signature">
-            <span className="signature-default">Build mechanics once. Create infinite worlds.</span>
+            <span className="signature-default">Build rules once. Explore every consequence.</span>
             <span className="signature-alt" aria-hidden="true">
               Free will is a configuration option.
             </span>
@@ -186,10 +186,10 @@ function App() {
           <h2 id="realization-title">Wait.</h2>
           <p className="display-copy">Why would I write this for one game?</p>
           <div className="prose-stack compact">
-            <p>A job system is not a game.</p>
+            <p>A decision tree is not necessarily a game.</p>
             <p>An inventory is not a game.</p>
             <p>A relationship model is not a game.</p>
-            <p>They are mechanics. And mechanics should be reusable.</p>
+            <p>They are rules and decisions. They belong in games, guides, adaptive surveys, and branching workflows. And they should be reusable.</p>
           </div>
           <ContinueLink to="#architecture" />
         </section>
