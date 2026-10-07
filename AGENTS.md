@@ -23,14 +23,3 @@ from its source.
 
 A duplicate that can disagree with its original is the failure mode `CLAUDE.md` itself
 tracks, applied to the instructions. One file, one answer.
-
-## Writing a design-state record
-
-The kit no longer ships `/agentkit:track`, `Test-DesignState.ps1` or `Update-DesignProjection.ps1`,
-so nothing regenerates this repository's `design/state/` records. What remains from the earlier
-half-adoption is the work-mirror (`design/state/work/`, one `WorkRef` per issue — `design/90-decisions.md`,
-2026-08-24) and `design/state-index.md`, the projection over it (2026-09-05); both are frozen as
-they stand until a separate decision retires them (`design/90-decisions.md`, 2026-10-07).
-
-**Write the decision-log entry alone**, in `design/90-decisions.md`'s own register, in its existing
-format. Do not hand-edit `design/state-index.md` or `design/state/`.
