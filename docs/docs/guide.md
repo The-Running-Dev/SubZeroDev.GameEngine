@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 2d57fa0f064f1dc036bff5fa5f994d51ba65e473d57a4f5e3f73fb9fdd9a76f3 -->
+<!-- design-digest: 8824e3253442ab556eabc039f74225a7ecc342397c7781157575885660bc312a -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -678,7 +678,7 @@ imposes no relationship or currency model of its own; a campaign that wants a me
 declares an int and advances it itself, since the built-in turn counter is deliberately just a
 transition count.
 
-**Campaign composition is contracted, not yet built (W120).** Content never crosses a campaign
+**Campaign composition is built (W120).** Content never crosses a campaign
 boundary at runtime: the session's `campaignId` is singular and the save format has no frames.
 Instead, a host campaign *includes* another story-graph campaign as a module, pinned by its
 authored `{id, version}`. Registry build then merges the module into the host before validation

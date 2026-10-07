@@ -35,7 +35,12 @@ export type {
   VariableDeclSource,
   VariableSchemaSource,
 } from "./kinds/story-graph/source.js";
-export type { StoryGraphCampaign } from "./kinds/story-graph/campaign.js";
+export type {
+  ModuleInterface,
+  StoryGraphAttachment,
+  StoryGraphCampaign,
+  StoryGraphIncludeBinding,
+} from "./kinds/story-graph/campaign.js";
 export type { StoryGraphKindState } from "./kinds/story-graph/state.js";
 export type {
   AchievementDefinitionSource as SimulationAchievementDefinitionSource,

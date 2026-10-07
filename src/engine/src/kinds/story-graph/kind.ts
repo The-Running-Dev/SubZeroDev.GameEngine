@@ -21,6 +21,7 @@ import type {
 import type { Campaign } from "../../core/registry/types.js";
 import { advance } from "./advance.js";
 import type { StoryGraphCampaign } from "./campaign.js";
+import { composeContent } from "./compose.js";
 import { STORY_GRAPH_EVENT_NAMES } from "./events.js";
 import { STORY_GRAPH_REASON_CODES, STORY_GRAPH_REASON_MESSAGES } from "./reasons.js";
 import { availableActions, scene } from "./scene.js";
@@ -54,6 +55,7 @@ export const storyGraphKind: Kind<StoryGraphKindState> = {
   advance: (state, actionId, params, ctx): AdvanceResult<StoryGraphKindState> => advance(state, actionId, params, ctx),
   project: (state, audience, ctx) => project(state, audience, ctx),
   validateCampaign: (campaign, strings) => validateCampaign(campaign, strings),
+  composeContent: (host, modules, attachments) => composeContent(host, modules, attachments),
   outcome: (state) => {
     const endingId = state.endingId ?? null;
     return { terminal: endingId !== null, terminalId: endingId, endingId };

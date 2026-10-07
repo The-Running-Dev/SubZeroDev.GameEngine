@@ -42,6 +42,12 @@ export interface Campaign {
   content: unknown;
 
   /**
+   * Modules this campaign composes in at registry build (04 §10.4). Absent means none. In
+   * the frozen registry the list stays as provenance only; `content` is already composed.
+   */
+  includes?: readonly CampaignInclude[];
+
+  /**
    * Migrates a `kindState` forward when this campaign's own content ids or shape changed
    * between `fromVersion` and this `Campaign.version` (04 §10.2) — e.g. a node or
    * achievement id rename. Optional — most version bumps rename nothing a save
@@ -50,6 +56,58 @@ export interface Campaign {
    * fields), never during `advance`.
    */
   migrateState?(kindState: unknown, fromVersion: string): CommandResult<unknown>;
+}
+
+/** A pin on a campaign's *authored* version — never a resolution id (11 §6). */
+export interface CampaignRef {
+  id: string;
+  version: string;
+}
+
+/** One module a host composes in (04 §10.4). */
+export interface CampaignInclude {
+  /**
+   * The prefix the module's ids take in the host (04 §17, *Composed ids*). An authored id:
+   * ASCII `[a-z0-9_-]`, no `:`, unique among the host's includes and attachments.
+   */
+  alias: string;
+  ref: CampaignRef;
+  /** Kind-specific — entry, exit and variable mappings. Opaque to the core, like `content`. */
+  binding: unknown;
+}
+
+/** An include a content pack adds to a campaign it does not own (11 §3a). */
+export interface CampaignAttachment {
+  hostCampaignId: string;
+  include: CampaignInclude;
+  /** Kind-specific — where in the host the module is reached from. */
+  payload: unknown;
+}
+
+/**
+ * What `Kind.composeContent` receives per module: the include as declared, and the module
+ * campaign already composed — its own includes and attachments merged in.
+ */
+export interface ComposedModule {
+  include: CampaignInclude;
+  campaign: Campaign;
+}
+
+export interface ComposedAttachment {
+  payload: unknown;
+  module: ComposedModule;
+}
+
+/**
+ * What `resolvePacks` (`packs.ts`) hands registry assembly (11 §3a). Neither extra field
+ * survives into the frozen registry: `buildValidatedPackRegistry` composes from them and
+ * returns a plain `ContentRegistry`.
+ */
+export interface ResolvedRegistry extends ContentRegistry {
+  /** Each folded campaign's version *before* 11 §6 stamped it — what an include pins. */
+  readonly authoredVersions: ReadonlyMap<string, string>;
+  /** Every pack's attachments, in pack order and then declaration order. */
+  readonly attachments: readonly CampaignAttachment[];
 }
 
 /** One authored string, before it is lifted into the string table. */

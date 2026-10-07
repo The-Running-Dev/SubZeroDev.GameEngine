@@ -314,6 +314,6 @@
 
 ### Depth: Campaign Composition
 
-### [ ] W120 — One Campaign Can Include Another {#w120}
+### [x] W120 — One Campaign Can Include Another {#w120}
 
 ## Landed

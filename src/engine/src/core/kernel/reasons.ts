@@ -95,6 +95,12 @@ export type ReasonCode = string;
  * (`Kind.profileData`, 04 §7.1): a version mismatch with no migration (or one that fails)
  * drops a kind's profile slice for the session, and a throwing/oversized `fold` result is
  * refused, in both cases only ever surfacing as a warning.
+ *
+ * `include_missing`, `include_version_mismatch`, `include_kind_mismatch`, `include_cycle`,
+ * `include_alias_collision`, `attachment_host_missing` and `compose_unsupported` were added
+ * during W120 — campaign composition (04 §10.4, `registry/compose.ts`) checks an include's
+ * envelope before any kind merges content, at registry build. Base rather than kind-owned
+ * because the include, its pin and the cycle are core-owned; only the merge is the kind's.
  */
 export const BASE_REASON_CODES = [
   "action_not_available",
@@ -133,6 +139,14 @@ export const BASE_REASON_CODES = [
   "pack_override_unexpected",
   "profile_kind_data_unreadable",
   "profile_kind_data_rejected",
+  // campaign composition (04 §10.4) — registry build, before validation
+  "include_missing",
+  "include_version_mismatch",
+  "include_kind_mismatch",
+  "include_cycle",
+  "include_alias_collision",
+  "attachment_host_missing",
+  "compose_unsupported",
 ] as const;
 
 export type BaseReasonCode = (typeof BASE_REASON_CODES)[number];
@@ -180,6 +194,13 @@ const CORE_REASON_TEXT: Readonly<Record<BaseReasonCode, string>> = {
   pack_override_unexpected: "This pack overrides content no earlier pack supplied.",
   profile_kind_data_unreadable: "This kind's saved cross-game data couldn't be read for this session; it starts with none.",
   profile_kind_data_rejected: "This kind's cross-game data couldn't be updated. Your game progress was not affected.",
+  include_missing: "This campaign includes a campaign that isn't available.",
+  include_version_mismatch: "This campaign includes a different version of a campaign than the one available.",
+  include_kind_mismatch: "A campaign can only include a campaign of its own kind.",
+  include_cycle: "Campaigns can't include each other in a cycle.",
+  include_alias_collision: "This campaign uses the same include name twice.",
+  attachment_host_missing: "A pack attaches content to a campaign that isn't available.",
+  compose_unsupported: "This kind of campaign can't include other campaigns.",
 };
 
 /** `core.reason.<code>` → its shipped default-English message, for every base code. */

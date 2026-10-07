@@ -18,7 +18,7 @@ import { simulationKind } from "../kinds/simulation/kind.js";
 import type { LocKey } from "../core/localization/types.js";
 import { resolvePacks, type ContentPack } from "../core/registry/packs.js";
 import type { ContentRegistry } from "../core/registry/types.js";
-import { bulgariaCulturePack, resolveStableLifeRegistry, stableLifeBasePack } from "./stable-life-packs.js";
+import { bulgariaCulturePack, packVersion, resolveStableLifeRegistry, stableLifeBasePack } from "./stable-life-packs.js";
 import { STABLE_LIFE_CAMPAIGN_ID } from "./stable-life.js";
 
 const kinds = { simulation: simulationKind } as unknown as KindRegistry;
@@ -185,6 +185,24 @@ describe("W71 — Stable Life Bulgaria culture pack", () => {
    * from `stable-life.ts` — so both versions are derived from a digest of what they ship.
    * Two packs shipping different strings must therefore carry different versions.
    */
+  // W120.9 — 11 §6: includes and attachments change what plays, so they move the digest, but
+  // only when present; a pack carrying neither keeps the version it already had.
+  it("moves the digest for an attachment or an include, and only then", () => {
+    const { campaigns, strings } = stableLifeBasePack;
+    expect(packVersion(campaigns, strings)).toBe(stableLifeBasePack.version);
+    expect(packVersion(campaigns, strings, [])).toBe(stableLifeBasePack.version);
+
+    const include = { alias: "m", ref: { id: "module", version: "1.0.0" }, binding: {} };
+    const attached = packVersion(campaigns, strings, [{ hostCampaignId: STABLE_LIFE_CAMPAIGN_ID, include, payload: {} }]);
+    expect(attached).toMatch(/^1\.0\.0\+[0-9a-f]{12}$/);
+    expect(attached).not.toBe(stableLifeBasePack.version);
+
+    const including = campaigns.map((c) => ({ ...c, campaign: { ...c.campaign, includes: [include] } }));
+    expect(packVersion(including, strings)).not.toBe(stableLifeBasePack.version);
+    const emptyIncludes = campaigns.map((c) => ({ ...c, campaign: { ...c.campaign, includes: [] } }));
+    expect(packVersion(emptyIncludes, strings)).toBe(stableLifeBasePack.version);
+  });
+
   it("derives each pack's version from the content it ships", () => {
     expect(stableLifeBasePack.version).toMatch(/^1\.0\.0\+[0-9a-f]{12}$/);
     expect(bulgariaCulturePack.version).toMatch(/^1\.0\.0\+[0-9a-f]{12}$/);
