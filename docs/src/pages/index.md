@@ -1,10 +1,12 @@
 ---
-title: 'Game Engine'
+title: 'GodComplex'
 ---
 
-# SubZeroDev.GameEngine
+# SubZeroDev.GodComplex
 
-**Build mechanics once. Create infinite games.**
+**God doesn't play dice. Neither do we.**
+
+Build mechanics once. Create infinite worlds.
 
 ## Quick Links
 
