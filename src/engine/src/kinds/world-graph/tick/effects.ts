@@ -8,7 +8,7 @@ import type {
 } from "../content.js";
 import type { Building, Guest, WorldGraphKindState } from "../state.js";
 import type { TickChanges } from "./changes.js";
-import { compareRuntimeEntityId, type WorldGraphSystemId } from "./order.js";
+import { compareDefinitionId, compareRuntimeEntityId, type WorldGraphSystemId } from "./order.js";
 import type { RngHandle } from "../../../core/determinism/types.js";
 import type { TickRandom } from "./random.js";
 import type { DeferredBuildingMeterSource, TickScratch } from "./scratch.js";
@@ -169,7 +169,7 @@ export function applyWorldEffects(
       const exists = state.unlockedContent.some((entry) => entry.kind === effect.content.kind && entry.id === effect.content.id);
       if ((effect.kind === "unlock") === exists) return;
       const unlockedContent = effect.kind === "unlock"
-        ? [...state.unlockedContent, effect.content].sort((left, right) => left.kind.localeCompare(right.kind) || left.id.localeCompare(right.id))
+        ? [...state.unlockedContent, effect.content].sort((left, right) => compareDefinitionId(left.kind, right.kind) || compareDefinitionId(left.id, right.id))
         : state.unlockedContent.filter((entry) => entry.kind !== effect.content.kind || entry.id !== effect.content.id);
       state = { ...state, unlockedContent };
       context.changes.record(context.system, `unlockedContent.${effect.content.kind}.${effect.content.id}.exists`, effect.kind === "unlock", context.reason, false, exists);
@@ -180,7 +180,7 @@ export function applyWorldEffects(
       const exists = state.activePolicyIds.includes(effect.policyId);
       if (exists === effect.active) return;
       const activePolicyIds = effect.active
-        ? [...state.activePolicyIds, effect.policyId].sort((left, right) => left.localeCompare(right))
+        ? [...state.activePolicyIds, effect.policyId].sort(compareDefinitionId)
         : state.activePolicyIds.filter((id) => id !== effect.policyId);
       state = { ...state, activePolicyIds };
       context.changes.record(context.system, `activePolicyIds.${effect.policyId}.exists`, effect.active, context.reason, false, exists);

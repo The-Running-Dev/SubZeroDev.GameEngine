@@ -26,6 +26,15 @@ export default tseslint.config(
       "no-restricted-globals": [
         "error",
         { name: "Date", message: "Determinism: no wall-clock in engine logic; pass time in as data." }
+      ],
+      // #522: argument-less `localeCompare` collates by the host locale. A call naming its
+      // locale (the simulation kind's contracted "en-US-POSIX") is still allowed.
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "CallExpression[callee.property.name='localeCompare'][arguments.length<2]",
+          message: "Determinism: localeCompare without a locale uses the host's; use a canonical comparator or name the locale."
+        }
       ]
     }
   },

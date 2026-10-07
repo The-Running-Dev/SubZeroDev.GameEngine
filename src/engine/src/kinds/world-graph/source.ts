@@ -15,11 +15,12 @@ import type {
   WorldGraphCampaignSource,
 } from "./content.js";
 import type { Position, Rotation } from "./state.js";
+import { compareDefinitionId } from "./tick/order.js";
 
 type AuthoredDefinition = { readonly text: AuthoredDefinitionText };
 
 function compareId(a: { readonly id: string }, b: { readonly id: string }): number {
-  return a.id.localeCompare(b.id);
+  return compareDefinitionId(a.id, b.id);
 }
 
 function comparePosition(a: Position, b: Position): number {
@@ -27,7 +28,7 @@ function comparePosition(a: Position, b: Position): number {
 }
 
 function uniqueSorted(values: readonly string[]): readonly string[] {
-  return [...values].sort((a, b) => a.localeCompare(b));
+  return [...values].sort(compareDefinitionId);
 }
 
 function rotations(values: readonly Rotation[]): readonly Rotation[] {
@@ -82,8 +83,8 @@ function liftBuilding(value: BuildingDefinitionSource, authoredText: AuthoredTex
     operation: runtime.operation.kind === "service"
       ? {
           ...runtime.operation,
-          products: [...runtime.operation.products].sort((a, b) => a.productId.localeCompare(b.productId)),
-          staffRequirements: [...runtime.operation.staffRequirements].sort((a, b) => a.roleId.localeCompare(b.roleId)),
+          products: [...runtime.operation.products].sort((a, b) => compareDefinitionId(a.productId, b.productId)),
+          staffRequirements: [...runtime.operation.staffRequirements].sort((a, b) => compareDefinitionId(a.roleId, b.roleId)),
         }
       : runtime.operation.kind === "waste"
         ? { ...runtime.operation, acceptedIncidentIds: uniqueSorted(runtime.operation.acceptedIncidentIds) }
@@ -101,10 +102,10 @@ function liftArchetype(value: GuestArchetypeDefinitionSource, authoredText: Auth
       ...need,
       driftByCurrentValue: curve(need.driftByCurrentValue),
       utilityByCurrentValue: curve(need.utilityByCurrentValue),
-    })).sort((a, b) => a.needId.localeCompare(b.needId)),
-    conditions: [...runtime.conditions].sort((a, b) => a.definitionId.localeCompare(b.definitionId)),
-    opinions: [...runtime.opinions].sort((a, b) => a.definitionId.localeCompare(b.definitionId)),
-    preferences: [...runtime.preferences].sort((a, b) => a.definitionId.localeCompare(b.definitionId)),
+    })).sort((a, b) => compareDefinitionId(a.needId, b.needId)),
+    conditions: [...runtime.conditions].sort((a, b) => compareDefinitionId(a.definitionId, b.definitionId)),
+    opinions: [...runtime.opinions].sort((a, b) => compareDefinitionId(a.definitionId, b.definitionId)),
+    preferences: [...runtime.preferences].sort((a, b) => compareDefinitionId(a.definitionId, b.definitionId)),
     priceResistance: curve(runtime.priceResistance),
     tags: uniqueSorted(runtime.tags),
   };
@@ -114,14 +115,14 @@ function liftScenario(value: ScenarioDefinitionSource, authoredText: AuthoredTex
   const runtime = lift<ScenarioDefinitionSource, ScenarioDefinition>(value, authoredText);
   return {
     ...runtime,
-    unlockedContent: [...runtime.unlockedContent].sort((a, b) => a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id)),
+    unlockedContent: [...runtime.unlockedContent].sort((a, b) => compareDefinitionId(a.kind, b.kind) || compareDefinitionId(a.id, b.id)),
     activePolicyIds: uniqueSorted(runtime.activePolicyIds),
     scheduledChanges: [...runtime.scheduledChanges].sort((a, b) => a.dueTick - b.dueTick || b.priority - a.priority),
-    guestSpawning: { ...runtime.guestSpawning, pool: [...runtime.guestSpawning.pool].sort((a, b) => a.archetypeId.localeCompare(b.archetypeId)) },
+    guestSpawning: { ...runtime.guestSpawning, pool: [...runtime.guestSpawning.pool].sort((a, b) => compareDefinitionId(a.archetypeId, b.archetypeId)) },
     objectiveIds: uniqueSorted(runtime.objectiveIds),
     failureIds: uniqueSorted(runtime.failureIds),
-    buildingLimits: [...runtime.buildingLimits].sort((a, b) => a.definitionId.localeCompare(b.definitionId)),
-    staffLimits: [...runtime.staffLimits].sort((a, b) => a.definitionId.localeCompare(b.definitionId)),
+    buildingLimits: [...runtime.buildingLimits].sort((a, b) => compareDefinitionId(a.definitionId, b.definitionId)),
+    staffLimits: [...runtime.staffLimits].sort((a, b) => compareDefinitionId(a.definitionId, b.definitionId)),
     tags: uniqueSorted(runtime.tags),
   };
 }
@@ -164,7 +165,7 @@ export function buildWorldGraphCampaign(source: WorldGraphCampaignSource): {
     staffRoles: simpleCatalog(source.staffRoles, authoredText, (value) => ({
       ...withTags(value),
       supportedTaskKinds: [...value.supportedTaskKinds].sort(),
-      workRates: [...value.workRates].sort((a, b) => a.taskType.localeCompare(b.taskType)),
+      workRates: [...value.workRates].sort((a, b) => compareDefinitionId(a.taskType, b.taskType)),
     })),
     incidents: simpleCatalog(source.incidents, authoredText, withTags),
     objectives: simpleCatalog(source.objectives, authoredText, withTags),
