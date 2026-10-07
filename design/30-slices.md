@@ -5316,7 +5316,7 @@ session, and the save format does not change.
       story-graph kind's campaign and source types, source builder, consequences, interpolation,
       validator and reason codes; their tests and synthetic fixtures; the regenerated human docs.
 - **Depends on:** none.
-- **Status:** Done.
+- **Status:** Done — [PR #568](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/568).
 - **Done when:**
   - W120.1 These types are declared as 04 §10.4, 11 §3a and 03 §1.1 state:
         - `CampaignRef`, `CampaignInclude`, `CampaignAttachment`, `ComposedModule` and
