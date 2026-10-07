@@ -95,10 +95,10 @@ function App() {
 
       <main>
         <section id="top" className="hero" aria-labelledby="hero-title">
-          <p className="eyebrow">SUBZERODEV GAME ENGINE</p>
+          <p className="eyebrow">SUBZERODEV / GODCOMPLEX</p>
           <h1 id="hero-title">
-            Build Mechanics Once.
-            <br /> Create Infinite Games.
+            God Doesn&apos;t Play Dice.
+            <br /> Neither Do We.
           </h1>
           <p className="hero-pause" aria-hidden="true">
             ...
@@ -110,9 +110,9 @@ function App() {
             assistive technology so the line reads once, not twice.
           */}
           <p className="signature">
-            <span className="signature-default">Well... why not?</span>
+            <span className="signature-default">Build mechanics once. Create infinite worlds.</span>
             <span className="signature-alt" aria-hidden="true">
-              Fine. Why not?
+              Free will is a configuration option.
             </span>
           </p>
           <div className="commentary">
@@ -123,9 +123,9 @@ function App() {
               Results may include:
             </p>
             <ul>
-              <li>an accidental game engine</li>
+              <li>an accidental universe factory</li>
               <li>this page, explaining the accidental game engine</li>
-              <li>continued uncertainty about how any of this happened</li>
+              <li>several entirely justified allegations of a God complex</li>
             </ul>
           </div>
           <a className="scroll-invitation" href="#origin">
@@ -139,7 +139,7 @@ function App() {
           className="origin section-narrow"
           aria-labelledby="origin-title"
         >
-          <p className="section-index">01 / THE ACCIDENT</p>
+          <p className="section-index">01 / GENESIS</p>
           <h2 id="origin-title">
             I Missed <em>Jones in the Fast Lane</em>.
           </h2>
@@ -161,7 +161,7 @@ function App() {
           className="problem section-wide"
           aria-labelledby="problem-title"
         >
-          <p className="section-index">02 / THE PATTERN</p>
+          <p className="section-index">02 / ORIGINAL SIN</p>
           <h2 id="problem-title">The Problem Was Not Rendering.</h2>
           <div className="split-prose">
             <p>
@@ -182,7 +182,7 @@ function App() {
           className="realization section-narrow"
           aria-labelledby="realization-title"
         >
-          <p className="section-index">03 / THE QUESTION</p>
+          <p className="section-index">03 / REVELATION</p>
           <h2 id="realization-title">Wait.</h2>
           <p className="display-copy">Why would I write this for one game?</p>
           <div className="prose-stack compact">
@@ -200,7 +200,7 @@ function App() {
           aria-labelledby="architecture-title"
         >
           <div className="architecture-intro">
-            <p className="section-index">04 / THE ARCHITECTURE</p>
+            <p className="section-index">04 / INTELLIGENT DESIGN</p>
             <h2 id="architecture-title">Reuse the Rules. Replace the World.</h2>
             <p>
               One deterministic core. Reviewed kinds. Campaigns with their own
@@ -251,7 +251,7 @@ function App() {
           className="abstraction section-narrow"
           aria-labelledby="abstraction-title"
         >
-          <p className="section-index">05 / THE LIMIT</p>
+          <p className="section-index">05 / THE KNOWN UNIVERSE</p>
           <h2 id="abstraction-title">
             The Engine Doesn&apos;t Know What a Dragon Is.
           </h2>
@@ -273,7 +273,7 @@ function App() {
           className="trace section-narrow"
           aria-labelledby="trace-title"
         >
-          <p className="section-index">06 / THE EXAMPLE</p>
+          <p className="section-index">06 / DIVINE BUREAUCRACY</p>
           <h2 id="trace-title">Here&apos;s What It Does Know.</h2>
           <p className="trace-lead">
             The MVP&apos;s worked example, from the story-graph kind spec: a
@@ -332,7 +332,7 @@ function App() {
           aria-labelledby="contract-title"
         >
           <div>
-            <p className="section-index">07 / THE BOUNDARY</p>
+            <p className="section-index">07 / THE COMMANDMENTS</p>
             <h2 id="contract-title">Commands Are the Boundary.</h2>
           </div>
           <div className="contract-copy">
@@ -361,7 +361,7 @@ function App() {
           aria-label="Engine principles"
         >
           <article className="ledger-refusals" aria-labelledby="refusals-title">
-            <p className="section-index">08 / REFUSALS</p>
+            <p className="section-index">08 / FORBIDDEN ACTS</p>
             <h2 id="refusals-title">Things This Engine Refuses to Do</h2>
             <ol>
               {refusals.map((item, index) => (
@@ -376,7 +376,7 @@ function App() {
             className="ledger-capabilities"
             aria-labelledby="capabilities-title"
           >
-            <p className="section-index">09 / CAPABILITIES</p>
+            <p className="section-index">09 / MIRACLES</p>
             <h2 id="capabilities-title">Things It Happily Does</h2>
             <ul>
               {capabilities.map((item) => (
@@ -393,7 +393,7 @@ function App() {
           className="resolution section-narrow"
           aria-labelledby="resolution-title"
         >
-          <p className="section-index">10 / THE ESCALATION</p>
+          <p className="section-index">10 / THE GOD COMPLEX</p>
           <h2 id="resolution-title">
             This Project Did Not Begin With a Grand Vision.
           </h2>
@@ -428,7 +428,7 @@ function App() {
           className="worlds section-wide"
           aria-labelledby="worlds-title"
         >
-          <p className="section-index">11 / THE ENGINE</p>
+          <p className="section-index">11 / CREATION</p>
           <h2 id="worlds-title">It Exists.</h2>
           <p className="worlds-lead">So do the worlds it will run.</p>
           <ul className="worlds-list">
@@ -447,6 +447,15 @@ function App() {
             replay proof; simulation and world-graph are still engine proofs,
             not polished games. The distinction matters.
           </p>
+          <ContinueLink to="#testimonials" />
+        </section>
+
+        <section id="testimonials" data-reveal="" className="testimonials section-narrow" aria-labelledby="testimonials-title">
+          <p className="section-index">12 / UNREQUESTED PEER REVIEW</p>
+          <h2 id="testimonials-title">That's Not How Game Engines Work!</h2>
+          <p className="testimonial-lead">An entire genre of architectural feedback, distilled to its natural conclusion. We have considered the objection carefully.</p>
+          <blockquote className="testimonial-headline">Apparently, it works well enough to have regression tests.</blockquote>
+          <p className="commentary">Real Reddit criticism deserves real links. This is a thematic headline, not a fabricated quotation. Verified comments will appear here once sourced.</p>
           <ContinueLink to="#continue" />
         </section>
 
@@ -456,7 +465,7 @@ function App() {
           className="cta section-wide"
           aria-labelledby="cta-title"
         >
-          <p className="section-index">12 / CONTINUE READING</p>
+          <p className="section-index">13 / THE SCRIPTURES</p>
           <h2 id="cta-title">Still Here?</h2>
           <p>Good. Now it becomes considerably less philosophical.</p>
           <div className="cta-actions">
