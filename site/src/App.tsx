@@ -453,8 +453,27 @@ function App() {
         <section id="testimonials" data-reveal="" className="testimonials section-narrow" aria-labelledby="testimonials-title">
           <p className="section-index">12 / TESTIMONIALS</p>
           <h2 id="testimonials-title">What People Are Saying</h2>
-          <p className="testimonial-lead">The internet has opinions. We intend to preserve them accurately.</p>
-          <p className="commentary">Actual Reddit feedback will appear here with links to the original comments. No invented testimonials.</p>
+          <p className="testimonial-lead">
+            Completely unbiased reviews from the living, the dead, and several
+            entities whose existence has not passed validation.
+          </p>
+          <blockquote className="testimonial-headline">
+            “I created the universe in six days. This lunatic introduced
+            semantic versioning.” — God, allegedly
+          </blockquote>
+          <blockquote className="testimonial-headline">
+            “Finally, a place where all the suffering is reproducible.”
+            — Lucifer, Director of Quality Assurance
+          </blockquote>
+          <blockquote className="testimonial-headline">
+            “We were promised free will. Turns out it was a configuration
+            option.” — Humanity, pending verification
+          </blockquote>
+          <p className="commentary">
+            All divine testimonials are fictional. Actual Reddit objections
+            will join this distinguished panel as soon as we have their
+            original words.
+          </p>
           <ContinueLink to="#continue" />
         </section>
 
