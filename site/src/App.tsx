@@ -469,6 +469,36 @@ function App() {
             “We were promised free will. Turns out it was a configuration
             option.” — Humanity, pending verification
           </blockquote>
+          <p className="testimonial-lead">Seven additional, entirely independent experts have reviewed this technology. Their striking resemblance is under investigation.</p>
+          <blockquote className="testimonial-headline">
+            “Consequences.”
+            <footer>— John Wick, Conflict Resolution Specialist</footer>
+          </blockquote>
+          <blockquote className="testimonial-headline">
+            “There is no spoon. There are only state transitions.”
+            <footer>— Neo, Reality Architect</footer>
+          </blockquote>
+          <blockquote className="testimonial-headline">
+            “Whoa.”
+            <footer>— Ted Logan, Senior Simulation Engineer</footer>
+          </blockquote>
+          <blockquote className="testimonial-headline">
+            “Excellent!”
+            <footer>— Theodore Logan, Junior Simulation Engineer</footer>
+          </blockquote>
+          <blockquote className="testimonial-headline">
+            “Why can’t we go faster?”
+            <footer>— Jack Traven, Real-Time Systems Consultant</footer>
+          </blockquote>
+          <blockquote className="testimonial-headline">
+            “The universe has rules. Breaking them has consequences.”
+            <footer>— Klaatu, External Compliance Auditor</footer>
+          </blockquote>
+          <blockquote className="testimonial-headline">
+            “I’ve seen the future. It has regression tests.”
+            <footer>— Johnny Mnemonic, Data Retention Specialist</footer>
+          </blockquote>
+          <p className="commentary">Any resemblance between these seven independent reviewers and Keanu Reeves is purely deterministic.</p>
           <p className="commentary">
             All divine testimonials are fictional. Actual Reddit objections
             will join this distinguished panel as soon as we have their
