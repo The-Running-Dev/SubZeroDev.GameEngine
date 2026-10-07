@@ -3643,6 +3643,7 @@ interface ContentPack {
   readonly experimentGate?: ExperimentGate;  // §5a — absent means always included
   readonly campaigns: readonly BuiltCampaign[];   // 04 §10.1 — already the built form
   readonly strings: ReadonlyMap<LocKey, string>;
+  readonly attachments?: readonly CampaignAttachment[];   // §3a — absent means none
 }
 
 interface PackRef { readonly id: string; readonly version: string; }
@@ -3689,6 +3690,34 @@ rules govern what "override" means, and they are deliberately different per coll
 fails with a list of conflicts — never a partial one. The result is validated (04 §11) and
 frozen exactly as a single-campaign registry is today; the engine cannot tell how many packs
 it came from, which is the point.
+
+---
+
+## 3a. Attachments — Reaching Into a Campaign a Pack Does Not Own
+
+Whole-campaign replacement (§3) is the right rule for a campaign a pack *owns*. It cannot
+express the third-party case: a pack that adds a side quest to someone else's campaign without
+restating it. That is an **attachment** — a `CampaignAttachment` (04 §10.4) naming a host
+campaign by id, an include of the module to compose in, and a kind-owned payload saying where
+the host reaches it. For `story-graph` the payload appends one choice to one host choice node
+(03 §1.1), and that is all an attachment can do: add a path, never edit, remove or reorder one.
+
+The fold does not apply attachments; it cannot, because it holds no kinds. It collects them, in
+pack order and then declaration order, and hands them on with the campaign map:
+
+```typescript
+interface ResolvedRegistry extends ContentRegistry {
+  /** Each folded campaign's version *before* §6 stamped it — what an include pins (04 §10.4). */
+  readonly authoredVersions: ReadonlyMap<string, string>;
+  readonly attachments: readonly CampaignAttachment[];
+}
+```
+
+`buildValidatedPackRegistry` (04 §11) composes from these, validates, and freezes a plain
+`ContentRegistry`; neither field survives into it. An attachment applies to whichever campaign
+holds its `hostCampaignId` **after** the fold — a later pack that replaces the host wholesale
+still receives the earlier pack's attachment, and the composed result is validated as a unit,
+so an attachment that no longer fits the replacement fails loudly rather than vanishing.
 
 ---
 
@@ -3830,7 +3859,10 @@ hex characters of its SHA-256) over the pack's `campaigns` (each `BuiltCampaign`
 `kindId`, `version`, `titleKey` and `content` — never `migrateState`, which is a function and
 `canonicalStringify` rejects those outright) and its `strings`, sorted by key rather than left
 in the map's insertion order, since the digest names what the pack ships and reordering an
-authoring file must not change it. `1.0.0` stays as a literal prefix — semver build metadata
+authoring file must not change it. A campaign's `includes` and the pack's `attachments` (§3a)
+are digest input too, each **only when present and non-empty** — they change what plays, so a
+pack that changes one must move its version, and omitting them when empty leaves every
+existing pack's version exactly where it was. `1.0.0` stays as a literal prefix — semver build metadata
 for a human skimming a version string, never compared as a range (`PackRef` compares exactly).
 
 There is no engine-supplied function that computes this; each shipped pack (`stable-life-
@@ -3844,7 +3876,8 @@ function.
 
 ## 7. Validation
 
-Pack resolution adds four checks to the tiered validator (04 §11):
+Pack resolution adds four checks to the tiered validator (04 §11), and attachments (§3a) add a
+fifth that composition runs:
 
 | Tier | Check |
 |---|---|
@@ -3852,6 +3885,7 @@ Pack resolution adds four checks to the tiered validator (04 §11):
 | 1 | No campaign id collides *within* one pack — across packs is an override, within one is an authoring error |
 | 1 | No pack writes a `core.reason.*` string key |
 | 2 | A pack overrides a campaign or string that no earlier pack supplied — legal, and almost always a typo |
+| 1 | An attachment names a host campaign present after the fold (`attachment_host_missing`), and passes every include check 04 §10.4 lists — run at composition, after the fold, not inside it |
 
 The third row is the protected-namespace rule 04 §12 already applies at registry assembly,
 restated because a pack is a second way into the same string table. Without it, packs would be

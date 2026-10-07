@@ -54,6 +54,8 @@ interface StoryGraphCampaign {
   startNodeId: string;
 
   achievements: AchievementDefinition[];   // §7
+
+  module?: ModuleInterface;     // §1.1 — present iff this campaign may be included
 }
 ```
 
@@ -65,6 +67,75 @@ runtime.
 
 Load-time validation (§11) checks that `startNodeId` exists, every `goto` resolves,
 every variable referenced is declared, and every `LocKey` is present.
+
+### 1.1 Modules, Includes and Attachments
+
+This kind implements `Kind.composeContent` (04 §3, §10.4). A story-graph campaign can be
+included in another — a side quest, a shared errand, a third-party pack's detour — and stays
+an ordinary, playable campaign while it is.
+
+```typescript
+/** Opt-in: a campaign without it fails `include_not_module` when included. */
+interface ModuleInterface {
+  entryNodeId?: string;   // where an include enters; default `startNodeId`
+  inputs: string[];       // declared variables a host may write on entry
+  outputs: string[];      // declared variables a host may read on exit
+}
+
+/** `CampaignInclude.binding` (04 §10.4) for a story-graph module. */
+interface StoryGraphIncludeBinding {
+  exits: Record<string, string>;     // module endingId → host node id; every one mapped
+  inputs?: Record<string, string>;   // module input → host variable, copied in on entry
+  outputs?: Record<string, string>;  // module output → host variable, copied out on exit
+}
+
+/** `CampaignAttachment.payload` (04 §10.4): a pack reaches the module through one new
+ *  choice on a host choice node. Its `goto` is implied — the include's entry. */
+interface StoryGraphAttachment {
+  hostNodeId: string;
+  choice: Omit<Choice, "goto" | "effects">;
+}
+```
+
+**A module's exits are its endings.** Each distinct `endingId` among the module's ending nodes
+is a named exit, and the binding must map every one (`exit_unmapped`). There is no separate
+exit list to drift from the endings that exist.
+
+**What composition writes into the host**, for an include under alias `a`:
+
+- **Ids.** Every module node, variable and achievement id `x` becomes `a::x` (04 §17,
+  *Composed ids*), and every reference inside the module is rewritten to match — `goto`s,
+  `Condition` fields (`var.`, `visited.`, `achieved.`), consequence targets. Module variables
+  join the host's `variables` with their declared types and initial values.
+- **The entry.** One `auto` node, id `a` — the alias itself — whose effects are one `copy`
+  (§5) per bound input, host → module, and whose `goto` is `a::<entryNodeId>`. A host reaches
+  the module by `goto: "a"`; no authored reference ever contains `:`. The node's `textKey` is
+  the entry node's, and is never rendered, because an `auto` node is a pass-through.
+- **The exits.** Each module ending node `a::e` becomes an `auto` node whose effects are one
+  `copy` per bound output, module → host, and whose `goto` is the host node its `endingId`
+  maps to. A host ending is a valid target. **A module never ends the host run on its own.**
+- **Attachments.** Each attachment appends its choice, with `goto` set to the include's entry
+  node, to the end of the named host choice node's `choices`, in the order §10.4 fixes. The
+  node must be a `ChoiceNode` (`attachment_node_not_choice`), and the choice id must be new on
+  that node (`attachment_choice_collision`).
+
+Because the entry and every exit are pass-through nodes, entering and leaving a module each
+cost one `turn` and count one visit (§8.2) — `visited.a` is the number of times the host
+entered the module. The entry's `copy` runs on every entry, so re-entering a module re-reads
+its inputs and leaves every unbound module variable as the last visit left it.
+
+**What composition does not touch.** `LocKey`s stay unprefixed and shared with the module's
+standalone form; the host validates against the module's strings (04 §11). Interpolation in
+module text resolves `{name}` within the node's own alias scope — `{x}` in node `a::n` reads
+`a::x` — so module text needs no rewrite and cannot reach a host variable. The module's
+`descriptionKey` and `startNodeId` are unused. `turn` is the host's: a module that reads it
+reads the host's transition count.
+
+**Achievements are the host's.** A module achievement `a::x` unlocks into the host's
+`unlockedAchievements` and is recorded against the host campaign (§7), not the module's
+standalone campaign, because the session is in the host. A module whose content reads the
+`ending` field cannot be included (`include_not_module`): a module's endings never become the
+host's, so the read could never be what its author meant.
 
 ---
 
@@ -208,7 +279,8 @@ simulation kind's §10.4, carried over.
 type Consequence =
   | { op: "set"; var: string; value: VarValue }
   | { op: "increment"; var: string; by: number }   // int only
-  | { op: "decrement"; var: string; by: number };   // int only
+  | { op: "decrement"; var: string; by: number }    // int only
+  | { op: "copy"; var: string; from: string };      // var ← from's current value
 ```
 
 Validation checks: `var` is declared; the op suits its type (`increment`/`decrement`
@@ -216,6 +288,15 @@ require `int`; `set` value matches the declared type / enum values). `int` write
 to the variable's `min`/`max` after applying. Clamping happens once, after all of a
 transition's consequences apply — the same rule as the simulation kind's needs (§3.3
 there), so a `+5` then `-5` nets to zero rather than clipping.
+
+**`copy`** writes one declared variable from another. Consequences apply in order, so `from`
+is read as earlier consequences in the same list left it, before the clamp. `from` must be
+declared (`undeclared_variable`) and assignable to `var` (`invalid_consequence_value`): the
+same `VarType`, and for an `enum`, every one of `from`'s values among `var`'s. An `int` copy
+clamps to `var`'s range like any other `int` write. It audits like any write — one coalesced
+`consequence_applied` for `var` (§8.3); `from` is read, not touched. It exists for module
+bindings (§1.1), which compose into exactly these, and is open to authors for the same job
+inside one campaign.
 
 > **Turn advance is automatic, not a consequence.** The **kind** increments the built-in
 > `turn` by 1 on every transition, including settle pass-throughs (§8.2). It cannot be
@@ -416,10 +497,23 @@ rule is the same one — every registered code owes a localized message (04 §12
 | `non_visible_variable_in_text` | 1 | text interpolates a hidden or undeclared variable |
 | `invalid_transition_weight` | 1 | a `RandomTransition.weight` is not a positive integer, or a `random` node has no transitions |
 | `unknown_condition_field` | 1 | a `Condition` reads a field this kind does not define (04 §18) |
+| `include_not_module` | 1 | an included campaign declares no `module` (§1.1), or its content reads the `ending` field |
+| `exit_unmapped` | 1 | an include's `exits` misses one of the module's `endingId`s, or names one it does not have |
+| `binding_undeclared` | 1 | a binding names a module variable not in `inputs`/`outputs`, or a host variable that is not declared |
+| `binding_type_mismatch` | 1 | a bound pair is not assignable in the binding's direction (§5, `copy`) |
+| `attachment_node_not_choice` | 1 | an attachment's `hostNodeId` names a node that is not a `ChoiceNode` |
+| `attachment_choice_collision` | 1 | an attachment's choice id already exists on its host node |
 | `unreachable_node` | 2 | no path from `startNodeId` reaches it |
 | `unreachable_cycle` | 2 | a `choice`/`auto`/`random` cycle with no exit to a choice or ending |
 | `no_reachable_choice` | 2 | no `ChoiceNode` is reachable from the start — valid but non-interactive (04 §11) |
 | `no_reachable_ending` | 2 | no reachable ending |
+
+The six composition codes, `include_not_module` through `attachment_choice_collision`, are
+raised by `composeContent` (§1.1), not `validateCampaign` — composition runs first, and
+fails the same Tier-1 way (04 §11). Everything else a composed campaign can get wrong is
+found by the ordinary checks on the composed result, without a code of its own: an exit target
+or attachment `hostNodeId` that names no host node is `dangling_reference`, an alias that
+collides with a host node id is `duplicate_id`, and a composed id is checked like any other.
 
 **An audit code — carried on a `StateChange`, reported to nobody in particular.** It is
 neither a rejection nor a validation finding, and it is registered here for the same single
@@ -673,6 +767,10 @@ Tiered as in the architecture §9.
 - Every `RandomTransition.weight` is a **positive integer**, and every `random` node has
   at least one transition — `weightedPick` throws otherwise (04 §8), so this is a
   load-time rule, not a runtime crash.
+- Every `copy` reads a declared variable assignable to its target (§5).
+- No authored id, alias or `LocKey` contains `:` (04 §17, *Composed ids*).
+- A composed campaign passes every check above **as composed** (§1.1): composition runs first
+  and fails with its own six codes (§8.3) before any of these runs.
 
 **Tier 2 — load-time, warning:**
 
@@ -811,3 +909,7 @@ What this exercises, one-to-one against the MVP Definition of Done:
 | §8.2 | `SETTLE_STEPS` guard default 64 | Profiling or a legitimately deep auto-chain |
 | §3 | Four node kinds (choice/random/auto/ending); `auto` is arguably a one-transition `random` | Simplification pass finds `auto` redundant |
 | §6/§8.2 | `visited` counts *every* entry (settle pass-throughs + start node), so it works on auto/random nodes | Authors want "times rested here" only |
+| §1.1 | A module's exits are its distinct `endingId`s, not a declared list | A module needs two exits from one ending, or an exit that is not an ending |
+| §1.1 | Module entry and exits are synthesized `auto` nodes, so each costs a `turn` and a visit | A campaign needs a module crossing to be invisible to `turn` |
+| §1.1 | A module reading `ending` is not includable, rather than rewritten | A module needs its own "how did I leave" signal — an output variable already gives it |
+| §1.1 | Attachments only append a choice; they cannot edit, remove or reorder host content | A pack needs to replace a host path, not add one |

@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 38764ed43bde96faf963b60289a6dd595a9f6bff2d4c783edda8bccf7d5fa9c3 -->
+<!-- design-digest: 0c6539c1bc695544e4e1558c94d9aef0ea40e60ed3c53408c43ced4497b3ce9a -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -675,6 +675,24 @@ Relationships, money, and campaign-specific clocks are all ordinary typed variab
 imposes no relationship or currency model of its own; a campaign that wants a mechanical clock
 declares an int and advances it itself, since the built-in turn counter is deliberately just a
 transition count.
+
+**Campaign composition is contracted, not yet built (W120).** Content never crosses a campaign
+boundary at runtime: the session's `campaignId` is singular and the save format has no frames.
+Instead, a host campaign *includes* another story-graph campaign as a module, pinned by its
+authored `{id, version}`. Registry build then merges the module into the host before validation
+runs, so play still sees one campaign in one session.
+
+- **Opting in.** A module opts in with a `module` block: an optional entry node, plus the
+  variables a host may write (`inputs`) and read (`outputs`).
+- **Ids.** Module ids are prefixed `alias::id` in state and saves, and prefixes chain through
+  nested includes. They are published ids, so renaming an alias is a migration.
+- **Wiring.** Every module ending is an exit that the include maps to a host node. Bound
+  variables cross on the entry and exit edges through the `copy` consequence.
+- **Strings.** Localization keys stay shared and unprefixed.
+
+A content pack can also attach a module to a campaign it does not own, by appending one choice to
+a host choice node. See [Core](/docs/engine/core) §10.4 and
+[Story-graph kind](/docs/engine/story-graph-kind) §1.1.
 
 The MVP's worked example — the Bulgaria Bureaucracy arc — exercises every part of this at once:
 typed variables and clamping, a requirement-gated retry with a real reason, a self-referential

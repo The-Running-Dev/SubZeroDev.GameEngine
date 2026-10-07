@@ -107,8 +107,10 @@ defeat it (§9.1).
 **Identifiers.** Maintained by Core Specification §17 and the two id ports (06 §5.1, §5.7).
 
 - **C17.** Every published id is ASCII `[a-z0-9_-]` in the shape §17's table fixes for its
-  category, and is unique within its scope. *Enforced by code — Tier 1 checks both the character
-  set and uniqueness.*
+  category, and is unique within its scope. The one exception is a **composed** id (§17,
+  *Composed ids*): `::` joins an include alias to a module's own id, and only composition ever
+  writes it — an authored id or alias containing `:` is rejected. *Enforced by code — Tier 1
+  checks both the character set and uniqueness, and runs on the composed campaign.*
 - **C18.** An id is stable once published; a rename is a migration, never an edit. *Enforced by
   instruction, with C12 as the backstop that makes a violation loud rather than silent.*
 - **C19.** `gameId` and `seed` are opaque to the core: never parsed, compared, ordered, or
@@ -383,6 +385,20 @@ interface Kind<KState> {
    * declare a version without a fold, or a fold without a version.
    */
   readonly profileData?: KindProfileData;
+
+  /**
+   * Merges included modules and pack attachments into a host campaign's content (§10.4).
+   * Optional: a kind without it cannot host an include or receive an attachment, and a
+   * campaign of that kind that declares either fails with `compose_unsupported`. Called by
+   * registry assembly **before** `validateCampaign`, once per host, with every module already
+   * composed depth-first — so it only ever merges one level. Pure over content: the result
+   * replaces `host.content` in the registry and is what validation and play both see.
+   */
+  composeContent?(
+    host: Campaign,
+    modules: readonly ComposedModule[],
+    attachments: readonly ComposedAttachment[],
+  ): CommandResult<unknown>;
 }
 
 /**
@@ -1817,6 +1833,10 @@ interface Campaign {
   titleKey: LocKey;
   content: unknown;              // kind-specific — e.g. StoryGraphCampaign (03 §1)
 
+  /** Modules this campaign composes in at registry build (§10.4). Absent means none. In the
+   *  frozen registry the list stays as provenance only; `content` is already composed. */
+  includes?: readonly CampaignInclude[];
+
   /**
    * Migrates a `kindState` forward when *this campaign's own* content ids or shape changed
    * between `fromVersion` and this `version` (§10.2) — a renamed node or achievement id.
@@ -1991,6 +2011,90 @@ the log: you get event sourcing's benefits where they pay off — the determinis
 its cost, which is loads that break the moment the rules move. This hybrid is a choice,
 not a gap.
 
+### 10.4 Campaign Composition
+
+Content crosses a campaign boundary **by composition at registry build, never by traversal**
+(`90-decisions.md`, 2026-10-07, #293/#292). A host campaign *includes* another campaign as a
+**module**; registry assembly merges the module's content into the host's before validation
+runs, so at runtime there is one campaign, one session and one `GameState`. Nothing in the
+envelope, the save format or any host changes.
+
+```typescript
+/** A pin on a campaign's *authored* version — never a resolution id (11 §6). */
+interface CampaignRef { id: string; version: string; }
+
+interface CampaignInclude {
+  /** The prefix the module's ids take in the host (§17, *Composed ids*). An authored id:
+   *  ASCII `[a-z0-9_-]`, no `:`, unique among the host's includes and attachments. */
+  alias: string;
+  ref: CampaignRef;
+  /** Kind-specific — entry, exit and variable mappings (e.g. `StoryGraphIncludeBinding`,
+   *  03 §1.1). Opaque to the core, like `Campaign.content`. */
+  binding: unknown;
+}
+
+/** An include a content pack adds to a campaign it does not own (11 §3a). */
+interface CampaignAttachment {
+  hostCampaignId: string;
+  include: CampaignInclude;
+  /** Kind-specific — where in the host the module is reached from (e.g.
+   *  `StoryGraphAttachment`, 03 §1.1). */
+  payload: unknown;
+}
+
+/** What `Kind.composeContent` (§3) receives per module: the include as declared, and the
+ *  module campaign already composed — its own includes and attachments merged in. */
+interface ComposedModule {
+  include: CampaignInclude;
+  campaign: Campaign;
+}
+
+interface ComposedAttachment {
+  payload: unknown;
+  module: ComposedModule;
+}
+```
+
+**The split.** The core owns the envelope; the kind owns the merge.
+
+| Step | Owner | Fails with |
+|---|---|---|
+| The include's `ref.id` names a campaign in the same registry input | core | `include_missing` |
+| `ref.version` equals that campaign's **authored** version | core | `include_version_mismatch` |
+| The module's `kindId` equals the host's | core | `include_kind_mismatch` |
+| No campaign includes itself, directly or transitively | core | `include_cycle` |
+| `alias` is well-formed and unique among the host's includes and attachments | core | `invalid_identifier`, `include_alias_collision` |
+| An attachment's `hostCampaignId` names a campaign in the registry input | core | `attachment_host_missing` |
+| The host's kind implements `composeContent` | core | `compose_unsupported` |
+| Bindings, entries, exits and attachment points are meaningful for this kind | kind | the kind's own codes (03 §8.3) |
+
+**The order is fixed, and determinism depends on it.** Campaigns compose in registry-input
+order; a host's includes in declared order, then its attachments in pack order and, within one
+pack, declaration order. Composition is **depth-first**: a module is composed — its own
+includes and its own attachments — before any host that includes it, and each campaign is
+composed once and reused. A module is therefore always included in its composed form, so a
+pack attachment on a module reaches every host that includes it. There is no depth limit; the
+cycle check is the only bound.
+
+**The pin is on the authored version.** `resolvePacks` stamps every folded campaign's `version`
+with the resolution id (11 §4), so a pin checked against the stamped value could never match.
+The fold keeps each campaign's authored version beside it (11 §3a), and the pin is checked
+against that. In the unpacked path (`buildValidatedContentRegistry`) the two are the same value.
+
+**Composition precedes validation.** Every Tier 1 and Tier 2 check (§11) runs on the composed
+campaign — the content play will actually see. A module stays an ordinary campaign: it is also
+validated, and playable, standalone. The frozen registry holds the composed `content`; the host's
+`includes` stay on it as provenance, and nothing reads them again.
+
+**Composed ids are published ids.** A module node `x` included under alias `a` is `a::x` in
+`kindState`, in saves and in replay fixtures. Renaming an alias is therefore a rename under C18 —
+a `Campaign.migrateState`, never an edit — and so is re-pinning a module whose own ids moved.
+
+> **Why not compose at runtime.** A target chosen at runtime needs call/return frames in
+> `kindState`, which is a state-shape change and a save migration. The module interface fixed
+> here — entry, exits, inputs, outputs — is exactly what a frame would call, so that remains the
+> extension if it is ever needed (`90-decisions.md`, 2026-10-07).
+
 ---
 
 ## 11. Tiered Validation
@@ -2076,6 +2180,16 @@ and reattaches the fold's `resolution` id — neither stage alone can produce a 
 `resolution`-stamped registry. It is exported from the package root alongside
 `buildValidatedContentRegistry`.
 
+**Composition runs first, in both entry points** (§10.4). Each entry point composes every
+campaign that declares an include or receives an attachment, and only then validates — so the
+ordering above becomes *compose, validate, assemble*. A composition failure is a Tier 1 error
+like any other: it is reported in the same `errors` list, and the registry is never built. A
+composed host's own string table, for the per-campaign check above, is its built strings
+**united with those of every module it composed**, transitively. A module's `LocKey`s stay
+unprefixed (03 §1.1), so the host's content references them by their own keys. This is not the
+silent cross-campaign dependency the note below rules out: the include declares it and pins its
+version.
+
 > **This is a clarification of scope, not a weakening.** Nothing here permits an unresolved
 > key into a frozen registry. The merged table is a superset of every per-campaign table plus
 > the core's and the kinds' own, so a key that resolves in the narrower table resolves in the
@@ -2120,6 +2234,9 @@ const BASE_REASON_CODES = [
   // content-pack resolution (11 §7) — `resolvePacks`, `registry/packs.ts`
   "pack_kind_mismatch", "duplicate_campaign_id_in_pack", "pack_dependency_missing",
   "pack_dependency_version_conflict", "pack_dependency_cycle", "pack_override_unexpected",
+  // campaign composition (§10.4) — registry build, before validation
+  "include_missing", "include_version_mismatch", "include_kind_mismatch", "include_cycle",
+  "include_alias_collision", "attachment_host_missing", "compose_unsupported",
 ] as const;
 ```
 
@@ -2128,8 +2245,10 @@ const BASE_REASON_CODES = [
 > cross-kind failure mode with no code that fitted — the kernel's three rejections, registry
 > assembly's three, the core's own Tier-1 four, the profile store's five, the save
 > boundary's two, host persistence's four, session lifecycle's one, the audit vocabulary's
-> one, and content-pack resolution's six. That is the intended shape: a code is registered when a real caller
-> produces it, not pre-declared from this list. Because `ReasonCode` is *additive, never
+> one, content-pack resolution's six, and campaign composition's seven. That is the intended
+> shape: a code is registered when a real caller produces it, not pre-declared from this list.
+> Composition's seven are the one batch this contract names before their caller exists; they
+> were specified with that caller (§10.4) and are not in `reasons.ts` until W120 builds it. Because `ReasonCode` is *additive, never
 > renamed* (above), growth costs nothing — a client switching on a code it has never seen
 > falls through to the localized message, which the core ships for every base code. Expect
 > this list to keep growing, and keep it in step with
@@ -2301,6 +2420,7 @@ Concrete mapping — and the reconciliation this document forces on
 | `Kind.outcome` | 03 §8.5 — `terminalId` is the `endingId`; `terminal` is "settled onto an `EndingNode`" (§3.2) |
 | `Kind.terminalCount` | 03 §8.5 — distinct `endingId`s across the campaign's `EndingNode`s; the denominator in `CampaignProgress` (§7.3) |
 | `RngHandle.weightedPick` | random-transition node resolution (03 §3) |
+| `Kind.composeContent` | 03 §1.1 — prefixed module content, a synthesized entry and exits, appended attachment choices. The only kind that implements it |
 
 > **Reconciliation (done in 03).** Writing this seam exposed that `03`'s state
 > duplicated envelope-owned fields — `version`, `campaignId`, `campaignVersion`, `seed`,
@@ -2362,6 +2482,15 @@ on it. A peer-review recommendation, adopted before content scales.
 Rules: ids are stable once published (a rename is a migration, §10.2); ids are ASCII
 `[a-z0-9_-]` only; `LocKey`s namespace by content type so string tables stay navigable.
 Tier-1 validation (§11) enforces the character set and uniqueness.
+
+**Composed ids** (§10.4) are the one exception to the character set. When a host includes a
+module under an alias, composition rewrites the module's kind-scoped ids — for story-graph its
+node, variable and achievement ids (03 §1.1) — to `<alias>::<id>`. Nested includes chain:
+a module that itself includes `b` contributes `a::b::x` to its host. `:` appears in no other
+id, and no authored id may contain it: an authored id, alias or `LocKey` with a `:` fails
+`invalid_identifier` (Tier 1), so a composed id can never collide with an authored one.
+Each segment of a composed id still has its category's shape. Campaign ids, `LocKey`s and
+reason codes are never composed.
 
 ## 18. Frozen Primitives
 
@@ -2611,6 +2740,8 @@ interface StoryGraphCampaign {
   startNodeId: string;
 
   achievements: AchievementDefinition[];   // §7
+
+  module?: ModuleInterface;     // §1.1 — present iff this campaign may be included
 }
 ```
 
@@ -2622,6 +2753,75 @@ runtime.
 
 Load-time validation (§11) checks that `startNodeId` exists, every `goto` resolves,
 every variable referenced is declared, and every `LocKey` is present.
+
+### 1.1 Modules, Includes and Attachments
+
+This kind implements `Kind.composeContent` (04 §3, §10.4). A story-graph campaign can be
+included in another — a side quest, a shared errand, a third-party pack's detour — and stays
+an ordinary, playable campaign while it is.
+
+```typescript
+/** Opt-in: a campaign without it fails `include_not_module` when included. */
+interface ModuleInterface {
+  entryNodeId?: string;   // where an include enters; default `startNodeId`
+  inputs: string[];       // declared variables a host may write on entry
+  outputs: string[];      // declared variables a host may read on exit
+}
+
+/** `CampaignInclude.binding` (04 §10.4) for a story-graph module. */
+interface StoryGraphIncludeBinding {
+  exits: Record<string, string>;     // module endingId → host node id; every one mapped
+  inputs?: Record<string, string>;   // module input → host variable, copied in on entry
+  outputs?: Record<string, string>;  // module output → host variable, copied out on exit
+}
+
+/** `CampaignAttachment.payload` (04 §10.4): a pack reaches the module through one new
+ *  choice on a host choice node. Its `goto` is implied — the include's entry. */
+interface StoryGraphAttachment {
+  hostNodeId: string;
+  choice: Omit<Choice, "goto" | "effects">;
+}
+```
+
+**A module's exits are its endings.** Each distinct `endingId` among the module's ending nodes
+is a named exit, and the binding must map every one (`exit_unmapped`). There is no separate
+exit list to drift from the endings that exist.
+
+**What composition writes into the host**, for an include under alias `a`:
+
+- **Ids.** Every module node, variable and achievement id `x` becomes `a::x` (04 §17,
+  *Composed ids*), and every reference inside the module is rewritten to match — `goto`s,
+  `Condition` fields (`var.`, `visited.`, `achieved.`), consequence targets. Module variables
+  join the host's `variables` with their declared types and initial values.
+- **The entry.** One `auto` node, id `a` — the alias itself — whose effects are one `copy`
+  (§5) per bound input, host → module, and whose `goto` is `a::<entryNodeId>`. A host reaches
+  the module by `goto: "a"`; no authored reference ever contains `:`. The node's `textKey` is
+  the entry node's, and is never rendered, because an `auto` node is a pass-through.
+- **The exits.** Each module ending node `a::e` becomes an `auto` node whose effects are one
+  `copy` per bound output, module → host, and whose `goto` is the host node its `endingId`
+  maps to. A host ending is a valid target. **A module never ends the host run on its own.**
+- **Attachments.** Each attachment appends its choice, with `goto` set to the include's entry
+  node, to the end of the named host choice node's `choices`, in the order §10.4 fixes. The
+  node must be a `ChoiceNode` (`attachment_node_not_choice`), and the choice id must be new on
+  that node (`attachment_choice_collision`).
+
+Because the entry and every exit are pass-through nodes, entering and leaving a module each
+cost one `turn` and count one visit (§8.2) — `visited.a` is the number of times the host
+entered the module. The entry's `copy` runs on every entry, so re-entering a module re-reads
+its inputs and leaves every unbound module variable as the last visit left it.
+
+**What composition does not touch.** `LocKey`s stay unprefixed and shared with the module's
+standalone form; the host validates against the module's strings (04 §11). Interpolation in
+module text resolves `{name}` within the node's own alias scope — `{x}` in node `a::n` reads
+`a::x` — so module text needs no rewrite and cannot reach a host variable. The module's
+`descriptionKey` and `startNodeId` are unused. `turn` is the host's: a module that reads it
+reads the host's transition count.
+
+**Achievements are the host's.** A module achievement `a::x` unlocks into the host's
+`unlockedAchievements` and is recorded against the host campaign (§7), not the module's
+standalone campaign, because the session is in the host. A module whose content reads the
+`ending` field cannot be included (`include_not_module`): a module's endings never become the
+host's, so the read could never be what its author meant.
 
 ---
 
@@ -2765,7 +2965,8 @@ simulation kind's §10.4, carried over.
 type Consequence =
   | { op: "set"; var: string; value: VarValue }
   | { op: "increment"; var: string; by: number }   // int only
-  | { op: "decrement"; var: string; by: number };   // int only
+  | { op: "decrement"; var: string; by: number }    // int only
+  | { op: "copy"; var: string; from: string };      // var ← from's current value
 ```
 
 Validation checks: `var` is declared; the op suits its type (`increment`/`decrement`
@@ -2773,6 +2974,15 @@ require `int`; `set` value matches the declared type / enum values). `int` write
 to the variable's `min`/`max` after applying. Clamping happens once, after all of a
 transition's consequences apply — the same rule as the simulation kind's needs (§3.3
 there), so a `+5` then `-5` nets to zero rather than clipping.
+
+**`copy`** writes one declared variable from another. Consequences apply in order, so `from`
+is read as earlier consequences in the same list left it, before the clamp. `from` must be
+declared (`undeclared_variable`) and assignable to `var` (`invalid_consequence_value`): the
+same `VarType`, and for an `enum`, every one of `from`'s values among `var`'s. An `int` copy
+clamps to `var`'s range like any other `int` write. It audits like any write — one coalesced
+`consequence_applied` for `var` (§8.3); `from` is read, not touched. It exists for module
+bindings (§1.1), which compose into exactly these, and is open to authors for the same job
+inside one campaign.
 
 > **Turn advance is automatic, not a consequence.** The **kind** increments the built-in
 > `turn` by 1 on every transition, including settle pass-throughs (§8.2). It cannot be
@@ -2973,10 +3183,23 @@ rule is the same one — every registered code owes a localized message (04 §12
 | `non_visible_variable_in_text` | 1 | text interpolates a hidden or undeclared variable |
 | `invalid_transition_weight` | 1 | a `RandomTransition.weight` is not a positive integer, or a `random` node has no transitions |
 | `unknown_condition_field` | 1 | a `Condition` reads a field this kind does not define (04 §18) |
+| `include_not_module` | 1 | an included campaign declares no `module` (§1.1), or its content reads the `ending` field |
+| `exit_unmapped` | 1 | an include's `exits` misses one of the module's `endingId`s, or names one it does not have |
+| `binding_undeclared` | 1 | a binding names a module variable not in `inputs`/`outputs`, or a host variable that is not declared |
+| `binding_type_mismatch` | 1 | a bound pair is not assignable in the binding's direction (§5, `copy`) |
+| `attachment_node_not_choice` | 1 | an attachment's `hostNodeId` names a node that is not a `ChoiceNode` |
+| `attachment_choice_collision` | 1 | an attachment's choice id already exists on its host node |
 | `unreachable_node` | 2 | no path from `startNodeId` reaches it |
 | `unreachable_cycle` | 2 | a `choice`/`auto`/`random` cycle with no exit to a choice or ending |
 | `no_reachable_choice` | 2 | no `ChoiceNode` is reachable from the start — valid but non-interactive (04 §11) |
 | `no_reachable_ending` | 2 | no reachable ending |
+
+The six composition codes, `include_not_module` through `attachment_choice_collision`, are
+raised by `composeContent` (§1.1), not `validateCampaign` — composition runs first, and
+fails the same Tier-1 way (04 §11). Everything else a composed campaign can get wrong is
+found by the ordinary checks on the composed result, without a code of its own: an exit target
+or attachment `hostNodeId` that names no host node is `dangling_reference`, an alias that
+collides with a host node id is `duplicate_id`, and a composed id is checked like any other.
 
 **An audit code — carried on a `StateChange`, reported to nobody in particular.** It is
 neither a rejection nor a validation finding, and it is registered here for the same single
@@ -3230,6 +3453,10 @@ Tiered as in the architecture §9.
 - Every `RandomTransition.weight` is a **positive integer**, and every `random` node has
   at least one transition — `weightedPick` throws otherwise (04 §8), so this is a
   load-time rule, not a runtime crash.
+- Every `copy` reads a declared variable assignable to its target (§5).
+- No authored id, alias or `LocKey` contains `:` (04 §17, *Composed ids*).
+- A composed campaign passes every check above **as composed** (§1.1): composition runs first
+  and fails with its own six codes (§8.3) before any of these runs.
 
 **Tier 2 — load-time, warning:**
 
@@ -3368,6 +3595,10 @@ What this exercises, one-to-one against the MVP Definition of Done:
 | §8.2 | `SETTLE_STEPS` guard default 64 | Profiling or a legitimately deep auto-chain |
 | §3 | Four node kinds (choice/random/auto/ending); `auto` is arguably a one-transition `random` | Simplification pass finds `auto` redundant |
 | §6/§8.2 | `visited` counts *every* entry (settle pass-throughs + start node), so it works on auto/random nodes | Authors want "times rested here" only |
+| §1.1 | A module's exits are its distinct `endingId`s, not a declared list | A module needs two exits from one ending, or an exit that is not an ending |
+| §1.1 | Module entry and exits are synthesized `auto` nodes, so each costs a `turn` and a visit | A campaign needs a module crossing to be invisible to `turn` |
+| §1.1 | A module reading `ending` is not includable, rather than rewritten | A module needs its own "how did I leave" signal — an output variable already gives it |
+| §1.1 | Attachments only append a choice; they cannot edit, remove or reorder host content | A pack needs to replace a host path, not add one |
 <!-- human-doc:end -->
 
 <!-- human-doc:start path="engine/10-simulation-kind.md" -->

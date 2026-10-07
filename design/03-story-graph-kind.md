@@ -6,6 +6,8 @@
 
 ## 1. The Campaign
 
+### 1.1 Modules, Includes and Attachments
+
 ## 2. Variable Schema — Fully Typed (N6)
 
 ## 3. Nodes — The Single Content Type (N7)
