@@ -4,9 +4,9 @@ title: 'GodComplex'
 
 # SubZeroDev.GodComplex
 
-**God doesn't play dice. Neither do we.**
+**Consequences.**
 
-Build mechanics once. Create infinite worlds.
+Build rules once. Explore every consequence.
 
 ## Quick Links
 
@@ -35,13 +35,13 @@ next thirty years.
 
 Apparently that seemed reasonable.
 
-SubZeroDev.GameEngine politely disagrees.
+SubZeroDev.GodComplex politely disagrees.
 
 Instead of asking how to render another world...
 
 it asks a different question:
 
-**What if gameplay itself became reusable?**
+**What if interactive rules, decisions, and consequences became reusable?**
 
 ---
 
