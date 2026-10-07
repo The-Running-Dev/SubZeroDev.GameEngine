@@ -20,11 +20,11 @@ export default defineLandingPage({
       metadata: {
         title: "SubZeroDev GodComplex — Build mechanics once.",
         description:
-          "A deterministic, game-agnostic platform for building reusable narrative-game mechanics.",
+          "A deterministic engine for games, branching narratives, decision trees, guides, surveys and simulations.",
         canonicalUrl: "https://game-engine.subzerodev.com/",
         openGraph: {
           title: "SubZeroDev GodComplex",
-          description: "God doesn't play dice. Neither do we.",
+          description: "GodComplex — Consequences.",
           type: "website",
           url: "https://game-engine.subzerodev.com/",
           imageUrl: "https://game-engine.subzerodev.com/og-image.png",
