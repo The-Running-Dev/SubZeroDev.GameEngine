@@ -53,7 +53,7 @@ What ships first, in what order, and what is still undecided.
 | Document | Holds |
 |---|---|
 | [MVP](engine/MVP.md) | The smallest slice that proves the platform, and its Definition of Done |
-| [TODO](engine/TODO.md) | The complete W-numbered delivery ledger, with contract references and done-criteria |
+| [TODO](engine/TODO.md) | The delivery ledger: open items carried forward, and every landed unit with its pull requests |
 | [Open Questions](engine/OPEN-QUESTIONS.md) | Living register of unknowns and deferred decisions; §1 is a decision log |
 
 ## Working on It
