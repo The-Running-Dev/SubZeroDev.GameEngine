@@ -7,7 +7,7 @@ describe("landing page", () => {
     render(<App />);
 
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-      "Build Mechanics Once. Create Infinite Games.",
+      "God Doesn't Play Dice. Neither Do We.",
     );
     expect(screen.getAllByText("Well... why not?")).toHaveLength(2);
   });
@@ -113,7 +113,7 @@ describe("landing page", () => {
     const targets = continueLinks.map((link) =>
       link.getAttribute("href")?.slice(1),
     );
-    // Every section but the hero and the last one links to the next: nine
+    // Every section but the hero and the last one links to the next: ten
     // links, each one step ahead of the section that holds it.
     expect(targets).toEqual(chain.slice(2));
   });
