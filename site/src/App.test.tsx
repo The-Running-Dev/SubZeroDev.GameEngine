@@ -9,7 +9,7 @@ describe("landing page", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
       "God Doesn't Play Dice. Neither Do We.",
     );
-    expect(screen.getAllByText("Well... why not?")).toHaveLength(2);
+    expect(screen.getByText("Build mechanics once. Create infinite worlds.")).toBeInTheDocument();
   });
 
   it("uses the verified root-relative documentation routes", () => {
@@ -102,6 +102,7 @@ describe("landing page", () => {
       "principles",
       "resolution",
       "worlds",
+      "testimonials",
       "continue",
     ];
 
@@ -113,7 +114,7 @@ describe("landing page", () => {
     const targets = continueLinks.map((link) =>
       link.getAttribute("href")?.slice(1),
     );
-    // Every section but the hero and the last one links to the next: ten
+    // Every section but the hero and the last one links to the next: eleven
     // links, each one step ahead of the section that holds it.
     expect(targets).toEqual(chain.slice(2));
   });
