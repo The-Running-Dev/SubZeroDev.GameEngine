@@ -52,7 +52,19 @@ export type VariableSchema = Record<string, VariableDecl>;
 export type Consequence =
   | { op: "set"; var: string; value: VarValue }
   | { op: "increment"; var: string; by: number } // int only
-  | { op: "decrement"; var: string; by: number }; // int only
+  | { op: "decrement"; var: string; by: number } // int only
+  | { op: "copy"; var: string; from: string }; // var ← from's current value (03 §5)
+
+/**
+ * Whether every value `from` can hold is one `to` accepts (03 §5, `copy`): the same
+ * `VarType`, and for an `enum`, every one of `from`'s values among `to`'s. An `int` is
+ * assignable regardless of range — the write clamps, it never rejects.
+ */
+export function isAssignable(to: VariableDecl, from: VariableDecl): boolean {
+  if (to.type !== from.type) return false;
+  if (to.type !== "enum") return true;
+  return (from.values ?? []).every((value) => to.values?.includes(value) ?? false);
+}
 
 /**
  * Seeds the runtime `variables` map from a schema's declared `initial` values, walking
@@ -156,6 +168,17 @@ export function applyConsequences(
         requireFiniteInt(`"${c.var}" decrement amount`, c.by);
         next[c.var] = (next[c.var] as number) - c.by;
         break;
+      case "copy": {
+        // Read as earlier consequences in this batch left it, before the clamp (03 §5).
+        const fromDecl = requireDecl(schema, c.from);
+        if (!isAssignable(decl, fromDecl)) {
+          throw new Error(`story-graph variables: "${c.from}" is not assignable to "${c.var}"`);
+        }
+        const value = next[c.from] as VarValue;
+        checkSetValue(c.var, decl, value);
+        next[c.var] = value;
+        break;
+      }
     }
   }
 

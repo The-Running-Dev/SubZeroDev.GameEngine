@@ -12,7 +12,7 @@
  */
 
 import type { ContentPack } from "../core/registry/packs.js";
-import type { BuiltCampaign, ContentRegistry } from "../core/registry/types.js";
+import type { BuiltCampaign, CampaignAttachment, ContentRegistry } from "../core/registry/types.js";
 import type { LocKey } from "../core/localization/types.js";
 import type { KindRegistry } from "../core/kernel/types.js";
 import type { CommandResult } from "../core/kernel/reasons.js";
@@ -50,8 +50,14 @@ const bulgarianCampaign = built(buildBulgariaStableLifeCampaign);
  * The campaign fields are listed rather than digested whole: `Campaign.migrateState` (04
  * §10.1) is an optional *function*, and `canonicalStringify` rejects one outright, so a
  * campaign that ever gains a migration must not take this module down at import time.
+ *
+ * Exported for the test that holds 11 §6's composition clause (W120.9), not as engine API.
  */
-function packVersion(campaigns: readonly BuiltCampaign[], strings: ReadonlyMap<LocKey, string>): string {
+export function packVersion(
+  campaigns: readonly BuiltCampaign[],
+  strings: ReadonlyMap<LocKey, string>,
+  attachments: readonly CampaignAttachment[] = [],
+): string {
   const digest = sha256Hex(
     canonicalStringify({
       campaigns: campaigns.map(({ campaign }) => ({
@@ -60,10 +66,14 @@ function packVersion(campaigns: readonly BuiltCampaign[], strings: ReadonlyMap<L
         version: campaign.version,
         titleKey: campaign.titleKey,
         content: campaign.content,
+        ...(campaign.includes && campaign.includes.length > 0 ? { includes: campaign.includes } : {}),
       })),
       // Sorted by key, not left in insertion order: the digest names what a pack ships, and
       // reordering an authoring file ships the same content.
       strings: [...strings].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+      // Includes and attachments change what plays, so they move the version — but only when
+      // present, which leaves every pack that has none exactly where it was (11 §6).
+      ...(attachments.length > 0 ? { attachments } : {}),
     }),
   );
   return `1.0.0+${digest.slice(0, 12)}`;

@@ -9,7 +9,7 @@ import type { LocKey } from "../localization/types.js";
 import type { RngHandle, StreamId } from "../determinism/types.js";
 import type { ProjectionAudience, PlayerView } from "../projection/types.js";
 import type { ValidationError, ValidationResult } from "../validation/types.js";
-import type { Campaign, ContentRegistry } from "../registry/types.js";
+import type { Campaign, ComposedAttachment, ComposedModule, ContentRegistry } from "../registry/types.js";
 import type { Emitter, EventName, ResolutionEmitter } from "../observability/types.js";
 import type {
   CommandResult,
@@ -180,6 +180,20 @@ export interface Kind<KState> {
    * is the state every kind is in until it declares this member.
    */
   readonly profileData?: KindProfileData;
+
+  /**
+   * Merges included modules and pack attachments into a host campaign's content (04 §10.4).
+   * Optional: a kind without it cannot host an include or receive an attachment, and a
+   * campaign of that kind that declares either fails with `compose_unsupported`. Called by
+   * registry assembly **before** `validateCampaign`, once per host, with every module
+   * already composed depth-first — so it only ever merges one level. Pure over content: the
+   * result replaces `host.content` in the registry and is what validation and play both see.
+   */
+  composeContent?(
+    host: Campaign,
+    modules: readonly ComposedModule[],
+    attachments: readonly ComposedAttachment[],
+  ): CommandResult<unknown>;
 }
 
 /**

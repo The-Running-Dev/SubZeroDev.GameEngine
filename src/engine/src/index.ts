@@ -66,6 +66,15 @@ export type { ActionParams, ActionResult, AvailableAction, Scene, SceneBody } fr
 export type { PlayerView } from "./core/projection/types.js";
 export type { Campaign, BuiltCampaign, ContentRegistry, AuthoredText } from "./core/registry/types.js";
 export type { ResolutionId } from "./core/registry/types.js";
+// Campaign composition (04 §10.4, 11 §3a — W120).
+export type {
+  CampaignRef,
+  CampaignInclude,
+  CampaignAttachment,
+  ComposedModule,
+  ComposedAttachment,
+  ResolvedRegistry,
+} from "./core/registry/types.js";
 export type { ContentPack, ExperimentGate, PackRef } from "./core/registry/packs.js";
 export { SESSION_PERSISTENCE_CONFLICT, SessionStoreError } from "./core/session/types.js";
 export type { AchievementRecord, TerminalRecord, KindProfileRecord, PlayerProfile, ProfileLoadResult, ProfileSaveResult, ProfileWarning, ProfileWarningCode, CampaignSummary, CampaignCatalog, CampaignProgress, SessionStore, ProfileStore, SaveHandle, SaveSummary, SessionHandle, SessionActionResult, CreateSessionConfig, SessionPersistence, SessionPersistenceConflict, SessionRecordStore, SaveRecordStore, StoredSessionRecord, StoredSaveRecord, SessionStoreErrorCode } from "./core/session/types.js";

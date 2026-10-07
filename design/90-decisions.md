@@ -2289,3 +2289,19 @@ Context: 12 §4.2 names the only canonical orders: runtime entity ids by prefix 
 Chosen: Runtime-entity projections sort with `compareRuntimeEntityId`; every definition-id sort uses `compareDefinitionId`. Path and reason compare by ordinal code unit, now stated in 12 §12. The determinism lint block bans `localeCompare` with fewer than two arguments; a call naming its locale (the simulation kind's contracted `"en-US-POSIX"`, 10 §2.2) stays allowed.
 Rejected: **Numeric-aware path order** (`buildings.building:10` after `building:2`) — paths are not ids, and a path comparator that parses ids out of paths is a second canonical order to keep in step with §4.2. **Fix the call sites without a lint rule** — the same defect would return with the next sort.
 Reversibility: cheap. No fixture or golden changed order, because no shipped campaign has ten instances under one prefix.
+
+### 2026-10-07 — W120: composition is built as contracted; seven implementation calls recorded
+Context: W120 built campaign composition against the contract from #561 (04 §10.4, 11 §3a, 03 §1.1, §5, §8.3). Building it forced calls that the contract leaves open.
+Chosen:
+- **Validation stops at composition.** When `composeCampaigns` rejects, no Tier 1 or Tier 2 check runs, because they would run against content that was never assembled.
+- **Binding host variables check against the host's own `variables`**, not against anything merged in from other modules. A binding names the host's state, and no other module's.
+- **A composed-shaped authored id (`a::x`) is rejected twice.** `composeContent` rejects any `:` in a host's own ids, and `validateCampaign` accepts a `:` only under a synthesized entry node's alias.
+- **The entry node interpolates in the host's scope.** It is the host's node, and only nodes inside the module read `{x}` as `alias::x`.
+- **Module strings come first in the validation union**, so a host's own key wins.
+- **`duplicate_id` and `dangling_reference` from a merge are raised by `composeContent`**, with the composed path. They are not raised later by `validateCampaign` against the merged content.
+- **`ComposedModule`, `ComposedAttachment` and `CampaignInclude` are exported from `/authoring`**, beside the campaign types an author already imports.
+Rejected:
+- **Run Tier 1 over a failed composition.** It would report the same defect again as a dangling reference.
+- **Check bindings against the content merged so far.** That makes a binding's validity depend on the order of includes.
+- **Raise merge collisions in Tier 1.** The path would name the merged node, not the include that caused it.
+Reversibility: cheap. Each call is internal to the build, and no published campaign composes yet.

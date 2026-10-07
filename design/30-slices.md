@@ -5292,7 +5292,7 @@ pack attachments ([11 §3a](11-content-packs.md#3a-attachments--reaching-into-a-
 It is one unit because no part of it can be played without the others. An include with no merge
 composes nothing, and a merge with no core envelope has nothing to call it.
 
-### [ ] W120 — One Campaign Can Include Another {#w120}
+### [x] W120 — One Campaign Can Include Another {#w120}
 
 **Delivers:** As a campaign author, I can include another story-graph campaign as a module.
 I name its exits and bind its inputs and outputs. As a pack author, I can attach a module to a
@@ -5316,7 +5316,7 @@ session, and the save format does not change.
       story-graph kind's campaign and source types, source builder, consequences, interpolation,
       validator and reason codes; their tests and synthetic fixtures; the regenerated human docs.
 - **Depends on:** none.
-- **Status:** Not started.
+- **Status:** Done.
 - **Done when:**
   - W120.1 These types are declared as 04 §10.4, 11 §3a and 03 §1.1 state:
         - `CampaignRef`, `CampaignInclude`, `CampaignAttachment`, `ComposedModule` and

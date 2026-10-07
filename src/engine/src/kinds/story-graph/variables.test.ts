@@ -197,3 +197,58 @@ describe("visibleVariables", () => {
     expect(() => visibleVariables(schema, {})).toThrow();
   });
 });
+
+describe("applyConsequences — copy (03 §5, W120.6)", () => {
+  const copySchema: VariableSchema = {
+    money: { type: "int", initial: 2, min: 0, max: 3 },
+    savings: { type: "int", initial: 9 },
+    flag: { type: "bool", initial: true },
+    mood: { type: "enum", initial: "neutral", values: ["neutral", "happy", "sad"] },
+    small_mood: { type: "enum", initial: "happy", values: ["happy", "sad"] },
+  };
+
+  it("writes var from another variable's current value", () => {
+    const { variables } = applyConsequences(copySchema, buildInitialVariables(copySchema), [
+      { op: "copy", var: "mood", from: "small_mood" },
+    ]);
+    expect(variables["mood"]).toBe("happy");
+  });
+
+  it("reads from as earlier consequences in the same list left it", () => {
+    const { variables } = applyConsequences(copySchema, buildInitialVariables(copySchema), [
+      { op: "increment", var: "savings", by: 1 },
+      { op: "copy", var: "money", from: "savings" },
+    ]);
+    // savings is 10 when copied; money clamps once, at the end, to its own max.
+    expect(variables["savings"]).toBe(10);
+    expect(variables["money"]).toBe(3);
+  });
+
+  it("reads from before the batch clamp, not after", () => {
+    const { variables } = applyConsequences(copySchema, buildInitialVariables(copySchema), [
+      { op: "increment", var: "money", by: 5 },
+      { op: "copy", var: "savings", from: "money" },
+    ]);
+    expect(variables["money"]).toBe(3);
+    expect(variables["savings"]).toBe(7);
+  });
+
+  it("throws on an undeclared from", () => {
+    expect(() =>
+      applyConsequences(copySchema, buildInitialVariables(copySchema), [{ op: "copy", var: "money", from: "nope" }]),
+    ).toThrow();
+  });
+
+  it("throws on a from that is not assignable to var", () => {
+    const variables = buildInitialVariables(copySchema);
+    expect(() => applyConsequences(copySchema, variables, [{ op: "copy", var: "money", from: "flag" }])).toThrow();
+    expect(() => applyConsequences(copySchema, variables, [{ op: "copy", var: "small_mood", from: "mood" }])).toThrow();
+  });
+
+  it("records one StateChange for var, not for from", () => {
+    const { changes } = applyConsequences(copySchema, buildInitialVariables(copySchema), [
+      { op: "copy", var: "mood", from: "small_mood" },
+    ]);
+    expect(changes.map((c) => c.path)).toEqual(["var.mood"]);
+  });
+});

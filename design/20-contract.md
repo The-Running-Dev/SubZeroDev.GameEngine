@@ -2247,8 +2247,8 @@ const BASE_REASON_CODES = [
 > boundary's two, host persistence's four, session lifecycle's one, the audit vocabulary's
 > one, content-pack resolution's six, and campaign composition's seven. That is the intended
 > shape: a code is registered when a real caller produces it, not pre-declared from this list.
-> Composition's seven are the one batch this contract names before their caller exists; they
-> were specified with that caller (§10.4) and are not in `reasons.ts` until W120 builds it. Because `ReasonCode` is *additive, never
+> Composition's seven were the one batch this contract named before their caller existed; they
+> were specified with that caller (§10.4), and W120 shipped them in `reasons.ts`. Because `ReasonCode` is *additive, never
 > renamed* (above), growth costs nothing — a client switching on a code it has never seen
 > falls through to the localized message, which the core ships for every base code. Expect
 > this list to keep growing, and keep it in step with

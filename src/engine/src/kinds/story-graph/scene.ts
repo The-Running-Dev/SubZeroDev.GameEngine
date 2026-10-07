@@ -11,7 +11,7 @@ import type { AvailableAction, KindContext, SceneBody } from "../../core/kernel/
 import { resolveLocKey } from "../../core/localization/resolve.js";
 import { requireNode } from "./nodes.js";
 import { visibleVariables } from "./variables.js";
-import { interpolateText } from "./text.js";
+import { interpolateText, interpolationScope } from "./text.js";
 import { evaluateStoryGraphCondition, toConditionContext } from "./conditions.js";
 import type { StoryGraphCampaign } from "./campaign.js";
 import type { StoryGraphKindState } from "./state.js";
@@ -61,5 +61,5 @@ export function scene(state: StoryGraphKindState, ctx: KindContext): SceneBody {
   }
 
   const visible = visibleVariables(content.variables, state.variables);
-  return { textKey: node.textKey, text: interpolateText(template, visible) };
+  return { textKey: node.textKey, text: interpolateText(template, visible, interpolationScope(node)) };
 }

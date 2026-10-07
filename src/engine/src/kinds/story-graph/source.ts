@@ -20,7 +20,7 @@ import type { AuthoredText } from "../../core/registry/types.js";
 import type { Choice, Node, ChoiceNode, RandomNode, AutoNode, EndingNode } from "./nodes.js";
 import type { VariableDecl, VariableSchema } from "./variables.js";
 import type { AchievementDefinition } from "./achievements.js";
-import type { StoryGraphCampaign } from "./campaign.js";
+import type { ModuleInterface, StoryGraphCampaign } from "./campaign.js";
 
 export type ChoiceSource = Omit<Choice, "labelKey" | "requirementFailKey"> & {
   label: AuthoredText;
@@ -60,6 +60,7 @@ export interface StoryGraphCampaignSource {
   nodes: Record<string, NodeSource>;
   startNodeId: string;
   achievements: AchievementDefinitionSource[];
+  module?: ModuleInterface;
 }
 
 type Take = (text: AuthoredText) => LocKey;
@@ -138,6 +139,7 @@ export function buildStoryGraphCampaign(source: StoryGraphCampaignSource): {
     nodes,
     startNodeId: source.startNodeId,
     achievements: source.achievements.map((a) => buildAchievement(a, take)),
+    ...(source.module !== undefined ? { module: source.module } : {}),
   };
 
   return { content, authoredText };
