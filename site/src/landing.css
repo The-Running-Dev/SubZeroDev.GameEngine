@@ -562,3 +562,8 @@ section {
     border: 2px solid CanvasText;
   }
 }
+
+/* Peer review deserves its own witness stand. */
+.testimonials { border-block: 1px solid var(--landing-border-decorative); }
+.testimonial-lead { color: var(--landing-muted); line-height: 1.6; margin-top: 1.25rem; }
+.testimonial-headline { border-left: 2px solid var(--landing-accent); color: var(--landing-origin-text); font-size: clamp(1.2rem, 2vw, 1.6rem); line-height: 1.35; margin: 1.5rem 0 0; padding-left: 1.2rem; }
