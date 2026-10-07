@@ -68,7 +68,7 @@ README, whose status is deliberately coarse.
 
 - **After a work-unit PR merges or the changelog gains an entry:** update the delivered count,
   completed chapter grouping, current checkpoint, and evidence URL in `roadmapData.ts`. Count
-  `### [x] W…` headings in `design/30-slices.md`, then explicitly account for any merged
+  Landed rows in `design/30-slices.md` that are not cancelled, plus `Status: done` S slices, then explicitly account for any merged
   units that the ledger has not yet recorded in the `completedBeyondTodo` exception list. Update
   the page before describing the new unit as delivered anywhere public. Reconcile `README.md`'s
   coarse status at the same time if it has become misleading, then regenerate

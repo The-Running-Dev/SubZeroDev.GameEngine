@@ -20,13 +20,20 @@ export type RoadmapChapter = {
 const repo = "https://github.com/The-Running-Dev/SubZeroDev.GameEngine";
 const commit = (hash: string) => `${repo}/commit/${hash}`;
 
-// TODO.md's `### [x] W…` headings are now the complete machine-readable record — W41–W49
-// caught back up once the ledger format resumed carrying completed headings, so the exception
-// list that used to patch this count by hand (`completedBeyondTodo`, W41–W49) is redundant and
-// has been retired. If a future gap reopens, reintroduce the same pattern rather than silently
-// undercounting.
-export const completedWorkUnitCount = (todo.match(/^### \[x\] W[\w]+/gm) ?? [])
-  .length;
+// TODO.md is the machine-readable record. Every W unit is retired to one Landed row carrying an
+// `<a id="w…">` anchor, and a cancelled one says so in its row; a slice planned after the
+// retirement is an `## S…` section that counts once it reads `Status: done`. If a future gap
+// reopens, reintroduce an explicit exception list rather than silently undercounting.
+const landedWorkUnits = (
+  todo.match(/^\| <a id="w\w+"><\/a>W\w+ \|.*$/gm) ?? []
+).filter((row) => !row.includes("Cancelled")).length;
+const doneSlices = todo
+  .split(/^(?=## )/m)
+  .filter(
+    (section) =>
+      /^## S\d+\b/.test(section) && /^Status:[ \t]*done\b/m.test(section),
+  ).length;
+export const completedWorkUnitCount = landedWorkUnits + doneSlices;
 
 export const shippedChapters: readonly RoadmapChapter[] = [
   {
