@@ -451,11 +451,10 @@ function App() {
         </section>
 
         <section id="testimonials" data-reveal="" className="testimonials section-narrow" aria-labelledby="testimonials-title">
-          <p className="section-index">12 / UNREQUESTED PEER REVIEW</p>
-          <h2 id="testimonials-title">That's Not How Game Engines Work!</h2>
-          <p className="testimonial-lead">An entire genre of architectural feedback, distilled to its natural conclusion. We have considered the objection carefully.</p>
-          <blockquote className="testimonial-headline">Apparently, it works well enough to have regression tests.</blockquote>
-          <p className="commentary">Real Reddit criticism deserves real links. This is a thematic headline, not a fabricated quotation. Verified comments will appear here once sourced.</p>
+          <p className="section-index">12 / TESTIMONIALS</p>
+          <h2 id="testimonials-title">What People Are Saying</h2>
+          <p className="testimonial-lead">The internet has opinions. We intend to preserve them accurately.</p>
+          <p className="commentary">Actual Reddit feedback will appear here with links to the original comments. No invented testimonials.</p>
           <ContinueLink to="#continue" />
         </section>
 
