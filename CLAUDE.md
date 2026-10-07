@@ -415,9 +415,7 @@ executed, but it never overrides the five canonical design files.
 | `/agentkit:align` | Opus, high to decide which side of a drift is correct; Sonnet, medium to apply the edits |
 | `/agentkit:install`, `/agentkit:install-all`, `/agentkit:install-review`, `/agentkit:sync` | Sonnet, medium — escalate only to judge whether a hard stop is safe to resolve |
 
-**Tracking work.** The kit no longer opens issues from `design/30-slices.md`; `design/state/work/`
-and `design/state-index.md` are an adopted-but-orphaned mirror, kept in place until the user
-decides whether to retire them. Opening, labelling, closing, commenting on, and editing an
+**Tracking work.** The kit no longer opens issues from `design/30-slices.md`; Opening, labelling, closing, commenting on, and editing an
 issue — including one opened by someone else — needs no per-instance approval in a repository
 the user owns; issues are cheap and reversible. Creating a milestone or a project is carved
 out the same way; deleting either is not. Writing to a repository the user does not own is

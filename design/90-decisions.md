@@ -2223,3 +2223,9 @@ Context: `/agentkit:align` after the `v2026.10.07` kit sync. `20-contract.md` ca
 Chosen: Delete both from `20-contract.md`; C1–C20 stay as the asserted invariant set. `design/state/` and `design/state-index.md` are left in place; retiring them stays a separate decision, as recorded 2026-10-07. The freeze convention lives in `CLAUDE.md`.
 Rejected: A tombstone paragraph — the 2026-10-07 kit-sync entry already records why. Retiring `design/state/` in the same change — a larger diff, and `AGENTS.md` still documents the mirror.
 Reversibility: cheap. One revert restores the text.
+
+### 2026-10-07 — Retire `design/state/` and `design/state-index.md`
+Context: The kit's `v2026.10.07` removed `/track`, `Test-DesignState.ps1` and `Update-DesignProjection.ps1`, leaving the 86-record work mirror and its index orphaned with no generator; the 2026-10-07 kit-sync entry deferred retiring them. GitHub issues are the tracker of record.
+Chosen: Delete `design/state/` and `design/state-index.md`; remove the *Writing a design-state record* section from `AGENTS.md` and the orphaned-mirror sentence from `CLAUDE.md`. Earlier decision-log entries and `30-slices.md` text that name them are history and stay.
+Rejected: Keep them frozen — a stale mirror of issue state that can only mislead.
+Reversibility: cheap. Restoring is a checkout of the parent commit's `design/state*`.
