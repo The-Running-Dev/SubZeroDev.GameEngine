@@ -10,6 +10,8 @@
 
 ## 3. Resolution
 
+## 3a. Attachments — Reaching Into a Campaign a Pack Does Not Own
+
 ## 4. The One Change to `ContentRegistry`
 
 ## 5. Dependencies

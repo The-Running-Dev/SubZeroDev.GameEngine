@@ -2242,3 +2242,44 @@ Chosen: **Composition at registry build.** A host campaign *includes* another ca
 Contract work, in `design/` before any code: the `Kind` composition operation, the story-graph include and module declarations, and the reason codes composition raises.
 Rejected: **Not supported** (author side quests as nodes inside one campaign) — overruled by the owner; it leaves #292's third-party case without an answer. **Jump** — leaves the first campaign's variables and `visitedCounts` in a session now claiming to be the second. **Call/return frames** — a `StoryGraphKindState` shape change and a save migration; kept as the extension if a target must ever be chosen at runtime, and a module's entry/exit/inputs/outputs are exactly the interface a frame would call. **Linked sessions** — every progress, standings and achievement surface would have to learn session parents. **Profile carry-over** — fits sequels, not a side quest inside a run; it needs no decision to use.
 Reversibility: cheap now — no code or contract exists yet. Expensive once composed campaigns are published, because prefixed ids become published ids (C18).
+
+### 2026-10-07 — Campaign composition contract: includes, attachments and `copy` (#561)
+Context: #561 asked for the contract the previous entry called for, before any code. Nine questions were open, and each was put to the owner one at a time.
+Chosen: Contracted in `20-contract.md` (04 §3, §10.4, §11, §12, §17, C17; 03 §1, §1.1, §5, §8.3, §11, §13) and `10-design.md` (11 §2, §3a, §6, §7). Built as W120.
+- **Attachment shape.** A pack attachment appends one choice to a host `ChoiceNode`. The choice's `goto` is implied, and is the include's entry. A choice id that already exists on the node is rejected (`attachment_choice_collision`).
+- **Module surface.** A module opts in with an explicit `module` block (`entryNodeId?`, `inputs`, `outputs`). Its exits are its distinct `endingId`s, and an include must map every one.
+- **Nesting.** A module may itself include modules. Prefixes chain (`a::b::x`), and composition is depth-first, with each campaign composed once.
+- **Strings.** `LocKey`s stay unprefixed and shared with the module's standalone form.
+- **Ownership.** The core owns the envelope (`includes`, refs, pins, cycles, aliases, attachment hosts) and seven codes. The kind owns the merge, through an optional `Kind.composeContent`, and six codes. Only story-graph implements it; any other kind fails `compose_unsupported`.
+- **Ids.** C17 and 04 §17 are amended so that `:` may appear in composed ids only. An authored id, alias or `LocKey` containing it is still `invalid_identifier`.
+- **Depth.** There is no depth limit. The cycle check (`include_cycle`) is the only bound.
+- **Codes.** The thirteen named in 04 §12 and 03 §8.3, as listed.
+- **Bindings.** A new `copy` consequence (`var ← from`) carries inputs in on entry and outputs out on exit. This replaces the previous entry's "as ordinary consequences", which `set`/`increment`/`decrement` cannot express, because none of them reads another variable.
+
+Drafting calls, made while writing the contract and not put to the owner:
+- **The pin checks the authored version.** `resolvePacks` stamps every folded campaign's version with the resolution id, so the fold now returns `ResolvedRegistry.authoredVersions`, and pins check against it.
+- **The entry is a synthesized `auto` node whose id is the alias.** No authored `goto` ever contains `:`.
+- **Entry and exit each cost a `turn` and a visit**, as any `auto` node does, so `visited.<alias>` counts entries.
+- **A module that reads `ending` cannot be included.** A module's endings never become the host's.
+- **Interpolation is alias-scoped.** `{x}` in `a::n` reads `a::x`.
+- **The pack digest gains `includes` and `attachments` only when they are non-empty**, so every existing pack keeps its `campaignVersion`.
+- **Attachments apply to the host after the fold.**
+- **Composition failures that already had codes reuse them** (`dangling_reference`, `duplicate_id`, `invalid_identifier`).
+
+Rejected, as offered. Four of the owner's answers overrode the recommended option, which is named in each case.
+- **Attachments.** *Append or redirect*: the host author loses control of their own flow. *No pack attachments*: it leaves #292's third-party case unanswered. *General content patches*: validation cannot judge their intent.
+- **Module surface.** *Any story-graph campaign*: every internal detail becomes accidental public interface. *Module block plus `standalone: false`*: an include-only flag can be added later if it is needed.
+- **Nesting.** *Forbid in v1* (recommended, overridden): the owner chose to allow it now, and accepted that nested ids are permanent once they are published.
+- **Strings.** *A prefixed copy per include*: locale fixes multiply by the number of includes. *Shared strings with per-include overrides*: it needs a scoped-strings lookup that the registry lacks.
+- **Ownership.** *The kind owns everything*: every future kind would reimplement the version, cycle and depth checks.
+- **Ids.** *Double underscore* (recommended, overridden): it stays inside C17, but `alias::name` was what the previous entry wrote down, and it is unambiguous. The owner accepted the cost to downstream hosts. *Structured scope, no prefix*: it changes `StoryGraphKindState` and needs a save migration.
+- **Depth.** *A limit of 4* (recommended, overridden) and *a limit of 8*: any cap is arbitrary. The owner accepted unbounded id length and build cost for pathological pack sets.
+- **Codes.** *Merge the binding codes*: the errors would be less precise.
+- **Bindings.** *Rename at compose* (recommended, overridden): it collapses inputs and outputs into one list of parameters, each live in both directions. `copy` keeps the two directions exact, at the cost of a new consequence op that is open to all authored content.
+
+Open, not decided here:
+- The portable format (v2) does not carry `Campaign.includes`. Carrying it is its own decision.
+- `digestPortableCampaign` is unchanged.
+- SubZeroDev.Adventures may validate id shapes that the `:` amendment now widens.
+
+Reversibility: cheap until W120 merges and a composed campaign is published. After that, composed ids are published ids (C18).

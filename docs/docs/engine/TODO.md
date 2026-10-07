@@ -5277,6 +5277,96 @@ progress. Every action I leave alone costs exactly what it costs today.
   - Content-owned costs.
   - Any change to a default number, and any balancing.
 
+### Depth: Campaign Composition
+
+One unit. The 2026-10-07 entry for #293 and #292 decided that content crosses a campaign
+boundary by composition at registry build. Its follow-up, #561, contracted the result. That
+contract covers the core envelope ([04 §10.4](04-core.md#104-campaign-composition)), the
+story-graph merge ([03 §1.1](03-story-graph-kind.md#11-modules-includes-and-attachments)) and
+pack attachments ([11 §3a](11-content-packs.md#3a-attachments--reaching-into-a-campaign-a-pack-does-not-own)).
+It is one unit because no part of it can be played without the others. An include with no merge
+composes nothing, and a merge with no core envelope has nothing to call it.
+
+### [ ] W120 — One Campaign Can Include Another {#w120}
+
+**Delivers:** As a campaign author, I can include another story-graph campaign as a module.
+I name its exits and bind its inputs and outputs. As a pack author, I can attach a module to a
+choice node in a campaign my pack does not own. Either way the player plays one campaign, in one
+session, and the save format does not change.
+
+- **Spec:** [04 §3](04-core.md#3-the-kind-interface--the-seam),
+      [§10.4](04-core.md#104-campaign-composition), [§11](04-core.md#11-tiered-validation),
+      [§12](04-core.md#12-reason-codes-state-changes-messages),
+      [§17](04-core.md#17-identifier-conventions) and C17;
+      [03 §1.1](03-story-graph-kind.md#11-modules-includes-and-attachments),
+      [§5](03-story-graph-kind.md#5-consequences--typed-effects),
+      [§8.3](03-story-graph-kind.md#83-reason-codes) and
+      [§11](03-story-graph-kind.md#11-validation-story-graph-specific);
+      [11 §3a](11-content-packs.md#3a-attachments--reaching-into-a-campaign-a-pack-does-not-own),
+      [§6](11-content-packs.md#6-identity-and-why-determinism-needs-it) and
+      [§7](11-content-packs.md#7-validation); `90-decisions.md`, 2026-10-07 (both entries);
+      [#561](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/561).
+- **Touches:** the `Kind` interface and the core reason-code registry; the campaign and pack
+      types, `resolvePacks` and the pack digest; both validated registry entry points; the
+      story-graph kind's campaign and source types, source builder, consequences, interpolation,
+      validator and reason codes; their tests and synthetic fixtures; the regenerated human docs.
+- **Depends on:** none.
+- **Status:** Not started.
+- **Done when:**
+  - W120.1 These types are declared as 04 §10.4, 11 §3a and 03 §1.1 state:
+        - `CampaignRef`, `CampaignInclude`, `CampaignAttachment`, `ComposedModule` and
+          `ComposedAttachment`;
+        - `Campaign.includes`, `ContentPack.attachments` and `ResolvedRegistry`;
+        - `Kind.composeContent`;
+        - `ModuleInterface`, `StoryGraphIncludeBinding` and `StoryGraphAttachment`.
+
+        `resolvePacks` returns the authored version of each campaign beside the stamped one.
+  - W120.2 Both `buildValidatedContentRegistry` and `buildValidatedPackRegistry` compose before
+        they validate, in the order §10.4 fixes. Composition is depth-first, and each campaign is
+        composed once. A three-level chain composes to ids of the form `a::b::x`. Two hosts that
+        include the same module get the same composed module.
+  - W120.3 Each of the seven core codes is rejected by at least one fixture, with a path:
+        `include_missing`, `include_version_mismatch`, `include_kind_mismatch`, `include_cycle`
+        (one direct cycle and one transitive cycle), `include_alias_collision`,
+        `attachment_host_missing` and `compose_unsupported`. In the packed path, a pin that names
+        the authored version passes. A pin that names the stamped resolution id fails.
+  - W120.4 Each of the six story-graph codes is rejected by at least one fixture, with a path:
+        `include_not_module` (once with no `module` block, once for a module that reads
+        `ending`), `exit_unmapped`, `binding_undeclared`, `binding_type_mismatch`,
+        `attachment_node_not_choice` and `attachment_choice_collision`.
+  - W120.5 An authored id that contains `:` is still rejected with `invalid_identifier`. This
+        holds for a node, a variable, an achievement and an alias. A composed id is accepted.
+  - W120.6 The `copy` consequence writes one declared variable from another, reading `from` as
+        earlier consequences in the same list left it, as 03 §5 states. Tier 1 rejects an
+        undeclared `from` with `undeclared_variable`. It rejects a `from` that cannot be assigned
+        to `var` with `invalid_consequence_value`, and an `enum` whose values are not all among
+        the target's is one such case.
+  - W120.7 Play a host that includes a module through its entry, through the module, out of
+        one exit and on to a host ending. The run is deterministic on a repeat, and also across a
+        save/load cut taken inside the module: `serialize()` output matches the uncut run. Each
+        of the following is shown:
+        - the entry and the exit each cost one `turn`;
+        - `visited.<alias>` counts entries;
+        - a bound input is copied in on every entry;
+        - a bound output is copied out on exit;
+        - interpolation in module text reads the module's own variable;
+        - a module achievement unlocks into the host's `unlockedAchievements`.
+  - W120.8 A pack attachment appends one choice to a host choice node, after every authored
+        choice and in the order §10.4 fixes. The attached choice reaches the module. An
+        attachment on a module reaches every host that includes it.
+  - W120.9 A pack with no includes and no attachments keeps its committed `campaignVersion`
+        digest. Every committed campaign, fixture, replay oracle and golden file is unchanged.
+        A pack that adds an attachment gets a different digest.
+  - W120.10 Every new code is registered with a message, in `reasons.ts` and in the
+        story-graph kind's reason table. The pull request states how many rejecting cases and
+        how many passing cases the new tests contain. `npm run typecheck`, `npm run lint` and
+        `npm test` pass from `src/engine/`.
+- **Out of scope:**
+  - Carrying `Campaign.includes` in the portable format, which is its own decision.
+  - Runtime call/return frames, and any change to `kindState`, the envelope or the save format.
+  - An attachment that does anything other than append a choice.
+  - `composeContent` for the simulation and world-graph kinds.
+
 ## Landed
 
 A slice's full body lives under `## Outstanding` only until its issue closes; once closed, the

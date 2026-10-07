@@ -72,6 +72,8 @@
 
 ### 10.3 Why Not Event Sourcing
 
+### 10.4 Campaign Composition
+
 ## 11. Tiered Validation
 
 #### Which string table validation checks against
