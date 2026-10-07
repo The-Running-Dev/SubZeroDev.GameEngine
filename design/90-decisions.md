@@ -2283,3 +2283,9 @@ Open, not decided here:
 - SubZeroDev.Adventures may validate id shapes that the `:` amendment now widens.
 
 Reversibility: cheap until W120 merges and a composed campaign is published. After that, composed ids are published ids (C18).
+
+### 2026-10-07 — World-graph sorts use the §4.2 canonical comparators; argument-less `localeCompare` is banned (#522)
+Context: 12 §4.2 names the only canonical orders: runtime entity ids by prefix then numeric ordinal, definition ids by ordinal code unit. The world-graph kind sorted with argument-less `localeCompare` throughout `view.ts`, `source.ts` and `tick/`, which collates by the host locale and puts `incident:10` before `incident:2`. 12 §12 sorts batch `StateChange` rows by system, then path, then reason, and named no comparator for path or reason.
+Chosen: Runtime-entity projections sort with `compareRuntimeEntityId`; every definition-id sort uses `compareDefinitionId`. Path and reason compare by ordinal code unit, now stated in 12 §12. The determinism lint block bans `localeCompare` with fewer than two arguments; a call naming its locale (the simulation kind's contracted `"en-US-POSIX"`, 10 §2.2) stays allowed.
+Rejected: **Numeric-aware path order** (`buildings.building:10` after `building:2`) — paths are not ids, and a path comparator that parses ids out of paths is a second canonical order to keep in step with §4.2. **Fix the call sites without a lint rule** — the same defect would return with the next sort.
+Reversibility: cheap. No fixture or golden changed order, because no shipped campaign has ten instances under one prefix.

@@ -8846,7 +8846,8 @@ Within one `advance_ticks` call, aggregate by resolved scalar path plus reason. 
 is the first value before the batch and `value` is the final value after it; omit the row
 when they are equal and no membership transition occurred. Creation/removal `.exists`
 records remain separate transitions. Sort returned rows by first causal system, then path,
-then reason. Different batch partitions may therefore return different audit arrays; §5
+then reason, comparing path and reason by ordinal code unit as definition ids are (§4.2),
+never by the host locale. Different batch partitions may therefore return different audit arrays; §5
 requires their final kind state, not their per-call presentation records, to agree.
 
 **Batch grain is about *which* records, not *whether*.** The nine no-time-passes actions

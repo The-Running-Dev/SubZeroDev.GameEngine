@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 0c6539c1bc695544e4e1558c94d9aef0ea40e60ed3c53408c43ced4497b3ce9a -->
+<!-- design-digest: 2d57fa0f064f1dc036bff5fa5f994d51ba65e473d57a4f5e3f73fb9fdd9a76f3 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -593,6 +593,8 @@ model by following these rules in every resolution path:
 - Do not persist an RNG cursor — derive a fresh handle from seed and stable stream id every time.
 - Do not let a client supply a time or money cost the engine can derive itself.
 - Sort dictionary/record keys before any state-affecting traversal.
+- Sort with a named comparator — the kind's canonical one, or `localeCompare` with an explicit
+  locale. Argument-less `localeCompare` collates by the host's locale, and lint rejects it.
 - Define explicit tie-breaks for every unordered candidate set.
 - Keep money in integer cents and simulation/world rates in integer basis points; keep every
   other scored or accumulated value integer, with any fraction expressed as fixed-point.
