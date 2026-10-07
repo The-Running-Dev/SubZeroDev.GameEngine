@@ -30,8 +30,8 @@ import type * as Preset from '@docusaurus/preset-classic';
 const baseUrl = '/';
 
 const config: Config = {
-  title: 'Game Engine',
-  tagline: 'A deterministic, game-agnostic narrative game platform',
+  title: 'GodComplex',
+  tagline: 'God does not play dice. Neither do we.',
   url: 'https://game-engine.subzerodev.com',
   baseUrl,
 
@@ -91,7 +91,7 @@ const config: Config = {
         {
           type: 'html',
           position: 'left',
-          value: `<a class="navbar__brand" href="${baseUrl}"><b class="navbar__title text--truncate">Game Engine</b></a>`,
+          value: `<a class="navbar__brand" href="${baseUrl}"><b class="navbar__title text--truncate">GodComplex</b></a>`,
         },
         {type: 'docSidebar', sidebarId: 'docs', position: 'left', label: 'Docs'},
         {type: 'html', position: 'left', value: '<a class="navbar__item navbar__link" href="/roadmap/">Roadmap</a>'},
