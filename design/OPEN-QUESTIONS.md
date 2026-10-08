@@ -14,4 +14,6 @@
 
 ### Found by the content-epochs design
 
+### Found by the content-epochs red-team revision
+
 ## 3. Judgement Calls to Revisit (Settled for the MVP)

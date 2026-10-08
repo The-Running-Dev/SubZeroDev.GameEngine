@@ -2225,9 +2225,8 @@ with no translation step and can be promoted into the corpus without conversion 
 A session that adopted new content (16) is captured with an `AdoptionSubmission` (07 §2) at
 each content entry's position. That is not a new format — the union is 07's — and an adoption
 carries no caller input to filter: its only value is a version the store chose from the host's
-channel, never one a client sent. A session whose record is `replayCompatible: false` — every
-migrated session, including each whose log carries a migration entry (16 §3.5) — has no fixture
-form: a migration is not a step replay can perform, so it is not captured.
+channel, never one a client sent. A session whose log carries a migration entry (16 §3.5) has no
+fixture form — a migration is not a step replay can perform — and is not captured.
 
 ---
 
@@ -4174,8 +4173,7 @@ can perform — the epoch it left is, by construction, one this host could not r
   record stays the authority, and the entry makes the refusal readable from the state where one
   exists.
 - **`branchSession` refuses** such a session, as it already refuses `replayCompatible: false`.
-- **Capture refuses every `replayCompatible: false` session** (08 §2), so no fixture carries a
-  migration entry.
+- **Capture has no submission for one** (08 §2), so no fixture carries one.
 - **Only the epochs after the last migration entry are live.** Retention (§6) and the
   session's string table (§5.7) count the log from there: what came before is history the
   session can no longer replay, and nothing resolves through it.

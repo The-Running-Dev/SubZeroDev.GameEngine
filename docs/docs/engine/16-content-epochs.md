@@ -170,8 +170,7 @@ can perform — the epoch it left is, by construction, one this host could not r
   record stays the authority, and the entry makes the refusal readable from the state where one
   exists.
 - **`branchSession` refuses** such a session, as it already refuses `replayCompatible: false`.
-- **Capture refuses every `replayCompatible: false` session** (08 §2), so no fixture carries a
-  migration entry.
+- **Capture has no submission for one** (08 §2), so no fixture carries one.
 - **Only the epochs after the last migration entry are live.** Retention (§6) and the
   session's string table (§5.7) count the log from there: what came before is history the
   session can no longer replay, and nothing resolves through it.

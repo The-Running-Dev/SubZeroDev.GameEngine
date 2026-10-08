@@ -2260,8 +2260,8 @@ load the same way:
   with no epoch entry appends nothing and keeps `formatVersion: 1`, so a host that never adopts
   writes the saves it wrote before content epochs. A migration that changes only `kindVersion`
   restamps no version and appends nothing. A migration entry is never replayed:
-  `branchSession` refuses a log carrying one (§7.4), capture refuses every
-  `replayCompatible: false` session, and §14's runner fails a fixture that carries one.
+  `branchSession` refuses a log carrying one (§7.4), capture records none, and §14's runner
+  fails a fixture that carries one.
 - **A migration is idempotent against its own output.** Migrating a save, saving it, and
   migrating again — which is what happens whenever a player loads, plays nothing, and saves,
   or whenever a fixture is regenerated — must reach a canonically identical `kindState`. The

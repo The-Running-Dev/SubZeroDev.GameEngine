@@ -594,6 +594,17 @@ neither. Each is a gap in attachments, not a reason for a second extension contr
 extension, above). **Revisit** when Adventures moves its extensions onto attachments, which is
 what retires its merge.
 
+### Found by the content-epochs red-team revision
+
+**Capture does not refuse a migrated session that carries no migration entry.** 08 refuses a
+session whose log carries a migration entry, but nothing in 08 checks `replayCompatible`. A
+session migrated across campaign versions before it ever adopted, or migrated in kind shape only,
+carries no entry, so capture would turn it into a fixture whose actions were taken on content
+the fixture does not name. The gap predates content epochs. Narrowing F1's migration entry to
+epoch-bearing logs (2026-10-08) left it as it was rather than opening it. The likely fix is one
+line in 08: refuse every `replayCompatible: false` session. It was kept out of the F1 revision
+because it is a separate unit. **Revisit** before capture is built.
+
 ---
 
 ## 3. Judgement Calls to Revisit (Settled for the MVP)
