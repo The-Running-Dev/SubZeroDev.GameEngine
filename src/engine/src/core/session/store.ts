@@ -63,6 +63,11 @@ interface SessionRecord {
   /** Per-session submission counter (05 §6, plan 14 Decision 4). Only `submitAction`
    *  increments it; every other command stamps the current value. */
   attemptCounter: number;
+  /** The committed-write counter a multi-writer adapter compares (20-contract.md §7.2) —
+   *  `0` when the record is first written, `+1` on every accepted `submitAction` write, and
+   *  never moved by a rejection or a preview. Distinct from `attemptCounter`, which a
+   *  rejected submission also advances without any write. */
+  revision: number;
   /** Set once at `createSession`, never swapped (06 §4's "supplied once" convention).
    *  Omitted → anonymous session: no profile read, no profile write (04 §7.1). */
   profileId?: string;
@@ -452,8 +457,12 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
     try {
       const stored = await options.persistence?.sessions.get(sessionId);
       if (stored) {
-        sessions.set(sessionId, stored);
-        return stored;
+        // Copied: the store mutates its cached record in place before a write, and an
+        // adapter that hands back its own object would see that mutation before the
+        // `put` it is meant to compare against.
+        const restored: SessionRecord = { ...stored };
+        sessions.set(sessionId, restored);
+        return restored;
       }
     } catch {
       throw new SessionStoreErrorValue("session", "storage_failure");
@@ -652,6 +661,7 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
           blob: decoratedEngine.serialize(state),
           audience,
           attemptCounter: 0,
+          revision: 0,
           replayCompatible: true,
           createdAt: now,
           updatedAt: now,
@@ -692,20 +702,33 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
             const newState = result.value;
             const previousBlob = record.blob;
             const previousUpdatedAt = record.updatedAt;
+            const previousRevision = record.revision;
             record.blob = decoratedEngine.serialize(newState);
             record.updatedAt = clock.now();
+            record.revision = previousRevision + 1;
             try {
               await writeSession(record);
             } catch (error) {
               // A rejected write must not leave the cache ahead of persistence (20-contract.md
               // §7.2's blockquote) — restore what was here before this mutation so the next
-              // read serves the pre-conflict state, not the refused one. All three fields the
+              // read serves the pre-conflict state, not the refused one. Every field the
               // refused `put` carried, including the counter incremented above: it is part of
               // `StoredSessionRecord`, so leaving it raised keeps the cache one attempt ahead
               // of a record persistence never took, and `getSession` is cache-first.
               record.blob = previousBlob;
               record.updatedAt = previousUpdatedAt;
+              record.revision = previousRevision;
               record.attemptCounter = attempt - 1;
+              // On a conflict the restored record is itself stale — another writer committed
+              // — so it is evicted too, and the retry the shipped message asks for re-reads
+              // persistence. A `storage_failure` keeps it: there the cache was right and only
+              // the write failed. The restore above still matters after eviction: a command
+              // already queued on this lock holds this object, and must offer the stale
+              // revision so the adapter refuses it rather than accepting a successor of the
+              // refused write.
+              if (error instanceof SessionStoreErrorValue && error.code === "concurrent_modification" && sessions.get(sessionId) === record) {
+                sessions.delete(sessionId);
+              }
               throw error;
             }
 
@@ -836,6 +859,7 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
           blob: decoratedEngine.serialize(state),
           audience: save.audience,
           attemptCounter: 0,
+          revision: 0,
           replayCompatible: resolution.replayCompatible,
           createdAt: now,
           updatedAt: now,
@@ -925,6 +949,7 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
           blob: decoratedEngine.serialize(state),
           audience: source.audience,
           attemptCounter: 0,
+          revision: 0,
           replayCompatible: true,
           createdAt: now,
           updatedAt: now,

@@ -1028,7 +1028,8 @@ interface StoredSessionRecord {
   sessionId: string;
   blob: string;                  // the canonical serialization (§2), never a live object
   audience: ProjectionAudience;
-  attemptCounter: number;
+  attemptCounter: number;        // telemetry stamping only (05 §6) — never compared by an adapter
+  revision: number;              // the committed-write counter, below — 0 when first written
   replayCompatible: boolean;
   createdAt: string;             // Clock (06 §5.4), never Date.now
   updatedAt: string;
@@ -1064,6 +1065,18 @@ interface SessionPersistence {
   saves: SaveRecordStore;
 }
 ```
+
+**`revision` is what a multi-writer adapter compares; `attemptCounter` never is.** The two
+count different things. `attemptCounter` stamps telemetry (05 §6), and `submitAction` advances it
+before dispatch, so a rejected submission moves it with no write behind it. `revision` is `0`
+when a record is first written by `createSession`, `loadGame` or `branchSession`. It rises by
+exactly one on every accepted `submitAction` write, and a rejection or a preview never moves it.
+The rule is stated here so no adapter has to infer one:
+
+> **An adapter that detects concurrent writers accepts a `put` for an existing `sessionId` only
+> when its stored `revision` equals the incoming `revision - 1`.** Otherwise it throws a
+> `SessionPersistenceConflict`-branded error (below). An adapter that compares `attemptCounter`
+> instead refuses every write after a rejected action, and strands the session.
 
 **Omitted → in-memory, which is the MVP default.** The store keeps its own maps either way and
 consults `persistence` only on a miss, so a host adapter is a durability layer, not a
@@ -1149,6 +1162,13 @@ needs both arguments made here; a brand invented downstream is not a contract.
 > read is served from the cache, returns the un-persisted state, and the retry the message asks
 > for cannot succeed. `storage_failure` tolerated this divergence because its own message
 > promises only that the game is still playable; `concurrent_modification` does not.
+>
+> **On `concurrent_modification` the store restores *and* evicts.** The conflict means another
+> writer committed, so the restored record is itself stale, and only a fresh read from
+> persistence lets the retry build on the winner's write. The restore is still needed, because
+> a command already queued on the session lock holds the same record and must offer the stale
+> `revision` so that the adapter refuses it too. On `storage_failure` the store restores and keeps
+> the record: the cache was right, and only the write failed.
 
 ### 7.3 The Campaign Catalog
 

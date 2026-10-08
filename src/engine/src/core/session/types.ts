@@ -77,7 +77,12 @@ export interface StoredSessionRecord {
   sessionId: string;
   blob: string;
   audience: ProjectionAudience;
+  /** Telemetry stamping only (05 §6) — a rejected submission advances it without a write,
+   *  so an adapter must never compare it. */
   attemptCounter: number;
+  /** §7.2's compare-and-swap field: `0` when first written, `+1` on every accepted write,
+   *  never moved by a rejection or a preview. */
+  revision: number;
   replayCompatible: boolean;
   createdAt: string;
   updatedAt: string;
@@ -97,6 +102,9 @@ export interface StoredSaveRecord {
 
 export interface SessionRecordStore {
   get(sessionId: string): Promise<StoredSessionRecord | undefined>;
+  /** §7.2. An adapter that detects concurrent writers accepts a `put` for an existing
+   *  `sessionId` only when its stored `revision` equals `record.revision - 1`, and otherwise
+   *  throws a `SessionPersistenceConflict`-branded error. */
   put(record: StoredSessionRecord): Promise<void>;
 }
 
