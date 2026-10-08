@@ -4,7 +4,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: b3df744f4d7eb4e58cf402256211a08a111f81770e75a0bf0bbbcecc5fb70ca0 -->
+<!-- design-digest: 61bcaa315a0e4d11d347942195bae7f3e44090a802d2aac6ceb725d7fdd9d78d -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -295,10 +295,11 @@ Three rules are worth planning around:
 
 - **Adoption is logged, so replay stays exact.** The action log records the move as a content
   entry at its position, and replay re-runs it. Unlike a migration, it does not cost
-  `replayCompatible`. A migrated load that changes the campaign version is logged too, as a
-  migration entry, so the log always names every version the game ran on; unlike a content
-  entry, that one ends replay — a session carrying it cannot be branched or captured. A save
-  only gains the new log format once it carries either entry, so existing saves are unchanged.
+  `replayCompatible`. Once a log carries a content entry, a migrated load that changes the
+  campaign version is logged too, as a migration entry, so the version in the log and the
+  envelope never disagree; unlike a content entry, that one ends replay. A save only gains the
+  new log format once it adopts, so a host that never adopts — even one that migrates — writes
+  exactly the saves it writes today.
 - **A session that cannot move stays pinned**, and keeps playing the content it started on. The
   archive therefore keeps old epochs. Adoption never fails a command: a refusal, or a channel
   that throws, leaves the session where it was and the command completes.

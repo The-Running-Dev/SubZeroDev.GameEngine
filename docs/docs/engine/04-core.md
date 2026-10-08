@@ -137,7 +137,7 @@ interface LoggedContent {        // an adoption (16 §3.1)
   to: string;                    // the campaignVersion after — the last epoch entry's `to` IS campaignVersion
 }
 
-interface LoggedMigration {      // a migrated load that changed campaignVersion (§10.2; 16 §3.5)
+interface LoggedMigration {      // a migrated load that changed campaignVersion on a log already carrying an epoch entry (§10.2; 16 §3.5)
   seq: number;                   // consumes a seq, exactly like an action
   system: "migration";
   from: string;                  // the campaignVersion the save was made under
@@ -149,12 +149,13 @@ interface LoggedMigration {      // a migrated load that changed campaignVersion
 content mid-play (§4, `adoptContent`; [`16-content-epochs.md`](16-content-epochs.md)) appends a `LoggedContent` entry, so the replay input is
 `{ seed, starting version, actionLog }`, where the starting version is the first epoch
 entry's `from`, or `campaignVersion` when the log carries none. It is not stored: a
-`startingCampaignVersion` field would duplicate what the log already says. **Every change of
-`campaignVersion` is an epoch entry** — an adoption a `LoggedContent`, a migrated load a
-`LoggedMigration` (§10.2) — so the last epoch entry's `to` is always the current version.
-`formatVersion` is `2` exactly on a state whose log carries an epoch entry, and `1` otherwise —
-a game that never adopts and never migrates across a campaign version serializes
-byte-identically to one written before content epochs existed (C26).
+`startingCampaignVersion` field would duplicate what the log already says. **Once a log carries
+an epoch entry, every change of `campaignVersion` is one** — an adoption a `LoggedContent`, a
+migrated load a `LoggedMigration` (§10.2) — so the last epoch entry's `to` is always the current
+version. A migrated log with no epoch entry stays without one; its record's
+`replayCompatible: false` is what keeps it from being replayed. `formatVersion` is `2` exactly
+on a state whose log carries an epoch entry, and `1` otherwise — a game that never adopts
+serializes byte-identically to one written before content epochs existed, migrated or not (C26).
 
 **What lives here vs in `kindState`.** The envelope holds everything a game has
 *regardless of kind*: identity, campaign reference, seed, status, and the action
@@ -1637,8 +1638,8 @@ An anonymous session branches to an anonymous one.
 `replayCompatible: false` has passed through a migrated load (§10.2), and its log is no longer
 guaranteed to regenerate its state — which is the entire mechanism a branch depends on. It
 raises `invalid_state` and writes nothing. A source whose log carries a migration entry (§2) is
-refused the same way; the two coincide for every version-changing migration, and the log entry
-makes the refusal readable from the state alone. Failing here is the sticky-forward rule doing its
+refused the same way; the entry implies the flag, and makes the refusal readable from the state
+where it exists. Failing here is the sticky-forward rule doing its
 job: the alternative is a branch that silently diverges from the game it claims to continue.
 
 #### Reproducing a stored session from its log
@@ -2067,16 +2068,17 @@ load the same way:
 - **A successful migration** sets `replayCompatible: false`, sticky forward — once a
   lineage has passed through a migrated load, it never becomes replay-compatible again,
   even across further saves that need no further migration.
-- **A migration that changes `campaignVersion` logs it.** In the same step that restamps the
-  version, it appends `LoggedMigration { seq: actionLog.length, system: "migration", from, to }`
-  and stamps `formatVersion: 2` (§2). Without the entry, a save whose log already carried a
-  content entry would migrate into a state C26 refuses — its last `to` naming the epoch it left
-  ([`16-content-epochs.md`](16-content-epochs.md) §3.5; red-team F1). The entry is appended for
-  every version-changing migration, not only those over a content-bearing log, so the log is
-  always the complete history of the versions a game ran on. A migration that changes only
-  `kindVersion` restamps no version and appends nothing. A migration entry is never replayed:
-  `branchSession` refuses a log carrying one (§7.4), capture records none, and §14's runner
-  fails a fixture that carries one.
+- **A migration that changes `campaignVersion` over an epoch-bearing log logs it.** When the
+  log already carries an epoch entry, the step that restamps the version also appends
+  `LoggedMigration { seq: actionLog.length, system: "migration", from, to }`; the state is
+  already `formatVersion: 2` and stays so (§2). Without the entry, such a save would migrate
+  into a state C26 refuses — its last `to` naming the epoch it left
+  ([`16-content-epochs.md`](16-content-epochs.md) §3.5; red-team F1). A migration over a log
+  with no epoch entry appends nothing and keeps `formatVersion: 1`, so a host that never adopts
+  writes the saves it wrote before content epochs. A migration that changes only `kindVersion`
+  restamps no version and appends nothing. A migration entry is never replayed:
+  `branchSession` refuses a log carrying one (§7.4), capture refuses every
+  `replayCompatible: false` session, and §14's runner fails a fixture that carries one.
 - **A migration is idempotent against its own output.** Migrating a save, saving it, and
   migrating again — which is what happens whenever a player loads, plays nothing, and saves,
   or whenever a fixture is regenerated — must reach a canonically identical `kindState`. The
