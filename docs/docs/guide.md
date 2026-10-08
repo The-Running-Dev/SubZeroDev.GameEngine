@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 013d6c5220d43a21d77207f8ea5a8672f0b55780eb5023d417fb72b1ba25c0b0 -->
+<!-- design-digest: 737d917a52c24c687859585a846c51f0e6a4f51babeda095f8e3053b22137fba -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -324,6 +324,9 @@ sequenceDiagram
     S-->>C: error; no log or state write
   end
 ```
+
+The engine copies the params once on entry. The kind and the logged action both receive that
+copy, so a caller that edits its own object afterwards cannot rewrite the action log.
 
 Different sessions resolve concurrently. Commands for the same `sessionId` are serialized by the
 store, so the second command always reads the first command's committed state. A second lock
