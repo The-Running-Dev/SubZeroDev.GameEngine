@@ -10,13 +10,15 @@
 
 ## 3. Data Model
 
-### 3.1 The log carries content entries
+### 3.1 The log carries epoch entries
 
 ### 3.2 Sequence numbers and randomness
 
 ### 3.3 Format version
 
 ### 3.4 The archive
+
+### 3.5 A migrated load leaves a migration entry
 
 ## 4. Module Boundaries
 
@@ -39,6 +41,8 @@
 ### 5.5 The story-graph rule
 
 ### 5.6 Replay and branching
+
+### 5.7 Strings across an adoption
 
 ## 6. Distribution
 

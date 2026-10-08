@@ -78,7 +78,9 @@ client would have fallen into:
   restricted to this surface had no way to resolve `labelKey`, `titleKey` or an
   `OutcomeMessage` — the contract as first written could not be implemented (04 §7). The
   catalog carries its own table for the same reason one layer earlier: `titleKey` has no
-  session to resolve against (04 §7.3).
+  session to resolve against (04 §7.3). Under content epochs the table spans every epoch the
+  session has run on and only grows (16 §5.7), so a key a client already holds never stops
+  resolving, and a key its cached table lacks means *fetch the table again*.
 - **`submitAction` returns `SessionActionResult`, not `ActionResult`.** The latter's success
   value is the *envelope* — seed, action log, opaque `kindState` — so returning it would put
   raw state past the projection boundary and make §6 a convention rather than a guarantee.

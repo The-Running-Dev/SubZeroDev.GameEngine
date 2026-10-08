@@ -63,7 +63,8 @@ with no translation step and can be promoted into the corpus without conversion 
 A session that adopted new content (16) is captured with an `AdoptionSubmission` (07 §2) at
 each content entry's position. That is not a new format — the union is 07's — and an adoption
 carries no caller input to filter: its only value is a version the store chose from the host's
-channel, never one a client sent.
+channel, never one a client sent. A session whose log carries a migration entry (16 §3.5) has no
+fixture form — a migration is not a step replay can perform — and is not captured.
 
 ---
 

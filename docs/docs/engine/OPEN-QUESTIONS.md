@@ -411,8 +411,9 @@ injection exists for. The design is
 [`16-content-epochs.md`](16-content-epochs.md): an adoption is a logged `LoggedContent` entry,
 sessions adopt at four adoption points or stay pinned, content resolves by the state's own
 version through a content-addressed archive, and the kind judges through `Kind.adoptContent?`.
-The contract is `20-contract.md` C21–C26, §2, §3, §4, §7, §10 and story-graph §8.1, and the
-judgement calls are the 2026-10-08 entries in the decision log. Two refinements on the settled
+The contract is `20-contract.md` C21–C27, §2, §3, §4, §7, §10 and story-graph §8.1, and the
+judgement calls are the 2026-10-08 entries in the decision log, including the three that resolve
+the red team's F1–F3 (`design/redteam/2026-10-08-10-design.md`). Two refinements on the settled
 directions: absent the seam, a session stays pinned rather than adopting additive change by
 default, and the replay oracle's new failure widens `campaign_version_missing` rather than
 replacing it. **Not yet built** — the next step is `/agentkit:plan`.

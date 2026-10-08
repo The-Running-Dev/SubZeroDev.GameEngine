@@ -4,7 +4,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: d1d5660439e52bc38702cccd1cc576f126aab3f65ee69d59b50b011148d4a8b5 -->
+<!-- design-digest: b3df744f4d7eb4e58cf402256211a08a111f81770e75a0bf0bbbcecc5fb70ca0 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -295,20 +295,25 @@ Three rules are worth planning around:
 
 - **Adoption is logged, so replay stays exact.** The action log records the move as a content
   entry at its position, and replay re-runs it. Unlike a migration, it does not cost
-  `replayCompatible`. A save only gains the new log format once it carries such an entry, so
-  existing saves are unchanged.
+  `replayCompatible`. A migrated load that changes the campaign version is logged too, as a
+  migration entry, so the log always names every version the game ran on; unlike a content
+  entry, that one ends replay — a session carrying it cannot be branched or captured. A save
+  only gains the new log format once it carries either entry, so existing saves are unchanged.
 - **A session that cannot move stays pinned**, and keeps playing the content it started on. The
   archive therefore keeps old epochs. Adoption never fails a command: a refusal, or a channel
   that throws, leaves the session where it was and the command completes.
 - **The kind judges compatibility.** A kind with no adoption rule never adopts. Story-graph
   adopts additive change — new nodes, new variables at their initial values — and refuses
-  anything that could strand the player, such as removing the node they stand on or silently
-  dropping a variable the state carries. Simulation and world-graph have no rule yet, so their
+  anything that could strand the player: removing the node they stand on, turning it into
+  anything but a choice node with a choice they can take, or silently dropping a variable the
+  state carries. Simulation and world-graph have no rule yet, so their
   sessions stay pinned.
 
 Adoption invents no play: it produces no state change, no outcome message, and nothing reaches
-the profile. Telling the player new content arrived is the client's choice. Queries and rejected
-actions never adopt. With no channel supplied, behaviour is exactly what it was.
+the profile. Telling the player new content arrived is the client's choice. A session's string
+table spans every epoch it has run on since its last migration, newest wording winning, so a key
+a client was handed never stops resolving; a client that misses a key fetches the table again.
+Queries and rejected actions never adopt. With no channel supplied, behaviour is exactly what it was.
 
 This is also the delivery half of a story extension. Authoring an extension stays an
 **attachment** — a pack adding to a campaign it does not own, validated after the fold — and a

@@ -47,8 +47,9 @@ below is the one this repository has already watched fail five times.
   review.*
 - **C3.** `{ seed, actionLog }` is the complete replay input. No generator state is persisted;
   every stream is a pure function of `(seed, streamId)` (§8). The content it replays against is
-  named by the envelope, not supplied beside it: the starting epoch is the first content entry's
-  `from`, else `campaignVersion` (`10-design.md`, Content Epochs §3.1). *Enforced by the type — `GameState` declares no RNG
+  named by the envelope, not supplied beside it: the starting epoch is the first epoch entry's
+  `from`, else `campaignVersion` (`10-design.md`, Content Epochs §3.1). A log carrying a
+  migration entry is not a replay input (§10.2). *Enforced by the type — `GameState` declares no RNG
   field, and adding one is a contract amendment.*
 - **C4.** Removing every event changes nothing: a fixture replayed with `nullEmitter` and with
   `createRecordingEmitter()` yields byte-identical `serialize()` output, an identical
@@ -131,7 +132,7 @@ defeat it (§9.1).
   runs both entry types.*
 - **C22.** A pinned session's content never changes. Every state-taking operation resolves
   content by the state's own `(campaignId, campaignVersion)`, and `campaignVersion` changes only
-  through `adoptContent` or a migrated load. *Enforced by code — resolution by state, over an
+  through `adoptContent` or a migrated load, each of which appends an epoch entry (§2). *Enforced by code — resolution by state, over an
   archive in which one key names one content (C23).*
 - **C23.** The archive serves only content that passed `validateCampaign`, and a key, once held,
   names the same content forever. *Enforced by code for the in-memory archive — `publish`
@@ -143,9 +144,15 @@ defeat it (§9.1).
   instruction for the kind's half.*
 - **C25.** A session adopts only at the four adoption points (§7), never on a query and never on
   a rejected action, and a refusal never fails the command it rides on. *Enforced by code.*
-- **C26.** A state's last content entry's `to` equals its `campaignVersion`, and a state is
-  `formatVersion: 2` exactly when its log carries a content entry. *Enforced by code —
-  `deserialize` rejects either disagreement with `invalid_state`.*
+- **C26.** A state's last epoch entry's `to` — a content entry's or a migration entry's —
+  equals its `campaignVersion`, and a state is `formatVersion: 2` exactly when its log carries an
+  epoch entry. *Enforced by code — `deserialize` rejects either disagreement with
+  `invalid_state`, and §10.2's migration appends the entry that keeps a migrated state inside
+  it.*
+- **C27.** A session's string table never loses a key: any `LocKey` in any result the store
+  returned for a session resolves in every later `getStrings` of that session (§7). *Enforced
+  by code — the table is the union over the session's live epochs, and within one session id
+  the log only grows.*
 
 
 ## Unresolved
@@ -280,7 +287,7 @@ what `advance`, `serialize`, and the session store operate on.
 type KindId = "story-graph" | "simulation" | "world-graph";
 
 interface GameState {
-  formatVersion: number;         // the shape of THIS envelope — 1, or 2 once the log carries a content entry (§10.2)
+  formatVersion: number;         // the shape of THIS envelope — 1, or 2 once the log carries an epoch entry (§10.2)
   gameId: string;                // from the IdSource port (06 §5.1); opaque to the core
 
   kindId: KindId;
@@ -297,10 +304,10 @@ interface GameState {
 
 type GameStatus = "active" | "ended" | "abandoned";
 
-type LoggedEntry = LoggedAction | LoggedContent;
+type LoggedEntry = LoggedAction | LoggedContent | LoggedMigration;
 
 interface LoggedAction {
-  seq: number;                   // 0-based, monotonic across both entry types
+  seq: number;                   // 0-based, monotonic across every entry type
   actionId: string;              // the action the player submitted
   params?: Readonly<Record<string, string | number | boolean>>;
 }
@@ -309,17 +316,27 @@ interface LoggedContent {        // an adoption (16 §3.1)
   seq: number;                   // consumes a seq, exactly like an action
   system: "content";
   from: string;                  // the campaignVersion before adoption
-  to: string;                    // the campaignVersion after — the last entry's `to` IS campaignVersion
+  to: string;                    // the campaignVersion after — the last epoch entry's `to` IS campaignVersion
+}
+
+interface LoggedMigration {      // a migrated load that changed campaignVersion (§10.2; 16 §3.5)
+  seq: number;                   // consumes a seq, exactly like an action
+  system: "migration";
+  from: string;                  // the campaignVersion the save was made under
+  to: string;                    // the campaignVersion the migration restamped
 }
 ```
 
 **The log records adoptions, and the starting epoch is derived from it.** A game that adopts new
 content mid-play (§4, `adoptContent`; [`16-content-epochs.md`](16-content-epochs.md)) appends a `LoggedContent` entry, so the replay input is
-`{ seed, starting version, actionLog }`, where the starting version is the first content
+`{ seed, starting version, actionLog }`, where the starting version is the first epoch
 entry's `from`, or `campaignVersion` when the log carries none. It is not stored: a
-`startingCampaignVersion` field would duplicate what the log already says. `formatVersion` is `2`
-exactly on a state whose log carries a content entry, and `1` otherwise — a game that never
-adopts serializes byte-identically to one written before content epochs existed (C26).
+`startingCampaignVersion` field would duplicate what the log already says. **Every change of
+`campaignVersion` is an epoch entry** — an adoption a `LoggedContent`, a migrated load a
+`LoggedMigration` (§10.2) — so the last epoch entry's `to` is always the current version.
+`formatVersion` is `2` exactly on a state whose log carries an epoch entry, and `1` otherwise —
+a game that never adopts and never migrates across a campaign version serializes
+byte-identically to one written before content epochs existed (C26).
 
 **What lives here vs in `kindState`.** The envelope holds everything a game has
 *regardless of kind*: identity, campaign reference, seed, status, and the action
@@ -783,7 +800,7 @@ missing kind gets. With no archive supplied, every behaviour below is unchanged.
 
 ```text
 submitAction(state, actionId, params):
-  1. kind = kinds[state.kindId];  seq = state.actionLog.length   // 0-based, monotonic; counts content entries too
+  1. kind = kinds[state.kindId];  seq = state.actionLog.length   // 0-based, monotonic; counts epoch entries too
      registry = content.resolve(state.campaignId, state.campaignVersion)   // by state, above
      campaign = registry.campaigns[state.campaignId]
   2. handle = rngHandleFor(state.seed, { kind:"action", seq })   // §8 — derived, not carried
@@ -831,12 +848,13 @@ Without it, a state could hand one kind's `advance` another kind's campaign; wit
 a `kindState` of the wrong shape reaches `advance` and fails there, as a throw or a
 `NaN`, rather than at the boundary.
 
-**`campaignVersion` resolves through the archive, and a log's content entries must agree with
+**`campaignVersion` resolves through the archive, and a log's epoch entries must agree with
 it.** `unknown_campaign` also covers a `campaignId` the archive holds at no epoch matching
 `campaignVersion`: a state is played against the content it names or not at all, never silently
 against whatever this host registered under the id (C22). Two `invalid_state` refusals guard the
-log: a `formatVersion: 1` state whose log carries a content entry, and a state whose last content
-entry's `to` is not its `campaignVersion` (C26). A `formatVersion` above `2` refuses as every
+log: a `formatVersion: 1` state whose log carries an epoch entry, and a state whose last epoch
+entry's `to` is not its `campaignVersion` (C26). A migration entry's `from` is not resolved: it
+names an epoch this host could not run, which is why the migration happened. A `formatVersion` above `2` refuses as every
 unknown version does. This closes the gap an earlier revision recorded here as known and
 retained — a state serialized under one resolution and accepted under another
 (`90-decisions.md`, 2026-10-08).
@@ -1067,8 +1085,9 @@ type StringTable = Readonly<Record<LocKey, string>>;
 > `ValidationError` — and a client that may call nothing but this store (09 §2) otherwise has
 > no way to render any of them. Resolving them *inside* the DTOs was the alternative and is
 > worse: it would bake a locale into the projection and lose the property that clients never
-> string-match English (§12). The table is keyed by the campaign and locale the session was
-> created with; a locale switch is a new session, which is all the MVP's single locale needs.
+> string-match English (§12). The table is keyed by the session's campaign, its live epochs
+> (below, C27) and the locale the session was created with; a locale switch is a new session,
+> which is all the MVP's single locale needs.
 
 **The store persists the envelope (§2) and nothing else about play.** Wall-clock
 timestamps, owner ids, and other host metadata live on the store's record, outside the
@@ -1144,8 +1163,17 @@ to start on and passes it to `createGame(config, version)`; that is creation, no
 logs no content entry. With no channel, no session is ever offered content, and every operation
 above behaves as it did before content epochs existed.
 
-`getStrings` and every projection resolve through the session's *current* epoch: after an
-adoption, the table is the one the new content was published with.
+Every projection resolves through the session's *current* epoch. **`getStrings` returns the
+union of the string tables of the session's live epochs** — its starting version, or the last
+migration entry's `to` when the log carries one, and every content entry's `to` after it — each
+key resolved from the most recent of those epochs that defines it. The current epoch wins every
+key it has; a key it dropped still resolves through the epoch that last had it; a session that
+never adopted gets exactly its one epoch's table. So the table only grows, and any key a result
+for this session carried resolves in every later `getStrings` (C27) — including a `submitAction`
+that adopts after commit, whose messages come from the old epoch and whose scene from the new.
+A client whose cached table lacks a key fetches it again. What the union does not promise is a
+key's *earlier wording*: a key both epochs define resolves to the newer text
+([`16-content-epochs.md`](16-content-epochs.md) §5.7).
 
 ### 7.1 The Profile Store
 
@@ -1731,7 +1759,7 @@ creation and `actionLog.length` branches at the present. Valid range is `[0, act
 inclusive; anything outside it raises `invalid_fork_point` and writes nothing. A count is used
 rather than a `LoggedAction.seq` because the two coincide only while a log is gap-free, and a
 count states the intended meaning — *how much of this game* — without depending on that.
-**It counts log entries of both types** (§2): a content entry is part of how much of this game
+**It counts log entries of every type** (§2): a content entry is part of how much of this game
 there is, so a fork may fall either side of an adoption, and one taken before it starts on the
 old epoch.
 
@@ -1790,7 +1818,9 @@ An anonymous session branches to an anonymous one.
 **A session that is not replay-compatible cannot be branched.** A `StoredSessionRecord` with
 `replayCompatible: false` has passed through a migrated load (§10.2), and its log is no longer
 guaranteed to regenerate its state — which is the entire mechanism a branch depends on. It
-raises `invalid_state` and writes nothing. Failing here is the sticky-forward rule doing its
+raises `invalid_state` and writes nothing. A source whose log carries a migration entry (§2) is
+refused the same way; the two coincide for every version-changing migration, and the log entry
+makes the refusal readable from the state alone. Failing here is the sticky-forward rule doing its
 job: the alternative is a branch that silently diverges from the game it claims to continue.
 
 #### Reproducing a stored session from its log
@@ -1844,7 +1874,7 @@ already does.
 | `deleteSave` | `storage_failure` | the adapter threw | Yes | retry; nothing was removed |
 | `branchSession` | `unknown_session` | no such `sessionId` | No | the session is gone |
 | `branchSession` | `invalid_fork_point` | `atActionCount` outside `[0, actionLog.length]` | No | **new** — correct the count |
-| `branchSession` | `invalid_state` | the source is `replayCompatible: false` | No | branching this lineage is impossible, not delayed |
+| `branchSession` | `invalid_state` | the source is `replayCompatible: false`, or its log carries a migration entry | No | branching this lineage is impossible, not delayed |
 | `branchSession` | `invalid_state` | a content entry in the retained prefix no longer adopts | No | the kind's compatibility rule changed under a recorded adoption — 07 §6's divergence, one layer down |
 | `branchSession` | `unknown_campaign` | an epoch the retained prefix plays on — its starting version or one it adopted — no longer resolves | No | the content was withdrawn (07 §6's `unrunnable`, one layer down) |
 
@@ -2219,11 +2249,22 @@ load the same way:
 - **A successful migration** sets `replayCompatible: false`, sticky forward — once a
   lineage has passed through a migrated load, it never becomes replay-compatible again,
   even across further saves that need no further migration.
+- **A migration that changes `campaignVersion` logs it.** In the same step that restamps the
+  version, it appends `LoggedMigration { seq: actionLog.length, system: "migration", from, to }`
+  and stamps `formatVersion: 2` (§2). Without the entry, a save whose log already carried a
+  content entry would migrate into a state C26 refuses — its last `to` naming the epoch it left
+  ([`16-content-epochs.md`](16-content-epochs.md) §3.5; red-team F1). The entry is appended for
+  every version-changing migration, not only those over a content-bearing log, so the log is
+  always the complete history of the versions a game ran on. A migration that changes only
+  `kindVersion` restamps no version and appends nothing. A migration entry is never replayed:
+  `branchSession` refuses a log carrying one (§7.4), capture records none, and §14's runner
+  fails a fixture that carries one.
 - **A migration is idempotent against its own output.** Migrating a save, saving it, and
   migrating again — which is what happens whenever a player loads, plays nothing, and saves,
   or whenever a fixture is regenerated — must reach a canonically identical `kindState`. The
   first pass restamps `campaignVersion` to the campaign's own (`resolveSaveEnvelope`), so the
-  second pass finds no mismatch and runs no migration at all; that is *why* it holds, and
+  second pass finds no mismatch, runs no migration and appends no second migration entry; that
+  is *why* it holds, and
   stating the property rather than the mechanism is what makes it testable against a
   migration that mutates in place, accumulates, or appends. `replayCompatible` stays `false`
   through both, which is the sticky-forward rule above doing its work.
@@ -2653,7 +2694,8 @@ interface PlaythroughFixture {
 
 The starting version is derived from the log exactly as §2 states, and a fixture whose log
 crosses an epoch needs an engine whose archive resolves every epoch it names. A content entry
-that refuses on replay fails the fixture, the same as an action that rejects.
+that refuses on replay fails the fixture, the same as an action that rejects. A migration entry
+fails it outright: it is not a step replay can perform (§10.2).
 
 - **Golden files** — committed fixtures with expected `serialize()` output; a one-byte
   diff catches an unintended behaviour change across the whole engine.
@@ -3384,13 +3426,18 @@ tolerated *at load*: nothing reads it, and the save is the record — refusing i
 player on a campaign that later dropped a variable.
 
 **`adoptContent` (04 §3) adopts additive change and refuses anything that could strand the
-player.** After the target campaign's `migrateState`, it adopts iff `currentNodeId` names a node
-the target has; every `visitedCounts` key names a target node and every `unlockedAchievements`
+player.** After the target campaign's `migrateState`, it adopts iff `currentNodeId` names a
+target node that is a `ChoiceNode` with at least one choice available — `showWhen` true and
+requirements met (§4) — against the state with the insertion below applied; every
+`visitedCounts` key names a target node and every `unlockedAchievements`
 id a target achievement; every variable the state carries that the target declares has the
 target's `VarType`; and no variable the source declared and the state carries is missing from the
 target. It returns the state with every variable the target declares and the state lacks
 inserted at its declared initial value, and everything else unchanged. Any other case refuses
-`content_incompatible`. Adoption refuses the silent drop that load tolerates because there the
+`content_incompatible`. The node condition exists because adoption runs no settle (§8.2) —
+settling is play, which C24 forbids it — so a target that turned the current node into an
+ending, auto or random node, or gated away every choice, would leave an active session with
+nothing it can submit (red-team F2). Adoption refuses the silent drop that load tolerates because there the
 old epoch is still playable and staying pinned costs nothing; an author who means to drop a
 variable writes a `migrateState` that drops it ([`16-content-epochs.md`](16-content-epochs.md) §5.5).
 
