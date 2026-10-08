@@ -414,6 +414,24 @@ interface StoryGraphKindState {
 ([`04-core.md`](04-core.md) §8 / games/04 §2.2) — a `Record` iterated in a
 state-affecting way is sorted first, or a save/load round trip can diverge.
 
+**`validateState` (04 §3) checks this interface against its campaign.** Every field is present
+with its type — `turn` and each visit count a non-negative integer, `endingId` absent or a
+string — `currentNodeId` names a node the campaign has, and every variable the campaign
+declares is present with its declared `VarType`. A variable the campaign does not declare is
+tolerated *at load*: nothing reads it, and the save is the record — refusing it strands the
+player on a campaign that later dropped a variable.
+
+**`adoptContent` (04 §3) adopts additive change and refuses anything that could strand the
+player.** After the target campaign's `migrateState`, it adopts iff `currentNodeId` names a node
+the target has; every `visitedCounts` key names a target node and every `unlockedAchievements`
+id a target achievement; every variable the state carries that the target declares has the
+target's `VarType`; and no variable the source declared and the state carries is missing from the
+target. It returns the state with every variable the target declares and the state lacks
+inserted at its declared initial value, and everything else unchanged. Any other case refuses
+`content_incompatible`. Adoption refuses the silent drop that load tolerates because there the
+old epoch is still playable and staying pinned costs nothing; an author who means to drop a
+variable writes a `migrateState` that drops it ([`16-content-epochs.md`](16-content-epochs.md) §5.5).
+
 ### 8.2 The Turn: `submitChoice` → Settle
 
 The story-graph kind has exactly **one player action** — submit a choice — with no plan

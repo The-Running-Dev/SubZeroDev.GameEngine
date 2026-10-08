@@ -360,6 +360,12 @@ function Get-DocumentationAnchor {
     $counts = @{}
 
     foreach ($line in $masked) {
+        # An inline <a id="..."></a> is an anchor too: the retired-slice rows in
+        # design/30-slices.md carry one each, so links to #w<n> outlive the headings.
+        foreach ($inline in [regex]::Matches($line, '<a\s+id="([^"]+)"\s*>')) {
+            $null = $anchors.Add($inline.Groups[1].Value)
+        }
+
         $match = [regex]::Match($line, '^\s{0,3}#{1,6}\s+(.+?)\s*$')
         if (-not $match.Success) {
             continue

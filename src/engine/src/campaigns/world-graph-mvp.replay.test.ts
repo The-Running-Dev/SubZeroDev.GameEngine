@@ -7,7 +7,7 @@ import { buildValidatedContentRegistry } from "../core/validation/tiered.js";
 import { createInMemoryProfileStore } from "../core/session/profile-store.js";
 import { worldGraphKind } from "../kinds/world-graph/kind.js";
 import { buildWorldGraphMvpCampaign } from "./world-graph-mvp.js";
-import { COMPARING_ACROSS_VERSIONS, CORPUS_DIR, FIXTURES_DIR, fixtureNamesByPrefix, loadExpectedOutcome, loadFixture } from "./replay-corpus.js";
+import { COMPARING_ACROSS_VERSIONS, CORPUS_DIR, FIXTURES_DIR, fixtureNamesByPrefix, loadExpectedOutcome, loadFixture, statesThatFailToDeserialize } from "./replay-corpus.js";
 
 const REPLAY_PROFILE_ID = "world-graph-replay-oracle-profile";
 
@@ -42,5 +42,12 @@ describe("the world-graph MVP replay corpus", () => {
     // bulgaria-bureaucracy.replay.test.ts's own it.each for the full rationale).
     ctx.skip(COMPARING_ACROSS_VERSIONS && verdict.kind === "unrunnable", `${name}: unrunnable against the baseline tag's corpus — not a regression (10-design.md §6)`);
     expect(verdict).toEqual({ kind: "match" });
+  });
+});
+
+// S126: every state the corpus passes through is one its kind's `validateState` accepts.
+describe("the replay corpus deserializes (S126)", () => {
+  it.for(fixtureNamesByPrefix("world-graph-mvp-", FIXTURES_DIR))("%s: every state it reaches round-trips through deserialize", (name) => {
+    expect(statesThatFailToDeserialize(makeContext().engine, loadFixture(name, FIXTURES_DIR))).toEqual([]);
   });
 });

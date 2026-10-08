@@ -18,7 +18,7 @@ import type { KindId } from "../kernel/types.js";
 import type { CommandResult } from "../kernel/reasons.js";
 import type { ExperimentSource } from "../composition/types.js";
 import type { ValidationError, ValidationWarning } from "../validation/types.js";
-import type { BuiltCampaign, Campaign, ContentRegistry, ResolutionId } from "./types.js";
+import type { BuiltCampaign, Campaign, CampaignAttachment, ResolutionId, ResolvedRegistry } from "./types.js";
 
 export interface PackRef {
   readonly id: string;
@@ -40,6 +40,9 @@ export interface ContentPack {
   readonly experimentGate?: ExperimentGate;
   readonly campaigns: readonly BuiltCampaign[];
   readonly strings: ReadonlyMap<LocKey, string>;
+  /** §3a — includes into campaigns this pack does not own. Absent means none. The fold only
+   *  collects them; composition applies them (04 §10.4). */
+  readonly attachments?: readonly CampaignAttachment[];
 }
 
 /**
@@ -269,11 +272,15 @@ function validateDependencies(packs: readonly ContentPack[]): ValidationError[] 
 }
 
 /**
- * Folds an ordered pack set into a `ContentRegistry` (§3), pure and total: either every
+ * Folds an ordered pack set into a `ResolvedRegistry` (§3, §3a), pure and total: either every
  * structural check in §7 passes and a complete registry comes back, or none of them do
  * and every conflict is reported together — never a partial registry.
+ *
+ * Beside the stamped campaigns it keeps each one's authored version, which is what an include
+ * pins (04 §10.4), and every pack's attachments in pack order then declaration order. It holds
+ * no kinds, so it applies neither; `buildValidatedPackRegistry` composes from both.
  */
-export function resolvePacks(packs: readonly ContentPack[]): CommandResult<ContentRegistry> {
+export function resolvePacks(packs: readonly ContentPack[]): CommandResult<ResolvedRegistry> {
   const errors: ValidationError[] = [
     ...validatePackKinds(packs),
     ...validateNoDuplicateCampaignIdsWithinPack(packs),
@@ -289,6 +296,7 @@ export function resolvePacks(packs: readonly ContentPack[]): CommandResult<Conte
   const strings = new Map<LocKey, string>();
   const seenCampaignIds = new Set<string>();
   const seenStringKeys = new Set<string>();
+  const attachments: CampaignAttachment[] = [];
 
   packs.forEach((pack, index) => {
     // §7 Tier 2: a pack "overriding" a campaign or string no earlier pack supplied is
@@ -318,14 +326,22 @@ export function resolvePacks(packs: readonly ContentPack[]): CommandResult<Conte
       strings.set(key, text);
     }
 
+    attachments.push(...(pack.attachments ?? []));
+
     for (const { campaign } of pack.campaigns) seenCampaignIds.add(campaign.id);
     for (const key of pack.strings.keys()) seenStringKeys.add(key);
   });
 
   const resolution = computeResolutionId(packs);
+  const authoredVersions = new Map<string, string>([...campaigns].map(([id, campaign]) => [id, campaign.version]));
   const stampedCampaigns = new Map<string, Campaign>(
     [...campaigns].map(([id, campaign]) => [id, { ...campaign, version: resolution }]),
   );
 
-  return { ok: true, value: { campaigns: stampedCampaigns, strings, resolution }, errors: [], warnings };
+  return {
+    ok: true,
+    value: { campaigns: stampedCampaigns, strings, resolution, authoredVersions, attachments },
+    errors: [],
+    warnings,
+  };
 }

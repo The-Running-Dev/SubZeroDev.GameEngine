@@ -50,7 +50,7 @@ the observability boundary, and both are being built — but nothing here is MVP
 interface ReplayFixture {          // 07 §2, unchanged
   readonly name: string;
   readonly config: NewGameConfig;         // campaignId, seed
-  readonly campaignVersion: string;
+  readonly campaignVersion: string;       // the starting epoch (16 §5.6)
   readonly capturedUnder: string;         // engine version
   readonly submissions: readonly Submission[];
 }
@@ -59,6 +59,11 @@ interface ReplayFixture {          // 07 §2, unchanged
 That it needs no new type is the strongest argument for this design. A captured session is
 byte-for-byte the same artefact the test suite already runs, so a support case reproduces
 with no translation step and can be promoted into the corpus without conversion (§7).
+
+A session that adopted new content (16) is captured with an `AdoptionSubmission` (07 §2) at
+each content entry's position. That is not a new format — the union is 07's — and an adoption
+carries no caller input to filter: its only value is a version the store chose from the host's
+channel, never one a client sent.
 
 ---
 
@@ -107,6 +112,13 @@ There is no clever way out of this, and the document does not pretend otherwise:
 - A fixture is never attached to a public issue, a shared log stream, or anything an
   operator can read casually. That is a wiring rule, like the sink-selection rule in
   05 §10.
+
+**A per-session overlay's version is as sensitive as the seed.** A host that serves one player
+a private resolution (16 §4.2) makes that `ResolutionId` an identifier of the player's content,
+and a fixture naming it is personal data on the same terms. It also cannot be promoted (§7)
+until the overlay's content is itself reviewed and committed where the corpus can resolve it:
+a promoted fixture that names a resolution only one host's archive holds is permanently
+`unrunnable` everywhere else.
 
 ---
 

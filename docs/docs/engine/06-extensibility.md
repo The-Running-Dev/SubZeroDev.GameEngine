@@ -112,6 +112,7 @@ interface EngineHost {
   readonly registry: ContentRegistry;    // 04 §10.1
   readonly ids?: IdSource;               // §5.1 — defaults to a random source
   readonly emitter?: Emitter;            // 05 §4 — defaults to nullEmitter
+  readonly archive?: ResolutionArchive;  // 16 §4.1 — defaults to one holding only `registry`
 }
 
 function createEngine(host: EngineHost): Engine;
@@ -129,6 +130,8 @@ interface SessionHost {
   readonly recordSink?: EmittedRecordSink;   // 05 §6 — omitted → records are discarded
   readonly experiments?: Readonly<Record<string, string>>; // §5.5 — resolved, enrolled assignments only
   readonly recordIds?: RecordIdSource;       // §5.7 — omitted → the layer mints its own
+  readonly sessionCacheLimit?: number;       // §5.2 — with persistence only; omitted → unbounded
+  readonly content?: ContentChannel;         // 16 §4.2 — omitted → no session is offered new content
 }
 
 function createSessionLayer(host: SessionHost): SessionStore;
@@ -162,7 +165,9 @@ function createSessionLayer(host: SessionHost): SessionStore;
   usefully default is probably not a port.
 - **A port is supplied once, at construction, and never swapped afterwards.** Replacing a
   store mid-session is not a supported operation, and permitting it would make every
-  invariant in 04 conditional on when it was asked.
+  invariant in 04 conditional on when it was asked. Content epochs (16) do not bend this: the
+  archive and the channel are supplied once, and what changes is what they *hold* — through a
+  validated publication, with every session's move recorded in its own log.
 
 > **Why two roots rather than one.** The split mirrors 04 §1's two layers exactly. The pure
 > engine must be constructible with no I/O at all — that is what makes the determinism
@@ -242,6 +247,23 @@ A host may supply Postgres, Redis, SQLite, a file, or `localStorage`. The obliga
   that never changed; leave those unbranded and they arrive as `storage_failure`, which is
   correct for them. Hosts with a single writer — every in-process and `localStorage`
   adapter — never raise it, and need do nothing.
+
+**A host with persistence bounds the store's memory; a host without it cannot.** With
+`persistence`, the store's session map is a cache. `sessionCacheLimit` caps it, evicting the
+least recently used session, and an evicted session is read back from the adapter on its next
+use and continues identically. Omitted, the cache is unbounded, as it always was. The store
+holds no saves at all once `persistence` is supplied, so a save list or load always reflects
+the adapter. Without `persistence` the maps are the only copy, so a limit would discard
+sessions. `createSessionLayer` throws a `RangeError` for a limit without `persistence`, and for
+one that is not a positive integer.
+
+Two rules keep eviction from changing play:
+
+- **A session a command is using is never evicted.** It is held from the command's first read
+  to its settling, so the cache can briefly exceed its limit. Evicting it would let the next
+  command re-read the row into a second record, and the two would overwrite each other. A
+  single-writer adapter raises no conflict to catch that.
+- **Concurrent reads of an uncached session share one adapter call**, for the same reason.
 
 `ProfileStore` (04 §7.1) is unchanged and remains a port in the original sense — a host
 supplies the whole thing. Its obligations:

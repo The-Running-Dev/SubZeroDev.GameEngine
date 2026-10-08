@@ -15,8 +15,9 @@
  * its own; a kind's warnings are collected and passed through unchanged.
  */
 
-import type { BuiltCampaign, Campaign, ContentRegistry } from "../registry/types.js";
+import type { BuiltCampaign, Campaign, CampaignAttachment, ContentRegistry } from "../registry/types.js";
 import { buildContentRegistry } from "../registry/build.js";
+import { composeCampaigns } from "../registry/compose.js";
 import { resolvePacks, type ContentPack } from "../registry/packs.js";
 import type { Kind, KindId, KindRegistry } from "../kernel/types.js";
 import type { CommandResult } from "../kernel/reasons.js";
@@ -88,23 +89,52 @@ function missingReasonCodeMessages(kind: Kind<unknown>): ValidationError[] {
  * §12). Only kinds actually referenced by `builtCampaigns` are checked and threaded; a
  * kind never used in this batch (including a `KindRegistry` test double missing some of
  * its entries) is never touched.
+ *
+ * Composes first (04 §10.4, W120): a campaign that declares `includes` is validated and
+ * frozen with its modules merged into its `content`, by `composeValidateAndAssemble` below.
  */
 export function buildValidatedContentRegistry(
   builtCampaigns: readonly BuiltCampaign[],
   kinds: KindRegistry,
 ): CommandResult<ContentRegistry> {
+  // Unpacked, a campaign's authored version and its version are the same value (04 §10.4).
+  const authoredVersions = new Map(builtCampaigns.map(({ campaign }) => [campaign.id, campaign.version] as const));
+  return composeValidateAndAssemble(builtCampaigns, kinds, authoredVersions, []);
+}
+
+/**
+ * *Compose, validate, assemble* (04 §11) — both entry points' shared body. Composition runs
+ * first (04 §10.4): its failures are Tier 1 errors in the same list, and nothing is validated
+ * against content play would never see. Each campaign then validates **as composed**, against
+ * its own strings united with every module's it composed, and the registry is assembled from
+ * the composed campaigns with each one's own strings.
+ */
+function composeValidateAndAssemble(
+  builtCampaigns: readonly BuiltCampaign[],
+  kinds: KindRegistry,
+  authoredVersions: ReadonlyMap<string, string>,
+  attachments: readonly CampaignAttachment[],
+): CommandResult<ContentRegistry> {
+  const composition = composeCampaigns({ builtCampaigns, authoredVersions, attachments }, kinds);
+  if (!composition.ok || !composition.value) {
+    return { ok: false, errors: composition.errors, warnings: composition.warnings };
+  }
+  const composed = composition.value.builtCampaigns;
+  const validationStrings = composition.value.validationStrings;
+
   const errors: ValidationError[] = [];
   const warnings: ValidationWarning[] = [];
   const checkedKindIds = new Set<KindId>();
   const kindMessages: ReadonlyMap<LocKey, string>[] = [];
 
-  for (const { campaign, strings } of builtCampaigns) {
+  composed.forEach(({ campaign }, index) => {
+    const strings = validationStrings[index]!;
     errors.push(...validateCoreOwnedFields(campaign, strings));
 
     const kind = kinds[campaign.kindId];
     if (!kind) {
       errors.push({ code: "unknown_kind", messageKey: "core.reason.unknown_kind", path: campaign.kindId });
-      continue;
+      return;
     }
 
     if (!checkedKindIds.has(kind.id)) {
@@ -116,13 +146,13 @@ export function buildValidatedContentRegistry(
     const kindResult = kind.validateCampaign(campaign, strings);
     errors.push(...kindResult.errors);
     warnings.push(...kindResult.warnings);
-  }
+  });
 
   if (errors.length > 0) {
     return { ok: false, errors, warnings };
   }
 
-  const built = buildContentRegistry(builtCampaigns, kindMessages);
+  const built = buildContentRegistry(composed, kindMessages);
   if (!built.ok) {
     return { ok: false, errors: built.errors, warnings };
   }
@@ -158,14 +188,19 @@ export function buildValidatedPackRegistry(
   if (!folded.ok || !folded.value) {
     return { ok: false, errors: folded.errors, warnings: folded.warnings };
   }
-  const { campaigns, strings, resolution } = folded.value;
+  const { campaigns, strings, resolution, authoredVersions, attachments } = folded.value;
   // Optional on the type, but never absent on a folded registry (04 §10.1) — asserted
   // rather than spread away, so the reattachment below cannot silently become a no-op.
   if (resolution === undefined) throw new Error("buildValidatedPackRegistry: expected the fold to name its resolution");
 
-  const validated = buildValidatedContentRegistry(
+  // The pin is checked against each campaign's authored version, never the stamped
+  // resolution id (04 §10.4); attachments apply to whichever campaign holds the host id
+  // after the fold (11 §3a).
+  const validated = composeValidateAndAssemble(
     Array.from(campaigns.values(), (campaign) => ({ campaign, strings })),
     kinds,
+    authoredVersions,
+    attachments,
   );
   if (!validated.ok || !validated.value) {
     return { ok: false, errors: validated.errors, warnings: [...folded.warnings, ...validated.warnings] };

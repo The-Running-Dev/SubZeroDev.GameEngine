@@ -165,6 +165,9 @@ function submitAction(
 ): ActionResult {
   const seq = state.actionLog.length;
   const emitters = makeResolutionEmitters(host.emitter ?? nullEmitter, state.gameId, seq);
+  // The engine owns what it logs (04 §4): a caller mutating its params object afterwards
+  // must not rewrite history. `ActionParams` is flat primitives, so a shallow copy is whole.
+  const ownedParams: ActionParams | undefined = params === undefined ? undefined : { ...params };
 
   /**
    * Every rejection path emits `core.action.rejected` (05 §8). `includeActionId` is the
@@ -206,7 +209,7 @@ function submitAction(
   }
 
   const ctx = buildKindContext(host.registry, campaign, kind, state.seed, { kind: "action", seq }, seq, emitters);
-  const result = kind.advance(state.kindState, actionId, params, ctx);
+  const result = kind.advance(state.kindState, actionId, ownedParams, ctx);
 
   if (result.error) {
     return reject(result.error, result.error.code !== "unknown_action", result.messages);
@@ -218,7 +221,8 @@ function submitAction(
   }
 
   // exactOptionalPropertyTypes: omit `params` entirely rather than assign it `undefined`.
-  const loggedAction: LoggedAction = params === undefined ? { seq, actionId } : { seq, actionId, params };
+  const loggedAction: LoggedAction =
+    ownedParams === undefined ? { seq, actionId } : { seq, actionId, params: ownedParams };
 
   const newState: GameState = {
     ...state,
@@ -363,7 +367,8 @@ function isValidActionLog(v: unknown): v is LoggedAction[] {
 /**
  * Hand-written structural check — no schema library; the package has zero runtime
  * dependencies (`TODO.md`, dev-dependency-advisories note) and this unit doesn't add one.
- * `kindState` is checked only for presence: it is `unknown` to the core by design (04 §2).
+ * `kindState` is checked only for presence: it is `unknown` to the core by design (04 §2),
+ * and its shape is the kind's to judge (`isAcceptedKindState` below).
  */
 /** Exported for `persistence/envelope.ts` — a `SaveEnvelope`'s `state` field needs the
  *  same deep shape check `deserialize` runs, not a second, drifting reimplementation. */
@@ -379,6 +384,19 @@ export function isValidGameStateShape(v: unknown): v is GameState {
   if (!("kindState" in v)) return false;
   if (!isValidActionLog(v["actionLog"])) return false;
   return true;
+}
+
+/**
+ * `Kind.validateState`, read as total: a throw is a refusal, so `deserialize` keeps its
+ * never-throws guarantee whatever a kind's check does with a hostile document (04 §4).
+ * Exported for `persistence/envelope.ts`, which asks the same question after migrating.
+ */
+export function isAcceptedKindState(kind: Kind<unknown>, kindState: unknown, campaign: Campaign): boolean {
+  try {
+    return kind.validateState(kindState, campaign) === true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -434,6 +452,32 @@ function deserializeState(host: EngineHost, data: string): CommandResult<GameSta
       reason: "unknown_kind",
     });
     const error: ValidationError = { code: "unknown_kind", messageKey: "core.reason.unknown_kind", path: parsed.kindId };
+    return { ok: false, errors: [error], warnings: [] };
+  }
+
+  // Both ids resolve, but to each other? A state naming one kind and a campaign of another
+  // would hand that campaign's content to the wrong kind's `advance` (04 §4).
+  const campaign = host.registry.campaigns.get(parsed.campaignId)!;
+  const campaignKindId = campaign.kindId;
+  if (parsed.kindId !== campaignKindId) {
+    emitSystemEvent(sink, CORE_EVENTS.deserializeRejected.name, CORE_EVENTS.deserializeRejected.severity, {
+      reason: "invalid_state",
+    });
+    const error: ValidationError = {
+      code: "invalid_state",
+      messageKey: "core.reason.invalid_state",
+      path: "kindId",
+      details: { kindId: parsed.kindId, campaignKindId },
+    };
+    return { ok: false, errors: [error], warnings: [] };
+  }
+
+  const kind = host.kinds[parsed.kindId]!;
+  if (!isAcceptedKindState(kind, parsed.kindState, campaign)) {
+    emitSystemEvent(sink, CORE_EVENTS.deserializeRejected.name, CORE_EVENTS.deserializeRejected.severity, {
+      reason: "invalid_state",
+    });
+    const error: ValidationError = { code: "invalid_state", messageKey: "core.reason.invalid_state", path: "kindState" };
     return { ok: false, errors: [error], warnings: [] };
   }
 

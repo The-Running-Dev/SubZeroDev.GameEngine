@@ -1,6 +1,6 @@
 import type { StateChange } from "../../../core/kernel/reasons.js";
 import type { WorldGraphSystemId } from "./order.js";
-import { worldGraphSystemIndex } from "./order.js";
+import { compareDefinitionId, worldGraphSystemIndex } from "./order.js";
 
 type ChangeValue = string | number | boolean;
 
@@ -23,8 +23,8 @@ interface OrderedChange {
 
 function compare(left: OrderedChange, right: OrderedChange): number {
   return left.systemIndex - right.systemIndex
-    || left.change.path.localeCompare(right.change.path)
-    || left.change.reason.localeCompare(right.change.reason)
+    || compareDefinitionId(left.change.path, right.change.path)
+    || compareDefinitionId(left.change.reason, right.change.reason)
     || left.ordinal - right.ordinal;
 }
 

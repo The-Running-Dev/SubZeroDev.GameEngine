@@ -56,6 +56,7 @@ function makeKind(version: string, migrateState?: Kind<unknown>["migrateState"])
     advance: (state): AdvanceResult<unknown> => ({ state, status: "active", changes: [], messages: [] }),
     project: (state) => state,
     validateCampaign: (): ValidationResult => ({ ok: true, errors: [], warnings: [] }),
+    validateState: () => true,
     outcome: () => ({ terminal: false, terminalId: null }),
     ...(migrateState ? { migrateState } : {}),
   };
@@ -308,5 +309,41 @@ describe("resolveSaveEnvelope — replayCompatible is sticky", () => {
     parsed["replayCompatible"] = true;
     const resolution = resolveSaveEnvelope(JSON.stringify(parsed), makeKinds(makeKind("1.0.0")), makeRegistry(makeCampaign("1.0.0")));
     expect(resolution).toEqual({ ok: false, code: "invalid_state" });
+  });
+});
+
+describe("resolveSaveEnvelope — the kind judges the kindState it would run (S126)", () => {
+  /** A kind that accepts only a `kindState` with a `renamedField` — the v2 shape. */
+  function judging(kind: Kind<unknown>): Kind<unknown> {
+    return { ...kind, validateState: (kindState) => typeof kindState === "object" && kindState !== null && "renamedField" in kindState };
+  }
+
+  it("refuses an unmigrated save the kind rejects as invalid_state", () => {
+    const resolution = resolveSaveEnvelope(v1Blob(), makeKinds(judging(makeKind("1.0.0"))), makeRegistry(makeCampaign("1.0.0")));
+    expect(resolution).toEqual({ ok: false, code: "invalid_state" });
+  });
+
+  it("judges after migration: a migration to a shape the kind accepts loads", () => {
+    const resolution = resolveSaveEnvelope(v1Blob(), makeKinds(judging(makeKind("2.0.0", kindMigrateV1toV2))), makeRegistry(makeCampaign("1.0.0")));
+    expect(resolution.ok).toBe(true);
+  });
+
+  it("a migration that produces a shape the kind rejects yields migration_failed", () => {
+    const identity = (state: unknown): CommandResult<unknown> => ({ ok: true, value: state, errors: [], warnings: [] });
+    const resolution = resolveSaveEnvelope(v1Blob(), makeKinds(judging(makeKind("2.0.0", identity))), makeRegistry(makeCampaign("1.0.0")));
+    expect(resolution).toEqual({ ok: false, code: "migration_failed" });
+  });
+
+  it("a validateState that throws is a refusal, not an uncaught exception", () => {
+    const throwing: Kind<unknown> = { ...makeKind("1.0.0"), validateState: () => { throw new Error("malformed"); } };
+    const resolution = resolveSaveEnvelope(v1Blob(), makeKinds(throwing), makeRegistry(makeCampaign("1.0.0")));
+    expect(resolution).toEqual({ ok: false, code: "invalid_state" });
+  });
+
+  it("the kind is asked about its own campaign", () => {
+    const seen: string[] = [];
+    const kind: Kind<unknown> = { ...makeKind("1.0.0"), validateState: (_state, campaign) => { seen.push(campaign.id); return true; } };
+    expect(resolveSaveEnvelope(v1Blob(), makeKinds(kind), makeRegistry(makeCampaign("1.0.0"))).ok).toBe(true);
+    expect(seen).toEqual(["synthetic-campaign"]);
   });
 });

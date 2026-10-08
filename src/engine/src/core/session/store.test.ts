@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { createEngine } from "../kernel/engine.js";
-import { createInMemorySessionStore } from "./store.js";
+import { createCountingIds } from "../determinism/counting-ids.js";
+import { createInMemorySessionStore, runExclusive } from "./store.js";
 import type {
   AdvanceResult,
   AvailableAction,
@@ -84,6 +85,7 @@ function makeTestKind(): Kind<TestKindState> {
     },
     project: (state, audience) => ({ counter: state.counter, audience }),
     validateCampaign: (): ValidationResult => ({ ok: true, errors: [], warnings: [] }),
+    validateState: () => true,
     // `counter=0` reports no terminal — lets a test drive "end" both with and without a
     // terminalId, to exercise the terminal-mirror's null-records-nothing rule (04 §7.1).
     outcome: (state) => ({
@@ -124,6 +126,7 @@ function makeStore(overrides?: {
   recordIds?: RecordIdSource;
   persistence?: SessionPersistence;
   clock?: { now(): string };
+  sessionCacheLimit?: number;
 }) {
   const registry = makeRegistry();
   return createInMemorySessionStore({
@@ -135,6 +138,7 @@ function makeStore(overrides?: {
     ...(overrides?.recordIds ? { recordIds: overrides.recordIds } : {}),
     ...(overrides?.persistence ? { persistence: overrides.persistence } : {}),
     ...(overrides?.clock ? { clock: overrides.clock } : {}),
+    ...(overrides?.sessionCacheLimit !== undefined ? { sessionCacheLimit: overrides.sessionCacheLimit } : {}),
   });
 }
 
@@ -248,38 +252,397 @@ describe("persistence error translation (G2 S1)", () => {
   });
 
   it("W75.4 — a conflict on submitAction leaves the cache no further ahead than persistence", async () => {
-    let writeCount = 0;
-    // Snapshotted, not captured by reference: the store mutates its cached record in place,
-    // so holding the object would show later state rather than what this write carried.
-    const written: StoredSessionRecord[] = [];
-    const store = makeStore({
-      persistence: persistenceWith({
-        sessions: {
-          get: async () => undefined,
-          put: async (record) => {
-            writeCount += 1;
-            // createSession's write (1) succeeds; submitAction's write (2) is the conflict.
-            if (writeCount === 2) throw { name: SESSION_PERSISTENCE_CONFLICT };
-            written.push({ ...record });
-          },
-        },
-      }),
-    });
+    const cas = makeCasPersistence();
+    const store = makeStore({ persistence: cas.persistence });
 
     const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+    cas.failNextPut({ name: SESSION_PERSISTENCE_CONFLICT });
     await expect(store.submitAction(sessionId, "increment")).rejects.toMatchObject({
       code: "concurrent_modification",
     });
 
+    // S122: the conflicted record is evicted, so this read goes back to persistence.
+    const reads = cas.reads;
     const scene = await store.getScene(sessionId);
     expect(scene.body.text).toBe("counter=0");
+    expect(cas.reads).toBe(reads + 1);
 
-    // Every field the refused `put` carried is rolled back, not just the blob. The counter
-    // is the one that is only observable on the next accepted write: had the conflict left
-    // it raised, this submission would persist `2` for its first surviving attempt.
     const result = await store.submitAction(sessionId, "increment");
     expect(result.ok).toBe(true);
-    expect(written.at(-1)).toMatchObject({ attemptCounter: 1 });
+    expect(cas.rows.get(sessionId)).toMatchObject({ revision: 1, attemptCounter: 1 });
+  });
+});
+
+/**
+ * An in-memory adapter that holds §7.2's compare-and-swap rule: a `put` for an existing
+ * `sessionId` lands only when the stored `revision` is the incoming one minus one. Records
+ * are copied in both directions, as a real database would, so the store's in-place mutation
+ * of its cache can never reach a stored row — unless `returnStoredRows` hands back the row
+ * object itself, as a naive in-memory adapter would.
+ */
+function makeCasPersistence(options?: { returnStoredRows?: boolean }): {
+  persistence: SessionPersistence;
+  rows: Map<string, StoredSessionRecord>;
+  readonly reads: number;
+  failNextPut(error: unknown): void;
+} {
+  const rows = new Map<string, StoredSessionRecord>();
+  let reads = 0;
+  let pendingFailure: { error: unknown } | undefined;
+  return {
+    rows,
+    get reads() { return reads; },
+    failNextPut(error) { pendingFailure = { error }; },
+    persistence: persistenceWith({
+      sessions: {
+        get: async (sessionId) => {
+          reads += 1;
+          const row = rows.get(sessionId);
+          if (options?.returnStoredRows) return row;
+          return row ? { ...row } : undefined;
+        },
+        put: async (record) => {
+          if (pendingFailure) {
+            const { error } = pendingFailure;
+            pendingFailure = undefined;
+            throw error;
+          }
+          const stored = rows.get(record.sessionId);
+          if (stored && stored.revision !== record.revision - 1) throw { name: SESSION_PERSISTENCE_CONFLICT };
+          rows.set(record.sessionId, { ...record });
+        },
+      },
+    }),
+  };
+}
+
+describe("S122 — a committed revision, separate from the attempt counter", () => {
+  it("S122.1 — a rejected action leaves the revision alone, so the next valid one commits", async () => {
+    const cas = makeCasPersistence();
+    const store = makeStore({ persistence: cas.persistence });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+    expect(cas.rows.get(sessionId)).toMatchObject({ revision: 0, attemptCounter: 0 });
+
+    const rejected = await store.submitAction(sessionId, "not-an-action");
+    expect(rejected.ok).toBe(false);
+
+    const accepted = await store.submitAction(sessionId, "increment");
+    expect(accepted.ok).toBe(true);
+    expect(accepted.scene?.body.text).toBe("counter=1");
+    // The attempt counter saw both submissions; the revision saw only the write.
+    expect(cas.rows.get(sessionId)).toMatchObject({ revision: 1, attemptCounter: 2 });
+  });
+
+  it("S122.2 — a preview leaves the revision alone, so the next valid action commits", async () => {
+    const cas = makeCasPersistence();
+    const store = makeStore({ persistence: cas.persistence });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+
+    const preview = await store.previewAction(sessionId, "increment");
+    expect(preview.ok).toBe(true);
+
+    const accepted = await store.submitAction(sessionId, "increment");
+    expect(accepted.ok).toBe(true);
+    expect(cas.rows.get(sessionId)).toMatchObject({ revision: 1, attemptCounter: 1 });
+  });
+
+  it("S122.3 — two store instances over one adapter: the loser gets concurrent_modification, and its retry sees the winner", async () => {
+    const cas = makeCasPersistence();
+    const first = makeStore({ persistence: cas.persistence });
+    const second = makeStore({ persistence: cas.persistence });
+
+    const { sessionId } = await first.createSession({ campaignId: "test-campaign" });
+    // Both instances now hold revision 0 in their caches.
+    expect((await second.getScene(sessionId)).body.text).toBe("counter=0");
+
+    expect((await first.submitAction(sessionId, "increment")).ok).toBe(true);
+    await expect(second.submitAction(sessionId, "increment")).rejects.toMatchObject({
+      name: "SessionStoreError",
+      code: "concurrent_modification",
+    });
+
+    // The retry re-reads persistence rather than replaying the stale cache, so it builds on
+    // the winner's write instead of colliding with it again.
+    const retried = await second.submitAction(sessionId, "increment");
+    expect(retried.ok).toBe(true);
+    expect(retried.scene?.body.text).toBe("counter=2");
+    expect(cas.rows.get(sessionId)).toMatchObject({ revision: 2 });
+  });
+
+  it("S122.4 — storage_failure restores the cached record and keeps it, without re-reading persistence", async () => {
+    const cas = makeCasPersistence();
+    const store = makeStore({ persistence: cas.persistence });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+
+    cas.failNextPut(new Error("disk full"));
+    await expect(store.submitAction(sessionId, "increment")).rejects.toMatchObject({ code: "storage_failure" });
+
+    const reads = cas.reads;
+    expect((await store.getScene(sessionId)).body.text).toBe("counter=0");
+    expect(cas.reads).toBe(reads);
+
+    // Every field the refused `put` carried was rolled back, the counter included: had it
+    // stayed raised, this write would carry attemptCounter 2 and the revision would skip.
+    expect((await store.submitAction(sessionId, "increment")).ok).toBe(true);
+    expect(cas.rows.get(sessionId)).toMatchObject({ revision: 1, attemptCounter: 1 });
+  });
+
+  it("S122.5 — a command already queued behind a conflicted write is refused too, never committed on top of it", async () => {
+    const cas = makeCasPersistence();
+    const first = makeStore({ persistence: cas.persistence });
+    const second = makeStore({ persistence: cas.persistence });
+
+    const { sessionId } = await first.createSession({ campaignId: "test-campaign" });
+    expect((await second.getScene(sessionId)).body.text).toBe("counter=0");
+    expect((await first.submitAction(sessionId, "increment")).ok).toBe(true);
+
+    // Both calls resolve the cached record before either takes the session lock.
+    const racing = second.submitAction(sessionId, "increment");
+    const queued = second.submitAction(sessionId, "increment");
+    await expect(racing).rejects.toMatchObject({ code: "concurrent_modification" });
+    await expect(queued).rejects.toMatchObject({ code: "concurrent_modification" });
+
+    expect(cas.rows.get(sessionId)).toMatchObject({ revision: 1 });
+    expect((await second.getScene(sessionId)).body.text).toBe("counter=1");
+  });
+
+  it("S122.6 — a record read back from persistence is the store's own copy, so an adapter returning its row still compares correctly", async () => {
+    const cas = makeCasPersistence({ returnStoredRows: true });
+    const first = makeStore({ persistence: cas.persistence });
+    const { sessionId } = await first.createSession({ campaignId: "test-campaign" });
+
+    // A second instance has to read the row from persistence, which hands back the row itself.
+    const second = makeStore({ persistence: cas.persistence });
+    const accepted = await second.submitAction(sessionId, "increment");
+    expect(accepted.ok).toBe(true);
+    expect(cas.rows.get(sessionId)).toMatchObject({ revision: 1 });
+  });
+});
+
+describe("S123 — a save exists only once it is durable", () => {
+  /** Map-backed sessions and saves, with a one-shot failure on the next save write. */
+  function makeDurablePersistence(): { persistence: SessionPersistence; savedRows: Map<string, StoredSaveRecord>; failNextSavePut(): void } {
+    const sessionRows = new Map<string, StoredSessionRecord>();
+    const savedRows = new Map<string, StoredSaveRecord>();
+    let failSave = false;
+    return {
+      savedRows,
+      failNextSavePut() { failSave = true; },
+      persistence: {
+        sessions: {
+          get: async (sessionId) => { const row = sessionRows.get(sessionId); return row ? { ...row } : undefined; },
+          put: async (record) => { sessionRows.set(record.sessionId, { ...record }); },
+        },
+        saves: {
+          get: async (saveId) => { const row = savedRows.get(saveId); return row ? { ...row } : undefined; },
+          put: async (record) => {
+            if (failSave) { failSave = false; throw new Error("disk full"); }
+            savedRows.set(record.saveId, { ...record });
+          },
+          listByProfile: async (profileId) => [...savedRows.values()].filter((row) => row.profileId === profileId).map((row) => ({ ...row })),
+          delete: async (saveId) => { savedRows.delete(saveId); },
+        },
+      },
+    };
+  }
+
+  it("S123.1–S123.3 — a save whose write fails is not listed, not loadable, and a fresh instance agrees", async () => {
+    const durable = makeDurablePersistence();
+    const store = makeStore({ persistence: durable.persistence, recordIds: makeCountingRecordIds() });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+
+    durable.failNextSavePut();
+    await expect(store.saveGame(sessionId)).rejects.toMatchObject({ code: "storage_failure" });
+    // The counting RecordIdSource minted "save-0" for the refused write.
+    expect(durable.savedRows.size).toBe(0);
+
+    expect(await store.listSaves("p1")).toEqual([]);
+    await expect(store.loadGame("save-0")).rejects.toMatchObject({ code: "unknown_save" });
+
+    const fresh = makeStore({ persistence: durable.persistence });
+    expect(await fresh.listSaves("p1")).toEqual([]);
+    await expect(fresh.loadGame("save-0")).rejects.toMatchObject({ code: "unknown_save" });
+  });
+
+  it("S123.4 — the session survives the failed save, and the next save is durable and listed", async () => {
+    const durable = makeDurablePersistence();
+    const store = makeStore({ persistence: durable.persistence, recordIds: makeCountingRecordIds() });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+
+    durable.failNextSavePut();
+    await expect(store.saveGame(sessionId)).rejects.toMatchObject({ code: "storage_failure" });
+
+    const saved = await store.saveGame(sessionId);
+    expect([...durable.savedRows.keys()]).toEqual([saved.saveId]);
+    expect((await store.listSaves("p1")).map((s) => s.saveId)).toEqual([saved.saveId]);
+    const fresh = makeStore({ persistence: durable.persistence });
+    expect((await fresh.loadGame(saved.saveId)).scene.body.text).toBe("counter=0");
+  });
+});
+
+describe("S127 — the store's lock and cache maps are bounded", () => {
+  /** A promise and the function that settles it. */
+  function deferred(): { promise: Promise<void>; resolve(): void } {
+    let resolve = () => {};
+    const promise = new Promise<void>((r) => { resolve = r; });
+    return { promise, resolve };
+  }
+
+  /** Lets every already-settled promise chain run to the end. */
+  async function drain(): Promise<void> {
+    for (let i = 0; i < 10; i += 1) await Promise.resolve();
+  }
+
+  it("S127.1 — the lock map is empty after N sequential runs, rejected ones included", async () => {
+    const locks = new Map<string, Promise<unknown>>();
+    for (let i = 0; i < 25; i += 1) {
+      const run = runExclusive(locks, "s", async () => {
+        if (i % 5 === 0) throw new Error("refused");
+        return i;
+      });
+      await run.catch(() => undefined);
+    }
+    await drain();
+    expect(locks.size).toBe(0);
+  });
+
+  it("S127.2 — the lock map is empty after N concurrent runs, and they ran in call order", async () => {
+    const locks = new Map<string, Promise<unknown>>();
+    const order: number[] = [];
+    await Promise.all(Array.from({ length: 25 }, (_, i) => runExclusive(locks, `s${i % 3}`, async () => { order.push(i); })));
+    await drain();
+    expect(locks.size).toBe(0);
+    expect(order.filter((i) => i % 3 === 0)).toEqual([0, 3, 6, 9, 12, 15, 18, 21, 24]);
+  });
+
+  it("S127.3 — an operation queued behind a settling one keeps its place in the queue", async () => {
+    const locks = new Map<string, Promise<unknown>>();
+    const order: string[] = [];
+    const first = deferred();
+    const second = deferred();
+    const a = runExclusive(locks, "s", async () => { await first.promise; order.push("a"); });
+    const b = runExclusive(locks, "s", async () => { await second.promise; order.push("b"); });
+
+    first.resolve();
+    await a;
+    await drain();
+    // a's cleanup has run; b's entry, still the tail, must not have gone with it.
+    expect(locks.has("s")).toBe(true);
+    const c = runExclusive(locks, "s", async () => { order.push("c"); });
+
+    second.resolve();
+    await Promise.all([b, c]);
+    await drain();
+    expect(order).toEqual(["a", "b", "c"]);
+    expect(locks.size).toBe(0);
+  });
+
+  /** Two sessions, five actions interleaved across them, then each one's stored rows. */
+  async function play(sessionCacheLimit?: number) {
+    const cas = makeCasPersistence();
+    const store = makeStore({
+      persistence: cas.persistence,
+      engine: makeEngine({ ids: createCountingIds() }),
+      recordIds: makeCountingRecordIds(),
+      ...(sessionCacheLimit !== undefined ? { sessionCacheLimit } : {}),
+    });
+    const a = await store.createSession({ campaignId: "test-campaign", seed: "s127-a" });
+    const b = await store.createSession({ campaignId: "test-campaign", seed: "s127-b" });
+    await store.submitAction(a.sessionId, "increment");
+    await store.submitAction(b.sessionId, "increment");
+    await store.submitAction(a.sessionId, "increment");
+    const scenes = [(await store.getScene(a.sessionId)).body.text, (await store.getScene(b.sessionId)).body.text];
+    const rows = [...cas.rows.values()].map(({ sessionId, blob, revision, attemptCounter }) => ({ sessionId, blob, revision, attemptCounter }));
+    return { scenes, rows, reads: cas.reads };
+  }
+
+  it("S127.4 — an evicted session reloads from persistence and continues identically", async () => {
+    const unbounded = await play();
+    const bounded = await play(1);
+    expect(unbounded.reads).toBe(0);
+    expect(bounded.reads).toBeGreaterThan(0);
+    expect(bounded.scenes).toEqual(["counter=2", "counter=1"]);
+    expect(bounded.scenes).toEqual(unbounded.scenes);
+    expect(bounded.rows).toEqual(unbounded.rows);
+  });
+
+  it("S127.5 — a session a command holds is not evicted under it, so concurrent commands never conflict", async () => {
+    const cas = makeCasPersistence();
+    const store = makeStore({ persistence: cas.persistence, recordIds: makeCountingRecordIds(), sessionCacheLimit: 1 });
+    const a = await store.createSession({ campaignId: "test-campaign" });
+    const b = await store.createSession({ campaignId: "test-campaign" });
+
+    const results = await Promise.all([
+      store.submitAction(a.sessionId, "increment"),
+      store.submitAction(b.sessionId, "increment"),
+      store.submitAction(a.sessionId, "increment"),
+      store.submitAction(b.sessionId, "increment"),
+    ]);
+
+    expect(results.every((result) => result.ok)).toBe(true);
+    expect((await store.getScene(a.sessionId)).body.text).toBe("counter=2");
+    expect((await store.getScene(b.sessionId)).body.text).toBe("counter=2");
+    expect([...cas.rows.values()].map((row) => row.revision)).toEqual([2, 2]);
+  });
+
+  it("S127.6 — a session a command is still writing is not evicted, so the next command builds on that write", async () => {
+    const rows = new Map<string, StoredSessionRecord>();
+    let gate: { entered: () => void; release: Promise<void> } | undefined;
+    const persistence = persistenceWith({
+      sessions: {
+        get: async (sessionId) => { const row = rows.get(sessionId); return row ? { ...row } : undefined; },
+        put: async (record) => {
+          if (gate) { const held = gate; gate = undefined; held.entered(); await held.release; }
+          const stored = rows.get(record.sessionId);
+          if (stored && stored.revision !== record.revision - 1) throw { name: SESSION_PERSISTENCE_CONFLICT };
+          rows.set(record.sessionId, { ...record });
+        },
+      },
+    });
+    const store = makeStore({ persistence, sessionCacheLimit: 1 });
+    const a = await store.createSession({ campaignId: "test-campaign" });
+    const b = await store.createSession({ campaignId: "test-campaign" });
+
+    const entered = deferred();
+    const release = deferred();
+    gate = { entered: entered.resolve, release: release.promise };
+    const first = store.submitAction(a.sessionId, "increment");
+    await entered.promise; // the first command is inside its write
+    await store.getScene(b.sessionId); // b becomes the most recently used — a is the eviction candidate
+    const second = store.submitAction(a.sessionId, "increment");
+    release.resolve();
+
+    expect((await Promise.all([first, second])).every((result) => result.ok)).toBe(true);
+    expect((await store.getScene(a.sessionId)).body.text).toBe("counter=2");
+  });
+
+  it("S127.7 — with persistence, a save is read from it every time, never from the store's memory", async () => {
+    const rows = new Map<string, StoredSaveRecord>();
+    const store = makeStore({
+      persistence: persistenceWith({
+        saves: {
+          get: async (saveId) => rows.get(saveId),
+          put: async (record) => { rows.set(record.saveId, { ...record }); },
+          listByProfile: async (profileId) => [...rows.values()].filter((row) => row.profileId === profileId),
+          delete: async (saveId) => { rows.delete(saveId); },
+        },
+      }),
+    });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    const saved = await store.saveGame(sessionId);
+    expect((await store.listSaves("p1")).map((s) => s.saveId)).toEqual([saved.saveId]);
+
+    rows.delete(saved.saveId); // removed behind the store's back, as another instance would
+    expect(await store.listSaves("p1")).toEqual([]);
+    await expect(store.loadGame(saved.saveId)).rejects.toMatchObject({ code: "unknown_save" });
+  });
+
+  it("S127.8 — sessionCacheLimit is a positive integer, and refused without persistence", () => {
+    const persistence = persistenceWith();
+    expect(() => makeStore({ persistence, sessionCacheLimit: 0 })).toThrow(RangeError);
+    expect(() => makeStore({ persistence, sessionCacheLimit: 1.5 })).toThrow(RangeError);
+    expect(() => makeStore({ sessionCacheLimit: 10 })).toThrow(RangeError);
+    expect(() => makeStore({ persistence, sessionCacheLimit: 10 })).not.toThrow();
   });
 });
 
@@ -1233,8 +1596,16 @@ describe("session lifecycle — listSaves / deleteSave / branchSession (04 §7.4
 
     it("a multi-instance conflict branded by the adapter's own conditional delete surfaces as concurrent_modification", async () => {
       const conflict = { name: SESSION_PERSISTENCE_CONFLICT };
+      const rows = new Map<string, StoredSaveRecord>();
       const store = makeStore({
-        persistence: persistenceWith({ saves: { delete: async () => { throw conflict; } } }),
+        persistence: persistenceWith({
+          saves: {
+            get: async (saveId) => rows.get(saveId),
+            put: async (record) => { rows.set(record.saveId, record); },
+            listByProfile: async (profileId) => [...rows.values()].filter((row) => row.profileId === profileId),
+            delete: async () => { throw conflict; },
+          },
+        }),
       });
       const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
       const saved = await store.saveGame(sessionId);
@@ -1456,6 +1827,7 @@ function makeProfileTestKind(): Kind<ProfileKindState> {
     },
     project: (state) => state,
     validateCampaign: (): ValidationResult => ({ ok: true, errors: [], warnings: [] }),
+    validateState: () => true,
     outcome: () => ({ terminal: false, terminalId: null }),
     profileData: {
       version: 1,
@@ -1597,5 +1969,86 @@ describe("W102 — Kind.profileData, the third profile mirror", () => {
       { kindId: "some-other-kind", dataVersion: 9, data: { anything: true } },
       { kindId: "story-graph", dataVersion: 1, data: { max: 1 } },
     ]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// S121 — one player-response projection at the session boundary (20-contract.md §7)
+// ---------------------------------------------------------------------------
+
+const S121_SECRET = "s121-secret-8675309";
+
+function makeHiddenOutputKind(): Kind<TestKindState> {
+  const base = makeTestKind();
+  return {
+    ...base,
+    advance: (state, actionId): AdvanceResult<TestKindState> => {
+      const messages = [
+        { key: "test.hidden", params: { code: S121_SECRET }, visible: false },
+        { key: "test.shown", visible: true },
+      ];
+      if (actionId === "reveal") {
+        return {
+          state: { counter: state.counter + 1 },
+          status: "active",
+          changes: [
+            { path: "secret", op: "set", value: S121_SECRET, reason: "test_hidden", visible: false },
+            // A hidden-path unlock: the profile fold must still see it.
+            { path: "achieved.hidden-path", op: "set", value: true, reason: "achievement_unlocked", visible: false },
+            { path: "counter", op: "set", value: state.counter + 1, reason: "test_shown", visible: true },
+          ],
+          messages,
+        };
+      }
+      return {
+        state,
+        status: "active",
+        changes: [],
+        messages,
+        error: { code: "test_refused", messageKey: "test.refused" },
+      };
+    },
+  };
+}
+
+function makeHiddenOutputStore(profiles?: ProfileStore): SessionStore {
+  const kinds = { "story-graph": makeHiddenOutputKind() } as unknown as KindRegistry;
+  const registry = makeRegistry();
+  return createInMemorySessionStore({
+    engine: createEngine({ kinds, registry }),
+    registry,
+    ...(profiles ? { profiles } : {}),
+  });
+}
+
+describe("S121 — the store returns only visible changes and messages", () => {
+  for (const operation of ["previewAction", "submitAction"] as const) {
+    for (const actionId of ["reveal", "refuse"]) {
+      it(`${operation} ${actionId === "reveal" ? "accept" : "reject"}: the whole serialized result carries no hidden record`, async () => {
+        const store = makeHiddenOutputStore();
+        const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+        const result = await store[operation](sessionId, actionId);
+
+        expect(result.ok).toBe(actionId === "reveal");
+        // The review's shape: scan everything the caller receives, not just scene or view.
+        expect(JSON.stringify(result)).not.toContain(S121_SECRET);
+        expect(result.changes.every((change) => change.visible)).toBe(true);
+        expect(result.messages).toEqual([{ key: "test.shown", visible: true }]);
+        if (actionId === "reveal") {
+          expect(result.changes.map((change) => change.path)).toEqual(["counter"]);
+        }
+      });
+    }
+  }
+
+  it("the profile fold still reads the full result: a hidden-path achievement unlocks", async () => {
+    const profiles = createInMemoryProfileStore();
+    const store = makeHiddenOutputStore(profiles);
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    const result = await store.submitAction(sessionId, "reveal");
+
+    expect(result.changes.some((change) => change.reason === "achievement_unlocked")).toBe(false);
+    const { profile } = await profiles.load("p1");
+    expect(profile.achievements).toEqual([{ campaignId: "test-campaign", achievementId: "hidden-path" }]);
   });
 });

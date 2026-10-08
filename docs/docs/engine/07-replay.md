@@ -55,19 +55,32 @@ The load-bearing property, and the reason this is tractable at all:
 interface ReplayFixture {
   readonly name: string;
   readonly config: NewGameConfig;         // campaignId, seed (04 §5)
-  readonly campaignVersion: string;       // pinned here, not in NewGameConfig — below
+  readonly campaignVersion: string;       // the STARTING epoch, not in NewGameConfig — below
   readonly capturedUnder: string;         // the engine version that recorded the outcome
   readonly submissions: readonly Submission[];   // every attempt, accepted or not — §2.1
 }
 
-interface Submission {
+type Submission = ActionSubmission | AdoptionSubmission;
+
+interface ActionSubmission {
   readonly actionId: string;
   readonly params?: Readonly<Record<string, string | number | boolean>>;
+}
+
+/** A recorded content adoption (16 §5.6) — only adoptions that happened are recorded. */
+interface AdoptionSubmission {
+  readonly adopt: string;                 // the campaignVersion adopted
 }
 ```
 
 Every value is an **id or a primitive**, and ids are *stable once published* — a rename is a
 migration ([`04-core.md`](04-core.md) §17). Nothing here is engine internals.
+
+> **`campaignVersion` is where the game starts, not where it ends.** A session that adopted
+> new content (16) carries content entries in its log; the fixture records each as an
+> `AdoptionSubmission` at its position, and `campaignVersion` is the epoch before the first.
+> A fixture with no adoption — every fixture written before content epochs — reads exactly as
+> it always did, because `ActionSubmission` is the old `Submission` unchanged.
 
 > **Why this is not `PlaythroughFixture` (04 §14).** Two fields that document needs and the
 > determinism harness does not.
@@ -101,7 +114,8 @@ action and §6 continues past a rejection specifically to see whether a later ac
 recovered — neither of which is possible from data that excludes rejections. So the fixture
 carries its own `submissions` list, and `Decision[]` is exactly parallel to it.
 
-The relationship to 04 §14 is then clean: filtering `submissions` to the accepted ones
+The relationship to 04 §14 is then clean: filtering `submissions` to the accepted ones —
+accepted actions and the adoptions, which are recorded only when they happened —
 reconstructs an `actionLog`, so a `ReplayFixture` can always produce a `PlaythroughFixture`,
 but not the reverse.
 
@@ -117,8 +131,8 @@ be guaranteed to regenerate it.
 > state.**
 >
 > The exception is real but narrow: a fixture whose campaign no longer exists, or whose
-> `campaignVersion` has been withdrawn, cannot run at all. §6 treats that as a distinct
-> result rather than a failure.
+> starting or adopted version has been withdrawn, cannot run at all. §6 treats that as a
+> distinct result rather than a failure.
 
 ---
 
@@ -137,12 +151,22 @@ interface Outcome {
   readonly terminal?: unknown;               // the kind's terminal identity — §3.3
 }
 
-interface Decision {
+type Decision = ActionDecision | AdoptionDecision;
+
+interface ActionDecision {
   readonly index: number;                    // 0-based position in submissions — §3.1
   readonly seq: number | null;               // the accepted log position, null if rejected
   readonly actionId: string;
   readonly accepted: boolean;
   readonly reason?: ReasonCode;              // set iff rejected (04 §12)
+}
+
+interface AdoptionDecision {
+  readonly index: number;
+  readonly seq: number | null;               // the content entry's position, null if pinned
+  readonly adopt: string;
+  readonly accepted: boolean;                // false: the kind now refuses — a divergence (16 §5.6)
+  readonly reason?: ReasonCode;              // set iff refused
 }
 ```
 
@@ -154,7 +178,8 @@ interface Decision {
   them the ideal cross-version vocabulary: the platform guarantees their meaning survives
   exactly as long as this oracle needs it to.
 - Achievement ids are stable published ids (04 §17), read as §3.2 describes.
-- `acceptedActions` is a count of log entries.
+- `acceptedActions` is a count of accepted *actions*; an adoption is a log entry but not an
+  action, and appears only in `decisions`.
 
 ### 3.1 `index`, Because `seq` Is Not Unique
 
@@ -321,9 +346,15 @@ type ReplayVerdict =
   | { kind: "unrunnable"; reason: "campaign_withdrawn" | "campaign_version_missing" };
 ```
 
-The runner resolves the fixture's `campaignVersion` in the registry, builds an `Engine` with
-a counting `IdSource` and pairs it with an in-memory `ProfileStore` (§3.2), creates a game
-from `config`, submits each `Submission` in order, builds an `Outcome`, and compares.
+The runner resolves the fixture's `campaignVersion` and every adopted version through the
+archive it is given (16 §4.1; with none, the registry alone), builds an `Engine` with a counting
+`IdSource` and pairs it with an in-memory `ProfileStore` (§3.2), creates a game with
+`createGame(config, fixture.campaignVersion)`, submits each `Submission` in order — an action
+through `submitAction`, an adoption through `adoptContent` — builds an `Outcome`, and compares.
+
+> **`campaign_version_missing` widened rather than renamed.** It now means *any* version the
+> fixture names — the start or an adoption — does not resolve. The verdict type is public and
+> three suites switch on it, and widening a trigger costs nothing a rename would not.
 
 `at` is the **`index`** of the first differing `Decision`, not a `seq` — §3.1 explains why
 `seq` cannot serve. `capturedUnder` comes from the fixture, so a divergence report names both

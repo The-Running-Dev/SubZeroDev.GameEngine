@@ -105,7 +105,7 @@ what `advance`, `serialize`, and the session store operate on.
 type KindId = "story-graph" | "simulation" | "world-graph";
 
 interface GameState {
-  formatVersion: number;         // the shape of THIS envelope — see §10.2
+  formatVersion: number;         // the shape of THIS envelope — 1, or 2 once the log carries a content entry (§10.2)
   gameId: string;                // from the IdSource port (06 §5.1); opaque to the core
 
   kindId: KindId;
@@ -117,17 +117,34 @@ interface GameState {
   status: GameStatus;            // active | ended | abandoned
   kindState: unknown;            // the kind's own state — opaque to the core
 
-  actionLog: LoggedAction[];     // ordered player actions — the replay spine (§9)
+  actionLog: LoggedEntry[];      // ordered entries — the replay spine (§9)
 }
 
 type GameStatus = "active" | "ended" | "abandoned";
 
+type LoggedEntry = LoggedAction | LoggedContent;
+
 interface LoggedAction {
-  seq: number;                   // 0-based, monotonic
+  seq: number;                   // 0-based, monotonic across both entry types
   actionId: string;              // the action the player submitted
   params?: Readonly<Record<string, string | number | boolean>>;
 }
+
+interface LoggedContent {        // an adoption (16 §3.1)
+  seq: number;                   // consumes a seq, exactly like an action
+  system: "content";
+  from: string;                  // the campaignVersion before adoption
+  to: string;                    // the campaignVersion after — the last entry's `to` IS campaignVersion
+}
 ```
+
+**The log records adoptions, and the starting epoch is derived from it.** A game that adopts new
+content mid-play (§4, `adoptContent`; [`16-content-epochs.md`](16-content-epochs.md)) appends a `LoggedContent` entry, so the replay input is
+`{ seed, starting version, actionLog }`, where the starting version is the first content
+entry's `from`, or `campaignVersion` when the log carries none. It is not stored: a
+`startingCampaignVersion` field would duplicate what the log already says. `formatVersion` is `2`
+exactly on a state whose log carries a content entry, and `1` otherwise — a game that never
+adopts serializes byte-identically to one written before content epochs existed (C26).
 
 **What lives here vs in `kindState`.** The envelope holds everything a game has
 *regardless of kind*: identity, campaign reference, seed, status, and the action
@@ -215,6 +232,15 @@ interface Kind<KState> {
   validateCampaign(campaign: Campaign, strings: ReadonlyMap<LocKey, string>): ValidationResult;
 
   /**
+   * Whether a `kindState` arriving from outside the engine is one this kind can run against
+   * `campaign`. The core checks `kindState` for presence only — its shape is the kind's to
+   * state — so `deserialize` asks here after its own checks (§4), and the save boundary asks
+   * again after any migration (§10.2). Pure and total over `unknown`: same input, same
+   * answer, and a throw is read as `false`. Never consulted on a state the engine produced.
+   */
+  validateState(kindState: unknown, campaign: Campaign): boolean;
+
+  /**
    * A minimal, cross-version-stable terminal identity — published ids only, never
    * values ([`07-replay.md`](07-replay.md) §3.3). Every kind returns at least
    * `KindOutcome` (§3.2) and may widen it with its own published ids.
@@ -237,6 +263,16 @@ interface Kind<KState> {
    * silently handing this version a state it wasn't written to read.
    */
   migrateState?(oldState: unknown, fromVersion: string): CommandResult<KState>;
+
+  /**
+   * Whether a running `state` can move from campaign `from` to campaign `to`, two published
+   * epochs of the same campaign id, and what it becomes (16 §5.4).
+   * Called by `Engine.adoptContent` after the target campaign's `migrateState` ran. Optional:
+   * **absent means every session of this kind stays pinned** to the epoch it started on, which
+   * is the safe default. Pure; reads neither the archive, the channel nor the log; draws no
+   * randomness. A throw is read as a refusal with `content_incompatible`.
+   */
+  adoptContent?(state: KState, from: Campaign, to: Campaign): AdoptDecision<KState>;
 
   /**
    * This kind's cross-game profile slice (§7.1). **Absent means the kind owns no profile
@@ -318,7 +354,15 @@ interface InitialStateResult<KState> {
   changes: StateChange[];
   messages: OutcomeMessage[];
 }
+
+type AdoptDecision<KState> =
+  | { adopt: true; state: KState }        // the kind-state on the new epoch
+  | { adopt: false; reason: ReasonCode }; // stays pinned; a base or this kind's own code
 ```
+
+> **Why `AdoptDecision` carries no changes or messages.** Adoption is not play: nothing about it
+> may reach the profile fold (§7.1) or claim a turn happened (C24). A kind that wants the player
+> told renders it in the next scene from state, which the client re-renders anyway.
 
 > **Why `initialState` returns a result, not a bare `KState`.** A kind that settles at
 > start (story-graph, 03 §8.2) can land on an ending before the player acts — a valid
@@ -485,7 +529,15 @@ interface Engine {
    *  holds rather than taking a second, independently-suppliable registry that could
    *  silently disagree with what this engine actually plays against. */
   readonly kinds: KindRegistry;
-  createGame(config: NewGameConfig): CommandResult<GameState>;
+  /** The archive this engine resolves every state's content through (06 §4,
+   *  `EngineHost.archive`) — by default one holding only the construction-time registry.
+   *  Exposed for the same reason as `kinds`: the session store and replay runner read the
+   *  epoch the engine actually plays against, never a second copy. */
+  readonly content: ResolutionArchive;
+  /** `campaignVersion` absent → the construction-time registry's version for that campaign
+   *  (the default epoch); present → that epoch, or `unknown_campaign`. `NewGameConfig` does
+   *  not carry it: a version is not something a player chooses (07 §2). */
+  createGame(config: NewGameConfig, campaignVersion?: string): CommandResult<GameState>;
   scene(state: GameState): Scene;                       // §6
   view(state: GameState, audience: ProjectionAudience): PlayerView;   // §9
   availableActions(state: GameState): AvailableAction[];
@@ -494,6 +546,10 @@ interface Engine {
   serialize(state: GameState): string;                  // §10 (canonical)
   deserialize(data: string): CommandResult<GameState>;
   migrate(data: string): CommandResult<GameState>;      // §10
+  /** Move a running state onto another published epoch of its campaign, or say why not
+   *  (16 §5.4). Never a rejection: a refusal is a value, so the
+   *  session store can complete the command it rides on. */
+  adoptContent(state: GameState, campaignVersion: string): AdoptionResult;
 
   /** The same engine, with every event stamped for one command
    *  ([`05-observability.md`](05-observability.md) §6.1). The session store builds a
@@ -502,13 +558,59 @@ interface Engine {
    *  the canonical `Engine` block; 05 §6.1 owns the reasoning. */
   withEmitter(emitter: Emitter): Engine;
 }
+
+interface ResolutionArchive {
+  /** The registry the epoch `(campaignId, campaignVersion)` was published in, or undefined.
+   *  One key names one content forever (C23). Pure from the engine's view: the same key
+   *  answers the same registry for the archive's lifetime. */
+  resolve(campaignId: string, campaignVersion: string): ContentRegistry | undefined;
+}
+
+type AdoptionResult =
+  | { adopted: true; state: GameState }
+  | { adopted: false; reason: ReasonCode };
+
+/** The reference archive (16 §4.3): both archive and channel, in memory, append-only. */
+function createContentArchive(options: {
+  kinds: KindRegistry;
+  initial: ContentRegistry;      // the first publication — normally the engine's own registry
+}): ContentArchive;
+
+interface ContentArchive extends ResolutionArchive, ContentChannel {
+  /** Validate every campaign against `registry.strings`, refuse a held key with a different
+   *  digest (`content_version_conflict`), then store deep-frozen copies and make this the
+   *  latest. Returns the epochs newly added; an identical republish adds none. */
+  publish(registry: ContentRegistry): CommandResult<readonly EpochRef[]>;
+  /** The last publication that succeeded. Its channel answers this registry's version of
+   *  the scope's campaign, for every scope. */
+  latest(): ContentRegistry;
+}
+
+interface EpochRef {
+  campaignId: string;
+  campaignVersion: string;
+}
 ```
+
+`createContentArchive` refuses an `initial` registry that fails validation the same way
+`publish` does, by throwing — a construction error, like every other one this section names.
+
+**Every state-taking operation resolves content by the state.** `scene`, `view`,
+`availableActions`, `submitAction`, `previewAction`, `deserialize`, `migrate` and `adoptContent`
+look up `content.resolve(state.campaignId, state.campaignVersion)` and hand that registry to the
+kind as `KindContext.registry` and its campaign as `KindContext.campaign` (§3.1). The
+construction-time `registry` is the default epoch — the one `createGame` starts on when no
+version is asked for — not the only content. An `EngineHost.archive` that does not resolve every
+campaign of `registry` at its registered version is a construction error, the treatment a
+missing kind gets. With no archive supplied, every behaviour below is unchanged.
 
 `submitAction` is the whole loop, in the core:
 
 ```text
 submitAction(state, actionId, params):
-  1. kind = kinds[state.kindId];  seq = state.actionLog.length   // 0-based, monotonic
+  1. kind = kinds[state.kindId];  seq = state.actionLog.length   // 0-based, monotonic; counts content entries too
+     registry = content.resolve(state.campaignId, state.campaignVersion)   // by state, above
+     campaign = registry.campaigns[state.campaignId]
   2. handle = rngHandleFor(state.seed, { kind:"action", seq })   // §8 — derived, not carried
   3. emit = resolutionEmitter(emitter, state.gameId, seq)        // 05 §4 — ordinal starts at 0
   4. result = kind.advance(state.kindState, actionId, params,
@@ -537,13 +639,41 @@ so it cannot masquerade as a committed command.
 > ([`05-observability.md`](05-observability.md) §5, §6).
 
 Immutability is unconditional (games/04-engine-specification.md §11.3): every operation returns a new envelope.
+Its converse holds too: **the engine owns what it logs.** `submitAction` and `previewAction`
+copy `params` once on entry, and both step 4's `advance` and step 6's `LoggedAction` receive that
+copy, so a caller mutating its own object afterwards cannot rewrite the replay spine.
+`ActionParams` is a flat record of primitives, so a shallow copy is the whole value.
+
+**`deserialize` resolves a state against this host, or refuses it.** A shape-valid envelope
+is rejected with `unknown_campaign` when its `campaignId` is not in the registry, with
+`unknown_kind` when its `kindId` is not registered, and with `invalid_state` when both resolve
+but `kindId` is not that campaign's own `kindId`. Last, the kind judges the payload:
+`Kind.validateState(kindState, campaign)` (§3) returning `false`, or throwing, rejects with
+`invalid_state` at `path: "kindState"`. Each rejection emits `core.deserialize.rejected`
+([`05-observability.md`](05-observability.md) §8), and `migrate` inherits all four. The kind
+agreement check is the raw path's copy of a cross-check the save path already makes (§10.2).
+Without it, a state could hand one kind's `advance` another kind's campaign; without the last,
+a `kindState` of the wrong shape reaches `advance` and fails there, as a throw or a
+`NaN`, rather than at the boundary.
+
+**`campaignVersion` resolves through the archive, and a log's content entries must agree with
+it.** `unknown_campaign` also covers a `campaignId` the archive holds at no epoch matching
+`campaignVersion`: a state is played against the content it names or not at all, never silently
+against whatever this host registered under the id (C22). Two `invalid_state` refusals guard the
+log: a `formatVersion: 1` state whose log carries a content entry, and a state whose last content
+entry's `to` is not its `campaignVersion` (C26). A `formatVersion` above `2` refuses as every
+unknown version does. This closes the gap an earlier revision recorded here as known and
+retained — a state serialized under one resolution and accepted under another
+(`90-decisions.md`, 2026-10-08).
 
 **`createGame`** assembles the envelope and delegates the start to the kind:
 
 ```text
-createGame(config):
+createGame(config, campaignVersion?):
   0. gameId = ids.newGameId()                                // 06 §5.1 — the IdSource port
-  1. campaign = registry.campaigns[config.campaignId]        // kind = campaign.kindId
+  1. version = campaignVersion ?? registry.campaigns[config.campaignId].version
+     campaign = content.resolve(config.campaignId, version)?.campaigns[config.campaignId]
+     // missing → unknown_campaign; kind = campaign.kindId
   2. seed = config.seed ?? ids.newSeed()                     // 06 §5.1 — recorded in the envelope
   3. startHandle = rngHandleFor(seed, { kind:"system", system:"start", seq:0 })   // §8
   4. startEmit = resolutionEmitter(emitter, gameId, 0)            // 05 §4 — seq 0, ordinal 0
@@ -730,8 +860,8 @@ interface SessionActionResult {
   scene?: Scene;                 // the new scene, on success — a projection (§9)
   errors: ValidationError[];
   warnings: ValidationWarning[];
-  changes: StateChange[];        // audit records, `visible`-gated (§12)
-  messages: OutcomeMessage[];
+  changes: StateChange[];        // audit records; the store returns only `visible: true` (§12)
+  messages: OutcomeMessage[];    // likewise, only `visible: true`
 }
 
 type StringTable = Readonly<Record<LocKey, string>>;
@@ -743,6 +873,13 @@ type StringTable = Readonly<Record<LocKey, string>>;
 > (§4), whose caller is the store; handing it to a client would put raw state on the other
 > side of the projection boundary and make §9 a convention rather than a guarantee. The
 > store unwraps it and returns a `Scene`.
+
+> **The store gates `visible`, for every audience.** `submitAction` and `previewAction` drop
+> every `StateChange` and `OutcomeMessage` whose `visible` is `false`, on accept and reject
+> alike and for `ai` as well as `player`: a gate left to the client hides nothing from the
+> client. The engine's `ActionResult` stays complete. It is the audit surface the profile fold
+> (§7.1), replay and observability read, and the store folds the profile from it before it
+> projects the result.
 
 > **`createSession` takes `CreateSessionConfig`.** It previously took `NewGameConfig`, which
 > carries no `profileId` — leaving `CreateSessionConfig` defined and unreachable, and no way
@@ -795,6 +932,45 @@ one command computes — so this is a store-layer concurrency contract, not a de
 > persistence, and emits no action lifecycle event (§4). That is the query/command split above
 > taken literally — a preview is a read that happens to run the write path, so it must be
 > ordered like a write and recorded like a read.
+
+**New content reaches a running session at four adoption points, and nowhere else** (C25;
+16 §5.3). A host offers content through an optional
+`SessionHost.content: ContentChannel` (06 §4):
+
+```typescript
+interface ContentChannel {
+  /** The campaignVersion a session in this scope should be on, or undefined for no offer.
+   *  Called under the session lock. A throw is read as no offer. */
+  current(scope: ContentScope): string | undefined;
+}
+
+interface ContentScope {
+  campaignId: string;
+  sessionId: string;
+  profileId?: string;            // absent for an anonymous session
+}
+```
+
+| Point | When | Persisted in |
+|---|---|---|
+| `submitAction` | After the action commits, before the scene is projected | The accepted action's write |
+| `resumeSession` | Before the scene is returned | Its own write |
+| `loadGame` | After the save resolves, before the scene is returned | The new session's first write |
+| `branchSession` | After the retained prefix replays, before the scene is returned | The branch's first write |
+
+At each, under the session lock, the store asks the channel; if it names a version other than
+the state's, it calls `engine.adoptContent(state, version)` and persists and projects whichever
+state results. A refusal leaves the session pinned and the command completes on the old epoch,
+so **adoption never fails a command** — nor does a failed adoption-only write at
+`resumeSession`: the store restores the unadopted state, returns its scene, and the next
+adoption point offers again. Queries never adopt, a rejected action never adopts, and
+`previewAction` never consults the channel. `createSession` asks the channel once for the version
+to start on and passes it to `createGame(config, version)`; that is creation, not adoption, and
+logs no content entry. With no channel, no session is ever offered content, and every operation
+above behaves as it did before content epochs existed.
+
+`getStrings` and every projection resolve through the session's *current* epoch: after an
+adoption, the table is the one the new content was published with.
 
 ### 7.1 The Profile Store
 
@@ -1021,7 +1197,8 @@ interface StoredSessionRecord {
   sessionId: string;
   blob: string;                  // the canonical serialization (§2), never a live object
   audience: ProjectionAudience;
-  attemptCounter: number;
+  attemptCounter: number;        // telemetry stamping only (05 §6) — never compared by an adapter
+  revision: number;              // the committed-write counter, below — 0 when first written
   replayCompatible: boolean;
   createdAt: string;             // Clock (06 §5.4), never Date.now
   updatedAt: string;
@@ -1058,9 +1235,25 @@ interface SessionPersistence {
 }
 ```
 
-**Omitted → in-memory, which is the MVP default.** The store keeps its own maps either way and
-consults `persistence` only on a miss, so a host adapter is a durability layer, not a
-replacement for the store's bookkeeping.
+**`revision` is what a multi-writer adapter compares; `attemptCounter` never is.** The two
+count different things. `attemptCounter` stamps telemetry (05 §6), and `submitAction` advances it
+before dispatch, so a rejected submission moves it with no write behind it. `revision` is `0`
+when a record is first written by `createSession`, `loadGame` or `branchSession` — an adoption
+riding on that first write leaves it at `0`. It rises by exactly one on every accepted
+`submitAction` write, whether or not an adoption rides on it, and on every `resumeSession` that
+adopts; a rejection, a preview, and a `resumeSession` that adopts nothing never move it.
+The rule is stated here so no adapter has to infer one:
+
+> **An adapter that detects concurrent writers accepts a `put` for an existing `sessionId` only
+> when its stored `revision` equals the incoming `revision - 1`.** Otherwise it throws a
+> `SessionPersistenceConflict`-branded error (below). An adapter that compares `attemptCounter`
+> instead refuses every write after a rejected action, and strands the session.
+
+**Omitted → in-memory, which is the MVP default.** Without `persistence` the store's own maps
+are the storage. With it, the store caches sessions and consults `persistence` only on a miss,
+bounded by the host's `sessionCacheLimit` when one is set (`10-design.md` 06 §5.2). It holds no
+saves at all: `loadGame`, `deleteSave` and `listSaves` read the adapter every time. Either way a
+host adapter is a durability layer, not a replacement for the store's bookkeeping.
 
 **`campaignId` on the save record is host-side routing, nothing more.** A host that lists "your
 saves for this campaign" needs it without deserializing every envelope. It is a *copy* of what
@@ -1134,6 +1327,12 @@ And **a classified failure must be one the caller can act on differently** —
 different response, which is exactly what a timeout and a quota error do not have. A later code
 needs both arguments made here; a brand invented downstream is not a contract.
 
+> **A failed write leaves no trace in the store's cache, whatever the failure.** A record a
+> command creates (a session from `createSession`, `loadGame` or `branchSession`, or a save
+> from `saveGame`) is published to the cache only after its write resolves. A save that
+> persistence refused is never listed or loadable, from this instance or any other. The
+> paragraph below is the same rule for a record that already exists.
+>
 > **A rejected write must not leave the store ahead of its persistence.** This failure is
 > actionable — the shipped `core.reason.concurrent_modification` string tells a player the
 > session changed elsewhere and to refresh — so the store's in-memory record must not retain a
@@ -1142,6 +1341,13 @@ needs both arguments made here; a brand invented downstream is not a contract.
 > read is served from the cache, returns the un-persisted state, and the retry the message asks
 > for cannot succeed. `storage_failure` tolerated this divergence because its own message
 > promises only that the game is still playable; `concurrent_modification` does not.
+>
+> **On `concurrent_modification` the store restores *and* evicts.** The conflict means another
+> writer committed, so the restored record is itself stale, and only a fresh read from
+> persistence lets the retry build on the winner's write. The restore is still needed, because
+> a command already queued on the session lock holds the same record and must offer the stale
+> `revision` so that the adapter refuses it too. On `storage_failure` the store restores and keeps
+> the record: the cache was right, and only the write failed.
 
 ### 7.3 The Campaign Catalog
 
@@ -1350,6 +1556,9 @@ creation and `actionLog.length` branches at the present. Valid range is `[0, act
 inclusive; anything outside it raises `invalid_fork_point` and writes nothing. A count is used
 rather than a `LoggedAction.seq` because the two coincide only while a log is gap-free, and a
 count states the intended meaning — *how much of this game* — without depending on that.
+**It counts log entries of both types** (§2): a content entry is part of how much of this game
+there is, so a fork may fall either side of an adoption, and one taken before it starts on the
+old epoch.
 
 > **There is a working reference implementation, and it is not quite this.**
 > [Issue #266](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/266) records
@@ -1365,8 +1574,11 @@ count states the intended meaning — *how much of this game* — without depend
 > cleanly and is wrong.
 
 **The branch is replayed, not copied.** The store creates a game from the source's
-`{ gameId, seed, campaignId, campaignVersion }` and submits the retained prefix through the
-ordinary path. Truncating the source's blob would leave `kindState` at the present while the log
+`{ gameId, seed, campaignId }` at its **starting** version (§2) and replays the retained prefix
+through the ordinary path — an action through `submitAction`, a content entry through
+`adoptContent`, which must adopt. Then the branch reaches its own adoption point (§7).
+Starting from the source's current `campaignVersion` instead would replay a prefix against
+content it was never played on. Truncating the source's blob would leave `kindState` at the present while the log
 claimed the fork point — a state no sequence of actions produces, and one that would serialize
 to something replay could never reach.
 
@@ -1458,7 +1670,8 @@ already does.
 | `branchSession` | `unknown_session` | no such `sessionId` | No | the session is gone |
 | `branchSession` | `invalid_fork_point` | `atActionCount` outside `[0, actionLog.length]` | No | **new** — correct the count |
 | `branchSession` | `invalid_state` | the source is `replayCompatible: false` | No | branching this lineage is impossible, not delayed |
-| `branchSession` | `unknown_campaign` | the source's `campaignVersion` is no longer registered | No | the content was withdrawn (07 §6's `unrunnable`, one layer down) |
+| `branchSession` | `invalid_state` | a content entry in the retained prefix no longer adopts | No | the kind's compatibility rule changed under a recorded adoption — 07 §6's divergence, one layer down |
+| `branchSession` | `unknown_campaign` | an epoch the retained prefix plays on — its starting version or one it adopted — no longer resolves | No | the content was withdrawn (07 §6's `unrunnable`, one layer down) |
 
 `invalid_fork_point` joins `SessionStoreErrorCode` and needs its `core.reason.invalid_fork_point`
 string registered with the rest (§12); registry construction rejects an override of it like any
@@ -1484,9 +1697,11 @@ delegated to an adapter, which is the point of drawing the seam at `SessionPersi
 - **D3.** A `deleteSave` for another profile's `saveId` is indistinguishable in its result from
   one for a `saveId` that does not exist. *Enforced by code.*
 - **B1.** For a session `S` and any `n` in `[0, |S.actionLog|]`, the branch produced by
-  `branchSession(S, n)` serializes byte-identically to `S` replayed to `n` — `gameId` included,
-  because it is retained. At `n = |S.actionLog|` it equals `serialize(S)` exactly, which is the
-  cheapest form of the assertion and the one a golden file should hold. *Enforced by code.*
+  `branchSession(S, n)` with no content offer at its adoption point serializes byte-identically
+  to `S` replayed to `n` from its starting epoch — `gameId` included, because it is retained. At
+  `n = |S.actionLog|` it equals `serialize(S)` exactly, which is the cheapest form of the
+  assertion and the one a golden file should hold. An offer that adopts appends exactly one
+  content entry to that serialization and changes nothing before it. *Enforced by code.*
 - **B2.** `branchSession` performs no write against the source session's record, and no write of
   any kind on any failure path. *Enforced by code.*
 - **B3.** A branch's `sessionId` is distinct from every other session's; its `gameId` equals its
@@ -1703,8 +1918,10 @@ interface Campaign {
    * Migrates a `kindState` forward when *this campaign's own* content ids or shape changed
    * between `fromVersion` and this `version` (§10.2) — a renamed node or achievement id.
    * Optional, for the same reason `Kind.migrateState` (§3) is: most version bumps rename
-   * nothing a save references. Runs at the save-load boundary only, after any
-   * `Kind.migrateState`, never during `advance`.
+   * nothing a save references. Runs at the save-load boundary, after any
+   * `Kind.migrateState`, and at adoption (`Engine.adoptContent`, §4) on the *target* epoch's
+   * campaign before the kind judges — never during `advance`. The rule for what it may do is
+   * the same at both (§10.2).
    */
   migrateState?(kindState: unknown, fromVersion: string): CommandResult<unknown>;
 }
@@ -1812,6 +2029,18 @@ load the same way:
   nothing else guards it, and flipping a migrated save's `false` back to `true` in the stored
   blob would otherwise silently defeat the sticky-forward rule below. `90-decisions.md`
   records why this is the accepted scope rather than a gap.
+- **The kind judges the result.** After both migrations, `Kind.validateState` (§3) is asked
+  about the `kindState` this version would run — a migrated one in its migrated shape. A
+  refusal fails the load with `invalid_state` when nothing was migrated (the save itself is
+  corrupt) and `migration_failed` when something was (the migration produced a state its own
+  kind cannot run).
+- **A save whose epoch the archive still holds loads without migration.** When
+  `engine.content` resolves the save's `(campaignId, campaignVersion)` and its `kindVersion`
+  equals the registered kind's, the save loads on that epoch exactly as it was made —
+  `replayCompatible` kept — and moves forward at `loadGame`'s adoption point (§7) by a logged
+  adoption instead. The campaign-version mismatch the bullet above migrates is then a mismatch
+  with the *default* epoch only, and is not one. Migration remains the path for an epoch the
+  archive no longer holds and for every kind-shape change (16 §7).
 - **A successful migration** sets `replayCompatible: false`, sticky forward — once a
   lineage has passed through a migrated load, it never becomes replay-compatible again,
   even across further saves that need no further migration.
@@ -2099,6 +2328,9 @@ const BASE_REASON_CODES = [
   // campaign composition (§10.4) — registry build, before validation
   "include_missing", "include_version_mismatch", "include_kind_mismatch", "include_cycle",
   "include_alias_collision", "attachment_host_missing", "compose_unsupported",
+  // content epochs (16 §4.3, §5.4) — publish and adoption
+  "content_version_conflict", "content_kind_changed", "content_not_adoptable",
+  "content_incompatible",
 ] as const;
 ```
 
@@ -2107,10 +2339,10 @@ const BASE_REASON_CODES = [
 > cross-kind failure mode with no code that fitted — the kernel's three rejections, registry
 > assembly's three, the core's own Tier-1 four, the profile store's five, the save
 > boundary's two, host persistence's four, session lifecycle's one, the audit vocabulary's
-> one, content-pack resolution's six, and campaign composition's seven. That is the intended
+> one, content-pack resolution's six, campaign composition's seven, and content epochs' four. That is the intended
 > shape: a code is registered when a real caller produces it, not pre-declared from this list.
-> Composition's seven are the one batch this contract names before their caller exists; they
-> were specified with that caller (§10.4) and are not in `reasons.ts` until W120 builds it. Because `ReasonCode` is *additive, never
+> Composition's seven were the one batch this contract named before their caller existed; they
+> were specified with that caller (§10.4), and W120 shipped them in `reasons.ts`. Because `ReasonCode` is *additive, never
 > renamed* (above), growth costs nothing — a client switching on a code it has never seen
 > falls through to the localized message, which the core ships for every base code. Expect
 > this list to keep growing, and keep it in step with
@@ -2151,7 +2383,8 @@ interface ActionResult extends CommandResult<GameState> { changes: StateChange[]
 
 `StateChange` is an **audit record emitted by typed reducers**, never the mutation
 mechanism — the discipline the simulation kind arrived at (games/04-engine-specification.md §10.4). It feeds
-history and the transparency requirement; `visible` gates what a client may show.
+history and the transparency requirement; `visible` gates what a client receives, and the
+session store applies that gate (§7).
 
 > **`StateChange` is not logging.** It is a domain record: localized, returned in
 > `AdvanceResult`, persisted by what the store keeps, and shown to players. Operational
@@ -2236,11 +2469,16 @@ fixture replays to a **byte-identical** `serialize()`.
 interface PlaythroughFixture {
   name: string;
   config: NewGameConfig;         // includes a fixed seed
-  actionLog: LoggedAction[];
+  actionLog: LoggedEntry[];      // §2 — content entries replay too (C21)
 }
 
-// runner: createGame(config) → for each logged action, submitAction → serialize final state
+// runner: createGame(config, starting version) → for each entry: an action → submitAction,
+//         a content entry → adoptContent(state, entry.to), which must adopt → serialize
 ```
+
+The starting version is derived from the log exactly as §2 states, and a fixture whose log
+crosses an epoch needs an engine whose archive resolves every epoch it names. A content entry
+that refuses on replay fails the fixture, the same as an action that rejects.
 
 - **Golden files** — committed fixtures with expected `serialize()` output; a one-byte
   diff catches an unintended behaviour change across the whole engine.
@@ -2279,6 +2517,7 @@ Concrete mapping — and the reconciliation this document forces on
 | `SceneBody` | the node's `textKey`, interpolated (03 §3.1) |
 | `Kind.project` | `StoryGraphView` (03 §9) — turn, visible stats, unlocked achievements, ending; hides non-visible variables and visit counts. Scene text and choices are the generic `Scene`, not repeated here |
 | `Kind.validateCampaign` | 03 §11 |
+| `Kind.validateState` | 03 §8.1 — every field typed, `currentNodeId` an existing node, every declared variable present with its type |
 | `Kind.outcome` | 03 §8.5 — `terminalId` is the `endingId`; `terminal` is "settled onto an `EndingNode`" (§3.2) |
 | `Kind.terminalCount` | 03 §8.5 — distinct `endingId`s across the campaign's `EndingNode`s; the denominator in `CampaignProgress` (§7.3) |
 | `RngHandle.weightedPick` | random-transition node resolution (03 §3) |

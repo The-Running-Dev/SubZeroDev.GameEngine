@@ -56,11 +56,15 @@ jobs:
           # tag) always runs the real steps below regardless, so shallow is fine there.
           fetch-depth: ${{ github.event_name == 'pull_request' && 0 || 1 }}
 
+      # Every input the steps below read: the package, the consumer smoke that installs it,
+      # the licence packed into it, and this workflow. Diffing `src/engine` alone let a
+      # consumer-smoke-only PR skip the job that runs the smoke (S128).
       - name: Determine whether the engine package changed
         id: changed
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            if git diff --quiet "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" -- src/engine; then
+            if git diff --quiet "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" -- \
+                src/engine consumer-smoke LICENSE .github/workflows/ci.yml; then
               echo "changed=false" >> "$GITHUB_OUTPUT"
             else
               echo "changed=true" >> "$GITHUB_OUTPUT"
@@ -109,6 +113,8 @@ jobs:
           tarball="$(npm pack --silent)"
           echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
 
+      # The release workflow's own archive guard, so a PR is held to the rules a release is
+      # held to — including the packed LICENSE (S128) — and not to an inline copy of them.
       # verification: true
       - name: Inspect tarball
         if: steps.changed.outputs.changed == 'true'
@@ -120,30 +126,7 @@ jobs:
             echo "package step did not produce a tarball path"
             exit 1
           fi
-
-          tarball_path="$TARBALL"
-          if [ ! -f "$tarball_path" ]; then
-            echo "package tarball not found: $tarball_path"
-            exit 1
-          fi
-
-          entries="$(tar -tzf "$tarball_path")"
-          if echo "$entries" | grep -qE '(^|/)src/'; then
-            echo "tarball contains source files under src/"
-            exit 1
-          fi
-          if echo "$entries" | grep -qE '(^|/)tsconfig[^/]*\\.json$'; then
-            echo "tarball contains tsconfig JSON files"
-            exit 1
-          fi
-          if echo "$entries" | grep -qE '\\.test\\.(js|mjs|ts|c?js|d\\.ts|js\\.map|mjs\\.map|ts\\.map)$'; then
-            echo "tarball contains test build artifacts"
-            exit 1
-          fi
-          if ! echo "$entries" | grep -q '^package/dist/'; then
-            echo "tarball does not contain dist output"
-            exit 1
-          fi
+          node scripts/verify-release.mjs archive --archive "$TARBALL"
 
       # verification: true
       - name: Consumer smoke

@@ -40,6 +40,7 @@ section number.
 | [Platform Static Host](engine/15-platform-static-host.md) | The first Platform consumer: a product-owned container that serves the same verified static artifact, publishes immutably, and deliberately stops before hosted engine execution or deployment |
 | [Simulation Kind](engine/10-simulation-kind.md) | The second kind, expressed against the Kind seam: the week as a turn, plan actions, and what its state must not duplicate |
 | [Content Packs](engine/11-content-packs.md) | Resolving many packs into one frozen registry — merge, override, dependency — and the identity that keeps a game reproducible |
+| [Content Epochs](engine/16-content-epochs.md) | Publishing new content into a running host: epochs, adoption at recorded log positions, pinned sessions, and the kind's judgement |
 | [World-Graph Kind](engine/12-world-graph-kind.md) | The third kind: a tick batch as a turn, spatial verbs, and the batch-invariance property that keeps presentation speed out of the results |
 
 **The Core** comes first deliberately: `04` implements `03` as types, and the core is the
@@ -53,7 +54,7 @@ What ships first, in what order, and what is still undecided.
 | Document | Holds |
 |---|---|
 | [MVP](engine/MVP.md) | The smallest slice that proves the platform, and its Definition of Done |
-| [TODO](engine/TODO.md) | The complete W-numbered delivery ledger, with contract references and done-criteria |
+| [TODO](engine/TODO.md) | The delivery ledger: open items carried forward, and every landed unit with its pull requests |
 | [Open Questions](engine/OPEN-QUESTIONS.md) | Living register of unknowns and deferred decisions; §1 is a decision log |
 
 ## Working on It

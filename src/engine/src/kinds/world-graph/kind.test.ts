@@ -110,8 +110,10 @@ describe("world-graph W45 source and validation", () => {
 
     expect(accepted.value.ok).toBe(true);
     expect(accepted.value.changes).toEqual(expect.arrayContaining([
-      expect.objectContaining({ path: "buildings.building:0.exists", reason: "building_placed" }),
+      expect.objectContaining({ path: "finances.cashCents", reason: "building_placed", visible: true }),
     ]));
+    // The placement's `.exists` record is `visible: false`, so the store withholds it (S121).
+    expect(accepted.value.changes.some((change) => change.path === "buildings.building:0.exists")).toBe(false);
     expect(rejected.value.ok).toBe(false);
     expect(rejected.value.errors[0]?.code).toBe("placement_out_of_bounds");
     const persisted = (await client.getView(created.value.sessionId)).value.kindView as WorldGraphView;
@@ -1384,4 +1386,37 @@ describe("world-graph W96 mechanical regression boundaries", () => {
       }
     },
   );
+});
+
+describe("world-graph #522 canonical comparators (§4.2)", () => {
+  it("projects runtime entities in numeric ordinal order once a prefix passes nine", () => {
+    const runtimeEngine = engine();
+    const game = create();
+    const ordinals = [11, 2, 10, 0, 9, 1, 5, 3, 8, 4, 7, 6];
+    const withIncidents = {
+      ...game,
+      kindState: {
+        ...stateOf(game),
+        incidents: ordinals.map((ordinal) => ({
+          id: `incident:${ordinal}`, definitionId: "litter", buildingId: null, guestId: null, zoneId: null,
+          position: null, amount: 0, startedAtTick: 0, expiresAtTick: null, resolvedAtTick: null,
+        })),
+      },
+    };
+    const view = (runtimeEngine.view(withIncidents, "player") as { kindView: WorldGraphView }).kindView;
+    expect(view.incidents.map((entry) => entry.id)).toEqual(
+      [...ordinals].sort((a, b) => a - b).map((ordinal) => `incident:${ordinal}`),
+    );
+  });
+
+  it("orders definition ids by code unit, never the host locale", () => {
+    const tags = ["a_x", "a2", "a_b", "a10", "a-b", "a1"];
+    const built = buildWorldGraphCampaign({
+      ...source,
+      buildings: source.buildings.map((building, index) => (index === 0 ? { ...building, tags } : building)),
+    });
+    // '-' (0x2d) < digits (0x30-0x39) < '_' (0x5f); a locale collation puts '_' before digits.
+    expect(built.content.buildings.find((entry) => entry.id === source.buildings[0]!.id)!.tags)
+      .toEqual(["a-b", "a1", "a10", "a2", "a_b", "a_x"]);
+  });
 });

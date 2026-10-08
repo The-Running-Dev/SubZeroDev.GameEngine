@@ -93,4 +93,7 @@ export interface SessionHost {
   /** Omitted → the session layer mints session and save ids as it does today
    *  (`crypto.randomUUID()`, unseamed). Supplied → the session layer calls it instead. */
   readonly recordIds?: RecordIdSource;
+  /** §5.2. With `persistence`, the most sessions held in memory, evicted least recently
+   *  used first. Omitted → unbounded. A positive integer, and refused without `persistence`. */
+  readonly sessionCacheLimit?: number;
 }

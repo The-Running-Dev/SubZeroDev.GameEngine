@@ -357,6 +357,50 @@ describe("validateCampaign — Tier 1: consequence type checking", () => {
   });
 });
 
+describe("validateCampaign — Tier 1: copy (03 §5, W120.6)", () => {
+  const schema: VariableSchema = {
+    ...validSchema,
+    mood: { type: "enum", initial: "calm", values: ["calm", "angry", "tired"] },
+    small_mood: { type: "enum", initial: "calm", values: ["calm", "angry"] },
+    stamina: { type: "int", initial: 3 },
+  };
+
+  function withCopy(effect: { op: "copy"; var: string; from: string }): StoryGraphCampaign {
+    const nodes: Record<string, Node> = {
+      ...validCampaign.nodes,
+      room_14: { id: "room_14", kind: "auto", textKey: "node.room_14.text", effects: [effect], goto: "reward" },
+    };
+    return { ...validCampaign, variables: schema, nodes };
+  }
+
+  function errorsOf(effect: { op: "copy"; var: string; from: string }): [string, string | undefined][] {
+    return validateCampaign(campaignEnvelope(withCopy(effect)), validStrings).errors.map((e) => [e.code, e.path]);
+  }
+
+  it("accepts an assignable copy: same type, and an enum whose values are all the target's", () => {
+    expect(errorsOf({ op: "copy", var: "patience", from: "stamina" })).toEqual([]);
+    expect(errorsOf({ op: "copy", var: "mood", from: "small_mood" })).toEqual([]);
+  });
+
+  it("rejects an undeclared from with undeclared_variable", () => {
+    expect(errorsOf({ op: "copy", var: "patience", from: "ghost" })).toEqual([["undeclared_variable", "ghost"]]);
+  });
+
+  it("rejects a from of another type with invalid_consequence_value", () => {
+    expect(errorsOf({ op: "copy", var: "patience", from: "documents_collected" })).toEqual([
+      ["invalid_consequence_value", "patience"],
+    ]);
+  });
+
+  it("rejects an enum from whose values are not all among the target's", () => {
+    expect(errorsOf({ op: "copy", var: "small_mood", from: "mood" })).toEqual([["invalid_consequence_value", "small_mood"]]);
+  });
+
+  it("rejects an undeclared var with undeclared_variable", () => {
+    expect(errorsOf({ op: "copy", var: "ghost", from: "stamina" })).toEqual([["undeclared_variable", "ghost"]]);
+  });
+});
+
 describe("validateCampaign — Tier 2: reachability", () => {
   it("warns on an unreachable node, without appearing in errors or blocking ok", () => {
     const nodes: Record<string, Node> = {
@@ -423,6 +467,7 @@ describe("validateCampaign — through buildValidatedContentRegistry (integratio
       advance: (state) => ({ state, status: "active", changes: [], messages: [] }),
       project: () => ({}),
       validateCampaign: (campaign, strings): ValidationResult => validateCampaign(campaign, strings),
+      validateState: () => true,
       outcome: () => ({ terminal: false, terminalId: null }),
     };
   }

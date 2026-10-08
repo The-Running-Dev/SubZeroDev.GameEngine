@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 0c6539c1bc695544e4e1558c94d9aef0ea40e60ed3c53408c43ced4497b3ce9a -->
+<!-- design-digest: 92a94aa4ab19fd60813381e87774602c392deae3734153d82f90bae70ad9a29e -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -60,6 +60,9 @@ contracts it links to — this guide never repeats a signature that document alr
 - Content pack resolution and identity (merge, override, dependency, and the `ResolutionId`
   digest that becomes a campaign's `campaignVersion`) are fully specified, alongside experiment
   gating built on the same mechanism — see [Content packs](#content-packs-and-experiment-gates).
+- Content epochs — publishing new content into a host that is already running, without a
+  reload — are designed and contracted but not yet built. See
+  [Content epochs](#content-epochs-new-content-in-a-running-host).
 - Session capture — turning a played session into a committed replay fixture — is specified as a
   privacy contract, not implemented. It is deliberately gated on a hosting layer this repository
   defers entirely.
@@ -118,6 +121,8 @@ Build one composition root per process:
 3. Create the pure engine from the registry, the kinds, and any deterministic id/event ports the
    host wants (see [Extensibility](#extensibility-and-ports)).
 4. Create the session service from the engine plus concrete session and profile persistence.
+   With persistence, `sessionCacheLimit` caps how many sessions stay in memory. An evicted
+   session is read back on its next use, and saves are always read from the adapter.
 5. Give clients the session service and nothing else.
 
 The engine performs no filesystem or network I/O while resolving play. Parsing JSON or YAML,
@@ -268,6 +273,47 @@ the layer stamps it unchanged onto emitted records, for event attribution alone.
 and the `ExperimentSource` itself never cross that boundary, and a kind can never see or branch
 on a variant. See [Content Packs](/docs/engine/content-packs) §5a–§6 for the full mechanism.
 
+### Content epochs: new content in a running host
+
+*Designed, not yet built.* The registry is frozen when the engine is constructed, so until now
+new content meant a new engine, a new session store, and a reload. Content epochs lift that
+without unfreezing anything. An **epoch** is one resolution of one campaign, named by
+`(campaignId, campaignVersion)`; a host publishes a whole new registry into an in-memory
+**archive**, the archive validates every campaign in it before holding it, and the engine
+resolves each state's content through the archive by that state's own version. One key names
+exactly one content: republishing a version with different content is refused.
+
+Publishing touches no session. A host-supplied **channel** answers "which epoch should this
+session be on?", and the session store asks it at exactly four points — after an accepted
+action commits, on resume, on load, and on branch. If the answer differs from the session's
+epoch, the engine tries to **adopt** it: the target campaign's migration runs, then the kind
+decides. Adoption happens after the action, not before, so a player's choice always resolves
+against the content they were shown and the next scene is the first drawn from the new content.
+
+Three rules are worth planning around:
+
+- **Adoption is logged, so replay stays exact.** The action log records the move as a content
+  entry at its position, and replay re-runs it. Unlike a migration, it does not cost
+  `replayCompatible`. A save only gains the new log format once it carries such an entry, so
+  existing saves are unchanged.
+- **A session that cannot move stays pinned**, and keeps playing the content it started on. The
+  archive therefore keeps old epochs. Adoption never fails a command: a refusal, or a channel
+  that throws, leaves the session where it was and the command completes.
+- **The kind judges compatibility.** A kind with no adoption rule never adopts. Story-graph
+  adopts additive change — new nodes, new variables at their initial values — and refuses
+  anything that could strand the player, such as removing the node they stand on or silently
+  dropping a variable the state carries. Simulation and world-graph have no rule yet, so their
+  sessions stay pinned.
+
+Adoption invents no play: it produces no state change, no outcome message, and nothing reaches
+the profile. Telling the player new content arrived is the client's choice. Queries and rejected
+actions never adopt. With no channel supplied, behaviour is exactly what it was.
+
+This is also the delivery half of a story extension. Authoring an extension stays an
+**attachment** — a pack adding to a campaign it does not own, validated after the fold — and a
+published extension reaches live sessions as a new epoch. See
+[Content Epochs](/docs/engine/content-epochs) for the full design.
+
 ## Use the session API, not raw engine state
 
 The session service is the application boundary. It provides campaign listing, creation, resume,
@@ -325,6 +371,9 @@ sequenceDiagram
   end
 ```
 
+The engine copies the params once on entry. The kind and the logged action both receive that
+copy, so a caller that edits its own object afterwards cannot rewrite the action log.
+
 Different sessions resolve concurrently. Commands for the same `sessionId` are serialized by the
 store, so the second command always reads the first command's committed state. A second lock
 domain, keyed by `profileId`, serializes only the profile upsert, and a third, keyed by `saveId`,
@@ -337,6 +386,16 @@ A stored session record carries more than the serialized envelope: an `audience`
 flag that turns false forever once a migrated load touches the lineage, and wall-clock
 `createdAt`/`updatedAt` timestamps set through the `Clock` port — all of it outside the
 replayable `GameState` and never read by `advance`.
+
+It also carries a `revision`, and that, not the attempt counter, is what a host running several
+store instances over one database compares. The revision starts at zero and rises by one only
+on an accepted, persisted action. A rejected or previewed action never moves it. An adapter
+accepts a write only when the stored revision is one below the incoming one, and otherwise
+raises a branded conflict, which reaches the caller as `concurrent_modification`. The store then
+drops its cached copy, so the player's retry reads the winning write instead of colliding with
+it again. More generally, a failed write leaves nothing in the store's cache: a session or save
+is cached only once its write has succeeded, so a save that failed to store is never listed or
+loadable.
 
 ### Listing, branching, and deleting saves
 
@@ -496,6 +555,12 @@ the seed or action log, raw `kindState`, non-visible story variables or visit co
 choices, unrevealed simulation/world opportunities or entity internals, or achievement conditions
 and other future-state hints.
 
+**An action's result is projected too.** `submitAction` and `previewAction` return only the
+`StateChange` and `OutcomeMessage` records marked `visible`, on accept and reject, for every
+audience. The session store applies that filter, and nothing reaches a client before it. The
+engine's own `ActionResult` stays complete, because the profile fold, replay and observability read
+it. A hidden variable's new value therefore reaches the profile and never the caller.
+
 **A projection must carry everything a client needs to render what it shows.** The rule has an
 inverse that is easy to miss: a field the projection omits is a field every client then reaches
 into campaign content to recover, and content is opaque above the kind. A visible story stat
@@ -593,6 +658,8 @@ model by following these rules in every resolution path:
 - Do not persist an RNG cursor — derive a fresh handle from seed and stable stream id every time.
 - Do not let a client supply a time or money cost the engine can derive itself.
 - Sort dictionary/record keys before any state-affecting traversal.
+- Sort with a named comparator — the kind's canonical one, or `localeCompare` with an explicit
+  locale. Argument-less `localeCompare` collates by the host's locale, and lint rejects it.
 - Define explicit tie-breaks for every unordered candidate set.
 - Keep money in integer cents and simulation/world rates in integer basis points; keep every
   other scored or accumulated value integer, with any fraction expressed as fixed-point.
@@ -676,7 +743,7 @@ imposes no relationship or currency model of its own; a campaign that wants a me
 declares an int and advances it itself, since the built-in turn counter is deliberately just a
 transition count.
 
-**Campaign composition is contracted, not yet built (W120).** Content never crosses a campaign
+**Campaign composition is built (W120).** Content never crosses a campaign
 boundary at runtime: the session's `campaignId` is singular and the save format has no frames.
 Instead, a host campaign *includes* another story-graph campaign as a module, pinned by its
 authored `{id, version}`. Registry build then merges the module into the host before validation
@@ -1021,6 +1088,18 @@ Missing or failed migration is loud and leaves the old record intact. An engine-
 by itself is provenance, not by itself a reason to reject a load. Any successful migration
 permanently marks the save lineage not replay-compatible, because the old action log may no
 longer regenerate its current state.
+
+A bare serialized `GameState` has no wrapper and no migration. `deserialize` still refuses one
+whose campaign or kind this host lacks, or whose kind is not its campaign's own. The content
+epochs design closes the version gap: `campaignVersion` must resolve to an epoch the host still
+holds, and a log's content entries must agree with it. Until that slice lands, the version is not
+compared.
+
+On both paths the kind has the last word. Every kind implements `validateState`, and a game
+state whose data it cannot run is refused when it is loaded, not on the first move. A save is
+judged after migration, so a migration that produces a state its own kind refuses fails as
+`migration_failed`. Story-graph checks its state against the campaign. Simulation and
+world-graph check only the top-level fields and trust the records underneath.
 
 **Migrating twice is a no-op.** The first pass restamps the campaign version, so a save that is
 loaded, saved, and loaded again finds no mismatch and reaches a canonically identical state.

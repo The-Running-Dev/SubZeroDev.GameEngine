@@ -123,6 +123,12 @@ interface WorldGraphKindState {
 }
 ```
 
+**`validateState` (04 §3) checks this interface at the top level only.** `tick` and
+`nextEntityOrdinal` are non-negative integers, each object field a plain object, each list an
+array, `resolution` an object or `null`. Every field has existed since the kind was built, so
+none may be absent. The records under them are trusted; checking them is recorded in
+`90-decisions.md`, *Found by the 2026-10-03 repository review*.
+
 > **The draft's `ResortMap` is named `WorldMap` here.** §1 rejects the name
 > `management-simulation` on the grounds that *a colony sim, an ecosystem model or a
 > transport network would run on this identical kind* — and a type called `ResortMap` in
@@ -1819,7 +1825,8 @@ Within one `advance_ticks` call, aggregate by resolved scalar path plus reason. 
 is the first value before the batch and `value` is the final value after it; omit the row
 when they are equal and no membership transition occurred. Creation/removal `.exists`
 records remain separate transitions. Sort returned rows by first causal system, then path,
-then reason. Different batch partitions may therefore return different audit arrays; §5
+then reason, comparing path and reason by ordinal code unit as definition ids are (§4.2),
+never by the host locale. Different batch partitions may therefore return different audit arrays; §5
 requires their final kind state, not their per-call presentation records, to agree.
 
 **Batch grain is about *which* records, not *whether*.** The nine no-time-passes actions

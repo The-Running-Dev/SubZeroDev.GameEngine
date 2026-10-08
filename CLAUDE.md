@@ -63,7 +63,7 @@ The agent-kit files are canonical. Edit these, never their generated copies unde
 | `design/00-brief.md` | Product vision, scope, non-goals, MVP, and definition of done |
 | `design/10-design.md` | Architecture plus observability, extensibility, replay, capture, client, and content-pack design |
 | `design/20-contract.md` | Core and all kind contracts, including exact types and invariants |
-| `design/30-slices.md` | The W-numbered vertical delivery ledger; W ids are retained because repository history already cites them |
+| `design/30-slices.md` | The vertical delivery ledger in the kit's format: live `## S<n>` slices above `## Landed`, where all 125 W-numbered units are retired to one row each |
 | `design/90-decisions.md` | Decision history, deferred items, and judgement calls to revisit |
 
 Each file contains marked human-document blocks. `build/ConvertTo-HumanDocumentation.ps1`
@@ -82,6 +82,7 @@ they are outputs, not editing surfaces.
 | `04-core.md` | The core as **types**: the Kind interface (the seam), `GameState` envelope, engine API, session store, projection, validation, reason codes, MCP schemas, determinism harness. **The contract (types)** |
 | `03-story-graph-kind.md` | The flagship kind's content types: nodes, choices, typed variables, consequences, endings, achievements, turn/settle semantics + worked Bureaucracy-arc example. `kindState` plugs into 04's envelope |
 | `11-content-packs.md` | Post-MVP: resolving an ordered pack set into the frozen registry. Campaigns replace wholesale, strings replace per key. The load-bearing part is **identity** — `campaignVersion` becomes a digest of the resolution, because two players on the same campaign version with different packs are playing different games and the envelope had no way to say so |
+| `16-content-epochs.md` | Post-MVP: new content reaching a running session without a reload. An adoption is a **logged entry** (`LoggedContent`), so replay stays exact; content resolves by the state's own version through a content-addressed archive; a session adopts at four points or stays **pinned**; the kind judges through `Kind.adoptContent?`. Subsumes the story-extension contract: delivery is an epoch, authoring is an attachment |
 | `10-simulation-kind.md` | The second kind against the Kind seam — **the seam only**, not a port. Reconciles the upstream model with the envelope (seven fields it must not duplicate, and no persisted `RngState`), maps its richer verbs onto the one-action model (`plan.add`/`remove`/`clear`, `end_week`), and fixes projection, reason codes, events and terminal identity. §14 states what is still upstream and why |
 | `12-world-graph-kind.md` | The third kind: a navigable world with autonomous inhabitants. A tick batch is the turn, and **batch invariance** — `advance_ticks n` reaches the same `kindState` as any split of it — is the load-bearing property, the one that forced `KindContext.derive` and the `tick` stream into 04. Win/loss is `Kind.outcome`, not a `GameStatus`. Not related to `story-graph` despite the suffix: a story graph is *authored*, a world graph is *navigated* |
 | `09-clients.md` | The **client contract**, MVP scope: a client is a projection of the session store, never a participant — made testable as *two clients, same inputs, byte-identical `serialize()`*. Defines the **API coverage checklist** that `MVP.md` §5 and W16 both required and neither specified: ten store operations, ten MCP tools, one-to-one |
@@ -93,7 +94,7 @@ they are outputs, not editing surfaces.
 | `06-extensibility.md` | Where the engine can be extended: the **ports** a host supplies (`IdSource`, stores, `Emitter`, `Clock`, `ExperimentSource`), the two composition roots, and the rule that decides — *a host may supply anything that cannot change `serialize()` output*, which makes the determinism boundary the trust boundary. Kinds stay engine-owned per architecture N2 |
 | `05-observability.md` | Logging and tracing as a **separate channel** from `StateChange`: the clock-free `EngineEvent`, the per-resolution emitter handle, sinks, and the boundary that stamps time and trace ids. The invariant is that dropping every event changes nothing |
 | `MVP.md` | The smallest slice that proves the platform, + Definition of Done (finalized) |
-| `TODO.md` | The MVP as ordered **units of work** (W0–W19), each with contract refs, dependencies, and done-criteria; the MVP boundary is marked |
+| `TODO.md` | The delivery ledger: open items carried forward, and one Landed row per retired W unit with its pull requests and criteria range |
 | `OPEN-QUESTIONS.md` | Living register of unknowns, gaps, deferred decisions. §1 is now a **decision log** — the eight MVP-blocking gaps are all resolved; start here for the reasoning behind a contract |
 
 ## The Code — `src/engine/`
@@ -331,8 +332,8 @@ Two distinctions that are easy to get wrong:
 
 - **Non-goals are binding.** Anything listed as a non-goal in `01-vision.md` §5 is out of
   scope even if it looks trivial, even if you are already touching that file.
-- **One unit at a time.** Do not start W<n+1> because you noticed something while doing
-  W<n>. Write it to `90-decisions.md`'s open register instead.
+- **One unit at a time.** Do not start S<n+1> because you noticed something while doing
+  S<n>. Write it to `90-decisions.md`'s open register instead.
 - **No new dependencies** without a decision-log entry naming the alternatives rejected and
   why.
 - **No new public interfaces** that are not in `20-contract.md`. If you need one, stop and
@@ -388,8 +389,10 @@ separate `slice`, `check`, `pr`, `resolve`, `track`, `docs`, `hold` or `resume`.
 `design/00-brief.md`, `10-design.md`, `20-contract.md`, `30-slices.md`, and `90-decisions.md`
 are the canonical inputs. This repository extends the generic kit in two deliberate ways:
 
-- Existing W identifiers remain the slice ids. Renumbering them to S would break plans, tests,
-  issues, changelog entries, and merged history without changing the work.
+- W identifiers are history. Every W unit is retired to a row under `## Landed` with an
+  `<a id="w<n>">` anchor, so existing links still resolve; plans, tests, issues, changelog
+  entries and merged history keep citing them unchanged. New slices are `## S<n>`, numbered from
+  S121 so no S id is ever mistaken for a W id.
 - The design and contract files contain marked, independently generated human pages. Commands
   must read the complete canonical file, including every marked block relevant to the task.
 

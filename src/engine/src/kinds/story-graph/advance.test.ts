@@ -458,6 +458,7 @@ describe("story-graph kind — through the real engine (integration)", () => {
       advance: (state, actionId, params, ctx): AdvanceResult<StoryGraphKindState> => advance(state, actionId, params, ctx),
       project: (state, audience, ctx) => project(state, audience, ctx),
       validateCampaign: () => ({ ok: true, errors: [], warnings: [] }),
+      validateState: () => true,
       outcome: (state) => {
         const endingId = state.endingId ?? null;
         return { terminal: endingId !== null, terminalId: endingId, endingId };

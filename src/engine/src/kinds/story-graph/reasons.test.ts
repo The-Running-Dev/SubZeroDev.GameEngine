@@ -14,7 +14,7 @@ describe("STORY_GRAPH_REASON_MESSAGES", () => {
     expect(STORY_GRAPH_REASON_MESSAGES.size).toBe(STORY_GRAPH_REASON_CODES.length);
   });
 
-  it("declares the runtime codes (03 §8.3, W10's unknown_condition_field), W14's Tier 1/2 validation codes, and the audit code", () => {
+  it("declares the runtime codes (03 §8.3, W10's unknown_condition_field), W14's Tier 1/2 validation codes, W120's composition codes, and the audit code", () => {
     expect([...STORY_GRAPH_REASON_CODES]).toEqual([
       "not_a_choice_node",
       "unexpected_params",
@@ -27,6 +27,12 @@ describe("STORY_GRAPH_REASON_MESSAGES", () => {
       "missing_label_key",
       "non_visible_variable_in_text",
       "invalid_transition_weight",
+      "include_not_module",
+      "exit_unmapped",
+      "binding_undeclared",
+      "binding_type_mismatch",
+      "attachment_node_not_choice",
+      "attachment_choice_collision",
       "unreachable_node",
       "unreachable_cycle",
       "no_reachable_choice",

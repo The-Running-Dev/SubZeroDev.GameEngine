@@ -21,8 +21,9 @@ import type { ValidationError, ValidationResult, ValidationWarning } from "../..
 import type { StoryGraphCampaign } from "./campaign.js";
 import type { Node } from "./nodes.js";
 import type { VariableSchema, Consequence } from "./variables.js";
+import { isAssignable } from "./variables.js";
 import { validateConditionFields } from "./conditions.js";
-import { placeholderNames } from "./text.js";
+import { interpolationScope, placeholderNames } from "./text.js";
 
 function error(code: string, path: string): ValidationError {
   return { code, messageKey: `story-graph.reason.${code}`, path };
@@ -30,6 +31,10 @@ function error(code: string, path: string): ValidationError {
 
 function warning(code: string, path: string): ValidationWarning {
   return { code, messageKey: `story-graph.reason.${code}`, path };
+}
+
+function invalidIdentifier(path: string): ValidationError {
+  return { code: "invalid_identifier", messageKey: "core.reason.invalid_identifier", path };
 }
 
 function requireLocKey(strings: ReadonlyMap<LocKey, string>, key: LocKey): ValidationError | undefined {
@@ -95,6 +100,8 @@ function validateLocKeys(content: StoryGraphCampaign, strings: ReadonlyMap<LocKe
   const errors: ValidationError[] = [];
   const check = (key: LocKey | undefined): void => {
     if (key === undefined) return;
+    // LocKeys are never composed (04 §17): a module's keys stay its own, unprefixed.
+    if (key.includes(":")) errors.push(invalidIdentifier(key));
     const e = requireLocKey(strings, key);
     if (e) errors.push(e);
   };
@@ -133,8 +140,10 @@ function validateTextInterpolation(content: StoryGraphCampaign, strings: Readonl
   for (const node of Object.values(content.nodes)) {
     const text = strings.get(node.textKey);
     if (text === undefined) continue; // already reported by validateLocKeys
+    // Module text reads its own alias scope (03 §1.1), exactly as `scene` renders it.
+    const scope = interpolationScope(node);
     for (const name of placeholderNames(text)) {
-      if (!visibleNames.has(name)) errors.push(error("non_visible_variable_in_text", name));
+      if (!visibleNames.has(scope + name)) errors.push(error("non_visible_variable_in_text", scope + name));
     }
   }
 
@@ -180,6 +189,12 @@ function validateConsequenceValue(schema: VariableSchema, consequence: Consequen
     // Tier 1 must reject the same content, or a validated campaign can still crash at
     // runtime the moment this consequence applies.
     return Number.isInteger(consequence.by) ? undefined : error("invalid_consequence_value", consequence.var);
+  }
+
+  if (consequence.op === "copy") {
+    // 03 §5: `from` is declared and assignable — the runtime check in `applyConsequences`.
+    if (!Object.hasOwn(schema, consequence.from)) return error("undeclared_variable", consequence.from);
+    return isAssignable(decl, schema[consequence.from]!) ? undefined : error("invalid_consequence_value", consequence.var);
   }
 
   switch (decl.type) {
@@ -231,6 +246,50 @@ function validateAllConditions(content: StoryGraphCampaign, nodeIds: ReadonlySet
   }
   for (const achievement of content.achievements) {
     errors.push(...validateConditionFields(achievement.condition, content.variables, nodeIds));
+  }
+  return errors;
+}
+
+/**
+ * A composed id (04 §17): `::`-joined, non-empty, colon-free segments, the first naming the
+ * include's entry — an `auto` node that enters `<first>::`. Composition is the only thing
+ * that writes one; it rejects a `:` in the host's own ids before merging (`compose.ts`).
+ */
+function isComposedId(id: string, nodes: Record<string, Node>): boolean {
+  const segments = id.split("::");
+  if (segments.length < 2 || segments.some((segment) => segment === "" || segment.includes(":"))) return false;
+  const first = segments[0]!;
+  const entry = Object.hasOwn(nodes, first) ? nodes[first]! : undefined;
+  return entry?.kind === "auto" && entry.goto.startsWith(`${first}::`);
+}
+
+/** No authored id contains `:` (04 §17); node, variable and achievement ids may be composed. */
+function validateIdentifiers(content: StoryGraphCampaign): ValidationError[] {
+  const errors: ValidationError[] = [];
+  const check = (id: string): void => {
+    if (id.includes(":") && !isComposedId(id, content.nodes)) errors.push(invalidIdentifier(id));
+  };
+  for (const [id, node] of Object.entries(content.nodes)) {
+    check(id);
+    if (node.kind === "choice") {
+      for (const choice of node.choices) if (choice.id.includes(":")) errors.push(invalidIdentifier(choice.id));
+    }
+  }
+  for (const name of Object.keys(content.variables)) check(name);
+  for (const achievement of content.achievements) check(achievement.id);
+  return errors;
+}
+
+/** A `module` block names declared variables and a real entry node (03 §1.1). */
+function validateModuleInterface(content: StoryGraphCampaign, nodeIds: ReadonlySet<string>): ValidationError[] {
+  const module = content.module;
+  if (!module) return [];
+  const errors: ValidationError[] = [];
+  for (const name of [...module.inputs, ...module.outputs]) {
+    if (!Object.hasOwn(content.variables, name)) errors.push(error("undeclared_variable", name));
+  }
+  if (module.entryNodeId !== undefined && !nodeIds.has(module.entryNodeId)) {
+    errors.push(error("dangling_reference", module.entryNodeId));
   }
   return errors;
 }
@@ -333,6 +392,8 @@ export function validateCampaign(campaign: Campaign, strings: ReadonlyMap<LocKey
     ...validateRandomTransitions(content),
     ...validateAllConsequences(content),
     ...validateAllConditions(content, nodeIds),
+    ...validateIdentifiers(content),
+    ...validateModuleInterface(content, nodeIds),
   ];
 
   const warnings = validateReachability(content);
