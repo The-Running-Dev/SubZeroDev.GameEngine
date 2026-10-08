@@ -125,6 +125,25 @@ Acceptance:
 Out of scope: Adventures' migration (a `revision` column, its compare-and-swap predicate, and the
               branded conflict). That lands in Adventures after an engine release.
 
+## S123 — A Save Exists Only Once It Is Stored
+
+Status: done
+Delivers: A player whose save failed is never shown that save in their list or offered it to
+          load, so a save that would vanish on the next restart is never presented as kept.
+Touches: `src/engine/src/core/session/store.ts`, `20-contract.md` §7.2
+Depends on: S122
+Acceptance:
+  - S123.1 When `saves.put` throws, `saveGame` raises `storage_failure`, and `listSaves` on the
+    same instance does not include the refused save.
+  - S123.2 `loadGame` of the refused save's id raises `unknown_save`.
+  - S123.3 A fresh store instance over the same adapter agrees with S123.1 and S123.2.
+  - S123.4 The session survives the failure: the next `saveGame` is durable, listed, and
+    loadable from a fresh instance.
+  - S123.5 `createSession`, `loadGame` and `branchSession` already write before caching. This was
+    audited and left unchanged. §7.2 states the general rule: a failed write leaves no cache
+    trace.
+Out of scope: Bounding the save cache (S126/S127, D4).
+
 ## Landed
 
 Ordered by id. *Criteria* is the range of numbered acceptance

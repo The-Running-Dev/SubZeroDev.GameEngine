@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: c3b7b16de5b93158945a76ee1e336a27965ff96859f72b3763768fd06dc709b9 -->
+<!-- design-digest: 013d6c5220d43a21d77207f8ea5a8672f0b55780eb5023d417fb72b1ba25c0b0 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -344,7 +344,9 @@ on an accepted, persisted action. A rejected or previewed action never moves it.
 accepts a write only when the stored revision is one below the incoming one, and otherwise
 raises a branded conflict, which reaches the caller as `concurrent_modification`. The store then
 drops its cached copy, so the player's retry reads the winning write instead of colliding with
-it again.
+it again. More generally, a failed write leaves nothing in the store's cache: a session or save
+is cached only once its write has succeeded, so a save that failed to store is never listed or
+loadable.
 
 ### Listing, branching, and deleting saves
 

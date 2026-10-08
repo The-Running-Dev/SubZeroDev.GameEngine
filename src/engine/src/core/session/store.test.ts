@@ -415,6 +415,67 @@ describe("S122 — a committed revision, separate from the attempt counter", () 
   });
 });
 
+describe("S123 — a save exists only once it is durable", () => {
+  /** Map-backed sessions and saves, with a one-shot failure on the next save write. */
+  function makeDurablePersistence(): { persistence: SessionPersistence; savedRows: Map<string, StoredSaveRecord>; failNextSavePut(): void } {
+    const sessionRows = new Map<string, StoredSessionRecord>();
+    const savedRows = new Map<string, StoredSaveRecord>();
+    let failSave = false;
+    return {
+      savedRows,
+      failNextSavePut() { failSave = true; },
+      persistence: {
+        sessions: {
+          get: async (sessionId) => { const row = sessionRows.get(sessionId); return row ? { ...row } : undefined; },
+          put: async (record) => { sessionRows.set(record.sessionId, { ...record }); },
+        },
+        saves: {
+          get: async (saveId) => { const row = savedRows.get(saveId); return row ? { ...row } : undefined; },
+          put: async (record) => {
+            if (failSave) { failSave = false; throw new Error("disk full"); }
+            savedRows.set(record.saveId, { ...record });
+          },
+          listByProfile: async (profileId) => [...savedRows.values()].filter((row) => row.profileId === profileId).map((row) => ({ ...row })),
+          delete: async (saveId) => { savedRows.delete(saveId); },
+        },
+      },
+    };
+  }
+
+  it("S123.1–S123.3 — a save whose write fails is not listed, not loadable, and a fresh instance agrees", async () => {
+    const durable = makeDurablePersistence();
+    const store = makeStore({ persistence: durable.persistence, recordIds: makeCountingRecordIds() });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+
+    durable.failNextSavePut();
+    await expect(store.saveGame(sessionId)).rejects.toMatchObject({ code: "storage_failure" });
+    // The counting RecordIdSource minted "save-0" for the refused write.
+    expect(durable.savedRows.size).toBe(0);
+
+    expect(await store.listSaves("p1")).toEqual([]);
+    await expect(store.loadGame("save-0")).rejects.toMatchObject({ code: "unknown_save" });
+
+    const fresh = makeStore({ persistence: durable.persistence });
+    expect(await fresh.listSaves("p1")).toEqual([]);
+    await expect(fresh.loadGame("save-0")).rejects.toMatchObject({ code: "unknown_save" });
+  });
+
+  it("S123.4 — the session survives the failed save, and the next save is durable and listed", async () => {
+    const durable = makeDurablePersistence();
+    const store = makeStore({ persistence: durable.persistence, recordIds: makeCountingRecordIds() });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+
+    durable.failNextSavePut();
+    await expect(store.saveGame(sessionId)).rejects.toMatchObject({ code: "storage_failure" });
+
+    const saved = await store.saveGame(sessionId);
+    expect([...durable.savedRows.keys()]).toEqual([saved.saveId]);
+    expect((await store.listSaves("p1")).map((s) => s.saveId)).toEqual([saved.saveId]);
+    const fresh = makeStore({ persistence: durable.persistence });
+    expect((await fresh.loadGame(saved.saveId)).scene.body.text).toBe("counter=0");
+  });
+});
+
 describe("createSession / getScene / getView / getStrings / listCampaigns", () => {
   it("creates a session and returns its opening scene", async () => {
     const store = makeStore();

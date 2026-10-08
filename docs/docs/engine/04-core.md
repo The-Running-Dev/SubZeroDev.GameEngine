@@ -1154,6 +1154,12 @@ And **a classified failure must be one the caller can act on differently** —
 different response, which is exactly what a timeout and a quota error do not have. A later code
 needs both arguments made here; a brand invented downstream is not a contract.
 
+> **A failed write leaves no trace in the store's cache, whatever the failure.** A record a
+> command creates (a session from `createSession`, `loadGame` or `branchSession`, or a save
+> from `saveGame`) is published to the cache only after its write resolves. A save that
+> persistence refused is never listed or loadable, from this instance or any other. The
+> paragraph below is the same rule for a record that already exists.
+>
 > **A rejected write must not leave the store ahead of its persistence.** This failure is
 > actionable — the shipped `core.reason.concurrent_modification` string tells a player the
 > session changed elsewhere and to refresh — so the store's in-memory record must not retain a

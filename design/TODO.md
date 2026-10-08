@@ -10,4 +10,6 @@
 
 ## S122 — A Rejected Action No Longer Strands a Shared Session
 
+## S123 — A Save Exists Only Once It Is Stored
+
 ## Landed
