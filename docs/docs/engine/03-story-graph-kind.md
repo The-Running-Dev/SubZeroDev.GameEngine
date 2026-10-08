@@ -422,13 +422,18 @@ tolerated *at load*: nothing reads it, and the save is the record — refusing i
 player on a campaign that later dropped a variable.
 
 **`adoptContent` (04 §3) adopts additive change and refuses anything that could strand the
-player.** After the target campaign's `migrateState`, it adopts iff `currentNodeId` names a node
-the target has; every `visitedCounts` key names a target node and every `unlockedAchievements`
+player.** After the target campaign's `migrateState`, it adopts iff `currentNodeId` names a
+target node that is a `ChoiceNode` with at least one choice available — `showWhen` true and
+requirements met (§4) — against the state with the insertion below applied; every
+`visitedCounts` key names a target node and every `unlockedAchievements`
 id a target achievement; every variable the state carries that the target declares has the
 target's `VarType`; and no variable the source declared and the state carries is missing from the
 target. It returns the state with every variable the target declares and the state lacks
 inserted at its declared initial value, and everything else unchanged. Any other case refuses
-`content_incompatible`. Adoption refuses the silent drop that load tolerates because there the
+`content_incompatible`. The node condition exists because adoption runs no settle (§8.2) —
+settling is play, which C24 forbids it — so a target that turned the current node into an
+ending, auto or random node, or gated away every choice, would leave an active session with
+nothing it can submit (red-team F2). Adoption refuses the silent drop that load tolerates because there the
 old epoch is still playable and staying pinned costs nothing; an author who means to drop a
 variable writes a `migrateState` that drops it ([`16-content-epochs.md`](16-content-epochs.md) §5.5).
 

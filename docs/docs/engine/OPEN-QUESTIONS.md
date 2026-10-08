@@ -411,8 +411,9 @@ injection exists for. The design is
 [`16-content-epochs.md`](16-content-epochs.md): an adoption is a logged `LoggedContent` entry,
 sessions adopt at four adoption points or stay pinned, content resolves by the state's own
 version through a content-addressed archive, and the kind judges through `Kind.adoptContent?`.
-The contract is `20-contract.md` C21–C26, §2, §3, §4, §7, §10 and story-graph §8.1, and the
-judgement calls are the 2026-10-08 entries in the decision log. Two refinements on the settled
+The contract is `20-contract.md` C21–C27, §2, §3, §4, §7, §10 and story-graph §8.1, and the
+judgement calls are the 2026-10-08 entries in the decision log, including the three that resolve
+the red team's F1–F3 (`design/redteam/2026-10-08-10-design.md`). Two refinements on the settled
 directions: absent the seam, a session stays pinned rather than adopting additive change by
 default, and the replay oracle's new failure widens `campaign_version_missing` rather than
 replacing it. **Not yet built** — the next step is `/agentkit:plan`.
@@ -592,6 +593,17 @@ achievements and adds more than one choice to a host node; 04 §10.4's attachmen
 neither. Each is a gap in attachments, not a reason for a second extension contract (story
 extension, above). **Revisit** when Adventures moves its extensions onto attachments, which is
 what retires its merge.
+
+### Found by the content-epochs red-team revision
+
+**Capture does not refuse a migrated session that carries no migration entry.** 08 refuses a
+session whose log carries a migration entry, but nothing in 08 checks `replayCompatible`. A
+session migrated across campaign versions before it ever adopted, or migrated in kind shape only,
+carries no entry, so capture would turn it into a fixture whose actions were taken on content
+the fixture does not name. The gap predates content epochs. Narrowing F1's migration entry to
+epoch-bearing logs (2026-10-08) left it as it was rather than opening it. The likely fix is one
+line in 08: refuse every `replayCompatible: false` session. It was kept out of the F1 revision
+because it is a separate unit. **Revisit** before capture is built.
 
 ---
 
