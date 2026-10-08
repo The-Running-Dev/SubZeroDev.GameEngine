@@ -253,6 +253,7 @@ function commandArchive(options) {
   if (names.some((name) => /\.test\.(js|mjs|cjs|ts|d\.ts|js\.map|mjs\.map|ts\.map)$/.test(name)))
     failures.push("contains test build artifacts");
   if (!names.some((name) => name.startsWith("package/dist/"))) failures.push("does not contain dist output");
+  if (!names.includes("package/LICENSE")) failures.push("does not contain the LICENSE");
 
   if (failures.length > 0) {
     throw new Rejected(`Archive ${archivePath} ${failures.join("; ")}.`);

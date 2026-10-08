@@ -22,6 +22,11 @@ dist/
 # `dist/` rule above already refuses.
 *.tgz
 
+# The repository LICENSE, staged beside the engine's package.json only while `npm pack`
+# runs (scripts/stage-license.mjs, S128). The root copy is the one tracked; a pack that
+# fails before `postpack` would otherwise leave a second copy for a broad add to commit.
+/src/engine/LICENSE
+
 # Docusaurus local build
 .docusaurus/
 docs/build/

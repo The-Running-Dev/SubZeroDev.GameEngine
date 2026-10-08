@@ -29,6 +29,8 @@ on:
       - "src/engine/package-lock.json"
       - "src/engine/scripts/verify-release.mjs"
       - "src/engine/scripts/verify-release.test.ts"
+      - "src/engine/scripts/stage-license.mjs"
+      - "LICENSE"
       - ".github/workflows/release-engine-package.yml"
 
 permissions:

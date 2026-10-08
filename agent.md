@@ -134,10 +134,11 @@ README, whose status is deliberately coarse.
   Its §1 is now a **decision log** — all eight MVP-blocking gaps (including `PlayerProfile`,
   long the sharpest) are resolved and written into the contracts. Nothing MVP-blocking is
   open; add new gaps there as full entries.
-- **Engine suite runs green under vitest** (15 tests, `pcg32` + `canonical`), and CI now
-  runs it: `.github/workflows/ci.yml` (`engine`), plus the installed `docs-ci.yml` and
-  `docs-deploy.yml`. The three pull-request checks are required on `main`; deploy is not,
-  since it runs only on push to `main` (`TODO.md` W0, closed).
+- **Engine suite runs under vitest** — `npm test` from `src/engine/` is the count; a number
+  written here goes stale, as "15 tests" did for a suite that long outgrew it. CI runs it:
+  `.github/workflows/ci.yml` (`engine`), plus the installed `docs-ci.yml` and `docs-deploy.yml`.
+  The three pull-request checks are required on `main`; deploy is not, since it runs only on
+  push to `main` (`TODO.md` W0, closed).
 - **The docs-site base image is verified for the current W0 baseline.** `docs.ps1` builds
   on the public `ghcr.io/the-running-dev/docs-template`; the installed image uses
   Docusaurus 3, port 3000, and the local `sidebar.ts`. A production build passed with no

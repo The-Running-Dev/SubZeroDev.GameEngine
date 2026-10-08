@@ -234,6 +234,27 @@ Acceptance:
 Out of scope: Cache, session and blob metrics (recorded in `90-decisions.md`, *Found by the
               2026-10-03 repository review*).
 
+## S128 — The Package Says What It Is Licensed Under
+
+Status: done
+Delivers: The published engine package declares its licence and carries the licence text, and
+          a pull request that changes only the consumer smoke still runs it.
+Touches: `src/engine/package.json`, `src/engine/scripts/stage-license.mjs`,
+         `src/engine/scripts/verify-release.mjs`, `.github/workflows/ci.yml`,
+         `.github/workflows/release-engine-package.yml`, `agent.md`
+Depends on: S127
+Acceptance:
+  - S128.1 `package.json` declares `"license": "MIT"`, and the packed archive contains
+    `package/LICENSE`. The text is the repository root's, copied in for the pack and removed
+    after it; the tree tracks one copy.
+  - S128.2 The release archive guard rejects an archive without `package/LICENSE`, and the CI
+    `engine` job inspects its tarball with that guard rather than an inline copy of its rules.
+  - S128.3 The `engine` job's change detector diffs every input it reads: `src/engine`,
+    `consumer-smoke`, `LICENSE` and its own workflow. A consumer-smoke-only change runs it.
+  - S128.4 `agent.md` points at `npm test` for the suite's size instead of stating a count.
+Out of scope: Generating the docs' other volatile facts, one of the review's non-defect
+              recommendations (`plans/53-repository-review-2026-10-03-fixes.md` §3).
+
 ## Landed
 
 Ordered by id. *Criteria* is the range of numbered acceptance
