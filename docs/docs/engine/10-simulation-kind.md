@@ -2,9 +2,9 @@
 sidebar_label: Simulation Kind
 ---
 
-<!-- Generated from design/20-contract.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
-
 # Simulation Kind — Contract
+
+<!-- Generated from design/20-contract.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
 
 **Document status:** Revision 2 — **the contract is whole.** Every type `SimulationKindState`
 (§2) names, the content definition types a real campaign will declare, and the resolution

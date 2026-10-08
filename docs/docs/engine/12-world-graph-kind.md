@@ -2,9 +2,9 @@
 sidebar_label: World-Graph Kind
 ---
 
-<!-- Generated from design/20-contract.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
-
 # World-Graph Kind — Contract
+
+<!-- Generated from design/20-contract.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
 
 **Document status:** Revision 5 — **authoritative runtime-state, campaign-content, and
 resolution contract.** Concrete content and balance live with the game; §17 says exactly
