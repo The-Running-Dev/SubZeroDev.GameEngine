@@ -242,7 +242,8 @@ that is unique to the *content it actually ran against*, and:
 - **The envelope is unchanged.** No new field, no new rule.
 - **Replay is honest.** Loading a fixture whose `campaignVersion` no longer resolves is
   `unrunnable: campaign_version_missing` — the verdict 07 §6 already defines, now reachable
-  for the reason it was written for.
+  for the reason it was written for. Under content epochs (16) the same digest names an epoch,
+  and a live session can move between epochs by a logged adoption instead of a migration.
 - **A migrated save stays `replayCompatible: false`** (04 §10.2) on exactly the same
   grounds.
 
@@ -311,7 +312,10 @@ nothing, and the failure is invisible at play — the original string simply ren
 - **Pack discovery and distribution.** How a host finds packs is its business; resolution
   takes an ordered array and does not care where it came from.
 - **Partial or lazy loading.** The registry is frozen and pre-validated before the engine
-  sees it (04 §10.1), which a lazily-loaded pack would break.
+  sees it (04 §10.1), which a lazily-loaded pack would break. Publishing a *whole new
+  resolution* into a running host is not this, and is designed in
+  [`16-content-epochs.md`](16-content-epochs.md): each epoch is still frozen and validated
+  before anything plays it.
 - **Community submission and trust.** A pack is data and is validated like any other content
   (02 §4a), so it needs no sandbox — but *who may publish one* is a hosting question, and
   sits with the third-party discussion in [`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md).
