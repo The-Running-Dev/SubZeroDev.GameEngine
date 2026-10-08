@@ -402,6 +402,43 @@ by some stated margin — a real content/contract decision, not a slice-sized fi
 `plans/53-repository-review-2026-10-03-fixes.md` fixes the review's reproduced defects as
 S121–S128. What those slices audited but deliberately did not fix is recorded here.
 
+**Content epochs: injecting content into a running session. Decided, not designed.** The
+review found that `deserialize` accepts a state whose `campaignVersion` differs from the
+registry's. Rejecting the mismatch was the first recommendation, and it was turned down on
+2026-10-08 (plan 53, D3). Since W120, `campaignVersion` is the resolution digest and
+attachments are part of it. Injecting a side quest therefore changes the version of every live
+session on that campaign, and a rejection would end exactly the sessions injection exists for.
+Content is to reach running sessions through *content epochs* instead. Four answers are
+settled:
+
+1. **Scope: both.** A host-wide publication reaches every live session on a campaign, and
+   per-session overlays layer on top of it. Overlays need a content store and a privacy story,
+   because `08-session-capture.md` treats params as hostile input.
+2. **Replay stays exact.** Adoption is a logged system entry, `{ seq, system: "content", from,
+   to }` over `ResolutionId`s. Replay switches content at that seq, so adopting no longer costs
+   `replayCompatible`. The replay oracle must be able to retrieve the resolution chain, which
+   becomes a new failure mode in place of `campaign_version_missing`.
+3. **A session that cannot adopt stays pinned** to its epoch. Published resolutions are kept
+   content-addressed by `ResolutionId`: the version-addressed registry, as a fallback and for
+   replay, not as the default path.
+4. **The kind judges adoptability**, through a seam such as `Kind.adoptContent?(kindState,
+   from, to)`. Additive changes adopt by default. A breaking change needs the campaign's
+   `migrateState`, or the session stays pinned.
+
+Two mechanisms follow. A host-side registry handle (`current()` / `publish()`) validates through
+the tiered pipeline before the swap, so injected content fails at publish time and never at
+`requireNode`. Sessions adopt only at a turn boundary, on their next touch. The contract cost is
+a registry handle, a `Kind` seam, a `LoggedAction` variant, and replay and fixture identity,
+which is why this is an `/agentkit:design` pass and not a slice. That pass also decides whether
+this subsumes the review's separate "story-extension contract" recommendation.
+
+**Known and retained until epochs land:** S125 made raw `deserialize` reject a `kindId` that is
+not its campaign's (`20-contract.md` §4). It still does not compare `campaignVersion`, so a
+session serialized under one resolution and deserialized under another is accepted silently.
+The save path is unaffected, because `resolveSaveEnvelope` migrates or refuses a version
+mismatch (§10.2). **Revisit** in the design pass. Its answer replaces this gap rather than
+patching it.
+
 **The content registry holds the host's campaign objects by reference, so "frozen" means
 validated, not immutable.** S124 made the engine own the `params` it logs. The review asked for
 the same audit of host-supplied campaigns, and the answer is that nothing copies or freezes
@@ -416,7 +453,7 @@ resolves against, with no validation. `Campaign.content` is typed `unknown`, so 
 its campaigns once and never touches them again, so this is a latent hazard with no observed
 instance. It is not a slice's fix. A deep copy or deep freeze of arbitrary kind content
 changes the registry's cost and its contract (`20-contract.md` §10.1). It also interacts with
-D3's content epochs, whose whole purpose is to change a running campaign's content
+content epochs (above), whose whole purpose is to change a running campaign's content
 deliberately, through a validated path. **Revisit** in that design pass, which must decide
 how a new epoch's content enters the registry. Whether the registry copies host content, and
 how deeply, is part of that answer.

@@ -542,6 +542,18 @@ copy `params` once on entry, and both step 4's `advance` and step 6's `LoggedAct
 copy, so a caller mutating its own object afterwards cannot rewrite the replay spine.
 `ActionParams` is a flat record of primitives, so a shallow copy is the whole value.
 
+**`deserialize` resolves a state against this host, or refuses it.** A shape-valid envelope
+is rejected with `unknown_campaign` when its `campaignId` is not in the registry, with
+`unknown_kind` when its `kindId` is not registered, and with `invalid_state` when both resolve
+but `kindId` is not that campaign's own `kindId`. Each rejection emits
+`core.deserialize.rejected` ([`05-observability.md`](05-observability.md) §8), and `migrate`
+inherits all three. The last check is the raw path's copy of a cross-check the save path
+already makes (§10.2). Without it, a state could hand one kind's `advance` another kind's
+campaign. **`campaignVersion` is not compared on this path.** A state serialized under one
+resolution and deserialized under another is accepted. That gap is known and retained until
+content epochs decide what a version change means for a running session (`90-decisions.md`,
+*Content epochs*).
+
 **`createGame`** assembles the envelope and delegates the start to the kind:
 
 ```text

@@ -993,7 +993,7 @@ The normative starter set. Additive: more may be added, none renamed (§3.1).
 | `core.game.ended` | `info` | `status` became `"ended"` | — |
 | `core.rng.stream.derived` | `trace` | A stream was derived from `(seed, streamId)` (04 §8) | `streamId` |
 | `core.serialize.completed` | `debug` | Canonical serialization ran | `bytes` |
-| `core.deserialize.rejected` | `error` | A malformed envelope was refused (04 §10.2) | `reason` set |
+| `core.deserialize.rejected` | `error` | A malformed envelope, or one that does not resolve against this host, was refused (04 §4, §10.2) | `reason` set |
 | `core.validation.completed` | `info` | Tiered validation ran (04 §11) | `tier`, `errors`, `warnings` |
 | `core.migration.applied` | `warn` | A save was migrated; `replayCompatible: false` (04 §10.2) | `fromVersion`, `toVersion` |
 
