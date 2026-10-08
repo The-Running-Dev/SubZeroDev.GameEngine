@@ -9,7 +9,9 @@ describe("landing page", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
       "GodComplex. Consequences.",
     );
-    expect(screen.getByText("Build rules once. Explore every consequence.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Build rules once. Explore every consequence."),
+    ).toBeInTheDocument();
   });
 
   it("uses the verified root-relative documentation routes", () => {
@@ -123,13 +125,25 @@ describe("landing page", () => {
     render(<App />);
     const section = document.getElementById("testimonials");
     expect(section).not.toBeNull();
-    expect(section?.textContent).toContain("John Wick, Conflict Resolution Specialist");
+    expect(section?.textContent).toContain(
+      "John Wick, Conflict Resolution Specialist",
+    );
     expect(section?.textContent).toContain("Neo, Reality Architect");
-    expect(section?.textContent).toContain("Ted Logan, Senior Simulation Engineer");
-    expect(section?.textContent).toContain("Theodore Logan, Junior Simulation Engineer");
-    expect(section?.textContent).toContain("Jack Traven, Real-Time Systems Consultant");
-    expect(section?.textContent).toContain("Klaatu, External Compliance Auditor");
-    expect(section?.textContent).toContain("Johnny Mnemonic, Data Retention Specialist");
+    expect(section?.textContent).toContain(
+      "Ted Logan, Senior Simulation Engineer",
+    );
+    expect(section?.textContent).toContain(
+      "Theodore Logan, Junior Simulation Engineer",
+    );
+    expect(section?.textContent).toContain(
+      "Jack Traven, Real-Time Systems Consultant",
+    );
+    expect(section?.textContent).toContain(
+      "Klaatu, External Compliance Auditor",
+    );
+    expect(section?.textContent).toContain(
+      "Johnny Mnemonic, Data Retention Specialist",
+    );
     expect(section?.textContent).toContain("purely deterministic");
   });
 

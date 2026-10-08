@@ -110,7 +110,9 @@ function App() {
             assistive technology so the line reads once, not twice.
           */}
           <p className="signature">
-            <span className="signature-default">Build rules once. Explore every consequence.</span>
+            <span className="signature-default">
+              Build rules once. Explore every consequence.
+            </span>
             <span className="signature-alt" aria-hidden="true">
               Free will is a configuration option.
             </span>
@@ -189,7 +191,11 @@ function App() {
             <p>A decision tree is not necessarily a game.</p>
             <p>An inventory is not a game.</p>
             <p>A relationship model is not a game.</p>
-            <p>They are rules and decisions. They belong in games, guides, adaptive surveys, and branching workflows. And they should be reusable.</p>
+            <p>
+              They are rules and decisions. They belong in games, guides,
+              adaptive surveys, and branching workflows. And they should be
+              reusable.
+            </p>
           </div>
           <ContinueLink to="#architecture" />
         </section>
@@ -450,7 +456,12 @@ function App() {
           <ContinueLink to="#testimonials" />
         </section>
 
-        <section id="testimonials" data-reveal="" className="testimonials section-narrow" aria-labelledby="testimonials-title">
+        <section
+          id="testimonials"
+          data-reveal=""
+          className="testimonials section-narrow"
+          aria-labelledby="testimonials-title"
+        >
           <p className="section-index">12 / TESTIMONIALS</p>
           <h2 id="testimonials-title">What People Are Saying</h2>
           <p className="testimonial-lead">
@@ -462,8 +473,8 @@ function App() {
             semantic versioning.” — God, allegedly
           </blockquote>
           <blockquote className="testimonial-headline">
-            “Finally, a place where all the suffering is reproducible.”
-            — Lucifer, Director of Quality Assurance
+            “Finally, a place where all the suffering is reproducible.” —
+            Lucifer, Director of Quality Assurance
           </blockquote>
           <blockquote className="testimonial-headline">
             “We were promised free will. Turns out it was a configuration
@@ -472,7 +483,9 @@ function App() {
           <blockquote className="testimonial-headline">
             “I have no fucking clue what I am doing or where I am going with
             this.”
-            <cite className="testimonial-attribution">— The Creator, Acting Project Lead (unsupervised)</cite>
+            <cite className="testimonial-attribution">
+              — The Creator, Acting Project Lead (unsupervised)
+            </cite>
           </blockquote>
           <blockquote className="testimonial-headline testimonial-dialogue">
             <p>“I had a plan.” — God</p>
@@ -480,42 +493,64 @@ function App() {
             <p>“It&apos;s still in beta.” — God</p>
             <p>“You&apos;ve had 13.8 billion fucking years.” — Lucifer</p>
             <p>“Scope creep.” — God</p>
-            <cite className="testimonial-attribution">— Divine Retrospective, Sprint 13,800,000,000</cite>
+            <cite className="testimonial-attribution">
+              — Divine Retrospective, Sprint 13,800,000,000
+            </cite>
           </blockquote>
-          <p className="testimonial-lead">Seven additional, entirely independent experts have reviewed this technology. Their striking resemblance is under investigation.</p>
+          <p className="testimonial-lead">
+            Seven additional, entirely independent experts have reviewed this
+            technology. Their striking resemblance is under investigation.
+          </p>
           <blockquote className="testimonial-headline">
             “Consequences.”
-            <cite className="testimonial-attribution">— John Wick, Conflict Resolution Specialist</cite>
+            <cite className="testimonial-attribution">
+              — John Wick, Conflict Resolution Specialist
+            </cite>
           </blockquote>
           <blockquote className="testimonial-headline">
             “There is no spoon. There are only state transitions.”
-            <cite className="testimonial-attribution">— Neo, Reality Architect</cite>
+            <cite className="testimonial-attribution">
+              — Neo, Reality Architect
+            </cite>
           </blockquote>
           <blockquote className="testimonial-headline">
             “Whoa.”
-            <cite className="testimonial-attribution">— Ted Logan, Senior Simulation Engineer</cite>
+            <cite className="testimonial-attribution">
+              — Ted Logan, Senior Simulation Engineer
+            </cite>
           </blockquote>
           <blockquote className="testimonial-headline">
             “Excellent!”
-            <cite className="testimonial-attribution">— Theodore Logan, Junior Simulation Engineer</cite>
+            <cite className="testimonial-attribution">
+              — Theodore Logan, Junior Simulation Engineer
+            </cite>
           </blockquote>
           <blockquote className="testimonial-headline">
             “Why can’t we go faster?”
-            <cite className="testimonial-attribution">— Jack Traven, Real-Time Systems Consultant</cite>
+            <cite className="testimonial-attribution">
+              — Jack Traven, Real-Time Systems Consultant
+            </cite>
           </blockquote>
           <blockquote className="testimonial-headline">
             “The universe has rules. Breaking them has consequences.”
-            <cite className="testimonial-attribution">— Klaatu, External Compliance Auditor</cite>
+            <cite className="testimonial-attribution">
+              — Klaatu, External Compliance Auditor
+            </cite>
           </blockquote>
           <blockquote className="testimonial-headline">
             “I’ve seen the future. It has regression tests.”
-            <cite className="testimonial-attribution">— Johnny Mnemonic, Data Retention Specialist</cite>
+            <cite className="testimonial-attribution">
+              — Johnny Mnemonic, Data Retention Specialist
+            </cite>
           </blockquote>
-          <p className="commentary">Any resemblance between these seven independent reviewers and Keanu Reeves is purely deterministic.</p>
           <p className="commentary">
-            All divine testimonials are fictional. Actual Reddit objections
-            will join this distinguished panel as soon as we have their
-            original words.
+            Any resemblance between these seven independent reviewers and Keanu
+            Reeves is purely deterministic.
+          </p>
+          <p className="commentary">
+            All divine testimonials are fictional. Actual Reddit objections will
+            join this distinguished panel as soon as we have their original
+            words.
           </p>
           <ContinueLink to="#continue" />
         </section>
