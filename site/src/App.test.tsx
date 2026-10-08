@@ -121,6 +121,55 @@ describe("landing page", () => {
     expect(targets).toEqual(chain.slice(2));
   });
 
+  it("renders the suspiciously Keanu-shaped fictional testimonial panel", () => {
+    render(<App />);
+    const section = document.getElementById("testimonials");
+    expect(section).not.toBeNull();
+    expect(section?.textContent).toContain(
+      "John Wick, Conflict Resolution Specialist",
+    );
+    expect(section?.textContent).toContain("Neo, Reality Architect");
+    expect(section?.textContent).toContain(
+      "Ted Logan, Senior Simulation Engineer",
+    );
+    expect(section?.textContent).toContain(
+      "Theodore Logan, Junior Simulation Engineer",
+    );
+    expect(section?.textContent).toContain(
+      "Jack Traven, Real-Time Systems Consultant",
+    );
+    expect(section?.textContent).toContain(
+      "Klaatu, External Compliance Auditor",
+    );
+    expect(section?.textContent).toContain(
+      "Johnny Mnemonic, Data Retention Specialist",
+    );
+    expect(section?.textContent).toContain("purely deterministic");
+  });
+
+  it("documents the creator's plan and God's overdue retrospective", () => {
+    render(<App />);
+    const testimonials = document.getElementById("testimonials");
+    expect(testimonials?.textContent).toContain("I have no fucking clue");
+    expect(testimonials?.textContent).toContain(
+      "The Creator, Acting Project Lead (unsupervised)",
+    );
+    expect(testimonials?.textContent).toContain(
+      "How did that work out for you, Father?",
+    );
+    expect(testimonials?.textContent).toContain(
+      "You've had 13.8 billion fucking years.",
+    );
+    expect(testimonials?.textContent).toContain("Scope creep.");
+    expect(testimonials?.textContent).toContain(
+      "Divine Retrospective, Sprint 13,800,000,000",
+    );
+    expect(testimonials?.querySelector("footer")).toBeNull();
+    expect(
+      testimonials?.querySelectorAll(".testimonial-attribution"),
+    ).toHaveLength(9);
+  });
+
   it("names the real campaigns in the closing payoff, not placeholder titles", () => {
     // The engine has no announced projects beyond the three flagship
     // campaigns already verified in the architecture diagram. This section

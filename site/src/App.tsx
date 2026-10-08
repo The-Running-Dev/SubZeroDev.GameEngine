@@ -480,6 +480,73 @@ function App() {
             “We were promised free will. Turns out it was a configuration
             option.” — Humanity, pending verification
           </blockquote>
+          <blockquote className="testimonial-headline">
+            “I have no fucking clue what I am doing or where I am going with
+            this.”
+            <cite className="testimonial-attribution">
+              — The Creator, Acting Project Lead (unsupervised)
+            </cite>
+          </blockquote>
+          <blockquote className="testimonial-headline testimonial-dialogue">
+            <p>“I had a plan.” — God</p>
+            <p>“How did that work out for you, Father?” — Lucifer</p>
+            <p>“It&apos;s still in beta.” — God</p>
+            <p>“You&apos;ve had 13.8 billion fucking years.” — Lucifer</p>
+            <p>“Scope creep.” — God</p>
+            <cite className="testimonial-attribution">
+              — Divine Retrospective, Sprint 13,800,000,000
+            </cite>
+          </blockquote>
+          <p className="testimonial-lead">
+            Seven additional, entirely independent experts have reviewed this
+            technology. Their striking resemblance is under investigation.
+          </p>
+          <blockquote className="testimonial-headline">
+            “Consequences.”
+            <cite className="testimonial-attribution">
+              — John Wick, Conflict Resolution Specialist
+            </cite>
+          </blockquote>
+          <blockquote className="testimonial-headline">
+            “There is no spoon. There are only state transitions.”
+            <cite className="testimonial-attribution">
+              — Neo, Reality Architect
+            </cite>
+          </blockquote>
+          <blockquote className="testimonial-headline">
+            “Whoa.”
+            <cite className="testimonial-attribution">
+              — Ted Logan, Senior Simulation Engineer
+            </cite>
+          </blockquote>
+          <blockquote className="testimonial-headline">
+            “Excellent!”
+            <cite className="testimonial-attribution">
+              — Theodore Logan, Junior Simulation Engineer
+            </cite>
+          </blockquote>
+          <blockquote className="testimonial-headline">
+            “Why can’t we go faster?”
+            <cite className="testimonial-attribution">
+              — Jack Traven, Real-Time Systems Consultant
+            </cite>
+          </blockquote>
+          <blockquote className="testimonial-headline">
+            “The universe has rules. Breaking them has consequences.”
+            <cite className="testimonial-attribution">
+              — Klaatu, External Compliance Auditor
+            </cite>
+          </blockquote>
+          <blockquote className="testimonial-headline">
+            “I’ve seen the future. It has regression tests.”
+            <cite className="testimonial-attribution">
+              — Johnny Mnemonic, Data Retention Specialist
+            </cite>
+          </blockquote>
+          <p className="commentary">
+            Any resemblance between these seven independent reviewers and Keanu
+            Reeves is purely deterministic.
+          </p>
           <p className="commentary">
             All divine testimonials are fictional. Actual Reddit objections will
             join this distinguished panel as soon as we have their original
