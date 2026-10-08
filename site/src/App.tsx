@@ -110,7 +110,9 @@ function App() {
             assistive technology so the line reads once, not twice.
           */}
           <p className="signature">
-            <span className="signature-default">Build rules once. Explore every consequence.</span>
+            <span className="signature-default">
+              Build rules once. Explore every consequence.
+            </span>
             <span className="signature-alt" aria-hidden="true">
               Free will is a configuration option.
             </span>
@@ -189,7 +191,11 @@ function App() {
             <p>A decision tree is not necessarily a game.</p>
             <p>An inventory is not a game.</p>
             <p>A relationship model is not a game.</p>
-            <p>They are rules and decisions. They belong in games, guides, adaptive surveys, and branching workflows. And they should be reusable.</p>
+            <p>
+              They are rules and decisions. They belong in games, guides,
+              adaptive surveys, and branching workflows. And they should be
+              reusable.
+            </p>
           </div>
           <ContinueLink to="#architecture" />
         </section>
@@ -450,7 +456,12 @@ function App() {
           <ContinueLink to="#testimonials" />
         </section>
 
-        <section id="testimonials" data-reveal="" className="testimonials section-narrow" aria-labelledby="testimonials-title">
+        <section
+          id="testimonials"
+          data-reveal=""
+          className="testimonials section-narrow"
+          aria-labelledby="testimonials-title"
+        >
           <p className="section-index">12 / TESTIMONIALS</p>
           <h2 id="testimonials-title">What People Are Saying</h2>
           <p className="testimonial-lead">
@@ -462,17 +473,17 @@ function App() {
             semantic versioning.” — God, allegedly
           </blockquote>
           <blockquote className="testimonial-headline">
-            “Finally, a place where all the suffering is reproducible.”
-            — Lucifer, Director of Quality Assurance
+            “Finally, a place where all the suffering is reproducible.” —
+            Lucifer, Director of Quality Assurance
           </blockquote>
           <blockquote className="testimonial-headline">
             “We were promised free will. Turns out it was a configuration
             option.” — Humanity, pending verification
           </blockquote>
           <p className="commentary">
-            All divine testimonials are fictional. Actual Reddit objections
-            will join this distinguished panel as soon as we have their
-            original words.
+            All divine testimonials are fictional. Actual Reddit objections will
+            join this distinguished panel as soon as we have their original
+            words.
           </p>
           <ContinueLink to="#continue" />
         </section>

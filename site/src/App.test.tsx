@@ -9,7 +9,9 @@ describe("landing page", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
       "GodComplex. Consequences.",
     );
-    expect(screen.getByText("Build rules once. Explore every consequence.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Build rules once. Explore every consequence."),
+    ).toBeInTheDocument();
   });
 
   it("uses the verified root-relative documentation routes", () => {
