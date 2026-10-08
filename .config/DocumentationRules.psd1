@@ -57,7 +57,7 @@
             Generator = 'build/ConvertTo-DocumentationHomepage.ps1'
             SourceParameter = 'ReadmePath'
             Arguments = @{
-                Title = 'Game Engine'
+                Title = 'GodComplex'
                 Description = ''
                 SiteUrl = 'https://game-engine.subzerodev.com/'
                 RouteBasePath = 'docs'

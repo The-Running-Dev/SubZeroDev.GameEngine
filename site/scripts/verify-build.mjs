@@ -24,9 +24,9 @@ for (const asset of requiredAssets) {
 }
 
 const requiredTags = [
-  /<meta\s+name="description"\s+content="A deterministic, game-agnostic platform for building reusable narrative-game mechanics\."\s*\/?>/,
-  /<meta\s+property="og:title"\s+content="SubZeroDev Game Engine"\s*\/?>/,
-  /<meta\s+property="og:description"\s+content="Build mechanics once\. Create infinite games\."\s*\/?>/,
+  /<meta\s+name="description"\s+content="A deterministic engine for games, branching narratives, decision trees, guides, surveys and simulations\."\s*\/?>/,
+  /<meta\s+property="og:title"\s+content="SubZeroDev GodComplex"\s*\/?>/,
+  /<meta\s+property="og:description"\s+content="GodComplex — Consequences\."\s*\/?>/,
   /<meta\s+property="og:type"\s+content="website"\s*\/?>/,
   /<meta\s+property="og:url"\s+content="https:\/\/game-engine\.subzerodev\.com\/"\s*\/?>/,
   /<meta\s+property="og:image"\s+content="https:\/\/game-engine\.subzerodev\.com\/og-image\.png"\s*\/?>/,
@@ -45,7 +45,7 @@ for (const tag of requiredTags) {
 }
 
 const roadmapTags = [
-  /<meta\s+name="description"\s+content="What SubZeroDev Game Engine has built, what comes next, and why it became a deterministic delivery ledger\."\s*\/?>/,
+  /<meta\s+name="description"\s+content="What SubZeroDev GodComplex has built, what comes next, and why it became a deterministic delivery ledger\."\s*\/?>/,
   /<meta\s+property="og:url"\s+content="https:\/\/game-engine\.subzerodev\.com\/roadmap\/"\s*\/?>/,
   /<link\s+rel="canonical"\s+href="https:\/\/game-engine\.subzerodev\.com\/roadmap\/"\s*\/?>/,
   /<script type="module" crossorigin src="\/assets\//,
