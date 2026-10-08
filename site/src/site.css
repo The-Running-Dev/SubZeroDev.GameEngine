@@ -50,6 +50,9 @@ footer {
 .site-header nav a {
   color: var(--landing-muted);
   font-size: 0.82rem;
+  /* A fixed line height keeps the link's box the same in every fallback font;
+     `normal` comes from the font's metrics and is under 16px in some. */
+  line-height: 1.5;
   text-underline-offset: 0.3em;
 }
 

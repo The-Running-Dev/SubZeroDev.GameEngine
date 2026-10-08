@@ -136,9 +136,9 @@ README, whose status is deliberately coarse.
   open; add new gaps there as full entries.
 - **Engine suite runs under vitest** — `npm test` from `src/engine/` is the count; a number
   written here goes stale, as "15 tests" did for a suite that long outgrew it. CI runs it:
-  `.github/workflows/ci.yml` (`engine`), plus the installed `docs-ci.yml` and `docs-deploy.yml`.
-  The three pull-request checks are required on `main`; deploy is not, since it runs only on
-  push to `main` (`TODO.md` W0, closed).
+  `.github/workflows/ci.yml` (`engine`), plus `docs.yml`, the caller of the shared reusable
+  docs workflow. The pull-request checks (`engine` and `docs / Build`) are required on `main`;
+  `docs / Deploy` is not, since it runs only on push to `main` (`TODO.md` W0, closed).
 - **The docs-site base image is verified for the current W0 baseline.** `docs.ps1` builds
   on the public `ghcr.io/the-running-dev/docs-template`; the installed image uses
   Docusaurus 3, port 3000, and the local `sidebar.ts`. A production build passed with no
@@ -146,8 +146,9 @@ README, whose status is deliberately coarse.
   now serves the generated homepage (`docs/docs/index.md`); `/docs/engine/vision` is the
   first spec page beneath it. **Once `feature/landing-page` merges, the bare domain `/` stops
   being `docs/src/pages/index.md` (generated from README) and becomes the standalone landing
-  page (`site/`) instead** — `build/Merge-LandingPage.ps1`, wired into both `docs-ci.yml` and
-  `docs-deploy.yml`, overlays it on every build. `/docs/` and everything beneath it is
+  page (`site/`) instead** — the package-backed `merge` (`npm --prefix site run merge`), which
+  `docs.yml` runs through `node-project: site` and `node-scripts: check merge`, overlays it on
+  every build. `/docs/` and everything beneath it is
   unaffected; only the site root changes owner.
 - **Two link checks, and between them everything is now gated.** `build/Test-Documentation.ps1`
   hard-fails on relative links and heading anchors — that is the one that catches a doc
