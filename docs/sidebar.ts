@@ -49,6 +49,7 @@ const sidebars: SidebarsConfig = {
         'engine/platform-static-host',
         'engine/simulation-kind',
         'engine/content-packs',
+        'engine/content-epochs',
         'engine/world-graph-kind',
       ],
     },

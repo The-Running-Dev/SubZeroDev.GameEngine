@@ -385,6 +385,8 @@ The normative starter set. Additive: more may be added, none renamed (§3.1).
 | `core.deserialize.rejected` | `error` | A malformed envelope, one that does not resolve against this host, or one whose `kindState` its kind refuses, was refused (04 §4, §10.2) | `reason` set |
 | `core.validation.completed` | `info` | Tiered validation ran (04 §11) | `tier`, `errors`, `warnings` |
 | `core.migration.applied` | `warn` | A save was migrated; `replayCompatible: false` (04 §10.2) | `fromVersion`, `toVersion` |
+| `core.content.adopted` | `info` | `adoptContent` moved a session to another epoch (16 §5.4) | `fromVersion`, `toVersion` |
+| `core.content.pinned` | `info` | `adoptContent` refused; the session stays on its epoch (16 §5.4) | `fromVersion`, `toVersion`; `reason` set |
 
 > **An unresolved `actionId` is never logged.** `submitAction` takes an arbitrary string
 > (04 §7), and an id matching nothing is ordinary play rather than an error — a hidden

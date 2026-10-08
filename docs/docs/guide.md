@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 5c72227c4c5faf38c9cfe2ae5141e866714c12a347d3e381f13555e6cfa7254f -->
+<!-- design-digest: 92a94aa4ab19fd60813381e87774602c392deae3734153d82f90bae70ad9a29e -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -60,6 +60,9 @@ contracts it links to — this guide never repeats a signature that document alr
 - Content pack resolution and identity (merge, override, dependency, and the `ResolutionId`
   digest that becomes a campaign's `campaignVersion`) are fully specified, alongside experiment
   gating built on the same mechanism — see [Content packs](#content-packs-and-experiment-gates).
+- Content epochs — publishing new content into a host that is already running, without a
+  reload — are designed and contracted but not yet built. See
+  [Content epochs](#content-epochs-new-content-in-a-running-host).
 - Session capture — turning a played session into a committed replay fixture — is specified as a
   privacy contract, not implemented. It is deliberately gated on a hosting layer this repository
   defers entirely.
@@ -269,6 +272,47 @@ Only the narrowed, non-null assignment map crosses the session seam as `SessionH
 the layer stamps it unchanged onto emitted records, for event attribution alone. Candidate packs
 and the `ExperimentSource` itself never cross that boundary, and a kind can never see or branch
 on a variant. See [Content Packs](/docs/engine/content-packs) §5a–§6 for the full mechanism.
+
+### Content epochs: new content in a running host
+
+*Designed, not yet built.* The registry is frozen when the engine is constructed, so until now
+new content meant a new engine, a new session store, and a reload. Content epochs lift that
+without unfreezing anything. An **epoch** is one resolution of one campaign, named by
+`(campaignId, campaignVersion)`; a host publishes a whole new registry into an in-memory
+**archive**, the archive validates every campaign in it before holding it, and the engine
+resolves each state's content through the archive by that state's own version. One key names
+exactly one content: republishing a version with different content is refused.
+
+Publishing touches no session. A host-supplied **channel** answers "which epoch should this
+session be on?", and the session store asks it at exactly four points — after an accepted
+action commits, on resume, on load, and on branch. If the answer differs from the session's
+epoch, the engine tries to **adopt** it: the target campaign's migration runs, then the kind
+decides. Adoption happens after the action, not before, so a player's choice always resolves
+against the content they were shown and the next scene is the first drawn from the new content.
+
+Three rules are worth planning around:
+
+- **Adoption is logged, so replay stays exact.** The action log records the move as a content
+  entry at its position, and replay re-runs it. Unlike a migration, it does not cost
+  `replayCompatible`. A save only gains the new log format once it carries such an entry, so
+  existing saves are unchanged.
+- **A session that cannot move stays pinned**, and keeps playing the content it started on. The
+  archive therefore keeps old epochs. Adoption never fails a command: a refusal, or a channel
+  that throws, leaves the session where it was and the command completes.
+- **The kind judges compatibility.** A kind with no adoption rule never adopts. Story-graph
+  adopts additive change — new nodes, new variables at their initial values — and refuses
+  anything that could strand the player, such as removing the node they stand on or silently
+  dropping a variable the state carries. Simulation and world-graph have no rule yet, so their
+  sessions stay pinned.
+
+Adoption invents no play: it produces no state change, no outcome message, and nothing reaches
+the profile. Telling the player new content arrived is the client's choice. Queries and rejected
+actions never adopt. With no channel supplied, behaviour is exactly what it was.
+
+This is also the delivery half of a story extension. Authoring an extension stays an
+**attachment** — a pack adding to a campaign it does not own, validated after the fold — and a
+published extension reaches live sessions as a new epoch. See
+[Content Epochs](/docs/engine/content-epochs) for the full design.
 
 ## Use the session API, not raw engine state
 
@@ -1046,9 +1090,10 @@ permanently marks the save lineage not replay-compatible, because the old action
 longer regenerate its current state.
 
 A bare serialized `GameState` has no wrapper and no migration. `deserialize` still refuses one
-whose campaign or kind this host lacks, or whose kind is not its campaign's own. It does not
-compare the campaign version. That gap stays open until content epochs settle what a version
-change means for a running session.
+whose campaign or kind this host lacks, or whose kind is not its campaign's own. The content
+epochs design closes the version gap: `campaignVersion` must resolve to an epoch the host still
+holds, and a log's content entries must agree with it. Until that slice lands, the version is not
+compared.
 
 On both paths the kind has the last word. Every kind implements `validateState`, and a game
 state whose data it cannot run is refused when it is loaded, not on the first move. A save is

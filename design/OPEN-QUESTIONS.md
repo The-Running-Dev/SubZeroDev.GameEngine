@@ -12,4 +12,6 @@
 
 ### Found by the 2026-10-03 repository review
 
+### Found by the content-epochs design
+
 ## 3. Judgement Calls to Revisit (Settled for the MVP)

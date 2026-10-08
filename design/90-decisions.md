@@ -412,42 +412,27 @@ by some stated margin — a real content/contract decision, not a slice-sized fi
 `plans/53-repository-review-2026-10-03-fixes.md` fixes the review's reproduced defects as
 S121–S128. What those slices audited but deliberately did not fix is recorded here.
 
-**Content epochs: injecting content into a running session. Decided, not designed.** The
+**Content epochs: injecting content into a running session. Designed 2026-10-08.** The
 review found that `deserialize` accepts a state whose `campaignVersion` differs from the
-registry's. Rejecting the mismatch was the first recommendation, and it was turned down on
-2026-10-08 (plan 53, D3). Since W120, `campaignVersion` is the resolution digest and
-attachments are part of it. Injecting a side quest therefore changes the version of every live
-session on that campaign, and a rejection would end exactly the sessions injection exists for.
-Content is to reach running sessions through *content epochs* instead. Four answers are
-settled:
+registry's. Rejecting the mismatch was turned down (plan 53, D3): since W120 `campaignVersion` is
+the resolution digest and attachments are part of it, so injecting a side quest changes the
+version of every live session on that campaign, and a rejection would end exactly the sessions
+injection exists for. The design is
+[`16-content-epochs.md`](16-content-epochs.md): an adoption is a logged `LoggedContent` entry,
+sessions adopt at four adoption points or stay pinned, content resolves by the state's own
+version through a content-addressed archive, and the kind judges through `Kind.adoptContent?`.
+The contract is `20-contract.md` C21–C26, §2, §3, §4, §7, §10 and story-graph §8.1, and the
+judgement calls are the 2026-10-08 entries in the decision log. Two refinements on the settled
+directions: absent the seam, a session stays pinned rather than adopting additive change by
+default, and the replay oracle's new failure widens `campaign_version_missing` rather than
+replacing it. **Not yet built** — the next step is `/agentkit:plan`.
 
-1. **Scope: both.** A host-wide publication reaches every live session on a campaign, and
-   per-session overlays layer on top of it. Overlays need a content store and a privacy story,
-   because `08-session-capture.md` treats params as hostile input.
-2. **Replay stays exact.** Adoption is a logged system entry, `{ seq, system: "content", from,
-   to }` over `ResolutionId`s. Replay switches content at that seq, so adopting no longer costs
-   `replayCompatible`. The replay oracle must be able to retrieve the resolution chain, which
-   becomes a new failure mode in place of `campaign_version_missing`.
-3. **A session that cannot adopt stays pinned** to its epoch. Published resolutions are kept
-   content-addressed by `ResolutionId`: the version-addressed registry, as a fallback and for
-   replay, not as the default path.
-4. **The kind judges adoptability**, through a seam such as `Kind.adoptContent?(kindState,
-   from, to)`. Additive changes adopt by default. A breaking change needs the campaign's
-   `migrateState`, or the session stays pinned.
-
-Two mechanisms follow. A host-side registry handle (`current()` / `publish()`) validates through
-the tiered pipeline before the swap, so injected content fails at publish time and never at
-`requireNode`. Sessions adopt only at a turn boundary, on their next touch. The contract cost is
-a registry handle, a `Kind` seam, a `LoggedAction` variant, and replay and fixture identity,
-which is why this is an `/agentkit:design` pass and not a slice. That pass also decides whether
-this subsumes the review's separate "story-extension contract" recommendation.
-
-**Known and retained until epochs land:** S125 made raw `deserialize` reject a `kindId` that is
-not its campaign's (`20-contract.md` §4). It still does not compare `campaignVersion`, so a
-session serialized under one resolution and deserialized under another is accepted silently.
-The save path is unaffected, because `resolveSaveEnvelope` migrates or refuses a version
-mismatch (§10.2). **Revisit** in the design pass. Its answer replaces this gap rather than
-patching it.
+**Resolved by design, 2026-10-08 — the `campaignVersion` gap on raw `deserialize`.** S125 made
+raw `deserialize` reject a `kindId` that is not its campaign's, but left `campaignVersion`
+uncompared, so a session serialized under one resolution was accepted under another. Content
+epochs replace the gap rather than patching it: `deserialize` resolves the state's
+`(campaignId, campaignVersion)` through the archive and refuses `unknown_campaign` when it does
+not resolve (`20-contract.md` §4, C22). The gap stays open in code until that slice lands.
 
 **The content registry holds the host's campaign objects by reference, so "frozen" means
 validated, not immutable.** S124 made the engine own the `params` it logs. The review asked for
@@ -464,9 +449,12 @@ its campaigns once and never touches them again, so this is a latent hazard with
 instance. It is not a slice's fix. A deep copy or deep freeze of arbitrary kind content
 changes the registry's cost and its contract (`20-contract.md` §10.1). It also interacts with
 content epochs (above), whose whole purpose is to change a running campaign's content
-deliberately, through a validated path. **Revisit** in that design pass, which must decide
-how a new epoch's content enters the registry. Whether the registry copies host content, and
-how deeply, is part of that answer.
+deliberately, through a validated path. **Resolved for archived content, 2026-10-08:** the
+in-memory archive's `publish` stores deep-frozen copies (functions by reference), so nothing it
+serves can change after it validated it (`16-content-epochs.md` §4.3). **Retained for the
+default epoch:** a registry handed straight to `createEngine` is still held by reference. A host
+that wants the guarantee there publishes its registry through the archive. **Revisit** if a host
+is found mutating construction-time content.
 
 **Simulation and world-graph check their `kindState` at the top level only.** S126 added
 `Kind.validateState` (`20-contract.md` §3), and story-graph checks its state against its
@@ -502,11 +490,12 @@ GameEngine#292 left: a kind-owned `mergeContent` was evaluated and declined beca
 covered the frequent cases, and the fallback was acknowledged to break silently on a submodule
 bump. The review proposes either a narrow, stable story-extension contract or a versioned,
 compatibility-tested set of portable shapes. It warns against a general merge framework for
-kinds that have no consumer. Content epochs (above) overlap this: a host-wide publication that
-adds a side quest *is* an extension, delivered through a validated path. **Revisit** in the
-content-epochs design pass, which decides whether epochs subsume this or whether extension stays
-a separate, author-time contract. Until then the merge stays Adventures', and an engine change
-to the portable story shape is a breaking change for it.
+kinds that have no consumer. **Subsumed by content epochs, 2026-10-08**
+([`16-content-epochs.md`](16-content-epochs.md) §10): delivery is an epoch, and authoring is an
+attachment (11 §3a, `20-contract.md` §10.4), which is already the stable, engine-owned extension
+shape. No separate story-extension contract is designed. What the merge does that attachments do
+not is registered below as attachment gaps. Until attachments cover it the merge stays
+Adventures', and an engine change to the portable story shape is a breaking change for it.
 
 **No measured operating envelope.** No benchmark says how large a world, how long a session or
 how many ticks per request the engine supports. The review names three costs it can see in the
@@ -579,6 +568,40 @@ an alias period, and kind ids and save formats kept stable, because a rename mus
 saved game. This is a product decision, not an engineering one. **Revisit** when the owner
 decides the ecosystem's public positioning, and before any package is published under a second
 name.
+
+### Found by the content-epochs design
+
+`16-content-epochs.md` (2026-10-08) left these open deliberately. Its §11 is the source; each is
+recorded here once.
+
+**The catalog does not list a campaign that first appears in a publication.** `listCampaigns`
+reads the session layer's construction-time registry, so such a campaign is playable through the
+channel but absent from `CampaignCatalog`. Whether listing reads the channel, and with which
+scope, is a client-surface decision (`20-contract.md`, *Unresolved*). **Revisit** when a host
+publishes a new campaign id rather than a new version of an existing one.
+
+**Simulation and world-graph declare no `adoptContent`.** Every session of theirs stays pinned to
+the epoch it started on, which is safe and loses nothing they have today. Each kind's
+compatibility rule is its own design: simulation's long horizon makes it the kind where a content
+revision most needs to reach a running game. **Revisit** when a host publishes content for
+either kind to live sessions.
+
+**The durable archive is unspecified.** The in-memory archive never evicts. A host's durable
+archive must keep every epoch a stored session, save or committed fixture names, and proving
+that needs records the engine never sees (`16-content-epochs.md` §6). Its interface beyond
+`ResolutionArchive` and its eviction policy are host-owned. **Revisit** when the first host
+persists publications across restarts.
+
+**Overlay privacy beyond capture.** 08 §4 now treats a per-profile overlay's `ResolutionId` as
+personal data in a captured fixture. Whether an overlay's existence leaks through anything else a
+host exposes — a catalog, an error, a timing difference in adoption — is not designed.
+**Revisit** before a host ships per-profile overlays.
+
+**Attachments cannot yet do everything the Adventures extension merge does.** The merge adds
+achievements and adds more than one choice to a host node; 04 §10.4's attachment model does
+neither. Each is a gap in attachments, not a reason for a second extension contract (story
+extension, above). **Revisit** when Adventures moves its extensions onto attachments, which is
+what retires its merge.
 
 ---
 
@@ -2485,3 +2508,51 @@ Context: the ledger predated the kit's settled slice format. Its 125 W units wer
 Chosen: retire every W unit to one Landed row: id, name, the merged pull requests that delivered it, its criteria range, and the merge commit. W68 and W70 are marked cancelled with the pull request that cancelled them (#271). Each row carries an `<a id="w<n>">` anchor, so `30-slices.md#w114` here and the roadmap's `engine/todo#w90`, `#w93` and `#w109` still resolve. `build/Test-Documentation.ps1` learns to collect inline `<a id>` anchors, because it only read headings. Nine open items that the bodies carried unsliced move to a *Carried Forward* section, so none is lost. New slices are `## S<n>` from S121, so no S id can be mistaken for a W id. The full bodies stay readable at `7081402` and in `plans/`. The site roadmap's unit count, which matched `### [x] W` headings, now counts Landed rows that are not cancelled plus `Status: done` S slices. `CLAUDE.md`'s W-id clause is amended to match. This supersedes the 2026-09-05 entry that rejected the *Outstanding*/*Landed* split as expensive and hard to reverse. That entry's cost was real, but it assumed live units whose programme sections still explained them. With every unit landed, the sections are history, and the anchors are kept per row.
 Rejected: **Fixing the twelve status lines only.** That leaves the kit's reader blind to the ledger, and the next `/agentkit:next` reports "finished" for the wrong reason. **Keeping the bodies and adding S-format headings beside them.** Two formats in one file would leave each unit's state recorded in two places.
 Reversibility: one pull request. Reverting it restores the bodies, the old count and the old gate behaviour; no source, test or contract changes.
+
+### 2026-10-08 — Content epochs: new content reaches a running session by logged adoption, or the session stays pinned
+Context: plan 53 D3 turned down rejecting a `campaignVersion` mismatch on `deserialize` and settled three directions for injecting content without a reload: replay stays exact, a session that cannot adopt stays pinned to its epoch, and the kind judges compatibility. The registry was frozen at construction, so the only route to new content was a reload, and a version mismatch at load was a migration that cost `replayCompatible`.
+Chosen: approach B of the design pass. The engine resolves every state's content by its own `(campaignId, campaignVersion)` through an `EngineHost.archive` port that defaults to the construction registry; an adoption is a `LoggedContent { seq, system: "content", from, to }` entry in `actionLog`; `Engine.adoptContent` runs the target campaign's `migrateState`, then `Kind.adoptContent?`, then `validateState`; the session store asks an optional `SessionHost.content` channel at four adoption points and persists the result in the command's own write. The design is `16-content-epochs.md`; the contract is `20-contract.md` C21–C26.
+Rejected: **A per-command `Engine.withContent(registry)` decorator** — it holds one registry and cannot replay a log that crosses an epoch. **A chain of log segments, one per epoch** — the segment boundaries would live outside the log. **Routing adoption through save migration** — it costs `replayCompatible`, against the first settled direction. The full table is `16-content-epochs.md` §9.
+Reversibility: design only; nothing is built. Before a slice lands, reverting is one pull request over the five canonical files. After, the content entry is persisted in sessions and saves, and retiring it needs a format migration.
+
+### 2026-10-08 — A session adopts after its action commits, never before dispatch
+Context: an adoption point on `submitAction` could run before the action resolves or after it commits.
+Chosen: after commit, before the scene is projected. The player's action resolves against the content whose scene offered it, and the next scene is the first drawn from the new epoch. Queries, previews and rejected actions never adopt.
+Rejected: **Before dispatch** — the chosen action would resolve against content the player was never shown, and could name a choice the new epoch moved.
+Reversibility: contract text only until built; afterwards a recorded log's content entries sit after the action they followed, so moving the point changes every adopted log's shape.
+
+### 2026-10-08 — `formatVersion` becomes 2 only on a state whose log carries a content entry
+Context: `LoggedContent` changes the shape of `actionLog`, and `deserialize` requires an exact `formatVersion`.
+Chosen: stamp `2` exactly when a content entry is present (C26), and accept both on read. A game that never adopts serializes byte-identically to today, every golden file and stored session is untouched, and an older engine still reads everything except adopted states — which it correctly refuses.
+Rejected: **Bump unconditionally** — every golden file and stored session changes for a feature none of them use, and an older engine refuses states it reads perfectly well.
+Reversibility: cheap until a version-2 state is persisted; afterwards a reader must keep accepting it.
+
+### 2026-10-08 — Replay's `campaign_version_missing` verdict is widened, not renamed
+Context: the open-register entry anticipated a new failure mode "in place of" `campaign_version_missing`. Under epochs the oracle can fail to resolve any epoch a log names, not only the starting one.
+Chosen: keep the verdict and widen its meaning to "the starting or an adopted version does not resolve" (07 §6). `runner.ts`, `types.ts` and three replay tests switch on the name, and the meaning is the same failure one step wider.
+Rejected: **A new verdict name** — every consumer switching on the old name breaks for no change in what it should do.
+Reversibility: free; a rename can still be made later as an additive alias.
+
+### 2026-10-08 — A kind without `adoptContent` keeps every session pinned
+Context: the settled direction said additive changes adopt by default.
+Chosen: "by default" belongs to the kind's rule, not the core's. Absent the seam, the engine refuses with `content_not_adoptable` and the session stays pinned. Story-graph declares the seam and adopts additive change (story-graph §8.1); simulation and world-graph declare nothing yet.
+Rejected: **Core-level default adoption** — the core cannot tell additive from breaking without reading `kindState`, which it treats as opaque; defaulting to adopt is defaulting to stranding, and staying pinned costs nothing.
+Reversibility: adding the seam to a kind later is additive.
+
+### 2026-10-08 — A save whose epoch is still archived loads exactly, then adopts
+Context: before epochs, a save made under any other version migrated, and a migrated save is `replayCompatible: false` forever.
+Chosen: when the archive resolves the save's `(campaignId, campaignVersion)` and its `kindVersion` matches, `loadGame` loads it on that epoch with no migration and moves it forward at its adoption point by a logged adoption (`20-contract.md` §10.2). Migration remains the path for an epoch no longer archived and for kind-shape changes.
+Rejected: **Always migrate a version mismatch at load** — it spends `replayCompatible` where a logged adoption keeps it.
+Reversibility: contract text only until built.
+
+### 2026-10-08 — A channel that throws is read as no offer, and adoption never fails a command
+Context: the content channel is host code called under the session lock on every command that can adopt.
+Chosen: a throw is no offer, the reading `validateState` already gives a throw; an adoption refusal leaves the session pinned and the command completes; a failed adoption-only write at `resumeSession` restores and retries at the next point.
+Rejected: **Surfacing channel failure as a command error** — a host defect in a policy hook would stop a player mid-turn over content they never asked for.
+Reversibility: free; a host can observe its own channel.
+
+### 2026-10-08 — Content epochs subsume the story-extension contract recommendation
+Context: the 2026-10-03 review asked for a narrow story-extension contract or versioned portable shapes, to replace Adventures' merge over the portable story shape.
+Chosen: no separate contract. Delivery is an epoch; authoring is an attachment (11 §3a, `20-contract.md` §10.4). What the merge does that attachments do not — adding achievements, more than one choice per host node — is registered as attachment gaps.
+Rejected: **A story-extension contract beside attachments** — two engine-owned shapes for adding content to a campaign, and the review itself warned against a merge framework without a consumer.
+Reversibility: a dedicated contract can still be designed if attachment gaps prove unclosable.

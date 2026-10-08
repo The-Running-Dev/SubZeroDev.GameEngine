@@ -112,6 +112,7 @@ interface EngineHost {
   readonly registry: ContentRegistry;    // 04 §10.1
   readonly ids?: IdSource;               // §5.1 — defaults to a random source
   readonly emitter?: Emitter;            // 05 §4 — defaults to nullEmitter
+  readonly archive?: ResolutionArchive;  // 16 §4.1 — defaults to one holding only `registry`
 }
 
 function createEngine(host: EngineHost): Engine;
@@ -130,6 +131,7 @@ interface SessionHost {
   readonly experiments?: Readonly<Record<string, string>>; // §5.5 — resolved, enrolled assignments only
   readonly recordIds?: RecordIdSource;       // §5.7 — omitted → the layer mints its own
   readonly sessionCacheLimit?: number;       // §5.2 — with persistence only; omitted → unbounded
+  readonly content?: ContentChannel;         // 16 §4.2 — omitted → no session is offered new content
 }
 
 function createSessionLayer(host: SessionHost): SessionStore;
@@ -163,7 +165,9 @@ function createSessionLayer(host: SessionHost): SessionStore;
   usefully default is probably not a port.
 - **A port is supplied once, at construction, and never swapped afterwards.** Replacing a
   store mid-session is not a supported operation, and permitting it would make every
-  invariant in 04 conditional on when it was asked.
+  invariant in 04 conditional on when it was asked. Content epochs (16) do not bend this: the
+  archive and the channel are supplied once, and what changes is what they *hold* — through a
+  validated publication, with every session's move recorded in its own log.
 
 > **Why two roots rather than one.** The split mirrors 04 §1's two layers exactly. The pure
 > engine must be constructible with no I/O at all — that is what makes the determinism
