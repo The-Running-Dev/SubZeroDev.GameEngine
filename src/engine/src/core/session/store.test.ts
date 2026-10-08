@@ -1599,3 +1599,84 @@ describe("W102 — Kind.profileData, the third profile mirror", () => {
     ]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// S121 — one player-response projection at the session boundary (20-contract.md §7)
+// ---------------------------------------------------------------------------
+
+const S121_SECRET = "s121-secret-8675309";
+
+function makeHiddenOutputKind(): Kind<TestKindState> {
+  const base = makeTestKind();
+  return {
+    ...base,
+    advance: (state, actionId): AdvanceResult<TestKindState> => {
+      const messages = [
+        { key: "test.hidden", params: { code: S121_SECRET }, visible: false },
+        { key: "test.shown", visible: true },
+      ];
+      if (actionId === "reveal") {
+        return {
+          state: { counter: state.counter + 1 },
+          status: "active",
+          changes: [
+            { path: "secret", op: "set", value: S121_SECRET, reason: "test_hidden", visible: false },
+            // A hidden-path unlock: the profile fold must still see it.
+            { path: "achieved.hidden-path", op: "set", value: true, reason: "achievement_unlocked", visible: false },
+            { path: "counter", op: "set", value: state.counter + 1, reason: "test_shown", visible: true },
+          ],
+          messages,
+        };
+      }
+      return {
+        state,
+        status: "active",
+        changes: [],
+        messages,
+        error: { code: "test_refused", messageKey: "test.refused" },
+      };
+    },
+  };
+}
+
+function makeHiddenOutputStore(profiles?: ProfileStore): SessionStore {
+  const kinds = { "story-graph": makeHiddenOutputKind() } as unknown as KindRegistry;
+  const registry = makeRegistry();
+  return createInMemorySessionStore({
+    engine: createEngine({ kinds, registry }),
+    registry,
+    ...(profiles ? { profiles } : {}),
+  });
+}
+
+describe("S121 — the store returns only visible changes and messages", () => {
+  for (const operation of ["previewAction", "submitAction"] as const) {
+    for (const actionId of ["reveal", "refuse"]) {
+      it(`${operation} ${actionId === "reveal" ? "accept" : "reject"}: the whole serialized result carries no hidden record`, async () => {
+        const store = makeHiddenOutputStore();
+        const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+        const result = await store[operation](sessionId, actionId);
+
+        expect(result.ok).toBe(actionId === "reveal");
+        // The review's shape: scan everything the caller receives, not just scene or view.
+        expect(JSON.stringify(result)).not.toContain(S121_SECRET);
+        expect(result.changes.every((change) => change.visible)).toBe(true);
+        expect(result.messages).toEqual([{ key: "test.shown", visible: true }]);
+        if (actionId === "reveal") {
+          expect(result.changes.map((change) => change.path)).toEqual(["counter"]);
+        }
+      });
+    }
+  }
+
+  it("the profile fold still reads the full result: a hidden-path achievement unlocks", async () => {
+    const profiles = createInMemoryProfileStore();
+    const store = makeHiddenOutputStore(profiles);
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    const result = await store.submitAction(sessionId, "reveal");
+
+    expect(result.changes.some((change) => change.reason === "achievement_unlocked")).toBe(false);
+    const { profile } = await profiles.load("p1");
+    expect(profile.achievements).toEqual([{ campaignId: "test-campaign", achievementId: "hidden-path" }]);
+  });
+});

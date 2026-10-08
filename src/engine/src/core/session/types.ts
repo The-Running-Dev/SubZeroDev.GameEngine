@@ -167,8 +167,9 @@ export interface SessionActionResult {
   scene?: Scene;
   errors: ValidationError[];
   warnings: ValidationWarning[];
-  /** Audit records, `visible`-gated. */
+  /** Audit records — only `visible: true` ones; the store applies the gate (20-contract.md §7). */
   changes: StateChange[];
+  /** Only `visible: true` messages, gated by the store like `changes`. */
   messages: OutcomeMessage[];
 }
 

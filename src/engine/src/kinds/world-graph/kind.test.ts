@@ -110,8 +110,10 @@ describe("world-graph W45 source and validation", () => {
 
     expect(accepted.value.ok).toBe(true);
     expect(accepted.value.changes).toEqual(expect.arrayContaining([
-      expect.objectContaining({ path: "buildings.building:0.exists", reason: "building_placed" }),
+      expect.objectContaining({ path: "finances.cashCents", reason: "building_placed", visible: true }),
     ]));
+    // The placement's `.exists` record is `visible: false`, so the store withholds it (S121).
+    expect(accepted.value.changes.some((change) => change.path === "buildings.building:0.exists")).toBe(false);
     expect(rejected.value.ok).toBe(false);
     expect(rejected.value.errors[0]?.code).toBe("placement_out_of_bounds");
     const persisted = (await client.getView(created.value.sessionId)).value.kindView as WorldGraphView;

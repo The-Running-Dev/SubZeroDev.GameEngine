@@ -406,3 +406,52 @@ describe("the client contract's proof (09-clients.md §1)", () => {
     expect(finalScene.status).toBe("ended");
   });
 });
+
+// S121 — the review's probe, through the MCP names: a hidden story-graph variable set by a
+// choice must not reach a caller through `choose` or `preview_action` (20-contract.md §7).
+describe("S121 — MCP results carry no hidden record", () => {
+  const SECRET = 8675309;
+
+  function hiddenVariableTools(): McpTools {
+    const campaign = {
+      id: "hidden-probe",
+      kindId: "story-graph" as const,
+      version: "1",
+      titleKey: "t",
+      content: {
+        descriptionKey: "t",
+        startNodeId: "start",
+        achievements: [],
+        variables: { secret: { type: "int", initial: 0, visible: false } },
+        nodes: {
+          start: {
+            id: "start",
+            kind: "choice",
+            textKey: "t",
+            choices: [{ id: "go", labelKey: "t", goto: "end", effects: [{ op: "set", var: "secret", value: SECRET }] }],
+          },
+          end: { id: "end", kind: "ending", textKey: "t", endingId: "finished" },
+        },
+      },
+    };
+    const kinds = { "story-graph": storyGraphKind } as unknown as KindRegistry;
+    const strings = new Map([["t", "Test"]]);
+    const validation = storyGraphKind.validateCampaign(campaign, strings);
+    if (!validation.ok) throw new Error(`expected the probe campaign to validate: ${JSON.stringify(validation.errors)}`);
+    const registry = { campaigns: new Map([[campaign.id, campaign]]), strings };
+    const engine = createEngine({ kinds, registry });
+    return createMcpTools(createInMemorySessionStore({ engine, registry }));
+  }
+
+  for (const tool of ["preview_action", "choose"] as const) {
+    it(`${tool}: the whole result omits the hidden variable's change`, async () => {
+      const tools = hiddenVariableTools();
+      const { sessionId } = await tools.start_game({ campaignId: "hidden-probe" });
+      const result = await tools[tool]({ sessionId, actionId: "go" });
+
+      expect(result.ok).toBe(true);
+      expect(JSON.stringify(result)).not.toContain(String(SECRET));
+      expect(result.changes.every((change) => change.visible)).toBe(true);
+    });
+  }
+});

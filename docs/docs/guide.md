@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 8824e3253442ab556eabc039f74225a7ecc342397c7781157575885660bc312a -->
+<!-- design-digest: 46ffffd5695e341b8ba531fa871390fa95534d7452847fee387a1f9599c37099 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -495,6 +495,12 @@ Clients receive a generic `Scene` and `PlayerView` plus a kind-projected view. T
 the seed or action log, raw `kindState`, non-visible story variables or visit counts, hidden
 choices, unrevealed simulation/world opportunities or entity internals, or achievement conditions
 and other future-state hints.
+
+**An action's result is projected too.** `submitAction` and `previewAction` return only the
+`StateChange` and `OutcomeMessage` records marked `visible`, on accept and reject, for every
+audience. The session store applies that filter, and nothing reaches a client before it. The
+engine's own `ActionResult` stays complete, because the profile fold, replay and observability read
+it. A hidden variable's new value therefore reaches the profile and never the caller.
 
 **A projection must carry everything a client needs to render what it shows.** The rule has an
 inverse that is easy to miss: a field the projection omits is a field every client then reaches
