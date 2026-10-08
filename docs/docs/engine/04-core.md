@@ -537,6 +537,10 @@ so it cannot masquerade as a committed command.
 > ([`05-observability.md`](05-observability.md) §5, §6).
 
 Immutability is unconditional (games/04-engine-specification.md §11.3): every operation returns a new envelope.
+Its converse holds too: **the engine owns what it logs.** `submitAction` and `previewAction`
+copy `params` once on entry, and both step 4's `advance` and step 6's `LoggedAction` receive that
+copy, so a caller mutating its own object afterwards cannot rewrite the replay spine.
+`ActionParams` is a flat record of primitives, so a shallow copy is the whole value.
 
 **`createGame`** assembles the envelope and delegates the start to the kind:
 

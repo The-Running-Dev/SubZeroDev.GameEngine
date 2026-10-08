@@ -262,6 +262,46 @@ describe("submitAction", () => {
   });
 });
 
+describe("S124 — the engine owns what it logs", () => {
+  it.each(["submitAction", "previewAction"] as const)(
+    "S124.1 — %s: mutating the caller's params afterwards leaves the logged action unchanged",
+    (operation) => {
+      const engine = createEngine(makeHost());
+      const state = engine.createGame({ campaignId: "test-campaign" }).value as GameState;
+      const params: Record<string, string | number | boolean> = { amount: 2 };
+
+      const result = engine[operation](state, "increment", params);
+      expect(result.ok).toBe(true);
+      const next = result.value as GameState;
+      const before = engine.serialize(next);
+
+      params.amount = 99;
+      params.injected = "after the fact";
+
+      expect(engine.serialize(next)).toBe(before);
+      expect(next.actionLog).toEqual([{ seq: 0, actionId: "increment", params: { amount: 2 } }]);
+    },
+  );
+
+  it("S124.2 — the kind and the log see the same owned copy, never the caller's object", () => {
+    let seen: unknown;
+    const capturingKind = makeTestKind({
+      advance: (state, actionId, params, ctx): AdvanceResult<TestKindState> => {
+        seen = params;
+        return makeTestKind().advance(state, actionId, params, ctx);
+      },
+    });
+    const engine = createEngine(makeHost({ kinds: makeKinds(capturingKind) }));
+    const state = engine.createGame({ campaignId: "test-campaign" }).value as GameState;
+    const params = { amount: 3 };
+
+    const next = engine.submitAction(state, "increment", params).value as GameState;
+
+    expect(seen).not.toBe(params);
+    expect(seen).toBe(next.actionLog[0]?.params);
+  });
+});
+
 describe("previewAction", () => {
   it.each([
     ["accepted", "increment", { amount: 2 }],

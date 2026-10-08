@@ -165,6 +165,9 @@ function submitAction(
 ): ActionResult {
   const seq = state.actionLog.length;
   const emitters = makeResolutionEmitters(host.emitter ?? nullEmitter, state.gameId, seq);
+  // The engine owns what it logs (04 §4): a caller mutating its params object afterwards
+  // must not rewrite history. `ActionParams` is flat primitives, so a shallow copy is whole.
+  const ownedParams: ActionParams | undefined = params === undefined ? undefined : { ...params };
 
   /**
    * Every rejection path emits `core.action.rejected` (05 §8). `includeActionId` is the
@@ -206,7 +209,7 @@ function submitAction(
   }
 
   const ctx = buildKindContext(host.registry, campaign, kind, state.seed, { kind: "action", seq }, seq, emitters);
-  const result = kind.advance(state.kindState, actionId, params, ctx);
+  const result = kind.advance(state.kindState, actionId, ownedParams, ctx);
 
   if (result.error) {
     return reject(result.error, result.error.code !== "unknown_action", result.messages);
@@ -218,7 +221,8 @@ function submitAction(
   }
 
   // exactOptionalPropertyTypes: omit `params` entirely rather than assign it `undefined`.
-  const loggedAction: LoggedAction = params === undefined ? { seq, actionId } : { seq, actionId, params };
+  const loggedAction: LoggedAction =
+    ownedParams === undefined ? { seq, actionId } : { seq, actionId, params: ownedParams };
 
   const newState: GameState = {
     ...state,

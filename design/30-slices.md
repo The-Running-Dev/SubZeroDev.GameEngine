@@ -144,6 +144,24 @@ Acceptance:
     trace.
 Out of scope: Bounding the save cache (S126/S127, D4).
 
+## S124 — The Engine Owns What It Logs
+
+Status: done
+Delivers: A host that reuses or edits its params object after submitting an action can no
+          longer rewrite a player's recorded history, so a save replays the game they played.
+Touches: `src/engine/src/core/kernel/engine.ts`, `20-contract.md` §4
+Depends on: none
+Acceptance:
+  - S124.1 Mutating the caller's `params` object after `submitAction` or `previewAction`
+    leaves the returned state's `serialize()` output and its `actionLog` unchanged.
+  - S124.2 `Kind.advance` receives the same copy the `LoggedAction` records, never the
+    caller's object.
+  - S124.3 Callers that never mutate get byte-identical output, so the determinism and
+    replay suites pass unchanged.
+  - S124.4 Host-supplied campaigns were audited and left unchanged: the registry holds them
+    by reference. Recorded in `90-decisions.md`, *Found by the 2026-10-03 repository review*.
+Out of scope: Copying or freezing campaign content (S124.4's entry; D3's content epochs).
+
 ## Landed
 
 Ordered by id. *Criteria* is the range of numbered acceptance

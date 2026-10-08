@@ -406,6 +406,31 @@ ceiling for this fixture, not a claim of boundedness. **Revisit** by giving a
 `PendingEventResponse` some expiry (an `expiresAtWeek`, mirroring `Opportunity`'s own
 field) or an explicit "declined by default" resolution once its `presentWeek` has passed
 by some stated margin — a real content/contract decision, not a slice-sized fix.
+
+### Found by the 2026-10-03 repository review
+
+`plans/53-repository-review-2026-10-03-fixes.md` fixes the review's reproduced defects as
+S121–S128. What those slices audited but deliberately did not fix is recorded here.
+
+**The content registry holds the host's campaign objects by reference, so "frozen" means
+validated, not immutable.** S124 made the engine own the `params` it logs. The review asked for
+the same audit of host-supplied campaigns, and the answer is that nothing copies or freezes
+them. `buildContentRegistry` (`src/engine/src/core/registry/build.ts`) puts each
+`BuiltCampaign.campaign` into `ContentRegistry.campaigns` as the same object, and
+`composeCampaigns` (`src/engine/src/core/registry/compose.ts`) passes an uncomposed campaign through unchanged. A
+composed campaign is a shallow copy whose `content` the kind's `composeContent` built, and
+that may share sub-objects with its modules. A host that mutates a campaign's `content` after
+`buildValidatedContentRegistry` returns therefore changes the content every live session
+resolves against, with no validation. `Campaign.content` is typed `unknown`, so no
+`readonly` modifier protects it either. Every host in this repository and in Adventures builds
+its campaigns once and never touches them again, so this is a latent hazard with no observed
+instance. It is not a slice's fix. A deep copy or deep freeze of arbitrary kind content
+changes the registry's cost and its contract (`20-contract.md` §10.1). It also interacts with
+D3's content epochs, whose whole purpose is to change a running campaign's content
+deliberately, through a validated path. **Revisit** in that design pass, which must decide
+how a new epoch's content enters the registry. Whether the registry copies host content, and
+how deeply, is part of that answer.
+
 ---
 
 ## 3. Judgement Calls to Revisit (Settled for the MVP)
