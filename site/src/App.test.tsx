@@ -7,9 +7,11 @@ describe("landing page", () => {
     render(<App />);
 
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-      "Build Mechanics Once. Create Infinite Games.",
+      "GodComplex. Consequences.",
     );
-    expect(screen.getAllByText("Well... why not?")).toHaveLength(2);
+    expect(
+      screen.getByText("Build rules once. Explore every consequence."),
+    ).toBeInTheDocument();
   });
 
   it("uses the verified root-relative documentation routes", () => {
@@ -102,6 +104,7 @@ describe("landing page", () => {
       "principles",
       "resolution",
       "worlds",
+      "testimonials",
       "continue",
     ];
 
@@ -113,7 +116,7 @@ describe("landing page", () => {
     const targets = continueLinks.map((link) =>
       link.getAttribute("href")?.slice(1),
     );
-    // Every section but the hero and the last one links to the next: nine
+    // Every section but the hero and the last one links to the next: eleven
     // links, each one step ahead of the section that holds it.
     expect(targets).toEqual(chain.slice(2));
   });
