@@ -730,8 +730,8 @@ interface SessionActionResult {
   scene?: Scene;                 // the new scene, on success — a projection (§9)
   errors: ValidationError[];
   warnings: ValidationWarning[];
-  changes: StateChange[];        // audit records, `visible`-gated (§12)
-  messages: OutcomeMessage[];
+  changes: StateChange[];        // audit records; the store returns only `visible: true` (§12)
+  messages: OutcomeMessage[];    // likewise, only `visible: true`
 }
 
 type StringTable = Readonly<Record<LocKey, string>>;
@@ -743,6 +743,13 @@ type StringTable = Readonly<Record<LocKey, string>>;
 > (§4), whose caller is the store; handing it to a client would put raw state on the other
 > side of the projection boundary and make §9 a convention rather than a guarantee. The
 > store unwraps it and returns a `Scene`.
+
+> **The store gates `visible`, for every audience.** `submitAction` and `previewAction` drop
+> every `StateChange` and `OutcomeMessage` whose `visible` is `false`, on accept and reject
+> alike and for `ai` as well as `player`: a gate left to the client hides nothing from the
+> client. The engine's `ActionResult` stays complete. It is the audit surface the profile fold
+> (§7.1), replay and observability read, and the store folds the profile from it before it
+> projects the result.
 
 > **`createSession` takes `CreateSessionConfig`.** It previously took `NewGameConfig`, which
 > carries no `profileId` — leaving `CreateSessionConfig` defined and unreachable, and no way
@@ -2151,7 +2158,8 @@ interface ActionResult extends CommandResult<GameState> { changes: StateChange[]
 
 `StateChange` is an **audit record emitted by typed reducers**, never the mutation
 mechanism — the discipline the simulation kind arrived at (games/04-engine-specification.md §10.4). It feeds
-history and the transparency requirement; `visible` gates what a client may show.
+history and the transparency requirement; `visible` gates what a client receives, and the
+session store applies that gate (§7).
 
 > **`StateChange` is not logging.** It is a domain record: localized, returned in
 > `AdvanceResult`, persisted by what the store keeps, and shown to players. Operational

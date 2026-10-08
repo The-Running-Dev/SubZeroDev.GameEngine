@@ -12,10 +12,12 @@ slug: todo
 
 # TODO
 
-**Status:** Delivery ledger. Nothing is in flight. All 125 W-numbered units have landed or been
-cancelled, and each is retired to one row under [Landed](#landed). The next slice is planned as
-`## S121`, above *Landed*, in the agent kit's slice format. It reads `Status: todo` until the pull
-request that builds it sets `Status: done`.
+**Status:** Delivery ledger. All 125 W-numbered units have landed or been cancelled, and each
+is retired to one row under [Landed](#landed). Slices from S121 on are `## S<n>` sections above
+*Landed*, in the agent kit's slice format; each reads `Status: todo` until the pull request that
+builds it sets `Status: done`. S121–S128 fix the reproduced defects of the 2026-10-03 repository
+review, planned in
+[`plans/53`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/53-repository-review-2026-10-03-fixes.md).
 
 > **Where a retired unit's full text is.** Every W unit's body — what it delivers, its numbered
 > acceptance criteria, its scope, and the programme prose that grouped units together — is in this
@@ -71,6 +73,28 @@ lost. None is sliceable as written: each needs a contract or design decision fir
 - **The games' own Definitions of Done** live with the games:
   `games/life-in-the-fast-lane.md` and `games/bulgaria-adventure.md` in
   [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife).
+
+## S121 — Hidden Outcomes Stay Hidden
+
+Status: done
+Delivers: A player, or a rival AI, reading what an action did sees only what the campaign meant
+          them to see. A hidden variable's new value or a hidden message no longer arrives in the
+          response, so no client can reveal it.
+Touches: `src/engine/src/core/session/store.ts`, `src/engine/src/core/session/types.ts`,
+         `20-contract.md` §7 and §12
+Depends on: none
+Acceptance:
+  - S121.1 `submitAction` and `previewAction` return only `StateChange` and `OutcomeMessage`
+    records whose `visible` is `true`, on accept and on reject. The whole serialized result
+    contains no hidden record's value.
+  - S121.2 The gate applies to every audience, `ai` included.
+  - S121.3 The profile fold still reads the unfiltered result: an achievement unlocked by a
+    `visible: false` change is recorded on the profile, and is absent from the returned changes.
+  - S121.4 The MCP `choose` and `preview_action` tools carry the same filtered result. The review's
+    probe campaign, a hidden story-graph variable set by a choice, leaks nothing through either.
+  - S121.5 The pure engine's `ActionResult` is unchanged and still carries every record.
+Out of scope: Filtering inside the engine, `Scene` or `PlayerView` (already projections), and
+              the attempt counter and revision (S122).
 
 ## Landed
 

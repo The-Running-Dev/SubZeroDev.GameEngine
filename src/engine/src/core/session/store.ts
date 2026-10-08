@@ -18,7 +18,7 @@ import type {
   NewGameConfig,
   Scene,
 } from "../kernel/types.js";
-import type { StateChange } from "../kernel/reasons.js";
+import type { OutcomeMessage, StateChange } from "../kernel/reasons.js";
 import type { Campaign, ContentRegistry } from "../registry/types.js";
 import { buildSaveEnvelope, resolveSaveEnvelope, serializeSaveEnvelope } from "../persistence/envelope.js";
 import { canonicalize as canonicalStringify } from "subzerodev-data-json";
@@ -104,6 +104,29 @@ function achievementIdFrom(change: StateChange): string | undefined {
 function toValidationWarning(warning: ProfileWarning): ValidationWarning {
   const path = warning.kindId !== undefined ? `${warning.profileId}:${warning.kindId}` : warning.profileId;
   return { code: warning.code, messageKey: `core.reason.${warning.code}`, path };
+}
+
+/** The one player-response projection (20-contract.md §7): every exit of `submitAction` and
+ *  `previewAction` passes through here, so a hidden `StateChange` or `OutcomeMessage` never
+ *  leaves the store, for any audience. The engine's own `ActionResult` stays complete — it is
+ *  the audit surface the profile fold, replay and observability read. */
+function toPlayerResult(result: {
+  ok: boolean;
+  scene?: Scene;
+  errors: SessionActionResult["errors"];
+  warnings: SessionActionResult["warnings"];
+  changes: readonly StateChange[];
+  messages: readonly OutcomeMessage[];
+}): SessionActionResult {
+  const projected: SessionActionResult = {
+    ok: result.ok,
+    errors: result.errors,
+    warnings: result.warnings,
+    changes: result.changes.filter((change) => change.visible),
+    messages: result.messages.filter((message) => message.visible),
+  };
+  if (result.scene !== undefined) projected.scene = result.scene;
+  return projected;
 }
 
 /** The canonical serialization of a folded `KindProfileRecord.data` must not exceed this
@@ -716,17 +739,17 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
               }
             }
 
-            return {
+            return toPlayerResult({
               ok: true,
               scene: decoratedEngine.scene(result.value),
               errors: result.errors,
               warnings: [...result.warnings, ...profileWarnings],
               changes: result.changes,
               messages: result.messages,
-            };
+            });
           }
 
-          return { ok: false, errors: result.errors, warnings: result.warnings, changes: result.changes, messages: result.messages };
+          return toPlayerResult({ ok: false, errors: result.errors, warnings: result.warnings, changes: result.changes, messages: result.messages });
         });
       });
     },
@@ -742,17 +765,17 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
         const result = engine.previewAction(state, actionId, params);
 
         if (result.ok && result.value) {
-          return {
+          return toPlayerResult({
             ok: true,
             scene: engine.scene(result.value),
             errors: result.errors,
             warnings: result.warnings,
             changes: result.changes,
             messages: result.messages,
-          };
+          });
         }
 
-        return { ok: false, errors: result.errors, warnings: result.warnings, changes: result.changes, messages: result.messages };
+        return toPlayerResult({ ok: false, errors: result.errors, warnings: result.warnings, changes: result.changes, messages: result.messages });
       });
     },
 
