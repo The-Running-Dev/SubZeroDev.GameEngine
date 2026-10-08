@@ -123,6 +123,12 @@ interface WorldGraphKindState {
 }
 ```
 
+**`validateState` (04 §3) checks this interface at the top level only.** `tick` and
+`nextEntityOrdinal` are non-negative integers, each object field a plain object, each list an
+array, `resolution` an object or `null`. Every field has existed since the kind was built, so
+none may be absent. The records under them are trusted; checking them is recorded in
+`90-decisions.md`, *Found by the 2026-10-03 repository review*.
+
 > **The draft's `ResortMap` is named `WorldMap` here.** §1 rejects the name
 > `management-simulation` on the grounds that *a colony sim, an ecosystem model or a
 > transport network would run on this identical kind* — and a type called `ResortMap` in

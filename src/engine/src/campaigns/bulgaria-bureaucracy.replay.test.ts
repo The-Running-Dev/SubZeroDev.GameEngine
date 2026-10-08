@@ -48,6 +48,7 @@ import {
   loadExpectedOutcome,
   loadFixture,
   outcomeNamesByPrefix,
+  statesThatFailToDeserialize,
 } from "./replay-corpus.js";
 
 const REPLAY_PROFILE_ID = "replay-oracle-profile";
@@ -177,5 +178,12 @@ describe.skipIf(COMPARING_ACROSS_VERSIONS)("the replay corpus's mechanics (07-re
       const expected = loadExpectedOutcome(name);
       expect(findDivergence(expected, expected)).toBeUndefined();
     }
+  });
+});
+
+// S126: every state the corpus passes through is one its kind's `validateState` accepts.
+describe("the replay corpus deserializes (S126)", () => {
+  it.for(CURRENT_BUREAUCRACY_FIXTURE_NAMES)("%s: every state it reaches round-trips through deserialize", (name) => {
+    expect(statesThatFailToDeserialize(makeContext().engine, loadFixture(name, FIXTURES_DIR))).toEqual([]);
   });
 });

@@ -177,6 +177,32 @@ Acceptance:
 Out of scope: Any `campaignVersion` policy (D3, content epochs); kind-owned `kindState`
               validation (S126).
 
+## S126 — A Kind Refuses a State It Cannot Run
+
+Status: done
+Delivers: A save or stored session whose game data is the wrong shape is refused when it is
+          loaded, rather than being accepted and failing on the first move.
+Touches: `src/engine/src/core/kernel/types.ts`, `src/engine/src/core/kernel/engine.ts`,
+         `src/engine/src/core/persistence/envelope.ts`, each kind's `validateState.ts`,
+         `20-contract.md` §3, §4, §10.2, 03 §8.1, 10 §2, 12 §3, `10-design.md` 05 §8
+Depends on: S125
+Acceptance:
+  - S126.1 `Kind` gains a required `validateState(kindState, campaign): boolean`.
+    `deserialize` calls it after its own checks. A `false` or a throw rejects with
+    `invalid_state` (`path: "kindState"`) and emits one `core.deserialize.rejected`;
+    `migrate` inherits it.
+  - S126.2 `resolveSaveEnvelope` asks the kind after both migrations. A refusal is
+    `invalid_state` for an unmigrated save and `migration_failed` for a migrated one.
+  - S126.3 Story-graph checks every field's type, that `currentNodeId` names a campaign node,
+    and that every declared variable is present with its `VarType`; an undeclared variable is
+    tolerated.
+  - S126.4 Simulation and world-graph check each top-level field's type. Simulation tolerates
+    an absent `resolution`, because sessions saved before it existed do not have one.
+  - S126.5 Every state each replay corpus fixture passes through round-trips through
+    `deserialize`.
+Out of scope: Deep validation of simulation and world-graph records (recorded in
+              `90-decisions.md`, *Found by the 2026-10-03 repository review*).
+
 ## Landed
 
 Ordered by id. *Criteria* is the range of numbered acceptance

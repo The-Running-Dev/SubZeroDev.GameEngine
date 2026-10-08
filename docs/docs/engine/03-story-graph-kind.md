@@ -414,6 +414,13 @@ interface StoryGraphKindState {
 ([`04-core.md`](04-core.md) §8 / games/04 §2.2) — a `Record` iterated in a
 state-affecting way is sorted first, or a save/load round trip can diverge.
 
+**`validateState` (04 §3) checks this interface against its campaign.** Every field is present
+with its type — `turn` and each visit count a non-negative integer, `endingId` absent or a
+string — `currentNodeId` names a node the campaign has, and every variable the campaign
+declares is present with its declared `VarType`. A variable the campaign does not declare is
+tolerated: nothing reads it, and refusing it would refuse a save whose campaign later dropped a
+variable before content epochs settle what that means.
+
 ### 8.2 The Turn: `submitChoice` → Settle
 
 The story-graph kind has exactly **one player action** — submit a choice — with no plan

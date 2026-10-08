@@ -152,6 +152,17 @@ export interface Kind<KState> {
    */
   validateCampaign(campaign: Campaign, strings: ReadonlyMap<LocKey, string>): ValidationResult;
 
+  /**
+   * Whether a `kindState` arriving from outside the engine is one this kind can run against
+   * `campaign` (04 §4, §10.2). The core checks `kindState` for presence only — its shape is
+   * the kind's to state — so `deserialize` asks here after its own checks, and the save
+   * boundary asks again after any migration. Pure and total over `unknown`: same input, same
+   * answer, no throw (a throw is read as `false`). A structural check of the kind's own
+   * top-level fields, plus whatever references into `campaign` the kind's other methods
+   * index without a guard. Never consulted on a state the engine produced itself.
+   */
+  validateState(kindState: unknown, campaign: Campaign): boolean;
+
   /** Cross-version-stable terminal identity — published ids only, never values, so a
    *  balance pass cannot read as a regression (07 §3.3–§3.4). */
   outcome(state: KState): KindOutcome;

@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 09cf0207048b4459d986695ccd65b0aeeb10871af97a36f4e330bea0ba273455 -->
+<!-- design-digest: 9de4eefe0e76531c2188aec9a6a8c7bb4842bfe22dbd25f473210f8e9b72084d -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -1047,6 +1047,12 @@ A bare serialized `GameState` has no wrapper and no migration. `deserialize` sti
 whose campaign or kind this host lacks, or whose kind is not its campaign's own. It does not
 compare the campaign version. That gap stays open until content epochs settle what a version
 change means for a running session.
+
+On both paths the kind has the last word. Every kind implements `validateState`, and a game
+state whose data it cannot run is refused when it is loaded, not on the first move. A save is
+judged after migration, so a migration that produces a state its own kind refuses fails as
+`migration_failed`. Story-graph checks its state against the campaign. Simulation and
+world-graph check only the top-level fields and trust the records underneath.
 
 **Migrating twice is a no-op.** The first pass restamps the campaign version, so a save that is
 loaded, saved, and loaded again finds no mismatch and reaches a canonically identical state.
