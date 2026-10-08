@@ -480,6 +480,96 @@ memory defect: whether they are `EngineEvent`s, `EmittedRecord`s or a separate g
 changes 05's channel contract, and no host has asked for them yet. **Revisit** when a host
 tunes `sessionCacheLimit` in production, or when the Platform host needs capacity telemetry.
 
+The review also made six recommendations that are not defects (plan 53 §3). Each is recorded
+here once, with what would make it worth acting on. None blocks the defect fixes, and several
+are product calls rather than engineering ones.
+
+**A story extension is merged by shapes the engine does not contract.** Adventures merges
+extension JSON into a base campaign before validation
+(`SubZeroDev.Adventures/shared/campaign-extension.ts`), adding nodes, choices and achievements
+by reading the portable story shape directly. Its own header names this as the fallback
+GameEngine#292 left: a kind-owned `mergeContent` was evaluated and declined because text deltas
+covered the frequent cases, and the fallback was acknowledged to break silently on a submodule
+bump. The review proposes either a narrow, stable story-extension contract or a versioned,
+compatibility-tested set of portable shapes. It warns against a general merge framework for
+kinds that have no consumer. Content epochs (above) overlap this: a host-wide publication that
+adds a side quest *is* an extension, delivered through a validated path. **Revisit** in the
+content-epochs design pass, which decides whether epochs subsume this or whether extension stays
+a separate, author-time contract. Until then the merge stays Adventures', and an engine change
+to the portable story shape is a breaking change for it.
+
+**No measured operating envelope.** No benchmark says how large a world, how long a session or
+how many ticks per request the engine supports. The review names three costs it can see in the
+source without having measured any:
+
+- the world-graph pathfinder (`canonicalPathWithCost` in
+  `src/engine/src/kinds/world-graph/spatial.ts`) re-sorts its open set on every expansion and
+  scans every edge to find a position's neighbours;
+- the world materializes its spatial data into state;
+- `submitAction` copies the whole `actionLog` on every accepted action, so cumulative copying is
+  quadratic in the number of actions.
+
+The proposal is to measure before optimizing: fixed seeds, several map and population sizes,
+short and long histories, p50/p95 action latency, state bytes, per-session memory and save time,
+with hardware and runtime recorded. Supported limits are then chosen from the measurements. The
+likely remedies are an adjacency index, a deterministic priority queue, revision-scoped derived
+caches, and snapshot-plus-log storage. Any of them must keep canonical tie-breaking and
+world-graph batch invariance, and the per-action tick cap stays. **Revisit** when a consumer
+reports latency or memory pressure, or before any public claim about world size or session
+length.
+
+**Large modules carry several responsibilities each.** Simulation's resolvers
+(`src/engine/src/kinds/simulation/resolvers.ts`) and end-of-week systems (`endOfWeek.ts`),
+world-graph's tick pipeline (`src/engine/src/kinds/world-graph/tick/pipeline.ts`) and the
+session store (`src/engine/src/core/session/store.ts`) are the largest source files in the
+package, each running to a thousand lines or more. The review's concern is change coupling and
+review difficulty, not line count. It recommends moving coherent systems and pure helpers into
+named modules, keeping the orchestration order and the public interfaces, and no new framework.
+**Revisit** when a change to one of these files would be easier to make or review with a
+system extracted first. Do the extraction in that change's slice, with replay equivalence as
+its proof, not as a standalone refactor.
+
+**The documentation front door is too expensive.** The five canonical design files total about
+1.2 MB, most of it in `20-contract.md` and this file. A new reader has no short path to what the
+engine does today. The review recommends:
+
+1. a capability map that separates *implemented*, *exercised by a consumer*, *externally
+   playtested* and *planned*;
+2. a first author journey small enough to finish in one sitting: one campaign, one condition,
+   one hidden variable, an ending, then validate, play, save and replay;
+3. separate entry points for player promises, author guidance, implementer contracts and
+   history;
+4. canonical contracts partitioned into bounded, linkable topics through the generator, never
+   by hand-maintained copies;
+5. active instructions kept short, with incident narratives moved into indexed history;
+6. volatile facts generated rather than written.
+
+S128 fixed the one instance of item 6 the review named (`agent.md`'s test count). The rest is a
+documentation-architecture pass, not a fix. Item 4 in particular interacts with the
+generator's marked-block scheme and with the kit's five-file layout. **Revisit** when a new
+contributor or a new consumer repository has to onboard, or when a canonical file no longer fits
+the context a generator or reviewer can read in one pass.
+
+**"Three game directions are proven" overstates the evidence.** `00-brief.md` says so of Life
+in the Fast Lane, Bulgaria: Make-Your-Own-Adventure and Sun Trap. All three kinds have
+implementations and replay fixtures, but only the story route has a real application on it
+(Adventures). GameOfLife is a design and specification repository, and SunTrap states that it
+has no executable game. The review asks for the claim to be qualified, so that contributors and
+the project's own prioritization can tell an implemented kind from a shipped game. It also asks
+the README to drop its implication that nobody had made gameplay reusable (Unreal's Gameplay
+Ability System and ink both have) in favour of a positive, testable promise, keeping the humour. Both are brief-level wording and the owner's call. **Revisit** at the next
+`/agentkit:brief` pass, or sooner if the claim is repeated somewhere a reader will act on it.
+
+**The name "GameEngine" invites the wrong comparison.** The review argues that "game engine"
+names an implementation category, suggests graphics-heavy tooling, and hides the non-game
+scenario uses. It shortlists *SubZeroDev.Scenarios* and *SubZeroDev.ScenarioKit*. Its collision
+screen was preliminary, not a domain, package-registry or trademark search. If the project is
+renamed, the review asks for it to be deliberate: brand, repository and package together, with
+an alias period, and kind ids and save formats kept stable, because a rename must not break a
+saved game. This is a product decision, not an engineering one. **Revisit** when the owner
+decides the ecosystem's public positioning, and before any package is published under a second
+name.
+
 ---
 
 ## 3. Judgement Calls to Revisit (Settled for the MVP)
