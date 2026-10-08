@@ -2,7 +2,7 @@ name: CI
 
 # Branches are covered by `pull_request`; `main` by `push`. Restricting push to
 # main is what stops a branch with an open PR producing two runs of this
-# workflow -- the same approach the installed docs-ci.yml takes, and the reason
+# workflow -- the same approach docs.yml takes, and the reason
 # it needs no concurrency group either.
 #
 # An earlier version triggered on every push *and* pull_request, deduplicated by

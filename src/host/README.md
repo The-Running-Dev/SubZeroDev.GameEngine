@@ -25,7 +25,7 @@ The host serves whatever is in its `wwwroot`. It refuses to start if `index.html
 `roadmap/index.html`, or `docs/index.html` is missing — that is the
 same guard the container image's build proves red in CI (`StaticArtifact` in
 `Program.cs`). To run against a real artifact, build the combined site+docs output first
-(`npm --prefix site run merge`, the same package-backed merge `docs-ci.yml` and `docs-deploy.yml` use)
+(`npm --prefix site run merge`, the same package-backed merge `docs.yml` uses)
 and copy it into `SubZeroDev.GameEngine.Host/wwwroot/` before `dotnet run`.
 
 The container image (repository-root `Dockerfile`) does this assembly for you in one

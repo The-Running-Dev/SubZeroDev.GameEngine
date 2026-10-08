@@ -129,9 +129,9 @@ client, MCP server, site, docs, host) identify the same candidate SHA.
 
 ## 5. Release-note source
 
-The changelog is generated from `main`'s merge history by `build/ConvertTo-Changelog.ps1` into
-`docs/docs/engine/CHANGELOG.md`. There is no hand-maintained changelog and this checklist does
-not start one.
+The changelog is generated from `main`'s merge history into `docs/docs/engine/CHANGELOG.md` by the
+docs workflow's `changelog` input (GitHub-ActionTemplates `actions/changelog`). There is no
+hand-maintained changelog and this checklist does not start one.
 
 The immutable release-note source for `0.11.0` is the commit range:
 
