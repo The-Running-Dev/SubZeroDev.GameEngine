@@ -18,13 +18,13 @@ export default defineLandingPage({
       path: "/",
       entry: "src/main.tsx",
       metadata: {
-        title: "SubZeroDev Game Engine — Build mechanics once.",
+        title: "SubZeroDev GodComplex — Build mechanics once.",
         description:
-          "A deterministic, game-agnostic platform for building reusable narrative-game mechanics.",
+          "A deterministic engine for games, branching narratives, decision trees, guides, surveys and simulations.",
         canonicalUrl: "https://game-engine.subzerodev.com/",
         openGraph: {
-          title: "SubZeroDev Game Engine",
-          description: "Build mechanics once. Create infinite games.",
+          title: "SubZeroDev GodComplex",
+          description: "GodComplex — Consequences.",
           type: "website",
           url: "https://game-engine.subzerodev.com/",
           imageUrl: "https://game-engine.subzerodev.com/og-image.png",
@@ -59,12 +59,12 @@ export default defineLandingPage({
       path: "/roadmap/",
       entry: "src/roadmap/main.tsx",
       metadata: {
-        title: "Roadmap — SubZeroDev Game Engine",
+        title: "Roadmap — SubZeroDev GodComplex",
         description:
-          "What SubZeroDev Game Engine has built, what comes next, and why it became a deterministic delivery ledger.",
+          "What SubZeroDev GodComplex has built, what comes next, and why it became a deterministic delivery ledger.",
         canonicalUrl: "https://game-engine.subzerodev.com/roadmap/",
         openGraph: {
-          title: "SubZeroDev Game Engine Roadmap",
+          title: "SubZeroDev GodComplex Roadmap",
           description:
             "What is built, what is next, and why the queue is deterministic.",
           type: "website",
