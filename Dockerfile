@@ -5,19 +5,19 @@
 #   1. the standalone landing page (site/dist);
 #   2. the Docusaurus documentation, through the repository's supported template path;
 #   3. the protected merge of the two (§4 step 3 -- the package-backed `merge` command
-#      site/package.json runs, the same command docs-ci.yml's verify job proves on every PR);
+#      site/package.json runs, the same command docs.yml's Build job proves on every PR);
 #   4. the ASP.NET product host, composed with the one pinned, released
 #      SubZeroDev.Platform.Hosting package (§3 -- no sibling checkout, no floating range);
 #   5. a runtime stage carrying only the published host and the verified combined
 #      artifact -- no Node, no npm cache, no source tree, no build tooling, no
 #      registry credential (§5, §6).
 #
-# CHANGELOG.md is not regenerated inside this build (docs-deploy.yml's own job does that
+# CHANGELOG.md is not regenerated inside this build (docs.yml's changelog step does that
 # from full git history, which this build intentionally does not clone for). The
 # committed docs/docs/engine/CHANGELOG.md -- already documented as a static fallback for
 # anyone reading the repository directly -- ships instead. That is the one place this
 # image's docs subtree can differ from a fresh GitHub Pages deploy; every route the site
-# actually serves is otherwise the same combined artifact docs-deploy.yml produces.
+# actually serves is otherwise the same combined artifact docs.yml produces.
 
 ########################################################################################
 # site -- the engine package build the landing page needs, then the landing page itself.
@@ -43,9 +43,10 @@ COPY docs/docs/engine/TODO.md docs/docs/engine/TODO.md
 RUN npm --prefix site run build
 
 ########################################################################################
-# docs -- the Docusaurus build, through the same supported template path docs-ci.yml and
-# docs-deploy.yml both use. The base image already carries /template with node_modules
-# and pwsh installed; docs-build.ps1 overlays ./docs over it and runs the real build.
+# docs -- the Docusaurus build, through the docs-template image's supported template path
+# (docs.yml builds the same overlay on the build-agent image instead). The base image
+# already carries /template with node_modules and pwsh installed; docs-build.ps1 overlays
+# ./docs over it and runs the real build.
 ########################################################################################
 FROM ghcr.io/the-running-dev/docs-template:latest AS docs
 WORKDIR /workspace
