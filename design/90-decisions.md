@@ -481,6 +481,15 @@ engine did not write itself, except a hand-edited or corrupted save. **Revisit**
 accepts saves from a source it does not control, or when a schema generator for kind state
 exists to produce the validators.
 
+**The session store reports nothing about its own memory.** S127 bounded the store's lock and
+session maps, and a host with persistence can now cap the session cache with
+`sessionCacheLimit`. A host still cannot see how full that cache is, how often it misses, or how
+large the stored blobs are. Without that, it chooses a limit blind. The review proposed cache,
+session and blob metrics alongside the bound. They are an observability question rather than a
+memory defect: whether they are `EngineEvent`s, `EmittedRecord`s or a separate gauge port
+changes 05's channel contract, and no host has asked for them yet. **Revisit** when a host
+tunes `sessionCacheLimit` in production, or when the Platform host needs capacity telemetry.
+
 ---
 
 ## 3. Judgement Calls to Revisit (Settled for the MVP)

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { createEngine } from "../kernel/engine.js";
-import { createInMemorySessionStore } from "./store.js";
+import { createCountingIds } from "../determinism/counting-ids.js";
+import { createInMemorySessionStore, runExclusive } from "./store.js";
 import type {
   AdvanceResult,
   AvailableAction,
@@ -125,6 +126,7 @@ function makeStore(overrides?: {
   recordIds?: RecordIdSource;
   persistence?: SessionPersistence;
   clock?: { now(): string };
+  sessionCacheLimit?: number;
 }) {
   const registry = makeRegistry();
   return createInMemorySessionStore({
@@ -136,6 +138,7 @@ function makeStore(overrides?: {
     ...(overrides?.recordIds ? { recordIds: overrides.recordIds } : {}),
     ...(overrides?.persistence ? { persistence: overrides.persistence } : {}),
     ...(overrides?.clock ? { clock: overrides.clock } : {}),
+    ...(overrides?.sessionCacheLimit !== undefined ? { sessionCacheLimit: overrides.sessionCacheLimit } : {}),
   });
 }
 
@@ -474,6 +477,172 @@ describe("S123 — a save exists only once it is durable", () => {
     expect((await store.listSaves("p1")).map((s) => s.saveId)).toEqual([saved.saveId]);
     const fresh = makeStore({ persistence: durable.persistence });
     expect((await fresh.loadGame(saved.saveId)).scene.body.text).toBe("counter=0");
+  });
+});
+
+describe("S127 — the store's lock and cache maps are bounded", () => {
+  /** A promise and the function that settles it. */
+  function deferred(): { promise: Promise<void>; resolve(): void } {
+    let resolve = () => {};
+    const promise = new Promise<void>((r) => { resolve = r; });
+    return { promise, resolve };
+  }
+
+  /** Lets every already-settled promise chain run to the end. */
+  async function drain(): Promise<void> {
+    for (let i = 0; i < 10; i += 1) await Promise.resolve();
+  }
+
+  it("S127.1 — the lock map is empty after N sequential runs, rejected ones included", async () => {
+    const locks = new Map<string, Promise<unknown>>();
+    for (let i = 0; i < 25; i += 1) {
+      const run = runExclusive(locks, "s", async () => {
+        if (i % 5 === 0) throw new Error("refused");
+        return i;
+      });
+      await run.catch(() => undefined);
+    }
+    await drain();
+    expect(locks.size).toBe(0);
+  });
+
+  it("S127.2 — the lock map is empty after N concurrent runs, and they ran in call order", async () => {
+    const locks = new Map<string, Promise<unknown>>();
+    const order: number[] = [];
+    await Promise.all(Array.from({ length: 25 }, (_, i) => runExclusive(locks, `s${i % 3}`, async () => { order.push(i); })));
+    await drain();
+    expect(locks.size).toBe(0);
+    expect(order.filter((i) => i % 3 === 0)).toEqual([0, 3, 6, 9, 12, 15, 18, 21, 24]);
+  });
+
+  it("S127.3 — an operation queued behind a settling one keeps its place in the queue", async () => {
+    const locks = new Map<string, Promise<unknown>>();
+    const order: string[] = [];
+    const first = deferred();
+    const second = deferred();
+    const a = runExclusive(locks, "s", async () => { await first.promise; order.push("a"); });
+    const b = runExclusive(locks, "s", async () => { await second.promise; order.push("b"); });
+
+    first.resolve();
+    await a;
+    await drain();
+    // a's cleanup has run; b's entry, still the tail, must not have gone with it.
+    expect(locks.has("s")).toBe(true);
+    const c = runExclusive(locks, "s", async () => { order.push("c"); });
+
+    second.resolve();
+    await Promise.all([b, c]);
+    await drain();
+    expect(order).toEqual(["a", "b", "c"]);
+    expect(locks.size).toBe(0);
+  });
+
+  /** Two sessions, five actions interleaved across them, then each one's stored rows. */
+  async function play(sessionCacheLimit?: number) {
+    const cas = makeCasPersistence();
+    const store = makeStore({
+      persistence: cas.persistence,
+      engine: makeEngine({ ids: createCountingIds() }),
+      recordIds: makeCountingRecordIds(),
+      ...(sessionCacheLimit !== undefined ? { sessionCacheLimit } : {}),
+    });
+    const a = await store.createSession({ campaignId: "test-campaign", seed: "s127-a" });
+    const b = await store.createSession({ campaignId: "test-campaign", seed: "s127-b" });
+    await store.submitAction(a.sessionId, "increment");
+    await store.submitAction(b.sessionId, "increment");
+    await store.submitAction(a.sessionId, "increment");
+    const scenes = [(await store.getScene(a.sessionId)).body.text, (await store.getScene(b.sessionId)).body.text];
+    const rows = [...cas.rows.values()].map(({ sessionId, blob, revision, attemptCounter }) => ({ sessionId, blob, revision, attemptCounter }));
+    return { scenes, rows, reads: cas.reads };
+  }
+
+  it("S127.4 — an evicted session reloads from persistence and continues identically", async () => {
+    const unbounded = await play();
+    const bounded = await play(1);
+    expect(unbounded.reads).toBe(0);
+    expect(bounded.reads).toBeGreaterThan(0);
+    expect(bounded.scenes).toEqual(["counter=2", "counter=1"]);
+    expect(bounded.scenes).toEqual(unbounded.scenes);
+    expect(bounded.rows).toEqual(unbounded.rows);
+  });
+
+  it("S127.5 — a session a command holds is not evicted under it, so concurrent commands never conflict", async () => {
+    const cas = makeCasPersistence();
+    const store = makeStore({ persistence: cas.persistence, recordIds: makeCountingRecordIds(), sessionCacheLimit: 1 });
+    const a = await store.createSession({ campaignId: "test-campaign" });
+    const b = await store.createSession({ campaignId: "test-campaign" });
+
+    const results = await Promise.all([
+      store.submitAction(a.sessionId, "increment"),
+      store.submitAction(b.sessionId, "increment"),
+      store.submitAction(a.sessionId, "increment"),
+      store.submitAction(b.sessionId, "increment"),
+    ]);
+
+    expect(results.every((result) => result.ok)).toBe(true);
+    expect((await store.getScene(a.sessionId)).body.text).toBe("counter=2");
+    expect((await store.getScene(b.sessionId)).body.text).toBe("counter=2");
+    expect([...cas.rows.values()].map((row) => row.revision)).toEqual([2, 2]);
+  });
+
+  it("S127.6 — a session a command is still writing is not evicted, so the next command builds on that write", async () => {
+    const rows = new Map<string, StoredSessionRecord>();
+    let gate: { entered: () => void; release: Promise<void> } | undefined;
+    const persistence = persistenceWith({
+      sessions: {
+        get: async (sessionId) => { const row = rows.get(sessionId); return row ? { ...row } : undefined; },
+        put: async (record) => {
+          if (gate) { const held = gate; gate = undefined; held.entered(); await held.release; }
+          const stored = rows.get(record.sessionId);
+          if (stored && stored.revision !== record.revision - 1) throw { name: SESSION_PERSISTENCE_CONFLICT };
+          rows.set(record.sessionId, { ...record });
+        },
+      },
+    });
+    const store = makeStore({ persistence, sessionCacheLimit: 1 });
+    const a = await store.createSession({ campaignId: "test-campaign" });
+    const b = await store.createSession({ campaignId: "test-campaign" });
+
+    const entered = deferred();
+    const release = deferred();
+    gate = { entered: entered.resolve, release: release.promise };
+    const first = store.submitAction(a.sessionId, "increment");
+    await entered.promise; // the first command is inside its write
+    await store.getScene(b.sessionId); // b becomes the most recently used — a is the eviction candidate
+    const second = store.submitAction(a.sessionId, "increment");
+    release.resolve();
+
+    expect((await Promise.all([first, second])).every((result) => result.ok)).toBe(true);
+    expect((await store.getScene(a.sessionId)).body.text).toBe("counter=2");
+  });
+
+  it("S127.7 — with persistence, a save is read from it every time, never from the store's memory", async () => {
+    const rows = new Map<string, StoredSaveRecord>();
+    const store = makeStore({
+      persistence: persistenceWith({
+        saves: {
+          get: async (saveId) => rows.get(saveId),
+          put: async (record) => { rows.set(record.saveId, { ...record }); },
+          listByProfile: async (profileId) => [...rows.values()].filter((row) => row.profileId === profileId),
+          delete: async (saveId) => { rows.delete(saveId); },
+        },
+      }),
+    });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    const saved = await store.saveGame(sessionId);
+    expect((await store.listSaves("p1")).map((s) => s.saveId)).toEqual([saved.saveId]);
+
+    rows.delete(saved.saveId); // removed behind the store's back, as another instance would
+    expect(await store.listSaves("p1")).toEqual([]);
+    await expect(store.loadGame(saved.saveId)).rejects.toMatchObject({ code: "unknown_save" });
+  });
+
+  it("S127.8 — sessionCacheLimit is a positive integer, and refused without persistence", () => {
+    const persistence = persistenceWith();
+    expect(() => makeStore({ persistence, sessionCacheLimit: 0 })).toThrow(RangeError);
+    expect(() => makeStore({ persistence, sessionCacheLimit: 1.5 })).toThrow(RangeError);
+    expect(() => makeStore({ sessionCacheLimit: 10 })).toThrow(RangeError);
+    expect(() => makeStore({ persistence, sessionCacheLimit: 10 })).not.toThrow();
   });
 });
 
@@ -1427,8 +1596,16 @@ describe("session lifecycle — listSaves / deleteSave / branchSession (04 §7.4
 
     it("a multi-instance conflict branded by the adapter's own conditional delete surfaces as concurrent_modification", async () => {
       const conflict = { name: SESSION_PERSISTENCE_CONFLICT };
+      const rows = new Map<string, StoredSaveRecord>();
       const store = makeStore({
-        persistence: persistenceWith({ saves: { delete: async () => { throw conflict; } } }),
+        persistence: persistenceWith({
+          saves: {
+            get: async (saveId) => rows.get(saveId),
+            put: async (record) => { rows.set(record.saveId, record); },
+            listByProfile: async (profileId) => [...rows.values()].filter((row) => row.profileId === profileId),
+            delete: async () => { throw conflict; },
+          },
+        }),
       });
       const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
       const saved = await store.saveGame(sessionId);

@@ -203,6 +203,31 @@ Acceptance:
 Out of scope: Deep validation of simulation and world-graph records (recorded in
               `90-decisions.md`, *Found by the 2026-10-03 repository review*).
 
+## S127 — A Long-Running Host Stops Accumulating Memory
+
+Status: done
+Delivers: A host that serves many sessions over a long uptime no longer holds every session,
+          save and lock it has ever touched. Lock entries go when their work does, and a host
+          with persistence can cap how many sessions stay in memory.
+Touches: `src/engine/src/core/session/store.ts`, `src/engine/src/core/composition/types.ts`,
+         `20-contract.md` §7.2, `10-design.md` 06 §5.2
+Depends on: S126
+Acceptance:
+  - S127.1 A lock entry is removed when its last queued operation settles, and only while it is
+    still the queue's tail. The lock maps are empty after N sequential and N concurrent runs,
+    and an operation queued behind a settling one keeps its place.
+  - S127.2 `SessionHost.sessionCacheLimit` bounds the session cache, least recently used first,
+    when `persistence` is supplied. Omitted, the cache is unbounded. The limit is refused when it
+    is not a positive integer, or when `persistence` is absent.
+  - S127.3 An evicted session reloads from persistence and continues identically: the same
+    scenes and the same stored rows as an unbounded run.
+  - S127.4 A session a command is using is never evicted, and concurrent reads of an uncached
+    session share one adapter call, so concurrent commands under a limit never conflict.
+  - S127.5 With `persistence`, saves are not held in memory: `loadGame`, `deleteSave` and
+    `listSaves` read the adapter every time.
+Out of scope: Cache, session and blob metrics (recorded in `90-decisions.md`, *Found by the
+              2026-10-03 repository review*).
+
 ## Landed
 
 Ordered by id. *Criteria* is the range of numbered acceptance
