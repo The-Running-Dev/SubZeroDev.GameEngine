@@ -4,7 +4,8 @@ Generates the human-facing engine documentation from the canonical agent-kit des
 
 .DESCRIPTION
 The canonical documents under design/ contain marked human-document blocks. This script
-extracts those blocks into docs/docs/engine/, adds a generated-file notice after front matter,
+extracts those blocks into docs/docs/engine/, adds a generated-file notice after front matter
+and any leading H1 (so Docusaurus still takes the page title from that heading),
 and stamps or verifies the generated developer guide against a digest of the canonical files
 that /agentkit:docs reads.
 
@@ -67,6 +68,14 @@ function Add-GeneratedNotice {
         }
 
         $insertAt = $frontMatterEnd + 5
+
+        # Docusaurus takes the page title from a leading H1 only when nothing precedes it,
+        # so the notice goes after that heading rather than between it and the front matter.
+        $heading = [regex]::Match($normalized.Substring($insertAt), '\A\n*# [^\n]*\n')
+        if ($heading.Success) {
+            $insertAt += $heading.Length
+        }
+
         return $normalized.Substring(0, $insertAt) + "`n$notice`n" + $normalized.Substring($insertAt)
     }
 

@@ -2,9 +2,9 @@
 sidebar_label: Platform Static Host
 ---
 
-<!-- Generated from design/10-design.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
-
 # Platform Static Host — Container Delivery without a Hosted Engine
+
+<!-- Generated from design/10-design.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
 
 **Document status:** Revision 2 — **historical.** Revision 1 was the agreed W62 build target
 and shipped; this block is no longer a target the repository builds against. Two things

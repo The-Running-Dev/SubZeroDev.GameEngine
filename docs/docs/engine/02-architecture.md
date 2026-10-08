@@ -1,9 +1,9 @@
 ---
 ---
 
-<!-- Generated from design/10-design.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
-
 # Architecture
+
+<!-- Generated from design/10-design.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
 
 **Document status:** Revision 1 — architecture settled; content model written (§4 →
 [`03-story-graph-kind.md`](03-story-graph-kind.md))

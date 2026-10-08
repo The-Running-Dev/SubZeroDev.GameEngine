@@ -2,9 +2,9 @@
 sidebar_label: Clients
 ---
 
-<!-- Generated from design/10-design.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
-
 # Clients — The Contract
+
+<!-- Generated from design/10-design.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
 
 **Document status:** Revision 2 — browser-demo obligations added after the MVP
 

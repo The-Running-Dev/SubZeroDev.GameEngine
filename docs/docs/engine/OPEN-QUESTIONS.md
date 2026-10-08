@@ -3,9 +3,9 @@ sidebar_label: Open Questions
 slug: open-questions
 ---
 
-<!-- Generated from design/90-decisions.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
-
 # Open Questions & Known Concerns
+
+<!-- Generated from design/90-decisions.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
 
 **Document status:** Living register. Captures unknowns, gaps, and deferred decisions so
 they are *planned, not rediscovered as bugs* — the project's working convention.

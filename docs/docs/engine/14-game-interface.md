@@ -1,9 +1,10 @@
 ---
+sidebar_label: Game Interface
 ---
 
-<!-- Generated from design/10-design.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
-
 # Game Interface — Absurd Adventure Stage and Dashboard
+
+<!-- Generated from design/10-design.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
 
 **Document status:** Revision 4 — **historical.** This document specifies the appearance of
 the `/play/` route, and that route has been retired in favour of

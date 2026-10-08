@@ -2,9 +2,9 @@
 sidebar_label: Extensibility
 ---
 
-<!-- Generated from design/10-design.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
-
 # Extensibility — Ports and Seams
+
+<!-- Generated from design/10-design.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
 
 **Document status:** Revision 1 — new contract, MVP scope
 

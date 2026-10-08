@@ -2,9 +2,9 @@
 slug: mvp
 ---
 
-<!-- Generated from design/00-brief.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
-
 # MVP
+
+<!-- Generated from design/00-brief.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
 
 **Status:** Agreed. The Definition of Done (§5) is finalized — it is the build target.
 

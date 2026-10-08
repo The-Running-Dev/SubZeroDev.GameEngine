@@ -2,9 +2,9 @@
 sidebar_label: Content Epochs
 ---
 
-<!-- Generated from design/10-design.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
-
 # Content Epochs — Live Content Without a Reload
+
+<!-- Generated from design/10-design.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
 
 **Document status:** Revision 1 — new contract, post-MVP
 

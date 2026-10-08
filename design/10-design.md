@@ -3058,6 +3058,7 @@ against whatever else is on the shelf.
 
 <!-- human-doc:start path="engine/14-game-interface.md" -->
 ---
+sidebar_label: Game Interface
 ---
 
 # Game Interface — Absurd Adventure Stage and Dashboard

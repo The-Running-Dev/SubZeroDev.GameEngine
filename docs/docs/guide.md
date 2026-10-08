@@ -1,9 +1,10 @@
 ---
+title: 'Developer Guide'
 sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 92a94aa4ab19fd60813381e87774602c392deae3734153d82f90bae70ad9a29e -->
+<!-- design-digest: d1d5660439e52bc38702cccd1cc576f126aab3f65ee69d59b50b011148d4a8b5 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.

@@ -2,9 +2,9 @@
 sidebar_label: Playable Web Demo
 ---
 
-<!-- Generated from design/10-design.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
-
 # Playable Web Demo — Browser Client and Static Delivery
+
+<!-- Generated from design/10-design.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
 
 **Document status:** Revision 4 — **the route this document specifies has been retired.**
 W69 dropped `/play/` from the site build: `site/landing.config.ts` declares `/` and
