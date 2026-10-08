@@ -14,4 +14,6 @@
 
 ## S124 — The Engine Owns What It Logs
 
+## S125 — A Session Plays Only the Kind Its Campaign Was Written For
+
 ## Landed

@@ -162,6 +162,27 @@ Acceptance:
     by reference. Recorded in `90-decisions.md`, *Found by the 2026-10-03 repository review*.
 Out of scope: Copying or freezing campaign content (S124.4's entry; D3's content epochs).
 
+## S125 — A Session Plays Only the Kind Its Campaign Was Written For
+
+Status: done
+Delivers: A stored session whose kind disagrees with its campaign's is refused when it is
+          loaded, rather than handing that campaign's content to the wrong game's rules.
+Touches: `src/engine/src/core/kernel/engine.ts`, `20-contract.md` §4, `10-design.md` 05 §8
+Depends on: none
+Acceptance:
+  - S125.1 `deserialize` rejects a state whose `kindId` is registered but is not its
+    campaign's `kindId`, with `invalid_state` (`path: "kindId"`), and emits one
+    `core.deserialize.rejected` with `reason: "invalid_state"`.
+  - S125.2 `migrate` rejects the same state the same way.
+  - S125.3 A state whose kind agrees with its campaign still round-trips byte-identically
+    with no rejection event.
+  - S125.4 The save-envelope path still migrates: `resolveSaveEnvelope`'s own cross-check and
+    its migration suite pass unchanged.
+  - S125.5 `campaignVersion` is still not compared on the raw path. That gap is recorded in
+    `90-decisions.md`, *Content epochs*, and is not fixed here.
+Out of scope: Any `campaignVersion` policy (D3, content epochs); kind-owned `kindState`
+              validation (S126).
+
 ## Landed
 
 Ordered by id. *Criteria* is the range of numbered acceptance

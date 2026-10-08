@@ -441,6 +441,22 @@ function deserializeState(host: EngineHost, data: string): CommandResult<GameSta
     return { ok: false, errors: [error], warnings: [] };
   }
 
+  // Both ids resolve, but to each other? A state naming one kind and a campaign of another
+  // would hand that campaign's content to the wrong kind's `advance` (04 §4).
+  const campaignKindId = host.registry.campaigns.get(parsed.campaignId)!.kindId;
+  if (parsed.kindId !== campaignKindId) {
+    emitSystemEvent(sink, CORE_EVENTS.deserializeRejected.name, CORE_EVENTS.deserializeRejected.severity, {
+      reason: "invalid_state",
+    });
+    const error: ValidationError = {
+      code: "invalid_state",
+      messageKey: "core.reason.invalid_state",
+      path: "kindId",
+      details: { kindId: parsed.kindId, campaignKindId },
+    };
+    return { ok: false, errors: [error], warnings: [] };
+  }
+
   return { ok: true, value: parsed, errors: [], warnings: [] };
 }
 

@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 737d917a52c24c687859585a846c51f0e6a4f51babeda095f8e3053b22137fba -->
+<!-- design-digest: 09cf0207048b4459d986695ccd65b0aeeb10871af97a36f4e330bea0ba273455 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -1042,6 +1042,11 @@ Missing or failed migration is loud and leaves the old record intact. An engine-
 by itself is provenance, not by itself a reason to reject a load. Any successful migration
 permanently marks the save lineage not replay-compatible, because the old action log may no
 longer regenerate its current state.
+
+A bare serialized `GameState` has no wrapper and no migration. `deserialize` still refuses one
+whose campaign or kind this host lacks, or whose kind is not its campaign's own. It does not
+compare the campaign version. That gap stays open until content epochs settle what a version
+change means for a running session.
 
 **Migrating twice is a no-op.** The first pass restamps the campaign version, so a save that is
 loaded, saved, and loaded again finds no mismatch and reaches a canonically identical state.

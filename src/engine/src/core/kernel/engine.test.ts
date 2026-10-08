@@ -472,6 +472,68 @@ describe("serialize / deserialize / migrate", () => {
     expect(result.errors[0]?.code).toBe("unknown_kind");
   });
 
+  describe("S125 — deserialize checks that the state's kind is its campaign's kind", () => {
+    // Both kinds registered, so neither id is unknown: only their agreement can fail.
+    function twoKindHost(emitter?: EngineHost["emitter"]): EngineHost {
+      const kinds = {
+        "story-graph": makeTestKind(),
+        simulation: makeTestKind({ id: "simulation" }),
+      } as unknown as KindRegistry;
+      return makeHost({ kinds, ...(emitter ? { emitter } : {}) });
+    }
+
+    it("S125.1 — rejects a state naming a registered kind other than its campaign's, with invalid_state", () => {
+      const recorder = createRecordingEmitter();
+      const engine = createEngine(twoKindHost(recorder));
+      const created = engine.createGame({ campaignId: "test-campaign" });
+      const raw = JSON.parse(engine.serialize(created.value as GameState)) as Record<string, unknown>;
+      raw["kindId"] = "simulation";
+      const before = recorder.events.length;
+
+      const result = engine.deserialize(JSON.stringify(raw));
+
+      expect(result.ok).toBe(false);
+      expect(result.value).toBeUndefined();
+      expect(result.errors).toEqual([
+        {
+          code: "invalid_state",
+          messageKey: "core.reason.invalid_state",
+          path: "kindId",
+          details: { kindId: "simulation", campaignKindId: "story-graph" },
+        },
+      ]);
+      const emitted = recorder.events.slice(before);
+      expect(emitted).toHaveLength(1);
+      expect(emitted[0]).toMatchObject({
+        scope: "system",
+        name: "core.deserialize.rejected",
+        reason: "invalid_state",
+      });
+    });
+
+    it("S125.2 — migrate rejects the same disagreement", () => {
+      const engine = createEngine(twoKindHost());
+      const created = engine.createGame({ campaignId: "test-campaign" });
+      const raw = JSON.parse(engine.serialize(created.value as GameState)) as Record<string, unknown>;
+      raw["kindId"] = "simulation";
+
+      expect(engine.migrate(JSON.stringify(raw)).errors[0]?.code).toBe("invalid_state");
+    });
+
+    it("S125.3 — a state whose kind agrees with its campaign still round-trips with no event", () => {
+      const recorder = createRecordingEmitter();
+      const engine = createEngine(twoKindHost(recorder));
+      const data = engine.serialize(engine.createGame({ campaignId: "test-campaign" }).value as GameState);
+      const before = recorder.events.length;
+
+      const result = engine.deserialize(data);
+
+      expect(result.ok).toBe(true);
+      expect(engine.serialize(result.value as GameState)).toBe(data);
+      expect(recorder.events.slice(before).filter((e) => e.name === "core.deserialize.rejected")).toEqual([]);
+    });
+  });
+
   it("never throws on malformed input", () => {
     const engine = createEngine(makeHost());
     expect(() => engine.deserialize("not json at all")).not.toThrow();
