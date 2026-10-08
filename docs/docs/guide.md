@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 9de4eefe0e76531c2188aec9a6a8c7bb4842bfe22dbd25f473210f8e9b72084d -->
+<!-- design-digest: 5c72227c4c5faf38c9cfe2ae5141e866714c12a347d3e381f13555e6cfa7254f -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -118,6 +118,8 @@ Build one composition root per process:
 3. Create the pure engine from the registry, the kinds, and any deterministic id/event ports the
    host wants (see [Extensibility](#extensibility-and-ports)).
 4. Create the session service from the engine plus concrete session and profile persistence.
+   With persistence, `sessionCacheLimit` caps how many sessions stay in memory. An evicted
+   session is read back on its next use, and saves are always read from the adapter.
 5. Give clients the session service and nothing else.
 
 The engine performs no filesystem or network I/O while resolving play. Parsing JSON or YAML,

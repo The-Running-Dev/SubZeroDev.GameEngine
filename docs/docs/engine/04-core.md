@@ -1106,9 +1106,11 @@ The rule is stated here so no adapter has to infer one:
 > `SessionPersistenceConflict`-branded error (below). An adapter that compares `attemptCounter`
 > instead refuses every write after a rejected action, and strands the session.
 
-**Omitted → in-memory, which is the MVP default.** The store keeps its own maps either way and
-consults `persistence` only on a miss, so a host adapter is a durability layer, not a
-replacement for the store's bookkeeping.
+**Omitted → in-memory, which is the MVP default.** Without `persistence` the store's own maps
+are the storage. With it, the store caches sessions and consults `persistence` only on a miss,
+bounded by the host's `sessionCacheLimit` when one is set (`10-design.md` 06 §5.2). It holds no
+saves at all: `loadGame`, `deleteSave` and `listSaves` read the adapter every time. Either way a
+host adapter is a durability layer, not a replacement for the store's bookkeeping.
 
 **`campaignId` on the save record is host-side routing, nothing more.** A host that lists "your
 saves for this campaign" needs it without deserializing every envelope. It is a *copy* of what

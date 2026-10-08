@@ -329,6 +329,10 @@ export interface InMemorySessionStoreOptions {
   persistence?: SessionPersistence;
   /** Omitted → session and save ids are minted as they are today (`mintId`, unseamed). */
   recordIds?: RecordIdSource;
+  /** 06 §5.2. With `persistence`, the most sessions held in memory; the least recently used
+   *  idle one is dropped and re-read from persistence on its next use. Omitted → unbounded.
+   *  A positive integer, and only with `persistence` — without it the map is the storage. */
+  sessionCacheLimit?: number;
 }
 
 /**
@@ -406,6 +410,25 @@ function mustDeserialize(engine: Engine, blob: string): GameState {
   return result.value;
 }
 
+/**
+ * Runs `fn` after every operation already queued on `key` has settled, and returns its result.
+ * The queue entry is removed once its last run settles — only while it is still the map's
+ * current tail, so an operation queued behind it in the meantime keeps its place (S127).
+ */
+export function runExclusive<T>(locks: Map<string, Promise<unknown>>, key: string, fn: () => Promise<T>): Promise<T> {
+  const previous = locks.get(key) ?? Promise.resolve();
+  const run = previous.then(fn, fn);
+  const tail = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  locks.set(key, tail);
+  void tail.then(() => {
+    if (locks.get(key) === tail) locks.delete(key);
+  });
+  return run;
+}
+
 function createStore(options: InMemorySessionStoreOptions): SessionStore {
   const { engine, registry } = options;
   // Read off `engine` rather than taken as a second, independently-suppliable option
@@ -417,9 +440,29 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
   const recordSink = options.recordSink ?? noopRecordSink;
   const recordIds = options.recordIds;
   const experiments = options.experiments;
+  const sessionCacheLimit = options.sessionCacheLimit;
+  if (sessionCacheLimit !== undefined) {
+    if (!Number.isSafeInteger(sessionCacheLimit) || sessionCacheLimit < 1) {
+      throw new RangeError("session store: sessionCacheLimit must be a positive integer");
+    }
+    if (!options.persistence) {
+      throw new RangeError("session store: sessionCacheLimit requires persistence — without it the cache is the storage");
+    }
+  }
 
+  // With `persistence`, `sessions` is a cache — bounded when `sessionCacheLimit` is set, in
+  // least-recently-used order (the Map's insertion order, refreshed on every use) — and
+  // `saves` stays empty: a save is read from persistence each time (S127). Without it, both
+  // maps are the storage and are never trimmed.
   const sessions = new Map<string, SessionRecord>();
   const saves = new Map<string, SaveRecord>();
+  // Sessions a command is holding a record for, from its `getSession` to its settling. Never
+  // evicted: a second command would re-read the row into a second object, and the two would
+  // write over each other with no adapter conflict to catch it on a single-writer host.
+  const pinnedSessions = new Map<string, number>();
+  // A persistence read in flight, shared by every caller that misses the cache for the same
+  // session meanwhile — for the same reason: two reads would make two objects.
+  const sessionReads = new Map<string, Promise<SessionRecord>>();
   // Per-session serialization. `withCommand`'s `await Promise.resolve()` (Decision 9) is
   // what makes cross-session concurrency genuinely interleave for the isolation test — but
   // the same yield point would let two commands against the *same* session both read
@@ -438,22 +481,54 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
   // own queue rather than either of the two above.
   const saveLocks = new Map<string, Promise<unknown>>();
 
-  function runExclusive<T>(locks: Map<string, Promise<unknown>>, key: string, fn: () => Promise<T>): Promise<T> {
-    const previous = locks.get(key) ?? Promise.resolve();
-    const run = previous.then(fn, fn);
-    locks.set(
-      key,
-      run.then(
-        () => undefined,
-        () => undefined,
-      ),
-    );
-    return run;
+  /** Caches `record` as the most recently used session, then trims to `sessionCacheLimit`. */
+  function cacheSession(sessionId: string, record: SessionRecord): void {
+    sessions.delete(sessionId);
+    sessions.set(sessionId, record);
+    trimSessions();
+  }
+
+  /** Drops the least recently used unpinned sessions until the cache is within its limit. A
+   *  cache full of pinned sessions stays over it until one is released. */
+  function trimSessions(): void {
+    if (sessionCacheLimit === undefined) return;
+    for (const sessionId of sessions.keys()) {
+      if (sessions.size <= sessionCacheLimit) return;
+      if (!pinnedSessions.has(sessionId)) sessions.delete(sessionId);
+    }
+  }
+
+  /** `fn` with `sessionId`'s record, pinned in the cache until `fn` settles. */
+  async function holdSession<T>(sessionId: string, fn: (record: SessionRecord) => Promise<T>): Promise<T> {
+    pinnedSessions.set(sessionId, (pinnedSessions.get(sessionId) ?? 0) + 1);
+    try {
+      return await fn(await getSession(sessionId));
+    } finally {
+      const pins = (pinnedSessions.get(sessionId) ?? 1) - 1;
+      if (pins === 0) pinnedSessions.delete(sessionId);
+      else pinnedSessions.set(sessionId, pins);
+      trimSessions();
+    }
   }
 
   async function getSession(sessionId: string): Promise<SessionRecord> {
     const record = sessions.get(sessionId);
-    if (record) return record;
+    if (record) {
+      if (sessionCacheLimit !== undefined) cacheSession(sessionId, record);
+      return record;
+    }
+    const pending = sessionReads.get(sessionId);
+    if (pending) return pending;
+    const read = readSession(sessionId);
+    sessionReads.set(sessionId, read);
+    try {
+      return await read;
+    } finally {
+      sessionReads.delete(sessionId);
+    }
+  }
+
+  async function readSession(sessionId: string): Promise<SessionRecord> {
     try {
       const stored = await options.persistence?.sessions.get(sessionId);
       if (stored) {
@@ -461,7 +536,7 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
         // adapter that hands back its own object would see that mutation before the
         // `put` it is meant to compare against.
         const restored: SessionRecord = { ...stored };
-        sessions.set(sessionId, restored);
+        cacheSession(sessionId, restored);
         return restored;
       }
     } catch {
@@ -471,15 +546,14 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
   }
 
   async function getSave(saveId: string, operation = "loadGame"): Promise<SaveRecord> {
-    const record = saves.get(saveId);
-    if (record) return record;
+    if (!options.persistence) {
+      const record = saves.get(saveId);
+      if (record) return record;
+      throw new SessionStoreErrorValue(operation, "unknown_save", `session store: unknown saveId "${saveId}"`);
+    }
     try {
-      const stored = await options.persistence?.saves.get(saveId);
-      if (stored) {
-        const restored: SaveRecord = stored;
-        saves.set(saveId, restored);
-        return restored;
-      }
+      const stored = await options.persistence.saves.get(saveId);
+      if (stored) return { ...stored };
     } catch {
       throw new SessionStoreErrorValue(operation, "storage_failure");
     }
@@ -600,23 +674,23 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
       return table;
     },
 
-    /** §7.4. Session-free, like `listCampaigns` — no session to lock or resolve. Merges
-     *  the in-memory cache over whatever `persistence.saves.listByProfile` returns, so a
-     *  save this instance just wrote is visible even before an adapter's own read catches
-     *  up; the cache's copy wins on a `saveId` both sides carry, since a write always
-     *  updates it first. */
+    /** §7.4. Session-free, like `listCampaigns` — no session to lock or resolve. Reads
+     *  `persistence.saves.listByProfile` when there is one, and the store's own map when
+     *  there is not; never both, since with persistence the store holds no saves (S127). */
     async listSaves(profileId: string): Promise<readonly SaveSummary[]> {
       const byId = new Map<string, SaveRecord>();
-      try {
-        const persisted = (await options.persistence?.saves.listByProfile(profileId)) ?? [];
-        for (const record of persisted) {
-          if (record.profileId === profileId) byId.set(record.saveId, record);
+      if (options.persistence) {
+        try {
+          for (const record of await options.persistence.saves.listByProfile(profileId)) {
+            if (record.profileId === profileId) byId.set(record.saveId, record);
+          }
+        } catch {
+          throw new SessionStoreErrorValue("listSaves", "storage_failure");
         }
-      } catch {
-        throw new SessionStoreErrorValue("listSaves", "storage_failure");
-      }
-      for (const [saveId, record] of saves) {
-        if (record.profileId === profileId) byId.set(saveId, record);
+      } else {
+        for (const [saveId, record] of saves) {
+          if (record.profileId === profileId) byId.set(saveId, record);
+        }
       }
 
       return [...byId.values()]
@@ -668,105 +742,133 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
           ...(config.profileId !== undefined ? { profileId: config.profileId } : {}),
         };
         await writeSession(record);
-        sessions.set(sessionId, record);
+        cacheSession(sessionId, record);
         return { sessionId, scene: decoratedEngine.scene(state) };
       });
     },
 
     async resumeSession(sessionId: string): Promise<Scene> {
-      const record = await getSession(sessionId);
-      return runExclusive(sessionLocks, sessionId, () =>
-        withCommand(sessionId, record.attemptCounter, async (decoratedEngine) => {
-          const state = mustDeserialize(decoratedEngine, record.blob);
-          return decoratedEngine.scene(state);
-        }),
-      );
+      return holdSession(sessionId, async (record) => {
+        return runExclusive(sessionLocks, sessionId, () =>
+          withCommand(sessionId, record.attemptCounter, async (decoratedEngine) => {
+            const state = mustDeserialize(decoratedEngine, record.blob);
+            return decoratedEngine.scene(state);
+          }),
+        );
+      });
     },
 
     async submitAction(sessionId: string, actionId: string, params?: ActionParams): Promise<SessionActionResult> {
-      const record = await getSession(sessionId);
+      return holdSession(sessionId, async (record) => {
 
-      return runExclusive(sessionLocks, sessionId, () => {
-        // Increments before dispatch, including for a submission that goes on to be
-        // rejected — plan 14 Decision 4. `attempt: 1` on the first submission, not `0`.
-        // Deferred to inside the lock so two same-session submissions still attempt in
-        // the order they acquire it, not the order they were called.
-        record.attemptCounter += 1;
-        const attempt = record.attemptCounter;
+        return runExclusive(sessionLocks, sessionId, () => {
+          // Increments before dispatch, including for a submission that goes on to be
+          // rejected — plan 14 Decision 4. `attempt: 1` on the first submission, not `0`.
+          // Deferred to inside the lock so two same-session submissions still attempt in
+          // the order they acquire it, not the order they were called.
+          record.attemptCounter += 1;
+          const attempt = record.attemptCounter;
 
-        return withCommand(sessionId, attempt, async (decoratedEngine) => {
-          const state = mustDeserialize(decoratedEngine, record.blob);
-          const result = decoratedEngine.submitAction(state, actionId, params);
+          return withCommand(sessionId, attempt, async (decoratedEngine) => {
+            const state = mustDeserialize(decoratedEngine, record.blob);
+            const result = decoratedEngine.submitAction(state, actionId, params);
+
+            if (result.ok && result.value) {
+              const newState = result.value;
+              const previousBlob = record.blob;
+              const previousUpdatedAt = record.updatedAt;
+              const previousRevision = record.revision;
+              record.blob = decoratedEngine.serialize(newState);
+              record.updatedAt = clock.now();
+              record.revision = previousRevision + 1;
+              try {
+                await writeSession(record);
+              } catch (error) {
+                // A rejected write must not leave the cache ahead of persistence (20-contract.md
+                // §7.2's blockquote) — restore what was here before this mutation so the next
+                // read serves the pre-conflict state, not the refused one. Every field the
+                // refused `put` carried, including the counter incremented above: it is part of
+                // `StoredSessionRecord`, so leaving it raised keeps the cache one attempt ahead
+                // of a record persistence never took, and `getSession` is cache-first.
+                record.blob = previousBlob;
+                record.updatedAt = previousUpdatedAt;
+                record.revision = previousRevision;
+                record.attemptCounter = attempt - 1;
+                // On a conflict the restored record is itself stale — another writer committed
+                // — so it is evicted too, and the retry the shipped message asks for re-reads
+                // persistence. A `storage_failure` keeps it: there the cache was right and only
+                // the write failed. The restore above still matters after eviction: a command
+                // already queued on this lock holds this object, and must offer the stale
+                // revision so the adapter refuses it rather than accepting a successor of the
+                // refused write.
+                if (error instanceof SessionStoreErrorValue && error.code === "concurrent_modification" && sessions.get(sessionId) === record) {
+                  sessions.delete(sessionId);
+                }
+                throw error;
+              }
+
+              // "After a successful action" (04 §7.1) — never on rejection, and never
+              // before the engine call above has already returned (plan 15 Decision 3).
+              // Locked per-profileId (not just per-session): two different sessions can
+              // share a profileId, and the upsert itself is a load-modify-save that would
+              // otherwise race across them. Caught, not propagated: a throwing/rejecting
+              // ProfileStore must degrade to a warning, the same as an explicit
+              // profile_write_failed — it must never abort a command whose game action has
+              // already advanced and been persisted.
+              const { profiles } = options;
+              let profileWarnings: ValidationWarning[] = [];
+              if (profiles && record.profileId) {
+                const profileId = record.profileId;
+                try {
+                  profileWarnings = await runExclusive(profileLocks, profileId, async () => {
+                    const achievementWarnings = await upsertAchievements(profiles, profileId, state.campaignId, result.changes);
+                    const kind = kinds[state.kindId];
+                    const campaign = registry.campaigns.get(state.campaignId)!;
+                    const kindDataWarnings = await upsertKindProfileData(profiles, profileId, kind, campaign, result.changes);
+                    // "After an action whose AdvanceResult.status is ended" (04 §7.1) — the
+                    // same write as the achievement and kind-data upserts, on the same lock.
+                    if (newState.status !== "ended") return [...achievementWarnings, ...kindDataWarnings];
+                    const terminalId = kind.outcome(newState.kindState).terminalId;
+                    const terminalWarnings = await upsertTerminals(profiles, profileId, state.campaignId, terminalId);
+                    return [...achievementWarnings, ...kindDataWarnings, ...terminalWarnings];
+                  });
+                } catch {
+                  profileWarnings = [{ code: "profile_write_failed", messageKey: "core.reason.profile_write_failed", path: profileId }];
+                }
+              }
+
+              return toPlayerResult({
+                ok: true,
+                scene: decoratedEngine.scene(result.value),
+                errors: result.errors,
+                warnings: [...result.warnings, ...profileWarnings],
+                changes: result.changes,
+                messages: result.messages,
+              });
+            }
+
+            return toPlayerResult({ ok: false, errors: result.errors, warnings: result.warnings, changes: result.changes, messages: result.messages });
+          });
+        });
+      });
+    },
+
+    async previewAction(sessionId: string, actionId: string, params?: ActionParams): Promise<SessionActionResult> {
+      return holdSession(sessionId, async (record) => {
+
+        // Shares the session queue with submissions so the preview cannot evaluate one version
+        // while a neighbouring command persists another. It deliberately does not increment
+        // attemptCounter, write record.blob, or touch profile persistence.
+        return runExclusive(sessionLocks, sessionId, async () => {
+          const state = mustDeserialize(engine, record.blob);
+          const result = engine.previewAction(state, actionId, params);
 
           if (result.ok && result.value) {
-            const newState = result.value;
-            const previousBlob = record.blob;
-            const previousUpdatedAt = record.updatedAt;
-            const previousRevision = record.revision;
-            record.blob = decoratedEngine.serialize(newState);
-            record.updatedAt = clock.now();
-            record.revision = previousRevision + 1;
-            try {
-              await writeSession(record);
-            } catch (error) {
-              // A rejected write must not leave the cache ahead of persistence (20-contract.md
-              // §7.2's blockquote) — restore what was here before this mutation so the next
-              // read serves the pre-conflict state, not the refused one. Every field the
-              // refused `put` carried, including the counter incremented above: it is part of
-              // `StoredSessionRecord`, so leaving it raised keeps the cache one attempt ahead
-              // of a record persistence never took, and `getSession` is cache-first.
-              record.blob = previousBlob;
-              record.updatedAt = previousUpdatedAt;
-              record.revision = previousRevision;
-              record.attemptCounter = attempt - 1;
-              // On a conflict the restored record is itself stale — another writer committed
-              // — so it is evicted too, and the retry the shipped message asks for re-reads
-              // persistence. A `storage_failure` keeps it: there the cache was right and only
-              // the write failed. The restore above still matters after eviction: a command
-              // already queued on this lock holds this object, and must offer the stale
-              // revision so the adapter refuses it rather than accepting a successor of the
-              // refused write.
-              if (error instanceof SessionStoreErrorValue && error.code === "concurrent_modification" && sessions.get(sessionId) === record) {
-                sessions.delete(sessionId);
-              }
-              throw error;
-            }
-
-            // "After a successful action" (04 §7.1) — never on rejection, and never
-            // before the engine call above has already returned (plan 15 Decision 3).
-            // Locked per-profileId (not just per-session): two different sessions can
-            // share a profileId, and the upsert itself is a load-modify-save that would
-            // otherwise race across them. Caught, not propagated: a throwing/rejecting
-            // ProfileStore must degrade to a warning, the same as an explicit
-            // profile_write_failed — it must never abort a command whose game action has
-            // already advanced and been persisted.
-            const { profiles } = options;
-            let profileWarnings: ValidationWarning[] = [];
-            if (profiles && record.profileId) {
-              const profileId = record.profileId;
-              try {
-                profileWarnings = await runExclusive(profileLocks, profileId, async () => {
-                  const achievementWarnings = await upsertAchievements(profiles, profileId, state.campaignId, result.changes);
-                  const kind = kinds[state.kindId];
-                  const campaign = registry.campaigns.get(state.campaignId)!;
-                  const kindDataWarnings = await upsertKindProfileData(profiles, profileId, kind, campaign, result.changes);
-                  // "After an action whose AdvanceResult.status is ended" (04 §7.1) — the
-                  // same write as the achievement and kind-data upserts, on the same lock.
-                  if (newState.status !== "ended") return [...achievementWarnings, ...kindDataWarnings];
-                  const terminalId = kind.outcome(newState.kindState).terminalId;
-                  const terminalWarnings = await upsertTerminals(profiles, profileId, state.campaignId, terminalId);
-                  return [...achievementWarnings, ...kindDataWarnings, ...terminalWarnings];
-                });
-              } catch {
-                profileWarnings = [{ code: "profile_write_failed", messageKey: "core.reason.profile_write_failed", path: profileId }];
-              }
-            }
-
             return toPlayerResult({
               ok: true,
-              scene: decoratedEngine.scene(result.value),
+              scene: engine.scene(result.value),
               errors: result.errors,
-              warnings: [...result.warnings, ...profileWarnings],
+              warnings: result.warnings,
               changes: result.changes,
               messages: result.messages,
             });
@@ -777,63 +879,39 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
       });
     },
 
-    async previewAction(sessionId: string, actionId: string, params?: ActionParams): Promise<SessionActionResult> {
-      const record = await getSession(sessionId);
-
-      // Shares the session queue with submissions so the preview cannot evaluate one version
-      // while a neighbouring command persists another. It deliberately does not increment
-      // attemptCounter, write record.blob, or touch profile persistence.
-      return runExclusive(sessionLocks, sessionId, async () => {
-        const state = mustDeserialize(engine, record.blob);
-        const result = engine.previewAction(state, actionId, params);
-
-        if (result.ok && result.value) {
-          return toPlayerResult({
-            ok: true,
-            scene: engine.scene(result.value),
-            errors: result.errors,
-            warnings: result.warnings,
-            changes: result.changes,
-            messages: result.messages,
-          });
-        }
-
-        return toPlayerResult({ ok: false, errors: result.errors, warnings: result.warnings, changes: result.changes, messages: result.messages });
-      });
-    },
-
     async saveGame(sessionId: string): Promise<SaveHandle> {
-      const record = await getSession(sessionId);
-      return runExclusive(sessionLocks, sessionId, () =>
-        withCommand(sessionId, record.attemptCounter, async (decoratedEngine) => {
-          const state = mustDeserialize(decoratedEngine, record.blob);
-          const campaign = registry.campaigns.get(state.campaignId);
-          const kind = kinds[state.kindId];
-          if (!campaign || !kind) {
-            // Defensive, same class as mustDeserialize's own throw above: a state this
-            // engine just resolved (deserializeState checks both campaignId and kindId)
-            // cannot fail either lookup except through store corruption.
-            throw new Error("session store: saveGame — resolved state's campaign or kind is missing from the registry");
-          }
-          const envelope = buildSaveEnvelope({ state, kind, campaign, replayCompatible: record.replayCompatible });
-          const saveId = newSaveId(recordIds);
-          const save: SaveRecord = {
-            saveId,
-            campaignId: state.campaignId,
-            blob: serializeSaveEnvelope(envelope),
-            savedAt: clock.now(),
-            savedAtSeq: state.actionLog.length,
-            audience: record.audience,
-            ...(record.profileId !== undefined ? { profileId: record.profileId } : {}),
-          };
-          // Durable first, then published (20-contract.md §7.2): a save whose write throws
-          // must never be listed or loadable from this instance's cache, since no other
-          // instance, and no restart of this one, would ever find it.
-          await writeSave(save);
-          saves.set(saveId, save);
-          return { saveId, savedAtSeq: state.actionLog.length };
-        }),
-      );
+      return holdSession(sessionId, async (record) => {
+        return runExclusive(sessionLocks, sessionId, () =>
+          withCommand(sessionId, record.attemptCounter, async (decoratedEngine) => {
+            const state = mustDeserialize(decoratedEngine, record.blob);
+            const campaign = registry.campaigns.get(state.campaignId);
+            const kind = kinds[state.kindId];
+            if (!campaign || !kind) {
+              // Defensive, same class as mustDeserialize's own throw above: a state this
+              // engine just resolved (deserializeState checks both campaignId and kindId)
+              // cannot fail either lookup except through store corruption.
+              throw new Error("session store: saveGame — resolved state's campaign or kind is missing from the registry");
+            }
+            const envelope = buildSaveEnvelope({ state, kind, campaign, replayCompatible: record.replayCompatible });
+            const saveId = newSaveId(recordIds);
+            const save: SaveRecord = {
+              saveId,
+              campaignId: state.campaignId,
+              blob: serializeSaveEnvelope(envelope),
+              savedAt: clock.now(),
+              savedAtSeq: state.actionLog.length,
+              audience: record.audience,
+              ...(record.profileId !== undefined ? { profileId: record.profileId } : {}),
+            };
+            // Durable first, then published (20-contract.md §7.2): a save whose write throws
+            // must never be listed or loadable from this instance's cache, since no other
+            // instance, and no restart of this one, would ever find it.
+            await writeSave(save);
+            if (!options.persistence) saves.set(saveId, save);
+            return { saveId, savedAtSeq: state.actionLog.length };
+          }),
+        );
+      });
     },
 
     async loadGame(saveId: string): Promise<SessionHandle> {
@@ -869,7 +947,7 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
           ...(save.profileId !== undefined ? { profileId: save.profileId } : {}),
         };
         await writeSession(record);
-        sessions.set(sessionId, record);
+        cacheSession(sessionId, record);
         return { sessionId, scene: decoratedEngine.scene(state) };
       });
     },
@@ -959,7 +1037,7 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
           ...(source.profileId !== undefined ? { profileId: source.profileId } : {}),
         };
         await writeSession(record);
-        sessions.set(branchSessionId, record);
+        cacheSession(branchSessionId, record);
         return { sessionId: branchSessionId, scene: decoratedEngine.scene(state) };
       });
     },
