@@ -826,8 +826,11 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
             audience: record.audience,
             ...(record.profileId !== undefined ? { profileId: record.profileId } : {}),
           };
-          saves.set(saveId, save);
+          // Durable first, then published (20-contract.md §7.2): a save whose write throws
+          // must never be listed or loadable from this instance's cache, since no other
+          // instance, and no restart of this one, would ever find it.
           await writeSave(save);
+          saves.set(saveId, save);
           return { saveId, savedAtSeq: state.actionLog.length };
         }),
       );
