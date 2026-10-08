@@ -3,6 +3,7 @@
   "version": "0.11.0",
   "type": "module",
   "description": "Deterministic narrative game engine — core + kinds. Specs: ../../docs/docs/engine/.",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/The-Running-Dev/SubZeroDev.GameEngine.git"
@@ -20,7 +21,8 @@
     "clean": "node scripts/clean-dist.mjs",
     "build": "npm run clean && tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.scripts.json",
-    "prepack": "npm run build",
+    "prepack": "npm run build && node scripts/stage-license.mjs copy",
+    "postpack": "node scripts/stage-license.mjs remove",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src scripts",

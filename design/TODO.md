@@ -20,4 +20,6 @@
 
 ## S127 — A Long-Running Host Stops Accumulating Memory
 
+## S128 — The Package Says What It Is Licensed Under
+
 ## Landed
