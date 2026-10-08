@@ -84,6 +84,7 @@ function makeTestKind(): Kind<TestKindState> {
     },
     project: (state, audience) => ({ counter: state.counter, audience }),
     validateCampaign: (): ValidationResult => ({ ok: true, errors: [], warnings: [] }),
+    validateState: () => true,
     // `counter=0` reports no terminal — lets a test drive "end" both with and without a
     // terminalId, to exercise the terminal-mirror's null-records-nothing rule (04 §7.1).
     outcome: (state) => ({
@@ -1649,6 +1650,7 @@ function makeProfileTestKind(): Kind<ProfileKindState> {
     },
     project: (state) => state,
     validateCampaign: (): ValidationResult => ({ ok: true, errors: [], warnings: [] }),
+    validateState: () => true,
     outcome: () => ({ terminal: false, terminalId: null }),
     profileData: {
       version: 1,

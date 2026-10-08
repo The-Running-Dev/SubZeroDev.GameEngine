@@ -28,6 +28,7 @@ import { availableActions, scene } from "./scene.js";
 import { initialState } from "./settle.js";
 import type { StoryGraphKindState } from "./state.js";
 import { validateCampaign } from "./validate.js";
+import { validateStoryGraphState } from "./validateState.js";
 import { project } from "./view.js";
 
 /** Distinct `endingId`s across the campaign's `EndingNode`s (03 §8.5) — two nodes may
@@ -55,6 +56,7 @@ export const storyGraphKind: Kind<StoryGraphKindState> = {
   advance: (state, actionId, params, ctx): AdvanceResult<StoryGraphKindState> => advance(state, actionId, params, ctx),
   project: (state, audience, ctx) => project(state, audience, ctx),
   validateCampaign: (campaign, strings) => validateCampaign(campaign, strings),
+  validateState: (kindState, campaign) => validateStoryGraphState(kindState, campaign),
   composeContent: (host, modules, attachments) => composeContent(host, modules, attachments),
   outcome: (state) => {
     const endingId = state.endingId ?? null;

@@ -61,6 +61,7 @@ function makeTestKind(overrides?: Partial<Kind<TestKindState>>): Kind<TestKindSt
     },
     project: (state) => ({ counter: state.counter }),
     validateCampaign: (): ValidationResult => ({ ok: true, errors: [], warnings: [] }),
+    validateState: () => true,
     outcome: (state) => ({ terminal: false, terminalId: null, counter: state.counter }),
     ...overrides,
   };
@@ -531,6 +532,50 @@ describe("serialize / deserialize / migrate", () => {
       expect(result.ok).toBe(true);
       expect(engine.serialize(result.value as GameState)).toBe(data);
       expect(recorder.events.slice(before).filter((e) => e.name === "core.deserialize.rejected")).toEqual([]);
+    });
+  });
+
+  describe("S126 — deserialize asks the kind whether it can run the kindState", () => {
+    function hostWith(validateState: Kind<TestKindState>["validateState"], emitter?: EngineHost["emitter"]): EngineHost {
+      const kinds = { "story-graph": makeTestKind({ validateState }) } as unknown as KindRegistry;
+      return makeHost({ kinds, ...(emitter ? { emitter } : {}) });
+    }
+
+    it.each<[string, Kind<TestKindState>["validateState"]]>([
+      ["returns false", () => false],
+      ["throws", () => { throw new Error("malformed"); }],
+    ])("S126.1 — a validateState that %s rejects with invalid_state at kindState and one event", (_label, validateState) => {
+      const recorder = createRecordingEmitter();
+      const accepting = createEngine(makeHost());
+      const data = accepting.serialize(accepting.createGame({ campaignId: "test-campaign" }).value as GameState);
+      const engine = createEngine(hostWith(validateState, recorder));
+      const before = recorder.events.length;
+
+      const result = engine.deserialize(data);
+
+      expect(result.ok).toBe(false);
+      expect(result.value).toBeUndefined();
+      expect(result.errors).toEqual([
+        { code: "invalid_state", messageKey: "core.reason.invalid_state", path: "kindState" },
+      ]);
+      const emitted = recorder.events.slice(before);
+      expect(emitted).toHaveLength(1);
+      expect(emitted[0]).toMatchObject({ scope: "system", name: "core.deserialize.rejected", reason: "invalid_state" });
+    });
+
+    it("S126.2 — migrate inherits the refusal", () => {
+      const accepting = createEngine(makeHost());
+      const data = accepting.serialize(accepting.createGame({ campaignId: "test-campaign" }).value as GameState);
+      expect(createEngine(hostWith(() => false)).migrate(data).errors[0]?.path).toBe("kindState");
+    });
+
+    it("S126.3 — the kind receives the parsed kindState and its campaign", () => {
+      const seen: unknown[][] = [];
+      const engine = createEngine(hostWith((kindState, campaign) => { seen.push([kindState, campaign.id]); return true; }));
+      const created = engine.createGame({ campaignId: "test-campaign" }).value as GameState;
+
+      expect(engine.deserialize(engine.serialize(created)).ok).toBe(true);
+      expect(seen).toEqual([[created.kindState, "test-campaign"]]);
     });
   });
 

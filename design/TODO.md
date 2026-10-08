@@ -16,4 +16,6 @@
 
 ## S125 — A Session Plays Only the Kind Its Campaign Was Written For
 
+## S126 — A Kind Refuses a State It Cannot Run
+
 ## Landed

@@ -458,6 +458,19 @@ deliberately, through a validated path. **Revisit** in that design pass, which m
 how a new epoch's content enters the registry. Whether the registry copies host content, and
 how deeply, is part of that answer.
 
+**Simulation and world-graph check their `kindState` at the top level only.** S126 added
+`Kind.validateState` (`20-contract.md` §3), and story-graph checks its state against its
+campaign: the current node exists and every declared variable has its type. The other two
+kinds check that each top-level field is present with the right container type and trust the
+records underneath — about thirty record types in simulation, and the map, entities and
+finances in world-graph. A state that passes the top level but carries a malformed record
+still fails inside `advance` rather than at the boundary. A deep check is a per-record
+validator for each of those types, which would duplicate the type definitions in code and
+drift from them unless it is generated. Nothing in either kind reads a raw state that the
+engine did not write itself, except a hand-edited or corrupted save. **Revisit** when a host
+accepts saves from a source it does not control, or when a schema generator for kind state
+exists to produce the validators.
+
 ---
 
 ## 3. Judgement Calls to Revisit (Settled for the MVP)

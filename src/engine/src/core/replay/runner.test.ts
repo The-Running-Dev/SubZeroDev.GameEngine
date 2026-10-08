@@ -65,6 +65,7 @@ function makeTestKind(): Kind<TestKindState> {
     },
     project: (state) => ({ counter: state.counter }),
     validateCampaign: (): ValidationResult => ({ ok: true, errors: [], warnings: [] }),
+    validateState: () => true,
     outcome: (state) => {
       const endingId = state.endingId ?? null;
       return { terminal: endingId !== null, terminalId: endingId, endingId };

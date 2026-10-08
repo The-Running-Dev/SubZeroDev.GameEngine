@@ -45,7 +45,7 @@ import { buildLongHorizonWinCampaign, buildLongHorizonLossCampaign } from "./lon
 import { buildSimulationCampaign, type SimulationCampaignSource } from "../kinds/simulation/source.js";
 import { buildCampaign } from "../core/registry/build.js";
 import type { BuiltCampaign, Campaign } from "../core/registry/types.js";
-import { COMPARING_ACROSS_VERSIONS, CORPUS_DIR, FIXTURES_DIR, fixtureNamesByPrefix, hasFixture, loadExpectedOutcome, loadFixture } from "./replay-corpus.js";
+import { COMPARING_ACROSS_VERSIONS, CORPUS_DIR, FIXTURES_DIR, fixtureNamesByPrefix, hasFixture, loadExpectedOutcome, loadFixture, statesThatFailToDeserialize } from "./replay-corpus.js";
 
 const REPLAY_PROFILE_ID = "long-horizon-replay-profile";
 const PREFIX = "long-horizon-";
@@ -558,5 +558,12 @@ describe("the fifteenth system, isolated — week_limit_reached", () => {
     expect(kindState.resolution).toEqual({
       resolution: "week_limit_reached", goalsMet: [], goalsFailed: [], resolvedAtWeek: 3,
     });
+  });
+});
+
+// S126: every state the corpus passes through is one its kind's `validateState` accepts.
+describe("the replay corpus deserializes (S126)", () => {
+  it.for(LONG_HORIZON_FIXTURE_NAMES)("%s: every state it reaches round-trips through deserialize", (name) => {
+    expect(statesThatFailToDeserialize(makeContext().engine, loadFixture(name, FIXTURES_DIR))).toEqual([]);
   });
 });

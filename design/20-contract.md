@@ -353,6 +353,15 @@ interface Kind<KState> {
   validateCampaign(campaign: Campaign, strings: ReadonlyMap<LocKey, string>): ValidationResult;
 
   /**
+   * Whether a `kindState` arriving from outside the engine is one this kind can run against
+   * `campaign`. The core checks `kindState` for presence only — its shape is the kind's to
+   * state — so `deserialize` asks here after its own checks (§4), and the save boundary asks
+   * again after any migration (§10.2). Pure and total over `unknown`: same input, same
+   * answer, and a throw is read as `false`. Never consulted on a state the engine produced.
+   */
+  validateState(kindState: unknown, campaign: Campaign): boolean;
+
+  /**
    * A minimal, cross-version-stable terminal identity — published ids only, never
    * values ([`07-replay.md`](07-replay.md) §3.3). Every kind returns at least
    * `KindOutcome` (§3.2) and may widen it with its own published ids.
@@ -683,11 +692,14 @@ copy, so a caller mutating its own object afterwards cannot rewrite the replay s
 **`deserialize` resolves a state against this host, or refuses it.** A shape-valid envelope
 is rejected with `unknown_campaign` when its `campaignId` is not in the registry, with
 `unknown_kind` when its `kindId` is not registered, and with `invalid_state` when both resolve
-but `kindId` is not that campaign's own `kindId`. Each rejection emits
-`core.deserialize.rejected` ([`05-observability.md`](05-observability.md) §8), and `migrate`
-inherits all three. The last check is the raw path's copy of a cross-check the save path
-already makes (§10.2). Without it, a state could hand one kind's `advance` another kind's
-campaign. **`campaignVersion` is not compared on this path.** A state serialized under one
+but `kindId` is not that campaign's own `kindId`. Last, the kind judges the payload:
+`Kind.validateState(kindState, campaign)` (§3) returning `false`, or throwing, rejects with
+`invalid_state` at `path: "kindState"`. Each rejection emits `core.deserialize.rejected`
+([`05-observability.md`](05-observability.md) §8), and `migrate` inherits all four. The kind
+agreement check is the raw path's copy of a cross-check the save path already makes (§10.2).
+Without it, a state could hand one kind's `advance` another kind's campaign; without the last,
+a `kindState` of the wrong shape reaches `advance` and fails there, as a throw or a
+`NaN`, rather than at the boundary. **`campaignVersion` is not compared on this path.** A state serialized under one
 resolution and deserialized under another is accepted. That gap is known and retained until
 content epochs decide what a version change means for a running session (`90-decisions.md`,
 *Content epochs*).
@@ -1999,6 +2011,11 @@ load the same way:
   nothing else guards it, and flipping a migrated save's `false` back to `true` in the stored
   blob would otherwise silently defeat the sticky-forward rule below. `90-decisions.md`
   records why this is the accepted scope rather than a gap.
+- **The kind judges the result.** After both migrations, `Kind.validateState` (§3) is asked
+  about the `kindState` this version would run — a migrated one in its migrated shape. A
+  refusal fails the load with `invalid_state` when nothing was migrated (the save itself is
+  corrupt) and `migration_failed` when something was (the migration produced a state its own
+  kind cannot run).
 - **A successful migration** sets `replayCompatible: false`, sticky forward — once a
   lineage has passed through a migrated load, it never becomes replay-compatible again,
   even across further saves that need no further migration.
@@ -2467,6 +2484,7 @@ Concrete mapping — and the reconciliation this document forces on
 | `SceneBody` | the node's `textKey`, interpolated (03 §3.1) |
 | `Kind.project` | `StoryGraphView` (03 §9) — turn, visible stats, unlocked achievements, ending; hides non-visible variables and visit counts. Scene text and choices are the generic `Scene`, not repeated here |
 | `Kind.validateCampaign` | 03 §11 |
+| `Kind.validateState` | 03 §8.1 — every field typed, `currentNodeId` an existing node, every declared variable present with its type |
 | `Kind.outcome` | 03 §8.5 — `terminalId` is the `endingId`; `terminal` is "settled onto an `EndingNode`" (§3.2) |
 | `Kind.terminalCount` | 03 §8.5 — distinct `endingId`s across the campaign's `EndingNode`s; the denominator in `CampaignProgress` (§7.3) |
 | `RngHandle.weightedPick` | random-transition node resolution (03 §3) |
@@ -3150,6 +3168,13 @@ interface StoryGraphKindState {
 ([`04-core.md`](04-core.md) §8 / games/04 §2.2) — a `Record` iterated in a
 state-affecting way is sorted first, or a save/load round trip can diverge.
 
+**`validateState` (04 §3) checks this interface against its campaign.** Every field is present
+with its type — `turn` and each visit count a non-negative integer, `endingId` absent or a
+string — `currentNodeId` names a node the campaign has, and every variable the campaign
+declares is present with its declared `VarType`. A variable the campaign does not declare is
+tolerated: nothing reads it, and refusing it would refuse a save whose campaign later dropped a
+variable before content epochs settle what that means.
+
 ### 8.2 The Turn: `submitChoice` → Settle
 
 The story-graph kind has exactly **one player action** — submit a choice — with no plan
@@ -3751,6 +3776,13 @@ back. `12-world-graph-kind.md` §8 already carries the identical shape (`WorldGr
 .resolution`, written once by its terminal system, read verbatim by `outcome()`) for the
 identical reason. §12 below defines `SimulationResolution` and the `week_limit` system that
 writes it.
+
+**`validateState` (04 §3) checks this interface at the top level only.** Each object field is a
+plain object, each list an array, `plan` an object or `null`. `resolution` may also be absent:
+it is newer than every other field, and a session persisted before it existed comes back
+without it on the raw `deserialize` path, which has no migration step to add it. The records
+under these fields are trusted; checking them is recorded in `90-decisions.md`, *Found by the
+2026-10-03 repository review*.
 
 The rest of this section restates every field type `SimulationKindState` names above.
 `PlayerState` is the one exception, and only because it is large enough to own a section:
@@ -7199,6 +7231,12 @@ interface WorldGraphKindState {
   nextEntityOrdinal: number;                      // §9 — the deterministic id source
 }
 ```
+
+**`validateState` (04 §3) checks this interface at the top level only.** `tick` and
+`nextEntityOrdinal` are non-negative integers, each object field a plain object, each list an
+array, `resolution` an object or `null`. Every field has existed since the kind was built, so
+none may be absent. The records under them are trusted; checking them is recorded in
+`90-decisions.md`, *Found by the 2026-10-03 repository review*.
 
 > **The draft's `ResortMap` is named `WorldMap` here.** §1 rejects the name
 > `management-simulation` on the grounds that *a colony sim, an ecosystem model or a

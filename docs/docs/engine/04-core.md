@@ -215,6 +215,15 @@ interface Kind<KState> {
   validateCampaign(campaign: Campaign, strings: ReadonlyMap<LocKey, string>): ValidationResult;
 
   /**
+   * Whether a `kindState` arriving from outside the engine is one this kind can run against
+   * `campaign`. The core checks `kindState` for presence only — its shape is the kind's to
+   * state — so `deserialize` asks here after its own checks (§4), and the save boundary asks
+   * again after any migration (§10.2). Pure and total over `unknown`: same input, same
+   * answer, and a throw is read as `false`. Never consulted on a state the engine produced.
+   */
+  validateState(kindState: unknown, campaign: Campaign): boolean;
+
+  /**
    * A minimal, cross-version-stable terminal identity — published ids only, never
    * values ([`07-replay.md`](07-replay.md) §3.3). Every kind returns at least
    * `KindOutcome` (§3.2) and may widen it with its own published ids.
@@ -545,11 +554,14 @@ copy, so a caller mutating its own object afterwards cannot rewrite the replay s
 **`deserialize` resolves a state against this host, or refuses it.** A shape-valid envelope
 is rejected with `unknown_campaign` when its `campaignId` is not in the registry, with
 `unknown_kind` when its `kindId` is not registered, and with `invalid_state` when both resolve
-but `kindId` is not that campaign's own `kindId`. Each rejection emits
-`core.deserialize.rejected` ([`05-observability.md`](05-observability.md) §8), and `migrate`
-inherits all three. The last check is the raw path's copy of a cross-check the save path
-already makes (§10.2). Without it, a state could hand one kind's `advance` another kind's
-campaign. **`campaignVersion` is not compared on this path.** A state serialized under one
+but `kindId` is not that campaign's own `kindId`. Last, the kind judges the payload:
+`Kind.validateState(kindState, campaign)` (§3) returning `false`, or throwing, rejects with
+`invalid_state` at `path: "kindState"`. Each rejection emits `core.deserialize.rejected`
+([`05-observability.md`](05-observability.md) §8), and `migrate` inherits all four. The kind
+agreement check is the raw path's copy of a cross-check the save path already makes (§10.2).
+Without it, a state could hand one kind's `advance` another kind's campaign; without the last,
+a `kindState` of the wrong shape reaches `advance` and fails there, as a throw or a
+`NaN`, rather than at the boundary. **`campaignVersion` is not compared on this path.** A state serialized under one
 resolution and deserialized under another is accepted. That gap is known and retained until
 content epochs decide what a version change means for a running session (`90-decisions.md`,
 *Content epochs*).
@@ -1861,6 +1873,11 @@ load the same way:
   nothing else guards it, and flipping a migrated save's `false` back to `true` in the stored
   blob would otherwise silently defeat the sticky-forward rule below. `90-decisions.md`
   records why this is the accepted scope rather than a gap.
+- **The kind judges the result.** After both migrations, `Kind.validateState` (§3) is asked
+  about the `kindState` this version would run — a migrated one in its migrated shape. A
+  refusal fails the load with `invalid_state` when nothing was migrated (the save itself is
+  corrupt) and `migration_failed` when something was (the migration produced a state its own
+  kind cannot run).
 - **A successful migration** sets `replayCompatible: false`, sticky forward — once a
   lineage has passed through a migrated load, it never becomes replay-compatible again,
   even across further saves that need no further migration.
@@ -2329,6 +2346,7 @@ Concrete mapping — and the reconciliation this document forces on
 | `SceneBody` | the node's `textKey`, interpolated (03 §3.1) |
 | `Kind.project` | `StoryGraphView` (03 §9) — turn, visible stats, unlocked achievements, ending; hides non-visible variables and visit counts. Scene text and choices are the generic `Scene`, not repeated here |
 | `Kind.validateCampaign` | 03 §11 |
+| `Kind.validateState` | 03 §8.1 — every field typed, `currentNodeId` an existing node, every declared variable present with its type |
 | `Kind.outcome` | 03 §8.5 — `terminalId` is the `endingId`; `terminal` is "settled onto an `EndingNode`" (§3.2) |
 | `Kind.terminalCount` | 03 §8.5 — distinct `endingId`s across the campaign's `EndingNode`s; the denominator in `CampaignProgress` (§7.3) |
 | `RngHandle.weightedPick` | random-transition node resolution (03 §3) |

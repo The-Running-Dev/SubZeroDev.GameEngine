@@ -19,6 +19,7 @@ import { initialState } from "./initial.js";
 import { outcome } from "./outcome.js";
 import { project } from "./view.js";
 import { validateCampaign } from "./validate.js";
+import { validateWorldGraphState } from "./validateState.js";
 
 export const worldGraphKind: Kind<WorldGraphKindState> = {
   id: "world-graph",
@@ -34,5 +35,6 @@ export const worldGraphKind: Kind<WorldGraphKindState> = {
   advance: (state, actionId, params, ctx): AdvanceResult<WorldGraphKindState> => advance(state, actionId, params, ctx),
   project: (state, audience, ctx) => project(state, audience, ctx),
   validateCampaign: (campaign, strings) => validateCampaign(campaign, strings),
+  validateState: (kindState) => validateWorldGraphState(kindState),
   outcome,
 };

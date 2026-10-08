@@ -38,6 +38,7 @@ import { SIMULATION_ENGINE_MESSAGES, SIMULATION_REASON_CODES, SIMULATION_REASON_
 import { scene } from "./scene.js";
 import type { SimulationKindState } from "./state.js";
 import { validateCampaign } from "./validate.js";
+import { validateSimulationState } from "./validateState.js";
 import { project, type SimulationView } from "./view.js";
 
 export const simulationKind: Kind<SimulationKindState> = {
@@ -54,6 +55,7 @@ export const simulationKind: Kind<SimulationKindState> = {
   advance: (state, actionId, params, ctx): AdvanceResult<SimulationKindState> => advance(state, actionId, params, ctx),
   project: (state, audience: ProjectionAudience, ctx): SimulationView => project(state, audience, ctx),
   validateCampaign: (campaign, strings) => validateCampaign(campaign, strings),
+  validateState: (kindState) => validateSimulationState(kindState),
   outcome: (state) => outcome(state),
   migrateState: migrateSimulationKindState,
   profileData: simulationProfileData,

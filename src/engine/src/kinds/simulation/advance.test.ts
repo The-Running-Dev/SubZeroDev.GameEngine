@@ -462,6 +462,7 @@ describe("simulation kind — through the real engine (integration)", () => {
       advance: (state, actionId, params, ctx) => advance(state, actionId, params, ctx),
       project: () => ({}),
       validateCampaign: () => ({ ok: true, errors: [], warnings: [] }),
+      validateState: () => true,
       outcome: () => ({ terminal: false, terminalId: null }),
     };
   }

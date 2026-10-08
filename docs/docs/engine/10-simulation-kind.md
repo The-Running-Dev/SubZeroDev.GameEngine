@@ -100,6 +100,13 @@ back. `12-world-graph-kind.md` §8 already carries the identical shape (`WorldGr
 identical reason. §12 below defines `SimulationResolution` and the `week_limit` system that
 writes it.
 
+**`validateState` (04 §3) checks this interface at the top level only.** Each object field is a
+plain object, each list an array, `plan` an object or `null`. `resolution` may also be absent:
+it is newer than every other field, and a session persisted before it existed comes back
+without it on the raw `deserialize` path, which has no migration step to add it. The records
+under these fields are trusted; checking them is recorded in `90-decisions.md`, *Found by the
+2026-10-03 repository review*.
+
 The rest of this section restates every field type `SimulationKindState` names above.
 `PlayerState` is the one exception, and only because it is large enough to own a section:
 §6 restates it in full. This section's own port — `plans/36-simulation-kind-programme.md`

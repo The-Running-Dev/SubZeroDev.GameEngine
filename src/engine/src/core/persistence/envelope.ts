@@ -11,7 +11,7 @@
 
 import type { Campaign, ContentRegistry } from "../registry/types.js";
 import type { GameState, Kind, KindRegistry } from "../kernel/types.js";
-import { isValidGameStateShape } from "../kernel/engine.js";
+import { isAcceptedKindState, isValidGameStateShape } from "../kernel/engine.js";
 import { canonicalize as canonicalStringify, sha256Hex } from "subzerodev-data-json";
 import type { SaveEnvelope } from "./types.js";
 import { ENGINE_VERSION } from "../../version.js";
@@ -181,6 +181,13 @@ export function resolveSaveEnvelope(blob: string, kinds: KindRegistry, registry:
     if (!result.ok || result.value === undefined) return { ok: false, code: "migration_failed" };
     kindState = result.value;
     migrated = true;
+  }
+
+  // The kind judges the state it is about to run — after migration, so a save from an older
+  // shape is judged in the shape this version reads. Refused unmigrated, the save itself is
+  // corrupt; refused migrated, the migration produced something its own kind cannot run.
+  if (!isAcceptedKindState(kind, kindState, campaign)) {
+    return { ok: false, code: migrated ? "migration_failed" : "invalid_state" };
   }
 
   const state: GameState = { ...parsed.state, kindState, campaignVersion: campaign.version };

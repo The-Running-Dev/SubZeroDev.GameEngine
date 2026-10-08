@@ -33,6 +33,7 @@ import {
   fixtureNamesByPrefix,
   loadExpectedOutcome,
   loadFixture,
+  statesThatFailToDeserialize,
 } from "./replay-corpus.js";
 
 const REPLAY_PROFILE_ID = "bulgaria-replay-oracle-profile";
@@ -79,5 +80,12 @@ describe("the Bulgarian Stable Life replay corpus (07-replay.md §4, W72.2)", ()
     const loss = loadExpectedOutcome("bulgaria-stable-life-loss").terminal as { resolution: string };
     expect(win.resolution).toBe("goals_met");
     expect(loss.resolution).toBe("failed");
+  });
+});
+
+// S126: every state the corpus passes through is one its kind's `validateState` accepts.
+describe("the replay corpus deserializes (S126)", () => {
+  it.for(CURRENT_BULGARIA_STABLE_LIFE_FIXTURE_NAMES)("%s: every state it reaches round-trips through deserialize", (name) => {
+    expect(statesThatFailToDeserialize(makeContext().engine, loadFixture(name, FIXTURES_DIR))).toEqual([]);
   });
 });

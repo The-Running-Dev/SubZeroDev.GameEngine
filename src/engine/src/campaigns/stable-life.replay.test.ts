@@ -39,7 +39,7 @@ import { buildStableLifeEffectsCampaign } from "./stable-life-effects.js";
 import { buildStableLifeHousingCampaign } from "./stable-life-housing.js";
 import { buildStableLifePossessionsCampaign } from "./stable-life-possessions.js";
 import { buildStableLifeEventsCampaign } from "./stable-life-events.js";
-import { COMPARING_ACROSS_VERSIONS, CORPUS_DIR, FIXTURES_DIR, fixtureNamesByPrefix, hasFixture, loadExpectedOutcome, loadFixture } from "./replay-corpus.js";
+import { COMPARING_ACROSS_VERSIONS, CORPUS_DIR, FIXTURES_DIR, fixtureNamesByPrefix, hasFixture, loadExpectedOutcome, loadFixture, statesThatFailToDeserialize } from "./replay-corpus.js";
 
 const REPLAY_PROFILE_ID = "replay-oracle-profile";
 
@@ -229,3 +229,10 @@ describe.skipIf(!hasFixtureInBaseline("stable-life-possessions"))(
   });
   },
 );
+
+// S126: every state the corpus passes through is one its kind's `validateState` accepts.
+describe("the replay corpus deserializes (S126)", () => {
+  it.for(CURRENT_STABLE_LIFE_FIXTURE_NAMES)("%s: every state it reaches round-trips through deserialize", (name) => {
+    expect(statesThatFailToDeserialize(makeContext().engine, loadFixture(name, FIXTURES_DIR))).toEqual([]);
+  });
+});

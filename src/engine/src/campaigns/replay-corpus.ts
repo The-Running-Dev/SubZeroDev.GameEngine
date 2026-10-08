@@ -14,6 +14,7 @@
 
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import type { Engine, GameState } from "../core/kernel/types.js";
 import type { Outcome, ReplayFixture } from "../core/replay/types.js";
 
 export const FIXTURES_DIR = fileURLToPath(new URL("../../fixtures/replay/", import.meta.url));
@@ -71,4 +72,33 @@ export function outcomeNamesByPrefix(prefix: string, dir: string = CORPUS_DIR): 
     .filter((f) => f.startsWith(prefix) && f.endsWith(".outcome.json"))
     .map((f) => f.slice(0, -".outcome.json".length))
     .sort();
+}
+
+/**
+ * S126: plays `fixture` through `engine` and round-trips every state it reaches — the
+ * initial one and each accepted submission's — through `serialize` → `deserialize`. Returns
+ * the submission index of each state that failed (`-1` for the initial state), so an empty
+ * array means every kind's `validateState` accepts everything its own engine produced over
+ * the committed corpus. Pass `FIXTURES_DIR` fixtures: a baseline tag's corpus may name a
+ * campaign version this build no longer has.
+ */
+export function statesThatFailToDeserialize(engine: Engine, fixture: ReplayFixture): number[] {
+  const created = engine.createGame(fixture.config);
+  if (!created.ok || !created.value) throw new Error(`fixture "${fixture.name}": createGame rejected`);
+
+  const failures: number[] = [];
+  const check = (state: GameState, index: number): void => {
+    if (!engine.deserialize(engine.serialize(state)).ok) failures.push(index);
+  };
+
+  let state = created.value;
+  check(state, -1);
+  for (const [index, submission] of fixture.submissions.entries()) {
+    const result = engine.submitAction(state, submission.actionId, submission.params);
+    if (result.ok && result.value) {
+      state = result.value;
+      check(state, index);
+    }
+  }
+  return failures;
 }
