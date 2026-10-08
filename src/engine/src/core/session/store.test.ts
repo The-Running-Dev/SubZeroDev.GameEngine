@@ -248,38 +248,170 @@ describe("persistence error translation (G2 S1)", () => {
   });
 
   it("W75.4 — a conflict on submitAction leaves the cache no further ahead than persistence", async () => {
-    let writeCount = 0;
-    // Snapshotted, not captured by reference: the store mutates its cached record in place,
-    // so holding the object would show later state rather than what this write carried.
-    const written: StoredSessionRecord[] = [];
-    const store = makeStore({
-      persistence: persistenceWith({
-        sessions: {
-          get: async () => undefined,
-          put: async (record) => {
-            writeCount += 1;
-            // createSession's write (1) succeeds; submitAction's write (2) is the conflict.
-            if (writeCount === 2) throw { name: SESSION_PERSISTENCE_CONFLICT };
-            written.push({ ...record });
-          },
-        },
-      }),
-    });
+    const cas = makeCasPersistence();
+    const store = makeStore({ persistence: cas.persistence });
 
     const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+    cas.failNextPut({ name: SESSION_PERSISTENCE_CONFLICT });
     await expect(store.submitAction(sessionId, "increment")).rejects.toMatchObject({
       code: "concurrent_modification",
     });
 
+    // S122: the conflicted record is evicted, so this read goes back to persistence.
+    const reads = cas.reads;
     const scene = await store.getScene(sessionId);
     expect(scene.body.text).toBe("counter=0");
+    expect(cas.reads).toBe(reads + 1);
 
-    // Every field the refused `put` carried is rolled back, not just the blob. The counter
-    // is the one that is only observable on the next accepted write: had the conflict left
-    // it raised, this submission would persist `2` for its first surviving attempt.
     const result = await store.submitAction(sessionId, "increment");
     expect(result.ok).toBe(true);
-    expect(written.at(-1)).toMatchObject({ attemptCounter: 1 });
+    expect(cas.rows.get(sessionId)).toMatchObject({ revision: 1, attemptCounter: 1 });
+  });
+});
+
+/**
+ * An in-memory adapter that holds §7.2's compare-and-swap rule: a `put` for an existing
+ * `sessionId` lands only when the stored `revision` is the incoming one minus one. Records
+ * are copied in both directions, as a real database would, so the store's in-place mutation
+ * of its cache can never reach a stored row — unless `returnStoredRows` hands back the row
+ * object itself, as a naive in-memory adapter would.
+ */
+function makeCasPersistence(options?: { returnStoredRows?: boolean }): {
+  persistence: SessionPersistence;
+  rows: Map<string, StoredSessionRecord>;
+  readonly reads: number;
+  failNextPut(error: unknown): void;
+} {
+  const rows = new Map<string, StoredSessionRecord>();
+  let reads = 0;
+  let pendingFailure: { error: unknown } | undefined;
+  return {
+    rows,
+    get reads() { return reads; },
+    failNextPut(error) { pendingFailure = { error }; },
+    persistence: persistenceWith({
+      sessions: {
+        get: async (sessionId) => {
+          reads += 1;
+          const row = rows.get(sessionId);
+          if (options?.returnStoredRows) return row;
+          return row ? { ...row } : undefined;
+        },
+        put: async (record) => {
+          if (pendingFailure) {
+            const { error } = pendingFailure;
+            pendingFailure = undefined;
+            throw error;
+          }
+          const stored = rows.get(record.sessionId);
+          if (stored && stored.revision !== record.revision - 1) throw { name: SESSION_PERSISTENCE_CONFLICT };
+          rows.set(record.sessionId, { ...record });
+        },
+      },
+    }),
+  };
+}
+
+describe("S122 — a committed revision, separate from the attempt counter", () => {
+  it("S122.1 — a rejected action leaves the revision alone, so the next valid one commits", async () => {
+    const cas = makeCasPersistence();
+    const store = makeStore({ persistence: cas.persistence });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+    expect(cas.rows.get(sessionId)).toMatchObject({ revision: 0, attemptCounter: 0 });
+
+    const rejected = await store.submitAction(sessionId, "not-an-action");
+    expect(rejected.ok).toBe(false);
+
+    const accepted = await store.submitAction(sessionId, "increment");
+    expect(accepted.ok).toBe(true);
+    expect(accepted.scene?.body.text).toBe("counter=1");
+    // The attempt counter saw both submissions; the revision saw only the write.
+    expect(cas.rows.get(sessionId)).toMatchObject({ revision: 1, attemptCounter: 2 });
+  });
+
+  it("S122.2 — a preview leaves the revision alone, so the next valid action commits", async () => {
+    const cas = makeCasPersistence();
+    const store = makeStore({ persistence: cas.persistence });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+
+    const preview = await store.previewAction(sessionId, "increment");
+    expect(preview.ok).toBe(true);
+
+    const accepted = await store.submitAction(sessionId, "increment");
+    expect(accepted.ok).toBe(true);
+    expect(cas.rows.get(sessionId)).toMatchObject({ revision: 1, attemptCounter: 1 });
+  });
+
+  it("S122.3 — two store instances over one adapter: the loser gets concurrent_modification, and its retry sees the winner", async () => {
+    const cas = makeCasPersistence();
+    const first = makeStore({ persistence: cas.persistence });
+    const second = makeStore({ persistence: cas.persistence });
+
+    const { sessionId } = await first.createSession({ campaignId: "test-campaign" });
+    // Both instances now hold revision 0 in their caches.
+    expect((await second.getScene(sessionId)).body.text).toBe("counter=0");
+
+    expect((await first.submitAction(sessionId, "increment")).ok).toBe(true);
+    await expect(second.submitAction(sessionId, "increment")).rejects.toMatchObject({
+      name: "SessionStoreError",
+      code: "concurrent_modification",
+    });
+
+    // The retry re-reads persistence rather than replaying the stale cache, so it builds on
+    // the winner's write instead of colliding with it again.
+    const retried = await second.submitAction(sessionId, "increment");
+    expect(retried.ok).toBe(true);
+    expect(retried.scene?.body.text).toBe("counter=2");
+    expect(cas.rows.get(sessionId)).toMatchObject({ revision: 2 });
+  });
+
+  it("S122.4 — storage_failure restores the cached record and keeps it, without re-reading persistence", async () => {
+    const cas = makeCasPersistence();
+    const store = makeStore({ persistence: cas.persistence });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+
+    cas.failNextPut(new Error("disk full"));
+    await expect(store.submitAction(sessionId, "increment")).rejects.toMatchObject({ code: "storage_failure" });
+
+    const reads = cas.reads;
+    expect((await store.getScene(sessionId)).body.text).toBe("counter=0");
+    expect(cas.reads).toBe(reads);
+
+    // Every field the refused `put` carried was rolled back, the counter included: had it
+    // stayed raised, this write would carry attemptCounter 2 and the revision would skip.
+    expect((await store.submitAction(sessionId, "increment")).ok).toBe(true);
+    expect(cas.rows.get(sessionId)).toMatchObject({ revision: 1, attemptCounter: 1 });
+  });
+
+  it("S122.5 — a command already queued behind a conflicted write is refused too, never committed on top of it", async () => {
+    const cas = makeCasPersistence();
+    const first = makeStore({ persistence: cas.persistence });
+    const second = makeStore({ persistence: cas.persistence });
+
+    const { sessionId } = await first.createSession({ campaignId: "test-campaign" });
+    expect((await second.getScene(sessionId)).body.text).toBe("counter=0");
+    expect((await first.submitAction(sessionId, "increment")).ok).toBe(true);
+
+    // Both calls resolve the cached record before either takes the session lock.
+    const racing = second.submitAction(sessionId, "increment");
+    const queued = second.submitAction(sessionId, "increment");
+    await expect(racing).rejects.toMatchObject({ code: "concurrent_modification" });
+    await expect(queued).rejects.toMatchObject({ code: "concurrent_modification" });
+
+    expect(cas.rows.get(sessionId)).toMatchObject({ revision: 1 });
+    expect((await second.getScene(sessionId)).body.text).toBe("counter=1");
+  });
+
+  it("S122.6 — a record read back from persistence is the store's own copy, so an adapter returning its row still compares correctly", async () => {
+    const cas = makeCasPersistence({ returnStoredRows: true });
+    const first = makeStore({ persistence: cas.persistence });
+    const { sessionId } = await first.createSession({ campaignId: "test-campaign" });
+
+    // A second instance has to read the row from persistence, which hands back the row itself.
+    const second = makeStore({ persistence: cas.persistence });
+    const accepted = await second.submitAction(sessionId, "increment");
+    expect(accepted.ok).toBe(true);
+    expect(cas.rows.get(sessionId)).toMatchObject({ revision: 1 });
   });
 });
 

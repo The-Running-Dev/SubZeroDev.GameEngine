@@ -8,4 +8,6 @@
 
 ## S121 — Hidden Outcomes Stay Hidden
 
+## S122 — A Rejected Action No Longer Strands a Shared Session
+
 ## Landed

@@ -3,7 +3,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 46ffffd5695e341b8ba531fa871390fa95534d7452847fee387a1f9599c37099 -->
+<!-- design-digest: c3b7b16de5b93158945a76ee1e336a27965ff96859f72b3763768fd06dc709b9 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -337,6 +337,14 @@ A stored session record carries more than the serialized envelope: an `audience`
 flag that turns false forever once a migrated load touches the lineage, and wall-clock
 `createdAt`/`updatedAt` timestamps set through the `Clock` port — all of it outside the
 replayable `GameState` and never read by `advance`.
+
+It also carries a `revision`, and that, not the attempt counter, is what a host running several
+store instances over one database compares. The revision starts at zero and rises by one only
+on an accepted, persisted action. A rejected or previewed action never moves it. An adapter
+accepts a write only when the stored revision is one below the incoming one, and otherwise
+raises a branded conflict, which reaches the caller as `concurrent_modification`. The store then
+drops its cached copy, so the player's retry reads the winning write instead of colliding with
+it again.
 
 ### Listing, branching, and deleting saves
 

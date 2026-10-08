@@ -90,6 +90,35 @@ Acceptance:
 Out of scope: Filtering inside the engine, `Scene` or `PlayerView` (already projections), and
               the attempt counter and revision (S122).
 
+## S122 — A Rejected Action No Longer Strands a Shared Session
+
+Status: done
+Delivers: A host running several engine instances over one database can tell a real collision
+          from a rejected move. A player who submits an invalid action, or previews one, can keep
+          playing, and a player who loses a genuine race refreshes once and continues from the
+          winner's move.
+Touches: `src/engine/src/core/session/store.ts`, `src/engine/src/core/session/types.ts`,
+         `20-contract.md` §7.2
+Depends on: S121
+Acceptance:
+  - S122.1 `StoredSessionRecord.revision` is `0` when `createSession`, `loadGame` or
+    `branchSession` first writes a record, and rises by one on each accepted `submitAction`
+    write. A rejected submission leaves it unchanged, so the next valid action commits under an
+    adapter that holds §7.2's compare-and-swap rule.
+  - S122.2 `previewAction` leaves it unchanged, with the same consequence.
+  - S122.3 Two store instances over one compare-and-swap adapter: the losing write raises
+    `concurrent_modification`, and its retry re-reads persistence and builds on the winning
+    write.
+  - S122.4 `storage_failure` restores the cached record and keeps it, without re-reading
+    persistence. Every field the refused `put` carried is rolled back.
+  - S122.5 A submission already queued behind a conflicted write is refused as well. It is never
+    committed as a successor of the refused write.
+  - S122.6 A record read from persistence is the store's own copy, so an adapter that returns its
+    stored object by reference still compares correctly.
+  - S122.7 §7.2 states the rule: compare `revision`, never `attemptCounter`.
+Out of scope: Adventures' migration (a `revision` column, its compare-and-swap predicate, and the
+              branded conflict). That lands in Adventures after an engine release.
+
 ## Landed
 
 Ordered by id. *Criteria* is the range of numbered acceptance
