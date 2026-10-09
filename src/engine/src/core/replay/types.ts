@@ -16,12 +16,21 @@ import type { ReasonCode } from "../kernel/reasons.js";
  * One attempted action, whether or not the engine accepted it. `04 §4`'s `actionLog` omits
  * rejections — `seq` is the log's length, so a rejected submission leaves no trace there —
  * which is exactly why the fixture carries its own list instead of reusing `actionLog`
- * (07 §2.1).
+ * (07 §2.1). The `Submission` every fixture written before content epochs carries, unchanged.
  */
-export interface Submission {
+export interface ActionSubmission {
   readonly actionId: string;
   readonly params?: ActionParams;
 }
+
+/** A recorded content adoption (16 §5.6) — only adoptions that happened are recorded, so its
+ *  position among the submissions is where the session moved onto `adopt` (07 §2). */
+export interface AdoptionSubmission {
+  /** The `campaignVersion` adopted. */
+  readonly adopt: string;
+}
+
+export type Submission = ActionSubmission | AdoptionSubmission;
 
 export interface ReplayFixture {
   readonly name: string;
@@ -31,7 +40,8 @@ export interface ReplayFixture {
    * no explicit seed is not reproducible.
    */
   readonly config: NewGameConfig & { seed: string };
-  /** Pinned here, not on `config` — a *runtime* input has no reason to carry it (07 §2). */
+  /** Pinned here, not on `config` — a *runtime* input has no reason to carry it (07 §2).
+   *  The *starting* epoch: an `AdoptionSubmission` moves the game off it. */
   readonly campaignVersion: string;
   /** The `ENGINE_VERSION` (`../../version.js`) current when this fixture's `.outcome.json`
    *  was captured or last regenerated. */
@@ -44,7 +54,7 @@ export interface ReplayFixture {
  * a row share one `seq` (rejection never advances it), so `index`, the 0-based position in
  * `submissions`, is what stays unique (07 §3.1).
  */
-export interface Decision {
+export interface ActionDecision {
   readonly index: number;
   /** The accepted log position, or `null` if this submission was rejected — never a
    *  repeated number left to be misread. */
@@ -55,6 +65,20 @@ export interface Decision {
   readonly reason?: ReasonCode;
 }
 
+/** An `AdoptionSubmission`'s result. `accepted: false` means the kind now refuses an adoption
+ *  that once happened — a divergence (16 §5.6). */
+export interface AdoptionDecision {
+  readonly index: number;
+  /** The content entry's log position, or `null` if the session stayed pinned. */
+  readonly seq: number | null;
+  readonly adopt: string;
+  readonly accepted: boolean;
+  /** Set iff refused (04 §12). */
+  readonly reason?: ReasonCode;
+}
+
+export type Decision = ActionDecision | AdoptionDecision;
+
 /**
  * The deliberately small, cross-version-stable projection the oracle actually compares.
  * Never variable values, never `serialize()` bytes (07 §3.4) — every field here is stable
@@ -62,6 +86,8 @@ export interface Decision {
  */
 export interface Outcome {
   readonly finalStatus: GameStatus;
+  /** Accepted *actions* only — an adoption is a log entry but not an action, and appears
+   *  only in `decisions` (07 §3). */
   readonly acceptedActions: number;
   readonly decisions: readonly Decision[];
   /** Unlocked achievement ids, sorted (07 §3.2). */

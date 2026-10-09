@@ -470,7 +470,7 @@ Out of scope: Capture refusing a `replayCompatible: false` session (capture is u
 
 ## S135 — The Replay Oracle Crosses Content Epochs
 
-Status: todo
+Status: done
 Delivers: A recorded play session that moved onto new content partway through is a regression
           fixture like any other. A later engine version replays its adoptions in place, and
           reports a divergence if the kind would now refuse one.

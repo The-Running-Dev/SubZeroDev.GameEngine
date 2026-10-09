@@ -80,6 +80,11 @@ export type {
   PortableMigration,
 } from "./index.js";
 export type {
+  ActionDecision,
+  ActionSubmission,
+  AdoptionDecision,
+  AdoptionSubmission,
+  Decision,
   Outcome,
   ReplayFixture,
   ReplayVerdict,
