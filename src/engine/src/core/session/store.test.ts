@@ -1668,6 +1668,42 @@ describe("session lifecycle — listSaves / deleteSave / branchSession (04 §7.4
       expect(putCalls).toBe(0);
     });
 
+    it("refuses a log that crossed an epoch with invalid_state, writing nothing, until it can replay one (S134)", async () => {
+      const second = makeRegistry([makeCampaign({ version: "2" })]);
+      const first = makeRegistry();
+      const kinds = {
+        "story-graph": { ...makeTestKind(), adoptContent: (state: TestKindState) => ({ adopt: true as const, state }) },
+      } as unknown as KindRegistry;
+      const engine = makeEngine({
+        kinds,
+        registry: first,
+        archive: { resolve: (id, version) => (id !== "test-campaign" ? undefined : version === "1" ? first : version === "2" ? second : undefined) },
+      });
+      const created = engine.createGame({ campaignId: "test-campaign", seed: "fixed-seed" });
+      const adoption = engine.adoptContent(created.value!, "2");
+      if (!adoption.adopted) throw new Error("expected the test kind to adopt");
+      const record: StoredSessionRecord = {
+        sessionId: "crossed",
+        blob: engine.serialize(adoption.state),
+        audience: "player",
+        attemptCounter: 1,
+        revision: 1,
+        replayCompatible: true,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      };
+      let putCalls = 0;
+      const store = makeStore({
+        engine,
+        persistence: persistenceWith({
+          sessions: { get: async (id) => (id === "crossed" ? record : undefined), put: async () => { putCalls += 1; } },
+        }),
+      });
+
+      await expect(store.branchSession("crossed", 0)).rejects.toMatchObject({ code: "invalid_state" });
+      expect(putCalls).toBe(0);
+    });
+
     it("B3 — a branch's sessionId is distinct from its source, and its gameId equals the source's", async () => {
       const store = makeStore();
       const { sessionId } = await store.createSession({ campaignId: "test-campaign" });

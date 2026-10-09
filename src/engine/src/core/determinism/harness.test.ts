@@ -1,7 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { runFixture, type PlaythroughFixture } from "./harness.js";
+import { runFixture, traceFixture, type PlaythroughFixture } from "./harness.js";
 import { createEngine } from "../kernel/engine.js";
-import type { AdvanceResult, AvailableAction, InitialStateResult, Kind, KindRegistry, SceneBody } from "../kernel/types.js";
+import type {
+  AdvanceResult,
+  AvailableAction,
+  InitialStateResult,
+  Kind,
+  KindRegistry,
+  ResolutionArchive,
+  SceneBody,
+} from "../kernel/types.js";
 import type { Campaign, ContentRegistry } from "../registry/types.js";
 import type { ValidationResult } from "../validation/types.js";
 import type { EngineHost, IdSource } from "../composition/types.js";
@@ -179,5 +187,88 @@ describe("deserialize(serialize(state)) round-trips", () => {
     const result = engine.deserialize(serialized);
     expect(result.ok).toBe(true);
     expect(engine.serialize(result.value!)).toBe(serialized);
+  });
+});
+
+describe("S130.5 — the harness replays across an epoch", () => {
+  // Two epochs of the campaign, and a kind that adopts by adding 1000 — except onto "3",
+  // which it refuses, so a fixture recorded before the kind changed its mind now fails.
+  function epoch(version: string): ContentRegistry {
+    const campaign: Campaign = { id: "test-campaign", kindId: "story-graph", version, titleKey: "test.title", content: {} };
+    return { campaigns: new Map([["test-campaign", campaign]]), strings: new Map() };
+  }
+  const epochs = new Map([["1", epoch("1")], ["2", epoch("2")], ["3", epoch("3")]]);
+  const archive: ResolutionArchive = {
+    resolve: (id, version) => (id === "test-campaign" ? epochs.get(version) : undefined),
+  };
+  const adoptingKind: Kind<TestKindState> = {
+    ...makeTestKind(),
+    adoptContent: (state, _from, to) =>
+      to.version === "3" ? { adopt: false, reason: "content_incompatible" } : { adopt: true, state: { counter: state.counter + 1000 } },
+  };
+  function epochEngine() {
+    const kinds = { "story-graph": adoptingKind } as unknown as KindRegistry;
+    // The default epoch is "2": the fixture's own log, not the host's default, decides where it starts.
+    return createEngine({ kinds, registry: epochs.get("2")!, archive, ids: FIXED_IDS });
+  }
+  const crossing: PlaythroughFixture = {
+    name: "crosses from 1 to 2",
+    config: { campaignId: "test-campaign", seed: "fixed-seed" },
+    actionLog: [
+      { seq: 0, actionId: "increment" },
+      { seq: 1, system: "content", from: "1", to: "2" },
+      { seq: 2, actionId: "increment" },
+    ],
+  };
+
+  it("starts on the first epoch entry's from and serializes byte-identically after every entry across two runs", () => {
+    const first = traceFixture(epochEngine(), crossing);
+    const second = traceFixture(epochEngine(), crossing);
+
+    expect(first).toHaveLength(4);
+    expect(second).toEqual(first);
+    const states = first.map((blob) => JSON.parse(blob) as { campaignVersion: string; formatVersion: number; kindState: TestKindState });
+    expect(states.map((s) => s.campaignVersion)).toEqual(["1", "1", "2", "2"]);
+    expect(states.map((s) => s.formatVersion)).toEqual([1, 1, 2, 2]);
+    expect(states.map((s) => s.kindState.counter)).toEqual([0, 1, 1001, 1002]);
+    expect(runFixture(epochEngine(), crossing)).toBe(first[3]);
+  });
+
+  it("the replayed log is the fixture's log", () => {
+    const final = JSON.parse(runFixture(epochEngine(), crossing)) as { actionLog: unknown[] };
+    expect(final.actionLog).toEqual(crossing.actionLog);
+  });
+
+  it("fails the fixture when a content entry now refuses", () => {
+    const refused: PlaythroughFixture = {
+      ...crossing,
+      name: "crosses onto 3",
+      actionLog: [{ seq: 0, system: "content", from: "1", to: "3" }],
+    };
+    expect(() => runFixture(epochEngine(), refused)).toThrow(/adoptContent\("3"\) refused — content_incompatible/);
+  });
+
+  it("fails the fixture when a content entry moves from an epoch the replay is not on", () => {
+    const mismatched: PlaythroughFixture = {
+      ...crossing,
+      name: "skips an epoch",
+      actionLog: [
+        { seq: 0, system: "content", from: "1", to: "2" },
+        { seq: 1, system: "content", from: "1", to: "3" },
+      ],
+    };
+    expect(() => runFixture(epochEngine(), mismatched)).toThrow(/moves from "1", but the replay is on "2"/);
+  });
+
+  it("fails the fixture on any migration entry", () => {
+    const migrated: PlaythroughFixture = {
+      ...crossing,
+      name: "carries a migration",
+      actionLog: [
+        { seq: 0, system: "content", from: "1", to: "2" },
+        { seq: 1, system: "migration", from: "2", to: "3" },
+      ],
+    };
+    expect(() => runFixture(epochEngine(), migrated)).toThrow(/a migration entry at seq 1 cannot be replayed/);
   });
 });

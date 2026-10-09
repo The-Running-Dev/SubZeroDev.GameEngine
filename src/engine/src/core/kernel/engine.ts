@@ -13,17 +13,23 @@
 import type {
   ActionParams,
   ActionResult,
+  AdoptDecision,
+  AdoptionResult,
   AvailableAction,
   Engine,
   GameState,
   Kind,
   KindContext,
   LoggedAction,
+  LoggedContent,
+  LoggedEntry,
+  LoggedMigration,
   NewGameConfig,
   ResolutionArchive,
   Scene,
 } from "./types.js";
-import type { CommandResult, OutcomeMessage } from "./reasons.js";
+import type { CommandResult, OutcomeMessage, ReasonCode } from "./reasons.js";
+import { isEpochEntry } from "./log.js";
 import type { RngHandle, StreamId } from "../determinism/types.js";
 import { encodeStreamId, rngHandleFor } from "../determinism/rng.js";
 import type { Campaign, ContentRegistry } from "../registry/types.js";
@@ -177,7 +183,8 @@ function createGame(host: ResolvedHost, config: NewGameConfig, campaignVersion?:
   // plan 09's inline note under createGame. A kind that settles at start and wants its
   // opening messages seen is covered by the client calling scene() immediately after.
   const state: GameState = {
-    formatVersion: CURRENT_FORMAT_VERSION,
+    // A new game's log carries no epoch entry, so it is the original shape (C26).
+    formatVersion: UNEPOCHED_FORMAT_VERSION,
     gameId,
     kindId: campaign.kindId,
     campaignId: campaign.id,
@@ -373,18 +380,18 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
-/** The only envelope shape that has ever existed (04 §2, §10.2). */
-const CURRENT_FORMAT_VERSION = 1;
+/**
+ * The two envelope shapes (04 §2, §10.2; 16 §3.3). `2` exactly when the log carries an epoch
+ * entry and `1` otherwise, so a game that never adopts serializes byte-identically to one
+ * written before content epochs existed (C26).
+ */
+const UNEPOCHED_FORMAT_VERSION = 1;
+const EPOCHED_FORMAT_VERSION = 2;
 
 const VALID_KIND_IDS: readonly string[] = ["story-graph", "simulation", "world-graph"];
 const VALID_STATUSES: readonly string[] = ["active", "ended", "abandoned"];
 
-function isValidLoggedAction(v: unknown): v is LoggedAction {
-  if (!isPlainObject(v)) return false;
-  // "0-based, monotonic" (kernel/types.ts) rules out negatives and fractions here; the
-  // 0-based-monotonic-across-the-whole-log check lives in isValidActionLog below, since
-  // it needs the array, not just one entry.
-  if (typeof v["seq"] !== "number" || !Number.isInteger(v["seq"]) || v["seq"] < 0) return false;
+function isValidLoggedAction(v: Record<string, unknown>): v is Record<string, unknown> & LoggedAction {
   if (typeof v["actionId"] !== "string") return false;
   if ("params" in v) {
     const params = v["params"];
@@ -396,14 +403,45 @@ function isValidLoggedAction(v: unknown): v is LoggedAction {
   return true;
 }
 
+/** A `LoggedContent` or `LoggedMigration` (16 §3.1, §3.5): an epoch transition, no action. */
+function isValidEpochEntry(v: Record<string, unknown>): v is Record<string, unknown> & (LoggedContent | LoggedMigration) {
+  if ("actionId" in v || "params" in v) return false;
+  if (v["system"] !== "content" && v["system"] !== "migration") return false;
+  return typeof v["from"] === "string" && typeof v["to"] === "string";
+}
+
+function isValidLoggedEntry(v: unknown): v is LoggedEntry {
+  if (!isPlainObject(v)) return false;
+  // "0-based, monotonic" (kernel/types.ts) rules out negatives and fractions here; the
+  // 0-based-monotonic-across-the-whole-log check lives in isValidActionLog below, since
+  // it needs the array, not just one entry.
+  if (typeof v["seq"] !== "number" || !Number.isInteger(v["seq"]) || v["seq"] < 0) return false;
+  return "system" in v ? isValidEpochEntry(v) : isValidLoggedAction(v);
+}
+
 /**
- * `submitAction` always appends at `state.actionLog.length` (04 §4), so a log it produced
- * is always exactly `[0, 1, 2, ..., length-1]`. Enforcing that shape on the way in is what
- * keeps a deserialized log from handing a later `submitAction` a duplicate or gapped `seq`.
+ * `submitAction` and `adoptContent` always append at `state.actionLog.length` (04 §4), so a
+ * log they produced is always exactly `[0, 1, 2, ..., length-1]` across every entry type.
+ * Enforcing that shape on the way in is what keeps a deserialized log from handing a later
+ * `submitAction` a duplicate or gapped `seq`.
  */
-function isValidActionLog(v: unknown): v is LoggedAction[] {
+function isValidActionLog(v: unknown): v is LoggedEntry[] {
   if (!Array.isArray(v)) return false;
-  return v.every((entry, index) => isValidLoggedAction(entry) && entry.seq === index);
+  return v.every((entry, index) => isValidLoggedEntry(entry) && entry.seq === index);
+}
+
+/**
+ * C26: `formatVersion` is `2` exactly when the log carries an epoch entry, and the last epoch
+ * entry's `to` is `campaignVersion`. An older engine reads a `2` as an unknown version, which is
+ * the right answer for it; this one reads both and refuses a stamp the log contradicts. A
+ * migration entry's `from` is not resolved — it names an epoch this host could not run, which
+ * is why the migration happened (04 §4).
+ */
+function isConsistentEpochStamp(formatVersion: unknown, campaignVersion: string, actionLog: readonly LoggedEntry[]): boolean {
+  const epochs = actionLog.filter(isEpochEntry);
+  const last = epochs[epochs.length - 1];
+  if (last === undefined) return formatVersion === UNEPOCHED_FORMAT_VERSION;
+  return formatVersion === EPOCHED_FORMAT_VERSION && last.to === campaignVersion;
 }
 
 /**
@@ -416,7 +454,7 @@ function isValidActionLog(v: unknown): v is LoggedAction[] {
  *  same deep shape check `deserialize` runs, not a second, drifting reimplementation. */
 export function isValidGameStateShape(v: unknown): v is GameState {
   if (!isPlainObject(v)) return false;
-  if (v["formatVersion"] !== CURRENT_FORMAT_VERSION) return false;
+  if (v["formatVersion"] !== UNEPOCHED_FORMAT_VERSION && v["formatVersion"] !== EPOCHED_FORMAT_VERSION) return false;
   if (typeof v["gameId"] !== "string") return false;
   if (typeof v["kindId"] !== "string" || !VALID_KIND_IDS.includes(v["kindId"])) return false;
   if (typeof v["campaignId"] !== "string") return false;
@@ -425,6 +463,7 @@ export function isValidGameStateShape(v: unknown): v is GameState {
   if (typeof v["status"] !== "string" || !VALID_STATUSES.includes(v["status"])) return false;
   if (!("kindState" in v)) return false;
   if (!isValidActionLog(v["actionLog"])) return false;
+  if (!isConsistentEpochStamp(v["formatVersion"], v["campaignVersion"], v["actionLog"])) return false;
   return true;
 }
 
@@ -529,6 +568,81 @@ function deserializeState(host: ResolvedHost, data: string): CommandResult<GameS
   return { ok: true, value: parsed, errors: [], warnings: [] };
 }
 
+// ---------------------------------------------------------------------------
+// adoptContent (16 §5.4)
+// ---------------------------------------------------------------------------
+
+/**
+ * `Campaign.migrateState` and `Kind.adoptContent` are content- and kind-owned code, so a
+ * throw degrades to the step's own refusal rather than escaping — the same treatment
+ * `persistence/envelope.ts` gives a load-time migration. Adoption must never fail the
+ * command it rides on (C25).
+ */
+function migrateForAdoption(target: Campaign, kindState: unknown, fromVersion: string): { ok: true; kindState: unknown } | { ok: false } {
+  if (!target.migrateState) return { ok: true, kindState };
+  try {
+    const result = target.migrateState(kindState, fromVersion);
+    if (!result.ok || result.value === undefined) return { ok: false };
+    return { ok: true, kindState: result.value };
+  } catch {
+    return { ok: false };
+  }
+}
+
+function judgeAdoption(kind: Kind<unknown>, kindState: unknown, from: Campaign, to: Campaign): AdoptDecision<unknown> {
+  try {
+    return kind.adoptContent!(kindState, from, to);
+  } catch {
+    return { adopt: false, reason: "content_incompatible" };
+  }
+}
+
+/**
+ * 16 §5.4, steps 0–8. Adoption is not play (C24): it derives no stream, so the kind's context
+ * is never built, and it returns no `StateChange` or `OutcomeMessage`. Every refusal leaves the
+ * input untouched and emits `core.content.pinned`; an adoption emits `core.content.adopted`.
+ */
+function adoptContent(host: ResolvedHost, state: GameState, to: string): AdoptionResult {
+  // Step 0: idempotent. Nothing moved, so nothing is logged and nothing is emitted.
+  if (to === state.campaignVersion) return { adopted: true, state };
+
+  const seq = state.actionLog.length;
+  const emitters = makeResolutionEmitters(host.emitter ?? nullEmitter, state.gameId, seq);
+  const data = { fromVersion: state.campaignVersion, toVersion: to };
+  function pinned(reason: ReasonCode): AdoptionResult {
+    emitters.core.emit(CORE_EVENTS.contentPinned.name, CORE_EVENTS.contentPinned.severity, { reason, data });
+    return { adopted: false, reason };
+  }
+
+  if (state.status !== "active") return pinned("session_ended");
+  // The source resolves for every state this engine produced or accepted (deserialize checked
+  // it); a hand-built state that names an unheld epoch pins rather than throwing.
+  const from = resolveEpoch(host.archive, state.campaignId, state.campaignVersion);
+  const target = resolveEpoch(host.archive, state.campaignId, to);
+  if (!from || !target) return pinned("unknown_campaign");
+  if (target.campaign.kindId !== state.kindId) return pinned("content_kind_changed");
+  const kind = host.kinds[state.kindId];
+  if (!kind?.adoptContent) return pinned("content_not_adoptable");
+
+  const migrated = migrateForAdoption(target.campaign, state.kindState, from.campaign.version);
+  if (!migrated.ok) return pinned("migration_failed");
+
+  const decision = judgeAdoption(kind, migrated.kindState, from.campaign, target.campaign);
+  if (!decision.adopt) return pinned(decision.reason);
+  if (!isAcceptedKindState(kind, decision.state, target.campaign)) return pinned("invalid_state");
+
+  const entry: LoggedContent = { seq, system: "content", from: state.campaignVersion, to };
+  const adopted: GameState = {
+    ...state,
+    formatVersion: EPOCHED_FORMAT_VERSION,
+    campaignVersion: to,
+    kindState: decision.state,
+    actionLog: [...state.actionLog, entry],
+  };
+  emitters.core.emit(CORE_EVENTS.contentAdopted.name, CORE_EVENTS.contentAdopted.severity, { data });
+  return { adopted: true, state: adopted };
+}
+
 function migrateState(host: ResolvedHost, data: string): CommandResult<GameState> {
   // Migration mechanism is specified (04-core.md §10.2) but unexercised by the MVP
   // (MVP.md §4): exactly one formatVersion exists, so there is nothing to migrate from
@@ -586,6 +700,7 @@ export function createEngine(host: EngineHost): Engine {
     serialize: (state) => serializeState(state),
     deserialize: (data) => deserializeState(resolved, data),
     migrate: (data) => migrateState(resolved, data),
+    adoptContent: (state, campaignVersion) => adoptContent(resolved, state, campaignVersion),
     // 05-observability.md §6.1: reconstructing over the new emitter is cheap and pure —
     // createEngine does no I/O, only the construction checks above, which are idempotent
     // over the same host. The resolved host carries the archive, so `content` survives.

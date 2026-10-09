@@ -2591,6 +2591,26 @@ Context: `ResolutionArchive.resolve(id, version)` returns a registry. The contra
 Chosen: The engine treats that answer as unresolved, so `createGame`, `deserialize` and `migrate` refuse it with `unknown_campaign`, and `createEngine` refuses an archive that answers the registry's own epoch that way.
 Rejected: **Trusting the archive's answer.** A faulty host archive would then play a state against content it does not name, which is the C22 failure this slice exists to close.
 
+### 2026-10-09 — S130: adopting the state's own version returns the same state and emits nothing
+Context: 16 §5.4 step 0 makes `to` equal to `campaignVersion` a no-op adoption, and S130.3 says it returns the state unchanged. Neither says whether it emits `core.content.adopted`.
+Chosen: `adoptContent` returns `{ adopted: true, state }` with the same object, appends no entry and emits no event. Nothing moved, so there is nothing for an operator to read.
+Rejected: **Emitting `core.content.adopted` with equal versions.** A channel that offers the current version on every command would flood the event stream with adoptions that did not happen.
+
+### 2026-10-09 — S130: a `formatVersion: 2` state with no epoch entry is refused
+Context: C26 says `formatVersion` is 2 *exactly when* the log carries an epoch entry. S130.4 lists the three rejections in the other direction and a version above 2, but not a version-2 state whose log carries no epoch entry.
+Chosen: `deserialize` refuses it with `invalid_state`, so the stamp and the log agree both ways and a state that never adopted always serializes as version 1.
+Rejected: **Accepting it.** It would be a second encoding of an unepoched game, and C26's byte-identical promise rests on there being one.
+
+### 2026-10-09 — S130: `branchSession` refuses a log that crossed an epoch until S134
+Context: once `actionLog` holds epoch entries, `branchSession`'s replay (create on the default epoch, submit each action) would replay a crossed log onto the wrong content. S134 makes branching start on the derived starting version and replay content entries; S130 adds the entries.
+Chosen: an interim guard. `branchSession` refuses a source whose log carries any epoch entry with `invalid_state`, writing nothing, the refusal it already gives a `replayCompatible: false` session. S134 replaces the guard.
+Rejected: **Replaying a crossed log through `branchSession` now.** That is S134's scope, and doing it here would build one slice inside another. **Leaving it unguarded.** A branch would silently play different content from its source.
+
+### 2026-10-09 — S130: the §14 harness checks a content entry's `from` before adopting it
+Context: S130.5 says the harness replays each content entry through `adoptContent`, which must adopt. `adoptContent` takes only the target version, so a fixture whose content entry names a `from` other than the version the replay is on would still adopt, and the log the replay produces would differ from the fixture's.
+Chosen: the harness fails a fixture whose content entry's `from` is not the replay's `campaignVersion`, naming both versions, before it calls `adoptContent`. The internal harness also gains `traceFixture`, which returns `serialize()` after creation and after every entry; `runFixture` serializes once, so long-horizon fixtures do not pay for a trace they do not compare.
+Rejected: **Trusting `from`.** The fixture would pass while the replayed log disagreed with it, and C21's byte-identical comparison would fail with no message saying why.
+
 ### 2026-10-08 — `getStrings` returns the union of a session's live epochs, newest winning per key (red-team F3)
 Context: red-team F3 (`design/redteam/2026-10-08-10-design.md`, STRUCTURAL). A client calls `getScene` on `e1`, and then another client's `resumeSession` adopts `e2`, which renamed a label key. The first client's `getStrings` then returned only the `e2` table, so its scene carried a key it could not resolve. Neither `Scene` nor `StringTable` carries an epoch, so the client could not detect this. The race is between completed calls, so the session lock cannot close it.
 Chosen: `getStrings(sessionId)` returns the union of the string tables of the session's live epochs. Those are the starting version, or the last migration entry's `to`, and every content entry's `to` after it. Each key resolves from the most recent of those epochs that defines it. New invariant C27: a session's table never loses a key, so any key in any result the store returned for a session resolves in every later `getStrings`. A client whose cached table lacks a key fetches the table again. The union also covers a `submitAction` that adopts after commit, whose messages come from the old epoch while its scene comes from the new one. Accepted residual: a key both epochs define resolves to the newer wording, even on an older scene. No type, signature or MCP schema changes, and the union spans only epochs the log already names, which retention already keeps. The design is `16-content-epochs.md` §5.7 and Clients §2; the contract is `20-contract.md` C27 and §7.

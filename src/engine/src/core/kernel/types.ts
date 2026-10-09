@@ -54,15 +54,41 @@ export interface GameState {
    *  dependency arrow keeps pointing from kinds to the core and never back. */
   kindState: unknown;
 
-  /** Ordered player actions — the replay spine. */
-  actionLog: LoggedAction[];
+  /** Ordered entries — the replay spine. Player actions, plus an epoch entry wherever
+   *  `campaignVersion` changed once the log carried one (04 §2; 16 §3.1). */
+  actionLog: LoggedEntry[];
 }
 
+export type LoggedEntry = LoggedAction | LoggedContent | LoggedMigration;
+
 export interface LoggedAction {
-  /** 0-based, monotonic. A rejected action does not advance it. */
+  /** 0-based, monotonic across every entry type. A rejected action does not advance it. */
   seq: number;
   actionId: string;
   params?: Readonly<Record<string, string | number | boolean>>;
+}
+
+/** An adoption (16 §3.1): the state moved from epoch `from` to epoch `to`. */
+export interface LoggedContent {
+  /** Consumes a seq, exactly like an action. */
+  seq: number;
+  system: "content";
+  /** The `campaignVersion` before adoption. */
+  from: string;
+  /** The `campaignVersion` after — the last epoch entry's `to` is `campaignVersion` (C26). */
+  to: string;
+}
+
+/** A migrated load that changed `campaignVersion` on a log already carrying an epoch entry
+ *  (04 §10.2; 16 §3.5). Never replayed. */
+export interface LoggedMigration {
+  /** Consumes a seq, exactly like an action. */
+  seq: number;
+  system: "migration";
+  /** The `campaignVersion` the save was made under. */
+  from: string;
+  /** The `campaignVersion` the migration restamped. */
+  to: string;
 }
 
 export type ActionParams = Readonly<Record<string, string | number | boolean>>;
@@ -95,6 +121,12 @@ export interface AdvanceResult<KState> {
   /** Set iff the action was rejected; `state` is then unchanged. */
   error?: ValidationError;
 }
+
+/** A kind's judgement on moving a running state between two epochs of one campaign
+ *  (16 §5.4). No changes and no messages: adoption is not play (C24). */
+export type AdoptDecision<KState> =
+  | { adopt: true; state: KState }
+  | { adopt: false; reason: ReasonCode };
 
 /** `AdvanceResult` minus `error`: a pre-validated campaign cannot fail to start. */
 export interface InitialStateResult<KState> {
@@ -183,6 +215,16 @@ export interface Kind<KState> {
    * rather than silently proceeding with a state this version wasn't written to read.
    */
   migrateState?(oldState: unknown, fromVersion: string): CommandResult<KState>;
+
+  /**
+   * Whether a running `state` can move from campaign `from` to campaign `to`, two published
+   * epochs of the same campaign id, and what it becomes (16 §5.4). Called by
+   * `Engine.adoptContent` after the target campaign's `migrateState` ran. Optional: **absent
+   * means every session of this kind stays pinned** to the epoch it started on. Pure; reads
+   * neither the archive, the channel nor the log; draws no randomness. A throw is read as a
+   * refusal with `content_incompatible`.
+   */
+  adoptContent?(state: KState, from: Campaign, to: Campaign): AdoptDecision<KState>;
 
   /**
    * This kind's cross-game profile slice (04 §7.1). **Absent means the kind owns no
@@ -316,6 +358,10 @@ export interface NewGameConfig {
  * Content by epoch (16-content-epochs.md §4; 20-contract.md §4). One key names one content
  * forever (C23), so the engine treats `resolve` as pure.
  */
+export type AdoptionResult =
+  | { adopted: true; state: GameState }
+  | { adopted: false; reason: ReasonCode };
+
 export interface ResolutionArchive {
   /** The registry the epoch `(campaignId, campaignVersion)` was published in, or undefined. */
   resolve(campaignId: string, campaignVersion: string): ContentRegistry | undefined;
@@ -347,6 +393,10 @@ export interface Engine {
   serialize(state: GameState): string;
   deserialize(data: string): CommandResult<GameState>;
   migrate(data: string): CommandResult<GameState>;
+  /** Move a running state onto another published epoch of its campaign, or say why not
+   *  (16 §5.4). Never a rejection: a refusal is a value, so the session store can complete
+   *  the command it rides on. */
+  adoptContent(state: GameState, campaignVersion: string): AdoptionResult;
   /** The same engine, with every event stamped for one command (05-observability.md
    *  §6.1). The session store builds a short-lived decorator per command and swaps it in
    *  here rather than the pure engine ever holding a clock or per-command context itself. */

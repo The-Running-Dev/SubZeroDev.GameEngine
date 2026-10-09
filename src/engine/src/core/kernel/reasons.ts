@@ -101,6 +101,12 @@ export type ReasonCode = string;
  * during W120 — campaign composition (04 §10.4, `registry/compose.ts`) checks an include's
  * envelope before any kind merges content, at registry build. Base rather than kind-owned
  * because the include, its pin and the cycle are core-owned; only the merge is the kind's.
+ *
+ * `content_kind_changed`, `content_not_adoptable` and `content_incompatible` were added with
+ * content epochs (16 §5.4) — `Engine.adoptContent` pins a session with one of them when the
+ * target epoch is another kind's, when the kind declares no `adoptContent`, and when the kind
+ * refuses or throws. Base rather than kind-owned because the session store reads a refusal
+ * without knowing which kind produced it, and the first two are decided before any kind runs.
  */
 export const BASE_REASON_CODES = [
   "action_not_available",
@@ -147,6 +153,10 @@ export const BASE_REASON_CODES = [
   "include_alias_collision",
   "attachment_host_missing",
   "compose_unsupported",
+  // content epochs (16 §5.4) — adoption
+  "content_kind_changed",
+  "content_not_adoptable",
+  "content_incompatible",
 ] as const;
 
 export type BaseReasonCode = (typeof BASE_REASON_CODES)[number];
@@ -201,6 +211,9 @@ const CORE_REASON_TEXT: Readonly<Record<BaseReasonCode, string>> = {
   include_alias_collision: "This campaign uses the same include name twice.",
   attachment_host_missing: "A pack attaches content to a campaign that isn't available.",
   compose_unsupported: "This kind of campaign can't include other campaigns.",
+  content_kind_changed: "The new version of this campaign is a different kind of game, so this session stays on its version.",
+  content_not_adoptable: "This kind of game can't move a session onto new content, so it stays on its version.",
+  content_incompatible: "This session can't move onto the new version of its campaign, so it stays on the version it started.",
 };
 
 /** `core.reason.<code>` → its shipped default-English message, for every base code. */
