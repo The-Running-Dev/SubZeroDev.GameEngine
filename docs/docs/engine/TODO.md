@@ -12,6 +12,7 @@ is retired to one row under [Landed](#landed). Slices from S121 on are `## S<n>`
 builds it sets `Status: done`. S121–S128 fix the reproduced defects of the 2026-10-03 repository
 review, planned in
 [`plans/53`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/53-repository-review-2026-10-03-fixes.md).
+S129–S135 build content epochs, [`16-content-epochs.md`](16-content-epochs.md).
 
 > **Where a retired unit's full text is.** Every W unit's body — what it delivers, its numbered
 > acceptance criteria, its scope, and the programme prose that grouped units together — is in this
@@ -248,6 +249,244 @@ Acceptance:
   - S128.4 `agent.md` points at `npm test` for the suite's size instead of stating a count.
 Out of scope: Generating the docs' other volatile facts, one of the review's non-defect
               recommendations (`plans/53-repository-review-2026-10-03-fixes.md` §3).
+
+## S129 — Every Game Plays the Content It Names
+
+Status: todo
+Delivers: A host can keep more than one published version of a campaign available at once. A
+          new game can start on any of them, and every game plays the version it names rather
+          than whichever version the host registered under the campaign's name. A stored game
+          naming a version the host does not hold is refused when it is loaded, instead of being
+          played against the wrong content.
+Touches: `src/engine/src/core/kernel/types.ts`, `src/engine/src/core/kernel/engine.ts`,
+         `src/engine/src/core/composition/types.ts`, `src/engine/src/index.ts`,
+         `20-contract.md` §4, `10-design.md` 06 §4 and Content Epochs §4.1
+Depends on: S128
+Acceptance:
+  - S129.1 `EngineHost` gains `archive?: ResolutionArchive`. Without one, the engine uses an
+    archive holding only `registry`. `Engine.content` exposes whichever archive is in use.
+    `createEngine` throws when the archive does not resolve every campaign of `registry` at its
+    registered version.
+  - S129.2 `scene`, `view`, `availableActions`, `submitAction`, `previewAction`, `deserialize`
+    and `migrate` take `KindContext.registry` and `KindContext.campaign` from
+    `content.resolve(state.campaignId, state.campaignVersion)`. One engine over an archive
+    holding two epochs of one campaign, which differ in one node's text, renders each epoch's
+    own text for a state on that epoch.
+  - S129.3 `createGame(config, campaignVersion?)` starts on the registry's version when no
+    version is given and on the named epoch when one is, stamping it as `campaignVersion`. A
+    version that does not resolve fails with `unknown_campaign`.
+  - S129.4 `deserialize` and `migrate` reject a state whose `(campaignId, campaignVersion)`
+    does not resolve with `unknown_campaign` and one `core.deserialize.rejected`. This includes
+    a campaign id the registry holds at another version, which closes the gap S125.5 recorded.
+  - S129.5 With no archive supplied, every existing test, golden file and replay corpus fixture
+    passes unchanged.
+  - S129.6 `ResolutionArchive` is exported from the package root as a type.
+Out of scope: Adoption and epoch log entries (S130); the reference archive (S131); the session
+              store choosing a starting version (S133).
+
+## S130 — A Game Can Move Onto New Content, and Replays Exactly Across It
+
+Status: todo
+Delivers: A running game can move onto another published version of its campaign as a
+          recorded step in its own history, or stay where it is with a stated reason. Replaying
+          that history reproduces the game byte for byte. A game that never moves is stored
+          exactly as it was before.
+Touches: `src/engine/src/core/kernel/types.ts`, `src/engine/src/core/kernel/engine.ts`,
+         `src/engine/src/core/kernel/reasons.ts`, `src/engine/src/core/observability/events.ts`,
+         `src/engine/src/core/determinism/harness.ts`, `src/engine/src/index.ts`,
+         `20-contract.md` §2, §3, §4, §12, §14 and C21–C26, `10-design.md` Content Epochs
+         §3 and §5.4
+Depends on: S129
+Acceptance:
+  - S130.1 The `actionLog` element type is `LoggedEntry`, a union of `LoggedAction`,
+    `LoggedContent` and `LoggedMigration`. The starting version is derived: the first epoch
+    entry's `from`, else `campaignVersion`. An epoch entry consumes a `seq`, so an action
+    after one derives its stream from the full log length.
+  - S130.2 `Engine.adoptContent(state, to)` runs 16 §5.4's steps 0–8 in order. One test per
+    pinned outcome asserts its reason: `session_ended`, `unknown_campaign`,
+    `content_kind_changed`, `content_not_adoptable`, `migration_failed`,
+    `content_incompatible` for both a refusal and a throw, and `invalid_state`. A pinned result
+    carries no state, and the input state is deep-equal to what it was before the call.
+  - S130.3 An adoption appends `{ seq, system: "content", from, to }`, sets `campaignVersion`
+    to `to` and `formatVersion` to `2`, and emits one `core.content.adopted` with
+    `fromVersion` and `toVersion`. A refusal emits one `core.content.pinned` with `reason`.
+    `to` equal to the state's own version returns the state unchanged. `AdoptionResult` has no
+    changes or messages, and no stream is derived for an adoption (C24).
+  - S130.4 `deserialize` rejects with `invalid_state` a `formatVersion: 1` state whose log
+    carries an epoch entry, a state whose last epoch entry's `to` is not its
+    `campaignVersion`, and a `formatVersion` above `2`. It accepts a version-`2` state that
+    satisfies C26, and does not resolve a migration entry's `from`. The PR states the positive
+    and negative case counts.
+  - S130.5 The §14 harness takes `actionLog: LoggedEntry[]`. It creates the game on the
+    starting version and replays each content entry through `adoptContent`, which must adopt.
+    A fixture crossing an epoch, built on a test-only kind that declares `adoptContent`,
+    serializes byte-identically after every entry across two runs (C21). A content entry that
+    now refuses fails the fixture, and so does any migration entry.
+  - S130.6 A state with no epoch entry keeps `formatVersion: 1`. Every golden file and replay
+    corpus fixture is unchanged.
+  - S130.7 `Kind` gains the optional `adoptContent`, and `content_kind_changed`,
+    `content_not_adoptable` and `content_incompatible` join the base reason codes with their
+    message keys. `LoggedEntry`, `LoggedContent`, `LoggedMigration`, `AdoptionResult` and
+    `AdoptDecision` are exported from the package root.
+Out of scope: Any shipped kind's `adoptContent` (S132 for story-graph; simulation and
+              world-graph stay pinned, per the contract's *Unresolved*); writing migration
+              entries (S134).
+
+## S131 — A Host Publishes New Content While Running
+
+Status: todo
+Delivers: A host can publish a new build of its content without restarting. The engine
+          validates every campaign before accepting it, refuses to let one version name stand for
+          two different contents, and offers the latest publication to every session that asks.
+Touches: a new archive module under `src/engine/src/core/registry/`,
+         `src/engine/src/core/kernel/reasons.ts`, `src/engine/src/index.ts`, `20-contract.md`
+         §4 and C23, `10-design.md` Content Epochs §3.4, §4.3 and §5.1
+Depends on: S130
+Acceptance:
+  - S131.1 `createContentArchive({ kinds, initial })` resolves every campaign of `initial` at
+    its version. It throws when `initial` fails validation.
+  - S131.2 `publish` re-runs every campaign's `validateCampaign` against `registry.strings`.
+    Any error refuses the publication with those errors; nothing is stored and `latest()` is
+    unchanged.
+  - S131.3 Content identity is 16 §3.4's digest: 11 §6's campaign digest plus the registry's
+    full strings table, sorted by key. A held key whose digest differs is refused with
+    `content_version_conflict`, and nothing is stored. A change to one string under an
+    unchanged version is such a conflict. An identical republish succeeds and returns no
+    epochs; a new key returns its `EpochRef`.
+  - S131.4 What the archive serves is a deep-frozen copy: mutating the registry after
+    `publish` returns changes nothing `resolve` answers. `migrateState` is kept by reference.
+  - S131.5 `latest()` is the last publication that succeeded. `current(scope)` answers that
+    publication's version of `scope.campaignId` for any session or profile, and `undefined`
+    for a campaign it does not hold.
+  - S131.6 An engine whose `archive` is a content archive keeps playing a game created on one
+    epoch, unchanged, after a newer epoch of the same campaign is published (C22).
+  - S131.7 `content_version_conflict` joins the base reason codes. `createContentArchive`,
+    `ContentArchive`, `ContentChannel`, `ContentScope` and `EpochRef` are exported from the
+    package root.
+Out of scope: A durable archive and eviction, and listing a campaign that first appears in a
+              publication (both in the contract's *Unresolved*).
+
+## S132 — A Story Moves Onto Additive Content
+
+Status: todo
+Delivers: A player partway through a story can be moved onto a newer version of it that only
+          adds to what they are playing. They keep their place, their progress and their
+          achievements. A version that would strand them where they stand, or drop something
+          they carry, leaves them on the version they started.
+Touches: a new adoption module under `src/engine/src/kinds/story-graph/`,
+         `src/engine/src/kinds/story-graph/kind.ts`, `20-contract.md` 03 §8.1,
+         `10-design.md` Content Epochs §5.5
+Depends on: S130
+Acceptance:
+  - S132.1 Story-graph declares `adoptContent`. It adopts a target that adds nodes, choices
+    and variables, inserting each variable the target declares and the state lacks at its
+    declared initial value and leaving everything else unchanged.
+  - S132.2 It refuses with `content_incompatible` each of the following, one test per case: a
+    `currentNodeId` the target lacks; a current node that is an ending, auto or random node in
+    the target; a current choice node with no available choice once the inserted variables are
+    applied; a `visitedCounts` key that names no target node; an unlocked achievement the
+    target lacks; a carried variable whose target `VarType` differs; and a variable the source
+    declared and the state carries that the target does not declare.
+  - S132.3 Availability is judged by the same `showWhen` and requirement evaluation the scene
+    uses. A choice gated only by an inserted variable's initial value counts as available
+    exactly when the scene would show it as available.
+  - S132.4 Every adopted state passes `validateState` against the target campaign. The
+    Bureaucracy campaign adopting a copy of itself extended by one node and one variable
+    replays through the §14 harness byte-identically.
+Out of scope: Simulation and world-graph adoption rules (the contract's *Unresolved*);
+              authoring guidance for compatible content.
+
+## S133 — Running Sessions Pick Up New Content
+
+Status: todo
+Delivers: A player's session moves onto newly published content between their moves: when
+          they submit an action or come back to the game. A refusal, or a host that fails to
+          answer, never costs them a move. Text they have already been shown never goes
+          missing from the session's strings.
+Touches: `src/engine/src/core/session/store.ts`, `src/engine/src/core/session/types.ts`,
+         `src/engine/src/core/composition/types.ts`, `20-contract.md` §7 and C25 and C27,
+         `10-design.md` 06 §4 and Content Epochs §5.2, §5.3 and §5.7
+Depends on: S131, S132
+Acceptance:
+  - S133.1 `SessionHost` gains `content?: ContentChannel`. `createSession` asks it once and
+    passes the answer to `createGame`. The new game's log carries no content entry.
+  - S133.2 At `submitAction`, after an accepted action commits, the store asks the channel
+    under the session lock. A different version is passed to `adoptContent`, and the result is
+    persisted in the action's own write. The returned messages come from the old epoch and the
+    scene from the new one.
+  - S133.3 At `resumeSession`, adoption is persisted in its own write at revision + 1. When
+    that write fails with `storage_failure` or `concurrent_modification`, the store restores
+    the unadopted state, returns its scene, and the next adoption point offers again.
+  - S133.4 A refusal leaves the session pinned and the command completes. A channel that
+    throws is read as no offer. Neither is an error result.
+  - S133.5 Queries never consult the channel, and neither does `previewAction` or a rejected
+    action. A recording channel shows zero calls across them. With no channel, every existing
+    session-store test passes unchanged.
+  - S133.6 `getStrings` returns the union of the session's live epochs, each key from the
+    most recent epoch that defines it. A key the adopted epoch dropped still resolves; a key
+    both define resolves to the newer text; a session that never adopted gets exactly its one
+    table.
+Out of scope: Adoption at `loadGame` and `branchSession` (S134); catalog refresh.
+
+## S134 — Saves and Branches Carry Their Epochs
+
+Status: todo
+Delivers: A save made on an older version of a campaign loads exactly as it was made when that
+          version is still held, then moves forward like any session, and stays replayable.
+          Branching a session that moved onto new content replays it through the same moves,
+          or says plainly why it cannot.
+Touches: `src/engine/src/core/session/store.ts`, `src/engine/src/core/persistence/envelope.ts`,
+         `20-contract.md` §7.4, §10.2 and B1, `10-design.md` Content Epochs §3.5, §5.3 and
+         §5.6
+Depends on: S133
+Acceptance:
+  - S134.1 A save whose epoch `engine.content` resolves, and whose `kindVersion` is the
+    registered kind's, loads on that epoch with no migration and keeps `replayCompatible`.
+    `loadGame` then reaches its adoption point and persists the result in the new session's
+    first write.
+  - S134.2 Any other save takes §10.2's migration path. A migration that changes
+    `campaignVersion` on a log that carries an epoch entry appends
+    `{ seq, system: "migration", from, to }` and keeps `formatVersion: 2`, so the result passes
+    `deserialize` (C26). A migration on a log with no epoch entry appends nothing and keeps
+    `formatVersion: 1`. A migration that changes only `kindVersion` appends nothing. Migrating
+    the migrated save again appends no second entry.
+  - S134.3 `branchSession` replays the retained prefix from the starting version: actions
+    through `submitAction`, content entries through `adoptContent`, and then reaches its own
+    adoption point. `atActionCount` counts entries of every type. A fork before an adoption
+    starts on the old epoch.
+  - S134.4 `branchSession` refuses with nothing written: `invalid_state` for a log carrying a
+    migration entry, `invalid_state` for a recorded adoption that now refuses, and
+    `unknown_campaign` for a starting or adopted version that no longer resolves.
+  - S134.5 B1 holds widened: with no offer at its adoption point, `branchSession(S, n)`
+    serializes byte-identically to the prefix of `S` across a content entry.
+Out of scope: Capture refusing a `replayCompatible: false` session (capture is unbuilt;
+              recorded in `90-decisions.md`'s open register).
+
+## S135 — The Replay Oracle Crosses Content Epochs
+
+Status: todo
+Delivers: A recorded play session that moved onto new content partway through is a regression
+          fixture like any other. A later engine version replays its adoptions in place, and
+          reports a divergence if the kind would now refuse one.
+Touches: `src/engine/src/core/replay/types.ts`, `src/engine/src/core/replay/runner.ts`,
+         `src/engine/fixtures/replay/`, `src/engine/src/index.ts`, `10-design.md` 07 §2, §3
+         and §6
+Depends on: S134
+Acceptance:
+  - S135.1 `Submission` is `ActionSubmission | AdoptionSubmission`, and `Decision` is
+    `ActionDecision | AdoptionDecision`. Every existing fixture and recorded outcome reads,
+    and matches, unchanged.
+  - S135.2 The runner resolves the fixture's `campaignVersion` and every adopted version
+    through the engine's `content` before running. `campaign_withdrawn` still means the
+    campaign id is gone; `campaign_version_missing` now means any version the fixture names
+    does not resolve. It creates the game with `createGame(config, fixture.campaignVersion)`.
+  - S135.3 An adoption runs through `adoptContent`. A refusal records an `AdoptionDecision`
+    with `accepted: false` and its reason, and the verdict is `diverged` at that index. An
+    adoption counts in `decisions` and never in `acceptedActions`.
+  - S135.4 The corpus gains one fixture that crosses an epoch, with its recorded outcome, run
+    by the corpus suite against an archive holding both epochs.
+Out of scope: Capturing fixtures from hosted sessions (session capture remains carried
+              forward).
 
 ## Landed
 
