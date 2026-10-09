@@ -7,6 +7,7 @@ import type {
   InitialStateResult,
   Kind,
   KindRegistry,
+  LoggedAction,
   SceneBody,
 } from "./types.js";
 import type { Campaign, ContentRegistry } from "../registry/types.js";
@@ -16,6 +17,16 @@ import { createRecordingEmitter, nullEmitter } from "../observability/emitter.js
 import type { GameEvent } from "../observability/types.js";
 // S129.6: the archive type is reachable from the package root, not only from the kernel.
 import type { ResolutionArchive as RootResolutionArchive } from "../../index.js";
+// S130.7: the epoch log and adoption types are reachable from the package root too.
+import type {
+  AdoptDecision as RootAdoptDecision,
+  AdoptionResult as RootAdoptionResult,
+  LoggedContent as RootLoggedContent,
+  LoggedEntry as RootLoggedEntry,
+  LoggedMigration as RootLoggedMigration,
+} from "../../index.js";
+import { BASE_REASON_CODES, CORE_REASON_MESSAGES } from "./reasons.js";
+import { startingCampaignVersion } from "./log.js";
 
 interface TestKindState {
   counter: number;
@@ -301,7 +312,7 @@ describe("S124 — the engine owns what it logs", () => {
     const next = engine.submitAction(state, "increment", params).value as GameState;
 
     expect(seen).not.toBe(params);
-    expect(seen).toBe(next.actionLog[0]?.params);
+    expect(seen).toBe((next.actionLog[0] as LoggedAction | undefined)?.params);
   });
 });
 
@@ -987,5 +998,349 @@ describe("S129 — every state plays the epoch it names", () => {
         expect(engine[operation](atVersion(engine, "2")).ok).toBe(true);
       });
     }
+  });
+});
+
+describe("S130 — a game can move onto new content, and replays exactly across it", () => {
+  // One campaign at several epochs. The version names what the test kind's adoptContent does
+  // when asked to move onto it, so each pinned outcome has its own target.
+  function epoch(version: string, overrides?: Partial<Campaign>): ContentRegistry {
+    const campaign = makeCampaign({ version, ...overrides });
+    return { campaigns: new Map([[campaign.id, campaign]]), strings: new Map() };
+  }
+  const epochs = new Map<string, ContentRegistry>([
+    ["1", epoch("1")],
+    ["2", epoch("2")],
+    ["3", epoch("3")],
+    ["refuse", epoch("refuse")],
+    ["throw", epoch("throw")],
+    ["invalid", epoch("invalid")],
+    ["other-kind", epoch("other-kind", { kindId: "simulation" })],
+    [
+      "migrate-fails",
+      epoch("migrate-fails", {
+        migrateState: () => ({
+          ok: false,
+          errors: [{ code: "migration_failed", messageKey: "core.reason.migration_failed" }],
+          warnings: [],
+        }),
+      }),
+    ],
+    [
+      "migrate-throws",
+      epoch("migrate-throws", {
+        migrateState: () => {
+          throw new Error("content-owned migration bug");
+        },
+      }),
+    ],
+    [
+      "migrate-adds",
+      epoch("migrate-adds", {
+        migrateState: (kindState) => ({
+          ok: true,
+          value: { counter: (kindState as TestKindState).counter + 10 },
+          errors: [],
+          warnings: [],
+        }),
+      }),
+    ],
+  ]);
+  const archive: RootResolutionArchive = {
+    resolve: (campaignId, campaignVersion) => (campaignId === "test-campaign" ? epochs.get(campaignVersion) : undefined),
+  };
+
+  const judged: Array<{ from: string; to: string; counter: number }> = [];
+  const adoptContent = (state: TestKindState, from: Campaign, to: Campaign): RootAdoptDecision<TestKindState> => {
+    judged.push({ from: from.version, to: to.version, counter: state.counter });
+    if (to.version === "refuse") return { adopt: false, reason: "content_incompatible" };
+    if (to.version === "throw") throw new Error("kind-owned adoption bug");
+    if (to.version === "invalid") return { adopt: true, state: { counter: -1 } };
+    return { adopt: true, state: { counter: state.counter + 1000 } };
+  };
+  const adoptingKind = makeTestKind({
+    adoptContent,
+    validateState: (kindState) => (kindState as TestKindState).counter >= 0,
+  });
+  const fixedIds = { newGameId: () => "fixed-game-id", newSeed: () => "fixed-seed" };
+
+  function adoptHost(overrides?: Partial<EngineHost>): EngineHost {
+    return { kinds: makeKinds(adoptingKind), registry: epochs.get("1")!, archive, ids: fixedIds, ...overrides };
+  }
+  function started(engine: ReturnType<typeof createEngine>): GameState {
+    const created = engine.createGame({ campaignId: "test-campaign", seed: "fixed-seed" });
+    return engine.submitAction(created.value as GameState, "increment").value as GameState;
+  }
+  function adopted(engine: ReturnType<typeof createEngine>, state: GameState, to: string): GameState {
+    const result = engine.adoptContent(state, to);
+    if (!result.adopted) throw new Error(`expected adoption onto ${to}, pinned with ${result.reason}`);
+    return result.state;
+  }
+  const streamEvents = (events: readonly { name: string }[]) => events.filter((e) => e.name === "core.rng.stream.derived");
+
+  describe("S130.1 — the log holds epoch entries, and each one consumes a seq", () => {
+    it("an action after an adoption takes the next seq and derives its stream from the full log length", () => {
+      const recorder = createRecordingEmitter();
+      const engine = createEngine(adoptHost({ emitter: recorder }));
+      const moved = adopted(engine, started(engine), "2");
+      const before = recorder.events.length;
+
+      const next = engine.submitAction(moved, "increment").value as GameState;
+
+      expect(next.actionLog.map((entry) => entry.seq)).toEqual([0, 1, 2]);
+      expect(next.actionLog[2]).toEqual({ seq: 2, actionId: "increment" });
+      const derived = streamEvents(recorder.events.slice(before));
+      expect(derived.length).toBeGreaterThan(0);
+      for (const event of derived) expect(event).toMatchObject({ seq: 2 });
+    });
+
+    it("that stream is the one an uncrossed log of the same length derives", () => {
+      const uncrossedRecorder = createRecordingEmitter();
+      const uncrossedEngine = createEngine(adoptHost({ emitter: uncrossedRecorder }));
+      const twice = uncrossedEngine.submitAction(started(uncrossedEngine), "increment").value as GameState;
+      const uncrossedBefore = uncrossedRecorder.events.length;
+      uncrossedEngine.submitAction(twice, "increment");
+
+      const crossedRecorder = createRecordingEmitter();
+      const crossedEngine = createEngine(adoptHost({ emitter: crossedRecorder }));
+      const moved = adopted(crossedEngine, started(crossedEngine), "2");
+      const crossedBefore = crossedRecorder.events.length;
+      crossedEngine.submitAction(moved, "increment");
+
+      const uncrossed = streamEvents(uncrossedRecorder.events.slice(uncrossedBefore));
+      const crossed = streamEvents(crossedRecorder.events.slice(crossedBefore));
+      expect(crossed.length).toBeGreaterThan(0);
+      expect(crossed.map((e) => (e as { data?: unknown }).data)).toEqual(uncrossed.map((e) => (e as { data?: unknown }).data));
+    });
+
+    it("the starting version is the first epoch entry's from, else campaignVersion", () => {
+      const engine = createEngine(adoptHost());
+      const uncrossed = started(engine);
+      const twice = adopted(engine, adopted(engine, uncrossed, "2"), "3");
+      expect(startingCampaignVersion(uncrossed.actionLog, uncrossed.campaignVersion)).toBe("1");
+      expect(startingCampaignVersion(twice.actionLog, twice.campaignVersion)).toBe("1");
+      expect(startingCampaignVersion([], undefined)).toBeUndefined();
+    });
+  });
+
+  describe("S130.2 — every refusal pins with its reason and leaves the input as it was", () => {
+    function expectPinned(engine: ReturnType<typeof createEngine>, state: GameState, to: string, reason: string): void {
+      const snapshot = structuredClone(state);
+      const result = engine.adoptContent(state, to);
+      expect(result).toEqual({ adopted: false, reason });
+      expect("state" in result).toBe(false);
+      expect(state).toEqual(snapshot);
+    }
+
+    it("session_ended: the session is not active", () => {
+      const engine = createEngine(adoptHost());
+      const ended = engine.submitAction(started(engine), "end").value as GameState;
+      judged.length = 0;
+      expectPinned(engine, ended, "2", "session_ended");
+      expect(judged).toEqual([]);
+    });
+
+    it("unknown_campaign: the target epoch does not resolve", () => {
+      const engine = createEngine(adoptHost());
+      expectPinned(engine, started(engine), "9", "unknown_campaign");
+    });
+
+    it("unknown_campaign: the state's own epoch does not resolve", () => {
+      const engine = createEngine(adoptHost());
+      expectPinned(engine, { ...started(engine), campaignVersion: "0" }, "2", "unknown_campaign");
+    });
+
+    it("content_kind_changed: the target epoch is another kind's campaign", () => {
+      const engine = createEngine(adoptHost());
+      expectPinned(engine, started(engine), "other-kind", "content_kind_changed");
+    });
+
+    it("content_not_adoptable: the kind declares no adoptContent", () => {
+      const engine = createEngine(adoptHost({ kinds: makeKinds(makeTestKind()) }));
+      expectPinned(engine, started(engine), "2", "content_not_adoptable");
+    });
+
+    it("migration_failed: the target campaign's migrateState fails, and the kind is never asked", () => {
+      const engine = createEngine(adoptHost());
+      const state = started(engine);
+      judged.length = 0;
+      expectPinned(engine, state, "migrate-fails", "migration_failed");
+      expect(judged).toEqual([]);
+    });
+
+    it("migration_failed: the target campaign's migrateState throws", () => {
+      const engine = createEngine(adoptHost());
+      expectPinned(engine, started(engine), "migrate-throws", "migration_failed");
+    });
+
+    it("content_incompatible: the kind refuses", () => {
+      const engine = createEngine(adoptHost());
+      expectPinned(engine, started(engine), "refuse", "content_incompatible");
+    });
+
+    it("content_incompatible: the kind throws", () => {
+      const engine = createEngine(adoptHost());
+      expectPinned(engine, started(engine), "throw", "content_incompatible");
+    });
+
+    it("invalid_state: the kind adopts a state it cannot run", () => {
+      const engine = createEngine(adoptHost());
+      expectPinned(engine, started(engine), "invalid", "invalid_state");
+    });
+
+    it("the kind judges the target campaign's migrated state, against both campaigns", () => {
+      const engine = createEngine(adoptHost());
+      const state = started(engine);
+      judged.length = 0;
+      const moved = adopted(engine, state, "migrate-adds");
+      expect(judged).toEqual([{ from: "1", to: "migrate-adds", counter: 11 }]);
+      expect((moved.kindState as TestKindState).counter).toBe(1011);
+    });
+  });
+
+  describe("S130.3 — an adoption is a logged entry, an event and nothing else", () => {
+    it("appends the content entry and restamps the envelope, and returns nothing but the state", () => {
+      const engine = createEngine(adoptHost());
+      const state = started(engine);
+      const result: RootAdoptionResult = engine.adoptContent(state, "2");
+
+      expect(result.adopted).toBe(true);
+      const moved = (result as { adopted: true; state: GameState }).state;
+      const entry: RootLoggedContent = { seq: 1, system: "content", from: "1", to: "2" };
+      expect(moved.actionLog).toEqual([...state.actionLog, entry]);
+      expect(moved.campaignVersion).toBe("2");
+      expect(moved.formatVersion).toBe(2);
+      expect({
+        ...moved,
+        actionLog: state.actionLog,
+        campaignVersion: state.campaignVersion,
+        formatVersion: state.formatVersion,
+        kindState: state.kindState,
+      }).toEqual(state);
+      expect(Object.keys(result).sort()).toEqual(["adopted", "state"]);
+    });
+
+    it("emits one core.content.adopted with both versions, and derives no stream", () => {
+      const recorder = createRecordingEmitter();
+      const engine = createEngine(adoptHost({ emitter: recorder }));
+      const state = started(engine);
+      const before = recorder.events.length;
+
+      adopted(engine, state, "2");
+
+      const emitted = recorder.events.slice(before);
+      expect(emitted).toHaveLength(1);
+      expect(emitted[0]).toMatchObject({
+        scope: "game",
+        name: "core.content.adopted",
+        severity: "info",
+        seq: 1,
+        data: { fromVersion: "1", toVersion: "2" },
+      });
+    });
+
+    it("emits one core.content.pinned with the reason and both versions on a refusal", () => {
+      const recorder = createRecordingEmitter();
+      const engine = createEngine(adoptHost({ emitter: recorder }));
+      const state = started(engine);
+      const before = recorder.events.length;
+
+      engine.adoptContent(state, "refuse");
+
+      const emitted = recorder.events.slice(before);
+      expect(emitted).toHaveLength(1);
+      expect(emitted[0]).toMatchObject({
+        name: "core.content.pinned",
+        severity: "info",
+        seq: 1,
+        reason: "content_incompatible",
+        data: { fromVersion: "1", toVersion: "refuse" },
+      });
+    });
+
+    it("the state's own version returns the same state, logs nothing and emits nothing", () => {
+      const recorder = createRecordingEmitter();
+      const engine = createEngine(adoptHost({ emitter: recorder }));
+      const state = started(engine);
+      const before = recorder.events.length;
+      judged.length = 0;
+
+      const result = engine.adoptContent(state, "1");
+
+      expect(result).toEqual({ adopted: true, state });
+      expect((result as { state: GameState }).state).toBe(state);
+      expect(recorder.events.length).toBe(before);
+      expect(judged).toEqual([]);
+    });
+
+    it("a second adoption logs a second entry from where the first left off", () => {
+      const engine = createEngine(adoptHost());
+      const twice = adopted(engine, adopted(engine, started(engine), "2"), "3");
+      expect(twice.actionLog.slice(1)).toEqual([
+        { seq: 1, system: "content", from: "1", to: "2" },
+        { seq: 2, system: "content", from: "2", to: "3" },
+      ]);
+      expect(twice.campaignVersion).toBe("3");
+    });
+  });
+
+  describe("S130.4 — deserialize reads both envelope shapes and refuses a stamp the log contradicts", () => {
+    const engine = createEngine(adoptHost());
+    const crossed = adopted(engine, started(engine), "2");
+    const blob = engine.serialize(crossed);
+    function edited(edit: (raw: Record<string, unknown>) => void): string {
+      const raw = JSON.parse(blob) as Record<string, unknown>;
+      edit(raw);
+      return JSON.stringify(raw);
+    }
+    const log = (raw: Record<string, unknown>) => raw["actionLog"] as Array<Record<string, unknown>>;
+
+    const negatives: Array<[string, string]> = [
+      ["formatVersion 1 over a log carrying an epoch entry", edited((raw) => (raw["formatVersion"] = 1))],
+      ["the last epoch entry's to is not campaignVersion", edited((raw) => (log(raw)[1]!["to"] = "3"))],
+      ["formatVersion 3", edited((raw) => (raw["formatVersion"] = 3))],
+      ["formatVersion 2 over a log with no epoch entry", edited((raw) => (raw["actionLog"] = log(raw).slice(0, 1)))],
+      ["an epoch entry carrying an actionId", edited((raw) => (log(raw)[1]!["actionId"] = "increment"))],
+      ["an epoch entry naming an unknown system", edited((raw) => (log(raw)[1]!["system"] = "patch"))],
+      ["an epoch entry whose to is not a string", edited((raw) => (log(raw)[1]!["to"] = 2))],
+      ["an epoch entry whose seq is out of place", edited((raw) => (log(raw)[1]!["seq"] = 5))],
+    ];
+    for (const [name, data] of negatives) {
+      it(`rejects with invalid_state: ${name}`, () => {
+        const result = engine.deserialize(data);
+        expect(result.ok).toBe(false);
+        expect(result.errors.map((e) => e.code)).toEqual(["invalid_state"]);
+      });
+    }
+
+    it("accepts a version-2 state that satisfies C26, byte-identically", () => {
+      const loaded = engine.deserialize(blob);
+      expect(loaded.ok).toBe(true);
+      expect(engine.serialize(loaded.value as GameState)).toBe(blob);
+    });
+
+    it("accepts a migration entry whose from no archive holds, without resolving it", () => {
+      const migration: RootLoggedMigration = { seq: 2, system: "migration", from: "1.5-retired", to: "2" };
+      const loaded = engine.deserialize(edited((raw) => log(raw).push({ ...migration })));
+      expect(loaded.ok).toBe(true);
+      const entries: RootLoggedEntry[] = (loaded.value as GameState).actionLog;
+      expect(entries[2]).toEqual(migration);
+    });
+
+    it("S130.6 — a state with no epoch entry keeps formatVersion 1", () => {
+      const state = started(engine);
+      expect(state.formatVersion).toBe(1);
+      expect((JSON.parse(engine.serialize(state)) as { formatVersion: number }).formatVersion).toBe(1);
+      expect(engine.deserialize(engine.serialize(state)).ok).toBe(true);
+    });
+  });
+
+  describe("S130.7 — the adoption reasons are base codes", () => {
+    it("each has a shipped message under its key", () => {
+      for (const code of ["content_kind_changed", "content_not_adoptable", "content_incompatible"] as const) {
+        expect(BASE_REASON_CODES).toContain(code);
+        expect(CORE_REASON_MESSAGES.get(`core.reason.${code}`)).toEqual(expect.any(String));
+      }
+    });
   });
 });

@@ -292,7 +292,7 @@ Out of scope: Adoption and epoch log entries (S130); the reference archive (S131
 
 ## S130 — A Game Can Move Onto New Content, and Replays Exactly Across It
 
-Status: todo
+Status: done
 Delivers: A running game can move onto another published version of its campaign as a
           recorded step in its own history, or stay where it is with a stated reason. Replaying
           that history reproduces the game byte for byte. A game that never moves is stored

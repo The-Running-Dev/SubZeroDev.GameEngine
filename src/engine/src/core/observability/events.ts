@@ -38,4 +38,6 @@ export const CORE_EVENTS = {
   deserializeRejected: { name: "core.deserialize.rejected", severity: "error" },
   validationCompleted: { name: "core.validation.completed", severity: "info" },
   migrationApplied: { name: "core.migration.applied", severity: "warn" },
+  contentAdopted: { name: "core.content.adopted", severity: "info" },
+  contentPinned: { name: "core.content.pinned", severity: "info" },
 } as const satisfies Record<string, CoreEventDef>;

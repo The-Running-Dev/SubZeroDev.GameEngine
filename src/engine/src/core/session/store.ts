@@ -20,6 +20,7 @@ import type {
 } from "../kernel/types.js";
 import type { OutcomeMessage, StateChange } from "../kernel/reasons.js";
 import type { Campaign, ContentRegistry } from "../registry/types.js";
+import { isLoggedAction } from "../kernel/log.js";
 import { buildSaveEnvelope, resolveSaveEnvelope, serializeSaveEnvelope } from "../persistence/envelope.js";
 import { canonicalize as canonicalStringify } from "subzerodev-data-json";
 import type { PlayerView, ProjectionAudience } from "../projection/types.js";
@@ -994,6 +995,13 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
         throw new SessionStoreErrorValue("branchSession", "invalid_state");
       }
       const sourceState = mustDeserialize(engine, source.blob);
+      // A log that crossed an epoch starts on another version and replays its content entries
+      // through `adoptContent`; until branching does that (S134), it refuses with nothing
+      // written rather than replaying a crossed log onto the default epoch.
+      const actions = sourceState.actionLog.filter(isLoggedAction);
+      if (actions.length !== sourceState.actionLog.length) {
+        throw new SessionStoreErrorValue("branchSession", "invalid_state");
+      }
       if (!Number.isInteger(atActionCount) || atActionCount < 0 || atActionCount > sourceState.actionLog.length) {
         throw new SessionStoreErrorValue("branchSession", "invalid_fork_point");
       }
@@ -1003,7 +1011,7 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
       }
 
       const branchSessionId = newSessionId(recordIds);
-      const retained = sourceState.actionLog.slice(0, atActionCount);
+      const retained = actions.slice(0, atActionCount);
 
       return withCommand(branchSessionId, 0, async (decoratedEngine) => {
         const created = decoratedEngine.createGame({ campaignId: sourceState.campaignId, seed: sourceState.seed });
