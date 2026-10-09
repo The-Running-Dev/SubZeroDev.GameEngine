@@ -312,6 +312,15 @@ export interface NewGameConfig {
   kindProfileData?: unknown;
 }
 
+/**
+ * Content by epoch (16-content-epochs.md §4; 20-contract.md §4). One key names one content
+ * forever (C23), so the engine treats `resolve` as pure.
+ */
+export interface ResolutionArchive {
+  /** The registry the epoch `(campaignId, campaignVersion)` was published in, or undefined. */
+  resolve(campaignId: string, campaignVersion: string): ContentRegistry | undefined;
+}
+
 /** Kind-agnostic operations over the envelope. Resolves the kind by `state.kindId`,
  *  derives the RNG handle, delegates, and reassembles. */
 export interface Engine {
@@ -321,7 +330,14 @@ export interface Engine {
    *  taking a second, independently-suppliable `kinds` option that could silently
    *  disagree with what this engine actually plays against. */
   readonly kinds: KindRegistry;
-  createGame(config: NewGameConfig): CommandResult<GameState>;
+  /** The archive this engine resolves every state's content through (`EngineHost.archive`)
+   *  — by default one holding only the construction-time registry. Exposed for the same
+   *  reason as `kinds`: callers read the epochs the engine actually plays against, never a
+   *  second copy (20-contract.md §4). */
+  readonly content: ResolutionArchive;
+  /** `campaignVersion` absent → the construction-time registry's version for that campaign
+   *  (the default epoch); present → that epoch, or `unknown_campaign`. */
+  createGame(config: NewGameConfig, campaignVersion?: string): CommandResult<GameState>;
   scene(state: GameState): Scene;
   view(state: GameState, audience: ProjectionAudience): PlayerView;
   availableActions(state: GameState): AvailableAction[];

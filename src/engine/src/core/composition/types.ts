@@ -12,7 +12,7 @@
  */
 
 import type { ContentRegistry } from "../registry/types.js";
-import type { Engine, KindRegistry } from "../kernel/types.js";
+import type { Engine, KindRegistry, ResolutionArchive } from "../kernel/types.js";
 import type { Emitter } from "../observability/types.js";
 import type { ProfileStore, SessionPersistence } from "../session/types.js";
 import type { EmittedRecordSink } from "../observability/types.js";
@@ -76,6 +76,9 @@ export interface EngineHost {
   readonly registry: ContentRegistry;
   readonly ids?: IdSource;
   readonly emitter?: Emitter;
+  /** Every epoch this engine can play (20-contract.md §4). Omitted → an archive holding only
+   *  `registry`. Must resolve every campaign of `registry` at its registered version. */
+  readonly archive?: ResolutionArchive;
 }
 
 /** Composition root for the session layer — the only place a clock appears. */

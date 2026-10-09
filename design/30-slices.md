@@ -258,7 +258,7 @@ Out of scope: Generating the docs' other volatile facts, one of the review's non
 
 ## S129 — Every Game Plays the Content It Names
 
-Status: todo
+Status: done
 Delivers: A host can keep more than one published version of a campaign available at once. A
           new game can start on any of them, and every game plays the version it names rather
           than whichever version the host registered under the campaign's name. A stored game
