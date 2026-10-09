@@ -2666,6 +2666,31 @@ Context: C27's union resolves every live epoch through `engine.content.resolve`.
 Chosen: an epoch that does not resolve contributes nothing, and the union of the rest is returned.
 Rejected: **Throwing.** `getStrings` is a query, and a missing table for an older epoch should not stop a client from reading the current one. A session on an unresolvable current epoch already fails its other operations.
 
+### 2026-10-09 — S134: a save loads on its own epoch only when its `kindVersion` is the registered kind's
+Context: §7's load-path refinement loads a save on its own epoch, unmigrated, when that epoch is still held. A save can also carry an older `kindVersion`, and `Kind.migrateState` runs against the campaign the load resolves.
+Chosen: `resolveSaveEnvelope` takes the save's own epoch from `engine.content.resolve` only when the save's `kindVersion` equals the registered kind's. Any other save, including one whose epoch is held but whose kind shape moved, takes §10.2's path onto the registry's version. `resolveSaveEnvelope` takes the resolver as an optional fourth argument, so a caller without an archive keeps the registry-only behaviour.
+Rejected: **Resolving the held epoch and then migrating only the kind state.** It is a third load path, a kind migration against an older campaign than the one it was written for. The registry path already covers the case at the cost of `replayCompatible`.
+
+### 2026-10-09 — S134: the envelope's `campaignVersion` must equal the embedded state's
+Context: the checksum covers `state` and `replayCompatible`, not the wrapper fields, which is why `kindId` and `campaignId` are cross-checked against the state. Once a save is resolved and migrated from the wrapper's `campaignVersion`, an edited wrapper version would migrate content the state never ran, or skip a migration it needs.
+Chosen: a wrapper `campaignVersion` that differs from `state.campaignVersion` is `invalid_state`, alongside the existing id checks. `saveGame` stamps the version of the epoch the state is on, through `engine.content.resolve`, so the two always agree for saves this engine writes.
+Rejected: **Reading the version from the state alone.** It would leave the wrapper field unchecked while every other wrapper field is checked.
+
+### 2026-10-09 — S134: a migration entry's `from` is the state's `campaignVersion`
+Context: §3.5 appends `{ seq, system: "migration", from, to }` when a migration changes `campaignVersion` on a log that carries an epoch entry.
+Chosen: `from` is the embedded state's `campaignVersion`, which the cross-check above makes equal to the wrapper's, and `to` is the registry campaign's version. The entry is appended after the kind judges the migrated state, so a refused migration appends nothing.
+Rejected: none considered.
+
+### 2026-10-09 — S134: `branchSession` checks every version the replay stands on before it creates anything
+Context: §7's failure table gives `branchSession` `unknown_campaign` when its starting version or a retained adoption's version no longer resolves, and requires nothing written. Replaying until the missing epoch is reached would find it late, and `adoptContent` reports an unheld target as a refusal, which is `invalid_state`.
+Chosen: before the branch's session id is minted, the store resolves the starting version and every retained content entry's `to` through `engine.content.resolve`, requiring the resolved campaign's version to equal the name, as the kernel does. Any miss is `unknown_campaign`. A recorded adoption that then refuses is `invalid_state`. A log carrying a migration entry is `invalid_state` before either check, read from the log rather than only from the record's `replayCompatible`.
+Rejected: **Letting the replay fail where it fails.** It would report a withdrawn epoch as `invalid_state`, and the code is the only thing a client can act on.
+
+### 2026-10-09 — S134: two store tests written before S134 are superseded, not kept
+Context: S130 added a test that `branchSession` refuses a crossed log with `invalid_state`, and W99 a test that a store whose registry was mutated after creation refuses with `unknown_campaign`.
+Chosen: both are removed. The first asserted the interim refusal S134 retires. The second relied on the store's own registry deciding a branch, which no longer happens: the engine's archive decides, and S134.4's tests cover a starting version or adopted version that is no longer held.
+Rejected: **Rewriting the second against a mutated registry.** The engine snapshots what it holds, so mutating the store's registry no longer reaches a branch, and the test would assert nothing.
+
 ### 2026-10-08 — `getStrings` returns the union of a session's live epochs, newest winning per key (red-team F3)
 Context: red-team F3 (`design/redteam/2026-10-08-10-design.md`, STRUCTURAL). A client calls `getScene` on `e1`, and then another client's `resumeSession` adopts `e2`, which renamed a label key. The first client's `getStrings` then returned only the `e2` table, so its scene carried a key it could not resolve. Neither `Scene` nor `StringTable` carries an epoch, so the client could not detect this. The race is between completed calls, so the session lock cannot close it.
 Chosen: `getStrings(sessionId)` returns the union of the string tables of the session's live epochs. Those are the starting version, or the last migration entry's `to`, and every content entry's `to` after it. Each key resolves from the most recent of those epochs that defines it. New invariant C27: a session's table never loses a key, so any key in any result the store returned for a session resolves in every later `getStrings`. A client whose cached table lacks a key fetches the table again. The union also covers a `submitAction` that adopts after commit, whose messages come from the old epoch while its scene comes from the new one. Accepted residual: a key both epochs define resolves to the newer wording, even on an older scene. No type, signature or MCP schema changes, and the union spans only epochs the log already names, which retention already keeps. The design is `16-content-epochs.md` §5.7 and Clients §2; the contract is `20-contract.md` C27 and §7.

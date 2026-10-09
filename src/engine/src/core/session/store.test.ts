@@ -1669,42 +1669,6 @@ describe("session lifecycle — listSaves / deleteSave / branchSession (04 §7.4
       expect(putCalls).toBe(0);
     });
 
-    it("refuses a log that crossed an epoch with invalid_state, writing nothing, until it can replay one (S134)", async () => {
-      const second = makeRegistry([makeCampaign({ version: "2" })]);
-      const first = makeRegistry();
-      const kinds = {
-        "story-graph": { ...makeTestKind(), adoptContent: (state: TestKindState) => ({ adopt: true as const, state }) },
-      } as unknown as KindRegistry;
-      const engine = makeEngine({
-        kinds,
-        registry: first,
-        archive: { resolve: (id, version) => (id !== "test-campaign" ? undefined : version === "1" ? first : version === "2" ? second : undefined) },
-      });
-      const created = engine.createGame({ campaignId: "test-campaign", seed: "fixed-seed" });
-      const adoption = engine.adoptContent(created.value!, "2");
-      if (!adoption.adopted) throw new Error("expected the test kind to adopt");
-      const record: StoredSessionRecord = {
-        sessionId: "crossed",
-        blob: engine.serialize(adoption.state),
-        audience: "player",
-        attemptCounter: 1,
-        revision: 1,
-        replayCompatible: true,
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-01T00:00:00.000Z",
-      };
-      let putCalls = 0;
-      const store = makeStore({
-        engine,
-        persistence: persistenceWith({
-          sessions: { get: async (id) => (id === "crossed" ? record : undefined), put: async () => { putCalls += 1; } },
-        }),
-      });
-
-      await expect(store.branchSession("crossed", 0)).rejects.toMatchObject({ code: "invalid_state" });
-      expect(putCalls).toBe(0);
-    });
-
     it("B3 — a branch's sessionId is distinct from its source, and its gameId equals the source's", async () => {
       const store = makeStore();
       const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
@@ -1773,19 +1737,6 @@ describe("session lifecycle — listSaves / deleteSave / branchSession (04 §7.4
       });
     });
 
-    it("unknown_campaign — the source's campaignVersion is no longer registered", async () => {
-      const campaigns = new Map([["test-campaign", makeCampaign({ version: "1" })]]);
-      const mutableRegistry: ContentRegistry = { campaigns, strings: makeRegistry().strings };
-      const store = createInMemorySessionStore({ engine: makeEngine({ registry: mutableRegistry }), registry: mutableRegistry });
-      const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
-
-      campaigns.set("test-campaign", makeCampaign({ version: "2" }));
-
-      await expect(store.branchSession(sessionId, 0)).rejects.toMatchObject({
-        operation: "branchSession",
-        code: "unknown_campaign",
-      });
-    });
   });
 
   describe("reproducing a stored session from its log (04 §7.4, W99.6)", () => {
@@ -2172,17 +2123,23 @@ function makeEpochStore(options: {
   persistence?: SessionPersistence;
   profiles?: ProfileStore;
   recordSink?: EmittedRecordSink;
+  /** The host's own content: its registry, the archive's other epochs, and its kind. */
+  kind?: Kind<TestKindState>;
+  initial?: ContentRegistry;
+  publish?: ContentRegistry[];
+  recordIds?: RecordIdSource;
 }): { store: SessionStore; engine: Engine } {
-  const kinds = { "story-graph": makeEpochKind() } as unknown as KindRegistry;
-  const archive = createContentArchive({ kinds, initial: EPOCH_V1 });
-  for (const registry of [EPOCH_V2, EPOCH_V3_REFUSED]) {
+  const kinds = { "story-graph": options.kind ?? makeEpochKind() } as unknown as KindRegistry;
+  const initial = options.initial ?? EPOCH_V1;
+  const archive = createContentArchive({ kinds, initial });
+  for (const registry of options.publish ?? [EPOCH_V2, EPOCH_V3_REFUSED]) {
     if (!archive.publish(registry).ok) throw new Error("expected the test epoch to publish");
   }
-  const engine = createEngine({ kinds, registry: EPOCH_V1, archive, ids: createCountingIds() });
+  const engine = createEngine({ kinds, registry: initial, archive, ids: createCountingIds() });
   const store = createSessionLayer({
     engine,
-    registry: EPOCH_V1,
-    recordIds: makeCountingRecordIds(),
+    registry: initial,
+    recordIds: options.recordIds ?? makeCountingRecordIds(),
     ...(options.channel ? { content: options.channel } : {}),
     ...(options.persistence ? { persistence: options.persistence } : {}),
     ...(options.profiles ? { profiles: options.profiles } : {}),
@@ -2470,5 +2427,340 @@ describe("S133.6 — getStrings spans every live epoch", () => {
       persistence: persistenceWith({ sessions: { get: async (id) => (id === "migrated" ? row : undefined) } }),
     });
     expect(await store.getStrings("migrated")).toEqual(tableOf(EPOCH_V2));
+  });
+});
+
+/** One set of session and save rows several stores share — a later process reading what an
+ *  earlier one wrote — with each store minting its own ids, and every session write counted. */
+function makeSharedRows(): {
+  persistence: SessionPersistence;
+  rows: Map<string, StoredSessionRecord>;
+  readonly sessionPuts: number;
+} {
+  const cas = makeCasPersistence();
+  const saves = new Map<string, StoredSaveRecord>();
+  let sessionPuts = 0;
+  return {
+    rows: cas.rows,
+    get sessionPuts() { return sessionPuts; },
+    persistence: persistenceWith({
+      sessions: {
+        get: cas.persistence.sessions.get,
+        put: async (record) => {
+          sessionPuts += 1;
+          await cas.persistence.sessions.put(record);
+        },
+      },
+      saves: {
+        get: async (saveId) => saves.get(saveId),
+        put: async (record) => { saves.set(record.saveId, { ...record }); },
+      },
+    }),
+  };
+}
+
+function prefixedRecordIds(prefix: string): RecordIdSource {
+  let sessions = 0;
+  let saves = 0;
+  return {
+    newSessionId: () => `${prefix}-session-${sessions++}`,
+    newSaveId: () => `${prefix}-save-${saves++}`,
+  };
+}
+
+/** A fourth epoch that can be migrated onto: a host that dropped every earlier version. */
+const EPOCH_V4_MIGRATING: ContentRegistry = (() => {
+  const base = epochRegistry("4", { "scene.v4": "The rebuilt hall.", "message.v4": "The rebuilt clerk nods." });
+  const campaign: Campaign = {
+    ...base.campaigns.get("test-campaign")!,
+    migrateState: (kindState) => ({ ok: true, value: kindState, errors: [], warnings: [] }),
+  };
+  return { campaigns: new Map([["test-campaign", campaign]]), strings: base.strings };
+})();
+
+/** A save on v1 (`[a0]`) and a save on v2 that crossed an adoption (`[a0, c1 1→2]`). */
+async function savesOnOldEpochs(shared: ReturnType<typeof makeSharedRows>): Promise<{ uncrossed: string; crossed: string }> {
+  const channel = recordingChannel(undefined);
+  const { store } = makeEpochStore({ channel, persistence: shared.persistence, recordIds: prefixedRecordIds("source") });
+  const plain = await store.createSession({ campaignId: "test-campaign" });
+  await store.submitAction(plain.sessionId, "increment");
+  const uncrossed = (await store.saveGame(plain.sessionId)).saveId;
+
+  const moved = await store.createSession({ campaignId: "test-campaign" });
+  channel.offer = "2";
+  await store.submitAction(moved.sessionId, "increment");
+  const crossed = (await store.saveGame(moved.sessionId)).saveId;
+  return { uncrossed, crossed };
+}
+
+describe("S134.1 — a save on a held epoch loads as it was made", () => {
+  it("loads on its own epoch with no migration, keeps replayCompatible, and branches", async () => {
+    const shared = makeSharedRows();
+    const { uncrossed } = await savesOnOldEpochs(shared);
+    const { store } = makeEpochStore({
+      persistence: shared.persistence,
+      initial: EPOCH_V2,
+      publish: [EPOCH_V1],
+      recordIds: prefixedRecordIds("later"),
+    });
+
+    const loaded = await store.loadGame(uncrossed);
+    expect(loaded.scene.body.textKey).toBe("scene.v1");
+    const row = shared.rows.get(loaded.sessionId);
+    expect(row!.replayCompatible).toBe(true);
+    const state = storedState(row);
+    expect(state.campaignVersion).toBe("1");
+    expect(state.formatVersion).toBe(1);
+    expect(state.actionLog).toEqual([{ seq: 0, actionId: "increment" }]);
+    await expect(store.branchSession(loaded.sessionId, 1)).resolves.toMatchObject({ scene: { body: { textKey: "scene.v1" } } });
+  });
+
+  it("then reaches its adoption point, persisted in the new session's first write", async () => {
+    const shared = makeSharedRows();
+    const { uncrossed } = await savesOnOldEpochs(shared);
+    const channel = recordingChannel("2");
+    const { store } = makeEpochStore({
+      channel,
+      persistence: shared.persistence,
+      initial: EPOCH_V2,
+      publish: [EPOCH_V1],
+      recordIds: prefixedRecordIds("later"),
+    });
+    const before = shared.sessionPuts;
+
+    const loaded = await store.loadGame(uncrossed);
+    expect(shared.sessionPuts - before).toBe(1);
+    expect(channel.calls).toEqual([{ campaignId: "test-campaign", sessionId: loaded.sessionId }]);
+    expect(loaded.scene.body.textKey).toBe("scene.v2");
+    const row = shared.rows.get(loaded.sessionId);
+    expect(row!.revision).toBe(0);
+    expect(row!.replayCompatible).toBe(true);
+    const state = storedState(row);
+    expect(state.campaignVersion).toBe("2");
+    expect(state.formatVersion).toBe(2);
+    expect(state.actionLog).toEqual([
+      { seq: 0, actionId: "increment" },
+      { seq: 1, system: "content", from: "1", to: "2" },
+    ]);
+  });
+
+  it("an offer the kind refuses leaves the loaded session pinned on its own epoch", async () => {
+    const shared = makeSharedRows();
+    const { uncrossed } = await savesOnOldEpochs(shared);
+    const { store } = makeEpochStore({
+      channel: recordingChannel("3"),
+      persistence: shared.persistence,
+      initial: EPOCH_V2,
+      publish: [EPOCH_V1, EPOCH_V3_REFUSED],
+      recordIds: prefixedRecordIds("later"),
+    });
+
+    const loaded = await store.loadGame(uncrossed);
+    expect(loaded.scene.body.textKey).toBe("scene.v1");
+    const state = storedState(shared.rows.get(loaded.sessionId));
+    expect(state.campaignVersion).toBe("1");
+    expect(state.actionLog).toHaveLength(1);
+  });
+});
+
+describe("S134.2 — every other save migrates, and a restamp over a crossed log is logged", () => {
+  const migratingStore = (shared: ReturnType<typeof makeSharedRows>) =>
+    makeEpochStore({ persistence: shared.persistence, initial: EPOCH_V4_MIGRATING, publish: [], recordIds: prefixedRecordIds("later") });
+
+  it("a crossed save onto a version it never held appends one migration entry, keeps formatVersion 2, and deserializes", async () => {
+    const shared = makeSharedRows();
+    const { crossed } = await savesOnOldEpochs(shared);
+    const { store, engine } = migratingStore(shared);
+
+    const loaded = await store.loadGame(crossed);
+    expect(loaded.scene.body.textKey).toBe("scene.v4");
+    const row = shared.rows.get(loaded.sessionId);
+    expect(row!.replayCompatible).toBe(false);
+    expect(engine.deserialize(row!.blob).ok).toBe(true);
+    const state = storedState(row);
+    expect(state.campaignVersion).toBe("4");
+    expect(state.formatVersion).toBe(2);
+    expect(state.actionLog).toEqual([
+      { seq: 0, actionId: "increment" },
+      { seq: 1, system: "content", from: "1", to: "2" },
+      { seq: 2, system: "migration", from: "2", to: "4" },
+    ]);
+
+    // Saved and loaded again, it is already on the registry's version: no second entry.
+    const again = await store.loadGame((await store.saveGame(loaded.sessionId)).saveId);
+    const reloaded = storedState(shared.rows.get(again.sessionId));
+    expect(reloaded.actionLog.filter((entry) => entry.system === "migration")).toHaveLength(1);
+    expect(reloaded.actionLog).toEqual(state.actionLog);
+    expect(shared.rows.get(again.sessionId)!.replayCompatible).toBe(false);
+  });
+
+  it("an uncrossed save migrates with no entry and stays formatVersion 1", async () => {
+    const shared = makeSharedRows();
+    const { uncrossed } = await savesOnOldEpochs(shared);
+    const { store } = migratingStore(shared);
+
+    const loaded = await store.loadGame(uncrossed);
+    const state = storedState(shared.rows.get(loaded.sessionId));
+    expect(state.campaignVersion).toBe("4");
+    expect(state.formatVersion).toBe(1);
+    expect(state.actionLog).toEqual([{ seq: 0, actionId: "increment" }]);
+  });
+
+  it("a migration that changes only kindVersion appends nothing", async () => {
+    const shared = makeSharedRows();
+    const { crossed } = await savesOnOldEpochs(shared);
+    const kind: Kind<TestKindState> = {
+      ...makeEpochKind(),
+      version: "2.0.0",
+      migrateState: (oldState) => ({ ok: true, value: oldState as TestKindState, errors: [], warnings: [] }),
+    };
+    const { store } = makeEpochStore({
+      kind,
+      persistence: shared.persistence,
+      initial: EPOCH_V2,
+      publish: [EPOCH_V1],
+      recordIds: prefixedRecordIds("later"),
+    });
+
+    const loaded = await store.loadGame(crossed);
+    const row = shared.rows.get(loaded.sessionId);
+    expect(row!.replayCompatible).toBe(false);
+    const state = storedState(row);
+    expect(state.campaignVersion).toBe("2");
+    expect(state.formatVersion).toBe(2);
+    expect(state.actionLog).toEqual([
+      { seq: 0, actionId: "increment" },
+      { seq: 1, system: "content", from: "1", to: "2" },
+    ]);
+  });
+});
+
+/** A session that moved onto v2 between two actions: `[a0, c1 1→2, a2]`, with the stored blob
+ *  after the adoption and after the last action. */
+async function crossedSource(shared: ReturnType<typeof makeSharedRows>) {
+  const channel = recordingChannel(undefined);
+  const { store } = makeEpochStore({ channel, persistence: shared.persistence, recordIds: prefixedRecordIds("source") });
+  const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+  channel.offer = "2";
+  await store.submitAction(sessionId, "increment");
+  const adoptedBlob = shared.rows.get(sessionId)!.blob;
+  channel.offer = undefined;
+  await store.submitAction(sessionId, "increment");
+  const finalBlob = shared.rows.get(sessionId)!.blob;
+  return { store, channel, sessionId, adoptedBlob, finalBlob };
+}
+
+/** What a session that never adopted stores after `increments` actions — on v1, from the same
+ *  counting ids, so the same gameId and seed. */
+async function neverAdoptedBlob(increments: number): Promise<string> {
+  const shared = makeSharedRows();
+  const { store } = makeEpochStore({ persistence: shared.persistence });
+  const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+  for (let i = 0; i < increments; i += 1) await store.submitAction(sessionId, "increment");
+  return shared.rows.get(sessionId)!.blob;
+}
+
+describe("S134.3 / S134.5 — a branch replays across an adoption, byte-identically", () => {
+  it("every fork point reproduces the source's prefix exactly, either side of the content entry", async () => {
+    const shared = makeSharedRows();
+    const { store, sessionId, adoptedBlob, finalBlob } = await crossedSource(shared);
+    const blobAt = async (n: number) => shared.rows.get((await store.branchSession(sessionId, n)).sessionId)!.blob;
+
+    expect(await blobAt(3)).toBe(finalBlob);
+    expect(await blobAt(2)).toBe(adoptedBlob);
+    // A fork before the adoption starts, and stays, on the old epoch.
+    expect(await blobAt(1)).toBe(await neverAdoptedBlob(1));
+    expect(await blobAt(0)).toBe(await neverAdoptedBlob(0));
+  });
+
+  it("a branch reaches its own adoption point in its first write", async () => {
+    const shared = makeSharedRows();
+    const { store, channel, sessionId, adoptedBlob } = await crossedSource(shared);
+    channel.offer = "2";
+    const before = shared.sessionPuts;
+
+    const branch = await store.branchSession(sessionId, 1);
+    expect(shared.sessionPuts - before).toBe(1);
+    expect(branch.scene.body.textKey).toBe("scene.v2");
+    expect(shared.rows.get(branch.sessionId)!.blob).toBe(adoptedBlob);
+  });
+
+  it("atActionCount counts entries of every type", async () => {
+    const shared = makeSharedRows();
+    const { store, sessionId } = await crossedSource(shared);
+    await expect(store.branchSession(sessionId, 4)).rejects.toMatchObject({ operation: "branchSession", code: "invalid_fork_point" });
+  });
+});
+
+describe("S134.4 — a branch that cannot be reproduced refuses, with nothing written", () => {
+  it("invalid_state for a log carrying a migration entry, whatever the record says", async () => {
+    const shared = makeSharedRows();
+    const { store, engine } = makeEpochStore({ persistence: shared.persistence });
+    const created = engine.createGame({ campaignId: "test-campaign", seed: "s" }, "2");
+    const migrated = {
+      ...created.value!,
+      formatVersion: 2,
+      actionLog: [{ seq: 0, system: "migration" as const, from: "1", to: "2" }],
+    };
+    shared.rows.set("migrated", {
+      sessionId: "migrated",
+      blob: engine.serialize(migrated),
+      audience: "player",
+      attemptCounter: 0,
+      revision: 0,
+      replayCompatible: true,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+
+    await expect(store.branchSession("migrated", 0)).rejects.toMatchObject({ operation: "branchSession", code: "invalid_state" });
+    expect(shared.sessionPuts).toBe(0);
+  });
+
+  it("invalid_state for a recorded adoption the kind now refuses; a fork before it still branches", async () => {
+    const shared = makeSharedRows();
+    const { sessionId } = await crossedSource(shared);
+    const refusing: Kind<TestKindState> = { ...makeEpochKind(), adoptContent: () => ({ adopt: false, reason: "content_incompatible" }) };
+    const { store } = makeEpochStore({ kind: refusing, persistence: shared.persistence, recordIds: prefixedRecordIds("later") });
+    const before = shared.sessionPuts;
+
+    await expect(store.branchSession(sessionId, 2)).rejects.toMatchObject({ operation: "branchSession", code: "invalid_state" });
+    expect(shared.sessionPuts).toBe(before);
+    await expect(store.branchSession(sessionId, 1)).resolves.toMatchObject({ scene: { body: { textKey: "scene.v1" } } });
+  });
+
+  it("unknown_campaign when the starting version is no longer held", async () => {
+    const shared = makeSharedRows();
+    const { sessionId } = await crossedSource(shared);
+    const { store } = makeEpochStore({ persistence: shared.persistence, initial: EPOCH_V2, publish: [], recordIds: prefixedRecordIds("later") });
+    const before = shared.sessionPuts;
+
+    await expect(store.branchSession(sessionId, 3)).rejects.toMatchObject({ operation: "branchSession", code: "unknown_campaign" });
+    await expect(store.branchSession(sessionId, 0)).rejects.toMatchObject({ operation: "branchSession", code: "unknown_campaign" });
+    expect(shared.sessionPuts).toBe(before);
+  });
+
+  it("unknown_campaign when a retained adoption's version is no longer held; a fork before it still branches", async () => {
+    const shared = makeSharedRows();
+    const channel = recordingChannel(undefined);
+    const source = makeEpochStore({ channel, persistence: shared.persistence, recordIds: prefixedRecordIds("source") });
+    const { sessionId } = await source.store.createSession({ campaignId: "test-campaign" });
+    channel.offer = "2";
+    await source.store.submitAction(sessionId, "increment");
+    channel.offer = "1";
+    await source.store.submitAction(sessionId, "increment");
+    expect(storedState(shared.rows.get(sessionId)).actionLog.map((entry) => entry.to ?? entry.actionId)).toEqual([
+      "increment",
+      "2",
+      "increment",
+      "1",
+    ]);
+
+    const { store } = makeEpochStore({ persistence: shared.persistence, initial: EPOCH_V1, publish: [], recordIds: prefixedRecordIds("later") });
+    const before = shared.sessionPuts;
+    await expect(store.branchSession(sessionId, 4)).rejects.toMatchObject({ operation: "branchSession", code: "unknown_campaign" });
+    await expect(store.branchSession(sessionId, 2)).rejects.toMatchObject({ operation: "branchSession", code: "unknown_campaign" });
+    expect(shared.sessionPuts).toBe(before);
+    await expect(store.branchSession(sessionId, 1)).resolves.toMatchObject({ scene: { body: { textKey: "scene.v1" } } });
   });
 });

@@ -10,8 +10,9 @@
  */
 
 import type { Campaign, ContentRegistry } from "../registry/types.js";
-import type { GameState, Kind, KindRegistry } from "../kernel/types.js";
+import type { GameState, Kind, KindRegistry, LoggedMigration } from "../kernel/types.js";
 import { isAcceptedKindState, isValidGameStateShape } from "../kernel/engine.js";
+import { isEpochEntry } from "../kernel/log.js";
 import { canonicalize as canonicalStringify, sha256Hex } from "subzerodev-data-json";
 import type { SaveEnvelope } from "./types.js";
 import { ENGINE_VERSION } from "../../version.js";
@@ -127,7 +128,15 @@ function invokeMigration(
  * `engineVersion` is never checked here at all: informational only, per §10.2's own
  * "changes independently" rationale.
  */
-export function resolveSaveEnvelope(blob: string, kinds: KindRegistry, registry: ContentRegistry): SaveEnvelopeResolution {
+/** Resolves a held epoch — `engine.content.resolve` (16 §4.1). */
+export type EpochResolver = (campaignId: string, campaignVersion: string) => ContentRegistry | undefined;
+
+export function resolveSaveEnvelope(
+  blob: string,
+  kinds: KindRegistry,
+  registry: ContentRegistry,
+  resolveEpoch?: EpochResolver,
+): SaveEnvelopeResolution {
   let parsed: unknown;
   try {
     parsed = JSON.parse(blob);
@@ -150,7 +159,14 @@ export function resolveSaveEnvelope(blob: string, kinds: KindRegistry, registry:
     return { ok: false, code: "save_requires_migration" };
   }
 
-  const campaign = registry.campaigns.get(parsed.campaignId);
+  // 16 §7, the load-path refinement: a save whose own epoch is still held and whose kind shape
+  // is current loads exactly as it was made — on that epoch, unmigrated, replayable — and moves
+  // forward by logged adoption instead. Anything else migrates onto the registry's version.
+  const heldKind = kinds[parsed.kindId];
+  const held = heldKind && parsed.kindVersion === heldKind.version
+    ? resolveEpoch?.(parsed.campaignId, parsed.campaignVersion)?.campaigns.get(parsed.campaignId)
+    : undefined;
+  const campaign = held ?? registry.campaigns.get(parsed.campaignId);
   if (!campaign) return { ok: false, code: "unknown_campaign" };
   const kind = kinds[parsed.kindId];
   if (!kind) return { ok: false, code: "unknown_kind" };
@@ -163,6 +179,9 @@ export function resolveSaveEnvelope(blob: string, kinds: KindRegistry, registry:
   if (campaign.kindId !== parsed.kindId) return { ok: false, code: "invalid_state" };
   if (parsed.state.kindId !== parsed.kindId) return { ok: false, code: "invalid_state" };
   if (parsed.state.campaignId !== parsed.campaignId) return { ok: false, code: "invalid_state" };
+  // The wrapper's version is the epoch the save is resolved and migrated from, so it must be
+  // the one the state was on — or a migration would restamp content it never ran.
+  if (parsed.state.campaignVersion !== parsed.campaignVersion) return { ok: false, code: "invalid_state" };
 
   let kindState = parsed.state.kindState;
   let migrated = false;
@@ -190,6 +209,15 @@ export function resolveSaveEnvelope(blob: string, kinds: KindRegistry, registry:
     return { ok: false, code: migrated ? "migration_failed" : "invalid_state" };
   }
 
-  const state: GameState = { ...parsed.state, kindState, campaignVersion: campaign.version };
+  // 16 §3.5: a restamp over a log that already carries an epoch entry is logged, so the last
+  // entry's `to` still names `campaignVersion` (C26). A log with none stays version 1 and needs
+  // none; a `kindVersion`-only migration restamps nothing; a save already on `campaign.version`
+  // — including one this path produced — moves nothing and appends nothing.
+  const log = parsed.state.actionLog;
+  const restamped = parsed.state.campaignVersion !== campaign.version && log.some(isEpochEntry);
+  const actionLog = restamped
+    ? [...log, { seq: log.length, system: "migration", from: parsed.state.campaignVersion, to: campaign.version } satisfies LoggedMigration]
+    : log;
+  const state: GameState = { ...parsed.state, kindState, campaignVersion: campaign.version, actionLog };
   return { ok: true, state, replayCompatible: parsed.replayCompatible && !migrated };
 }
