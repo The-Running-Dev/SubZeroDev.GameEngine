@@ -398,7 +398,7 @@ Out of scope: Simulation and world-graph adoption rules (the contract's *Unresol
 
 ## S133 — Running Sessions Pick Up New Content
 
-Status: todo
+Status: done
 Delivers: A player's session moves onto newly published content between their moves: when
           they submit an action or come back to the game. A refusal, or a host that fails to
           answer, never costs them a move. Text they have already been shown never goes

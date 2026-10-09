@@ -20,7 +20,8 @@ import type {
 } from "../kernel/types.js";
 import type { OutcomeMessage, StateChange } from "../kernel/reasons.js";
 import type { Campaign, ContentRegistry } from "../registry/types.js";
-import { isLoggedAction } from "../kernel/log.js";
+import type { ContentChannel, ContentScope } from "../registry/archive.js";
+import { isEpochEntry, isLoggedAction, startingCampaignVersion } from "../kernel/log.js";
 import { buildSaveEnvelope, resolveSaveEnvelope, serializeSaveEnvelope } from "../persistence/envelope.js";
 import { canonicalize as canonicalStringify } from "subzerodev-data-json";
 import type { PlayerView, ProjectionAudience } from "../projection/types.js";
@@ -334,6 +335,31 @@ export interface InMemorySessionStoreOptions {
    *  idle one is dropped and re-read from persistence on its next use. Omitted → unbounded.
    *  A positive integer, and only with `persistence` — without it the map is the storage. */
   sessionCacheLimit?: number;
+  /** 16 §4.2, §5.3. Omitted → no session is ever offered content. */
+  content?: ContentChannel;
+}
+
+/**
+ * 16 §5.7: the versions a session's strings are drawn from, oldest first — its starting version,
+ * or the last migration entry's `to` when the log carries one, then every content entry's `to`
+ * after it. A migration restamps the save onto content that may not hold the earlier epochs'
+ * keys at all, so nothing before the last one is live.
+ */
+function liveEpochs(state: GameState): string[] {
+  const log = state.actionLog;
+  let lastMigration = -1;
+  log.forEach((entry, index) => {
+    if (isEpochEntry(entry) && entry.system === "migration") lastMigration = index;
+  });
+  const migration = log[lastMigration];
+  const start = migration !== undefined && isEpochEntry(migration)
+    ? migration.to
+    : startingCampaignVersion(log, state.campaignVersion)!;
+  const versions = [start];
+  for (const entry of log.slice(lastMigration + 1)) {
+    if (isEpochEntry(entry)) versions.push(entry.to);
+  }
+  return versions;
 }
 
 /**
@@ -600,6 +626,36 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
    * than a restatement of JS's run-to-completion semantics), then hands the caller an
    * engine rebound to this command's stamping decorator.
    */
+  /** The channel's offer for `scope`, or undefined for none. A throw, or an answer that is not
+   *  a version, is read as no offer (16 §5.3): a host defect in a policy hook must not stop a
+   *  player mid-turn. */
+  function offeredVersion(scope: ContentScope): string | undefined {
+    if (!options.content) return undefined;
+    try {
+      const offered = options.content.current(scope);
+      return typeof offered === "string" ? offered : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * One adoption point (16 §5.3), called under the session lock: `state` moved onto the
+   * channel's offer, or `state` itself — the same object — when there is no offer, the offer
+   * is the version it is on, or the engine refuses it. A refusal is never an error: the
+   * session stays pinned and the command it rides on completes (C25).
+   */
+  function adoptOffered(decoratedEngine: Engine, state: GameState, record: SessionRecord): GameState {
+    const offered = offeredVersion({
+      campaignId: state.campaignId,
+      sessionId: record.sessionId,
+      ...(record.profileId !== undefined ? { profileId: record.profileId } : {}),
+    });
+    if (offered === undefined || offered === state.campaignVersion) return state;
+    const adoption = decoratedEngine.adoptContent(state, offered);
+    return adoption.adopted ? adoption.state : state;
+  }
+
   async function withCommand<T>(
     sessionId: string | undefined,
     attempt: number,
@@ -664,13 +720,21 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
     },
 
     async getStrings(sessionId: string): Promise<StringTable> {
-      // Validates the session exists even though the returned table doesn't depend on
-      // which one — plan 14 Decision 7: the registry has no per-campaign string
-      // partition to narrow by, so the whole frozen table is returned.
-      await getSession(sessionId);
+      // C27 (16 §5.7): the union of the live epochs' tables, oldest first, so each key ends on
+      // the most recent epoch that defines it. Each epoch contributes its whole frozen
+      // registry table — plan 14 Decision 7: a registry has no per-campaign string partition
+      // to narrow by. A session that never adopted has one live epoch, and gets its table.
+      const record = await getSession(sessionId);
+      const state = mustDeserialize(engine, record.blob);
       const table: Record<string, string> = {};
-      for (const [key, text] of registry.strings) {
-        table[key] = text;
+      for (const version of liveEpochs(state)) {
+        // Every live epoch resolves through an append-only archive; one a host-supplied
+        // archive no longer holds contributes nothing rather than failing the query.
+        const epoch = engine.content.resolve(state.campaignId, version);
+        if (!epoch) continue;
+        for (const [key, text] of epoch.strings) {
+          table[key] = text;
+        }
       }
       return table;
     },
@@ -711,7 +775,16 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
     async createSession(config: CreateSessionConfig): Promise<SessionHandle> {
       const sessionId = newSessionId(recordIds);
       const audience = config.audience ?? "player";
-      const campaign = registry.campaigns.get(config.campaignId);
+      // 16 §5.2: asked once, for the version to start on. Creation, not adoption — the game
+      // starts on that epoch with no content entry. No offer → the registry's version.
+      const version = offeredVersion({
+        campaignId: config.campaignId,
+        sessionId,
+        ...(config.profileId !== undefined ? { profileId: config.profileId } : {}),
+      });
+      const campaign = version === undefined
+        ? registry.campaigns.get(config.campaignId)
+        : engine.content.resolve(config.campaignId, version)?.campaigns.get(config.campaignId);
       const kind = campaign ? kinds[campaign.kindId] : undefined;
       const kindProfileData = await resolveKindProfileData(options.profiles, config.profileId, kind);
       const newGameConfig: NewGameConfig = {
@@ -722,7 +795,7 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
       };
 
       return withCommand(sessionId, 0, async (decoratedEngine) => {
-        const created = decoratedEngine.createGame(newGameConfig);
+        const created = decoratedEngine.createGame(newGameConfig, version);
         if (!created.ok || !created.value) {
           // createSession's return type carries no error channel (session/types.ts) —
           // same reasoning as getSession's throw above.
@@ -753,7 +826,32 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
         return runExclusive(sessionLocks, sessionId, () =>
           withCommand(sessionId, record.attemptCounter, async (decoratedEngine) => {
             const state = mustDeserialize(decoratedEngine, record.blob);
-            return decoratedEngine.scene(state);
+            const adopted = adoptOffered(decoratedEngine, state, record);
+            if (adopted === state) return decoratedEngine.scene(state);
+
+            // 16 §5.3: its own write, at revision + 1. Adoption never fails a command, so a
+            // refused write restores the unadopted record and serves its scene; the next
+            // adoption point offers again. A conflict evicts the restored record as
+            // `submitAction` does, since another writer committed past it.
+            const previousBlob = record.blob;
+            const previousUpdatedAt = record.updatedAt;
+            const previousRevision = record.revision;
+            record.blob = decoratedEngine.serialize(adopted);
+            record.updatedAt = clock.now();
+            record.revision = previousRevision + 1;
+            try {
+              await writeSession(record);
+            } catch (error) {
+              record.blob = previousBlob;
+              record.updatedAt = previousUpdatedAt;
+              record.revision = previousRevision;
+              if (!(error instanceof SessionStoreErrorValue)) throw error;
+              if (error.code === "concurrent_modification" && sessions.get(sessionId) === record) {
+                sessions.delete(sessionId);
+              }
+              return decoratedEngine.scene(state);
+            }
+            return decoratedEngine.scene(adopted);
           }),
         );
       });
@@ -776,10 +874,14 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
 
             if (result.ok && result.value) {
               const newState = result.value;
+              // 16 §5.3: after the action commits, in the action's own write. The player
+              // resolved what they were shown; the next scene is the first drawn from the
+              // adopted content, and the messages stay the old epoch's.
+              const committed = adoptOffered(decoratedEngine, newState, record);
               const previousBlob = record.blob;
               const previousUpdatedAt = record.updatedAt;
               const previousRevision = record.revision;
-              record.blob = decoratedEngine.serialize(newState);
+              record.blob = decoratedEngine.serialize(committed);
               record.updatedAt = clock.now();
               record.revision = previousRevision + 1;
               try {
@@ -824,7 +926,10 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
                   profileWarnings = await runExclusive(profileLocks, profileId, async () => {
                     const achievementWarnings = await upsertAchievements(profiles, profileId, state.campaignId, result.changes);
                     const kind = kinds[state.kindId];
-                    const campaign = registry.campaigns.get(state.campaignId)!;
+                    // The epoch the action resolved on, which is the registry's only while the
+                    // session has never been on another (16 §5.2).
+                    const campaign = decoratedEngine.content.resolve(state.campaignId, state.campaignVersion)?.campaigns.get(state.campaignId)
+                      ?? registry.campaigns.get(state.campaignId)!;
                     const kindDataWarnings = await upsertKindProfileData(profiles, profileId, kind, campaign, result.changes);
                     // "After an action whose AdvanceResult.status is ended" (04 §7.1) — the
                     // same write as the achievement and kind-data upserts, on the same lock.
@@ -840,7 +945,7 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
 
               return toPlayerResult({
                 ok: true,
-                scene: decoratedEngine.scene(result.value),
+                scene: decoratedEngine.scene(committed),
                 errors: result.errors,
                 warnings: [...result.warnings, ...profileWarnings],
                 changes: result.changes,
