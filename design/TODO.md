@@ -22,4 +22,18 @@
 
 ## S128 — The Package Says What It Is Licensed Under
 
+## S129 — Every Game Plays the Content It Names
+
+## S130 — A Game Can Move Onto New Content, and Replays Exactly Across It
+
+## S131 — A Host Publishes New Content While Running
+
+## S132 — A Story Moves Onto Additive Content
+
+## S133 — Running Sessions Pick Up New Content
+
+## S134 — Saves and Branches Carry Their Epochs
+
+## S135 — The Replay Oracle Crosses Content Epochs
+
 ## Landed
