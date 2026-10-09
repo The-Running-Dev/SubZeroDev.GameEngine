@@ -34,24 +34,25 @@ release tag (W104.7):
      re-running the next time any of the three repositories re-vendors this engine.
   2. The replay regression oracle (07-replay.md), run locally against the
      baseline tag's own committed fixtures and outcomes -- the same
-     REPLAY_BASELINE_DIR mechanism .github/workflows/ci.yml's
-     release-tag-replay job runs automatically on every release tag push.
+     REPLAY_BASELINE_DIR mechanism build/Test-ReplayOracle.ps1 (the
+     `replay` job of .github/workflows/ci.yml) runs automatically on every
+     release tag push.
      Running it here proves W104.4 (byte-identical replay) without waiting
      for a tag.
-  3. npm pack, with the same tarball-content assertions ci.yml's engine job
-     makes (no src/, no tsconfig, no test artifacts, dist/ present) --
+  3. npm pack, with the same tarball-content assertions build/Test-EnginePackage.ps1
+     (ci.yml's engine job) makes (no src/, no tsconfig, no test artifacts, dist/ present) --
      W104.6's clean-pack half.
   4. The packed-tarball consumer smoke (consumer-smoke/), installed with no
      workspace resolution back into src/engine -- W104.6's install/compile/run
      half, exercising the public and ./authoring entry points together.
 
-This script does not replace ci.yml's two jobs; it reproduces their combined
+This script does not replace ci.yml's engine and replay jobs; it reproduces their combined
 result on demand, from any machine, without needing a release tag pushed
 first -- exactly the gap W104 exists to close before 0.11 is cut.
 
 .PARAMETER BaselineTag
 The prior release tag to compare replay fixtures against. Defaults to the
-most recent 'v*' tag reachable from HEAD, matching ci.yml's own
+most recent 'v*' tag reachable from HEAD, matching build/Test-ReplayOracle.ps1's
 "previous tag" resolution.
 
 .PARAMETER SkipConsumerSmoke

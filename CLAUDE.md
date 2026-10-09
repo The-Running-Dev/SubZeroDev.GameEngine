@@ -500,8 +500,8 @@ is `0`, so it *would* work — this is a deliberate workflow choice, not a limit
 > commit was squashed out exactly this way and needed recovering as PR #78. With auto-merge
 > off, this discipline is the only thing preventing it.
 
-**Three required checks** on `main` — `engine`, `Documentation links and terminology`,
-`Verify Documentation Build`. The deploy job is *not* required (it runs only on `main`, so
+**Two required checks** on `main` — `engine / Result` (the aggregate job of the shared
+`node-ci.yml`, called by `ci.yml`) and `docs / Build`. The deploy job is *not* required (it runs only on `main`, so
 requiring it would leave every PR pending).
 
 **`required_review_thread_resolution` is on.** Automated PR review runs via the
