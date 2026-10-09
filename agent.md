@@ -136,8 +136,10 @@ README, whose status is deliberately coarse.
   open; add new gaps there as full entries.
 - **Engine suite runs under vitest** — `npm test` from `src/engine/` is the count; a number
   written here goes stale, as "15 tests" did for a suite that long outgrew it. CI runs it:
-  `.github/workflows/ci.yml` (`engine`), plus `docs.yml`, the caller of the shared reusable
-  docs workflow. The pull-request checks (`engine` and `docs / Build`) are required on `main`;
+  `.github/workflows/ci.yml` (`engine`, a caller of the shared `node-ci.yml`; the package
+  and consumer-smoke half is `build/Test-EnginePackage.ps1`), plus `docs.yml`, the caller of
+  the shared reusable docs workflow. The pull-request checks (`engine / Result` and
+  `docs / Build`) are required on `main`;
   `docs / Deploy` is not, since it runs only on push to `main` (`TODO.md` W0, closed).
 - **The docs-site base image is verified for the current W0 baseline.** `docs.ps1` builds
   on the public `ghcr.io/the-running-dev/docs-template`; the installed image uses

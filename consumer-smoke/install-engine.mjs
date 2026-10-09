@@ -13,8 +13,8 @@
  * `files` and the declaration emit were all still broken — proving nothing about the
  * artefact that actually ships.
  *
- * CI does the same thing inline (`.github/workflows/ci.yml`, "Consumer smoke"); this
- * script is the local equivalent, so `npm run install:engine && npm run build &&
+ * CI does the same thing in `build/Test-EnginePackage.ps1` (the `engine` job of
+ * `.github/workflows/ci.yml`); this script is the local equivalent, so `npm run install:engine && npm run build &&
  * npm run smoke` works from a clean checkout.
  */
 
