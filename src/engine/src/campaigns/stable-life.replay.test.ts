@@ -39,7 +39,7 @@ import { buildStableLifeEffectsCampaign } from "./stable-life-effects.js";
 import { buildStableLifeHousingCampaign } from "./stable-life-housing.js";
 import { buildStableLifePossessionsCampaign } from "./stable-life-possessions.js";
 import { buildStableLifeEventsCampaign } from "./stable-life-events.js";
-import { COMPARING_ACROSS_VERSIONS, CORPUS_DIR, FIXTURES_DIR, fixtureNamesByPrefix, hasFixture, loadExpectedOutcome, loadFixture, statesThatFailToDeserialize } from "./replay-corpus.js";
+import { COMPARING_ACROSS_VERSIONS, CORPUS_DIR, FIXTURES_DIR, fixtureNamesByPrefix, hasFixture, loadExpectedOutcome, loadFixture, statesThatFailToDeserialize, actionSubmissions } from "./replay-corpus.js";
 
 const REPLAY_PROFILE_ID = "replay-oracle-profile";
 
@@ -137,7 +137,7 @@ describe.skipIf(!hasFixtureInBaseline("stable-life-housing-eviction", "stable-li
     if (!created.ok || !created.value) throw new Error(`expected "${fixtureName}" to create a game`);
 
     let state = created.value;
-    for (const submission of fixture.submissions) {
+    for (const submission of actionSubmissions(fixture)) {
       const result = ctx.engine.submitAction(state, submission.actionId, submission.params);
       if (result.ok && result.value) state = result.value;
     }
@@ -175,7 +175,7 @@ describe.skipIf(!hasFixtureInBaseline("stable-life-possessions"))(
 
     let state = created.value;
     const perWeek: { condition?: number; itemEffects: number; cashCents: number }[] = [];
-    for (const submission of fixture.submissions) {
+    for (const submission of actionSubmissions(fixture)) {
       const result = ctx.engine.submitAction(state, submission.actionId, submission.params);
       if (!result.ok || !result.value) throw new Error(`expected "${submission.actionId}" to be accepted`);
       state = result.value;
@@ -210,7 +210,7 @@ describe.skipIf(!hasFixtureInBaseline("stable-life-possessions"))(
     if (!created.ok || !created.value) throw new Error("expected the possessions fixture to create a game");
 
     let state = created.value;
-    for (const submission of fixture.submissions) {
+    for (const submission of actionSubmissions(fixture)) {
       const result = ctx.engine.submitAction(state, submission.actionId, submission.params);
       if (result.ok && result.value) state = result.value;
     }

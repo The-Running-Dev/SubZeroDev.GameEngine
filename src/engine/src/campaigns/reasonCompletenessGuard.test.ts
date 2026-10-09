@@ -30,7 +30,7 @@ import { buildValidatedContentRegistry } from "../core/validation/tiered.js";
 import type { CommandResult } from "../core/kernel/reasons.js";
 import type { BuiltCampaign } from "../core/registry/types.js";
 import type { ReplayFixture } from "../core/replay/types.js";
-import { fixtureNamesByPrefix, loadFixture, FIXTURES_DIR } from "./replay-corpus.js";
+import { fixtureNamesByPrefix, isAdoption, loadFixture, FIXTURES_DIR } from "./replay-corpus.js";
 import { storyGraphKind } from "../kinds/story-graph/kind.js";
 import { buildBulgariaBureaucracyCampaign } from "./bulgaria-bureaucracy.js";
 import { simulationKind } from "../kinds/simulation/kind.js";
@@ -89,6 +89,10 @@ function replayAndCollect(engine: Engine, fixture: ReplayFixture): { reasons: Se
   if (!created.ok || !created.value) throw new Error(`${fixture.name}: expected createGame to succeed`);
   let state = created.value;
   for (const submission of fixture.submissions) {
+    // An adoption is not play (C24): it reports no `StateChange`, and a refusal is a value
+    // rather than a message, so there is nothing here for it to contribute. This engine holds
+    // one epoch, so the actions after it play on the starting one.
+    if (isAdoption(submission)) continue;
     const result = engine.submitAction(state, submission.actionId, submission.params);
     for (const change of result.changes) if (change.visible) reasons.add(change.reason);
     for (const error of result.errors) codes.add(error.code);

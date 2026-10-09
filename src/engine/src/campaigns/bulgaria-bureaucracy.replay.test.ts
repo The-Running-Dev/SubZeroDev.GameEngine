@@ -36,6 +36,9 @@ import { buildValidatedContentRegistry } from "../core/validation/tiered.js";
 import { createInMemoryProfileStore } from "../core/session/profile-store.js";
 import { storyGraphKind } from "../kinds/story-graph/kind.js";
 import { createCountingIds } from "../core/determinism/counting-ids.js";
+import { createContentArchive } from "../core/registry/archive.js";
+import type { BuiltCampaign } from "../core/registry/types.js";
+import type { StoryGraphCampaign } from "../kinds/story-graph/campaign.js";
 import { buildReplayOutcome, findDivergence, runReplayFixture, type ReplayRunnerContext } from "../core/replay/runner.js";
 import type { Outcome, ReplayFixture } from "../core/replay/types.js";
 import type { KindRegistry } from "../core/kernel/types.js";
@@ -62,18 +65,51 @@ const FIXTURE_NAMES = fixtureNamesByPrefix("bureaucracy-", CORPUS_DIR);
  *  `CURRENT_STABLE_LIFE_FIXTURE_NAMES` and `STABLE_LIFE_FIXTURE_NAMES`. */
 const CURRENT_BUREAUCRACY_FIXTURE_NAMES = fixtureNamesByPrefix("bureaucracy-", FIXTURES_DIR);
 
+/** The epoch `bureaucracy-epoch-crossing` adopts (S135.4): the shipped campaign plus one
+ *  variable, purely additive, so story-graph's `adoptContent` accepts it (16 §6.1). Derived
+ *  here rather than shipped: it exists to give the corpus a second held epoch, not as content.
+ *  Adoption runs the *target's* `migrateState` from the source version, and the shipped one
+ *  migrates only from 1.0.0 — so this epoch passes a shipped-epoch state through unchanged,
+ *  as its author would, and leaves the new variable to `adoptContent`. */
+const BUREAUCRACY_NEXT_EPOCH = "2.1.0";
+
+function nextEpoch(built: BuiltCampaign): BuiltCampaign {
+  const content = built.campaign.content as StoryGraphCampaign;
+  const shipped = built.campaign.version;
+  const migrateShipped = built.campaign.migrateState;
+  return {
+    ...built,
+    campaign: {
+      ...built.campaign,
+      version: BUREAUCRACY_NEXT_EPOCH,
+      migrateState: (state, fromVersion) =>
+        fromVersion === shipped
+          ? { ok: true, value: state, errors: [], warnings: [] }
+          : migrateShipped
+            ? migrateShipped(state, fromVersion)
+            : { ok: false, errors: [{ code: "migration_failed", messageKey: "core.reason.migration_failed" }], warnings: [] },
+      content: { ...content, variables: { ...content.variables, forms_refiled: { type: "int", initial: 0 } } },
+    },
+  };
+}
+
 /** A fresh `ReplayRunnerContext` per call — each fixture gets its own counting `IdSource`
  *  starting at 0 (07 §5) and its own in-memory `ProfileStore`, so achievements from one
- *  fixture never leak into another's. */
+ *  fixture never leak into another's. The engine's archive holds the shipped epoch and
+ *  `BUREAUCRACY_NEXT_EPOCH`; the registry, and so every fixture's default, stays the shipped one. */
 function makeContext(): ReplayRunnerContext {
   const built = buildBulgariaBureaucracyCampaign();
   if (!built.ok || !built.value) throw new Error("expected the real campaign to build");
   const kinds = { "story-graph": storyGraphKind } as unknown as KindRegistry;
   const registryResult = buildValidatedContentRegistry([built.value], kinds);
   if (!registryResult.ok || !registryResult.value) throw new Error("expected the real campaign to validate");
+  const nextResult = buildValidatedContentRegistry([nextEpoch(built.value)], kinds);
+  if (!nextResult.ok || !nextResult.value) throw new Error("expected the next epoch to validate");
+  const archive = createContentArchive({ kinds, initial: registryResult.value });
+  if (!archive.publish(nextResult.value).ok) throw new Error("expected the next epoch to publish");
 
   return {
-    engine: createEngine({ kinds, registry: registryResult.value, ids: createCountingIds() }),
+    engine: createEngine({ kinds, registry: registryResult.value, ids: createCountingIds(), archive }),
     kinds,
     registry: registryResult.value,
     profiles: createInMemoryProfileStore(),
@@ -171,6 +207,16 @@ describe.skipIf(COMPARING_ACROSS_VERSIONS)("the replay corpus's mechanics (07-re
 
     const verdict = await runReplayFixture(makeContext(), staleVersion, loadExpectedOutcome("bureaucracy-full-arc"));
     expect(verdict).toEqual({ kind: "unrunnable", reason: "campaign_version_missing" });
+  });
+
+  it("bureaucracy-epoch-crossing: the adoption is accepted at its own seq and counts in decisions, not acceptedActions (S135.4)", async () => {
+    const fixture = loadFixture("bureaucracy-epoch-crossing");
+    const result = await buildReplayOutcome(makeContext(), fixture);
+    if (result.kind !== "outcome") throw new Error("expected an outcome");
+
+    expect(result.outcome.decisions[1]).toEqual({ index: 1, seq: 1, adopt: BUREAUCRACY_NEXT_EPOCH, accepted: true });
+    expect(result.outcome.decisions[2]).toEqual({ index: 2, seq: 2, actionId: "registry_route_listen", accepted: true });
+    expect(result.outcome.acceptedActions).toBe(2);
   });
 
   it("findDivergence(expected, expected) is always undefined — a fixture never diverges from itself", async () => {

@@ -45,6 +45,10 @@ const AUTHORING_VALUE_EXPORTS = [
 
 const AUTHORING_TYPE_EXPORTS = [
   "AchievementDefinitionSource",
+  "ActionDecision",
+  "ActionSubmission",
+  "AdoptionDecision",
+  "AdoptionSubmission",
   "AdventureConfig",
   "AdventureEnding",
   "AdventureRoute",
@@ -59,6 +63,7 @@ const AUTHORING_TYPE_EXPORTS = [
   "Condition",
   "Consequence",
   "CourseDefinitionSource",
+  "Decision",
   "DifficultyDefinitionSource",
   "EmployerDefinitionSource",
   "EndingNodeSource",

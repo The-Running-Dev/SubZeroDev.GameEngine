@@ -13,7 +13,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { createEngine } from "../src/core/kernel/engine.js";
 import { buildValidatedContentRegistry } from "../src/core/validation/tiered.js";
 import { buildSaveEnvelope, serializeSaveEnvelope } from "../src/core/persistence/envelope.js";
-import { loadFixture } from "../src/campaigns/replay-corpus.js";
+import { actionSubmissions, loadFixture } from "../src/campaigns/replay-corpus.js";
 import { buildBulgariaBureaucracyCampaign } from "../src/campaigns/bulgaria-bureaucracy.js";
 import { buildStableLifeCampaign } from "../src/campaigns/stable-life.js";
 import { buildStableLifeEffectsCampaign } from "../src/campaigns/stable-life-effects.js";
@@ -69,7 +69,7 @@ function runFixtureToState(engine: Engine, fixtureName: string): GameState {
   const created = engine.createGame(fixture.config);
   if (!created.ok || !created.value) throw new Error(`"${fixtureName}": createGame rejected`);
   let state = created.value;
-  for (const submission of fixture.submissions) {
+  for (const submission of actionSubmissions(fixture)) {
     const result = engine.submitAction(state, submission.actionId, submission.params);
     if (result.ok && result.value) state = result.value;
   }

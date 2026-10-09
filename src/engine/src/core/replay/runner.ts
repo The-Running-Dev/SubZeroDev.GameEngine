@@ -32,18 +32,26 @@ export type ReplayResult =
   | { readonly kind: "unrunnable"; readonly reason: "campaign_withdrawn" | "campaign_version_missing" };
 
 /**
- * The pre-check 07 §6 names first: resolve the fixture's `campaignVersion` in the registry
- * before ever calling `createGame`, so the two `unrunnable` reasons stay distinct — a
- * campaign that no longer exists at all versus one that exists at a version this fixture
- * was not captured against. Both are legitimate content decisions, never a failure (07 §6).
+ * The pre-check 07 §6 names first, before ever calling `createGame`, so the two `unrunnable`
+ * reasons stay distinct — a campaign that no longer exists at all versus one that exists but
+ * not at every version this fixture was captured against. Both are legitimate content
+ * decisions, never a failure (07 §6).
+ *
+ * Withdrawal is read from the registry: a `ResolutionArchive` cannot enumerate, so it cannot
+ * say an id is gone. Every *named* version — the starting `campaignVersion` and each
+ * adoption's — resolves through `engine.content`, requiring the resolved campaign to carry
+ * that exact version, as the kernel's own epoch resolution does (16 §5.6).
  */
 function resolveCampaign(
-  registry: ContentRegistry,
+  ctx: ReplayRunnerContext,
   fixture: ReplayFixture,
 ): { readonly reason: "campaign_withdrawn" | "campaign_version_missing" } | undefined {
-  const campaign = registry.campaigns.get(fixture.config.campaignId);
-  if (!campaign) return { reason: "campaign_withdrawn" };
-  if (campaign.version !== fixture.campaignVersion) return { reason: "campaign_version_missing" };
+  const campaignId = fixture.config.campaignId;
+  if (!ctx.registry.campaigns.has(campaignId)) return { reason: "campaign_withdrawn" };
+  const named = [fixture.campaignVersion, ...fixture.submissions.flatMap((s) => ("adopt" in s ? [s.adopt] : []))];
+  const held = (version: string): boolean =>
+    ctx.engine.content.resolve(campaignId, version)?.campaigns.get(campaignId)?.version === version;
+  if (!named.every(held)) return { reason: "campaign_version_missing" };
   return undefined;
 }
 
@@ -65,10 +73,12 @@ export async function buildReplayOutcome(ctx: ReplayRunnerContext, fixture: Repl
     throw new Error(`buildReplayOutcome "${fixture.name}": config.seed is required for a reproducible replay`);
   }
 
-  const unrunnable = resolveCampaign(ctx.registry, fixture);
+  const unrunnable = resolveCampaign(ctx, fixture);
   if (unrunnable) return { kind: "unrunnable", reason: unrunnable.reason };
 
-  const created = ctx.engine.createGame(fixture.config);
+  // The fixture's `campaignVersion` is the *starting* epoch (07 §2), not necessarily the
+  // registry's current one.
+  const created = ctx.engine.createGame(fixture.config, fixture.campaignVersion);
   if (!created.ok || !created.value) {
     // A fixture that passed the campaign/version check but still fails to start is a
     // broken fixture or a broken engine, not a divergence this oracle exists to report —
@@ -80,6 +90,25 @@ export async function buildReplayOutcome(ctx: ReplayRunnerContext, fixture: Repl
   const decisions: Decision[] = [];
 
   for (const [index, submission] of fixture.submissions.entries()) {
+    if ("adopt" in submission) {
+      // Capture records only adoptions that happened (16 §5.6). One naming the version the
+      // game is already on would append no content entry — `adoptContent`'s step 0 — so it
+      // has no `seq` to record: a malformed fixture, like a missing seed, not a divergence.
+      if (submission.adopt === state.campaignVersion) {
+        throw new Error(
+          `buildReplayOutcome "${fixture.name}": submission ${index} adopts "${submission.adopt}", the version the game is already on`,
+        );
+      }
+      const adoption = ctx.engine.adoptContent(state, submission.adopt);
+      if (adoption.adopted) {
+        decisions.push({ index, seq: adoption.state.actionLog.length - 1, adopt: submission.adopt, accepted: true });
+        state = adoption.state;
+      } else {
+        decisions.push({ index, seq: null, adopt: submission.adopt, accepted: false, reason: adoption.reason });
+      }
+      continue;
+    }
+
     const result: ActionResult = ctx.engine.submitAction(state, submission.actionId, submission.params);
 
     if (result.ok && result.value) {
@@ -110,7 +139,8 @@ export async function buildReplayOutcome(ctx: ReplayRunnerContext, fixture: Repl
 
   const outcome: Outcome = {
     finalStatus: state.status,
-    acceptedActions: decisions.filter((d) => d.accepted).length,
+    // Actions only: an adoption is a log entry but not an action (07 §3).
+    acceptedActions: decisions.filter((d) => "actionId" in d && d.accepted).length,
     decisions,
     achievements,
     terminal,
@@ -130,9 +160,14 @@ export function findDivergence(expected: Outcome, actual: Outcome): number | und
   for (let i = 0; i < length; i++) {
     const e = expected.decisions[i];
     const a = actual.decisions[i];
-    if (!e || !a || e.index !== a.index || e.seq !== a.seq || e.actionId !== a.actionId || e.accepted !== a.accepted || e.reason !== a.reason) {
+    if (!e || !a || e.index !== a.index || e.seq !== a.seq || e.accepted !== a.accepted || e.reason !== a.reason) {
       return i;
     }
+    // An adoption where an action was recorded, or the other way round, diverges as surely
+    // as a different action id does.
+    const expectedId = "adopt" in e ? `adopt:${e.adopt}` : `action:${e.actionId}`;
+    const actualId = "adopt" in a ? `adopt:${a.adopt}` : `action:${a.actionId}`;
+    if (expectedId !== actualId) return i;
   }
 
   const tail = {
