@@ -19,6 +19,7 @@ import type {
   SceneBody,
 } from "../../core/kernel/types.js";
 import type { Campaign } from "../../core/registry/types.js";
+import { adoptContent } from "./adopt.js";
 import { advance } from "./advance.js";
 import type { StoryGraphCampaign } from "./campaign.js";
 import { composeContent } from "./compose.js";
@@ -58,6 +59,7 @@ export const storyGraphKind: Kind<StoryGraphKindState> = {
   validateCampaign: (campaign, strings) => validateCampaign(campaign, strings),
   validateState: (kindState, campaign) => validateStoryGraphState(kindState, campaign),
   composeContent: (host, modules, attachments) => composeContent(host, modules, attachments),
+  adoptContent: (state, from, to) => adoptContent(state, from, to),
   outcome: (state) => {
     const endingId = state.endingId ?? null;
     return { terminal: endingId !== null, terminalId: endingId, endingId };

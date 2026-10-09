@@ -368,7 +368,7 @@ Out of scope: A durable archive and eviction, and listing a campaign that first 
 
 ## S132 — A Story Moves Onto Additive Content
 
-Status: todo
+Status: done
 Delivers: A player partway through a story can be moved onto a newer version of it that only
           adds to what they are playing. They keep their place, their progress and their
           achievements. A version that would strand them where they stand, or drop something
