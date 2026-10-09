@@ -107,6 +107,10 @@ export type ReasonCode = string;
  * target epoch is another kind's, when the kind declares no `adoptContent`, and when the kind
  * refuses or throws. Base rather than kind-owned because the session store reads a refusal
  * without knowing which kind produced it, and the first two are decided before any kind runs.
+ *
+ * `content_version_conflict` was added with the content archive (16 §3.4, §4.3) — `publish`
+ * refuses a registry that names a held `(campaignId, campaignVersion)` with different content.
+ * Base because the archive is core-owned and the identity it protects is the envelope's.
  */
 export const BASE_REASON_CODES = [
   "action_not_available",
@@ -157,6 +161,8 @@ export const BASE_REASON_CODES = [
   "content_kind_changed",
   "content_not_adoptable",
   "content_incompatible",
+  // content epochs (16 §3.4) — publication
+  "content_version_conflict",
 ] as const;
 
 export type BaseReasonCode = (typeof BASE_REASON_CODES)[number];
@@ -214,6 +220,7 @@ const CORE_REASON_TEXT: Readonly<Record<BaseReasonCode, string>> = {
   content_kind_changed: "The new version of this campaign is a different kind of game, so this session stays on its version.",
   content_not_adoptable: "This kind of game can't move a session onto new content, so it stays on its version.",
   content_incompatible: "This session can't move onto the new version of its campaign, so it stays on the version it started.",
+  content_version_conflict: "This version of the campaign was already published with different content.",
 };
 
 /** `core.reason.<code>` → its shipped default-English message, for every base code. */

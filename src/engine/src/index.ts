@@ -22,6 +22,9 @@ export {
   resolveExperimentAssignments,
   resolvePacks,
 } from "./core/registry/packs.js";
+// The reference content archive and channel (16 §4.3) — host-side, like the packs above.
+export { createContentArchive } from "./core/registry/archive.js";
+export type { ContentArchive, ContentChannel, ContentScope, EpochRef } from "./core/registry/archive.js";
 export { createInMemorySessionStore, createSessionLayer, upsertAchievements, upsertTerminals } from "./core/session/store.js";
 export { createInMemoryProfileStore } from "./core/session/profile-store.js";
 export { TextClient } from "./clients/text/client.js";

@@ -334,7 +334,7 @@ Out of scope: Any shipped kind's `adoptContent` (S132 for story-graph; simulatio
 
 ## S131 — A Host Publishes New Content While Running
 
-Status: todo
+Status: done
 Delivers: A host can publish a new build of its content without restarting. The engine
           validates every campaign before accepting it, refuses to let one version name stand for
           two different contents, and offers the latest publication to every session that asks.
