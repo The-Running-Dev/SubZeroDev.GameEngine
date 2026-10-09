@@ -20,6 +20,7 @@ import type {
   KindContext,
   LoggedAction,
   NewGameConfig,
+  ResolutionArchive,
   Scene,
 } from "./types.js";
 import type { CommandResult, OutcomeMessage } from "./reasons.js";
@@ -33,6 +34,47 @@ import { defaultIdSource } from "../composition/defaults.js";
 import { canonicalize as canonicalStringify } from "subzerodev-data-json";
 import { makeResolutionEmitters, nullEmitter, emitSystemEvent, type ResolutionEmitters } from "../observability/emitter.js";
 import { CORE_EVENTS } from "../observability/events.js";
+
+// ---------------------------------------------------------------------------
+// Content resolution (20-contract.md §4, C22)
+// ---------------------------------------------------------------------------
+
+/** `EngineHost` once `createEngine` has settled which archive is in use. */
+type ResolvedHost = EngineHost & { readonly archive: ResolutionArchive };
+
+interface ResolvedEpoch {
+  readonly registry: ContentRegistry;
+  readonly campaign: Campaign;
+}
+
+/**
+ * The epoch a state names, or undefined. A registry that answers the key but holds the
+ * campaign at another version does not resolve it: the state is played against the content
+ * it names or not at all (C22).
+ */
+function resolveEpoch(content: ResolutionArchive, campaignId: string, campaignVersion: string): ResolvedEpoch | undefined {
+  const registry = content.resolve(campaignId, campaignVersion);
+  const campaign = registry?.campaigns.get(campaignId);
+  if (!registry || !campaign || campaign.version !== campaignVersion) return undefined;
+  return { registry, campaign };
+}
+
+/** The archive an engine uses when its host supplies none: only the construction-time registry. */
+function registryArchive(registry: ContentRegistry): ResolutionArchive {
+  return {
+    resolve: (campaignId, campaignVersion) =>
+      registry.campaigns.get(campaignId)?.version === campaignVersion ? registry : undefined,
+  };
+}
+
+/**
+ * Read paths only. `createGame`, `submitAction` and `deserialize` are the only producers of a
+ * `GameState` this engine accepts, and each resolves the epoch before returning one, so the
+ * non-null assertion holds (the same boundary argument as the comment above `view`).
+ */
+function epochOf(host: ResolvedHost, state: GameState): ResolvedEpoch {
+  return resolveEpoch(host.archive, state.campaignId, state.campaignVersion)!;
+}
 
 // ---------------------------------------------------------------------------
 // KindContext construction
@@ -78,10 +120,10 @@ function buildKindContext(
  * resolution — no core *lifecycle* event fires for a read (none is named for one in 05
  * §8), but `core.rng.stream.derived` and any `kind.*` event still reach the sink.
  */
-function buildReadContext(host: EngineHost, campaign: Campaign, kind: Kind<unknown>, state: GameState): KindContext {
+function buildReadContext(host: ResolvedHost, epoch: ResolvedEpoch, kind: Kind<unknown>, state: GameState): KindContext {
   const seq = state.actionLog.length;
   const emitters = makeResolutionEmitters(host.emitter ?? nullEmitter, state.gameId, seq);
-  return buildKindContext(host.registry, campaign, kind, state.seed, { kind: "system", system: "view", seq }, seq, emitters);
+  return buildKindContext(epoch.registry, epoch.campaign, kind, state.seed, { kind: "system", system: "view", seq }, seq, emitters);
 }
 
 // ---------------------------------------------------------------------------
@@ -96,9 +138,11 @@ function buildReadContext(host: EngineHost, campaign: Campaign, kind: Kind<unkno
  * anywhere to remember "this session defaults to the `ai` view" across repeated
  * `getScene`/`getView` calls — see `plans/13-w6-projection.md`.
  */
-function createGame(host: EngineHost, config: NewGameConfig): CommandResult<GameState> {
-  const campaign = host.registry.campaigns.get(config.campaignId);
-  if (!campaign) {
+function createGame(host: ResolvedHost, config: NewGameConfig, campaignVersion?: string): CommandResult<GameState> {
+  // No version asked for: the default epoch, the construction-time registry's (20 §4).
+  const version = campaignVersion ?? host.registry.campaigns.get(config.campaignId)?.version;
+  const epoch = version === undefined ? undefined : resolveEpoch(host.archive, config.campaignId, version);
+  if (!epoch) {
     const error: ValidationError = {
       code: "unknown_campaign",
       messageKey: "core.reason.unknown_campaign",
@@ -106,6 +150,7 @@ function createGame(host: EngineHost, config: NewGameConfig): CommandResult<Game
     };
     return { ok: false, errors: [error], warnings: [] };
   }
+  const { registry, campaign } = epoch;
 
   const kind = host.kinds[campaign.kindId];
   if (!kind) {
@@ -125,7 +170,7 @@ function createGame(host: EngineHost, config: NewGameConfig): CommandResult<Game
 
   // The start stream (`system:"start"`) is distinct from the per-action `action` stream,
   // so a start-of-game random draw can never collide with an action's (04 §4).
-  const ctx = buildKindContext(host.registry, campaign, kind, seed, { kind: "system", system: "start", seq: 0 }, 0, emitters);
+  const ctx = buildKindContext(registry, campaign, kind, seed, { kind: "system", system: "start", seq: 0 }, 0, emitters);
   const init = kind.initialState(campaign, ctx, config.kindProfileData);
 
   // init.changes / init.messages have nowhere to go on CommandResult<GameState> — see
@@ -158,7 +203,7 @@ function createGame(host: EngineHost, config: NewGameConfig): CommandResult<Game
 // ---------------------------------------------------------------------------
 
 function submitAction(
-  host: EngineHost,
+  host: ResolvedHost,
   state: GameState,
   actionId: string,
   params?: ActionParams,
@@ -197,10 +242,10 @@ function submitAction(
     return reject({ code: "unknown_kind", messageKey: "core.reason.unknown_kind", path: state.kindId }, false);
   }
 
-  const campaign = host.registry.campaigns.get(state.campaignId);
-  if (!campaign) {
+  const epoch = resolveEpoch(host.archive, state.campaignId, state.campaignVersion);
+  if (!epoch) {
     // Defensive, same reasoning as the kind check above: reachable only via a foreign or
-    // hand-built state (deserialize now rejects this at the boundary too, but a state can
+    // hand-built state (deserialize rejects this at the boundary too, but a state can
     // still be constructed directly in tests or by a future caller).
     return reject(
       { code: "unknown_campaign", messageKey: "core.reason.unknown_campaign", path: state.campaignId },
@@ -208,7 +253,7 @@ function submitAction(
     );
   }
 
-  const ctx = buildKindContext(host.registry, campaign, kind, state.seed, { kind: "action", seq }, seq, emitters);
+  const ctx = buildKindContext(epoch.registry, epoch.campaign, kind, state.seed, { kind: "action", seq }, seq, emitters);
   const result = kind.advance(state.kindState, actionId, ownedParams, ctx);
 
   if (result.error) {
@@ -240,7 +285,7 @@ function submitAction(
  * never mutates its input and the null emitter prevents a preview from looking committed.
  */
 function previewAction(
-  host: EngineHost,
+  host: ResolvedHost,
   state: GameState,
   actionId: string,
   params?: ActionParams,
@@ -279,10 +324,9 @@ function copyProjection(projected: PlayerView): PlayerView {
   return structuredClone(projected);
 }
 
-function view(host: EngineHost, state: GameState, audience: ProjectionAudience): PlayerView {
-  const campaign = host.registry.campaigns.get(state.campaignId)!;
+function view(host: ResolvedHost, state: GameState, audience: ProjectionAudience): PlayerView {
   const kind = host.kinds[state.kindId]!;
-  const ctx = buildReadContext(host, campaign, kind, state);
+  const ctx = buildReadContext(host, epochOf(host, state), kind, state);
   return copyProjection({
     gameId: state.gameId,
     status: state.status,
@@ -290,20 +334,18 @@ function view(host: EngineHost, state: GameState, audience: ProjectionAudience):
   });
 }
 
-function availableActions(host: EngineHost, state: GameState): AvailableAction[] {
-  const campaign = host.registry.campaigns.get(state.campaignId)!;
+function availableActions(host: ResolvedHost, state: GameState): AvailableAction[] {
   const kind = host.kinds[state.kindId]!;
-  const ctx = buildReadContext(host, campaign, kind, state);
+  const ctx = buildReadContext(host, epochOf(host, state), kind, state);
   return kind.availableActions(state.kindState, ctx);
 }
 
-function scene(host: EngineHost, state: GameState): Scene {
-  const campaign = host.registry.campaigns.get(state.campaignId)!;
+function scene(host: ResolvedHost, state: GameState): Scene {
   const kind = host.kinds[state.kindId]!;
   // One read context for the whole call — body, actions, and the bundled view all share
   // it, so there is exactly one ordinal sequence (and one core.rng.stream.derived) per
   // scene() call rather than a second one sneaking in via a nested view() call.
-  const ctx = buildReadContext(host, campaign, kind, state);
+  const ctx = buildReadContext(host, epochOf(host, state), kind, state);
   return {
     gameId: state.gameId,
     status: state.status,
@@ -418,7 +460,7 @@ function serializeState(state: GameState): string {
  * `availableActions`). Checked here, once, at the boundary, rather than defended against
  * on every later call.
  */
-function deserializeState(host: EngineHost, data: string): CommandResult<GameState> {
+function deserializeState(host: ResolvedHost, data: string): CommandResult<GameState> {
   const sink = host.emitter ?? nullEmitter;
   let parsed: unknown;
   try {
@@ -435,7 +477,10 @@ function deserializeState(host: EngineHost, data: string): CommandResult<GameSta
     return { ok: false, errors: [error], warnings: [] };
   }
 
-  if (!host.registry.campaigns.has(parsed.campaignId)) {
+  // The epoch the state names, not whatever this host registered under the id (C22): a
+  // campaign held only at another version refuses here rather than playing the wrong content.
+  const epoch = resolveEpoch(host.archive, parsed.campaignId, parsed.campaignVersion);
+  if (!epoch) {
     emitSystemEvent(sink, CORE_EVENTS.deserializeRejected.name, CORE_EVENTS.deserializeRejected.severity, {
       reason: "unknown_campaign",
     });
@@ -457,7 +502,7 @@ function deserializeState(host: EngineHost, data: string): CommandResult<GameSta
 
   // Both ids resolve, but to each other? A state naming one kind and a campaign of another
   // would hand that campaign's content to the wrong kind's `advance` (04 §4).
-  const campaign = host.registry.campaigns.get(parsed.campaignId)!;
+  const campaign = epoch.campaign;
   const campaignKindId = campaign.kindId;
   if (parsed.kindId !== campaignKindId) {
     emitSystemEvent(sink, CORE_EVENTS.deserializeRejected.name, CORE_EVENTS.deserializeRejected.severity, {
@@ -484,7 +529,7 @@ function deserializeState(host: EngineHost, data: string): CommandResult<GameSta
   return { ok: true, value: parsed, errors: [], warnings: [] };
 }
 
-function migrateState(host: EngineHost, data: string): CommandResult<GameState> {
+function migrateState(host: ResolvedHost, data: string): CommandResult<GameState> {
   // Migration mechanism is specified (04-core.md §10.2) but unexercised by the MVP
   // (MVP.md §4): exactly one formatVersion exists, so there is nothing to migrate from
   // yet. See plans/09-w3-pure-engine-kernel.md, Decision 5.
@@ -512,20 +557,38 @@ export function createEngine(host: EngineHost): Engine {
     }
   }
 
+  // The construction-time registry is the default epoch (20-contract.md §4), so it is read
+  // once, here: a caller mutating its campaign map afterwards must not change which content
+  // a key names (C23), nor which version `createGame` starts on.
+  const registry: ContentRegistry = { ...host.registry, campaigns: new Map(host.registry.campaigns) };
+  // An archive that cannot resolve the default epoch would leave `createGame` with nothing to
+  // start on — a construction error, the treatment a missing kind gets.
+  const archive = host.archive ?? registryArchive(registry);
+  for (const campaign of registry.campaigns.values()) {
+    if (!resolveEpoch(archive, campaign.id, campaign.version)) {
+      throw new Error(
+        `createEngine: the archive does not resolve campaign "${campaign.id}" at its registered ` +
+          `version "${campaign.version}" (20-contract.md §4)`,
+      );
+    }
+  }
+  const resolved: ResolvedHost = { ...host, registry, archive };
+
   return {
-    kinds: host.kinds,
-    createGame: (config) => createGame(host, config),
-    scene: (state) => scene(host, state),
-    view: (state, audience) => view(host, state, audience),
-    availableActions: (state) => availableActions(host, state),
-    submitAction: (state, actionId, params) => submitAction(host, state, actionId, params),
-    previewAction: (state, actionId, params) => previewAction(host, state, actionId, params),
+    kinds: resolved.kinds,
+    content: archive,
+    createGame: (config, campaignVersion) => createGame(resolved, config, campaignVersion),
+    scene: (state) => scene(resolved, state),
+    view: (state, audience) => view(resolved, state, audience),
+    availableActions: (state) => availableActions(resolved, state),
+    submitAction: (state, actionId, params) => submitAction(resolved, state, actionId, params),
+    previewAction: (state, actionId, params) => previewAction(resolved, state, actionId, params),
     serialize: (state) => serializeState(state),
-    deserialize: (data) => deserializeState(host, data),
-    migrate: (data) => migrateState(host, data),
+    deserialize: (data) => deserializeState(resolved, data),
+    migrate: (data) => migrateState(resolved, data),
     // 05-observability.md §6.1: reconstructing over the new emitter is cheap and pure —
-    // createEngine does no I/O, only the in-namespace event-name check (above), which is
-    // idempotent over the same host.kinds.
-    withEmitter: (emitter) => createEngine({ ...host, emitter }),
+    // createEngine does no I/O, only the construction checks above, which are idempotent
+    // over the same host. The resolved host carries the archive, so `content` survives.
+    withEmitter: (emitter) => createEngine({ ...resolved, emitter }),
   };
 }

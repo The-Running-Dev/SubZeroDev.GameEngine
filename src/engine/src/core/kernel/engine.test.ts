@@ -14,6 +14,8 @@ import type { ValidationResult } from "../validation/types.js";
 import type { EngineHost } from "../composition/types.js";
 import { createRecordingEmitter, nullEmitter } from "../observability/emitter.js";
 import type { GameEvent } from "../observability/types.js";
+// S129.6: the archive type is reachable from the package root, not only from the kernel.
+import type { ResolutionArchive as RootResolutionArchive } from "../../index.js";
 
 interface TestKindState {
   counter: number;
@@ -807,5 +809,183 @@ describe("withEmitter", () => {
     const viaRebound = rebound.createGame({ campaignId: "test-campaign", seed: "fixed-seed" });
 
     expect(engine.serialize(viaRebound.value as GameState)).toBe(engine.serialize(viaOriginal.value as GameState));
+  });
+});
+
+describe("S129 — every state plays the epoch it names", () => {
+  // Two epochs of one campaign that differ only in one node's text — once in the campaign's
+  // own content and once in the registry's strings, so both halves of the KindContext show.
+  function epochRegistry(version: string, text: string): ContentRegistry {
+    const campaign = makeCampaign({ version, content: { text } });
+    return { campaigns: new Map([[campaign.id, campaign]]), strings: new Map([["node.start", text]]) };
+  }
+  const first = epochRegistry("1", "The old clerk sighs.");
+  const second = epochRegistry("2", "The new clerk yawns.");
+
+  const archive: RootResolutionArchive = {
+    resolve: (campaignId, campaignVersion) =>
+      campaignId !== "test-campaign" ? undefined : campaignVersion === "1" ? first : campaignVersion === "2" ? second : undefined,
+  };
+
+  const validated: string[] = [];
+  const epochKind = makeTestKind({
+    scene: (_state, ctx): SceneBody => ({
+      textKey: "node.start",
+      text: `${(ctx.campaign.content as { text: string }).text} / ${ctx.registry.strings.get("node.start") ?? ""}`,
+    }),
+    project: (state, _audience, ctx) => ({ counter: state.counter, text: ctx.registry.strings.get("node.start") }),
+    availableActions: (_state, ctx): AvailableAction[] => [
+      { id: `increment-v${ctx.campaign.version}`, labelKey: "node.start", available: true },
+    ],
+    advance: (state, _actionId, _params, ctx): AdvanceResult<TestKindState> => ({
+      state: { counter: state.counter + (ctx.campaign.version === "2" ? 100 : 1) },
+      status: "active",
+      changes: [],
+      messages: [],
+    }),
+    validateState: (_kindState, campaign) => {
+      validated.push(campaign.version);
+      return true;
+    },
+  });
+
+  function epochHost(overrides?: Partial<EngineHost>): EngineHost {
+    return { kinds: makeKinds(epochKind), registry: first, archive, ...overrides };
+  }
+
+  describe("S129.1 — the archive in use", () => {
+    it("without an archive, Engine.content holds only the registry, at its registered version", () => {
+      const engine = createEngine(makeHost());
+      expect(engine.content.resolve("test-campaign", "1")?.campaigns.get("test-campaign")?.version).toBe("1");
+      expect(engine.content.resolve("test-campaign", "2")).toBeUndefined();
+      expect(engine.content.resolve("some-other-campaign", "1")).toBeUndefined();
+    });
+
+    it("with an archive, Engine.content is that archive, and withEmitter keeps it", () => {
+      const engine = createEngine(epochHost());
+      expect(engine.content).toBe(archive);
+      expect(engine.withEmitter(nullEmitter).content).toBe(archive);
+    });
+
+    it("createEngine throws when the archive does not resolve a registry campaign at its registered version", () => {
+      const onlySecond: RootResolutionArchive = {
+        resolve: (id, version) => (id === "test-campaign" && version === "2" ? second : undefined),
+      };
+      expect(() => createEngine(epochHost({ archive: onlySecond }))).toThrow(
+        /does not resolve campaign "test-campaign" at its registered version "1"/,
+      );
+    });
+
+    it("createEngine throws when the archive answers the key with a registry holding another version", () => {
+      const wrongContent: RootResolutionArchive = { resolve: () => second };
+      expect(() => createEngine(epochHost({ archive: wrongContent }))).toThrow(/does not resolve campaign/);
+    });
+
+    it("the default epoch is read at construction: mutating the registry afterwards changes nothing", () => {
+      const campaigns = new Map([["test-campaign", makeCampaign({ version: "1" })]]);
+      const engine = createEngine(makeHost({ registry: { campaigns, strings: new Map() } }));
+      campaigns.set("test-campaign", makeCampaign({ version: "2" }));
+      expect(engine.createGame({ campaignId: "test-campaign" }).value?.campaignVersion).toBe("1");
+      expect(engine.content.resolve("test-campaign", "2")).toBeUndefined();
+    });
+  });
+
+  describe("S129.2 — every state-taking operation reads its own epoch", () => {
+    const engine = createEngine(epochHost());
+    const onFirst = engine.createGame({ campaignId: "test-campaign", seed: "fixed-seed" }).value as GameState;
+    const onSecond = engine.createGame({ campaignId: "test-campaign", seed: "fixed-seed" }, "2").value as GameState;
+
+    it("scene renders each epoch's own text", () => {
+      expect(engine.scene(onFirst).body.text).toBe("The old clerk sighs. / The old clerk sighs.");
+      expect(engine.scene(onSecond).body.text).toBe("The new clerk yawns. / The new clerk yawns.");
+      expect(engine.scene(onSecond).view.kindView).toEqual({ counter: 0, text: "The new clerk yawns." });
+    });
+
+    it("view and availableActions read the state's epoch", () => {
+      expect(engine.view(onFirst, "player").kindView).toEqual({ counter: 0, text: "The old clerk sighs." });
+      expect(engine.view(onSecond, "player").kindView).toEqual({ counter: 0, text: "The new clerk yawns." });
+      expect(engine.availableActions(onFirst).map((a) => a.id)).toEqual(["increment-v1"]);
+      expect(engine.availableActions(onSecond).map((a) => a.id)).toEqual(["increment-v2"]);
+    });
+
+    it("submitAction and previewAction advance against the state's epoch", () => {
+      expect((engine.submitAction(onFirst, "increment").value?.kindState as TestKindState).counter).toBe(1);
+      expect((engine.submitAction(onSecond, "increment").value?.kindState as TestKindState).counter).toBe(100);
+      expect((engine.previewAction(onSecond, "increment").value?.kindState as TestKindState).counter).toBe(100);
+    });
+
+    it("deserialize and migrate judge the kind state against the state's epoch and keep it", () => {
+      const blob = engine.serialize(onSecond);
+      validated.length = 0;
+      const loaded = engine.deserialize(blob);
+      const migrated = engine.migrate(blob);
+      expect(validated).toEqual(["2", "2"]);
+      expect(loaded.ok).toBe(true);
+      expect(migrated.ok).toBe(true);
+      expect(engine.scene(loaded.value as GameState).body.text).toBe("The new clerk yawns. / The new clerk yawns.");
+      expect(engine.serialize(migrated.value as GameState)).toBe(blob);
+    });
+  });
+
+  describe("S129.3 — createGame starts on the default or a named epoch", () => {
+    const engine = createEngine(epochHost());
+
+    it("starts on the registry's version when no version is given", () => {
+      expect(engine.createGame({ campaignId: "test-campaign" }).value?.campaignVersion).toBe("1");
+    });
+
+    it("starts on the named epoch and stamps it", () => {
+      const created = engine.createGame({ campaignId: "test-campaign" }, "2");
+      expect(created.ok).toBe(true);
+      expect(created.value?.campaignVersion).toBe("2");
+    });
+
+    it("fails with unknown_campaign for a version that does not resolve", () => {
+      const created = engine.createGame({ campaignId: "test-campaign" }, "3");
+      expect(created.ok).toBe(false);
+      expect(created.errors).toEqual([
+        { code: "unknown_campaign", messageKey: "core.reason.unknown_campaign", path: "test-campaign" },
+      ]);
+    });
+
+    it("fails with unknown_campaign for a campaign id with no default epoch, version or not", () => {
+      expect(engine.createGame({ campaignId: "some-other-campaign" }).errors[0]?.code).toBe("unknown_campaign");
+      expect(engine.createGame({ campaignId: "some-other-campaign" }, "1").errors[0]?.code).toBe("unknown_campaign");
+    });
+  });
+
+  describe("S129.4 — deserialize and migrate refuse an epoch that does not resolve", () => {
+    function atVersion(engine: ReturnType<typeof createEngine>, campaignVersion: string): string {
+      const created = engine.createGame({ campaignId: "test-campaign" });
+      const raw = JSON.parse(engine.serialize(created.value as GameState)) as Record<string, unknown>;
+      raw["campaignVersion"] = campaignVersion;
+      return JSON.stringify(raw);
+    }
+
+    for (const operation of ["deserialize", "migrate"] as const) {
+      it(`${operation} refuses a campaign id the registry holds at another version (closes S125.5)`, () => {
+        const recorder = createRecordingEmitter();
+        const engine = createEngine(makeHost({ emitter: recorder }));
+        const blob = atVersion(engine, "2");
+        const before = recorder.events.length;
+
+        const result = engine[operation](blob);
+
+        expect(result.ok).toBe(false);
+        expect(result.value).toBeUndefined();
+        expect(result.errors).toEqual([
+          { code: "unknown_campaign", messageKey: "core.reason.unknown_campaign", path: "test-campaign" },
+        ]);
+        const emitted = recorder.events.slice(before);
+        expect(emitted).toHaveLength(1);
+        expect(emitted[0]).toMatchObject({ scope: "system", name: "core.deserialize.rejected", reason: "unknown_campaign" });
+      });
+
+      it(`${operation} refuses a version the archive does not hold`, () => {
+        const engine = createEngine(epochHost());
+        expect(engine[operation](atVersion(engine, "3")).errors[0]?.code).toBe("unknown_campaign");
+        expect(engine[operation](atVersion(engine, "2")).ok).toBe(true);
+      });
+    }
   });
 });
