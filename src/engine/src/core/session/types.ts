@@ -187,7 +187,9 @@ export interface SessionStore {
   listCampaigns(profileId?: string): Promise<CampaignCatalog>;
   getScene(sessionId: string): Promise<Scene>;
   getView(sessionId: string): Promise<PlayerView>;
-  /** Resolves `LocKey`s. Without this a compliant client cannot render a single label. */
+  /** Resolves `LocKey`s. Without this a compliant client cannot render a single label. The
+   *  union of the session's live epochs' tables, each key from the most recent epoch that
+   *  defines it, so a key any earlier result carried still resolves (C27). */
   getStrings(sessionId: string): Promise<StringTable>;
   /** Player-keyed, totally ordered (04 §7.4). Every profile's own saves, `savedAt`
    *  descending then `saveId` ascending, and no other profile's. */

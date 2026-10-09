@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { createEngine } from "../kernel/engine.js";
 import { createCountingIds } from "../determinism/counting-ids.js";
-import { createInMemorySessionStore, runExclusive } from "./store.js";
+import { createInMemorySessionStore, createSessionLayer, runExclusive } from "./store.js";
+import { createContentArchive, type ContentChannel, type ContentScope } from "../registry/archive.js";
 import type {
   AdvanceResult,
   AvailableAction,
@@ -2086,5 +2087,388 @@ describe("S121 — the store returns only visible changes and messages", () => {
     expect(result.changes.some((change) => change.reason === "achievement_unlocked")).toBe(false);
     const { profile } = await profiles.load("p1");
     expect(profile.achievements).toEqual([{ campaignId: "test-campaign", achievementId: "hidden-path" }]);
+  });
+});
+
+
+// ── S133 — running sessions pick up new content (16 §5.2, §5.3, §5.7) ──
+
+interface EpochContent {
+  sceneKey: string;
+  messageKey: string;
+  /** The test kind refuses to adopt onto content that sets this. */
+  refuse?: boolean;
+}
+
+/** One campaign across epochs. The scene and each action's message are drawn from the epoch the
+ *  state is on, so a result shows which epoch built each half of it. */
+function makeEpochKind(): Kind<TestKindState> {
+  const content = (campaign: Campaign) => campaign.content as EpochContent;
+  return {
+    ...makeTestKind(),
+    scene: (state, ctx): SceneBody => ({ textKey: content(ctx.campaign).sceneKey, text: `counter=${state.counter}` }),
+    advance: (state, actionId, _params, ctx): AdvanceResult<TestKindState> => {
+      if (actionId === "increment") {
+        return {
+          state: { counter: state.counter + 1 },
+          status: "active",
+          changes: [],
+          messages: [{ key: content(ctx.campaign).messageKey, visible: true }],
+        };
+      }
+      if (actionId === "end") return { state, status: "ended", changes: [], messages: [] };
+      return {
+        state,
+        status: "active",
+        changes: [],
+        messages: [],
+        error: { code: "unknown_action", messageKey: "core.reason.unknown_action" },
+      };
+    },
+    adoptContent: (state, _from, to) =>
+      content(to).refuse ? { adopt: false, reason: "content_incompatible" } : { adopt: true, state },
+    profileData: { version: 1, fold: (_current, campaign) => ({ foldedOn: campaign.version }) },
+  };
+}
+
+function epochRegistry(version: string, strings: Record<string, string>, extra?: Partial<EpochContent>): ContentRegistry {
+  const content: EpochContent = { sceneKey: `scene.v${version}`, messageKey: `message.v${version}`, ...extra };
+  return {
+    campaigns: new Map([["test-campaign", makeCampaign({ version, content })]]),
+    strings: new Map(Object.entries({ "test.title": "Test Campaign", ...strings })),
+  };
+}
+
+const EPOCH_V1 = epochRegistry("1", {
+  "scene.v1": "The old hall.",
+  "message.v1": "The old clerk nods.",
+  shared: "Old wording.",
+  dropped: "Only the first epoch has this.",
+});
+const EPOCH_V2 = epochRegistry("2", {
+  "scene.v2": "The new hall.",
+  "message.v2": "The new clerk nods.",
+  shared: "New wording.",
+});
+const EPOCH_V3_REFUSED = epochRegistry("3", { "scene.v3": "Nowhere to stand." }, { refuse: true });
+
+/** A channel that records every scope it is asked about and answers `offer` — or throws, when
+ *  `offer` is the string "throw". */
+function recordingChannel(initial?: string): ContentChannel & { calls: ContentScope[]; offer: string | undefined } {
+  const channel = {
+    calls: [] as ContentScope[],
+    offer: initial,
+    current(scope: ContentScope): string | undefined {
+      channel.calls.push(scope);
+      if (channel.offer === "throw") throw new Error("channel defect");
+      return channel.offer;
+    },
+  };
+  return channel;
+}
+
+function makeEpochStore(options: {
+  channel?: ContentChannel;
+  persistence?: SessionPersistence;
+  profiles?: ProfileStore;
+  recordSink?: EmittedRecordSink;
+}): { store: SessionStore; engine: Engine } {
+  const kinds = { "story-graph": makeEpochKind() } as unknown as KindRegistry;
+  const archive = createContentArchive({ kinds, initial: EPOCH_V1 });
+  for (const registry of [EPOCH_V2, EPOCH_V3_REFUSED]) {
+    if (!archive.publish(registry).ok) throw new Error("expected the test epoch to publish");
+  }
+  const engine = createEngine({ kinds, registry: EPOCH_V1, archive, ids: createCountingIds() });
+  const store = createSessionLayer({
+    engine,
+    registry: EPOCH_V1,
+    recordIds: makeCountingRecordIds(),
+    ...(options.channel ? { content: options.channel } : {}),
+    ...(options.persistence ? { persistence: options.persistence } : {}),
+    ...(options.profiles ? { profiles: options.profiles } : {}),
+    ...(options.recordSink ? { recordSink: options.recordSink } : {}),
+  });
+  return { store, engine };
+}
+
+interface StoredState {
+  campaignVersion: string;
+  formatVersion: number;
+  actionLog: { seq: number; actionId?: string; system?: string; from?: string; to?: string }[];
+}
+
+const storedState = (row: StoredSessionRecord | undefined): StoredState => JSON.parse(row!.blob) as StoredState;
+
+describe("S133.1 — createSession starts on the channel's version", () => {
+  it("asks the channel once, for this session's scope, and starts on its answer with no content entry", async () => {
+    const channel = recordingChannel("2");
+    const cas = makeCasPersistence();
+    const { store } = makeEpochStore({ channel, persistence: cas.persistence });
+    const { sessionId, scene } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+
+    expect(channel.calls).toEqual([{ campaignId: "test-campaign", sessionId, profileId: "p1" }]);
+    expect(scene.body.textKey).toBe("scene.v2");
+    const state = storedState(cas.rows.get(sessionId));
+    expect(state.campaignVersion).toBe("2");
+    expect(state.formatVersion).toBe(1);
+    expect(state.actionLog).toEqual([]);
+  });
+
+  it("starts on the registry's version with no channel, no answer, or a channel that throws", async () => {
+    for (const channel of [undefined, recordingChannel(undefined), recordingChannel("throw")]) {
+      const { store } = makeEpochStore(channel ? { channel } : {});
+      const { scene } = await store.createSession({ campaignId: "test-campaign" });
+      expect(scene.body.textKey).toBe("scene.v1");
+    }
+  });
+
+  it("omits profileId from the scope of an anonymous session", async () => {
+    const channel = recordingChannel(undefined);
+    const { store } = makeEpochStore({ channel });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+    expect(channel.calls).toEqual([{ campaignId: "test-campaign", sessionId }]);
+  });
+});
+
+describe("S133.2 — an accepted action adopts after it commits, in its own write", () => {
+  it("persists the action and the adoption in one write; messages are the old epoch's, the scene the new one's", async () => {
+    const channel = recordingChannel(undefined);
+    const cas = makeCasPersistence();
+    let puts = 0;
+    const counted: SessionPersistence = {
+      ...cas.persistence,
+      sessions: { ...cas.persistence.sessions, put: async (record) => { puts += 1; await cas.persistence.sessions.put(record); } },
+    };
+    const { store } = makeEpochStore({ channel, persistence: counted });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+    puts = 0;
+    channel.calls.length = 0;
+
+    channel.offer = "2";
+    const result = await store.submitAction(sessionId, "increment");
+
+    expect(result.ok).toBe(true);
+    expect(result.messages).toEqual([{ key: "message.v1", visible: true }]);
+    expect(result.scene?.body.textKey).toBe("scene.v2");
+    expect(channel.calls).toEqual([{ campaignId: "test-campaign", sessionId }]);
+    expect(puts).toBe(1);
+    const row = cas.rows.get(sessionId)!;
+    expect(row.revision).toBe(1);
+    expect(storedState(row)).toMatchObject({
+      campaignVersion: "2",
+      formatVersion: 2,
+      actionLog: [
+        { seq: 0, actionId: "increment" },
+        { seq: 1, system: "content", from: "1", to: "2" },
+      ],
+    });
+  });
+
+  it("folds the profile against the epoch the action resolved on", async () => {
+    const profiles = createInMemoryProfileStore();
+    const channel = recordingChannel("2");
+    const { store } = makeEpochStore({ channel, profiles });
+    // Created on 2 by the channel, so the registry's campaign is not the one this action played.
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    await store.submitAction(sessionId, "increment");
+
+    const { profile } = await profiles.load("p1");
+    expect(profile.kindData.find((r) => r.kindId === "story-graph")?.data).toEqual({ foldedOn: "2" });
+  });
+});
+
+describe("S133.3 — resumeSession adopts in its own write", () => {
+  async function sessionOnV1(cas: ReturnType<typeof makeCasPersistence>, channel: ReturnType<typeof recordingChannel>) {
+    const { store } = makeEpochStore({ channel, persistence: cas.persistence });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+    return { store, sessionId };
+  }
+
+  it("writes the adoption at revision + 1 and returns the adopted scene", async () => {
+    const cas = makeCasPersistence();
+    const channel = recordingChannel(undefined);
+    const { store, sessionId } = await sessionOnV1(cas, channel);
+
+    channel.offer = "2";
+    const scene = await store.resumeSession(sessionId);
+
+    expect(scene.body.textKey).toBe("scene.v2");
+    const row = cas.rows.get(sessionId)!;
+    expect(row.revision).toBe(1);
+    expect(row.attemptCounter).toBe(0);
+    expect(storedState(row)).toMatchObject({ campaignVersion: "2", actionLog: [{ seq: 0, system: "content", from: "1", to: "2" }] });
+    expect((await store.getScene(sessionId)).body.textKey).toBe("scene.v2");
+  });
+
+  it("writes nothing when the offer is the version the session is on", async () => {
+    const cas = makeCasPersistence();
+    const channel = recordingChannel("1");
+    const { store, sessionId } = await sessionOnV1(cas, channel);
+    await store.resumeSession(sessionId);
+    expect(cas.rows.get(sessionId)!.revision).toBe(0);
+  });
+
+  for (const [code, error] of [
+    ["storage_failure", new Error("disk full")],
+    ["concurrent_modification", { name: SESSION_PERSISTENCE_CONFLICT }],
+  ] as const) {
+    it(`restores the unadopted state when the write fails with ${code}, and the next adoption point offers again`, async () => {
+      const cas = makeCasPersistence();
+      const channel = recordingChannel(undefined);
+      const { store, sessionId } = await sessionOnV1(cas, channel);
+
+      channel.offer = "2";
+      cas.failNextPut(error);
+      const scene = await store.resumeSession(sessionId);
+
+      expect(scene.body.textKey).toBe("scene.v1");
+      expect(cas.rows.get(sessionId)!.revision).toBe(0);
+      expect(storedState(cas.rows.get(sessionId)).campaignVersion).toBe("1");
+      // A conflict evicts the cached record, as submitAction's does; a storage failure keeps it.
+      const reads = cas.reads;
+      expect((await store.getScene(sessionId)).body.textKey).toBe("scene.v1");
+      expect(cas.reads).toBe(code === "concurrent_modification" ? reads + 1 : reads);
+
+      const callsBefore = channel.calls.length;
+      const retried = await store.resumeSession(sessionId);
+      expect(channel.calls.length).toBe(callsBefore + 1);
+      expect(retried.body.textKey).toBe("scene.v2");
+      expect(cas.rows.get(sessionId)!.revision).toBe(1);
+    });
+  }
+});
+
+describe("S133.4 — a refusal or a failing channel never fails the command", () => {
+  it("a refusal at submitAction leaves the session pinned, the action committed, and emits core.content.pinned", async () => {
+    const records: EmittedRecord[] = [];
+    const channel = recordingChannel(undefined);
+    const cas = makeCasPersistence();
+    const { store } = makeEpochStore({ channel, persistence: cas.persistence, recordSink: { write: (r) => records.push(r) } });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+
+    channel.offer = "3";
+    const result = await store.submitAction(sessionId, "increment");
+
+    expect(result.ok).toBe(true);
+    expect(result.errors).toEqual([]);
+    expect(result.scene?.body.textKey).toBe("scene.v1");
+    expect(storedState(cas.rows.get(sessionId))).toMatchObject({ campaignVersion: "1", actionLog: [{ seq: 0, actionId: "increment" }] });
+    const pinned = records.filter((r) => r.event.name === "core.content.pinned");
+    expect(pinned.map((r) => r.event.reason)).toEqual(["content_incompatible"]);
+  });
+
+  it("a refusal at resumeSession returns the pinned scene and writes nothing", async () => {
+    const channel = recordingChannel(undefined);
+    const cas = makeCasPersistence();
+    const { store } = makeEpochStore({ channel, persistence: cas.persistence });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+
+    channel.offer = "3";
+    expect((await store.resumeSession(sessionId)).body.textKey).toBe("scene.v1");
+    expect(cas.rows.get(sessionId)!.revision).toBe(0);
+  });
+
+  it("an offer the archive does not hold pins with unknown_campaign rather than failing", async () => {
+    const channel = recordingChannel(undefined);
+    const { store } = makeEpochStore({ channel });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+    channel.offer = "9";
+    expect((await store.submitAction(sessionId, "increment")).ok).toBe(true);
+    expect((await store.resumeSession(sessionId)).body.textKey).toBe("scene.v1");
+  });
+
+  it("a throwing channel is read as no offer at submitAction and resumeSession", async () => {
+    const channel = recordingChannel(undefined);
+    const { store } = makeEpochStore({ channel });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+
+    channel.offer = "throw";
+    const result = await store.submitAction(sessionId, "increment");
+    expect(result.ok).toBe(true);
+    expect(result.scene?.body.textKey).toBe("scene.v1");
+    expect((await store.resumeSession(sessionId)).body.textKey).toBe("scene.v1");
+    expect(channel.calls.length).toBe(3);
+  });
+});
+
+describe("S133.5 — queries, previews and rejected actions never consult the channel", () => {
+  it("records zero calls across every query, a preview, a rejected action and a save", async () => {
+    const channel = recordingChannel("2");
+    const cas = makeCasPersistence();
+    const { store } = makeEpochStore({ channel, persistence: cas.persistence });
+    channel.offer = undefined;
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    channel.offer = "2";
+    channel.calls.length = 0;
+
+    await store.getScene(sessionId);
+    await store.getView(sessionId);
+    await store.getStrings(sessionId);
+    await store.listCampaigns("p1");
+    await store.listSaves("p1");
+    expect((await store.previewAction(sessionId, "increment")).ok).toBe(true);
+    expect((await store.submitAction(sessionId, "no-such-action")).ok).toBe(false);
+
+    expect(channel.calls).toEqual([]);
+    expect(storedState(cas.rows.get(sessionId)).campaignVersion).toBe("1");
+    expect(cas.rows.get(sessionId)!.revision).toBe(0);
+  });
+});
+
+describe("S133.6 — getStrings spans every live epoch", () => {
+  const tableOf = (registry: ContentRegistry) => Object.fromEntries(registry.strings);
+
+  it("a session that never adopted gets exactly its one epoch's table", async () => {
+    const { store } = makeEpochStore({});
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+    expect(await store.getStrings(sessionId)).toEqual(tableOf(EPOCH_V1));
+
+    const { store: startedOnTwo } = makeEpochStore({ channel: recordingChannel("2") });
+    const created = await startedOnTwo.createSession({ campaignId: "test-campaign" });
+    expect(await startedOnTwo.getStrings(created.sessionId)).toEqual(tableOf(EPOCH_V2));
+  });
+
+  it("after an adoption, a dropped key still resolves and a key both define resolves to the newer text", async () => {
+    const channel = recordingChannel(undefined);
+    const { store } = makeEpochStore({ channel });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+    channel.offer = "2";
+    const result = await store.submitAction(sessionId, "increment");
+
+    const strings = await store.getStrings(sessionId);
+    expect(strings).toEqual({ ...tableOf(EPOCH_V1), ...tableOf(EPOCH_V2) });
+    expect(strings.dropped).toBe("Only the first epoch has this.");
+    expect(strings.shared).toBe("New wording.");
+    // Both halves of the adopting result resolve in one table (C27).
+    expect(strings[result.messages[0]!.key]).toBe("The old clerk nods.");
+    expect(strings[result.scene!.body.textKey]).toBe("The new hall.");
+  });
+
+  it("starts from the last migration entry's to, not the log's first epoch", async () => {
+    const { engine } = makeEpochStore({});
+    const created = engine.createGame({ campaignId: "test-campaign", seed: "s" }, "2");
+    const migrated = {
+      ...created.value!,
+      formatVersion: 2,
+      actionLog: [{ seq: 0, system: "migration" as const, from: "1", to: "2" }],
+    };
+    const blob = engine.serialize(migrated);
+    expect(engine.deserialize(blob).ok).toBe(true);
+    const row: StoredSessionRecord = {
+      sessionId: "migrated",
+      blob,
+      audience: "player",
+      attemptCounter: 0,
+      revision: 0,
+      replayCompatible: false,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const store = createSessionLayer({
+      engine,
+      registry: EPOCH_V1,
+      persistence: persistenceWith({ sessions: { get: async (id) => (id === "migrated" ? row : undefined) } }),
+    });
+    expect(await store.getStrings("migrated")).toEqual(tableOf(EPOCH_V2));
   });
 });
