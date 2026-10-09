@@ -436,7 +436,7 @@ Out of scope: Adoption at `loadGame` and `branchSession` (S134); catalog refresh
 
 ## S134 — Saves and Branches Carry Their Epochs
 
-Status: todo
+Status: done
 Delivers: A save made on an older version of a campaign loads exactly as it was made when that
           version is still held, then moves forward like any session, and stays replayable.
           Branching a session that moved onto new content replays it through the same moves,
