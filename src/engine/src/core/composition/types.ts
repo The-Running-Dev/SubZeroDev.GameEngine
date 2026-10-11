@@ -12,6 +12,7 @@
  */
 
 import type { ContentRegistry } from "../registry/types.js";
+import type { ContentChannel } from "../registry/archive.js";
 import type { Engine, KindRegistry, ResolutionArchive } from "../kernel/types.js";
 import type { Emitter } from "../observability/types.js";
 import type { ProfileStore, SessionPersistence } from "../session/types.js";
@@ -99,4 +100,8 @@ export interface SessionHost {
   /** §5.2. With `persistence`, the most sessions held in memory, evicted least recently
    *  used first. Omitted → unbounded. A positive integer, and refused without `persistence`. */
   readonly sessionCacheLimit?: number;
+  /** 16 §4.2, §5.3. The version each session should be on, asked under the session lock at
+   *  `createSession` and at every adoption point. Omitted → no session is ever offered
+   *  content, and every operation behaves as it did before content epochs. */
+  readonly content?: ContentChannel;
 }

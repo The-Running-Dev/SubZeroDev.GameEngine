@@ -334,6 +334,15 @@ describe("resolveSaveEnvelope — the kind judges the kindState it would run (S1
     expect(resolution).toEqual({ ok: false, code: "migration_failed" });
   });
 
+  it("a wrapper campaignVersion that disagrees with the embedded state's is invalid_state", () => {
+    // The wrapper names the epoch the save is resolved and migrated from (16 §7); one that is
+    // not the state's own would migrate content the state never ran.
+    const parsed = JSON.parse(v1Blob()) as Record<string, unknown>;
+    parsed["campaignVersion"] = "2.0.0";
+    const resolution = resolveSaveEnvelope(JSON.stringify(parsed), makeKinds(makeKind("1.0.0")), makeRegistry(makeCampaign("1.0.0", campaignMigrateV1toV2)));
+    expect(resolution).toEqual({ ok: false, code: "invalid_state" });
+  });
+
   it("a validateState that throws is a refusal, not an uncaught exception", () => {
     const throwing: Kind<unknown> = { ...makeKind("1.0.0"), validateState: () => { throw new Error("malformed"); } };
     const resolution = resolveSaveEnvelope(v1Blob(), makeKinds(throwing), makeRegistry(makeCampaign("1.0.0")));

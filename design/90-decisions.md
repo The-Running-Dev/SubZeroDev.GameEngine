@@ -2631,6 +2631,66 @@ Context: a publication stores one frozen registry. A later publication can carry
 Chosen: the first. A held key is never rewritten, so what `resolve` returns for a key never changes. That key's campaign and the whole string table are identical by digest in every later copy anyway, so only the *other* campaigns in the returned registry can differ, and the engine reads only the state's own campaign from it.
 Rejected: **Repointing the key to the newest copy.** The registry an epoch resolves to would then change under a running session for no content reason, which is the drift C23 exists to rule out.
 
+### 2026-10-09 — S132: story-graph adoption checks a carried variable's `VarType`, not its value against the target's declaration
+Context: 03 §8.1 and 16 §5.5 require every variable the state carries that the target declares to have the target's `VarType`. A target can keep the type and still narrow the declaration: an `enum` that drops a member the state holds, or an `int` whose new `min`/`max` excludes the held value.
+Chosen: the rule as written. Adoption compares the type only and carries the value through unchanged. An out-of-range `int` clamps on its next write. An `enum` holding a dropped member reads normally in conditions, but a later `copy` from it into another `enum` throws at that transition.
+Rejected: **Also refusing a value the target's declaration excludes.** That is a stricter rule than the contract states, and it belongs in a contract amendment rather than an implementation unit. The gap is real enough to revisit: a narrowed `enum` is the one additive-looking change that can still fail a later move.
+
+### 2026-10-09 — S132: a variable neither campaign declares passes through adoption
+Context: the last condition of 16 §5.5 refuses a variable "the source declared and the state carries" that the target lacks. A state can also carry a variable that neither the source nor the target declares, which `validateState` tolerates at load as unread.
+Chosen: such a variable passes through unchanged, like everything else adoption does not insert. Adoption is not the place to clean up what load already accepted.
+Rejected: **Refusing it.** The session would be pinned over a variable nothing reads, and the rule names only source-declared variables.
+
+### 2026-10-09 — S132: the real Bureaucracy campaign's `migrateState` pins every adoption onto an extension that keeps it
+Context: S132.4 adopts the Bureaucracy campaign onto a copy of itself extended by one node and one variable. The engine runs the target's `migrateState` before the kind judges (16 §5.4). Bureaucracy's `migrateState` (`migrateV1AdventureState`) migrates from `1.0.0` only and fails for any other `fromVersion`.
+Chosen: the S132.4 extension carries no `migrateState`, and a further test pins the real behaviour: the same extension, keeping the real `migrateState`, pins with `migration_failed`. Nothing in the campaign changed. Whether a content `migrateState` should pass through a version it does not migrate is authoring guidance, which this slice leaves out of scope.
+Rejected: **Changing `migrateV1AdventureState` to pass other versions through.** That is a campaign change outside this slice. It would also change load-time behaviour, where a save from an unknown version is refused today.
+
+### 2026-10-09 — S133: `createSession` resolves the kind and profile data from the offered epoch, and an unheld offer fails creation
+Context: §7 says `createSession` asks the channel once and passes the answer to `createGame(config, version)`. Before content epochs, the store looked up the campaign in the registry to find the kind and its profile data. An offer can name a version the registry does not hold, or one the archive does not hold either.
+Chosen: the store resolves the campaign through `engine.content.resolve(campaignId, version)` when the channel offers a version, and through the registry when it does not. An offer naming a version the archive does not hold fails creation with `unknown_campaign`, as `createGame` does. A channel answer that is not a string is read as no offer, like a throw.
+Rejected: **Falling back to the registry's version on an unheld offer.** Creation is not adoption, so §7's "never fails a command" rule does not cover it, and a silent fallback would start the player on content the host did not choose.
+
+### 2026-10-09 — S133: the profile fold receives the campaign of the epoch the action resolved on
+Context: `submitAction` folds an accepted action's changes into the profile with `Kind.profileData.fold(current, campaign, changes)`. It passed the registry's campaign. Once a session can be on any held version, that campaign can be a different version from the one the action played.
+Chosen: the fold receives the campaign of the state's own epoch before adoption, through `engine.content.resolve`, falling back to the registry's campaign only when the archive does not resolve it. The action's messages come from that epoch too.
+Rejected: **The adopted epoch's campaign.** The changes being folded were produced against the old one.
+
+### 2026-10-09 — S133: a failed adoption write at `resumeSession` restores the record, and a conflict also evicts it
+Context: §7 says a failed adoption-only write at `resumeSession` restores the unadopted state, returns its scene, and the next adoption point offers again. A `concurrent_modification` means another writer committed past the cached record, which `submitAction` handles by evicting it (S122).
+Chosen: both failures restore the cached record's blob, `updatedAt` and revision and return the unadopted scene. A conflict also evicts the record, so the next read goes back to persistence. Any other error still propagates. The `core.content.adopted` event has already been emitted when the write fails, because the engine emits it during `adoptContent`, so an event stream can show an adoption that never persisted.
+Rejected: **Suppressing the event on a failed write.** The emitter belongs to the engine call, which completed. Withdrawing an emitted event would need a new event or a buffered emitter, which is a contract change for a case the next adoption point already repairs.
+
+### 2026-10-09 — S133: `getStrings` skips an epoch the archive no longer resolves
+Context: C27's union resolves every live epoch through `engine.content.resolve`. The reference archive is append-only, but a host-supplied archive may stop holding an epoch.
+Chosen: an epoch that does not resolve contributes nothing, and the union of the rest is returned.
+Rejected: **Throwing.** `getStrings` is a query, and a missing table for an older epoch should not stop a client from reading the current one. A session on an unresolvable current epoch already fails its other operations.
+
+### 2026-10-09 — S134: a save loads on its own epoch only when its `kindVersion` is the registered kind's
+Context: §7's load-path refinement loads a save on its own epoch, unmigrated, when that epoch is still held. A save can also carry an older `kindVersion`, and `Kind.migrateState` runs against the campaign the load resolves.
+Chosen: `resolveSaveEnvelope` takes the save's own epoch from `engine.content.resolve` only when the save's `kindVersion` equals the registered kind's. Any other save, including one whose epoch is held but whose kind shape moved, takes §10.2's path onto the registry's version. `resolveSaveEnvelope` takes the resolver as an optional fourth argument, so a caller without an archive keeps the registry-only behaviour.
+Rejected: **Resolving the held epoch and then migrating only the kind state.** It is a third load path, a kind migration against an older campaign than the one it was written for. The registry path already covers the case at the cost of `replayCompatible`.
+
+### 2026-10-09 — S134: the envelope's `campaignVersion` must equal the embedded state's
+Context: the checksum covers `state` and `replayCompatible`, not the wrapper fields, which is why `kindId` and `campaignId` are cross-checked against the state. Once a save is resolved and migrated from the wrapper's `campaignVersion`, an edited wrapper version would migrate content the state never ran, or skip a migration it needs.
+Chosen: a wrapper `campaignVersion` that differs from `state.campaignVersion` is `invalid_state`, alongside the existing id checks. `saveGame` stamps the version of the epoch the state is on, through `engine.content.resolve`, so the two always agree for saves this engine writes.
+Rejected: **Reading the version from the state alone.** It would leave the wrapper field unchecked while every other wrapper field is checked.
+
+### 2026-10-09 — S134: a migration entry's `from` is the state's `campaignVersion`
+Context: §3.5 appends `{ seq, system: "migration", from, to }` when a migration changes `campaignVersion` on a log that carries an epoch entry.
+Chosen: `from` is the embedded state's `campaignVersion`, which the cross-check above makes equal to the wrapper's, and `to` is the registry campaign's version. The entry is appended after the kind judges the migrated state, so a refused migration appends nothing.
+Rejected: none considered.
+
+### 2026-10-09 — S134: `branchSession` checks every version the replay stands on before it creates anything
+Context: §7's failure table gives `branchSession` `unknown_campaign` when its starting version or a retained adoption's version no longer resolves, and requires nothing written. Replaying until the missing epoch is reached would find it late, and `adoptContent` reports an unheld target as a refusal, which is `invalid_state`.
+Chosen: before the branch's session id is minted, the store resolves the starting version and every retained content entry's `to` through `engine.content.resolve`, requiring the resolved campaign's version to equal the name, as the kernel does. Any miss is `unknown_campaign`. A recorded adoption that then refuses is `invalid_state`. A log carrying a migration entry is `invalid_state` before either check, read from the log rather than only from the record's `replayCompatible`.
+Rejected: **Letting the replay fail where it fails.** It would report a withdrawn epoch as `invalid_state`, and the code is the only thing a client can act on.
+
+### 2026-10-09 — S134: two store tests written before S134 are superseded, not kept
+Context: S130 added a test that `branchSession` refuses a crossed log with `invalid_state`, and W99 a test that a store whose registry was mutated after creation refuses with `unknown_campaign`.
+Chosen: both are removed. The first asserted the interim refusal S134 retires. The second relied on the store's own registry deciding a branch, which no longer happens: the engine's archive decides, and S134.4's tests cover a starting version or adopted version that is no longer held.
+Rejected: **Rewriting the second against a mutated registry.** The engine snapshots what it holds, so mutating the store's registry no longer reaches a branch, and the test would assert nothing.
+
 ### 2026-10-08 — `getStrings` returns the union of a session's live epochs, newest winning per key (red-team F3)
 Context: red-team F3 (`design/redteam/2026-10-08-10-design.md`, STRUCTURAL). A client calls `getScene` on `e1`, and then another client's `resumeSession` adopts `e2`, which renamed a label key. The first client's `getStrings` then returned only the `e2` table, so its scene carried a key it could not resolve. Neither `Scene` nor `StringTable` carries an epoch, so the client could not detect this. The race is between completed calls, so the session lock cannot close it.
 Chosen: `getStrings(sessionId)` returns the union of the string tables of the session's live epochs. Those are the starting version, or the last migration entry's `to`, and every content entry's `to` after it. Each key resolves from the most recent of those epochs that defines it. New invariant C27: a session's table never loses a key, so any key in any result the store returned for a session resolves in every later `getStrings`. A client whose cached table lacks a key fetches the table again. The union also covers a `submitAction` that adopts after commit, whose messages come from the old epoch while its scene comes from the new one. Accepted residual: a key both epochs define resolves to the newer wording, even on an older scene. No type, signature or MCP schema changes, and the union spans only epochs the log already names, which retention already keeps. The design is `16-content-epochs.md` §5.7 and Clients §2; the contract is `20-contract.md` C27 and §7.

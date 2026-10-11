@@ -9,7 +9,7 @@
 
 import type { AvailableAction, KindContext, SceneBody } from "../../core/kernel/types.js";
 import { resolveLocKey } from "../../core/localization/resolve.js";
-import { requireNode } from "./nodes.js";
+import { requireNode, type ChoiceNode } from "./nodes.js";
 import { visibleVariables } from "./variables.js";
 import { interpolateText, interpolationScope } from "./text.js";
 import { evaluateStoryGraphCondition, toConditionContext } from "./conditions.js";
@@ -27,7 +27,15 @@ export function availableActions(state: StoryGraphKindState, ctx: KindContext): 
   const content = ctx.campaign.content as StoryGraphCampaign;
   const node = requireNode(content.nodes, state.currentNodeId);
   if (node.kind !== "choice") return [];
+  return offeredChoices(node, state);
+}
 
+/**
+ * The choices `node` offers `state`: `showWhen`-hidden ones omitted, gated ones marked
+ * unavailable. Shared with adoption (`adopt.ts`, 16 §5.5), so "at least one choice is
+ * available" is judged by exactly the evaluation the scene shows the player.
+ */
+export function offeredChoices(node: ChoiceNode, state: StoryGraphKindState): AvailableAction[] {
   const context = toConditionContext(state);
   const actions: AvailableAction[] = [];
 

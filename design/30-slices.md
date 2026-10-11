@@ -374,7 +374,7 @@ Out of scope: A durable archive and eviction, and listing a campaign that first 
 
 ## S132 — A Story Moves Onto Additive Content
 
-Status: todo
+Status: done
 Delivers: A player partway through a story can be moved onto a newer version of it that only
           adds to what they are playing. They keep their place, their progress and their
           achievements. A version that would strand them where they stand, or drop something
@@ -404,7 +404,7 @@ Out of scope: Simulation and world-graph adoption rules (the contract's *Unresol
 
 ## S133 — Running Sessions Pick Up New Content
 
-Status: todo
+Status: done
 Delivers: A player's session moves onto newly published content between their moves: when
           they submit an action or come back to the game. A refusal, or a host that fails to
           answer, never costs them a move. Text they have already been shown never goes
@@ -436,7 +436,7 @@ Out of scope: Adoption at `loadGame` and `branchSession` (S134); catalog refresh
 
 ## S134 — Saves and Branches Carry Their Epochs
 
-Status: todo
+Status: done
 Delivers: A save made on an older version of a campaign loads exactly as it was made when that
           version is still held, then moves forward like any session, and stays replayable.
           Branching a session that moved onto new content replays it through the same moves,
