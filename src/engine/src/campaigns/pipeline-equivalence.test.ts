@@ -44,7 +44,7 @@ import { buildStableLifePossessionsCampaign } from "./stable-life-possessions.js
 import { buildStableLifeEventsCampaign } from "./stable-life-events.js";
 import { buildLongHorizonWinCampaign, buildLongHorizonLossCampaign } from "./long-horizon.js";
 import { buildWorldGraphMvpCampaign } from "./world-graph-mvp.js";
-import { CORPUS_DIR, FIXTURES_DIR, fixtureNamesByPrefix, loadFixture } from "./replay-corpus.js";
+import { CORPUS_DIR, FIXTURES_DIR, fixtureNamesByPrefix, loadFixture, actionSubmissions } from "./replay-corpus.js";
 
 function unwrap(built: CommandResult<BuiltCampaign>, what: string): BuiltCampaign {
   if (!built.ok || !built.value) throw new Error(`expected ${what} to build`);
@@ -100,7 +100,7 @@ function runFixtureTrace(engine: Engine, name: string): RunTrace {
   if (!created.ok || !created.value) throw new Error(`${name}: createGame rejected — ${created.errors[0]?.code ?? "unknown"}`);
   let state = created.value;
   const changes: (StateChange | string)[] = [];
-  for (const submission of fixture.submissions) {
+  for (const submission of actionSubmissions(fixture)) {
     const result = engine.submitAction(state, submission.actionId, submission.params);
     if (result.ok && result.value) {
       state = result.value;

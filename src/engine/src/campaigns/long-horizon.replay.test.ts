@@ -45,7 +45,7 @@ import { buildLongHorizonWinCampaign, buildLongHorizonLossCampaign } from "./lon
 import { buildSimulationCampaign, type SimulationCampaignSource } from "../kinds/simulation/source.js";
 import { buildCampaign } from "../core/registry/build.js";
 import type { BuiltCampaign, Campaign } from "../core/registry/types.js";
-import { COMPARING_ACROSS_VERSIONS, CORPUS_DIR, FIXTURES_DIR, fixtureNamesByPrefix, hasFixture, loadExpectedOutcome, loadFixture, statesThatFailToDeserialize } from "./replay-corpus.js";
+import { COMPARING_ACROSS_VERSIONS, CORPUS_DIR, FIXTURES_DIR, fixtureNamesByPrefix, hasFixture, loadExpectedOutcome, loadFixture, statesThatFailToDeserialize, actionSubmissions } from "./replay-corpus.js";
 
 const REPLAY_PROFILE_ID = "long-horizon-replay-profile";
 const PREFIX = "long-horizon-";
@@ -157,7 +157,7 @@ async function playFixture(name: string) {
   let state = created.value;
   let weeksPlayed = 0;
 
-  for (const submission of fixture.submissions) {
+  for (const submission of actionSubmissions(fixture)) {
     const result = engine.submitAction(state, submission.actionId, submission.params);
     if (!result.ok || !result.value) throw new Error(`${name}: expected "${submission.actionId}" to be accepted`);
     state = result.value;
@@ -254,7 +254,7 @@ async function observedSystems(name: string): Promise<Set<string>> {
   let lastCareer = JSON.stringify(state.kindState && (state.kindState as SimulationKindState).player.career);
   const seen = new Set<string>();
 
-  for (const submission of fixture.submissions) {
+  for (const submission of actionSubmissions(fixture)) {
     const result = engine.submitAction(state, submission.actionId, submission.params);
     if (!result.ok || !result.value) throw new Error(`${name}: expected "${submission.actionId}" to be accepted`);
     for (const change of result.changes) {
@@ -303,7 +303,7 @@ describe.skipIf(!HAS_BOTH_RUNS)("W89.5 — byte-identical replay and a save/rest
     const playthrough: PlaythroughFixture = {
       name,
       config: fixture.config,
-      actionLog: toActionLog(fixture.submissions),
+      actionLog: toActionLog(actionSubmissions(fixture)),
     };
     const engineA = createEngine({ kinds, registry: buildRegistry(), ids: FIXED_IDS });
     const engineB = createEngine({ kinds, registry: buildRegistry(), ids: FIXED_IDS });
@@ -320,7 +320,7 @@ describe.skipIf(!HAS_BOTH_RUNS)("W89.5 — byte-identical replay and a save/rest
       const baselineCreated = baselineEngine.createGame(fixture.config);
       if (!baselineCreated.ok || !baselineCreated.value) throw new Error(`${name}: expected createGame to succeed`);
       let baselineState = baselineCreated.value;
-      for (const submission of fixture.submissions) {
+      for (const submission of actionSubmissions(fixture)) {
         const result = baselineEngine.submitAction(baselineState, submission.actionId, submission.params);
         if (!result.ok || !result.value) throw new Error(`${name}: expected "${submission.actionId}" to be accepted`);
         baselineState = result.value;
@@ -329,12 +329,12 @@ describe.skipIf(!HAS_BOTH_RUNS)("W89.5 — byte-identical replay and a save/rest
 
       // Split: same submissions, same seed/ids, but serialize()/deserialize() partway
       // through — proving nothing accumulated outside the serialized state itself.
-      const splitAt = Math.floor(fixture.submissions.length / 2);
+      const splitAt = Math.floor(actionSubmissions(fixture).length / 2);
       const splitEngine = createEngine({ kinds, registry: buildRegistry(), ids: FIXED_IDS });
       const splitCreated = splitEngine.createGame(fixture.config);
       if (!splitCreated.ok || !splitCreated.value) throw new Error(`${name}: expected createGame to succeed`);
       let splitState = splitCreated.value;
-      for (const submission of fixture.submissions.slice(0, splitAt)) {
+      for (const submission of actionSubmissions(fixture).slice(0, splitAt)) {
         const result = splitEngine.submitAction(splitState, submission.actionId, submission.params);
         if (!result.ok || !result.value) throw new Error(`${name}: expected "${submission.actionId}" to be accepted`);
         splitState = result.value;
@@ -343,7 +343,7 @@ describe.skipIf(!HAS_BOTH_RUNS)("W89.5 — byte-identical replay and a save/rest
       const restored = splitEngine.deserialize(saved);
       expect(restored.ok).toBe(true);
       let rehydratedState = restored.value!;
-      for (const submission of fixture.submissions.slice(splitAt)) {
+      for (const submission of actionSubmissions(fixture).slice(splitAt)) {
         const result = splitEngine.submitAction(rehydratedState, submission.actionId, submission.params);
         if (!result.ok || !result.value) throw new Error(`${name}: expected "${submission.actionId}" to be accepted`);
         rehydratedState = result.value;
@@ -355,7 +355,7 @@ describe.skipIf(!HAS_BOTH_RUNS)("W89.5 — byte-identical replay and a save/rest
 
   it.for(BOTH_RUNS)("%s: replays identically under nullEmitter and a recordingEmitter", (name) => {
     const fixture = loadFixture(name);
-    const playthrough: PlaythroughFixture = { name, config: fixture.config, actionLog: toActionLog(fixture.submissions) };
+    const playthrough: PlaythroughFixture = { name, config: fixture.config, actionLog: toActionLog(actionSubmissions(fixture)) };
     const withoutRecording = runFixture(createEngine({ kinds, registry: buildRegistry(), ids: FIXED_IDS }).withEmitter(nullEmitter), playthrough);
     const withRecording = runFixture(createEngine({ kinds, registry: buildRegistry(), ids: FIXED_IDS }).withEmitter(createRecordingEmitter()), playthrough);
     expect(withRecording).toBe(withoutRecording);
@@ -441,7 +441,7 @@ describe.skipIf(!HAS_BOTH_RUNS)("W94.5 — no pending response is ever bypassed"
     let acceptedCount = 0;
     let endWeekCount = 0;
 
-    for (const [index, submission] of fixture.submissions.entries()) {
+    for (const [index, submission] of actionSubmissions(fixture).entries()) {
       if (submission.actionId === "end_week") {
         // The gate's own condition (`unaddressedPendingResponses`, `state.ts`) — not "no
         // pending at all": a response presented this week is legitimately still in
@@ -463,7 +463,7 @@ describe.skipIf(!HAS_BOTH_RUNS)("W94.5 — no pending response is ever bypassed"
       acceptedCount += 1;
     }
 
-    expect(acceptedCount).toBe(fixture.submissions.length);
+    expect(acceptedCount).toBe(actionSubmissions(fixture).length);
     expect(endWeekCount).toBeGreaterThanOrEqual(150);
     expect((state.kindState as SimulationKindState).pendingEventResponses).toEqual([]);
   });

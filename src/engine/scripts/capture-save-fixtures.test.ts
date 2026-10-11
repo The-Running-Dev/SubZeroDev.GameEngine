@@ -18,7 +18,7 @@ import { describe, it, expect } from "vitest";
 import { createEngine } from "../src/core/kernel/engine.js";
 import { createInMemorySessionStore } from "../src/core/session/store.js";
 import { TextClient } from "../src/clients/text/client.js";
-import { loadFixture } from "../src/campaigns/replay-corpus.js";
+import { actionSubmissions, loadFixture } from "../src/campaigns/replay-corpus.js";
 import { SessionStoreError } from "../src/core/session/types.js";
 import type { SaveRecordStore, SessionRecordStore, StoredSaveRecord, StoredSessionRecord } from "../src/core/session/types.js";
 import { SAVE_FIXTURES, buildRegistry } from "./capture-save-fixtures.js";
@@ -65,7 +65,7 @@ describe("W104.3 — representative saves load through a real SessionStore", () 
     const independentClient = new TextClient(independentStore);
     const started = await independentClient.createSession(fixture.config);
     const sessionId = started.value.sessionId;
-    for (const submission of fixture.submissions) {
+    for (const submission of actionSubmissions(fixture)) {
       await independentClient.submitAction(sessionId, submission.actionId, submission.params);
     }
     const expectedScene = (await independentClient.getScene(sessionId)).value;

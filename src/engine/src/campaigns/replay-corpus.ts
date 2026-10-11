@@ -15,7 +15,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { Engine, GameState } from "../core/kernel/types.js";
-import type { Outcome, ReplayFixture } from "../core/replay/types.js";
+import type { ActionSubmission, Outcome, ReplayFixture, Submission } from "../core/replay/types.js";
 
 export const FIXTURES_DIR = fileURLToPath(new URL("../../fixtures/replay/", import.meta.url));
 
@@ -83,7 +83,7 @@ export function outcomeNamesByPrefix(prefix: string, dir: string = CORPUS_DIR): 
  * campaign version this build no longer has.
  */
 export function statesThatFailToDeserialize(engine: Engine, fixture: ReplayFixture): number[] {
-  const created = engine.createGame(fixture.config);
+  const created = engine.createGame(fixture.config, fixture.campaignVersion);
   if (!created.ok || !created.value) throw new Error(`fixture "${fixture.name}": createGame rejected`);
 
   const failures: number[] = [];
@@ -94,6 +94,14 @@ export function statesThatFailToDeserialize(engine: Engine, fixture: ReplayFixtu
   let state = created.value;
   check(state, -1);
   for (const [index, submission] of fixture.submissions.entries()) {
+    if (isAdoption(submission)) {
+      const adoption = engine.adoptContent(state, submission.adopt);
+      if (adoption.adopted) {
+        state = adoption.state;
+        check(state, index);
+      }
+      continue;
+    }
     const result = engine.submitAction(state, submission.actionId, submission.params);
     if (result.ok && result.value) {
       state = result.value;
@@ -101,4 +109,19 @@ export function statesThatFailToDeserialize(engine: Engine, fixture: ReplayFixtu
     }
   }
   return failures;
+}
+
+/** S135: a recorded content adoption rather than an action (07 §2). */
+export function isAdoption(submission: Submission): submission is Exclude<Submission, ActionSubmission> {
+  return "adopt" in submission;
+}
+
+/** A fixture's submissions, for a suite that plays them as actions directly against an engine.
+ *  Throws on a recorded adoption: such a suite builds an engine holding one epoch, so it could
+ *  not replay one, and must fail rather than silently skip it. */
+export function actionSubmissions(fixture: ReplayFixture): readonly ActionSubmission[] {
+  return fixture.submissions.map((submission, index) => {
+    if (isAdoption(submission)) throw new Error(`fixture "${fixture.name}": submission ${index} is an adoption, which this suite does not replay`);
+    return submission;
+  });
 }
