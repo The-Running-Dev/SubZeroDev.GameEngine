@@ -10,8 +10,7 @@ name: Platform Static Host Image
     branches:
       - main
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -37,11 +36,9 @@ jobs:
       # rather than let `dotnet restore` fall back to an unauthenticated request and fail
       # with an opaque Docker build error.
       - name: Verify NuGet restore credential is configured
-        run: |
-          if [ -z "${{ secrets.REGISTRY_TOKEN }}" ]; then
-            echo "::error::REGISTRY_TOKEN secret is required to restore SubZeroDev.Platform.Hosting from GitHub Packages in the SubZeroDev.Platform repository. The default GITHUB_TOKEN cannot read packages published from a sibling repository."
-            exit 1
-          fi
+        env:
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: pwsh -NoProfile -File ./tools/host-smoke/Invoke-HostImage.ps1 -Stage Credential
 
       - name: Set up .NET SDK
         uses: actions/setup-dotnet@v4
@@ -82,38 +79,14 @@ jobs:
             nuget_github_token=${{ secrets.REGISTRY_TOKEN }}
 
       - name: Start the container
-        run: |
-          docker run -d --name host-smoke -p 18080:8080 subzerodev-gameengine-host:smoke
-          sleep 3
-          docker logs host-smoke
+        run: pwsh -NoProfile -File ./tools/host-smoke/Invoke-HostImage.ps1 -Stage Start
 
       # verification: true
       - name: Positive route and probe smoke
-        run: |
-          set -euo pipefail
-          check() {
-            local path="$1" expected="$2"
-            local code
-            code="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:18080${path}")"
-            if [ "$code" != "$expected" ]; then
-              echo "GET ${path} -> ${code}, expected ${expected}"
-              exit 1
-            fi
-            echo "GET ${path} -> ${code}"
-          }
-          check / 200
-          check /roadmap/ 200
-          check /docs/ 200
-          check /health/live 200
-          check /health/ready 200
-          # No SPA fallback (§4): an unknown route must 404, never the landing page.
-          check /this-route-does-not-exist 404
+        run: pwsh -NoProfile -File ./tools/host-smoke/Invoke-HostImage.ps1 -Stage Smoke
 
       - name: Orderly container stop
-        run: |
-          docker stop --timeout 10 host-smoke
-          docker logs host-smoke | tail -5
-          docker rm host-smoke
+        run: pwsh -NoProfile -File ./tools/host-smoke/Invoke-HostImage.ps1 -Stage Stop
 
       # §7 / W62.7: a deliberate missing-artifact fixture, proving the gate actually
       # fails red rather than merely never having been tested. Program.cs's own startup
@@ -121,17 +94,7 @@ jobs:
       # non-zero exit rather than a container that starts and silently serves less.
       # verification: true
       - name: Negative fixture -- corrupted artifact must fail to start
-        run: |
-          docker build \
-            --build-arg BASE_IMAGE=subzerodev-gameengine-host:smoke \
-            -f tools/host-smoke/Dockerfile.negative-fixture \
-            -t subzerodev-gameengine-host:negative-fixture \
-            .
-          if docker run --rm subzerodev-gameengine-host:negative-fixture; then
-            echo "Negative fixture started successfully -- it must not. The missing-artifact guard is not proven."
-            exit 1
-          fi
-          echo "Negative fixture correctly failed to start."
+        run: pwsh -NoProfile -File ./tools/host-smoke/Invoke-HostImage.ps1 -Stage NegativeFixture
 
   publish:
     name: Publish immutable image to GHCR
@@ -151,26 +114,16 @@ jobs:
 
       - name: Determine whether hosting inputs changed
         id: changed
-        run: |
-          before="${{ github.event.before }}"
-          if [ -z "$before" ] || [ "$before" = "0000000000000000000000000000000000000000" ]; then
-            echo "No previous commit to diff against -- publishing."
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          elif git diff --quiet "$before" "${{ github.sha }}" -- \
-              Dockerfile .dockerignore src/host site docs \
-              src/engine; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
+        env:
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: pwsh -NoProfile -File ./tools/host-smoke/Invoke-HostImage.ps1 -Stage Changed
 
       - name: Verify NuGet restore credential is configured
         if: steps.changed.outputs.changed == 'true'
-        run: |
-          if [ -z "${{ secrets.REGISTRY_TOKEN }}" ]; then
-            echo "::error::REGISTRY_TOKEN secret is required to restore SubZeroDev.Platform.Hosting from GitHub Packages in the SubZeroDev.Platform repository. The default GITHUB_TOKEN cannot read packages published from a sibling repository."
-            exit 1
-          fi
+        env:
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: pwsh -NoProfile -File ./tools/host-smoke/Invoke-HostImage.ps1 -Stage Credential
 
       - name: Set up Docker Buildx
         if: steps.changed.outputs.changed == 'true'
@@ -187,9 +140,9 @@ jobs:
       - name: Compute image reference
         if: steps.changed.outputs.changed == 'true'
         id: image
-        run: |
-          repo_lower="$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')"
-          echo "ref=ghcr.io/${repo_lower}-host" >> "$GITHUB_OUTPUT"
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: pwsh -NoProfile -File ./tools/host-smoke/Invoke-HostImage.ps1 -Stage ImageRef
 
       # One immutable full-commit tag, no `latest`, no deployment -- §6's decision
       # summary. Digest is recorded in the job summary so a later slice can pin it.
@@ -207,6 +160,8 @@ jobs:
 
       - name: Record the published digest
         if: steps.changed.outputs.changed == 'true'
-        run: |
-          echo "Published ${{ steps.image.outputs.ref }}:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Digest: ${{ steps.build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
+        env:
+          IMAGE_REF: ${{ steps.image.outputs.ref }}
+          SHA: ${{ github.sha }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: pwsh -NoProfile -File ./tools/host-smoke/Invoke-HostImage.ps1 -Stage Record
