@@ -1,0 +1,36 @@
+{
+  "gates": [
+    {
+      "name": "engine / install",
+      "command": "cd src/engine && npm ci"
+    },
+    {
+      "name": "engine / typecheck",
+      "command": "cd src/engine && npm run typecheck"
+    },
+    {
+      "name": "engine / lint",
+      "command": "cd src/engine && npm run lint"
+    },
+    {
+      "name": "engine / test",
+      "command": "cd src/engine && npm run test"
+    },
+    {
+      "name": "engine / build/Test-EnginePackage.ps1",
+      "command": "pwsh -NoProfile -File ./build/Test-EnginePackage.ps1"
+    },
+    {
+      "name": "smoke / Test the host",
+      "command": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests/SubZeroDev.GameEngine.Host.Tests.csproj -c Release"
+    },
+    {
+      "name": "smoke / Positive route and probe smoke",
+      "command": "pwsh -NoProfile -File ./tools/host-smoke/Invoke-HostImage.ps1 -Stage Smoke"
+    },
+    {
+      "name": "smoke / Negative fixture -- corrupted artifact must fail to start",
+      "command": "pwsh -NoProfile -File ./tools/host-smoke/Invoke-HostImage.ps1 -Stage NegativeFixture"
+    }
+  ]
+}
