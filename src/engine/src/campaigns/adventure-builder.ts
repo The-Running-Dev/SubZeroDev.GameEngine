@@ -9,6 +9,9 @@ import {
   type StoryGraphCampaignSource,
 } from "../kinds/story-graph/source.js";
 
+/** The version every adventure campaign publishes, and the shape `migrateV1AdventureState` produces. */
+const ADVENTURE_VERSION = "2.0.0";
+
 export interface AdventureEnding {
   readonly id: string;
   readonly title: string;
@@ -204,7 +207,7 @@ export function buildAdventureCampaign(config: AdventureConfig, source: StoryGra
   const campaign: Campaign = {
     id: config.id,
     kindId: "story-graph",
-    version: "2.0.0",
+    version: ADVENTURE_VERSION,
     titleKey: `${config.namespace}.campaign.title`,
     content,
     migrateState: (state, fromVersion) => migrateV1AdventureState(state, fromVersion, source, {}),
@@ -212,15 +215,24 @@ export function buildAdventureCampaign(config: AdventureConfig, source: StoryGra
   return buildCampaign(campaign, [authored(config.namespace, "campaign", "title", config.title), ...authoredText]);
 }
 
-/** Adds v2 declarations and remaps any v1 node/ending ids while retaining visit history. */
+/**
+ * Adds v2 declarations and remaps any v1 node/ending ids while retaining visit history.
+ *
+ * Also accepts `ADVENTURE_VERSION` itself, moving no id: an extension that keeps this
+ * function is called from the epoch it extends, which has nothing to re-address (04 §10.2;
+ * `90-decisions.md`, 2026-10-15). Any other version fails.
+ */
 export function migrateV1AdventureState(
   value: unknown,
   fromVersion: string,
   source: StoryGraphCampaignSource,
-  nodeMap: Readonly<Record<string, string>>,
-  endingMap: Readonly<Record<string, string>> = {},
+  v1NodeMap: Readonly<Record<string, string>>,
+  v1EndingMap: Readonly<Record<string, string>> = {},
 ): CommandResult<unknown> {
-  if (fromVersion !== "1.0.0" || typeof value !== "object" || value === null) {
+  const fromV1 = fromVersion === "1.0.0";
+  const nodeMap = fromV1 ? v1NodeMap : {};
+  const endingMap = fromV1 ? v1EndingMap : {};
+  if ((!fromV1 && fromVersion !== ADVENTURE_VERSION) || typeof value !== "object" || value === null) {
     return { ok: false, errors: [{ code: "migration_failed", messageKey: "core.reason.migration_failed" }], warnings: [] };
   }
   const state = value as StoryGraphKindState;
@@ -241,7 +253,7 @@ export function migrateV1AdventureState(
     return { ok: false, errors: [{ code: "migration_failed", messageKey: "core.reason.migration_failed" }], warnings: [] };
   }
   const routeDeclaration = source.variables.route;
-  if (routeDeclaration?.type === "enum" && routeDeclaration.values !== undefined) {
+  if (fromV1 && routeDeclaration?.type === "enum" && routeDeclaration.values !== undefined) {
     const routeForCurrentNode = routeDeclaration.values.find((route) => currentNodeId.startsWith(`${route}_`));
     if (routeForCurrentNode !== undefined) variables.route = routeForCurrentNode;
   }

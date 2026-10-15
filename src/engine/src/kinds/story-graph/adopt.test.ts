@@ -176,6 +176,26 @@ describe("S132.2 — story-graph refuses content that would strand the player", 
     expect(adoptContent(midGame(), FROM, to)).toEqual(refused);
   });
 
+  it("refuses an enum member the target drops, and adopts while the target keeps it", () => {
+    const withMood = (values: string[]): Campaign => target((c) => {
+      c.variables.mood = { type: "enum", initial: values[0]!, values };
+    });
+    const from = withMood(["calm", "cross"]);
+    const state = midGame({ variables: { money: 4, stamped: true, mood: "cross" } });
+    expect(adoptContent(state, from, withMood(["calm"]))).toEqual(refused);
+    expect(adoptContent(state, from, withMood(["calm", "cross", "sulky"])).adopt).toBe(true);
+  });
+
+  it("refuses an int outside a narrowed range, and adopts at its bound", () => {
+    const bounded = (min: number, max: number): Campaign => target((c) => {
+      c.variables.money = { type: "int", initial: min, min, max };
+    });
+    // midGame carries money 4.
+    expect(adoptContent(midGame(), FROM, bounded(0, 3))).toEqual(refused);
+    expect(adoptContent(midGame(), FROM, bounded(5, 10))).toEqual(refused);
+    expect(adoptContent(midGame(), FROM, bounded(4, 4)).adopt).toBe(true);
+  });
+
   it("refuses a variable the source declared and the state carries that the target drops", () => {
     const to = target((c) => {
       delete c.variables.stamped;
