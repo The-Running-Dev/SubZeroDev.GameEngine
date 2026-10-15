@@ -559,7 +559,9 @@ interface Engine {
   migrate(data: string): CommandResult<GameState>;      // §10
   /** Move a running state onto another published epoch of its campaign, or say why not
    *  (16 §5.4). Never a rejection: a refusal is a value, so the
-   *  session store can complete the command it rides on. */
+   *  session store can complete the command it rides on. `campaignVersion` equal to the
+   *  state's → `{ adopted: true, state }`, the same object: no entry, no event
+   *  (`90-decisions.md`, 2026-10-09, S130). */
   adoptContent(state: GameState, campaignVersion: string): AdoptionResult;
 
   /** The same engine, with every event stamped for one command
@@ -588,9 +590,12 @@ function createContentArchive(options: {
 }): ContentArchive;
 
 interface ContentArchive extends ResolutionArchive, ContentChannel {
-  /** Validate every campaign against `registry.strings`, refuse a held key with a different
-   *  digest (`content_version_conflict`), then store deep-frozen copies and make this the
-   *  latest. Returns the epochs newly added; an identical republish adds none. */
+  /** Validate every campaign against `registry.strings` (a campaign of an unregistered kind
+   *  refuses `unknown_kind`), refuse a held key with a different digest
+   *  (`content_version_conflict`), then store deep-frozen copies and make this the latest.
+   *  Returns the epochs newly added; an identical republish adds none, still becomes the
+   *  latest — a rollback — and never repoints a held key (`90-decisions.md`, 2026-10-09,
+   *  S131). */
   publish(registry: ContentRegistry): CommandResult<readonly EpochRef[]>;
   /** The last publication that succeeded. Its channel answers this registry's version of
    *  the scope's campaign, for every scope. */
@@ -614,6 +619,12 @@ construction-time `registry` is the default epoch — the one `createGame` start
 version is asked for — not the only content. An `EngineHost.archive` that does not resolve every
 campaign of `registry` at its registered version is a construction error, the treatment a
 missing kind gets. With no archive supplied, every behaviour below is unchanged.
+
+`createEngine` reads `registry`'s campaign map once: the default archive and the version
+`createGame` starts on both come from that copy, so a later mutation of the registry changes
+neither. An archive answer that holds the campaign at a version other than the one asked for
+counts as unresolved — `unknown_campaign` wherever a version is resolved, and a construction
+error for the default epoch (`90-decisions.md`, 2026-10-09, S129).
 
 `submitAction` is the whole loop, in the core:
 
@@ -670,8 +681,9 @@ a `kindState` of the wrong shape reaches `advance` and fails there, as a throw o
 **`campaignVersion` resolves through the archive, and a log's epoch entries must agree with
 it.** `unknown_campaign` also covers a `campaignId` the archive holds at no epoch matching
 `campaignVersion`: a state is played against the content it names or not at all, never silently
-against whatever this host registered under the id (C22). Two `invalid_state` refusals guard the
-log: a `formatVersion: 1` state whose log carries an epoch entry, and a state whose last epoch
+against whatever this host registered under the id (C22). Three `invalid_state` refusals guard
+the log: a `formatVersion: 1` state whose log carries an epoch entry, a `formatVersion: 2` state
+whose log carries none (`90-decisions.md`, 2026-10-09, S130), and a state whose last epoch
 entry's `to` is not its `campaignVersion` (C26). A migration entry's `from` is not resolved: it
 names an epoch this host could not run, which is why the migration happened. A `formatVersion` above `2` refuses as every
 unknown version does. This closes the gap an earlier revision recorded here as known and
@@ -979,7 +991,10 @@ so **adoption never fails a command** — nor does a failed adoption-only write 
 adoption point offers again. Queries never adopt, a rejected action never adopts, and
 `previewAction` never consults the channel. `createSession` asks the channel once for the version
 to start on and passes it to `createGame(config, version)`; that is creation, not adoption, and
-logs no content entry. With no channel, no session is ever offered content, and every operation
+logs no content entry. It takes the kind and profile data from the offered epoch; an offer the
+archive does not hold fails creation `unknown_campaign`, and an answer that is not a string is
+no offer. At `submitAction`, the profile fold and the action's messages use the epoch the action
+resolved on, not the one adopted after it (`90-decisions.md`, 2026-10-09, S133). With no channel, no session is ever offered content, and every operation
 above behaves as it did before content epochs existed.
 
 Every projection resolves through the session's *current* epoch. **`getStrings` returns the
@@ -990,7 +1005,9 @@ key it has; a key it dropped still resolves through the epoch that last had it; 
 never adopted gets exactly its one epoch's table. So the table only grows, and any key a result
 for this session carried resolves in every later `getStrings` (C27) — including a `submitAction`
 that adopts after commit, whose messages come from the old epoch and whose scene from the new.
-A client whose cached table lacks a key fetches it again. What the union does not promise is a
+A client whose cached table lacks a key fetches it again. A live epoch the archive no longer
+resolves contributes nothing, and the union of the rest is returned (`90-decisions.md`,
+2026-10-09, S133). What the union does not promise is a
 key's *earlier wording*: a key both epochs define resolves to the newer text
 ([`16-content-epochs.md`](16-content-epochs.md) §5.7).
 
@@ -1598,7 +1615,11 @@ old epoch.
 **The branch is replayed, not copied.** The store creates a game from the source's
 `{ gameId, seed, campaignId }` at its **starting** version (§2) and replays the retained prefix
 through the ordinary path — an action through `submitAction`, a content entry through
-`adoptContent`, which must adopt. Then the branch reaches its own adoption point (§7).
+`adoptContent`, which must adopt. Then the branch reaches its own adoption point (§7). Before it
+mints the branch's session id, the store resolves the starting version and every retained
+content entry's `to` through `engine.content.resolve`, requiring an exact version match, so a
+withdrawn epoch is `unknown_campaign` rather than a late `invalid_state`
+(`90-decisions.md`, 2026-10-09, S134).
 Starting from the source's current `campaignVersion` instead would replay a prefix against
 content it was never played on. Truncating the source's blob would leave `kindState` at the present while the log
 claimed the fork point — a state no sequence of actions produces, and one that would serialize
@@ -2048,7 +2069,9 @@ load the same way:
 - **`checksum` covers `{ state, replayCompatible }`, not the whole envelope.** The scope is
   narrow by design and the remaining fields are protected differently — by cross-checks that
   a checksum could not perform anyway: `campaign.kindId` against the outer `kindId`, and both
-  outer ids against the embedded (and therefore checksummed) `GameState`'s own. `state` is in
+  outer ids and the outer `campaignVersion` against the embedded (and therefore checksummed)
+  `GameState`'s own — a differing version is `invalid_state`, since the load resolves and
+  migrates from it (`90-decisions.md`, 2026-10-09, S134). `state` is in
   scope because it is the thing being protected; `replayCompatible` is in scope because
   nothing else guards it, and flipping a migrated save's `false` back to `true` in the stored
   blob would otherwise silently defeat the sticky-forward rule below. `90-decisions.md`
@@ -2070,7 +2093,9 @@ load the same way:
   even across further saves that need no further migration.
 - **A migration that changes `campaignVersion` over an epoch-bearing log logs it.** When the
   log already carries an epoch entry, the step that restamps the version also appends
-  `LoggedMigration { seq: actionLog.length, system: "migration", from, to }`; the state is
+  `LoggedMigration { seq: actionLog.length, system: "migration", from, to }` — `from` the
+  state's `campaignVersion`, `to` the registry campaign's, appended only after the kind accepts
+  the migrated state (`90-decisions.md`, 2026-10-09, S134); the state is
   already `formatVersion: 2` and stays so (§2). Without the entry, such a save would migrate
   into a state C26 refuses — its last `to` naming the epoch it left
   ([`16-content-epochs.md`](16-content-epochs.md) §3.5; red-team F1). A migration over a log
@@ -2514,7 +2539,9 @@ interface PlaythroughFixture {
 
 The starting version is derived from the log exactly as §2 states, and a fixture whose log
 crosses an epoch needs an engine whose archive resolves every epoch it names. A content entry
-that refuses on replay fails the fixture, the same as an action that rejects. A migration entry
+that refuses on replay fails the fixture, the same as an action that rejects, and so does a
+content entry whose `from` is not the replay's current `campaignVersion`, checked before
+adopting (`90-decisions.md`, 2026-10-09, S130). A migration entry
 fails it outright: it is not a step replay can perform (§10.2).
 
 - **Golden files** — committed fixtures with expected `serialize()` output; a one-byte
