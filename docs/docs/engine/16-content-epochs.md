@@ -119,7 +119,9 @@ unreproducible.
 `GameState.formatVersion` moves from `1` to `2` **only on a state whose log carries an epoch
 entry.** `adoptContent` writes `2` when it appends a content entry; a migrated load appends a
 migration entry only to a state that is already `2`, and never changes the stamp. A game that
-never adopts keeps `1` — through a migrated load too — and serializes byte-identically to today. The reader accepts both. An engine predating this design
+never adopts keeps `1` — through a migrated load too — and serializes byte-identically to today. The reader accepts both, and holds the stamp to the log both ways: a version-`2`
+state whose log carries no epoch entry is refused `invalid_state`, so an unepoched game has one
+encoding, not two (`90-decisions.md`, 2026-10-09, S130). An engine predating this design
 rejects a version-`2` state with `invalid_state`, which is the correct answer — it would read
 an epoch entry as an action with no `actionId` — and still reads every state that carries none,
 which contains nothing it cannot understand.
@@ -138,10 +140,14 @@ and accepts an identical one as a no-op.
 
 What "the same content" means is fixed so two archives agree on it: the canonical digest 11 §6
 already uses for a pack's version — over the campaign's `id`, `kindId`, `version`, `titleKey`,
-`content`, and `includes` when present — plus the registry's full `strings` table, sorted by key.
-Strings are part of an epoch because a session renders through the string table it resolved;
-a publication that changes a string without changing a version is the silent drift
-content-addressing exists to refuse.
+`content`, and `includes` when present and non-empty, exactly as 11 §6 has it — plus the
+registry's full `strings` table, sorted by key. Strings are part of an epoch because a session
+renders through the string table it resolved; a publication that changes a string without
+changing a version is the silent drift content-addressing exists to refuse.
+
+**A key resolves to the registry it was first published in**, never repointed to a later
+publication's identical copy: what `resolve` answers for a key never changes
+(`90-decisions.md`, 2026-10-09, S131).
 
 ### 3.5 A migrated load leaves a migration entry
 
@@ -153,7 +159,10 @@ of the session it had just loaded into (red-team F1).
 
 So **a migration that changes `campaignVersion` on a log that already carries an epoch entry
 appends a `LoggedMigration { from, to }`**, in the same step that restamps it and sets
-`replayCompatible: false`. The state is already `formatVersion: 2`, and stays so. A migration
+`replayCompatible: false`. `from` is the state's `campaignVersion` — which the save's wrapper
+must match, or the load is `invalid_state` — and `to` the registry campaign's; the entry is
+appended only after the kind accepts the migrated state, so a refused migration appends nothing
+(`90-decisions.md`, 2026-10-09, S134). The state is already `formatVersion: 2`, and stays so. A migration
 over a log with no epoch entry appends nothing: C26 holds there without one, and the state keeps
 `formatVersion: 1`, so a host that migrates but never adopts writes exactly the saves it writes
 today, and an engine predating epochs still reads them. Such a log's derived starting version
@@ -212,6 +221,14 @@ every behaviour is today's. An archive that does not contain every campaign of `
 its registered version is a construction error, the same treatment a missing kind gets (04 §4)
 — the default epoch has to be resolvable.
 
+**The engine reads its registry's campaign map once, at construction.** The default archive and
+the version `createGame` starts on both come from that copy, so a host mutating the registry
+afterwards changes neither which content a key names nor where a new game starts. **An epoch
+resolves only when the archive's answer holds the campaign at that exact version.** A registry
+that holds it at another version counts as unresolved — `unknown_campaign` from `createGame`,
+`deserialize` and `migrate`, and a construction error for the default epoch — because trusting
+it would play a state against content it does not name (`90-decisions.md`, 2026-10-09, S129).
+
 ### 4.2 The channel is a session-layer port
 
 The channel answers one question per adoption point: given this campaign, this session and
@@ -263,14 +280,22 @@ archive.publish(registry):
 ```
 
 No session is touched. Publication only changes what the channel will answer at the next
-adoption point.
+adoption point. A campaign whose `kindId` names no registered kind has no `validateCampaign` to
+run and refuses the publication `unknown_kind`, as `buildValidatedContentRegistry` would; the
+core-owned Tier 1 checks are not re-run, since nothing between building a registry and
+publishing it can change them (`90-decisions.md`, 2026-10-09, S131).
 
 ### 5.2 Creating a session
 
 `createSession` asks the channel for the campaign's version and calls `createGame(config,
-version)`. No channel, or a channel with no answer, starts on the registry's version.
-Creation is not an adoption: the game starts on that epoch, with no content entry, exactly as
-if it had been the registry's.
+version)`. No channel, or a channel with no answer, starts on the registry's version; an answer
+that is not a string is read as no answer. Creation is not an adoption: the game starts on that
+epoch, with no content entry, exactly as if it had been the registry's. The store takes the
+campaign's kind and profile data from the offered epoch, through `engine.content.resolve`, and
+an offer naming a version the archive does not hold fails creation `unknown_campaign`, as
+`createGame` does — creation is not covered by "adoption never fails a command", and a silent
+fallback would start the player on content the host did not choose (`90-decisions.md`,
+2026-10-09, S133).
 
 ### 5.3 The adoption points
 
@@ -283,7 +308,10 @@ if it had been the registry's.
 
 At each, under the session lock: ask the channel; if it names a version other than the
 state's, call `engine.adoptContent(state, version)`; persist the result with whatever else that
-command writes; project the scene from the adopted state.
+command writes; project the scene from the adopted state. At `submitAction`, what the action
+produced stays on the epoch it resolved on: the profile fold receives that epoch's campaign and
+the messages come from it, because the changes being folded were made against it
+(`90-decisions.md`, 2026-10-09, S133).
 
 **Queries never adopt and a rejected action never adopts.** A query writes nothing, and making
 one write would break 04 §7's line between look and change. A rejected action leaves the state
@@ -305,7 +333,7 @@ host observes its own. The engine emits `core.content.pinned` for every refusal 
 
 ```text
 adoptContent(state, to):
-  0. to == state.campaignVersion → return adopted, state unchanged      // idempotent
+  0. to == state.campaignVersion → return adopted, same state           // idempotent: no entry, no event
   1. state.status != "active"    → pinned session_ended
   2. from = archive.resolve(campaignId, state.campaignVersion)          // always resolves: deserialize checked
      target = archive.resolve(campaignId, to); missing → pinned unknown_campaign
@@ -320,7 +348,9 @@ adoptContent(state, to):
 ```
 
 Every pinned outcome returns the reason and no state, emits `core.content.pinned`, and leaves
-the input untouched. An adoption emits `core.content.adopted`. Neither produces a `StateChange`
+the input untouched. An adoption emits `core.content.adopted`; step 0's no-op emits nothing,
+so a channel that offers the current version on every command floods no event stream
+(`90-decisions.md`, 2026-10-09, S130). Neither produces a `StateChange`
 or an `OutcomeMessage`: adoption is not play, so nothing reaches the profile fold (04 §7.1) and
 nothing claims a turn happened. Telling the player that new content arrived is a client's
 choice, made from the scene it already re-renders.
@@ -344,7 +374,14 @@ player. After any campaign migration, it adopts iff:
 - no variable the source declared and the state carries is missing from the target.
 
 Variables the target declares and the state lacks are inserted at their declared initial value.
-Everything else passes through unchanged. A refusal reasons `content_incompatible`.
+Everything else passes through unchanged — including a variable neither campaign declares, which
+load already tolerates as unread. A refusal reasons `content_incompatible`.
+
+The type condition compares `VarType` only, not the carried value against the target's
+declaration. A target that narrows an `enum` or an `int` range under the same type still adopts:
+an out-of-range `int` clamps on its next write, and an `enum` holding a dropped member reads
+normally but fails a later `copy` into another `enum`. Refusing such a value is a stricter rule
+than this one, recorded for revisiting rather than built (`90-decisions.md`, 2026-10-09, S132).
 
 **The node the player stands on must still be a place to act.** An active story-graph session
 always rests on a choice node, because `submitChoice` and `createGame` both settle until they
@@ -370,7 +407,10 @@ Replay re-runs a log from its starting version. For each entry: an action goes t
 migration entry is never reached, because no replayable log carries one (§3.5). A
 content entry that now refuses is a divergence — the kind's compatibility rule changed, which is
 precisely what a cross-version oracle exists to catch (07 §6). The C1 harness (04 §14) treats
-both entry types the same way: byte-identical serialization after every entry.
+both entry types the same way: byte-identical serialization after every entry. `adoptContent`
+takes only the target, so the harness first checks a content entry's `from` against the
+replay's current `campaignVersion` and fails the fixture, naming both, when they differ
+(`90-decisions.md`, 2026-10-09, S130).
 
 `branchSession` replays the retained prefix the same way, then reaches its own adoption point.
 `atActionCount` counts log entries of every type, so a fork may fall either side of an adoption;
@@ -412,7 +452,9 @@ the host published, and a client that needs the exact old text is asking for the
 which `getStrings` is not the API for.
 
 The union adds nothing to retention (§6): every epoch it spans is already named by the session's
-log, so retention already keeps it.
+log, so retention already keeps it. A host archive that drops one anyway costs only that
+epoch's contribution: `getStrings` is a query, so an epoch that no longer resolves is skipped
+and the union of the rest returned (`90-decisions.md`, 2026-10-09, S133).
 
 ---
 
@@ -452,18 +494,23 @@ in-memory archive sidesteps it by never evicting.
 | `createEngine` | `archive` lacks a registry campaign at its registered version | Throws — a construction error |
 | `createGame` | The requested version does not resolve | `unknown_campaign` |
 | `deserialize` / `migrate` | `(campaignId, campaignVersion)` does not resolve | `unknown_campaign`, emitting `core.deserialize.rejected` — closes the retained gap |
-| `deserialize` | Last epoch entry's `to` ≠ `campaignVersion`, or an epoch entry in a version-`1` state | `invalid_state` |
+| `deserialize` | Last epoch entry's `to` ≠ `campaignVersion`, an epoch entry in a version-`1` state, or a version-`2` state with no epoch entry | `invalid_state` |
 | Adoption | Target missing; kind changed; seam absent; migration failed; kind refused; result invalid; session ended | Pinned, with the §5.4 reason; the command completes |
 | Adoption point | Channel throws | No offer; the command completes |
-| Adoption point | The adoption-only write at `resumeSession` fails (`storage_failure`, `concurrent_modification`) | The store restores; `resumeSession` returns the unadopted scene, and the next adoption point retries |
+| Adoption point | The adoption-only write at `resumeSession` fails (`storage_failure`, `concurrent_modification`) | The store restores the cached record — and evicts it on a conflict; `resumeSession` returns the unadopted scene, and the next adoption point retries. `core.content.adopted` was already emitted, so the event stream can show an adoption that did not persist |
+| `createSession` | The channel offers a version the archive does not hold | `unknown_campaign`; nothing created |
+| `loadGame` | The save's wrapper `campaignVersion` ≠ its state's | `invalid_state`, like the wrapper's other identity fields (`90-decisions.md`, 2026-10-09, S134) |
 | `loadGame` | The save's epoch is archived and its `kindVersion` matches | Loads on that epoch with no migration — `replayCompatible` kept — then adopts |
 | `loadGame` | Otherwise | 04 §10.2's migration path; one that changes `campaignVersion` on a log carrying an epoch entry appends a migration entry (§3.5) |
-| `branchSession` | A version the retained prefix names does not resolve | `unknown_campaign` (the existing row, widened) |
+| `branchSession` | A version the retained prefix names does not resolve | `unknown_campaign` (the existing row, widened) — every version checked through `engine.content.resolve`, exact version match, before anything is created (`90-decisions.md`, 2026-10-09, S134) |
 | `branchSession` | A recorded content entry now refuses | `invalid_state`; nothing written |
 | `branchSession` | The log carries a migration entry | `invalid_state` — the existing `replayCompatible: false` refusal, readable from the log where the entry exists |
 | Adoption, story-graph | The target's node at `currentNodeId` is not a choice node, or offers no available choice | Pinned `content_incompatible` (§5.5) |
 | `getStrings` | A key an earlier result carried is absent from the current epoch | Resolved through the most recent live epoch that defines it (§5.7) |
-| Replay | The starting or any recorded version does not resolve | `unrunnable: campaign_version_missing` |
+| `getStrings` | A live epoch no longer resolves | Skipped; the union of the rest is returned (§5.7) |
+| Replay | The campaign id is gone from the runner's registry | `unrunnable: campaign_withdrawn` |
+| Replay | The starting or any recorded version does not resolve through the archive | `unrunnable: campaign_version_missing` |
+| Replay | An adoption submission names the version the game is already on | The runner throws — a malformed fixture, not a divergence (`90-decisions.md`, 2026-10-09, S135) |
 | Replay | A recorded adoption now refuses | `diverged` at that index |
 
 > **The load-path refinement is the quiet win.** Before epochs, a save made under any older
@@ -482,7 +529,10 @@ in-memory archive sidesteps it by never evicting.
   adoption point, never before, and never because something was pushed to it. There is no
   broadcast.
 - **The archive serializes publications.** `latest` is the last publication that succeeded;
-  a refused one changes nothing.
+  a refused one changes nothing. An identical republish of an older registry succeeds, adds no
+  epochs and becomes `latest` — that is how a host rolls the channel back. Nothing already
+  adopted is undone: a session on a newer epoch is offered the older one at its next adoption
+  point, and the kind judges that move like any other (`90-decisions.md`, 2026-10-09, S131).
 - **Versions carry no order.** The channel may name an older epoch — a rollback — and the kind
   judges that move like any other. Requiring monotonic versions would need a total order over
   `ResolutionId`s, which are digests and have none.

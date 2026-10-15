@@ -356,6 +356,15 @@ through `submitAction`, an adoption through `adoptContent` — builds an `Outcom
 > fixture names — the start or an adoption — does not resolve. The verdict type is public and
 > three suites switch on it, and widening a trigger costs nothing a rename would not.
 
+**Withdrawal is read from the registry; every named version from the archive.** The pre-check,
+before `createGame`, reports `campaign_withdrawn` when the runner's registry lacks the campaign
+id — an archive resolves pairs and cannot enumerate ids, so it cannot say one is gone. Otherwise
+every named version must resolve through `engine.content.resolve` to a campaign carrying that
+exact version, or the verdict is `campaign_version_missing`. An adoption submission naming the
+version the game is already on is a malformed fixture, not a divergence: adopting it appends no
+entry and so has no `seq`, capture never records one, and the runner throws, as it does on a
+missing seed (`90-decisions.md`, 2026-10-09, S135).
+
 `at` is the **`index`** of the first differing `Decision`, not a `seq` — §3.1 explains why
 `seq` cannot serve. `capturedUnder` comes from the fixture, so a divergence report names both
 engine versions that disagree rather than only the one running.
