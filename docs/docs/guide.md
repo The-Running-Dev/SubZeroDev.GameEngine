@@ -4,7 +4,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: e2a358c4d45c69287a3c30b6bee349d30338e8ab0256077b5a8c74d0943fa972 -->
+<!-- design-digest: a45b0874f8b9ffe76cfff2606cc58618ee6210df0b4a0147d20cd86550ff5805 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -306,9 +306,11 @@ Three rules are worth planning around:
 - **The kind judges compatibility.** A kind with no adoption rule never adopts. Story-graph
   adopts additive change — new nodes, new variables at their initial values — and refuses
   anything that could strand the player: removing the node they stand on, turning it into
-  anything but a choice node with a choice they can take, or silently dropping a variable the
-  state carries. Simulation and world-graph have no rule yet, so their
-  sessions stay pinned.
+  anything but a choice node with a choice they can take, silently dropping a variable the
+  state carries, or narrowing a variable's declaration so the value it holds no longer fits.
+  Simulation and world-graph have no rule yet, so their sessions stay pinned. Because the
+  target's migration runs first, a campaign migration must accept every earlier version it
+  can reach, including ones it has nothing to move.
 
 Adoption invents no play: it produces no state change, no outcome message, and nothing reaches
 the profile. Telling the player new content arrived is the client's choice. A session's string

@@ -68,26 +68,17 @@ const CURRENT_BUREAUCRACY_FIXTURE_NAMES = fixtureNamesByPrefix("bureaucracy-", F
 /** The epoch `bureaucracy-epoch-crossing` adopts (S135.4): the shipped campaign plus one
  *  variable, purely additive, so story-graph's `adoptContent` accepts it (16 §6.1). Derived
  *  here rather than shipped: it exists to give the corpus a second held epoch, not as content.
- *  Adoption runs the *target's* `migrateState` from the source version, and the shipped one
- *  migrates only from 1.0.0 — so this epoch passes a shipped-epoch state through unchanged,
- *  as its author would, and leaves the new variable to `adoptContent`. */
+ *  It keeps the shipped `migrateState`, which adoption runs from the shipped version and which
+ *  moves no id from there (04 §10.2), leaving the new variable to `adoptContent`. */
 const BUREAUCRACY_NEXT_EPOCH = "2.1.0";
 
 function nextEpoch(built: BuiltCampaign): BuiltCampaign {
   const content = built.campaign.content as StoryGraphCampaign;
-  const shipped = built.campaign.version;
-  const migrateShipped = built.campaign.migrateState;
   return {
     ...built,
     campaign: {
       ...built.campaign,
       version: BUREAUCRACY_NEXT_EPOCH,
-      migrateState: (state, fromVersion) =>
-        fromVersion === shipped
-          ? { ok: true, value: state, errors: [], warnings: [] }
-          : migrateShipped
-            ? migrateShipped(state, fromVersion)
-            : { ok: false, errors: [{ code: "migration_failed", messageKey: "core.reason.migration_failed" }], warnings: [] },
       content: { ...content, variables: { ...content.variables, forms_refiled: { type: "int", initial: 0 } } },
     },
   };

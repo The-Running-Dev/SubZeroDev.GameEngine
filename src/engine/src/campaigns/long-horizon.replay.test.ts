@@ -562,8 +562,10 @@ describe("the fifteenth system, isolated — week_limit_reached", () => {
 });
 
 // S126: every state the corpus passes through is one its kind's `validateState` accepts.
+// The win run takes about 2 s alone and passed vitest's 5 s default under full-suite load
+// (S134), so the timeout is stated rather than inherited (`90-decisions.md`, 2026-10-15).
 describe("the replay corpus deserializes (S126)", () => {
-  it.for(LONG_HORIZON_FIXTURE_NAMES)("%s: every state it reaches round-trips through deserialize", (name) => {
+  it.for(LONG_HORIZON_FIXTURE_NAMES)("%s: every state it reaches round-trips through deserialize", { timeout: 30_000 }, (name) => {
     expect(statesThatFailToDeserialize(makeContext().engine, loadFixture(name, FIXTURES_DIR))).toEqual([]);
   });
 });

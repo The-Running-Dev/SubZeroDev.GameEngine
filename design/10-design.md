@@ -4373,6 +4373,12 @@ never invent play. It runs on the *target* campaign because the target is the co
 knows what it renamed. Adoption does not run `Kind.migrateState`: a kind-shape change is a
 kind-version change, which is a save-load concern, and a running engine has one kind version.
 
+Because it runs from the session's own version, a campaign migration must accept a predecessor
+it has nothing to re-address, returning the state with no id moved (04 §10.2). An extension
+that keeps its predecessor's migration is called with exactly that version. A migration that
+refused it would pin every live session on the extension's first adoption
+(`90-decisions.md`, 2026-10-15).
+
 ### 5.5 The story-graph rule
 
 The story-graph kind adopts additive change and refuses anything that could strand the
@@ -4382,18 +4388,21 @@ player. After any campaign migration, it adopts iff:
   one of its choices is available** — `showWhen` true and requirements met — against the
   adopted state, after the insertion below;
 - every `visitedCounts` key and every `unlockedAchievements` id exists in the target;
-- every variable the state carries that the target declares has the target's `VarType`;
+- every variable the state carries that the target declares holds a value the target's
+  declaration admits: its `VarType`, and for an `enum` one of its `values`, for an `int` within
+  its `min`/`max`;
 - no variable the source declared and the state carries is missing from the target.
 
 Variables the target declares and the state lacks are inserted at their declared initial value.
 Everything else passes through unchanged — including a variable neither campaign declares, which
 load already tolerates as unread. A refusal reasons `content_incompatible`.
 
-The type condition compares `VarType` only, not the carried value against the target's
-declaration. A target that narrows an `enum` or an `int` range under the same type still adopts:
-an out-of-range `int` clamps on its next write, and an `enum` holding a dropped member reads
-normally but fails a later `copy` into another `enum`. Refusing such a value is a stricter rule
-than this one, recorded for revisiting rather than built (`90-decisions.md`, 2026-10-09, S132).
+The variable condition judges the carried value, not only its type. A target that narrows an
+`enum` or an `int` range past a value the session holds is refused: an `enum` holding a dropped
+member would read normally but fail a later `copy` into another `enum`, so the adoption would
+look additive and still break a move. The narrowed `int` is refused with it so that one rule
+covers both (`90-decisions.md`, 2026-10-15, replacing the type-only rule of 2026-10-09, S132).
+An author who narrows a declaration writes a `migrateState` that moves the excluded values.
 
 **The node the player stands on must still be a place to act.** An active story-graph session
 always rests on a choice node, because `submitChoice` and `createGame` both settle until they

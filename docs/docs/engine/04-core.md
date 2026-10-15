@@ -2125,12 +2125,22 @@ finds a reference it can neither remap nor drop fails with `migration_failed` ra
 guessing — this is architecture §8's "map old ids forward or fail loudly", said from the
 implementation side.
 
+**A campaign migration accepts every predecessor it can reach, not only those it
+re-addresses.** Adoption runs the *target* epoch's migration from the session's own version
+([`16-content-epochs.md`](16-content-epochs.md) §5.4), and so does a load whose epoch is no
+longer held. An extension that keeps its predecessor's migration is therefore called with
+that predecessor's version, which has nothing to rename: for such a version the migration
+returns the state with no id moved. It fails only for a version it cannot reach. A migration
+written for the version before last would otherwise refuse `migration_failed` on every
+adoption onto the extension, and every live session would stay pinned on the old epoch
+(`90-decisions.md`, 2026-10-15).
+
 Migration functions are engine-or-content-owned, never a host-supplied port: a port may
 supply anything that cannot change `serialize()` output
 ([`06-extensibility.md`](06-extensibility.md) §6), and remapping old ids is definitionally
 a change to it. Proven in `core/persistence/envelope.test.ts` against a synthetic
-kind/campaign, not a real campaign republish — every shipped campaign is still at
-`1.0.0`, so there is nothing real to migrate from yet either (`plans/38-save-migration-programme.md`).
+kind/campaign (`plans/38-save-migration-programme.md`). The one real campaign migration is the
+adventure campaigns' `1.0.0` → `2.0.0`, proven in `campaigns/adventure-builder.test.ts`.
 
 > **`saveFormatVersion` vs `GameState.formatVersion` — different things.**
 > `saveFormatVersion` versions *this wrapper*; `GameState.formatVersion` (§2) versions the

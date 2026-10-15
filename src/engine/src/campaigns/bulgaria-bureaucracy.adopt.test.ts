@@ -47,8 +47,7 @@ function adoptionNode(): string {
 const HOST_NODE = adoptionNode();
 
 /** v1 plus an `annex` choice node reached from the host node, and a `patience` variable.
- *  The real campaign's `migrateState` migrates from 1.0.0 only, so the copy carries none —
- *  see the last test. */
+ *  The copy carries no `migrateState` unless asked — the last test keeps the real one. */
 function extended(withMigrateState = false): BuiltCampaign {
   const { migrateState, ...data } = V1.campaign;
   const content = structuredClone(data.content) as StoryGraphCampaign;
@@ -132,10 +131,13 @@ describe("S132.4 — the Bureaucracy campaign adopts its own additive extension"
     expect(engine.serialize(loaded.value!)).toBe(serialized);
   });
 
-  it("pins with migration_failed when the extension keeps the real migrateState, which migrates from 1.0.0 only", () => {
+  it("adopts the same state when the extension keeps the real migrateState, which passes its own version through", () => {
     const engine = buildEngine(extended(true));
     let state = engine.createGame(CROSSING.config).value!;
     for (const actionId of PLAYED_BEFORE) state = engine.submitAction(state, actionId).value!;
-    expect(engine.adoptContent(state, "2.1.0")).toEqual({ adopted: false, reason: "migration_failed" });
+    const kept = engine.adoptContent(state, "2.1.0");
+    const without = buildEngine(extended()).adoptContent(state, "2.1.0");
+    expect(kept.adopted).toBe(true);
+    expect(kept).toEqual(without);
   });
 });

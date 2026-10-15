@@ -2308,12 +2308,22 @@ finds a reference it can neither remap nor drop fails with `migration_failed` ra
 guessing — this is architecture §8's "map old ids forward or fail loudly", said from the
 implementation side.
 
+**A campaign migration accepts every predecessor it can reach, not only those it
+re-addresses.** Adoption runs the *target* epoch's migration from the session's own version
+([`16-content-epochs.md`](16-content-epochs.md) §5.4), and so does a load whose epoch is no
+longer held. An extension that keeps its predecessor's migration is therefore called with
+that predecessor's version, which has nothing to rename: for such a version the migration
+returns the state with no id moved. It fails only for a version it cannot reach. A migration
+written for the version before last would otherwise refuse `migration_failed` on every
+adoption onto the extension, and every live session would stay pinned on the old epoch
+(`90-decisions.md`, 2026-10-15).
+
 Migration functions are engine-or-content-owned, never a host-supplied port: a port may
 supply anything that cannot change `serialize()` output
 ([`06-extensibility.md`](06-extensibility.md) §6), and remapping old ids is definitionally
 a change to it. Proven in `core/persistence/envelope.test.ts` against a synthetic
-kind/campaign, not a real campaign republish — every shipped campaign is still at
-`1.0.0`, so there is nothing real to migrate from yet either (`plans/38-save-migration-programme.md`).
+kind/campaign (`plans/38-save-migration-programme.md`). The one real campaign migration is the
+adventure campaigns' `1.0.0` → `2.0.0`, proven in `campaigns/adventure-builder.test.ts`.
 
 > **`saveFormatVersion` vs `GameState.formatVersion` — different things.**
 > `saveFormatVersion` versions *this wrapper*; `GameState.formatVersion` (§2) versions the
@@ -3460,10 +3470,11 @@ player.** After the target campaign's `migrateState`, it adopts iff `currentNode
 target node that is a `ChoiceNode` with at least one choice available — `showWhen` true and
 requirements met (§4) — against the state with the insertion below applied; every
 `visitedCounts` key names a target node and every `unlockedAchievements`
-id a target achievement; every variable the state carries that the target declares has the
-target's `VarType`; and no variable the source declared and the state carries is missing from the
-target. The type condition compares `VarType` only: a carried value the target's narrowed
-`enum` or `int` range excludes still adopts (`90-decisions.md`, 2026-10-09, S132). It returns
+id a target achievement; every variable the state carries that the target declares holds a
+value the target's declaration admits — its `VarType`, and for an `enum` one of its `values`, for
+an `int` within its `min`/`max`; and no variable the source declared and the state carries is
+missing from the target. A target that narrows an `enum` or an `int` range past a carried value
+is refused rather than left to fail a later `copy` (`90-decisions.md`, 2026-10-15). It returns
 the state with every variable the target declares and the state lacks inserted at its declared
 initial value, and everything else — a variable neither campaign declares included — unchanged. Any other case refuses
 `content_incompatible`. The node condition exists because adoption runs no settle (§8.2) —
@@ -6296,7 +6307,7 @@ wisdom` (§6.1's own `DerivedPath`), exactly as it does for `intelligence`/`disc
 other attribute. Content declaring an `EventChoice`/`OpportunityDefinition`/`JobDefinition`
 `Requirement` against `player.attributes.wisdom` is wisdom's consumer — no new `Condition`
 operator, `DerivedPath`, or content type is added for it, matching §8's stated bar against
-adding either without a concrete need. Authoring that fixture content is a `/slice` matter
+adding either without a concrete need. Authoring that fixture content is a slice's work
 (W100.5), not a contract addition.
 
 ### 7.12 Projects and Businesses (W101)

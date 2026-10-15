@@ -426,10 +426,11 @@ player.** After the target campaign's `migrateState`, it adopts iff `currentNode
 target node that is a `ChoiceNode` with at least one choice available — `showWhen` true and
 requirements met (§4) — against the state with the insertion below applied; every
 `visitedCounts` key names a target node and every `unlockedAchievements`
-id a target achievement; every variable the state carries that the target declares has the
-target's `VarType`; and no variable the source declared and the state carries is missing from the
-target. The type condition compares `VarType` only: a carried value the target's narrowed
-`enum` or `int` range excludes still adopts (`90-decisions.md`, 2026-10-09, S132). It returns
+id a target achievement; every variable the state carries that the target declares holds a
+value the target's declaration admits — its `VarType`, and for an `enum` one of its `values`, for
+an `int` within its `min`/`max`; and no variable the source declared and the state carries is
+missing from the target. A target that narrows an `enum` or an `int` range past a carried value
+is refused rather than left to fail a later `copy` (`90-decisions.md`, 2026-10-15). It returns
 the state with every variable the target declares and the state lacks inserted at its declared
 initial value, and everything else — a variable neither campaign declares included — unchanged. Any other case refuses
 `content_incompatible`. The node condition exists because adoption runs no settle (§8.2) —

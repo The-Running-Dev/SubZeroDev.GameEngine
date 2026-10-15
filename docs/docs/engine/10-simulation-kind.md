@@ -2321,7 +2321,7 @@ wisdom` (§6.1's own `DerivedPath`), exactly as it does for `intelligence`/`disc
 other attribute. Content declaring an `EventChoice`/`OpportunityDefinition`/`JobDefinition`
 `Requirement` against `player.attributes.wisdom` is wisdom's consumer — no new `Condition`
 operator, `DerivedPath`, or content type is added for it, matching §8's stated bar against
-adding either without a concrete need. Authoring that fixture content is a `/slice` matter
+adding either without a concrete need. Authoring that fixture content is a slice's work
 (W100.5), not a contract addition.
 
 ### 7.12 Projects and Businesses (W101)

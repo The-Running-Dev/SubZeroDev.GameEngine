@@ -15,15 +15,23 @@ import type { Campaign } from "../../core/registry/types.js";
 import type { StoryGraphCampaign } from "./campaign.js";
 import { offeredChoices } from "./scene.js";
 import type { StoryGraphKindState } from "./state.js";
-import type { VarValue } from "./variables.js";
+import type { VariableDecl, VarValue } from "./variables.js";
 
 const INCOMPATIBLE: AdoptDecision<StoryGraphKindState> = { adopt: false, reason: "content_incompatible" };
 
-function varType(value: VarValue): "bool" | "int" | "enum" | undefined {
-  if (typeof value === "boolean") return "bool";
-  if (typeof value === "number") return Number.isInteger(value) ? "int" : undefined;
-  if (typeof value === "string") return "enum";
-  return undefined;
+/** Whether `decl` admits `value` as it stands: its type, and for an `enum` one of its members,
+ *  for an `int` within its bounds. A narrowed declaration that excludes a carried value is
+ *  refused, since a later `copy` of it could throw (`90-decisions.md`, 2026-10-15). */
+function admits(decl: VariableDecl, value: VarValue): boolean {
+  switch (decl.type) {
+    case "bool":
+      return typeof value === "boolean";
+    case "int":
+      return typeof value === "number" && Number.isInteger(value)
+        && (decl.min === undefined || value >= decl.min) && (decl.max === undefined || value <= decl.max);
+    case "enum":
+      return typeof value === "string" && (decl.values?.includes(value) ?? false);
+  }
 }
 
 export function adoptContent(
@@ -43,7 +51,7 @@ export function adoptContent(
 
   for (const name of Object.keys(state.variables)) {
     if (Object.hasOwn(target.variables, name)) {
-      if (varType(state.variables[name]!) !== target.variables[name]!.type) return INCOMPATIBLE;
+      if (!admits(target.variables[name]!, state.variables[name]!)) return INCOMPATIBLE;
     } else if (Object.hasOwn(source.variables, name)) {
       return INCOMPATIBLE;
     }
