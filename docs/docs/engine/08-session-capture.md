@@ -63,8 +63,16 @@ with no translation step and can be promoted into the corpus without conversion 
 A session that adopted new content (16) is captured with an `AdoptionSubmission` (07 §2) at
 each content entry's position. That is not a new format — the union is 07's — and an adoption
 carries no caller input to filter: its only value is a version the store chose from the host's
-channel, never one a client sent. A session whose log carries a migration entry (16 §3.5) has no
-fixture form — a migration is not a step replay can perform — and is not captured.
+channel, never one a client sent.
+
+**A session that is not replay-compatible is not captured.** A `StoredSessionRecord` with
+`replayCompatible: false` has passed through a migrated load (04 §10.2), and its log no longer
+regenerates its state, so a fixture made from it would replay actions on content it does not
+name. Capture reads the flag from the session record and refuses, as `branchSession` does
+(04 §7.4). A session whose log carries a migration entry (16 §3.5) is the case readable from the
+log — the entry implies the flag, and a migration is not a step replay can perform. The flag also
+covers the case the log cannot show: a session migrated before it ever adopted, or in kind shape
+only, carries no entry.
 
 ---
 

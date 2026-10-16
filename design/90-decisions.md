@@ -613,14 +613,13 @@ what retires its merge.
 
 ### Found by the content-epochs red-team revision
 
-**Capture does not refuse a migrated session that carries no migration entry.** 08 refuses a
-session whose log carries a migration entry, but nothing in 08 checks `replayCompatible`. A
-session migrated across campaign versions before it ever adopted, or migrated in kind shape only,
-carries no entry, so capture would turn it into a fixture whose actions were taken on content
-the fixture does not name. The gap predates content epochs. Narrowing F1's migration entry to
-epoch-bearing logs (2026-10-08) left it as it was rather than opening it. The likely fix is one
-line in 08: refuse every `replayCompatible: false` session. It was kept out of the F1 revision
-because it is a separate unit. **Revisit** before capture is built.
+**Resolved by design, 2026-10-16 — capture refuses every `replayCompatible: false` session.**
+08 §2 refused only a session whose log carries a migration entry. A session migrated across
+campaign versions before it ever adopted, or migrated in kind shape only, carries no entry, so
+capture would have turned it into a fixture whose actions were taken on content the fixture does
+not name. 08 §2 now refuses on the session record's `replayCompatible: false`, as `branchSession`
+does (04 §7.4); the migration-entry refusal is the case of it readable from the log. Capture
+itself is still unbuilt (`30-slices.md`, *Carried Forward*).
 
 ---
 
@@ -2750,3 +2749,8 @@ Rejected: **A suite-wide timeout in a new vitest config.** It would lengthen eve
 Context: align on #596. The kit's `test-design.ts` reports 13 `UnknownCommand` findings here, and 12 of them are not commands. In 5, a closing backtick followed by `/word` is read as an opening code span (`` `auto`/choice ``). The other 7 are the package subpath `` `/authoring` ``. The kit's #467 fixed HTTP routes and MCP methods but neither of these classes. The thirteenth finding, a stale `` `/slice` `` naming a retired kit command in the simulation kind's §7.11, was real and was fixed here as a transcription.
 Chosen: no repository change for the 12. They are reported as [The-Running-Dev/SubZeroDev.AgentKit#468](https://github.com/The-Running-Dev/SubZeroDev.AgentKit/issues/468), and this entry exists so that the next `/agentkit:align` does not judge them again.
 Rejected: **Rewording the design prose to dodge the pattern.** That bends correct prose around a checker defect, and every repository that writes `` `a`/b `` would have to do the same.
+
+### 2026-10-16 — Capture refuses every `replayCompatible: false` session, not only a log with a migration entry
+Context: the content-epochs red-team revision left 08 §2 refusing a session whose log carries a migration entry, and nothing in 08 checking `replayCompatible`. A session migrated before it ever adopted, or in kind shape only, carries no entry (16 §3.5), so capture would have accepted it.
+Chosen: 08 §2 refuses a session whose record says `replayCompatible: false`, the same test `branchSession` applies (04 §7.4). The migration-entry refusal stays as the case of it readable from the log. Capture is unbuilt, so no code changes.
+Rejected: **Refusing on the log alone.** A log with no epoch entry cannot show a migration, which is the gap. **Capturing a migrated session from its post-migration state.** A fixture is `{ config, submissions }` replayed from creation (07 §2), so it has no way to start from a migrated state.
