@@ -4,7 +4,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: a45b0874f8b9ffe76cfff2606cc58618ee6210df0b4a0147d20cd86550ff5805 -->
+<!-- design-digest: f4331f898be1ff9c8bf61dae7002b334ce02688043085ad5d7fb82d3930f7e13 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -1190,7 +1190,10 @@ the identical rule: published ids only, never values a balance pass would legiti
 
 A production incident should become a minimal replay fixture when privacy permits. The specified
 capture flow excludes identity, timing, raw state, and undeclared parameters; capture happens only
-for an explicit report or an error-severity event, never as background collection. Promotion into
+for an explicit report or an error-severity event, never as background collection. A session that
+is not replay-compatible is refused, because its log no longer regenerates its state — every
+`replayCompatible: false` session, including one migrated before it adopted and so carrying no
+migration entry, the same refusal `branchSession` makes. Promotion into
 the committed corpus is a reviewed, one-way step — a capture is personal data until a human
 confirms identity and undeclared params are absent, and once committed to git it cannot be deleted
 the way a retention window can delete an unpromoted capture. That hosting integration is not
