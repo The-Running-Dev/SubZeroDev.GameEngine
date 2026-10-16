@@ -426,14 +426,17 @@ judgement calls are the 2026-10-08 entries in the decision log, including the th
 the red team's F1–F3 (`design/redteam/2026-10-08-10-design.md`). Two refinements on the settled
 directions: absent the seam, a session stays pinned rather than adopting additive change by
 default, and the replay oracle's new failure widens `campaign_version_missing` rather than
-replacing it. **Not yet built** — the next step is `/agentkit:plan`.
+replacing it. **Built 2026-10-09 to 2026-10-11** as S129–S135 (#587–#594). What the design left
+open is registered under *Found by the content-epochs design* below.
 
 **Resolved by design, 2026-10-08 — the `campaignVersion` gap on raw `deserialize`.** S125 made
 raw `deserialize` reject a `kindId` that is not its campaign's, but left `campaignVersion`
 uncompared, so a session serialized under one resolution was accepted under another. Content
 epochs replace the gap rather than patching it: `deserialize` resolves the state's
 `(campaignId, campaignVersion)` through the archive and refuses `unknown_campaign` when it does
-not resolve (`20-contract.md` §4, C22). The gap stays open in code until that slice lands.
+not resolve (`20-contract.md` §4, C22). **Closed in code by S129, 2026-10-09** (#587):
+`deserialize` in `src/engine/src/core/kernel/engine.ts` resolves the state's epoch before
+anything else and refuses `unknown_campaign` when the archive does not hold that version.
 
 **The content registry holds the host's campaign objects by reference, so "frozen" means
 validated, not immutable.** S124 made the engine own the `params` it logs. The review asked for
@@ -568,7 +571,11 @@ renamed, the review asks for it to be deliberate: brand, repository and package 
 an alias period, and kind ids and save formats kept stable, because a rename must not break a
 saved game. This is a product decision, not an engineering one. **Revisit** when the owner
 decides the ecosystem's public positioning, and before any package is published under a second
-name.
+name. **Brand decided 2026-10-08** (#565): the public brand is *GodComplex — Consequences*,
+positioned beyond games, and the review's shortlist was not taken. The repository name, the npm
+package and the domain stay as they are, so kind ids, save formats and package consumers are
+untouched. The alias-period constraint above still governs a later rename of the repository or
+the package.
 
 ### Found by the content-epochs design
 
