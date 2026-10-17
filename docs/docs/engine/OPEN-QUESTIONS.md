@@ -550,8 +550,14 @@ implementations and replay fixtures, but only the story route has a real applica
 has no executable game. The review asks for the claim to be qualified, so that contributors and
 the project's own prioritization can tell an implemented kind from a shipped game. It also asks
 the README to drop its implication that nobody had made gameplay reusable (Unreal's Gameplay
-Ability System and ink both have) in favour of a positive, testable promise, keeping the humour. Both are brief-level wording and the owner's call. **Revisit** at the next
-`/agentkit:brief` pass, or sooner if the claim is repeated somewhere a reader will act on it.
+Ability System and ink both have) in favour of a positive, testable promise, keeping the humour. Both are brief-level wording and the owner's call.
+**Brief resolved 2026-10-17:** `00-brief.md` now says the three directions *target* the engine
+and states each one's evidence — all three kinds implemented and replay-tested, only the story
+route with a real application (Adventures), the other two games design-only. **README retained
+as-is, by the owner's decision, 2026-10-17:** a rewrite that credited Gameplay Ability System and
+ink and qualified the two-games experiment was tried and reverted because it traded the README's
+humour for precision. The README is the pitch, not the evidence; the brief carries the qualified
+claim.
 
 **The name "GameEngine" invites the wrong comparison.** The review argues that "game engine"
 names an implementation category, suggests graphics-heavy tooling, and hides the non-game

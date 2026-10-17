@@ -90,20 +90,26 @@ The Game Engine is the platform; **Life in the Fast Lane is a campaign on it** �
 specifically, the flagship campaign of the `simulation` kind, already specified in
 full under `games/`.
 
-**Three game directions are proven on this engine**. The first two have companion-game
-documentation; the third is the world-graph contract and its Sun Trap companion:
+**Three game directions target this engine.** All three kinds are implemented and
+replay-tested here; they differ in how far a real game has exercised them:
 
 1. **Life in the Fast Lane** — the `simulation` kind.
    The Jones clone. Its Bulgarian culture pack is the customization example. The deep
-   game; the depth milestone.
+   game; the depth milestone. **Kind implemented; the game is design and specification**
+   in its companion repository, with no executable game yet.
 2. **Bulgaria: Make-Your-Own-Adventure** — the
    `story-graph` kind. A branching game. The simplest to build, and therefore the MVP.
+   **The one direction with a real application on it**:
+   [SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures) hosts,
+   authors and plays story campaigns against a pinned engine.
+3. **Sun Trap** — the `world-graph` kind. A spatial, tick-driven resort simulation.
+   **Kind implemented and replay-guarded; the game is design only** in its companion
+   repository.
 
-3. **Sun Trap** — the `world-graph` kind. A spatial, tick-driven resort simulation in
-   its own companion repository.
-
-They share only the engine boundary — not a forced common mechanic. Building all three
-is the proof that the engine/kind/campaign separation works: distinct games, one engine.
+They share only the engine boundary — not a forced common mechanic. Shipping all three
+games is the proof that the engine/kind/campaign separation works: distinct games, one
+engine. Today the story route carries that proof through Adventures; the other two carry
+it as implemented kinds with fixtures, not as games anyone has played.
 
 The full reasoning behind this two-layer split, and every other architectural
 decision, is in [`02-architecture.md`](02-architecture.md).
