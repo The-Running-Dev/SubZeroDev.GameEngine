@@ -46,6 +46,7 @@ import type {
   SessionStore,
   SessionPersistence,
   StoredSaveRecord,
+  SessionInitialization,
   StoredSessionRecord,
   TerminalRecord,
 } from "./types.js";
@@ -73,6 +74,10 @@ interface SessionRecord {
   /** Set once at `createSession`, never swapped (06 §4's "supplied once" convention).
    *  Omitted → anonymous session: no profile read, no profile write (04 §7.1). */
   profileId?: string;
+  /** What `createSession` handed `initialState` (20-contract.md §7.2), carried through every
+   *  save, load and branch of the lineage so a branch replays the original input. Absent →
+   *  the record predates the field, and the original is unknown. */
+  initialization?: SessionInitialization;
   /** False once this lineage has passed through a migrated `loadGame` — sticky forward,
    *  never reset (04 §10.2: a migrated save is no longer byte-replayable). Stamped into
    *  the next `SaveEnvelope` this session's `saveGame` produces. */
@@ -264,6 +269,18 @@ export async function upsertKindProfileData(
 }
 
 /**
+ * The initialization a branch of `source` replays with (20-contract.md §7.2). A record from
+ * before the field existed is reconstructable only where `createSession` could not have read
+ * a profile — an anonymous session, or a kind that declares no `profileData` — and is refused
+ * otherwise: substituting an empty or a current profile would branch a different game.
+ */
+function branchInitialization(source: SessionRecord, kind: Kind<unknown> | undefined): SessionInitialization {
+  if (source.initialization !== undefined) return source.initialization;
+  if (source.profileId === undefined || !kind?.profileData) return {};
+  throw new SessionStoreErrorValue("branchSession", "invalid_state");
+}
+
+/**
  * §7.1: reads the profile once, at `createSession`, and resolves/migrates the one
  * `KindProfileRecord` matching this campaign's kind — never at `resumeSession`, `loadGame`
  * or `branchSession`, which must not re-seed from a profile that has moved on since. A
@@ -313,6 +330,8 @@ interface SaveRecord {
    *  session store's own record ... and stay[s] there"). Omitted → the saved session was
    *  anonymous; `loadGame` must not resurrect a profile association that never existed. */
   profileId?: string;
+  /** The saving session's, round-tripped the same way `profileId` is. */
+  initialization?: SessionInitialization;
 }
 
 export interface InMemorySessionStoreOptions {
@@ -559,9 +578,8 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
     try {
       const stored = await options.persistence?.sessions.get(sessionId);
       if (stored) {
-        // Copied: the store mutates its cached record in place before a write, and an
-        // adapter that hands back its own object would see that mutation before the
-        // `put` it is meant to compare against.
+        // Copied: the store publishes a committed write onto its cached record in place, and
+        // an adapter that hands back its own object would see that mutation in its stored row.
         const restored: SessionRecord = { ...stored };
         cacheSession(sessionId, restored);
         return restored;
@@ -608,6 +626,31 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
       }
       throw new SessionStoreErrorValue("session", "storage_failure");
     }
+  }
+
+  /**
+   * Durable first, then published (20-contract.md §7.2): the write is made from a candidate
+   * copy, and `record` — the object every query and every queued command reads — takes the
+   * candidate's fields only once the write has returned. A query running while the write is
+   * pending serves the last committed state, and a refused write leaves nothing to undo.
+   *
+   * On a conflict the record is evicted as well: another writer committed past it, so the
+   * retry the shipped message asks for re-reads persistence. A `storage_failure` keeps it, since
+   * there the cache was right and only the write failed. A command already queued on this lock
+   * still holds the unchanged object, and offers its stale revision, so the adapter refuses it
+   * rather than accepting a successor of the refused write.
+   */
+  async function commitSession(record: SessionRecord, next: Pick<SessionRecord, "blob" | "updatedAt" | "revision">): Promise<void> {
+    const candidate: SessionRecord = { ...record, ...next };
+    try {
+      await writeSession(candidate);
+    } catch (error) {
+      if (error instanceof SessionStoreErrorValue && error.code === "concurrent_modification" && sessions.get(record.sessionId) === record) {
+        sessions.delete(record.sessionId);
+      }
+      throw error;
+    }
+    Object.assign(record, next);
   }
 
   async function writeSave(record: SaveRecord): Promise<void> {
@@ -814,6 +857,9 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
           createdAt: now,
           updatedAt: now,
           ...(config.profileId !== undefined ? { profileId: config.profileId } : {}),
+          // An owned copy: the profile store's object may change after this, and the
+          // branch replay this record exists for must see the value `initialState` saw.
+          initialization: kindProfileData !== undefined ? { kindProfileData: structuredClone(kindProfileData) } : {},
         };
         await writeSession(record);
         cacheSession(sessionId, record);
@@ -830,25 +876,17 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
             if (adopted === state) return decoratedEngine.scene(state);
 
             // 16 §5.3: its own write, at revision + 1. Adoption never fails a command, so a
-            // refused write restores the unadopted record and serves its scene; the next
-            // adoption point offers again. A conflict evicts the restored record as
-            // `submitAction` does, since another writer committed past it.
-            const previousBlob = record.blob;
-            const previousUpdatedAt = record.updatedAt;
-            const previousRevision = record.revision;
-            record.blob = decoratedEngine.serialize(adopted);
-            record.updatedAt = clock.now();
-            record.revision = previousRevision + 1;
+            // refused write leaves the unadopted record in place and serves its scene; the next
+            // adoption point offers again. A conflict evicts the record as `submitAction` does,
+            // since another writer committed past it.
             try {
-              await writeSession(record);
+              await commitSession(record, {
+                blob: decoratedEngine.serialize(adopted),
+                updatedAt: clock.now(),
+                revision: record.revision + 1,
+              });
             } catch (error) {
-              record.blob = previousBlob;
-              record.updatedAt = previousUpdatedAt;
-              record.revision = previousRevision;
               if (!(error instanceof SessionStoreErrorValue)) throw error;
-              if (error.code === "concurrent_modification" && sessions.get(sessionId) === record) {
-                sessions.delete(sessionId);
-              }
               return decoratedEngine.scene(state);
             }
             return decoratedEngine.scene(adopted);
@@ -878,35 +916,17 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
               // resolved what they were shown; the next scene is the first drawn from the
               // adopted content, and the messages stay the old epoch's.
               const committed = adoptOffered(decoratedEngine, newState, record);
-              const previousBlob = record.blob;
-              const previousUpdatedAt = record.updatedAt;
-              const previousRevision = record.revision;
-              record.blob = decoratedEngine.serialize(committed);
-              record.updatedAt = clock.now();
-              record.revision = previousRevision + 1;
               try {
-                await writeSession(record);
+                await commitSession(record, {
+                  blob: decoratedEngine.serialize(committed),
+                  updatedAt: clock.now(),
+                  revision: record.revision + 1,
+                });
               } catch (error) {
-                // A rejected write must not leave the cache ahead of persistence (20-contract.md
-                // §7.2's blockquote) — restore what was here before this mutation so the next
-                // read serves the pre-conflict state, not the refused one. Every field the
-                // refused `put` carried, including the counter incremented above: it is part of
-                // `StoredSessionRecord`, so leaving it raised keeps the cache one attempt ahead
-                // of a record persistence never took, and `getSession` is cache-first.
-                record.blob = previousBlob;
-                record.updatedAt = previousUpdatedAt;
-                record.revision = previousRevision;
+                // The counter incremented above is part of `StoredSessionRecord`, so leaving it
+                // raised keeps the cache one attempt ahead of a record persistence never took,
+                // and `getSession` is cache-first.
                 record.attemptCounter = attempt - 1;
-                // On a conflict the restored record is itself stale — another writer committed
-                // — so it is evicted too, and the retry the shipped message asks for re-reads
-                // persistence. A `storage_failure` keeps it: there the cache was right and only
-                // the write failed. The restore above still matters after eviction: a command
-                // already queued on this lock holds this object, and must offer the stale
-                // revision so the adapter refuses it rather than accepting a successor of the
-                // refused write.
-                if (error instanceof SessionStoreErrorValue && error.code === "concurrent_modification" && sessions.get(sessionId) === record) {
-                  sessions.delete(sessionId);
-                }
                 throw error;
               }
 
@@ -1010,6 +1030,7 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
               savedAtSeq: state.actionLog.length,
               audience: record.audience,
               ...(record.profileId !== undefined ? { profileId: record.profileId } : {}),
+              ...(record.initialization !== undefined ? { initialization: record.initialization } : {}),
             };
             // Durable first, then published (20-contract.md §7.2): a save whose write throws
             // must never be listed or loadable from this instance's cache, since no other
@@ -1053,6 +1074,7 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
           createdAt: now,
           updatedAt: now,
           ...(save.profileId !== undefined ? { profileId: save.profileId } : {}),
+          ...(save.initialization !== undefined ? { initialization: save.initialization } : {}),
         };
         // 16 §5.3: the adoption point, persisted in the new session's first write.
         const state = adoptOffered(decoratedEngine, loaded, record);
@@ -1101,7 +1123,12 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
      * `IdSource` — the port whose values never enter `GameState` (§7.4).
      */
     async branchSession(sessionId: string, atActionCount: number): Promise<SessionHandle> {
-      const source = await getSession(sessionId);
+      // The source is read on its own session queue, so the snapshot is taken after every
+      // command already queued against it has settled — and, with `commitSession`, only ever
+      // from a committed write. A branch cannot copy a write that later fails.
+      const source = await holdSession(sessionId, (record) =>
+        runExclusive(sessionLocks, sessionId, () => Promise.resolve({ ...record })),
+      );
       if (!source.replayCompatible) {
         throw new SessionStoreErrorValue("branchSession", "invalid_state");
       }
@@ -1127,11 +1154,18 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
       if (!named.every(isHeld)) {
         throw new SessionStoreErrorValue("branchSession", "unknown_campaign");
       }
+      const initialization = branchInitialization(source, kinds[sourceState.kindId]);
 
       const branchSessionId = newSessionId(recordIds);
 
       return withCommand(branchSessionId, 0, async (decoratedEngine) => {
-        const created = decoratedEngine.createGame({ campaignId: sourceState.campaignId, seed: sourceState.seed }, startVersion);
+        // The source's own initialization, never the profile as it is now (§7.1), and a copy
+        // of it, so nothing `initialState` does reaches the record.
+        const created = decoratedEngine.createGame({
+          campaignId: sourceState.campaignId,
+          seed: sourceState.seed,
+          ...(initialization.kindProfileData !== undefined ? { kindProfileData: structuredClone(initialization.kindProfileData) } : {}),
+        }, startVersion);
         if (!created.ok || !created.value) {
           // Defensive, same class as mustDeserialize's own throw above: the starting epoch
           // was just resolved by the same id/version above.
@@ -1168,6 +1202,7 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
           createdAt: now,
           updatedAt: now,
           ...(source.profileId !== undefined ? { profileId: source.profileId } : {}),
+          initialization,
         };
         // 16 §5.3: the branch's own adoption point, persisted in its first write. A branch
         // taken before an adoption starts on the old epoch and is offered the new one here.

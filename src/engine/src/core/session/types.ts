@@ -72,6 +72,16 @@ export interface SaveSummary {
   savedAtSeq: number;
 }
 
+/**
+ * §7.2. What `createSession` gave `initialState` beyond the state's own `{ campaignId, seed }`,
+ * recorded so `branchSession` replays from the original input rather than re-reading a profile
+ * that has moved on since. Present and empty → recorded, and there was no profile data.
+ */
+export interface SessionInitialization {
+  /** The resolved, migrated slice passed as `NewGameConfig.kindProfileData`. */
+  kindProfileData?: unknown;
+}
+
 /** Host-owned records. They deliberately live outside GameState and are never replayed. */
 export interface StoredSessionRecord {
   sessionId: string;
@@ -87,6 +97,8 @@ export interface StoredSessionRecord {
   createdAt: string;
   updatedAt: string;
   profileId?: string;
+  /** Absent → written before this field existed, so the original initialization is unknown. */
+  initialization?: SessionInitialization;
 }
 
 export interface StoredSaveRecord {
@@ -98,6 +110,8 @@ export interface StoredSaveRecord {
   savedAtSeq: number;
   audience: ProjectionAudience;
   profileId?: string;
+  /** The saved session's, carried to the session `loadGame` makes. Absent → unknown, as above. */
+  initialization?: SessionInitialization;
 }
 
 export interface SessionRecordStore {
