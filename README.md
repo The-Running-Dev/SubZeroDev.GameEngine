@@ -25,19 +25,21 @@ They solved audio.
 
 They solved networking.
 
-Then we collectively decided the correct approach was to rewrite inventory systems,
-dialogue systems, quest systems, AI, save systems, and progression mechanics for the
-next thirty years.
+Gameplay got reused too, in places. Unreal's Gameplay Ability System packages abilities,
+attributes and effects. ink gives narrative its own language and runtime. Nobody here
+discovered that mechanics can be shared.
 
-Apparently that seemed reasonable.
+What still tends to get rewritten per game is the part underneath: the state, the
+randomness, the save file, and the answer to _"why did that just happen?"_
 
-SubZeroDev.GodComplex politely disagrees.
+SubZeroDev.GodComplex makes a narrower, checkable promise instead:
 
-Instead of asking how to render another world...
+**The same rules, seed and actions produce the same consequences on any client, every
+change arrives with its reason, and a new engine version that alters an outcome is caught
+by replay before it ships.**
 
-it asks a different question:
-
-**What if interactive rules, decisions, and consequences became reusable?**
+Stories, life sims and living worlds are separate rulebooks on that one core. The promise
+is what they share.
 
 ---
 
@@ -115,7 +117,11 @@ games that share only a setting and a voice, and absolutely nothing mechanical.
 
 Same country. Same deadpan humor. Completely different mechanics.
 
-If the architecture survives that experiment...
+The experiment is half run. Both Kinds are built and replay-tested, and story campaigns are
+played for real at [Adventures](https://adventures.subzerodev.com/). Life in the Fast Lane
+is still a specification, so the simulation half has passed its tests, not its players.
+
+If the architecture survives the rest of that experiment...
 
 it probably survives yours.
 

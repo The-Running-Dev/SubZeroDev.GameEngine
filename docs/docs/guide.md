@@ -4,7 +4,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: f4331f898be1ff9c8bf61dae7002b334ce02688043085ad5d7fb82d3930f7e13 -->
+<!-- design-digest: 238e8e223f041016c84ef849d75d049762e0e270db9df1db149e31ad6f6fb109 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -46,8 +46,9 @@ contracts it links to — this guide never repeats a signature that document alr
   `design/90-decisions.md` carries the current stub list.
 - **`world-graph`** is the third kind: a navigable world with autonomous inhabitants, advanced
   in fixed ticks through a twenty-system pipeline. Every system that pipeline names is real. The
-  flagship game built on it (Sun Trap) is a separate repository with its own content, balance,
-  and client.
+  flagship game built on it (Sun Trap) is a separate repository that will own its content,
+  balance, and client; it is design only so far. Of the three kinds, only `story-graph` has a
+  real application on it (SubZeroDev.Adventures).
 - **The public browser demo that once lived at `/play/` is retired.** It proved browser
   portability and "clients never hold state"; the play surface now is
   [SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures), a client
