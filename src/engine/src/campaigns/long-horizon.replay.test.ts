@@ -212,8 +212,8 @@ describe.skipIf(!HAS_BOTH_RUNS)("W89.3 — every dispatched ActionType resolves 
 // W89.4 — thirteen of the fifteen end-of-week systems are observed doing something at
 // least once over the two runs, combined. The two this block does not cover, counted off
 // the list below rather than restated: `relationships`, excluded per the decision recorded
-// in `design/90-decisions.md`'s open register (no weekly relationship rule exists in the
-// contract yet, so it can never emit anything beyond `system.ran`), and `week_limit`, which
+// in `design/90-decisions.md`'s open register (the long-horizon campaign configures no
+// `relationshipDrift`, so here it emits nothing beyond `system.ran`), and `week_limit`, which
 // neither long run can reach without contradicting W89.2 and so gets the isolated side test
 // at the bottom of this file. Fourteen of fifteen across the file; thirteen here.
 // A `system.ran` event alone does not count (10-simulation-kind.md's own
