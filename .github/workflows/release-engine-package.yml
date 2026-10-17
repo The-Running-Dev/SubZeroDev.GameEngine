@@ -90,7 +90,7 @@ jobs:
         run: pwsh -NoProfile -File ./build/Invoke-EngineRelease.ps1 -Stage RegistryOutcome
 
       - name: Verify engine
-        uses: The-Running-Dev/GitHub-ActionTemplates/actions/node-scripts@v0
+        uses: The-Running-Dev/GitHub-ActionTemplates/actions/node-scripts@v1
         with:
           path: src/engine
           scripts: typecheck lint test

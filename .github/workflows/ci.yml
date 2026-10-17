@@ -40,7 +40,7 @@ jobs:
   engine:
     permissions:
       contents: read
-    uses: The-Running-Dev/GitHub-ActionTemplates/.github/workflows/node-ci.yml@v0
+    uses: The-Running-Dev/GitHub-ActionTemplates/.github/workflows/node-ci.yml@v1
     with:
       working-directory: src/engine
       node-versions: '["24"]'
@@ -63,7 +63,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: The-Running-Dev/GitHub-ActionTemplates/actions/pwsh-check@v0
+      - uses: The-Running-Dev/GitHub-ActionTemplates/actions/pwsh-check@v1
         with:
           paths: .
 
