@@ -6,6 +6,10 @@ export type RoadmapChapter = {
   id: string;
   workUnits: string;
   ledgerAnchor?: string;
+  /** A release or publication chapter. It may stay pending after its implementation units have
+   * landed, because what it waits for is a publication, not code. Absent means an
+   * implementation chapter, which is done once every unit in `workUnits` has landed. */
+  release?: true;
   status: RoadmapStatus;
   title: string;
   summary: string;
@@ -24,9 +28,16 @@ const commit = (hash: string) => `${repo}/commit/${hash}`;
 // `<a id="w…">` anchor, and a cancelled one says so in its row; a slice planned after the
 // retirement is an `## S…` section that counts once it reads `Status: done`. If a future gap
 // reopens, reintroduce an explicit exception list rather than silently undercounting.
-const landedWorkUnits = (
+const landedRows = (
   todo.match(/^\| <a id="w\w+"><\/a>W\w+ \|.*$/gm) ?? []
-).filter((row) => !row.includes("Cancelled")).length;
+).filter((row) => !row.includes("Cancelled"));
+/** Every W unit with a Landed row, by its ledger id (`W109`). Cancelled rows are excluded. */
+export const landedUnits: ReadonlySet<string> = new Set(
+  landedRows.map(
+    (row) => /^\| <a id="w\w+"><\/a>(W\w+) \|/.exec(row)?.[1] ?? "",
+  ),
+);
+const landedWorkUnits = landedRows.length;
 const doneSlices = todo
   .split(/^(?=## )/m)
   .filter(
@@ -436,6 +447,7 @@ export const shippedChapters: readonly RoadmapChapter[] = [
     id: "release-010",
     workUnits: "W90–W92",
     ledgerAnchor: "w90",
+    release: true,
     status: "done",
     title: "0.10.0 becomes reproducible, then never ships",
     summary:
@@ -454,6 +466,22 @@ export const shippedChapters: readonly RoadmapChapter[] = [
       },
     ],
   },
+  {
+    id: "gameoflife-blockers",
+    workUnits: "W109–W113",
+    ledgerAnchor: "w109",
+    status: "done",
+    title: "Five things Life in the Fast Lane can say now",
+    summary:
+      "Reputation-targeting modifiers, NPCs who start out already remembering you, conditions that can ask whether you own one, cars that cost money to run, and utilities on the weekly bill. Landed on main after the pinned 0.11.0 candidate, so none of them is in it; which release carries them is not decided yet.",
+    links: [
+      {
+        label: "Stabilization ledger",
+        href: "/docs/engine/todo#w109",
+        kind: "site",
+      },
+    ],
+  },
 ];
 
 export const nextActs: readonly RoadmapChapter[] = [
@@ -461,6 +489,7 @@ export const nextActs: readonly RoadmapChapter[] = [
     id: "authorize-011",
     workUnits: "W93–W108",
     ledgerAnchor: "w93",
+    release: true,
     status: "now",
     title: "0.11.0 becomes the next authorized publication",
     summary:
@@ -475,22 +504,6 @@ export const nextActs: readonly RoadmapChapter[] = [
         label: "Release checklist",
         href: `${repo}/blob/main/RELEASE.md`,
         kind: "repository",
-      },
-    ],
-  },
-  {
-    id: "gameoflife-blockers-012",
-    workUnits: "W109–W113",
-    ledgerAnchor: "w109",
-    status: "next",
-    title: "Five things Life in the Fast Lane cannot say yet",
-    summary:
-      "Reputation-targeting modifiers, NPCs who start out already remembering you, conditions that can ask whether you own one, cars that cost money to run, and utilities on the weekly bill. Contract-only today; 0.12 scope, and none of them may touch the pinned 0.11.0 candidate.",
-    links: [
-      {
-        label: "Stabilization ledger",
-        href: "/docs/engine/todo#w109",
-        kind: "site",
       },
     ],
   },

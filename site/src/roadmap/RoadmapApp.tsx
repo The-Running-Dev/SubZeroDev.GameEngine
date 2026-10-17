@@ -113,11 +113,17 @@ export default function RoadmapApp() {
           <h2 className="section-heading">
             Next: Open the Resort. Regret the Resort.
           </h2>
-          <ol className="milestones">
-            {futureActs.map((chapter) => (
-              <Milestone key={chapter.id} chapter={chapter} />
-            ))}
-          </ol>
+          {futureActs.length > 0 ? (
+            <ol className="milestones">
+              {futureActs.map((chapter) => (
+                <Milestone key={chapter.id} chapter={chapter} />
+              ))}
+            </ol>
+          ) : (
+            <p>
+              No implementation chapter is scheduled after the current one yet.
+            </p>
+          )}
         </section>
         <section id="later" className="roadmap-section later">
           <p className="section-index">04 / LATER</p>

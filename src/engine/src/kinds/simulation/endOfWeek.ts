@@ -18,9 +18,9 @@
  * of the expiry it already had, `events` fires scheduled and random events, `headline`
  * chooses a headline from derived world strangeness, `achievements` unlocks against
  * `AchievementDefinition.condition`, and `week_limit` — a system upstream never named — makes
- * the third terminal path reachable. `relationships` is now the only stub left, and stays
- * one: no weekly relationship rule exists anywhere in this contract to implement (see its
- * own definition site below, and W56's *Out of scope*). Every system emits
+ * the third terminal path reachable. `relationships`, the last stub W57 left, stopped being one
+ * in W100: it applies `SimulationCampaign.relationshipDrift` (§7.11) and is a no-op only for a
+ * campaign that configures none (see its own definition site below). Every system emits
  * `kind.simulation.system.ran` at `trace` (§11), the same ordering-verification technique
  * `startOfWeek.ts` uses. `goals`/`failure` additionally emit `goal.achieved`/`goal.failed`
  * (§11, `info`) per goal transitioning this week — `week.ended` itself is `advance.ts`'s
