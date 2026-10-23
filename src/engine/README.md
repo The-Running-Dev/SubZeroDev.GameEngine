@@ -56,3 +56,9 @@ npm run typecheck
 ```
 
 All three run in CI on every push and pull request (the `engine` job).
+
+## Full-tick performance measurements
+
+The opt-in [world-graph benchmark](benchmarks/README.md) runs seeded, validated workloads
+through the real tick pipeline and consecutive tick batches. It writes JSON timings and
+repeatability/provenance evidence; its workload bounds do not establish engine capacity.
