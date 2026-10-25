@@ -1,5 +1,12 @@
 # Release Checklist — `@the-running-dev/game-engine@0.11.0`
 
+> **Superseded 2026-10-25. Nothing in this checklist authorizes a publication.** It qualified
+> `0.11.0` at `2b525d3`. W109–W113 then landed on `main`, which [§10](#10-scope-fence) says
+> invalidates the candidate. `0.11.0` was never tagged or published and will not be: the next
+> candidate is `0.12.0`, cut fresh once #602, #603, #604 and #606 merge, with the whole matrix
+> rerun against it. The decision, and the host evidence the new candidate must carry, are in
+> `design/90-decisions.md`, 2026-10-25. This file is kept as the record of what `0.11.0` was.
+
 This is the W108 release checklist. It records what was verified, on exactly which commit and
 exactly which archive, and what a release owner must do to publish — **as a separate, explicit
 action that nothing in this repository performs.**
@@ -207,6 +214,8 @@ is a registry-supported deprecation of that exact version, leaving it installabl
 > withdrawal is ever needed, but it is not a precondition for this procedure or for W108.2.
 
 ## 8. Authorization
+
+*Superseded 2026-10-25 — see the note at the top. As of 2026-09-13:*
 
 **0.11.0 readiness is no longer blocked.**
 
