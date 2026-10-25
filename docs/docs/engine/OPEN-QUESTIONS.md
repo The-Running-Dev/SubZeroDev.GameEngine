@@ -472,6 +472,15 @@ memory defect: whether they are `EngineEvent`s, `EmittedRecord`s or a separate g
 changes 05's channel contract, and no host has asked for them yet. **Revisit** when a host
 tunes `sessionCacheLimit` in production, or when the Platform host needs capacity telemetry.
 
+*2026-10-25:* the first trigger is met. Adventures now sets the limit from
+`SESSION_CACHE_LIMIT`, with a provisional default of 1000, and counts misses, writes and blob
+bytes in its own Postgres adapter, reported on its admin status response
+([SubZeroDev.Adventures#87](https://github.com/The-Running-Dev/SubZeroDev.Adventures/pull/87)).
+That answers miss rate and blob size from outside the engine, through the persistence port it
+already supplies. What only the engine can see — the cached-session count, hits, and active
+commands — is still unreported, and remains a contract decision for 05's channel rather than
+something a host can add.
+
 The review also made six recommendations that are not defects (plan 53 §3). Each is recorded
 here once, with what would make it worth acting on. None blocks the defect fixes, and several
 are product calls rather than engineering ones.
