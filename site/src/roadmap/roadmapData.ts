@@ -473,7 +473,7 @@ export const shippedChapters: readonly RoadmapChapter[] = [
     status: "done",
     title: "Five things Life in the Fast Lane can say now",
     summary:
-      "Reputation-targeting modifiers, NPCs who start out already remembering you, conditions that can ask whether you own one, cars that cost money to run, and utilities on the weekly bill. Landed on main after the pinned 0.11.0 candidate, so none of them is in it; which release carries them is not decided yet.",
+      "Reputation-targeting modifiers, NPCs who start out already remembering you, conditions that can ask whether you own one, cars that cost money to run, and utilities on the weekly bill. Landed on main after the pinned 0.11.0 candidate, so none of them is in it; they ship in 0.12.0.",
     links: [
       {
         label: "Stabilization ledger",
@@ -486,14 +486,14 @@ export const shippedChapters: readonly RoadmapChapter[] = [
 
 export const nextActs: readonly RoadmapChapter[] = [
   {
-    id: "authorize-011",
+    id: "authorize-012",
     workUnits: "W93–W108",
     ledgerAnchor: "w93",
     release: true,
     status: "now",
-    title: "0.11.0 becomes the next authorized publication",
+    title: "0.12.0 becomes the next authorized publication",
     summary:
-      "Correctness, session boundaries, complete simulation mechanics, companion contracts and release-candidate verification landed without removing the 0.10 surface, so 0.11.0 is a compatible superset of it. The candidate, its archive digest and the v0.11.0 tag are recorded; publishing stays a separate explicit action.",
+      "The 0.11.0 candidate was qualified in September and never tagged or published; W109–W113 landed after it, so it is kept as a superseded record. The next candidate is 0.12.0, cut fresh once the open correctness and status fixes merge, with the whole matrix rerun and the Adventures host checked on its real Postgres adapter against that exact candidate. Publishing stays a separate explicit action.",
     links: [
       {
         label: "Stabilization ledger",
