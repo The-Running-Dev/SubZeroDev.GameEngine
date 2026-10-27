@@ -63,7 +63,8 @@ contracts it links to — this guide never repeats a signature that document alr
   digest that becomes a campaign's `campaignVersion`) are fully specified, alongside experiment
   gating built on the same mechanism — see [Content packs](#content-packs-and-experiment-gates).
 - Content epochs — publishing new content into a host that is already running, without a
-  reload — are designed and contracted but not yet built. See
+  reload — are built and tested in the engine (S129–S135). A host still has to use them:
+  SubZeroDev.Adventures refreshes content by replacing its engine and session store. See
   [Content epochs](#content-epochs-new-content-in-a-running-host).
 - Session capture — turning a played session into a committed replay fixture — is specified as a
   privacy contract, not implemented. It is deliberately gated on a hosting layer this repository
@@ -277,7 +278,7 @@ on a variant. See [Content Packs](/docs/engine/content-packs) §5a–§6 for the
 
 ### Content epochs: new content in a running host
 
-*Designed, not yet built.* The registry is frozen when the engine is constructed, so until now
+*Built in S129–S135.* The registry is frozen when the engine is constructed, so before epochs
 new content meant a new engine, a new session store, and a reload. Content epochs lift that
 without unfreezing anything. An **epoch** is one resolution of one campaign, named by
 `(campaignId, campaignVersion)`; a host publishes a whole new registry into an in-memory
