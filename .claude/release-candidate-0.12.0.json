@@ -105,13 +105,13 @@
     },
     {
       "name": "Static host: container build, route/probe smoke, negative fixture",
-      "status": "PENDING",
+      "status": "Passed",
       "command": "host-image.yml, 'Build, run, and smoke the image', on the candidate pull request",
-      "exitCode": null,
-      "durationSeconds": null,
+      "exitCode": 0,
+      "durationSeconds": 139,
       "artifactDigest": null,
-      "evidenceUrl": "PENDING",
-      "detail": "PENDING"
+      "evidenceUrl": "https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/40564951964/job/122403634322",
+      "detail": "PR #609 at 38311db, which differs from the candidate only in evidence and documentation files, none of them in the archive. Every step succeeded: Test the host, Build the image, Start the container, Positive route and probe smoke, Orderly container stop, Negative fixture -- corrupted artifact must fail to start. Publish immutable image to GHCR was skipped, as it is on every pull request."
     },
     {
       "name": "Documentation generation and validation",
@@ -125,13 +125,13 @@
     },
     {
       "name": "Site: format, lint, typecheck, unit, browser, build, merge",
-      "status": "PENDING",
+      "status": "Passed",
       "command": "npm --prefix site ci; run format:check, lint, typecheck, test, test:browser, test:build, test:merge",
-      "exitCode": null,
+      "exitCode": 0,
       "durationSeconds": null,
       "artifactDigest": null,
-      "evidenceUrl": "PENDING",
-      "detail": "Local: ci, format:check, lint, typecheck exit 0; test 2 files, 20 of 20; test:merge exit 0. test:browser and test:build did not complete locally: Dropbox held locks inside site/node_modules/.vite and site/dist (EBUSY on rename and rmdir), after the build itself had succeeded. That is the checkout's location, not the code, but it means neither ran to a verdict here. The CI docs / Build job runs site 'check merge' with a browser, and check includes test:browser and test:build. PENDING"
+      "evidenceUrl": "https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/40564952360/job/122403635895",
+      "detail": "Local: ci, format:check, lint, typecheck exit 0; test 2 files, 20 of 20; test:merge exit 0. test:browser and test:build did not complete locally: Dropbox held locks inside site/node_modules/.vite and site/dist (EBUSY on rename and rmdir), after the build itself had succeeded. That is the checkout's location, not the code, but it means neither ran to a verdict here. The CI docs / Build job runs site 'check merge' with a browser, and check includes test:browser and test:build. CI, docs / Build on PR #609 at 38311db: format:check, lint, typecheck; test 2 files, 20 of 20; test:browser 2 files, 23 of 23; test:build and test:merge exit 0; then the production Docusaurus build, which throws on broken links and anchors."
     },
     {
       "name": "Companion: SubZeroDev.Adventures host evidence against the candidate SHA",
@@ -185,9 +185,10 @@
     }
   ],
   "conclusion": {
-    "verdict": "PENDING",
+    "verdict": "0.12.0 ready to tag",
     "candidate": "914383610dc2afbb26fe2e224206dbf0a7b2d9e4",
     "archive": "the-running-dev-game-engine-0.12.0.tgz sha256:e76fbf5d5c0ea97ea0168be0c23100f840ae366f1bb17a32936ab7e7e22d7f63",
-    "statement": "PENDING"
+    "statement": "Every engine, documentation, site, static-host and Adventures gate passed against the candidate. ServiceContract passed at its own commit and projects from 0.12.0 once its authored version moves. Two companions fail to compile against 0.12.0, Platform game-service and GameOfLife, and both failures are the three recorded, deliberate breaks: session revision, profile v3 kindData, and the digestManifestResolution recipe. The user accepted all three as non-blocking on 2026-10-27, and both companions pin 0.10.0, so publication does not break them. Their adaptation is follow-up work in those repositories. On 2026-10-27 the user approved tagging v0.12.0 at the candidate once PR #609 was green. This record does not itself publish the package or create a GitHub release.",
+    "testedHead": "38311db2772a443966019ed5548ca24971af3af0"
   }
 }
