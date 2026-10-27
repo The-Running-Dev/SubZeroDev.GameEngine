@@ -5,6 +5,7 @@ import {
   completedWorkUnitCount,
   currentAct,
   futureActs,
+  landedUnits,
   nextActs,
   shippedChapters,
 } from "./roadmapData";
@@ -15,8 +16,8 @@ describe("roadmap page", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
       `How a Quick Question Became ${completedWorkUnitCount} Work Units.`,
     );
-    expect(screen.getAllByText("DONE")).toHaveLength(25);
-    expect(screen.getAllByText("NEXT")).toHaveLength(1);
+    expect(screen.getAllByText("DONE")).toHaveLength(26);
+    expect(screen.queryAllByText("NEXT")).toHaveLength(0);
     expect(screen.getAllByText("LATER")).toHaveLength(3);
     const checkpoint = screen.getByText("02 / NOW").closest("section");
     expect(checkpoint).not.toBeNull();
@@ -39,6 +40,11 @@ describe("roadmap page", () => {
         name: currentAct.title,
       }),
     ).not.toBeInTheDocument();
+    expect(
+      within(future as HTMLElement).getByText(
+        "No implementation chapter is scheduled after the current one yet.",
+      ),
+    ).toBeVisible();
   });
 
   it("keeps shipped work chronological and future work explicitly future", () => {
@@ -68,19 +74,50 @@ describe("roadmap page", () => {
       "W86–W87",
       "W88–W89",
       "W90–W92",
-    ]);
-    expect(nextActs.map((chapter) => chapter.workUnits)).toEqual([
-      "W93–W108",
       "W109–W113",
     ]);
+    expect(nextActs.map((chapter) => chapter.workUnits)).toEqual(["W93–W108"]);
     expect(nextActs.every((chapter) => chapter.status !== "done")).toBe(true);
     expect(currentAct.workUnits).toBe("W93–W108");
-    expect(futureActs.map((chapter) => chapter.workUnits)).toEqual([
-      "W109–W113",
-    ]);
+    expect(futureActs).toEqual([]);
     expect(shippedChapters[0]?.links[0]?.href).toMatch(
       /^https:\/\/github\.com\/The-Running-Dev\/SubZeroDev\.GameEngine\/commit\/[0-9a-f]{40}$/,
     );
+  });
+
+  /**
+   * A chapter names its units in `workUnits` ("W109–W113" or "W47"), and that range is its
+   * whole membership: every unit in it is checked, not only the one `ledgerAnchor` points at.
+   * An implementation chapter whose units have all landed is done. A release chapter is exempt,
+   * because it waits on a publication rather than on code.
+   */
+  it("marks an implementation chapter done once every one of its units has landed", () => {
+    const members = (workUnits: string): string[] => {
+      const range = /^W(\d+)(?:–W(\d+))?$/.exec(workUnits);
+      if (range === null) {
+        throw new Error(`Unrecognised work-unit range: ${workUnits}`);
+      }
+      const first = Number(range[1]);
+      const last = Number(range[2] ?? range[1]);
+      return Array.from(
+        { length: last - first + 1 },
+        (_, i) => `W${first + i}`,
+      );
+    };
+
+    const chapters = [...shippedChapters, ...nextActs];
+    expect(landedUnits.has("W109")).toBe(true);
+    expect(landedUnits.has("W68")).toBe(false);
+
+    const pendingButLanded = chapters
+      .filter(
+        (chapter) => chapter.release !== true && chapter.status !== "done",
+      )
+      .filter((chapter) =>
+        members(chapter.workUnits).every((unit) => landedUnits.has(unit)),
+      )
+      .map((chapter) => chapter.workUnits);
+    expect(pendingButLanded).toEqual([]);
   });
 
   /**

@@ -91,7 +91,14 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   Two of the four have no running input at all: the housing-quality formula is contracted
   and never computed, and `sectorDemand` never moves (`design/90-decisions.md`, the 2026-09-27
   `/align` entry on #267).
-- **`end_week`'s `plan_empty` gate is declared but not wired — W50.4.** §10 names
+- **`end_week`'s `plan_empty` gate — resolved by W100, closed as done.** W100
+  ([PR #419](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/419)) added
+  `SimulationCampaign.emptyPlanPolicy` (§7.11). While it is `"forbid"` and the plan holds no
+  action, `availableActions` reports `end_week` unavailable
+  (`src/engine/src/kinds/simulation/available.ts`) and `end_week` is rejected with
+  `plan_empty`, state unchanged (`src/engine/src/kinds/simulation/advance.ts`). An absent policy
+  keeps the 0.10 behaviour. The entry as it stood before W100, kept as history: *declared but
+  not wired — W50.4.* §10 names
   `plan_empty` for "`end_week` with nothing planned, where the campaign forbids it," and
   `availableActions` (`src/engine/src/kinds/simulation/available.ts`) always returns
   `end_week` with `available: true`. `SimulationCampaign` declares no toggle to condition a
@@ -369,8 +376,17 @@ meaningful on its own — it is only correct once combined with the caller no lo
 it for this kind. Revisit if a future caller reads `.applied` for a deferred
 `building_meter_delta` directly, since it would reintroduce the same premature signal.
 
-**`relationships` (`endOfWeek.ts`) is the simulation kind's only remaining end-of-week
-stub, and W89 is the first thing able to observe that it stays one.** No weekly
+**`relationships` (`endOfWeek.ts`) — no longer a stub; resolved by W100, closed as done.**
+W100 ([PR #419](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/419)) specified
+the weekly rule as `SimulationCampaign.relationshipDrift` (§7.11), and `relationships` now
+applies each configured rule to the player's relationships and to every agent's, emitting
+`relationship_drift` (`src/engine/src/kinds/simulation/endOfWeek.ts`, tested in
+`endOfWeek.test.ts`). **W89's exclusion still holds, for a different reason:** the
+long-horizon campaign configures no `relationshipDrift`, so the system returns without a
+change in both long runs. The exclusion is now a property of that campaign, not of the
+contract. Revisit it if the long-horizon campaign gains a drift rule. The entry as it stood
+before W100, kept as history: *`relationships` is the simulation kind's only remaining
+end-of-week stub, and W89 is the first thing able to observe that it stays one.* No weekly
 relationship rule — decay, drift, or otherwise — is specified anywhere in
 [`10-simulation-kind.md`](10-simulation-kind.md): §6.11 declares the state and §7.7 the
 NPC, but nothing names what a week does to either, so the system can never emit anything
@@ -661,6 +677,32 @@ The correction is to state admissibility per topology and to require that any he
 proven to give the same committed path, not only the same cost, before it lands. No code
 changes: the search carries no heuristic. **Revisit** at the next edit of §9.3, or before any
 heuristic is proposed.
+
+The review found status statements that the code had overtaken. The guide's epochs status, the
+roadmap's W109–W113 chapter, the `plan_empty` and `relationships` entries above, and the source
+comments that repeated them are corrected. The roadmap now has a check: an implementation
+chapter whose units have all landed must be done (`site/src/roadmap/RoadmapApp.test.tsx`).
+These are the parts that correction left alone.
+
+**The canonical documents are too large to read whole, and nothing bounds them.** The five
+files total about 1.36 MB, including a contract of about 582 KB and this register at about
+423 KB. Retiring the W bodies shrank `30-slices.md`, but onboarding and review still mean
+reading the contract end to end. The review proposes two things:
+
+- splitting the contract into bounded sections;
+- a short capability matrix, built through the existing generator scheme.
+
+Both must keep stable anchors and single ownership. Neither may be a new hand-maintained
+summary, which would be one more surface to drift. **Revisit when** the contract is next
+restructured, or sooner if a review or onboarding pass is blocked on its size. This is
+generator and design work, so it is not a status fix.
+
+**W89's coverage comment counts fifteen end-of-week systems; there are sixteen.** W101 added
+`business` between `finance_income` and `inventory`. `long-horizon.replay.test.ts` neither
+covers it nor excludes it by name. Its "thirteen of the fifteen" arithmetic predates W101, and
+its list asserts exactly thirteen systems, so `business` can only be silent in both long runs.
+**Revisit** with the next change to that file: name `business` as excluded, with its reason,
+and recount.
 
 ---
 

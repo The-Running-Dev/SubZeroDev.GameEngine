@@ -1569,9 +1569,9 @@ function npcAvailableHere(npc: NPCDefinition, state: SimulationKindState): boole
  *  affinity exists to express. Clamping here would silently rewrite a campaign's authored
  *  `NPCDefinition.initialRelationship` on first contact — narrowing upstream never made, the
  *  same call `content.ts`'s `Reward` declines. That leaves repeated `socialize` unbounded
- *  upward, which is a balance question (there is no weekly relationship rule to pull it back
- *  yet either — `endOfWeek.ts`'s `relationships` stub) rather than a range this contract
- *  states and this resolver ignores. */
+ *  upward, which is a balance question (a campaign pulls it back with a weekly
+ *  `relationshipDrift` rule, which `endOfWeek.ts`'s `relationships` applies) rather than a
+ *  range this contract states and this resolver ignores. */
 export const socializeResolver: ActionResolver = {
   canExecute: (state, action, ctx): ActionValidation => {
     const campaign = simulationCampaign(ctx);
