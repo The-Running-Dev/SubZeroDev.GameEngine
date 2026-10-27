@@ -2764,3 +2764,287 @@ describe("S134.4 — a branch that cannot be reproduced refuses, with nothing wr
     await expect(store.branchSession(sessionId, 1)).resolves.toMatchObject({ scene: { body: { textKey: "scene.v1" } } });
   });
 });
+
+describe("a pending session write is not visible before it commits (20-contract.md §7.2)", () => {
+  /** A promise and the function that settles it. */
+  function deferred<T = void>(): { promise: Promise<T>; resolve(value: T): void } {
+    let resolve: (value: T) => void = () => {};
+    const promise = new Promise<T>((r) => { resolve = r; });
+    return { promise, resolve };
+  }
+
+  /**
+   * The compare-and-swap adapter, with one `put` that can be held: `hold()` arms the next
+   * write, which waits until it is released and then lands — or throws the error it was
+   * released with.
+   */
+  function makeHeldPersistence() {
+    const cas = makeCasPersistence();
+    let armed: { entered(): void; outcome: Promise<{ error: unknown } | undefined> } | undefined;
+    const persistence: SessionPersistence = {
+      ...cas.persistence,
+      sessions: {
+        ...cas.persistence.sessions,
+        put: async (record) => {
+          if (armed) {
+            const held = armed;
+            armed = undefined;
+            held.entered();
+            const outcome = await held.outcome;
+            if (outcome) throw outcome.error;
+          }
+          await cas.persistence.sessions.put(record);
+        },
+      },
+    };
+    return {
+      cas,
+      persistence,
+      hold() {
+        const entered = deferred();
+        const outcome = deferred<{ error: unknown } | undefined>();
+        armed = { entered: () => entered.resolve(), outcome: outcome.promise };
+        return { entered: entered.promise, release: (error?: unknown) => outcome.resolve(error === undefined ? undefined : { error }) };
+      },
+    };
+  }
+
+  const outcomes = [
+    ["commits", undefined],
+    ["fails with storage_failure", new Error("disk full")],
+    ["fails with concurrent_modification", { name: SESSION_PERSISTENCE_CONFLICT }],
+  ] as const;
+
+  for (const [label, error] of outcomes) {
+    it(`an accepted action's write that ${label}: queries serve the committed turn, and a branch waits for the outcome`, async () => {
+      const held = makeHeldPersistence();
+      const store = makeStore({ persistence: held.persistence });
+      const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+
+      const write = held.hold();
+      const submitted = store.submitAction(sessionId, "increment");
+      await write.entered;
+
+      expect((await store.getScene(sessionId)).body.text).toBe("counter=0");
+      const branch = store.branchSession(sessionId, 1);
+      let branchSettled = false;
+      void branch.then(() => { branchSettled = true; }, () => { branchSettled = true; });
+      await Promise.resolve();
+      expect(branchSettled).toBe(false);
+
+      write.release(error);
+      if (error === undefined) {
+        await expect(submitted).resolves.toMatchObject({ ok: true });
+        await expect(branch).resolves.toMatchObject({ scene: { body: { text: "counter=1" } } });
+        expect((await store.getScene(sessionId)).body.text).toBe("counter=1");
+      } else {
+        await expect(submitted).rejects.toBeDefined();
+        // The action never committed, so the branch saw a log of length 0.
+        await expect(branch).rejects.toMatchObject({ operation: "branchSession", code: "invalid_fork_point" });
+        expect((await store.getScene(sessionId)).body.text).toBe("counter=0");
+        expect(held.cas.rows.get(sessionId)!.revision).toBe(0);
+      }
+    });
+
+    it(`an adoption write that ${label}: queries serve the unadopted scene until it commits`, async () => {
+      const held = makeHeldPersistence();
+      const channel = recordingChannel(undefined);
+      const { store } = makeEpochStore({ channel, persistence: held.persistence });
+      const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+
+      channel.offer = "2";
+      const write = held.hold();
+      const resumed = store.resumeSession(sessionId);
+      await write.entered;
+
+      expect((await store.getScene(sessionId)).body.textKey).toBe("scene.v1");
+      const branch = store.branchSession(sessionId, 1);
+
+      write.release(error);
+      const committed = error === undefined;
+      expect((await resumed).body.textKey).toBe(committed ? "scene.v2" : "scene.v1");
+      if (committed) {
+        await expect(branch).resolves.toMatchObject({ scene: { body: { textKey: "scene.v2" } } });
+      } else {
+        await expect(branch).rejects.toMatchObject({ operation: "branchSession", code: "invalid_fork_point" });
+      }
+      expect((await store.getScene(sessionId)).body.textKey).toBe(committed ? "scene.v2" : "scene.v1");
+      expect(storedState(held.cas.rows.get(sessionId)).campaignVersion).toBe(committed ? "2" : "1");
+    });
+  }
+});
+
+describe("branchSession replays the source's recorded initialization (20-contract.md §7.2)", () => {
+  /** Session rows under §7.2's compare-and-swap rule, and saves in a plain map, so a second
+   *  store over the same persistence stands in for a host restart. */
+  function makeSharedPersistence() {
+    const cas = makeCasPersistence();
+    const saves = new Map<string, StoredSaveRecord>();
+    const persistence: SessionPersistence = {
+      sessions: cas.persistence.sessions,
+      saves: {
+        get: async (saveId) => {
+          const row = saves.get(saveId);
+          return row ? { ...row } : undefined;
+        },
+        put: async (record) => {
+          saves.set(record.saveId, { ...record });
+        },
+        listByProfile: async (profileId) => [...saves.values()].filter((row) => row.profileId === profileId),
+        delete: async (saveId) => {
+          saves.delete(saveId);
+        },
+      },
+    };
+    return { rows: cas.rows, saves, persistence };
+  }
+
+  function profileStoreOver(persistence: SessionPersistence | undefined, profiles: ProfileStore) {
+    const registry = makeRegistry();
+    return createInMemorySessionStore({
+      engine: createEngine({ kinds: makeProfileKinds(), registry }),
+      registry,
+      profiles,
+      ...(persistence ? { persistence } : {}),
+    });
+  }
+
+  /** The row as a host written before `initialization` existed would have stored it. */
+  function asLegacy<T extends { initialization?: unknown }>(row: T): T {
+    const copy = { ...row };
+    delete copy.initialization;
+    return copy;
+  }
+
+  const seededOf = async (store: SessionStore, sessionId: string) =>
+    ((await store.getView(sessionId)).kindView as ProfileKindState).seeded;
+
+  /** A profile whose kind data is `{ max: 2 }`, a session seeded from it, and that session's
+   *  stored blob after each of its three actions — which also move the profile on to `{ max: 3 }`. */
+  async function playSeededSession() {
+    const shared = makeSharedPersistence();
+    const profiles = createInMemoryProfileStore();
+    const store = profileStoreOver(shared.persistence, profiles);
+    const earlier = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    await store.submitAction(earlier.sessionId, "bump");
+    await store.submitAction(earlier.sessionId, "bump");
+
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    const blobs = [shared.rows.get(sessionId)!.blob];
+    for (let i = 0; i < 3; i += 1) {
+      await store.submitAction(sessionId, "bump");
+      blobs.push(shared.rows.get(sessionId)!.blob);
+    }
+    return { shared, profiles, store, sessionId, blobs };
+  }
+
+  it("branches at zero, intermediate and full counts reproduce the prefix after the profile has moved on", async () => {
+    const { shared, profiles, store, sessionId, blobs } = await playSeededSession();
+    expect(await seededOf(store, sessionId)).toEqual({ max: 2 });
+    expect((await profiles.load("p1")).profile.kindData[0]?.data).toEqual({ max: 3 });
+
+    for (const n of [0, 1, 3]) {
+      const branch = await store.branchSession(sessionId, n);
+      expect(shared.rows.get(branch.sessionId)!.blob).toBe(blobs[n]);
+      expect(await seededOf(store, branch.sessionId)).toEqual({ max: 2 });
+      // A branch of a branch carries the same recorded input.
+      const again = await store.branchSession(branch.sessionId, n);
+      expect(shared.rows.get(again.sessionId)!.blob).toBe(blobs[n]);
+    }
+  });
+
+  it("the initialization survives save, load and a restart of the host", async () => {
+    const { shared, profiles, store, sessionId, blobs } = await playSeededSession();
+    const saved = await store.saveGame(sessionId);
+    expect(shared.saves.get(saved.saveId)!.initialization).toEqual({ kindProfileData: { max: 2 } });
+
+    const restarted = profileStoreOver(shared.persistence, profiles);
+    const direct = await restarted.branchSession(sessionId, 1);
+    expect(shared.rows.get(direct.sessionId)!.blob).toBe(blobs[1]);
+
+    const loaded = await restarted.loadGame(saved.saveId);
+    expect(shared.rows.get(loaded.sessionId)!.initialization).toEqual({ kindProfileData: { max: 2 } });
+    const fromLoaded = await restarted.branchSession(loaded.sessionId, 2);
+    expect(shared.rows.get(fromLoaded.sessionId)!.blob).toBe(blobs[2]);
+  });
+
+  it("an anonymous session and a profiled one with no prior kind data record an empty initialization and branch normally", async () => {
+    const shared = makeSharedPersistence();
+    const store = profileStoreOver(shared.persistence, createInMemoryProfileStore());
+    for (const config of [{ campaignId: "test-campaign" }, { campaignId: "test-campaign", profileId: "fresh" }]) {
+      const { sessionId } = await store.createSession(config);
+      expect(shared.rows.get(sessionId)!.initialization).toEqual({});
+      await store.submitAction(sessionId, "bump");
+      const branch = await store.branchSession(sessionId, 1);
+      expect(shared.rows.get(branch.sessionId)!.blob).toBe(shared.rows.get(sessionId)!.blob);
+      expect(shared.rows.get(branch.sessionId)!.initialization).toEqual({});
+    }
+  });
+
+  it("a record from before the field refuses with invalid_state where a profile could have seeded it, and writes nothing", async () => {
+    const { shared, profiles, sessionId } = await playSeededSession();
+    shared.rows.set("legacy-profiled", { ...asLegacy(shared.rows.get(sessionId)!), sessionId: "legacy-profiled" });
+    const restarted = profileStoreOver(shared.persistence, profiles);
+    const rowsBefore = shared.rows.size;
+
+    await expect(restarted.branchSession("legacy-profiled", 1)).rejects.toMatchObject({
+      operation: "branchSession",
+      code: "invalid_state",
+    });
+    expect(shared.rows.size).toBe(rowsBefore);
+
+    // A legacy save loads to a session whose initialization is just as unknown.
+    const legacySave = asLegacy(shared.saves.get((await restarted.saveGame(sessionId)).saveId)!);
+    shared.saves.set("legacy-save", { ...legacySave, saveId: "legacy-save" });
+    const loaded = await restarted.loadGame("legacy-save");
+    expect(shared.rows.get(loaded.sessionId)!.initialization).toBeUndefined();
+    const afterLoad = shared.rows.size;
+    await expect(restarted.branchSession(loaded.sessionId, 0)).rejects.toMatchObject({
+      operation: "branchSession",
+      code: "invalid_state",
+    });
+    expect(shared.rows.size).toBe(afterLoad);
+  });
+
+  it("a record from before the field branches where no profile could have seeded it", async () => {
+    const shared = makeSharedPersistence();
+    const profiledKind = () => profileStoreOver(shared.persistence, createInMemoryProfileStore());
+    const plainKind = () => makeStore({ persistence: shared.persistence, profiles: createInMemoryProfileStore() });
+
+    // Anonymous, on a kind that declares profileData.
+    const anonymous = await profiledKind().createSession({ campaignId: "test-campaign" });
+    // Profiled, on a kind that declares none.
+    const unseeded = await plainKind().createSession({ campaignId: "test-campaign", profileId: "p1" });
+
+    for (const [open, sessionId] of [[profiledKind, anonymous.sessionId], [plainKind, unseeded.sessionId]] as const) {
+      const legacy = asLegacy(shared.rows.get(sessionId)!);
+      shared.rows.set(sessionId, legacy);
+      const branch = await open().branchSession(sessionId, 0);
+      expect(shared.rows.get(branch.sessionId)!.blob).toBe(legacy.blob);
+      expect(shared.rows.get(branch.sessionId)!.initialization).toEqual({});
+    }
+  });
+
+  it("mutating the object the profile store handed over cannot reach the recorded initialization", async () => {
+    const data = { max: 2 };
+    const profiles: ProfileStore = {
+      load: async (profileId) => ({
+        profile: {
+          formatVersion: 3,
+          profileId,
+          achievements: [],
+          terminals: [],
+          kindData: [{ kindId: "story-graph", dataVersion: 1, data }],
+        },
+        warnings: [],
+      }),
+      save: async () => ({ ok: true, warnings: [] }),
+    };
+    const store = profileStoreOver(undefined, profiles);
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    data.max = 99;
+
+    const branch = await store.branchSession(sessionId, 0);
+    expect(await seededOf(store, branch.sessionId)).toEqual({ max: 2 });
+  });
+});
