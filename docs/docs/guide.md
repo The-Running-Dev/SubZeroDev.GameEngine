@@ -4,7 +4,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 238e8e223f041016c84ef849d75d049762e0e270db9df1db149e31ad6f6fb109 -->
+<!-- design-digest: d6150c479d638a40e90b138c327bc1b27691ce19bc149fb99a554758ca9bde58 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -405,7 +405,15 @@ raises a branded conflict, which reaches the caller as `concurrent_modification`
 drops its cached copy, so the player's retry reads the winning write instead of colliding with
 it again. More generally, a failed write leaves nothing in the store's cache: a session or save
 is cached only once its write has succeeded, so a save that failed to store is never listed or
-loadable.
+loadable. A change to an existing session works the same way. The store builds the next record
+separately and applies it only after the write resolves, so a read or a branch that runs while
+the write is pending sees the last committed state, never one persistence might still refuse.
+
+The record also carries an `initialization`: a copy of the profile data the session was created
+with, or `{}` when there was none. Save and load carry it along, and a branch replays from it.
+A record written before the field existed has no `initialization` at all, which is different
+from `{}`. An adapter must store and return it unchanged, and must not turn a missing value
+into an empty one.
 
 ### Listing, branching, and deleting saves
 
@@ -445,7 +453,11 @@ Three things about a branch will bite you if you assume otherwise:
   the lineage, its action log is no longer guaranteed to regenerate its state, which is exactly
   the mechanism a branch depends on. It fails rather than diverging quietly.
 - **The source is untouched** — not re-stamped, not re-serialized. A branch is a new record. Its
-  `profileId` is inherited, so an anonymous session branches to an anonymous one.
+  `profileId` and `initialization` are inherited, so an anonymous session branches to an
+  anonymous one, and a profiled one replays from the profile data it started with, never the
+  profile as it is now. A record from before `initialization` existed can still be branched if
+  no profile could have seeded it. Otherwise branching fails with `invalid_state` and writes
+  nothing.
 
 If you are migrating from a hand-rolled fork that replayed to an `atSeq`, the count is one higher
 than the sequence number for a dense log, which every log this engine writes is. The two
@@ -492,10 +504,11 @@ on `name` rather than `instanceof`, so the signal survives a duplicated copy of 
 Brand nothing else with it: a timeout or a deadlock branded this way tells a player to refresh a
 session that never changed, and left unbranded it arrives as `storage_failure`, which is correct
 for it. A single-writer adapter — in-memory, `localStorage` — never raises it. A rejected write
-must also never leave the store's own cache ahead of what it just failed to persist; an operation
-that mutates a cached record before dispatching the write has to restore or evict that record
-when the write throws, or the retry the `concurrent_modification` message asks for cannot
-succeed.
+must also never leave the store's own cache ahead of what it just failed to persist. The store applies a change to
+the cached record only after its write resolves, and evicts the record on
+`concurrent_modification`, so the retry that message asks for reads the winning write. An adapter
+also stores a record's `initialization` exactly as given: a missing value and `{}` mean different
+things.
 
 ### Previewing an action
 
@@ -548,7 +561,8 @@ it cannot reach determinism:
   migrates it, and passes it in as part of the new-game config, so the value is captured by a
   replay fixture and reproduces. Resuming, loading a save, and branching deliberately do **not**
   re-seed: the kind already kept what it wanted in `kindState`, and re-reading a profile that has
-  moved on would make a resumed session differ from the one that was saved.
+  moved on would make a resumed session differ from the one that was saved. A branch replays the
+  copy of the slice recorded on the session's `initialization` instead.
 - **A slice is capped at 65,536 canonical bytes**, checked on the write. Over it, the write is
   refused, the previous value is kept, and you get a warning. A kind that approaches this has
   built an unbounded accumulator.

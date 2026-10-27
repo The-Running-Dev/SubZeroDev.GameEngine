@@ -44,6 +44,9 @@ jobs:
     with:
       working-directory: src/engine
       node-versions: '["24"]'
+      # Windows as well as Linux: the scripts/ CLIs' entrypoint guard compared a Windows path
+      # against a file URL and made every CLI a silent no-op there, with Linux CI green.
+      os: '["ubuntu-latest", "windows-latest"]'
       scripts: typecheck lint test
       cache: npm
       cache-dependency-path: src/engine/package-lock.json
