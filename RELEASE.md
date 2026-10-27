@@ -166,7 +166,9 @@ generated changelog entries in that range as the release notes. Do not retype th
 
 ## 6. Publication — the separate explicit action
 
-Nothing below has been done. It is written out so that the person doing it is not improvising.
+Steps 1–3 were done on 2026-10-28: `v0.12.0` was pushed at the candidate, and
+[run 40601204925](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/40601204925)
+published the archive at the §1.1 digest. Steps 4 and 5 have not been done.
 
 1. Confirm §8 says readiness is authorized, and that the candidate SHA in §1.1 is still the
    commit you intend to publish. If `src/engine` has changed on `main` since, **re-verify**; the

@@ -189,6 +189,12 @@
     "candidate": "914383610dc2afbb26fe2e224206dbf0a7b2d9e4",
     "archive": "the-running-dev-game-engine-0.12.0.tgz sha256:e76fbf5d5c0ea97ea0168be0c23100f840ae366f1bb17a32936ab7e7e22d7f63",
     "statement": "Every engine, documentation, site, static-host and Adventures gate passed against the candidate. ServiceContract passed at its own commit and projects from 0.12.0 once its authored version moves. Two companions fail to compile against 0.12.0, Platform game-service and GameOfLife, and both failures are the three recorded, deliberate breaks: session revision, profile v3 kindData, and the digestManifestResolution recipe. The user accepted all three as non-blocking on 2026-10-27, and both companions pin 0.10.0, so publication does not break them. Their adaptation is follow-up work in those repositories. On 2026-10-27 the user approved tagging v0.12.0 at the candidate once PR #609 was green. This record does not itself publish the package or create a GitHub release.",
-    "testedHead": "38311db2772a443966019ed5548ca24971af3af0"
+    "testedHead": "38311db2772a443966019ed5548ca24971af3af0",
+    "publication": {
+      "tag": "v0.12.0 -> 914383610dc2afbb26fe2e224206dbf0a7b2d9e4, pushed 2026-10-28 on the user's approval",
+      "run": "https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/40601204925",
+      "detail": "release-engine-package ran in publish mode and every guard passed. It inspected the archive at sha256:e76fbf5d5c0ea97ea0168be0c23100f840ae366f1bb17a32936ab7e7e22d7f63, the candidate digest, and npm publish reported + @the-running-dev/game-engine@0.12.0 (shasum 81a9e28a45d277d28282638599a691efe419ad50). The RELEASE.md section 7 registry download and digest comparison has not run: the local gh token lacks read:packages, so the registry returned 401 and then 404 here.",
+      "notDone": "GitHub release against v0.12.0; merge of SubZeroDev.Adventures#90"
+    }
   }
 }
