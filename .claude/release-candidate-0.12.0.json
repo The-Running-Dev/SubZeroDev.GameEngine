@@ -194,7 +194,9 @@
       "tag": "v0.12.0 -> 914383610dc2afbb26fe2e224206dbf0a7b2d9e4, pushed 2026-10-28 on the user's approval",
       "run": "https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/40601204925",
       "detail": "release-engine-package ran in publish mode and every guard passed. It inspected the archive at sha256:e76fbf5d5c0ea97ea0168be0c23100f840ae366f1bb17a32936ab7e7e22d7f63, the candidate digest, and npm publish reported + @the-running-dev/game-engine@0.12.0 (shasum 81a9e28a45d277d28282638599a691efe419ad50). The RELEASE.md section 7 registry download and digest comparison has not run: the local gh token lacks read:packages, so the registry returned 401 and then 404 here.",
-      "notDone": "GitHub release against v0.12.0; merge of SubZeroDev.Adventures#90"
+      "release": "https://github.com/The-Running-Dev/SubZeroDev.GameEngine/releases/tag/v0.12.0",
+      "adventures": "SubZeroDev.Adventures#90 squash-merged as 9676271c794b86ce7e249b2cf41a90e536a9d5ff, pinning the engine submodule at the tagged candidate",
+      "notDone": "RELEASE.md section 7 registry download and digest comparison (needs a token with read:packages)"
     }
   }
 }
