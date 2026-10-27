@@ -1,20 +1,19 @@
-# Release Checklist — `@the-running-dev/game-engine@0.11.0`
+# Release Checklist — `@the-running-dev/game-engine@0.12.0`
 
-> **Superseded 2026-10-25. Nothing in this checklist authorizes a publication.** It qualified
-> `0.11.0` at `2b525d3`. W109–W113 then landed on `main`, which [§10](#10-scope-fence) says
-> invalidates the candidate. `0.11.0` was never tagged or published and will not be: the next
-> candidate is `0.12.0`, cut fresh once #602, #603, #604 and #606 merge, with the whole matrix
-> rerun against it. The decision, and the host evidence the new candidate must carry, are in
-> `design/90-decisions.md`, 2026-10-25. This file is kept as the record of what `0.11.0` was.
+This is the `0.12.0` release checklist. It records what was verified, on exactly which commit
+and exactly which archive, and what a release owner must do to publish — **as a separate,
+explicit action that nothing in this repository performs.**
 
-This is the W108 release checklist. It records what was verified, on exactly which commit and
-exactly which archive, and what a release owner must do to publish — **as a separate, explicit
-action that nothing in this repository performs.**
-
-> **Publication requires a separate explicit user action.** W108 prepares and verifies a
-> candidate. It does not publish the package, push the `v0.11.0` tag, create a GitHub release,
+> **Publication requires a separate explicit user action.** This checklist prepares and verifies
+> a candidate. It does not publish the package, push the `v0.12.0` tag, create a GitHub release,
 > deploy the site, change DNS, or release anything in a companion repository. None of those
 > happened while this checklist was produced.
+
+`0.12.0` replaces the `0.11.0` candidate, which qualified at `2b525d3` and was superseded on
+2026-10-25 when W109–W113 landed on `main` after it. `0.11.0` was never tagged or published and
+will not be; its record is `.claude/release-candidate-w108.json`, kept as history. The decisions
+that set this candidate's version, its cut point and the host evidence it must carry are in
+`design/90-decisions.md`, 2026-10-25.
 
 Readiness status, and the wording that authorizes publication, is in
 [§8 Authorization](#8-authorization). Read that before acting on anything below it.
@@ -26,11 +25,11 @@ Readiness status, and the wording that authorizes publication, is in
 | | |
 |---|---|
 | Package | `@the-running-dev/game-engine` |
-| Version | `0.11.0` |
-| Required tag | `v0.11.0` (the guard rejects any other tag against this manifest) |
-| Candidate commit | `2b525d38d6876829b35e9f5ff5fcf22af421f082` (see §1.1) |
-| Archive | `the-running-dev-game-engine-0.11.0.tgz` |
-| Archive SHA-256 | `53d5c1787d548e6b1defa35b48fe2301c9484a8e2d03f7523509abd9266b9db0` |
+| Version | `0.12.0` |
+| Required tag | `v0.12.0` (the guard rejects any other tag against this manifest) |
+| Candidate commit | `914383610dc2afbb26fe2e224206dbf0a7b2d9e4` (see §1.1) |
+| Archive | `the-running-dev-game-engine-0.12.0.tgz` |
+| Archive SHA-256 | `e76fbf5d5c0ea97ea0168be0c23100f840ae366f1bb17a32936ab7e7e22d7f63` |
 | Baseline for compatibility | tag `v0.10.0` |
 | Registry | `https://npm.pkg.github.com` (GitHub Packages) |
 | Intended visibility | public — the decision is in `design/90-decisions.md` §2 and is **not** reopened here |
@@ -42,34 +41,43 @@ cannot be computed before that commit exists. So the release-only change is comm
 nothing the archive contains. That second commit is **not** the tested candidate, and the
 authorization in §8 binds to the SHA it names, never to wherever `main` has since moved.
 
-The same applies to any commit after the evidence one. Commits on this branch that follow
-`2b525d3` fix the verification path, not the package: the archive contains `dist/`,
-`package.json` and `README.md` only, so a change to a workflow, a guard test or this checklist
-cannot alter its bytes. The digest in §1.1 is the check on that claim — re-pack and compare
-rather than trusting this paragraph.
+The candidate commit changes the version and nothing else: `src/engine/package.json`, both
+version fields of `src/engine/package-lock.json`, and the engine's entry in
+`site/package-lock.json`. Commits after it touch this checklist, its record, the README's status
+section, the roadmap's summary text and one example string in the release workflow. The archive
+contains `dist/`, `package.json` and `README.md` from `src/engine/` only, so none of them can
+alter its bytes. The digest in §1.1 is the check on that claim — re-pack and compare rather than
+trusting this paragraph.
+
+**Squash merge leaves the candidate off `main`.** The evidence pull request squash-merges, so
+`914383610dc2` exists on `release/0.12.0-candidate` and nowhere on `main`. That branch must not
+be deleted before the `v0.12.0` tag exists at the candidate, and
+[SubZeroDev.Adventures#90](https://github.com/The-Running-Dev/SubZeroDev.Adventures/pull/90)
+pins the same SHA as its engine submodule.
 
 ### 1.1 Recorded candidate
 
 <!-- candidate:start -->
 | | |
 |---|---|
-| Candidate commit | `2b525d38d6876829b35e9f5ff5fcf22af421f082` |
-| Candidate committed | 2026-09-12T17:41:02+03:00 |
-| Archive | `the-running-dev-game-engine-0.11.0.tgz` |
-| Archive SHA-256 | `53d5c1787d548e6b1defa35b48fe2301c9484a8e2d03f7523509abd9266b9db0` |
-| Archive entries | 332 |
-| Node / npm | Node v25.3.0, npm 11.7.0 |
+| Candidate commit | `914383610dc2afbb26fe2e224206dbf0a7b2d9e4` |
+| Candidate committed | 2026-10-27T20:00:47+02:00 |
+| Archive | `the-running-dev-game-engine-0.12.0.tgz` |
+| Archive SHA-256 | `e76fbf5d5c0ea97ea0168be0c23100f840ae366f1bb17a32936ab7e7e22d7f63` |
+| Archive entries | 360 |
+| Node / npm | Node v26.12.1, npm 11.7.0 |
 
-The archive digest was re-verified after the packed-consumer smoke and again after every
-companion run, unchanged each time. CI pins Node 24 and this run used Node 25.3.0; the package
-declares `engines.node >= 24`, so both satisfy it, but the difference is recorded rather than
-glossed.
+The validation run on CI packed the candidate independently on Linux under Node 24 and recorded
+the **same** digest, so the pack is reproducible across operating systems and Node versions, not
+merely re-verifiable on one machine. CI pins Node 24 and the local run used Node 26.12.1; the
+package declares `engines.node >= 24`, so both satisfy it, but the difference is recorded rather
+than glossed.
 <!-- candidate:end -->
 
 The full per-gate record — command, exit code, duration, digest, evidence link, and every row
-that did not run and why — is `.claude/release-candidate-w108.json`. The superseded W107 record
-is `.claude/release-candidate-w107.json`; it is kept as history and is not evidence for this
-candidate.
+that did not run and why — is `.claude/release-candidate-0.12.0.json`. The `0.11.0` record
+(`.claude/release-candidate-w108.json`) and the W107 record before it are history and are not
+evidence for this candidate.
 
 ## 2. Registry access, checked read-only
 
@@ -79,14 +87,17 @@ The access mechanism is a GitHub token with `read:packages` (to check availabili
 checklist**, and the check below is read-only.
 
 ```bash
-node src/engine/scripts/verify-release.mjs registry --package @the-running-dev/game-engine --version 0.11.0
+node src/engine/scripts/verify-release.mjs registry --package @the-running-dev/game-engine --version 0.12.0
 ```
 
-Result on the candidate: `state=publishable` — the registry answered with 3 published versions
-(`0.4.0`, `0.5.0`, `0.8.0`) and `0.11.0` is not among them. `dist-tags.latest` is `0.8.0`.
+Result on the candidate: **`OK registry`** in the validation run on CI
+([40556997077](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/40556997077)),
+where the workflow's own token reads the scoped registry. Locally the check **could not be
+evaluated** — exit 2, once with no credential and once with a token that answered 403 for lack of
+`read:packages` — and it is recorded as unevaluated, not as a pass.
 
-The same guard **rejects** an already-published version, which is what makes the positive
-answer worth anything:
+The same guard **rejects** an already-published version, which is what makes the positive answer
+worth anything:
 
 ```bash
 node src/engine/scripts/verify-release.mjs registry --package @the-running-dev/game-engine --version 0.8.0
@@ -97,11 +108,12 @@ An absent credential, a 401, a 403 or an unreachable registry all exit **2** —
 evaluated" — and never `publishable`. A failing availability check is not proof that publication
 is possible, and this guard will not let it read as one.
 
-**`0.10.0` was tagged and never published.** Its release run
+**The registry is two candidates behind the source.** `0.10.0` was tagged and never published:
+its release run
 ([33721497785](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/33721497785))
 failed in 11 seconds on a shell syntax error inside the tag/version guard, before any publish
-step. That is why the registry is two releases behind the source, and it is the direct reason
-W108.5 requires the guards to be executable without pushing a tag.
+step. `0.11.0` was qualified and superseded before it was tagged. `0.8.0` is still the latest
+published version.
 
 ## 3. Non-publishing validation commands
 
@@ -109,16 +121,19 @@ Every command here is non-publishing. `npm publish` is not reachable from any of
 
 ```bash
 # the guards, individually
-node src/engine/scripts/verify-release.mjs mode --event workflow_dispatch --ref refs/heads/main --input-tag v0.11.0
-node src/engine/scripts/verify-release.mjs tag --tag v0.11.0
+node src/engine/scripts/verify-release.mjs mode --event workflow_dispatch --ref refs/heads/main --input-tag v0.12.0
+node src/engine/scripts/verify-release.mjs tag --tag v0.12.0
 node src/engine/scripts/verify-release.mjs clean
 node src/engine/scripts/verify-release.mjs archive --archive src/engine/<tarball> --expect <sha256>
-node src/engine/scripts/verify-release.mjs registry --package @the-running-dev/game-engine --version 0.11.0
+node src/engine/scripts/verify-release.mjs registry --package @the-running-dev/game-engine --version 0.12.0
 ```
+
+`archive --expect` takes the archive's SHA-256 digest, not the candidate's commit SHA. Passing
+the commit SHA is rejected, which is the guard working.
 
 ```bash
 # the guards, as the release workflow runs them, with the negatives, publishing nothing
-gh workflow run release-engine-package.yml --ref <branch> -f tag=v0.11.0
+gh workflow run release-engine-package.yml --ref release/0.12.0-candidate -f tag=v0.12.0
 ```
 
 The same validation path also runs automatically on any pull request touching
@@ -127,12 +142,12 @@ derived from the trigger, not from an input: only a real `refs/tags/v*` push ret
 
 ## 4. Gate evidence
 
-`.claude/release-candidate-w108.json` is the record. Every row carries its command, exit code,
+`.claude/release-candidate-0.12.0.json` is the record. Every row carries its command, exit code,
 duration, artifact digest and evidence link. Rows that did not run say so and name why; an
 unavailable check is never rendered as a pass.
 
-The one archive in §1.1 is the archive every consumer check used. Source-only checks (text
-client, MCP server, site, docs, host) identify the same candidate SHA.
+The one archive in §1.1 is the archive every archive consumer used. Source-only checks (text
+client, MCP server, site, docs, host) and submodule consumers identify the same candidate SHA.
 
 ## 5. Release-note source
 
@@ -140,44 +155,48 @@ The changelog is generated from `main`'s merge history into `docs/docs/engine/CH
 docs workflow's `changelog` input (GitHub-ActionTemplates `actions/changelog`). There is no
 hand-maintained changelog and this checklist does not start one.
 
-The immutable release-note source for `0.11.0` is the commit range:
+The immutable release-note source for `0.12.0` is the commit range — 157 commits:
 
 ```bash
-git log --oneline v0.10.0..<candidate SHA>
+git log --oneline v0.10.0..914383610dc2afbb26fe2e224206dbf0a7b2d9e4
 ```
 
-Use the generated changelog entries in that range as the release notes. Do not retype them.
+The range starts at `v0.10.0`, not at `0.11.0`, because `0.11.0` was never tagged. Use the
+generated changelog entries in that range as the release notes. Do not retype them.
 
 ## 6. Publication — the separate explicit action
 
 Nothing below has been done. It is written out so that the person doing it is not improvising.
 
 1. Confirm §8 says readiness is authorized, and that the candidate SHA in §1.1 is still the
-   commit you intend to publish. If `main` has moved, **re-verify**; the authorization names a
-   SHA, not a branch.
+   commit you intend to publish. If `src/engine` has changed on `main` since, **re-verify**; the
+   authorization names a SHA, not a branch.
 2. Push the tag at that exact commit:
    ```bash
-   git tag v0.11.0 <candidate SHA>
-   git push origin v0.11.0
+   git tag v0.12.0 914383610dc2afbb26fe2e224206dbf0a7b2d9e4
+   git push origin v0.12.0
    ```
 3. `release-engine-package.yml` runs in `publish` mode. It re-runs every guard, re-verifies the
    archive digest against the one it just recorded, and publishes **that archive**
    (`npm publish <tarball>`) rather than packing a second, uninspected time.
-4. Create the GitHub release against `v0.11.0`, with the §5 notes.
+4. Create the GitHub release against `v0.12.0`, with the §5 notes.
+5. Merge [SubZeroDev.Adventures#90](https://github.com/The-Running-Dev/SubZeroDev.Adventures/pull/90),
+   which pins the engine submodule to the tagged candidate. It is held until the tag exists so
+   that Adventures never pins an engine commit no tag names.
 
 ## 7. After publication — verification and recovery
 
-**Verify (separately executed, not part of W108):**
+**Verify (separately executed):**
 
 1. Registry metadata:
    ```bash
-   node src/engine/scripts/verify-release.mjs registry --package @the-running-dev/game-engine --version 0.11.0
+   node src/engine/scripts/verify-release.mjs registry --package @the-running-dev/game-engine --version 0.12.0
    # must now REJECT with "already published" (exit 1) — that is the success signal here
    ```
 2. Download the published tarball and compare its SHA-256 against §1.1. A different digest means
    something other than the approved artifact was published; stop and investigate.
    ```bash
-   npm pack @the-running-dev/game-engine@0.11.0
+   npm pack @the-running-dev/game-engine@0.12.0
    node src/engine/scripts/verify-release.mjs archive --archive <downloaded tarball> --expect <§1.1 digest>
    ```
 3. Isolated install and consumer smoke from the registry copy — a clean directory, no workspace
@@ -200,119 +219,106 @@ npm install @the-running-dev/game-engine@0.8.0
 Companions pin exact versions rather than ranges, so rollback is a one-line change in each
 consumer and needs no registry operation.
 
-**Deprecation — and its limits.** `0.11.0` is never overwritten, republished, or reused, and the
-`v0.11.0` tag is never moved. If a published `0.11.0` must be withdrawn, the intended operation
-is a registry-supported deprecation of that exact version, leaving it installable but marked.
-
-> **This has not been tested on GitHub Packages, and npmjs behaviour must not be assumed —**
-> `npm deprecate` and `dist-tag` management are npmjs-registry features whose GitHub Packages
-> support has not been exercised by this repository. **The recovery procedure this checklist
-> promises is consumer-side rollback to `0.8.0` plus publishing a corrected higher version, full
-> stop** — decided 2026-09-13 (`design/90-decisions.md`) rather than left open pending a
-> deprecation experiment. Every companion pins exact versions, so that rollback needs no registry
-> operation at all. A registry-supported deprecation remains available to test later if a real
-> withdrawal is ever needed, but it is not a precondition for this procedure or for W108.2.
+**Deprecation — and its limits.** `0.12.0` is never overwritten, republished, or reused, and the
+`v0.12.0` tag is never moved. **The recovery procedure this checklist promises is consumer-side
+rollback to `0.8.0` plus publishing a corrected higher version, full stop** — decided 2026-09-13
+(`design/90-decisions.md`). `npm deprecate` and `dist-tag` management are npmjs-registry features
+whose GitHub Packages support this repository has never exercised, and npmjs behaviour must not be
+assumed. A registry-supported deprecation remains available to test if a real withdrawal is ever
+needed; it is not a precondition for this procedure.
 
 ## 8. Authorization
 
-*Superseded 2026-10-25 — see the note at the top. As of 2026-09-13:*
+**0.12.0 readiness is not blocked.** Publishing remains a separate explicit action that nothing
+in this file performs.
 
-**0.11.0 readiness is no longer blocked.**
+The whole matrix was rerun against the candidate in §1.1. Nothing was carried forward from the
+`0.11.0` record.
 
-The full W107 matrix was rerun against the candidate in §1.1 — not carried forward from the
-September 7 record, which is history. Most of it holds. Three blockers that were merely
-environmental at report time have since closed on [pull request #471](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/471)'s
-own CI, one real companion mismatch has been fixed in the companion itself, and the fourth
-environmental blocker closed once Docker became available in this environment. **The remaining
-two were decisions for the user and were made 2026-09-13**, recorded in `design/90-decisions.md`:
-
-| # | Criterion | Was blocked by | Resolved |
-|---|---|---|---|
-| 1 | W108.2 | No registry-supported withdrawal operation is known to work on GitHub Packages. | Accepted §7's consumer-side rollback as the procedure outright; a registry deprecation was decided not to be a precondition. |
-| 2 | W108.3 | W98.2 stayed unchecked; its browser half is in a companion repository and the criterion had no cross-repository form. See §9. | W98.2 amended (`design/30-slices.md`) to scope browser-shelf parity to the client contract governing `SubZeroDev.Adventures`; text/MCP evidence already satisfies the amended criterion. |
-
-**Closed by a companion fix:**
-
-| Criterion | Resolved by |
+| Gate | Result on the candidate |
 |---|---|
-| W107.5 (GameOfLife) | [SubZeroDev.GameOfLife#120](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/pull/120), merged as `8ea9441`, closing [#119](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/issues/119). `stable-life` did not compile against the candidate engine: it lacked `projects` and `businesses`, required since W101. Once that was fixed, a second break appeared: its two event chains were never declared, which W102 requires. Both are fixed. GameOfLife `main` now pins engine `6910bf5`, and `git diff 2b525d3 6910bf5 -- src/engine` is **empty**, so it compiles against source byte-identical to this candidate's. Typecheck clean, 71 of 71 tests, content export and clean-tree checks pass, and the post-merge [Verify run](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/actions/runs/34743822580) is green. |
+| Engine `typecheck`, `lint`, `test` | exit 0 each; 122 test files, 2419 tests passed |
+| Compatibility sweep vs `v0.10.0` | exit 0. Replay oracle: 3 files, 51 passed, 6 skipped. Pack and archive inspection: 360 entries, digest in §1.1. Consumer smoke against that archive: install, build, smoke pass |
+| Release guards, local | `mode` resolves `publish` only for a `refs/tags/v0.12.0` push; `validate` for dispatch and pull request; unevaluated (exit 2) for a branch push with no tag. `tag v0.12.0` OK, `tag v0.11.0` rejected. `clean` OK. `archive` OK against the digest, rejected against the commit SHA. Guard suite 26 of 26 |
+| Release validation run on CI | [40556997077](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/40556997077) green at the candidate: mode, tag, clean, registry and archive guards OK, the same digest packed independently, consumer smoke passed, digest re-verified, all three negatives rejected (tag `v0.0.0`, a modified tree, a substituted archive). Publish step skipped |
+| Static host | `dotnet test`: 12 of 12, 0 skipped. Container build, route and probe smoke and the negative fixture: *Build, run, and smoke the image* on the candidate pull request |
+| Documentation | generators are a no-op; drift check passes across 19 generated pages; Markdown checks pass. Production Docusaurus build: *docs / Build* on the candidate pull request |
+| Site | locally: `ci`, `format:check`, `lint`, `typecheck` exit 0; `test` 20 of 20; `test:merge` exit 0. `test:browser` and `test:build` did not complete locally, because Dropbox held `.vite/vitest` and `site/dist`. *docs / Build* on the candidate pull request runs the whole `check merge` |
+| Adventures (host evidence) | see below |
+| ServiceContract | at its own commit with `0.10.0`: build, 59 of 59 tests, typecheck pass. Against the candidate archive, the build refuses with `EngineVersionMismatch`, as designed, because its authored engine version is `0.10.0`. With that one value moved to `0.12.0`: build passes (13 operations, 26 schemas), 58 of 59 tests (the failure is the test that asserts the authored version), typecheck passes |
+| Platform `game-service` | typecheck fails on the two persistence changes below; tests 122 passed, 75 failed, 1 skipped. Not blocking, see below |
+| GameOfLife | typecheck fails on the manifest-digest change below; 76 of 76 tests and the spec-set check pass. Not blocking, see below |
 
-**Closed once Docker became available in this environment:**
+**Adventures host evidence**, bound as `design/90-decisions.md` (2026-10-25) requires, on
+[SubZeroDev.Adventures#90](https://github.com/The-Running-Dev/SubZeroDev.Adventures/pull/90):
 
-| Criterion | Established by |
+| | |
 |---|---|
-| W107.5 (Platform) | The report run had no Docker daemon, so Platform's durable/Postgres profile could not be exercised at all. Docker is now running here. `docker compose up -d` in `workloads/game-service` brought up the same `postgres:17` service its own committed `docker-compose.yml` provisions — no new infrastructure. Against the retained candidate archive: **197 of 198 tests pass, 1 pre-existing skip**, matching the skip count issue #392 already recorded. Two initial failures turned out to be an unbuilt sibling `.NET` workload (`spawn dotnet ENOENT`), unrelated to Postgres or the candidate; building it (0 warnings, 0 errors) cleared them. Vendoring was reverted and verified, and the Postgres container was torn down afterward. |
+| Engine SHA | `914383610dc2afbb26fe2e224206dbf0a7b2d9e4` |
+| Archive digest | `e76fbf5d5c0ea97ea0168be0c23100f840ae366f1bb17a32936ab7e7e22d7f63` |
+| Adventures commit | `abcc1ab598f41a2fd2e3e0ef08a444fa50179772` |
+| Content snapshot | `public/campaigns` tree `ff169b24512499c1ceef5df91b3bb9f832d424e9`; SHA-256 of the sorted 12-file manifest `fd134948c0e1deae1ecb898d34956e98491f974fb125d5b4a11c3404644bd19c` |
+| CI run | [40556942573](https://github.com/The-Running-Dev/SubZeroDev.Adventures/actions/runs/40556942573) |
 
-**Closed on CI**, at branch head `14f4323`:
+On `postgres:17`, the `server` job ran 24 files and **287 tests, all passed, none skipped**. Every
+DB-gated suite in Adventures is declared `databaseUrl ? describe : describe.skip`, so a skip would
+appear in that count; there is none. That run includes the Postgres session adapter and its
+compare-and-swap conflict (`persistence.test.ts`, and the concurrent-write case in `api.test.ts`),
+the independent-rebuild suite (`composition.test.ts`), and authoritative offline replay through
+the retained pre-bump runtime (`offline/offline.test.ts`). The `offline-e2e` job exercises durable
+offline play and authoritative synchronization in a browser against the same database.
 
-| Criterion | Established by |
-|---|---|
-| W107.3 | **Verify Documentation Build** — green in 2m15s. The production Docusaurus build under `onBrokenLinks: 'throw'`, the only gate that resolves routes and heading anchors. It could not run locally: no Docker daemon, and `docs.ps1` is installed rather than committed. |
-| W107.4 | **Build, run, and smoke the image** — green in 1m58s. Image build, positive route and probe smoke, and the negative missing-artifact fixture failing to start. The main-only GHCR publication job correctly skipped, so no image was published. |
-| W107.6 | All three required checks green — `engine` (42s), *Documentation links and terminology* (58s), *Verify Documentation Build* (2m15s) — plus `powershell` (55s, matching the local 324/0/35 Pester counts) and the new `release game-engine package` validation job (41s). |
+**Compatibility with `0.10.0` depends on which side of the API you are on.** For code that plays
+the engine, `0.12.0` is a compatible superset: the sweep's replay oracle and the packed consumer
+pass unchanged, and nothing the `0.10.0` surface exposed was removed. It is **breaking** in three
+deliberate changes, all recorded. Two affect a host that implements the persistence ports:
 
-**Those rows ran at `14f4323`, not at the candidate.** The delta is five files — this checklist,
-the report, `design/30-slices.md`, its generated `TODO.md` page, and one `printf` in the release
-workflow — with no `src/engine` source among them. That is proven, not asserted: re-packing at
-`14f4323` produced sha256 `53d5c178…`, **bit-identical** to the candidate archive, which also
-demonstrates the pack is reproducible. The documentation rows are strictly better for having run
-at head, since they cover the ledger edits the evidence commit made.
+- `StoredSessionRecord.revision` is required: the compare-and-swap field from S122
+  ([#572](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/572)).
+- `PlayerProfile` is `formatVersion: 3` with a required `kindData`: per-kind profile data from S133
+  ([#591](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/591)). The decision for
+  it in `design/90-decisions.md` calls it expensive to reverse.
 
-The GameOfLife mismatch and the Platform-profile gap were the two real blockers this rerun could
-close outright, once its evidence was acted on rather than left as a finding. The remaining two
-could not be closed by running more checks — both were decisions, and both are now made.
+The third affects an authoring pipeline that publishes portable manifests:
 
-The full per-gate record is `.claude/release-candidate-w108.json`. Publishing `0.11.0` remains a
-separate explicit action that nothing in this file performs.
+- `digestManifestResolution` takes `readonly PortableManifestEntry[]` instead of `PackRef[]`, and
+  digests the ordered `{id, version, digest}` list instead of `{id, version}`. A manifest's
+  `resolution` therefore changes for unchanged content. The helper is also now a package-root
+  export. This came in with
+  [#528](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/528), which was described
+  as a dependency move and went unrecorded until this sweep; `design/90-decisions.md`
+  (2026-10-27) records it now. The same pull request replaced `@noble/hashes` with
+  `subzerodev-data-json`, so a consumer that pins the engine by path must refresh its lockfile.
 
-## 9. W93–W107 criterion-level reconciliation
+Adventures.Content's `scripts/export-content.ts` already passes whole manifest entries, so its
+call compiles under either signature; its next export publishes a `resolution` from the new
+recipe. That repository was not run against the candidate. GameOfLife was, and with a refreshed
+lockfile its `scripts/export-content.ts` fails typecheck where it passes `{id, version}` objects. Its 76 tests
+and spec-set check pass, and its committed `content/manifest.json` carries a `resolution` computed
+by the old recipe. It pins and vendors `0.10.0`, so publishing does not break it. Moving it is a
+follow-up in that repository: pass the full entries, re-export `content/`, refresh the lockfile.
 
-**W107.4** was corrected by merged
-[PR #461](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/461) (`a84d9c9`): the
-static host receives no action, owns no session, and exposes no engine API, so the criterion no
-longer requires session/action/save operations of it. The W107 report's failed row recorded the
-*superseded* requirement and is kept as history. The W108 report exercises the corrected
-requirement only — no engine API is added to this host.
+Adventures already implements both persistence changes, as the `server` job above shows. Platform `game-service`
+does not. Against the candidate tarball its typecheck fails on exactly these two changes. Most of
+its 75 failing tests stop earlier, at the authored-engine-version guard, because the contract it
+consumes was generated at `0.10.0`; that guard is working as designed (see the record). Platform
+pins and vendors `0.10.0`, so publishing `0.12.0` does not break it. Moving Platform to `0.12.0`
+is follow-up work, in order: regenerate ServiceContract at `0.12.0`, then update Platform's
+adapters.
 
-**W98.7** (`typecheck`/`lint`/`test` from `src/engine/`; site and host checks pass with committed
-replay outcomes unchanged) — the engine and site halves are established on this candidate, in the
-report. The "committed replay outcomes unchanged" clause is **partly historical**:
-[PR #414](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/414) deliberately updated
-terminal-shape replay fixtures, so the corpus did move in that unit. It has not moved since, and
-it did not move for `0.11.0` — the version bump regenerated no fixture. The host half needs
-Docker and is unavailable here.
+## 9. History
 
-**W98.2** (text client and MCP `list_campaigns` render the same resolved titles without starting
-a session or reading `ContentRegistry`) — covered in this repository's own suites; **holds.**
-The criterion originally also named a browser shelf. That surface is no longer in this
-repository: the in-repository `/play/` route was retired, and the browser surface is
-[SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures), where
-`BrowserClient.listCampaigns()` is session-free and `PlayerHome` renders the catalog's resolved
-`title`. Rather than stand up a cross-repository parity proof, the criterion was amended
-2026-09-13 (`design/90-decisions.md`, `design/30-slices.md`) to scope browser-shelf parity to the
-client contract governing `SubZeroDev.Adventures` instead — the same treatment already given to
-W99's session-lifecycle rows in `10-design.md` §4's coverage checklist. `/play/` was not
-recreated and the browser was not quietly dropped; the requirement moved to the document that now
-owns that surface.
-
-
-**W107.5's companion row, reconciled.** The W107 report recorded this as Passed by citing issue
-#392's point-in-time proof, because none of the four companion repositories were checked out in
-that environment. All four were available for this rerun and all four were run fresh —
-ServiceContract at its own commit (59 tests), Adventures and GameOfLife with their engine
-submodules temporarily detached to the candidate SHA, and Platform with the retained 0.11.0
-archive vendored in place of its 0.10.0 one. Every substitution was reverted and verified
-afterwards. The run found what the citation could not: GameOfLife had not compiled against a
-candidate engine since W101. The citation was not wrong about anything it claimed; it simply
-could not have detected this, which is the argument for running rather than carrying forward.
-The mismatch has since been fixed in GameOfLife by
-[SubZeroDev.GameOfLife#120](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/pull/120).
-The fix surfaced one engine-side gap, tracked rather than fixed here:
-`SimulationCampaignSource` cannot declare `eventChains`
-([SubZeroDev.GameEngine#472](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/472)).
+`0.11.0` was qualified at `2b525d3` (W108) and superseded before it was tagged. Its §8 and §9 —
+the W93–W107 criterion-level reconciliation, the GameOfLife `stable-life` mismatch closed by
+[SubZeroDev.GameOfLife#120](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife/pull/120),
+the Platform Postgres profile closed once Docker was available, and the W98.2 and W108.2
+decisions of 2026-09-13 — are in this file's history at `2b525d3`'s successors and in
+`.claude/release-candidate-w108.json`. None of it is evidence for `0.12.0`; every row was rerun.
 
 ## 10. Scope fence
 
-W109–W113 are `0.12` scope. They are contract-only today and **cannot change this candidate**.
-If one of them lands before `0.11.0` publishes, the candidate in §1.1 is no longer the tree being
-published and the whole matrix reruns against a new candidate.
+Anything that changes `src/engine` before `0.12.0` publishes invalidates the candidate in §1.1:
+the tree being published is then no longer the tree verified here, and the whole matrix reruns
+against a new candidate. Plan 54 (durable content epochs in Adventures, whose engine contract
+slice amends `src/engine`) and World Graph steps 3 and 5 are post-`0.12.0` scope for exactly this
+reason.
