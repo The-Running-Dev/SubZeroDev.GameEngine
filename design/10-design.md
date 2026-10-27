@@ -2245,6 +2245,11 @@ log — the entry implies the flag, and a migration is not a step replay can per
 covers the case the log cannot show: a session migrated before it ever adopted, or in kind shape
 only, carries no entry.
 
+**A profiled session is captured with the input it was created from.** The fixture's
+`config.kindProfileData` comes from the session record's `initialization` (04 §7.2), never from
+the profile as it is now. A record that predates that field is refused where `branchSession`
+refuses it (04 §7.4), because the creation input is lost.
+
 ---
 
 ## 3. What Is Refused
