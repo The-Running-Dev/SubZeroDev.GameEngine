@@ -91,7 +91,14 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   Two of the four have no running input at all: the housing-quality formula is contracted
   and never computed, and `sectorDemand` never moves (`design/90-decisions.md`, the 2026-09-27
   `/align` entry on #267).
-- **`end_week`'s `plan_empty` gate is declared but not wired — W50.4.** §10 names
+- **`end_week`'s `plan_empty` gate — resolved by W100, closed as done.** W100
+  ([PR #419](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/419)) added
+  `SimulationCampaign.emptyPlanPolicy` (§7.11). While it is `"forbid"` and the plan holds no
+  action, `availableActions` reports `end_week` unavailable
+  (`src/engine/src/kinds/simulation/available.ts`) and `end_week` is rejected with
+  `plan_empty`, state unchanged (`src/engine/src/kinds/simulation/advance.ts`). An absent policy
+  keeps the 0.10 behaviour. The entry as it stood before W100, kept as history: *declared but
+  not wired — W50.4.* §10 names
   `plan_empty` for "`end_week` with nothing planned, where the campaign forbids it," and
   `availableActions` (`src/engine/src/kinds/simulation/available.ts`) always returns
   `end_week` with `available: true`. `SimulationCampaign` declares no toggle to condition a
@@ -369,8 +376,17 @@ meaningful on its own — it is only correct once combined with the caller no lo
 it for this kind. Revisit if a future caller reads `.applied` for a deferred
 `building_meter_delta` directly, since it would reintroduce the same premature signal.
 
-**`relationships` (`endOfWeek.ts`) is the simulation kind's only remaining end-of-week
-stub, and W89 is the first thing able to observe that it stays one.** No weekly
+**`relationships` (`endOfWeek.ts`) — no longer a stub; resolved by W100, closed as done.**
+W100 ([PR #419](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/419)) specified
+the weekly rule as `SimulationCampaign.relationshipDrift` (§7.11), and `relationships` now
+applies each configured rule to the player's relationships and to every agent's, emitting
+`relationship_drift` (`src/engine/src/kinds/simulation/endOfWeek.ts`, tested in
+`endOfWeek.test.ts`). **W89's exclusion still holds, for a different reason:** the
+long-horizon campaign configures no `relationshipDrift`, so the system returns without a
+change in both long runs. The exclusion is now a property of that campaign, not of the
+contract. Revisit it if the long-horizon campaign gains a drift rule. The entry as it stood
+before W100, kept as history: *`relationships` is the simulation kind's only remaining
+end-of-week stub, and W89 is the first thing able to observe that it stays one.* No weekly
 relationship rule — decay, drift, or otherwise — is specified anywhere in
 [`10-simulation-kind.md`](10-simulation-kind.md): §6.11 declares the state and §7.7 the
 NPC, but nothing names what a week does to either, so the system can never emit anything
@@ -625,6 +641,77 @@ capture would have turned it into a fixture whose actions were taken on content 
 not name. 08 §2 now refuses on the session record's `replayCompatible: false`, as `branchSession`
 does (04 §7.4); the migration-entry refusal is the case of it readable from the log. Capture
 itself is still unbuilt (`30-slices.md`, *Carried Forward*).
+
+### Found by the 2026-10-17 repository review
+
+The review measured the world-graph path search at about 4.6 s for one corner-to-corner route
+on an empty 64×64 grid. The search in `src/engine/src/kinds/world-graph/spatial.ts` now builds a
+neighbour index per call and keeps its open list in a binary heap, and returns the same path and
+cost it did before (decision log, 2026-10-17). These are the parts the review raised and that
+slice left alone.
+
+**Path-search indexes are rebuilt on every call.** Each search builds its terrain index, its
+occupancy set and its neighbour index from scratch. Reusing them across calls needs a key that
+changes whenever they would: `WorldMap.revision` for terrain and edges, and also the building and
+construction-site lists, which change the blocked cells without touching the map. It also
+assumes nothing mutates a map in place. **Revisit** when a full-tick benchmark shows the
+per-call build matters.
+
+**No tick-level benchmark exists, and no workload limit is supported.** The measurements so far
+time one corner-to-corner search on an empty grid. They do not establish per-tick capacity, a
+guest limit, or a supported map size, because a tick runs one search per routing guest and its
+other systems besides. **Revisit** before a world-graph client scales its maps or its guest
+counts, which is when a full-tick benchmark and published limits are needed.
+
+**Documentation correction: [`12-world-graph-kind.md`](12-world-graph-kind.md) §9.3 overstates
+what a heuristic preserves.** Its note says the search's earlier A\* prescription, with a
+heuristic of Manhattan distance to the nearest goal times the minimum traversable step cost, is
+behaviourally identical to uniform-cost search. Two things are wrong with that, and both matter
+to anyone who reintroduces the heuristic as the note invites:
+
+- *Demonstrated.* That heuristic is not admissible on an explicit topology. Validation requires
+  an explicit edge only to have a positive `edgeCost`, not to join neighbouring cells. With
+  edges A(0,0)→T(9,9) and T→G(1,0) at cost 1 each, and A→G at cost 5, the heuristic puts T at
+  f = 18 and G, entered directly, at f = 5. A\* commits the cost-5 path, and uniform-cost search
+  the cost-2 one.
+- *Possible but not reproduced.* Even an admissible, consistent heuristic orders the open list
+  by f rather than g. A node can then be popped before every equal-cost predecessor has been
+  expanded, and the goal can be popped while an equal-f node that would have been its
+  row-major-smaller predecessor, or a row-major-smaller goal, is still open. The committed path
+  could then differ even though its cost does not. A search of 400,000 random orthogonal grids
+  up to 7×7, with one to three goals, found no such case, so this is neither shown nor ruled
+  out.
+
+The correction is to state admissibility per topology and to require that any heuristic be
+proven to give the same committed path, not only the same cost, before it lands. No code
+changes: the search carries no heuristic. **Revisit** at the next edit of §9.3, or before any
+heuristic is proposed.
+
+The review found status statements that the code had overtaken. The guide's epochs status, the
+roadmap's W109–W113 chapter, the `plan_empty` and `relationships` entries above, and the source
+comments that repeated them are corrected. The roadmap now has a check: an implementation
+chapter whose units have all landed must be done (`site/src/roadmap/RoadmapApp.test.tsx`).
+These are the parts that correction left alone.
+
+**The canonical documents are too large to read whole, and nothing bounds them.** The five
+files total about 1.36 MB, including a contract of about 582 KB and this register at about
+423 KB. Retiring the W bodies shrank `30-slices.md`, but onboarding and review still mean
+reading the contract end to end. The review proposes two things:
+
+- splitting the contract into bounded sections;
+- a short capability matrix, built through the existing generator scheme.
+
+Both must keep stable anchors and single ownership. Neither may be a new hand-maintained
+summary, which would be one more surface to drift. **Revisit when** the contract is next
+restructured, or sooner if a review or onboarding pass is blocked on its size. This is
+generator and design work, so it is not a status fix.
+
+**W89's coverage comment counts fifteen end-of-week systems; there are sixteen.** W101 added
+`business` between `finance_income` and `inventory`. `long-horizon.replay.test.ts` neither
+covers it nor excludes it by name. Its "thirteen of the fifteen" arithmetic predates W101, and
+its list asserts exactly thirteen systems, so `business` can only be silent in both long runs.
+**Revisit** with the next change to that file: name `business` as excluded, with its reason,
+and recount.
 
 ---
 

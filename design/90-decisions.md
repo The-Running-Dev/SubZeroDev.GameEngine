@@ -101,7 +101,14 @@ Settled as out of MVP scope. Listed so they resurface deliberately, not by accid
   Two of the four have no running input at all: the housing-quality formula is contracted
   and never computed, and `sectorDemand` never moves (`design/90-decisions.md`, the 2026-09-27
   `/align` entry on #267).
-- **`end_week`'s `plan_empty` gate is declared but not wired — W50.4.** §10 names
+- **`end_week`'s `plan_empty` gate — resolved by W100, closed as done.** W100
+  ([PR #419](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/419)) added
+  `SimulationCampaign.emptyPlanPolicy` (§7.11). While it is `"forbid"` and the plan holds no
+  action, `availableActions` reports `end_week` unavailable
+  (`src/engine/src/kinds/simulation/available.ts`) and `end_week` is rejected with
+  `plan_empty`, state unchanged (`src/engine/src/kinds/simulation/advance.ts`). An absent policy
+  keeps the 0.10 behaviour. The entry as it stood before W100, kept as history: *declared but
+  not wired — W50.4.* §10 names
   `plan_empty` for "`end_week` with nothing planned, where the campaign forbids it," and
   `availableActions` (`src/engine/src/kinds/simulation/available.ts`) always returns
   `end_week` with `available: true`. `SimulationCampaign` declares no toggle to condition a
@@ -379,8 +386,17 @@ meaningful on its own — it is only correct once combined with the caller no lo
 it for this kind. Revisit if a future caller reads `.applied` for a deferred
 `building_meter_delta` directly, since it would reintroduce the same premature signal.
 
-**`relationships` (`endOfWeek.ts`) is the simulation kind's only remaining end-of-week
-stub, and W89 is the first thing able to observe that it stays one.** No weekly
+**`relationships` (`endOfWeek.ts`) — no longer a stub; resolved by W100, closed as done.**
+W100 ([PR #419](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/419)) specified
+the weekly rule as `SimulationCampaign.relationshipDrift` (§7.11), and `relationships` now
+applies each configured rule to the player's relationships and to every agent's, emitting
+`relationship_drift` (`src/engine/src/kinds/simulation/endOfWeek.ts`, tested in
+`endOfWeek.test.ts`). **W89's exclusion still holds, for a different reason:** the
+long-horizon campaign configures no `relationshipDrift`, so the system returns without a
+change in both long runs. The exclusion is now a property of that campaign, not of the
+contract. Revisit it if the long-horizon campaign gains a drift rule. The entry as it stood
+before W100, kept as history: *`relationships` is the simulation kind's only remaining
+end-of-week stub, and W89 is the first thing able to observe that it stays one.* No weekly
 relationship rule — decay, drift, or otherwise — is specified anywhere in
 [`10-simulation-kind.md`](10-simulation-kind.md): §6.11 declares the state and §7.7 the
 NPC, but nothing names what a week does to either, so the system can never emit anything
@@ -635,6 +651,77 @@ capture would have turned it into a fixture whose actions were taken on content 
 not name. 08 §2 now refuses on the session record's `replayCompatible: false`, as `branchSession`
 does (04 §7.4); the migration-entry refusal is the case of it readable from the log. Capture
 itself is still unbuilt (`30-slices.md`, *Carried Forward*).
+
+### Found by the 2026-10-17 repository review
+
+The review measured the world-graph path search at about 4.6 s for one corner-to-corner route
+on an empty 64×64 grid. The search in `src/engine/src/kinds/world-graph/spatial.ts` now builds a
+neighbour index per call and keeps its open list in a binary heap, and returns the same path and
+cost it did before (decision log, 2026-10-17). These are the parts the review raised and that
+slice left alone.
+
+**Path-search indexes are rebuilt on every call.** Each search builds its terrain index, its
+occupancy set and its neighbour index from scratch. Reusing them across calls needs a key that
+changes whenever they would: `WorldMap.revision` for terrain and edges, and also the building and
+construction-site lists, which change the blocked cells without touching the map. It also
+assumes nothing mutates a map in place. **Revisit** when a full-tick benchmark shows the
+per-call build matters.
+
+**No tick-level benchmark exists, and no workload limit is supported.** The measurements so far
+time one corner-to-corner search on an empty grid. They do not establish per-tick capacity, a
+guest limit, or a supported map size, because a tick runs one search per routing guest and its
+other systems besides. **Revisit** before a world-graph client scales its maps or its guest
+counts, which is when a full-tick benchmark and published limits are needed.
+
+**Documentation correction: [`12-world-graph-kind.md`](12-world-graph-kind.md) §9.3 overstates
+what a heuristic preserves.** Its note says the search's earlier A\* prescription, with a
+heuristic of Manhattan distance to the nearest goal times the minimum traversable step cost, is
+behaviourally identical to uniform-cost search. Two things are wrong with that, and both matter
+to anyone who reintroduces the heuristic as the note invites:
+
+- *Demonstrated.* That heuristic is not admissible on an explicit topology. Validation requires
+  an explicit edge only to have a positive `edgeCost`, not to join neighbouring cells. With
+  edges A(0,0)→T(9,9) and T→G(1,0) at cost 1 each, and A→G at cost 5, the heuristic puts T at
+  f = 18 and G, entered directly, at f = 5. A\* commits the cost-5 path, and uniform-cost search
+  the cost-2 one.
+- *Possible but not reproduced.* Even an admissible, consistent heuristic orders the open list
+  by f rather than g. A node can then be popped before every equal-cost predecessor has been
+  expanded, and the goal can be popped while an equal-f node that would have been its
+  row-major-smaller predecessor, or a row-major-smaller goal, is still open. The committed path
+  could then differ even though its cost does not. A search of 400,000 random orthogonal grids
+  up to 7×7, with one to three goals, found no such case, so this is neither shown nor ruled
+  out.
+
+The correction is to state admissibility per topology and to require that any heuristic be
+proven to give the same committed path, not only the same cost, before it lands. No code
+changes: the search carries no heuristic. **Revisit** at the next edit of §9.3, or before any
+heuristic is proposed.
+
+The review found status statements that the code had overtaken. The guide's epochs status, the
+roadmap's W109–W113 chapter, the `plan_empty` and `relationships` entries above, and the source
+comments that repeated them are corrected. The roadmap now has a check: an implementation
+chapter whose units have all landed must be done (`site/src/roadmap/RoadmapApp.test.tsx`).
+These are the parts that correction left alone.
+
+**The canonical documents are too large to read whole, and nothing bounds them.** The five
+files total about 1.36 MB, including a contract of about 582 KB and this register at about
+423 KB. Retiring the W bodies shrank `30-slices.md`, but onboarding and review still mean
+reading the contract end to end. The review proposes two things:
+
+- splitting the contract into bounded sections;
+- a short capability matrix, built through the existing generator scheme.
+
+Both must keep stable anchors and single ownership. Neither may be a new hand-maintained
+summary, which would be one more surface to drift. **Revisit when** the contract is next
+restructured, or sooner if a review or onboarding pass is blocked on its size. This is
+generator and design work, so it is not a status fix.
+
+**W89's coverage comment counts fifteen end-of-week systems; there are sixteen.** W101 added
+`business` between `finance_income` and `inventory`. `long-horizon.replay.test.ts` neither
+covers it nor excludes it by name. Its "thirteen of the fifteen" arithmetic predates W101, and
+its list asserts exactly thirteen systems, so `business` can only be silent in both long runs.
+**Revisit** with the next change to that file: name `business` as excluded, with its reason,
+and recount.
 
 ---
 
@@ -2769,3 +2856,24 @@ Rejected: **Rewording the design prose to dodge the pattern.** That bends correc
 Context: the content-epochs red-team revision left 08 §2 refusing a session whose log carries a migration entry, and nothing in 08 checking `replayCompatible`. A session migrated before it ever adopted, or in kind shape only, carries no entry (16 §3.5), so capture would have accepted it.
 Chosen: 08 §2 refuses a session whose record says `replayCompatible: false`, the same test `branchSession` applies (04 §7.4). The migration-entry refusal stays as the case of it readable from the log. Capture is unbuilt, so no code changes.
 Rejected: **Refusing on the log alone.** A log with no epoch entry cannot show a migration, which is the gap. **Capturing a migrated session from its post-migration state.** A fixture is `{ config, submissions }` replayed from creation (07 §2), so it has no way to start from a migrated state.
+
+### 2026-10-17 — A branch replays its source's recorded initialization, and no read sees an uncommitted write
+Context: the 2026-10-17 repository review (P1, two findings). First, `branchSession` called `createGame` with `{ campaignId, seed }` only, so a session seeded from a profile's `kindProfileData` branched as an anonymous game and diverged from its prefix at the first state. §7.1 had said only that a branch does not re-seed. Second, `submitAction` and an adopting `resumeSession` changed the cached record before the write resolved. A lock-free read, or a branch snapshot, taken in that window could return a state persistence then refused.
+Chosen: `StoredSessionRecord` and `StoredSaveRecord` gain `initialization?: SessionInitialization`, holding an owned copy of the `kindProfileData` given to `createSession`, and `{}` when there was none. It round-trips through save and load, and a branch inherits it. A missing wrapper means the record predates the field. Such a source branches with `{}` only where no profile could have seeded it, meaning it has no `profileId` or its kind declares no `profileData`. Otherwise it raises `invalid_state` before writing anything. The field is outside `GameState`, so `serialize()`, `GameState.formatVersion` and every golden and replay fixture are unchanged. For the second finding, the store builds the next record separately and applies it to the cache only after the write resolves. `branchSession` takes its source snapshot on the source's session lock. The contract is 20-contract §7.1, §7.2 and §7.4 with a new error row and B4, and `SessionInitialization` is a package-root export. Adventures' Postgres adapter needs a matching column.
+Rejected: **Re-reading the profile at branch time.** The profile has moved on, so the branch would be seeded from data its source never saw. **Treating a missing `kindProfileData` as "none" with no wrapper.** That cannot tell an anonymous game from a legacy profiled one. **Putting the value in `GameState`.** It would change `serialize()`, bump `formatVersion` and rebaseline every fixture, to carry host input the engine never reads after `initialState`. **Restoring the cached record on failure, as before.** The window before the restore is the defect.
+Capture follows the same rule: 08 §2 now takes a fixture's `config.kindProfileData` from the record's `initialization`, and refuses a legacy record where `branchSession` would. Capture is unbuilt, so no capture code changes.
+
+### 2026-10-17 — The canonical path search gets a neighbour index and a binary heap, and returns the same path
+Context: the 2026-10-17 repository review measured one corner-to-corner search on an empty 64×64 grid at about 4.6 s. `canonicalPathWithCost` sorted the whole open list on every expansion and scanned every edge in the map for each expanded cell. The owner approved a slice that changes no output.
+Chosen: allowed edges are grouped by `from` once per call, each group stable-sorted by destination row-major, and the open list is a binary min-heap ordered by `g`, then position row-major (20-contract §9.3). Entries the comparator calls equal have the same position and cost, so the heap pops what the full sort did. `src/engine/src/kinds/world-graph/spatial.equivalence.test.ts` keeps the old search as an oracle and compares the two on hand-built cases and 400 seeded maps, half of them with shuffled edges. Measured on the same machine and Node version, before → after, median of 5–51 runs: 8×8 0.51 → 0.09 ms, 16×16 8.26 → 0.26 ms, 32×32 70.4 → 1.13 ms, 64×64 1146 → 4.65 ms. No golden or replay fixture changes.
+Kept: the per-group sort. The equivalence test cannot detect its removal, because §9.3's ordered pops and row-major parent rule make the result independent of edge order. It stays because §9.3 states the ordering, and it is cheap.
+Rejected: **A heuristic.** It needs a contract amendment, and the earlier prescription is not admissible on an explicit topology (register, *Found by the 2026-10-17 repository review*). **Index reuse across calls.** It needs invalidation that also tracks buildings and construction sites, before any benchmark shows it matters.
+
+### 2026-10-25 — The next package candidate is `0.12.0`, cut fresh; `0.11.0` is a superseded candidate that was never published
+Context: the 2026-10-17 repository review. `RELEASE.md` authorizes `0.11.0` at candidate `2b525d3` (2026-09-12), archive `sha256:53d5c178…`, and its §8 still reads as ready. Since then 116 commits have landed on `main`, W109–W113 among them ([#478](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/478), [#479](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/479), [#481](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/481), [#490](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/490), [#491](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/491)) — the units `RELEASE.md` §10 fenced out, saying that if one landed first "the whole matrix reruns against a new candidate." Nothing was published from that candidate: there is no `v0.11.0` tag locally or on the remote, no GitHub release, and the registry carries `0.4.0`, `0.5.0` and `0.8.0` only. CI on current `main` packs a different archive (`b1c4dddb…`). Separately, the W108 record's Adventures row ran `npm test` with no `DATABASE_URL` recorded, so Adventures' 15 database-gated test files — the Postgres session adapter and its compare-and-swap, the rebuild test, and authoritative offline replay — may all have skipped.
+Chosen: three decisions, each signed off separately.
+1. **The version is `0.12.0`.** `0.11.0` stays recorded as a qualified, superseded, never-published candidate bound to `53d5c178…`, and the version is never reused. W109–W113 ship in `0.12.0`, the release §10 already assigned them to. `src/engine/package.json` stays `0.11.0` until the candidate commit bumps it, because the bump is part of cutting the candidate, not of deciding it.
+2. **The candidate is cut after [#602](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/602), [#603](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/603), [#604](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/604) and [#606](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/606) merge.** Each changes the archive — `dist/` or `src/engine/README.md` — and #602 is the committed-state correctness fix the review names. One candidate, one matrix run.
+3. **Adventures' host evidence is a submodule-bump pull request in SubZeroDev.Adventures** pinning the exact candidate SHA, with its CI running against its own `postgres:17` service. The `0.12.0` record must show zero database-gated skips; the Postgres adapter, rebuild and compare-and-swap suites and authoritative offline replay passing; a replay through an offline runtime retained from before the bump; and the engine SHA, archive digest, Adventures commit, content snapshot digest and CI run URL, all bound together. The W108 Adventures row is not evidence of host composition.
+Rejected: **Publishing `2b525d3` as `0.11.0`.** It is not today's tree, and every consumer is already ahead of it. **Requalifying the current tree as `0.11.0`.** That is valid semver, since `0.11.0` was never published, but `RELEASE.md`, the W108 record and this register already define `0.11.0` by the `53d5c178…` digest, and two artifacts under one version is the ambiguity a digest identity exists to rule out. **Cutting after #602 only.** That needs a second scope fence over three ready pull requests, or a second matrix run. **A local Adventures run against a throwaway database**, as W108's Platform row did. The evidence would then be a claim in a JSON file rather than a linkable CI run, and the skip count only as good as its report.
+Reversibility: cheap until the candidate is cut — a version number and a merge order. After the cut, changing either means a new candidate and a full rerun, which §10 already requires.

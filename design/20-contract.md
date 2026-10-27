@@ -1375,6 +1375,13 @@ and `branchSession` **do not** re-seed: the kind already put whatever it kept in
 at `initialState`, and re-reading a profile that has moved on since would make a resumed session
 differ from the one that was saved. An anonymous session reads nothing, so it seeds nothing.
 
+**A branch replays the recorded value, never the profile.** `branchSession` runs `initialState`
+again (§7.4), so it needs the exact `kindProfileData` the source was created with. The store
+keeps an owned copy of it on the record as `initialization` (§7.2) and passes that copy to the
+branch. Reading the profile again would seed the branch from data the source never saw. Passing
+nothing would seed it as an anonymous game. Either way the branch would diverge from its prefix
+at the first state.
+
 #### Invariants
 
 Each is written to become an assertion. The **session store** maintains P1–P6; P7 and P8 are
@@ -1425,6 +1432,12 @@ interface StoredSessionRecord {
   createdAt: string;             // Clock (06 §5.4), never Date.now
   updatedAt: string;
   profileId?: string;            // §7.1 — round-trips here, never through SaveEnvelope
+  initialization?: SessionInitialization; // absent → written before the field existed: unknown
+}
+
+/** What `createSession` handed `initialState` beyond `{ campaignId, seed }` (§7.1). */
+interface SessionInitialization {
+  kindProfileData?: unknown;     // absent inside a present wrapper → recorded, and there was none
 }
 
 interface StoredSaveRecord {
@@ -1435,6 +1448,7 @@ interface StoredSaveRecord {
   savedAtSeq: number;
   audience: ProjectionAudience;
   profileId?: string;
+  initialization?: SessionInitialization; // copied from the session record, and back onto it by loadGame
 }
 
 interface SessionRecordStore {
@@ -1470,6 +1484,18 @@ The rule is stated here so no adapter has to infer one:
 > when its stored `revision` equals the incoming `revision - 1`.** Otherwise it throws a
 > `SessionPersistenceConflict`-branded error (below). An adapter that compares `attemptCounter`
 > instead refuses every write after a rejected action, and strands the session.
+
+**`initialization` is the input a branch cannot recover from the blob.** `createSession` writes
+it on every record: `{ kindProfileData }` holding an owned copy of the resolved slice, or `{}`
+when the session was anonymous or its profile held no slice for the kind. Later changes to the
+object the `ProfileStore` returned therefore cannot reach it. `saveGame` copies it onto the save,
+`loadGame` copies it back onto the new session, and a branch inherits its source's. An adapter
+stores it and returns it unchanged. **A missing wrapper and an empty one mean different things,
+and an adapter must keep them apart.** `{}` says the game was created with no profile data. A
+missing field says the record predates this field, so its creation input is unknown. Reading a
+missing `kindProfileData` as "none" would branch a profiled game as an anonymous one. The field
+sits on the record and not in `GameState`, because it is host input like `profileId`.
+`serialize()` output, `GameState.formatVersion` and every fixture are unchanged by it.
 
 **Omitted → in-memory, which is the MVP default.** Without `persistence` the store's own maps
 are the storage. With it, the store caches sessions and consults `persistence` only on a miss,
@@ -1555,21 +1581,25 @@ needs both arguments made here; a brand invented downstream is not a contract.
 > persistence refused is never listed or loadable, from this instance or any other. The
 > paragraph below is the same rule for a record that already exists.
 >
-> **A rejected write must not leave the store ahead of its persistence.** This failure is
-> actionable — the shipped `core.reason.concurrent_modification` string tells a player the
-> session changed elsewhere and to refresh — so the store's in-memory record must not retain a
-> mutation that persistence refused. An operation that mutates a cached record *before*
-> persisting it has to restore or evict that record when the write throws. Otherwise the next
-> read is served from the cache, returns the un-persisted state, and the retry the message asks
-> for cannot succeed. `storage_failure` tolerated this divergence because its own message
-> promises only that the game is still playable; `concurrent_modification` does not.
+> **No read sees a write that has not committed.** An operation that changes an existing session
+> record (an accepted `submitAction`, or a `resumeSession` that adopts) builds the next record as
+> a separate value and writes that. It applies the value to the cached record only after the
+> write resolves. While the write is pending, `getView`, `getScene`, `serialize` and the other
+> reads that take no session lock still return the last committed record. So does the source
+> snapshot `branchSession` takes on the source's lock (§7.4). Restoring on failure is not
+> enough. A read that ran while the write was pending would already have returned a state that
+> persistence then refused, and a branch taken in that window would have copied it.
 >
-> **On `concurrent_modification` the store restores *and* evicts.** The conflict means another
-> writer committed, so the restored record is itself stale, and only a fresh read from
-> persistence lets the retry build on the winner's write. The restore is still needed, because
-> a command already queued on the session lock holds the same record and must offer the stale
-> `revision` so that the adapter refuses it too. On `storage_failure` the store restores and keeps
-> the record: the cache was right, and only the write failed.
+> **A rejected write leaves the store at its persistence.** This failure is actionable — the
+> shipped `core.reason.concurrent_modification` string tells a player the session changed
+> elsewhere and to refresh — so a refused value must never reach the cache. With the rule above
+> it never does, and the next read serves the last committed state. `storage_failure` keeps the
+> cached record, because the cache was right and only the write failed.
+>
+> **On `concurrent_modification` the store also evicts.** The conflict means another writer
+> committed, so the cached record is itself stale, and only a fresh read from persistence lets
+> the retry build on the winner's write. A command already queued on the session lock holds the
+> same record, still at the stale `revision`, so the adapter refuses its write too.
 
 ### 7.3 The Campaign Catalog
 
@@ -1796,7 +1826,8 @@ old epoch.
 > cleanly and is wrong.
 
 **The branch is replayed, not copied.** The store creates a game from the source's
-`{ gameId, seed, campaignId }` at its **starting** version (§2) and replays the retained prefix
+`{ gameId, seed, campaignId }` and its recorded `initialization.kindProfileData` (§7.1, §7.2) at
+its **starting** version (§2) and replays the retained prefix
 through the ordinary path — an action through `submitAction`, a content entry through
 `adoptContent`, which must adopt. Then the branch reaches its own adoption point (§7). Before it
 mints the branch's session id, the store resolves the starting version and every retained
@@ -1833,10 +1864,20 @@ to something replay could never reach.
 > decision rejects.
 
 **The source session and every save it made are untouched** — not re-stamped, not re-serialized,
-not re-locked beyond the read. A branch is a new record; it is never a mutation of an old one.
+not re-locked beyond the read. That read waits its turn on the source's session lock, so it
+sees the last committed record and never a write still in flight (§7.2). A branch is a new
+record; it is never a mutation of an old one.
 
-**`profileId` is inherited from the source record**, because a branch is the same player's game.
-An anonymous session branches to an anonymous one.
+**`profileId` and `initialization` are inherited from the source record**, because a branch is
+the same player's game started from the same input. An anonymous session branches to an
+anonymous one.
+
+**A source whose initialization is unknown branches only where no profile could have seeded
+it.** A record written before `initialization` existed carries no wrapper (§7.2). If it has no
+`profileId`, or its kind declares no `profileData`, `initialState` received no profile data, and
+the branch replays with `{}`. Otherwise the input is lost: the store raises `invalid_state`
+before it mints an id or writes anything. Seeding from the profile as it is now, or from
+nothing, would produce a branch that silently differs from its prefix.
 
 **A session that is not replay-compatible cannot be branched.** A `StoredSessionRecord` with
 `replayCompatible: false` has passed through a migrated load (§10.2), and its log is no longer
@@ -1898,6 +1939,7 @@ already does.
 | `branchSession` | `unknown_session` | no such `sessionId` | No | the session is gone |
 | `branchSession` | `invalid_fork_point` | `atActionCount` outside `[0, actionLog.length]` | No | **new** — correct the count |
 | `branchSession` | `invalid_state` | the source is `replayCompatible: false`, or its log carries a migration entry | No | branching this lineage is impossible, not delayed |
+| `branchSession` | `invalid_state` | the source record predates `initialization`, has a `profileId`, and its kind declares `profileData` | No | the creation input is lost; branching this lineage is impossible |
 | `branchSession` | `invalid_state` | a content entry in the retained prefix no longer adopts | No | the kind's compatibility rule changed under a recorded adoption — 07 §6's divergence, one layer down |
 | `branchSession` | `unknown_campaign` | an epoch the retained prefix plays on — its starting version or one it adopted — no longer resolves | No | the content was withdrawn (07 §6's `unrunnable`, one layer down) |
 
@@ -1934,6 +1976,9 @@ delegated to an adapter, which is the point of drawing the seam at `SessionPersi
   any kind on any failure path. *Enforced by code.*
 - **B3.** A branch's `sessionId` is distinct from every other session's; its `gameId` equals its
   source's. *Enforced by code.*
+- **B4.** A branch's result depends on its source's recorded `initialization` and never on the
+  source's profile as it is now. Changing that profile after `createSession`, or mutating the
+  object the `ProfileStore` returned, leaves B1 holding. *Enforced by code.*
 - **A1.** No lifecycle operation reads or writes a `Kind`, and none appears in
   `{ seed, actionLog }`. *Enforced by instruction and by the determinism harness (§14) — a
   lifecycle operation that perturbed replay would fail an existing fixture.*
