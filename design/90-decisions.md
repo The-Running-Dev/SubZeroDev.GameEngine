@@ -627,6 +627,51 @@ not name. 08 §2 now refuses on the session record's `replayCompatible: false`, 
 does (04 §7.4); the migration-entry refusal is the case of it readable from the log. Capture
 itself is still unbuilt (`30-slices.md`, *Carried Forward*).
 
+### Found by the 2026-10-17 repository review
+
+The review measured the world-graph path search at about 4.6 s for one corner-to-corner route
+on an empty 64×64 grid. The search in `src/engine/src/kinds/world-graph/spatial.ts` now builds a
+neighbour index per call and keeps its open list in a binary heap, and returns the same path and
+cost it did before (decision log, 2026-10-17). These are the parts the review raised and that
+slice left alone.
+
+**Path-search indexes are rebuilt on every call.** Each search builds its terrain index, its
+occupancy set and its neighbour index from scratch. Reusing them across calls needs a key that
+changes whenever they would: `WorldMap.revision` for terrain and edges, and also the building and
+construction-site lists, which change the blocked cells without touching the map. It also
+assumes nothing mutates a map in place. **Revisit** when a full-tick benchmark shows the
+per-call build matters.
+
+**No tick-level benchmark exists, and no workload limit is supported.** The measurements so far
+time one corner-to-corner search on an empty grid. They do not establish per-tick capacity, a
+guest limit, or a supported map size, because a tick runs one search per routing guest and its
+other systems besides. **Revisit** before a world-graph client scales its maps or its guest
+counts, which is when a full-tick benchmark and published limits are needed.
+
+**Documentation correction: [`12-world-graph-kind.md`](12-world-graph-kind.md) §9.3 overstates
+what a heuristic preserves.** Its note says the search's earlier A\* prescription, with a
+heuristic of Manhattan distance to the nearest goal times the minimum traversable step cost, is
+behaviourally identical to uniform-cost search. Two things are wrong with that, and both matter
+to anyone who reintroduces the heuristic as the note invites:
+
+- *Demonstrated.* That heuristic is not admissible on an explicit topology. Validation requires
+  an explicit edge only to have a positive `edgeCost`, not to join neighbouring cells. With
+  edges A(0,0)→T(9,9) and T→G(1,0) at cost 1 each, and A→G at cost 5, the heuristic puts T at
+  f = 18 and G, entered directly, at f = 5. A\* commits the cost-5 path, and uniform-cost search
+  the cost-2 one.
+- *Possible but not reproduced.* Even an admissible, consistent heuristic orders the open list
+  by f rather than g. A node can then be popped before every equal-cost predecessor has been
+  expanded, and the goal can be popped while an equal-f node that would have been its
+  row-major-smaller predecessor, or a row-major-smaller goal, is still open. The committed path
+  could then differ even though its cost does not. A search of 400,000 random orthogonal grids
+  up to 7×7, with one to three goals, found no such case, so this is neither shown nor ruled
+  out.
+
+The correction is to state admissibility per topology and to require that any heuristic be
+proven to give the same committed path, not only the same cost, before it lands. No code
+changes: the search carries no heuristic. **Revisit** at the next edit of §9.3, or before any
+heuristic is proposed.
+
 ---
 
 ## 3. Judgement Calls to Revisit (Settled for the MVP)
@@ -2766,6 +2811,12 @@ Context: the 2026-10-17 repository review (P1, two findings). First, `branchSess
 Chosen: `StoredSessionRecord` and `StoredSaveRecord` gain `initialization?: SessionInitialization`, holding an owned copy of the `kindProfileData` given to `createSession`, and `{}` when there was none. It round-trips through save and load, and a branch inherits it. A missing wrapper means the record predates the field. Such a source branches with `{}` only where no profile could have seeded it, meaning it has no `profileId` or its kind declares no `profileData`. Otherwise it raises `invalid_state` before writing anything. The field is outside `GameState`, so `serialize()`, `GameState.formatVersion` and every golden and replay fixture are unchanged. For the second finding, the store builds the next record separately and applies it to the cache only after the write resolves. `branchSession` takes its source snapshot on the source's session lock. The contract is 20-contract §7.1, §7.2 and §7.4 with a new error row and B4, and `SessionInitialization` is a package-root export. Adventures' Postgres adapter needs a matching column.
 Rejected: **Re-reading the profile at branch time.** The profile has moved on, so the branch would be seeded from data its source never saw. **Treating a missing `kindProfileData` as "none" with no wrapper.** That cannot tell an anonymous game from a legacy profiled one. **Putting the value in `GameState`.** It would change `serialize()`, bump `formatVersion` and rebaseline every fixture, to carry host input the engine never reads after `initialState`. **Restoring the cached record on failure, as before.** The window before the restore is the defect.
 Capture follows the same rule: 08 §2 now takes a fixture's `config.kindProfileData` from the record's `initialization`, and refuses a legacy record where `branchSession` would. Capture is unbuilt, so no capture code changes.
+
+### 2026-10-17 — The canonical path search gets a neighbour index and a binary heap, and returns the same path
+Context: the 2026-10-17 repository review measured one corner-to-corner search on an empty 64×64 grid at about 4.6 s. `canonicalPathWithCost` sorted the whole open list on every expansion and scanned every edge in the map for each expanded cell. The owner approved a slice that changes no output.
+Chosen: allowed edges are grouped by `from` once per call, each group stable-sorted by destination row-major, and the open list is a binary min-heap ordered by `g`, then position row-major (20-contract §9.3). Entries the comparator calls equal have the same position and cost, so the heap pops what the full sort did. `src/engine/src/kinds/world-graph/spatial.equivalence.test.ts` keeps the old search as an oracle and compares the two on hand-built cases and 400 seeded maps, half of them with shuffled edges. Measured on the same machine and Node version, before → after, median of 5–51 runs: 8×8 0.51 → 0.09 ms, 16×16 8.26 → 0.26 ms, 32×32 70.4 → 1.13 ms, 64×64 1146 → 4.65 ms. No golden or replay fixture changes.
+Kept: the per-group sort. The equivalence test cannot detect its removal, because §9.3's ordered pops and row-major parent rule make the result independent of edge order. It stays because §9.3 states the ordering, and it is cheap.
+Rejected: **A heuristic.** It needs a contract amendment, and the earlier prescription is not admissible on an explicit topology (register, *Found by the 2026-10-17 repository review*). **Index reuse across calls.** It needs invalidation that also tracks buildings and construction sites, before any benchmark shows it matters.
 
 ### 2026-10-25 — The next package candidate is `0.12.0`, cut fresh; `0.11.0` is a superseded candidate that was never published
 Context: the 2026-10-17 repository review. `RELEASE.md` authorizes `0.11.0` at candidate `2b525d3` (2026-09-12), archive `sha256:53d5c178…`, and its §8 still reads as ready. Since then 116 commits have landed on `main`, W109–W113 among them ([#478](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/478), [#479](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/479), [#481](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/481), [#490](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/490), [#491](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/491)) — the units `RELEASE.md` §10 fenced out, saying that if one landed first "the whole matrix reruns against a new candidate." Nothing was published from that candidate: there is no `v0.11.0` tag locally or on the remote, no GitHub release, and the registry carries `0.4.0`, `0.5.0` and `0.8.0` only. CI on current `main` packs a different archive (`b1c4dddb…`). Separately, the W108 record's Adventures row ran `npm test` with no `DATABASE_URL` recorded, so Adventures' 15 database-gated test files — the Postgres session adapter and its compare-and-swap, the rebuild test, and authoritative offline replay — may all have skipped.
