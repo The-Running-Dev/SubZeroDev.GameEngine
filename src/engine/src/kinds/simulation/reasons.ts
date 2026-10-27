@@ -139,7 +139,8 @@ export const SIMULATION_REASON_CODES = [
   // W94 — the mandatory-event gate (§2.3, §10).
   "event_response_pending",
   // W100 — campaign-tunable weekly rules (§7.11, §10). `plan_empty` dispatches from
-  // `advance.ts`'s `end_week` once `SimulationCampaign.emptyPlanPolicy` exists to gate it;
+  // `advance.ts`'s `end_week` when `SimulationCampaign.emptyPlanPolicy` is `"forbid"` and the
+  // plan has no action;
   // `relationship_drift`/`attendance_updated` are the two new end-of-week audit codes;
   // `invalid_attendance_window` is `validate.ts`'s Tier 1 rejection of a non-positive-integer
   // `AttendanceTrackingConfig.windowWeeks` (§14) — §10's table states the rule but leaves the
