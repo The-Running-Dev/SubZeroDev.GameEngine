@@ -1,0 +1,4191 @@
+{
+  "schemaVersion": 1,
+  "benchmark": "world-graph-full-tick",
+  "recordedAt": "2026-10-23T18:23:31.586Z",
+  "source": {
+    "commit": "9b8bd9a46094ddd4bcc92df39fdb648915dcbf39",
+    "dirty": false,
+    "status": "",
+    "harnessDigest": "b245ba87052215a50cd8343f7554a111fdd19886374dce5ed05564683275b1e3",
+    "lockfileDigest": "59f044892c779859425b75bb5a7c6a7514901b7dd8645534f8b22e6cc4b054d5"
+  },
+  "runtime": {
+    "node": "v24.19.0",
+    "versions": {
+      "node": "24.19.0",
+      "acorn": "8.17.0",
+      "ada": "3.4.4",
+      "amaro": "1.1.10",
+      "ares": "1.34.6",
+      "brotli": "1.2.0",
+      "cldr": "48.0",
+      "icu": "78.3",
+      "llhttp": "9.4.3",
+      "merve": "1.2.2",
+      "modules": "137",
+      "napi": "10",
+      "nbytes": "0.1.4",
+      "ncrypto": "0.0.1",
+      "nghttp2": "1.69.0",
+      "nghttp3": "",
+      "ngtcp2": "",
+      "openssl": "3.5.7",
+      "simdjson": "4.6.4",
+      "simdutf": "6.4.0",
+      "sqlite": "3.53.3",
+      "tz": "2026b",
+      "undici": "7.29.0",
+      "unicode": "17.0",
+      "uv": "1.52.1",
+      "uvwasi": "0.0.23",
+      "v8": "13.6.233.17-node.51",
+      "zlib": "1.3.2.1-motley-3246f1b",
+      "zstd": "1.5.7"
+    },
+    "execArgv": [
+      "--import",
+      "tsx"
+    ],
+    "platform": "linux",
+    "release": "6.18.55",
+    "arch": "x64",
+    "cpu": "AMD EPYC 9V74 80-Core Processor",
+    "logicalCpus": 9,
+    "availableParallelism": 8,
+    "totalMemoryBytes": 10451439616
+  },
+  "options": {
+    "samples": 21,
+    "warmups": 3,
+    "seed": "world-graph-bench-v1"
+  },
+  "arguments": [
+    "--samples",
+    "21",
+    "--warmups",
+    "3",
+    "--out",
+    "../../artifacts/world-graph-bench-published.json"
+  ],
+  "measurement": {
+    "unit": "ms",
+    "entrypoint": "advanceTicks",
+    "fixtureSetupTimed": false,
+    "eventSink": "in-memory recording",
+    "percentile": "nearest rank: sorted[ceil(0.95 * n) - 1]",
+    "diagnostics": "separate instrumented pass; not primary latency",
+    "limitsEstablished": false
+  },
+  "results": [
+    {
+      "workload": {
+        "mapSize": 16,
+        "seekingGuests": 8,
+        "serviceBuildings": 2,
+        "productsPerBuilding": 1,
+        "staff": 2,
+        "batchTicks": 1,
+        "id": "baseline"
+      },
+      "seed": "world-graph-bench-v1",
+      "fixtureDigest": "370e2cdf4596afe16a3b8d12f7c9f81a0d2ed1b2f55ede1abc2a9ddf93645c0d",
+      "validationWarnings": [
+        {
+          "code": "inert_scenario",
+          "messageKey": "world-graph.reason.inert_scenario",
+          "path": "content.scenarios[0]"
+        }
+      ],
+      "latency": {
+        "samples": 21,
+        "medianMs": 7.569158000000016,
+        "p95Ms": 8.215149999999994,
+        "minMs": 6.852510000000052,
+        "maxMs": 9.44924599999996
+      },
+      "amortizedMsPerTick": {
+        "samples": 21,
+        "medianMs": 7.569158000000016,
+        "p95Ms": 8.215149999999994,
+        "minMs": 6.852510000000052,
+        "maxMs": 9.44924599999996
+      },
+      "measuredBatches": 21,
+      "processedTicks": 21,
+      "warmupBatches": 3,
+      "warmupTicks": 3,
+      "verification": {
+        "identicalOutputBatches": 25,
+        "outputDigest": "85150dc4a3ff196c3bfe993e792769077c818a7c5f01718a5f5d3468d5fcfacc",
+        "finalStateDigest": "f400f2c904231ca587bf99e86ce35482e0067bace8ce7e56bc8d08ca46180269",
+        "instrumentationParity": true,
+        "splitBatchParity": true,
+        "fixtureUnchanged": true,
+        "extraTicks": 3
+      },
+      "rawSamples": [
+        {
+          "elapsedMs": 7.621886999999958,
+          "processedTicks": 1,
+          "outputDigest": "85150dc4a3ff196c3bfe993e792769077c818a7c5f01718a5f5d3468d5fcfacc",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "f400f2c904231ca587bf99e86ce35482e0067bace8ce7e56bc8d08ca46180269",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 7.241615000000024,
+          "processedTicks": 1,
+          "outputDigest": "85150dc4a3ff196c3bfe993e792769077c818a7c5f01718a5f5d3468d5fcfacc",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "f400f2c904231ca587bf99e86ce35482e0067bace8ce7e56bc8d08ca46180269",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 6.894422999999961,
+          "processedTicks": 1,
+          "outputDigest": "85150dc4a3ff196c3bfe993e792769077c818a7c5f01718a5f5d3468d5fcfacc",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "f400f2c904231ca587bf99e86ce35482e0067bace8ce7e56bc8d08ca46180269",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 7.964181999999994,
+          "processedTicks": 1,
+          "outputDigest": "85150dc4a3ff196c3bfe993e792769077c818a7c5f01718a5f5d3468d5fcfacc",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "f400f2c904231ca587bf99e86ce35482e0067bace8ce7e56bc8d08ca46180269",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 7.866926000000035,
+          "processedTicks": 1,
+          "outputDigest": "85150dc4a3ff196c3bfe993e792769077c818a7c5f01718a5f5d3468d5fcfacc",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "f400f2c904231ca587bf99e86ce35482e0067bace8ce7e56bc8d08ca46180269",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 8.215149999999994,
+          "processedTicks": 1,
+          "outputDigest": "85150dc4a3ff196c3bfe993e792769077c818a7c5f01718a5f5d3468d5fcfacc",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "f400f2c904231ca587bf99e86ce35482e0067bace8ce7e56bc8d08ca46180269",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 7.3148049999999785,
+          "processedTicks": 1,
+          "outputDigest": "85150dc4a3ff196c3bfe993e792769077c818a7c5f01718a5f5d3468d5fcfacc",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "f400f2c904231ca587bf99e86ce35482e0067bace8ce7e56bc8d08ca46180269",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 9.44924599999996,
+          "processedTicks": 1,
+          "outputDigest": "85150dc4a3ff196c3bfe993e792769077c818a7c5f01718a5f5d3468d5fcfacc",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "f400f2c904231ca587bf99e86ce35482e0067bace8ce7e56bc8d08ca46180269",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 7.78765199999998,
+          "processedTicks": 1,
+          "outputDigest": "85150dc4a3ff196c3bfe993e792769077c818a7c5f01718a5f5d3468d5fcfacc",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "f400f2c904231ca587bf99e86ce35482e0067bace8ce7e56bc8d08ca46180269",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 7.930330999999967,
+          "processedTicks": 1,
+          "outputDigest": "85150dc4a3ff196c3bfe993e792769077c818a7c5f01718a5f5d3468d5fcfacc",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "f400f2c904231ca587bf99e86ce35482e0067bace8ce7e56bc8d08ca46180269",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 7.79154299999999,
+          "processedTicks": 1,
+          "outputDigest": "85150dc4a3ff196c3bfe993e792769077c818a7c5f01718a5f5d3468d5fcfacc",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "f400f2c904231ca587bf99e86ce35482e0067bace8ce7e56bc8d08ca46180269",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 7.944192000000044,
+          "processedTicks": 1,
+          "outputDigest": "85150dc4a3ff196c3bfe993e792769077c818a7c5f01718a5f5d3468d5fcfacc",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "f400f2c904231ca587bf99e86ce35482e0067bace8ce7e56bc8d08ca46180269",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 7.031098999999983,
+          "processedTicks": 1,
+          "outputDigest": "85150dc4a3ff196c3bfe993e792769077c818a7c5f01718a5f5d3468d5fcfacc",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "f400f2c904231ca587bf99e86ce35482e0067bace8ce7e56bc8d08ca46180269",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 7.569158000000016,
+          "processedTicks": 1,
+          "outputDigest": "85150dc4a3ff196c3bfe993e792769077c818a7c5f01718a5f5d3468d5fcfacc",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "f400f2c904231ca587bf99e86ce35482e0067bace8ce7e56bc8d08ca46180269",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 7.558160999999984,
+          "processedTicks": 1,
+          "outputDigest": "85150dc4a3ff196c3bfe993e792769077c818a7c5f01718a5f5d3468d5fcfacc",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "f400f2c904231ca587bf99e86ce35482e0067bace8ce7e56bc8d08ca46180269",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 7.52507200000008,
+          "processedTicks": 1,
+          "outputDigest": "85150dc4a3ff196c3bfe993e792769077c818a7c5f01718a5f5d3468d5fcfacc",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "f400f2c904231ca587bf99e86ce35482e0067bace8ce7e56bc8d08ca46180269",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 7.436738999999989,
+          "processedTicks": 1,
+          "outputDigest": "85150dc4a3ff196c3bfe993e792769077c818a7c5f01718a5f5d3468d5fcfacc",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "f400f2c904231ca587bf99e86ce35482e0067bace8ce7e56bc8d08ca46180269",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 7.982650000000035,
+          "processedTicks": 1,
+          "outputDigest": "85150dc4a3ff196c3bfe993e792769077c818a7c5f01718a5f5d3468d5fcfacc",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "f400f2c904231ca587bf99e86ce35482e0067bace8ce7e56bc8d08ca46180269",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 7.025920999999926,
+          "processedTicks": 1,
+          "outputDigest": "85150dc4a3ff196c3bfe993e792769077c818a7c5f01718a5f5d3468d5fcfacc",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "f400f2c904231ca587bf99e86ce35482e0067bace8ce7e56bc8d08ca46180269",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 6.852510000000052,
+          "processedTicks": 1,
+          "outputDigest": "85150dc4a3ff196c3bfe993e792769077c818a7c5f01718a5f5d3468d5fcfacc",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "f400f2c904231ca587bf99e86ce35482e0067bace8ce7e56bc8d08ca46180269",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 7.029736000000071,
+          "processedTicks": 1,
+          "outputDigest": "85150dc4a3ff196c3bfe993e792769077c818a7c5f01718a5f5d3468d5fcfacc",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "f400f2c904231ca587bf99e86ce35482e0067bace8ce7e56bc8d08ca46180269",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        }
+      ],
+      "diagnostic": {
+        "ticks": [
+          {
+            "tick": 1,
+            "seekingBefore": 8,
+            "elapsedMs": 11.91089999999997,
+            "seekingAfter": 8,
+            "queuedAfter": 0,
+            "assignedStaffAfter": 2,
+            "staffWithPathsAfter": 2,
+            "servicesCompleted": 0
+          }
+        ],
+        "tickLatency": {
+          "samples": 1,
+          "medianMs": 11.91089999999997,
+          "p95Ms": 11.91089999999997,
+          "minMs": 11.91089999999997,
+          "maxMs": 11.91089999999997
+        },
+        "systems": {
+          "scenario": {
+            "samples": 1,
+            "medianMs": 0.015423000000055254,
+            "p95Ms": 0.015423000000055254,
+            "minMs": 0.015423000000055254,
+            "maxMs": 0.015423000000055254
+          },
+          "guest-spawn": {
+            "samples": 1,
+            "medianMs": 0.004516999999964355,
+            "p95Ms": 0.004516999999964355,
+            "minMs": 0.004516999999964355,
+            "maxMs": 0.004516999999964355
+          },
+          "guest-needs": {
+            "samples": 1,
+            "medianMs": 0.019168000000036045,
+            "p95Ms": 0.019168000000036045,
+            "minMs": 0.019168000000036045,
+            "maxMs": 0.019168000000036045
+          },
+          "guest-service": {
+            "samples": 1,
+            "medianMs": 0.006851000000096974,
+            "p95Ms": 0.006851000000096974,
+            "minMs": 0.006851000000096974,
+            "maxMs": 0.006851000000096974
+          },
+          "queues": {
+            "samples": 1,
+            "medianMs": 0.013490000000047075,
+            "p95Ms": 0.013490000000047075,
+            "minMs": 0.013490000000047075,
+            "maxMs": 0.013490000000047075
+          },
+          "guest-intent": {
+            "samples": 1,
+            "medianMs": 9.325649999999996,
+            "p95Ms": 9.325649999999996,
+            "minMs": 9.325649999999996,
+            "maxMs": 9.325649999999996
+          },
+          "guest-path": {
+            "samples": 1,
+            "medianMs": 1.8940000000000055,
+            "p95Ms": 1.8940000000000055,
+            "minMs": 1.8940000000000055,
+            "maxMs": 1.8940000000000055
+          },
+          "guest-move": {
+            "samples": 1,
+            "medianMs": 0.009674999999901956,
+            "p95Ms": 0.009674999999901956,
+            "minMs": 0.009674999999901956,
+            "maxMs": 0.009674999999901956
+          },
+          "task-generate": {
+            "samples": 1,
+            "medianMs": 0.011276999999950021,
+            "p95Ms": 0.011276999999950021,
+            "minMs": 0.011276999999950021,
+            "maxMs": 0.011276999999950021
+          },
+          "task-assign": {
+            "samples": 1,
+            "medianMs": 0.3014229999999998,
+            "p95Ms": 0.3014229999999998,
+            "minMs": 0.3014229999999998,
+            "maxMs": 0.3014229999999998
+          },
+          "staff-work": {
+            "samples": 1,
+            "medianMs": 0.00910399999997935,
+            "p95Ms": 0.00910399999997935,
+            "minMs": 0.00910399999997935,
+            "maxMs": 0.00910399999997935
+          },
+          "construction": {
+            "samples": 1,
+            "medianMs": 0.0030040000000326472,
+            "p95Ms": 0.0030040000000326472,
+            "minMs": 0.0030040000000326472,
+            "maxMs": 0.0030040000000326472
+          },
+          "buildings": {
+            "samples": 1,
+            "medianMs": 0.0021930000000338623,
+            "p95Ms": 0.0021930000000338623,
+            "minMs": 0.0021930000000338623,
+            "maxMs": 0.0021930000000338623
+          },
+          "cleanliness-wear": {
+            "samples": 1,
+            "medianMs": 0.00880399999994097,
+            "p95Ms": 0.00880399999994097,
+            "minMs": 0.00880399999994097,
+            "maxMs": 0.00880399999994097
+          },
+          "finance": {
+            "samples": 1,
+            "medianMs": 0.006299000000012711,
+            "p95Ms": 0.006299000000012711,
+            "minMs": 0.006299000000012711,
+            "maxMs": 0.006299000000012711
+          },
+          "incidents": {
+            "samples": 1,
+            "medianMs": 0.010004999999978281,
+            "p95Ms": 0.010004999999978281,
+            "minMs": 0.010004999999978281,
+            "maxMs": 0.010004999999978281
+          },
+          "objectives": {
+            "samples": 1,
+            "medianMs": 0.002283000000034008,
+            "p95Ms": 0.002283000000034008,
+            "minMs": 0.002283000000034008,
+            "maxMs": 0.002283000000034008
+          },
+          "failure": {
+            "samples": 1,
+            "medianMs": 0.02461700000003475,
+            "p95Ms": 0.02461700000003475,
+            "minMs": 0.02461700000003475,
+            "maxMs": 0.02461700000003475
+          },
+          "alerts": {
+            "samples": 1,
+            "medianMs": 0.04749200000003384,
+            "p95Ms": 0.04749200000003384,
+            "minMs": 0.04749200000003384,
+            "maxMs": 0.04749200000003384
+          },
+          "tick-finalize": {
+            "samples": 1,
+            "medianMs": 0.016393999999991138,
+            "p95Ms": 0.016393999999991138,
+            "minMs": 0.016393999999991138,
+            "maxMs": 0.016393999999991138
+          }
+        }
+      }
+    },
+    {
+      "workload": {
+        "mapSize": 8,
+        "seekingGuests": 8,
+        "serviceBuildings": 2,
+        "productsPerBuilding": 1,
+        "staff": 2,
+        "batchTicks": 1,
+        "id": "map-8"
+      },
+      "seed": "world-graph-bench-v1",
+      "fixtureDigest": "50457ea8f864da37376b8e8e10dade03b5cc64ccadda06cf4bca0c0b8dfa34a4",
+      "validationWarnings": [
+        {
+          "code": "inert_scenario",
+          "messageKey": "world-graph.reason.inert_scenario",
+          "path": "content.scenarios[0]"
+        }
+      ],
+      "latency": {
+        "samples": 21,
+        "medianMs": 2.1552130000000034,
+        "p95Ms": 3.522589000000039,
+        "minMs": 1.7589060000000245,
+        "maxMs": 4.1686820000001035
+      },
+      "amortizedMsPerTick": {
+        "samples": 21,
+        "medianMs": 2.1552130000000034,
+        "p95Ms": 3.522589000000039,
+        "minMs": 1.7589060000000245,
+        "maxMs": 4.1686820000001035
+      },
+      "measuredBatches": 21,
+      "processedTicks": 21,
+      "warmupBatches": 3,
+      "warmupTicks": 3,
+      "verification": {
+        "identicalOutputBatches": 25,
+        "outputDigest": "c99088d00e7333b61cf7620c010aa3ebff4e8d0a8a674e677d6bfbb1fd4d592d",
+        "finalStateDigest": "025c52423b334234f5246f974b2d8b5c0e1c358209eeaded6b3bb79f782be351",
+        "instrumentationParity": true,
+        "splitBatchParity": true,
+        "fixtureUnchanged": true,
+        "extraTicks": 3
+      },
+      "rawSamples": [
+        {
+          "elapsedMs": 3.0650419999999485,
+          "processedTicks": 1,
+          "outputDigest": "c99088d00e7333b61cf7620c010aa3ebff4e8d0a8a674e677d6bfbb1fd4d592d",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "025c52423b334234f5246f974b2d8b5c0e1c358209eeaded6b3bb79f782be351",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 2.8851909999999634,
+          "processedTicks": 1,
+          "outputDigest": "c99088d00e7333b61cf7620c010aa3ebff4e8d0a8a674e677d6bfbb1fd4d592d",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "025c52423b334234f5246f974b2d8b5c0e1c358209eeaded6b3bb79f782be351",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 3.1657020000000102,
+          "processedTicks": 1,
+          "outputDigest": "c99088d00e7333b61cf7620c010aa3ebff4e8d0a8a674e677d6bfbb1fd4d592d",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "025c52423b334234f5246f974b2d8b5c0e1c358209eeaded6b3bb79f782be351",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 3.522589000000039,
+          "processedTicks": 1,
+          "outputDigest": "c99088d00e7333b61cf7620c010aa3ebff4e8d0a8a674e677d6bfbb1fd4d592d",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "025c52423b334234f5246f974b2d8b5c0e1c358209eeaded6b3bb79f782be351",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 2.727763999999979,
+          "processedTicks": 1,
+          "outputDigest": "c99088d00e7333b61cf7620c010aa3ebff4e8d0a8a674e677d6bfbb1fd4d592d",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "025c52423b334234f5246f974b2d8b5c0e1c358209eeaded6b3bb79f782be351",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 4.1686820000001035,
+          "processedTicks": 1,
+          "outputDigest": "c99088d00e7333b61cf7620c010aa3ebff4e8d0a8a674e677d6bfbb1fd4d592d",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "025c52423b334234f5246f974b2d8b5c0e1c358209eeaded6b3bb79f782be351",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 2.1964739999999665,
+          "processedTicks": 1,
+          "outputDigest": "c99088d00e7333b61cf7620c010aa3ebff4e8d0a8a674e677d6bfbb1fd4d592d",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "025c52423b334234f5246f974b2d8b5c0e1c358209eeaded6b3bb79f782be351",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 2.217085999999995,
+          "processedTicks": 1,
+          "outputDigest": "c99088d00e7333b61cf7620c010aa3ebff4e8d0a8a674e677d6bfbb1fd4d592d",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "025c52423b334234f5246f974b2d8b5c0e1c358209eeaded6b3bb79f782be351",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 1.8219609999999875,
+          "processedTicks": 1,
+          "outputDigest": "c99088d00e7333b61cf7620c010aa3ebff4e8d0a8a674e677d6bfbb1fd4d592d",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "025c52423b334234f5246f974b2d8b5c0e1c358209eeaded6b3bb79f782be351",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 2.3182369999999537,
+          "processedTicks": 1,
+          "outputDigest": "c99088d00e7333b61cf7620c010aa3ebff4e8d0a8a674e677d6bfbb1fd4d592d",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "025c52423b334234f5246f974b2d8b5c0e1c358209eeaded6b3bb79f782be351",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 1.9995380000000296,
+          "processedTicks": 1,
+          "outputDigest": "c99088d00e7333b61cf7620c010aa3ebff4e8d0a8a674e677d6bfbb1fd4d592d",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "025c52423b334234f5246f974b2d8b5c0e1c358209eeaded6b3bb79f782be351",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 2.1552130000000034,
+          "processedTicks": 1,
+          "outputDigest": "c99088d00e7333b61cf7620c010aa3ebff4e8d0a8a674e677d6bfbb1fd4d592d",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "025c52423b334234f5246f974b2d8b5c0e1c358209eeaded6b3bb79f782be351",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 1.8362130000000434,
+          "processedTicks": 1,
+          "outputDigest": "c99088d00e7333b61cf7620c010aa3ebff4e8d0a8a674e677d6bfbb1fd4d592d",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "025c52423b334234f5246f974b2d8b5c0e1c358209eeaded6b3bb79f782be351",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 2.0987380000000257,
+          "processedTicks": 1,
+          "outputDigest": "c99088d00e7333b61cf7620c010aa3ebff4e8d0a8a674e677d6bfbb1fd4d592d",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "025c52423b334234f5246f974b2d8b5c0e1c358209eeaded6b3bb79f782be351",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 1.8018600000000333,
+          "processedTicks": 1,
+          "outputDigest": "c99088d00e7333b61cf7620c010aa3ebff4e8d0a8a674e677d6bfbb1fd4d592d",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "025c52423b334234f5246f974b2d8b5c0e1c358209eeaded6b3bb79f782be351",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 1.8053360000000112,
+          "processedTicks": 1,
+          "outputDigest": "c99088d00e7333b61cf7620c010aa3ebff4e8d0a8a674e677d6bfbb1fd4d592d",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "025c52423b334234f5246f974b2d8b5c0e1c358209eeaded6b3bb79f782be351",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 1.8021509999999807,
+          "processedTicks": 1,
+          "outputDigest": "c99088d00e7333b61cf7620c010aa3ebff4e8d0a8a674e677d6bfbb1fd4d592d",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "025c52423b334234f5246f974b2d8b5c0e1c358209eeaded6b3bb79f782be351",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 1.7589060000000245,
+          "processedTicks": 1,
+          "outputDigest": "c99088d00e7333b61cf7620c010aa3ebff4e8d0a8a674e677d6bfbb1fd4d592d",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "025c52423b334234f5246f974b2d8b5c0e1c358209eeaded6b3bb79f782be351",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 1.980209000000059,
+          "processedTicks": 1,
+          "outputDigest": "c99088d00e7333b61cf7620c010aa3ebff4e8d0a8a674e677d6bfbb1fd4d592d",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "025c52423b334234f5246f974b2d8b5c0e1c358209eeaded6b3bb79f782be351",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 1.8356919999999946,
+          "processedTicks": 1,
+          "outputDigest": "c99088d00e7333b61cf7620c010aa3ebff4e8d0a8a674e677d6bfbb1fd4d592d",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "025c52423b334234f5246f974b2d8b5c0e1c358209eeaded6b3bb79f782be351",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 2.4132509999999456,
+          "processedTicks": 1,
+          "outputDigest": "c99088d00e7333b61cf7620c010aa3ebff4e8d0a8a674e677d6bfbb1fd4d592d",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "025c52423b334234f5246f974b2d8b5c0e1c358209eeaded6b3bb79f782be351",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        }
+      ],
+      "diagnostic": {
+        "ticks": [
+          {
+            "tick": 1,
+            "seekingBefore": 8,
+            "elapsedMs": 2.01729499999999,
+            "seekingAfter": 8,
+            "queuedAfter": 0,
+            "assignedStaffAfter": 2,
+            "staffWithPathsAfter": 2,
+            "servicesCompleted": 0
+          }
+        ],
+        "tickLatency": {
+          "samples": 1,
+          "medianMs": 2.01729499999999,
+          "p95Ms": 2.01729499999999,
+          "minMs": 2.01729499999999,
+          "maxMs": 2.01729499999999
+        },
+        "systems": {
+          "scenario": {
+            "samples": 1,
+            "medianMs": 0.008041999999932159,
+            "p95Ms": 0.008041999999932159,
+            "minMs": 0.008041999999932159,
+            "maxMs": 0.008041999999932159
+          },
+          "guest-spawn": {
+            "samples": 1,
+            "medianMs": 0.0017030000000204382,
+            "p95Ms": 0.0017030000000204382,
+            "minMs": 0.0017030000000204382,
+            "maxMs": 0.0017030000000204382
+          },
+          "guest-needs": {
+            "samples": 1,
+            "medianMs": 0.008863000000019383,
+            "p95Ms": 0.008863000000019383,
+            "minMs": 0.008863000000019383,
+            "maxMs": 0.008863000000019383
+          },
+          "guest-service": {
+            "samples": 1,
+            "medianMs": 0.003985999999940759,
+            "p95Ms": 0.003985999999940759,
+            "minMs": 0.003985999999940759,
+            "maxMs": 0.003985999999940759
+          },
+          "queues": {
+            "samples": 1,
+            "medianMs": 0.007561000000009699,
+            "p95Ms": 0.007561000000009699,
+            "minMs": 0.007561000000009699,
+            "maxMs": 0.007561000000009699
+          },
+          "guest-intent": {
+            "samples": 1,
+            "medianMs": 1.2594139999999925,
+            "p95Ms": 1.2594139999999925,
+            "minMs": 1.2594139999999925,
+            "maxMs": 1.2594139999999925
+          },
+          "guest-path": {
+            "samples": 1,
+            "medianMs": 0.5435979999999745,
+            "p95Ms": 0.5435979999999745,
+            "minMs": 0.5435979999999745,
+            "maxMs": 0.5435979999999745
+          },
+          "guest-move": {
+            "samples": 1,
+            "medianMs": 0.006398999999987609,
+            "p95Ms": 0.006398999999987609,
+            "minMs": 0.006398999999987609,
+            "maxMs": 0.006398999999987609
+          },
+          "task-generate": {
+            "samples": 1,
+            "medianMs": 0.006921000000033928,
+            "p95Ms": 0.006921000000033928,
+            "minMs": 0.006921000000033928,
+            "maxMs": 0.006921000000033928
+          },
+          "task-assign": {
+            "samples": 1,
+            "medianMs": 0.08127200000001267,
+            "p95Ms": 0.08127200000001267,
+            "minMs": 0.08127200000001267,
+            "maxMs": 0.08127200000001267
+          },
+          "staff-work": {
+            "samples": 1,
+            "medianMs": 0.003485000000068794,
+            "p95Ms": 0.003485000000068794,
+            "minMs": 0.003485000000068794,
+            "maxMs": 0.003485000000068794
+          },
+          "construction": {
+            "samples": 1,
+            "medianMs": 0.002694000000019514,
+            "p95Ms": 0.002694000000019514,
+            "minMs": 0.002694000000019514,
+            "maxMs": 0.002694000000019514
+          },
+          "buildings": {
+            "samples": 1,
+            "medianMs": 0.001472000000035223,
+            "p95Ms": 0.001472000000035223,
+            "minMs": 0.001472000000035223,
+            "maxMs": 0.001472000000035223
+          },
+          "cleanliness-wear": {
+            "samples": 1,
+            "medianMs": 0.0057189999999991414,
+            "p95Ms": 0.0057189999999991414,
+            "minMs": 0.0057189999999991414,
+            "maxMs": 0.0057189999999991414
+          },
+          "finance": {
+            "samples": 1,
+            "medianMs": 0.004386999999951513,
+            "p95Ms": 0.004386999999951513,
+            "minMs": 0.004386999999951513,
+            "maxMs": 0.004386999999951513
+          },
+          "incidents": {
+            "samples": 1,
+            "medianMs": 0.008212999999955173,
+            "p95Ms": 0.008212999999955173,
+            "minMs": 0.008212999999955173,
+            "maxMs": 0.008212999999955173
+          },
+          "objectives": {
+            "samples": 1,
+            "medianMs": 0.0013020000000096843,
+            "p95Ms": 0.0013020000000096843,
+            "minMs": 0.0013020000000096843,
+            "maxMs": 0.0013020000000096843
+          },
+          "failure": {
+            "samples": 1,
+            "medianMs": 0.002353999999968437,
+            "p95Ms": 0.002353999999968437,
+            "minMs": 0.002353999999968437,
+            "maxMs": 0.002353999999968437
+          },
+          "alerts": {
+            "samples": 1,
+            "medianMs": 0.011527000000000953,
+            "p95Ms": 0.011527000000000953,
+            "minMs": 0.011527000000000953,
+            "maxMs": 0.011527000000000953
+          },
+          "tick-finalize": {
+            "samples": 1,
+            "medianMs": 0.011486999999988257,
+            "p95Ms": 0.011486999999988257,
+            "minMs": 0.011486999999988257,
+            "maxMs": 0.011486999999988257
+          }
+        }
+      }
+    },
+    {
+      "workload": {
+        "mapSize": 32,
+        "seekingGuests": 8,
+        "serviceBuildings": 2,
+        "productsPerBuilding": 1,
+        "staff": 2,
+        "batchTicks": 1,
+        "id": "map-32"
+      },
+      "seed": "world-graph-bench-v1",
+      "fixtureDigest": "da26a3cba26f07cf21ce099b6d7b5dc8ae407f30027ea2b8f78826985e873760",
+      "validationWarnings": [
+        {
+          "code": "inert_scenario",
+          "messageKey": "world-graph.reason.inert_scenario",
+          "path": "content.scenarios[0]"
+        }
+      ],
+      "latency": {
+        "samples": 21,
+        "medianMs": 30.56039900000019,
+        "p95Ms": 32.98849100000007,
+        "minMs": 27.94965000000002,
+        "maxMs": 38.15748799999983
+      },
+      "amortizedMsPerTick": {
+        "samples": 21,
+        "medianMs": 30.56039900000019,
+        "p95Ms": 32.98849100000007,
+        "minMs": 27.94965000000002,
+        "maxMs": 38.15748799999983
+      },
+      "measuredBatches": 21,
+      "processedTicks": 21,
+      "warmupBatches": 3,
+      "warmupTicks": 3,
+      "verification": {
+        "identicalOutputBatches": 25,
+        "outputDigest": "a2d6ec3d40c33ca04216a8a6a7b7a4e89af558a49d7672dfaef23e20a6c6b6f4",
+        "finalStateDigest": "0b018ca30369f39dcc1d5e7391d8df0e392aef60dd7518b78a6015f978182609",
+        "instrumentationParity": true,
+        "splitBatchParity": true,
+        "fixtureUnchanged": true,
+        "extraTicks": 3
+      },
+      "rawSamples": [
+        {
+          "elapsedMs": 30.46538499999997,
+          "processedTicks": 1,
+          "outputDigest": "a2d6ec3d40c33ca04216a8a6a7b7a4e89af558a49d7672dfaef23e20a6c6b6f4",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "0b018ca30369f39dcc1d5e7391d8df0e392aef60dd7518b78a6015f978182609",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 30.292205000000195,
+          "processedTicks": 1,
+          "outputDigest": "a2d6ec3d40c33ca04216a8a6a7b7a4e89af558a49d7672dfaef23e20a6c6b6f4",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "0b018ca30369f39dcc1d5e7391d8df0e392aef60dd7518b78a6015f978182609",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 28.323902999999973,
+          "processedTicks": 1,
+          "outputDigest": "a2d6ec3d40c33ca04216a8a6a7b7a4e89af558a49d7672dfaef23e20a6c6b6f4",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "0b018ca30369f39dcc1d5e7391d8df0e392aef60dd7518b78a6015f978182609",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 30.681010000000015,
+          "processedTicks": 1,
+          "outputDigest": "a2d6ec3d40c33ca04216a8a6a7b7a4e89af558a49d7672dfaef23e20a6c6b6f4",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "0b018ca30369f39dcc1d5e7391d8df0e392aef60dd7518b78a6015f978182609",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 30.762562000000116,
+          "processedTicks": 1,
+          "outputDigest": "a2d6ec3d40c33ca04216a8a6a7b7a4e89af558a49d7672dfaef23e20a6c6b6f4",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "0b018ca30369f39dcc1d5e7391d8df0e392aef60dd7518b78a6015f978182609",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 27.94965000000002,
+          "processedTicks": 1,
+          "outputDigest": "a2d6ec3d40c33ca04216a8a6a7b7a4e89af558a49d7672dfaef23e20a6c6b6f4",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "0b018ca30369f39dcc1d5e7391d8df0e392aef60dd7518b78a6015f978182609",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 30.56039900000019,
+          "processedTicks": 1,
+          "outputDigest": "a2d6ec3d40c33ca04216a8a6a7b7a4e89af558a49d7672dfaef23e20a6c6b6f4",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "0b018ca30369f39dcc1d5e7391d8df0e392aef60dd7518b78a6015f978182609",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 28.940089999999827,
+          "processedTicks": 1,
+          "outputDigest": "a2d6ec3d40c33ca04216a8a6a7b7a4e89af558a49d7672dfaef23e20a6c6b6f4",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "0b018ca30369f39dcc1d5e7391d8df0e392aef60dd7518b78a6015f978182609",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 32.98849100000007,
+          "processedTicks": 1,
+          "outputDigest": "a2d6ec3d40c33ca04216a8a6a7b7a4e89af558a49d7672dfaef23e20a6c6b6f4",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "0b018ca30369f39dcc1d5e7391d8df0e392aef60dd7518b78a6015f978182609",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 32.28272900000002,
+          "processedTicks": 1,
+          "outputDigest": "a2d6ec3d40c33ca04216a8a6a7b7a4e89af558a49d7672dfaef23e20a6c6b6f4",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "0b018ca30369f39dcc1d5e7391d8df0e392aef60dd7518b78a6015f978182609",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 38.15748799999983,
+          "processedTicks": 1,
+          "outputDigest": "a2d6ec3d40c33ca04216a8a6a7b7a4e89af558a49d7672dfaef23e20a6c6b6f4",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "0b018ca30369f39dcc1d5e7391d8df0e392aef60dd7518b78a6015f978182609",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 29.354724000000033,
+          "processedTicks": 1,
+          "outputDigest": "a2d6ec3d40c33ca04216a8a6a7b7a4e89af558a49d7672dfaef23e20a6c6b6f4",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "0b018ca30369f39dcc1d5e7391d8df0e392aef60dd7518b78a6015f978182609",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 28.944475999999895,
+          "processedTicks": 1,
+          "outputDigest": "a2d6ec3d40c33ca04216a8a6a7b7a4e89af558a49d7672dfaef23e20a6c6b6f4",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "0b018ca30369f39dcc1d5e7391d8df0e392aef60dd7518b78a6015f978182609",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 30.652165999999852,
+          "processedTicks": 1,
+          "outputDigest": "a2d6ec3d40c33ca04216a8a6a7b7a4e89af558a49d7672dfaef23e20a6c6b6f4",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "0b018ca30369f39dcc1d5e7391d8df0e392aef60dd7518b78a6015f978182609",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 31.411999999999807,
+          "processedTicks": 1,
+          "outputDigest": "a2d6ec3d40c33ca04216a8a6a7b7a4e89af558a49d7672dfaef23e20a6c6b6f4",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "0b018ca30369f39dcc1d5e7391d8df0e392aef60dd7518b78a6015f978182609",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 29.168644000000313,
+          "processedTicks": 1,
+          "outputDigest": "a2d6ec3d40c33ca04216a8a6a7b7a4e89af558a49d7672dfaef23e20a6c6b6f4",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "0b018ca30369f39dcc1d5e7391d8df0e392aef60dd7518b78a6015f978182609",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 30.317251999999826,
+          "processedTicks": 1,
+          "outputDigest": "a2d6ec3d40c33ca04216a8a6a7b7a4e89af558a49d7672dfaef23e20a6c6b6f4",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "0b018ca30369f39dcc1d5e7391d8df0e392aef60dd7518b78a6015f978182609",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 31.7063619999999,
+          "processedTicks": 1,
+          "outputDigest": "a2d6ec3d40c33ca04216a8a6a7b7a4e89af558a49d7672dfaef23e20a6c6b6f4",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "0b018ca30369f39dcc1d5e7391d8df0e392aef60dd7518b78a6015f978182609",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 30.006045000000086,
+          "processedTicks": 1,
+          "outputDigest": "a2d6ec3d40c33ca04216a8a6a7b7a4e89af558a49d7672dfaef23e20a6c6b6f4",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "0b018ca30369f39dcc1d5e7391d8df0e392aef60dd7518b78a6015f978182609",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 32.9469280000003,
+          "processedTicks": 1,
+          "outputDigest": "a2d6ec3d40c33ca04216a8a6a7b7a4e89af558a49d7672dfaef23e20a6c6b6f4",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "0b018ca30369f39dcc1d5e7391d8df0e392aef60dd7518b78a6015f978182609",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 32.49050199999965,
+          "processedTicks": 1,
+          "outputDigest": "a2d6ec3d40c33ca04216a8a6a7b7a4e89af558a49d7672dfaef23e20a6c6b6f4",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "0b018ca30369f39dcc1d5e7391d8df0e392aef60dd7518b78a6015f978182609",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        }
+      ],
+      "diagnostic": {
+        "ticks": [
+          {
+            "tick": 1,
+            "seekingBefore": 8,
+            "elapsedMs": 29.445280999999795,
+            "seekingAfter": 8,
+            "queuedAfter": 0,
+            "assignedStaffAfter": 2,
+            "staffWithPathsAfter": 2,
+            "servicesCompleted": 0
+          }
+        ],
+        "tickLatency": {
+          "samples": 1,
+          "medianMs": 29.445280999999795,
+          "p95Ms": 29.445280999999795,
+          "minMs": 29.445280999999795,
+          "maxMs": 29.445280999999795
+        },
+        "systems": {
+          "scenario": {
+            "samples": 1,
+            "medianMs": 0.03235899999981484,
+            "p95Ms": 0.03235899999981484,
+            "minMs": 0.03235899999981484,
+            "maxMs": 0.03235899999981484
+          },
+          "guest-spawn": {
+            "samples": 1,
+            "medianMs": 0.003916000000117492,
+            "p95Ms": 0.003916000000117492,
+            "minMs": 0.003916000000117492,
+            "maxMs": 0.003916000000117492
+          },
+          "guest-needs": {
+            "samples": 1,
+            "medianMs": 0.011977999999999156,
+            "p95Ms": 0.011977999999999156,
+            "minMs": 0.011977999999999156,
+            "maxMs": 0.011977999999999156
+          },
+          "guest-service": {
+            "samples": 1,
+            "medianMs": 0.012268999999832886,
+            "p95Ms": 0.012268999999832886,
+            "minMs": 0.012268999999832886,
+            "maxMs": 0.012268999999832886
+          },
+          "queues": {
+            "samples": 1,
+            "medianMs": 0.07277000000021872,
+            "p95Ms": 0.07277000000021872,
+            "minMs": 0.07277000000021872,
+            "maxMs": 0.07277000000021872
+          },
+          "guest-intent": {
+            "samples": 1,
+            "medianMs": 19.084793999999874,
+            "p95Ms": 19.084793999999874,
+            "minMs": 19.084793999999874,
+            "maxMs": 19.084793999999874
+          },
+          "guest-path": {
+            "samples": 1,
+            "medianMs": 8.24860099999978,
+            "p95Ms": 8.24860099999978,
+            "minMs": 8.24860099999978,
+            "maxMs": 8.24860099999978
+          },
+          "guest-move": {
+            "samples": 1,
+            "medianMs": 0.008223000000270986,
+            "p95Ms": 0.008223000000270986,
+            "minMs": 0.008223000000270986,
+            "maxMs": 0.008223000000270986
+          },
+          "task-generate": {
+            "samples": 1,
+            "medianMs": 0.011707000000114931,
+            "p95Ms": 0.011707000000114931,
+            "minMs": 0.011707000000114931,
+            "maxMs": 0.011707000000114931
+          },
+          "task-assign": {
+            "samples": 1,
+            "medianMs": 1.8275400000002264,
+            "p95Ms": 1.8275400000002264,
+            "minMs": 1.8275400000002264,
+            "maxMs": 1.8275400000002264
+          },
+          "staff-work": {
+            "samples": 1,
+            "medianMs": 0.007061000000248896,
+            "p95Ms": 0.007061000000248896,
+            "minMs": 0.007061000000248896,
+            "maxMs": 0.007061000000248896
+          },
+          "construction": {
+            "samples": 1,
+            "medianMs": 0.004407000000355765,
+            "p95Ms": 0.004407000000355765,
+            "minMs": 0.004407000000355765,
+            "maxMs": 0.004407000000355765
+          },
+          "buildings": {
+            "samples": 1,
+            "medianMs": 0.00330500000018219,
+            "p95Ms": 0.00330500000018219,
+            "minMs": 0.00330500000018219,
+            "maxMs": 0.00330500000018219
+          },
+          "cleanliness-wear": {
+            "samples": 1,
+            "medianMs": 0.019259000000147353,
+            "p95Ms": 0.019259000000147353,
+            "minMs": 0.019259000000147353,
+            "maxMs": 0.019259000000147353
+          },
+          "finance": {
+            "samples": 1,
+            "medianMs": 0.006849999999758438,
+            "p95Ms": 0.006849999999758438,
+            "minMs": 0.006849999999758438,
+            "maxMs": 0.006849999999758438
+          },
+          "incidents": {
+            "samples": 1,
+            "medianMs": 0.0104260000002796,
+            "p95Ms": 0.0104260000002796,
+            "minMs": 0.0104260000002796,
+            "maxMs": 0.0104260000002796
+          },
+          "objectives": {
+            "samples": 1,
+            "medianMs": 0.0022930000000087603,
+            "p95Ms": 0.0022930000000087603,
+            "minMs": 0.0022930000000087603,
+            "maxMs": 0.0022930000000087603
+          },
+          "failure": {
+            "samples": 1,
+            "medianMs": 0.003925999999864871,
+            "p95Ms": 0.003925999999864871,
+            "minMs": 0.003925999999864871,
+            "maxMs": 0.003925999999864871
+          },
+          "alerts": {
+            "samples": 1,
+            "medianMs": 0.020741999999700056,
+            "p95Ms": 0.020741999999700056,
+            "minMs": 0.020741999999700056,
+            "maxMs": 0.020741999999700056
+          },
+          "tick-finalize": {
+            "samples": 1,
+            "medianMs": 0.018647999999757303,
+            "p95Ms": 0.018647999999757303,
+            "minMs": 0.018647999999757303,
+            "maxMs": 0.018647999999757303
+          }
+        }
+      }
+    },
+    {
+      "workload": {
+        "mapSize": 64,
+        "seekingGuests": 8,
+        "serviceBuildings": 2,
+        "productsPerBuilding": 1,
+        "staff": 2,
+        "batchTicks": 1,
+        "id": "map-64"
+      },
+      "seed": "world-graph-bench-v1",
+      "fixtureDigest": "7fd137e9a82dabf4b4ceb4b10c555638086f7065eb39e7383fa6d4b26ea8798d",
+      "validationWarnings": [
+        {
+          "code": "inert_scenario",
+          "messageKey": "world-graph.reason.inert_scenario",
+          "path": "content.scenarios[0]"
+        }
+      ],
+      "latency": {
+        "samples": 21,
+        "medianMs": 105.16407800000025,
+        "p95Ms": 117.69115299999976,
+        "minMs": 100.63975299999947,
+        "maxMs": 119.42472100000032
+      },
+      "amortizedMsPerTick": {
+        "samples": 21,
+        "medianMs": 105.16407800000025,
+        "p95Ms": 117.69115299999976,
+        "minMs": 100.63975299999947,
+        "maxMs": 119.42472100000032
+      },
+      "measuredBatches": 21,
+      "processedTicks": 21,
+      "warmupBatches": 3,
+      "warmupTicks": 3,
+      "verification": {
+        "identicalOutputBatches": 25,
+        "outputDigest": "e3c4398f302daab7f664ca7c60864eb46afb5cd95751cf0b16191093f58b9540",
+        "finalStateDigest": "4fef37684dcae1381daae8039b003c074a513d51ddd73273a3f8b8e5f821f01d",
+        "instrumentationParity": true,
+        "splitBatchParity": true,
+        "fixtureUnchanged": true,
+        "extraTicks": 3
+      },
+      "rawSamples": [
+        {
+          "elapsedMs": 105.16407800000025,
+          "processedTicks": 1,
+          "outputDigest": "e3c4398f302daab7f664ca7c60864eb46afb5cd95751cf0b16191093f58b9540",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "4fef37684dcae1381daae8039b003c074a513d51ddd73273a3f8b8e5f821f01d",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 102.80939699999999,
+          "processedTicks": 1,
+          "outputDigest": "e3c4398f302daab7f664ca7c60864eb46afb5cd95751cf0b16191093f58b9540",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "4fef37684dcae1381daae8039b003c074a513d51ddd73273a3f8b8e5f821f01d",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 116.48547800000051,
+          "processedTicks": 1,
+          "outputDigest": "e3c4398f302daab7f664ca7c60864eb46afb5cd95751cf0b16191093f58b9540",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "4fef37684dcae1381daae8039b003c074a513d51ddd73273a3f8b8e5f821f01d",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 100.63975299999947,
+          "processedTicks": 1,
+          "outputDigest": "e3c4398f302daab7f664ca7c60864eb46afb5cd95751cf0b16191093f58b9540",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "4fef37684dcae1381daae8039b003c074a513d51ddd73273a3f8b8e5f821f01d",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 100.70504100000016,
+          "processedTicks": 1,
+          "outputDigest": "e3c4398f302daab7f664ca7c60864eb46afb5cd95751cf0b16191093f58b9540",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "4fef37684dcae1381daae8039b003c074a513d51ddd73273a3f8b8e5f821f01d",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 101.5639229999997,
+          "processedTicks": 1,
+          "outputDigest": "e3c4398f302daab7f664ca7c60864eb46afb5cd95751cf0b16191093f58b9540",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "4fef37684dcae1381daae8039b003c074a513d51ddd73273a3f8b8e5f821f01d",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 105.35577699999976,
+          "processedTicks": 1,
+          "outputDigest": "e3c4398f302daab7f664ca7c60864eb46afb5cd95751cf0b16191093f58b9540",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "4fef37684dcae1381daae8039b003c074a513d51ddd73273a3f8b8e5f821f01d",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 101.63165500000014,
+          "processedTicks": 1,
+          "outputDigest": "e3c4398f302daab7f664ca7c60864eb46afb5cd95751cf0b16191093f58b9540",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "4fef37684dcae1381daae8039b003c074a513d51ddd73273a3f8b8e5f821f01d",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 104.9675240000006,
+          "processedTicks": 1,
+          "outputDigest": "e3c4398f302daab7f664ca7c60864eb46afb5cd95751cf0b16191093f58b9540",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "4fef37684dcae1381daae8039b003c074a513d51ddd73273a3f8b8e5f821f01d",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 107.03258099999948,
+          "processedTicks": 1,
+          "outputDigest": "e3c4398f302daab7f664ca7c60864eb46afb5cd95751cf0b16191093f58b9540",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "4fef37684dcae1381daae8039b003c074a513d51ddd73273a3f8b8e5f821f01d",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 116.90544599999976,
+          "processedTicks": 1,
+          "outputDigest": "e3c4398f302daab7f664ca7c60864eb46afb5cd95751cf0b16191093f58b9540",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "4fef37684dcae1381daae8039b003c074a513d51ddd73273a3f8b8e5f821f01d",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 119.42472100000032,
+          "processedTicks": 1,
+          "outputDigest": "e3c4398f302daab7f664ca7c60864eb46afb5cd95751cf0b16191093f58b9540",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "4fef37684dcae1381daae8039b003c074a513d51ddd73273a3f8b8e5f821f01d",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 107.75505299999986,
+          "processedTicks": 1,
+          "outputDigest": "e3c4398f302daab7f664ca7c60864eb46afb5cd95751cf0b16191093f58b9540",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "4fef37684dcae1381daae8039b003c074a513d51ddd73273a3f8b8e5f821f01d",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 105.72129399999994,
+          "processedTicks": 1,
+          "outputDigest": "e3c4398f302daab7f664ca7c60864eb46afb5cd95751cf0b16191093f58b9540",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "4fef37684dcae1381daae8039b003c074a513d51ddd73273a3f8b8e5f821f01d",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 117.69115299999976,
+          "processedTicks": 1,
+          "outputDigest": "e3c4398f302daab7f664ca7c60864eb46afb5cd95751cf0b16191093f58b9540",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "4fef37684dcae1381daae8039b003c074a513d51ddd73273a3f8b8e5f821f01d",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 111.82810199999949,
+          "processedTicks": 1,
+          "outputDigest": "e3c4398f302daab7f664ca7c60864eb46afb5cd95751cf0b16191093f58b9540",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "4fef37684dcae1381daae8039b003c074a513d51ddd73273a3f8b8e5f821f01d",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 103.13081599999987,
+          "processedTicks": 1,
+          "outputDigest": "e3c4398f302daab7f664ca7c60864eb46afb5cd95751cf0b16191093f58b9540",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "4fef37684dcae1381daae8039b003c074a513d51ddd73273a3f8b8e5f821f01d",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 101.98329999999987,
+          "processedTicks": 1,
+          "outputDigest": "e3c4398f302daab7f664ca7c60864eb46afb5cd95751cf0b16191093f58b9540",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "4fef37684dcae1381daae8039b003c074a513d51ddd73273a3f8b8e5f821f01d",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 103.39419199999975,
+          "processedTicks": 1,
+          "outputDigest": "e3c4398f302daab7f664ca7c60864eb46afb5cd95751cf0b16191093f58b9540",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "4fef37684dcae1381daae8039b003c074a513d51ddd73273a3f8b8e5f821f01d",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 107.74316499999986,
+          "processedTicks": 1,
+          "outputDigest": "e3c4398f302daab7f664ca7c60864eb46afb5cd95751cf0b16191093f58b9540",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "4fef37684dcae1381daae8039b003c074a513d51ddd73273a3f8b8e5f821f01d",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 101.02618000000075,
+          "processedTicks": 1,
+          "outputDigest": "e3c4398f302daab7f664ca7c60864eb46afb5cd95751cf0b16191093f58b9540",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "4fef37684dcae1381daae8039b003c074a513d51ddd73273a3f8b8e5f821f01d",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        }
+      ],
+      "diagnostic": {
+        "ticks": [
+          {
+            "tick": 1,
+            "seekingBefore": 8,
+            "elapsedMs": 99.50605300000097,
+            "seekingAfter": 8,
+            "queuedAfter": 0,
+            "assignedStaffAfter": 2,
+            "staffWithPathsAfter": 2,
+            "servicesCompleted": 0
+          }
+        ],
+        "tickLatency": {
+          "samples": 1,
+          "medianMs": 99.50605300000097,
+          "p95Ms": 99.50605300000097,
+          "minMs": 99.50605300000097,
+          "maxMs": 99.50605300000097
+        },
+        "systems": {
+          "scenario": {
+            "samples": 1,
+            "medianMs": 0.02021000000058848,
+            "p95Ms": 0.02021000000058848,
+            "minMs": 0.02021000000058848,
+            "maxMs": 0.02021000000058848
+          },
+          "guest-spawn": {
+            "samples": 1,
+            "medianMs": 0.004557000000204425,
+            "p95Ms": 0.004557000000204425,
+            "minMs": 0.004557000000204425,
+            "maxMs": 0.004557000000204425
+          },
+          "guest-needs": {
+            "samples": 1,
+            "medianMs": 0.020149999998466228,
+            "p95Ms": 0.020149999998466228,
+            "minMs": 0.020149999998466228,
+            "maxMs": 0.020149999998466228
+          },
+          "guest-service": {
+            "samples": 1,
+            "medianMs": 0.009093000000575557,
+            "p95Ms": 0.009093000000575557,
+            "minMs": 0.009093000000575557,
+            "maxMs": 0.009093000000575557
+          },
+          "queues": {
+            "samples": 1,
+            "medianMs": 0.012147999999797321,
+            "p95Ms": 0.012147999999797321,
+            "minMs": 0.012147999999797321,
+            "maxMs": 0.012147999999797321
+          },
+          "guest-intent": {
+            "samples": 1,
+            "medianMs": 61.63814900000034,
+            "p95Ms": 61.63814900000034,
+            "minMs": 61.63814900000034,
+            "maxMs": 61.63814900000034
+          },
+          "guest-path": {
+            "samples": 1,
+            "medianMs": 29.277280000000246,
+            "p95Ms": 29.277280000000246,
+            "minMs": 29.277280000000246,
+            "maxMs": 29.277280000000246
+          },
+          "guest-move": {
+            "samples": 1,
+            "medianMs": 0.013651000001118518,
+            "p95Ms": 0.013651000001118518,
+            "minMs": 0.013651000001118518,
+            "maxMs": 0.013651000001118518
+          },
+          "task-generate": {
+            "samples": 1,
+            "medianMs": 0.013469999999870197,
+            "p95Ms": 0.013469999999870197,
+            "minMs": 0.013469999999870197,
+            "maxMs": 0.013469999999870197
+          },
+          "task-assign": {
+            "samples": 1,
+            "medianMs": 8.349742000000333,
+            "p95Ms": 8.349742000000333,
+            "minMs": 8.349742000000333,
+            "maxMs": 8.349742000000333
+          },
+          "staff-work": {
+            "samples": 1,
+            "medianMs": 0.012518999999883818,
+            "p95Ms": 0.012518999999883818,
+            "minMs": 0.012518999999883818,
+            "maxMs": 0.012518999999883818
+          },
+          "construction": {
+            "samples": 1,
+            "medianMs": 0.004317000000810367,
+            "p95Ms": 0.004317000000810367,
+            "minMs": 0.004317000000810367,
+            "maxMs": 0.004317000000810367
+          },
+          "buildings": {
+            "samples": 1,
+            "medianMs": 0.002935000000434229,
+            "p95Ms": 0.002935000000434229,
+            "minMs": 0.002935000000434229,
+            "maxMs": 0.002935000000434229
+          },
+          "cleanliness-wear": {
+            "samples": 1,
+            "medianMs": 0.01975999999922351,
+            "p95Ms": 0.01975999999922351,
+            "minMs": 0.01975999999922351,
+            "maxMs": 0.01975999999922351
+          },
+          "finance": {
+            "samples": 1,
+            "medianMs": 0.008372000000235857,
+            "p95Ms": 0.008372000000235857,
+            "minMs": 0.008372000000235857,
+            "maxMs": 0.008372000000235857
+          },
+          "incidents": {
+            "samples": 1,
+            "medianMs": 0.011175999999977648,
+            "p95Ms": 0.011175999999977648,
+            "minMs": 0.011175999999977648,
+            "maxMs": 0.011175999999977648
+          },
+          "objectives": {
+            "samples": 1,
+            "medianMs": 0.0022339999995892867,
+            "p95Ms": 0.0022339999995892867,
+            "minMs": 0.0022339999995892867,
+            "maxMs": 0.0022339999995892867
+          },
+          "failure": {
+            "samples": 1,
+            "medianMs": 0.004005999999208143,
+            "p95Ms": 0.004005999999208143,
+            "minMs": 0.004005999999208143,
+            "maxMs": 0.004005999999208143
+          },
+          "alerts": {
+            "samples": 1,
+            "medianMs": 0.021783000000141328,
+            "p95Ms": 0.021783000000141328,
+            "minMs": 0.021783000000141328,
+            "maxMs": 0.021783000000141328
+          },
+          "tick-finalize": {
+            "samples": 1,
+            "medianMs": 0.021441999999296968,
+            "p95Ms": 0.021441999999296968,
+            "minMs": 0.021441999999296968,
+            "maxMs": 0.021441999999296968
+          }
+        }
+      }
+    },
+    {
+      "workload": {
+        "mapSize": 16,
+        "seekingGuests": 4,
+        "serviceBuildings": 2,
+        "productsPerBuilding": 1,
+        "staff": 2,
+        "batchTicks": 1,
+        "id": "guests-4"
+      },
+      "seed": "world-graph-bench-v1",
+      "fixtureDigest": "2a3b657743d19682de82708df0df5885f14ee56dcb7ea5866f5f902ac88d2190",
+      "validationWarnings": [
+        {
+          "code": "inert_scenario",
+          "messageKey": "world-graph.reason.inert_scenario",
+          "path": "content.scenarios[0]"
+        }
+      ],
+      "latency": {
+        "samples": 21,
+        "medianMs": 3.7912040000010165,
+        "p95Ms": 4.34949400000005,
+        "minMs": 3.410972000001493,
+        "maxMs": 4.387410999999702
+      },
+      "amortizedMsPerTick": {
+        "samples": 21,
+        "medianMs": 3.7912040000010165,
+        "p95Ms": 4.34949400000005,
+        "minMs": 3.410972000001493,
+        "maxMs": 4.387410999999702
+      },
+      "measuredBatches": 21,
+      "processedTicks": 21,
+      "warmupBatches": 3,
+      "warmupTicks": 3,
+      "verification": {
+        "identicalOutputBatches": 25,
+        "outputDigest": "07a2ce60244d4f990b4af063014cf37b6972de01388f35adc361e86e78f83452",
+        "finalStateDigest": "0c87015fb315ec0dc0acff38c7b92b17de3b78c0c18cca8e04ca68315894e6da",
+        "instrumentationParity": true,
+        "splitBatchParity": true,
+        "fixtureUnchanged": true,
+        "extraTicks": 3
+      },
+      "rawSamples": [
+        {
+          "elapsedMs": 3.7035820000000967,
+          "processedTicks": 1,
+          "outputDigest": "07a2ce60244d4f990b4af063014cf37b6972de01388f35adc361e86e78f83452",
+          "pipelineEventsDigest": "eb03c7d431b180f5f4a60e0352f8984e5c694a526308c1999e3ef5fdee887403",
+          "stateDigest": "0c87015fb315ec0dc0acff38c7b92b17de3b78c0c18cca8e04ca68315894e6da",
+          "changesDigest": "9ee53dee1ae2ef4c543a3d73c6f15dd91228aa0dda4bf559de0a492b9dfa2114",
+          "eventCount": 22
+        },
+        {
+          "elapsedMs": 4.269484000000375,
+          "processedTicks": 1,
+          "outputDigest": "07a2ce60244d4f990b4af063014cf37b6972de01388f35adc361e86e78f83452",
+          "pipelineEventsDigest": "eb03c7d431b180f5f4a60e0352f8984e5c694a526308c1999e3ef5fdee887403",
+          "stateDigest": "0c87015fb315ec0dc0acff38c7b92b17de3b78c0c18cca8e04ca68315894e6da",
+          "changesDigest": "9ee53dee1ae2ef4c543a3d73c6f15dd91228aa0dda4bf559de0a492b9dfa2114",
+          "eventCount": 22
+        },
+        {
+          "elapsedMs": 3.7762109999985114,
+          "processedTicks": 1,
+          "outputDigest": "07a2ce60244d4f990b4af063014cf37b6972de01388f35adc361e86e78f83452",
+          "pipelineEventsDigest": "eb03c7d431b180f5f4a60e0352f8984e5c694a526308c1999e3ef5fdee887403",
+          "stateDigest": "0c87015fb315ec0dc0acff38c7b92b17de3b78c0c18cca8e04ca68315894e6da",
+          "changesDigest": "9ee53dee1ae2ef4c543a3d73c6f15dd91228aa0dda4bf559de0a492b9dfa2114",
+          "eventCount": 22
+        },
+        {
+          "elapsedMs": 3.9118150000012974,
+          "processedTicks": 1,
+          "outputDigest": "07a2ce60244d4f990b4af063014cf37b6972de01388f35adc361e86e78f83452",
+          "pipelineEventsDigest": "eb03c7d431b180f5f4a60e0352f8984e5c694a526308c1999e3ef5fdee887403",
+          "stateDigest": "0c87015fb315ec0dc0acff38c7b92b17de3b78c0c18cca8e04ca68315894e6da",
+          "changesDigest": "9ee53dee1ae2ef4c543a3d73c6f15dd91228aa0dda4bf559de0a492b9dfa2114",
+          "eventCount": 22
+        },
+        {
+          "elapsedMs": 4.387410999999702,
+          "processedTicks": 1,
+          "outputDigest": "07a2ce60244d4f990b4af063014cf37b6972de01388f35adc361e86e78f83452",
+          "pipelineEventsDigest": "eb03c7d431b180f5f4a60e0352f8984e5c694a526308c1999e3ef5fdee887403",
+          "stateDigest": "0c87015fb315ec0dc0acff38c7b92b17de3b78c0c18cca8e04ca68315894e6da",
+          "changesDigest": "9ee53dee1ae2ef4c543a3d73c6f15dd91228aa0dda4bf559de0a492b9dfa2114",
+          "eventCount": 22
+        },
+        {
+          "elapsedMs": 4.013949000000139,
+          "processedTicks": 1,
+          "outputDigest": "07a2ce60244d4f990b4af063014cf37b6972de01388f35adc361e86e78f83452",
+          "pipelineEventsDigest": "eb03c7d431b180f5f4a60e0352f8984e5c694a526308c1999e3ef5fdee887403",
+          "stateDigest": "0c87015fb315ec0dc0acff38c7b92b17de3b78c0c18cca8e04ca68315894e6da",
+          "changesDigest": "9ee53dee1ae2ef4c543a3d73c6f15dd91228aa0dda4bf559de0a492b9dfa2114",
+          "eventCount": 22
+        },
+        {
+          "elapsedMs": 3.8866569999991043,
+          "processedTicks": 1,
+          "outputDigest": "07a2ce60244d4f990b4af063014cf37b6972de01388f35adc361e86e78f83452",
+          "pipelineEventsDigest": "eb03c7d431b180f5f4a60e0352f8984e5c694a526308c1999e3ef5fdee887403",
+          "stateDigest": "0c87015fb315ec0dc0acff38c7b92b17de3b78c0c18cca8e04ca68315894e6da",
+          "changesDigest": "9ee53dee1ae2ef4c543a3d73c6f15dd91228aa0dda4bf559de0a492b9dfa2114",
+          "eventCount": 22
+        },
+        {
+          "elapsedMs": 3.7912040000010165,
+          "processedTicks": 1,
+          "outputDigest": "07a2ce60244d4f990b4af063014cf37b6972de01388f35adc361e86e78f83452",
+          "pipelineEventsDigest": "eb03c7d431b180f5f4a60e0352f8984e5c694a526308c1999e3ef5fdee887403",
+          "stateDigest": "0c87015fb315ec0dc0acff38c7b92b17de3b78c0c18cca8e04ca68315894e6da",
+          "changesDigest": "9ee53dee1ae2ef4c543a3d73c6f15dd91228aa0dda4bf559de0a492b9dfa2114",
+          "eventCount": 22
+        },
+        {
+          "elapsedMs": 3.443971999999121,
+          "processedTicks": 1,
+          "outputDigest": "07a2ce60244d4f990b4af063014cf37b6972de01388f35adc361e86e78f83452",
+          "pipelineEventsDigest": "eb03c7d431b180f5f4a60e0352f8984e5c694a526308c1999e3ef5fdee887403",
+          "stateDigest": "0c87015fb315ec0dc0acff38c7b92b17de3b78c0c18cca8e04ca68315894e6da",
+          "changesDigest": "9ee53dee1ae2ef4c543a3d73c6f15dd91228aa0dda4bf559de0a492b9dfa2114",
+          "eventCount": 22
+        },
+        {
+          "elapsedMs": 3.410972000001493,
+          "processedTicks": 1,
+          "outputDigest": "07a2ce60244d4f990b4af063014cf37b6972de01388f35adc361e86e78f83452",
+          "pipelineEventsDigest": "eb03c7d431b180f5f4a60e0352f8984e5c694a526308c1999e3ef5fdee887403",
+          "stateDigest": "0c87015fb315ec0dc0acff38c7b92b17de3b78c0c18cca8e04ca68315894e6da",
+          "changesDigest": "9ee53dee1ae2ef4c543a3d73c6f15dd91228aa0dda4bf559de0a492b9dfa2114",
+          "eventCount": 22
+        },
+        {
+          "elapsedMs": 4.34949400000005,
+          "processedTicks": 1,
+          "outputDigest": "07a2ce60244d4f990b4af063014cf37b6972de01388f35adc361e86e78f83452",
+          "pipelineEventsDigest": "eb03c7d431b180f5f4a60e0352f8984e5c694a526308c1999e3ef5fdee887403",
+          "stateDigest": "0c87015fb315ec0dc0acff38c7b92b17de3b78c0c18cca8e04ca68315894e6da",
+          "changesDigest": "9ee53dee1ae2ef4c543a3d73c6f15dd91228aa0dda4bf559de0a492b9dfa2114",
+          "eventCount": 22
+        },
+        {
+          "elapsedMs": 3.9039730000004056,
+          "processedTicks": 1,
+          "outputDigest": "07a2ce60244d4f990b4af063014cf37b6972de01388f35adc361e86e78f83452",
+          "pipelineEventsDigest": "eb03c7d431b180f5f4a60e0352f8984e5c694a526308c1999e3ef5fdee887403",
+          "stateDigest": "0c87015fb315ec0dc0acff38c7b92b17de3b78c0c18cca8e04ca68315894e6da",
+          "changesDigest": "9ee53dee1ae2ef4c543a3d73c6f15dd91228aa0dda4bf559de0a492b9dfa2114",
+          "eventCount": 22
+        },
+        {
+          "elapsedMs": 3.857974999998987,
+          "processedTicks": 1,
+          "outputDigest": "07a2ce60244d4f990b4af063014cf37b6972de01388f35adc361e86e78f83452",
+          "pipelineEventsDigest": "eb03c7d431b180f5f4a60e0352f8984e5c694a526308c1999e3ef5fdee887403",
+          "stateDigest": "0c87015fb315ec0dc0acff38c7b92b17de3b78c0c18cca8e04ca68315894e6da",
+          "changesDigest": "9ee53dee1ae2ef4c543a3d73c6f15dd91228aa0dda4bf559de0a492b9dfa2114",
+          "eventCount": 22
+        },
+        {
+          "elapsedMs": 3.9353809999993246,
+          "processedTicks": 1,
+          "outputDigest": "07a2ce60244d4f990b4af063014cf37b6972de01388f35adc361e86e78f83452",
+          "pipelineEventsDigest": "eb03c7d431b180f5f4a60e0352f8984e5c694a526308c1999e3ef5fdee887403",
+          "stateDigest": "0c87015fb315ec0dc0acff38c7b92b17de3b78c0c18cca8e04ca68315894e6da",
+          "changesDigest": "9ee53dee1ae2ef4c543a3d73c6f15dd91228aa0dda4bf559de0a492b9dfa2114",
+          "eventCount": 22
+        },
+        {
+          "elapsedMs": 3.601448999999775,
+          "processedTicks": 1,
+          "outputDigest": "07a2ce60244d4f990b4af063014cf37b6972de01388f35adc361e86e78f83452",
+          "pipelineEventsDigest": "eb03c7d431b180f5f4a60e0352f8984e5c694a526308c1999e3ef5fdee887403",
+          "stateDigest": "0c87015fb315ec0dc0acff38c7b92b17de3b78c0c18cca8e04ca68315894e6da",
+          "changesDigest": "9ee53dee1ae2ef4c543a3d73c6f15dd91228aa0dda4bf559de0a492b9dfa2114",
+          "eventCount": 22
+        },
+        {
+          "elapsedMs": 3.5697700000000623,
+          "processedTicks": 1,
+          "outputDigest": "07a2ce60244d4f990b4af063014cf37b6972de01388f35adc361e86e78f83452",
+          "pipelineEventsDigest": "eb03c7d431b180f5f4a60e0352f8984e5c694a526308c1999e3ef5fdee887403",
+          "stateDigest": "0c87015fb315ec0dc0acff38c7b92b17de3b78c0c18cca8e04ca68315894e6da",
+          "changesDigest": "9ee53dee1ae2ef4c543a3d73c6f15dd91228aa0dda4bf559de0a492b9dfa2114",
+          "eventCount": 22
+        },
+        {
+          "elapsedMs": 3.7590450000006967,
+          "processedTicks": 1,
+          "outputDigest": "07a2ce60244d4f990b4af063014cf37b6972de01388f35adc361e86e78f83452",
+          "pipelineEventsDigest": "eb03c7d431b180f5f4a60e0352f8984e5c694a526308c1999e3ef5fdee887403",
+          "stateDigest": "0c87015fb315ec0dc0acff38c7b92b17de3b78c0c18cca8e04ca68315894e6da",
+          "changesDigest": "9ee53dee1ae2ef4c543a3d73c6f15dd91228aa0dda4bf559de0a492b9dfa2114",
+          "eventCount": 22
+        },
+        {
+          "elapsedMs": 3.936201999998957,
+          "processedTicks": 1,
+          "outputDigest": "07a2ce60244d4f990b4af063014cf37b6972de01388f35adc361e86e78f83452",
+          "pipelineEventsDigest": "eb03c7d431b180f5f4a60e0352f8984e5c694a526308c1999e3ef5fdee887403",
+          "stateDigest": "0c87015fb315ec0dc0acff38c7b92b17de3b78c0c18cca8e04ca68315894e6da",
+          "changesDigest": "9ee53dee1ae2ef4c543a3d73c6f15dd91228aa0dda4bf559de0a492b9dfa2114",
+          "eventCount": 22
+        },
+        {
+          "elapsedMs": 3.7666770000014367,
+          "processedTicks": 1,
+          "outputDigest": "07a2ce60244d4f990b4af063014cf37b6972de01388f35adc361e86e78f83452",
+          "pipelineEventsDigest": "eb03c7d431b180f5f4a60e0352f8984e5c694a526308c1999e3ef5fdee887403",
+          "stateDigest": "0c87015fb315ec0dc0acff38c7b92b17de3b78c0c18cca8e04ca68315894e6da",
+          "changesDigest": "9ee53dee1ae2ef4c543a3d73c6f15dd91228aa0dda4bf559de0a492b9dfa2114",
+          "eventCount": 22
+        },
+        {
+          "elapsedMs": 3.576461000000563,
+          "processedTicks": 1,
+          "outputDigest": "07a2ce60244d4f990b4af063014cf37b6972de01388f35adc361e86e78f83452",
+          "pipelineEventsDigest": "eb03c7d431b180f5f4a60e0352f8984e5c694a526308c1999e3ef5fdee887403",
+          "stateDigest": "0c87015fb315ec0dc0acff38c7b92b17de3b78c0c18cca8e04ca68315894e6da",
+          "changesDigest": "9ee53dee1ae2ef4c543a3d73c6f15dd91228aa0dda4bf559de0a492b9dfa2114",
+          "eventCount": 22
+        },
+        {
+          "elapsedMs": 3.553316999999879,
+          "processedTicks": 1,
+          "outputDigest": "07a2ce60244d4f990b4af063014cf37b6972de01388f35adc361e86e78f83452",
+          "pipelineEventsDigest": "eb03c7d431b180f5f4a60e0352f8984e5c694a526308c1999e3ef5fdee887403",
+          "stateDigest": "0c87015fb315ec0dc0acff38c7b92b17de3b78c0c18cca8e04ca68315894e6da",
+          "changesDigest": "9ee53dee1ae2ef4c543a3d73c6f15dd91228aa0dda4bf559de0a492b9dfa2114",
+          "eventCount": 22
+        }
+      ],
+      "diagnostic": {
+        "ticks": [
+          {
+            "tick": 1,
+            "seekingBefore": 4,
+            "elapsedMs": 3.6045130000002246,
+            "seekingAfter": 4,
+            "queuedAfter": 0,
+            "assignedStaffAfter": 2,
+            "staffWithPathsAfter": 2,
+            "servicesCompleted": 0
+          }
+        ],
+        "tickLatency": {
+          "samples": 1,
+          "medianMs": 3.6045130000002246,
+          "p95Ms": 3.6045130000002246,
+          "minMs": 3.6045130000002246,
+          "maxMs": 3.6045130000002246
+        },
+        "systems": {
+          "scenario": {
+            "samples": 1,
+            "medianMs": 0.0795300000008865,
+            "p95Ms": 0.0795300000008865,
+            "minMs": 0.0795300000008865,
+            "maxMs": 0.0795300000008865
+          },
+          "guest-spawn": {
+            "samples": 1,
+            "medianMs": 0.0021430000015243422,
+            "p95Ms": 0.0021430000015243422,
+            "minMs": 0.0021430000015243422,
+            "maxMs": 0.0021430000015243422
+          },
+          "guest-needs": {
+            "samples": 1,
+            "medianMs": 0.010425999998915358,
+            "p95Ms": 0.010425999998915358,
+            "minMs": 0.010425999998915358,
+            "maxMs": 0.010425999998915358
+          },
+          "guest-service": {
+            "samples": 1,
+            "medianMs": 0.005608999999822117,
+            "p95Ms": 0.005608999999822117,
+            "minMs": 0.005608999999822117,
+            "maxMs": 0.005608999999822117
+          },
+          "queues": {
+            "samples": 1,
+            "medianMs": 0.009283999999752268,
+            "p95Ms": 0.009283999999752268,
+            "minMs": 0.009283999999752268,
+            "maxMs": 0.009283999999752268
+          },
+          "guest-intent": {
+            "samples": 1,
+            "medianMs": 2.1331700000009732,
+            "p95Ms": 2.1331700000009732,
+            "minMs": 2.1331700000009732,
+            "maxMs": 2.1331700000009732
+          },
+          "guest-path": {
+            "samples": 1,
+            "medianMs": 0.8778309999997873,
+            "p95Ms": 0.8778309999997873,
+            "minMs": 0.8778309999997873,
+            "maxMs": 0.8778309999997873
+          },
+          "guest-move": {
+            "samples": 1,
+            "medianMs": 0.004136999999900581,
+            "p95Ms": 0.004136999999900581,
+            "minMs": 0.004136999999900581,
+            "maxMs": 0.004136999999900581
+          },
+          "task-generate": {
+            "samples": 1,
+            "medianMs": 0.009104000000661472,
+            "p95Ms": 0.009104000000661472,
+            "minMs": 0.009104000000661472,
+            "maxMs": 0.009104000000661472
+          },
+          "task-assign": {
+            "samples": 1,
+            "medianMs": 0.39119899999968766,
+            "p95Ms": 0.39119899999968766,
+            "minMs": 0.39119899999968766,
+            "maxMs": 0.39119899999968766
+          },
+          "staff-work": {
+            "samples": 1,
+            "medianMs": 0.004467000000659027,
+            "p95Ms": 0.004467000000659027,
+            "minMs": 0.004467000000659027,
+            "maxMs": 0.004467000000659027
+          },
+          "construction": {
+            "samples": 1,
+            "medianMs": 0.0033149999999295687,
+            "p95Ms": 0.0033149999999295687,
+            "minMs": 0.0033149999999295687,
+            "maxMs": 0.0033149999999295687
+          },
+          "buildings": {
+            "samples": 1,
+            "medianMs": 0.002253000000564498,
+            "p95Ms": 0.002253000000564498,
+            "minMs": 0.002253000000564498,
+            "maxMs": 0.002253000000564498
+          },
+          "cleanliness-wear": {
+            "samples": 1,
+            "medianMs": 0.008803999999145162,
+            "p95Ms": 0.008803999999145162,
+            "minMs": 0.008803999999145162,
+            "maxMs": 0.008803999999145162
+          },
+          "finance": {
+            "samples": 1,
+            "medianMs": 0.004016000000774511,
+            "p95Ms": 0.004016000000774511,
+            "minMs": 0.004016000000774511,
+            "maxMs": 0.004016000000774511
+          },
+          "incidents": {
+            "samples": 1,
+            "medianMs": 0.009223999999449006,
+            "p95Ms": 0.009223999999449006,
+            "minMs": 0.009223999999449006,
+            "maxMs": 0.009223999999449006
+          },
+          "objectives": {
+            "samples": 1,
+            "medianMs": 0.0016219999997701962,
+            "p95Ms": 0.0016219999997701962,
+            "minMs": 0.0016219999997701962,
+            "maxMs": 0.0016219999997701962
+          },
+          "failure": {
+            "samples": 1,
+            "medianMs": 0.0029150000009394716,
+            "p95Ms": 0.0029150000009394716,
+            "minMs": 0.0029150000009394716,
+            "maxMs": 0.0029150000009394716
+          },
+          "alerts": {
+            "samples": 1,
+            "medianMs": 0.014592000001357519,
+            "p95Ms": 0.014592000001357519,
+            "minMs": 0.014592000001357519,
+            "maxMs": 0.014592000001357519
+          },
+          "tick-finalize": {
+            "samples": 1,
+            "medianMs": 0.011316999998598476,
+            "p95Ms": 0.011316999998598476,
+            "minMs": 0.011316999998598476,
+            "maxMs": 0.011316999998598476
+          }
+        }
+      }
+    },
+    {
+      "workload": {
+        "mapSize": 16,
+        "seekingGuests": 16,
+        "serviceBuildings": 2,
+        "productsPerBuilding": 1,
+        "staff": 2,
+        "batchTicks": 1,
+        "id": "guests-16"
+      },
+      "seed": "world-graph-bench-v1",
+      "fixtureDigest": "bb0806c621cdcfd0b8d73fa58501e3be92a71a03100009817f9b2f37cbec39f9",
+      "validationWarnings": [
+        {
+          "code": "inert_scenario",
+          "messageKey": "world-graph.reason.inert_scenario",
+          "path": "content.scenarios[0]"
+        }
+      ],
+      "latency": {
+        "samples": 21,
+        "medianMs": 13.667273000000932,
+        "p95Ms": 15.746155999999246,
+        "minMs": 12.501287999999477,
+        "maxMs": 16.080493999999817
+      },
+      "amortizedMsPerTick": {
+        "samples": 21,
+        "medianMs": 13.667273000000932,
+        "p95Ms": 15.746155999999246,
+        "minMs": 12.501287999999477,
+        "maxMs": 16.080493999999817
+      },
+      "measuredBatches": 21,
+      "processedTicks": 21,
+      "warmupBatches": 3,
+      "warmupTicks": 3,
+      "verification": {
+        "identicalOutputBatches": 25,
+        "outputDigest": "49c3d47318da60eb61b5e773937442143db44ea1a52071a5782149fe446ac428",
+        "finalStateDigest": "a65e1b9bf3a40005a4e85b917d18f3d6ae060e68d464e8e8d054701bcc504901",
+        "instrumentationParity": true,
+        "splitBatchParity": true,
+        "fixtureUnchanged": true,
+        "extraTicks": 3
+      },
+      "rawSamples": [
+        {
+          "elapsedMs": 13.453000999999858,
+          "processedTicks": 1,
+          "outputDigest": "49c3d47318da60eb61b5e773937442143db44ea1a52071a5782149fe446ac428",
+          "pipelineEventsDigest": "e9583ca9d6ca90364bcf5f3731a7778e22814756f516311a3ff2d9255df97600",
+          "stateDigest": "a65e1b9bf3a40005a4e85b917d18f3d6ae060e68d464e8e8d054701bcc504901",
+          "changesDigest": "62c8205eff0d9b5351246a509ac361a887e1f0c568bbaf3768a87bb4939ac940",
+          "eventCount": 58
+        },
+        {
+          "elapsedMs": 13.799501999999848,
+          "processedTicks": 1,
+          "outputDigest": "49c3d47318da60eb61b5e773937442143db44ea1a52071a5782149fe446ac428",
+          "pipelineEventsDigest": "e9583ca9d6ca90364bcf5f3731a7778e22814756f516311a3ff2d9255df97600",
+          "stateDigest": "a65e1b9bf3a40005a4e85b917d18f3d6ae060e68d464e8e8d054701bcc504901",
+          "changesDigest": "62c8205eff0d9b5351246a509ac361a887e1f0c568bbaf3768a87bb4939ac940",
+          "eventCount": 58
+        },
+        {
+          "elapsedMs": 13.57774900000004,
+          "processedTicks": 1,
+          "outputDigest": "49c3d47318da60eb61b5e773937442143db44ea1a52071a5782149fe446ac428",
+          "pipelineEventsDigest": "e9583ca9d6ca90364bcf5f3731a7778e22814756f516311a3ff2d9255df97600",
+          "stateDigest": "a65e1b9bf3a40005a4e85b917d18f3d6ae060e68d464e8e8d054701bcc504901",
+          "changesDigest": "62c8205eff0d9b5351246a509ac361a887e1f0c568bbaf3768a87bb4939ac940",
+          "eventCount": 58
+        },
+        {
+          "elapsedMs": 12.501287999999477,
+          "processedTicks": 1,
+          "outputDigest": "49c3d47318da60eb61b5e773937442143db44ea1a52071a5782149fe446ac428",
+          "pipelineEventsDigest": "e9583ca9d6ca90364bcf5f3731a7778e22814756f516311a3ff2d9255df97600",
+          "stateDigest": "a65e1b9bf3a40005a4e85b917d18f3d6ae060e68d464e8e8d054701bcc504901",
+          "changesDigest": "62c8205eff0d9b5351246a509ac361a887e1f0c568bbaf3768a87bb4939ac940",
+          "eventCount": 58
+        },
+        {
+          "elapsedMs": 12.747638999999253,
+          "processedTicks": 1,
+          "outputDigest": "49c3d47318da60eb61b5e773937442143db44ea1a52071a5782149fe446ac428",
+          "pipelineEventsDigest": "e9583ca9d6ca90364bcf5f3731a7778e22814756f516311a3ff2d9255df97600",
+          "stateDigest": "a65e1b9bf3a40005a4e85b917d18f3d6ae060e68d464e8e8d054701bcc504901",
+          "changesDigest": "62c8205eff0d9b5351246a509ac361a887e1f0c568bbaf3768a87bb4939ac940",
+          "eventCount": 58
+        },
+        {
+          "elapsedMs": 14.215007000000696,
+          "processedTicks": 1,
+          "outputDigest": "49c3d47318da60eb61b5e773937442143db44ea1a52071a5782149fe446ac428",
+          "pipelineEventsDigest": "e9583ca9d6ca90364bcf5f3731a7778e22814756f516311a3ff2d9255df97600",
+          "stateDigest": "a65e1b9bf3a40005a4e85b917d18f3d6ae060e68d464e8e8d054701bcc504901",
+          "changesDigest": "62c8205eff0d9b5351246a509ac361a887e1f0c568bbaf3768a87bb4939ac940",
+          "eventCount": 58
+        },
+        {
+          "elapsedMs": 13.238397999999506,
+          "processedTicks": 1,
+          "outputDigest": "49c3d47318da60eb61b5e773937442143db44ea1a52071a5782149fe446ac428",
+          "pipelineEventsDigest": "e9583ca9d6ca90364bcf5f3731a7778e22814756f516311a3ff2d9255df97600",
+          "stateDigest": "a65e1b9bf3a40005a4e85b917d18f3d6ae060e68d464e8e8d054701bcc504901",
+          "changesDigest": "62c8205eff0d9b5351246a509ac361a887e1f0c568bbaf3768a87bb4939ac940",
+          "eventCount": 58
+        },
+        {
+          "elapsedMs": 12.69232699999884,
+          "processedTicks": 1,
+          "outputDigest": "49c3d47318da60eb61b5e773937442143db44ea1a52071a5782149fe446ac428",
+          "pipelineEventsDigest": "e9583ca9d6ca90364bcf5f3731a7778e22814756f516311a3ff2d9255df97600",
+          "stateDigest": "a65e1b9bf3a40005a4e85b917d18f3d6ae060e68d464e8e8d054701bcc504901",
+          "changesDigest": "62c8205eff0d9b5351246a509ac361a887e1f0c568bbaf3768a87bb4939ac940",
+          "eventCount": 58
+        },
+        {
+          "elapsedMs": 13.875836999999592,
+          "processedTicks": 1,
+          "outputDigest": "49c3d47318da60eb61b5e773937442143db44ea1a52071a5782149fe446ac428",
+          "pipelineEventsDigest": "e9583ca9d6ca90364bcf5f3731a7778e22814756f516311a3ff2d9255df97600",
+          "stateDigest": "a65e1b9bf3a40005a4e85b917d18f3d6ae060e68d464e8e8d054701bcc504901",
+          "changesDigest": "62c8205eff0d9b5351246a509ac361a887e1f0c568bbaf3768a87bb4939ac940",
+          "eventCount": 58
+        },
+        {
+          "elapsedMs": 12.99791600000026,
+          "processedTicks": 1,
+          "outputDigest": "49c3d47318da60eb61b5e773937442143db44ea1a52071a5782149fe446ac428",
+          "pipelineEventsDigest": "e9583ca9d6ca90364bcf5f3731a7778e22814756f516311a3ff2d9255df97600",
+          "stateDigest": "a65e1b9bf3a40005a4e85b917d18f3d6ae060e68d464e8e8d054701bcc504901",
+          "changesDigest": "62c8205eff0d9b5351246a509ac361a887e1f0c568bbaf3768a87bb4939ac940",
+          "eventCount": 58
+        },
+        {
+          "elapsedMs": 15.746155999999246,
+          "processedTicks": 1,
+          "outputDigest": "49c3d47318da60eb61b5e773937442143db44ea1a52071a5782149fe446ac428",
+          "pipelineEventsDigest": "e9583ca9d6ca90364bcf5f3731a7778e22814756f516311a3ff2d9255df97600",
+          "stateDigest": "a65e1b9bf3a40005a4e85b917d18f3d6ae060e68d464e8e8d054701bcc504901",
+          "changesDigest": "62c8205eff0d9b5351246a509ac361a887e1f0c568bbaf3768a87bb4939ac940",
+          "eventCount": 58
+        },
+        {
+          "elapsedMs": 15.25354999999945,
+          "processedTicks": 1,
+          "outputDigest": "49c3d47318da60eb61b5e773937442143db44ea1a52071a5782149fe446ac428",
+          "pipelineEventsDigest": "e9583ca9d6ca90364bcf5f3731a7778e22814756f516311a3ff2d9255df97600",
+          "stateDigest": "a65e1b9bf3a40005a4e85b917d18f3d6ae060e68d464e8e8d054701bcc504901",
+          "changesDigest": "62c8205eff0d9b5351246a509ac361a887e1f0c568bbaf3768a87bb4939ac940",
+          "eventCount": 58
+        },
+        {
+          "elapsedMs": 14.33820299999934,
+          "processedTicks": 1,
+          "outputDigest": "49c3d47318da60eb61b5e773937442143db44ea1a52071a5782149fe446ac428",
+          "pipelineEventsDigest": "e9583ca9d6ca90364bcf5f3731a7778e22814756f516311a3ff2d9255df97600",
+          "stateDigest": "a65e1b9bf3a40005a4e85b917d18f3d6ae060e68d464e8e8d054701bcc504901",
+          "changesDigest": "62c8205eff0d9b5351246a509ac361a887e1f0c568bbaf3768a87bb4939ac940",
+          "eventCount": 58
+        },
+        {
+          "elapsedMs": 16.080493999999817,
+          "processedTicks": 1,
+          "outputDigest": "49c3d47318da60eb61b5e773937442143db44ea1a52071a5782149fe446ac428",
+          "pipelineEventsDigest": "e9583ca9d6ca90364bcf5f3731a7778e22814756f516311a3ff2d9255df97600",
+          "stateDigest": "a65e1b9bf3a40005a4e85b917d18f3d6ae060e68d464e8e8d054701bcc504901",
+          "changesDigest": "62c8205eff0d9b5351246a509ac361a887e1f0c568bbaf3768a87bb4939ac940",
+          "eventCount": 58
+        },
+        {
+          "elapsedMs": 14.868101000000024,
+          "processedTicks": 1,
+          "outputDigest": "49c3d47318da60eb61b5e773937442143db44ea1a52071a5782149fe446ac428",
+          "pipelineEventsDigest": "e9583ca9d6ca90364bcf5f3731a7778e22814756f516311a3ff2d9255df97600",
+          "stateDigest": "a65e1b9bf3a40005a4e85b917d18f3d6ae060e68d464e8e8d054701bcc504901",
+          "changesDigest": "62c8205eff0d9b5351246a509ac361a887e1f0c568bbaf3768a87bb4939ac940",
+          "eventCount": 58
+        },
+        {
+          "elapsedMs": 13.73398300000008,
+          "processedTicks": 1,
+          "outputDigest": "49c3d47318da60eb61b5e773937442143db44ea1a52071a5782149fe446ac428",
+          "pipelineEventsDigest": "e9583ca9d6ca90364bcf5f3731a7778e22814756f516311a3ff2d9255df97600",
+          "stateDigest": "a65e1b9bf3a40005a4e85b917d18f3d6ae060e68d464e8e8d054701bcc504901",
+          "changesDigest": "62c8205eff0d9b5351246a509ac361a887e1f0c568bbaf3768a87bb4939ac940",
+          "eventCount": 58
+        },
+        {
+          "elapsedMs": 13.46444800000063,
+          "processedTicks": 1,
+          "outputDigest": "49c3d47318da60eb61b5e773937442143db44ea1a52071a5782149fe446ac428",
+          "pipelineEventsDigest": "e9583ca9d6ca90364bcf5f3731a7778e22814756f516311a3ff2d9255df97600",
+          "stateDigest": "a65e1b9bf3a40005a4e85b917d18f3d6ae060e68d464e8e8d054701bcc504901",
+          "changesDigest": "62c8205eff0d9b5351246a509ac361a887e1f0c568bbaf3768a87bb4939ac940",
+          "eventCount": 58
+        },
+        {
+          "elapsedMs": 12.991405999999188,
+          "processedTicks": 1,
+          "outputDigest": "49c3d47318da60eb61b5e773937442143db44ea1a52071a5782149fe446ac428",
+          "pipelineEventsDigest": "e9583ca9d6ca90364bcf5f3731a7778e22814756f516311a3ff2d9255df97600",
+          "stateDigest": "a65e1b9bf3a40005a4e85b917d18f3d6ae060e68d464e8e8d054701bcc504901",
+          "changesDigest": "62c8205eff0d9b5351246a509ac361a887e1f0c568bbaf3768a87bb4939ac940",
+          "eventCount": 58
+        },
+        {
+          "elapsedMs": 13.821415000000343,
+          "processedTicks": 1,
+          "outputDigest": "49c3d47318da60eb61b5e773937442143db44ea1a52071a5782149fe446ac428",
+          "pipelineEventsDigest": "e9583ca9d6ca90364bcf5f3731a7778e22814756f516311a3ff2d9255df97600",
+          "stateDigest": "a65e1b9bf3a40005a4e85b917d18f3d6ae060e68d464e8e8d054701bcc504901",
+          "changesDigest": "62c8205eff0d9b5351246a509ac361a887e1f0c568bbaf3768a87bb4939ac940",
+          "eventCount": 58
+        },
+        {
+          "elapsedMs": 13.667273000000932,
+          "processedTicks": 1,
+          "outputDigest": "49c3d47318da60eb61b5e773937442143db44ea1a52071a5782149fe446ac428",
+          "pipelineEventsDigest": "e9583ca9d6ca90364bcf5f3731a7778e22814756f516311a3ff2d9255df97600",
+          "stateDigest": "a65e1b9bf3a40005a4e85b917d18f3d6ae060e68d464e8e8d054701bcc504901",
+          "changesDigest": "62c8205eff0d9b5351246a509ac361a887e1f0c568bbaf3768a87bb4939ac940",
+          "eventCount": 58
+        },
+        {
+          "elapsedMs": 12.806649000000107,
+          "processedTicks": 1,
+          "outputDigest": "49c3d47318da60eb61b5e773937442143db44ea1a52071a5782149fe446ac428",
+          "pipelineEventsDigest": "e9583ca9d6ca90364bcf5f3731a7778e22814756f516311a3ff2d9255df97600",
+          "stateDigest": "a65e1b9bf3a40005a4e85b917d18f3d6ae060e68d464e8e8d054701bcc504901",
+          "changesDigest": "62c8205eff0d9b5351246a509ac361a887e1f0c568bbaf3768a87bb4939ac940",
+          "eventCount": 58
+        }
+      ],
+      "diagnostic": {
+        "ticks": [
+          {
+            "tick": 1,
+            "seekingBefore": 16,
+            "elapsedMs": 14.04518300000018,
+            "seekingAfter": 16,
+            "queuedAfter": 0,
+            "assignedStaffAfter": 2,
+            "staffWithPathsAfter": 2,
+            "servicesCompleted": 0
+          }
+        ],
+        "tickLatency": {
+          "samples": 1,
+          "medianMs": 14.04518300000018,
+          "p95Ms": 14.04518300000018,
+          "minMs": 14.04518300000018,
+          "maxMs": 14.04518300000018
+        },
+        "systems": {
+          "scenario": {
+            "samples": 1,
+            "medianMs": 0.014752000000953558,
+            "p95Ms": 0.014752000000953558,
+            "minMs": 0.014752000000953558,
+            "maxMs": 0.014752000000953558
+          },
+          "guest-spawn": {
+            "samples": 1,
+            "medianMs": 0.0021230000002105953,
+            "p95Ms": 0.0021230000002105953,
+            "minMs": 0.0021230000002105953,
+            "maxMs": 0.0021230000002105953
+          },
+          "guest-needs": {
+            "samples": 1,
+            "medianMs": 0.01710600000114937,
+            "p95Ms": 0.01710600000114937,
+            "minMs": 0.01710600000114937,
+            "maxMs": 0.01710600000114937
+          },
+          "guest-service": {
+            "samples": 1,
+            "medianMs": 0.005098000001453329,
+            "p95Ms": 0.005098000001453329,
+            "minMs": 0.005098000001453329,
+            "maxMs": 0.005098000001453329
+          },
+          "queues": {
+            "samples": 1,
+            "medianMs": 0.010947000000669505,
+            "p95Ms": 0.010947000000669505,
+            "minMs": 0.010947000000669505,
+            "maxMs": 0.010947000000669505
+          },
+          "guest-intent": {
+            "samples": 1,
+            "medianMs": 9.627886000000217,
+            "p95Ms": 9.627886000000217,
+            "minMs": 9.627886000000217,
+            "maxMs": 9.627886000000217
+          },
+          "guest-path": {
+            "samples": 1,
+            "medianMs": 3.6098920000004,
+            "p95Ms": 3.6098920000004,
+            "minMs": 3.6098920000004,
+            "maxMs": 3.6098920000004
+          },
+          "guest-move": {
+            "samples": 1,
+            "medianMs": 0.009163999999145744,
+            "p95Ms": 0.009163999999145744,
+            "minMs": 0.009163999999145744,
+            "maxMs": 0.009163999999145744
+          },
+          "task-generate": {
+            "samples": 1,
+            "medianMs": 0.01115600000048289,
+            "p95Ms": 0.01115600000048289,
+            "minMs": 0.01115600000048289,
+            "maxMs": 0.01115600000048289
+          },
+          "task-assign": {
+            "samples": 1,
+            "medianMs": 0.6290969999990921,
+            "p95Ms": 0.6290969999990921,
+            "minMs": 0.6290969999990921,
+            "maxMs": 0.6290969999990921
+          },
+          "staff-work": {
+            "samples": 1,
+            "medianMs": 0.007611999999426189,
+            "p95Ms": 0.007611999999426189,
+            "minMs": 0.007611999999426189,
+            "maxMs": 0.007611999999426189
+          },
+          "construction": {
+            "samples": 1,
+            "medianMs": 0.0039859999997133855,
+            "p95Ms": 0.0039859999997133855,
+            "minMs": 0.0039859999997133855,
+            "maxMs": 0.0039859999997133855
+          },
+          "buildings": {
+            "samples": 1,
+            "medianMs": 0.0017229999994015088,
+            "p95Ms": 0.0017229999994015088,
+            "minMs": 0.0017229999994015088,
+            "maxMs": 0.0017229999994015088
+          },
+          "cleanliness-wear": {
+            "samples": 1,
+            "medianMs": 0.014210999999704654,
+            "p95Ms": 0.014210999999704654,
+            "minMs": 0.014210999999704654,
+            "maxMs": 0.014210999999704654
+          },
+          "finance": {
+            "samples": 1,
+            "medianMs": 0.004917000000205007,
+            "p95Ms": 0.004917000000205007,
+            "minMs": 0.004917000000205007,
+            "maxMs": 0.004917000000205007
+          },
+          "incidents": {
+            "samples": 1,
+            "medianMs": 0.009964999999283464,
+            "p95Ms": 0.009964999999283464,
+            "minMs": 0.009964999999283464,
+            "maxMs": 0.009964999999283464
+          },
+          "objectives": {
+            "samples": 1,
+            "medianMs": 0.0016519999990123324,
+            "p95Ms": 0.0016519999990123324,
+            "minMs": 0.0016519999990123324,
+            "maxMs": 0.0016519999990123324
+          },
+          "failure": {
+            "samples": 1,
+            "medianMs": 0.002983999998832587,
+            "p95Ms": 0.002983999998832587,
+            "minMs": 0.002983999998832587,
+            "maxMs": 0.002983999998832587
+          },
+          "alerts": {
+            "samples": 1,
+            "medianMs": 0.020029999999678694,
+            "p95Ms": 0.020029999999678694,
+            "minMs": 0.020029999999678694,
+            "maxMs": 0.020029999999678694
+          },
+          "tick-finalize": {
+            "samples": 1,
+            "medianMs": 0.01530300000013085,
+            "p95Ms": 0.01530300000013085,
+            "minMs": 0.01530300000013085,
+            "maxMs": 0.01530300000013085
+          }
+        }
+      }
+    },
+    {
+      "workload": {
+        "mapSize": 16,
+        "seekingGuests": 8,
+        "serviceBuildings": 4,
+        "productsPerBuilding": 1,
+        "staff": 2,
+        "batchTicks": 1,
+        "id": "buildings-4"
+      },
+      "seed": "world-graph-bench-v1",
+      "fixtureDigest": "410f0d616b97dbab2ccf5219fa9999bf6b5ad2c8d77448dc0eb31e06893bc609",
+      "validationWarnings": [
+        {
+          "code": "inert_scenario",
+          "messageKey": "world-graph.reason.inert_scenario",
+          "path": "content.scenarios[0]"
+        }
+      ],
+      "latency": {
+        "samples": 21,
+        "medianMs": 10.901561999999103,
+        "p95Ms": 13.067090000000462,
+        "minMs": 9.579643000000942,
+        "maxMs": 13.383186000000933
+      },
+      "amortizedMsPerTick": {
+        "samples": 21,
+        "medianMs": 10.901561999999103,
+        "p95Ms": 13.067090000000462,
+        "minMs": 9.579643000000942,
+        "maxMs": 13.383186000000933
+      },
+      "measuredBatches": 21,
+      "processedTicks": 21,
+      "warmupBatches": 3,
+      "warmupTicks": 3,
+      "verification": {
+        "identicalOutputBatches": 25,
+        "outputDigest": "20dcb260f238f60a9fd47941ed87278c3f5fac14c058bae0caedf5df2a2c5275",
+        "finalStateDigest": "355b18730d3c57d8104baaec1aa218d881511b3f155e7a56dbc66e9567b2b302",
+        "instrumentationParity": true,
+        "splitBatchParity": true,
+        "fixtureUnchanged": true,
+        "extraTicks": 3
+      },
+      "rawSamples": [
+        {
+          "elapsedMs": 12.071892999998454,
+          "processedTicks": 1,
+          "outputDigest": "20dcb260f238f60a9fd47941ed87278c3f5fac14c058bae0caedf5df2a2c5275",
+          "pipelineEventsDigest": "0688c159e169d0000dcadd13ffe90e3121d5437d0ac2c42d5a84a7745328c08c",
+          "stateDigest": "355b18730d3c57d8104baaec1aa218d881511b3f155e7a56dbc66e9567b2b302",
+          "changesDigest": "c79bfaf54da16f9e0c8451e75373f2bfb1a034e6bc41e08c84c72a9c964cfb08",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 11.529897999998866,
+          "processedTicks": 1,
+          "outputDigest": "20dcb260f238f60a9fd47941ed87278c3f5fac14c058bae0caedf5df2a2c5275",
+          "pipelineEventsDigest": "0688c159e169d0000dcadd13ffe90e3121d5437d0ac2c42d5a84a7745328c08c",
+          "stateDigest": "355b18730d3c57d8104baaec1aa218d881511b3f155e7a56dbc66e9567b2b302",
+          "changesDigest": "c79bfaf54da16f9e0c8451e75373f2bfb1a034e6bc41e08c84c72a9c964cfb08",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 10.99956900000143,
+          "processedTicks": 1,
+          "outputDigest": "20dcb260f238f60a9fd47941ed87278c3f5fac14c058bae0caedf5df2a2c5275",
+          "pipelineEventsDigest": "0688c159e169d0000dcadd13ffe90e3121d5437d0ac2c42d5a84a7745328c08c",
+          "stateDigest": "355b18730d3c57d8104baaec1aa218d881511b3f155e7a56dbc66e9567b2b302",
+          "changesDigest": "c79bfaf54da16f9e0c8451e75373f2bfb1a034e6bc41e08c84c72a9c964cfb08",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 9.579643000000942,
+          "processedTicks": 1,
+          "outputDigest": "20dcb260f238f60a9fd47941ed87278c3f5fac14c058bae0caedf5df2a2c5275",
+          "pipelineEventsDigest": "0688c159e169d0000dcadd13ffe90e3121d5437d0ac2c42d5a84a7745328c08c",
+          "stateDigest": "355b18730d3c57d8104baaec1aa218d881511b3f155e7a56dbc66e9567b2b302",
+          "changesDigest": "c79bfaf54da16f9e0c8451e75373f2bfb1a034e6bc41e08c84c72a9c964cfb08",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 11.81148100000064,
+          "processedTicks": 1,
+          "outputDigest": "20dcb260f238f60a9fd47941ed87278c3f5fac14c058bae0caedf5df2a2c5275",
+          "pipelineEventsDigest": "0688c159e169d0000dcadd13ffe90e3121d5437d0ac2c42d5a84a7745328c08c",
+          "stateDigest": "355b18730d3c57d8104baaec1aa218d881511b3f155e7a56dbc66e9567b2b302",
+          "changesDigest": "c79bfaf54da16f9e0c8451e75373f2bfb1a034e6bc41e08c84c72a9c964cfb08",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 10.030150999999023,
+          "processedTicks": 1,
+          "outputDigest": "20dcb260f238f60a9fd47941ed87278c3f5fac14c058bae0caedf5df2a2c5275",
+          "pipelineEventsDigest": "0688c159e169d0000dcadd13ffe90e3121d5437d0ac2c42d5a84a7745328c08c",
+          "stateDigest": "355b18730d3c57d8104baaec1aa218d881511b3f155e7a56dbc66e9567b2b302",
+          "changesDigest": "c79bfaf54da16f9e0c8451e75373f2bfb1a034e6bc41e08c84c72a9c964cfb08",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 13.067090000000462,
+          "processedTicks": 1,
+          "outputDigest": "20dcb260f238f60a9fd47941ed87278c3f5fac14c058bae0caedf5df2a2c5275",
+          "pipelineEventsDigest": "0688c159e169d0000dcadd13ffe90e3121d5437d0ac2c42d5a84a7745328c08c",
+          "stateDigest": "355b18730d3c57d8104baaec1aa218d881511b3f155e7a56dbc66e9567b2b302",
+          "changesDigest": "c79bfaf54da16f9e0c8451e75373f2bfb1a034e6bc41e08c84c72a9c964cfb08",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 10.291253999999753,
+          "processedTicks": 1,
+          "outputDigest": "20dcb260f238f60a9fd47941ed87278c3f5fac14c058bae0caedf5df2a2c5275",
+          "pipelineEventsDigest": "0688c159e169d0000dcadd13ffe90e3121d5437d0ac2c42d5a84a7745328c08c",
+          "stateDigest": "355b18730d3c57d8104baaec1aa218d881511b3f155e7a56dbc66e9567b2b302",
+          "changesDigest": "c79bfaf54da16f9e0c8451e75373f2bfb1a034e6bc41e08c84c72a9c964cfb08",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 11.237447999999858,
+          "processedTicks": 1,
+          "outputDigest": "20dcb260f238f60a9fd47941ed87278c3f5fac14c058bae0caedf5df2a2c5275",
+          "pipelineEventsDigest": "0688c159e169d0000dcadd13ffe90e3121d5437d0ac2c42d5a84a7745328c08c",
+          "stateDigest": "355b18730d3c57d8104baaec1aa218d881511b3f155e7a56dbc66e9567b2b302",
+          "changesDigest": "c79bfaf54da16f9e0c8451e75373f2bfb1a034e6bc41e08c84c72a9c964cfb08",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 13.383186000000933,
+          "processedTicks": 1,
+          "outputDigest": "20dcb260f238f60a9fd47941ed87278c3f5fac14c058bae0caedf5df2a2c5275",
+          "pipelineEventsDigest": "0688c159e169d0000dcadd13ffe90e3121d5437d0ac2c42d5a84a7745328c08c",
+          "stateDigest": "355b18730d3c57d8104baaec1aa218d881511b3f155e7a56dbc66e9567b2b302",
+          "changesDigest": "c79bfaf54da16f9e0c8451e75373f2bfb1a034e6bc41e08c84c72a9c964cfb08",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 10.901561999999103,
+          "processedTicks": 1,
+          "outputDigest": "20dcb260f238f60a9fd47941ed87278c3f5fac14c058bae0caedf5df2a2c5275",
+          "pipelineEventsDigest": "0688c159e169d0000dcadd13ffe90e3121d5437d0ac2c42d5a84a7745328c08c",
+          "stateDigest": "355b18730d3c57d8104baaec1aa218d881511b3f155e7a56dbc66e9567b2b302",
+          "changesDigest": "c79bfaf54da16f9e0c8451e75373f2bfb1a034e6bc41e08c84c72a9c964cfb08",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 10.322371000000203,
+          "processedTicks": 1,
+          "outputDigest": "20dcb260f238f60a9fd47941ed87278c3f5fac14c058bae0caedf5df2a2c5275",
+          "pipelineEventsDigest": "0688c159e169d0000dcadd13ffe90e3121d5437d0ac2c42d5a84a7745328c08c",
+          "stateDigest": "355b18730d3c57d8104baaec1aa218d881511b3f155e7a56dbc66e9567b2b302",
+          "changesDigest": "c79bfaf54da16f9e0c8451e75373f2bfb1a034e6bc41e08c84c72a9c964cfb08",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 10.852438000001712,
+          "processedTicks": 1,
+          "outputDigest": "20dcb260f238f60a9fd47941ed87278c3f5fac14c058bae0caedf5df2a2c5275",
+          "pipelineEventsDigest": "0688c159e169d0000dcadd13ffe90e3121d5437d0ac2c42d5a84a7745328c08c",
+          "stateDigest": "355b18730d3c57d8104baaec1aa218d881511b3f155e7a56dbc66e9567b2b302",
+          "changesDigest": "c79bfaf54da16f9e0c8451e75373f2bfb1a034e6bc41e08c84c72a9c964cfb08",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 10.28370299999915,
+          "processedTicks": 1,
+          "outputDigest": "20dcb260f238f60a9fd47941ed87278c3f5fac14c058bae0caedf5df2a2c5275",
+          "pipelineEventsDigest": "0688c159e169d0000dcadd13ffe90e3121d5437d0ac2c42d5a84a7745328c08c",
+          "stateDigest": "355b18730d3c57d8104baaec1aa218d881511b3f155e7a56dbc66e9567b2b302",
+          "changesDigest": "c79bfaf54da16f9e0c8451e75373f2bfb1a034e6bc41e08c84c72a9c964cfb08",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 11.050766000000294,
+          "processedTicks": 1,
+          "outputDigest": "20dcb260f238f60a9fd47941ed87278c3f5fac14c058bae0caedf5df2a2c5275",
+          "pipelineEventsDigest": "0688c159e169d0000dcadd13ffe90e3121d5437d0ac2c42d5a84a7745328c08c",
+          "stateDigest": "355b18730d3c57d8104baaec1aa218d881511b3f155e7a56dbc66e9567b2b302",
+          "changesDigest": "c79bfaf54da16f9e0c8451e75373f2bfb1a034e6bc41e08c84c72a9c964cfb08",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 9.878042000000278,
+          "processedTicks": 1,
+          "outputDigest": "20dcb260f238f60a9fd47941ed87278c3f5fac14c058bae0caedf5df2a2c5275",
+          "pipelineEventsDigest": "0688c159e169d0000dcadd13ffe90e3121d5437d0ac2c42d5a84a7745328c08c",
+          "stateDigest": "355b18730d3c57d8104baaec1aa218d881511b3f155e7a56dbc66e9567b2b302",
+          "changesDigest": "c79bfaf54da16f9e0c8451e75373f2bfb1a034e6bc41e08c84c72a9c964cfb08",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 11.79337299999861,
+          "processedTicks": 1,
+          "outputDigest": "20dcb260f238f60a9fd47941ed87278c3f5fac14c058bae0caedf5df2a2c5275",
+          "pipelineEventsDigest": "0688c159e169d0000dcadd13ffe90e3121d5437d0ac2c42d5a84a7745328c08c",
+          "stateDigest": "355b18730d3c57d8104baaec1aa218d881511b3f155e7a56dbc66e9567b2b302",
+          "changesDigest": "c79bfaf54da16f9e0c8451e75373f2bfb1a034e6bc41e08c84c72a9c964cfb08",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 11.060591000001295,
+          "processedTicks": 1,
+          "outputDigest": "20dcb260f238f60a9fd47941ed87278c3f5fac14c058bae0caedf5df2a2c5275",
+          "pipelineEventsDigest": "0688c159e169d0000dcadd13ffe90e3121d5437d0ac2c42d5a84a7745328c08c",
+          "stateDigest": "355b18730d3c57d8104baaec1aa218d881511b3f155e7a56dbc66e9567b2b302",
+          "changesDigest": "c79bfaf54da16f9e0c8451e75373f2bfb1a034e6bc41e08c84c72a9c964cfb08",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 10.591465999999855,
+          "processedTicks": 1,
+          "outputDigest": "20dcb260f238f60a9fd47941ed87278c3f5fac14c058bae0caedf5df2a2c5275",
+          "pipelineEventsDigest": "0688c159e169d0000dcadd13ffe90e3121d5437d0ac2c42d5a84a7745328c08c",
+          "stateDigest": "355b18730d3c57d8104baaec1aa218d881511b3f155e7a56dbc66e9567b2b302",
+          "changesDigest": "c79bfaf54da16f9e0c8451e75373f2bfb1a034e6bc41e08c84c72a9c964cfb08",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 10.697344999998677,
+          "processedTicks": 1,
+          "outputDigest": "20dcb260f238f60a9fd47941ed87278c3f5fac14c058bae0caedf5df2a2c5275",
+          "pipelineEventsDigest": "0688c159e169d0000dcadd13ffe90e3121d5437d0ac2c42d5a84a7745328c08c",
+          "stateDigest": "355b18730d3c57d8104baaec1aa218d881511b3f155e7a56dbc66e9567b2b302",
+          "changesDigest": "c79bfaf54da16f9e0c8451e75373f2bfb1a034e6bc41e08c84c72a9c964cfb08",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 9.792061999998623,
+          "processedTicks": 1,
+          "outputDigest": "20dcb260f238f60a9fd47941ed87278c3f5fac14c058bae0caedf5df2a2c5275",
+          "pipelineEventsDigest": "0688c159e169d0000dcadd13ffe90e3121d5437d0ac2c42d5a84a7745328c08c",
+          "stateDigest": "355b18730d3c57d8104baaec1aa218d881511b3f155e7a56dbc66e9567b2b302",
+          "changesDigest": "c79bfaf54da16f9e0c8451e75373f2bfb1a034e6bc41e08c84c72a9c964cfb08",
+          "eventCount": 34
+        }
+      ],
+      "diagnostic": {
+        "ticks": [
+          {
+            "tick": 1,
+            "seekingBefore": 8,
+            "elapsedMs": 10.108968999998979,
+            "seekingAfter": 8,
+            "queuedAfter": 0,
+            "assignedStaffAfter": 2,
+            "staffWithPathsAfter": 2,
+            "servicesCompleted": 0
+          }
+        ],
+        "tickLatency": {
+          "samples": 1,
+          "medianMs": 10.108968999998979,
+          "p95Ms": 10.108968999998979,
+          "minMs": 10.108968999998979,
+          "maxMs": 10.108968999998979
+        },
+        "systems": {
+          "scenario": {
+            "samples": 1,
+            "medianMs": 0.013260000001537264,
+            "p95Ms": 0.013260000001537264,
+            "minMs": 0.013260000001537264,
+            "maxMs": 0.013260000001537264
+          },
+          "guest-spawn": {
+            "samples": 1,
+            "medianMs": 0.0024730000004637986,
+            "p95Ms": 0.0024730000004637986,
+            "minMs": 0.0024730000004637986,
+            "maxMs": 0.0024730000004637986
+          },
+          "guest-needs": {
+            "samples": 1,
+            "medianMs": 0.011716999999407562,
+            "p95Ms": 0.011716999999407562,
+            "minMs": 0.011716999999407562,
+            "maxMs": 0.011716999999407562
+          },
+          "guest-service": {
+            "samples": 1,
+            "medianMs": 0.005076999999801046,
+            "p95Ms": 0.005076999999801046,
+            "minMs": 0.005076999999801046,
+            "maxMs": 0.005076999999801046
+          },
+          "queues": {
+            "samples": 1,
+            "medianMs": 0.009484000000156811,
+            "p95Ms": 0.009484000000156811,
+            "minMs": 0.009484000000156811,
+            "maxMs": 0.009484000000156811
+          },
+          "guest-intent": {
+            "samples": 1,
+            "medianMs": 8.205755999999383,
+            "p95Ms": 8.205755999999383,
+            "minMs": 8.205755999999383,
+            "maxMs": 8.205755999999383
+          },
+          "guest-path": {
+            "samples": 1,
+            "medianMs": 1.457362999999532,
+            "p95Ms": 1.457362999999532,
+            "minMs": 1.457362999999532,
+            "maxMs": 1.457362999999532
+          },
+          "guest-move": {
+            "samples": 1,
+            "medianMs": 0.006970000000364962,
+            "p95Ms": 0.006970000000364962,
+            "minMs": 0.006970000000364962,
+            "maxMs": 0.006970000000364962
+          },
+          "task-generate": {
+            "samples": 1,
+            "medianMs": 0.010125000000698492,
+            "p95Ms": 0.010125000000698492,
+            "minMs": 0.010125000000698492,
+            "maxMs": 0.010125000000698492
+          },
+          "task-assign": {
+            "samples": 1,
+            "medianMs": 0.2972970000009809,
+            "p95Ms": 0.2972970000009809,
+            "minMs": 0.2972970000009809,
+            "maxMs": 0.2972970000009809
+          },
+          "staff-work": {
+            "samples": 1,
+            "medianMs": 0.003975999999966007,
+            "p95Ms": 0.003975999999966007,
+            "minMs": 0.003975999999966007,
+            "maxMs": 0.003975999999966007
+          },
+          "construction": {
+            "samples": 1,
+            "medianMs": 0.003415000001041335,
+            "p95Ms": 0.003415000001041335,
+            "minMs": 0.003415000001041335,
+            "maxMs": 0.003415000001041335
+          },
+          "buildings": {
+            "samples": 1,
+            "medianMs": 0.002103000000715838,
+            "p95Ms": 0.002103000000715838,
+            "minMs": 0.002103000000715838,
+            "maxMs": 0.002103000000715838
+          },
+          "cleanliness-wear": {
+            "samples": 1,
+            "medianMs": 0.010505999998713378,
+            "p95Ms": 0.010505999998713378,
+            "minMs": 0.010505999998713378,
+            "maxMs": 0.010505999998713378
+          },
+          "finance": {
+            "samples": 1,
+            "medianMs": 0.004355999999461346,
+            "p95Ms": 0.004355999999461346,
+            "minMs": 0.004355999999461346,
+            "maxMs": 0.004355999999461346
+          },
+          "incidents": {
+            "samples": 1,
+            "medianMs": 0.00979399999960151,
+            "p95Ms": 0.00979399999960151,
+            "minMs": 0.00979399999960151,
+            "maxMs": 0.00979399999960151
+          },
+          "objectives": {
+            "samples": 1,
+            "medianMs": 0.0015519999997195555,
+            "p95Ms": 0.0015519999997195555,
+            "minMs": 0.0015519999997195555,
+            "maxMs": 0.0015519999997195555
+          },
+          "failure": {
+            "samples": 1,
+            "medianMs": 0.0028040000015607802,
+            "p95Ms": 0.0028040000015607802,
+            "minMs": 0.0028040000015607802,
+            "maxMs": 0.0028040000015607802
+          },
+          "alerts": {
+            "samples": 1,
+            "medianMs": 0.01845800000046438,
+            "p95Ms": 0.01845800000046438,
+            "minMs": 0.01845800000046438,
+            "maxMs": 0.01845800000046438
+          },
+          "tick-finalize": {
+            "samples": 1,
+            "medianMs": 0.012889999999970314,
+            "p95Ms": 0.012889999999970314,
+            "minMs": 0.012889999999970314,
+            "maxMs": 0.012889999999970314
+          }
+        }
+      }
+    },
+    {
+      "workload": {
+        "mapSize": 16,
+        "seekingGuests": 8,
+        "serviceBuildings": 2,
+        "productsPerBuilding": 3,
+        "staff": 2,
+        "batchTicks": 1,
+        "id": "products-3"
+      },
+      "seed": "world-graph-bench-v1",
+      "fixtureDigest": "ea3f232978586b755eb93a2d80e10809a76093f0adc891f9e7e9ca7966a16e4c",
+      "validationWarnings": [
+        {
+          "code": "inert_scenario",
+          "messageKey": "world-graph.reason.inert_scenario",
+          "path": "content.scenarios[0]"
+        }
+      ],
+      "latency": {
+        "samples": 21,
+        "medianMs": 14.469030000000203,
+        "p95Ms": 15.412308999999368,
+        "minMs": 13.475915999999415,
+        "maxMs": 15.52935400000024
+      },
+      "amortizedMsPerTick": {
+        "samples": 21,
+        "medianMs": 14.469030000000203,
+        "p95Ms": 15.412308999999368,
+        "minMs": 13.475915999999415,
+        "maxMs": 15.52935400000024
+      },
+      "measuredBatches": 21,
+      "processedTicks": 21,
+      "warmupBatches": 3,
+      "warmupTicks": 3,
+      "verification": {
+        "identicalOutputBatches": 25,
+        "outputDigest": "edcec6e6e9c88931ebe0cc30b4684f3c7b14d0db9fc956bf5e2887cd44b56b23",
+        "finalStateDigest": "5973a25915381b971332bf0d5c5b270df389de1e8ae1171efb5356d491917f81",
+        "instrumentationParity": true,
+        "splitBatchParity": true,
+        "fixtureUnchanged": true,
+        "extraTicks": 3
+      },
+      "rawSamples": [
+        {
+          "elapsedMs": 15.52935400000024,
+          "processedTicks": 1,
+          "outputDigest": "edcec6e6e9c88931ebe0cc30b4684f3c7b14d0db9fc956bf5e2887cd44b56b23",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "5973a25915381b971332bf0d5c5b270df389de1e8ae1171efb5356d491917f81",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 14.863863999999012,
+          "processedTicks": 1,
+          "outputDigest": "edcec6e6e9c88931ebe0cc30b4684f3c7b14d0db9fc956bf5e2887cd44b56b23",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "5973a25915381b971332bf0d5c5b270df389de1e8ae1171efb5356d491917f81",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 14.88483400000041,
+          "processedTicks": 1,
+          "outputDigest": "edcec6e6e9c88931ebe0cc30b4684f3c7b14d0db9fc956bf5e2887cd44b56b23",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "5973a25915381b971332bf0d5c5b270df389de1e8ae1171efb5356d491917f81",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 14.574126999999862,
+          "processedTicks": 1,
+          "outputDigest": "edcec6e6e9c88931ebe0cc30b4684f3c7b14d0db9fc956bf5e2887cd44b56b23",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "5973a25915381b971332bf0d5c5b270df389de1e8ae1171efb5356d491917f81",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 14.11519700000099,
+          "processedTicks": 1,
+          "outputDigest": "edcec6e6e9c88931ebe0cc30b4684f3c7b14d0db9fc956bf5e2887cd44b56b23",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "5973a25915381b971332bf0d5c5b270df389de1e8ae1171efb5356d491917f81",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 14.579335999998875,
+          "processedTicks": 1,
+          "outputDigest": "edcec6e6e9c88931ebe0cc30b4684f3c7b14d0db9fc956bf5e2887cd44b56b23",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "5973a25915381b971332bf0d5c5b270df389de1e8ae1171efb5356d491917f81",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 14.537984000000506,
+          "processedTicks": 1,
+          "outputDigest": "edcec6e6e9c88931ebe0cc30b4684f3c7b14d0db9fc956bf5e2887cd44b56b23",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "5973a25915381b971332bf0d5c5b270df389de1e8ae1171efb5356d491917f81",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 14.093435000000682,
+          "processedTicks": 1,
+          "outputDigest": "edcec6e6e9c88931ebe0cc30b4684f3c7b14d0db9fc956bf5e2887cd44b56b23",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "5973a25915381b971332bf0d5c5b270df389de1e8ae1171efb5356d491917f81",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 14.173165000000154,
+          "processedTicks": 1,
+          "outputDigest": "edcec6e6e9c88931ebe0cc30b4684f3c7b14d0db9fc956bf5e2887cd44b56b23",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "5973a25915381b971332bf0d5c5b270df389de1e8ae1171efb5356d491917f81",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 15.412308999999368,
+          "processedTicks": 1,
+          "outputDigest": "edcec6e6e9c88931ebe0cc30b4684f3c7b14d0db9fc956bf5e2887cd44b56b23",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "5973a25915381b971332bf0d5c5b270df389de1e8ae1171efb5356d491917f81",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 13.962155999999595,
+          "processedTicks": 1,
+          "outputDigest": "edcec6e6e9c88931ebe0cc30b4684f3c7b14d0db9fc956bf5e2887cd44b56b23",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "5973a25915381b971332bf0d5c5b270df389de1e8ae1171efb5356d491917f81",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 14.129549000001134,
+          "processedTicks": 1,
+          "outputDigest": "edcec6e6e9c88931ebe0cc30b4684f3c7b14d0db9fc956bf5e2887cd44b56b23",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "5973a25915381b971332bf0d5c5b270df389de1e8ae1171efb5356d491917f81",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 14.884253999998691,
+          "processedTicks": 1,
+          "outputDigest": "edcec6e6e9c88931ebe0cc30b4684f3c7b14d0db9fc956bf5e2887cd44b56b23",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "5973a25915381b971332bf0d5c5b270df389de1e8ae1171efb5356d491917f81",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 13.62395800000013,
+          "processedTicks": 1,
+          "outputDigest": "edcec6e6e9c88931ebe0cc30b4684f3c7b14d0db9fc956bf5e2887cd44b56b23",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "5973a25915381b971332bf0d5c5b270df389de1e8ae1171efb5356d491917f81",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 14.203179000000091,
+          "processedTicks": 1,
+          "outputDigest": "edcec6e6e9c88931ebe0cc30b4684f3c7b14d0db9fc956bf5e2887cd44b56b23",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "5973a25915381b971332bf0d5c5b270df389de1e8ae1171efb5356d491917f81",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 14.661579999999958,
+          "processedTicks": 1,
+          "outputDigest": "edcec6e6e9c88931ebe0cc30b4684f3c7b14d0db9fc956bf5e2887cd44b56b23",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "5973a25915381b971332bf0d5c5b270df389de1e8ae1171efb5356d491917f81",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 14.469030000000203,
+          "processedTicks": 1,
+          "outputDigest": "edcec6e6e9c88931ebe0cc30b4684f3c7b14d0db9fc956bf5e2887cd44b56b23",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "5973a25915381b971332bf0d5c5b270df389de1e8ae1171efb5356d491917f81",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 13.475915999999415,
+          "processedTicks": 1,
+          "outputDigest": "edcec6e6e9c88931ebe0cc30b4684f3c7b14d0db9fc956bf5e2887cd44b56b23",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "5973a25915381b971332bf0d5c5b270df389de1e8ae1171efb5356d491917f81",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 14.982371999998577,
+          "processedTicks": 1,
+          "outputDigest": "edcec6e6e9c88931ebe0cc30b4684f3c7b14d0db9fc956bf5e2887cd44b56b23",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "5973a25915381b971332bf0d5c5b270df389de1e8ae1171efb5356d491917f81",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 14.048446999999214,
+          "processedTicks": 1,
+          "outputDigest": "edcec6e6e9c88931ebe0cc30b4684f3c7b14d0db9fc956bf5e2887cd44b56b23",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "5973a25915381b971332bf0d5c5b270df389de1e8ae1171efb5356d491917f81",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        },
+        {
+          "elapsedMs": 13.800913999999466,
+          "processedTicks": 1,
+          "outputDigest": "edcec6e6e9c88931ebe0cc30b4684f3c7b14d0db9fc956bf5e2887cd44b56b23",
+          "pipelineEventsDigest": "d8dd4ba2275307aef1e8bfe8cc3e65d0892d8557354edf490b967943e6105a83",
+          "stateDigest": "5973a25915381b971332bf0d5c5b270df389de1e8ae1171efb5356d491917f81",
+          "changesDigest": "947e5e08041edd14d63b4da8edf2ac09ef1bcd322fa20e604df6b25a44a3f779",
+          "eventCount": 34
+        }
+      ],
+      "diagnostic": {
+        "ticks": [
+          {
+            "tick": 1,
+            "seekingBefore": 8,
+            "elapsedMs": 14.263160000000425,
+            "seekingAfter": 8,
+            "queuedAfter": 0,
+            "assignedStaffAfter": 2,
+            "staffWithPathsAfter": 2,
+            "servicesCompleted": 0
+          }
+        ],
+        "tickLatency": {
+          "samples": 1,
+          "medianMs": 14.263160000000425,
+          "p95Ms": 14.263160000000425,
+          "minMs": 14.263160000000425,
+          "maxMs": 14.263160000000425
+        },
+        "systems": {
+          "scenario": {
+            "samples": 1,
+            "medianMs": 0.014943000000130269,
+            "p95Ms": 0.014943000000130269,
+            "minMs": 0.014943000000130269,
+            "maxMs": 0.014943000000130269
+          },
+          "guest-spawn": {
+            "samples": 1,
+            "medianMs": 0.0026340000003983732,
+            "p95Ms": 0.0026340000003983732,
+            "minMs": 0.0026340000003983732,
+            "maxMs": 0.0026340000003983732
+          },
+          "guest-needs": {
+            "samples": 1,
+            "medianMs": 0.013059999999313732,
+            "p95Ms": 0.013059999999313732,
+            "minMs": 0.013059999999313732,
+            "maxMs": 0.013059999999313732
+          },
+          "guest-service": {
+            "samples": 1,
+            "medianMs": 0.0045470000004570466,
+            "p95Ms": 0.0045470000004570466,
+            "minMs": 0.0045470000004570466,
+            "maxMs": 0.0045470000004570466
+          },
+          "queues": {
+            "samples": 1,
+            "medianMs": 0.013320000000021537,
+            "p95Ms": 0.013320000000021537,
+            "minMs": 0.013320000000021537,
+            "maxMs": 0.013320000000021537
+          },
+          "guest-intent": {
+            "samples": 1,
+            "medianMs": 12.120565999999599,
+            "p95Ms": 12.120565999999599,
+            "minMs": 12.120565999999599,
+            "maxMs": 12.120565999999599
+          },
+          "guest-path": {
+            "samples": 1,
+            "medianMs": 1.6781449999998586,
+            "p95Ms": 1.6781449999998586,
+            "minMs": 1.6781449999998586,
+            "maxMs": 1.6781449999998586
+          },
+          "guest-move": {
+            "samples": 1,
+            "medianMs": 0.007100999999238411,
+            "p95Ms": 0.007100999999238411,
+            "minMs": 0.007100999999238411,
+            "maxMs": 0.007100999999238411
+          },
+          "task-generate": {
+            "samples": 1,
+            "medianMs": 0.015061999998579267,
+            "p95Ms": 0.015061999998579267,
+            "minMs": 0.015061999998579267,
+            "maxMs": 0.015061999998579267
+          },
+          "task-assign": {
+            "samples": 1,
+            "medianMs": 0.2792300000000978,
+            "p95Ms": 0.2792300000000978,
+            "minMs": 0.2792300000000978,
+            "maxMs": 0.2792300000000978
+          },
+          "staff-work": {
+            "samples": 1,
+            "medianMs": 0.0032750000009400537,
+            "p95Ms": 0.0032750000009400537,
+            "minMs": 0.0032750000009400537,
+            "maxMs": 0.0032750000009400537
+          },
+          "construction": {
+            "samples": 1,
+            "medianMs": 0.005067999998573214,
+            "p95Ms": 0.005067999998573214,
+            "minMs": 0.005067999998573214,
+            "maxMs": 0.005067999998573214
+          },
+          "buildings": {
+            "samples": 1,
+            "medianMs": 0.002484000000549713,
+            "p95Ms": 0.002484000000549713,
+            "minMs": 0.002484000000549713,
+            "maxMs": 0.002484000000549713
+          },
+          "cleanliness-wear": {
+            "samples": 1,
+            "medianMs": 0.01097699999991164,
+            "p95Ms": 0.01097699999991164,
+            "minMs": 0.01097699999991164,
+            "maxMs": 0.01097699999991164
+          },
+          "finance": {
+            "samples": 1,
+            "medianMs": 0.004417000000103144,
+            "p95Ms": 0.004417000000103144,
+            "minMs": 0.004417000000103144,
+            "maxMs": 0.004417000000103144
+          },
+          "incidents": {
+            "samples": 1,
+            "medianMs": 0.01043500000014319,
+            "p95Ms": 0.01043500000014319,
+            "minMs": 0.01043500000014319,
+            "maxMs": 0.01043500000014319
+          },
+          "objectives": {
+            "samples": 1,
+            "medianMs": 0.00156299999980547,
+            "p95Ms": 0.00156299999980547,
+            "minMs": 0.00156299999980547,
+            "maxMs": 0.00156299999980547
+          },
+          "failure": {
+            "samples": 1,
+            "medianMs": 0.0031350000008387724,
+            "p95Ms": 0.0031350000008387724,
+            "minMs": 0.0031350000008387724,
+            "maxMs": 0.0031350000008387724
+          },
+          "alerts": {
+            "samples": 1,
+            "medianMs": 0.03544300000066869,
+            "p95Ms": 0.03544300000066869,
+            "minMs": 0.03544300000066869,
+            "maxMs": 0.03544300000066869
+          },
+          "tick-finalize": {
+            "samples": 1,
+            "medianMs": 0.014060999999855994,
+            "p95Ms": 0.014060999999855994,
+            "minMs": 0.014060999999855994,
+            "maxMs": 0.014060999999855994
+          }
+        }
+      }
+    },
+    {
+      "workload": {
+        "mapSize": 16,
+        "seekingGuests": 8,
+        "serviceBuildings": 2,
+        "productsPerBuilding": 1,
+        "staff": 2,
+        "batchTicks": 8,
+        "id": "batch-8"
+      },
+      "seed": "world-graph-bench-v1",
+      "fixtureDigest": "370e2cdf4596afe16a3b8d12f7c9f81a0d2ed1b2f55ede1abc2a9ddf93645c0d",
+      "validationWarnings": [
+        {
+          "code": "inert_scenario",
+          "messageKey": "world-graph.reason.inert_scenario",
+          "path": "content.scenarios[0]"
+        }
+      ],
+      "latency": {
+        "samples": 21,
+        "medianMs": 46.61696800000027,
+        "p95Ms": 50.18911200000002,
+        "minMs": 39.86856499999885,
+        "maxMs": 50.415343000000576
+      },
+      "amortizedMsPerTick": {
+        "samples": 21,
+        "medianMs": 5.827121000000034,
+        "p95Ms": 6.273639000000003,
+        "minMs": 4.983570624999857,
+        "maxMs": 6.301917875000072
+      },
+      "measuredBatches": 21,
+      "processedTicks": 168,
+      "warmupBatches": 3,
+      "warmupTicks": 24,
+      "verification": {
+        "identicalOutputBatches": 25,
+        "outputDigest": "02b7b24c7c3cf750b3acdb7e1bf537c3c3ed048fcbeef74e4e9be52e0e01580d",
+        "finalStateDigest": "6cda4816ff9d590b24356e6a95ad4b389ad307a43b2f967fe4cde10db3a86edc",
+        "instrumentationParity": true,
+        "splitBatchParity": true,
+        "fixtureUnchanged": true,
+        "extraTicks": 24
+      },
+      "rawSamples": [
+        {
+          "elapsedMs": 42.10681199999999,
+          "processedTicks": 8,
+          "outputDigest": "02b7b24c7c3cf750b3acdb7e1bf537c3c3ed048fcbeef74e4e9be52e0e01580d",
+          "pipelineEventsDigest": "1c4e7264737d0f387c4e919ea6b2807a3986fdb2a15e29872bf9a6d6336ecd10",
+          "stateDigest": "6cda4816ff9d590b24356e6a95ad4b389ad307a43b2f967fe4cde10db3a86edc",
+          "changesDigest": "6b9bf363a4f5ab185ea9248c0eedbaba696d67be7a42e5dce3a758aacbad3769",
+          "eventCount": 219
+        },
+        {
+          "elapsedMs": 41.83204900000055,
+          "processedTicks": 8,
+          "outputDigest": "02b7b24c7c3cf750b3acdb7e1bf537c3c3ed048fcbeef74e4e9be52e0e01580d",
+          "pipelineEventsDigest": "1c4e7264737d0f387c4e919ea6b2807a3986fdb2a15e29872bf9a6d6336ecd10",
+          "stateDigest": "6cda4816ff9d590b24356e6a95ad4b389ad307a43b2f967fe4cde10db3a86edc",
+          "changesDigest": "6b9bf363a4f5ab185ea9248c0eedbaba696d67be7a42e5dce3a758aacbad3769",
+          "eventCount": 219
+        },
+        {
+          "elapsedMs": 43.72182199999952,
+          "processedTicks": 8,
+          "outputDigest": "02b7b24c7c3cf750b3acdb7e1bf537c3c3ed048fcbeef74e4e9be52e0e01580d",
+          "pipelineEventsDigest": "1c4e7264737d0f387c4e919ea6b2807a3986fdb2a15e29872bf9a6d6336ecd10",
+          "stateDigest": "6cda4816ff9d590b24356e6a95ad4b389ad307a43b2f967fe4cde10db3a86edc",
+          "changesDigest": "6b9bf363a4f5ab185ea9248c0eedbaba696d67be7a42e5dce3a758aacbad3769",
+          "eventCount": 219
+        },
+        {
+          "elapsedMs": 40.09009799999876,
+          "processedTicks": 8,
+          "outputDigest": "02b7b24c7c3cf750b3acdb7e1bf537c3c3ed048fcbeef74e4e9be52e0e01580d",
+          "pipelineEventsDigest": "1c4e7264737d0f387c4e919ea6b2807a3986fdb2a15e29872bf9a6d6336ecd10",
+          "stateDigest": "6cda4816ff9d590b24356e6a95ad4b389ad307a43b2f967fe4cde10db3a86edc",
+          "changesDigest": "6b9bf363a4f5ab185ea9248c0eedbaba696d67be7a42e5dce3a758aacbad3769",
+          "eventCount": 219
+        },
+        {
+          "elapsedMs": 41.39618299999893,
+          "processedTicks": 8,
+          "outputDigest": "02b7b24c7c3cf750b3acdb7e1bf537c3c3ed048fcbeef74e4e9be52e0e01580d",
+          "pipelineEventsDigest": "1c4e7264737d0f387c4e919ea6b2807a3986fdb2a15e29872bf9a6d6336ecd10",
+          "stateDigest": "6cda4816ff9d590b24356e6a95ad4b389ad307a43b2f967fe4cde10db3a86edc",
+          "changesDigest": "6b9bf363a4f5ab185ea9248c0eedbaba696d67be7a42e5dce3a758aacbad3769",
+          "eventCount": 219
+        },
+        {
+          "elapsedMs": 39.86856499999885,
+          "processedTicks": 8,
+          "outputDigest": "02b7b24c7c3cf750b3acdb7e1bf537c3c3ed048fcbeef74e4e9be52e0e01580d",
+          "pipelineEventsDigest": "1c4e7264737d0f387c4e919ea6b2807a3986fdb2a15e29872bf9a6d6336ecd10",
+          "stateDigest": "6cda4816ff9d590b24356e6a95ad4b389ad307a43b2f967fe4cde10db3a86edc",
+          "changesDigest": "6b9bf363a4f5ab185ea9248c0eedbaba696d67be7a42e5dce3a758aacbad3769",
+          "eventCount": 219
+        },
+        {
+          "elapsedMs": 42.65435100000104,
+          "processedTicks": 8,
+          "outputDigest": "02b7b24c7c3cf750b3acdb7e1bf537c3c3ed048fcbeef74e4e9be52e0e01580d",
+          "pipelineEventsDigest": "1c4e7264737d0f387c4e919ea6b2807a3986fdb2a15e29872bf9a6d6336ecd10",
+          "stateDigest": "6cda4816ff9d590b24356e6a95ad4b389ad307a43b2f967fe4cde10db3a86edc",
+          "changesDigest": "6b9bf363a4f5ab185ea9248c0eedbaba696d67be7a42e5dce3a758aacbad3769",
+          "eventCount": 219
+        },
+        {
+          "elapsedMs": 48.14633900000081,
+          "processedTicks": 8,
+          "outputDigest": "02b7b24c7c3cf750b3acdb7e1bf537c3c3ed048fcbeef74e4e9be52e0e01580d",
+          "pipelineEventsDigest": "1c4e7264737d0f387c4e919ea6b2807a3986fdb2a15e29872bf9a6d6336ecd10",
+          "stateDigest": "6cda4816ff9d590b24356e6a95ad4b389ad307a43b2f967fe4cde10db3a86edc",
+          "changesDigest": "6b9bf363a4f5ab185ea9248c0eedbaba696d67be7a42e5dce3a758aacbad3769",
+          "eventCount": 219
+        },
+        {
+          "elapsedMs": 46.95865199999935,
+          "processedTicks": 8,
+          "outputDigest": "02b7b24c7c3cf750b3acdb7e1bf537c3c3ed048fcbeef74e4e9be52e0e01580d",
+          "pipelineEventsDigest": "1c4e7264737d0f387c4e919ea6b2807a3986fdb2a15e29872bf9a6d6336ecd10",
+          "stateDigest": "6cda4816ff9d590b24356e6a95ad4b389ad307a43b2f967fe4cde10db3a86edc",
+          "changesDigest": "6b9bf363a4f5ab185ea9248c0eedbaba696d67be7a42e5dce3a758aacbad3769",
+          "eventCount": 219
+        },
+        {
+          "elapsedMs": 47.19057099999918,
+          "processedTicks": 8,
+          "outputDigest": "02b7b24c7c3cf750b3acdb7e1bf537c3c3ed048fcbeef74e4e9be52e0e01580d",
+          "pipelineEventsDigest": "1c4e7264737d0f387c4e919ea6b2807a3986fdb2a15e29872bf9a6d6336ecd10",
+          "stateDigest": "6cda4816ff9d590b24356e6a95ad4b389ad307a43b2f967fe4cde10db3a86edc",
+          "changesDigest": "6b9bf363a4f5ab185ea9248c0eedbaba696d67be7a42e5dce3a758aacbad3769",
+          "eventCount": 219
+        },
+        {
+          "elapsedMs": 47.97756499999923,
+          "processedTicks": 8,
+          "outputDigest": "02b7b24c7c3cf750b3acdb7e1bf537c3c3ed048fcbeef74e4e9be52e0e01580d",
+          "pipelineEventsDigest": "1c4e7264737d0f387c4e919ea6b2807a3986fdb2a15e29872bf9a6d6336ecd10",
+          "stateDigest": "6cda4816ff9d590b24356e6a95ad4b389ad307a43b2f967fe4cde10db3a86edc",
+          "changesDigest": "6b9bf363a4f5ab185ea9248c0eedbaba696d67be7a42e5dce3a758aacbad3769",
+          "eventCount": 219
+        },
+        {
+          "elapsedMs": 46.61696800000027,
+          "processedTicks": 8,
+          "outputDigest": "02b7b24c7c3cf750b3acdb7e1bf537c3c3ed048fcbeef74e4e9be52e0e01580d",
+          "pipelineEventsDigest": "1c4e7264737d0f387c4e919ea6b2807a3986fdb2a15e29872bf9a6d6336ecd10",
+          "stateDigest": "6cda4816ff9d590b24356e6a95ad4b389ad307a43b2f967fe4cde10db3a86edc",
+          "changesDigest": "6b9bf363a4f5ab185ea9248c0eedbaba696d67be7a42e5dce3a758aacbad3769",
+          "eventCount": 219
+        },
+        {
+          "elapsedMs": 50.415343000000576,
+          "processedTicks": 8,
+          "outputDigest": "02b7b24c7c3cf750b3acdb7e1bf537c3c3ed048fcbeef74e4e9be52e0e01580d",
+          "pipelineEventsDigest": "1c4e7264737d0f387c4e919ea6b2807a3986fdb2a15e29872bf9a6d6336ecd10",
+          "stateDigest": "6cda4816ff9d590b24356e6a95ad4b389ad307a43b2f967fe4cde10db3a86edc",
+          "changesDigest": "6b9bf363a4f5ab185ea9248c0eedbaba696d67be7a42e5dce3a758aacbad3769",
+          "eventCount": 219
+        },
+        {
+          "elapsedMs": 48.639054999999644,
+          "processedTicks": 8,
+          "outputDigest": "02b7b24c7c3cf750b3acdb7e1bf537c3c3ed048fcbeef74e4e9be52e0e01580d",
+          "pipelineEventsDigest": "1c4e7264737d0f387c4e919ea6b2807a3986fdb2a15e29872bf9a6d6336ecd10",
+          "stateDigest": "6cda4816ff9d590b24356e6a95ad4b389ad307a43b2f967fe4cde10db3a86edc",
+          "changesDigest": "6b9bf363a4f5ab185ea9248c0eedbaba696d67be7a42e5dce3a758aacbad3769",
+          "eventCount": 219
+        },
+        {
+          "elapsedMs": 49.23864300000059,
+          "processedTicks": 8,
+          "outputDigest": "02b7b24c7c3cf750b3acdb7e1bf537c3c3ed048fcbeef74e4e9be52e0e01580d",
+          "pipelineEventsDigest": "1c4e7264737d0f387c4e919ea6b2807a3986fdb2a15e29872bf9a6d6336ecd10",
+          "stateDigest": "6cda4816ff9d590b24356e6a95ad4b389ad307a43b2f967fe4cde10db3a86edc",
+          "changesDigest": "6b9bf363a4f5ab185ea9248c0eedbaba696d67be7a42e5dce3a758aacbad3769",
+          "eventCount": 219
+        },
+        {
+          "elapsedMs": 48.63508399999955,
+          "processedTicks": 8,
+          "outputDigest": "02b7b24c7c3cf750b3acdb7e1bf537c3c3ed048fcbeef74e4e9be52e0e01580d",
+          "pipelineEventsDigest": "1c4e7264737d0f387c4e919ea6b2807a3986fdb2a15e29872bf9a6d6336ecd10",
+          "stateDigest": "6cda4816ff9d590b24356e6a95ad4b389ad307a43b2f967fe4cde10db3a86edc",
+          "changesDigest": "6b9bf363a4f5ab185ea9248c0eedbaba696d67be7a42e5dce3a758aacbad3769",
+          "eventCount": 219
+        },
+        {
+          "elapsedMs": 43.29161500000009,
+          "processedTicks": 8,
+          "outputDigest": "02b7b24c7c3cf750b3acdb7e1bf537c3c3ed048fcbeef74e4e9be52e0e01580d",
+          "pipelineEventsDigest": "1c4e7264737d0f387c4e919ea6b2807a3986fdb2a15e29872bf9a6d6336ecd10",
+          "stateDigest": "6cda4816ff9d590b24356e6a95ad4b389ad307a43b2f967fe4cde10db3a86edc",
+          "changesDigest": "6b9bf363a4f5ab185ea9248c0eedbaba696d67be7a42e5dce3a758aacbad3769",
+          "eventCount": 219
+        },
+        {
+          "elapsedMs": 45.42090300000018,
+          "processedTicks": 8,
+          "outputDigest": "02b7b24c7c3cf750b3acdb7e1bf537c3c3ed048fcbeef74e4e9be52e0e01580d",
+          "pipelineEventsDigest": "1c4e7264737d0f387c4e919ea6b2807a3986fdb2a15e29872bf9a6d6336ecd10",
+          "stateDigest": "6cda4816ff9d590b24356e6a95ad4b389ad307a43b2f967fe4cde10db3a86edc",
+          "changesDigest": "6b9bf363a4f5ab185ea9248c0eedbaba696d67be7a42e5dce3a758aacbad3769",
+          "eventCount": 219
+        },
+        {
+          "elapsedMs": 50.18911200000002,
+          "processedTicks": 8,
+          "outputDigest": "02b7b24c7c3cf750b3acdb7e1bf537c3c3ed048fcbeef74e4e9be52e0e01580d",
+          "pipelineEventsDigest": "1c4e7264737d0f387c4e919ea6b2807a3986fdb2a15e29872bf9a6d6336ecd10",
+          "stateDigest": "6cda4816ff9d590b24356e6a95ad4b389ad307a43b2f967fe4cde10db3a86edc",
+          "changesDigest": "6b9bf363a4f5ab185ea9248c0eedbaba696d67be7a42e5dce3a758aacbad3769",
+          "eventCount": 219
+        },
+        {
+          "elapsedMs": 48.168031000001065,
+          "processedTicks": 8,
+          "outputDigest": "02b7b24c7c3cf750b3acdb7e1bf537c3c3ed048fcbeef74e4e9be52e0e01580d",
+          "pipelineEventsDigest": "1c4e7264737d0f387c4e919ea6b2807a3986fdb2a15e29872bf9a6d6336ecd10",
+          "stateDigest": "6cda4816ff9d590b24356e6a95ad4b389ad307a43b2f967fe4cde10db3a86edc",
+          "changesDigest": "6b9bf363a4f5ab185ea9248c0eedbaba696d67be7a42e5dce3a758aacbad3769",
+          "eventCount": 219
+        },
+        {
+          "elapsedMs": 45.5933270000005,
+          "processedTicks": 8,
+          "outputDigest": "02b7b24c7c3cf750b3acdb7e1bf537c3c3ed048fcbeef74e4e9be52e0e01580d",
+          "pipelineEventsDigest": "1c4e7264737d0f387c4e919ea6b2807a3986fdb2a15e29872bf9a6d6336ecd10",
+          "stateDigest": "6cda4816ff9d590b24356e6a95ad4b389ad307a43b2f967fe4cde10db3a86edc",
+          "changesDigest": "6b9bf363a4f5ab185ea9248c0eedbaba696d67be7a42e5dce3a758aacbad3769",
+          "eventCount": 219
+        }
+      ],
+      "diagnostic": {
+        "ticks": [
+          {
+            "tick": 1,
+            "seekingBefore": 8,
+            "elapsedMs": 7.885614999999234,
+            "seekingAfter": 8,
+            "queuedAfter": 0,
+            "assignedStaffAfter": 2,
+            "staffWithPathsAfter": 2,
+            "servicesCompleted": 0
+          },
+          {
+            "tick": 2,
+            "seekingBefore": 8,
+            "elapsedMs": 6.7774869999993825,
+            "seekingAfter": 8,
+            "queuedAfter": 0,
+            "assignedStaffAfter": 2,
+            "staffWithPathsAfter": 2,
+            "servicesCompleted": 0
+          },
+          {
+            "tick": 3,
+            "seekingBefore": 8,
+            "elapsedMs": 7.114588999998887,
+            "seekingAfter": 8,
+            "queuedAfter": 0,
+            "assignedStaffAfter": 2,
+            "staffWithPathsAfter": 2,
+            "servicesCompleted": 0
+          },
+          {
+            "tick": 4,
+            "seekingBefore": 8,
+            "elapsedMs": 5.853146999999808,
+            "seekingAfter": 8,
+            "queuedAfter": 0,
+            "assignedStaffAfter": 2,
+            "staffWithPathsAfter": 2,
+            "servicesCompleted": 0
+          },
+          {
+            "tick": 5,
+            "seekingBefore": 8,
+            "elapsedMs": 7.38632300000063,
+            "seekingAfter": 8,
+            "queuedAfter": 0,
+            "assignedStaffAfter": 2,
+            "staffWithPathsAfter": 2,
+            "servicesCompleted": 0
+          },
+          {
+            "tick": 6,
+            "seekingBefore": 8,
+            "elapsedMs": 6.72027099999832,
+            "seekingAfter": 7,
+            "queuedAfter": 1,
+            "assignedStaffAfter": 2,
+            "staffWithPathsAfter": 2,
+            "servicesCompleted": 0
+          },
+          {
+            "tick": 7,
+            "seekingBefore": 7,
+            "elapsedMs": 4.511037000000215,
+            "seekingAfter": 6,
+            "queuedAfter": 2,
+            "assignedStaffAfter": 2,
+            "staffWithPathsAfter": 2,
+            "servicesCompleted": 0
+          },
+          {
+            "tick": 8,
+            "seekingBefore": 6,
+            "elapsedMs": 4.645448999999644,
+            "seekingAfter": 7,
+            "queuedAfter": 1,
+            "assignedStaffAfter": 2,
+            "staffWithPathsAfter": 2,
+            "servicesCompleted": 1
+          }
+        ],
+        "tickLatency": {
+          "samples": 8,
+          "medianMs": 6.748878999998851,
+          "p95Ms": 7.885614999999234,
+          "minMs": 4.511037000000215,
+          "maxMs": 7.885614999999234
+        },
+        "systems": {
+          "scenario": {
+            "samples": 8,
+            "medianMs": 0.009374000000207161,
+            "p95Ms": 0.01165700000092329,
+            "minMs": 0.0065900000008696225,
+            "maxMs": 0.01165700000092329
+          },
+          "guest-spawn": {
+            "samples": 8,
+            "medianMs": 0.001612000000932312,
+            "p95Ms": 0.0020730000014737016,
+            "minMs": 0.0012210000004415633,
+            "maxMs": 0.0020730000014737016
+          },
+          "guest-needs": {
+            "samples": 8,
+            "medianMs": 0.010099999999511056,
+            "p95Ms": 0.06318500000088534,
+            "minMs": 0.007862000000386615,
+            "maxMs": 0.06318500000088534
+          },
+          "guest-service": {
+            "samples": 8,
+            "medianMs": 0.0037204999998721178,
+            "p95Ms": 0.01342099999965285,
+            "minMs": 0.0030839999999443535,
+            "maxMs": 0.01342099999965285
+          },
+          "queues": {
+            "samples": 8,
+            "medianMs": 0.010761499999716762,
+            "p95Ms": 0.5145840000004682,
+            "minMs": 0.007892000001447741,
+            "maxMs": 0.5145840000004682
+          },
+          "guest-intent": {
+            "samples": 8,
+            "medianMs": 4.517015499999616,
+            "p95Ms": 5.152315999999701,
+            "minMs": 2.913133000000016,
+            "maxMs": 5.152315999999701
+          },
+          "guest-path": {
+            "samples": 8,
+            "medianMs": 1.7222664999999324,
+            "p95Ms": 3.156129000000874,
+            "minMs": 1.0562090000003082,
+            "maxMs": 3.156129000000874
+          },
+          "guest-move": {
+            "samples": 8,
+            "medianMs": 0.007556500000646338,
+            "p95Ms": 0.15849899999921035,
+            "minMs": 0.005147999998371233,
+            "maxMs": 0.15849899999921035
+          },
+          "task-generate": {
+            "samples": 8,
+            "medianMs": 0.004551500000161468,
+            "p95Ms": 0.008222999998906744,
+            "minMs": 0.003425000000788714,
+            "maxMs": 0.008222999998906744
+          },
+          "task-assign": {
+            "samples": 8,
+            "medianMs": 0.007450500000231841,
+            "p95Ms": 0.3405319999983476,
+            "minMs": 0.005068000000392203,
+            "maxMs": 0.3405319999983476
+          },
+          "staff-work": {
+            "samples": 8,
+            "medianMs": 0.010771500000373635,
+            "p95Ms": 0.06097099999897182,
+            "minMs": 0.004726999999547843,
+            "maxMs": 0.06097099999897182
+          },
+          "construction": {
+            "samples": 8,
+            "medianMs": 0.0034705000007306808,
+            "p95Ms": 0.004807000001164852,
+            "minMs": 0.0028340000008029165,
+            "maxMs": 0.004807000001164852
+          },
+          "buildings": {
+            "samples": 8,
+            "medianMs": 0.0013470000003508176,
+            "p95Ms": 0.001852000001235865,
+            "minMs": 0.0008610000004409812,
+            "maxMs": 0.001852000001235865
+          },
+          "cleanliness-wear": {
+            "samples": 8,
+            "medianMs": 0.009794500000680273,
+            "p95Ms": 0.017947000000276603,
+            "minMs": 0.006911000000400236,
+            "maxMs": 0.017947000000276603
+          },
+          "finance": {
+            "samples": 8,
+            "medianMs": 0.005637999999635213,
+            "p95Ms": 0.007541000000856002,
+            "minMs": 0.004165999998804182,
+            "maxMs": 0.007541000000856002
+          },
+          "incidents": {
+            "samples": 8,
+            "medianMs": 0.010861500000828528,
+            "p95Ms": 0.012328999999226653,
+            "minMs": 0.007771999999022228,
+            "maxMs": 0.012328999999226653
+          },
+          "objectives": {
+            "samples": 8,
+            "medianMs": 0.0016875000001164153,
+            "p95Ms": 0.001943000001119799,
+            "minMs": 0.0012819999992643716,
+            "maxMs": 0.001943000001119799
+          },
+          "failure": {
+            "samples": 8,
+            "medianMs": 0.0029145000007702038,
+            "p95Ms": 0.003635999999460182,
+            "minMs": 0.0021730000007664785,
+            "maxMs": 0.003635999999460182
+          },
+          "alerts": {
+            "samples": 8,
+            "medianMs": 0.012959500000761182,
+            "p95Ms": 0.09722599999986414,
+            "minMs": 0.010014999999839347,
+            "maxMs": 0.09722599999986414
+          },
+          "tick-finalize": {
+            "samples": 8,
+            "medianMs": 0.015879499999755353,
+            "p95Ms": 0.08979499999986729,
+            "minMs": 0.010596000000077765,
+            "maxMs": 0.08979499999986729
+          }
+        }
+      }
+    },
+    {
+      "workload": {
+        "mapSize": 32,
+        "seekingGuests": 16,
+        "serviceBuildings": 4,
+        "productsPerBuilding": 3,
+        "staff": 2,
+        "batchTicks": 4,
+        "id": "combined"
+      },
+      "seed": "world-graph-bench-v1",
+      "fixtureDigest": "e2aeeb3619acb2cd9c34e7be71740600c26d8dd4e5d48c97f5ec793e284a919d",
+      "validationWarnings": [
+        {
+          "code": "inert_scenario",
+          "messageKey": "world-graph.reason.inert_scenario",
+          "path": "content.scenarios[0]"
+        }
+      ],
+      "latency": {
+        "samples": 21,
+        "medianMs": 873.622292,
+        "p95Ms": 948.845315999999,
+        "minMs": 824.958752999999,
+        "maxMs": 958.7733690000023
+      },
+      "amortizedMsPerTick": {
+        "samples": 21,
+        "medianMs": 218.405573,
+        "p95Ms": 237.21132899999975,
+        "minMs": 206.23968824999974,
+        "maxMs": 239.69334225000057
+      },
+      "measuredBatches": 21,
+      "processedTicks": 84,
+      "warmupBatches": 3,
+      "warmupTicks": 12,
+      "verification": {
+        "identicalOutputBatches": 25,
+        "outputDigest": "e17d41e23daff552494d82badf654f4b23525977756925457c4f8e76b37a3e24",
+        "finalStateDigest": "0b63d9a718296620bc748dd31c78f406b3307ab67495a35d9c278f0252a3eb14",
+        "instrumentationParity": true,
+        "splitBatchParity": true,
+        "fixtureUnchanged": true,
+        "extraTicks": 12
+      },
+      "rawSamples": [
+        {
+          "elapsedMs": 885.7805270000008,
+          "processedTicks": 4,
+          "outputDigest": "e17d41e23daff552494d82badf654f4b23525977756925457c4f8e76b37a3e24",
+          "pipelineEventsDigest": "474d8975e0ac4ef11d8c14f360d828ab769ca3499d60ba48ca7c2ba554463a2a",
+          "stateDigest": "0b63d9a718296620bc748dd31c78f406b3307ab67495a35d9c278f0252a3eb14",
+          "changesDigest": "9094384711feb6c0eb8afa56cc1e26af197ca2d3cc4ad4251e4cce63285c295e",
+          "eventCount": 214
+        },
+        {
+          "elapsedMs": 854.9779710000003,
+          "processedTicks": 4,
+          "outputDigest": "e17d41e23daff552494d82badf654f4b23525977756925457c4f8e76b37a3e24",
+          "pipelineEventsDigest": "474d8975e0ac4ef11d8c14f360d828ab769ca3499d60ba48ca7c2ba554463a2a",
+          "stateDigest": "0b63d9a718296620bc748dd31c78f406b3307ab67495a35d9c278f0252a3eb14",
+          "changesDigest": "9094384711feb6c0eb8afa56cc1e26af197ca2d3cc4ad4251e4cce63285c295e",
+          "eventCount": 214
+        },
+        {
+          "elapsedMs": 876.9984139999979,
+          "processedTicks": 4,
+          "outputDigest": "e17d41e23daff552494d82badf654f4b23525977756925457c4f8e76b37a3e24",
+          "pipelineEventsDigest": "474d8975e0ac4ef11d8c14f360d828ab769ca3499d60ba48ca7c2ba554463a2a",
+          "stateDigest": "0b63d9a718296620bc748dd31c78f406b3307ab67495a35d9c278f0252a3eb14",
+          "changesDigest": "9094384711feb6c0eb8afa56cc1e26af197ca2d3cc4ad4251e4cce63285c295e",
+          "eventCount": 214
+        },
+        {
+          "elapsedMs": 824.958752999999,
+          "processedTicks": 4,
+          "outputDigest": "e17d41e23daff552494d82badf654f4b23525977756925457c4f8e76b37a3e24",
+          "pipelineEventsDigest": "474d8975e0ac4ef11d8c14f360d828ab769ca3499d60ba48ca7c2ba554463a2a",
+          "stateDigest": "0b63d9a718296620bc748dd31c78f406b3307ab67495a35d9c278f0252a3eb14",
+          "changesDigest": "9094384711feb6c0eb8afa56cc1e26af197ca2d3cc4ad4251e4cce63285c295e",
+          "eventCount": 214
+        },
+        {
+          "elapsedMs": 855.8735979999983,
+          "processedTicks": 4,
+          "outputDigest": "e17d41e23daff552494d82badf654f4b23525977756925457c4f8e76b37a3e24",
+          "pipelineEventsDigest": "474d8975e0ac4ef11d8c14f360d828ab769ca3499d60ba48ca7c2ba554463a2a",
+          "stateDigest": "0b63d9a718296620bc748dd31c78f406b3307ab67495a35d9c278f0252a3eb14",
+          "changesDigest": "9094384711feb6c0eb8afa56cc1e26af197ca2d3cc4ad4251e4cce63285c295e",
+          "eventCount": 214
+        },
+        {
+          "elapsedMs": 838.6943799999972,
+          "processedTicks": 4,
+          "outputDigest": "e17d41e23daff552494d82badf654f4b23525977756925457c4f8e76b37a3e24",
+          "pipelineEventsDigest": "474d8975e0ac4ef11d8c14f360d828ab769ca3499d60ba48ca7c2ba554463a2a",
+          "stateDigest": "0b63d9a718296620bc748dd31c78f406b3307ab67495a35d9c278f0252a3eb14",
+          "changesDigest": "9094384711feb6c0eb8afa56cc1e26af197ca2d3cc4ad4251e4cce63285c295e",
+          "eventCount": 214
+        },
+        {
+          "elapsedMs": 923.0294959999992,
+          "processedTicks": 4,
+          "outputDigest": "e17d41e23daff552494d82badf654f4b23525977756925457c4f8e76b37a3e24",
+          "pipelineEventsDigest": "474d8975e0ac4ef11d8c14f360d828ab769ca3499d60ba48ca7c2ba554463a2a",
+          "stateDigest": "0b63d9a718296620bc748dd31c78f406b3307ab67495a35d9c278f0252a3eb14",
+          "changesDigest": "9094384711feb6c0eb8afa56cc1e26af197ca2d3cc4ad4251e4cce63285c295e",
+          "eventCount": 214
+        },
+        {
+          "elapsedMs": 869.65985,
+          "processedTicks": 4,
+          "outputDigest": "e17d41e23daff552494d82badf654f4b23525977756925457c4f8e76b37a3e24",
+          "pipelineEventsDigest": "474d8975e0ac4ef11d8c14f360d828ab769ca3499d60ba48ca7c2ba554463a2a",
+          "stateDigest": "0b63d9a718296620bc748dd31c78f406b3307ab67495a35d9c278f0252a3eb14",
+          "changesDigest": "9094384711feb6c0eb8afa56cc1e26af197ca2d3cc4ad4251e4cce63285c295e",
+          "eventCount": 214
+        },
+        {
+          "elapsedMs": 834.2677519999997,
+          "processedTicks": 4,
+          "outputDigest": "e17d41e23daff552494d82badf654f4b23525977756925457c4f8e76b37a3e24",
+          "pipelineEventsDigest": "474d8975e0ac4ef11d8c14f360d828ab769ca3499d60ba48ca7c2ba554463a2a",
+          "stateDigest": "0b63d9a718296620bc748dd31c78f406b3307ab67495a35d9c278f0252a3eb14",
+          "changesDigest": "9094384711feb6c0eb8afa56cc1e26af197ca2d3cc4ad4251e4cce63285c295e",
+          "eventCount": 214
+        },
+        {
+          "elapsedMs": 873.622292,
+          "processedTicks": 4,
+          "outputDigest": "e17d41e23daff552494d82badf654f4b23525977756925457c4f8e76b37a3e24",
+          "pipelineEventsDigest": "474d8975e0ac4ef11d8c14f360d828ab769ca3499d60ba48ca7c2ba554463a2a",
+          "stateDigest": "0b63d9a718296620bc748dd31c78f406b3307ab67495a35d9c278f0252a3eb14",
+          "changesDigest": "9094384711feb6c0eb8afa56cc1e26af197ca2d3cc4ad4251e4cce63285c295e",
+          "eventCount": 214
+        },
+        {
+          "elapsedMs": 940.4717380000002,
+          "processedTicks": 4,
+          "outputDigest": "e17d41e23daff552494d82badf654f4b23525977756925457c4f8e76b37a3e24",
+          "pipelineEventsDigest": "474d8975e0ac4ef11d8c14f360d828ab769ca3499d60ba48ca7c2ba554463a2a",
+          "stateDigest": "0b63d9a718296620bc748dd31c78f406b3307ab67495a35d9c278f0252a3eb14",
+          "changesDigest": "9094384711feb6c0eb8afa56cc1e26af197ca2d3cc4ad4251e4cce63285c295e",
+          "eventCount": 214
+        },
+        {
+          "elapsedMs": 894.3809490000021,
+          "processedTicks": 4,
+          "outputDigest": "e17d41e23daff552494d82badf654f4b23525977756925457c4f8e76b37a3e24",
+          "pipelineEventsDigest": "474d8975e0ac4ef11d8c14f360d828ab769ca3499d60ba48ca7c2ba554463a2a",
+          "stateDigest": "0b63d9a718296620bc748dd31c78f406b3307ab67495a35d9c278f0252a3eb14",
+          "changesDigest": "9094384711feb6c0eb8afa56cc1e26af197ca2d3cc4ad4251e4cce63285c295e",
+          "eventCount": 214
+        },
+        {
+          "elapsedMs": 830.8717509999988,
+          "processedTicks": 4,
+          "outputDigest": "e17d41e23daff552494d82badf654f4b23525977756925457c4f8e76b37a3e24",
+          "pipelineEventsDigest": "474d8975e0ac4ef11d8c14f360d828ab769ca3499d60ba48ca7c2ba554463a2a",
+          "stateDigest": "0b63d9a718296620bc748dd31c78f406b3307ab67495a35d9c278f0252a3eb14",
+          "changesDigest": "9094384711feb6c0eb8afa56cc1e26af197ca2d3cc4ad4251e4cce63285c295e",
+          "eventCount": 214
+        },
+        {
+          "elapsedMs": 948.845315999999,
+          "processedTicks": 4,
+          "outputDigest": "e17d41e23daff552494d82badf654f4b23525977756925457c4f8e76b37a3e24",
+          "pipelineEventsDigest": "474d8975e0ac4ef11d8c14f360d828ab769ca3499d60ba48ca7c2ba554463a2a",
+          "stateDigest": "0b63d9a718296620bc748dd31c78f406b3307ab67495a35d9c278f0252a3eb14",
+          "changesDigest": "9094384711feb6c0eb8afa56cc1e26af197ca2d3cc4ad4251e4cce63285c295e",
+          "eventCount": 214
+        },
+        {
+          "elapsedMs": 914.0089570000018,
+          "processedTicks": 4,
+          "outputDigest": "e17d41e23daff552494d82badf654f4b23525977756925457c4f8e76b37a3e24",
+          "pipelineEventsDigest": "474d8975e0ac4ef11d8c14f360d828ab769ca3499d60ba48ca7c2ba554463a2a",
+          "stateDigest": "0b63d9a718296620bc748dd31c78f406b3307ab67495a35d9c278f0252a3eb14",
+          "changesDigest": "9094384711feb6c0eb8afa56cc1e26af197ca2d3cc4ad4251e4cce63285c295e",
+          "eventCount": 214
+        },
+        {
+          "elapsedMs": 903.9295199999979,
+          "processedTicks": 4,
+          "outputDigest": "e17d41e23daff552494d82badf654f4b23525977756925457c4f8e76b37a3e24",
+          "pipelineEventsDigest": "474d8975e0ac4ef11d8c14f360d828ab769ca3499d60ba48ca7c2ba554463a2a",
+          "stateDigest": "0b63d9a718296620bc748dd31c78f406b3307ab67495a35d9c278f0252a3eb14",
+          "changesDigest": "9094384711feb6c0eb8afa56cc1e26af197ca2d3cc4ad4251e4cce63285c295e",
+          "eventCount": 214
+        },
+        {
+          "elapsedMs": 958.7733690000023,
+          "processedTicks": 4,
+          "outputDigest": "e17d41e23daff552494d82badf654f4b23525977756925457c4f8e76b37a3e24",
+          "pipelineEventsDigest": "474d8975e0ac4ef11d8c14f360d828ab769ca3499d60ba48ca7c2ba554463a2a",
+          "stateDigest": "0b63d9a718296620bc748dd31c78f406b3307ab67495a35d9c278f0252a3eb14",
+          "changesDigest": "9094384711feb6c0eb8afa56cc1e26af197ca2d3cc4ad4251e4cce63285c295e",
+          "eventCount": 214
+        },
+        {
+          "elapsedMs": 871.9610169999978,
+          "processedTicks": 4,
+          "outputDigest": "e17d41e23daff552494d82badf654f4b23525977756925457c4f8e76b37a3e24",
+          "pipelineEventsDigest": "474d8975e0ac4ef11d8c14f360d828ab769ca3499d60ba48ca7c2ba554463a2a",
+          "stateDigest": "0b63d9a718296620bc748dd31c78f406b3307ab67495a35d9c278f0252a3eb14",
+          "changesDigest": "9094384711feb6c0eb8afa56cc1e26af197ca2d3cc4ad4251e4cce63285c295e",
+          "eventCount": 214
+        },
+        {
+          "elapsedMs": 875.0927760000013,
+          "processedTicks": 4,
+          "outputDigest": "e17d41e23daff552494d82badf654f4b23525977756925457c4f8e76b37a3e24",
+          "pipelineEventsDigest": "474d8975e0ac4ef11d8c14f360d828ab769ca3499d60ba48ca7c2ba554463a2a",
+          "stateDigest": "0b63d9a718296620bc748dd31c78f406b3307ab67495a35d9c278f0252a3eb14",
+          "changesDigest": "9094384711feb6c0eb8afa56cc1e26af197ca2d3cc4ad4251e4cce63285c295e",
+          "eventCount": 214
+        },
+        {
+          "elapsedMs": 848.4282319999984,
+          "processedTicks": 4,
+          "outputDigest": "e17d41e23daff552494d82badf654f4b23525977756925457c4f8e76b37a3e24",
+          "pipelineEventsDigest": "474d8975e0ac4ef11d8c14f360d828ab769ca3499d60ba48ca7c2ba554463a2a",
+          "stateDigest": "0b63d9a718296620bc748dd31c78f406b3307ab67495a35d9c278f0252a3eb14",
+          "changesDigest": "9094384711feb6c0eb8afa56cc1e26af197ca2d3cc4ad4251e4cce63285c295e",
+          "eventCount": 214
+        },
+        {
+          "elapsedMs": 849.8982650000034,
+          "processedTicks": 4,
+          "outputDigest": "e17d41e23daff552494d82badf654f4b23525977756925457c4f8e76b37a3e24",
+          "pipelineEventsDigest": "474d8975e0ac4ef11d8c14f360d828ab769ca3499d60ba48ca7c2ba554463a2a",
+          "stateDigest": "0b63d9a718296620bc748dd31c78f406b3307ab67495a35d9c278f0252a3eb14",
+          "changesDigest": "9094384711feb6c0eb8afa56cc1e26af197ca2d3cc4ad4251e4cce63285c295e",
+          "eventCount": 214
+        }
+      ],
+      "diagnostic": {
+        "ticks": [
+          {
+            "tick": 1,
+            "seekingBefore": 16,
+            "elapsedMs": 209.16995899999893,
+            "seekingAfter": 16,
+            "queuedAfter": 0,
+            "assignedStaffAfter": 2,
+            "staffWithPathsAfter": 2,
+            "servicesCompleted": 0
+          },
+          {
+            "tick": 2,
+            "seekingBefore": 16,
+            "elapsedMs": 208.876608999999,
+            "seekingAfter": 16,
+            "queuedAfter": 0,
+            "assignedStaffAfter": 2,
+            "staffWithPathsAfter": 2,
+            "servicesCompleted": 0
+          },
+          {
+            "tick": 3,
+            "seekingBefore": 16,
+            "elapsedMs": 202.3578800000032,
+            "seekingAfter": 16,
+            "queuedAfter": 0,
+            "assignedStaffAfter": 2,
+            "staffWithPathsAfter": 2,
+            "servicesCompleted": 0
+          },
+          {
+            "tick": 4,
+            "seekingBefore": 16,
+            "elapsedMs": 203.81683599999815,
+            "seekingAfter": 16,
+            "queuedAfter": 0,
+            "assignedStaffAfter": 2,
+            "staffWithPathsAfter": 2,
+            "servicesCompleted": 0
+          }
+        ],
+        "tickLatency": {
+          "samples": 4,
+          "medianMs": 206.34672249999858,
+          "p95Ms": 209.16995899999893,
+          "minMs": 202.3578800000032,
+          "maxMs": 209.16995899999893
+        },
+        "systems": {
+          "scenario": {
+            "samples": 4,
+            "medianMs": 0.012589000001753448,
+            "p95Ms": 0.017276000005949754,
+            "minMs": 0.009464000002481043,
+            "maxMs": 0.017276000005949754
+          },
+          "guest-spawn": {
+            "samples": 4,
+            "medianMs": 0.002803999999741791,
+            "p95Ms": 0.004576999999699183,
+            "minMs": 0.0022830000016256236,
+            "maxMs": 0.004576999999699183
+          },
+          "guest-needs": {
+            "samples": 4,
+            "medianMs": 0.02105650000157766,
+            "p95Ms": 0.07378099999914411,
+            "minMs": 0.017797000000427943,
+            "maxMs": 0.07378099999914411
+          },
+          "guest-service": {
+            "samples": 4,
+            "medianMs": 0.00604399999792804,
+            "p95Ms": 0.010114999997313134,
+            "minMs": 0.0046970000039436854,
+            "maxMs": 0.010114999997313134
+          },
+          "queues": {
+            "samples": 4,
+            "medianMs": 0.018968499996844912,
+            "p95Ms": 0.02819199999794364,
+            "minMs": 0.016385000002628658,
+            "maxMs": 0.02819199999794364
+          },
+          "guest-intent": {
+            "samples": 4,
+            "medianMs": 192.34687749999648,
+            "p95Ms": 195.48605099999986,
+            "minMs": 188.96399699999893,
+            "maxMs": 195.48605099999986
+          },
+          "guest-path": {
+            "samples": 4,
+            "medianMs": 13.190672000000632,
+            "p95Ms": 13.261974000000919,
+            "minMs": 13.051086999999825,
+            "maxMs": 13.261974000000919
+          },
+          "guest-move": {
+            "samples": 4,
+            "medianMs": 0.017221000001882203,
+            "p95Ms": 0.04113199999846984,
+            "minMs": 0.015243000001646578,
+            "maxMs": 0.04113199999846984
+          },
+          "task-generate": {
+            "samples": 4,
+            "medianMs": 0.011452499998995336,
+            "p95Ms": 0.012318000000959728,
+            "minMs": 0.01013500000408385,
+            "maxMs": 0.012318000000959728
+          },
+          "task-assign": {
+            "samples": 4,
+            "medianMs": 0.009749500000907574,
+            "p95Ms": 1.2864759999938542,
+            "minMs": 0.009003999999549706,
+            "maxMs": 1.2864759999938542
+          },
+          "staff-work": {
+            "samples": 4,
+            "medianMs": 0.007882000001700362,
+            "p95Ms": 0.011788000003434718,
+            "minMs": 0.006869999997434206,
+            "maxMs": 0.011788000003434718
+          },
+          "construction": {
+            "samples": 4,
+            "medianMs": 0.005332999997335719,
+            "p95Ms": 0.007300999997823965,
+            "minMs": 0.004327000002376735,
+            "maxMs": 0.007300999997823965
+          },
+          "buildings": {
+            "samples": 4,
+            "medianMs": 0.0018630000013217796,
+            "p95Ms": 0.002795000000332948,
+            "minMs": 0.0016130000003613532,
+            "maxMs": 0.002795000000332948
+          },
+          "cleanliness-wear": {
+            "samples": 4,
+            "medianMs": 0.02341550000346615,
+            "p95Ms": 0.024887999999918975,
+            "minMs": 0.021622000000206754,
+            "maxMs": 0.024887999999918975
+          },
+          "finance": {
+            "samples": 4,
+            "medianMs": 0.0059889999974984676,
+            "p95Ms": 0.006270000005315524,
+            "minMs": 0.00588900000002468,
+            "maxMs": 0.006270000005315524
+          },
+          "incidents": {
+            "samples": 4,
+            "medianMs": 0.016449499998998363,
+            "p95Ms": 0.019649000001663808,
+            "minMs": 0.014490999994450249,
+            "maxMs": 0.019649000001663808
+          },
+          "objectives": {
+            "samples": 4,
+            "medianMs": 0.0010615000028337818,
+            "p95Ms": 0.0012019999994663522,
+            "minMs": 0.0009320000026491471,
+            "maxMs": 0.0012019999994663522
+          },
+          "failure": {
+            "samples": 4,
+            "medianMs": 0.0021985000021231826,
+            "p95Ms": 0.0023739999960525893,
+            "minMs": 0.0019929999980377033,
+            "maxMs": 0.0023739999960525893
+          },
+          "alerts": {
+            "samples": 4,
+            "medianMs": 0.015318000001570908,
+            "p95Ms": 0.020531000001938082,
+            "minMs": 0.01299999999901047,
+            "maxMs": 0.020531000001938082
+          },
+          "tick-finalize": {
+            "samples": 4,
+            "medianMs": 0.02895850000277278,
+            "p95Ms": 0.035103000001981854,
+            "minMs": 0.023716000003332738,
+            "maxMs": 0.035103000001981854
+          }
+        }
+      }
+    }
+  ]
+}
