@@ -141,6 +141,76 @@ function traversable(
   return !blocked.has(key(position)) && terrainId !== undefined && terrain.get(terrainId)?.walkable === true;
 }
 
+/**
+ * Allowed edges grouped by `from`, each group ordered by destination row-major (§9.3). Edges
+ * keep their authored order within a group before the stable sort, so equal destinations
+ * stay in the order a filter-then-sort over `map.paths` would give them.
+ */
+function outgoingIndex(paths: readonly PathCell[]): Map<string, PathCell[]> {
+  const index = new Map<string, PathCell[]>();
+  for (const edge of paths) {
+    if (!edge.allowed) continue;
+    const from = key(edge.from);
+    const group = index.get(from);
+    if (group) group.push(edge);
+    else index.set(from, [edge]);
+  }
+  for (const group of index.values()) group.sort((a, b) => comparePosition(a.to, b.to));
+  return index;
+}
+
+interface OpenNode {
+  readonly position: Position;
+  readonly cost: number;
+}
+
+const compareOpen = (a: OpenNode, b: OpenNode): number => a.cost - b.cost || comparePosition(a.position, b.position);
+
+/**
+ * Binary min-heap over §9.3's open-list order: `g` ascending, then position row-major. Two
+ * entries the comparator calls equal have the same position and cost, so they are
+ * interchangeable and the heap pops what a full sort of the open list would put first.
+ */
+class OpenList {
+  private readonly nodes: OpenNode[] = [];
+
+  get size(): number {
+    return this.nodes.length;
+  }
+
+  push(node: OpenNode): void {
+    const nodes = this.nodes;
+    let index = nodes.length;
+    nodes.push(node);
+    while (index > 0) {
+      const parentIndex = (index - 1) >> 1;
+      if (compareOpen(nodes[parentIndex] as OpenNode, node) <= 0) break;
+      nodes[index] = nodes[parentIndex] as OpenNode;
+      index = parentIndex;
+    }
+    nodes[index] = node;
+  }
+
+  pop(): OpenNode {
+    const nodes = this.nodes;
+    const top = nodes[0] as OpenNode;
+    const last = nodes.pop() as OpenNode;
+    if (nodes.length === 0) return top;
+    let index = 0;
+    for (;;) {
+      const left = 2 * index + 1;
+      if (left >= nodes.length) break;
+      const right = left + 1;
+      const child = right < nodes.length && compareOpen(nodes[right] as OpenNode, nodes[left] as OpenNode) < 0 ? right : left;
+      if (compareOpen(nodes[child] as OpenNode, last) >= 0) break;
+      nodes[index] = nodes[child] as OpenNode;
+      index = child;
+    }
+    nodes[index] = last;
+    return top;
+  }
+}
+
 export interface CanonicalPathResult {
   readonly path: readonly Position[];
   /** Sum of `edge.edgeCost + terrain(next).moveCost` over every step (20-contract.md §9.3). */
@@ -148,8 +218,8 @@ export interface CanonicalPathResult {
 }
 
 /**
- * Canonical A* per §9.3. Returns both the committed path and its total step cost — the
- * cost is the contract's "canonical path cost" used by §9.1's travel-cost utility
+ * Canonical uniform-cost search per §9.3. Returns both the committed path and its total step
+ * cost — the cost is the contract's "canonical path cost" used by §9.1's travel-cost utility
  * component, not an approximation from hop count.
  */
 export function canonicalPathWithCost(
@@ -169,13 +239,14 @@ export function canonicalPathWithCost(
   const goalKeys = new Set(orderedGoals.map(key));
   if (!traversable(terrain, terrainByCell, blocked, start) || orderedGoals.length === 0) return null;
 
-  const open: Array<{ position: Position; cost: number }> = [{ position: start, cost: 0 }];
+  const outgoingByCell = outgoingIndex(map.paths);
+  const open = new OpenList();
+  open.push({ position: start, cost: 0 });
   const cost = new Map([[key(start), 0]]);
   const parent = new Map<string, Position>();
-  while (open.length > 0) {
-    open.sort((a, b) => a.cost - b.cost || comparePosition(a.position, b.position));
-    const current = open.shift();
-    if (!current || current.cost !== cost.get(key(current.position))) continue;
+  while (open.size > 0) {
+    const current = open.pop();
+    if (current.cost !== cost.get(key(current.position))) continue;
     if (goalKeys.has(key(current.position))) {
       const result: Position[] = [current.position];
       let cursor = current.position;
@@ -185,10 +256,7 @@ export function canonicalPathWithCost(
       }
       return { path: result.reverse(), cost: current.cost };
     }
-    const outgoing = map.paths
-      .filter((edge) => edge.allowed && key(edge.from) === key(current.position))
-      .sort((a, b) => comparePosition(a.to, b.to));
-    for (const edge of outgoing) {
+    for (const edge of outgoingByCell.get(key(current.position)) ?? []) {
       if (!traversable(terrain, terrainByCell, blocked, edge.to)) continue;
       const terrainId = terrainByCell.get(key(edge.to));
       const nextCost = current.cost + edge.edgeCost + (terrainId === undefined ? 0 : terrain.get(terrainId)?.moveCost ?? 0);

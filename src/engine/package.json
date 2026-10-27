@@ -27,6 +27,7 @@
     "test:watch": "vitest",
     "lint": "eslint src scripts",
     "demo": "tsx scripts/demo-cli.ts",
+    "bench:world-graph": "node --import tsx scripts/bench-world-graph.ts",
     "validate-campaign": "tsx scripts/validate-campaign.ts",
     "check-content": "tsx scripts/check-content.ts",
     "loc-coverage": "tsx scripts/loc-coverage.ts",
