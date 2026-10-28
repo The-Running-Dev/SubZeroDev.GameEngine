@@ -70,7 +70,7 @@ export type {
 } from "./portable/format.js";
 
 export type { Engine, ResolutionArchive, AdoptionResult, AdoptDecision } from "./core/kernel/types.js";
-export type { EngineHost, SessionHost } from "./core/composition/types.js";
+export type { EngineHost, SessionHost, SessionLayer } from "./core/composition/types.js";
 export type { IdSource, RecordIdSource, Clock, ExperimentSource } from "./core/composition/types.js";
 export type { GameState, GameStatus, LoggedEntry, LoggedAction, LoggedContent, LoggedMigration } from "./core/kernel/types.js";
 export type { Kind, KindContext, KindOutcome, KindRegistry, KindProfileData } from "./core/kernel/types.js";

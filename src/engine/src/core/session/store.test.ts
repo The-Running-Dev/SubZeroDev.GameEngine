@@ -14,7 +14,7 @@ import type {
 } from "../kernel/types.js";
 import type { Campaign, ContentRegistry } from "../registry/types.js";
 import type { ValidationResult } from "../validation/types.js";
-import type { EngineHost, RecordIdSource } from "../composition/types.js";
+import type { EngineHost, RecordIdSource, SessionLayer } from "../composition/types.js";
 import { jsonlEmitter } from "../observability/emitter.js";
 import type { EmittedRecord, EmittedRecordSink } from "../observability/types.js";
 import { createInMemoryProfileStore } from "./profile-store.js";
@@ -646,6 +646,135 @@ describe("S127 — the store's lock and cache maps are bounded", () => {
     expect(() => makeStore({ persistence, sessionCacheLimit: 1.5 })).toThrow(RangeError);
     expect(() => makeStore({ sessionCacheLimit: 10 })).toThrow(RangeError);
     expect(() => makeStore({ persistence, sessionCacheLimit: 10 })).not.toThrow();
+  });
+});
+
+describe("SessionLayer.forget — the host's eviction (06 §5.2)", () => {
+  /** A promise and the function that settles it. */
+  function deferred(): { promise: Promise<void>; resolve(): void } {
+    let resolve = () => {};
+    const promise = new Promise<void>((r) => { resolve = r; });
+    return { promise, resolve };
+  }
+
+  function makeLayer(persistence?: SessionPersistence): SessionLayer {
+    const registry = makeRegistry();
+    return createSessionLayer({
+      engine: makeEngine({ registry, ids: createCountingIds() }),
+      registry,
+      recordIds: makeCountingRecordIds(),
+      ...(persistence ? { persistence } : {}),
+    });
+  }
+
+  /** CAS rows whose next `get` or `put` can be held open, counting both. */
+  function gatedPersistence() {
+    const cas = makeCasPersistence();
+    let puts = 0;
+    let gets = 0;
+    let gate: { op: "get" | "put"; entered: () => void; release: Promise<void> } | undefined;
+    async function pass(op: "get" | "put"): Promise<void> {
+      if (gate?.op !== op) return;
+      const held = gate;
+      gate = undefined;
+      held.entered();
+      await held.release;
+    }
+    const persistence = persistenceWith({
+      sessions: {
+        get: async (sessionId) => { gets += 1; await pass("get"); return cas.persistence.sessions.get(sessionId); },
+        put: async (record) => { puts += 1; await pass("put"); return cas.persistence.sessions.put(record); },
+      },
+    });
+    return {
+      persistence,
+      rows: cas.rows,
+      get puts() { return puts; },
+      get gets() { return gets; },
+      hold(op: "get" | "put") {
+        const entered = deferred();
+        const release = deferred();
+        gate = { op, entered: entered.resolve, release: release.promise };
+        return { entered: entered.promise, release: release.resolve };
+      },
+    };
+  }
+
+  it("without persistence the session is gone, and serialize() of the others is untouched", async () => {
+    const layer = makeLayer();
+    const a = await layer.createSession({ campaignId: "test-campaign", seed: "forget-a" });
+    const b = await layer.createSession({ campaignId: "test-campaign", seed: "forget-b" });
+    await layer.submitAction(b.sessionId, "increment");
+    const before = await layer.getView(b.sessionId);
+
+    await layer.forget(a.sessionId);
+
+    await expect(layer.getScene(a.sessionId)).rejects.toMatchObject({ code: "unknown_session" });
+    expect(await layer.getView(b.sessionId)).toEqual(before);
+  });
+
+  it("with persistence it writes nothing, and the next use reads the adapter and plays on identically", async () => {
+    const io = gatedPersistence();
+    const layer = makeLayer(io.persistence);
+    const { sessionId } = await layer.createSession({ campaignId: "test-campaign" });
+    await layer.submitAction(sessionId, "increment");
+    const row = { ...io.rows.get(sessionId)! };
+    const puts = io.puts;
+
+    await layer.forget(sessionId);
+    expect(io.puts).toBe(puts);
+    expect(io.rows.get(sessionId)).toEqual(row);
+    expect(io.gets).toBe(0);
+
+    expect((await layer.getScene(sessionId)).body.text).toBe("counter=1");
+    expect(io.gets).toBe(1);
+    expect((await layer.submitAction(sessionId, "increment")).ok).toBe(true);
+    expect(io.rows.get(sessionId)!.revision).toBe(row.revision + 1);
+  });
+
+  it("waits for a command holding the session, whose write lands, then drops it", async () => {
+    const io = gatedPersistence();
+    const layer = makeLayer(io.persistence);
+    const { sessionId } = await layer.createSession({ campaignId: "test-campaign" });
+
+    const held = io.hold("put");
+    const command = layer.submitAction(sessionId, "increment");
+    await held.entered; // the command is inside its write
+    let forgotten = false;
+    const forget = layer.forget(sessionId).then(() => { forgotten = true; });
+    for (let i = 0; i < 10; i += 1) await Promise.resolve();
+    expect(forgotten).toBe(false);
+
+    held.release();
+    expect((await command).ok).toBe(true);
+    await forget;
+    expect(io.gets).toBe(0);
+    expect((await layer.getScene(sessionId)).body.text).toBe("counter=1");
+    expect(io.gets).toBe(1);
+  });
+
+  it("a read in flight is returned to its caller but not cached", async () => {
+    const io = gatedPersistence();
+    const layer = makeLayer(io.persistence);
+    const { sessionId } = await layer.createSession({ campaignId: "test-campaign" });
+    await layer.forget(sessionId);
+
+    const held = io.hold("get");
+    const scene = layer.getScene(sessionId);
+    await held.entered; // the read is at the adapter
+    const forget = layer.forget(sessionId);
+    held.release();
+
+    expect((await scene).body.text).toBe("counter=0");
+    await forget;
+    expect(io.gets).toBe(1);
+    await layer.getScene(sessionId);
+    expect(io.gets).toBe(2);
+  });
+
+  it("forgetting a session the layer never held is a no-op", async () => {
+    const layer = makeLayer();
+    await expect(layer.forget("no-such-session")).resolves.toBeUndefined();
   });
 });
 

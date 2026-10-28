@@ -15,7 +15,7 @@ import type { ContentRegistry } from "../registry/types.js";
 import type { ContentChannel } from "../registry/archive.js";
 import type { Engine, KindRegistry, ResolutionArchive } from "../kernel/types.js";
 import type { Emitter } from "../observability/types.js";
-import type { ProfileStore, SessionPersistence } from "../session/types.js";
+import type { ProfileStore, SessionPersistence, SessionStore } from "../session/types.js";
 import type { EmittedRecordSink } from "../observability/types.js";
 
 /**
@@ -104,4 +104,17 @@ export interface SessionHost {
    *  `createSession` and at every adoption point. Omitted → no session is ever offered
    *  content, and every operation behaves as it did before content epochs. */
   readonly content?: ContentChannel;
+}
+
+/**
+ * What `createSessionLayer` returns: the store a client drives, plus the one operation only the
+ * host that owns persistence may call (§5.2). A host that hands clients the store passes it as
+ * `SessionStore`, so `forget` is out of their reach and the coverage checklist (09 §4) stays
+ * one-to-one.
+ */
+export interface SessionLayer extends SessionStore {
+  /** Drops `sessionId` from the in-memory cache without a write (§5.2). Waits for every command
+   *  holding the session and any persistence read in flight for it first; a read that began
+   *  before the call is returned to its caller but not cached. Never changes `serialize()`. */
+  forget(sessionId: string): Promise<void>;
 }

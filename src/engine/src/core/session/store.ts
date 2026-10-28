@@ -54,7 +54,7 @@ import {
   SESSION_PERSISTENCE_CONFLICT,
   SessionStoreError as SessionStoreErrorValue,
 } from "./types.js";
-import type { SessionHost } from "../composition/types.js";
+import type { SessionHost, SessionLayer } from "../composition/types.js";
 
 const noopRecordSink: EmittedRecordSink = { write: () => {} };
 
@@ -475,7 +475,7 @@ export function runExclusive<T>(locks: Map<string, Promise<unknown>>, key: strin
   return run;
 }
 
-function createStore(options: InMemorySessionStoreOptions): SessionStore {
+function createStore(options: InMemorySessionStoreOptions): SessionLayer {
   const { engine, registry } = options;
   // Read off `engine` rather than taken as a second, independently-suppliable option
   // (Qodo review, PR #92) — this is the same `KindRegistry` every gameplay call already
@@ -509,6 +509,8 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
   // A persistence read in flight, shared by every caller that misses the cache for the same
   // session meanwhile — for the same reason: two reads would make two objects.
   const sessionReads = new Map<string, Promise<SessionRecord>>();
+  // Who is waiting for a session's last pin to be released — `forget` (06 §5.2).
+  const unpinWaiters = new Map<string, (() => void)[]>();
   // Per-session serialization. `withCommand`'s `await Promise.resolve()` (Decision 9) is
   // what makes cross-session concurrency genuinely interleave for the isolation test — but
   // the same yield point would let two commands against the *same* session both read
@@ -551,8 +553,12 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
       return await fn(await getSession(sessionId));
     } finally {
       const pins = (pinnedSessions.get(sessionId) ?? 1) - 1;
-      if (pins === 0) pinnedSessions.delete(sessionId);
-      else pinnedSessions.set(sessionId, pins);
+      if (pins === 0) {
+        pinnedSessions.delete(sessionId);
+        const waiters = unpinWaiters.get(sessionId) ?? [];
+        unpinWaiters.delete(sessionId);
+        for (const wake of waiters) wake();
+      } else pinnedSessions.set(sessionId, pins);
       trimSessions();
     }
   }
@@ -588,6 +594,31 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
       throw new SessionStoreErrorValue("session", "storage_failure");
     }
     throw new SessionStoreErrorValue("session", "unknown_session", `session store: unknown sessionId "${sessionId}"`);
+  }
+
+  /**
+   * 06 §5.2. Waits until no command holds `sessionId` and no persistence read for it is in
+   * flight, then drops the cached record without writing it. A command pins the session before
+   * it queues on `sessionLocks` and releases it after, so the pin covers the queue too. Each
+   * wait is re-checked, since a command can arrive while another settles. Every read that began
+   * before the call has settled by the drop, so whatever it cached goes with it.
+   */
+  async function forget(sessionId: string): Promise<void> {
+    for (;;) {
+      const read = sessionReads.get(sessionId);
+      if (read) {
+        await read.catch(() => undefined);
+        continue;
+      }
+      if (pinnedSessions.has(sessionId)) {
+        await new Promise<void>((wake) => {
+          unpinWaiters.set(sessionId, [...(unpinWaiters.get(sessionId) ?? []), wake]);
+        });
+        continue;
+      }
+      break;
+    }
+    sessions.delete(sessionId);
   }
 
   async function getSave(saveId: string, operation = "loadGame"): Promise<SaveRecord> {
@@ -718,6 +749,7 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
   }
 
   return {
+    forget,
     // ── Queries — no span, no decorator (05 §6.1 names only the five commands below) ──
     async listCampaigns(profileId?: string): Promise<CampaignCatalog> {
       // Session-free (04 §7.3) — no session lock, no engine call. Progress is read here,
@@ -1217,7 +1249,7 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
 }
 
 /** The canonical session-layer composition root. */
-export function createSessionLayer(host: SessionHost): SessionStore {
+export function createSessionLayer(host: SessionHost): SessionLayer {
   return createStore(host);
 }
 
