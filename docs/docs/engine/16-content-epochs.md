@@ -138,12 +138,31 @@ published in. It is **content-addressed**: one key names one content, permanentl
 in-memory archive (§4.3) refuses a second publication of the same key with different content,
 and accepts an identical one as a no-op.
 
-What "the same content" means is fixed so two archives agree on it: the canonical digest 11 §6
-already uses for a pack's version — over the campaign's `id`, `kindId`, `version`, `titleKey`,
-`content`, and `includes` when present and non-empty, exactly as 11 §6 has it — plus the
-registry's full `strings` table, sorted by key. Strings are part of an epoch because a session
-renders through the string table it resolved; a publication that changes a string without
-changing a version is the silent drift content-addressing exists to refuse.
+What "the same content" means is fixed so two archives agree on it, and it is **what the
+campaign authored, not the merged table it was played with** (04 C28). An epoch's identity is
+the canonical digest (`epochDigest`, 04 §4) of its `EpochForm`, three parts:
+
+- **The composed campaign** — `id`, `kindId`, `version`, `titleKey`, `content`, and `includes`
+  when present and non-empty, exactly as 11 §6 has it.
+- **Its composition inputs** — the `includes` above, and the attachments applied to it in
+  application order (04 §10.4).
+- **Its authored strings** — its own and those of every module it composes, transitively, from
+  the registry's `provenance` (04 §10.1). For a pack registry, the fold minus engine messages.
+
+Strings are part of an epoch because a session renders through the string table it resolved;
+a publication that changes an authored string without changing a version is the silent drift
+content-addressing exists to refuse. **Engine messages are not part of it.** The core catalog
+and each kind's `reasonMessages` are the running engine's, so an engine upgrade that rewords
+an error does not turn every held epoch into a conflict; engine keys resolve from the running
+catalog (§5.7), and historical engine wording is not promised. **Ownership is by provenance,
+never by prefix**: an authored key that equals an engine key stays authored, and §5.7 says how
+both reach a response.
+
+**What is hashed is exactly what is stored.** A durable archive persists the `EpochForm`, the
+`EpochPublication` beside it (unhashed: the publishing kind and the reserved keys at that
+time), and the digest. Restoring recomputes the digest from the stored form without
+recomposing anything, so a module or attachment that has since changed cannot change an epoch
+that was published before it did (§5.1a).
 
 **A key resolves to the registry it was first published in**, never repointed to a later
 publication's identical copy: what `resolve` answers for a key never changes
@@ -196,8 +215,8 @@ version mismatch, runs no migration, and appends no second entry.
 | **Pure engine** | Resolving a state's content by `(state.campaignId, state.campaignVersion)`; `adoptContent`; the content entry | Deciding *when* to adopt or *to what*; publishing |
 | **Kind** | `adoptContent?` — whether this state can move from one campaign to another, and what it becomes | Reading the archive, the channel, or the log |
 | **Campaign** | `migrateState?` — re-addressing ids the new content renamed, run before the kind judges | Deciding adoptability |
-| **Session store** | The four adoption points, consulting the channel, persisting the adopted state in the same write | Validating content; choosing a version itself |
-| **Host** | Publishing; the channel's policy (one version for everyone, per-profile overlays, staged rollout); durable storage and retention | Writing a content entry by hand |
+| **Session store** | The four adoption points, consulting the channel, persisting the adopted state in the same write; aliasing engine keys in errors, warnings and messages (§5.7); `forget` on the layer (06 §5.2) | Validating content; choosing a version itself |
+| **Host** | Publishing; restoring stored epochs at boot (§5.1a); the channel's policy (one version for everyone, per-profile overlays, staged rollout); durable storage, retention and retirement | Writing a content entry by hand; recomposing a stored epoch |
 
 ### 4.1 The engine resolves by state
 
@@ -254,7 +273,14 @@ The engine ships one reference implementation that is both archive and channel. 
 takes a built registry, re-runs every campaign's `validateCampaign` against it, refuses a
 content conflict, and stores deep-frozen copies — data copied and frozen, functions
 (`migrateState`) kept by reference, since they cannot be copied and are code, not content. Its
-channel answers the latest successful publication for every scope.
+channel answers **per campaign**: the version of `scope.campaignId` in the last successful
+publication that held that campaign. Publication is still whole — a refused publication changes
+nothing — but a later publication that omits a campaign no longer withdraws it from the
+channel. `latest()` is unchanged: the last registry published whole.
+
+It also exposes what a durable host needs around it: `stored(campaignId, campaignVersion)`
+returns the `StoredEpoch` to persist; `restore(stored)` re-enters one at boot (§5.1a), moving
+neither `latest()` nor the channel; and `authoredKeys()` answers the alias scope (§5.7).
 
 **Copying at publish answers the by-reference hazard for archived content.** The registry a
 host builds still holds its campaigns by reference (`90-decisions.md`), but nothing the archive
@@ -273,11 +299,59 @@ durability supplies its own (§6).
 ```text
 host builds a registry (resolvePacks + buildValidatedContentRegistry, or by hand)
 archive.publish(registry):
-  for each campaign: kind.validateCampaign(campaign, registry.strings) — any error → refuse
+  no registry.provenance → content_provenance_missing
+  any authored key reserved, or containing `~` → protected_string_key
+  for each campaign: form = (composed campaign, attachments, provenance strings); digest = epochDigest(form)
+  for each campaign: kind.validateCampaign(campaign, form.strings ∪ running engine catalog) — any error → refuse
   for each campaign: key = (id, version); if held with a different digest → content_version_conflict
-  store frozen copies; latest = this registry
+  store frozen copies and each StoredEpoch; latest = this registry; current[id] = version
   → the epochs newly added (an identical republish adds none)
 ```
+
+The in-memory archive never retires. A host archive that does (§6) also refuses to publish a
+retired key, even with an identical digest: retired means `resolve` answers `undefined` for it
+forever, and republishing would make it answer again.
+
+### 5.1a Restoring at boot
+
+A durable host re-enters its stored epochs before it serves anything:
+
+```text
+for each stored epoch:
+  archive.restore(stored):
+    epochDigest(stored.form) ≠ stored.digest              → integrity_failure
+    an authored key is in stored.publication.reservedKeys  → integrity_failure
+    key held with a different digest                      → integrity_failure
+    running kind's validateCampaign(form, form.strings ∪ running engine catalog) errors
+                                                          → unsupported (not entered)
+    otherwise enter it                                    → restored
+  integrity_failure → the boot fails
+  unsupported       → record it; never offer that version
+```
+
+**Restore never recomposes.** The stored form is the composed campaign, so a module that has
+changed since, or a pack that no longer resolves, cannot change it — and the digest check proves
+the stored bytes are the bytes that were published.
+
+**It always validates, and an unsupported epoch fails soft.** A kind upgrade can make an old
+epoch invalid under the running kind; failing the boot for that would let one stale campaign take
+the whole host down. So an epoch the running kind rejects is `unsupported`: not entered, never
+offered by the channel, and recorded with both kind identities and the validation errors. A
+request naming it is the host's `campaign_version_unsupported` (409), distinct from its own
+`campaign_version_unavailable`, which means a version it does not offer at all. The warning
+`epoch_unsupported` is recomputed on every boot, never persisted, and sets
+`potentialRegression: true` when the rejecting and publishing `kindVersion`s are equal — the
+same kind rejecting what it accepted is a regression, not an upgrade.
+
+**A key that was not reserved when it was published is tolerated.** An authored key the running
+engine now reserves — an engine release added a kind message under that name — restores with a
+`historical_string_collision` warning `{campaignId, campaignVersion, key}`, and §5.7's aliases
+keep both meanings reachable. A key that was already reserved at publication could only be in
+the form if the store was tampered with, so it is an integrity failure. An authored `~` key in a
+legacy epoch is tolerated the same way.
+
+`restore` moves neither `latest()` nor the channel: which version a new session starts on is the
+host's publication, not the order it reloaded its history in.
 
 No session is touched. Publication only changes what the channel will answer at the next
 adoption point. A campaign whose `kindId` names no registered kind has no `validateCampaign` to
@@ -465,6 +539,37 @@ log, so retention already keeps it. A host archive that drops one anyway costs o
 epoch's contribution: `getStrings` is a query, so an epoch that no longer resolves is skipped
 and the union of the rest returned (`90-decisions.md`, 2026-10-09, S133).
 
+**The union carries only authored strings; engine keys come from the running engine.** Since an
+epoch's identity excludes engine messages (§3.4), the table resolves every engine-owned key —
+`core.reason.*`, a kind's `reasonMessages` — from the running catalog. Historical engine wording
+is not promised, for the same reason a newer epoch's wording wins above.
+
+**Response aliases keep a colliding key's two meanings apart.** A restored epoch may author a key
+the running engine now owns (§5.1a). Without help, one table entry would have to answer for two
+texts. So an engine-owned reference to such a key travels under an alias, `~k`, or `~n~k` with
+the smallest free `n` when an authored key already takes `~k` — and only the alias's table entry
+carries the engine text, while `k` keeps the authored one. 04 §7 contracts the full rule; the
+design choices behind it are these:
+
+- **Aliases are applied where the reference is produced, never by matching text.** A kind's
+  projection calls `ProjectionContext.engineRef` (04 §3.1) on each engine-owned key it emits; the
+  store aliases `errors`, `warnings` and `messages` after the profile fold and logging have
+  consumed them unaliased. A value whose owner varies — a story-graph `reasonKey` that is
+  `requirementFailKey` when the choice sets one — carries its owner on an internal carrier to the
+  point that aliases it. Matching text could not tell an authored `k` from an engine `k`, which is
+  the whole problem.
+- **Only colliding keys are aliased in production**, so today's responses are byte-identical and
+  goldens and replay fixtures do not change. A test context (`aliasEngineKeys: "all"`, 06 §4)
+  aliases every engine-owned reference, so the path is exercised continuously rather than first
+  on a legacy restore.
+- **The scope is the archive's authored keys, not the session's.** One map then serves every
+  session and every surface — scenes, views, actions, previews, errors, messages, `getStrings`,
+  `listCampaigns`, offline bundles — and it changes only when `restore` adds an epoch or a host
+  archive retires one (§6), never on `publish`, which refuses the collision outright (04 §12).
+- **An alias is presentation.** It never reaches `GameState`, the log or `serialize()` (04 C29),
+  and a client must not persist one apart from the table it came with: the same key may alias
+  differently after the host restores or retires an epoch, which is why 04 C27 excludes aliases.
+
 ---
 
 ## 6. Distribution
@@ -480,10 +585,12 @@ engine requires of a multi-instance host is narrow:
   while B still offers `e1`. That is harmless: adoption is recorded in the session's own log,
   the store's revision check (04 §7.2) refuses a stale concurrent write, and a session offered
   `e1` while on `e2` is offered a rollback the kind judges like any other move.
-- **The natural durable form is ordered pack references, not registries.** A resolution
-  rebuilds deterministically from its `{id, version}` list through `resolvePacks`, and its
-  `ResolutionId` verifies the rebuild — so a durable archive can store a few hundred bytes per
-  epoch and the packs once. How it does so is host-owned.
+- **The durable form is the stored epoch, not the inputs that built it.** A host persists each
+  `StoredEpoch` (04 §4) and restores it at boot (§5.1a) without recomposing. Storing ordered
+  pack references instead would be smaller, but a rebuild re-runs composition and attachment
+  against whatever modules the host holds *now*, so an epoch's content would depend on code
+  and packs published after it. The stored form is what the digest covers, and the digest is
+  what proves the restore.
 
 **Retention.** An epoch may be dropped only when no live session, no save and no retained
 fixture names it — as a starting version or as any content entry's `from` or `to`, counting, in a
@@ -491,6 +598,14 @@ log that carries a migration entry, only from the last one's `to` (§3.5). Dropp
 earlier turns those into `unknown_campaign` at the next load and `campaign_version_missing` at
 the next replay. The engine cannot see saves or fixtures, so it cannot enforce this; the
 in-memory archive sidesteps it by never evicting.
+
+**Retirement is how a host archive drops one.** A retired key answers `undefined` from
+`ResolutionArchive.resolve` forever (04 §4), and the host's `publish` refuses it from then on, so
+the key can never name different content later. The engine caches no resolution, so retirement
+takes effect on the next call. A session cached in memory on a retired epoch is dropped with
+`SessionLayer.forget` (06 §5.2). Replay engines are built over the same host archive, so a
+fixture naming a retired epoch is `unrunnable: campaign_version_missing`, not a silent pass
+against something else.
 
 ---
 
@@ -500,6 +615,13 @@ in-memory archive sidesteps it by never evicting.
 |---|---|---|
 | `publish` | A campaign fails `validateCampaign` | Refused with its validation errors; nothing stored, `latest` unchanged |
 | `publish` | A key is held with a different digest | Refused `content_version_conflict`; nothing stored |
+| `publish` | The registry has no `provenance` | Refused `content_provenance_missing`; nothing stored |
+| `publish` | An authored key is engine-reserved or contains `~` | Refused `protected_string_key` (`details.reason`: `engine_reserved` or `response_alias_namespace`); nothing stored |
+| `publish` (host archive) | The key was retired | Refused `content_version_conflict`, even with an identical digest |
+| `restore` | The stored form's digest ≠ the stored digest; an authored key was reserved at publication; or the key is held with a different digest | `integrity_failure` — the host's boot fails |
+| `restore` | The running kind rejects the stored form | `unsupported`: not entered, never offered; `epoch_unsupported` warning, recomputed each boot, `potentialRegression` when the kind versions are equal |
+| `restore` | An authored key the running engine now reserves, or a legacy `~` key | Restored with `historical_string_collision`; responses alias the engine key (§5.7) |
+| Host request | Names a version whose restore was `unsupported` | `campaign_version_unsupported` (409) — distinct from the host's `campaign_version_unavailable` |
 | `createEngine` | `archive` lacks a registry campaign at its registered version | Throws — a construction error |
 | `createGame` | The requested version does not resolve | `unknown_campaign` |
 | `deserialize` / `migrate` | `(campaignId, campaignVersion)` does not resolve | `unknown_campaign`, emitting `core.deserialize.rejected` — closes the retained gap |
@@ -542,6 +664,8 @@ in-memory archive sidesteps it by never evicting.
   epochs and becomes `latest` — that is how a host rolls the channel back. Nothing already
   adopted is undone: a session on a newer epoch is offered the older one at its next adoption
   point, and the kind judges that move like any other (`90-decisions.md`, 2026-10-09, S131).
+  The channel answers per campaign (§4.3), so the rollback moves only the campaigns that
+  registry holds; `restore` moves neither `latest` nor the channel.
 - **Versions carry no order.** The channel may name an older epoch — a rollback — and the kind
   judges that move like any other. Requiring monotonic versions would need a total order over
   `ResolutionId`s, which are digests and have none.
@@ -570,6 +694,13 @@ in-memory archive sidesteps it by never evicting.
 | **Settle the story-graph state at adoption** (F2) | Settle walks nodes and may draw randomness — play, which C24 forbids adoption to invent. |
 | **Require only that the node's type is unchanged** (F2) | Misses a choice node whose every choice the target gated away — the same stranding by a different edit. |
 | **Stamp each `Scene` with its epoch and let `getStrings` take one** (F3) | Exact, but a new field on `Scene`, a new parameter on a store operation and its MCP tool, and still two epochs in one `SessionActionResult` when `submitAction` adopts after commit. The union answers both with no surface change. |
+| **Digest the registry's full string table** (plan 54) | What §3.4 used to say. An engine release that rewords one error changes every held epoch's digest, so every republish after an upgrade is a `content_version_conflict` and every durable restore an integrity failure. |
+| **Decide ownership by key prefix** (plan 54) | `core.reason.*` covers the core but not a kind's `reasonMessages`, and an authored key may legitimately equal an engine key a later release added. Only the builder knows who wrote a key, so it records it (`provenance`). |
+| **Fail the boot on an epoch the running kind rejects** (plan 54) | One stale campaign would take the whole host down after a kind upgrade. Integrity failures still fail it; a validation failure is `unsupported`. |
+| **Skip validation on restore** (plan 54) | The epoch was valid under the kind that published it, not necessarily the one running. Entering it unvalidated would let the first command find out. |
+| **Rename the authored key instead of aliasing the engine one** (plan 54) | Authored keys are inside saves, logs and fixtures; renaming them changes state. An engine key on a response is presentation, so the alias costs nothing outside it. |
+| **A structured `LocRef { key, owner }` on every response** (plan 54) | Exact without aliases, but a type change on every surface that carries a key, for a collision no current campaign has. Left in the open register. |
+| **`forget` on `SessionStore`** (plan 54) | `SessionStore` is the client surface, one-to-one with the MCP tools (09 §4). Eviction belongs to the host that owns persistence, so it is on `SessionLayer` (06 §4). |
 
 ---
 
@@ -592,17 +723,28 @@ for a second extension contract. The downstream merge retires when attachments c
 uses. Until then, an engine change to the portable story shape is still a breaking change for
 it, as recorded.
 
+**An extended campaign publishes under a derived version, and that is the host's convention.**
+Content-addressing refuses a base campaign whose content changed under its authored version, and
+an applied extension does exactly that. Adventures therefore publishes an extended campaign as
+`<authored>+ext.<12 hex>` — appended to existing build metadata rather than a second `+` — over
+a digest of its extensions in application order, and refuses an authored version that already
+uses the `ext` identifier (plan 54, D2). The engine owns none of this; it compares versions
+exactly and only exports `canonicalDigest` (04 §4) so the host's digest is the engine's.
+
 ---
 
 ## 11. Open Questions
 
 - **Catalog refresh.** `listCampaigns` reads the session layer's construction-time registry,
   so a campaign that first appears in a publication is playable through the channel but not
-  listed. Whether listing reads the channel is a client-surface question.
+  listed. Adventures answers it host-side with no engine change: it serves its own catalog from
+  its current publication and admits every session creation through its own channel (plan 54,
+  D4). The engine signature waits for a second host.
 - **Simulation and world-graph adoption.** Neither declares `adoptContent`, so every session of
   theirs stays pinned. Each kind's rule is its own design, and neither has a host asking yet.
-- **The durable archive.** Its shape, its eviction policy, and how it proves an epoch is
-  unreferenced before dropping it are host-owned and unspecified.
+- **The durable archive.** What it stores and restores is now contracted (§5.1a, 04 §4), and so
+  is retirement (§6). How it proves an epoch is unreferenced before retiring it is host-owned
+  and unspecified, since it needs saves and fixtures the engine cannot see.
 - **Overlay privacy beyond capture.** 08 §4 treats an overlay's resolution as personal data in
   a fixture. Whether an overlay's existence leaks through anything else a host exposes is not
   designed.
