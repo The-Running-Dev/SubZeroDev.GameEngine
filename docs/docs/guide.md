@@ -4,7 +4,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: d6150c479d638a40e90b138c327bc1b27691ce19bc149fb99a554758ca9bde58 -->
+<!-- design-digest: dbd824f666e59e8f64c08c5c1e4c14b5cbbc6f7ee79ac83e61979568cd18d782 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -324,6 +324,25 @@ This is also the delivery half of a story extension. Authoring an extension stay
 **attachment** — a pack adding to a campaign it does not own, validated after the fold — and a
 published extension reaches live sessions as a new epoch. See
 [Content Epochs](/docs/engine/content-epochs) for the full design.
+
+**Durable epochs** (*contracted for plan 54, not yet built*) let a host keep its archive across
+restarts. Three changes matter to a host author:
+
+- **An epoch is what the campaign authored**, not the merged table it was played with: the
+  composed campaign, its includes and attachments, and its own strings and those of the modules
+  it composes. Engine messages are excluded, so an engine upgrade that rewords an error does not
+  conflict with every held epoch. The registry builders record who authored each string
+  (`provenance`), and `publish` refuses a registry without it.
+- **A host persists each stored epoch and restores it at boot** without recomposing. A digest
+  mismatch fails the boot; an epoch the running kind now rejects is *unsupported* — kept out,
+  never offered, and reported — rather than taking the host down. The channel now answers per
+  campaign, and a host can retire a version for good and drop cached sessions on it with
+  `SessionLayer.forget`.
+- **Engine keys are reserved, and `~` is the response-alias namespace.** `publish` refuses an
+  authored key the engine owns. If a restored epoch already authors one, responses carry the
+  engine's meaning under an alias such as `~core.reason.unknown_action` with its own table
+  entry; clients just resolve keys through the table as before, and must not persist an alias
+  apart from it.
 
 ## Use the session API, not raw engine state
 

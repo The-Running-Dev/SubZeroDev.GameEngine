@@ -135,9 +135,11 @@ defeat it (§9.1).
   through `adoptContent`, which appends a content entry, or a migrated load, which appends a
   migration entry when the log already carries an epoch entry (§2, §10.2). *Enforced by code — resolution by state, over an
   archive in which one key names one content (C23).*
-- **C23.** The archive serves only content that passed `validateCampaign`, and a key, once held,
-  names the same content forever. *Enforced by code for the in-memory archive — `publish`
-  validates and refuses `content_version_conflict`; by instruction for a host-supplied archive.*
+- **C23.** The archive serves only content that passed `validateCampaign` under the running
+  kind, and a key, once held, names the same content forever — or nothing, once a host has
+  retired it, and never anything again. *Enforced by code for the in-memory archive — `publish`
+  and `restore` validate, `publish` refuses `content_version_conflict` and `restore` an
+  integrity failure; by instruction for a host-supplied archive.*
 - **C24.** Adoption invents no play and draws no randomness: it yields no `StateChange` and no
   `OutcomeMessage`, derives no stream, and changes `kindState` only through the target campaign's
   `migrateState` (bound by C13) and the kind's `adoptContent`. *Enforced by code for the stream
@@ -154,6 +156,16 @@ defeat it (§9.1).
   returned for a session resolves in every later `getStrings` of that session (§7). *Enforced
   by code — the table is the union over the session's live epochs, and within one session id
   the log only grows.*
+- **C28.** An epoch's identity is its authored form alone: the composed campaign, its composition
+  inputs and its authored strings. No engine-owned message, and no campaign it does not compose,
+  changes an epoch's digest. *Enforced by code — `epochDigest` hashes `EpochForm` (§4), which has
+  no field for either, and every registry builder records string provenance.*
+- **C29.** A response alias never reaches execution. No alias appears in `GameState`, an action
+  log, the profile fold's input, or `serialize()` output, and the mapping function is reachable
+  only from projection and the store's response builder. *Enforced by code — `engineRef` is a
+  member of `ProjectionContext` only (§3.1), never of the `KindContext` given to `initialState`,
+  `resolve` or `migrateState`; the golden and replay fixtures run unchanged under the forced-alias
+  context.*
 
 
 ## Unresolved
@@ -174,9 +186,15 @@ entry removed here never returns.
 - **Listing campaigns that first appear in a publication.** `listCampaigns` reads the session
   layer's construction-time registry, so a campaign introduced by a publication is playable
   through the channel but absent from the catalog. Whether listing reads the channel, and with
-  which scope, is a client-surface decision the content-epochs design left open.
-- **A durable archive's interface beyond `ResolutionArchive`.** Eviction, and proving an epoch
-  is unreferenced before dropping it, need saves and fixtures the engine cannot see. The
+  which scope, is a client-surface decision the content-epochs design left open. The first host
+  to need it answers it host-side, with no engine change: Adventures serves its own catalog from
+  its current publication and admits every session creation through its own channel (plan 54,
+  D4). The engine signature — listing and creating through the channel with a scope — stays
+  unstated until a second host needs it.
+- **A durable archive's interface beyond `ResolutionArchive` and retirement.** Retiring a key is
+  now contracted (§4: `resolve` may answer `undefined` for a retired key, forever), and
+  `SessionLayer.forget` (§7) drops a cached session without a write. Proving an epoch is
+  unreferenced before retiring it still needs saves and fixtures the engine cannot see. The
   retention rule is stated (`10-design.md`, Content Epochs §6); the signature that would enforce
   it is not.
 - **`adoptContent` for simulation and world-graph.** Neither kind declares the member, so their
@@ -398,11 +416,14 @@ interface Kind<KState> {
    *  a kind that reads it must treat absence as "no cross-game history", never as an error. */
   initialState(campaign: Campaign, ctx: KindContext, profileData?: unknown): InitialStateResult<KState>;
 
-  /** What the player can do right now — generic actions for the current scene (§6). */
-  availableActions(state: KState, ctx: KindContext): AvailableAction[];
+  /** What the player can do right now — generic actions for the current scene (§6). Takes
+   *  `ProjectionContext` (§3.1): an engine-owned `LocKey` it emits passes through
+   *  `ctx.engineRef` at the point it is produced. */
+  availableActions(state: KState, ctx: ProjectionContext): AvailableAction[];
 
-  /** Render the current situation into a generic scene body (§6). */
-  scene(state: KState, ctx: KindContext): SceneBody;
+  /** Render the current situation into a generic scene body (§6). Takes `ProjectionContext`
+   *  for the same reason as `availableActions`. */
+  scene(state: KState, ctx: ProjectionContext): SceneBody;
 
   /** Resolve one player action. Pure: same (state, action, params, ctx) → same result. */
   advance(
@@ -414,8 +435,9 @@ interface Kind<KState> {
 
   /** Narrow kind-state to the visible projection for an audience (§9). May return values
    *  that alias `state`; the core copies at the boundary (§9.1). The one requirement is
-   *  that the result be plain, structurally cloneable data. */
-  project(state: KState, audience: ProjectionAudience, ctx: KindContext): unknown;
+   *  that the result be plain, structurally cloneable data. An engine-owned `LocKey` in the
+   *  result passes through `ctx.engineRef` (§3.1). */
+  project(state: KState, audience: ProjectionAudience, ctx: ProjectionContext): unknown;
 
   /**
    * Tiered content validation of a campaign of this kind (§11). `strings` is the
@@ -632,6 +654,25 @@ the sink can reach the game ([`05-observability.md`](05-observability.md) §2). 
 every event must leave `serialize()` byte-identical — the determinism harness asserts it
 (§14).
 
+The three projecting members — `availableActions`, `scene` and `project` — receive a wider
+context; `initialState`, `advance` and `migrateState` never do:
+
+```typescript
+interface ProjectionContext extends KindContext {
+  /** Maps an engine-owned `LocKey` to the key a response carries for it (§7, response
+   *  aliases). The identity in production unless an authored key in the archive collides
+   *  with an engine key; every engine-owned key under the forced-alias test context. */
+  readonly engineRef: (key: LocKey) => LocKey;
+}
+```
+
+A kind calls `engineRef` at the point it produces an engine-owned reference — a
+`world-graph.action.*` label, a kind `reasonMessages` key, a story-graph requirement failure
+with no authored `requirementFailKey` — and never on a key that came from content or
+`kindState`. Aliasing by text match is not available, because the same string can be both
+(16 §5.7). The member's absence from `KindContext` is the enforcement of **C29**: an alias
+cannot reach state when nothing that writes state can produce one.
+
 ### 3.2 `KindOutcome` — Terminal Identity a Host Can Read
 
 `Kind.outcome` returned `unknown`, so a host holding a finished session could learn nothing
@@ -758,8 +799,15 @@ interface Engine {
 interface ResolutionArchive {
   /** The registry the epoch `(campaignId, campaignVersion)` was published in, or undefined.
    *  One key names one content forever (C23). Pure from the engine's view: the same key
-   *  answers the same registry for the archive's lifetime. */
+   *  answers the same registry, or `undefined` once the host has retired it under the
+   *  retention rule (16 §6); a retired key never answers again. The engine caches no
+   *  resolution, so retirement takes effect at the next call. */
   resolve(campaignId: string, campaignVersion: string): ContentRegistry | undefined;
+  /** Every authored key held by any epoch in this archive — the scope response aliases are
+   *  chosen against (§7). Optional: absent means the scope is the construction-time
+   *  registry's authored keys. A host archive that `restore`s legacy epochs must supply it,
+   *  or a restored collision is answered without an alias. */
+  authoredKeys?(): ReadonlySet<LocKey>;
 }
 
 type AdoptionResult =
@@ -773,23 +821,98 @@ function createContentArchive(options: {
 }): ContentArchive;
 
 interface ContentArchive extends ResolutionArchive, ContentChannel {
-  /** Validate every campaign against `registry.strings` (a campaign of an unregistered kind
-   *  refuses `unknown_kind`), refuse a held key with a different digest
-   *  (`content_version_conflict`), then store deep-frozen copies and make this the latest.
-   *  Returns the epochs newly added; an identical republish adds none, still becomes the
-   *  latest — a rollback — and never repoints a held key (`90-decisions.md`, 2026-10-09,
-   *  S131). */
+  /** Refuse a registry without `provenance` (`string_provenance_missing`, §10.1) and any
+   *  authored key the running engine reserves or that contains `~` (`protected_string_key`,
+   *  §12). Validate every campaign against its authored strings united with the running
+   *  engine's catalog (a campaign of an unregistered kind refuses `unknown_kind`), refuse a
+   *  held key whose `epochDigest` differs (`content_version_conflict`), then store
+   *  deep-frozen copies and make this the latest. Returns the epochs newly added; an
+   *  identical republish adds none, still becomes the latest — a rollback — and never
+   *  repoints a held key (`90-decisions.md`, 2026-10-09, S131). */
   publish(registry: ContentRegistry): CommandResult<readonly EpochRef[]>;
-  /** The last publication that succeeded. Its channel answers this registry's version of
-   *  the scope's campaign, for every scope. */
+  /** Bring back an epoch a previous process published, from exactly what it persisted.
+   *  Never recomposes. Three outcomes, kept apart (16 §5.1, *Restore*): the stored digest
+   *  does not match `epochDigest(stored.form)`, or the form carries a key reserved when it
+   *  was published, or the key is already held with a different digest → `integrity_failure`;
+   *  the running kind's `validateCampaign` rejects the verified form → `unsupported`, and
+   *  nothing is entered; otherwise `restored`. `migrateState` is the campaign's own
+   *  (§10.1), reattached by campaign id because a function is never part of the form.
+   *  Moves neither `latest()` nor `current`. */
+  restore(stored: StoredEpoch, options?: { migrateState?: Campaign["migrateState"] }): RestoreResult;
+  /** The persistable form of a held epoch — what `restore` takes back. Undefined for a key
+   *  this archive does not hold. */
+  stored(campaignId: string, campaignVersion: string): StoredEpoch | undefined;
+  /** The last publication that succeeded. Not the channel: `current` (below) is per campaign. */
   latest(): ContentRegistry;
+  /** The channel member: the version of `scope.campaignId` in the last successful
+   *  publication that held that campaign, or undefined if none did. */
+  current(scope: ContentScope): string | undefined;
+  authoredKeys(): ReadonlySet<LocKey>;
 }
 
 interface EpochRef {
   campaignId: string;
   campaignVersion: string;
 }
+
+/** An epoch's identity (C28): exactly what is hashed, and exactly what a host persists. */
+interface EpochForm {
+  /** The composed campaign: its `content` already composed, `includes` kept as
+   *  provenance, and no `migrateState`. */
+  campaign: Omit<Campaign, "migrateState">;
+  /** The attachments applied to this campaign, in composition order (§10.4). */
+  attachments: readonly CampaignAttachment[];
+  /** Authored strings only — `ContentRegistry.provenance` for this campaign (§10.1). No
+   *  engine-owned message, and no string of a campaign it does not compose. */
+  strings: Readonly<Record<LocKey, string>>;
+}
+
+/** Recorded beside the form at publication; not hashed. */
+interface EpochPublication {
+  kindId: KindId;
+  kindVersion: string;
+  /** The explicit keys the running engine reserved when it accepted the form (§12), sorted.
+   *  `restore` tolerates an authored key reserved now only if it is absent here. */
+  reservedKeys: readonly LocKey[];
+}
+
+interface StoredEpoch {
+  form: EpochForm;
+  publication: EpochPublication;
+  digest: string;                // epochDigest(form)
+}
+
+type RestoreResult =
+  | { outcome: "restored"; ref: EpochRef; warnings: readonly ValidationWarning[] }
+  | { outcome: "unsupported"; ref: EpochRef;
+      rejectedBy: { kindId: KindId; kindVersion: string };
+      publishedBy: { kindId: KindId; kindVersion: string };
+      errors: readonly ValidationError[];
+      warning: ValidationWarning }     // epoch_unsupported
+  | { outcome: "integrity_failure"; ref: EpochRef; errors: readonly ValidationError[] };
+
+/** `canonicalDigest` over the form. Exported so a host recomputes it without recomposing. */
+function epochDigest(form: EpochForm): string;
+/** `sha256Hex(canonicalize(value))` (§10) — the one digest helper a host uses for identities
+ *  the engine states, such as an extension set's (16 §3.4). */
+function canonicalDigest(value: unknown): string;
 ```
+
+**An epoch is its authored form** (C28; 16 §3.4). `publish` builds each campaign's `EpochForm`
+from the registry's `provenance`, never from the merged `strings`, so a registry that also holds
+other campaigns, or an engine whose message wording changed, publishes the same digest for
+unchanged content. Engine-owned messages come from the running catalog whenever a registry is
+assembled, including one `restore` rebuilds: historical *authored* text is preserved, and
+historical engine-error wording is not promised.
+
+`restore`'s warnings are `historical_string_collision`, one per authored key the running engine
+reserves that the form's `reservedKeys` did not, with
+`details: { campaignId, campaignVersion, key }`. The authored text stays at its key; the engine's
+text for the same key reaches clients through a response alias (§7). `unsupported` carries
+`epoch_unsupported` with `details: { campaignId, campaignVersion, potentialRegression }`,
+`potentialRegression` true when the two `kindVersion`s are equal — a rejection by the version that published the epoch is a regression to
+investigate, not an accepted break. The classification is not persisted: the next process
+validates again.
 
 `createContentArchive` refuses an `initial` registry that fails validation the same way
 `publish` does, by throwing — a construction error, like every other one this section names.
@@ -1101,7 +1224,16 @@ type StringTable = Readonly<Record<LocKey, string>>;
 > worse: it would bake a locale into the projection and lose the property that clients never
 > string-match English (§12). The table is keyed by the session's campaign, its live epochs
 > (below, C27) and the locale the session was created with; a locale switch is a new session,
-> which is all the MVP's single locale needs.
+> which is all the MVP's single locale needs. Its engine-owned entries come from the running
+> engine and its authored ones from the epochs, under the response aliases below.
+
+**Dropping a session from memory is a host operation, not a store one.** `createSessionLayer`
+returns `SessionLayer` (`10-design.md` 06 §4), which is this `SessionStore` plus
+`forget(sessionId)`: it waits for any command holding the session and any persistence read in
+flight, then drops the cached record without a write. A read that began before `forget` and
+settles after it is returned to its caller but not cached. It never changes `serialize()`. It is
+kept off `SessionStore` so the client surface and the coverage checklist (09 §4) stay one-to-one:
+no client should be able to call it.
 
 **The store persists the envelope (§2) and nothing else about play.** Wall-clock
 timestamps, owner ids, and other host metadata live on the store's record, outside the
@@ -1193,6 +1325,46 @@ resolves contributes nothing, and the union of the rest is returned (`90-decisio
 2026-10-09, S133). What the union does not promise is a
 key's *earlier wording*: a key both epochs define resolves to the newer text
 ([`16-content-epochs.md`](16-content-epochs.md) §5.7).
+
+**Engine-owned keys resolve from the running engine, not from an epoch** (C28). The epochs in the
+union contribute only their authored strings; every engine-owned key a response can carry — the
+core's `core.reason.*` set and each registered kind's `reasonMessages` — resolves to the running
+catalog's text. Where an authored key equals an engine key, which only a restored epoch can hold
+(§4, `historical_string_collision`), the two meanings travel under different keys:
+
+- **A response alias.** `alias(k)` is `~k` if no authored key in scope (`ResolutionArchive.authoredKeys`,
+  §4) equals it, else `~n~k` for the smallest positive `n` whose form is free. Engine keys contain
+  no `~` (§12), so distinct engine keys never share an alias, and an authored entry is never
+  renamed, dropped or overwritten to make room. The scope is archive-wide, so the map changes only
+  when `restore` adds an epoch.
+- **Which references take one.** In production, an engine key `k` is aliased only when some epoch
+  in scope authors `k`; every other engine reference is emitted unchanged. Under
+  `aliasEngineKeys: "all"` (06 §4), a test context, every engine-owned reference is aliased. The
+  alias is applied where the engine-owned reference is produced — `ProjectionContext.engineRef`
+  inside `availableActions`, `scene` and `project` (§3.1), and the store's response builder for
+  `errors`, `warnings` and `messages` after the profile fold and logging consumed them unaliased
+  — never by matching text. The ownership table below says which producer owns which key.
+- **One map, every surface.** Scenes, views, available actions, previews, errors, warnings,
+  messages, `getStrings`, `listCampaigns`' `strings` and an offline bundle use the same map. A
+  table holds the authored strings of the live epochs behind the response, each unaliased engine
+  key with the running text, and each alias with the running text — so for a colliding `k`, entry
+  `k` is the authored text and entry `alias(k)` the engine's.
+- **Aliases are presentation, not identity.** A client must not persist an alias apart from the
+  table it arrived in. No alias reaches `GameState`, an action log, the profile fold or
+  `serialize()` (C29).
+
+| Producer | Key | Owner |
+|---|---|---|
+| Core rejections, `ValidationError`s and store warnings | `core.reason.${code}` | engine |
+| A kind's `resolve` and validation, from `reasonMessages` | `${kindId}.reason.${code}` | engine |
+| Story-graph scene `reasonKey`, and its requirement-failure error | `requirementFailKey` if the choice sets one, else `core.reason.requirement_unmet` | per value: authored, else engine |
+| World-graph action labels and scene text | `world-graph.action.*`, `world-graph.scene.*` | engine |
+| Simulation negotiation and the fixed investment account | `simulation.negotiate.*`, `simulation.finance.investment.*` | engine |
+| Any `LocKey` read from content or `kindState` — `titleKey`, `nameKey`, alert `titleKey` / `messageKey`, `descriptionKey`, `displayNameKey` | as authored | authored |
+| `OutcomeMessage.key` | per producer, by the rows above | per producer |
+
+A mixed-origin field marks each value's owner on an internal carrier between the producer and
+the response builder; it is not exported, not serialized, and never part of a public type.
 
 ### 7.1 The Profile Store
 
@@ -2174,6 +2346,17 @@ interface ContentRegistry {
   readonly campaigns: ReadonlyMap<string, Campaign>;
   readonly strings: ReadonlyMap<LocKey, string>;     // built form — see the authoring boundary below
   readonly resolution?: ResolutionId;                // the pack set this was folded from (11 §4, §6)
+  /** Per campaign id, what that campaign authored — the input to its epoch identity (§4, C28).
+   *  Set by every engine builder; `ContentArchive.publish` refuses a registry without it. */
+  readonly provenance?: ReadonlyMap<string, CampaignProvenance>;
+}
+
+interface CampaignProvenance {
+  /** The campaign's own strings plus those of every module it composes, transitively — never
+   *  the core catalog or a kind's `reasonMessages`, even where an authored key equals one. */
+  readonly strings: ReadonlyMap<LocKey, string>;
+  /** The attachments applied to it, in application order (§10.4). */
+  readonly attachments: readonly CampaignAttachment[];
 }
 
 interface Campaign {
@@ -2206,6 +2389,16 @@ interface Campaign {
 > over content that came from no pack, which under 11 §6 would change `campaignVersion` for
 > every existing single-campaign registry and therefore the version every existing save
 > records. The engine never reads it either way: it is inert identity, not an input.
+
+> **`provenance` is ownership by origin, not by prefix.** The merged `strings` cannot say who
+> wrote a key once an authored key equals an engine one, so the builders record it as they
+> merge: `buildContentRegistry`, `buildValidatedContentRegistry` and `buildValidatedPackRegistry`
+> all populate it. For a pack registry the per-campaign table is the whole fold minus engine
+> messages, since a pack's strings are not attributed to one campaign. It is optional in the
+> type only so that a hand-built registry — a test, a fixture — still type-checks; such a
+> registry can be played but not published (`string_provenance_missing`, §12), because without
+> it the archive could only hash the merged table, which is the full-table identity C28
+> rejects.
 
 > **Two `migrateState` functions, two axes.** `Kind.migrateState` (§3) is typed
 > `CommandResult<KState>` because a kind knows its own state type; this one is typed
@@ -2505,7 +2698,12 @@ interface ValidationError {
   path?: string;                 // where in the campaign
   details?: Readonly<Record<string, string | number>>;
 }
-interface ValidationWarning { code: ReasonCode; messageKey: LocKey; path?: string; }
+interface ValidationWarning {
+  code: ReasonCode;
+  messageKey: LocKey;
+  path?: string;
+  details?: Readonly<Record<string, string | number | boolean>>;   // e.g. restore's (§4)
+}
 ```
 
 - **Tier 1 — load-time, hard fail:** referential integrity, schema conformance, declared
@@ -2596,7 +2794,8 @@ Kind-agnostic base vocabulary; kinds extend it (`Kind.reasonCodes`). Clients nev
 string-match English (games/04-engine-specification.md §2.3).
 
 ```typescript
-type LocKey = string;            // key into the string table; stable, additive, never renamed
+type LocKey = string;            // key into the string table; stable, additive, never renamed;
+                                 // `~` is reserved for response aliases (§7) — see below
 type ReasonCode = string;        // stable, machine-readable; additive, never renamed
 
 const BASE_REASON_CODES = [
@@ -2630,6 +2829,9 @@ const BASE_REASON_CODES = [
   // content epochs (16 §4.3, §5.4) — publish and adoption
   "content_version_conflict", "content_kind_changed", "content_not_adoptable",
   "content_incompatible",
+  // durable epochs (§4; 16 §4.3, §5.1, §7) — publish, restore and the host's catalog
+  "string_provenance_missing", "historical_string_collision", "epoch_unsupported",
+  "campaign_version_unsupported",
 ] as const;
 ```
 
@@ -2638,8 +2840,14 @@ const BASE_REASON_CODES = [
 > cross-kind failure mode with no code that fitted — the kernel's three rejections, registry
 > assembly's three, the core's own Tier-1 four, the profile store's five, the save
 > boundary's two, host persistence's four, session lifecycle's one, the audit vocabulary's
-> one, content-pack resolution's six, campaign composition's seven, and content epochs' four. That is the intended
+> one, content-pack resolution's six, campaign composition's seven, content epochs' four, and
+> durable epochs' four. That is the intended
 > shape: a code is registered when a real caller produces it, not pre-declared from this list.
+> `campaign_version_unsupported` is the one base code the engine does not itself produce: a
+> host answers it (409) when a request names a version whose restore was `unsupported` (§4),
+> and it is registered here so its message ships with the core rather than with each host. It
+> is distinct from a host's own `campaign_version_unavailable`, which means the version is not
+> offered at all.
 > Composition's seven were the one batch this contract named before their caller existed; they
 > were specified with that caller (§10.4), and W120 shipped them in `reasons.ts`. Because `ReasonCode` is *additive, never
 > renamed* (above), growth costs nothing — a client switching on a code it has never seen
@@ -2651,9 +2859,18 @@ const BASE_REASON_CODES = [
 **The core ships their strings.** Every base code has a default-English message under a
 **reserved `core.reason.*` namespace** (`core.reason.unknown_action`, …), shipped with the
 engine. Registry construction (§10.1) merges core strings with kind and campaign strings
-and **rejects any attempt to write into `core.reason.*`** — a campaign cannot restyle what
+and **rejects any attempt to write a reserved key** — a campaign cannot restyle what
 an engine-level error says, because clients and tooling depend on those meanings being
-stable. Kinds own the strings for codes *they* add (`Kind.reasonCodes`); campaigns own
+stable. A key is reserved if it starts with `core.reason.`, or is any other key in the core
+catalog, or is a key in a registered kind's `reasonMessages`; the rejection is
+`protected_string_key` with `details.reason: "engine_reserved"`. **A key containing `~` is
+rejected too**, with `details.reason: "response_alias_namespace"`: that character is where
+response aliases live (§7), and no engine key contains it — a test asserts so. The shape check
+that already exists, `LOC_KEY_SHAPE` in `src/engine/src/core/validation/tiered.ts`, is
+enforced for `titleKey` only and excludes `~` there; the reservation above is what covers every
+other authored key. `ContentArchive.publish` applies both rules; `restore` tolerates a key that
+was not reserved at publication (§4, `historical_string_collision`), because refusing it would
+strand a session that was legal when it began. Kinds own the strings for codes *they* add (`Kind.reasonCodes`); campaigns own
 their narrative strings. **Validation fails if any registered reason code has no localized
 message** — that is what makes "clients never string-match English" enforceable rather than
 aspirational.

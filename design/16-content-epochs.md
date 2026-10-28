@@ -32,6 +32,8 @@
 
 ### 5.1 Publishing
 
+### 5.1a Restoring at boot
+
 ### 5.2 Creating a session
 
 ### 5.3 The adoption points

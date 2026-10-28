@@ -113,10 +113,20 @@ interface EngineHost {
   readonly ids?: IdSource;               // §5.1 — defaults to a random source
   readonly emitter?: Emitter;            // 05 §4 — defaults to nullEmitter
   readonly archive?: ResolutionArchive;  // 16 §4.1 — defaults to one holding only `registry`
+  readonly aliasEngineKeys?: "colliding" | "all"; // 16 §5.7 — omitted → "colliding"; "all" is for tests
 }
 
 function createEngine(host: EngineHost): Engine;
 ```
+
+> **`aliasEngineKeys` exists so the alias path is exercised before it is needed.** In
+> production an engine key is aliased only when an authored key in the archive collides with it
+> (04 §7, response aliases), which no current campaign does — so the path would otherwise run
+> for the first time on a restored legacy epoch. `"all"` aliases every engine-owned reference,
+> and a suite run under it proves every producer goes through the map. It cannot change
+> `serialize()`, because no alias reaches state (04 C29), so it passes the §2 rule. The session
+> layer composed around this engine uses the engine's own map through an internal link, not a
+> second option, so the two can never disagree.
 
 Stores are composed one layer out, because they sit above the pure engine (04 §1):
 
@@ -134,8 +144,19 @@ interface SessionHost {
   readonly content?: ContentChannel;         // 16 §4.2 — omitted → no session is offered new content
 }
 
-function createSessionLayer(host: SessionHost): SessionStore;
+interface SessionLayer extends SessionStore {
+  /** Drops `sessionId` from the in-memory cache without a write (§5.2). */
+  forget(sessionId: string): Promise<void>;
+}
+
+function createSessionLayer(host: SessionHost): SessionLayer;
 ```
+
+> **`forget` is on the layer, not the store.** `SessionStore` is what a client drives, and the
+> coverage checklist (09 §4) keeps it one-to-one with the MCP tools. Dropping a cached session
+> is something only the host that owns persistence should do — when it deletes a row, or retires
+> an epoch (16 §6) — so it is typed where only that host holds it. A host that hands clients
+> the store passes it as `SessionStore`, and `forget` is out of reach.
 
 > **`sessions: SessionStore` is what this field used to be, and the change is the point.**
 > Handing the root a finished `SessionStore` and asking it to return one only made sense if
@@ -264,6 +285,14 @@ Two rules keep eviction from changing play:
   command re-read the row into a second record, and the two would overwrite each other. A
   single-writer adapter raises no conflict to catch that.
 - **Concurrent reads of an uncached session share one adapter call**, for the same reason.
+
+**`forget(sessionId)` is the host's eviction.** A host that deletes a session's row, or
+retires the epoch it ran on, must also drop it from the cache, or the cache would keep serving
+it. `forget` waits for any command holding the session and any adapter read in flight for it,
+then drops the cached record without writing it. A read that began before `forget` and settles
+after it is returned to its caller but not cached, so the next use reads the adapter again. It
+works with or without `persistence` — without it, the session is simply gone — and it never
+changes `serialize()`.
 
 `ProfileStore` (04 §7.1) is unchanged and remains a port in the original sense — a host
 supplies the whole thing. Its obligations:
