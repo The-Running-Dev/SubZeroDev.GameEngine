@@ -73,7 +73,7 @@ export type { Engine, ResolutionArchive, AdoptionResult, AdoptDecision } from ".
 export type { EngineHost, SessionHost, SessionLayer } from "./core/composition/types.js";
 export type { IdSource, RecordIdSource, Clock, ExperimentSource } from "./core/composition/types.js";
 export type { GameState, GameStatus, LoggedEntry, LoggedAction, LoggedContent, LoggedMigration } from "./core/kernel/types.js";
-export type { Kind, KindContext, KindOutcome, KindRegistry, KindProfileData } from "./core/kernel/types.js";
+export type { Kind, KindContext, KindOutcome, KindRegistry, KindProfileData, ProjectionContext } from "./core/kernel/types.js";
 export type { ActionParams, ActionResult, AvailableAction, Scene, SceneBody } from "./core/kernel/types.js";
 export type { PlayerView } from "./core/projection/types.js";
 export type { Campaign, BuiltCampaign, CampaignProvenance, ContentRegistry, AuthoredText } from "./core/registry/types.js";

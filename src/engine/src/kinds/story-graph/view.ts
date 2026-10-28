@@ -9,7 +9,7 @@
  * envelope-duplication drift `CLAUDE.md`'s ledger tracks.
  */
 
-import type { KindContext } from "../../core/kernel/types.js";
+import type { ProjectionContext } from "../../core/kernel/types.js";
 import type { ProjectionAudience } from "../../core/projection/types.js";
 import type { LocKey } from "../../core/localization/types.js";
 import { requireNode } from "./nodes.js";
@@ -55,7 +55,7 @@ export interface StoryGraphView {
 export function project(
   state: StoryGraphKindState,
   _audience: ProjectionAudience,
-  ctx: KindContext,
+  ctx: ProjectionContext,
 ): StoryGraphView {
   const content = ctx.campaign.content as StoryGraphCampaign;
 

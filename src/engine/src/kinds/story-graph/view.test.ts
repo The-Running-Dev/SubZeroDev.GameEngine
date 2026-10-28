@@ -3,7 +3,7 @@ import { project, type StoryGraphView } from "./view.js";
 import type { StoryGraphCampaign } from "./campaign.js";
 import type { StoryGraphKindState } from "./state.js";
 import type { VariableSchema } from "./variables.js";
-import type { KindContext } from "../../core/kernel/types.js";
+import type { ProjectionContext } from "../../core/kernel/types.js";
 
 const schema: VariableSchema = {
   money: { type: "int", initial: 2, min: 0, max: 3, visible: true, labelKey: "stat.money" },
@@ -37,7 +37,7 @@ function baseState(overrides?: Partial<StoryGraphKindState>): StoryGraphKindStat
   };
 }
 
-function fakeCtx(content: StoryGraphCampaign): KindContext {
+function fakeCtx(content: StoryGraphCampaign): ProjectionContext {
   return {
     registry: { campaigns: new Map(), strings: new Map() },
     campaign: { id: "c", kindId: "story-graph", version: "1", titleKey: "t", content },
@@ -47,6 +47,7 @@ function fakeCtx(content: StoryGraphCampaign): KindContext {
     },
     seq: 0,
     emit: { emit: () => undefined },
+    engineRef: (key) => key,
   };
 }
 

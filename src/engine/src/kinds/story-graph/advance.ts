@@ -13,6 +13,7 @@
 import type { ActionParams, AdvanceResult, KindContext } from "../../core/kernel/types.js";
 import type { Condition } from "../../core/condition/types.js";
 import type { ResolutionEmitter } from "../../core/observability/types.js";
+import { authoredRef } from "../../core/kernel/aliases.js";
 import { applyConsequences } from "./variables.js";
 import { STORY_GRAPH_EVENTS } from "./events.js";
 import { requireNode } from "./nodes.js";
@@ -27,11 +28,14 @@ function rejected(
   code: string,
   messageKey: string,
   reject?: { choiceId: string; emit: ResolutionEmitter },
+  authored = false,
 ): AdvanceResult<StoryGraphKindState> {
   if (reject) {
     reject.emit.emit(STORY_GRAPH_EVENTS.choiceRejected.name, STORY_GRAPH_EVENTS.choiceRejected.severity, { reason: code, data: { choiceId: reject.choiceId } });
   }
-  return { state, status: "active", changes: [], messages: [{ key: messageKey, visible: true }], error: { code, messageKey } };
+  // A content-supplied key is marked so the response builder never aliases it (C29).
+  const mark = <T extends object>(value: T): T => (authored ? authoredRef(value) : value);
+  return { state, status: "active", changes: [], messages: [mark({ key: messageKey, visible: true })], error: mark({ code, messageKey }) };
 }
 
 /**
@@ -128,7 +132,7 @@ export function advance(
     return rejected(state, "requirement_unmet", choice.requirementFailKey ?? "core.reason.requirement_unmet", {
       choiceId: actionId,
       emit: ctx.emit,
-    });
+    }, choice.requirementFailKey !== undefined);
   }
 
   const applied = applyConsequences(content.variables, state.variables, choice.effects ?? [], ctx.emit);

@@ -25,7 +25,7 @@ import { isEpochEntry, isLoggedAction, startingCampaignVersion } from "../kernel
 import { buildSaveEnvelope, resolveSaveEnvelope, serializeSaveEnvelope } from "../persistence/envelope.js";
 import { canonicalize as canonicalStringify } from "subzerodev-data-json";
 import type { PlayerView, ProjectionAudience } from "../projection/types.js";
-import type { StringTable } from "../localization/types.js";
+import type { LocKey, StringTable } from "../localization/types.js";
 import type { ValidationWarning } from "../validation/types.js";
 import type { Clock, RecordIdSource } from "../composition/types.js";
 import type { Emitter, EmittedRecord, EmittedRecordSink } from "../observability/types.js";
@@ -55,6 +55,7 @@ import {
   SessionStoreError as SessionStoreErrorValue,
 } from "./types.js";
 import type { SessionHost, SessionLayer } from "../composition/types.js";
+import { engineAliases, IDENTITY_ALIASES, isEngineOwned, registryAuthoredStrings, type ResponseAliases } from "../kernel/aliases.js";
 
 const noopRecordSink: EmittedRecordSink = { write: () => {} };
 
@@ -129,13 +130,24 @@ function toPlayerResult(result: {
   warnings: SessionActionResult["warnings"];
   changes: readonly StateChange[];
   messages: readonly OutcomeMessage[];
-}): SessionActionResult {
+}, aliases: ResponseAliases): SessionActionResult {
+  // C29: engine-owned keys take their response alias here, after the profile fold and logging
+  // read them unaliased. An item a producer marked authored keeps its key.
+  const aliased = (value: object, key: LocKey): LocKey | undefined =>
+    isEngineOwned(value, key, aliases) && aliases.aliases(key) ? aliases.engineRef(key) : undefined;
+  const issue = <T extends { messageKey: LocKey }>(item: T): T => {
+    const key = aliased(item, item.messageKey);
+    return key === undefined ? item : { ...item, messageKey: key };
+  };
   const projected: SessionActionResult = {
     ok: result.ok,
-    errors: result.errors,
-    warnings: result.warnings,
+    errors: result.errors.map(issue),
+    warnings: result.warnings.map(issue),
     changes: result.changes.filter((change) => change.visible),
-    messages: result.messages.filter((message) => message.visible),
+    messages: result.messages.filter((message) => message.visible).map((message) => {
+      const key = aliased(message, message.key);
+      return key === undefined ? message : { ...message, key };
+    }),
   };
   if (result.scene !== undefined) projected.scene = result.scene;
   return projected;
@@ -482,6 +494,9 @@ function createStore(options: InMemorySessionStoreOptions): SessionLayer {
   // resolves `state.kindId` against, so `saveGame`/`loadGame`'s stamping and migration
   // dispatch structurally cannot disagree with it.
   const kinds = engine.kinds;
+  // The engine's own response-alias map (06 §4). `createSessionLayer` has already refused an
+  // unlinked engine; the in-memory convenience answers without aliases instead.
+  const aliases = engineAliases(engine) ?? IDENTITY_ALIASES;
   const clock = options.clock ?? defaultClock;
   const recordSink = options.recordSink ?? noopRecordSink;
   const recordIds = options.recordIds;
@@ -799,6 +814,10 @@ function createStore(options: InMemorySessionStoreOptions): SessionLayer {
       // the most recent epoch that defines it. Each epoch contributes its whole frozen
       // registry table — plan 14 Decision 7: a registry has no per-campaign string partition
       // to narrow by. A session that never adopted has one live epoch, and gets its table.
+      //
+      // C28/C29 (20-contract §7): an epoch contributes only its authored strings; every
+      // engine-owned key resolves to the running catalog's text, under its response alias
+      // where it takes one — so a colliding `k` is the authored text and `alias(k)` the engine's.
       const record = await getSession(sessionId);
       const state = mustDeserialize(engine, record.blob);
       const table: Record<string, string> = {};
@@ -807,9 +826,12 @@ function createStore(options: InMemorySessionStoreOptions): SessionLayer {
         // archive no longer holds contributes nothing rather than failing the query.
         const epoch = engine.content.resolve(state.campaignId, version);
         if (!epoch) continue;
-        for (const [key, text] of epoch.strings) {
+        for (const [key, text] of registryAuthoredStrings(epoch, aliases.catalog)) {
           table[key] = text;
         }
+      }
+      for (const [key, text] of aliases.catalog) {
+        table[aliases.engineRef(key)] = text;
       }
       return table;
     },
@@ -1002,10 +1024,10 @@ function createStore(options: InMemorySessionStoreOptions): SessionLayer {
                 warnings: [...result.warnings, ...profileWarnings],
                 changes: result.changes,
                 messages: result.messages,
-              });
+              }, aliases);
             }
 
-            return toPlayerResult({ ok: false, errors: result.errors, warnings: result.warnings, changes: result.changes, messages: result.messages });
+            return toPlayerResult({ ok: false, errors: result.errors, warnings: result.warnings, changes: result.changes, messages: result.messages }, aliases);
           });
         });
       });
@@ -1029,10 +1051,10 @@ function createStore(options: InMemorySessionStoreOptions): SessionLayer {
               warnings: result.warnings,
               changes: result.changes,
               messages: result.messages,
-            });
+            }, aliases);
           }
 
-          return toPlayerResult({ ok: false, errors: result.errors, warnings: result.warnings, changes: result.changes, messages: result.messages });
+          return toPlayerResult({ ok: false, errors: result.errors, warnings: result.warnings, changes: result.changes, messages: result.messages }, aliases);
         });
       });
     },
@@ -1250,6 +1272,9 @@ function createStore(options: InMemorySessionStoreOptions): SessionLayer {
 
 /** The canonical session-layer composition root. */
 export function createSessionLayer(host: SessionHost): SessionLayer {
+  if (engineAliases(host.engine) === undefined) {
+    throw new TypeError("createSessionLayer: host.engine must be an Engine returned by createEngine or withEmitter (06 §4) — it carries the response-alias map the session layer answers with");
+  }
   return createStore(host);
 }
 

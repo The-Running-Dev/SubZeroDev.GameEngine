@@ -12,7 +12,7 @@
  * backstop for the same reason `kinds/story-graph/scene.ts`'s is.
  */
 
-import type { KindContext, SceneBody } from "../../core/kernel/types.js";
+import type { ProjectionContext, SceneBody } from "../../core/kernel/types.js";
 import { resolveLocKey } from "../../core/localization/resolve.js";
 import type { SimulationCampaign } from "./campaign.js";
 import type { SimulationKindState } from "./state.js";
@@ -26,7 +26,7 @@ function interpolate(template: string, values: Readonly<Record<string, string | 
   );
 }
 
-export function scene(state: SimulationKindState, ctx: KindContext): SceneBody {
+export function scene(state: SimulationKindState, ctx: ProjectionContext): SceneBody {
   const content = ctx.campaign.content as SimulationCampaign;
 
   const template = resolveLocKey(ctx.registry.strings, content.sceneTemplateKey);

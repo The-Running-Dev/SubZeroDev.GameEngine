@@ -8,7 +8,7 @@ import { storyGraphKind } from "./kind.js";
 import type { StoryGraphCampaign } from "./campaign.js";
 import type { StoryGraphKindState } from "./state.js";
 import type { VariableSchema } from "./variables.js";
-import type { KindContext, Kind, KindRegistry, AvailableAction, SceneBody, InitialStateResult, AdvanceResult } from "../../core/kernel/types.js";
+import type { ProjectionContext, Kind, KindRegistry, AvailableAction, SceneBody, InitialStateResult, AdvanceResult } from "../../core/kernel/types.js";
 import type { Campaign, ContentRegistry } from "../../core/registry/types.js";
 import type { EngineHost } from "../../core/composition/types.js";
 import { createEngine } from "../../core/kernel/engine.js";
@@ -91,7 +91,7 @@ function baseState(overrides?: Partial<StoryGraphKindState>): StoryGraphKindStat
   };
 }
 
-function fakeCtx(content: StoryGraphCampaign): KindContext {
+function fakeCtx(content: StoryGraphCampaign): ProjectionContext {
   return {
     registry: { campaigns: new Map(), strings: new Map() },
     campaign: { id: "c", kindId: "story-graph", version: "1", titleKey: "t", content },
@@ -101,13 +101,14 @@ function fakeCtx(content: StoryGraphCampaign): KindContext {
     },
     seq: 0,
     emit: { emit: () => undefined },
+    engineRef: (key) => key,
   };
 }
 
 /** Routes `ctx.emit` through the real validating emitter (declared-name enforcement, 05
  *  §3.1/§9) bound to `storyGraphKind.eventNames`, backed by a recorder — so a test can
  *  assert both that nothing emits outside the declared set and what was actually emitted. */
-function recordingCtx(content: StoryGraphCampaign): { ctx: KindContext; events: () => readonly { name: string }[] } {
+function recordingCtx(content: StoryGraphCampaign): { ctx: ProjectionContext; events: () => readonly { name: string }[] } {
   const sink = createRecordingEmitter();
   const emit = makeResolutionEmitters(sink, "g", 0).forKind("story-graph", storyGraphKind.eventNames);
   return { ctx: { ...fakeCtx(content), emit }, events: () => sink.events };

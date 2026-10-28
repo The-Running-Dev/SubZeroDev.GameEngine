@@ -19,13 +19,13 @@ const SEED = "bureaucracy-seed-1";
 // ever differ in this one field.
 const FIXED_IDS: IdSource = { newGameId: () => "fixed-game-id", newSeed: () => "fixed-seed" };
 
-function buildEngine(ids?: IdSource): Engine {
+function buildEngine(ids?: IdSource, aliasEngineKeys?: "all"): Engine {
   const built = buildBulgariaBureaucracyCampaign();
   if (!built.ok || !built.value) throw new Error("expected the real campaign to build");
   const kinds = { "story-graph": storyGraphKind } as unknown as KindRegistry;
   const registryResult = buildValidatedContentRegistry([built.value], kinds);
   if (!registryResult.ok || !registryResult.value) throw new Error("expected the real campaign to validate");
-  return createEngine({ kinds, registry: registryResult.value, ...(ids ? { ids } : {}) });
+  return createEngine({ kinds, registry: registryResult.value, ...(ids ? { ids } : {}), ...(aliasEngineKeys ? { aliasEngineKeys } : {}) });
 }
 
 /** `gameId` legitimately changes between independent runs without a fixed `IdSource` — the
@@ -97,6 +97,10 @@ describe("determinism harness — the real Bureaucracy campaign (04-core.md §14
     expect(() => JSON.parse(corrupted)).toThrow();
     expect(corrupted).not.toBe(serialized);
     expect(corrupted).toHaveLength(serialized.length);
+  });
+
+  it.each(FIXTURES)("$name: aliasing every engine key changes no serialized byte (C29)", (fixture) => {
+    expect(runFixture(buildEngine(FIXED_IDS, "all"), fixture)).toBe(runFixture(buildEngine(FIXED_IDS), fixture));
   });
 
   it.each(FIXTURES)("$name: deserialize(serialize(state)) round-trips", (fixture) => {

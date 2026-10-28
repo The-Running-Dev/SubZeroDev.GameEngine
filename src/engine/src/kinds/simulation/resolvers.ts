@@ -1140,7 +1140,7 @@ export const depositSavingsResolver: ActionResolver = {
   },
 };
 
-const INVESTMENT_ACCOUNT_ID = "investment-primary";
+export const INVESTMENT_ACCOUNT_ID = "investment-primary";
 /** Placeholder — no market-rate content type exists yet for a real return (`TODO.md`'s
  *  *Known Open Items*). */
 const INVESTMENT_INTEREST_RATE: BasisPoints = 0;

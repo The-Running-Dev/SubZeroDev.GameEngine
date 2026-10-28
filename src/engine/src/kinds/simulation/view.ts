@@ -16,7 +16,8 @@
  * `kinds/story-graph/view.ts` made.
  */
 
-import type { KindContext } from "../../core/kernel/types.js";
+import type { ProjectionContext } from "../../core/kernel/types.js";
+import { INVESTMENT_ACCOUNT_ID } from "./resolvers.js";
 import type { ProjectionAudience } from "../../core/projection/types.js";
 import type { LocKey } from "../../core/localization/types.js";
 import type { ActorIdentity, AttributeState, EducationState, CareerState, HousingState, InventoryItem, FinancialState, NeedState } from "./actor.js";
@@ -254,17 +255,21 @@ function calendarView(calendar: SimulationKindState["calendar"]): SimulationView
 export function project(
   state: SimulationKindState,
   audience: ProjectionAudience,
-  ctx: KindContext,
+  ctx: ProjectionContext,
 ): SimulationView {
   void audience;
-  void ctx;
 
   return {
     calendar: calendarView(state.calendar),
 
     identity: state.player.identity,
     currentLocationId: state.player.currentLocationId,
-    finances: state.player.finances,
+    // The investment account's label is the kind's own key, not content's (C29).
+    finances: {
+      ...state.player.finances,
+      accounts: state.player.finances.accounts.map((account) =>
+        account.id === INVESTMENT_ACCOUNT_ID ? { ...account, label: ctx.engineRef(account.label) } : account),
+    },
     needs: resolveEffectiveNeeds(state),
     attributes: resolveEffectiveAttributes(state),
     education: state.player.education,

@@ -80,6 +80,10 @@ export interface EngineHost {
   /** Every epoch this engine can play (20-contract.md §4). Omitted → an archive holding only
    *  `registry`. Must resolve every campaign of `registry` at its registered version. */
   readonly archive?: ResolutionArchive;
+  /** 16 §5.7. Omitted → `"colliding"`: an engine key is aliased in a response only when an
+   *  authored key in the archive equals it. `"all"` aliases every engine-owned reference, and
+   *  is for tests. Cannot change `serialize()`, since no alias reaches state (C29). */
+  readonly aliasEngineKeys?: "colliding" | "all";
 }
 
 /** Composition root for the session layer — the only place a clock appears. */

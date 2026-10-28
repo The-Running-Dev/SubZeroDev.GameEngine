@@ -7,7 +7,8 @@
  * exactly this way (`kernel/engine.ts`'s `availableActions`/`scene`, built in W3).
  */
 
-import type { AvailableAction, KindContext, SceneBody } from "../../core/kernel/types.js";
+import type { AvailableAction, ProjectionContext, SceneBody } from "../../core/kernel/types.js";
+import type { LocKey } from "../../core/localization/types.js";
 import { resolveLocKey } from "../../core/localization/resolve.js";
 import { requireNode, type ChoiceNode } from "./nodes.js";
 import { visibleVariables } from "./variables.js";
@@ -21,21 +22,24 @@ import type { StoryGraphKindState } from "./state.js";
  * secret path exists"); a shown-but-gated choice carries `available: false` and
  * `reasonKey` set to its `requirementFailKey`, falling back to the base
  * `core.reason.requirement_unmet` when a campaign omits one (03 §4's `requirementFailKey`
- * is optional). Returns `[]` outside a `ChoiceNode` — nothing to choose from an `ending`.
+ * is optional). The fallback is engine-owned, so it goes through `ctx.engineRef` (C29); an
+ * authored `requirementFailKey` never does. Returns `[]` outside a `ChoiceNode` — nothing to
+ * choose from an `ending`.
  */
-export function availableActions(state: StoryGraphKindState, ctx: KindContext): AvailableAction[] {
+export function availableActions(state: StoryGraphKindState, ctx: ProjectionContext): AvailableAction[] {
   const content = ctx.campaign.content as StoryGraphCampaign;
   const node = requireNode(content.nodes, state.currentNodeId);
   if (node.kind !== "choice") return [];
-  return offeredChoices(node, state);
+  return offeredChoices(node, state, ctx.engineRef);
 }
 
 /**
  * The choices `node` offers `state`: `showWhen`-hidden ones omitted, gated ones marked
  * unavailable. Shared with adoption (`adopt.ts`, 16 §5.5), so "at least one choice is
- * available" is judged by exactly the evaluation the scene shows the player.
+ * available" is judged by exactly the evaluation the scene shows the player — adoption reads
+ * only `available`, so it takes the identity `engineRef`.
  */
-export function offeredChoices(node: ChoiceNode, state: StoryGraphKindState): AvailableAction[] {
+export function offeredChoices(node: ChoiceNode, state: StoryGraphKindState, engineRef: (key: LocKey) => LocKey = (key) => key): AvailableAction[] {
   const context = toConditionContext(state);
   const actions: AvailableAction[] = [];
 
@@ -47,7 +51,7 @@ export function offeredChoices(node: ChoiceNode, state: StoryGraphKindState): Av
       id: choice.id,
       labelKey: choice.labelKey,
       available: !gated,
-      ...(gated ? { reasonKey: choice.requirementFailKey ?? "core.reason.requirement_unmet" } : {}),
+      ...(gated ? { reasonKey: choice.requirementFailKey ?? engineRef("core.reason.requirement_unmet") } : {}),
     });
   }
 
@@ -59,7 +63,7 @@ export function offeredChoices(node: ChoiceNode, state: StoryGraphKindState): Av
  * only visible variables (03 §3.1) — an undeclared or non-visible `{name}` throws
  * (`text.ts`).
  */
-export function scene(state: StoryGraphKindState, ctx: KindContext): SceneBody {
+export function scene(state: StoryGraphKindState, ctx: ProjectionContext): SceneBody {
   const content = ctx.campaign.content as StoryGraphCampaign;
   const node = requireNode(content.nodes, state.currentNodeId);
 

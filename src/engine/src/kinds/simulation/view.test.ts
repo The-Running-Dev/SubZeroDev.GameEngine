@@ -2,7 +2,9 @@ import { describe, it, expect } from "vitest";
 import { project, projectPublicWorldState, type SimulationView } from "./view.js";
 import type { SimulationCampaign } from "./campaign.js";
 import type { SimulationKindState } from "./state.js";
-import type { KindContext } from "../../core/kernel/types.js";
+import type { ProjectionContext } from "../../core/kernel/types.js";
+import { INVESTMENT_ACCOUNT_ID } from "./resolvers.js";
+import { INVESTMENT_ACCOUNT_LABEL_KEY } from "./reasons.js";
 import { canonicalize as canonicalStringify } from "subzerodev-data-json";
 
 const state: SimulationKindState = {
@@ -80,7 +82,7 @@ const campaignContent: SimulationCampaign = {
   actionLabelKeys: { planAdd: "sim.action.plan-add", planRemove: "sim.action.plan-remove", planClear: "sim.action.plan-clear", endWeek: "sim.action.end-week" },
 };
 
-function fakeCtx(): KindContext {
+function fakeCtx(engineRef: (key: string) => string = (key) => key): ProjectionContext {
   return {
     registry: { campaigns: new Map(), strings: new Map() },
     campaign: { id: "c", kindId: "simulation", version: "1", titleKey: "t", content: campaignContent },
@@ -90,6 +92,7 @@ function fakeCtx(): KindContext {
     },
     seq: 0,
     emit: { emit: () => undefined },
+    engineRef,
   };
 }
 
@@ -150,6 +153,17 @@ describe("project (10-simulation-kind.md §9)", () => {
     const view = project(state, "player", fakeCtx());
     expect(view.world.economy.sectorDemand).toEqual({ retail: "cold", tech: "hot" });
     expect(view.world.economy.indicators).toEqual({ inflation: 200 });
+  });
+
+  it("C29 — the investment account's label is the kind's key and answers through engineRef; any other account's is content's", () => {
+    const account = (id: string, label: string) => ({ id, kind: "investment" as const, label, balanceCents: 100, interestRate: 0, openedWeek: 1 });
+    const withAccounts: SimulationKindState = {
+      ...state,
+      player: { ...state.player, finances: { ...state.player.finances, accounts: [account(INVESTMENT_ACCOUNT_ID, INVESTMENT_ACCOUNT_LABEL_KEY), account("other", "sim.account.other")] } },
+    };
+    const view = project(withAccounts, "player", fakeCtx((key) => `~${key}`));
+    expect(view.finances.accounts.map((entry) => entry.label)).toEqual([`~${INVESTMENT_ACCOUNT_LABEL_KEY}`, "sim.account.other"]);
+    expect(withAccounts.player.finances.accounts[0]?.label).toBe(INVESTMENT_ACCOUNT_LABEL_KEY);
   });
 
   it("computes availableTimeUnits from total - committed - spent", () => {

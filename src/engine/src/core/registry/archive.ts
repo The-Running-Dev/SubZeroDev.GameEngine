@@ -17,7 +17,8 @@
 
 import { canonicalize as canonicalStringify, sha256Hex } from "subzerodev-data-json";
 import type { KindId, KindRegistry, ResolutionArchive } from "../kernel/types.js";
-import { CORE_REASON_MESSAGES, type CommandResult } from "../kernel/reasons.js";
+import type { CommandResult } from "../kernel/reasons.js";
+import { runningCatalog } from "../kernel/aliases.js";
 import type { LocKey } from "../localization/types.js";
 import type { ValidationError, ValidationWarning } from "../validation/types.js";
 import type { Campaign, CampaignAttachment, CampaignProvenance, ContentRegistry } from "./types.js";
@@ -223,8 +224,7 @@ export function createContentArchive(options: { kinds: KindRegistry; initial: Co
 
   // The running catalog: every engine-owned message this process ships. Reserved keys are its
   // keys plus anything under `core.reason.` (04 §12).
-  const catalog = new Map<LocKey, string>(CORE_REASON_MESSAGES);
-  for (const kind of Object.values(kinds)) for (const [key, text] of kind.reasonMessages) catalog.set(key, text);
+  const catalog = runningCatalog(kinds);
   const reservedKeys: readonly LocKey[] = Object.freeze([...catalog.keys()].sort());
   const isReserved = (key: LocKey) => key.startsWith(RESERVED_PREFIX) || catalog.has(key);
 

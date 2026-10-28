@@ -179,9 +179,30 @@ const WORLD_GRAPH_ALERT_TEXT: Readonly<Record<string, string>> = {
   "world-graph.alert.scenario-resolved.message": "This scenario has resolved.",
 };
 
+/**
+ * The kind's own action labels and scene summary key (`available.ts`). Engine-owned in the
+ * 20-contract §7 ownership table, so they carry running text here like every other
+ * engine-owned key, and a collision with a restored epoch's authored key is answered with a
+ * response alias (C29) rather than by resolving to the authored text.
+ */
+const WORLD_GRAPH_PRESENTATION_TEXT: Readonly<Record<string, string>> = {
+  "world-graph.action.build": "Build",
+  "world-graph.action.demolish": "Demolish",
+  "world-graph.action.hire_staff": "Hire staff",
+  "world-graph.action.fire_staff": "Fire staff",
+  "world-graph.action.assign_staff": "Assign staff",
+  "world-graph.action.set_price": "Set price",
+  "world-graph.action.open_building": "Open building",
+  "world-graph.action.close_building": "Close building",
+  "world-graph.action.dismiss_alert": "Dismiss alert",
+  "world-graph.action.advance_ticks": "Advance time",
+  "world-graph.scene.summary": "Resort summary",
+};
+
 /** `world-graph.reason.<code>` → its shipped default-English message, for every code,
- *  plus the kind-owned alert strings above. */
+ *  plus the kind-owned alert and presentation strings above. */
 export const WORLD_GRAPH_REASON_MESSAGES: ReadonlyMap<LocKey, string> = new Map([
   ...WORLD_GRAPH_REASON_CODES.map((code) => [`world-graph.reason.${code}`, WORLD_GRAPH_REASON_TEXT[code]] as const),
   ...Object.entries(WORLD_GRAPH_ALERT_TEXT),
+  ...Object.entries(WORLD_GRAPH_PRESENTATION_TEXT),
 ]);
