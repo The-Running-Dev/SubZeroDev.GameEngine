@@ -2696,7 +2696,7 @@ interface ValidationError {
   code: ReasonCode;
   messageKey: LocKey;
   path?: string;                 // where in the campaign
-  details?: Readonly<Record<string, string | number>>;
+  details?: Readonly<Record<string, string | number | boolean>>;
 }
 interface ValidationWarning {
   code: ReasonCode;
