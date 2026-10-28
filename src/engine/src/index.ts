@@ -23,8 +23,17 @@ export {
   resolvePacks,
 } from "./core/registry/packs.js";
 // The reference content archive and channel (16 §4.3) — host-side, like the packs above.
-export { createContentArchive } from "./core/registry/archive.js";
-export type { ContentArchive, ContentChannel, ContentScope, EpochRef } from "./core/registry/archive.js";
+export { canonicalDigest, createContentArchive, epochDigest } from "./core/registry/archive.js";
+export type {
+  ContentArchive,
+  ContentChannel,
+  ContentScope,
+  EpochForm,
+  EpochPublication,
+  EpochRef,
+  RestoreResult,
+  StoredEpoch,
+} from "./core/registry/archive.js";
 export { createInMemorySessionStore, createSessionLayer, upsertAchievements, upsertTerminals } from "./core/session/store.js";
 export { createInMemoryProfileStore } from "./core/session/profile-store.js";
 export { TextClient } from "./clients/text/client.js";
@@ -67,7 +76,7 @@ export type { GameState, GameStatus, LoggedEntry, LoggedAction, LoggedContent, L
 export type { Kind, KindContext, KindOutcome, KindRegistry, KindProfileData } from "./core/kernel/types.js";
 export type { ActionParams, ActionResult, AvailableAction, Scene, SceneBody } from "./core/kernel/types.js";
 export type { PlayerView } from "./core/projection/types.js";
-export type { Campaign, BuiltCampaign, ContentRegistry, AuthoredText } from "./core/registry/types.js";
+export type { Campaign, BuiltCampaign, CampaignProvenance, ContentRegistry, AuthoredText } from "./core/registry/types.js";
 export type { ResolutionId } from "./core/registry/types.js";
 // Campaign composition (04 §10.4, 11 §3a — W120).
 export type {

@@ -365,6 +365,10 @@ export type AdoptionResult =
 export interface ResolutionArchive {
   /** The registry the epoch `(campaignId, campaignVersion)` was published in, or undefined. */
   resolve(campaignId: string, campaignVersion: string): ContentRegistry | undefined;
+  /** Every authored key held by any epoch in this archive — the scope response aliases are
+   *  chosen against (20-contract §7). Optional: absent means the construction-time registry's
+   *  authored keys. A host archive that restores legacy epochs must supply it. */
+  authoredKeys?(): ReadonlySet<LocKey>;
 }
 
 /** Kind-agnostic operations over the envelope. Resolves the kind by `state.kindId`,

@@ -12,7 +12,7 @@
  * adapter that doesn't exist yet.
  */
 
-import type { AuthoredText, BuiltCampaign, Campaign, ContentRegistry } from "./types.js";
+import type { AuthoredText, BuiltCampaign, Campaign, CampaignProvenance, ContentRegistry } from "./types.js";
 import { CORE_REASON_MESSAGES, type CommandResult } from "../kernel/reasons.js";
 import type { ValidationError } from "../validation/types.js";
 import type { LocKey } from "../localization/types.js";
@@ -98,7 +98,7 @@ export function buildContentRegistry(
           code: "protected_string_key",
           messageKey: "core.reason.protected_string_key",
           path: key,
-          details: { campaignId: campaign.id },
+          details: { campaignId: campaign.id, reason: "engine_reserved" },
         });
       }
     }
@@ -113,6 +113,11 @@ export function buildContentRegistry(
   }
 
   const campaigns = new Map<string, Campaign>(builtCampaigns.map((b) => [b.campaign.id, b.campaign]));
+  // Each campaign's own strings, before the merge folds engine messages in (20-contract §10.1).
+  // A caller that composed campaigns replaces this with each one's composed union.
+  const provenance = new Map<string, CampaignProvenance>(
+    builtCampaigns.map((b) => [b.campaign.id, { strings: b.strings, attachments: [] }]),
+  );
 
-  return { ok: true, value: { campaigns, strings: merged.strings }, errors: [], warnings: [] };
+  return { ok: true, value: { campaigns, strings: merged.strings, provenance }, errors: [], warnings: [] };
 }

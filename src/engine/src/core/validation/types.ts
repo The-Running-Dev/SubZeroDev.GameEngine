@@ -26,11 +26,12 @@ export interface ValidationError {
   messageKey: LocKey;
   /** Where in the campaign, when locatable. */
   path?: string;
-  details?: Readonly<Record<string, string | number>>;
+  details?: Readonly<Record<string, string | number | boolean>>;
 }
 
 export interface ValidationWarning {
   code: ReasonCode;
   messageKey: LocKey;
   path?: string;
+  details?: Readonly<Record<string, string | number | boolean>>;
 }

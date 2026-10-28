@@ -102,12 +102,14 @@ function makeCampaign(overrides?: Partial<Campaign>): Campaign {
 }
 
 function makeRegistry(campaigns: Campaign[] = [makeCampaign()]): ContentRegistry {
+  const strings = new Map([
+    ["test.title", "Test Campaign"],
+    ["test.scene", "A scene."],
+  ]);
   return {
     campaigns: new Map(campaigns.map((c) => [c.id, c])),
-    strings: new Map([
-      ["test.title", "Test Campaign"],
-      ["test.scene", "A scene."],
-    ]),
+    strings,
+    provenance: new Map(campaigns.map((c) => [c.id, { strings, attachments: [] }])),
   };
 }
 
@@ -2084,9 +2086,11 @@ function makeEpochKind(): Kind<TestKindState> {
 
 function epochRegistry(version: string, strings: Record<string, string>, extra?: Partial<EpochContent>): ContentRegistry {
   const content: EpochContent = { sceneKey: `scene.v${version}`, messageKey: `message.v${version}`, ...extra };
+  const table = new Map(Object.entries({ "test.title": "Test Campaign", ...strings }));
   return {
     campaigns: new Map([["test-campaign", makeCampaign({ version, content })]]),
-    strings: new Map(Object.entries({ "test.title": "Test Campaign", ...strings })),
+    strings: table,
+    provenance: new Map([["test-campaign", { strings: table, attachments: [] }]]),
   };
 }
 
@@ -2373,7 +2377,9 @@ describe("S133.5 — queries, previews and rejected actions never consult the ch
 });
 
 describe("S133.6 — getStrings spans every live epoch", () => {
-  const tableOf = (registry: ContentRegistry) => Object.fromEntries(registry.strings);
+  // A resolved epoch carries the running catalog beside its authored strings (C28).
+  const catalog = Object.fromEntries([...CORE_REASON_MESSAGES, ...makeTestKind().reasonMessages]);
+  const tableOf = (registry: ContentRegistry) => ({ ...catalog, ...Object.fromEntries(registry.strings) });
 
   it("a session that never adopted gets exactly its one epoch's table", async () => {
     const { store } = makeEpochStore({});
@@ -2475,7 +2481,7 @@ const EPOCH_V4_MIGRATING: ContentRegistry = (() => {
     ...base.campaigns.get("test-campaign")!,
     migrateState: (kindState) => ({ ok: true, value: kindState, errors: [], warnings: [] }),
   };
-  return { campaigns: new Map([["test-campaign", campaign]]), strings: base.strings };
+  return { campaigns: new Map([["test-campaign", campaign]]), strings: base.strings, provenance: base.provenance! };
 })();
 
 /** A save on v1 (`[a0]`) and a save on v2 that crossed an adoption (`[a0, c1 1→2]`). */
