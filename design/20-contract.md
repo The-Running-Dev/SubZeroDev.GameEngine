@@ -821,7 +821,7 @@ function createContentArchive(options: {
 }): ContentArchive;
 
 interface ContentArchive extends ResolutionArchive, ContentChannel {
-  /** Refuse a registry without `provenance` (`string_provenance_missing`, §10.1) and any
+  /** Refuse a registry without `provenance` (`content_provenance_missing`, §10.1) and any
    *  authored key the running engine reserves or that contains `~` (`protected_string_key`,
    *  §12). Validate every campaign against its authored strings united with the running
    *  engine's catalog (a campaign of an unregistered kind refuses `unknown_kind`), refuse a
@@ -2396,7 +2396,7 @@ interface Campaign {
 > all populate it. For a pack registry the per-campaign table is the whole fold minus engine
 > messages, since a pack's strings are not attributed to one campaign. It is optional in the
 > type only so that a hand-built registry — a test, a fixture — still type-checks; such a
-> registry can be played but not published (`string_provenance_missing`, §12), because without
+> registry can be played but not published (`content_provenance_missing`, §12), because without
 > it the archive could only hash the merged table, which is the full-table identity C28
 > rejects.
 
@@ -2830,7 +2830,7 @@ const BASE_REASON_CODES = [
   "content_version_conflict", "content_kind_changed", "content_not_adoptable",
   "content_incompatible",
   // durable epochs (§4; 16 §4.3, §5.1, §7) — publish, restore and the host's catalog
-  "string_provenance_missing", "historical_string_collision", "epoch_unsupported",
+  "content_provenance_missing", "historical_string_collision", "epoch_unsupported",
   "campaign_version_unsupported",
 ] as const;
 ```

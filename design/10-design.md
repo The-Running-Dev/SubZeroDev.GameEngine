@@ -4353,7 +4353,7 @@ durability supplies its own (§6).
 ```text
 host builds a registry (resolvePacks + buildValidatedContentRegistry, or by hand)
 archive.publish(registry):
-  no registry.provenance → string_provenance_missing
+  no registry.provenance → content_provenance_missing
   any authored key reserved, or containing `~` → protected_string_key
   for each campaign: form = (composed campaign, attachments, provenance strings); digest = epochDigest(form)
   for each campaign: kind.validateCampaign(campaign, form.strings ∪ running engine catalog) — any error → refuse
@@ -4669,7 +4669,7 @@ against something else.
 |---|---|---|
 | `publish` | A campaign fails `validateCampaign` | Refused with its validation errors; nothing stored, `latest` unchanged |
 | `publish` | A key is held with a different digest | Refused `content_version_conflict`; nothing stored |
-| `publish` | The registry has no `provenance` | Refused `string_provenance_missing`; nothing stored |
+| `publish` | The registry has no `provenance` | Refused `content_provenance_missing`; nothing stored |
 | `publish` | An authored key is engine-reserved or contains `~` | Refused `protected_string_key` (`details.reason`: `engine_reserved` or `response_alias_namespace`); nothing stored |
 | `publish` (host archive) | The key was retired | Refused `content_version_conflict`, even with an identical digest |
 | `restore` | The stored form's digest ≠ the stored digest; an authored key was reserved at publication; or the key is held with a different digest | `integrity_failure` — the host's boot fails |
