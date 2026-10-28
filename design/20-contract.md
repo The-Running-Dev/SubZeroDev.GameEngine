@@ -153,9 +153,10 @@ defeat it (§9.1).
   `invalid_state`, and §10.2's migration appends the entry that keeps a migrated state inside
   it.*
 - **C27.** A session's string table never loses a key: any `LocKey` in any result the store
-  returned for a session resolves in every later `getStrings` of that session (§7). *Enforced
-  by code — the table is the union over the session's live epochs, and within one session id
-  the log only grows.*
+  returned for a session, other than a response alias, resolves in every later `getStrings` of
+  that session (§7). An alias resolves only in the table it arrived with, because the alias scope
+  shrinks when a host retires an epoch (§7, response aliases). *Enforced by code — the table is
+  the union over the session's live epochs, and within one session id the log only grows.*
 - **C28.** An epoch's identity is its authored form alone: the composed campaign, its composition
   inputs and its authored strings. No engine-owned message, and no campaign it does not compose,
   changes an epoch's digest. *Enforced by code — `epochDigest` hashes `EpochForm` (§4), which has
@@ -1336,7 +1337,7 @@ catalog's text. Where an authored key equals an engine key, which only a restore
   §4) equals it, else `~n~k` for the smallest positive `n` whose form is free. Engine keys contain
   no `~` (§12), so distinct engine keys never share an alias, and an authored entry is never
   renamed, dropped or overwritten to make room. The scope is archive-wide, so the map changes only
-  when `restore` adds an epoch.
+  when `restore` adds an epoch or a host archive retires one (16 §6).
 - **Which references take one.** In production, an engine key `k` is aliased only when some epoch
   in scope authors `k`; every other engine reference is emitted unchanged. Under
   `aliasEngineKeys: "all"` (06 §4), a test context, every engine-owned reference is aliased. The

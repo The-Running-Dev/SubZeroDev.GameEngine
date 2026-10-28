@@ -4621,11 +4621,11 @@ design choices behind it are these:
   on a legacy restore.
 - **The scope is the archive's authored keys, not the session's.** One map then serves every
   session and every surface — scenes, views, actions, previews, errors, messages, `getStrings`,
-  `listCampaigns`, offline bundles — and it changes only when `restore` adds an epoch, never on
-  `publish`, which refuses the collision outright (04 §12).
+  `listCampaigns`, offline bundles — and it changes only when `restore` adds an epoch or a host
+  archive retires one (§6), never on `publish`, which refuses the collision outright (04 §12).
 - **An alias is presentation.** It never reaches `GameState`, the log or `serialize()` (04 C29),
   and a client must not persist one apart from the table it came with: the same key may alias
-  differently after the host restores another epoch.
+  differently after the host restores or retires an epoch, which is why 04 C27 excludes aliases.
 
 ---
 

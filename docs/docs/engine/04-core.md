@@ -1135,7 +1135,7 @@ catalog's text. Where an authored key equals an engine key, which only a restore
   §4) equals it, else `~n~k` for the smallest positive `n` whose form is free. Engine keys contain
   no `~` (§12), so distinct engine keys never share an alias, and an authored entry is never
   renamed, dropped or overwritten to make room. The scope is archive-wide, so the map changes only
-  when `restore` adds an epoch.
+  when `restore` adds an epoch or a host archive retires one (16 §6).
 - **Which references take one.** In production, an engine key `k` is aliased only when some epoch
   in scope authors `k`; every other engine reference is emitted unchanged. Under
   `aliasEngineKeys: "all"` (06 §4), a test context, every engine-owned reference is aliased. The
