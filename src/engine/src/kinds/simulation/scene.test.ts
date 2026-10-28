@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { scene } from "./scene.js";
 import type { SimulationCampaign } from "./campaign.js";
 import type { SimulationKindState } from "./state.js";
-import type { KindContext } from "../../core/kernel/types.js";
+import type { ProjectionContext } from "../../core/kernel/types.js";
 
 const baseState: SimulationKindState = {
   calendar: { currentWeek: 4, currentYear: 2, totalTimeUnits: 14, committedTimeUnits: 0, spentTimeUnits: 0 },
@@ -41,7 +41,7 @@ function campaignContent(overrides?: Partial<SimulationCampaign>): SimulationCam
   };
 }
 
-function ctxWithStrings(content: SimulationCampaign, strings: ReadonlyMap<string, string>): KindContext {
+function ctxWithStrings(content: SimulationCampaign, strings: ReadonlyMap<string, string>): ProjectionContext {
   return {
     registry: { campaigns: new Map(), strings },
     campaign: { id: "c", kindId: "simulation", version: "1", titleKey: "t", content },
@@ -51,6 +51,7 @@ function ctxWithStrings(content: SimulationCampaign, strings: ReadonlyMap<string
     },
     seq: 0,
     emit: { emit: () => undefined },
+    engineRef: (key) => key,
   };
 }
 

@@ -76,7 +76,7 @@ function makeTestKind(): Kind<TestKindState> {
 
 function makeRegistry(version = "1"): ContentRegistry {
   const campaign: Campaign = { id: "test-campaign", kindId: "story-graph", version, titleKey: "test.title", content: {} };
-  return { campaigns: new Map([["test-campaign", campaign]]), strings: new Map() };
+  return { campaigns: new Map([["test-campaign", campaign]]), strings: new Map(), provenance: new Map([["test-campaign", { strings: new Map(), attachments: [] }]]) };
 }
 
 function makeContext(registry: ContentRegistry = makeRegistry()): ReplayRunnerContext {
@@ -258,7 +258,7 @@ function makeAdoptingKind(): Kind<TestKindState> {
 
 function epochRegistry(version: string, content: Record<string, unknown> = {}): ContentRegistry {
   const campaign: Campaign = { id: "test-campaign", kindId: "story-graph", version, titleKey: "test.title", content };
-  return { campaigns: new Map([["test-campaign", campaign]]), strings: new Map() };
+  return { campaigns: new Map([["test-campaign", campaign]]), strings: new Map(), provenance: new Map([["test-campaign", { strings: new Map(), attachments: [] }]]) };
 }
 
 /** An engine whose default epoch is `registry`'s, over an archive that also holds `others`. */

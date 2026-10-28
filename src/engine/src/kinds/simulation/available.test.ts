@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { availableActions } from "./available.js";
 import type { SimulationCampaign } from "./campaign.js";
 import type { SimulationKindState } from "./state.js";
-import type { KindContext } from "../../core/kernel/types.js";
+import type { ProjectionContext } from "../../core/kernel/types.js";
 
 const state: SimulationKindState = {
   calendar: { currentWeek: 1, currentYear: 1, totalTimeUnits: 14, committedTimeUnits: 0, spentTimeUnits: 0 },
@@ -38,7 +38,7 @@ const content: SimulationCampaign = {
   actionLabelKeys: { planAdd: "sim.action.plan-add", planRemove: "sim.action.plan-remove", planClear: "sim.action.plan-clear", endWeek: "sim.action.end-week" },
 };
 
-function fakeCtx(): KindContext {
+function fakeCtx(): ProjectionContext {
   return {
     registry: { campaigns: new Map(), strings: new Map() },
     campaign: { id: "c", kindId: "simulation", version: "1", titleKey: "t", content },
@@ -48,6 +48,7 @@ function fakeCtx(): KindContext {
     },
     seq: 0,
     emit: { emit: () => undefined },
+    engineRef: (key) => key,
   };
 }
 
@@ -71,7 +72,7 @@ describe("availableActions (10-simulation-kind.md §4, §9; W50.4)", () => {
 });
 
 describe("availableActions — W100.2 emptyPlanPolicy gate", () => {
-  function ctxWithPolicy(emptyPlanPolicy: SimulationCampaign["emptyPlanPolicy"]): KindContext {
+  function ctxWithPolicy(emptyPlanPolicy: SimulationCampaign["emptyPlanPolicy"]): ProjectionContext {
     const ctx = fakeCtx();
     return { ...ctx, campaign: { ...ctx.campaign, content: { ...content, emptyPlanPolicy } } };
   }

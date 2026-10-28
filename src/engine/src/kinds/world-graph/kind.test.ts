@@ -50,7 +50,7 @@ function envelope(overrides: Partial<WorldGraphCampaign> = {}): { campaign: Camp
   return { campaign: built.value.campaign, strings: built.value.strings };
 }
 
-function engine(overrides: Partial<WorldGraphCampaign> = {}) {
+function engine(overrides: Partial<WorldGraphCampaign> = {}, aliasEngineKeys?: "all") {
   const builtEnvelope = envelope(overrides);
   const built = { campaign: builtEnvelope.campaign, strings: builtEnvelope.strings };
   const registryResult = buildContentRegistry([built], [WORLD_GRAPH_REASON_MESSAGES]);
@@ -59,6 +59,7 @@ function engine(overrides: Partial<WorldGraphCampaign> = {}) {
     registry: registryResult.value,
     kinds: { "world-graph": worldGraphKind } as unknown as KindRegistry,
     ids: { newGameId: () => "game:world", newSeed: () => "seed:world" },
+    ...(aliasEngineKeys ? { aliasEngineKeys } : {}),
   };
   return createEngine(host);
 }
@@ -634,6 +635,41 @@ describe("world-graph W45 engine seam", () => {
     expect(repeated.ok).toBe(true);
     expect(repeated.changes).toEqual([]);
     expect(stateOf(repeated.value!).tick).toBe(0);
+  });
+
+  it("C29 — a kind-owned alert family's keys take their alias; an incident alert's authored keys do not", () => {
+    const game = create();
+    const alert = (id: string, type: "building_broken" | "incident_active", titleKey: string, messageKey: string) => ({
+      id, type, semanticKey: `${type}:${id}`, severity: "warning" as const, titleKey, messageKey,
+      entityId: null, issuedAtTick: 0, dismissedAtTick: null, clearedAtTick: null,
+    });
+    const withAlerts = {
+      ...game,
+      kindState: {
+        ...stateOf(game),
+        alerts: [
+          alert("alert:0", "building_broken", "world-graph.alert.building-broken.title", "world-graph.alert.building-broken.message"),
+          alert("alert:1", "incident_active", "world.incident.litter.name", "world.incident.litter.description"),
+        ],
+      },
+    };
+    const alertKeys = (aliasEngineKeys?: "all") =>
+      (engine({}, aliasEngineKeys).view(withAlerts, "player") as { kindView: WorldGraphView }).kindView.alerts.map((entry) => [entry.titleKey, entry.messageKey]);
+    expect(alertKeys("all")).toEqual([
+      ["~world-graph.alert.building-broken.title", "~world-graph.alert.building-broken.message"],
+      ["world.incident.litter.name", "world.incident.litter.description"],
+    ]);
+    expect(alertKeys()).toEqual([
+      ["world-graph.alert.building-broken.title", "world-graph.alert.building-broken.message"],
+      ["world.incident.litter.name", "world.incident.litter.description"],
+    ]);
+  });
+
+  it("C29 — action labels and the scene summary are engine keys and take their alias", () => {
+    const runtimeEngine = engine({}, "all");
+    const scene = runtimeEngine.scene(create());
+    expect(scene.body.textKey).toBe("~world-graph.scene.summary");
+    expect(scene.actions.map((entry) => entry.labelKey).every((key) => key.startsWith("~world-graph.action."))).toBe(true);
   });
 
   it("returns the contract rejection codes before allocating or advancing time", () => {

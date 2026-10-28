@@ -1,5 +1,5 @@
 import type { ReasonCode } from "../../core/kernel/reasons.js";
-import type { KindContext } from "../../core/kernel/types.js";
+import type { ProjectionContext } from "../../core/kernel/types.js";
 import type { ProjectionAudience } from "../../core/projection/types.js";
 import { buildBlockers } from "./actions/build.js";
 import { compareDefinitionId, compareRuntimeEntityId } from "./tick/order.js";
@@ -51,7 +51,7 @@ function recordToValues(record: Readonly<Record<string, number>>): WorldGraphVie
     .sort(byDefinitionId);
 }
 
-export function project(state: WorldGraphKindState, _audience: ProjectionAudience, ctx: KindContext): WorldGraphView {
+export function project(state: WorldGraphKindState, _audience: ProjectionAudience, ctx: ProjectionContext): WorldGraphView {
   const content: WorldGraphCampaign = worldGraphContent(ctx.campaign.content);
   const scenario = content.scenarios.find((entry) => entry.id === content.startScenarioId);
   if (!scenario) throw new Error(`Validated world-graph scenario missing: ${content.startScenarioId}`);
@@ -193,7 +193,10 @@ export function project(state: WorldGraphKindState, _audience: ProjectionAudienc
     alerts: state.alerts
       .filter((alert) => alert.dismissedAtTick === null && alert.clearedAtTick === null)
       .sort(byEntityId)
-      .map(({ id, type, severity, titleKey, messageKey, entityId, issuedAtTick }) => ({ id, type, severity, titleKey, messageKey, entityId, issuedAtTick })),
+      // The two kind-owned families carry engine keys (C29); an incident alert's are authored.
+      .map(({ id, type, severity, titleKey, messageKey, entityId, issuedAtTick }) => type === "incident_active"
+        ? { id, type, severity, titleKey, messageKey, entityId, issuedAtTick }
+        : { id, type, severity, titleKey: ctx.engineRef(titleKey), messageKey: ctx.engineRef(messageKey), entityId, issuedAtTick }),
     queuedGuests: state.buildings.reduce((sum, building) => sum + building.queue.guestIds.length, 0),
   };
 }

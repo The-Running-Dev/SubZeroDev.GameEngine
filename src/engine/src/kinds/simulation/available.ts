@@ -19,12 +19,12 @@
  * false` — `advance.ts` rejects it for real; this is the projection's own advance notice.
  */
 
-import type { AvailableAction, KindContext } from "../../core/kernel/types.js";
+import type { AvailableAction, ProjectionContext } from "../../core/kernel/types.js";
 import type { SimulationCampaign } from "./campaign.js";
 import type { SimulationKindState } from "./state.js";
 import { unaddressedPendingResponses } from "./state.js";
 
-export function availableActions(state: SimulationKindState, ctx: KindContext): AvailableAction[] {
+export function availableActions(state: SimulationKindState, ctx: ProjectionContext): AvailableAction[] {
   const content = ctx.campaign.content as SimulationCampaign;
   const labels = content.actionLabelKeys;
   const blocked = unaddressedPendingResponses(state).length > 0;

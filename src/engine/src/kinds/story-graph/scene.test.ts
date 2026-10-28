@@ -3,7 +3,7 @@ import { availableActions, scene } from "./scene.js";
 import type { StoryGraphCampaign } from "./campaign.js";
 import type { StoryGraphKindState } from "./state.js";
 import type { VariableSchema } from "./variables.js";
-import type { KindContext } from "../../core/kernel/types.js";
+import type { ProjectionContext } from "../../core/kernel/types.js";
 
 const schema: VariableSchema = {
   money: { type: "int", initial: 2, min: 0, max: 3, visible: true, labelKey: "stat.money" },
@@ -58,11 +58,11 @@ function baseState(overrides?: Partial<StoryGraphKindState>): StoryGraphKindStat
   };
 }
 
-function fakeRng(): KindContext["rng"] {
+function fakeRng(): ProjectionContext["rng"] {
   return { nextInt: () => 0, nextPercent: () => 0, pick: (items) => items[0]!, weightedPick: (items) => items[0]!.item };
 }
 
-function fakeCtx(strings: Record<string, string> = {}): KindContext {
+function fakeCtx(strings: Record<string, string> = {}): ProjectionContext {
   return {
     registry: { campaigns: new Map(), strings: new Map(Object.entries(strings)) },
     campaign: { id: "c", kindId: "story-graph", version: "1", titleKey: "t", content: campaign },
@@ -70,6 +70,7 @@ function fakeCtx(strings: Record<string, string> = {}): KindContext {
     derive: fakeRng,
     seq: 0,
     emit: { emit: () => undefined },
+    engineRef: (key) => key,
   };
 }
 

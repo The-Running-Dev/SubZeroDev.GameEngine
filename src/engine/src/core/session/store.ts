@@ -25,7 +25,7 @@ import { isEpochEntry, isLoggedAction, startingCampaignVersion } from "../kernel
 import { buildSaveEnvelope, resolveSaveEnvelope, serializeSaveEnvelope } from "../persistence/envelope.js";
 import { canonicalize as canonicalStringify } from "subzerodev-data-json";
 import type { PlayerView, ProjectionAudience } from "../projection/types.js";
-import type { StringTable } from "../localization/types.js";
+import type { LocKey, StringTable } from "../localization/types.js";
 import type { ValidationWarning } from "../validation/types.js";
 import type { Clock, RecordIdSource } from "../composition/types.js";
 import type { Emitter, EmittedRecord, EmittedRecordSink } from "../observability/types.js";
@@ -54,7 +54,8 @@ import {
   SESSION_PERSISTENCE_CONFLICT,
   SessionStoreError as SessionStoreErrorValue,
 } from "./types.js";
-import type { SessionHost } from "../composition/types.js";
+import type { SessionHost, SessionLayer } from "../composition/types.js";
+import { engineAliases, IDENTITY_ALIASES, isEngineOwned, registryAuthoredStrings, type ResponseAliases } from "../kernel/aliases.js";
 
 const noopRecordSink: EmittedRecordSink = { write: () => {} };
 
@@ -129,13 +130,24 @@ function toPlayerResult(result: {
   warnings: SessionActionResult["warnings"];
   changes: readonly StateChange[];
   messages: readonly OutcomeMessage[];
-}): SessionActionResult {
+}, aliases: ResponseAliases): SessionActionResult {
+  // C29: engine-owned keys take their response alias here, after the profile fold and logging
+  // read them unaliased. An item a producer marked authored keeps its key.
+  const aliased = (value: object, key: LocKey): LocKey | undefined =>
+    isEngineOwned(value, key, aliases) && aliases.aliases(key) ? aliases.engineRef(key) : undefined;
+  const issue = <T extends { messageKey: LocKey }>(item: T): T => {
+    const key = aliased(item, item.messageKey);
+    return key === undefined ? item : { ...item, messageKey: key };
+  };
   const projected: SessionActionResult = {
     ok: result.ok,
-    errors: result.errors,
-    warnings: result.warnings,
+    errors: result.errors.map(issue),
+    warnings: result.warnings.map(issue),
     changes: result.changes.filter((change) => change.visible),
-    messages: result.messages.filter((message) => message.visible),
+    messages: result.messages.filter((message) => message.visible).map((message) => {
+      const key = aliased(message, message.key);
+      return key === undefined ? message : { ...message, key };
+    }),
   };
   if (result.scene !== undefined) projected.scene = result.scene;
   return projected;
@@ -475,13 +487,16 @@ export function runExclusive<T>(locks: Map<string, Promise<unknown>>, key: strin
   return run;
 }
 
-function createStore(options: InMemorySessionStoreOptions): SessionStore {
+function createStore(options: InMemorySessionStoreOptions): SessionLayer {
   const { engine, registry } = options;
   // Read off `engine` rather than taken as a second, independently-suppliable option
   // (Qodo review, PR #92) — this is the same `KindRegistry` every gameplay call already
   // resolves `state.kindId` against, so `saveGame`/`loadGame`'s stamping and migration
   // dispatch structurally cannot disagree with it.
   const kinds = engine.kinds;
+  // The engine's own response-alias map (06 §4). `createSessionLayer` has already refused an
+  // unlinked engine; the in-memory convenience answers without aliases instead.
+  const aliases = engineAliases(engine) ?? IDENTITY_ALIASES;
   const clock = options.clock ?? defaultClock;
   const recordSink = options.recordSink ?? noopRecordSink;
   const recordIds = options.recordIds;
@@ -509,6 +524,8 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
   // A persistence read in flight, shared by every caller that misses the cache for the same
   // session meanwhile — for the same reason: two reads would make two objects.
   const sessionReads = new Map<string, Promise<SessionRecord>>();
+  // Who is waiting for a session's last pin to be released — `forget` (06 §5.2).
+  const unpinWaiters = new Map<string, (() => void)[]>();
   // Per-session serialization. `withCommand`'s `await Promise.resolve()` (Decision 9) is
   // what makes cross-session concurrency genuinely interleave for the isolation test — but
   // the same yield point would let two commands against the *same* session both read
@@ -551,8 +568,12 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
       return await fn(await getSession(sessionId));
     } finally {
       const pins = (pinnedSessions.get(sessionId) ?? 1) - 1;
-      if (pins === 0) pinnedSessions.delete(sessionId);
-      else pinnedSessions.set(sessionId, pins);
+      if (pins === 0) {
+        pinnedSessions.delete(sessionId);
+        const waiters = unpinWaiters.get(sessionId) ?? [];
+        unpinWaiters.delete(sessionId);
+        for (const wake of waiters) wake();
+      } else pinnedSessions.set(sessionId, pins);
       trimSessions();
     }
   }
@@ -588,6 +609,31 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
       throw new SessionStoreErrorValue("session", "storage_failure");
     }
     throw new SessionStoreErrorValue("session", "unknown_session", `session store: unknown sessionId "${sessionId}"`);
+  }
+
+  /**
+   * 06 §5.2. Waits until no command holds `sessionId` and no persistence read for it is in
+   * flight, then drops the cached record without writing it. A command pins the session before
+   * it queues on `sessionLocks` and releases it after, so the pin covers the queue too. Each
+   * wait is re-checked, since a command can arrive while another settles. Every read that began
+   * before the call has settled by the drop, so whatever it cached goes with it.
+   */
+  async function forget(sessionId: string): Promise<void> {
+    for (;;) {
+      const read = sessionReads.get(sessionId);
+      if (read) {
+        await read.catch(() => undefined);
+        continue;
+      }
+      if (pinnedSessions.has(sessionId)) {
+        await new Promise<void>((wake) => {
+          unpinWaiters.set(sessionId, [...(unpinWaiters.get(sessionId) ?? []), wake]);
+        });
+        continue;
+      }
+      break;
+    }
+    sessions.delete(sessionId);
   }
 
   async function getSave(saveId: string, operation = "loadGame"): Promise<SaveRecord> {
@@ -718,6 +764,7 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
   }
 
   return {
+    forget,
     // ── Queries — no span, no decorator (05 §6.1 names only the five commands below) ──
     async listCampaigns(profileId?: string): Promise<CampaignCatalog> {
       // Session-free (04 §7.3) — no session lock, no engine call. Progress is read here,
@@ -767,6 +814,10 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
       // the most recent epoch that defines it. Each epoch contributes its whole frozen
       // registry table — plan 14 Decision 7: a registry has no per-campaign string partition
       // to narrow by. A session that never adopted has one live epoch, and gets its table.
+      //
+      // C28/C29 (20-contract §7): an epoch contributes only its authored strings; every
+      // engine-owned key resolves to the running catalog's text, under its response alias
+      // where it takes one — so a colliding `k` is the authored text and `alias(k)` the engine's.
       const record = await getSession(sessionId);
       const state = mustDeserialize(engine, record.blob);
       const table: Record<string, string> = {};
@@ -775,9 +826,12 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
         // archive no longer holds contributes nothing rather than failing the query.
         const epoch = engine.content.resolve(state.campaignId, version);
         if (!epoch) continue;
-        for (const [key, text] of epoch.strings) {
+        for (const [key, text] of registryAuthoredStrings(epoch, aliases.catalog)) {
           table[key] = text;
         }
+      }
+      for (const [key, text] of aliases.catalog) {
+        table[aliases.engineRef(key)] = text;
       }
       return table;
     },
@@ -970,10 +1024,10 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
                 warnings: [...result.warnings, ...profileWarnings],
                 changes: result.changes,
                 messages: result.messages,
-              });
+              }, aliases);
             }
 
-            return toPlayerResult({ ok: false, errors: result.errors, warnings: result.warnings, changes: result.changes, messages: result.messages });
+            return toPlayerResult({ ok: false, errors: result.errors, warnings: result.warnings, changes: result.changes, messages: result.messages }, aliases);
           });
         });
       });
@@ -997,10 +1051,10 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
               warnings: result.warnings,
               changes: result.changes,
               messages: result.messages,
-            });
+            }, aliases);
           }
 
-          return toPlayerResult({ ok: false, errors: result.errors, warnings: result.warnings, changes: result.changes, messages: result.messages });
+          return toPlayerResult({ ok: false, errors: result.errors, warnings: result.warnings, changes: result.changes, messages: result.messages }, aliases);
         });
       });
     },
@@ -1217,7 +1271,10 @@ function createStore(options: InMemorySessionStoreOptions): SessionStore {
 }
 
 /** The canonical session-layer composition root. */
-export function createSessionLayer(host: SessionHost): SessionStore {
+export function createSessionLayer(host: SessionHost): SessionLayer {
+  if (engineAliases(host.engine) === undefined) {
+    throw new TypeError("createSessionLayer: host.engine must be an Engine returned by createEngine or withEmitter (06 §4) — it carries the response-alias map the session layer answers with");
+  }
   return createStore(host);
 }
 

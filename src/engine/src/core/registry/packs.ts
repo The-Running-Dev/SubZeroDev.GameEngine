@@ -183,7 +183,7 @@ function validateNoProtectedStringWrites(packs: readonly ContentPack[]): Validat
           code: "protected_string_key",
           messageKey: "core.reason.protected_string_key",
           path: key,
-          details: { packId: pack.id },
+          details: { packId: pack.id, reason: "engine_reserved" },
         });
       }
     }

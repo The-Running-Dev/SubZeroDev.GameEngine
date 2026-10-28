@@ -31,7 +31,7 @@ export const worldGraphKind: Kind<WorldGraphKindState> = {
   eventNames: WORLD_GRAPH_EVENT_NAMES,
   initialState: (campaign, ctx) => initialState(campaign, ctx),
   availableActions: (state, ctx): AvailableAction[] => availableActions(state, ctx),
-  scene: (state): SceneBody => scene(state),
+  scene: (state, ctx): SceneBody => scene(state, ctx),
   advance: (state, actionId, params, ctx): AdvanceResult<WorldGraphKindState> => advance(state, actionId, params, ctx),
   project: (state, audience, ctx) => project(state, audience, ctx),
   validateCampaign: (campaign, strings) => validateCampaign(campaign, strings),

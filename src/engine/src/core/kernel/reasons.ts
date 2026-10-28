@@ -111,6 +111,14 @@ export type ReasonCode = string;
  * `content_version_conflict` was added with the content archive (16 §3.4, §4.3) — `publish`
  * refuses a registry that names a held `(campaignId, campaignVersion)` with different content.
  * Base because the archive is core-owned and the identity it protects is the envelope's.
+ *
+ * `content_provenance_missing`, `historical_string_collision`, `epoch_unsupported` and
+ * `campaign_version_unsupported` were added with durable epochs (C28; 16 §5.1). `publish`
+ * refuses a registry that cannot say what each campaign authored; `restore` warns when an
+ * authored key the running engine now reserves was legal at publication, and classifies an
+ * epoch the running kind rejects. The last is host-produced — a host that cannot serve a
+ * requested version says so in the engine's vocabulary. Base because the archive and the
+ * epoch identity are core-owned.
  */
 export const BASE_REASON_CODES = [
   "action_not_available",
@@ -163,6 +171,11 @@ export const BASE_REASON_CODES = [
   "content_incompatible",
   // content epochs (16 §3.4) — publication
   "content_version_conflict",
+  // durable epochs (C28; 16 §5.1) — publication and restore
+  "content_provenance_missing",
+  "historical_string_collision",
+  "epoch_unsupported",
+  "campaign_version_unsupported",
 ] as const;
 
 export type BaseReasonCode = (typeof BASE_REASON_CODES)[number];
@@ -221,6 +234,10 @@ const CORE_REASON_TEXT: Readonly<Record<BaseReasonCode, string>> = {
   content_not_adoptable: "This kind of game can't move a session onto new content, so it stays on its version.",
   content_incompatible: "This session can't move onto the new version of its campaign, so it stays on the version it started.",
   content_version_conflict: "This version of the campaign was already published with different content.",
+  content_provenance_missing: "This content can't be published because it doesn't say which strings each campaign authored.",
+  historical_string_collision: "This saved campaign uses a text key the engine has since reserved; its own text is kept.",
+  epoch_unsupported: "This version of the campaign can't be played by this version of the game.",
+  campaign_version_unsupported: "This version of the campaign isn't available here.",
 };
 
 /** `core.reason.<code>` → its shipped default-English message, for every base code. */

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Campaign } from "../../core/registry/types.js";
-import type { KindContext } from "../../core/kernel/types.js";
+import type { ProjectionContext } from "../../core/kernel/types.js";
 import { adoptContent } from "./adopt.js";
 import { storyGraphKind } from "./kind.js";
 import { availableActions } from "./scene.js";
@@ -230,7 +230,7 @@ describe("S132.3 — availability is the scene's own", () => {
         const decision = adoptContent(midGame(), FROM, to);
         // What the scene would show on the target, for the state the adoption would produce.
         const inserted = { ...midGame(), variables: { ...midGame().variables, ticket: initial } };
-        const offered = availableActions(inserted, { campaign: to } as KindContext);
+        const offered = availableActions(inserted, { campaign: to } as ProjectionContext);
         expect(decision.adopt).toBe(offered.some((a) => a.available));
         expect(decision.adopt).toBe(initial);
       });

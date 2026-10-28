@@ -15,7 +15,7 @@
  * its own; a kind's warnings are collected and passed through unchanged.
  */
 
-import type { BuiltCampaign, Campaign, CampaignAttachment, ContentRegistry } from "../registry/types.js";
+import type { BuiltCampaign, Campaign, CampaignAttachment, CampaignProvenance, ContentRegistry } from "../registry/types.js";
 import { buildContentRegistry } from "../registry/build.js";
 import { composeCampaigns } from "../registry/compose.js";
 import { resolvePacks, type ContentPack } from "../registry/packs.js";
@@ -157,9 +157,21 @@ function composeValidateAndAssemble(
     return { ok: false, errors: built.errors, warnings };
   }
 
+  // Provenance is each campaign's validation table — its own strings united with every
+  // module's it composed — and the attachments it received (20-contract §10.1). For a pack
+  // registry that table is the whole fold, which carries no engine message: packs cannot
+  // write one (`registry/packs.ts`).
+  const provenance = new Map<string, CampaignProvenance>();
+  composed.forEach(({ campaign }, index) => {
+    provenance.set(campaign.id, {
+      strings: validationStrings[index]!,
+      attachments: attachments.filter((attachment) => attachment.hostCampaignId === campaign.id),
+    });
+  });
+
   // `built.ok` was just checked; `value` is always set on that branch (registry/build.ts's
   // own contract) — TS doesn't discriminate CommandResult's `ok` from a plain `boolean`.
-  return { ok: true, value: built.value as ContentRegistry, errors: [], warnings };
+  return { ok: true, value: { ...(built.value as ContentRegistry), provenance }, errors: [], warnings };
 }
 
 /**

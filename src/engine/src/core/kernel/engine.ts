@@ -25,9 +25,11 @@ import type {
   LoggedEntry,
   LoggedMigration,
   NewGameConfig,
+  ProjectionContext,
   ResolutionArchive,
   Scene,
 } from "./types.js";
+import { createResponseAliases, linkEngine, registryAuthoredKeys, runningCatalog, type ResponseAliases } from "./aliases.js";
 import type { CommandResult, OutcomeMessage, ReasonCode } from "./reasons.js";
 import { isEpochEntry } from "./log.js";
 import type { RngHandle, StreamId } from "../determinism/types.js";
@@ -45,8 +47,8 @@ import { CORE_EVENTS } from "../observability/events.js";
 // Content resolution (20-contract.md §4, C22)
 // ---------------------------------------------------------------------------
 
-/** `EngineHost` once `createEngine` has settled which archive is in use. */
-type ResolvedHost = EngineHost & { readonly archive: ResolutionArchive };
+/** `EngineHost` once `createEngine` has settled which archive and which alias map are in use. */
+type ResolvedHost = EngineHost & { readonly archive: ResolutionArchive; readonly aliases: ResponseAliases };
 
 interface ResolvedEpoch {
   readonly registry: ContentRegistry;
@@ -126,10 +128,15 @@ function buildKindContext(
  * resolution — no core *lifecycle* event fires for a read (none is named for one in 05
  * §8), but `core.rng.stream.derived` and any `kind.*` event still reach the sink.
  */
-function buildReadContext(host: ResolvedHost, epoch: ResolvedEpoch, kind: Kind<unknown>, state: GameState): KindContext {
+function buildReadContext(host: ResolvedHost, epoch: ResolvedEpoch, kind: Kind<unknown>, state: GameState): ProjectionContext {
   const seq = state.actionLog.length;
   const emitters = makeResolutionEmitters(host.emitter ?? nullEmitter, state.gameId, seq);
-  return buildKindContext(epoch.registry, epoch.campaign, kind, state.seed, { kind: "system", system: "view", seq }, seq, emitters);
+  // The only place `engineRef` is attached (20-contract §3.1): a projection context, never the
+  // one `initialState`, `advance` or `migrateState` receive (C29).
+  return {
+    ...buildKindContext(epoch.registry, epoch.campaign, kind, state.seed, { kind: "system", system: "view", seq }, seq, emitters),
+    engineRef: host.aliases.engineRef,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -686,9 +693,19 @@ export function createEngine(host: EngineHost): Engine {
       );
     }
   }
-  const resolved: ResolvedHost = { ...host, registry, archive };
+  // 16 §5.7: one map for every response surface. The scope is the archive's authored keys, read
+  // per call since `restore` can widen it; an archive that does not report them falls back to
+  // the construction-time registry's.
+  const catalog = runningCatalog(host.kinds);
+  const constructionKeys = registryAuthoredKeys(registry, catalog);
+  const aliases = createResponseAliases(
+    host.aliasEngineKeys ?? "colliding",
+    catalog,
+    () => archive.authoredKeys?.() ?? constructionKeys,
+  );
+  const resolved: ResolvedHost = { ...host, registry, archive, aliases };
 
-  return {
+  return linkEngine({
     kinds: resolved.kinds,
     content: archive,
     createGame: (config, campaignVersion) => createGame(resolved, config, campaignVersion),
@@ -705,5 +722,5 @@ export function createEngine(host: EngineHost): Engine {
     // createEngine does no I/O, only the construction checks above, which are idempotent
     // over the same host. The resolved host carries the archive, so `content` survives.
     withEmitter: (emitter) => createEngine({ ...resolved, emitter }),
-  };
+  }, aliases);
 }

@@ -1159,7 +1159,8 @@ catalog's text. Where an authored key equals an engine key, which only a restore
 | Story-graph scene `reasonKey`, and its requirement-failure error | `requirementFailKey` if the choice sets one, else `core.reason.requirement_unmet` | per value: authored, else engine |
 | World-graph action labels and scene text | `world-graph.action.*`, `world-graph.scene.*` | engine |
 | Simulation negotiation and the fixed investment account | `simulation.negotiate.*`, `simulation.finance.investment.*` | engine |
-| Any `LocKey` read from content or `kindState` — `titleKey`, `nameKey`, alert `titleKey` / `messageKey`, `descriptionKey`, `displayNameKey` | as authored | authored |
+| World-graph `building_broken` and `scenario_resolved` alerts' `titleKey` / `messageKey` | `world-graph.alert.*` | engine |
+| Any `LocKey` read from content or `kindState` — `titleKey`, `nameKey`, an `incident_active` alert's `titleKey` / `messageKey`, `descriptionKey`, `displayNameKey` | as authored | authored |
 | `OutcomeMessage.key` | per producer, by the rows above | per producer |
 
 A mixed-origin field marks each value's owner on an internal carrier between the producer and

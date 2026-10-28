@@ -1,4 +1,4 @@
-import type { AvailableAction, KindContext, SceneBody } from "../../core/kernel/types.js";
+import type { AvailableAction, ProjectionContext, SceneBody } from "../../core/kernel/types.js";
 import { buildBlockers } from "./actions/build.js";
 import { worldGraphContent } from "./content.js";
 import type { WorldGraphKindState } from "./state.js";
@@ -11,11 +11,12 @@ const labels: Readonly<Record<string, string>> = {
   dismiss_alert: "world-graph.action.dismiss_alert", advance_ticks: "world-graph.action.advance_ticks",
 };
 
-function action(id: string, available: boolean, reasonKey?: string): AvailableAction {
-  return { id, labelKey: labels[id] ?? "world-graph.scene.summary", available, ...(available || reasonKey === undefined ? {} : { reasonKey }) };
+function action(ctx: ProjectionContext, id: string, available: boolean, reasonKey?: string): AvailableAction {
+  return { id, labelKey: ctx.engineRef(labels[id] ?? "world-graph.scene.summary"), available, ...(available || reasonKey === undefined ? {} : { reasonKey }) };
 }
 
-export function availableActions(state: WorldGraphKindState, ctx: KindContext): AvailableAction[] {
+export function availableActions(state: WorldGraphKindState, ctx: ProjectionContext): AvailableAction[] {
+  const reason = (code: string): string => ctx.engineRef(`world-graph.reason.${code}`);
   const content = worldGraphContent(ctx.campaign.content);
   const scenario = content.scenarios.find((entry) => entry.id === content.startScenarioId);
   if (!scenario) throw new Error(`Validated world-graph scenario missing: ${content.startScenarioId}`);
@@ -37,22 +38,22 @@ export function availableActions(state: WorldGraphKindState, ctx: KindContext): 
     return building.status === "open" && definition?.operation.kind === "service" && definition.operation.products.length > 0;
   });
   return [
-    action("build", buildable, `world-graph.reason.${firstBuildReason}`),
-    action("demolish", hasBuildings, "world-graph.reason.unknown_entity"),
-    action("hire_staff", affordableRoleExists, roleBelowLimitExists ? "world-graph.reason.insufficient_funds" : "world-graph.reason.staff_limit_reached"),
-    action("fire_staff", hasStaff, "world-graph.reason.unknown_entity"),
-    action("assign_staff", hasStaff, "world-graph.reason.unknown_entity"),
-    action("set_price", priceable, "world-graph.reason.building_not_open"),
-    action("open_building", state.buildings.some((entry) => entry.status === "closed"), "world-graph.reason.unknown_entity"),
-    action("close_building", state.buildings.some((entry) => entry.status === "open"), "world-graph.reason.unknown_entity"),
-    action("dismiss_alert", state.alerts.some((entry) => entry.dismissedAtTick === null && entry.clearedAtTick === null), "world-graph.reason.unknown_entity"),
-    action("advance_ticks", true),
+    action(ctx, "build", buildable, reason(firstBuildReason)),
+    action(ctx, "demolish", hasBuildings, reason("unknown_entity")),
+    action(ctx, "hire_staff", affordableRoleExists, reason(roleBelowLimitExists ? "insufficient_funds" : "staff_limit_reached")),
+    action(ctx, "fire_staff", hasStaff, reason("unknown_entity")),
+    action(ctx, "assign_staff", hasStaff, reason("unknown_entity")),
+    action(ctx, "set_price", priceable, reason("building_not_open")),
+    action(ctx, "open_building", state.buildings.some((entry) => entry.status === "closed"), reason("unknown_entity")),
+    action(ctx, "close_building", state.buildings.some((entry) => entry.status === "open"), reason("unknown_entity")),
+    action(ctx, "dismiss_alert", state.alerts.some((entry) => entry.dismissedAtTick === null && entry.clearedAtTick === null), reason("unknown_entity")),
+    action(ctx, "advance_ticks", true),
   ];
 }
 
-export function scene(state: WorldGraphKindState): SceneBody {
+export function scene(state: WorldGraphKindState, ctx: ProjectionContext): SceneBody {
   return {
-    textKey: "world-graph.scene.summary",
+    textKey: ctx.engineRef("world-graph.scene.summary"),
     text: `Tick ${state.tick} • cash ${(state.finances.cashCents / 100).toFixed(2)} • guests ${state.guests.length} • buildings ${state.buildings.length} • objectives ${state.objectives.map((entry) => `${entry.id}:${entry.value}/${entry.target}`).join(", ")}`,
   };
 }

@@ -112,6 +112,15 @@ export interface KindContext {
   readonly emit: ResolutionEmitter;
 }
 
+/** The wider context the three projecting members receive (§3.1); `initialState`, `advance`
+ *  and `migrateState` never do, which is what keeps an alias out of state (C29). */
+export interface ProjectionContext extends KindContext {
+  /** Maps an engine-owned `LocKey` to the key a response carries for it (§7, response
+   *  aliases). The identity in production unless an authored key in the archive collides
+   *  with an engine key; every engine-owned key under the forced-alias test context. */
+  readonly engineRef: (key: LocKey) => LocKey;
+}
+
 export interface AdvanceResult<KState> {
   state: KState;
   /** `advance` never yields "abandoned" — that is session-only (§7). */
@@ -164,8 +173,12 @@ export interface Kind<KState> {
    *  whose `NewGameConfig` carries none — a kind that reads it must treat absence as "no
    *  cross-game history", never as an error. */
   initialState(campaign: Campaign, ctx: KindContext, profileData?: unknown): InitialStateResult<KState>;
-  availableActions(state: KState, ctx: KindContext): AvailableAction[];
-  scene(state: KState, ctx: KindContext): SceneBody;
+  /** Takes `ProjectionContext` (§3.1): an engine-owned `LocKey` it emits passes through
+   *  `ctx.engineRef` at the point it is produced. */
+  availableActions(state: KState, ctx: ProjectionContext): AvailableAction[];
+  /** Render the current situation into a generic scene body (§6). Takes `ProjectionContext`
+   *  for the same reason. */
+  scene(state: KState, ctx: ProjectionContext): SceneBody;
 
   /** Pure: same `(state, actionId, params, ctx)` → same result. */
   advance(
@@ -175,7 +188,8 @@ export interface Kind<KState> {
     ctx: KindContext,
   ): AdvanceResult<KState>;
 
-  project(state: KState, audience: ProjectionAudience, ctx: KindContext): unknown;
+  /** Every engine-owned `LocKey` in the result passes through `ctx.engineRef` (§3.1). */
+  project(state: KState, audience: ProjectionAudience, ctx: ProjectionContext): unknown;
   /**
    * `strings` is the registry's built string table — a `LocKey` is only ever a
    * reference, so checking one resolves (or that a node's rendered text only
@@ -365,6 +379,10 @@ export type AdoptionResult =
 export interface ResolutionArchive {
   /** The registry the epoch `(campaignId, campaignVersion)` was published in, or undefined. */
   resolve(campaignId: string, campaignVersion: string): ContentRegistry | undefined;
+  /** Every authored key held by any epoch in this archive — the scope response aliases are
+   *  chosen against (20-contract §7). Optional: absent means the construction-time registry's
+   *  authored keys. A host archive that restores legacy epochs must supply it. */
+  authoredKeys?(): ReadonlySet<LocKey>;
 }
 
 /** Kind-agnostic operations over the envelope. Resolves the kind by `state.kindId`,

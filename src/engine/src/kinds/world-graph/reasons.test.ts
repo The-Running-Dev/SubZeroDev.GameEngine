@@ -11,6 +11,15 @@ const WORLD_GRAPH_ALERT_KEYS = [
   "world-graph.alert.scenario-resolved.message",
 ];
 
+// The action labels and scene summary (C29): engine-owned presentation keys, so the running
+// catalog holds their default text and a colliding authored key cannot shadow them.
+const WORLD_GRAPH_PRESENTATION_KEYS = [
+  "world-graph.action.build", "world-graph.action.demolish", "world-graph.action.hire_staff",
+  "world-graph.action.fire_staff", "world-graph.action.assign_staff", "world-graph.action.set_price",
+  "world-graph.action.open_building", "world-graph.action.close_building",
+  "world-graph.action.dismiss_alert", "world-graph.action.advance_ticks", "world-graph.scene.summary",
+];
+
 describe("WORLD_GRAPH_REASON_MESSAGES", () => {
   it("has a non-empty message for every declared code", () => {
     for (const code of WORLD_GRAPH_REASON_CODES) {
@@ -20,12 +29,12 @@ describe("WORLD_GRAPH_REASON_MESSAGES", () => {
     }
   });
 
-  it("carries no key beyond the declared codes and the kind-owned alert strings", () => {
-    expect(WORLD_GRAPH_REASON_MESSAGES.size).toBe(WORLD_GRAPH_REASON_CODES.length + WORLD_GRAPH_ALERT_KEYS.length);
+  it("carries no key beyond the declared codes, the kind-owned alert strings and the presentation keys", () => {
+    expect(WORLD_GRAPH_REASON_MESSAGES.size).toBe(WORLD_GRAPH_REASON_CODES.length + WORLD_GRAPH_ALERT_KEYS.length + WORLD_GRAPH_PRESENTATION_KEYS.length);
   });
 
-  it("has a non-empty message for every kind-owned alert key", () => {
-    for (const key of WORLD_GRAPH_ALERT_KEYS) {
+  it("has a non-empty message for every kind-owned alert and presentation key", () => {
+    for (const key of [...WORLD_GRAPH_ALERT_KEYS, ...WORLD_GRAPH_PRESENTATION_KEYS]) {
       const message = WORLD_GRAPH_REASON_MESSAGES.get(key);
       expect(message, key).toBeTypeOf("string");
       expect(message?.length, key).toBeGreaterThan(0);

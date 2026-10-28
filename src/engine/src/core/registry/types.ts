@@ -22,6 +22,21 @@ export interface ContentRegistry {
    * via `buildContentRegistry`, which knows no packs exist.
    */
   readonly resolution?: ResolutionId;
+  /**
+   * Per campaign id, what that campaign authored — the input to its epoch identity (20-contract
+   * §4, C28). Set by every engine builder; `ContentArchive.publish` refuses a registry without
+   * it (`content_provenance_missing`). Optional only so a hand-built registry still type-checks.
+   */
+  readonly provenance?: ReadonlyMap<string, CampaignProvenance>;
+}
+
+/** Ownership by origin, not by prefix (20-contract §10.1). */
+export interface CampaignProvenance {
+  /** The campaign's own strings plus those of every module it composes, transitively — never
+   *  the core catalog or a kind's `reasonMessages`. */
+  readonly strings: ReadonlyMap<LocKey, string>;
+  /** The attachments applied to it, in application order (04 §10.4). */
+  readonly attachments: readonly CampaignAttachment[];
 }
 
 /** A canonical digest over an ordered `{id, version}` pack list (11-content-packs.md §6). */
