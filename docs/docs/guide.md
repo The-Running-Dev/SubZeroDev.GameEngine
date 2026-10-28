@@ -4,7 +4,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: d6150c479d638a40e90b138c327bc1b27691ce19bc149fb99a554758ca9bde58 -->
+<!-- design-digest: a3f7d9b2a71668a876ed200fbc94292e36c002bfd85618750182d09b4815a5a8 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -148,10 +148,12 @@ content-definition source types, the shared adventure builder with its source fa
 migration helper, portable serialization and manifest-digest functions, and replay-runner types.
 Import from `/authoring` only when writing or publishing campaign content — a runtime host must
 never import authored campaign source merely to play already-published portable JSON.
-`toPortable` and the manifest-resolution digest are `/authoring`-only; `fromPortable` is
-root-only; the portable-campaign digest function is exported from both, because both a runtime
-host verifying fetched content and a publishing pipeline digesting source before it ships need
-it. Portable campaign documents stay at format version 2.
+`toPortable` is `/authoring`-only; `fromPortable` is root-only; both digest functions are
+exported from both, because both a runtime host verifying fetched content and a publishing
+pipeline digesting source before it ships need them. The manifest-resolution digest covers each
+entry's id, version and file digest, so it names a set of files a host has verified, and from
+`0.12.0` it changes when any file's bytes change. Portable campaign documents stay at format
+version 2.
 
 A kind's export split follows one rule regardless of which kind it is: the builder and its
 source types are author-time and belong on `/authoring`; the campaign, state, view, and outcome

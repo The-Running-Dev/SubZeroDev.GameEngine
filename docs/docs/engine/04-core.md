@@ -2811,11 +2811,16 @@ root publishes no *narrative* campaign, which is the claim `src/engine/src/autho
 enforces in both directions. A second kind adding a reference campaign to the root follows this
 sentence; a second reference campaign for one kind does not, and wants its own decision.
 
-Portable campaign documents remain format version 2. `toPortable` and
-`digestManifestResolution` are public only through `/authoring`; `fromPortable` remains a
-runtime-root export. `digestPortableCampaign` is exported from both surfaces: the root, for
-hosts verifying fetched content, and `/authoring`, for authoring pipelines digesting campaign
-source before publication.
+Portable campaign documents remain format version 2. `toPortable` is public only through
+`/authoring`; `fromPortable` remains a runtime-root export. Both digest helpers are exported from
+both surfaces: the root, for hosts verifying fetched content, and `/authoring`, for authoring
+pipelines digesting campaign source before publication. `digestPortableCampaign` digests one
+campaign file. `digestManifestResolution(entries: readonly PortableManifestEntry[])` digests the
+ordered list of `{ id, version, digest }` taken from the manifest's entries, so it identifies a
+content set whose files a host has each verified against their entry digest. File paths are
+excluded as transport details. The recipe includes `digest` from `0.12.0`; until then it was the
+ordered `{ id, version }` list over `PackRef[]`, so a manifest's `resolution` changes for
+unchanged content ([`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md), 2026-10-27).
 
 **`PortableCampaignBody`'s simulation arm gains an optional `migration`, and the format version
 does not move.** Until now `migration` existed only on the story-graph arm, which

@@ -493,7 +493,7 @@ export const nextActs: readonly RoadmapChapter[] = [
     status: "now",
     title: "0.12.0 becomes the next authorized publication",
     summary:
-      "The 0.11.0 candidate was qualified in September and never tagged or published; W109–W113 landed after it, so it is kept as a superseded record. The next candidate is 0.12.0, cut fresh once the open correctness and status fixes merge, with the whole matrix rerun and the Adventures host checked on its real Postgres adapter against that exact candidate. Publishing stays a separate explicit action.",
+      "The 0.11.0 candidate was qualified in September and never tagged or published; W109–W113 landed after it, so it is kept as a superseded record. The 0.12.0 candidate was cut fresh after the open correctness and status fixes merged, with the whole matrix rerun and the Adventures host checked on its real Postgres adapter against that exact candidate. Publishing stays a separate explicit action.",
     links: [
       {
         label: "Stabilization ledger",

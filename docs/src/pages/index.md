@@ -366,23 +366,31 @@ work is implementation. Not philosophy.
 The deterministic core, story-graph kind, simulation kind, and world-graph kind are all built
 and tested, including the world graph's deterministic tick pipeline, playable guest journey,
 validation, and replay guard. `v0.8.0` is the latest published `@the-running-dev/game-engine`;
-the `0.11.0` source adds the simulation authoring surface and 150+ week replay evidence. A clean
+the `0.12.0` source adds the simulation authoring surface and 150+ week replay evidence. A clean
 consumer test installs the packed artifact rather than trusting this checkout. Story adventures
 now live at <a href="https://adventures.subzerodev.com/"><code>adventures.subzerodev.com</code></a>;
 this repository retains the deterministic engine, its fixtures, authoring tools, and contracts.
 
-### Current — `0.11.0` is the next authorized publication candidate
+### Current — `0.12.0` is the publication candidate
 
-The additive `0.11.0` stabilization programme (W93–W108) closed the correctness, session-boundary,
+The additive stabilization programme (W93–W113) closed the correctness, session-boundary,
 simulation-mechanics, companion-contract and release-verification work without removing anything
 the `0.10.0` surface exposed: three shipped kinds, the same two entry points (`.` and
 `./authoring`), campaign content owned outside this repository, and no in-repository play surface.
-`0.11.0` is therefore a compatible superset of `0.10.0`, and `0.10.0` was tagged but never
-published — `0.8.0` remains the latest version on the registry.
+For code that *plays* the engine, `0.12.0` is a compatible superset of `0.10.0`. For a host that
+*implements* its persistence ports it is not: `StoredSessionRecord.revision` is now required, for
+compare-and-swap writes, and `PlayerProfile` moved to `formatVersion: 3` with a required
+`kindData`. A `SessionPersistence` or `ProfileStore` adapter written for `0.10.0` must be updated
+before it moves. Nor is it for an authoring pipeline that publishes portable manifests:
+`digestManifestResolution` now takes the manifest's own entries and digests each entry's
+`digest` along with its id and version, so the `resolution` a pipeline publishes changes for
+unchanged content. All three changes are deliberate and recorded. `0.10.0` was tagged but never
+published, and the `0.11.0` candidate was superseded before it was tagged — `0.8.0` remains the
+latest version on the registry.
 
-`0.11.0` is prepared, not released. Publication is a separate, explicit action: see
+`0.12.0` is prepared, not released. Publication is a separate, explicit action: see
 [`RELEASE.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/RELEASE.md) for the candidate commit, the archive and its digest, the required
-`v0.11.0` tag, and the checks that must hold first.
+`v0.12.0` tag, and the checks that must hold first.
 
 ---
 

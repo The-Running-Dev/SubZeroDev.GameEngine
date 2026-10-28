@@ -1,0 +1,201 @@
+{
+  "unit": "0.12.0 candidate",
+  "supersedes": ".claude/release-candidate-w108.json",
+  "note": "The release matrix rerun against the fresh 0.12.0 candidate, cut after #602, #603, #604 and #606 merged (design/90-decisions.md, 2026-10-25). The W108 record is history: its 0.11.0 candidate was superseded before it was tagged and was never published. No row here carries a W108 result forward.",
+  "candidateCommit": "914383610dc2afbb26fe2e224206dbf0a7b2d9e4",
+  "candidateCommittedAt": "2026-10-27T20:00:47+02:00",
+  "candidateBranch": "release/0.12.0-candidate",
+  "packageVersion": "0.12.0",
+  "lockfileVersion": "0.12.0",
+  "archiveFile": "the-running-dev-game-engine-0.12.0.tgz",
+  "archiveDigest": "sha256:e76fbf5d5c0ea97ea0168be0c23100f840ae366f1bb17a32936ab7e7e22d7f63",
+  "archiveEntries": 360,
+  "archiveRetainedAt": "D:/vitest-tmp/the-running-dev-game-engine-0.12.0.tgz (local run; not committed, since the digest is the identity)",
+  "baselineTag": "v0.10.0",
+  "toolchain": {
+    "node": "v26.12.1",
+    "npm": "11.7.0",
+    "pwsh": "7.6.9",
+    "dotnet": "10.0.403",
+    "os": "Windows 11 Enterprise 10.0.26200"
+  },
+  "toolchainNote": "CI pins Node 24; this run used the locally installed Node 26.12.1. The package declares engines.node >= 24, so both satisfy it. The CI release validation run packed the same archive digest on Node 24, so the toolchain difference did not reach the archive.",
+  "companionCommits": {
+    "SubZeroDev.ServiceContract": "dc687a9d4a30068297f6ad6a20f52d1e96954942",
+    "SubZeroDev.Platform": "5b587d6990552b85dbf31cb9d82c22869754ac78",
+    "SubZeroDev.Adventures": "abcc1ab598f41a2fd2e3e0ef08a444fa50179772",
+    "SubZeroDev.GameOfLife": "50ee2a377cdbdd38334adee30309a68eb712531d"
+  },
+  "temporarySubstitutions": [
+    "SubZeroDev.Adventures: none locally. The evidence is The-Running-Dev/SubZeroDev.Adventures#90, a committed submodule bump to the candidate, run on CI.",
+    "SubZeroDev.GameOfLife: engine submodule detached from cb64a051a2c10a70279b736c7fabe6adf22e7f7d to the candidate 9143836, package-lock.json refreshed by npm install for the run, then the lockfile reverted and the submodule restored to cb64a05. Verified restored.",
+    "SubZeroDev.Platform: workloads/game-service vendored the retained 0.12.0 tarball in place of the 0.10.0 tarball, with package.json/package-lock.json repointed, then reverted via git checkout and the 0.12.0 tarball deleted. Verified restored.",
+    "SubZeroDev.ServiceContract: probe only. The 0.12.0 tarball vendored, package.json repointed and the authored engine version in scripts/generate-contract.ts and scripts/generate-content-contract.ts edited to 0.12.0, then reverted via git checkout and the tarball deleted. Verified restored."
+  ],
+  "gates": [
+    {
+      "name": "Candidate identity: commit, package/lock version, archive and digest",
+      "status": "Passed",
+      "command": "node src/engine/scripts/verify-release.mjs clean --root .; node src/engine/scripts/verify-release.mjs tag --tag v0.12.0; npm pack; node src/engine/scripts/verify-release.mjs archive --archive <tarball> --expect <sha256>",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": "sha256:e76fbf5d5c0ea97ea0168be0c23100f840ae366f1bb17a32936ab7e7e22d7f63",
+      "evidenceUrl": "local run, main checkout at 914383610dc2afbb26fe2e224206dbf0a7b2d9e4",
+      "detail": "clean guard: OK, no tracked modification. tag guard: OK, v0.12.0 matches manifest version 0.12.0; package-lock.json carries 0.12.0 at the root and at packages['']. One archive was packed and retained: 360 entries. The archive guard accepted it against its digest."
+    },
+    {
+      "name": "Clean src/engine install: typecheck, determinism lint, tests",
+      "status": "Passed",
+      "command": "cd src/engine; npm ci; npm run typecheck; npm run lint; npm test",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": null,
+      "evidenceUrl": "local run, main checkout",
+      "detail": "typecheck exit 0. lint exit 0, determinism guard silent. test: 122 test files, 2419 tests passed."
+    },
+    {
+      "name": "Compatibility sweep vs v0.10.0: replay oracle, pack, archive inspection, packed consumer",
+      "status": "Passed",
+      "command": "./build/Test-CompatibilitySweep.ps1 -BaselineTag v0.10.0",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": "sha256:e76fbf5d5c0ea97ea0168be0c23100f840ae366f1bb17a32936ab7e7e22d7f63",
+      "evidenceUrl": "local run, main checkout",
+      "detail": "Replay oracle vs v0.10.0: 3 files passed, 51 tests passed, 6 skipped. Pack and archive inspection: 360 entries, all content rules hold, digest as above. Consumer smoke against that archive: install, build and smoke all exit 0. This proves compatibility for code that calls the engine; it does not cover host-port implementers (see the Platform row)."
+    },
+    {
+      "name": "Release guards and their negatives, local",
+      "status": "Passed",
+      "command": "node src/engine/scripts/verify-release.mjs mode|tag|clean|archive; cd src/engine; npx vitest run scripts/verify-release.test.ts",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": "sha256:e76fbf5d5c0ea97ea0168be0c23100f840ae366f1bb17a32936ab7e7e22d7f63",
+      "evidenceUrl": "local run, main checkout",
+      "detail": "mode: publish only for a refs/tags/v0.12.0 push; validate for dispatch and pull_request; unevaluated (exit 2) for a branch push with no tag. tag v0.12.0 OK; tag v0.11.0 REJECTED. clean OK. archive OK against the digest; REJECTED when given the commit SHA as the expected digest. Guard suite: 26 of 26."
+    },
+    {
+      "name": "Registry availability, read-only, local",
+      "status": "Unevaluated",
+      "command": "node src/engine/scripts/verify-release.mjs registry",
+      "exitCode": 2,
+      "durationSeconds": null,
+      "artifactDigest": null,
+      "evidenceUrl": "local run",
+      "detail": "Exit 2 (unevaluated): the local token gets 403 from GitHub Packages, so the guard cannot say whether 0.12.0 exists. The guard is built to refuse a verdict here rather than report OK. The CI row below evaluated it."
+    },
+    {
+      "name": "Release validation on CI at the candidate: guards, registry, pack, consumer, negatives; publish unreachable",
+      "status": "Passed",
+      "command": "gh workflow run release-engine-package.yml --ref release/0.12.0-candidate -f tag=v0.12.0",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": "sha256:e76fbf5d5c0ea97ea0168be0c23100f840ae366f1bb17a32936ab7e7e22d7f63",
+      "evidenceUrl": "https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/40556997077",
+      "detail": "Mode validate. tag, clean and registry guards OK: 0.12.0 is not on the registry. CI packed the same digest independently on Node 24, the consumer smoke passed, and the digest was re-verified after it. All three negatives rejected: tag v0.0.0, a modified tree, a substituted archive. Publish step skipped."
+    },
+    {
+      "name": "Static host: fresh host tests",
+      "status": "Passed",
+      "command": "dotnet test",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": null,
+      "evidenceUrl": "local run, main checkout",
+      "detail": "12 of 12 passed, 0 skipped."
+    },
+    {
+      "name": "Static host: container build, route/probe smoke, negative fixture",
+      "status": "Passed",
+      "command": "host-image.yml, 'Build, run, and smoke the image', on the candidate pull request",
+      "exitCode": 0,
+      "durationSeconds": 139,
+      "artifactDigest": null,
+      "evidenceUrl": "https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/40564951964/job/122403634322",
+      "detail": "PR #609 at 38311db, which differs from the candidate only in evidence and documentation files, none of them in the archive. Every step succeeded: Test the host, Build the image, Start the container, Positive route and probe smoke, Orderly container stop, Negative fixture -- corrupted artifact must fail to start. Publish immutable image to GHCR was skipped, as it is on every pull request."
+    },
+    {
+      "name": "Documentation generation and validation",
+      "status": "Passed",
+      "command": "./build/Test-Documentation.ps1",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": null,
+      "evidenceUrl": "local run, main checkout, with this commit's edits",
+      "detail": "Generators are a no-op. Drift check passes across 19 generated pages; Markdown checks pass across 138 files. The production Docusaurus build is docs / Build on the candidate pull request; docs.ps1 is not installed in this checkout, so it was not run locally."
+    },
+    {
+      "name": "Site: format, lint, typecheck, unit, browser, build, merge",
+      "status": "Passed",
+      "command": "npm --prefix site ci; run format:check, lint, typecheck, test, test:browser, test:build, test:merge",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": null,
+      "evidenceUrl": "https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/40564952360/job/122403635895",
+      "detail": "Local: ci, format:check, lint, typecheck exit 0; test 2 files, 20 of 20; test:merge exit 0. test:browser and test:build did not complete locally: Dropbox held locks inside site/node_modules/.vite and site/dist (EBUSY on rename and rmdir), after the build itself had succeeded. That is the checkout's location, not the code, but it means neither ran to a verdict here. The CI docs / Build job runs site 'check merge' with a browser, and check includes test:browser and test:build. CI, docs / Build on PR #609 at 38311db: format:check, lint, typecheck; test 2 files, 20 of 20; test:browser 2 files, 23 of 23; test:build and test:merge exit 0; then the production Docusaurus build, which throws on broken links and anchors."
+    },
+    {
+      "name": "Companion: SubZeroDev.Adventures host evidence against the candidate SHA",
+      "status": "Passed",
+      "command": "The-Running-Dev/SubZeroDev.Adventures#90 CI (ci.yml: ci, server, offline-e2e, compose)",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": "sha256:e76fbf5d5c0ea97ea0168be0c23100f840ae366f1bb17a32936ab7e7e22d7f63",
+      "evidenceUrl": "https://github.com/The-Running-Dev/SubZeroDev.Adventures/actions/runs/40556942573",
+      "detail": "Bound values: engine 914383610dc2afbb26fe2e224206dbf0a7b2d9e4; Adventures abcc1ab598f41a2fd2e3e0ef08a444fa50179772; content snapshot public/campaigns tree ff169b24512499c1ceef5df91b3bb9f832d424e9, sha256 of the sorted 12-file manifest fd134948c0e1deae1ecb898d34956e98491f974fb125d5b4a11c3404644bd19c. server on postgres:17 (attempt 2, job 122381826774): 24 files, 287 of 287 passed, 0 skipped. Every DB-gated suite is databaseUrl ? describe : describe.skip, so a skip would show in that count. It includes the Postgres adapter and its compare-and-swap conflict, the rebuild suite, the API suite, and offline replay through the retained pre-bump runtime b7e21e7. offline-e2e (job 122381819026) passed, including the retained runtime offline-b7e21e7 across the update. Attempt 1's offline-e2e was cancelled at its 8-minute timeout installing Playwright system fonts, before any test ran; main hit the same hang in run 40517450118. Every job checked out the engine at the candidate."
+    },
+    {
+      "name": "Companion: SubZeroDev.ServiceContract",
+      "status": "Passed",
+      "command": "npm ci; npm run build; npm test; npm run typecheck (A: at its own commit, 0.10.0 as pinned); then the same with the 0.12.0 tarball (B: probe)",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": "sha256:e76fbf5d5c0ea97ea0168be0c23100f840ae366f1bb17a32936ab7e7e22d7f63",
+      "evidenceUrl": "local run, worktree at dc687a9",
+      "detail": "A, at dc687a9 with 0.10.0 as pinned: npm ci, build, typecheck exit 0; tests 3 files, 59 of 59. An earlier A run hit EBUSY in npm ci and a second crashed its worker; this is the third, run to completion. B, the 0.12.0 tarball with nothing else changed: build refuses with EngineVersionMismatch, the authored-engine-version guard working as designed, because scripts/generate-contract.ts and scripts/generate-content-contract.ts author 0.10.0. B with those two values moved to 0.12.0: npm install and build exit 0 (13 operations, 26 schemas; content contract formatVersion 2); typecheck exit 0; tests 58 passed, 1 failed, and the failure is publish.test.ts asserting the authored version is '0.10.0'. The contract projects from 0.12.0 without a projection change; regenerating it at 0.12.0 is the first step of the Platform follow-up."
+    },
+    {
+      "name": "Companion: SubZeroDev.Platform game-service against the retained archive",
+      "status": "Failed",
+      "command": "workloads/game-service: npm install <0.12.0 tgz>; npm run typecheck; npm test (with the compose stack up)",
+      "exitCode": 2,
+      "durationSeconds": null,
+      "artifactDigest": "sha256:e76fbf5d5c0ea97ea0168be0c23100f840ae366f1bb17a32936ab7e7e22d7f63",
+      "evidenceUrl": "local run, worktree at 5b587d6",
+      "detail": "dotnet build and compose up exit 0. typecheck exit 2. Every error is one of the two host-port changes since 0.10.0: StoredSessionRecord.revision is required (S122, #572), and PlayerProfile is formatVersion 3 with a required kindData (S133, #591). The errors are in src/conformance.ts, src/store.ts and their tests. Tests: 75 failed, 122 passed, 1 skipped. Most failures stop earlier, at compose() with {code: EngineVersionMismatch, contractEngineVersion: 0.10.0, resolvedEngineVersion: 0.12.0}. That is the authored-engine-version guard working as designed, because the ServiceContract Platform consumes was generated at 0.10.0. Compose down OK; reverted. Accepted by the user on 2026-10-27 as non-blocking. Platform pins and vendors 0.10.0, so publishing 0.12.0 does not break it. README and RELEASE.md now say 0.12.0 is breaking for host-port implementers. The follow-up, in order: regenerate ServiceContract at 0.12.0, then update Platform's SessionPersistence and ProfileStore adapters."
+    },
+    {
+      "name": "Companion: SubZeroDev.GameOfLife against the candidate SHA",
+      "status": "Failed",
+      "command": "git -C engine checkout 9143836; npm run setup; npm install; npm run typecheck; npm test; ./tools/Test-SpecSet.ps1",
+      "exitCode": 2,
+      "durationSeconds": null,
+      "artifactDigest": null,
+      "evidenceUrl": "local run, worktree at 50ee2a3",
+      "detail": "npm ci refused (EUSAGE): the lockfile lacks subzerodev-data-json@0.3.0, js-yaml and argparse, because #528 replaced the engine's @noble/hashes dependency. After npm install (lockfile +57/-14): setup exit 0. typecheck exit 2, one error: scripts/export-content.ts(133,7) TS2345, '{ id: string; version: string; }[]' is not assignable to 'readonly PortableManifestEntry[]' (missing file, digest). Tests 4 files, 76 of 76, exit 0; the output prints ExportStale for content/manifest.json, whose resolution was computed by the old recipe. Test-SpecSet.ps1 exit 0 (8 documents, 936 declarations, 0 unchecked, 8 unresolvable cross-repository references). Cause: #528 changed digestManifestResolution's input and recipe and went unrecorded; recorded in design/90-decisions.md on 2026-10-27, and the user accepted it on 2026-10-27 as a recorded 0.12.0 break, not a blocker. GameOfLife pins 0.10.0 by submodule, so publishing does not break it. Follow-up in that repository: pass full manifest entries, re-export content/, refresh the lockfile."
+    },
+    {
+      "name": "No publication, tag, release, deployment or external release occurred",
+      "status": "Passed",
+      "command": "git ls-remote --tags origin 'v0.12*'; git tag -l 'v0.12*'; gh release view v0.12.0",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": null,
+      "evidenceUrl": "local run",
+      "detail": "ls-remote exit 0 with no output, and no local v0.12* tag. gh release view: 'release not found'. Nothing was published, tagged or released by this run, and RELEASE.md performs none of it."
+    }
+  ],
+  "conclusion": {
+    "verdict": "0.12.0 ready to tag",
+    "candidate": "914383610dc2afbb26fe2e224206dbf0a7b2d9e4",
+    "archive": "the-running-dev-game-engine-0.12.0.tgz sha256:e76fbf5d5c0ea97ea0168be0c23100f840ae366f1bb17a32936ab7e7e22d7f63",
+    "statement": "Every engine, documentation, site, static-host and Adventures gate passed against the candidate. ServiceContract passed at its own commit and projects from 0.12.0 once its authored version moves. Two companions fail to compile against 0.12.0, Platform game-service and GameOfLife, and both failures are the three recorded, deliberate breaks: session revision, profile v3 kindData, and the digestManifestResolution recipe. The user accepted all three as non-blocking on 2026-10-27, and both companions pin 0.10.0, so publication does not break them. Their adaptation is follow-up work in those repositories. On 2026-10-27 the user approved tagging v0.12.0 at the candidate once PR #609 was green. This record does not itself publish the package or create a GitHub release.",
+    "testedHead": "38311db2772a443966019ed5548ca24971af3af0",
+    "publication": {
+      "tag": "v0.12.0 -> 914383610dc2afbb26fe2e224206dbf0a7b2d9e4, pushed 2026-10-28 on the user's approval",
+      "run": "https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/40601204925",
+      "detail": "release-engine-package ran in publish mode and every guard passed. It inspected the archive at sha256:e76fbf5d5c0ea97ea0168be0c23100f840ae366f1bb17a32936ab7e7e22d7f63, the candidate digest, and npm publish reported + @the-running-dev/game-engine@0.12.0 (shasum 81a9e28a45d277d28282638599a691efe419ad50).",
+      "verification": "RELEASE.md section 7 ran on 2026-10-28 against the registry copy. 1: verify-release registry REJECTED 0.12.0 as already published (exit 1, the success signal). 2: npm pack @the-running-dev/game-engine@0.12.0 downloaded an archive that verify-release archive matched at sha256:e76fbf5d5c0ea97ea0168be0c23100f840ae366f1bb17a32936ab7e7e22d7f63, 360 entries, exit 0; Get-FileHash agreed. 3: the consumer smoke, copied outside Dropbox, ran npm ci, installed that archive, built and ran, all exit 0, with 0.12.0 installed. 4: . and ./authoring resolved; dist/index.js and package.json were refused with ERR_PACKAGE_PATH_NOT_EXPORTED.",
+      "release": "https://github.com/The-Running-Dev/SubZeroDev.GameEngine/releases/tag/v0.12.0",
+      "adventures": "SubZeroDev.Adventures#90 squash-merged as 9676271c794b86ce7e249b2cf41a90e536a9d5ff, pinning the engine submodule at the tagged candidate"    }
+  }
+}
