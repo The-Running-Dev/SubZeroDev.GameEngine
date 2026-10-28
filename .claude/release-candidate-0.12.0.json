@@ -193,10 +193,9 @@
     "publication": {
       "tag": "v0.12.0 -> 914383610dc2afbb26fe2e224206dbf0a7b2d9e4, pushed 2026-10-28 on the user's approval",
       "run": "https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/40601204925",
-      "detail": "release-engine-package ran in publish mode and every guard passed. It inspected the archive at sha256:e76fbf5d5c0ea97ea0168be0c23100f840ae366f1bb17a32936ab7e7e22d7f63, the candidate digest, and npm publish reported + @the-running-dev/game-engine@0.12.0 (shasum 81a9e28a45d277d28282638599a691efe419ad50). The RELEASE.md section 7 registry download and digest comparison has not run: the local gh token lacks read:packages, so the registry returned 401 and then 404 here.",
+      "detail": "release-engine-package ran in publish mode and every guard passed. It inspected the archive at sha256:e76fbf5d5c0ea97ea0168be0c23100f840ae366f1bb17a32936ab7e7e22d7f63, the candidate digest, and npm publish reported + @the-running-dev/game-engine@0.12.0 (shasum 81a9e28a45d277d28282638599a691efe419ad50).",
+      "verification": "RELEASE.md section 7 ran on 2026-10-28 against the registry copy. 1: verify-release registry REJECTED 0.12.0 as already published (exit 1, the success signal). 2: npm pack @the-running-dev/game-engine@0.12.0 downloaded an archive that verify-release archive matched at sha256:e76fbf5d5c0ea97ea0168be0c23100f840ae366f1bb17a32936ab7e7e22d7f63, 360 entries, exit 0; Get-FileHash agreed. 3: the consumer smoke, copied outside Dropbox, ran npm ci, installed that archive, built and ran, all exit 0, with 0.12.0 installed. 4: . and ./authoring resolved; dist/index.js and package.json were refused with ERR_PACKAGE_PATH_NOT_EXPORTED.",
       "release": "https://github.com/The-Running-Dev/SubZeroDev.GameEngine/releases/tag/v0.12.0",
-      "adventures": "SubZeroDev.Adventures#90 squash-merged as 9676271c794b86ce7e249b2cf41a90e536a9d5ff, pinning the engine submodule at the tagged candidate",
-      "notDone": "RELEASE.md section 7 registry download and digest comparison (needs a token with read:packages)"
-    }
+      "adventures": "SubZeroDev.Adventures#90 squash-merged as 9676271c794b86ce7e249b2cf41a90e536a9d5ff, pinning the engine submodule at the tagged candidate"    }
   }
 }

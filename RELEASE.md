@@ -190,6 +190,11 @@ and SubZeroDev.Adventures#90 merged as `9676271`.
 
 ## 7. After publication — verification and recovery
 
+Checks 1–4 below were run against the registry copy on 2026-10-28: the registry guard
+rejected 0.12.0 as already published, the downloaded archive matched the §1.1 digest
+(360 entries), the consumer smoke installed, built and ran from it, and `.` and
+`./authoring` resolved while `dist/` paths were refused (`ERR_PACKAGE_PATH_NOT_EXPORTED`).
+
 **Verify (separately executed):**
 
 1. Registry metadata:
