@@ -608,6 +608,10 @@ reads the session layer's construction-time registry, so such a campaign is play
 channel but absent from `CampaignCatalog`. Whether listing reads the channel, and with which
 scope, is a client-surface decision (`20-contract.md`, *Unresolved*). **Revisit** when a host
 publishes a new campaign id rather than a new version of an existing one.
+Plan 54's D4 (2026-10-17) settles it for Adventures without an engine change: the host serves
+the current catalog from its own records and admits session creation on every entry point, so
+`listCampaigns` still lists the construction-time registry, which is core campaigns only. The
+engine-side question stays open for any host that has no catalog of its own.
 
 **Simulation and world-graph declare no `adoptContent`.** Every session of theirs stays pinned to
 the epoch it started on, which is safe and loses nothing they have today. Each kind's
@@ -712,6 +716,16 @@ covers it nor excludes it by name. Its "thirteen of the fifteen" arithmetic pred
 its list asserts exactly thirteen systems, so `business` can only be silent in both long runs.
 **Revisit** with the next change to that file: name `business` as excluded, with its reason,
 and recount.
+
+### Found by plan 54
+
+**Engine-owned references carry no typed origin.** C29 (`20-contract.md` §7) tells an engine key
+from an authored one by aliasing the engine key in responses, only where an authored key could
+shadow it. A structured `LocRef { key, owner }` on every key a response carries, with a split
+string table, would be exact without aliases (`10-design.md` 16 §9, *Alternatives Considered*).
+It is a type change on every surface that carries a key, for a collision no current campaign
+has. **Revisit** when a response surface is next redesigned, or if aliases reach a client that
+cannot treat `~` keys as opaque.
 
 ---
 
