@@ -526,9 +526,11 @@ shape. No separate story-extension contract is designed. What the merge does tha
 not is registered below as attachment gaps. Until attachments cover it the merge stays
 Adventures', and an engine change to the portable story shape is a breaking change for it.
 
-**No measured operating envelope.** No benchmark says how large a world, how long a session or
-how many ticks per request the engine supports. The review names three costs it can see in the
-source without having measured any:
+**No supported operating envelope.** Nothing says how large a world, how long a session or how
+many ticks per request the engine supports. PR #606 added a seeded world-graph benchmark
+(`bench:world-graph`, documented in `src/engine/benchmarks/README.md`), but its committed baseline
+records `limitsEstablished: false`, and it measures neither session length nor save cost. The
+review names three costs it can see in the source:
 
 - the world-graph pathfinder (`canonicalPathWithCost` in
   `src/engine/src/kinds/world-graph/spatial.ts`) re-sorts its open set on every expansion and
@@ -671,11 +673,13 @@ construction-site lists, which change the blocked cells without touching the map
 assumes nothing mutates a map in place. **Revisit** when a full-tick benchmark shows the
 per-call build matters.
 
-**No tick-level benchmark exists, and no workload limit is supported.** The measurements so far
-time one corner-to-corner search on an empty grid. They do not establish per-tick capacity, a
-guest limit, or a supported map size, because a tick runs one search per routing guest and its
-other systems besides. **Revisit** before a world-graph client scales its maps or its guest
-counts, which is when a full-tick benchmark and published limits are needed.
+**A tick-level benchmark exists, but no workload limit is supported.** PR #606 added
+`bench:world-graph`, which times full `advanceTicks` calls and batches over a fixed matrix of
+seeded workloads, with a committed baseline in `src/engine/benchmarks/results/node24-linux.json`.
+It is opt-in, not a CI gate, and the baseline records `limitsEstablished: false`: it does not yet
+establish per-tick capacity, a guest limit, or a supported map size. **Revisit** before a
+world-graph client scales its maps or its guest counts, which is when published limits are
+needed.
 
 **Documentation correction: [`12-world-graph-kind.md`](12-world-graph-kind.md) §9.3 overstates
 what a heuristic preserves.** Its note says the search's earlier A\* prescription, with a
@@ -2935,3 +2939,21 @@ Chosen:
 - **The collision sweep found nothing to correct.** The engine's 12 campaigns against its 222 catalog keys, and Adventures' 11 string tables (1,957 keys at `origin/main` `9676271`), gave 0 collisions and 0 keys containing `~`. Under the default `"colliding"` mode, no shipped response changes.
 Rejected: **Aliasing every engine key by default.** It changes every response for content that collides with nothing, and the determinism fixture proves `"all"` changes no serialized byte only because aliases are presentation. **A per-response scope.** Two sessions would answer the same engine key differently, depending on which epochs they hold. **All alert keys authored**, which leaves the engine's text unreachable once content shadows it. **All alert keys engine-owned**, which would alias an incident's content key that happens to equal an engine key.
 Reversibility: cheap. Aliases are presentation, so changing the scope or the families changes responses but no stored byte.
+
+### 2026-10-30 — `building_completed` stays registered although every producer records it invisible
+Context: `/agentkit:align` after plan 54. 20-contract §11 says a reason recorded only with `visible: false` is left out of the world-graph registry, and names five such reasons. `building_completed` is recorded only with `visible: false` too, yet `src/engine/src/kinds/world-graph/reasons.ts` registers it.
+Chosen: the contract lists it as the one exception the other way. An invisible reason may be registered; a visible one must be. §11 now says so, and the registry comment names the reason.
+Rejected: **Unregistering it.** That matches the rule today, but if a producer were later flipped to `visible: true` the reason would reach a client unregistered, which is the defect §11's rule exists to prevent.
+Reversibility: free. Registration changes no state byte and no response.
+
+### 2026-10-30 — A legacy authored key containing `~` restores with no warning
+Context: `/agentkit:align` after plan 54. `10-design.md`'s failure-modes table listed "a legacy `~` key" among `restore`'s `historical_string_collision` causes. 20-contract §4 and the code warn only for a key reserved at publication; a `~` key is restored silently.
+Chosen: the design row changes to match. No engine key contains `~`, so a legacy `~` key collides with nothing, and C29 steps an alias around it with the next free `~n~k`. The table gives it its own row.
+Rejected: **Warning in code.** It needs a new warning shape and a contract amendment for a key that shadows nothing a client could lose.
+Reversibility: free. Adding the warning later is additive to `restore`'s result.
+
+### 2026-10-30 — `createInMemorySessionStore` refuses an unlinked engine, like `createSessionLayer`
+Context: `/agentkit:align` after plan 54. 10-design 06 §4 said `createSessionLayer` throws for an `Engine` that `createEngine` or `withEmitter` did not return. `createInMemorySessionStore` instead fell back to the identity alias map (2026-10-29, *Response aliases' code*), so a wrapped engine answered unaliased even when a restored epoch made a key collide.
+Chosen: both composition roots throw a `TypeError` naming 06 §4. This supersedes the 2026-10-29 entry's in-memory fallback. The design says both roots throw, and a test in `src/engine/src/core/kernel/aliases.test.ts` covers the in-memory root.
+Rejected: **Exempting the in-memory store.** A restored collision would then answer silently unaliased there, which is the failure C29 exists to prevent, and only on the default host.
+Reversibility: a 0.x behaviour change for a caller that passes a spread or proxied `Engine` to `createInMemorySessionStore`. No in-repository caller does. Restoring the fallback later is additive.

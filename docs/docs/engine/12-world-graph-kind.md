@@ -1729,6 +1729,12 @@ among them despite each also appearing at a `visible: false` site (a `.exists` m
 record) — their `EffectContext` use above reaches a visible record too, which is why both are
 registered rather than treated the same as the deliberately-invisible five.
 
+`building_completed` is the one exception the other way: every site that records it — the
+construction system's `map.revision` and the two `.exists` membership records — passes
+`visible: false`, yet it is registered. It is kept registered ahead of need, so flipping one of
+those flags to `true` is already safe; an invisible reason may be registered, a visible one must
+be. Recorded in `90-decisions.md`.
+
 The shipped set lives in `src/engine/src/kinds/world-graph/reasons.ts`. `validate.ts` is the
 only producer of the validation half; the actions and the tick pipeline produce the audit
 half.

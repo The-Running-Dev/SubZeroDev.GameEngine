@@ -4,7 +4,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: aa6f5ab38a940a6e88e61154064a6d17e88e93d4683c852b832479a6c9b71688 -->
+<!-- design-digest: 634f87ca3909cc40d339390ab92afb1036d1b4fe683d394565db31c21becebfb -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -327,7 +327,7 @@ This is also the delivery half of a story extension. Authoring an extension stay
 published extension reaches live sessions as a new epoch. See
 [Content Epochs](/docs/engine/content-epochs) for the full design.
 
-**Durable epochs** (*contracted for plan 54, not yet built*) let a host keep its archive across
+**Durable epochs** (*built by plan 54, after the `0.12.0` release*) let a host keep its archive across
 restarts. Three changes matter to a host author:
 
 - **An epoch is what the campaign authored**, not the merged table it was played with: the

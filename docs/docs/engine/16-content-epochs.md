@@ -619,8 +619,9 @@ against something else.
 | `publish` | An authored key is engine-reserved or contains `~` | Refused `protected_string_key` (`details.reason`: `engine_reserved` or `response_alias_namespace`); nothing stored |
 | `publish` (host archive) | The key was retired | Refused `content_version_conflict`, even with an identical digest |
 | `restore` | The stored form's digest ≠ the stored digest; an authored key was reserved at publication; or the key is held with a different digest | `integrity_failure` — the host's boot fails |
-| `restore` | The running kind rejects the stored form | `unsupported`: not entered, never offered; `epoch_unsupported` warning, recomputed each boot, `potentialRegression` when the kind versions are equal |
-| `restore` | An authored key the running engine now reserves, or a legacy `~` key | Restored with `historical_string_collision`; responses alias the engine key (§5.7) |
+| `restore` | The running kind rejects the stored form | `unsupported`: not entered, never offered; `epoch_unsupported` warning, recomputed each boot, `potentialRegression` when the same registered kind id and version that published it rejects it |
+| `restore` | An authored key the running engine now reserves | Restored with `historical_string_collision`; responses alias the engine key (§5.7) |
+| `restore` | A legacy authored key containing `~`, from before `publish` refused one | Restored with no warning: no engine key contains `~`, so nothing collides, and an alias takes the next free `~n~k` (§5.7) |
 | Host request | Names a version whose restore was `unsupported` | `campaign_version_unsupported` (409) — distinct from the host's `campaign_version_unavailable` |
 | `createEngine` | `archive` lacks a registry campaign at its registered version | Throws — a construction error |
 | `createGame` | The requested version does not resolve | `unknown_campaign` |

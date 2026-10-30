@@ -53,9 +53,6 @@ lost. None is sliceable as written: each needs a contract or design decision fir
   lives, what it emits, and whether authored source or the built campaign is its file format.
   Content balancing tools are unbuilt. AI authoring assistants need a dependency decision, and
   W77's author-facing validator is their precondition.
-- **Experiment attribution.** [06 §4](06-extensibility.md#4-the-composition-root) settles
-  `SessionHost.experiments` as the already-resolved, non-null assignment map. The declaration and
-  record-stamping implementation were last recorded as not yet brought into line with it.
 - **Simulation balance.** Drift rates, scenario economics, `demandBand` thresholds and the
   housing-quality formula are placeholder numbers. Balancing is game-side; the engine owes the
   levers, which [§7.14](10-simulation-kind.md#714-remaining-campaign-physics-524) contracts and
@@ -68,9 +65,6 @@ lost. None is sliceable as written: each needs a contract or design decision fir
   ([comment](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/3#discussion_r3660516002));
   and file enumeration walks excluded trees before filtering them
   ([comment](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/pull/3#discussion_r3660516006)).
-- **The world-graph programme gate.** An immutable published package version must carry the
-  replay-guarded third kind, so Sun Trap can install it without a sibling checkout. `v0.10.0` is
-  tagged; publication is an external release action this ledger does not evidence.
 - **The games' own Definitions of Done** live with the games:
   `games/life-in-the-fast-lane.md` and `games/bulgaria-adventure.md` in
   [SubZeroDev.GameOfLife](https://github.com/The-Running-Dev/SubZeroDev.GameOfLife).

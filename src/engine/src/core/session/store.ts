@@ -494,8 +494,8 @@ function createStore(options: InMemorySessionStoreOptions): SessionLayer {
   // resolves `state.kindId` against, so `saveGame`/`loadGame`'s stamping and migration
   // dispatch structurally cannot disagree with it.
   const kinds = engine.kinds;
-  // The engine's own response-alias map (06 §4). `createSessionLayer` has already refused an
-  // unlinked engine; the in-memory convenience answers without aliases instead.
+  // The engine's own response-alias map (06 §4). Both composition roots have already refused an
+  // unlinked engine, so the identity fallback only satisfies the type.
   const aliases = engineAliases(engine) ?? IDENTITY_ALIASES;
   const clock = options.clock ?? defaultClock;
   const recordSink = options.recordSink ?? noopRecordSink;
@@ -1272,13 +1272,19 @@ function createStore(options: InMemorySessionStoreOptions): SessionLayer {
 
 /** The canonical session-layer composition root. */
 export function createSessionLayer(host: SessionHost): SessionLayer {
-  if (engineAliases(host.engine) === undefined) {
-    throw new TypeError("createSessionLayer: host.engine must be an Engine returned by createEngine or withEmitter (06 §4) — it carries the response-alias map the session layer answers with");
-  }
+  requireAliasLink("createSessionLayer", "host.engine", host.engine);
   return createStore(host);
 }
 
 /** Compatibility convenience for the default in-memory host. */
 export function createInMemorySessionStore(options: InMemorySessionStoreOptions): SessionStore {
+  requireAliasLink("createInMemorySessionStore", "options.engine", options.engine);
   return createStore(options);
+}
+
+/** 06 §4: both roots refuse an engine without the alias link rather than answer unaliased. */
+function requireAliasLink(root: string, name: string, engine: Engine): void {
+  if (engineAliases(engine) === undefined) {
+    throw new TypeError(`${root}: ${name} must be an Engine returned by createEngine or withEmitter (06 §4) — it carries the response-alias map the session layer answers with`);
+  }
 }

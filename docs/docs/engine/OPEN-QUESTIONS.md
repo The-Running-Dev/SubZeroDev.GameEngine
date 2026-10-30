@@ -516,9 +516,11 @@ shape. No separate story-extension contract is designed. What the merge does tha
 not is registered below as attachment gaps. Until attachments cover it the merge stays
 Adventures', and an engine change to the portable story shape is a breaking change for it.
 
-**No measured operating envelope.** No benchmark says how large a world, how long a session or
-how many ticks per request the engine supports. The review names three costs it can see in the
-source without having measured any:
+**No supported operating envelope.** Nothing says how large a world, how long a session or how
+many ticks per request the engine supports. PR #606 added a seeded world-graph benchmark
+(`bench:world-graph`, documented in `src/engine/benchmarks/README.md`), but its committed baseline
+records `limitsEstablished: false`, and it measures neither session length nor save cost. The
+review names three costs it can see in the source:
 
 - the world-graph pathfinder (`canonicalPathWithCost` in
   `src/engine/src/kinds/world-graph/spatial.ts`) re-sorts its open set on every expansion and
@@ -661,11 +663,13 @@ construction-site lists, which change the blocked cells without touching the map
 assumes nothing mutates a map in place. **Revisit** when a full-tick benchmark shows the
 per-call build matters.
 
-**No tick-level benchmark exists, and no workload limit is supported.** The measurements so far
-time one corner-to-corner search on an empty grid. They do not establish per-tick capacity, a
-guest limit, or a supported map size, because a tick runs one search per routing guest and its
-other systems besides. **Revisit** before a world-graph client scales its maps or its guest
-counts, which is when a full-tick benchmark and published limits are needed.
+**A tick-level benchmark exists, but no workload limit is supported.** PR #606 added
+`bench:world-graph`, which times full `advanceTicks` calls and batches over a fixed matrix of
+seeded workloads, with a committed baseline in `src/engine/benchmarks/results/node24-linux.json`.
+It is opt-in, not a CI gate, and the baseline records `limitsEstablished: false`: it does not yet
+establish per-tick capacity, a guest limit, or a supported map size. **Revisit** before a
+world-graph client scales its maps or its guest counts, which is when published limits are
+needed.
 
 **Documentation correction: [`12-world-graph-kind.md`](12-world-graph-kind.md) §9.3 overstates
 what a heuristic preserves.** Its note says the search's earlier A\* prescription, with a

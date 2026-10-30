@@ -632,7 +632,7 @@ interface ContentArchive extends ResolutionArchive, ContentChannel {
   /** Bring back an epoch a previous process published, from exactly what it persisted.
    *  Never recomposes. Three outcomes, kept apart (16 §5.1, *Restore*): the stored digest
    *  does not match `epochDigest(stored.form)`, or the form carries a key reserved when it
-   *  was published, or the key is already held with a different digest → `integrity_failure`;
+   *  was published (any `core.reason.*` key, or one in `reservedKeys`), or the key is already held with a different digest → `integrity_failure`;
    *  the running kind's `validateCampaign` rejects the verified form → `unsupported`, and
    *  nothing is entered; otherwise `restored`. `migrateState` is the campaign's own
    *  (§10.1), reattached by campaign id because a function is never part of the form.
@@ -709,7 +709,8 @@ reserves that the form's `reservedKeys` did not, with
 `details: { campaignId, campaignVersion, key }`. The authored text stays at its key; the engine's
 text for the same key reaches clients through a response alias (§7). `unsupported` carries
 `epoch_unsupported` with `details: { campaignId, campaignVersion, potentialRegression }`,
-`potentialRegression` true when the two `kindVersion`s are equal — a rejection by the version that published the epoch is a regression to
+`potentialRegression` true when the epoch's kind is registered and `rejectedBy` equals
+`publishedBy` — the same `kindId` and the same `kindVersion` — a rejection by the version that published the epoch is a regression to
 investigate, not an accepted break. The classification is not persisted: the next process
 validates again.
 
@@ -1135,7 +1136,11 @@ catalog's text. Where an authored key equals an engine key, which only a restore
   §4) equals it, else `~n~k` for the smallest positive `n` whose form is free. Engine keys contain
   no `~` (§12), so distinct engine keys never share an alias, and an authored entry is never
   renamed, dropped or overwritten to make room. The scope is archive-wide, so the map changes only
-  when `restore` adds an epoch or a host archive retires one (16 §6).
+  when `restore` adds an epoch or a host archive retires one (16 §6). Where the archive offers no
+  `authoredKeys`, the scope is the construction registry's authored keys: its `provenance` when
+  every campaign records one, else every key of its `strings` the running catalog does not own.
+  That fallback cannot see an authored key equal to an engine key, which only a restored epoch
+  holds, and an unprovenanced registry cannot be published (§10.1), so it never hides a collision.
 - **Which references take one.** In production, an engine key `k` is aliased only when some epoch
   in scope authors `k`; every other engine reference is emitted unchanged. Under
   `aliasEngineKeys: "all"` (06 §4), a test context, every engine-owned reference is aliased. The
@@ -1158,7 +1163,7 @@ catalog's text. Where an authored key equals an engine key, which only a restore
 | A kind's `resolve` and validation, from `reasonMessages` | `${kindId}.reason.${code}` | engine |
 | Story-graph scene `reasonKey`, and its requirement-failure error | `requirementFailKey` if the choice sets one, else `core.reason.requirement_unmet` | per value: authored, else engine |
 | World-graph action labels and scene text | `world-graph.action.*`, `world-graph.scene.*` | engine |
-| Simulation negotiation and the fixed investment account | `simulation.negotiate.*`, `simulation.finance.investment.*` | engine |
+| Simulation's fixed investment account | `simulation.finance.investment.*` | engine |
 | World-graph `building_broken` and `scenario_resolved` alerts' `titleKey` / `messageKey` | `world-graph.alert.*` | engine |
 | Any `LocKey` read from content or `kindState` — `titleKey`, `nameKey`, an `incident_active` alert's `titleKey` / `messageKey`, `descriptionKey`, `displayNameKey` | as authored | authored |
 | `OutcomeMessage.key` | per producer, by the rows above | per producer |
