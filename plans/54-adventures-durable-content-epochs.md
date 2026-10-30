@@ -2,8 +2,18 @@
 
 Finding 5 of the 2026-10-17 repository review (P1): Adventures refreshes content by building a new
 engine and store, so a durable session stamped with an earlier campaign version fails with
-`unknown_campaign` after any refresh. Approved in principle on 2026-10-17. Planning only: nothing
-here is executed until the decisions in §2 are signed off and the go signal is given.
+`unknown_campaign` after any refresh. Approved in principle on 2026-10-17.
+
+**Status:** executed, all three steps of §5 merged by 2026-10-30.
+
+1. Engine: #610 (`eaa6ea8`, contract), #611 (`4f983ae`, code), #612 (`b49c4b3`, register records).
+2. Adventures#89 (`de1cc77`, `initialization`) and Adventures#91 (`b75b539`, submodule to
+   `4f983ae`).
+3. Adventures#92 (`e213924`, schema, publication, hydration, channel, catalog), Adventures#93
+   (`29096c5`, admission, request gate, write fencing) and Adventures#94 (`01515f9`, deletion,
+   ledger, reconciler).
+
+The rest of this document is the plan as approved, unchanged.
 
 Evidence: SubZeroDev.Adventures `origin/main` ac3f97d, engine submodule 81327a1.
 
