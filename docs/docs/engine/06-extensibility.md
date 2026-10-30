@@ -126,10 +126,10 @@ function createEngine(host: EngineHost): Engine;
 > and a suite run under it proves every producer goes through the map. It cannot change
 > `serialize()`, because no alias reaches state (04 C29), so it passes the §2 rule. The session
 > layer composed around this engine uses the engine's own map through an internal link, not a
-> second option, so the two can never disagree. `createSessionLayer` throws at construction
-> when `host.engine` carries no such link — an `Engine` that `createEngine` (or `withEmitter`)
-> did not return, such as a host's wrapper — rather than composing a layer that silently
-> answers without aliases.
+> second option, so the two can never disagree. `createSessionLayer` and
+> `createInMemorySessionStore` both throw at construction when the engine carries no such link —
+> an `Engine` that `createEngine` (or `withEmitter`) did not return, such as a host's wrapper —
+> rather than composing a layer that silently answers without aliases.
 
 Stores are composed one layer out, because they sit above the pure engine (04 §1):
 

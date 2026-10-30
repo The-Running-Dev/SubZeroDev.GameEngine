@@ -1324,10 +1324,10 @@ function createEngine(host: EngineHost): Engine;
 > and a suite run under it proves every producer goes through the map. It cannot change
 > `serialize()`, because no alias reaches state (04 C29), so it passes the §2 rule. The session
 > layer composed around this engine uses the engine's own map through an internal link, not a
-> second option, so the two can never disagree. `createSessionLayer` throws at construction
-> when `host.engine` carries no such link — an `Engine` that `createEngine` (or `withEmitter`)
-> did not return, such as a host's wrapper — rather than composing a layer that silently
-> answers without aliases.
+> second option, so the two can never disagree. `createSessionLayer` and
+> `createInMemorySessionStore` both throw at construction when the engine carries no such link —
+> an `Engine` that `createEngine` (or `withEmitter`) did not return, such as a host's wrapper —
+> rather than composing a layer that silently answers without aliases.
 
 Stores are composed one layer out, because they sit above the pure engine (04 §1):
 
@@ -4676,8 +4676,9 @@ against something else.
 | `publish` | An authored key is engine-reserved or contains `~` | Refused `protected_string_key` (`details.reason`: `engine_reserved` or `response_alias_namespace`); nothing stored |
 | `publish` (host archive) | The key was retired | Refused `content_version_conflict`, even with an identical digest |
 | `restore` | The stored form's digest ≠ the stored digest; an authored key was reserved at publication; or the key is held with a different digest | `integrity_failure` — the host's boot fails |
-| `restore` | The running kind rejects the stored form | `unsupported`: not entered, never offered; `epoch_unsupported` warning, recomputed each boot, `potentialRegression` when the kind versions are equal |
-| `restore` | An authored key the running engine now reserves, or a legacy `~` key | Restored with `historical_string_collision`; responses alias the engine key (§5.7) |
+| `restore` | The running kind rejects the stored form | `unsupported`: not entered, never offered; `epoch_unsupported` warning, recomputed each boot, `potentialRegression` when the same registered kind id and version that published it rejects it |
+| `restore` | An authored key the running engine now reserves | Restored with `historical_string_collision`; responses alias the engine key (§5.7) |
+| `restore` | A legacy authored key containing `~`, from before `publish` refused one | Restored with no warning: no engine key contains `~`, so nothing collides, and an alias takes the next free `~n~k` (§5.7) |
 | Host request | Names a version whose restore was `unsupported` | `campaign_version_unsupported` (409) — distinct from the host's `campaign_version_unavailable` |
 | `createEngine` | `archive` lacks a registry campaign at its registered version | Throws — a construction error |
 | `createGame` | The requested version does not resolve | `unknown_campaign` |

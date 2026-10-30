@@ -4,7 +4,7 @@ import { createEngine } from "./engine.js";
 import type { AdvanceResult, InitialStateResult, Kind, KindRegistry } from "./types.js";
 import { createContentArchive, epochDigest, type ContentChannel, type EpochForm, type StoredEpoch } from "../registry/archive.js";
 import type { Campaign, ContentRegistry } from "../registry/types.js";
-import { createSessionLayer } from "../session/store.js";
+import { createInMemorySessionStore, createSessionLayer } from "../session/store.js";
 import type { SessionPersistence, StoredSessionRecord } from "../session/types.js";
 
 // C29 (20-contract §7, 10-design 06 §4 and 16 §5.7): engine-owned keys reach a response under
@@ -170,5 +170,11 @@ describe("C29 — the session layer answers with its engine's own map (06 §4)",
   it("refuses an engine createEngine did not return", () => {
     const { engine } = compose();
     expect(() => createSessionLayer({ engine: { ...engine }, registry: registry("1") })).toThrow(/06 §4/);
+  });
+
+  it("refuses one through the in-memory store too, rather than answering without aliases", () => {
+    const { engine } = compose();
+    expect(() => createInMemorySessionStore({ engine: { ...engine }, registry: registry("1") })).toThrow(/06 §4/);
+    expect(() => createInMemorySessionStore({ engine, registry: registry("1") })).not.toThrow();
   });
 });

@@ -75,7 +75,7 @@ export function createResponseAliases(mode: AliasMode, catalog: ReadonlyMap<LocK
   };
 }
 
-/** The identity map, for a store composed over an engine `createEngine` did not return. */
+/** The identity map. Both session roots refuse an unlinked engine (06 §4); this only satisfies the type. */
 export const IDENTITY_ALIASES: ResponseAliases = {
   mode: "colliding",
   catalog: new Map(),

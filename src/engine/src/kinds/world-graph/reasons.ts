@@ -89,6 +89,8 @@ export const WORLD_GRAPH_REASON_CODES = [
   // Direct: a literal at the `change()`/`record()` call site.
   "building_placed",
   "construction_started",
+  // Recorded only with `visible: false` today, and registered ahead of need so flipping a
+  // producer to visible stays safe (20-contract §11).
   "building_completed",
   "staff_hired",
   "price_set",
