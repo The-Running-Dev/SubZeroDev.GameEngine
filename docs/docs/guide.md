@@ -4,7 +4,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 634f87ca3909cc40d339390ab92afb1036d1b4fe683d394565db31c21becebfb -->
+<!-- design-digest: 07fa3fc90a6998bf4d3a22cb617d89bc194f5896159fe778f156e1448a99badc -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -67,8 +67,8 @@ contracts it links to — this guide never repeats a signature that document alr
   SubZeroDev.Adventures refreshes content by replacing its engine and session store. See
   [Content epochs](#content-epochs-new-content-in-a-running-host).
 - Session capture — turning a played session into a committed replay fixture — is specified as a
-  privacy contract, not implemented. It is deliberately gated on a hosting layer this repository
-  defers entirely.
+  privacy contract, not implemented. Its last contract question, which parameters a fixture may
+  carry, is settled: every kind rejects an undeclared key, so capture copies the log as it is.
 
 ## The mental model
 
@@ -404,7 +404,9 @@ sequenceDiagram
 ```
 
 The engine copies the params once on entry. The kind and the logged action both receive that
-copy, so a caller that edits its own object afterwards cannot rewrite the action log.
+copy, so a caller that edits its own object afterwards cannot rewrite the action log. Every kind
+rejects a param key its action table does not declare for that action, with its own
+`unexpected_params`, so a logged action carries only declared keys.
 
 Different sessions resolve concurrently. Commands for the same `sessionId` are serialized by the
 store, so the second command always reads the first command's committed state. A second lock
@@ -710,7 +712,8 @@ model by following these rules in every resolution path:
 - Keep money in integer cents and simulation/world rates in integer basis points; keep every
   other scored or accumulated value integer, with any fraction expressed as fixed-point.
 - Keep wall-clock metadata outside the game envelope.
-- Add a new action parameter to the declared schema before letting it affect behavior.
+- Add a new action parameter to the kind's action table, and accept it in `advance`, before
+  letting it affect behavior. The table is the declaration; any other key is `unexpected_params`.
 
 The stream key matters as much as the generator — `deriveStream(seed, streamId)` is a pure
 function of the pair, so which id you key by is the whole determinism story for that draw.
@@ -1226,13 +1229,16 @@ make the oracle cry wolf on every content edit. A kind's own terminal-identity f
 the identical rule: published ids only, never values a balance pass would legitimately move.
 
 A production incident should become a minimal replay fixture when privacy permits. The specified
-capture flow excludes identity, timing, raw state, and undeclared parameters; capture happens only
+capture flow excludes identity, timing, and raw state. It copies logged params verbatim: an
+undeclared key never reaches the log, because the kind rejects it at submission, and filtering
+one at capture would change what the fixture replays. Capture happens only
 for an explicit report or an error-severity event, never as background collection. A session that
 is not replay-compatible is refused, because its log no longer regenerates its state — every
 `replayCompatible: false` session, including one migrated before it adopted and so carrying no
 migration entry, the same refusal `branchSession` makes. Promotion into
 the committed corpus is a reviewed, one-way step — a capture is personal data until a human
-confirms identity and undeclared params are absent, and once committed to git it cannot be deleted
+confirms identity is absent and no declared param carries free text, and once committed to git it
+cannot be deleted
 the way a retention window can delete an unpromoted capture. That hosting integration is not
 implemented yet; the mechanics apply the moment it is, unchanged.
 

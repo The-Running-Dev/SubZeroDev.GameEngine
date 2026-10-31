@@ -593,6 +593,14 @@ type AdoptDecision<KState> =
 > carries data that provably cannot change replay. The story-graph kind declares no
 > parameters (an action *is* a choice id) and returns a `ValidationError` if a non-empty
 > `params` object arrives. Undocumented parameters are never silently ignored.
+>
+> **This holds for every kind, and a kind's contract is its declaration.** Each kind's action
+> table (03 §8.2, 10 §4, 12 §6) names the keys each `actionId` accepts. `advance` rejects a
+> `params` object carrying any other key with the kind's own `unexpected_params`, before it
+> reads any value. A rejected action is never logged (§4), so every logged action carries only
+> declared keys, which is what lets `08-session-capture.md` §3.2 copy logged params without
+> filtering them. The declaration is not a member of `Kind`: a schema the core could read
+> would be a second copy of the validator `advance` already is (12 §7).
 
 > **A rejection also returns a message.** `error` tells the core and client *that* the
 > action failed and why (`ReasonCode`, `messageKey`); `messages` is what tells the
@@ -4965,9 +4973,24 @@ is therefore replayable at the same grain as playing it — which matters, becau
 player built and revised is part of how the week turned out.
 
 **This kind declares `params`**, unlike `story-graph` which rejects any (03 §8.2). That makes
-it the first kind for which `08-session-capture` §3.2's rule has teeth: capture keeps only
-*declared* parameters, and every parameter above is a declared id or an integer index — none
-is free text.
+it the first kind for which `08-session-capture` §3.2's rule has teeth: a fixture carries only
+*declared* parameters, because `advance` rejects any other key (04 §3).
+
+`plan.add`'s keys depend on its `actionType`. Every type accepts `actionType` and an optional
+`targetId`. Four types take one more key, and no other type takes any:
+
+| `actionType` | Additional key |
+|---|---|
+| `borrow_money`, `repay_debt`, `deposit_savings`, `invest` | `amountCents` (integer) |
+| `respond_to_event` | `choiceId` (string — one of the pending response's choices) |
+| `operate_business` | `close` (boolean) |
+
+`plan.remove` takes only `index`; `plan.clear` and `end_week` take none. A key outside this
+table, including one valid for a different `actionType`, is `unexpected_params` (§10).
+`targetId` and `choiceId` are ids, not free text, but `plan.add` does not check them against
+content; `end_week`'s resolvers do. Until the plan is resolved, a caller's string can sit in
+the plan and the log, which is why capturing this kind waits on a value review
+(`08-session-capture.md` §9).
 
 **Plans are immutable.** Every edit produces a new plan; preview is free and never requires
 re-validating from scratch.
@@ -7147,6 +7170,7 @@ author, and a client rendering a history.
 | `plan_empty` | `end_week` with nothing planned, where the campaign forbids it (`SimulationCampaign.emptyPlanPolicy: "forbid"`, §7.11) | registered (W100) |
 | `week_limit_reached` | The scenario's week cap is exhausted | specified, not yet dispatched |
 | `event_response_pending` | `end_week`, or a `plan.add` for any `ActionType` other than `respond_to_event`, while a `PendingEventResponse` (§2.3) remains unaddressed by the current plan | registered (W94) |
+| `unexpected_params` | A `params` key §4 does not declare for that `actionId` (for `plan.add`, for that `actionType`) — 04 §3 | specified, not yet dispatched (2026-11-01) |
 
 Reused from the base set: `unknown_action`, `requirement_unmet`, `session_ended`,
 `action_not_available` (a `"custom"` `GameAction` reaching resolution, §4.2).
@@ -8744,7 +8768,10 @@ audit. Neither difference may reach final kind state.
 
 Every one is a `submitAction` appending one `LoggedAction`. All parameters are **declared
 ids, integers, or enumerated rotations** — none is free text, which keeps
-[`08-session-capture.md`](08-session-capture.md) §3.2's refusal rule cheap to satisfy.
+[`08-session-capture.md`](08-session-capture.md) §3.2's refusal rule cheap to satisfy. The
+table is the declaration: a key it does not name for that `actionId` is `unexpected_params`
+(§11, 04 §3), checked before any value is read. Every id is checked against content or state
+before the action is accepted, so a logged id is one the campaign or the session minted.
 
 Allocation is part of action semantics. Immediate build reserves building then queue id;
 timed build reserves site, future building, then future queue id in that order. Both build
@@ -9322,6 +9349,7 @@ rejected `AdvanceResult.error` (and its accompanying `OutcomeMessage`, 04 §3).
 | `building_limit_reached` | The scenario caps this definition — the building-side twin of `staff_limit_reached`, and what `blockedBy` (§10) reports for a definition at its cap |
 | `ticks_not_positive` | `advance_ticks` with `ticks` less than 1 |
 | `tick_limit_reached` | `ticks` exceeds the campaign's per-call cap (§6) |
+| `unexpected_params` | A `params` key §6's table does not declare for that `actionId` (04 §3). Specified 2026-11-01; not yet produced by code |
 
 Reused from the base set: `unknown_action`, `requirement_unmet`, `session_ended`,
 `action_not_available`.

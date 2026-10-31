@@ -37,14 +37,17 @@ S129–S135 build content epochs, [`16-content-epochs.md`](16-content-epochs.md)
 ## Carried Forward
 
 Open items the retired bodies carried that were never sliced. They are moved here so that none is
-lost. None is sliceable as written: each needs a contract or design decision first.
+lost. Unless an entry says it is ready to plan, it needs a contract or design decision first.
 
 - **Session capture** ([`08-session-capture.md`](08-session-capture.md)). The hosting gate is met:
   [SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures) is a hosted
-  deployment. What blocks it is a missing contract surface. [08 §3.2](08-session-capture.md#3-what-is-refused)
-  keeps only the parameters a kind declares, and no kind declares its parameters anywhere the core
-  can read. Either the `Kind` interface gains a declared-parameter surface, or §3.2 is restated
-  against something a host can enforce.
+  deployment. The contract surface it lacked is decided (`90-decisions.md`, 2026-11-01, *Session
+  capture: acceptance is declaration*): every kind rejects an undeclared `params` key with its own
+  `unexpected_params`, so capture copies the log verbatim ([08 §3.2](08-session-capture.md#3-what-is-refused)).
+  **Ready for `/agentkit:plan`.** The plan owes three pieces: `world-graph` and `simulation` reject
+  undeclared keys, with a kind-version or migration note for stored logs that already carry one;
+  the value review of `simulation`'s `targetId` and `choiceId` before that kind is captured
+  ([08 §9](08-session-capture.md#9-deferred)); and capture itself.
 - **Hosted engine edge.** The `.NET Platform edge → Node engine workload` process boundary, proposed
   to follow W62: a generated JSON/HTTP service contract first, MCP as a projection, and one
   in-memory remote session before persistence, accounts, catalogue or metering.

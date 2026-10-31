@@ -95,13 +95,27 @@ keys and values.** Capturing them verbatim would put whatever a client chose to 
 stored artefact, which is exactly the hole
 [`05-observability.md`](05-observability.md) §8 closed for `actionId`.
 
-> **So capture keeps only the parameters the kind declares**, dropping every other key. The
-> `story-graph` kind declares none and rejects a non-empty `params` with `unexpected_params`
-> (03 §8.2), so for the MVP kind this reduces to *params are never captured at all*. The rule
-> is written for the kinds that will declare them.
+> **So a fixture carries only the parameters the kind declares, and the kind enforces it at
+> submission, not capture.** Every kind rejects a param key its contract does not declare for
+> that action, with its own `unexpected_params` (04 §3). A rejected action appends nothing to
+> the log (04 §4), and capture reads the log, so every logged action's params are declared by
+> construction. Capture copies them verbatim and filters nothing. For `story-graph`, which
+> declares none (03 §8.2), this reduces to *params are never captured at all*.
 >
-> An `actionId` that resolved to no declared action is likewise dropped, for the same reason
-> and by the same rule as 05 §8 — an unmatched id is caller-supplied text.
+> **Capture does not filter, because a filter breaks replay.** Dropping a key the kind read
+> changes the outcome, so the fixture would no longer reproduce the session it came from. A key
+> the kind silently ignored could be dropped safely, but 04 §3 forbids ignoring one. The rule
+> can therefore only hold where the parameters are judged, which is `advance`. A
+> declared-parameter member on `Kind` would be a second copy of each kind's validator, the
+> same objection 12 §7 makes to `validateCommand`.
+>
+> The same holds for an `actionId` that resolves to no declared action. It is rejected
+> (`unknown_action`), never logged, and so never captured, for the reason 05 §8 drops it
+> from events: an unmatched id is caller-supplied text.
+>
+> **This rule covers keys, not values.** A declared string key can still carry free text when a
+> kind accepts its value without checking it against content. That is each kind's review
+> (§9), not this rule's.
 
 **3.3 No timing.** No wall-clock, no durations, no inter-action intervals. They are not
 replay inputs (04 §2 keeps clocks out of `GameState` entirely), and timing is behavioural
@@ -172,8 +186,9 @@ permanent**, and this is the moment that matters most:
 
 > **Promotion is a reviewed, human step. A capture is never promoted automatically.**
 
-At promotion the reviewer confirms identity is absent (§3.1), undeclared params are absent
-(§3.2), and the fixture is renamed to describe the *bug* rather than the session. What is
+At promotion the reviewer confirms identity is absent (§3.1), no declared param carries free
+text (§3.2; replaying the fixture already proves no undeclared key survives, since the kind
+rejects one), and the fixture is renamed to describe the *bug* rather than the session. What is
 committed is then a test artefact, not a record of a person.
 
 The asymmetry with §6 is deliberate and worth stating: retention deletion cannot reach a
@@ -201,11 +216,14 @@ more.
 
 ## 9. Deferred
 
-- **Capture of `simulation`-kind sessions with declared params.** The §3.2 rule is written
-  for it; the kind does not exist yet, and its parameter set will need its own review, since
-  a declared parameter is not automatically a safe one.
-- **Automatic de-identification checks at promotion.** §7 is a human step. A lint that
-  refuses a fixture containing an undeclared key would make it harder to get wrong, and is
+- **Value review of each kind's declared params.** §3.2 settles keys; a declared parameter is
+  not automatically a safe one. `world-graph` checks every id it accepts against content or
+  state, so a logged value is an id the campaign or the session minted. `simulation`'s
+  `plan.add` stores `targetId` and `choiceId` without checking them until `end_week` resolves
+  the plan, so a caller's text can reach the log. Capturing `simulation` sessions waits on that review.
+- **Automatic de-identification checks at promotion.** §7 is a human step. An undeclared key
+  needs no lint, since replaying the fixture rejects it (§3.2). A check that every declared
+  string value names a content id would make the remaining review harder to get wrong, and is
   worth adding once there is a corpus to run it against.
 - **Capture from clients other than the hosted one.** A self-hosting operator running their
   own deployment has their own obligations; this document does not attempt to specify them.
