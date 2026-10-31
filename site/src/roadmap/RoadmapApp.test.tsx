@@ -31,7 +31,10 @@ describe("roadmap page", () => {
       within(checkpoint as HTMLElement).getByRole("link", {
         name: "Canonical task ledger",
       }),
-    ).toHaveAttribute("href", "/docs/engine/todo#w93");
+    ).toHaveAttribute(
+      "href",
+      "/docs/engine/todo#s129--every-game-plays-the-content-it-names",
+    );
     const future = screen.getByText("03 / NEXT").closest("section");
     expect(future).not.toBeNull();
     expect(
@@ -76,9 +79,9 @@ describe("roadmap page", () => {
       "W90–W92",
       "W109–W113",
     ]);
-    expect(nextActs.map((chapter) => chapter.workUnits)).toEqual(["W93–W108"]);
+    expect(nextActs.map((chapter) => chapter.workUnits)).toEqual(["S129–S135"]);
     expect(nextActs.every((chapter) => chapter.status !== "done")).toBe(true);
-    expect(currentAct.workUnits).toBe("W93–W108");
+    expect(currentAct.workUnits).toBe("S129–S135");
     expect(futureActs).toEqual([]);
     expect(shippedChapters[0]?.links[0]?.href).toMatch(
       /^https:\/\/github\.com\/The-Running-Dev\/SubZeroDev\.GameEngine\/commit\/[0-9a-f]{40}$/,
