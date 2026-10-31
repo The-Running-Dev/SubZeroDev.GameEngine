@@ -109,3 +109,70 @@ describe("W104.3 — representative saves load through a real SessionStore", () 
     await expect(store.getScene("any-session-id")).rejects.toBeInstanceOf(SessionStoreError);
   });
 });
+
+/**
+ * S136 — simulation's `advance` now refuses a `params` key 10 §4 does not declare. That narrows
+ * what the kind accepts without touching state shape, so `kindVersion` stays `1.1.0` and a save
+ * written before the change must still load, stay `replayCompatible`, re-run, and play on
+ * (S136.7). The one log it cannot re-run is one that already carries an undeclared key, and
+ * `branchSession` must say so with a typed `invalid_state`, writing nothing (S136.8).
+ */
+describe("S136 — simulation saves under acceptance-is-declaration", () => {
+  const entry = SAVE_FIXTURES.find((candidate) => candidate.name === "simulation-active")!;
+
+  /** Stores over one set of rows; `open()` is a later process reading what an earlier one wrote. */
+  function rowsOverSimulationSave(): { open: () => ReturnType<typeof createInMemorySessionStore>; rows: Map<string, StoredSessionRecord>; puts: () => number; engine: ReturnType<typeof createEngine> } {
+    const blob = loadSaveBlob(entry.name);
+    const { kinds, registry } = buildRegistry(entry.kindId);
+    const rows = new Map<string, StoredSessionRecord>();
+    const saves = saveRecordStoreWith(blob, (JSON.parse(blob) as { campaignId: string }).campaignId);
+    let puts = 0;
+    const engine = createEngine({ kinds, registry, ids: FIXED_IDS });
+    const open = () => createInMemorySessionStore({
+      engine,
+      registry,
+      persistence: {
+        sessions: {
+          async get(sessionId) { return rows.get(sessionId); },
+          async put(record) { puts += 1; rows.set(record.sessionId, record); },
+        },
+        saves,
+      },
+    });
+    return { open, rows, puts: () => puts, engine };
+  }
+
+  it("S136.7 — a 1.1.0 save from before the change loads replayCompatible, re-runs whole, and plays on", async () => {
+    const parsed = JSON.parse(loadSaveBlob(entry.name)) as { kindVersion: string; state: { actionLog: unknown[] } };
+    expect(parsed.kindVersion).toBe("1.1.0");
+    const { open, rows } = rowsOverSimulationSave();
+    const store = open();
+
+    const loaded = await store.loadGame("w104");
+    expect(rows.get(loaded.sessionId)!.replayCompatible).toBe(true);
+    await expect(store.branchSession(loaded.sessionId, parsed.state.actionLog.length)).resolves.toBeDefined();
+    expect((await store.submitAction(loaded.sessionId, "plan.add", { actionType: "rest" })).ok).toBe(true);
+  });
+
+  it("S136.8 — branchSession over a retained action the kind now refuses throws invalid_state, writing nothing", async () => {
+    const { open, rows, puts, engine } = rowsOverSimulationSave();
+    const loaded = await open().loadGame("w104");
+
+    // Hand-build the log a pre-S136 client could have left: the first planned action carries a
+    // key `enroll_course` never declared. Written straight into the row, as an older build would have.
+    const row = rows.get(loaded.sessionId)!;
+    const state = engine.deserialize(row.blob);
+    if (!state.ok || !state.value) throw new Error("expected the loaded row to deserialize");
+    const tampered = structuredClone(state.value);
+    const first = tampered.actionLog[0] as { params?: Record<string, unknown> };
+    first.params = { ...first.params, amountCents: 5000 };
+    rows.set(loaded.sessionId, { ...row, blob: engine.serialize(tampered) });
+    const before = puts();
+    const store = open();
+
+    await expect(store.branchSession(loaded.sessionId, 2)).rejects.toMatchObject({ operation: "branchSession", code: "invalid_state" });
+    expect(puts()).toBe(before);
+    // A fork before the refused entry retains none of it, and still branches.
+    await expect(store.branchSession(loaded.sessionId, 0)).resolves.toBeDefined();
+  });
+});

@@ -72,6 +72,9 @@
  * W112 adds `item_cost_charged` — `endOfWeek.ts`'s `inventory` system levying the summed
  * `ItemDefinition.weeklyCostCents` of every owned, unbroken instance against `cashCents`
  * (§7.5, 90-decisions W105.2), the same single-total-charge shape as `rent_charged`.
+ *
+ * S136 adds `unexpected_params` — `advance.ts`'s refusal of a `params` key §4 does not
+ * declare, the same code `story-graph` uses under its own namespace.
  */
 
 import type { LocKey } from "../../core/localization/types.js";
@@ -180,6 +183,9 @@ export const SIMULATION_REASON_CODES = [
   "invalid_tuning_value",
   "unknown_tuning_key",
   "invalid_eviction_stages",
+  // S136 — acceptance is declaration (§4, 04 §3). `advance.ts` rejects a `params` key §4
+  // does not declare for the action, or for `plan.add`'s `actionType`.
+  "unexpected_params",
 ] as const;
 
 export type SimulationReasonCode = (typeof SIMULATION_REASON_CODES)[number];
@@ -261,6 +267,7 @@ const SIMULATION_REASON_TEXT: Readonly<Record<SimulationReasonCode, string>> = {
   unknown_collection_field: "This campaign asks about a property its collection's items don't have.",
   optional_field_operator: "This campaign compares an optional property in a way that can fail during play.",
   item_cost_charged: "You paid to keep your things running.",
+  unexpected_params: "This action doesn't take that detail.",
 };
 
 /** `simulation.reason.<code>` → its shipped default-English message, for every code. */

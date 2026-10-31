@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { advance } from "./advance.js";
 import { initialState } from "./initial.js";
 import { SIMULATION_REASON_CODES, SIMULATION_REASON_MESSAGES } from "./reasons.js";
+import { ACTION_TYPES, type ActionType } from "./plan.js";
 import type { SimulationCampaign } from "./campaign.js";
 import type { GoalDefinition } from "./content.js";
 import type { SimulationKindState } from "./state.js";
@@ -139,10 +140,10 @@ describe("advance — plan.add", () => {
     expect(result.state.plan?.actions[0]?.id).toBe("action-7");
   });
 
-  it("puts params beyond actionType/targetId into the action's own parameters", () => {
+  it("puts the declared params beyond actionType/targetId into the action's own parameters", () => {
     const state = baseState();
-    const result = advance(state, "plan.add", { actionType: "study", courseId: "crs-1" }, fakeCtx());
-    expect(result.state.plan?.actions[0]?.parameters).toEqual({ courseId: "crs-1" });
+    const result = advance(state, "plan.add", { actionType: "borrow_money", amountCents: 5000 }, fakeCtx());
+    expect(result.state.plan?.actions[0]?.parameters).toEqual({ amountCents: 5000 });
   });
 
   it("rejects with unknown_action when actionType is missing", () => {
@@ -404,6 +405,71 @@ describe("advance — unknown action", () => {
   });
 });
 
+describe("advance — acceptance is declaration (S136, §4, 04 §3)", () => {
+  const extraKey: Partial<Record<ActionType, readonly [string, unknown]>> = {
+    borrow_money: ["amountCents", 5000],
+    repay_debt: ["amountCents", 5000],
+    deposit_savings: ["amountCents", 5000],
+    invest: ["amountCents", 5000],
+    respond_to_event: ["choiceId", "choice-a"],
+    operate_business: ["close", true],
+  };
+
+  it("rejects an undeclared plan.add key with the full rejection shape, state untouched (S136.1)", () => {
+    const state = baseState();
+    const result = advance(state, "plan.add", { actionType: "borrow_money", amountCents: 5000, choiceId: "x" }, fakeCtx());
+    expect(result).toEqual({
+      state,
+      status: "active",
+      changes: [],
+      messages: [{ key: "simulation.reason.unexpected_params", visible: true }],
+      error: { code: "unexpected_params", messageKey: "simulation.reason.unexpected_params" },
+    });
+    expect(result.state).toBe(state);
+  });
+
+  it("refuses the stray key before reading any value — a malformed declared value still loses to it", () => {
+    const result = advance(baseState(), "plan.add", { actionType: "borrow_money", amountCents: "not-a-number", extra: 1 }, fakeCtx());
+    expect(result.error?.code).toBe("unexpected_params");
+  });
+
+  it("still answers an unrecognised actionType with unknown_action, whatever else is present", () => {
+    const result = advance(baseState(), "plan.add", { actionType: "definitely_not_real", extra: 1 }, fakeCtx());
+    expect(result.error?.code).toBe("unknown_action");
+  });
+
+  for (const actionType of ACTION_TYPES) {
+    const extra = extraKey[actionType];
+    it(`accepts plan.add ${actionType} with exactly its declared keys, and stores only those (S136.3)`, () => {
+      const params = { actionType, targetId: "t-1", ...(extra ? { [extra[0]]: extra[1] } : {}) };
+      const result = advance(baseState(), "plan.add", params, fakeCtx());
+      expect(result.error).toBeUndefined();
+      expect(result.state.plan?.actions[0]?.parameters).toEqual(extra ? { [extra[0]]: extra[1] } : {});
+    });
+    it(`rejects plan.add ${actionType} carrying one key it does not declare (S136.2)`, () => {
+      const stray = extra?.[0] === "amountCents" ? "choiceId" : "amountCents";
+      const result = advance(baseState(), "plan.add", { actionType, [stray]: 1 }, fakeCtx());
+      expect(result.error?.code).toBe("unexpected_params");
+    });
+  }
+
+  it("rejects plan.remove carrying a key beside index, before the index is looked at", () => {
+    const withAction = advance(baseState(), "plan.add", { actionType: "rest" }, fakeCtx()).state;
+    const result = advance(withAction, "plan.remove", { index: 0, extra: 1 }, fakeCtx());
+    expect(result.error?.code).toBe("unexpected_params");
+    expect(result.state).toBe(withAction);
+  });
+
+  for (const actionId of ["plan.clear", "end_week"]) {
+    it(`rejects ${actionId} carrying any key, and accepts it with none or an empty object`, () => {
+      const withAction = advance(baseState(), "plan.add", { actionType: "rest" }, fakeCtx()).state;
+      expect(advance(withAction, actionId, { x: 1 }, fakeCtx()).error?.code).toBe("unexpected_params");
+      expect(advance(withAction, actionId, {}, fakeCtx()).error).toBeUndefined();
+      expect(advance(withAction, actionId, undefined, fakeCtx()).error).toBeUndefined();
+    });
+  }
+});
+
 describe("advance — every rejection carries a player-facing message (04 §3)", () => {
   const rejections: readonly { readonly label: string; readonly run: () => ReturnType<typeof advance> }[] = [
     {
@@ -427,6 +493,10 @@ describe("advance — every rejection carries a player-facing message (04 §3)",
     {
       label: "an unrecognized actionId",
       run: () => advance(baseState(), "totally_fake_action", undefined, fakeCtx()),
+    },
+    {
+      label: "plan.add with an undeclared key",
+      run: () => advance(baseState(), "plan.add", { actionType: "rest", extra: 1 }, fakeCtx()),
     },
   ];
 
@@ -492,6 +562,20 @@ describe("simulation kind — through the real engine (integration)", () => {
     const kindStateAfterEndWeek = afterEndWeek.value.kindState as SimulationKindState;
     expect(kindStateAfterEndWeek.calendar.currentWeek).toBe(2);
     expect(kindStateAfterEndWeek.plan).toEqual({ week: 2, actions: [] });
+  });
+
+  it("submitAction refuses an undeclared key and logs nothing — the held state serializes byte-identically (S136.1)", () => {
+    const engine = createEngine(makeHost());
+    const created = engine.createGame({ campaignId: "test-sim" });
+    if (!created.ok || !created.value) throw new Error("expected success");
+    const before = engine.serialize(created.value);
+
+    const result = engine.submitAction(created.value, "plan.add", { actionType: "borrow_money", amountCents: 5000, choiceId: "x" });
+    expect(result.ok).toBe(false);
+    expect(result.errors[0]?.code).toBe("unexpected_params");
+    expect(result.value).toBeUndefined();
+    expect(created.value.actionLog).toHaveLength(0);
+    expect(engine.serialize(created.value)).toBe(before);
   });
 
   it("submitAction rejects an unknown action id via the real engine seam", () => {

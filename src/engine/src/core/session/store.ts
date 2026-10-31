@@ -1237,10 +1237,11 @@ function createStore(options: InMemorySessionStoreOptions): SessionLayer {
           }
           const result = decoratedEngine.submitAction(state, logged.actionId, logged.params);
           if (!result.ok || !result.value) {
-            // Defensive: every entry in actionLog was accepted once already (04 §4 only
-            // logs an action that advanced the state), so replaying it deterministically
-            // against the same seed and prefix cannot be rejected.
-            throw new Error(`session store: branchSession — replaying logged action "${logged.actionId}" was rejected`);
+            // Every entry was accepted once (04 §4 logs only an action that advanced the
+            // state), but a kind can since have narrowed what it accepts — S136's
+            // undeclared-params refusal is the first case. The prefix then cannot be
+            // reproduced; refused like an adoption above, with nothing written yet.
+            throw new SessionStoreErrorValue("branchSession", "invalid_state");
           }
           state = result.value;
         }

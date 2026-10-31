@@ -489,7 +489,7 @@ Out of scope: Capturing fixtures from hosted sessions (session capture remains c
 
 ## S136 — Simulation Refuses Details It Did Not Ask For
 
-Status: todo
+Status: done
 Delivers: A Life in the Fast Lane player's week holds only what the game asked them for. A client
           can no longer slip extra details into a planned action and have them saved with the
           game, and a session recorded before this change that carries such a detail says plainly
