@@ -5,7 +5,10 @@
  * `WORLD_GRAPH_REASON_CODES`, one message table with every code, and
  * `WORLD_GRAPH_REASON_MESSAGES` under the `world-graph.reason.*` namespace.
  *
- * The codes below `tick_limit_reached` are the campaign-content validation codes emitted
+ * `unexpected_params` (S137) is `advance`'s refusal of a `params` key 12 §6's table does not
+ * declare for that action — the same check `story-graph` and `simulation` already make (04 §3).
+ *
+ * The codes below `unexpected_params` are the campaign-content validation codes emitted
  * by `validate.ts`'s `error()`/`warning()` helpers — one per distinct `code` string that
  * function can produce, following the same pattern `story-graph/reasons.ts` uses for its
  * own Tier 1/2 validation findings.
@@ -54,6 +57,7 @@ export const WORLD_GRAPH_REASON_CODES = [
   "building_limit_reached",
   "ticks_not_positive",
   "tick_limit_reached",
+  "unexpected_params",
   "invalid_world_graph_content",
   "invalid_id",
   "invalid_integer",
@@ -121,6 +125,7 @@ const WORLD_GRAPH_REASON_TEXT: Readonly<Record<WorldGraphReasonCode, string>> = 
   building_limit_reached: "You've already built as many of these as this scenario allows.",
   ticks_not_positive: "AdvanceTicks requires a positive integer.",
   tick_limit_reached: "AdvanceTicks exceeds the campaign's per-action batch cap.",
+  unexpected_params: "This action doesn't take that detail.",
   invalid_world_graph_content: "This campaign's content isn't shaped like world-graph content.",
   invalid_id: "This campaign uses an id that is missing, empty, or contains a period.",
   invalid_integer: "This campaign has a numeric field that isn't a positive integer.",

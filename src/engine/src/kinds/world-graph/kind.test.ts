@@ -1456,3 +1456,75 @@ describe("world-graph #522 canonical comparators (§4.2)", () => {
       .toEqual(["a-b", "a1", "a10", "a2", "a_b", "a_x"]);
   });
 });
+
+describe("world-graph S137 — acceptance is declaration (12 §6, 04 §3)", () => {
+  const baseMap = runtime().content.maps[0]!;
+  const maps = [{
+    ...baseMap,
+    zones: [{ id: "zone-a", text: { nameKey: "zone.a.name", descriptionKey: "zone.a.description" }, cells: [{ x: 0, y: 0 }], serviceRadius: 5, maxOccupancy: null }],
+  }];
+  const runtimeEngine = engine({ maps });
+  const initial = create({ maps });
+  const built = runtimeEngine.submitAction(initial, "build", { definitionId: "kiosk", x: 2, y: 1, rotation: 0 }).value!;
+  const staffed = runtimeEngine.submitAction(built, "hire_staff", { definitionId: "cleaner" }).value!;
+  const alerted = {
+    ...initial,
+    kindState: {
+      ...stateOf(initial),
+      alerts: [{
+        id: "alert:0", type: "incident_active" as const, semanticKey: "incident:litter",
+        severity: "warning" as const, titleKey: "world.incident.litter.name",
+        messageKey: "world.incident.litter.description", entityId: null,
+        issuedAtTick: 0, dismissedAtTick: null, clearedAtTick: null,
+      }],
+    },
+  };
+
+  // One accepted shape per 12 §6 row; `assign_staff`'s optional keys appear present and absent.
+  const cases: readonly { readonly actionId: string; readonly game: typeof initial; readonly params: Readonly<Record<string, string | number>> }[] = [
+    { actionId: "build", game: initial, params: { definitionId: "kiosk", x: 2, y: 1, rotation: 0 } },
+    { actionId: "demolish", game: built, params: { buildingId: "building:0" } },
+    { actionId: "hire_staff", game: built, params: { definitionId: "cleaner" } },
+    { actionId: "fire_staff", game: staffed, params: { staffId: "staff:2" } },
+    { actionId: "assign_staff", game: staffed, params: { staffId: "staff:2" } },
+    { actionId: "assign_staff", game: staffed, params: { staffId: "staff:2", buildingId: "building:0" } },
+    { actionId: "assign_staff", game: staffed, params: { staffId: "staff:2", zoneId: "zone-a" } },
+    { actionId: "assign_staff", game: staffed, params: { staffId: "staff:2", zoneId: "zone-a", buildingId: "building:0" } },
+    { actionId: "set_price", game: built, params: { buildingId: "building:0", productId: "water", priceCents: 200 } },
+    { actionId: "open_building", game: built, params: { buildingId: "building:0" } },
+    { actionId: "close_building", game: built, params: { buildingId: "building:0" } },
+    { actionId: "dismiss_alert", game: alerted, params: { alertId: "alert:0" } },
+    { actionId: "advance_ticks", game: initial, params: { ticks: 1 } },
+  ];
+
+  for (const { actionId, game, params } of cases) {
+    // The stray key is one another row does declare — declared for *some* action is not enough.
+    const stray = actionId === "advance_ticks" ? { buildingId: "building:0" } : { ticks: 1 };
+    it(`${actionId} ${JSON.stringify(Object.keys(params))}: accepts its declared keys and refuses one more (S137.2)`, () => {
+      expect(runtimeEngine.submitAction(game, actionId, params).ok).toBe(true);
+      const refused = runtimeEngine.submitAction(game, actionId, { ...params, ...stray });
+      expect(refused.ok).toBe(false);
+      expect(refused.errors[0]).toMatchObject({ code: "unexpected_params", messageKey: "world-graph.reason.unexpected_params" });
+    });
+  }
+
+  it("refuses build with a note, appends nothing, and leaves the held state byte-identical (S137.1)", () => {
+    const before = runtimeEngine.serialize(initial);
+    const result = runtimeEngine.submitAction(initial, "build", { definitionId: "kiosk", x: 2, y: 1, rotation: 0, note: "hi" });
+    expect(result.ok).toBe(false);
+    expect(result.errors[0]).toMatchObject({ code: "unexpected_params", messageKey: "world-graph.reason.unexpected_params" });
+    expect(result.value).toBeUndefined();
+    expect(initial.actionLog).toHaveLength(0);
+    expect(runtimeEngine.serialize(initial)).toBe(before);
+  });
+
+  it("checks keys before any value is read: a malformed ticks still loses to the stray key (S137.3)", () => {
+    expect(runtimeEngine.submitAction(initial, "advance_ticks", { ticks: "bad", extra: 1 }).errors[0]?.code).toBe("unexpected_params");
+    // Without the stray key, the pre-change answer for a malformed `ticks` stands.
+    expect(runtimeEngine.submitAction(initial, "advance_ticks", { ticks: "bad" }).errors[0]?.code).toBe("unknown_action");
+  });
+
+  it("still answers an action id §6 does not name with unknown_action, whatever its params", () => {
+    expect(runtimeEngine.submitAction(initial, "teleport", { extra: 1 }).errors[0]?.code).toBe("unknown_action");
+  });
+});

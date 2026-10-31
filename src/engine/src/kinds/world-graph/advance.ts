@@ -2,12 +2,13 @@ import type { ActionParams, AdvanceResult, KindContext } from "../../core/kernel
 import { dismissAlert } from "./actions/alerts.js";
 import { setBuildingOpen, setPrice } from "./actions/building.js";
 import { build, demolish } from "./actions/build.js";
-import { rejected } from "./actions/common.js";
+import { hasUndeclaredParam, rejected } from "./actions/common.js";
 import { assignStaff, fireStaff, hireStaff } from "./actions/staff.js";
 import type { WorldGraphKindState } from "./state.js";
 import { advanceTicks } from "./tick/batch.js";
 
-/** W45 owns only immediate reducers. W46 replaces the deliberate `advance_ticks` guard. */
+/** W45 owns only immediate reducers. W46 replaces the deliberate `advance_ticks` guard.
+ *  S137: a key 12 §6 does not declare is refused before any reducer reads a value. */
 export function advance(
   state: WorldGraphKindState,
   actionId: string,
@@ -15,6 +16,7 @@ export function advance(
   ctx: KindContext,
 ): AdvanceResult<WorldGraphKindState> {
   if (state.resolution !== null) return rejected(state, "core.reason.session_ended");
+  if (hasUndeclaredParam(actionId, params)) return rejected(state, "unexpected_params");
   switch (actionId) {
     case "build": return build(state, params, ctx);
     case "demolish": return demolish(state, params, ctx);

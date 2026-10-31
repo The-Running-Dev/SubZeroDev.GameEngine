@@ -2976,3 +2976,9 @@ Context: S136.5, S136.8 and S137.4 each finish with a `20-contract.md` row: 10 �
 Chosen: each slice pull request lists those rows under *Differs from design*. The `/agentkit:align` pull request that follows S137 makes all three edits together.
 Rejected: **Editing `20-contract.md` in each slice pull request.** It breaks the convention every recent slice has kept, and spreads one reconciliation across two reviews.
 Reversibility: free. Only the order of landing changes.
+
+### 2026-11-01 — S137: no `kindVersion` bump for world-graph's undeclared-key refusal
+Context: S137.6, the `world-graph` half of the S136 entry above.
+Chosen: `world-graph` stays `1.0.0`, with no migration, for the same reason `simulation` does. The refusal changes `advance`, not state shape. Before S137 the reducers ignored an extra key, so no recorded outcome depended on one. The `world-graph-mvp-` fixtures replay unchanged, and the committed `world-graph-active` save loads and re-runs whole. A stored log that does carry a stray key is refused by `branchSession` with `invalid_state`, as S136 made it. The check runs after `session_ended` and before the action switch, so an action id 12 §6 does not name still answers `unknown_action`.
+Rejected: the same two bumps the S136 entry rejects, for the same reasons.
+Reversibility: cheap. A bump can still be added if a host turns up a stored log with a stray key.

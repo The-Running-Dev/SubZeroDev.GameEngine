@@ -20,6 +20,28 @@ export function integerParam(value: Params, key: string): number | null {
   return typeof candidate === "number" && Number.isInteger(candidate) ? candidate : null;
 }
 
+/** 12 §6's table is the declaration (S137, 04 §3): every key each action may carry, optional
+ *  ones included. An action id it does not name is left to `advance`'s `unknown_action`. */
+const DECLARED_PARAMS: ReadonlyMap<string, readonly string[]> = new Map([
+  ["build", ["definitionId", "x", "y", "rotation"]],
+  ["demolish", ["buildingId"]],
+  ["hire_staff", ["definitionId"]],
+  ["fire_staff", ["staffId"]],
+  ["assign_staff", ["staffId", "zoneId", "buildingId"]],
+  ["set_price", ["buildingId", "productId", "priceCents"]],
+  ["open_building", ["buildingId"]],
+  ["close_building", ["buildingId"]],
+  ["dismiss_alert", ["alertId"]],
+  ["advance_ticks", ["ticks"]],
+]);
+
+/** Reads key names only, never a value — so it can run before any reducer does (S137.3). */
+export function hasUndeclaredParam(actionId: string, value: ActionParams | undefined): boolean {
+  const declared = DECLARED_PARAMS.get(actionId);
+  if (declared === undefined || value === undefined || value === null || typeof value !== "object") return false;
+  return Object.keys(value).some((key) => !declared.includes(key));
+}
+
 export function rejected(state: WorldGraphKindState, code: string, messageKey = code.startsWith("core.") ? code : `world-graph.reason.${code}`): AdvanceResult<WorldGraphKindState> {
   return { state, status: resolveStatus(state), changes: [], messages: [{ key: messageKey, visible: true }], error: { code: code.replace(/^core\.reason\./, ""), messageKey } };
 }
