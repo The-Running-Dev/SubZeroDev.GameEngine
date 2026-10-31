@@ -36,4 +36,8 @@
 
 ## S135 — The Replay Oracle Crosses Content Epochs
 
+## S136 — Simulation Refuses Details It Did Not Ask For
+
+## S137 — World-Graph Refuses Details It Did Not Ask For
+
 ## Landed
