@@ -12,7 +12,9 @@ is retired to one row under [Landed](#landed). Slices from S121 on are `## S<n>`
 builds it sets `Status: done`. S121–S128 fix the reproduced defects of the 2026-10-03 repository
 review, planned in
 [`plans/53`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/53-repository-review-2026-10-03-fixes.md).
-S129–S135 build content epochs, [`16-content-epochs.md`](16-content-epochs.md).
+S129–S135 build content epochs, [`16-content-epochs.md`](16-content-epochs.md). S136–S137 make
+every kind refuse undeclared action params, the precondition for session capture
+([`08-session-capture.md`](08-session-capture.md)).
 
 > **Where a retired unit's full text is.** Every W unit's body — what it delivers, its numbered
 > acceptance criteria, its scope, and the programme prose that grouped units together — is in this
@@ -38,10 +40,10 @@ lost. Unless an entry says it is ready to plan, it needs a contract or design de
   deployment. The contract surface it lacked is decided (`90-decisions.md`, 2026-11-01, *Session
   capture: acceptance is declaration*): every kind rejects an undeclared `params` key with its own
   `unexpected_params`, so capture copies the log verbatim ([08 §3.2](08-session-capture.md#3-what-is-refused)).
-  **Ready for `/agentkit:plan`.** The plan owes three pieces: `world-graph` and `simulation` reject
-  undeclared keys, with a kind-version or migration note for stored logs that already carry one;
-  the value review of `simulation`'s `targetId` and `choiceId` before that kind is captured
-  ([08 §9](08-session-capture.md#9-deferred)); and capture itself.
+  The rejection is sliced as S136–S137, with no kind-version bump. Two pieces still need design
+  before capture can be planned: the value review of `simulation`'s `targetId` and `choiceId`
+  ([08 §9](08-session-capture.md#9-deferred)), and a capture signature, which neither
+  `20-contract.md` nor the `SessionStore` defines.
 - **Hosted engine edge.** The `.NET Platform edge → Node engine workload` process boundary, proposed
   to follow W62: a generated JSON/HTTP service contract first, MCP as a projection, and one
   in-memory remote session before persistence, accounts, catalogue or metering.
@@ -484,6 +486,72 @@ Acceptance:
     by the corpus suite against an archive holding both epochs.
 Out of scope: Capturing fixtures from hosted sessions (session capture remains carried
               forward).
+
+## S136 — Simulation Refuses Details It Did Not Ask For
+
+Status: todo
+Delivers: A Life in the Fast Lane player's week holds only what the game asked them for. A client
+          can no longer slip extra details into a planned action and have them saved with the
+          game, and a session recorded before this change that carries such a detail says plainly
+          that it cannot be re-run, instead of failing obscurely.
+Touches: `src/engine/src/kinds/simulation/advance.ts`, `src/engine/src/kinds/simulation/reasons.ts`
+         and its strings, `src/engine/src/core/session/store.ts`, tests alongside;
+         `20-contract.md` 10 §4 and §10, 04 §7.4; `90-decisions.md`
+Depends on: none
+Acceptance:
+  - S136.1 `plan.add` with `{ actionType: "borrow_money", amountCents: 5000, choiceId: "x" }`
+    returns `unexpected_params` / `simulation.reason.unexpected_params`, appends nothing to the
+    action log, and leaves `serialize(state)` byte-identical.
+  - S136.2 A key declared only for another `actionType` is rejected:
+    `{ actionType: "operate_business", amountCents: 100 }` returns `unexpected_params`.
+  - S136.3 Every declared shape in 10 §4 is accepted with its pre-change outcome: each of
+    `borrow_money`, `repay_debt`, `deposit_savings` and `invest` with `amountCents`;
+    `respond_to_event` with `choiceId`; `operate_business` with `close`; and any type with or
+    without `targetId`. The stored `GameAction.parameters` holds only declared keys.
+  - S136.4 `plan.remove` with `{ index: 0, extra: 1 }`, and `plan.clear` or `end_week` with any
+    non-empty `params`, return `unexpected_params` and append nothing.
+  - S136.5 `unexpected_params` is registered in `SIMULATION_REASON_CODES` with a strings-catalog
+    message, and the reason-completeness guard passes. 10 §10's row reads dispatched.
+  - S136.6 Every simulation fixture in `src/engine/fixtures/replay/` (`stable-life-`,
+    `bulgaria-stable-life-`, `long-horizon-`) replays to its recorded outcome unchanged.
+  - S136.7 `kindVersion` stays `1.1.0`. A save serialized before the change loads with
+    `replayCompatible` intact and continues play. `90-decisions.md` records why there is no
+    bump: the rule changes `advance`, not state shape, and only a log that already carries an
+    undeclared key is affected.
+  - S136.8 `branchSession` over a log whose retained prefix holds an action the kind now rejects
+    throws `SessionStoreError` `invalid_state` with nothing written, as it does for a refused
+    adoption, and no longer throws a plain `Error`. 04 §7.4 lists the refusal. A test with a
+    hand-built simulation log carrying an undeclared key fails when the fix is reverted.
+Out of scope: Checking `targetId` and `choiceId` against content at `plan.add` (08 §9's value
+              review, still design work); capture itself, which has no contracted signature.
+
+## S137 — World-Graph Refuses Details It Did Not Ask For
+
+Status: todo
+Delivers: A Sun Trap player's recorded actions carry only the details each action declares, so a
+          recorded world-graph session holds nothing a client chose to tack on.
+Touches: `src/engine/src/kinds/world-graph/advance.ts`,
+         `src/engine/src/kinds/world-graph/actions/common.ts`,
+         `src/engine/src/kinds/world-graph/reasons.ts` and its strings, tests alongside;
+         `20-contract.md` 12 §6 and §11
+Depends on: S136
+Acceptance:
+  - S137.1 `build` with `{ definitionId, x, y, rotation, note: "hi" }` returns
+    `unexpected_params` / `world-graph.reason.unexpected_params`, appends nothing, and leaves
+    `serialize(state)` byte-identical.
+  - S137.2 For each action id in 12 §6's table, its declared keys are accepted with the
+    pre-change outcome, and one added undeclared key returns `unexpected_params`.
+    `assign_staff` accepts its optional `zoneId` and `buildingId` present or absent.
+  - S137.3 The key check runs before any value is read: `advance_ticks` with
+    `{ ticks: "bad", extra: 1 }` returns `unexpected_params`, not `unknown_action`.
+  - S137.4 `unexpected_params` is registered in `WORLD_GRAPH_REASON_CODES` with a
+    strings-catalog message, and the reason-completeness guard passes. 12 §11's row reads
+    dispatched.
+  - S137.5 Every `world-graph-mvp-` fixture replays to its recorded outcome unchanged, and batch
+    invariance (12 §5) still holds.
+  - S137.6 `kindVersion` stays `1.0.0`. A save serialized before the change loads and continues.
+Out of scope: Session capture; any change to how world-graph checks id values, which are already
+              checked against content or state.
 
 ## Landed
 
