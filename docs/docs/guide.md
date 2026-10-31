@@ -4,7 +4,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 07fa3fc90a6998bf4d3a22cb617d89bc194f5896159fe778f156e1448a99badc -->
+<!-- design-digest: 73e64599193ad2b321049da0ef76f6fe2d18efb0168d8bb49b9c31d9a927e76b -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -476,6 +476,10 @@ Three things about a branch will bite you if you assume otherwise:
 - **A session that is not replay-compatible cannot be branched.** Once a migrated load has marked
   the lineage, its action log is no longer guaranteed to regenerate its state, which is exactly
   the mechanism a branch depends on. It fails rather than diverging quietly.
+- **Nor can a prefix holding an action the kind now refuses.** A log from an older build may
+  carry a param key the kind has since stopped accepting. Re-running that entry fails, so
+  branching through it raises `invalid_state` and writes nothing; a fork point before it still
+  branches.
 - **The source is untouched** — not re-stamped, not re-serialized. A branch is a new record. Its
   `profileId` and `initialization` are inherited, so an anonymous session branches to an
   anonymous one, and a profiled one replays from the profile data it started with, never the
