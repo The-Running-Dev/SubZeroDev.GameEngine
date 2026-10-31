@@ -29,7 +29,7 @@
 import type { ActionParams, AdvanceResult, KindContext } from "../../core/kernel/types.js";
 import type { OutcomeMessage, StateChange } from "../../core/kernel/reasons.js";
 import { SIMULATION_EVENTS } from "./events.js";
-import type { GameAction } from "./plan.js";
+import type { ActionType, GameAction } from "./plan.js";
 import { addAction, removeAction, clearPlan, isActionType } from "./plan.js";
 import { RESOLVER_TABLE } from "./resolvers.js";
 import { runStartOfWeek } from "./startOfWeek.js";
@@ -95,6 +95,37 @@ function foldCounters(state: SimulationKindState, changes: readonly StateChange[
   return { ...state, player: { ...state.player, counters } };
 }
 
+/**
+ * §4's params declaration, as data: the keys each `actionId` accepts, and for `plan.add` the
+ * one extra key each `actionType` adds to `actionType`/`targetId`. Acceptance is declaration
+ * (04 §3, S136) — a key outside this table, including one valid for a different `actionType`,
+ * is `unexpected_params`, checked before any value is read, so a rejected action never
+ * reaches the plan or the log.
+ */
+const PLAN_ADD_BASE_KEYS = ["actionType", "targetId"] as const;
+const PLAN_ADD_EXTRA_KEYS: Readonly<Partial<Record<ActionType, string>>> = {
+  borrow_money: "amountCents",
+  repay_debt: "amountCents",
+  deposit_savings: "amountCents",
+  invest: "amountCents",
+  respond_to_event: "choiceId",
+  operate_business: "close",
+};
+const DECLARED_KEYS: Readonly<Record<string, readonly string[]>> = {
+  "plan.remove": ["index"],
+  "plan.clear": [],
+  "end_week": [],
+};
+
+function hasUndeclaredKey(params: ActionParams | undefined, declared: readonly string[]): boolean {
+  return Object.keys(params ?? {}).some((key) => !declared.includes(key));
+}
+
+function planAddKeys(actionType: ActionType): readonly string[] {
+  const extra = PLAN_ADD_EXTRA_KEYS[actionType];
+  return extra === undefined ? PLAN_ADD_BASE_KEYS : [...PLAN_ADD_BASE_KEYS, extra];
+}
+
 function buildAction(id: string, params: ActionParams | undefined): GameAction | undefined {
   const actionType = params?.["actionType"];
   if (typeof actionType !== "string" || !isActionType(actionType)) return undefined;
@@ -121,8 +152,22 @@ export function advance(
   params: ActionParams | undefined,
   ctx: KindContext,
 ): AdvanceResult<SimulationKindState> {
+  const declared = DECLARED_KEYS[actionId];
+  if (declared !== undefined && hasUndeclaredKey(params, declared)) {
+    return rejected(state, "unexpected_params", "simulation.reason.unexpected_params");
+  }
+
   switch (actionId) {
     case "plan.add": {
+      // `actionType` is the one value read before the key check: it picks which keys are
+      // declared. An unrecognised type stays `unknown_action`, as before.
+      const actionType = params?.["actionType"];
+      if (typeof actionType !== "string" || !isActionType(actionType)) {
+        return rejected(state, "unknown_action", "core.reason.unknown_action");
+      }
+      if (hasUndeclaredKey(params, planAddKeys(actionType))) {
+        return rejected(state, "unexpected_params", "simulation.reason.unexpected_params");
+      }
       const action = buildAction(`action-${ctx.seq}`, params);
       if (!action) {
         return rejected(state, "unknown_action", "core.reason.unknown_action");
