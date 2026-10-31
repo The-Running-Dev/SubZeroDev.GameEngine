@@ -391,6 +391,14 @@ type AdoptDecision<KState> =
 > carries data that provably cannot change replay. The story-graph kind declares no
 > parameters (an action *is* a choice id) and returns a `ValidationError` if a non-empty
 > `params` object arrives. Undocumented parameters are never silently ignored.
+>
+> **This holds for every kind, and a kind's contract is its declaration.** Each kind's action
+> table (03 §8.2, 10 §4, 12 §6) names the keys each `actionId` accepts. `advance` rejects a
+> `params` object carrying any other key with the kind's own `unexpected_params`, before it
+> reads any value. A rejected action is never logged (§4), so every logged action carries only
+> declared keys, which is what lets `08-session-capture.md` §3.2 copy logged params without
+> filtering them. The declaration is not a member of `Kind`: a schema the core could read
+> would be a second copy of the validator `advance` already is (12 §7).
 
 > **A rejection also returns a message.** `error` tells the core and client *that* the
 > action failed and why (`ReasonCode`, `messageKey`); `messages` is what tells the

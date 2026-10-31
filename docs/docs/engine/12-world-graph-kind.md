@@ -1052,7 +1052,10 @@ audit. Neither difference may reach final kind state.
 
 Every one is a `submitAction` appending one `LoggedAction`. All parameters are **declared
 ids, integers, or enumerated rotations** — none is free text, which keeps
-[`08-session-capture.md`](08-session-capture.md) §3.2's refusal rule cheap to satisfy.
+[`08-session-capture.md`](08-session-capture.md) §3.2's refusal rule cheap to satisfy. The
+table is the declaration: a key it does not name for that `actionId` is `unexpected_params`
+(§11, 04 §3), checked before any value is read. Every id is checked against content or state
+before the action is accepted, so a logged id is one the campaign or the session minted.
 
 Allocation is part of action semantics. Immediate build reserves building then queue id;
 timed build reserves site, future building, then future queue id in that order. Both build
@@ -1630,6 +1633,7 @@ rejected `AdvanceResult.error` (and its accompanying `OutcomeMessage`, 04 §3).
 | `building_limit_reached` | The scenario caps this definition — the building-side twin of `staff_limit_reached`, and what `blockedBy` (§10) reports for a definition at its cap |
 | `ticks_not_positive` | `advance_ticks` with `ticks` less than 1 |
 | `tick_limit_reached` | `ticks` exceeds the campaign's per-call cap (§6) |
+| `unexpected_params` | A `params` key §6's table does not declare for that `actionId` (04 §3). Specified 2026-11-01; not yet produced by code |
 
 Reused from the base set: `unknown_action`, `requirement_unmet`, `session_ended`,
 `action_not_available`.
