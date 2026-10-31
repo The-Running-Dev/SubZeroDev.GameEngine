@@ -110,6 +110,30 @@ describe("W104.3 — representative saves load through a real SessionStore", () 
   });
 });
 
+/** Stores over one set of rows, loading the named committed save; `open()` is a later process
+ *  reading what an earlier one wrote. */
+function rowsOverSave(name: string): { open: () => ReturnType<typeof createInMemorySessionStore>; rows: Map<string, StoredSessionRecord>; puts: () => number; engine: ReturnType<typeof createEngine> } {
+  const entry = SAVE_FIXTURES.find((candidate) => candidate.name === name)!;
+  const blob = loadSaveBlob(entry.name);
+  const { kinds, registry } = buildRegistry(entry.kindId);
+  const rows = new Map<string, StoredSessionRecord>();
+  const saves = saveRecordStoreWith(blob, (JSON.parse(blob) as { campaignId: string }).campaignId);
+  let puts = 0;
+  const engine = createEngine({ kinds, registry, ids: FIXED_IDS });
+  const open = () => createInMemorySessionStore({
+    engine,
+    registry,
+    persistence: {
+      sessions: {
+        async get(sessionId) { return rows.get(sessionId); },
+        async put(record) { puts += 1; rows.set(record.sessionId, record); },
+      },
+      saves,
+    },
+  });
+  return { open, rows, puts: () => puts, engine };
+}
+
 /**
  * S136 — simulation's `advance` now refuses a `params` key 10 §4 does not declare. That narrows
  * what the kind accepts without touching state shape, so `kindVersion` stays `1.1.0` and a save
@@ -119,28 +143,7 @@ describe("W104.3 — representative saves load through a real SessionStore", () 
  */
 describe("S136 — simulation saves under acceptance-is-declaration", () => {
   const entry = SAVE_FIXTURES.find((candidate) => candidate.name === "simulation-active")!;
-
-  /** Stores over one set of rows; `open()` is a later process reading what an earlier one wrote. */
-  function rowsOverSimulationSave(): { open: () => ReturnType<typeof createInMemorySessionStore>; rows: Map<string, StoredSessionRecord>; puts: () => number; engine: ReturnType<typeof createEngine> } {
-    const blob = loadSaveBlob(entry.name);
-    const { kinds, registry } = buildRegistry(entry.kindId);
-    const rows = new Map<string, StoredSessionRecord>();
-    const saves = saveRecordStoreWith(blob, (JSON.parse(blob) as { campaignId: string }).campaignId);
-    let puts = 0;
-    const engine = createEngine({ kinds, registry, ids: FIXED_IDS });
-    const open = () => createInMemorySessionStore({
-      engine,
-      registry,
-      persistence: {
-        sessions: {
-          async get(sessionId) { return rows.get(sessionId); },
-          async put(record) { puts += 1; rows.set(record.sessionId, record); },
-        },
-        saves,
-      },
-    });
-    return { open, rows, puts: () => puts, engine };
-  }
+  const rowsOverSimulationSave = () => rowsOverSave(entry.name);
 
   it("S136.7 — a 1.1.0 save from before the change loads replayCompatible, re-runs whole, and plays on", async () => {
     const parsed = JSON.parse(loadSaveBlob(entry.name)) as { kindVersion: string; state: { actionLog: unknown[] } };
@@ -174,5 +177,24 @@ describe("S136 — simulation saves under acceptance-is-declaration", () => {
     expect(puts()).toBe(before);
     // A fork before the refused entry retains none of it, and still branches.
     await expect(store.branchSession(loaded.sessionId, 0)).resolves.toBeDefined();
+  });
+});
+
+/**
+ * S137 — world-graph's `advance` now refuses a `params` key 12 §6 does not declare. No state
+ * shape moves, so `kindVersion` stays `1.0.0`, and a save written before the change must load,
+ * stay `replayCompatible`, re-run whole, and play on (S137.6).
+ */
+describe("S137 — world-graph saves under acceptance-is-declaration", () => {
+  it("S137.6 — a 1.0.0 save from before the change loads replayCompatible, re-runs whole, and plays on", async () => {
+    const parsed = JSON.parse(loadSaveBlob("world-graph-active")) as { kindVersion: string; state: { actionLog: unknown[] } };
+    expect(parsed.kindVersion).toBe("1.0.0");
+    const { open, rows } = rowsOverSave("world-graph-active");
+    const store = open();
+
+    const loaded = await store.loadGame("w104");
+    expect(rows.get(loaded.sessionId)!.replayCompatible).toBe(true);
+    await expect(store.branchSession(loaded.sessionId, parsed.state.actionLog.length)).resolves.toBeDefined();
+    expect((await store.submitAction(loaded.sessionId, "advance_ticks", { ticks: 1 })).ok).toBe(true);
   });
 });

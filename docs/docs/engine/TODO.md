@@ -527,7 +527,7 @@ Out of scope: Checking `targetId` and `choiceId` against content at `plan.add` (
 
 ## S137 — World-Graph Refuses Details It Did Not Ask For
 
-Status: todo
+Status: done
 Delivers: A Sun Trap player's recorded actions carry only the details each action declares, so a
           recorded world-graph session holds nothing a client chose to tack on.
 Touches: `src/engine/src/kinds/world-graph/advance.ts`,
