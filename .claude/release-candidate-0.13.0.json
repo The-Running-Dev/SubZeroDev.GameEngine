@@ -1,0 +1,168 @@
+{
+  "unit": "0.13.0 candidate",
+  "supersedes": ".claude/release-candidate-0.12.0.json",
+  "note": "The release matrix rerun against the 0.13.0 candidate, cut after plan 54 (#610-#614) merged. The 0.12.0 record is history: 0.12.0 was published 2026-10-28. No row here carries a 0.12.0 result forward.",
+  "candidateCommit": "45b721693d1b92db86bd128c16ae2c753ace190d",
+  "candidateCommittedAt": "2026-10-31T05:45:51+02:00",
+  "candidateBranch": "release/0.13.0-candidate",
+  "packageVersion": "0.13.0",
+  "lockfileVersion": "0.13.0",
+  "archiveFile": "the-running-dev-game-engine-0.13.0.tgz",
+  "archiveDigest": "sha256:aa8f4b91bfcb5597786048f8370bb9a2a72066cb9d55d5d90954391a4030dc1c",
+  "archiveEntries": 363,
+  "archiveRetainedAt": "session scratchpad gate-logs/pack/ (local run; not committed, since the digest is the identity)",
+  "baselineTag": "v0.12.0",
+  "toolchain": {
+    "node": "v26.12.1",
+    "npm": "11.7.0",
+    "pwsh": "7.6.9",
+    "dotnet": "10.0.403",
+    "os": "Windows 11 Enterprise 10.0.26200"
+  },
+  "toolchainNote": "CI pins Node 24; this run used the locally installed Node 26.12.1. The package declares engines.node >= 24, so both satisfy it. The CI release validation run packed the same archive digest on Node 24, so the toolchain difference did not reach the archive.",
+  "companionCommits": {
+    "SubZeroDev.ServiceContract": "d60de1efdb43341ad16b7dabf7df59556e756c26",
+    "SubZeroDev.Platform": "7c82c565a6c23743a5914fa2bdfe7fca5feb87e8",
+    "SubZeroDev.Adventures": "7ab87c008f3a476c8fdab930ea2f62fd27276e35",
+    "SubZeroDev.GameOfLife": "e6d8e206a783156779fb14372547cbb8460cc176"
+  },
+  "temporarySubstitutions": [
+    "SubZeroDev.Adventures: none locally. The evidence is The-Running-Dev/SubZeroDev.Adventures#96, a committed submodule bump to the candidate, run on CI.",
+    "SubZeroDev.GameOfLife: in a worktree at e6d8e20, engine submodule detached to the candidate 45b7216 for the run, then restored to 9143836. Verified clean.",
+    "SubZeroDev.Platform: in a worktree at 7c82c56, workloads/game-service vendored the 0.13.0 tarball and a ServiceContract regenerated at 0.13.0, then reverted. Verified clean; compose stack removed with down -v.",
+    "SubZeroDev.ServiceContract: in a worktree at d60de1e, the 0.13.0 tarball vendored and the authored engine version in scripts/generate-contract.ts and scripts/generate-content-contract.ts edited to 0.13.0, then reverted. Verified clean."
+  ],
+  "gates": [
+    {
+      "name": "Candidate identity: commit, package/lock version, archive and digest",
+      "status": "Passed",
+      "command": "node src/engine/scripts/verify-release.mjs clean --root .; node src/engine/scripts/verify-release.mjs tag --tag v0.13.0; npm pack; node src/engine/scripts/verify-release.mjs archive --archive <tarball> --expect <sha256>",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": "sha256:aa8f4b91bfcb5597786048f8370bb9a2a72066cb9d55d5d90954391a4030dc1c",
+      "evidenceUrl": "local run, main checkout at 45b721693d1b92db86bd128c16ae2c753ace190d",
+      "detail": "clean guard OK. tag guard OK, v0.13.0 matches manifest and lockfile 0.13.0. One archive packed and retained: 363 entries. The archive guard accepted it against its digest."
+    },
+    {
+      "name": "Clean src/engine install: typecheck, determinism lint, tests",
+      "status": "Passed",
+      "command": "cd src/engine; npm ci; npm run typecheck; npm run lint; npm test",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": null,
+      "evidenceUrl": "local run, main checkout",
+      "detail": "typecheck exit 0. lint exit 0, determinism guard silent. test: 125 test files, 2461 tests passed."
+    },
+    {
+      "name": "Compatibility sweep vs v0.12.0: replay oracle, pack, archive inspection, packed consumer",
+      "status": "Passed",
+      "command": "./build/Test-CompatibilitySweep.ps1 -BaselineTag v0.12.0",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": "sha256:aa8f4b91bfcb5597786048f8370bb9a2a72066cb9d55d5d90954391a4030dc1c",
+      "evidenceUrl": "local run, main checkout",
+      "detail": "Replay oracle: 3 files, 52 passed, 6 skipped. Pack and inspection: 363 entries. Consumer smoke: install, build, smoke pass. The first run timed out once in world-graph-bench.test.ts (5000 ms); the rerun with a longer test timeout passed 2461 of 2461."
+    },
+    {
+      "name": "Release guards, local",
+      "status": "Passed",
+      "command": "node src/engine/scripts/verify-release.mjs mode|tag|clean|archive|registry; guard suite",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": null,
+      "evidenceUrl": "local run",
+      "detail": "mode, tag v0.13.0, clean and archive OK; tag v0.12.0 and archive against the commit SHA rejected. Guard suite 26 of 26."
+    },
+    {
+      "name": "Registry guard, local",
+      "status": "Unevaluated",
+      "command": "node src/engine/scripts/verify-release.mjs registry",
+      "exitCode": 2,
+      "durationSeconds": null,
+      "artifactDigest": null,
+      "evidenceUrl": "local run",
+      "detail": "HTTP 403 without a package-read token. Unevaluated is never a pass; CI evaluated it in the release validation run."
+    },
+    {
+      "name": "Release validation run on CI",
+      "status": "Passed",
+      "command": "release-engine-package.yml, workflow_dispatch at the candidate",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": "sha256:aa8f4b91bfcb5597786048f8370bb9a2a72066cb9d55d5d90954391a4030dc1c",
+      "evidenceUrl": "https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/41165813285",
+      "detail": "Guards OK, same digest packed on Node 24, consumer smoke passed, digest re-verified, negatives rejected (tag v0.0.0, modified tree, substituted archive). Publish skipped. One rerun recorded the world-graph-bench timeout inside the sweep and still succeeded."
+    },
+    {
+      "name": "Static host",
+      "status": "Passed",
+      "command": "dotnet test src/host/SubZeroDev.GameEngine.Host.Tests",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": null,
+      "evidenceUrl": "local run; container smoke runs as host-image.yml on the candidate pull request",
+      "detail": "12 of 12, 0 skipped."
+    },
+    {
+      "name": "Documentation",
+      "status": "Passed",
+      "command": "./build/Test-Documentation.ps1",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": null,
+      "evidenceUrl": "local run; production build is docs / Build on the candidate pull request",
+      "detail": "Drift check passes across 19 generated pages; Markdown checks across 138 files. docs.ps1 not run locally."
+    },
+    {
+      "name": "Site",
+      "status": "Passed",
+      "command": "cd site; npm run format:check; npm run lint; npm run typecheck; npm test; npm run test:browser; npm run test:build",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": null,
+      "evidenceUrl": "local run",
+      "detail": "format, lint, typecheck exit 0; test 20 of 20; test:browser 23 of 23; test:build exit 0."
+    },
+    {
+      "name": "Adventures host evidence",
+      "status": "Passed",
+      "command": "CI on The-Running-Dev/SubZeroDev.Adventures#96",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": "sha256:aa8f4b91bfcb5597786048f8370bb9a2a72066cb9d55d5d90954391a4030dc1c",
+      "evidenceUrl": "https://github.com/The-Running-Dev/SubZeroDev.Adventures/actions/runs/41165932455",
+      "detail": "Adventures 7ab87c0, engine submodule at the candidate. server job on postgres:17: 28 files, 353 of 353, 0 skipped. offline-e2e passed. Content tree ff169b24512499c1ceef5df91b3bb9f832d424e9; manifest sha256 fd134948c0e1deae1ecb898d34956e98491f974fb125d5b4a11c3404644bd19c. Merges after the tag."
+    },
+    {
+      "name": "ServiceContract",
+      "status": "Passed",
+      "command": "npm run build; npm run typecheck; npm test (at 0.12.0, then against the 0.13.0 tarball)",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": null,
+      "evidenceUrl": "local worktree at d60de1e",
+      "detail": "At 0.12.0: build (13 operations, 26 schemas), 59 of 59. Against the candidate: build refuses with EngineVersionMismatch, as designed. Authored version moved to 0.13.0: build and typecheck pass, 58 of 59 (publish.test.ts:72 asserts 0.12.0). Contract diff: engineVersion; error details widened to string|number|boolean; validation-error details added."
+    },
+    {
+      "name": "Platform game-service",
+      "status": "Failed",
+      "command": "npm install; npm run typecheck; npm test (postgres:17 compose)",
+      "exitCode": 1,
+      "durationSeconds": null,
+      "artifactDigest": null,
+      "evidenceUrl": "local worktree at 7c82c56",
+      "detail": "Typecheck passes. 197 passed, 4 failed, 14 skipped of 215. Two golden-transcript tests fail at step 4 get-strings (catalog 84 to 259 keys, additive only). Two S7.8 edge tests unevaluated: game-edge not built in the worktree (dotnet ENOENT). The mixed-version suite fails its fixture-refresh guard (ENGINE_VERSION 0.12.0). Not blocking: Platform pins and vendors 0.12.0."
+    },
+    {
+      "name": "GameOfLife",
+      "status": "Passed",
+      "command": "npm ci; npm run setup; npm run typecheck; npm test; npm run export:content; npm run check:clean; Test-SpecSet",
+      "exitCode": 0,
+      "durationSeconds": null,
+      "artifactDigest": null,
+      "evidenceUrl": "local worktree at e6d8e20",
+      "detail": "Engine submodule at the candidate. 4 files, 76 of 76. export:content exported 1 campaign; content/ matches the sources. Spec set: 8 documents, 936 declarations, 0 unchecked, 205 references, 8 unresolvable."
+    }
+  ],
+  "conclusion": "0.13.0 readiness is not blocked. Platform's failures are the additive getStrings widening and its own version pins; it pins and vendors 0.12.0, so publishing does not break it. Publication remains a separate explicit action."
+}

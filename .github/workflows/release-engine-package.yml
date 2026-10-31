@@ -21,7 +21,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Prospective release tag to validate, e.g. v0.12.0. Nothing is published."
+        description: "Prospective release tag to validate, e.g. v0.13.0. Nothing is published."
         required: true
         type: string
   pull_request:

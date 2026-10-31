@@ -486,18 +486,18 @@ export const shippedChapters: readonly RoadmapChapter[] = [
 
 export const nextActs: readonly RoadmapChapter[] = [
   {
-    id: "authorize-012",
-    workUnits: "W93–W108",
-    ledgerAnchor: "w93",
+    id: "authorize-013",
+    workUnits: "S129–S135",
+    ledgerAnchor: "s129--every-game-plays-the-content-it-names",
     release: true,
     status: "now",
-    title: "0.12.0 becomes the next authorized publication",
+    title: "0.13.0 becomes the next authorized publication",
     summary:
-      "The 0.11.0 candidate was qualified in September and never tagged or published; W109–W113 landed after it, so it is kept as a superseded record. The 0.12.0 candidate was cut fresh after the open correctness and status fixes merged, with the whole matrix rerun and the Adventures host checked on its real Postgres adapter against that exact candidate. Publishing stays a separate explicit action.",
+      "0.12.0 was published on 28 October. The 0.13.0 candidate was cut after plan 54 merged: durable content epochs, so a game can move onto new content and replay exactly across it, with stored epochs that survive a restart. The whole matrix was rerun against that exact candidate, and the Adventures host was checked on its real Postgres adapter. Publishing stays a separate explicit action.",
     links: [
       {
-        label: "Stabilization ledger",
-        href: "/docs/engine/todo#w93",
+        label: "Content epochs ledger",
+        href: "/docs/engine/todo#s129--every-game-plays-the-content-it-names",
         kind: "site",
       },
       {
