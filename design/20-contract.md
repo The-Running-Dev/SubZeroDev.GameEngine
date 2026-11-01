@@ -7257,7 +7257,7 @@ author, and a client rendering a history.
 | `week_limit_reached` | The scenario's week cap is exhausted | specified, not yet dispatched |
 | `event_response_pending` | `end_week`, or a `plan.add` for any `ActionType` other than `respond_to_event`, while a `PendingEventResponse` (§2.3) remains unaddressed by the current plan | registered (W94) |
 | `unexpected_params` | A `params` key §4 does not declare for that `actionId` (for `plan.add`, for that `actionType`) — 04 §3 | registered (S136) |
-| `unknown_target` | A `plan.add` whose `targetId` is not an id in its `actionType`'s domain, or whose `choiceId` is not in the named response's `availableChoiceIds` (§4). It is checked last, after `unexpected_params` and `event_response_pending`, so no input those already reject changes code | specified, not yet dispatched (2026-11-01) |
+| `unknown_target` | A `plan.add` whose `targetId` is not an id in its `actionType`'s domain, or whose `choiceId` is not in the named response's `availableChoiceIds` (§4). It is checked last, after `unexpected_params` and `event_response_pending`, so no input those already reject changes code | registered (S138) |
 
 Reused from the base set: `unknown_action`, `requirement_unmet`, `session_ended`,
 `action_not_available` (a `"custom"` `GameAction` reaching resolution, §4.2).
