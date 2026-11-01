@@ -1505,7 +1505,8 @@ changes `serialize()`.
 **`captureSession(sessionId, name)` holds the session like a command and writes like none.** It
 waits on the session's queue, as `branchSession` does for its source, so it reads a committed
 state and never a write in flight. It replays the log through the engine the layer was built
-on, so an adoption resolves through the same channel and archive the session did. It writes no
+on, so an adoption resolves through the same archive the session did; it never asks the channel
+for an offer. It writes no
 row and no cache entry, emits no `StateChange`, and does not hold the session after it returns.
 Two captures of an unchanged session return equal fixtures, given the same `name`. Its refusals
 are `branchSession`'s (04 §7.4), with `operation: "captureSession"`.
@@ -2225,7 +2226,9 @@ sidebar_label: Session Capture
 # Session Capture — Turning a Played Session Into a Fixture
 
 **Document status:** Revision 2 — the capture operation (§2.1) and the fault-trigger bound (§5)
-are settled, and so is `simulation`'s value review (§3.2). Post-MVP, gated on the hosting layer.
+are settled, and so is `simulation`'s value review (§3.2). The capture operation ships
+(`SessionLayer.captureSession`, S139); the host's part (§8) stays post-MVP, gated on the hosting
+layer.
 Revision 1 specified what a fixture may hold.
 
 **Reading order:** after [`07-replay.md`](07-replay.md), which defines the fixture this

@@ -1881,7 +1881,8 @@ job: the alternative is a branch that silently diverges from the game it claims 
 **A retained action the kind now refuses is refused the same way.** A kind narrows what it
 accepts without a `kindVersion` bump when no valid save changes (§3's declaration; 90-decisions,
 2026-11-01), so a log written by an older build can still hold an entry carrying an undeclared
-key. Re-running it rejects that entry; the store raises `invalid_state` and writes nothing. A
+key, or — for `simulation` — naming an id the kind never issued (10 §4, `unknown_target`).
+Re-running it rejects that entry; the store raises `invalid_state` and writes nothing. A
 fork point before the entry retains none of it, and branches.
 
 #### Reproducing a stored session from its log
@@ -1969,7 +1970,7 @@ already does.
 | `branchSession` | `invalid_fork_point` | `atActionCount` outside `[0, actionLog.length]` | No | **new** — correct the count |
 | `branchSession` | `invalid_state` | the source is `replayCompatible: false`, or its log carries a migration entry | No | branching this lineage is impossible, not delayed |
 | `branchSession` | `invalid_state` | the source record predates `initialization`, has a `profileId`, and its kind declares `profileData` | No | the creation input is lost; branching this lineage is impossible |
-| `branchSession` | `invalid_state` | an action in the retained prefix is one the kind now refuses — logged before the kind declared its params (§3), it carries a key the kind no longer accepts | No | the log cannot regenerate its state under this build; branch before that entry |
+| `branchSession` | `invalid_state` | an action in the retained prefix is one the kind now refuses — logged before the kind declared its params (§3), it carries a key the kind no longer accepts, or it names an id the kind never issued (10 §4) | No | the log cannot regenerate its state under this build; branch before that entry |
 | `branchSession` | `invalid_state` | a content entry in the retained prefix no longer adopts | No | the kind's compatibility rule changed under a recorded adoption — 07 §6's divergence, one layer down |
 | `branchSession` | `unknown_campaign` | an epoch the retained prefix plays on — its starting version or one it adopted — no longer resolves | No | the content was withdrawn (07 §6's `unrunnable`, one layer down) |
 | `captureSession` | `unknown_session` | no such `sessionId` | No | the session is gone; nothing to capture |

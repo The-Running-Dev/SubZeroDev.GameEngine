@@ -7,7 +7,9 @@ sidebar_label: Session Capture
 <!-- Generated from design/10-design.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
 
 **Document status:** Revision 2 — the capture operation (§2.1) and the fault-trigger bound (§5)
-are settled, and so is `simulation`'s value review (§3.2). Post-MVP, gated on the hosting layer.
+are settled, and so is `simulation`'s value review (§3.2). The capture operation ships
+(`SessionLayer.captureSession`, S139); the host's part (§8) stays post-MVP, gated on the hosting
+layer.
 Revision 1 specified what a fixture may hold.
 
 **Reading order:** after [`07-replay.md`](07-replay.md), which defines the fixture this
