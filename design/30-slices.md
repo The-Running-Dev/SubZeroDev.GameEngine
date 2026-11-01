@@ -20,7 +20,8 @@ review, planned in
 [`plans/53`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/plans/53-repository-review-2026-10-03-fixes.md).
 S129–S135 build content epochs, [`16-content-epochs.md`](16-content-epochs.md). S136–S137 make
 every kind refuse undeclared action params, the precondition for session capture
-([`08-session-capture.md`](08-session-capture.md)).
+([`08-session-capture.md`](08-session-capture.md)). S138 makes simulation refuse an id it never
+issued, the last such precondition, and S139 builds capture.
 
 > **Where a retired unit's full text is.** Every W unit's body — what it delivers, its numbered
 > acceptance criteria, its scope, and the programme prose that grouped units together — is in this
@@ -41,18 +42,6 @@ every kind refuse undeclared action params, the precondition for session capture
 Open items the retired bodies carried that were never sliced. They are moved here so that none is
 lost. Unless an entry says it is ready to plan, it needs a contract or design decision first.
 
-- **Session capture** ([`08-session-capture.md`](08-session-capture.md)). The hosting gate is met:
-  [SubZeroDev.Adventures](https://github.com/The-Running-Dev/SubZeroDev.Adventures) is a hosted
-  deployment. The contract surface it lacked is decided (`90-decisions.md`, 2026-11-01, *Session
-  capture: acceptance is declaration*): every kind rejects an undeclared `params` key with its own
-  `unexpected_params`, so capture copies the log verbatim ([08 §3.2](08-session-capture.md#3-what-is-refused)).
-  The rejection landed as S136–S137, with no kind-version bump. The two pieces it still lacked are
-  decided (`90-decisions.md`, 2026-11-01). `simulation`'s `plan.add` checks every `targetId` and
-  `choiceId` against an issued id and refuses a miss with `unknown_target`, and a type with no
-  target no longer declares `targetId` ([08 §3.2](08-session-capture.md#3-what-is-refused)).
-  Capture is `SessionLayer.captureSession`, a host-only, read-only operation that shares
-  `branchSession`'s replay and refusals ([08 §2.1](08-session-capture.md#21-the-capture-operation)).
-  **Ready to plan.**
 - **Hosted engine edge.** The `.NET Platform edge → Node engine workload` process boundary, proposed
   to follow W62: a generated JSON/HTTP service contract first, MCP as a projection, and one
   in-memory remote session before persistence, accounts, catalogue or metering.
@@ -561,6 +550,105 @@ Acceptance:
   - S137.6 `kindVersion` stays `1.0.0`. A save serialized before the change loads and continues.
 Out of scope: Session capture; any change to how world-graph checks id values, which are already
               checked against content or state.
+
+## S138 — Simulation Refuses Ids It Never Issued
+
+Status: todo
+Delivers: A Life in the Fast Lane player plans only around what the game put in front of them: a
+          job, course, home, item, place, person, opportunity, project, business or answer it
+          offered. A client can no longer plan around a name it made up and have that name saved
+          with the game, so a recorded week holds nothing the game did not issue itself.
+Touches: `src/engine/src/kinds/simulation/advance.ts`, `src/engine/src/kinds/simulation/reasons.ts`
+         and its strings, tests alongside; `20-contract.md` 10 §10
+Depends on: none
+Acceptance:
+  - S138.1 `plan.add` with `{ actionType: "apply_for_job", targetId: "job-never-issued" }` returns
+    `unknown_target` / `simulation.reason.unknown_target`, appends nothing to the action log, and
+    leaves `serialize(state)` byte-identical.
+  - S138.2 For each domain in 10 §4's table — job, course, housing, item definition, inventory
+    instance, location, NPC, opportunity in state, project, project instance, business, business
+    instance — one `plan.add` naming an id outside it returns `unknown_target`, and one naming an
+    id inside it is accepted with its pre-change outcome.
+  - S138.3 `respond_to_event` whose `targetId` names no pending response returns `unknown_target`;
+    one naming a pending response with a `choiceId` outside its `availableChoiceIds` returns
+    `unknown_target`; one with a `choiceId` inside them is accepted.
+  - S138.4 An id minted by a pending entry is accepted, and stops being accepted when that entry
+    leaves the plan: after `shop` is added as `action-<n>`, `sell_item` with
+    `targetId: "inv-action-<n>"` is accepted; after that `shop` is removed by `plan.remove`, or the
+    plan is emptied by `plan.clear`, the same `sell_item` returns `unknown_target`. The same holds
+    for `start_project` → `work_on_project` (`project-action-<n>`) and `start_business` →
+    `operate_business` (`business-action-<n>`).
+  - S138.5 None of the twelve types without a target — `work`, `work_overtime`,
+    `search_for_work`, `negotiate_job_terms`, `eat`, `rest`, `exercise`, `pay_bills`,
+    `borrow_money`, `repay_debt`, `deposit_savings`, `invest` — accepts `targetId`:
+    `{ actionType: "rest", targetId: "loc-1" }` returns `unexpected_params`. The existing test that
+    asserts `rest` stores a `targetId` asserts the rejection instead.
+  - S138.6 The check runs last: `{ actionType: "teleport" }` returns `unknown_action`;
+    `{ actionType: "apply_for_job", targetId: "job-never-issued", amountCents: 1 }` returns
+    `unexpected_params`; and while an event response is pending,
+    `{ actionType: "apply_for_job", targetId: "job-never-issued" }` returns
+    `event_response_pending`.
+  - S138.7 What `plan.add` does not check is unchanged: `{ actionType: "apply_for_job" }` with no
+    `targetId` is still accepted, and affordability, requirements, active enrollment and plan
+    order are still decided by `end_week` with their pre-change reason codes.
+  - S138.8 `unknown_target` is registered in `SIMULATION_REASON_CODES` with a strings-catalog
+    message, and the reason-completeness guard passes. 10 §10's row reads dispatched.
+  - S138.9 Every simulation fixture in `src/engine/fixtures/replay/` (`stable-life-`,
+    `bulgaria-stable-life-`, `long-horizon-`) replays to its recorded outcome unchanged.
+  - S138.10 `kindVersion` stays `1.1.0`. A save serialized before the change loads with
+    `replayCompatible` intact and continues play. `branchSession` over a hand-built log whose
+    retained prefix holds an unissued `targetId` throws `SessionStoreError` `invalid_state` with
+    nothing written.
+Out of scope: Session capture (S139); checking `amountCents`, `close` or any value that is not an
+              id; moving `end_week`'s checks to `plan.add`; story-graph and world-graph, which
+              already check ids against content or state.
+
+## S139 — A Host Captures a Played Session as a Replay Fixture
+
+Status: todo
+Delivers: Whoever runs a hosted game can turn a session someone played into a regression test,
+          without asking anyone to play it again and without the test learning who played it. The
+          capture reproduces the game exactly, changes nothing about the session, and says
+          plainly when a session can no longer be reproduced.
+Touches: `src/engine/src/core/composition/types.ts`, `src/engine/src/core/session/store.ts`,
+         tests alongside, including one capture-then-run round trip per kind
+Depends on: S138
+Acceptance:
+  - S139.1 For a played story-graph, simulation and world-graph session `S`,
+    `captureSession(S, "name")` returns a fixture that `runReplayFixture` runs with no rejected
+    submission, and whose `Outcome` (07 §3) equals the one built from `S`'s own state. One of the
+    three has adopted a content epoch.
+  - S139.2 The fixture's fields are exactly 04 §7.4's: `name` is the argument; `config` is
+    `campaignId` and `seed`, plus `kindProfileData` only when the record's `initialization` carries
+    it; `campaignVersion` is the starting epoch, not the current one, for a session that adopted;
+    `capturedUnder` equals `ENGINE_VERSION`; `submissions` has one entry per log entry, in order,
+    an action as `{ actionId, params }` deep-equal to the logged entry and an adoption as
+    `{ adopt: <to> }`.
+  - S139.3 Captured from a session created with a `profileId` and an `audience`, the fixture's JSON
+    contains neither the `profileId`, the `sessionId` nor the `audience`, and no timestamp.
+  - S139.4 Capture writes nothing: the persistence adapter records no write, no `StateChange` is
+    emitted, and the record's `revision` is unchanged, on success and on each refusal in S139.6.
+    Capturing a session the layer has not cached leaves it uncached: the next operation on it reads
+    the adapter.
+  - S139.5 Two captures of an unchanged session with the same `name` are deep-equal, under a clock
+    and an `IdSource` that return a different value on every call.
+  - S139.6 Each refusal is a `SessionStoreError` with `operation: "captureSession"` and nothing
+    written: an unknown `sessionId` is `unknown_session`; a `replayCompatible: false` session, a
+    log with a migration entry, a record that predates `initialization` with a `profileId` whose
+    kind declares `profileData`, and a hand-built simulation log holding `rest` with a `targetId`
+    are each `invalid_state`; a log whose starting or adopted epoch the archive no longer holds is
+    `unknown_campaign`.
+  - S139.7 A capture issued while a command on the same session is in flight returns a fixture
+    that includes that command's entry.
+  - S139.8 Every existing `branchSession` test passes unchanged, and its refusals still carry
+    `operation: "branchSession"`.
+  - S139.9 `captureSession` is a member of `SessionLayer` and not of `SessionStore`, no MCP tool
+    exposes it, and the client API-coverage checklist (09) still has thirteen rows with its build
+    gate passing.
+Out of scope: When or why a host captures, consent, where a fixture is stored and for how long,
+              promotion to the committed corpus and its golden `Outcome` (08 §7), a capture that
+              records the submission a session faulted on, and wiring capture into
+              SubZeroDev.Adventures.
 
 ## Landed
 

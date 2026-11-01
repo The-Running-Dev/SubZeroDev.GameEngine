@@ -40,4 +40,8 @@
 
 ## S137 — World-Graph Refuses Details It Did Not Ask For
 
+## S138 — Simulation Refuses Ids It Never Issued
+
+## S139 — A Host Captures a Played Session as a Replay Fixture
+
 ## Landed
