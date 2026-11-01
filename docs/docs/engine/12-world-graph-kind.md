@@ -1633,7 +1633,7 @@ rejected `AdvanceResult.error` (and its accompanying `OutcomeMessage`, 04 §3).
 | `building_limit_reached` | The scenario caps this definition — the building-side twin of `staff_limit_reached`, and what `blockedBy` (§10) reports for a definition at its cap |
 | `ticks_not_positive` | `advance_ticks` with `ticks` less than 1 |
 | `tick_limit_reached` | `ticks` exceeds the campaign's per-call cap (§6) |
-| `unexpected_params` | A `params` key §6's table does not declare for that `actionId` (04 §3). Specified 2026-11-01; not yet produced by code |
+| `unexpected_params` | A `params` key §6's table does not declare for that `actionId` (04 §3). Produced by code since S137 |
 
 Reused from the base set: `unknown_action`, `requirement_unmet`, `session_ended`,
 `action_not_available`.

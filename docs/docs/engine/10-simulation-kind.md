@@ -2902,7 +2902,7 @@ author, and a client rendering a history.
 | `plan_empty` | `end_week` with nothing planned, where the campaign forbids it (`SimulationCampaign.emptyPlanPolicy: "forbid"`, §7.11) | registered (W100) |
 | `week_limit_reached` | The scenario's week cap is exhausted | specified, not yet dispatched |
 | `event_response_pending` | `end_week`, or a `plan.add` for any `ActionType` other than `respond_to_event`, while a `PendingEventResponse` (§2.3) remains unaddressed by the current plan | registered (W94) |
-| `unexpected_params` | A `params` key §4 does not declare for that `actionId` (for `plan.add`, for that `actionType`) — 04 §3 | specified, not yet dispatched (2026-11-01) |
+| `unexpected_params` | A `params` key §4 does not declare for that `actionId` (for `plan.add`, for that `actionType`) — 04 §3 | registered (S136) |
 
 Reused from the base set: `unknown_action`, `requirement_unmet`, `session_ended`,
 `action_not_available` (a `"custom"` `GameAction` reaching resolution, §4.2).
