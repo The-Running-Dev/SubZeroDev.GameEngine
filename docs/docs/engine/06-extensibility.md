@@ -307,7 +307,8 @@ changes `serialize()`.
 **`captureSession(sessionId, name)` holds the session like a command and writes like none.** It
 waits on the session's queue, as `branchSession` does for its source, so it reads a committed
 state and never a write in flight. It replays the log through the engine the layer was built
-on, so an adoption resolves through the same channel and archive the session did. It writes no
+on, so an adoption resolves through the same archive the session did; it never asks the channel
+for an offer. It writes no
 row and no cache entry, emits no `StateChange`, and does not hold the session after it returns.
 Two captures of an unchanged session return equal fixtures, given the same `name`. Its refusals
 are `branchSession`'s (04 §7.4), with `operation: "captureSession"`.

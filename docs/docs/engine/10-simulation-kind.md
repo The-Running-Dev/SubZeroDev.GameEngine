@@ -728,7 +728,7 @@ take one more key, and no other type takes any:
 | `start_business` | a business in the campaign | — |
 | `operate_business` | a business instance, or one a `start_business` in the pending plan will create | `close` (boolean) |
 | `borrow_money`, `repay_debt`, `deposit_savings`, `invest` | — | `amountCents` (integer) |
-| `work`, `work_overtime`, `search_for_work`, `negotiate_job_terms`, `eat`, `rest`, `exercise`, `pay_bills` | — | — |
+| `work`, `work_overtime`, `search_for_work`, `negotiate_job_terms`, `eat`, `rest`, `exercise`, `pay_bills`, `custom` | — | — |
 
 `plan.remove` takes only `index`; `plan.clear` and `end_week` take none. A key outside this
 table, including one valid for a different `actionType`, is `unexpected_params` (§10). That
@@ -744,8 +744,9 @@ belong to an entry of the minting type that is in the plan when `plan.add` runs.
 only whether the id was *issued* — by the campaign, by the state, or by the plan. Everything else
 is still `end_week`'s, and it rejects or resolves those cases exactly as before: affordability,
 requirements, an active enrollment, an item that a `shop` later in the plan has not bought yet,
-and a `targetId` that a targeting type needs but was not given. Numbers and booleans carry no
-text and are outside the check. Before this check, a caller's string could sit in the plan and the
+and a `targetId` that a targeting type needs but was not given. `amountCents` and `close` carry
+no text and are outside the check; a `targetId` or `choiceId` that is not a string names nothing
+and is `unknown_target`. Before this check, a caller's string could sit in the plan and the
 log until `end_week`, which was what blocked capturing this kind (`08-session-capture.md` §3.2).
 
 **Plans are immutable.** Every edit produces a new plan; preview is free and never requires
