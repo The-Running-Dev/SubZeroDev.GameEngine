@@ -30,6 +30,7 @@ import {
   type StoredSessionRecord,
 } from "./types.js";
 import { BASE_REASON_CODES, CORE_REASON_MESSAGES } from "../kernel/reasons.js";
+import { ENGINE_VERSION } from "../../version.js";
 import type { StateChange } from "../kernel/reasons.js";
 import type { PlayerProfile } from "./types.js";
 
@@ -2261,18 +2262,21 @@ function makeEpochStore(options: {
   initial?: ContentRegistry;
   publish?: ContentRegistry[];
   recordIds?: RecordIdSource;
-}): { store: SessionStore; engine: Engine } {
+  clock?: { now(): string };
+  ids?: EngineHost["ids"];
+}): { store: SessionLayer; engine: Engine } {
   const kinds = { "story-graph": options.kind ?? makeEpochKind() } as unknown as KindRegistry;
   const initial = options.initial ?? EPOCH_V1;
   const archive = createContentArchive({ kinds, initial });
   for (const registry of options.publish ?? [EPOCH_V2, EPOCH_V3_REFUSED]) {
     if (!archive.publish(registry).ok) throw new Error("expected the test epoch to publish");
   }
-  const engine = createEngine({ kinds, registry: initial, archive, ids: createCountingIds() });
+  const engine = createEngine({ kinds, registry: initial, archive, ids: options.ids ?? createCountingIds() });
   const store = createSessionLayer({
     engine,
     registry: initial,
     recordIds: options.recordIds ?? makeCountingRecordIds(),
+    ...(options.clock ? { clock: options.clock } : {}),
     ...(options.channel ? { content: options.channel } : {}),
     ...(options.persistence ? { persistence: options.persistence } : {}),
     ...(options.profiles ? { profiles: options.profiles } : {}),
@@ -3181,5 +3185,342 @@ describe("branchSession replays the source's recorded initialization (20-contrac
 
     const branch = await store.branchSession(sessionId, 0);
     expect(await seededOf(store, branch.sessionId)).toEqual({ max: 2 });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// S139 — SessionLayer.captureSession (20-contract.md, "Capturing a session")
+// ---------------------------------------------------------------------------
+
+describe("S139 — captureSession exports a session as a ReplayFixture, writing nothing", () => {
+  /** CAS rows with every session write counted and every read reachable through `cas.reads`. */
+  function countedRows() {
+    const cas = makeCasPersistence();
+    let puts = 0;
+    const persistence: SessionPersistence = {
+      ...cas.persistence,
+      sessions: {
+        get: cas.persistence.sessions.get,
+        put: async (record) => {
+          puts += 1;
+          await cas.persistence.sessions.put(record);
+        },
+      },
+    };
+    return { cas, persistence, rows: cas.rows, get puts() { return puts; } };
+  }
+
+  function recordingSink(): EmittedRecordSink & { records: EmittedRecord[] } {
+    const records: EmittedRecord[] = [];
+    return { records, write: (record) => { records.push(record); } };
+  }
+
+  const seedOf = (engine: Engine, row: StoredSessionRecord | undefined): string => {
+    const state = engine.deserialize(row!.blob);
+    if (!state.ok || !state.value) throw new Error("expected the row to deserialize");
+    return state.value.seed;
+  };
+
+  /** A session on a profile-declaring kind, through a host that can capture it. */
+  function profileLayer(profiles: ProfileStore): SessionLayer {
+    const registry = makeRegistry();
+    return createSessionLayer({
+      engine: createEngine({ kinds: makeProfileKinds(), registry, ids: createCountingIds() }),
+      registry,
+      recordIds: makeCountingRecordIds(),
+      profiles,
+    });
+  }
+
+  it("S139.2 — the fixture is the session's config, starting epoch, engine version and log, one entry to one", async () => {
+    const shared = makeSharedRows();
+    const { store, sessionId } = await crossedSource(shared);
+    const { engine } = makeEpochStore({});
+
+    const fixture = await store.captureSession(sessionId, "crossed");
+    expect(fixture).toEqual({
+      name: "crossed",
+      config: { campaignId: "test-campaign", seed: seedOf(engine, shared.rows.get(sessionId)) },
+      campaignVersion: "1",
+      capturedUnder: ENGINE_VERSION,
+      submissions: [{ actionId: "increment" }, { adopt: "2" }, { actionId: "increment" }],
+    });
+    // An entry with no params carries no params key at all.
+    expect("params" in fixture.submissions[0]!).toBe(false);
+  });
+
+  it("S139.2 — params are copied verbatim, and a later edit to the fixture cannot reach the session", async () => {
+    const { store } = makeEpochStore({});
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+    const params = { count: 3, label: "north", urgent: true };
+    expect((await store.submitAction(sessionId, "increment", params)).ok).toBe(true);
+
+    const fixture = await store.captureSession(sessionId, "with-params");
+    expect(fixture.submissions).toEqual([{ actionId: "increment", params }]);
+    (fixture.submissions[0] as { params: Record<string, unknown> }).params["count"] = 99;
+    expect((await store.captureSession(sessionId, "again")).submissions).toEqual([{ actionId: "increment", params }]);
+  });
+
+  it("S139.2 — kindProfileData is the record's own initialization, and absent when the session had none", async () => {
+    const layer = profileLayer(createInMemoryProfileStore());
+    const earlier = await layer.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    await layer.submitAction(earlier.sessionId, "bump");
+    await layer.submitAction(earlier.sessionId, "bump");
+
+    const seeded = await layer.createSession({ campaignId: "test-campaign", profileId: "p1" });
+    await layer.submitAction(seeded.sessionId, "bump");
+    expect((await layer.captureSession(seeded.sessionId, "seeded")).config.kindProfileData).toEqual({ max: 2 });
+
+    const anonymous = await layer.createSession({ campaignId: "test-campaign" });
+    expect("kindProfileData" in (await layer.captureSession(anonymous.sessionId, "anonymous")).config).toBe(false);
+  });
+
+  it("S139.3 — no sessionId, profileId, audience, timestamp or host metadata reaches the fixture", async () => {
+    const { store } = makeEpochStore({
+      profiles: createInMemoryProfileStore(),
+      recordIds: prefixedRecordIds("host-marker"),
+      clock: { now: () => "2031-05-06T07:08:09.000Z" },
+    });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign", profileId: "profile-marker", audience: "ai" });
+    await store.submitAction(sessionId, "increment");
+
+    const fixture = await store.captureSession(sessionId, "private");
+    expect(Object.keys(fixture).sort()).toEqual(["campaignVersion", "capturedUnder", "config", "name", "submissions"]);
+    expect(Object.keys(fixture.config).sort()).toEqual(["campaignId", "seed"]);
+    const json = JSON.stringify(fixture);
+    for (const leak of ["host-marker", "profile-marker", '"ai"', "2031", "sessionId", "profileId", "audience"]) {
+      expect(json).not.toContain(leak);
+    }
+  });
+
+  it("S139.4 — capture writes no record, emits nothing, asks no channel and leaves the row as it was", async () => {
+    const counted = countedRows();
+    const sink = recordingSink();
+    const channel = recordingChannel(undefined);
+    const { store } = makeEpochStore({ channel, persistence: counted.persistence, recordSink: sink });
+    const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+    await store.submitAction(sessionId, "increment");
+    const row = { ...counted.rows.get(sessionId)! };
+    const puts = counted.puts;
+    const records = sink.records.length;
+    const asked = channel.calls.length;
+
+    channel.offer = "2";
+    await store.captureSession(sessionId, "quiet");
+    expect(counted.puts).toBe(puts);
+    expect(sink.records.length).toBe(records);
+    expect(channel.calls.length).toBe(asked);
+    expect(counted.rows.get(sessionId)).toEqual(row);
+    // The capture's replay adopted nothing on the session's behalf.
+    expect((await store.getScene(sessionId)).body.textKey).toBe("scene.v1");
+  });
+
+  it("S139.4 — a session read only to capture it is not left in the cache", async () => {
+    const counted = countedRows();
+    const source = makeEpochStore({ persistence: counted.persistence, recordIds: prefixedRecordIds("source") });
+    const { sessionId } = await source.store.createSession({ campaignId: "test-campaign" });
+    await source.store.submitAction(sessionId, "increment");
+
+    const { store } = makeEpochStore({ persistence: counted.persistence, recordIds: prefixedRecordIds("later") });
+    const reads = counted.cas.reads;
+    await store.captureSession(sessionId, "cold");
+    expect(counted.cas.reads).toBe(reads + 1);
+    await store.captureSession(sessionId, "cold-again");
+    expect(counted.cas.reads).toBe(reads + 2);
+    await store.getScene(sessionId);
+    expect(counted.cas.reads).toBe(reads + 3);
+  });
+
+  it("S139.5 — two captures of one session are equal, under any clock or id source", async () => {
+    const shared = makeSharedRows();
+    const { sessionId } = await crossedSource(shared);
+    let tick = 0;
+    const ticking = { now: () => `2030-01-01T00:00:${String(tick++).padStart(2, "0")}.000Z` };
+    const first = makeEpochStore({ persistence: shared.persistence, clock: ticking, recordIds: prefixedRecordIds("one") });
+    const second = makeEpochStore({
+      persistence: shared.persistence,
+      clock: { now: () => "1999-12-31T23:59:59.000Z" },
+      recordIds: prefixedRecordIds("two"),
+      ids: { newGameId: () => "another-game", newSeed: () => "another-seed" },
+    });
+    const puts = shared.sessionPuts;
+
+    const capture = await first.store.captureSession(sessionId, "same");
+    expect(await first.store.captureSession(sessionId, "same")).toEqual(capture);
+    expect(await second.store.captureSession(sessionId, "same")).toEqual(capture);
+    expect(shared.sessionPuts).toBe(puts);
+  });
+
+  describe("S139.6 — a session capture cannot reproduce refuses, typed, with nothing written", () => {
+    const refusal = (code: SessionStoreErrorCode) => ({ operation: "captureSession", code });
+
+    it("unknown_session for an id no record answers", async () => {
+      const counted = countedRows();
+      const { store } = makeEpochStore({ persistence: counted.persistence });
+      await expect(store.captureSession("missing", "x")).rejects.toMatchObject(refusal("unknown_session"));
+      expect(counted.puts).toBe(0);
+    });
+
+    it("invalid_state for a record that is not replayCompatible", async () => {
+      const shared = makeSharedRows();
+      const { sessionId } = await crossedSource(shared);
+      shared.rows.set(sessionId, { ...shared.rows.get(sessionId)!, replayCompatible: false });
+      const { store } = makeEpochStore({ persistence: shared.persistence, recordIds: prefixedRecordIds("later") });
+      const before = shared.sessionPuts;
+
+      await expect(store.captureSession(sessionId, "x")).rejects.toMatchObject(refusal("invalid_state"));
+      expect(shared.sessionPuts).toBe(before);
+    });
+
+    it("invalid_state for a log carrying a migration entry", async () => {
+      const shared = makeSharedRows();
+      const { store, engine } = makeEpochStore({ persistence: shared.persistence });
+      const created = engine.createGame({ campaignId: "test-campaign", seed: "s" }, "2");
+      const migrated = {
+        ...created.value!,
+        formatVersion: 2,
+        actionLog: [{ seq: 0, system: "migration" as const, from: "1", to: "2" }],
+      };
+      shared.rows.set("migrated", {
+        sessionId: "migrated",
+        blob: engine.serialize(migrated),
+        audience: "player",
+        attemptCounter: 0,
+        revision: 0,
+        replayCompatible: true,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      });
+
+      await expect(store.captureSession("migrated", "x")).rejects.toMatchObject(refusal("invalid_state"));
+      expect(shared.sessionPuts).toBe(0);
+    });
+
+    it("invalid_state for a record from before initialization where a profile could have seeded it", async () => {
+      const shared = makeSharedRows();
+      const source = makeEpochStore({ persistence: shared.persistence, profiles: createInMemoryProfileStore(), recordIds: prefixedRecordIds("source") });
+      const { sessionId } = await source.store.createSession({ campaignId: "test-campaign", profileId: "p1" });
+      const legacy = { ...shared.rows.get(sessionId)! };
+      delete legacy.initialization;
+      shared.rows.set(sessionId, legacy);
+      const { store } = makeEpochStore({ persistence: shared.persistence, recordIds: prefixedRecordIds("later") });
+      const before = shared.sessionPuts;
+
+      await expect(store.captureSession(sessionId, "x")).rejects.toMatchObject(refusal("invalid_state"));
+      expect(shared.sessionPuts).toBe(before);
+    });
+
+    it("invalid_state for a logged action the kind now refuses", async () => {
+      const shared = makeSharedRows();
+      const { sessionId } = await crossedSource(shared);
+      const refusing: Kind<TestKindState> = {
+        ...makeEpochKind(),
+        advance: (state) => ({ state, status: "active", changes: [], messages: [], error: { code: "unknown_action", messageKey: "core.reason.unknown_action" } }),
+      };
+      const { store } = makeEpochStore({ kind: refusing, persistence: shared.persistence, recordIds: prefixedRecordIds("later") });
+      const before = shared.sessionPuts;
+
+      await expect(store.captureSession(sessionId, "x")).rejects.toMatchObject(refusal("invalid_state"));
+      expect(shared.sessionPuts).toBe(before);
+    });
+
+    it("invalid_state for a logged adoption the kind now refuses", async () => {
+      const shared = makeSharedRows();
+      const { sessionId } = await crossedSource(shared);
+      const refusing: Kind<TestKindState> = { ...makeEpochKind(), adoptContent: () => ({ adopt: false, reason: "content_incompatible" }) };
+      const { store } = makeEpochStore({ kind: refusing, persistence: shared.persistence, recordIds: prefixedRecordIds("later") });
+      const before = shared.sessionPuts;
+
+      await expect(store.captureSession(sessionId, "x")).rejects.toMatchObject(refusal("invalid_state"));
+      expect(shared.sessionPuts).toBe(before);
+    });
+
+    it("unknown_campaign when the starting epoch, or an adopted one, is no longer held", async () => {
+      const shared = makeSharedRows();
+      const { sessionId } = await crossedSource(shared);
+      const withoutStart = makeEpochStore({ persistence: shared.persistence, initial: EPOCH_V2, publish: [], recordIds: prefixedRecordIds("v2") });
+      // A session that adopts 2 and then returns to 1 ends on an epoch the v1-only host can
+      // read, so the refusal is the adopted epoch's, not the blob's.
+      const channel = recordingChannel(undefined);
+      const source = makeEpochStore({ channel, persistence: shared.persistence, recordIds: prefixedRecordIds("returned") });
+      const returned = await source.store.createSession({ campaignId: "test-campaign" });
+      channel.offer = "2";
+      await source.store.submitAction(returned.sessionId, "increment");
+      channel.offer = "1";
+      await source.store.submitAction(returned.sessionId, "increment");
+      const withoutAdopted = makeEpochStore({ persistence: shared.persistence, initial: EPOCH_V1, publish: [], recordIds: prefixedRecordIds("v1") });
+      const before = shared.sessionPuts;
+
+      await expect(withoutStart.store.captureSession(sessionId, "x")).rejects.toMatchObject(refusal("unknown_campaign"));
+      await expect(withoutAdopted.store.captureSession(returned.sessionId, "x")).rejects.toMatchObject(refusal("unknown_campaign"));
+      expect(shared.sessionPuts).toBe(before);
+    });
+  });
+
+  describe("S139.7 — a capture during a pending write sees the outcome, never the attempt", () => {
+    function deferred<T = void>(): { promise: Promise<T>; resolve(value: T): void } {
+      let resolve: (value: T) => void = () => {};
+      const promise = new Promise<T>((r) => { resolve = r; });
+      return { promise, resolve };
+    }
+
+    /** CAS rows whose next `put` can be held, then landed or failed. */
+    function makeHeldPersistence() {
+      const cas = makeCasPersistence();
+      let armed: { entered(): void; outcome: Promise<{ error: unknown } | undefined> } | undefined;
+      const persistence: SessionPersistence = {
+        ...cas.persistence,
+        sessions: {
+          ...cas.persistence.sessions,
+          put: async (record) => {
+            if (armed) {
+              const held = armed;
+              armed = undefined;
+              held.entered();
+              const outcome = await held.outcome;
+              if (outcome) throw outcome.error;
+            }
+            await cas.persistence.sessions.put(record);
+          },
+        },
+      };
+      return {
+        persistence,
+        hold() {
+          const entered = deferred();
+          const outcome = deferred<{ error: unknown } | undefined>();
+          armed = { entered: () => entered.resolve(), outcome: outcome.promise };
+          return { entered: entered.promise, release: (error?: unknown) => outcome.resolve(error === undefined ? undefined : { error }) };
+        },
+      };
+    }
+
+    for (const [label, error] of [["commits", undefined], ["fails", new Error("disk full")]] as const) {
+      it(`an accepted action whose write ${label}`, async () => {
+        const held = makeHeldPersistence();
+        const { store } = makeEpochStore({ persistence: held.persistence });
+        const { sessionId } = await store.createSession({ campaignId: "test-campaign" });
+
+        const write = held.hold();
+        const submitted = store.submitAction(sessionId, "increment");
+        await write.entered;
+        const capture = store.captureSession(sessionId, "mid-write");
+        let settled = false;
+        void capture.then(() => { settled = true; }, () => { settled = true; });
+        await Promise.resolve();
+        expect(settled).toBe(false);
+
+        write.release(error);
+        await submitted.catch(() => undefined);
+        expect((await capture).submissions).toEqual(error === undefined ? [{ actionId: "increment" }] : []);
+      });
+    }
+  });
+
+  it("S139.9 — captureSession is the host's: SessionLayer carries it, SessionStore does not", () => {
+    type Carries<T> = "captureSession" extends keyof T ? true : false;
+    const onLayer: Carries<SessionLayer> = true;
+    const onStore: Carries<SessionStore> = false;
+    expect([onLayer, onStore]).toEqual([true, false]);
   });
 });

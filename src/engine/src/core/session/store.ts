@@ -24,6 +24,8 @@ import type { ContentChannel, ContentScope } from "../registry/archive.js";
 import { isEpochEntry, isLoggedAction, startingCampaignVersion } from "../kernel/log.js";
 import { buildSaveEnvelope, resolveSaveEnvelope, serializeSaveEnvelope } from "../persistence/envelope.js";
 import { canonicalize as canonicalStringify } from "subzerodev-data-json";
+import { ENGINE_VERSION } from "../../version.js";
+import type { ReplayFixture, Submission } from "../replay/types.js";
 import type { PlayerView, ProjectionAudience } from "../projection/types.js";
 import type { LocKey, StringTable } from "../localization/types.js";
 import type { ValidationWarning } from "../validation/types.js";
@@ -281,15 +283,25 @@ export async function upsertKindProfileData(
 }
 
 /**
- * The initialization a branch of `source` replays with (20-contract.md §7.2). A record from
+ * The initialization a replay of `source` starts from (20-contract.md §7.2). A record from
  * before the field existed is reconstructable only where `createSession` could not have read
  * a profile — an anonymous session, or a kind that declares no `profileData` — and is refused
- * otherwise: substituting an empty or a current profile would branch a different game.
+ * otherwise: substituting an empty or a current profile would replay a different game.
+ * `operation` is whichever of `branchSession` or `captureSession` is asking.
  */
-function branchInitialization(source: SessionRecord, kind: Kind<unknown> | undefined): SessionInitialization {
+function branchInitialization(source: SessionRecord, kind: Kind<unknown> | undefined, operation: string): SessionInitialization {
   if (source.initialization !== undefined) return source.initialization;
   if (source.profileId === undefined || !kind?.profileData) return {};
-  throw new SessionStoreErrorValue("branchSession", "invalid_state");
+  throw new SessionStoreErrorValue(operation, "invalid_state");
+}
+
+/** A stored session's log, gated and ready to replay: what `branchSession` and
+ *  `captureSession` share (§7.4; "Capturing a session"). */
+interface ReplayPlan {
+  readonly sourceState: GameState;
+  readonly retained: GameState["actionLog"];
+  readonly startVersion: string;
+  readonly initialization: SessionInitialization;
 }
 
 /**
@@ -763,6 +775,112 @@ function createStore(options: InMemorySessionStoreOptions): SessionLayer {
     return await fn(engine.withEmitter(decorator));
   }
 
+  /**
+   * The gates a replay of `source` passes, in `branchSession`'s order (§7.4), each refusal
+   * typed under `operation` and raised before anything is created, so a refusal writes
+   * nothing. Without `atActionCount` the whole log is replayed.
+   */
+  function planReplay(operation: string, source: SessionRecord, atActionCount?: number): ReplayPlan {
+    if (!source.replayCompatible) {
+      throw new SessionStoreErrorValue(operation, "invalid_state");
+    }
+    const sourceState = mustDeserialize(engine, source.blob);
+    const log = sourceState.actionLog;
+    // 16 §3.5: a migration entry implies a migrated load, which no replay can perform. The
+    // record already refuses above wherever one exists; this makes it readable from the log.
+    if (log.some((entry) => isEpochEntry(entry) && entry.system === "migration")) {
+      throw new SessionStoreErrorValue(operation, "invalid_state");
+    }
+    // `atActionCount` counts entries of every type, so a fork may fall either side of an
+    // adoption (16 §5.6).
+    const at = atActionCount ?? log.length;
+    if (!Number.isInteger(at) || at < 0 || at > log.length) {
+      throw new SessionStoreErrorValue(operation, "invalid_fork_point");
+    }
+    const retained = log.slice(0, at);
+    const startVersion = startingCampaignVersion(log, sourceState.campaignVersion)!;
+    // Every epoch the replay stands on — the start and each retained adoption's target —
+    // must still be held.
+    const named = [startVersion, ...retained.filter(isEpochEntry).map((entry) => entry.to)];
+    const isHeld = (version: string): boolean =>
+      engine.content.resolve(sourceState.campaignId, version)?.campaigns.get(sourceState.campaignId)?.version === version;
+    if (!named.every(isHeld)) {
+      throw new SessionStoreErrorValue(operation, "unknown_campaign");
+    }
+    return { sourceState, retained, startVersion, initialization: branchInitialization(source, kinds[sourceState.kindId], operation) };
+  }
+
+  /**
+   * Re-runs `plan` on `replayEngine`: a fresh game from the source's `{ campaignId, seed }` on
+   * the log's starting version (16 §5.6), its `gameId` then pinned to the source's own,
+   * because `gameId` is opaque, serialized data the engine never parses, compares, or derives
+   * from (§2) — overwriting it after creation is exactly what a pinned `IdSource.newGameId`
+   * would have produced (§7.4, "Reproducing a stored session from its log").
+   */
+  function replayPlan(operation: string, replayEngine: Engine, plan: ReplayPlan): GameState {
+    const { sourceState, retained, startVersion, initialization } = plan;
+    // The source's own initialization, never the profile as it is now (§7.1), and a copy of
+    // it, so nothing `initialState` does reaches the record.
+    const created = replayEngine.createGame({
+      campaignId: sourceState.campaignId,
+      seed: sourceState.seed,
+      ...(initialization.kindProfileData !== undefined ? { kindProfileData: structuredClone(initialization.kindProfileData) } : {}),
+    }, startVersion);
+    if (!created.ok || !created.value) {
+      // Defensive, same class as mustDeserialize's own throw: the starting epoch was just
+      // resolved by the same id/version in `planReplay`.
+      throw new Error(`session store: ${operation} — createGame rejected for an already-validated campaign`);
+    }
+    let state: GameState = { ...created.value, gameId: sourceState.gameId };
+    for (const logged of retained) {
+      if (!isLoggedAction(logged)) {
+        // 16 §5.6: a recorded adoption must adopt again. One the kind now refuses means the
+        // log cannot be reproduced, and nothing has been written yet.
+        const adoption = replayEngine.adoptContent(state, logged.to);
+        if (!adoption.adopted) throw new SessionStoreErrorValue(operation, "invalid_state");
+        state = adoption.state;
+        continue;
+      }
+      const result = replayEngine.submitAction(state, logged.actionId, logged.params);
+      if (!result.ok || !result.value) {
+        // Every entry was accepted once (04 §4 logs only an action that advanced the state),
+        // but a kind can since have narrowed what it accepts — S136's undeclared-params
+        // refusal is the first case. The log then cannot be reproduced; refused like an
+        // adoption above, with nothing written yet.
+        throw new SessionStoreErrorValue(operation, "invalid_state");
+      }
+      state = result.value;
+    }
+    return state;
+  }
+
+  /**
+   * `sessionId`'s record as it stands, without caching, pinning or refreshing it: the cached
+   * record, else a read already in flight, else persistence read directly. Capture writes
+   * nothing, a cache entry included (F1).
+   */
+  async function peekSession(sessionId: string, operation: string): Promise<SessionRecord> {
+    const cached = sessions.get(sessionId);
+    if (cached) return cached;
+    const pending = sessionReads.get(sessionId);
+    if (pending) {
+      try {
+        return await pending;
+      } catch (error) {
+        if (error instanceof SessionStoreErrorValue) throw new SessionStoreErrorValue(operation, error.code);
+        throw error;
+      }
+    }
+    let stored: StoredSessionRecord | undefined;
+    try {
+      stored = await options.persistence?.sessions.get(sessionId);
+    } catch {
+      throw new SessionStoreErrorValue(operation, "storage_failure");
+    }
+    if (!stored) throw new SessionStoreErrorValue(operation, "unknown_session", `session store: unknown sessionId "${sessionId}"`);
+    return { ...stored };
+  }
+
   return {
     forget,
     // ── Queries — no span, no decorator (05 §6.1 names only the five commands below) ──
@@ -1183,68 +1301,13 @@ function createStore(options: InMemorySessionStoreOptions): SessionLayer {
       const source = await holdSession(sessionId, (record) =>
         runExclusive(sessionLocks, sessionId, () => Promise.resolve({ ...record })),
       );
-      if (!source.replayCompatible) {
-        throw new SessionStoreErrorValue("branchSession", "invalid_state");
-      }
-      const sourceState = mustDeserialize(engine, source.blob);
-      const log = sourceState.actionLog;
-      // 16 §3.5: a migration entry implies a migrated load, which no replay can perform. The
-      // record already refuses above wherever one exists; this makes it readable from the log.
-      if (log.some((entry) => isEpochEntry(entry) && entry.system === "migration")) {
-        throw new SessionStoreErrorValue("branchSession", "invalid_state");
-      }
-      // `atActionCount` counts entries of every type, so a fork may fall either side of an
-      // adoption (16 §5.6).
-      if (!Number.isInteger(atActionCount) || atActionCount < 0 || atActionCount > log.length) {
-        throw new SessionStoreErrorValue("branchSession", "invalid_fork_point");
-      }
-      const retained = log.slice(0, atActionCount);
-      const startVersion = startingCampaignVersion(log, sourceState.campaignVersion)!;
-      // Every epoch the replay stands on — the start and each retained adoption's target —
-      // must still be held; checked before anything is created, so a refusal writes nothing.
-      const named = [startVersion, ...retained.filter(isEpochEntry).map((entry) => entry.to)];
-      const isHeld = (version: string): boolean =>
-        engine.content.resolve(sourceState.campaignId, version)?.campaigns.get(sourceState.campaignId)?.version === version;
-      if (!named.every(isHeld)) {
-        throw new SessionStoreErrorValue("branchSession", "unknown_campaign");
-      }
-      const initialization = branchInitialization(source, kinds[sourceState.kindId]);
+      const plan = planReplay("branchSession", source, atActionCount);
+      const { initialization } = plan;
 
       const branchSessionId = newSessionId(recordIds);
 
       return withCommand(branchSessionId, 0, async (decoratedEngine) => {
-        // The source's own initialization, never the profile as it is now (§7.1), and a copy
-        // of it, so nothing `initialState` does reaches the record.
-        const created = decoratedEngine.createGame({
-          campaignId: sourceState.campaignId,
-          seed: sourceState.seed,
-          ...(initialization.kindProfileData !== undefined ? { kindProfileData: structuredClone(initialization.kindProfileData) } : {}),
-        }, startVersion);
-        if (!created.ok || !created.value) {
-          // Defensive, same class as mustDeserialize's own throw above: the starting epoch
-          // was just resolved by the same id/version above.
-          throw new Error("session store: branchSession — createGame rejected for an already-validated campaign");
-        }
-        let state: GameState = { ...created.value, gameId: sourceState.gameId };
-        for (const logged of retained) {
-          if (!isLoggedAction(logged)) {
-            // 16 §5.6: a recorded adoption must adopt again. One the kind now refuses means
-            // the prefix cannot be reproduced, and nothing has been written yet.
-            const adoption = decoratedEngine.adoptContent(state, logged.to);
-            if (!adoption.adopted) throw new SessionStoreErrorValue("branchSession", "invalid_state");
-            state = adoption.state;
-            continue;
-          }
-          const result = decoratedEngine.submitAction(state, logged.actionId, logged.params);
-          if (!result.ok || !result.value) {
-            // Every entry was accepted once (04 §4 logs only an action that advanced the
-            // state), but a kind can since have narrowed what it accepts — S136's
-            // undeclared-params refusal is the first case. The prefix then cannot be
-            // reproduced; refused like an adoption above, with nothing written yet.
-            throw new SessionStoreErrorValue("branchSession", "invalid_state");
-          }
-          state = result.value;
-        }
+        let state = replayPlan("branchSession", decoratedEngine, plan);
 
         const now = clock.now();
         const record: SessionRecord = {
@@ -1267,6 +1330,42 @@ function createStore(options: InMemorySessionStoreOptions): SessionLayer {
         cacheSession(branchSessionId, record);
         return { sessionId: branchSessionId, scene: decoratedEngine.scene(state) };
       });
+    },
+
+    /**
+     * 20-contract.md, "Capturing a session": a whole-log replay through `branchSession`'s
+     * gates, on an engine whose emitter drops every event, that keeps the replayed input and
+     * discards the state. No record, cache entry, emitted record or content offer results
+     * (F1); the submissions are the log one to one (F2); nothing of the session's identity,
+     * audience, timing or host reaches the fixture (F3). The replay's own `createGame` mints
+     * a `gameId` that is overwritten and never read.
+     */
+    async captureSession(sessionId: string, name: string): Promise<ReplayFixture> {
+      const peeked = await peekSession(sessionId, "captureSession");
+      // Queued behind every command already holding the session, so a capture during a write
+      // sees its outcome — the record a commit publishes in place, or the one a failure
+      // leaves — never the attempt.
+      const source = await runExclusive(sessionLocks, sessionId, () => Promise.resolve({ ...(sessions.get(sessionId) ?? peeked) }));
+      const plan = planReplay("captureSession", source);
+      replayPlan("captureSession", engine.withEmitter({ emit: () => {} }), plan);
+
+      const { sourceState, retained, startVersion, initialization } = plan;
+      const submissions: Submission[] = retained.map((logged) =>
+        isLoggedAction(logged)
+          ? { actionId: logged.actionId, ...(logged.params !== undefined ? { params: structuredClone(logged.params) } : {}) }
+          : { adopt: logged.to },
+      );
+      return {
+        name,
+        config: {
+          campaignId: sourceState.campaignId,
+          seed: sourceState.seed,
+          ...(initialization.kindProfileData !== undefined ? { kindProfileData: structuredClone(initialization.kindProfileData) } : {}),
+        },
+        campaignVersion: startVersion,
+        capturedUnder: ENGINE_VERSION,
+        submissions,
+      };
     },
   };
 }

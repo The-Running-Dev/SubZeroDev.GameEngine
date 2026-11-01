@@ -455,3 +455,13 @@ describe("S121 — MCP results carry no hidden record", () => {
     });
   }
 });
+
+// Capture is a host operation (20-contract.md, "Capturing a session"): no agent can export a
+// session, so no tool reaches SessionLayer.captureSession.
+describe("S139.9 — no MCP tool captures a session", () => {
+  it("the thirteen tools are unchanged and none names capture", () => {
+    const names = Object.keys(makeTools());
+    expect(names).toHaveLength(13);
+    expect(names.filter((name) => name.includes("capture"))).toEqual([]);
+  });
+});

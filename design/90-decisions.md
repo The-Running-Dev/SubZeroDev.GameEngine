@@ -3031,3 +3031,25 @@ Context: an id minted by a pending `shop`, `start_project` or `start_business` i
 Chosen: `inventoryInstanceId`, `projectInstanceId` and `businessInstanceId` are exported from `src/engine/src/kinds/simulation/resolvers.ts`, and `advance.ts` calls them. They are module exports, not package exports, so 20-contract.md's public surface does not change.
 Rejected: **Repeating the `inv-` / `project-` / `business-` prefixes in `advance.ts`.** Two copies of the rule would drift, and a drift would refuse every plan that buys then uses an item.
 Reversibility: cheap.
+
+### 2026-11-01 — S139: capture shares `branchSession`'s gates and replay, typed by operation
+Context: the contract defines a capture as a whole-log branch that writes nothing. It has the same refusals as a branch, typed `"captureSession"`. Copying the gates would give two copies of the refusal order, and S138 has just shown that the order matters.
+Chosen: two helpers in `createStore` in `src/engine/src/core/session/store.ts`. `planReplay(operation, source, atActionCount?)` runs the gates in `branchSession`'s order; leaving out `atActionCount` replays the whole log. `replayPlan(operation, engine, plan)` re-runs the log. `branchInitialization` takes the operation too. `branchSession` keeps its own refusals unchanged (S139.8).
+Rejected: **Calling `branchSession` and discarding the branch.** That would write a record, which breaks F1. **A second copy of the gates.**
+Reversibility: cheap. The helpers are internal.
+
+### 2026-11-01 — S139: capture reads the record without caching or pinning it
+Context: S139.4 requires that capturing a session the layer has not cached leaves it uncached. `holdSession` and `getSession` both cache what they read. S139.7 requires the capture to see the outcome of a write already in flight.
+Chosen: a new `peekSession` reads in this order and caches nothing:
+1. The cached record, without refreshing its LRU position.
+2. A read already in flight.
+3. Persistence, directly.
+The capture then copies the record under `runExclusive` on the session's lock, taking the cached record when one exists. A commit publishes in place onto that record, and a failed write leaves it as it was, so the capture sees the outcome and never the attempt. A miss is `unknown_session` and a throw is `storage_failure`, both under `"captureSession"`. `branchSession`'s own read still reports `operation: "session"`.
+Rejected: **`holdSession`.** It caches the record, which fails S139.4. **Pinning without caching.** A pin only matters while a record is cached.
+Reversibility: cheap.
+
+### 2026-11-01 — S139: the replay runs on a silent emitter, and its `gameId` is minted and discarded
+Context: F1 requires that capture emits nothing and never asks the content channel. `withCommand`'s decorated engine stamps records through the clock and `RecordIdSource`, and its adoption point asks the channel.
+Chosen: the capture replays on `engine.withEmitter({ emit: () => {} })`, with no decorator, clock, record sink or `adoptOffered`. The replay's `createGame` mints a `gameId` through `IdSource`, which `replayPlan` overwrites with the source's own, as a branch does. The fixture carries no `gameId`, so the minted id goes nowhere (F3, F4). S139.5 covers this under an `IdSource` that changes on every call.
+Rejected: **A pinned `IdSource` for the replay.** It changes nothing observable, and it would need an engine built per capture.
+Reversibility: cheap.
