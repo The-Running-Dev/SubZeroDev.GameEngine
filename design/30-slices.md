@@ -553,7 +553,7 @@ Out of scope: Session capture; any change to how world-graph checks id values, w
 
 ## S138 — Simulation Refuses Ids It Never Issued
 
-Status: todo
+Status: done
 Delivers: A Life in the Fast Lane player plans only around what the game put in front of them: a
           job, course, home, item, place, person, opportunity, project, business or answer it
           offered. A client can no longer plan around a name it made up and have that name saved

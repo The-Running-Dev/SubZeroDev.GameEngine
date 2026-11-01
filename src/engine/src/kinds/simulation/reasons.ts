@@ -75,6 +75,9 @@
  *
  * S136 adds `unexpected_params` — `advance.ts`'s refusal of a `params` key §4 does not
  * declare, the same code `story-graph` uses under its own namespace.
+ *
+ * S138 adds `unknown_target` — `advance.ts`'s refusal of a `plan.add` `targetId` or
+ * `choiceId` outside the domain §4 gives its `actionType`.
  */
 
 import type { LocKey } from "../../core/localization/types.js";
@@ -186,6 +189,9 @@ export const SIMULATION_REASON_CODES = [
   // S136 — acceptance is declaration (§4, 04 §3). `advance.ts` rejects a `params` key §4
   // does not declare for the action, or for `plan.add`'s `actionType`.
   "unexpected_params",
+  // S138 — `plan.add` names only what the game issued (§4). `advance.ts` rejects a `targetId`
+  // outside its type's domain, or a `choiceId` the named pending response does not offer.
+  "unknown_target",
 ] as const;
 
 export type SimulationReasonCode = (typeof SIMULATION_REASON_CODES)[number];
@@ -268,6 +274,7 @@ const SIMULATION_REASON_TEXT: Readonly<Record<SimulationReasonCode, string>> = {
   optional_field_operator: "This campaign compares an optional property in a way that can fail during play.",
   item_cost_charged: "You paid to keep your things running.",
   unexpected_params: "This action doesn't take that detail.",
+  unknown_target: "That isn't one of the options on offer.",
 };
 
 /** `simulation.reason.<code>` → its shipped default-English message, for every code. */

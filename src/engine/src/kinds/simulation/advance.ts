@@ -31,7 +31,7 @@ import type { OutcomeMessage, StateChange } from "../../core/kernel/reasons.js";
 import { SIMULATION_EVENTS } from "./events.js";
 import type { ActionType, GameAction } from "./plan.js";
 import { addAction, removeAction, clearPlan, isActionType } from "./plan.js";
-import { RESOLVER_TABLE } from "./resolvers.js";
+import { RESOLVER_TABLE, businessInstanceId, inventoryInstanceId, projectInstanceId } from "./resolvers.js";
 import { runStartOfWeek } from "./startOfWeek.js";
 import { runEndOfWeek } from "./endOfWeek.js";
 import { outcome as computeOutcome } from "./outcome.js";
@@ -95,14 +95,73 @@ function foldCounters(state: SimulationKindState, changes: readonly StateChange[
   return { ...state, player: { ...state.player, counters } };
 }
 
+/** An id one pending plan entry will mint when it resolves, while that entry is in the plan. */
+function mintedByPlan(state: SimulationKindState, id: string, minter: ActionType, mint: (action: GameAction) => string): boolean {
+  return (state.plan?.actions ?? []).some((action) => action.type === minter && mint(action) === id);
+}
+
+type TargetDomain = (id: string, state: SimulationKindState, content: SimulationCampaign) => boolean;
+
+const job: TargetDomain = (id, _, content) => content.jobs.some((j) => j.id === id);
+const course: TargetDomain = (id, _, content) => content.courses.some((c) => c.id === id);
+const inventoryInstance: TargetDomain = (id, state) =>
+  state.player.inventory.some((i) => i.instanceId === id) || mintedByPlan(state, id, "shop", inventoryInstanceId);
+const opportunity: TargetDomain = (id, state) => state.activeOpportunities.some((o) => o.id === id);
+
+/**
+ * §4's target domains (S138): the ids each targeted `actionType` may name — campaign content,
+ * an instance in state, or one a pending `shop`/`start_project`/`start_business` will mint.
+ * A type absent here targets nothing, so `targetId` is not among its declared keys.
+ */
+const TARGET_DOMAINS: Readonly<Partial<Record<ActionType, TargetDomain>>> = {
+  apply_for_job: job,
+  enroll_course: course,
+  attend_class: course,
+  study: course,
+  withdraw_course: course,
+  move_housing: (id, _, content) => content.housing.some((h) => h.id === id),
+  shop: (id, _, content) => content.items.some((i) => i.id === id),
+  maintain_item: inventoryInstance,
+  repair_item: inventoryInstance,
+  sell_item: inventoryInstance,
+  travel: (id, _, content) => content.locations.some((l) => l.id === id),
+  socialize: (id, _, content) => content.npcs.some((n) => n.id === id),
+  accept_opportunity: opportunity,
+  decline_opportunity: opportunity,
+  respond_to_event: (id, state) => state.pendingEventResponses.some((r) => r.id === id),
+  start_project: (id, _, content) => content.projects.some((p) => p.id === id),
+  work_on_project: (id, state) =>
+    state.player.projects.some((p) => p.instanceId === id) || mintedByPlan(state, id, "start_project", projectInstanceId),
+  start_business: (id, _, content) => content.businesses.some((b) => b.id === id),
+  operate_business: (id, state) =>
+    state.player.businesses.some((b) => b.instanceId === id) || mintedByPlan(state, id, "start_business", businessInstanceId),
+};
+
+/**
+ * Whether `plan.add`'s raw `targetId` and `choiceId` name only what the game issued (S138).
+ * Read from the params as logged, not from `buildAction`'s copy, which drops a non-string
+ * `targetId`. An absent `targetId` is `end_week`'s to refuse, as before; a `choiceId` must be
+ * offered by the pending response `targetId` names, so one with no such response is refused.
+ */
+function namesOnlyIssued(actionType: ActionType, params: ActionParams | undefined, state: SimulationKindState, content: SimulationCampaign): boolean {
+  const targetId = params?.["targetId"];
+  if (targetId !== undefined) {
+    const domain = TARGET_DOMAINS[actionType];
+    if (typeof targetId !== "string" || domain === undefined || !domain(targetId, state, content)) return false;
+  }
+  const choiceId = params?.["choiceId"];
+  if (choiceId === undefined) return true;
+  const response = state.pendingEventResponses.find((r) => r.id === targetId);
+  return typeof choiceId === "string" && response !== undefined && response.availableChoiceIds.includes(choiceId);
+}
+
 /**
  * §4's params declaration, as data: the keys each `actionId` accepts, and for `plan.add` the
- * one extra key each `actionType` adds to `actionType`/`targetId`. Acceptance is declaration
- * (04 §3, S136) — a key outside this table, including one valid for a different `actionType`,
- * is `unexpected_params`, checked before any value is read, so a rejected action never
- * reaches the plan or the log.
+ * one extra key each `actionType` adds to `actionType` — with `targetId` only for a type that
+ * has a target domain (S138). Acceptance is declaration (04 §3, S136) — a key outside this
+ * table, including one valid for a different `actionType`, is `unexpected_params`, checked
+ * before any value is read, so a rejected action never reaches the plan or the log.
  */
-const PLAN_ADD_BASE_KEYS = ["actionType", "targetId"] as const;
 const PLAN_ADD_EXTRA_KEYS: Readonly<Partial<Record<ActionType, string>>> = {
   borrow_money: "amountCents",
   repay_debt: "amountCents",
@@ -123,7 +182,11 @@ function hasUndeclaredKey(params: ActionParams | undefined, declared: readonly s
 
 function planAddKeys(actionType: ActionType): readonly string[] {
   const extra = PLAN_ADD_EXTRA_KEYS[actionType];
-  return extra === undefined ? PLAN_ADD_BASE_KEYS : [...PLAN_ADD_BASE_KEYS, extra];
+  return [
+    "actionType",
+    ...(TARGET_DOMAINS[actionType] === undefined ? [] : ["targetId"]),
+    ...(extra === undefined ? [] : [extra]),
+  ];
 }
 
 function buildAction(id: string, params: ActionParams | undefined): GameAction | undefined {
@@ -174,6 +237,9 @@ export function advance(
       }
       if (action.type !== "respond_to_event" && unaddressedPendingResponses(state).length > 0) {
         return rejected(state, "event_response_pending", "simulation.reason.event_response_pending");
+      }
+      if (!namesOnlyIssued(actionType, params, state, ctx.campaign.content as SimulationCampaign)) {
+        return rejected(state, "unknown_target", "simulation.reason.unknown_target");
       }
       const plan = addAction(requirePlan(state), action);
       ctx.emit.emit(SIMULATION_EVENTS.planChanged.name, SIMULATION_EVENTS.planChanged.severity, { data: { actionId: "plan.add" } });

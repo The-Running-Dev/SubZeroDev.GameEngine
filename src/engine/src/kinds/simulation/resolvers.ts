@@ -1227,7 +1227,7 @@ const NEW_ITEM_QUANTITY = 1;
  *  `action-<ctx.seq>` (`advance.ts`), so one purchase yields one instance id. Prefixed
  *  rather than reused verbatim so an inventory key is never mistaken for an action id, and
  *  never all-digits — §6's natural-key rule forbids a numeric path segment. */
-function inventoryInstanceId(action: GameAction): string {
+export function inventoryInstanceId(action: GameAction): string {
   return `inv-${action.id}`;
 }
 
@@ -1888,11 +1888,11 @@ export const respondToEventResolver: ActionResolver = {
  *  their own per-session progress, not a new formula invented for this action. */
 const WORK_ON_PROJECT_PROGRESS_PER_SESSION = 1;
 
-function projectInstanceId(action: GameAction): string {
+export function projectInstanceId(action: GameAction): string {
   return `project-${action.id}`;
 }
 
-function businessInstanceId(action: GameAction): string {
+export function businessInstanceId(action: GameAction): string {
   return `business-${action.id}`;
 }
 

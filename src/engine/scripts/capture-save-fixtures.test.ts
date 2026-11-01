@@ -178,6 +178,28 @@ describe("S136 — simulation saves under acceptance-is-declaration", () => {
     // A fork before the refused entry retains none of it, and still branches.
     await expect(store.branchSession(loaded.sessionId, 0)).resolves.toBeDefined();
   });
+
+  // S138 narrows `plan.add` again, to ids the game issued, still without touching state shape.
+  // S136.7 above is S138.10's first half unchanged: the same 1.1.0 save re-runs whole.
+  it("S138.10 — branchSession over a retained targetId the game never issued throws invalid_state, writing nothing", async () => {
+    const { open, rows, puts, engine } = rowsOverSimulationSave();
+    const loaded = await open().loadGame("w104");
+
+    const row = rows.get(loaded.sessionId)!;
+    const state = engine.deserialize(row.blob);
+    if (!state.ok || !state.value) throw new Error("expected the loaded row to deserialize");
+    const tampered = structuredClone(state.value);
+    const first = tampered.actionLog[0] as { params?: Record<string, unknown> };
+    expect(first.params?.["targetId"]).toBeTypeOf("string");
+    first.params = { ...first.params, targetId: "never-issued" };
+    rows.set(loaded.sessionId, { ...row, blob: engine.serialize(tampered) });
+    const before = puts();
+    const store = open();
+
+    await expect(store.branchSession(loaded.sessionId, 2)).rejects.toMatchObject({ operation: "branchSession", code: "invalid_state" });
+    expect(puts()).toBe(before);
+    await expect(store.branchSession(loaded.sessionId, 0)).resolves.toBeDefined();
+  });
 });
 
 /**

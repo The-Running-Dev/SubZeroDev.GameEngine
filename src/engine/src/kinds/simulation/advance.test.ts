@@ -7,6 +7,7 @@ import type { SimulationCampaign } from "./campaign.js";
 import type { GoalDefinition } from "./content.js";
 import type { SimulationKindState } from "./state.js";
 import type {
+  ActionParams,
   AvailableAction,
   InitialStateResult,
   Kind,
@@ -128,10 +129,19 @@ function baseState(): SimulationKindState {
 describe("advance — plan.add", () => {
   it("appends a GameAction built from actionType/targetId/rest params", () => {
     const state = baseState();
-    const result = advance(state, "plan.add", { actionType: "rest", targetId: "loc-1" }, fakeCtx());
+    const result = advance(state, "plan.add", { actionType: "travel", targetId: "loc-1" }, fakeCtx());
     expect(result.error).toBeUndefined();
     expect(result.state.plan?.actions).toHaveLength(1);
-    expect(result.state.plan?.actions[0]).toMatchObject({ type: "rest", targetId: "loc-1", actorId: "player" });
+    expect(result.state.plan?.actions[0]).toMatchObject({ type: "travel", targetId: "loc-1", actorId: "player" });
+  });
+
+  // S138.5 — `rest` targets nothing, so §4 does not declare `targetId` for it. Before S138
+  // this test asserted the action stored the id; its resolver never read it.
+  it("refuses a targetId on rest, which targets nothing, with unexpected_params (S138.5)", () => {
+    const state = baseState();
+    const result = advance(state, "plan.add", { actionType: "rest", targetId: "loc-1" }, fakeCtx());
+    expect(result.error?.code).toBe("unexpected_params");
+    expect(result.state).toBe(state);
   });
 
   it("ids the constructed action from ctx.seq", () => {
@@ -276,13 +286,12 @@ describe("advance — end_week", () => {
     expect(result.error?.code).toBe("action_not_available");
   });
 
-  it("rejects unknown_action for a start_project action naming a definition the campaign doesn't declare", () => {
+  it("rejects unknown_action for a start_project action that names no definition", () => {
     // W101 wires `start_project` for real (`resolvers.ts`) — the last `ActionType` this test
     // used to exercise via `stubResolver` (previously "start_project", before that "shop"
-    // until W56). Every non-custom `ActionType` now has a genuine resolver; a target naming
-    // no real content rejects the same way `apply_for_job`/`shop` already do for one of
-    // theirs, covered for real content in `resolvers.w101.test.ts`.
-    const withAction = advance(baseState(), "plan.add", { actionType: "start_project", targetId: "no-such-project" }, fakeCtx()).state;
+    // until W56). A `targetId` naming no real content is now refused at `plan.add` (S138);
+    // a missing one still reaches `end_week`, which rejects it as before (S138.7).
+    const withAction = advance(baseState(), "plan.add", { actionType: "start_project" }, fakeCtx()).state;
     const result = advance(withAction, "end_week", undefined, fakeCtx());
     expect(result.error?.code).toBe("unknown_action");
   });
@@ -440,9 +449,18 @@ describe("advance — acceptance is declaration (S136, §4, 04 §3)", () => {
 
   for (const actionType of ACTION_TYPES) {
     const extra = extraKey[actionType];
+    // `targetId` is left out: its value is domain-checked since S138, which the S138 block
+    // below covers per type. The pending response is there only so `choiceId` names one.
     it(`accepts plan.add ${actionType} with exactly its declared keys, and stores only those (S136.3)`, () => {
-      const params = { actionType, targetId: "t-1", ...(extra ? { [extra[0]]: extra[1] } : {}) };
-      const result = advance(baseState(), "plan.add", params, fakeCtx());
+      const params = {
+        actionType,
+        ...(actionType === "respond_to_event" ? { targetId: "pending-1" } : {}),
+        ...(extra ? { [extra[0]]: extra[1] } : {}),
+      };
+      const state = actionType === "respond_to_event"
+        ? makeState({ pendingEventResponses: [{ id: "pending-1", eventId: "event-1", rolledWeek: 1, presentWeek: 1, availableChoiceIds: ["choice-a"] }] })
+        : baseState();
+      const result = advance(state, "plan.add", params, fakeCtx());
       expect(result.error).toBeUndefined();
       expect(result.state.plan?.actions[0]?.parameters).toEqual(extra ? { [extra[0]]: extra[1] } : {});
     });
@@ -468,6 +486,183 @@ describe("advance — acceptance is declaration (S136, §4, 04 §3)", () => {
       expect(advance(withAction, actionId, undefined, fakeCtx()).error).toBeUndefined();
     });
   }
+});
+
+describe("advance — plan.add refuses ids the game never issued (S138, §4)", () => {
+  // One id per §4 domain. The shapes are minimal: `plan.add` reads only `id`, and the one
+  // test that reaches a resolver (S138.7's `housing-2`) gives its entry the full shape.
+  const domainCampaign = {
+    ...simulationCampaign,
+    jobs: [{ id: "job-1" }],
+    courses: [{ id: "course-1" }],
+    housing: [
+      ...simulationCampaign.housing,
+      { ...simulationCampaign.housing[0]!, id: "housing-2", upfrontCostCents: 1_000_000 },
+    ],
+    items: [{ id: "item-1" }],
+    npcs: [{ id: "npc-1" }],
+    locations: [{ ...simulationCampaign.locations[0]!, actionTypes: ["move_housing"] }],
+    projects: [{ id: "project-1" }],
+    businesses: [{ id: "business-1" }],
+  } as unknown as SimulationCampaign;
+
+  function ctxWith(seq = 7): KindContext {
+    return { ...fakeCtx(), campaign: { ...campaign, content: domainCampaign }, seq };
+  }
+
+  const pending = { id: "pending-1", eventId: "event-1", rolledWeek: 1, presentWeek: 1, availableChoiceIds: ["choice-a"] };
+
+  function domainState(): SimulationKindState {
+    const state = makeState({ activeOpportunities: [{ id: "opp-1" }] as unknown as SimulationKindState["activeOpportunities"] });
+    state.player.inventory = [{ instanceId: "inv-held" }] as unknown as SimulationKindState["player"]["inventory"];
+    state.player.projects = [{ instanceId: "project-held" }] as unknown as SimulationKindState["player"]["projects"];
+    state.player.businesses = [{ instanceId: "business-held" }] as unknown as SimulationKindState["player"]["businesses"];
+    return state;
+  }
+
+  function add(state: SimulationKindState, params: ActionParams, seq = 7) {
+    return advance(state, "plan.add", params, ctxWith(seq));
+  }
+
+  const unknownTarget = {
+    status: "active",
+    changes: [],
+    messages: [{ key: "simulation.reason.unknown_target", visible: true }],
+    error: { code: "unknown_target", messageKey: "simulation.reason.unknown_target" },
+  };
+
+  it("refuses apply_for_job naming a job never issued with the full rejection shape, state untouched (S138.1)", () => {
+    const state = domainState();
+    const result = add(state, { actionType: "apply_for_job", targetId: "job-never-issued" });
+    expect(result).toEqual({ state, ...unknownTarget });
+    expect(result.state).toBe(state);
+  });
+
+  // S138.2 — one id inside and one outside each §4 domain.
+  const domains: readonly (readonly [ActionType, string])[] = [
+    ["apply_for_job", "job-1"],
+    ["enroll_course", "course-1"],
+    ["attend_class", "course-1"],
+    ["study", "course-1"],
+    ["withdraw_course", "course-1"],
+    ["move_housing", "housing-2"],
+    ["shop", "item-1"],
+    ["maintain_item", "inv-held"],
+    ["repair_item", "inv-held"],
+    ["sell_item", "inv-held"],
+    ["travel", "loc-1"],
+    ["socialize", "npc-1"],
+    ["accept_opportunity", "opp-1"],
+    ["decline_opportunity", "opp-1"],
+    ["start_project", "project-1"],
+    ["work_on_project", "project-held"],
+    ["start_business", "business-1"],
+    ["operate_business", "business-held"],
+  ];
+  for (const [actionType, issued] of domains) {
+    it(`accepts ${actionType} naming an issued id and refuses one never issued (S138.2)`, () => {
+      const accepted = add(domainState(), { actionType, targetId: issued });
+      expect(accepted.error).toBeUndefined();
+      expect(accepted.state.plan?.actions[0]).toMatchObject({ type: actionType, targetId: issued });
+
+      const state = domainState();
+      const refused = add(state, { actionType, targetId: "never-issued" });
+      expect(refused.error?.code).toBe("unknown_target");
+      expect(refused.state).toBe(state);
+    });
+  }
+
+  it("checks each type against its own domain, not any domain — a course id is not a job (S138.2)", () => {
+    expect(add(domainState(), { actionType: "apply_for_job", targetId: "course-1" }).error?.code).toBe("unknown_target");
+    expect(add(domainState(), { actionType: "sell_item", targetId: "item-1" }).error?.code).toBe("unknown_target");
+  });
+
+  it("refuses a targetId that is not a string, rather than silently dropping it", () => {
+    expect(add(domainState(), { actionType: "apply_for_job", targetId: 5 }).error?.code).toBe("unknown_target");
+  });
+
+  describe("respond_to_event (S138.3)", () => {
+    function withPending(): SimulationKindState {
+      return { ...domainState(), pendingEventResponses: [pending] };
+    }
+
+    it("refuses a targetId naming no pending response", () => {
+      const state = withPending();
+      const result = add(state, { actionType: "respond_to_event", targetId: "pending-never", choiceId: "choice-a" });
+      expect(result.error?.code).toBe("unknown_target");
+      expect(result.state).toBe(state);
+    });
+
+    it("refuses a choiceId the named response does not offer", () => {
+      const result = add(withPending(), { actionType: "respond_to_event", targetId: "pending-1", choiceId: "choice-not-on-offer" });
+      expect(result.error?.code).toBe("unknown_target");
+    });
+
+    it("refuses a choiceId with no response named to offer it", () => {
+      expect(add(withPending(), { actionType: "respond_to_event", choiceId: "choice-a" }).error?.code).toBe("unknown_target");
+    });
+
+    it("accepts a choiceId the named response offers", () => {
+      const result = add(withPending(), { actionType: "respond_to_event", targetId: "pending-1", choiceId: "choice-a" });
+      expect(result.error).toBeUndefined();
+      expect(result.state.plan?.actions[0]).toMatchObject({ targetId: "pending-1", parameters: { choiceId: "choice-a" } });
+    });
+  });
+
+  // S138.4 — an id minted by a pending entry is issued while that entry is in the plan.
+  const minters: readonly (readonly [ActionType, string, ActionType, string])[] = [
+    ["shop", "item-1", "sell_item", "inv-action-7"],
+    ["start_project", "project-1", "work_on_project", "project-action-7"],
+    ["start_business", "business-1", "operate_business", "business-action-7"],
+  ];
+  for (const [minter, definition, user, minted] of minters) {
+    it(`accepts ${user} naming ${minted} while ${minter} is planned, and refuses it once removed or cleared (S138.4)`, () => {
+      const withMinter = add(domainState(), { actionType: minter, targetId: definition }, 7).state;
+      expect(withMinter.plan?.actions[0]?.id).toBe("action-7");
+      expect(add(withMinter, { actionType: user, targetId: minted }, 8).error).toBeUndefined();
+
+      const removed = advance(withMinter, "plan.remove", { index: 0 }, ctxWith(8)).state;
+      expect(add(removed, { actionType: user, targetId: minted }, 9).error?.code).toBe("unknown_target");
+
+      const cleared = advance(withMinter, "plan.clear", undefined, ctxWith(8)).state;
+      expect(add(cleared, { actionType: user, targetId: minted }, 9).error?.code).toBe("unknown_target");
+    });
+  }
+
+  it("does not let one minter's id stand in for another's — inv- is not a project instance (S138.4)", () => {
+    const withShop = add(domainState(), { actionType: "shop", targetId: "item-1" }, 7).state;
+    expect(add(withShop, { actionType: "work_on_project", targetId: "project-action-7" }, 8).error?.code).toBe("unknown_target");
+    expect(add(withShop, { actionType: "work_on_project", targetId: "inv-action-7" }, 8).error?.code).toBe("unknown_target");
+  });
+
+  const untargeted: readonly ActionType[] = [
+    "work", "work_overtime", "search_for_work", "negotiate_job_terms", "eat", "rest", "exercise",
+    "pay_bills", "borrow_money", "repay_debt", "deposit_savings", "invest", "custom",
+  ];
+  for (const actionType of untargeted) {
+    it(`refuses any targetId on ${actionType}, which targets nothing, with unexpected_params (S138.5)`, () => {
+      expect(add(domainState(), { actionType, targetId: "loc-1" }).error?.code).toBe("unexpected_params");
+    });
+  }
+
+  it("runs last: unknown_action, unexpected_params and event_response_pending each win over it (S138.6)", () => {
+    expect(add(domainState(), { actionType: "teleport" }).error?.code).toBe("unknown_action");
+    expect(add(domainState(), { actionType: "apply_for_job", targetId: "job-never-issued", amountCents: 1 }).error?.code)
+      .toBe("unexpected_params");
+    const withPending = { ...domainState(), pendingEventResponses: [pending] };
+    expect(add(withPending, { actionType: "apply_for_job", targetId: "job-never-issued" }).error?.code)
+      .toBe("event_response_pending");
+  });
+
+  it("leaves a missing targetId and affordability to end_week, with their pre-change codes (S138.7)", () => {
+    const noTarget = add(domainState(), { actionType: "apply_for_job" });
+    expect(noTarget.error).toBeUndefined();
+    expect(noTarget.state.plan?.actions[0]?.targetId).toBeUndefined();
+
+    const unaffordable = add(domainState(), { actionType: "move_housing", targetId: "housing-2" });
+    expect(unaffordable.error).toBeUndefined();
+    expect(advance(unaffordable.state, "end_week", undefined, ctxWith(8)).error?.code).toBe("insufficient_funds");
+  });
 });
 
 describe("advance — every rejection carries a player-facing message (04 §3)", () => {
@@ -497,6 +692,10 @@ describe("advance — every rejection carries a player-facing message (04 §3)",
     {
       label: "plan.add with an undeclared key",
       run: () => advance(baseState(), "plan.add", { actionType: "rest", extra: 1 }, fakeCtx()),
+    },
+    {
+      label: "plan.add naming an id the game never issued",
+      run: () => advance(baseState(), "plan.add", { actionType: "apply_for_job", targetId: "job-never-issued" }, fakeCtx()),
     },
   ];
 
@@ -573,6 +772,20 @@ describe("simulation kind — through the real engine (integration)", () => {
     const result = engine.submitAction(created.value, "plan.add", { actionType: "borrow_money", amountCents: 5000, choiceId: "x" });
     expect(result.ok).toBe(false);
     expect(result.errors[0]?.code).toBe("unexpected_params");
+    expect(result.value).toBeUndefined();
+    expect(created.value.actionLog).toHaveLength(0);
+    expect(engine.serialize(created.value)).toBe(before);
+  });
+
+  it("submitAction refuses an id the game never issued and logs nothing — serialize is byte-identical (S138.1)", () => {
+    const engine = createEngine(makeHost());
+    const created = engine.createGame({ campaignId: "test-sim" });
+    if (!created.ok || !created.value) throw new Error("expected success");
+    const before = engine.serialize(created.value);
+
+    const result = engine.submitAction(created.value, "plan.add", { actionType: "apply_for_job", targetId: "job-never-issued" });
+    expect(result.ok).toBe(false);
+    expect(result.errors[0]?.code).toBe("unknown_target");
     expect(result.value).toBeUndefined();
     expect(created.value.actionLog).toHaveLength(0);
     expect(engine.serialize(created.value)).toBe(before);
