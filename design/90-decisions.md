@@ -3013,3 +3013,21 @@ Context: 08 §5 allows an automatic capture on an `error`-severity event. The su
 Chosen: **the logged history only.** The fixture reproduces the state the fault happened in, and the host's fault event records the call that faulted (08 §5). For a rejected save blob (`core.deserialize.rejected`), no submission reproduces the blob, so the capture covers the play, not the bad blob. A fixture that ends on its fault is in the open register (*A captured fixture cannot end on its fault*).
 Rejected: **Appending the faulting submission, with the fault as the expected result.** It needs a fault entry in 07's `Outcome` and a runner that records a throw. It also stores params the kind never accepted, which reopens 08 §3.2. **Deferring the fault trigger entirely.** That leaves the one automatic trigger 08 §5 names with no defined result, and the capture operation itself does not depend on the choice.
 Reversibility: cheap. Adding a trailing faulting submission later is additive to the fixture format, once 07 can score it.
+
+### 2026-11-01 — S138: `custom` declares no `targetId` either
+Context: 10 §4's key table lists the twelve untargeted types by name. `custom` is not in it, because `end_week` refuses `custom` before reading anything. Under S138 every declared `targetId` needs a domain to be checked against, and `custom` has none.
+Chosen: `custom` does not declare `targetId`, so sending one is `unexpected_params`, the same as the other twelve. In `src/engine/src/kinds/simulation/advance.ts`, the issued-id table and the declared-key set come from one map: a type declares `targetId` exactly when it has a domain.
+Rejected: **Declaring `targetId` on `custom` with an empty domain.** Every value would be `unknown_target`, which is the misleading refusal the earlier entry, *a type with no target declares no `targetId`*, already rejected.
+Reversibility: cheap. Re-declaring the key is additive.
+
+### 2026-11-01 — S138: the check reads the logged `targetId`, not the built action's
+Context: `buildAction` copies a string `targetId` into the action and drops anything else. A check on the built action would accept `{targetId: 7}` as "no target", and the `7` would still be in the log, since the log holds the raw params.
+Chosen: the check reads `params.targetId` and `params.choiceId` as they would be logged. A non-string value is `unknown_target`. A `choiceId` is checked only against the pending response that `targetId` names, so a `choiceId` with no valid named response is `unknown_target` too.
+Rejected: **Checking `GameAction.parameters`.** It passes values that the log then keeps, which is the hole S138 closes. **Refusing a non-string with `unexpected_params`.** The key is declared; its value is what was not issued.
+Reversibility: cheap while no client depends on a non-string `targetId` being accepted, and none can have relied on it doing anything.
+
+### 2026-11-01 — S138: the minted-id prefixes have one home
+Context: an id minted by a pending `shop`, `start_project` or `start_business` is valid for a later entry in the same plan. `plan.add` has to compute that id the same way the resolver will create it.
+Chosen: `inventoryInstanceId`, `projectInstanceId` and `businessInstanceId` are exported from `src/engine/src/kinds/simulation/resolvers.ts`, and `advance.ts` calls them. They are module exports, not package exports, so 20-contract.md's public surface does not change.
+Rejected: **Repeating the `inv-` / `project-` / `business-` prefixes in `advance.ts`.** Two copies of the rule would drift, and a drift would refuse every plan that buys then uses an item.
+Reversibility: cheap.
