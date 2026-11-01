@@ -28,7 +28,7 @@ Statements that must hold at all times, each written so it could become an asser
 section states the **cross-cutting** set — the invariants no kind block owns, which Core
 Specification's prose settles but no numbered list has carried. Section-scoped sets stay where
 they are and are not restated here: the profile mechanism's is Core Specification §7.1,
-*Invariants* (P1–P8); session lifecycle's is §7.4 (L1–L3, D1–D3, B1–B3, A1–A2). Kind-specific
+*Invariants* (P1–P8); session lifecycle's is §7.4 (L1–L3, D1–D3, B1–B4, F1–F4, A1–A2). Kind-specific
 turn and state invariants are owned by each kind block.
 
 **Read the enforcement clause.** An invariant marked *enforced by code*, *by the type*, or *by
@@ -1245,6 +1245,12 @@ settles after it is returned to its caller but not cached. It never changes `ser
 kept off `SessionStore` so the client surface and the coverage checklist (09 §4) stay one-to-one:
 no client should be able to call it.
 
+**Capturing a session as a fixture is a host operation for the same reason, and a stronger one.**
+`SessionLayer.captureSession(sessionId, name)` returns the session as a `ReplayFixture`
+(`10-design.md` 07 §2, 08 §2.1). It is read-only and shares `branchSession`'s refusals (§7.4,
+*Capturing a session*). The fixture carries the seed, which never reaches a client (§6). If a
+client could call capture, it could read every future draw in its own session.
+
 **The store persists the envelope (§2) and nothing else about play.** Wall-clock
 timestamps, owner ids, and other host metadata live on the store's record, outside the
 replayable `GameState`. This is the boundary that keeps determinism intact while still
@@ -2095,6 +2101,38 @@ under a pinned `newGameId` is byte-identical to the stored blob, and reconstruct
 other id is observably different. A test that asserts only the first cannot tell a correct
 pinning from an engine that ignores `gameId` altogether.
 
+#### Capturing a session
+
+```typescript
+interface SessionLayer extends SessionStore {   // 06 §4 — host-only, never handed to a client
+  forget(sessionId: string): Promise<void>;
+  captureSession(sessionId: string, name: string): Promise<ReplayFixture>;
+}
+```
+
+**Capture is a whole-log branch that writes nothing and returns its input.** It holds the session
+on its own queue, as `branchSession` holds its source. It admits the session through the same
+gates and replays the whole log from the starting epoch, exactly as a branch at
+`atActionCount = actionLog.length` would. Then it returns the input to that replay instead of
+writing a session from it:
+
+| Fixture field | Taken from |
+|---|---|
+| `name` | the caller's `name`, unchanged |
+| `config` | `{ campaignId, seed }`, plus `kindProfileData` from the record's `initialization` where it is present (§7.2). Nothing else: no `audience`, no `profileId`, no `sessionId` |
+| `campaignVersion` | the starting epoch, as `branchSession` resolves it (16 §5.6) |
+| `capturedUnder` | the running `ENGINE_VERSION` |
+| `submissions` | one per log entry, in order: an action entry becomes `{ actionId, params }` copied verbatim, a content entry becomes an `AdoptionSubmission` to its `to` |
+
+Every refusal is `branchSession`'s, for the same reason, and none is new. The replay and its gates
+are one implementation shared by both operations, not two that agree. `invalid_fork_point` cannot
+arise, since capture takes no fork point. A fault-triggered capture is still a capture of the log,
+so the submission that faulted is not in it (08 §5).
+
+**`name` must not identify anyone.** The store passes it through and cannot check it. Deriving it
+from the session id, the profile or the account would undo §3.1 of 08 through the one field no
+kind judges. That rule is the host's to keep (08 §8).
+
 #### Authorization is host-owned, and `SessionStore` stays caller-agnostic
 
 **`profileId` on these operations is a scoping key, not a credential.** The store treats it as
@@ -2136,6 +2174,11 @@ already does.
 | `branchSession` | `invalid_state` | an action in the retained prefix is one the kind now refuses — logged before the kind declared its params (§3), it carries a key the kind no longer accepts | No | the log cannot regenerate its state under this build; branch before that entry |
 | `branchSession` | `invalid_state` | a content entry in the retained prefix no longer adopts | No | the kind's compatibility rule changed under a recorded adoption — 07 §6's divergence, one layer down |
 | `branchSession` | `unknown_campaign` | an epoch the retained prefix plays on — its starting version or one it adopted — no longer resolves | No | the content was withdrawn (07 §6's `unrunnable`, one layer down) |
+| `captureSession` | `unknown_session` | no such `sessionId` | No | the session is gone; nothing to capture |
+| `captureSession` | `invalid_state` | the session is `replayCompatible: false`, or its log carries a migration entry | No | this session cannot become a fixture |
+| `captureSession` | `invalid_state` | the record predates `initialization`, has a `profileId`, and its kind declares `profileData` | No | the creation input is lost; this session cannot become a fixture |
+| `captureSession` | `invalid_state` | a logged action or content entry is one the kind now refuses | No | the log cannot regenerate its state under this build; capture under the build that wrote it, or not at all |
+| `captureSession` | `unknown_campaign` | an epoch the log plays on no longer resolves | No | the content was withdrawn; the fixture would be `unrunnable` (07 §6) |
 
 `invalid_fork_point` joins `SessionStoreErrorCode` and needs its `core.reason.invalid_fork_point`
 string registered with the rest (§12); registry construction rejects an override of it like any
@@ -2173,6 +2216,18 @@ delegated to an adapter, which is the point of drawing the seam at `SessionPersi
 - **B4.** A branch's result depends on its source's recorded `initialization` and never on the
   source's profile as it is now. Changing that profile after `createSession`, or mutating the
   object the `ProfileStore` returned, leaves B1 holding. *Enforced by code.*
+- **F1.** `captureSession` writes nothing: no record, no cache entry, no `StateChange`, on success
+  or failure. *Enforced by code.*
+- **F2.** For a session `S` that captures, the fixture's submissions correspond one-to-one, in
+  order, with `S.actionLog`, and running it through 07's runner rejects none of them. The capture
+  replay is the replay `branchSession(S, |S.actionLog|)` performs, so B1 is what makes the fixture
+  reproduce `S`. *Enforced by code and by a capture-then-run round-trip test per kind.*
+- **F3.** A fixture carries no `profileId`, `sessionId`, `audience`, timestamp, or host metadata;
+  `config` has no key outside `{ campaignId, seed, kindProfileData }`. *Enforced by code;
+  a widening is a contract amendment to 08 §3.1.*
+- **F4.** Two captures of the same unchanged session under the same build with the same `name`
+  return equal fixtures. *Enforced by code — capture reads nothing a clock or `IdSource`
+  supplies.*
 - **A1.** No lifecycle operation reads or writes a `Kind`, and none appears in
   `{ seed, actionLog }`. *Enforced by instruction and by the determinism harness (§14) — a
   lifecycle operation that perturbed replay would fail an existing fixture.*
@@ -4983,21 +5038,45 @@ player built and revised is part of how the week turned out.
 it the first kind for which `08-session-capture` §3.2's rule has teeth: a fixture carries only
 *declared* parameters, because `advance` rejects any other key (04 §3).
 
-`plan.add`'s keys depend on its `actionType`. Every type accepts `actionType` and an optional
-`targetId`. Four types take one more key, and no other type takes any:
+`plan.add`'s keys depend on its `actionType`. Every type accepts `actionType`. A type that
+targets something accepts an optional `targetId`, and a type that does not, does not. Four types
+take one more key, and no other type takes any:
 
-| `actionType` | Additional key |
-|---|---|
-| `borrow_money`, `repay_debt`, `deposit_savings`, `invest` | `amountCents` (integer) |
-| `respond_to_event` | `choiceId` (string — one of the pending response's choices) |
-| `operate_business` | `close` (boolean) |
+| `actionType` | `targetId` names | Additional key |
+|---|---|---|
+| `apply_for_job` | a job in the campaign | — |
+| `enroll_course`, `attend_class`, `study`, `withdraw_course` | a course in the campaign | — |
+| `move_housing` | a housing option in the campaign | — |
+| `shop` | an item definition in the campaign | — |
+| `maintain_item`, `repair_item`, `sell_item` | an inventory instance, or one a `shop` in the pending plan will create | — |
+| `travel` | a location in the campaign | — |
+| `socialize` | an NPC in the campaign | — |
+| `accept_opportunity`, `decline_opportunity` | an opportunity in the state | — |
+| `respond_to_event` | a pending response in the state | `choiceId` (string — one of that response's `availableChoiceIds`) |
+| `start_project` | a project in the campaign | — |
+| `work_on_project` | a project instance, or one a `start_project` in the pending plan will create | — |
+| `start_business` | a business in the campaign | — |
+| `operate_business` | a business instance, or one a `start_business` in the pending plan will create | `close` (boolean) |
+| `borrow_money`, `repay_debt`, `deposit_savings`, `invest` | — | `amountCents` (integer) |
+| `work`, `work_overtime`, `search_for_work`, `negotiate_job_terms`, `eat`, `rest`, `exercise`, `pay_bills` | — | — |
 
 `plan.remove` takes only `index`; `plan.clear` and `end_week` take none. A key outside this
-table, including one valid for a different `actionType`, is `unexpected_params` (§10).
-`targetId` and `choiceId` are ids, not free text, but `plan.add` does not check them against
-content; `end_week`'s resolvers do. Until the plan is resolved, a caller's string can sit in
-the plan and the log, which is why capturing this kind waits on a value review
-(`08-session-capture.md` §9).
+table, including one valid for a different `actionType`, is `unexpected_params` (§10). That
+includes `targetId` on a type with no target: its resolver never read it, so accepting it only
+let a caller's text into the log.
+
+**`targetId` and `choiceId` are checked when they are added, not when they resolve.** `plan.add`
+refuses a `targetId` outside its type's domain above, or a `choiceId` outside the named response's
+`availableChoiceIds`, with `unknown_target` (§10). Nothing is appended, so the value never reaches
+the plan or the log. An instance "a pending action will create" is one whose id the kind derives
+from that action (`inv-`, `project-` or `business-` followed by the action's own id). It must
+belong to an entry of the minting type that is in the plan when `plan.add` runs. The check asks
+only whether the id was *issued* — by the campaign, by the state, or by the plan. Everything else
+is still `end_week`'s, and it rejects or resolves those cases exactly as before: affordability,
+requirements, an active enrollment, an item that a `shop` later in the plan has not bought yet,
+and a `targetId` that a targeting type needs but was not given. Numbers and booleans carry no
+text and are outside the check. Before this check, a caller's string could sit in the plan and the
+log until `end_week`, which was what blocked capturing this kind (`08-session-capture.md` §3.2).
 
 **Plans are immutable.** Every edit produces a new plan; preview is free and never requires
 re-validating from scratch.
@@ -7178,6 +7257,7 @@ author, and a client rendering a history.
 | `week_limit_reached` | The scenario's week cap is exhausted | specified, not yet dispatched |
 | `event_response_pending` | `end_week`, or a `plan.add` for any `ActionType` other than `respond_to_event`, while a `PendingEventResponse` (§2.3) remains unaddressed by the current plan | registered (W94) |
 | `unexpected_params` | A `params` key §4 does not declare for that `actionId` (for `plan.add`, for that `actionType`) — 04 §3 | registered (S136) |
+| `unknown_target` | A `plan.add` whose `targetId` is not an id in its `actionType`'s domain, or whose `choiceId` is not in the named response's `availableChoiceIds` (§4). It is checked last, after `unexpected_params` and `event_response_pending`, so no input those already reject changes code | specified, not yet dispatched (2026-11-01) |
 
 Reused from the base set: `unknown_action`, `requirement_unmet`, `session_ended`,
 `action_not_available` (a `"custom"` `GameAction` reaching resolution, §4.2).

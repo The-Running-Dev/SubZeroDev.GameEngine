@@ -40,10 +40,13 @@ lost. Unless an entry says it is ready to plan, it needs a contract or design de
   deployment. The contract surface it lacked is decided (`90-decisions.md`, 2026-11-01, *Session
   capture: acceptance is declaration*): every kind rejects an undeclared `params` key with its own
   `unexpected_params`, so capture copies the log verbatim ([08 §3.2](08-session-capture.md#3-what-is-refused)).
-  The rejection is sliced as S136–S137, with no kind-version bump. Two pieces still need design
-  before capture can be planned: the value review of `simulation`'s `targetId` and `choiceId`
-  ([08 §9](08-session-capture.md#9-deferred)), and a capture signature, which neither
-  `20-contract.md` nor the `SessionStore` defines.
+  The rejection landed as S136–S137, with no kind-version bump. The two pieces it still lacked are
+  decided (`90-decisions.md`, 2026-11-01). `simulation`'s `plan.add` checks every `targetId` and
+  `choiceId` against an issued id and refuses a miss with `unknown_target`, and a type with no
+  target no longer declares `targetId` ([08 §3.2](08-session-capture.md#3-what-is-refused)).
+  Capture is `SessionLayer.captureSession`, a host-only, read-only operation that shares
+  `branchSession`'s replay and refusals ([08 §2.1](08-session-capture.md#21-the-capture-operation)).
+  **Ready to plan.**
 - **Hosted engine edge.** The `.NET Platform edge → Node engine workload` process boundary, proposed
   to follow W62: a generated JSON/HTTP service contract first, MCP as a projection, and one
   in-memory remote session before persistence, accounts, catalogue or metering.

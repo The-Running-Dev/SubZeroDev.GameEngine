@@ -4,7 +4,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 73e64599193ad2b321049da0ef76f6fe2d18efb0168d8bb49b9c31d9a927e76b -->
+<!-- design-digest: b5e4400458eae3d4aa3bd5b0fd621b6bbe28c20baa77d366ba20804b30643567 -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -67,8 +67,9 @@ contracts it links to — this guide never repeats a signature that document alr
   SubZeroDev.Adventures refreshes content by replacing its engine and session store. See
   [Content epochs](#content-epochs-new-content-in-a-running-host).
 - Session capture — turning a played session into a committed replay fixture — is specified as a
-  privacy contract, not implemented. Its last contract question, which parameters a fixture may
-  carry, is settled: every kind rejects an undeclared key, so capture copies the log as it is.
+  privacy contract, not implemented. Its contract is settled. Every kind rejects an undeclared
+  key, and `simulation` also rejects an id it never issued (`unknown_target`), so capture copies
+  the log as it is. The operation is the host-only `SessionLayer.captureSession`.
 
 ## The mental model
 
@@ -406,7 +407,10 @@ sequenceDiagram
 The engine copies the params once on entry. The kind and the logged action both receive that
 copy, so a caller that edits its own object afterwards cannot rewrite the action log. Every kind
 rejects a param key its action table does not declare for that action, with its own
-`unexpected_params`, so a logged action carries only declared keys.
+`unexpected_params`, so a logged action carries only declared keys. `simulation` goes one
+step further when an action is planned: a `targetId` or `choiceId` must name something the game
+issued, and a miss is `unknown_target`. Whether that thing is affordable is still decided when
+the week resolves.
 
 Different sessions resolve concurrently. Commands for the same `sessionId` are serialized by the
 store, so the second command always reads the first command's committed state. A second lock
@@ -1234,8 +1238,13 @@ the identical rule: published ids only, never values a balance pass would legiti
 
 A production incident should become a minimal replay fixture when privacy permits. The specified
 capture flow excludes identity, timing, and raw state. It copies logged params verbatim: an
-undeclared key never reaches the log, because the kind rejects it at submission, and filtering
-one at capture would change what the fixture replays. Capture happens only
+undeclared key, or an id the game never issued, never reaches the log, because the kind rejects
+it at submission, and filtering one at capture would change what the fixture replays. The host
+calls `SessionLayer.captureSession(sessionId, name)`. It is not an MCP tool, because the fixture
+carries the seed. It holds the session like a command, replays the whole log through
+`branchSession`'s checks, and writes nothing. The `name` is the host's and must not identify
+anyone. A capture triggered by a fault takes the logged history, not the call that faulted.
+Capture happens only
 for an explicit report or an error-severity event, never as background collection. A session that
 is not replay-compatible is refused, because its log no longer regenerates its state — every
 `replayCompatible: false` session, including one migrated before it adopted and so carrying no

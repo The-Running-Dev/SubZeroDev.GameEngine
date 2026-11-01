@@ -6,7 +6,9 @@ sidebar_label: Session Capture
 
 <!-- Generated from design/10-design.md by build/ConvertTo-HumanDocumentation.ps1. Do not edit directly. -->
 
-**Document status:** Revision 1 — new contract, post-MVP, gated on the hosting layer
+**Document status:** Revision 2 — the capture operation (§2.1) and the fault-trigger bound (§5)
+are settled, and so is `simulation`'s value review (§3.2). Post-MVP, gated on the hosting layer.
+Revision 1 specified what a fixture may hold.
 
 **Reading order:** after [`07-replay.md`](07-replay.md), which defines the fixture this
 produces and the oracle that consumes it. [`05-observability.md`](05-observability.md) §3.2
@@ -49,7 +51,7 @@ the observability boundary, and both are being built — but nothing here is MVP
 ```typescript
 interface ReplayFixture {          // 07 §2, unchanged
   readonly name: string;
-  readonly config: NewGameConfig;         // campaignId, seed
+  readonly config: NewGameConfig;         // campaignId, seed, kindProfileData — nothing else
   readonly campaignVersion: string;       // the starting epoch (16 §5.6)
   readonly capturedUnder: string;         // engine version
   readonly submissions: readonly Submission[];
@@ -78,6 +80,46 @@ only, carries no entry.
 `config.kindProfileData` comes from the session record's `initialization` (04 §7.2), never from
 the profile as it is now. A record that predates that field is refused where `branchSession`
 refuses it (04 §7.4), because the creation input is lost.
+
+### 2.1 The capture operation
+
+**Capture is one engine operation, `SessionLayer.captureSession(sessionId, name)`, and it returns
+the fixture and nothing else.** It sits beside `forget` on the host-only layer
+([`06-extensibility.md`](06-extensibility.md) §4), not on `SessionStore`, for the reason in §4: the
+fixture carries the seed, and the seed never crosses the projection. A client that could call
+capture could read the seed, and with it every future draw in the session. So capture is not an
+MCP tool, and the client contract's one-to-one coverage (09) is unchanged.
+
+| Step | What happens | Refused with |
+|---|---|---|
+| 1. Hold | The session is read on its own queue, after every queued command settles, exactly as `branchSession` reads its source | `unknown_session` |
+| 2. Admit | The same gates as branching: `replayCompatible`, no migration entry, an `initialization` where the kind has profile data, every epoch the log names still held | `invalid_state`, `unknown_campaign` |
+| 3. Replay | The whole log is replayed from `{campaignId, seed, kindProfileData}` at the starting epoch, every action and adoption in order | `invalid_state` — an entry the kind now refuses |
+| 4. Build | `config`, `campaignVersion`, `capturedUnder` (the running `ENGINE_VERSION`), and one submission per log entry, with the caller's `name` | — |
+
+**Steps 1–3 are `branchSession`'s, shared rather than copied.** The two operations make the same
+claim — *this log reproduces this session* — and two copies of the refusals would drift, which is
+how this project's defects usually start. Branching replays a prefix and writes a new session from
+it. Capture replays all of it and writes nothing. Step 3 is not optional for capture: a fixture whose
+log the current engine refuses would come back from 07's runner as a rejected submission rather
+than the session, which is a false bug report.
+
+**Capture does not compare the replayed state with the stored one.** A difference would be a
+determinism defect, which 04 §14's harness owns. Branching does not compare either. The fixture
+reproduces the log, and the log is the session's identity (04 §4).
+
+**The operation writes nothing.** Storing a fixture, keeping it for the §6 window, and mapping it to
+an account are the host's (§8). The engine has no capture store, so it has no retention to
+enforce.
+
+**`name` is the caller's, and it must not identify anyone.** It must not be derived from the session
+id, the profile, or the account: that would put §3.1's identity back in through the label. The host
+picks an opaque name, and promotion (§7) renames it after the bug.
+
+**The outcome baseline is not part of capture.** 07's golden `Outcome` is produced at promotion,
+by replaying the fixture under `capturedUnder`. That is deterministic, so a baseline taken at
+capture would carry nothing extra. Producing the baseline at promotion also keeps capture's
+return value to a fixture that holds nothing but replay input.
 
 ---
 
@@ -113,9 +155,20 @@ stored artefact, which is exactly the hole
 > (`unknown_action`), never logged, and so never captured, for the reason 05 §8 drops it
 > from events: an unmatched id is caller-supplied text.
 >
-> **This rule covers keys, not values.** A declared string key can still carry free text when a
-> kind accepts its value without checking it against content. That is each kind's review
-> (§9), not this rule's.
+> **Values are each kind's own review, and every kind has done it.** A declared string key could
+> still carry free text if a kind accepted the value without checking it. Each kind therefore
+> checks every string it logs against an id the campaign or the session minted:
+>
+> | Kind | How a logged string value is bounded |
+> |---|---|
+> | `story-graph` | Declares no params (03 §8.2) |
+> | `world-graph` | Every id is checked against content or state before anything is applied (12 §6) |
+> | `simulation` | `plan.add` checks `targetId` against its `actionType`'s domain and `choiceId` against the pending response, and refuses a miss with `unknown_target` (10 §4). It used to defer that check to `end_week`, which let a caller's text sit in the plan and the log |
+>
+> The bound is *issued*, not *valid*. A target that is a real id but cannot be afforded, or whose
+> requirements are not met, is still `end_week`'s to resolve or reject. Being a real id is enough
+> to keep caller text out of the log. Numbers and booleans carry no free text and are outside the
+> review.
 
 **3.3 No timing.** No wall-clock, no durations, no inter-action intervals. They are not
 replay inputs (04 §2 keeps clocks out of `GameState` entirely), and timing is behavioural
@@ -163,6 +216,22 @@ Two triggers, both narrow:
 what turns a debugging tool into surveillance, and the oracle does not need volume — 07 §4
 wants a small corpus of *meaningful* fixtures, not a large one.
 
+**A fault capture takes the logged history, not the faulting submission.** A submission that
+faulted appended nothing to the log, and capture reads the log (§3.2: acceptance is declaration).
+So the fixture reproduces the session up to the state the fault happened in, and stops there.
+Whoever investigates replays it and then makes the faulting call, which the host's fault event
+records. Two consequences, stated so neither is mistaken for a gap:
+
+- **The faulting call's params are not in the fixture.** They were never accepted. If a fixture
+  carried them, a value the kind never judged would be stored — the leak §3.2 closes.
+- **A rejected save blob (`core.deserialize.rejected`) is not reproduced.** No submission produces
+  that blob, so a capture of that session covers the play, not the bad blob. Handling the blob is
+  the host's business under §8.
+
+A fixture that ended *on* the faulting submission, with the fault as its expected outcome, would
+need a fault entry in 07's `Outcome`. `runReplayFixture` has no such entry, and a thrown guard
+would crash it rather than be recorded. That is deferred under §9.
+
 ---
 
 ## 6. Retention
@@ -186,10 +255,11 @@ permanent**, and this is the moment that matters most:
 
 > **Promotion is a reviewed, human step. A capture is never promoted automatically.**
 
-At promotion the reviewer confirms identity is absent (§3.1), no declared param carries free
-text (§3.2; replaying the fixture already proves no undeclared key survives, since the kind
-rejects one), and the fixture is renamed to describe the *bug* rather than the session. What is
-committed is then a test artefact, not a record of a person.
+At promotion the reviewer confirms identity is absent (§3.1), including from the `name` the host
+gave it (§2.1). Replaying the fixture already proves no undeclared key and no unissued id
+survives (§3.2), since the kind rejects both. The reviewer renames the fixture to describe the
+*bug* rather than the session, and records the golden `Outcome` by replaying it under
+`capturedUnder` (07 §4). What is committed is then a test artefact, not a record of a person.
 
 The asymmetry with §6 is deliberate and worth stating: retention deletion cannot reach a
 promoted fixture, because it is in the history of a public repository. That is exactly why
@@ -216,14 +286,13 @@ more.
 
 ## 9. Deferred
 
-- **Value review of each kind's declared params.** §3.2 settles keys; a declared parameter is
-  not automatically a safe one. `world-graph` checks every id it accepts against content or
-  state, so a logged value is an id the campaign or the session minted. `simulation`'s
-  `plan.add` stores `targetId` and `choiceId` without checking them until `end_week` resolves
-  the plan, so a caller's text can reach the log. Capturing `simulation` sessions waits on that review.
-- **Automatic de-identification checks at promotion.** §7 is a human step. An undeclared key
-  needs no lint, since replaying the fixture rejects it (§3.2). A check that every declared
-  string value names a content id would make the remaining review harder to get wrong, and is
-  worth adding once there is a corpus to run it against.
+- **A fixture that ends on its fault.** §5 takes the history before a fault and leaves out the
+  faulting call. To carry that call, with the fault as its expected result, 07's `Outcome` needs
+  a fault entry, and `runReplayFixture` has to record a thrown guard instead of crashing. Reopen
+  this when such an entry is proposed for 07.
+- **Automatic de-identification checks at promotion.** §7 is a human step. Replay now rejects an
+  undeclared key and an unissued id (§3.2), so neither needs a lint. What remains is
+  the fixture's `name`, the one field no kind judges. A check on it is worth adding once there
+  is a corpus to run it against.
 - **Capture from clients other than the hosted one.** A self-hosting operator running their
   own deployment has their own obligations; this document does not attempt to specify them.

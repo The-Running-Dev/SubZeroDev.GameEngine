@@ -1043,6 +1043,12 @@ settles after it is returned to its caller but not cached. It never changes `ser
 kept off `SessionStore` so the client surface and the coverage checklist (09 §4) stay one-to-one:
 no client should be able to call it.
 
+**Capturing a session as a fixture is a host operation for the same reason, and a stronger one.**
+`SessionLayer.captureSession(sessionId, name)` returns the session as a `ReplayFixture`
+(`10-design.md` 07 §2, 08 §2.1). It is read-only and shares `branchSession`'s refusals (§7.4,
+*Capturing a session*). The fixture carries the seed, which never reaches a client (§6). If a
+client could call capture, it could read every future draw in its own session.
+
 **The store persists the envelope (§2) and nothing else about play.** Wall-clock
 timestamps, owner ids, and other host metadata live on the store's record, outside the
 replayable `GameState`. This is the boundary that keeps determinism intact while still
@@ -1893,6 +1899,38 @@ under a pinned `newGameId` is byte-identical to the stored blob, and reconstruct
 other id is observably different. A test that asserts only the first cannot tell a correct
 pinning from an engine that ignores `gameId` altogether.
 
+#### Capturing a session
+
+```typescript
+interface SessionLayer extends SessionStore {   // 06 §4 — host-only, never handed to a client
+  forget(sessionId: string): Promise<void>;
+  captureSession(sessionId: string, name: string): Promise<ReplayFixture>;
+}
+```
+
+**Capture is a whole-log branch that writes nothing and returns its input.** It holds the session
+on its own queue, as `branchSession` holds its source. It admits the session through the same
+gates and replays the whole log from the starting epoch, exactly as a branch at
+`atActionCount = actionLog.length` would. Then it returns the input to that replay instead of
+writing a session from it:
+
+| Fixture field | Taken from |
+|---|---|
+| `name` | the caller's `name`, unchanged |
+| `config` | `{ campaignId, seed }`, plus `kindProfileData` from the record's `initialization` where it is present (§7.2). Nothing else: no `audience`, no `profileId`, no `sessionId` |
+| `campaignVersion` | the starting epoch, as `branchSession` resolves it (16 §5.6) |
+| `capturedUnder` | the running `ENGINE_VERSION` |
+| `submissions` | one per log entry, in order: an action entry becomes `{ actionId, params }` copied verbatim, a content entry becomes an `AdoptionSubmission` to its `to` |
+
+Every refusal is `branchSession`'s, for the same reason, and none is new. The replay and its gates
+are one implementation shared by both operations, not two that agree. `invalid_fork_point` cannot
+arise, since capture takes no fork point. A fault-triggered capture is still a capture of the log,
+so the submission that faulted is not in it (08 §5).
+
+**`name` must not identify anyone.** The store passes it through and cannot check it. Deriving it
+from the session id, the profile or the account would undo §3.1 of 08 through the one field no
+kind judges. That rule is the host's to keep (08 §8).
+
 #### Authorization is host-owned, and `SessionStore` stays caller-agnostic
 
 **`profileId` on these operations is a scoping key, not a credential.** The store treats it as
@@ -1934,6 +1972,11 @@ already does.
 | `branchSession` | `invalid_state` | an action in the retained prefix is one the kind now refuses — logged before the kind declared its params (§3), it carries a key the kind no longer accepts | No | the log cannot regenerate its state under this build; branch before that entry |
 | `branchSession` | `invalid_state` | a content entry in the retained prefix no longer adopts | No | the kind's compatibility rule changed under a recorded adoption — 07 §6's divergence, one layer down |
 | `branchSession` | `unknown_campaign` | an epoch the retained prefix plays on — its starting version or one it adopted — no longer resolves | No | the content was withdrawn (07 §6's `unrunnable`, one layer down) |
+| `captureSession` | `unknown_session` | no such `sessionId` | No | the session is gone; nothing to capture |
+| `captureSession` | `invalid_state` | the session is `replayCompatible: false`, or its log carries a migration entry | No | this session cannot become a fixture |
+| `captureSession` | `invalid_state` | the record predates `initialization`, has a `profileId`, and its kind declares `profileData` | No | the creation input is lost; this session cannot become a fixture |
+| `captureSession` | `invalid_state` | a logged action or content entry is one the kind now refuses | No | the log cannot regenerate its state under this build; capture under the build that wrote it, or not at all |
+| `captureSession` | `unknown_campaign` | an epoch the log plays on no longer resolves | No | the content was withdrawn; the fixture would be `unrunnable` (07 §6) |
 
 `invalid_fork_point` joins `SessionStoreErrorCode` and needs its `core.reason.invalid_fork_point`
 string registered with the rest (§12); registry construction rejects an override of it like any
@@ -1971,6 +2014,18 @@ delegated to an adapter, which is the point of drawing the seam at `SessionPersi
 - **B4.** A branch's result depends on its source's recorded `initialization` and never on the
   source's profile as it is now. Changing that profile after `createSession`, or mutating the
   object the `ProfileStore` returned, leaves B1 holding. *Enforced by code.*
+- **F1.** `captureSession` writes nothing: no record, no cache entry, no `StateChange`, on success
+  or failure. *Enforced by code.*
+- **F2.** For a session `S` that captures, the fixture's submissions correspond one-to-one, in
+  order, with `S.actionLog`, and running it through 07's runner rejects none of them. The capture
+  replay is the replay `branchSession(S, |S.actionLog|)` performs, so B1 is what makes the fixture
+  reproduce `S`. *Enforced by code and by a capture-then-run round-trip test per kind.*
+- **F3.** A fixture carries no `profileId`, `sessionId`, `audience`, timestamp, or host metadata;
+  `config` has no key outside `{ campaignId, seed, kindProfileData }`. *Enforced by code;
+  a widening is a contract amendment to 08 §3.1.*
+- **F4.** Two captures of the same unchanged session under the same build with the same `name`
+  return equal fixtures. *Enforced by code — capture reads nothing a clock or `IdSource`
+  supplies.*
 - **A1.** No lifecycle operation reads or writes a `Kind`, and none appears in
   `{ seed, actionLog }`. *Enforced by instruction and by the determinism harness (§14) — a
   lifecycle operation that perturbed replay would fail an existing fixture.*
