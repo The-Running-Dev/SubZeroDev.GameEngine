@@ -18,6 +18,10 @@ only when it would have changed a decision.
    you will actually use.
 3. **Start a fresh session at phase boundaries.** `CLAUDE.md` + memory + the specs re-prime
    a new session cheaply — that's why they're kept tight.
+4. **One slice per session, not one programme.** Running S136 → S139 plus two aligns in one
+   session (2026-11-01) compacted seven or more times. Each compaction meant the later slices
+   were built from a summary of the contract, not the contract. `/agentkit:next` carries
+   *a* slice through merge; start the next slice in a fresh session.
 
 ## What Worked (Keep Doing)
 
@@ -127,6 +131,14 @@ README, whose status is deliberately coarse.
   gate gets checked only when someone compares the two sets by hand, the same shape as the
   *emitted → registered* reason-code gap `20-contract.md` §10 already records. Treat a
   hand-maintained list against code as a drift surface, and count it from source every time.
+- **"Generated guide is stale" can mean only the stamp.** The generator fails on the guide's
+  design digest, so it fires after any canonical edit, even one the guide never described. Its
+  message still says to run `/agentkit:docs`, which no longer exists. Grep the guide for what
+  changed: if it already says it, `-StampGuide` alone is the fix; if not, edit the guide first.
+- **Housekeeping's `TipAheadOfMergedPr` is not proof of unmerged work.** On 2026-11-01 it flagged
+  six local branches; all six were ancestors of, or patch-equivalent to, their merged PR heads.
+  Before deleting or keeping such a branch, check `git merge-base --is-ancestor` against the PR's
+  head and `git cherry` for patches. The script's verdict is where the inspection starts.
 
 ## Open Concerns & Assumptions
 
