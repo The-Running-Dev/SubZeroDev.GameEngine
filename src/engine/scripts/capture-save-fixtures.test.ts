@@ -16,7 +16,8 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
 import { createEngine } from "../src/core/kernel/engine.js";
-import { createInMemorySessionStore } from "../src/core/session/store.js";
+import { createInMemorySessionStore, createSessionLayer } from "../src/core/session/store.js";
+import type { SessionLayer } from "../src/core/composition/types.js";
 import { TextClient } from "../src/clients/text/client.js";
 import { actionSubmissions, loadFixture } from "../src/campaigns/replay-corpus.js";
 import { SessionStoreError } from "../src/core/session/types.js";
@@ -112,7 +113,7 @@ describe("W104.3 — representative saves load through a real SessionStore", () 
 
 /** Stores over one set of rows, loading the named committed save; `open()` is a later process
  *  reading what an earlier one wrote. */
-function rowsOverSave(name: string): { open: () => ReturnType<typeof createInMemorySessionStore>; rows: Map<string, StoredSessionRecord>; puts: () => number; engine: ReturnType<typeof createEngine> } {
+function rowsOverSave(name: string): { open: () => ReturnType<typeof createInMemorySessionStore>; layer: () => SessionLayer; rows: Map<string, StoredSessionRecord>; puts: () => number; engine: ReturnType<typeof createEngine> } {
   const entry = SAVE_FIXTURES.find((candidate) => candidate.name === name)!;
   const blob = loadSaveBlob(entry.name);
   const { kinds, registry } = buildRegistry(entry.kindId);
@@ -120,18 +121,16 @@ function rowsOverSave(name: string): { open: () => ReturnType<typeof createInMem
   const saves = saveRecordStoreWith(blob, (JSON.parse(blob) as { campaignId: string }).campaignId);
   let puts = 0;
   const engine = createEngine({ kinds, registry, ids: FIXED_IDS });
-  const open = () => createInMemorySessionStore({
-    engine,
-    registry,
-    persistence: {
-      sessions: {
-        async get(sessionId) { return rows.get(sessionId); },
-        async put(record) { puts += 1; rows.set(record.sessionId, record); },
-      },
-      saves,
+  const persistence = {
+    sessions: {
+      async get(sessionId: string) { return rows.get(sessionId); },
+      async put(record: StoredSessionRecord) { puts += 1; rows.set(record.sessionId, record); },
     },
-  });
-  return { open, rows, puts: () => puts, engine };
+    saves,
+  };
+  const open = () => createInMemorySessionStore({ engine, registry, persistence });
+  const layer = () => createSessionLayer({ engine, registry, persistence });
+  return { open, layer, rows, puts: () => puts, engine };
 }
 
 /**
@@ -199,6 +198,31 @@ describe("S136 — simulation saves under acceptance-is-declaration", () => {
     await expect(store.branchSession(loaded.sessionId, 2)).rejects.toMatchObject({ operation: "branchSession", code: "invalid_state" });
     expect(puts()).toBe(before);
     await expect(store.branchSession(loaded.sessionId, 0)).resolves.toBeDefined();
+  });
+
+  // S139 captures through the same gates and replay as branchSession: a log the kind now
+  // refuses cannot become a fixture, and saying so writes nothing.
+  const refusedLogs: readonly [string, (params: Record<string, unknown> | undefined) => Record<string, unknown>][] = [
+    ["a `rest` holding a `targetId`", (params) => ({ actionType: "rest", targetId: params?.["targetId"] })],
+    ["a `targetId` the game never issued", (params) => ({ ...params, targetId: "never-issued" })],
+  ];
+
+  it.each(refusedLogs)("S139.6 — captureSession over %s throws invalid_state, writing nothing", async (_label, tamper) => {
+    const { open, rows, puts, engine, layer } = rowsOverSimulationSave();
+    const loaded = await open().loadGame("w104");
+
+    const row = rows.get(loaded.sessionId)!;
+    const state = engine.deserialize(row.blob);
+    if (!state.ok || !state.value) throw new Error("expected the loaded row to deserialize");
+    const tampered = structuredClone(state.value);
+    const first = tampered.actionLog[0] as { params?: Record<string, unknown> };
+    expect(first.params?.["targetId"]).toBeTypeOf("string");
+    first.params = tamper(first.params);
+    rows.set(loaded.sessionId, { ...row, blob: engine.serialize(tampered) });
+    const before = puts();
+
+    await expect(layer().captureSession(loaded.sessionId, "tampered")).rejects.toMatchObject({ operation: "captureSession", code: "invalid_state" });
+    expect(puts()).toBe(before);
   });
 });
 

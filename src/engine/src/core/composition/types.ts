@@ -17,6 +17,7 @@ import type { Engine, KindRegistry, ResolutionArchive } from "../kernel/types.js
 import type { Emitter } from "../observability/types.js";
 import type { ProfileStore, SessionPersistence, SessionStore } from "../session/types.js";
 import type { EmittedRecordSink } from "../observability/types.js";
+import type { ReplayFixture } from "../replay/types.js";
 
 /**
  * Supplies the identity the core does not generate itself. The default is random, so a
@@ -121,4 +122,8 @@ export interface SessionLayer extends SessionStore {
    *  holding the session and any persistence read in flight for it first; a read that began
    *  before the call is returned to its caller but not cached. Never changes `serialize()`. */
   forget(sessionId: string): Promise<void>;
+  /** 20-contract.md, "Capturing a session". `sessionId`'s whole log as a `ReplayFixture` named
+   *  `name`: a replay through `branchSession`'s gates, refused under `"captureSession"` where a
+   *  branch would be, that writes, caches and emits nothing. */
+  captureSession(sessionId: string, name: string): Promise<ReplayFixture>;
 }

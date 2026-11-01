@@ -605,7 +605,7 @@ Out of scope: Session capture (S139); checking `amountCents`, `close` or any val
 
 ## S139 — A Host Captures a Played Session as a Replay Fixture
 
-Status: todo
+Status: done
 Delivers: Whoever runs a hosted game can turn a session someone played into a regression test,
           without asking anyone to play it again and without the test learning who played it. The
           capture reproduces the game exactly, changes nothing about the session, and says
