@@ -708,21 +708,45 @@ player built and revised is part of how the week turned out.
 it the first kind for which `08-session-capture` §3.2's rule has teeth: a fixture carries only
 *declared* parameters, because `advance` rejects any other key (04 §3).
 
-`plan.add`'s keys depend on its `actionType`. Every type accepts `actionType` and an optional
-`targetId`. Four types take one more key, and no other type takes any:
+`plan.add`'s keys depend on its `actionType`. Every type accepts `actionType`. A type that
+targets something accepts an optional `targetId`, and a type that does not, does not. Four types
+take one more key, and no other type takes any:
 
-| `actionType` | Additional key |
-|---|---|
-| `borrow_money`, `repay_debt`, `deposit_savings`, `invest` | `amountCents` (integer) |
-| `respond_to_event` | `choiceId` (string — one of the pending response's choices) |
-| `operate_business` | `close` (boolean) |
+| `actionType` | `targetId` names | Additional key |
+|---|---|---|
+| `apply_for_job` | a job in the campaign | — |
+| `enroll_course`, `attend_class`, `study`, `withdraw_course` | a course in the campaign | — |
+| `move_housing` | a housing option in the campaign | — |
+| `shop` | an item definition in the campaign | — |
+| `maintain_item`, `repair_item`, `sell_item` | an inventory instance, or one a `shop` in the pending plan will create | — |
+| `travel` | a location in the campaign | — |
+| `socialize` | an NPC in the campaign | — |
+| `accept_opportunity`, `decline_opportunity` | an opportunity in the state | — |
+| `respond_to_event` | a pending response in the state | `choiceId` (string — one of that response's `availableChoiceIds`) |
+| `start_project` | a project in the campaign | — |
+| `work_on_project` | a project instance, or one a `start_project` in the pending plan will create | — |
+| `start_business` | a business in the campaign | — |
+| `operate_business` | a business instance, or one a `start_business` in the pending plan will create | `close` (boolean) |
+| `borrow_money`, `repay_debt`, `deposit_savings`, `invest` | — | `amountCents` (integer) |
+| `work`, `work_overtime`, `search_for_work`, `negotiate_job_terms`, `eat`, `rest`, `exercise`, `pay_bills` | — | — |
 
 `plan.remove` takes only `index`; `plan.clear` and `end_week` take none. A key outside this
-table, including one valid for a different `actionType`, is `unexpected_params` (§10).
-`targetId` and `choiceId` are ids, not free text, but `plan.add` does not check them against
-content; `end_week`'s resolvers do. Until the plan is resolved, a caller's string can sit in
-the plan and the log, which is why capturing this kind waits on a value review
-(`08-session-capture.md` §9).
+table, including one valid for a different `actionType`, is `unexpected_params` (§10). That
+includes `targetId` on a type with no target: its resolver never read it, so accepting it only
+let a caller's text into the log.
+
+**`targetId` and `choiceId` are checked when they are added, not when they resolve.** `plan.add`
+refuses a `targetId` outside its type's domain above, or a `choiceId` outside the named response's
+`availableChoiceIds`, with `unknown_target` (§10). Nothing is appended, so the value never reaches
+the plan or the log. An instance "a pending action will create" is one whose id the kind derives
+from that action (`inv-`, `project-` or `business-` followed by the action's own id). It must
+belong to an entry of the minting type that is in the plan when `plan.add` runs. The check asks
+only whether the id was *issued* — by the campaign, by the state, or by the plan. Everything else
+is still `end_week`'s, and it rejects or resolves those cases exactly as before: affordability,
+requirements, an active enrollment, an item that a `shop` later in the plan has not bought yet,
+and a `targetId` that a targeting type needs but was not given. Numbers and booleans carry no
+text and are outside the check. Before this check, a caller's string could sit in the plan and the
+log until `end_week`, which was what blocked capturing this kind (`08-session-capture.md` §3.2).
 
 **Plans are immutable.** Every edit produces a new plan; preview is free and never requires
 re-validating from scratch.
@@ -2903,6 +2927,7 @@ author, and a client rendering a history.
 | `week_limit_reached` | The scenario's week cap is exhausted | specified, not yet dispatched |
 | `event_response_pending` | `end_week`, or a `plan.add` for any `ActionType` other than `respond_to_event`, while a `PendingEventResponse` (§2.3) remains unaddressed by the current plan | registered (W94) |
 | `unexpected_params` | A `params` key §4 does not declare for that `actionId` (for `plan.add`, for that `actionType`) — 04 §3 | registered (S136) |
+| `unknown_target` | A `plan.add` whose `targetId` is not an id in its `actionType`'s domain, or whose `choiceId` is not in the named response's `availableChoiceIds` (§4). It is checked last, after `unexpected_params` and `event_response_pending`, so no input those already reject changes code | specified, not yet dispatched (2026-11-01) |
 
 Reused from the base set: `unknown_action`, `requirement_unmet`, `session_ended`,
 `action_not_available` (a `"custom"` `GameAction` reaching resolution, §4.2).

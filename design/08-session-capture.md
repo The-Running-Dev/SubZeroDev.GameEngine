@@ -8,6 +8,8 @@
 
 ## 2. What Is Captured
 
+### 2.1 The capture operation
+
 ## 3. What Is Refused
 
 ## 4. The Seed Is the Sharp Edge

@@ -150,6 +150,8 @@ interface SessionHost {
 interface SessionLayer extends SessionStore {
   /** Drops `sessionId` from the in-memory cache without a write (§5.2). */
   forget(sessionId: string): Promise<void>;
+  /** Replays `sessionId`'s log and returns it as a `ReplayFixture` (08 §2.1); writes nothing. */
+  captureSession(sessionId: string, name: string): Promise<ReplayFixture>;
 }
 
 function createSessionLayer(host: SessionHost): SessionLayer;
@@ -160,6 +162,11 @@ function createSessionLayer(host: SessionHost): SessionLayer;
 > is something only the host that owns persistence should do — when it deletes a row, or retires
 > an epoch (16 §6) — so it is typed where only that host holds it. A host that hands clients
 > the store passes it as `SessionStore`, and `forget` is out of reach.
+>
+> **`captureSession` is on the layer for a stronger reason: its result carries the seed.** The
+> seed never crosses the projection (04 §6), and a fixture is one. A client that could capture
+> could read every future draw in its own session. Consent, the trigger, storage, retention and the
+> capture-to-account mapping are the host's (08 §8). The layer only makes the fixture.
 
 > **`sessions: SessionStore` is what this field used to be, and the change is the point.**
 > Handing the root a finished `SessionStore` and asking it to return one only made sense if
@@ -296,6 +303,14 @@ then drops the cached record without writing it. A read that began before `forge
 after it is returned to its caller but not cached, so the next use reads the adapter again. It
 works with or without `persistence` — without it, the session is simply gone — and it never
 changes `serialize()`.
+
+**`captureSession(sessionId, name)` holds the session like a command and writes like none.** It
+waits on the session's queue, as `branchSession` does for its source, so it reads a committed
+state and never a write in flight. It replays the log through the engine the layer was built
+on, so an adoption resolves through the same channel and archive the session did. It writes no
+row and no cache entry, emits no `StateChange`, and does not hold the session after it returns.
+Two captures of an unchanged session return equal fixtures, given the same `name`. Its refusals
+are `branchSession`'s (04 §7.4), with `operation: "captureSession"`.
 
 `ProfileStore` (04 §7.1) is unchanged and remains a port in the original sense — a host
 supplies the whole thing. Its obligations:

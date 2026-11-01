@@ -632,6 +632,13 @@ personal data in a captured fixture. Whether an overlay's existence leaks throug
 host exposes — a catalog, an error, a timing difference in adoption — is not designed.
 **Revisit** before a host ships per-profile overlays.
 
+**A captured fixture cannot end on its fault.** A fault-triggered capture takes the logged
+history and leaves out the submission that faulted (08 §5). A fixture that carried that call needs
+a fault entry in 07's `Outcome`. It also needs `runReplayFixture` to record a thrown guard, such as
+story-graph's settle guard, instead of crashing. Neither exists (08 §9). **Revisit** when a fault
+entry for 07's `Outcome` is proposed, or when a fault proves impossible to reproduce from the
+history plus the host's fault event.
+
 **Attachments cannot yet do everything the Adventures extension merge does.** The merge adds
 achievements and adds more than one choice to a host node; 04 §10.4's attachment model does
 neither. Each is a gap in attachments, not a reason for a second extension contract (story

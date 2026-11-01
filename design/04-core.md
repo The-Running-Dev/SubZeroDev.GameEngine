@@ -48,6 +48,8 @@
 
 #### Reproducing a stored session from its log
 
+#### Capturing a session
+
 #### Authorization is host-owned, and `SessionStore` stays caller-agnostic
 
 #### Error semantics

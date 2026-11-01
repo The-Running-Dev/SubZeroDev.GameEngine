@@ -642,6 +642,13 @@ personal data in a captured fixture. Whether an overlay's existence leaks throug
 host exposes — a catalog, an error, a timing difference in adoption — is not designed.
 **Revisit** before a host ships per-profile overlays.
 
+**A captured fixture cannot end on its fault.** A fault-triggered capture takes the logged
+history and leaves out the submission that faulted (08 §5). A fixture that carried that call needs
+a fault entry in 07's `Outcome`. It also needs `runReplayFixture` to record a thrown guard, such as
+story-graph's settle guard, instead of crashing. Neither exists (08 §9). **Revisit** when a fault
+entry for 07's `Outcome` is proposed, or when a fault proves impossible to reproduce from the
+history plus the host's fault event.
+
 **Attachments cannot yet do everything the Adventures extension merge does.** The merge adds
 achievements and adds more than one choice to a host node; 04 §10.4's attachment model does
 neither. Each is a gap in attachments, not a reason for a second extension contract (story
@@ -2982,3 +2989,27 @@ Context: S137.6, the `world-graph` half of the S136 entry above.
 Chosen: `world-graph` stays `1.0.0`, with no migration, for the same reason `simulation` does. The refusal changes `advance`, not state shape. Before S137 the reducers ignored an extra key, so no recorded outcome depended on one. The `world-graph-mvp-` fixtures replay unchanged, and the committed `world-graph-active` save loads and re-runs whole. A stored log that does carry a stray key is refused by `branchSession` with `invalid_state`, as S136 made it. The check runs after `session_ended` and before the action switch, so an action id 12 §6 does not name still answers `unknown_action`.
 Rejected: the same two bumps the S136 entry rejects, for the same reasons.
 Reversibility: cheap. A bump can still be added if a host turns up a stored log with a stray key.
+
+### 2026-11-01 — Session capture: simulation checks an id when it is planned, not when it resolves
+Context: `/agentkit:design` for capture's two remaining blockers. The first is 08 §9's value review. `simulation`'s `plan.add` stored `targetId` and `choiceId` without checking them, and `end_week`'s resolvers checked them only when the plan resolved. Until then, any string a caller sent sat in the plan and the log, and a capture would have kept it.
+Chosen: **an issued-id check in `plan.add`.** A `targetId` must be in its `actionType`'s domain (10 §4). The domain is a content id, an instance in the state, or the id of an instance that an earlier entry still in the pending plan will create. A `choiceId` must be in the named response's `availableChoiceIds`. A miss is refused with the new `unknown_target` (10 §10). That check runs last, so no input that is already rejected changes code. The check asks only whether the id was *issued*. Affordability, requirements, active enrollment and plan order all stay with `end_week`. Numbers and booleans are outside the review. No `kindVersion` bump: the check narrows `advance` and not state shape, and a stored log holding an unissued id is refused on replay with `invalid_state` (04 §7.4), as S136 established.
+Rejected: **A shape-only check** (a well-formed id, no lookup). `"x-" + anything` passes, so caller text still reaches the log. **Checking values at capture or promotion through a `Kind` member.** That is a second copy of each resolver's lookup — the objection 12 §7 makes to `validateCommand`. It also leaves the text in the live log and only hides it from the fixture.
+Reversibility: cheap until the code dispatches `unknown_target`. Relaxing the check afterwards is additive; tightening it again is not.
+
+### 2026-11-01 — Session capture: a type with no target declares no `targetId`
+Context: found while writing the entry above. 10 §4 declared an optional `targetId` on every `actionType`, but twelve resolvers never read it: `work`, `work_overtime`, `search_for_work`, `negotiate_job_terms`, `eat`, `rest`, `exercise`, `pay_bills`, `borrow_money`, `repay_debt`, `deposit_savings`, `invest`. An issued-id check on those types has an empty domain, so the key was free text that the kind declared and then ignored, which 04 §3 forbids.
+Chosen: those twelve types no longer declare `targetId`, so sending it is `unexpected_params`. This follows from the issued-id decision above rather than opening a new fork. No committed fixture or save carries `targetId` on any of them. The one in-repository use is a test in `src/engine/src/kinds/simulation/advance.test.ts`, which sends `rest` a `targetId`; the plan updates it.
+Rejected: **Keeping the key and checking it against an empty domain.** That returns `unknown_target` for every value, which is the same refusal under a misleading code. **Keeping the key unchecked.** It is exactly the hole the value review closes.
+Reversibility: cheap. Re-declaring the key is additive.
+
+### 2026-11-01 — Session capture: `captureSession` is a host-only `SessionLayer` operation
+Context: the second blocker. Neither `20-contract.md` nor `SessionStore` defined how a session becomes a fixture. The fixture carries the seed, and the seed never crosses the projection (04 §6).
+Chosen: **`SessionLayer.captureSession(sessionId, name): Promise<ReplayFixture>`**, beside `forget` (06 §4; 04 §7.4, *Capturing a session*). It holds the session on its queue and passes `branchSession`'s gates, sharing the implementation rather than copying it. It replays the whole log and returns the replay's input as the fixture. It writes nothing. `config` is `{campaignId, seed, kindProfileData}` and nothing else, `campaignVersion` is the starting epoch, and `capturedUnder` is `ENGINE_VERSION`. Each content entry becomes an `AdoptionSubmission`. `name` comes from the caller, and the host must not derive it from identity. Consent, triggers, storage, retention and the capture-to-account mapping stay the host's (08 §8). The golden `Outcome` is made at promotion, by replaying under `capturedUnder` (08 §7), not at capture. New invariants F1–F4.
+Rejected: **A pure function in the authoring entry point over a blob.** It bypasses the session queue, so it can read a write in flight, and it would need its own copy of every branching refusal. **Leaving capture to each host.** Each host would rebuild the replay and its refusals, and the first one to miss one would turn a migrated session into a false fixture. **Putting it on `SessionStore`.** That makes it an MCP tool and hands a client the seed. **Returning a baseline `Outcome` with the fixture.** Replay is deterministic, so a baseline adds nothing to the fixture, and the return value should hold nothing but replay input.
+Reversibility: cheap while unbuilt. Once a host calls it, a change to the signature is a 0.x contract break, and adding to it is additive.
+
+### 2026-11-01 — Session capture: a fault capture takes the log, not the faulting submission
+Context: 08 §5 allows an automatic capture on an `error`-severity event. The submission that faulted was never accepted, so it is not in the log. 07's `Outcome` has no fault entry, and `runReplayFixture` would crash on a thrown guard such as story-graph's settle guard.
+Chosen: **the logged history only.** The fixture reproduces the state the fault happened in, and the host's fault event records the call that faulted (08 §5). For a rejected save blob (`core.deserialize.rejected`), no submission reproduces the blob, so the capture covers the play, not the bad blob. A fixture that ends on its fault is in the open register (*A captured fixture cannot end on its fault*).
+Rejected: **Appending the faulting submission, with the fault as the expected result.** It needs a fault entry in 07's `Outcome` and a runner that records a throw. It also stores params the kind never accepted, which reopens 08 §3.2. **Deferring the fault trigger entirely.** That leaves the one automatic trigger 08 §5 names with no defined result, and the capture operation itself does not depend on the choice.
+Reversibility: cheap. Adding a trailing faulting submission later is additive to the fixture format, once 07 can score it.
