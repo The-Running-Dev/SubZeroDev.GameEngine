@@ -35,6 +35,7 @@ const AUTHORING_VALUE_EXPORTS = [
   "buildSimulationCampaign",
   "buildStoryGraphCampaign",
   "createAdventureSource",
+  "createReplayContext",
   "digestManifestResolution",
   "digestPortableCampaign",
   "findDivergence",
@@ -303,5 +304,39 @@ describe("the runtime root publishes no narrative campaign (W74c)", () => {
     for (const sourceTypeName of AUTHORING_TYPE_EXPORTS.filter((name) => name.endsWith("Source"))) {
       expect(rootSourceTypeNames).not.toContain(sourceTypeName);
     }
+  });
+});
+
+describe("a capturing host compiles against the root alone; the runner stays on /authoring (S140)", () => {
+  const CAPTURE_TYPES = ["ActionSubmission", "AdoptionSubmission", "ReplayFixture", "Submission"];
+  const RECORD_TYPES = ["EmittedRecord", "EmittedRecordSink"];
+  const RUNNER_VALUES = ["buildReplayOutcome", "createReplayContext", "findDivergence", "runReplayFixture"];
+  const RUNNER_TYPES = [
+    "ActionDecision",
+    "AdoptionDecision",
+    "Decision",
+    "Outcome",
+    "ReplayResult",
+    "ReplayRunnerContext",
+    "ReplayVerdict",
+  ];
+
+  it("S140.1 — the root exports the fixture, submission and record-sink types", () => {
+    const rootTypes = declaredExports(ROOT_SOURCE).types;
+    for (const name of [...CAPTURE_TYPES, ...RECORD_TYPES]) expect(rootTypes).toContain(name);
+  });
+
+  it("S140.2 — the root exports neither the runner nor its vocabulary", () => {
+    const { values, types } = declaredExports(ROOT_SOURCE);
+    for (const name of RUNNER_VALUES) {
+      expect(Object.keys(root)).not.toContain(name);
+      expect(values).not.toContain(name);
+    }
+    for (const name of RUNNER_TYPES) expect(types).not.toContain(name);
+  });
+
+  it("S140.3 — /authoring keeps every replay type and the runner", () => {
+    for (const name of [...CAPTURE_TYPES, ...RUNNER_TYPES]) expect(AUTHORING_TYPE_EXPORTS).toContain(name);
+    for (const name of RUNNER_VALUES) expect(AUTHORING_VALUE_EXPORTS).toContain(name);
   });
 });

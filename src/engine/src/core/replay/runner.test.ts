@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildReplayOutcome, findDivergence, runReplayFixture, type ReplayRunnerContext } from "./runner.js";
+import { buildReplayOutcome, createReplayContext, findDivergence, runReplayFixture, type ReplayRunnerContext } from "./runner.js";
 import type { Outcome, ReplayFixture, Submission } from "./types.js";
 import { createContentArchive } from "../registry/archive.js";
 import { createEngine } from "../kernel/engine.js";
@@ -389,5 +389,33 @@ describe("S135.3 — an adoption runs through adoptContent, counts in decisions,
   it("throws on an adoption naming the version the game is already on — a fixture records only adoptions that happened", async () => {
     const context = makeEpochContext(epochRegistry("1"), [epochRegistry("2")]);
     await expect(buildReplayOutcome(context, makeFixture({ submissions: [{ adopt: "1" }] }))).rejects.toThrow(/already on/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// S140 — createReplayContext (20-contract §19; 07 §6). S140.5 runs over a committed fixture,
+// which needs a kind, so it lives in `campaigns/world-graph-mvp.replay.test.ts`.
+// ---------------------------------------------------------------------------
+
+describe("S140.4 — createReplayContext fills the context from the engine and the registry it is given", () => {
+  it("returns the arguments, the engine's kinds, a fresh profile store per call and the default profile id", () => {
+    const registry = makeRegistry();
+    const engine = makeContext(registry).engine;
+    const first = createReplayContext(engine, registry);
+    const second = createReplayContext(engine, registry);
+
+    expect(first.engine).toBe(engine);
+    expect(first.registry).toBe(registry);
+    expect(first.kinds).toBe(engine.kinds);
+    expect(first.profileId).toBe("replay");
+    expect(first.profiles).not.toBe(second.profiles);
+  });
+
+  it("returns the profile store and profile id passed in options", () => {
+    const registry = makeRegistry();
+    const profiles = createInMemoryProfileStore();
+    const context = createReplayContext(makeContext(registry).engine, registry, { profiles, profileId: PROFILE_ID });
+    expect(context.profiles).toBe(profiles);
+    expect(context.profileId).toBe(PROFILE_ID);
   });
 });
