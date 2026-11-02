@@ -95,7 +95,10 @@ export type { CommandResult, StateChange, ReasonCode } from "./core/kernel/reaso
 export type { LocKey } from "./core/localization/types.js";
 export type { StringTable } from "./core/localization/types.js";
 export type { Condition } from "./core/condition/types.js";
-export type { Emitter, EngineEvent } from "./core/observability/types.js";
+export type { Emitter, EmittedRecord, EmittedRecordSink, EngineEvent } from "./core/observability/types.js";
+// What a host capturing sessions compiles against (20-contract §19, S140). The runner that
+// judges a fixture stays on `/authoring`.
+export type { ActionSubmission, AdoptionSubmission, ReplayFixture, Submission } from "./core/replay/types.js";
 export type { WorldGraphCampaign, WorldGraphCampaignSource } from "./kinds/world-graph/content.js";
 export type { WorldGraphKindState, WorldGraphView } from "./kinds/world-graph/state.js";
 export type { WorldGraphOutcome } from "./kinds/world-graph/outcome.js";

@@ -15,6 +15,7 @@
 import type { ActionResult, Engine, GameState, KindRegistry } from "../kernel/types.js";
 import type { ContentRegistry } from "../registry/types.js";
 import type { ProfileStore } from "../session/types.js";
+import { createInMemoryProfileStore } from "../session/profile-store.js";
 import { upsertAchievements } from "../session/store.js";
 import { canonicalize as canonicalStringify } from "subzerodev-data-json";
 import type { Decision, Outcome, ReplayFixture, ReplayVerdict } from "./types.js";
@@ -25,6 +26,27 @@ export interface ReplayRunnerContext {
   readonly registry: ContentRegistry;
   readonly profiles: ProfileStore;
   readonly profileId: string;
+}
+
+/**
+ * A host's runner context in one call (20-contract §19, S140). `registry` is the host's
+ * *current* publication — withdrawal is read from it (07 §6) — never
+ * `engine.content.resolve(campaignId, fixture.campaignVersion)`, which always holds the
+ * campaign and so can never report `campaign_withdrawn`. Achievements accumulate in
+ * `profiles`, so the default is a fresh store per call: one context per run.
+ */
+export function createReplayContext(
+  engine: Engine,
+  registry: ContentRegistry,
+  options?: { readonly profiles?: ProfileStore; readonly profileId?: string },
+): ReplayRunnerContext {
+  return {
+    engine,
+    kinds: engine.kinds,
+    registry,
+    profiles: options?.profiles ?? createInMemoryProfileStore(),
+    profileId: options?.profileId ?? "replay",
+  };
 }
 
 export type ReplayResult =

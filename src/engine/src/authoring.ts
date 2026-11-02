@@ -16,7 +16,7 @@ export {
 } from "./campaigns/adventure-builder.js";
 export { toPortable } from "./portable/format.js";
 export { digestPortableCampaign, digestManifestResolution } from "./portable/digest.js";
-export { buildReplayOutcome, findDivergence, runReplayFixture } from "./core/replay/runner.js";
+export { buildReplayOutcome, createReplayContext, findDivergence, runReplayFixture } from "./core/replay/runner.js";
 
 export type {
   AdventureConfig,
