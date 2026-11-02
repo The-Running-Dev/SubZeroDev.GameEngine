@@ -44,4 +44,6 @@
 
 ## S139 — A Host Captures a Played Session as a Replay Fixture
 
+## S140 — A Host Captures Without the Authoring Subpath
+
 ## Landed

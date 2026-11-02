@@ -3261,8 +3261,8 @@ The package root is the runtime contract. `@the-running-dev/game-engine/authorin
 separate author-time contract for repositories that own campaign source. It exports the
 generic campaign builder, the story-graph source builder, the simulation source builder with
 its content-definition source types, the shared adventure builder with its source factory and
-its migration helper, portable serialization and manifest digests, and replay-runner
-types/functions. It is deliberately a subpath: a runtime host must not import authored
+its migration helper, portable serialization and manifest digests, and the replay runner with
+its types and its context helper. It is deliberately a subpath: a runtime host must not import authored
 campaign source merely to play published portable JSON.
 
 A kind's export split follows one rule regardless of which kind it is: the builder and its
@@ -3270,6 +3270,41 @@ source types are author-time and belong on `/authoring`; the campaign, state, vi
 types are what a runtime host compiles against and belong at the root
 (design/30-slices.md, W88). `buildWorldGraphCampaign`'s root placement predates the subpath
 and is an exception noted here rather than moved.
+
+**What a capturing host compiles against is at the root too; the runner stays on
+`/authoring`** (design/30-slices.md, S140). The same rule applies to replay. A host that calls
+`SessionLayer.captureSession` (§7.4, *Capturing a session*) receives a `ReplayFixture`, which
+holds `Submission` values (`ActionSubmission` or `AdoptionSubmission`). The root exports those
+four types, and `/authoring` keeps exporting them. `createSessionLayer`'s `recordSink` port
+(`10-design.md` 06 §4) is the host's to supply, so `EmittedRecord` and `EmittedRecordSink` join
+`Emitter` and `EngineEvent` at the root. The runner and its vocabulary stay on `/authoring`
+only, because judging a fixture is a corpus pipeline's job and not a running host's:
+- `runReplayFixture`, `buildReplayOutcome` and `findDivergence`;
+- `Outcome`, `Decision`, `ActionDecision` and `AdoptionDecision`;
+- `ReplayVerdict`, `ReplayResult` and `ReplayRunnerContext`.
+
+`/authoring` builds the runner's context in one call:
+
+```typescript
+function createReplayContext(
+  engine: Engine,
+  registry: ContentRegistry,
+  options?: { readonly profiles?: ProfileStore; readonly profileId?: string },
+): ReplayRunnerContext;
+```
+
+The returned context is `{ engine, kinds: engine.kinds, registry, profiles, profileId }`:
+- `profiles` defaults to a new `createInMemoryProfileStore()` on each call.
+- `profileId` defaults to `"replay"`.
+
+**`registry` is the host's current publication.** It is the registry that 07 §6 reads
+withdrawal from. It is not `engine.content.resolve(campaignId, fixture.campaignVersion)`: a
+registry resolved at the fixture's own version always holds the campaign, so a withdrawn
+campaign whose versions are still archived would replay instead of reporting
+`campaign_withdrawn`. The engine is a parameter rather than built here because the runner
+resolves every named version through `engine.content` (07 §6), and only the host's engine
+holds its archive. Achievements accumulate in `profiles` across runs, so a context serves one
+`runReplayFixture` call: calling the helper once per fixture gives each run its own store.
 
 `SubZeroDev.Adventures.Content` owns the canonical source and publication of narrative
 campaigns. GameEngine owns kinds, validation, portable hydration and authoring primitives.

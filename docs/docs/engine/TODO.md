@@ -15,7 +15,9 @@ review, planned in
 S129–S135 build content epochs, [`16-content-epochs.md`](16-content-epochs.md). S136–S137 make
 every kind refuse undeclared action params, the precondition for session capture
 ([`08-session-capture.md`](08-session-capture.md)). S138 makes simulation refuse an id it never
-issued, the last such precondition, and S139 builds capture.
+issued, the last such precondition, and S139 builds capture. S140 puts what a capturing
+host compiles against at the package root
+([issue 628](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/issues/628)).
 
 > **Where a retired unit's full text is.** Every W unit's body — what it delivers, its numbered
 > acceptance criteria, its scope, and the programme prose that grouped units together — is in this
@@ -643,6 +645,38 @@ Out of scope: When or why a host captures, consent, where a fixture is stored an
               promotion to the committed corpus and its golden `Outcome` (08 §7), a capture that
               records the submission a session faulted on, and wiring capture into
               SubZeroDev.Adventures.
+
+## S140 — A Host Captures Without the Authoring Subpath
+
+Status: todo
+Delivers: A host that records played sessions, and the records the engine emits, compiles against
+          the package root alone. Checking a captured fixture still takes the authoring subpath, and
+          setting up that check is one call that cannot silently lose the withdrawn-campaign
+          verdict.
+Touches: `src/engine/src/index.ts`, `src/engine/src/authoring.ts`, `src/engine/src/core/replay/runner.ts`,
+         `src/engine/src/authoring.test.ts`, `src/engine/src/core/replay/runner.test.ts`
+Depends on: S139
+Acceptance:
+  - S140.1 The package root's type exports include `ReplayFixture`, `Submission`,
+    `ActionSubmission`, `AdoptionSubmission`, `EmittedRecord` and `EmittedRecordSink`. The test
+    reads the declared exports, the way `authoring.test.ts` reads `/authoring`'s.
+  - S140.2 The root exports none of `runReplayFixture`, `buildReplayOutcome`, `findDivergence`,
+    `createReplayContext`, `Outcome`, `Decision`, `ActionDecision`, `AdoptionDecision`,
+    `ReplayVerdict`, `ReplayResult` and `ReplayRunnerContext`.
+  - S140.3 `/authoring` still exports every replay type it exported before, and its committed
+    value list gains exactly `createReplayContext`.
+  - S140.4 `createReplayContext(engine, registry)` returns a context whose `engine` and
+    `registry` are the arguments, whose `kinds` is `engine.kinds` and whose `profileId` is
+    `"replay"`. Two calls return different profile stores. A `profiles` or `profileId` passed in
+    options is the one returned.
+  - S140.5 A context built by the helper replays a committed fixture to `{ kind: "match" }`. Given
+    a current registry without the fixture's campaign, and an engine whose archive still holds
+    the fixture's versions, it reports `campaign_withdrawn`. The same fixture under a context
+    built by hand from `engine.content.resolve(campaignId, fixture.campaignVersion)` runs instead,
+    which the test also asserts. That is what the helper's `registry` parameter guards against.
+Out of scope: the version bump, which is the next release candidate's (`0.14.0`, additive);
+              dropping Adventures' locally derived types, which follows its next engine submodule
+              bump; moving the runner itself to the root.
 
 ## Landed
 

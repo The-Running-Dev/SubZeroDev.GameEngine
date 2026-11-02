@@ -556,7 +556,8 @@ portable hydration, and the author-time primitives exposed through
 
 The package root is for runtime hosts. The `/authoring` subpath is explicitly for a content
 repository and includes source builders, portable export/digest APIs, and replay helpers.
-Published campaign builders are not package-root API. A frozen Bureaucracy campaign may remain
+A host that captures sessions needs no subpath: `ReplayFixture`, its submission types, and the
+record-sink types are root exports too (20-contract §19, S140). Published campaign builders are not package-root API. A frozen Bureaucracy campaign may remain
 inside the engine as story-graph regression evidence only; it is not a publication source.
 
 The former in-repository `/play/` route and its campaign artifact directory are superseded:

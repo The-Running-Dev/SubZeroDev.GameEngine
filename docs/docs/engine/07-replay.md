@@ -365,6 +365,11 @@ version the game is already on is a malformed fixture, not a divergence: adoptin
 entry and so has no `seq`, capture never records one, and the runner throws, as it does on a
 missing seed (`90-decisions.md`, 2026-10-09, S135).
 
+**A host builds the runner's context with `createReplayContext(engine, registry)`**
+(20-contract §19, S140). `registry` is the host's current publication, because that is where
+withdrawal is read. A registry resolved at the fixture's own version always holds the
+campaign, so it can never report `campaign_withdrawn`.
+
 `at` is the **`index`** of the first differing `Decision`, not a `seq` — §3.1 explains why
 `seq` cannot serve. `capturedUnder` comes from the fixture, so a divergence report names both
 engine versions that disagree rather than only the one running.
