@@ -4,7 +4,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 5cd3c47f108cfb8e76770b0095e5c4890ae537eb38403775c3b620473e1d99fd -->
+<!-- design-digest: 20a16c5e16bb120948f759fbf64a41850e5d1dc22e501b15bb08863693b4b6dd -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -160,6 +160,14 @@ A kind's export split follows one rule regardless of which kind it is: the build
 source types are author-time and belong on `/authoring`; the campaign, state, view, and outcome
 types are what a runtime host compiles against and belong at the root — `buildWorldGraphCampaign`
 is a stated exception, kept at the root because it predates the `/authoring` subpath.
+
+Replay follows the same rule. A host that captures sessions compiles against the root alone:
+`ReplayFixture`, its `Submission` types, and the `EmittedRecord`/`EmittedRecordSink` pair its
+record sink implements are all root exports. The runner stays on `/authoring`, because judging a
+fixture is a corpus pipeline's job. Build its context with `createReplayContext(engine,
+registry)`, and pass the host's *current* registry, not one resolved at the fixture's version.
+A registry resolved at the fixture's version always holds the campaign, so the replay never
+reports `campaign_withdrawn`.
 
 One further category is sanctioned at the root and is neither a runtime export nor a frozen
 regression fixture: a kind's own **reference campaign** — engine-owned content that exists to
