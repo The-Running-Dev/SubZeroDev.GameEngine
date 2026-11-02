@@ -648,7 +648,7 @@ Out of scope: When or why a host captures, consent, where a fixture is stored an
 
 ## S140 — A Host Captures Without the Authoring Subpath
 
-Status: todo
+Status: done
 Delivers: A host that records played sessions, and the records the engine emits, compiles against
           the package root alone. Checking a captured fixture still takes the authoring subpath, and
           setting up that check is one call that cannot silently lose the withdrawn-campaign
