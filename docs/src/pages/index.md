@@ -365,14 +365,14 @@ work is implementation. Not philosophy.
 
 The deterministic core, story-graph kind, simulation kind, and world-graph kind are all built
 and tested, including the world graph's deterministic tick pipeline, playable guest journey,
-validation, and replay guard. `v0.13.0` is the latest published `@the-running-dev/game-engine`;
-the `0.14.0` source lets a host capture a played session as a replay fixture without the
+validation, and replay guard. `v0.14.0` is the latest published `@the-running-dev/game-engine`;
+it lets a host capture a played session as a replay fixture without the
 authoring subpath, and makes each kind refuse the action detail it did not declare. A clean
 consumer test installs the packed artifact rather than trusting this checkout. Story adventures
 now live at <a href="https://adventures.subzerodev.com/"><code>adventures.subzerodev.com</code></a>;
 this repository retains the deterministic engine, its fixtures, authoring tools, and contracts.
 
-### Current — `0.14.0` is the publication candidate
+### Current — `0.14.0` is published
 
 `0.13.0` was published on 2026-10-31. `0.14.0` adds S136–S140, session capture, to the same
 surface. Simulation and world-graph now refuse an action that carries a param key the kind did
@@ -386,9 +386,8 @@ undeclared key is now refused, and `branchSession` throws `invalid_state` when a
 holds an action a kind now refuses. All of it is deliberate and recorded in
 `design/90-decisions.md`.
 
-`0.14.0` is prepared, not released. Publication is a separate, explicit action: see
-[`RELEASE.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/RELEASE.md) for the candidate commit, the archive and its digest, the required
-`v0.14.0` tag, and the checks that must hold first.
+`0.14.0` was published on 2026-11-03. See
+[`RELEASE.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/RELEASE.md) for the commit, the archive and its digest, and what was verified after publication.
 
 ---
 

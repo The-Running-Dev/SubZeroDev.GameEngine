@@ -8,6 +8,9 @@ explicit action that nothing in this repository performs.**
 > a candidate. It does not publish the package, push the `v0.14.0` tag, create a GitHub release,
 > deploy the site, change DNS, or release anything in a companion repository. None of those
 > happened while this checklist was produced.
+>
+> **`0.14.0` was published on 2026-11-03** by that separate action; see [§6](#6-publication--the-separate-explicit-action)
+> for what was done and [§7](#7-after-publication--verification-and-recovery) for what was verified.
 
 `0.14.0` supersedes nothing. It is the next candidate after the published `0.13.0`, cut from
 `main` at `82f3942` once S136–S140 and their alignment had merged. The decisions that shaped what
@@ -52,7 +55,8 @@ trusting this paragraph.
 `b7f9925f260959` exists on `release/0.14.0-candidate` and nowhere on `main`. That branch must not
 be deleted before the `v0.14.0` tag exists at the candidate, and
 [SubZeroDev.Adventures#104](https://github.com/The-Running-Dev/SubZeroDev.Adventures/pull/104)
-pins the same SHA as its engine submodule.
+pins the same SHA as its engine submodule. The tag now exists, so the candidate commit is held by
+`v0.14.0` and the branch is no longer needed.
 
 ### 1.1 Recorded candidate
 
@@ -163,7 +167,20 @@ as the release notes. Do not retype them.
 
 ## 6. Publication — the separate explicit action
 
-None of these steps has been taken.
+**Done on 2026-11-03**, on the user's explicit instruction, in this order:
+
+- Tag `v0.14.0` pushed at `b7f9925f260959ec02fa874555a45482eb63ab49`; `src/engine` was unchanged
+  on `main` since the candidate.
+- [Run 41686904892](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/actions/runs/41686904892) published the archive in `publish` mode and succeeded.
+- GitHub release [v0.14.0](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/releases/tag/v0.14.0)
+  created with generated notes since `v0.13.0`.
+- [SubZeroDev.Adventures#104](https://github.com/The-Running-Dev/SubZeroDev.Adventures/pull/104)
+  was merged at 17:33Z, **before** the tag was pushed (about 17:43Z), not after it as step 5
+  requires. It pins `b7f9925`, which the tag now names, so Adventures does not pin an untagged
+  commit; the order was broken, the outcome was not. Adventures `main` CI, Container and Deploy
+  at the merge commit all succeeded.
+
+The steps as written, for the next release:
 
 1. Confirm §8 says readiness is authorized, and that the candidate SHA in §1.1 is still the
    commit you intend to publish. If `src/engine` has changed on `main` since, **re-verify**; the
@@ -226,8 +243,8 @@ needed; it is not a precondition for this procedure.
 
 ## 8. Authorization
 
-**0.14.0 readiness is not blocked.** Publishing remains a separate explicit action that nothing
-in this file performs.
+**0.14.0 readiness was not blocked, and it is now published** (see §6). Publishing was a separate
+explicit action that nothing in this file performs.
 
 The whole matrix was rerun against the candidate in §1.1. Nothing was carried forward from the
 `0.13.0` record.
@@ -260,8 +277,8 @@ The whole matrix was rerun against the candidate in §1.1. Nothing was carried f
 On `postgres:17`, the `server` job ran 29 files and **377 tests, all passed, none skipped**. Every
 DB-gated suite in Adventures is declared `databaseUrl ? describe : describe.skip`, so a skip would
 appear in that count; there is none. The `offline-e2e` job passed against the same database, and every other check on the pull
-request passed or was skipped by design. That pull request merges only after the `v0.14.0`
-tag exists.
+request passed or was skipped by design. That pull request was to merge only after the `v0.14.0`
+tag existed; it merged first (§6).
 
 **Compatibility with `0.13.0` depends on which side of the API you are on.** For code that plays
 the engine, `0.14.0` is a compatible superset: the sweep's replay oracle and the packed consumer
@@ -290,6 +307,12 @@ and vendors `0.13.0`, so publishing `0.14.0` does not break it. Moving it is fol
 order: regenerate ServiceContract at `0.14.0`, then refresh Platform's golden transcript and
 fixtures.
 
+**Verified after publication (2026-11-03):** the registry guard rejects `0.14.0` as already
+published; the registry copy's SHA-256 is `43aa787484ce6ed0418775577cd964831a203e3b2504f26a3dd2df5c87eb90f4`,
+equal to §1.1, with 363 entries; an isolated install plus the consumer smoke (install, build,
+smoke, exit 0) passed from that copy; `.` and `./authoring` resolve and both deep `dist/` paths
+fail with `ERR_PACKAGE_PATH_NOT_EXPORTED`.
+
 ## 9. History
 
 `0.13.0` was qualified at `45b7216`, published on 2026-10-31 and released as
@@ -297,6 +320,10 @@ fixtures.
 checklist is this file at `665a53c`, and its record is `.claude/release-candidate-0.13.0.json`.
 `0.12.0`'s checklist, including the three deliberate breaks against `0.10.0`, is this file at
 `9a8a54a`. None of it is evidence for `0.14.0`; every row was rerun.
+
+`0.14.0` was published on 2026-11-03 as `b7f9925` and released as
+[v0.14.0](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/releases/tag/v0.14.0). Its
+candidate record is `.claude/release-candidate-0.14.0.json`; its checklist is this file at `63f0fd2`.
 
 ## 10. Scope fence
 
