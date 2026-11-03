@@ -486,18 +486,18 @@ export const shippedChapters: readonly RoadmapChapter[] = [
 
 export const nextActs: readonly RoadmapChapter[] = [
   {
-    id: "authorize-013",
-    workUnits: "S129–S135",
-    ledgerAnchor: "s129--every-game-plays-the-content-it-names",
+    id: "authorize-014",
+    workUnits: "S136–S140",
+    ledgerAnchor: "s136--simulation-refuses-details-it-did-not-ask-for",
     release: true,
     status: "now",
-    title: "0.13.0 becomes the next authorized publication",
+    title: "0.14.0 becomes the next authorized publication",
     summary:
-      "0.12.0 was published on 28 October. The 0.13.0 candidate was cut after plan 54 merged: durable content epochs, so a game can move onto new content and replay exactly across it, with stored epochs that survive a restart. The whole matrix was rerun against that exact candidate, and the Adventures host was checked on its real Postgres adapter. Publishing stays a separate explicit action.",
+      "0.13.0 was published on 31 October. The 0.14.0 candidate was cut after S136–S140 merged: a game refuses details it did not declare, a host can capture a played session as a replay fixture, and the capture types are reachable without the authoring subpath. The whole matrix was rerun against that exact candidate, and the Adventures host was checked on its real Postgres adapter. Publishing stays a separate explicit action.",
     links: [
       {
-        label: "Content epochs ledger",
-        href: "/docs/engine/todo#s129--every-game-plays-the-content-it-names",
+        label: "Session capture ledger",
+        href: "/docs/engine/todo#s136--simulation-refuses-details-it-did-not-ask-for",
         kind: "site",
       },
       {
