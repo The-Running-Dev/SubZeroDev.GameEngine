@@ -365,32 +365,30 @@ work is implementation. Not philosophy.
 
 The deterministic core, story-graph kind, simulation kind, and world-graph kind are all built
 and tested, including the world graph's deterministic tick pipeline, playable guest journey,
-validation, and replay guard. `v0.12.0` is the latest published `@the-running-dev/game-engine`;
-the `0.13.0` source adds durable content epochs: a stored, digest-checked epoch form a host can
-persist and restore. A clean
+validation, and replay guard. `v0.13.0` is the latest published `@the-running-dev/game-engine`;
+the `0.14.0` source lets a host capture a played session as a replay fixture without the
+authoring subpath, and makes each kind refuse the action detail it did not declare. A clean
 consumer test installs the packed artifact rather than trusting this checkout. Story adventures
 now live at <a href="https://adventures.subzerodev.com/"><code>adventures.subzerodev.com</code></a>;
 this repository retains the deterministic engine, its fixtures, authoring tools, and contracts.
 
-### Current — `0.13.0` is the publication candidate
+### Current — `0.14.0` is the publication candidate
 
-`0.12.0` was published on 2026-10-28. `0.13.0` adds plan 54 (S129–S135), durable content
-epochs, to the same surface: `ContentArchive` gains a stored epoch form with `stored`, `restore`
-and `authoredKeys`; `canonicalDigest` and `epochDigest` are package-root exports;
-`createSessionLayer` returns a `SessionLayer` with `forget`, so a host can drop a cached session
-pinned to a retired epoch; and responses alias an engine string key that restored content
-shadows. Nothing `0.12.0` exposed was removed, and for code that *plays* the engine `0.13.0` is a
-compatible superset. Three changes reach a host. `createInMemorySessionStore` now throws, as
-`createSessionLayer` already did, for an `Engine` that `createEngine` or `withEmitter` did not
-return. `ContentArchive.publish` refuses a registry without campaign provenance and an authored
-key that is reserved or contains `~`. And `current(scope)` answers per campaign. The epoch digest
-recipe changed with the stored form, so an `EpochRef` digest computed by `0.12.0` differs for the
-same content; `0.12.0` had no stored form, so no host holds a persisted epoch to migrate. All of
-it is deliberate and recorded in `design/90-decisions.md`.
+`0.13.0` was published on 2026-10-31. `0.14.0` adds S136–S140, session capture, to the same
+surface. Simulation and world-graph now refuse an action that carries a param key the kind did
+not declare, with the kind's own `unexpected_params`, before any value is read. Simulation also
+refuses an id it never issued. A host can capture a played session as a `ReplayFixture`: the
+package root exports `ReplayFixture`, `Submission`, `ActionSubmission`, `AdoptionSubmission` and
+`EmittedRecordSink`, and `createReplayContext` is on `/authoring`. `getStrings` grows from 259 to
+262 keys, additively. Nothing `0.13.0` exposed was removed, and for code that *plays* the engine
+`0.14.0` is a compatible superset. Two changes reach a host: an action that used to carry an
+undeclared key is now refused, and `branchSession` throws `invalid_state` when a retained log
+holds an action a kind now refuses. All of it is deliberate and recorded in
+`design/90-decisions.md`.
 
-`0.13.0` is prepared, not released. Publication is a separate, explicit action: see
+`0.14.0` is prepared, not released. Publication is a separate, explicit action: see
 [`RELEASE.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/RELEASE.md) for the candidate commit, the archive and its digest, the required
-`v0.13.0` tag, and the checks that must hold first.
+`v0.14.0` tag, and the checks that must hold first.
 
 ---
 
