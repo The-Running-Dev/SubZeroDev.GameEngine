@@ -347,8 +347,8 @@ type ReplayVerdict =
 ```
 
 The runner resolves the fixture's `campaignVersion` and every adopted version through the
-archive it is given (16 §4.1; with none, the registry alone), builds an `Engine` with a counting
-`IdSource` and pairs it with an in-memory `ProfileStore` (§3.2), creates a game with
+archive it is given (16 §4.1; with none, the registry alone), runs against the `Engine` and
+`ProfileStore` its context carries (§3.2; `createReplayContext`, below), creates a game with
 `createGame(config, fixture.campaignVersion)`, submits each `Submission` in order — an action
 through `submitAction`, an adoption through `adoptContent` — builds an `Outcome`, and compares.
 

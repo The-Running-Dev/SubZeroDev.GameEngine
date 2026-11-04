@@ -3095,6 +3095,34 @@ The returned context is `{ engine, kinds: engine.kinds, registry, profiles, prof
 - `profiles` defaults to a new `createInMemoryProfileStore()` on each call.
 - `profileId` defaults to `"replay"`.
 
+The runner's remaining shapes, all on `/authoring` only:
+
+```typescript
+interface ReplayRunnerContext {
+  readonly engine: Engine;
+  readonly kinds: KindRegistry;
+  readonly registry: ContentRegistry;
+  readonly profiles: ProfileStore;
+  readonly profileId: string;
+}
+
+type ReplayResult =
+  | { readonly kind: "outcome"; readonly outcome: Outcome }
+  | { readonly kind: "unrunnable";
+      readonly reason: "campaign_withdrawn" | "campaign_version_missing" };
+
+function buildReplayOutcome(ctx: ReplayRunnerContext, fixture: ReplayFixture): Promise<ReplayResult>;
+function findDivergence(expected: Outcome, actual: Outcome): number | undefined;
+```
+
+- `buildReplayOutcome` throws on a fixture with no string `config.seed`, on an adoption naming the
+  version the game is already on, and when `createGame` rejects a fixture whose versions resolved
+  (07 §6). It does not stop at a rejected action.
+- `findDivergence` returns the `index` of the first differing `Decision`, never a `seq`. When every
+  `Decision` matches but `finalStatus`, `acceptedActions`, `achievements` or `terminal` differ, it
+  returns `expected.decisions.length`; `undefined` means a match. `runReplayFixture` is these two
+  composed, and its `ReplayVerdict` `at` is that value.
+
 **`registry` is the host's current publication.** It is the registry that 07 §6 reads
 withdrawal from. It is not `engine.content.resolve(campaignId, fixture.campaignVersion)`: a
 registry resolved at the fixture's own version always holds the campaign, so a withdrawn
