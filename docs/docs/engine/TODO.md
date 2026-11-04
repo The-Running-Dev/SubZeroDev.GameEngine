@@ -654,7 +654,8 @@ Delivers: A host that records played sessions, and the records the engine emits,
           setting up that check is one call that cannot silently lose the withdrawn-campaign
           verdict.
 Touches: `src/engine/src/index.ts`, `src/engine/src/authoring.ts`, `src/engine/src/core/replay/runner.ts`,
-         `src/engine/src/authoring.test.ts`, `src/engine/src/core/replay/runner.test.ts`
+         `src/engine/src/authoring.test.ts`, `src/engine/src/core/replay/runner.test.ts`,
+         `src/engine/src/campaigns/world-graph-mvp.replay.test.ts`
 Depends on: S139
 Acceptance:
   - S140.1 The package root's type exports include `ReplayFixture`, `Submission`,
