@@ -62,11 +62,13 @@ export { fromPortable } from "./portable/format.js";
 export { digestManifestResolution, digestPortableCampaign } from "./portable/digest.js";
 export type {
   PortableCampaign,
+  PortableCampaignAttachment,
   PortableCampaignBody,
   PortableCatalog,
   PortableManifest,
   PortableManifestEntry,
   PortableMigration,
+  PortableStoryGraphInclude,
 } from "./portable/format.js";
 
 export type { Engine, ResolutionArchive, AdoptionResult, AdoptDecision } from "./core/kernel/types.js";

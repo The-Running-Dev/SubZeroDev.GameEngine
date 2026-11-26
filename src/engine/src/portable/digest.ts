@@ -8,7 +8,7 @@
  */
 
 import { canonicalize, sha256Hex } from "subzerodev-data-json";
-import type { PortableManifestEntry } from "./format.js";
+import type { PortableCampaignAttachment, PortableManifestEntry } from "./format.js";
 
 const DIGEST_PREFIX = "sha-256:";
 
@@ -29,7 +29,18 @@ export function digestPortableCampaign(portable: unknown): string {
  * The manifest-level digest is an ordered list of campaign identities. A host must first
  * verify every campaign file against its entry digest, then use this value to identify the
  * verified content set. File paths are transport details, so they are deliberately excluded.
+ *
+ * S141 (§19): with `attachments` absent or empty the recipe is unchanged, byte for byte, so
+ * every existing manifest keeps its `resolution`. Otherwise it digests `{ campaigns,
+ * attachments }` — `campaigns` being that same ordered list — so reordering attachments, which
+ * changes the composed content, changes it too. Same `sha-256:` prefix as every other value
+ * this module produces.
  */
-export function digestManifestResolution(entries: readonly PortableManifestEntry[]): string {
-  return digestOf(entries.map(({ id, version, digest }) => ({ id, version, digest })));
+export function digestManifestResolution(
+  entries: readonly PortableManifestEntry[],
+  attachments?: readonly PortableCampaignAttachment[],
+): string {
+  const campaigns = entries.map(({ id, version, digest }) => ({ id, version, digest }));
+  if (attachments === undefined || attachments.length === 0) return digestOf(campaigns);
+  return digestOf({ campaigns, attachments });
 }
