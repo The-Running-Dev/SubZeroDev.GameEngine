@@ -523,8 +523,9 @@ kinds that have no consumer. **Subsumed by content epochs, 2026-10-08**
 ([`16-content-epochs.md`](16-content-epochs.md) §10): delivery is an epoch, and authoring is an
 attachment (11 §3a, `20-contract.md` §10.4), which is already the stable, engine-owned extension
 shape. No separate story-extension contract is designed. What the merge does that attachments do
-not is registered below as attachment gaps. Until attachments cover it the merge stays
-Adventures', and an engine change to the portable story shape is a breaking change for it.
+not is registered below as attachment gaps. **Resolved by design, 2026-11-26 (S141):** attachments
+and includes are published in the portable format, and the unpacked registry composes them, so
+the merge can retire (decision log, 2026-11-26).
 
 **No supported operating envelope.** Nothing says how large a world, how long a session or how
 many ticks per request the engine supports. PR #606 added a seeded world-graph benchmark
@@ -649,11 +650,14 @@ story-graph's settle guard, instead of crashing. Neither exists (08 §9). **Revi
 entry for 07's `Outcome` is proposed, or when a fault proves impossible to reproduce from the
 history plus the host's fault event.
 
-**Attachments cannot yet do everything the Adventures extension merge does.** The merge adds
-achievements and adds more than one choice to a host node; 04 §10.4's attachment model does
-neither. Each is a gap in attachments, not a reason for a second extension contract (story
-extension, above). **Revisit** when Adventures moves its extensions onto attachments, which is
-what retires its merge.
+**An attachment adds one choice.** The Adventures extension merge could add more than one choice
+to a host node. An attachment adds exactly one choice and one include, so several entries into
+one module mean several attachments, each with its own alias and so its own copy of the module.
+This is a gap in attachments, not a reason for a second extension contract (story extension,
+above). Achievements, registered here as a second gap until 2026-11-26, were never one: a
+module's achievements belong to its host (03 §1.1). getting-started's extension needs one choice,
+so it moves onto attachments unaffected (S141). **Revisit** when published content needs two
+entries into one shared module state.
 
 ### Found by the content-epochs red-team revision
 
@@ -3071,3 +3075,27 @@ Context: `/agentkit:align` against `1b17774..5c453f9`. The code matches §19 and
 Chosen: 07 §6 now says the runner runs against the engine and profile store its context carries, and points at `createReplayContext`. S140's Touches line lists the test file; its acceptance criteria are unchanged. §19 defines the four shapes beside `createReplayContext`, with the throw conditions and the `findDivergence` index rule copied from `runner.ts` and 07 §6.
 Rejected: **Leaving the four as code-defined.** They are public on a contracted subpath, so a signature change would pass review unseen.
 Reversibility: cheap. Documentation only; no code changed.
+
+### 2026-11-26 — S141: published extensions are contracted upstream, as composition
+Context: SubZeroDev.Adventures issue 27 asks that an extension be authored and published without touching that repository's build. Adventures merges extension JSON into a base campaign itself (`shared/campaign-extension.ts`), reading the portable story shape the engine does not contract. 16 §10 had already said attachments subsume it, but attachments existed only on the pack path, and no portable form carried them.
+Chosen: the engine contract carries published extensions. An extension is a module campaign plus an attachment (04 §10.4, 03 §1.1), both portable, and a host composes them through the registry builder it already calls. The merge and its types retire downstream.
+Rejected: **A host-side extension contract in Adventures.** Every other host would rebuild it, and the merge it formalises is the unstable reader the 2026-10-03 review flagged. **A narrow story-extension contract in the engine.** It duplicates composition, which already validates, renames ids and owns achievements.
+Reversibility: moderate. Additive exports in a 0.x release. Withdrawing them would break every publisher that adopted them.
+
+### 2026-11-26 — S141: attachments ride the manifest; modules publish as ordinary campaigns
+Context: the same issue. An attachment names a host it does not own, so it cannot live in the host's campaign file, and the portable envelope had no includes.
+Chosen: the story-graph arm of the portable campaign gains `includes?`. `PortableManifest` gains `attachments?`, in application order, with a `kindId` discriminator so a published schema closes per kind. `resolution` digests them, and is byte-identical to today's when there are none. A module is an ordinary campaign file, hidden from the catalog by `catalog.hidden` when it should be. `formatVersion` stays `2`. An old reader that ignores `attachments` builds a valid, standalone-validated set under honest per-campaign versions, losing only additive content, and one that recomputes `resolution` fails loudly. A bump would break every reader to protect against that.
+Rejected: **Full pack documents in the publication.** Packs are the post-MVP resolution machinery (11), with fold rules, dependencies and a resolution stamp. Publishing them to carry one attachment brings all of that into the unpacked path. **Attachments inside the module's campaign file.** A campaign file is one campaign's content, and a module that attaches to two hosts, or to none, would need to say which. **Bumping `formatVersion` to 3.** It breaks every current reader for a loss bounded as above.
+Reversibility: moderate. Optional members, so removing them later is a format change a reader would notice.
+
+### 2026-11-26 — S141: the engine stamps an attached campaign's version at registry build
+Context: content-addressing (16 §3.4) refuses a campaign whose content changed under its authored version, and an attachment changes its host's content. The pack path stamps every version with the resolution id. The unpacked path stamped nothing, so Adventures invented `<authored>+ext.<12 hex>` (plan 54, D2).
+Chosen: in `buildValidatedContentRegistry`, every campaign an attachment reaches is stamped `<authored>+att.<12 hex>`, or `.att.<12 hex>` appended to existing build metadata. The hex is `canonicalDigest` over the attachments that reach it, transitively through the modules it composes, in application order. Include pins check the authored version. `att` as a build-metadata identifier in an authored version is refused, as `reserved_version_identifier`, in both validated entry points. A 12-hex collision is a `content_version_conflict` at archive publish. Campaigns no attachment reaches are unchanged, so every existing registry builds identically.
+Rejected: **Leaving the version to the host.** Two hosts would derive different versions for one publication, and the archive's identity would not hold across them. **Covering only direct attachments.** A module's attachment changes every host that includes it, so a host would change under an unchanged version. **Stamping with the manifest's `resolution`.** It changes every campaign's version whenever any campaign changes, and so pins every live session on an unrelated republish.
+Reversibility: moderate. The stamp is in every archived version an attached campaign publishes.
+
+### 2026-11-26 — S141: sessions on the retired `+ext` epochs stay pinned
+Context: getting-started's extension (`side_quest_landing`, `side_quest_end`, achievement `off_the_beaten_graph`) republishes as a module, whose ids gain its alias. A session that entered the old extension holds ids the new epoch does not have.
+Chosen: no migration. Such a session fails 16 §5.5's adoption rule and stays on its archived `+ext` epoch until it ends. Sessions that never entered the extension adopt normally.
+Rejected: **A `migrateState` that re-addresses the old ids to the alias-qualified ones.** It is migration code for optional content, written in a campaign every future epoch carries. The cost it avoids is that a profile which unlocked the hidden achievement under its old id, and unlocks it again under the composed one, shows it twice.
+Reversibility: cheap. A migration can still be added to a later epoch, since a pinned session adopts whenever a target accepts it.

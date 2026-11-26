@@ -513,8 +513,9 @@ kinds that have no consumer. **Subsumed by content epochs, 2026-10-08**
 ([`16-content-epochs.md`](16-content-epochs.md) §10): delivery is an epoch, and authoring is an
 attachment (11 §3a, `20-contract.md` §10.4), which is already the stable, engine-owned extension
 shape. No separate story-extension contract is designed. What the merge does that attachments do
-not is registered below as attachment gaps. Until attachments cover it the merge stays
-Adventures', and an engine change to the portable story shape is a breaking change for it.
+not is registered below as attachment gaps. **Resolved by design, 2026-11-26 (S141):** attachments
+and includes are published in the portable format, and the unpacked registry composes them, so
+the merge can retire (decision log, 2026-11-26).
 
 **No supported operating envelope.** Nothing says how large a world, how long a session or how
 many ticks per request the engine supports. PR #606 added a seeded world-graph benchmark
@@ -639,11 +640,14 @@ story-graph's settle guard, instead of crashing. Neither exists (08 §9). **Revi
 entry for 07's `Outcome` is proposed, or when a fault proves impossible to reproduce from the
 history plus the host's fault event.
 
-**Attachments cannot yet do everything the Adventures extension merge does.** The merge adds
-achievements and adds more than one choice to a host node; 04 §10.4's attachment model does
-neither. Each is a gap in attachments, not a reason for a second extension contract (story
-extension, above). **Revisit** when Adventures moves its extensions onto attachments, which is
-what retires its merge.
+**An attachment adds one choice.** The Adventures extension merge could add more than one choice
+to a host node. An attachment adds exactly one choice and one include, so several entries into
+one module mean several attachments, each with its own alias and so its own copy of the module.
+This is a gap in attachments, not a reason for a second extension contract (story extension,
+above). Achievements, registered here as a second gap until 2026-11-26, were never one: a
+module's achievements belong to its host (03 §1.1). getting-started's extension needs one choice,
+so it moves onto attachments unaffected (S141). **Revisit** when published content needs two
+entries into one shared module state.
 
 ### Found by the content-epochs red-team revision
 

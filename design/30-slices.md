@@ -685,6 +685,53 @@ Out of scope: the version bump, which is the next release candidate's (`0.14.0`,
               dropping Adventures' locally derived types, which follows its next engine submodule
               bump; moving the runner itself to the root.
 
+## S141 — A Campaign Publishes Its Attachments
+
+Status: ready
+Delivers: Someone who writes a side quest for a campaign they do not own can publish it as
+          content, and a host plays it with no source checkout, no merge code of its own, and no
+          build step. Every host derives the same version for the result, so a publication means
+          the same game wherever it runs.
+Touches: `src/engine/src/core/validation/tiered.ts`, `src/engine/src/core/registry/compose.ts`,
+         `src/engine/src/core/kernel/reasons.ts`, `src/engine/src/portable/format.ts`,
+         `src/engine/src/portable/digest.ts`, `src/engine/src/index.ts`,
+         `src/engine/src/authoring.ts`, tests alongside
+Depends on: S140
+Acceptance:
+  - S141.1 `buildValidatedContentRegistry(built, kinds)` and the same call with `[]` as the third
+    argument each return a registry deep-equal to the one built before this slice, for every
+    committed campaign set.
+  - S141.2 With one story-graph attachment on host `h` at authored version `1.2.0`, `h`'s registry
+    version is `1.2.0+att.<h12>`, where `<h12>` is the first 12 hex digits of `canonicalDigest`
+    over the one-element list of that attachment. The module's version is unchanged, and so is
+    every campaign no attachment reaches.
+  - S141.3 A host authored as `1.2.0+build.7` is stamped `1.2.0+build.7.att.<h12>`.
+  - S141.4 An attachment on module `m`, which host `h` includes, stamps both `m` and `h`, and `h`'s
+    digest covers that attachment. `h`'s include pin on `m`'s authored version still passes.
+    Swapping the order of two attachments on one host changes its stamped version.
+  - S141.5 An authored version of `1.0.0+att`, `1.0.0+att.1` or `1.0.0+x.att` fails the registry
+    build with `reserved_version_identifier` at Tier 1, through `buildValidatedContentRegistry`
+    and through `buildValidatedPackRegistry`, with or without attachments. `1.0.0-att`,
+    `1.0.0+attic` and `1.0.0+x-att` build.
+  - S141.6 `reserved_version_identifier` is in `BASE_REASON_CODES` with a core message, and the
+    reason-code coverage gate passes.
+  - S141.7 `toPortable` writes a story-graph campaign's includes, and `fromPortable` reads them
+    back deep-equal. `toPortable` of a simulation campaign with an include throws. A portable
+    campaign without `includes` reads back with no `includes` member.
+  - S141.8 `digestManifestResolution(entries)`, with `undefined` and with `[]` as the second
+    argument, equals the value before this slice for the same entries. With one attachment it
+    differs, and reordering two attachments changes it again.
+  - S141.9 A host campaign, a hidden module campaign and one attachment, taken through
+    `toPortable`, a manifest, `fromPortable` and `buildValidatedContentRegistry`, play from the
+    host's choice node through the attached choice, into the module, and out through its exit
+    to the host node it is bound to. The module's achievement unlocks under its composed id.
+  - S141.10 The package root and `/authoring` each export the types `PortableStoryGraphInclude`
+    and `PortableCampaignAttachment`. Each subpath's committed value list is unchanged.
+Out of scope: The closed portable schema in SubZeroDev.ServiceContract; republishing
+              getting-started's extension as a module in SubZeroDev.Adventures.Content; retiring
+              Adventures' extension merge and `+ext` versions; the version bump (`0.15.0`); more
+              than one choice from one attachment.
+
 ## Landed
 
 Ordered by id. *Criteria* is the range of numbered acceptance

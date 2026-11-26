@@ -718,19 +718,34 @@ framework:
   another campaign, validated after the fold. That is the stable, engine-owned extension shape
   the review asked for.
 
-What Adventures' merge does that attachments do not — adding achievements, adding more than one
-choice to a host node — is recorded as gaps in the attachment model rather than as a reason
-for a second extension contract. The downstream merge retires when attachments cover what it
-uses. Until then, an engine change to the portable story shape is still a breaking change for
-it, as recorded.
+Adventures' merge also added achievements, and a module's achievements already belong to its
+host (03 §1.1), so that is not a gap. Adding more than one choice to one host node still is:
+each attachment adds one choice and one include. That is recorded as a gap in the attachment
+model rather than as a reason for a second extension contract.
 
-**An extended campaign publishes under a derived version, and that is the host's convention.**
-Content-addressing refuses a base campaign whose content changed under its authored version, and
-an applied extension does exactly that. Adventures therefore publishes an extended campaign as
-`<authored>+ext.<12 hex>` — appended to existing build metadata rather than a second `+` — over
-a digest of its extensions in application order, and refuses an authored version that already
-uses the `ext` identifier (plan 54, D2). The engine owns none of this; it compares versions
-exactly and only exports `canonicalDigest` (04 §4) so the host's digest is the engine's.
+**Attachments are published, so the downstream merge retires** (design/30-slices.md, S141).
+A module publishes as an ordinary, usually hidden, campaign file. Its attachment rides the
+manifest (04 §19), and a host passes the manifest's attachments to
+`buildValidatedContentRegistry`. No source checkout and no host build is involved, which is
+what the extension needed. An engine change to the portable story shape is then an ordinary
+contract change, not a silent break of a downstream reader.
+
+**An attached campaign's derived version is the engine's.** Content-addressing refuses a
+campaign whose content changed under its authored version, and an attachment changes it. So the
+unpacked registry stamps every campaign an attachment reaches as
+`<authored>+att.<12 hex>`, over the attachments that reach it in application order (04 §10.4),
+and refuses an authored version that already uses the `att` identifier. Owning it in the engine
+means every host derives the same version for the same publication, which is what makes the
+archive's content addressing hold across hosts. It retires Adventures' `+ext` convention (plan
+54, D2), the host-side form of the same rule.
+
+**Sessions already on a `+ext` epoch stay pinned.** The convention's retirement changes the
+version a republished campaign carries, and the module's node and achievement ids now carry an
+alias (`alias::x`) that the merge did not add. To the adoption rule (§5.5) that is a removed
+node, so a session that entered the extension cannot adopt, and stays on its archived epoch
+until it ends. No migration is offered, since the extension was optional content. The accepted
+cost is that a hidden achievement awarded under the old id and again under the composed one
+appears twice in a profile that holds both.
 
 ---
 

@@ -127,6 +127,13 @@ holds its `hostCampaignId` **after** the fold — a later pack that replaces the
 still receives the earlier pack's attachment, and the composed result is validated as a unit,
 so an attachment that no longer fits the replacement fails loudly rather than vanishing.
 
+**Attachments reach the unpacked path too** (design/30-slices.md, S141). A publication with no
+packs carries its attachments on the portable manifest (04 §19), and
+`buildValidatedContentRegistry` takes them as an optional third argument, composed by the same
+rules. Without the §6 resolution stamp to change a host's version, that path stamps each
+campaign an attachment reaches itself (04 §10.4), so changed content never sits under an
+unchanged version.
+
 ---
 
 ## 4. The One Change to `ContentRegistry`

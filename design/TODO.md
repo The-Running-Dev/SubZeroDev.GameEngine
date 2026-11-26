@@ -46,4 +46,6 @@
 
 ## S140 — A Host Captures Without the Authoring Subpath
 
+## S141 — A Campaign Publishes Its Attachments
+
 ## Landed
