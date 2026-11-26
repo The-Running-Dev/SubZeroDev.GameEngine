@@ -493,7 +493,7 @@ export const nextActs: readonly RoadmapChapter[] = [
     status: "now",
     title: "0.15.0 becomes the next authorized publication",
     summary:
-      "0.14.0 was published on 3 November. The 0.15.0 candidate was cut after S141 merged: a campaign publishes its attachments, so an extension ships as content without rebuilding the game it extends, and a game that gains one gets a version of its own. The whole matrix was rerun against that exact candidate, and the Adventures host was checked on its real Postgres adapter. Publishing stays a separate explicit action.",
+      "0.14.0 was published on 3 November. The 0.15.0 candidate was cut after S141 merged: a campaign publishes its attachments, so an extension ships as content without rebuilding the game it extends, and a game that gains one gets a version of its own. The whole matrix was rerun against that exact candidate, and the Adventures host was checked on its real Postgres adapter. It was published on 26 November.",
     links: [
       {
         label: "Published attachments ledger",
