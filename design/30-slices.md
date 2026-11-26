@@ -687,7 +687,7 @@ Out of scope: the version bump, which is the next release candidate's (`0.14.0`,
 
 ## S141 — A Campaign Publishes Its Attachments
 
-Status: ready
+Status: done
 Delivers: Someone who writes a side quest for a campaign they do not own can publish it as
           content, and a host plays it with no source checkout, no merge code of its own, and no
           build step. Every host derives the same version for the result, so a publication means

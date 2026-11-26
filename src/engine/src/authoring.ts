@@ -73,11 +73,13 @@ export type {
   BuiltCampaign,
   Campaign,
   PortableCampaign,
+  PortableCampaignAttachment,
   PortableCampaignBody,
   PortableCatalog,
   PortableManifest,
   PortableManifestEntry,
   PortableMigration,
+  PortableStoryGraphInclude,
 } from "./index.js";
 export type {
   ActionDecision,

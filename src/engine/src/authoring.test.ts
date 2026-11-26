@@ -82,11 +82,13 @@ const AUTHORING_TYPE_EXPORTS = [
   "OpportunityDefinitionSource",
   "Outcome",
   "PortableCampaign",
+  "PortableCampaignAttachment",
   "PortableCampaignBody",
   "PortableCatalog",
   "PortableManifest",
   "PortableManifestEntry",
   "PortableMigration",
+  "PortableStoryGraphInclude",
   "RandomNodeSource",
   "RandomTransition",
   "ReplayFixture",
@@ -338,5 +340,25 @@ describe("a capturing host compiles against the root alone; the runner stays on 
   it("S140.3 — /authoring keeps every replay type and the runner", () => {
     for (const name of [...CAPTURE_TYPES, ...RUNNER_TYPES]) expect(AUTHORING_TYPE_EXPORTS).toContain(name);
     for (const name of RUNNER_VALUES) expect(AUTHORING_VALUE_EXPORTS).toContain(name);
+  });
+});
+
+describe("published composition's wire types reach both surfaces (S141)", () => {
+  const COMPOSITION_TYPES = ["PortableCampaignAttachment", "PortableStoryGraphInclude"];
+
+  it("S141.10 — the root and /authoring each export both types, as types only", () => {
+    const rootExports = declaredExports(ROOT_SOURCE);
+    const authoringExports = declaredExports(AUTHORING_SOURCE);
+    for (const name of COMPOSITION_TYPES) {
+      expect(rootExports.types).toContain(name);
+      expect(authoringExports.types).toContain(name);
+      expect(rootExports.values).not.toContain(name);
+      expect(authoringExports.values).not.toContain(name);
+    }
+  });
+
+  it("S141.10 — /authoring's committed value list is unchanged by them", () => {
+    expect(Object.keys(authoring).sort()).toEqual(AUTHORING_VALUE_EXPORTS);
+    for (const name of COMPOSITION_TYPES) expect(AUTHORING_VALUE_EXPORTS).not.toContain(name);
   });
 });

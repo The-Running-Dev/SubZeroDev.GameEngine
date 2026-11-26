@@ -16,6 +16,7 @@
  */
 
 import type { BuiltCampaign, Campaign, CampaignAttachment, CampaignProvenance, ContentRegistry } from "../registry/types.js";
+import { canonicalDigest } from "../registry/archive.js";
 import { buildContentRegistry } from "../registry/build.js";
 import { composeCampaigns } from "../registry/compose.js";
 import { resolvePacks, type ContentPack } from "../registry/packs.js";
@@ -48,6 +49,80 @@ function validateCoreOwnedFields(campaign: Campaign, strings: ReadonlyMap<string
   }
 
   return errors;
+}
+
+/**
+ * 04 §10.4: `att` is reserved as a dot-separated build-metadata identifier, because an applied
+ * attachment stamps `att.<h>` there. Only build metadata is read — a prerelease `-att` is not
+ * refused — and only a whole identifier matches, so `+attic` and `+x-att` are not refused.
+ * Checked on the **authored** version, in both validated entry points.
+ */
+function reservedVersionErrors(authoredVersions: ReadonlyMap<string, string>): ValidationError[] {
+  const errors: ValidationError[] = [];
+  for (const [id, version] of authoredVersions) {
+    const plus = version.indexOf("+");
+    if (plus === -1) continue;
+    if (version.slice(plus + 1).split(".").includes("att")) {
+      errors.push({
+        code: "reserved_version_identifier",
+        messageKey: "core.reason.reserved_version_identifier",
+        path: id,
+        details: { version },
+      });
+    }
+  }
+  return errors;
+}
+
+/** The `att.<h>` suffix (04 §10.4) appended as build metadata — never a second `+`. */
+function stampVersion(authored: string, hash: string): string {
+  return authored.includes("+") ? `${authored}.att.${hash}` : `${authored}+att.${hash}`;
+}
+
+/**
+ * 04 §10.4: every campaign an attachment **reaches** — its own attachments, and those of every
+ * module it composes (through an include or through an attachment), transitively — freezes
+ * under `<authored>+att.<h>`, `<h>` being the first 12 hex digits of `canonicalDigest` over the
+ * reaching attachments in argument order. Runs only after composition succeeded, so the
+ * include graph is known to be acyclic and every referenced module present.
+ */
+function stampReachedVersions(
+  composed: readonly BuiltCampaign[],
+  source: readonly BuiltCampaign[],
+  attachments: readonly CampaignAttachment[],
+): BuiltCampaign[] {
+  if (attachments.length === 0) return [...composed];
+
+  const byId = new Map<string, Campaign>();
+  for (const { campaign } of source) if (!byId.has(campaign.id)) byId.set(campaign.id, campaign);
+  const indicesByHost = new Map<string, number[]>();
+  attachments.forEach((attachment, index) => {
+    const list = indicesByHost.get(attachment.hostCampaignId);
+    if (list) list.push(index);
+    else indicesByHost.set(attachment.hostCampaignId, [index]);
+  });
+
+  const reach = new Map<string, ReadonlySet<number>>();
+  const reachOf = (id: string): ReadonlySet<number> => {
+    const known = reach.get(id);
+    if (known) return known;
+    const own = indicesByHost.get(id) ?? [];
+    const set = new Set<number>(own);
+    const modules = [
+      ...(byId.get(id)?.includes ?? []).map((include) => include.ref.id),
+      ...own.map((index) => attachments[index]!.include.ref.id),
+    ];
+    for (const moduleId of modules) for (const index of reachOf(moduleId)) set.add(index);
+    reach.set(id, set);
+    return set;
+  };
+
+  return composed.map((built) => {
+    const reaching = [...reachOf(built.campaign.id)].sort((a, b) => a - b);
+    if (reaching.length === 0) return built;
+    const hash = canonicalDigest(reaching.map((index) => attachments[index]!)).slice(0, 12);
+    return { ...built, campaign: { ...built.campaign, version: stampVersion(built.campaign.version, hash) } };
+  });
 }
 
 /**
@@ -92,14 +167,20 @@ function missingReasonCodeMessages(kind: Kind<unknown>): ValidationError[] {
  *
  * Composes first (04 §10.4, W120): a campaign that declares `includes` is validated and
  * frozen with its modules merged into its `content`, by `composeValidateAndAssemble` below.
+ *
+ * `attachments` (S141) are the ones a publication carries, applied in the order given exactly
+ * as the pack path applies them; every campaign they reach is stamped with a derived version
+ * (04 §10.4). Absent or empty, the registry is the one this function built before.
  */
 export function buildValidatedContentRegistry(
   builtCampaigns: readonly BuiltCampaign[],
   kinds: KindRegistry,
+  attachments: readonly CampaignAttachment[] = [],
 ): CommandResult<ContentRegistry> {
-  // Unpacked, a campaign's authored version and its version are the same value (04 §10.4).
+  // Unpacked, a campaign's authored version is the version it was built with (04 §10.4); an
+  // attachment that reaches it stamps it after composition.
   const authoredVersions = new Map(builtCampaigns.map(({ campaign }) => [campaign.id, campaign.version] as const));
-  return composeValidateAndAssemble(builtCampaigns, kinds, authoredVersions, []);
+  return composeValidateAndAssemble(builtCampaigns, kinds, authoredVersions, attachments, true);
 }
 
 /**
@@ -114,15 +195,20 @@ function composeValidateAndAssemble(
   kinds: KindRegistry,
   authoredVersions: ReadonlyMap<string, string>,
   attachments: readonly CampaignAttachment[],
+  stamp: boolean,
 ): CommandResult<ContentRegistry> {
+  const reserved = reservedVersionErrors(authoredVersions);
   const composition = composeCampaigns({ builtCampaigns, authoredVersions, attachments }, kinds);
   if (!composition.ok || !composition.value) {
-    return { ok: false, errors: composition.errors, warnings: composition.warnings };
+    return { ok: false, errors: [...reserved, ...composition.errors], warnings: composition.warnings };
   }
-  const composed = composition.value.builtCampaigns;
+  // The pack path never stamps again: its versions are already the resolution id (04 §10.4).
+  const composed = stamp
+    ? stampReachedVersions(composition.value.builtCampaigns, builtCampaigns, attachments)
+    : composition.value.builtCampaigns;
   const validationStrings = composition.value.validationStrings;
 
-  const errors: ValidationError[] = [];
+  const errors: ValidationError[] = [...reserved];
   const warnings: ValidationWarning[] = [];
   const checkedKindIds = new Set<KindId>();
   const kindMessages: ReadonlyMap<LocKey, string>[] = [];
@@ -213,6 +299,7 @@ export function buildValidatedPackRegistry(
     kinds,
     authoredVersions,
     attachments,
+    false,
   );
   if (!validated.ok || !validated.value) {
     return { ok: false, errors: validated.errors, warnings: [...folded.warnings, ...validated.warnings] };

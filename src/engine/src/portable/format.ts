@@ -21,14 +21,14 @@
  * by this function.
  */
 
-import type { BuiltCampaign, Campaign } from "../core/registry/types.js";
+import type { BuiltCampaign, Campaign, CampaignRef } from "../core/registry/types.js";
 import type { CommandResult } from "../core/kernel/reasons.js";
 import type { KindId } from "../core/kernel/types.js";
 import type { LocKey } from "../core/localization/types.js";
 import type { SimulationCampaign } from "../kinds/simulation/campaign.js";
 import type { SimulationMigration } from "../kinds/simulation/migration.js";
 import { applySimulationMigration } from "../kinds/simulation/migration.js";
-import type { StoryGraphCampaign } from "../kinds/story-graph/campaign.js";
+import type { StoryGraphAttachment, StoryGraphCampaign, StoryGraphIncludeBinding } from "../kinds/story-graph/campaign.js";
 import type { StoryGraphKindState } from "../kinds/story-graph/state.js";
 import type { VarValue } from "../kinds/story-graph/variables.js";
 import type { WorldGraphCampaign } from "../kinds/world-graph/content.js";
@@ -71,6 +71,26 @@ export interface PortableMigration {
   readonly endingMap?: Readonly<Record<string, string>>;
 }
 
+/** `CampaignInclude` (04 §10.4) with the story-graph binding (03 §1.1) on the wire (§19, S141). */
+export interface PortableStoryGraphInclude {
+  readonly alias: string;
+  readonly ref: CampaignRef;
+  readonly binding: StoryGraphIncludeBinding;
+}
+
+/**
+ * `CampaignAttachment` (04 §10.4) on the wire (§19, S141). `kindId` exists so the published
+ * schema closes per kind; one arm today, because only story-graph implements `composeContent`.
+ * Assignable to `CampaignAttachment`, so a host passes `PortableManifest.attachments` to
+ * `buildValidatedContentRegistry` unchanged.
+ */
+export type PortableCampaignAttachment = {
+  readonly kindId: "story-graph";
+  readonly hostCampaignId: string;
+  readonly include: PortableStoryGraphInclude;
+  readonly payload: StoryGraphAttachment;
+};
+
 interface PortableCampaignEnvelope<TKindId extends KindId, TContent> {
   readonly id: string;
   readonly kindId: TKindId;
@@ -88,6 +108,8 @@ interface PortableCampaignEnvelope<TKindId extends KindId, TContent> {
 export type PortableCampaignBody =
   | (PortableCampaignEnvelope<"story-graph", StoryGraphCampaign> & {
       readonly migration?: PortableMigration;
+      /** S141 — `Campaign.includes`, riding the one arm whose kind composes. */
+      readonly includes?: readonly PortableStoryGraphInclude[];
     })
   | PortableCampaignEnvelope<"world-graph", WorldGraphCampaign>
   | (PortableCampaignEnvelope<"simulation", SimulationCampaign> & {
@@ -130,8 +152,12 @@ export interface PortableManifest {
   /** Canonical digest over the ordered `{id, version, digest}` list — the manifest-level
    *  identity of the verified campaign set. A host verifies each entry's `digest` against
    *  its fetched file before accepting this value; `file` is excluded because it is only a
-   *  transport path. See `digestManifestResolution` (`./digest.js`). */
+   *  transport path. With `attachments` present and non-empty it covers them too. See
+   *  `digestManifestResolution` (`./digest.js`). */
   readonly resolution: string;
+  /** S141 — in application order, the order composition applies them (04 §10.4). Absent
+   *  means none. */
+  readonly attachments?: readonly PortableCampaignAttachment[];
 }
 
 function migrationFailed(): CommandResult<unknown> {
@@ -165,7 +191,8 @@ function nullProto<T>(source: Readonly<Record<string, T>>): Record<string, T> {
  * for a world-graph campaign, or a `SimulationMigration` for a story-graph one (or vice
  * versa), is an authoring mistake, not a malformed wire document (this function's input is
  * trusted, first-party `BuiltCampaign` data, not fetched JSON), so it throws rather than
- * silently dropping the migration.
+ * silently dropping the migration. The same holds for `Campaign.includes` on a campaign whose
+ * kind is not story-graph: only that arm carries them, so it throws rather than drop them.
  */
 export function toPortable(
   built: BuiltCampaign,
@@ -185,6 +212,12 @@ export function toPortable(
 
 function toPortableBody(campaign: Campaign, migration: PortableMigration | SimulationMigration | undefined): PortableCampaignBody {
   const envelope = { id: campaign.id, version: campaign.version, titleKey: campaign.titleKey };
+  const includes = campaign.includes ?? [];
+  if (campaign.kindId !== "story-graph" && includes.length > 0) {
+    throw new Error(
+      `toPortable: includes are not supported for ${campaign.kindId} campaigns, got ${includes.length} for "${campaign.id}"`,
+    );
+  }
   switch (campaign.kindId) {
     case "story-graph":
       return {
@@ -192,6 +225,15 @@ function toPortableBody(campaign: Campaign, migration: PortableMigration | Simul
         kindId: "story-graph",
         content: campaign.content as StoryGraphCampaign,
         ...(migration !== undefined ? { migration: migration as PortableMigration } : {}),
+        ...(campaign.includes !== undefined
+          ? {
+              includes: campaign.includes.map(({ alias, ref, binding }) => ({
+                alias,
+                ref: { id: ref.id, version: ref.version },
+                binding: binding as StoryGraphIncludeBinding,
+              })),
+            }
+          : {}),
       };
     case "world-graph":
       if (migration !== undefined) {
@@ -288,6 +330,10 @@ export function fromPortable(portable: PortableCampaign): {
     titleKey: campaign.titleKey,
     content,
   };
+
+  if (campaign.kindId === "story-graph" && campaign.includes !== undefined) {
+    built.includes = campaign.includes.map(({ alias, ref, binding }) => ({ alias, ref: { id: ref.id, version: ref.version }, binding }));
+  }
 
   if (campaign.kindId === "story-graph" && campaign.migration !== undefined) {
     const storyContent = content as StoryGraphCampaign;

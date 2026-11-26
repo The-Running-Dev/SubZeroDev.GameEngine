@@ -102,6 +102,10 @@ export type ReasonCode = string;
  * envelope before any kind merges content, at registry build. Base rather than kind-owned
  * because the include, its pin and the cycle are core-owned; only the merge is the kind's.
  *
+ * `reserved_version_identifier` was added with S141 — an applied attachment stamps the
+ * campaigns it reaches with an `att.<h>` build-metadata suffix (04 §10.4), so an authored
+ * version that already carries `att` as a build-metadata identifier is refused at Tier 1.
+ *
  * `content_kind_changed`, `content_not_adoptable` and `content_incompatible` were added with
  * content epochs (16 §5.4) — `Engine.adoptContent` pins a session with one of them when the
  * target epoch is another kind's, when the kind declares no `adoptContent`, and when the kind
@@ -165,6 +169,7 @@ export const BASE_REASON_CODES = [
   "include_alias_collision",
   "attachment_host_missing",
   "compose_unsupported",
+  "reserved_version_identifier",
   // content epochs (16 §5.4) — adoption
   "content_kind_changed",
   "content_not_adoptable",
@@ -230,6 +235,7 @@ const CORE_REASON_TEXT: Readonly<Record<BaseReasonCode, string>> = {
   include_alias_collision: "This campaign uses the same include name twice.",
   attachment_host_missing: "A pack attaches content to a campaign that isn't available.",
   compose_unsupported: "This kind of campaign can't include other campaigns.",
+  reserved_version_identifier: "This campaign's version uses an identifier the engine reserves.",
   content_kind_changed: "The new version of this campaign is a different kind of game, so this session stays on its version.",
   content_not_adoptable: "This kind of game can't move a session onto new content, so it stays on its version.",
   content_incompatible: "This session can't move onto the new version of its campaign, so it stays on the version it started.",
