@@ -486,18 +486,18 @@ export const shippedChapters: readonly RoadmapChapter[] = [
 
 export const nextActs: readonly RoadmapChapter[] = [
   {
-    id: "authorize-014",
-    workUnits: "S136–S140",
-    ledgerAnchor: "s136--simulation-refuses-details-it-did-not-ask-for",
+    id: "authorize-015",
+    workUnits: "S141",
+    ledgerAnchor: "s141--a-campaign-publishes-its-attachments",
     release: true,
     status: "now",
-    title: "0.14.0 becomes the next authorized publication",
+    title: "0.15.0 becomes the next authorized publication",
     summary:
-      "0.13.0 was published on 31 October. The 0.14.0 candidate was cut after S136–S140 merged: a game refuses details it did not declare, a host can capture a played session as a replay fixture, and the capture types are reachable without the authoring subpath. The whole matrix was rerun against that exact candidate, and the Adventures host was checked on its real Postgres adapter. It was published on 3 November.",
+      "0.14.0 was published on 3 November. The 0.15.0 candidate was cut after S141 merged: a campaign publishes its attachments, so an extension ships as content without rebuilding the game it extends, and a game that gains one gets a version of its own. The whole matrix was rerun against that exact candidate, and the Adventures host was checked on its real Postgres adapter. Publishing stays a separate explicit action.",
     links: [
       {
-        label: "Session capture ledger",
-        href: "/docs/engine/todo#s136--simulation-refuses-details-it-did-not-ask-for",
+        label: "Published attachments ledger",
+        href: "/docs/engine/todo#s141--a-campaign-publishes-its-attachments",
         kind: "site",
       },
       {

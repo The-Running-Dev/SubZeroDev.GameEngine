@@ -362,28 +362,29 @@ work is implementation. Not philosophy.
 The deterministic core, story-graph kind, simulation kind, and world-graph kind are all built
 and tested, including the world graph's deterministic tick pipeline, playable guest journey,
 validation, and replay guard. `v0.14.0` is the latest published `@the-running-dev/game-engine`;
-it lets a host capture a played session as a replay fixture without the
-authoring subpath, and makes each kind refuse the action detail it did not declare. A clean
+the `0.15.0` source lets a campaign publish its attachments, so an extension can be authored and
+shipped as content without rebuilding its host. A clean
 consumer test installs the packed artifact rather than trusting this checkout. Story adventures
 now live at <a href="https://adventures.subzerodev.com/"><code>adventures.subzerodev.com</code></a>;
 this repository retains the deterministic engine, its fixtures, authoring tools, and contracts.
 
-### Current — `0.14.0` is published
+### Current — `0.15.0` is the publication candidate
 
-`0.13.0` was published on 2026-10-31. `0.14.0` adds S136–S140, session capture, to the same
-surface. Simulation and world-graph now refuse an action that carries a param key the kind did
-not declare, with the kind's own `unexpected_params`, before any value is read. Simulation also
-refuses an id it never issued. A host can capture a played session as a `ReplayFixture`: the
-package root exports `ReplayFixture`, `Submission`, `ActionSubmission`, `AdoptionSubmission` and
-`EmittedRecordSink`, and `createReplayContext` is on `/authoring`. `getStrings` grows from 259 to
-262 keys, additively. Nothing `0.13.0` exposed was removed, and for code that *plays* the engine
-`0.14.0` is a compatible superset. Two changes reach a host: an action that used to carry an
-undeclared key is now refused, and `branchSession` throws `invalid_state` when a retained log
-holds an action a kind now refuses. All of it is deliberate and recorded in
+`0.14.0` was published on 2026-11-03. `0.15.0` adds S141, published attachments. A portable
+manifest carries `attachments`, and a portable story-graph campaign carries `includes`, so a pack
+can attach a module to a host it does not own and ship it as data. The unpacked
+`buildValidatedContentRegistry` takes the same attachments as an optional third argument. A
+campaign an attachment reaches is stamped `<authored>+att.<12 hex>`, so two hosts with different
+attachments never share a version, and an authored version that already uses the `att` build
+identifier is refused with `reserved_version_identifier`. A manifest with attachments digests them
+into its `resolution`; one without is unchanged, and `formatVersion` stays 2. `getStrings` gains
+that one reason key. Nothing `0.14.0` exposed was removed, and for code that *plays* the engine
+`0.15.0` is a compatible superset. All of it is deliberate and recorded in
 `design/90-decisions.md`.
 
-`0.14.0` was published on 2026-11-03. See
-[`RELEASE.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/RELEASE.md) for the commit, the archive and its digest, and what was verified after publication.
+`0.15.0` is prepared, not released. Publication is a separate, explicit action: see
+[`RELEASE.md`](https://github.com/The-Running-Dev/SubZeroDev.GameEngine/blob/main/RELEASE.md) for the candidate commit, the archive and its digest, the required
+`v0.15.0` tag, and the checks that must hold first.
 
 ---
 
