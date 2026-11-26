@@ -4,7 +4,7 @@ sidebar_position: 1
 sidebar_label: Developer Guide
 ---
 
-<!-- design-digest: 8cd402946039d67f115923e61c37a7df17a8886a41442b20a7a089d3f2a4ba53 -->
+<!-- design-digest: 6e1b0da9c7ae603828b1cfcaa18fa34dc310925ae914a7e62c400af937bd75bb -->
 
 > Generated from `design/` by `/make-human-docs`. Do not edit by hand — edit the
 > design docs and regenerate. `/reconcile` reports when this has gone stale.
@@ -153,8 +153,9 @@ never import authored campaign source merely to play already-published portable 
 exported from both, because both a runtime host verifying fetched content and a publishing
 pipeline digesting source before it ships need them. The manifest-resolution digest covers each
 entry's id, version and file digest, so it names a set of files a host has verified, and from
-`0.12.0` it changes when any file's bytes change. Portable campaign documents stay at format
-version 2.
+`0.12.0` it changes when any file's bytes change. S141 extends it to cover the manifest's
+attachments, and leaves it unchanged when there are none. Portable campaign documents stay at
+format version 2.
 
 A kind's export split follows one rule regardless of which kind it is: the builder and its
 source types are author-time and belong on `/authoring`; the campaign, state, view, and outcome
@@ -331,10 +332,23 @@ table spans every epoch it has run on since its last migration, newest wording w
 a client was handed never stops resolving; a client that misses a key fetches the table again.
 Queries and rejected actions never adopt. With no channel supplied, behaviour is exactly what it was.
 
-This is also the delivery half of a story extension. Authoring an extension stays an
-**attachment** — a pack adding to a campaign it does not own, validated after the fold — and a
-published extension reaches live sessions as a new epoch. See
+This is also the delivery half of a story extension. Authoring an extension is an
+**attachment**: a module campaign plus one choice that leads into it from a campaign the author
+does not own. A published extension reaches live sessions as a new epoch. See
 [Content Epochs](/docs/engine/content-epochs) for the full design.
+
+**Published attachments** (*designed as S141, not yet built*). An extension needs no packs and
+no host code:
+
+- The module publishes as an ordinary campaign file, usually marked `catalog.hidden`.
+- The attachment rides the portable manifest's `attachments`, and a story-graph campaign's
+  `includes` ride its portable body.
+- A host passes `manifest.attachments` to `buildValidatedContentRegistry` as its third argument.
+- Every campaign an attachment reaches gets an engine-derived version,
+  `<authored>+att.<12 hex>`, so every host agrees on it.
+- An authored version that already uses `att` as a build-metadata identifier is refused with
+  `reserved_version_identifier`.
+- A manifest without attachments keeps its exact `resolution`.
 
 **Durable epochs** (*built by plan 54, after the `0.12.0` release*) let a host keep its archive across
 restarts. Three changes matter to a host author:

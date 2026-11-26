@@ -701,8 +701,8 @@ type RestoreResult =
 /** `canonicalDigest` over the form. Exported so a host recomputes it without recomposing. */
 function epochDigest(form: EpochForm): string;
 /** `sha256Hex(canonicalize(value))` (§10) — the one digest helper a host uses for identities
- *  the engine states, such as an extension set's (16 §3.4). */
-function canonicalDigest(value: unknown): string;
+ *  the engine states, such as an attached campaign's derived version (§10.4; 16 §10). */
+function canonicalDigest(value: unknown): string;   // also an attached campaign's derived version (§10.4)
 ```
 
 **An epoch is its authored form** (C28; 16 §3.4). `publish` builds each campaign's `EpochForm`
@@ -2538,7 +2538,43 @@ cycle check is the only bound.
 **The pin is on the authored version.** `resolvePacks` stamps every folded campaign's `version`
 with the resolution id (11 §4), so a pin checked against the stamped value could never match.
 The fold keeps each campaign's authored version beside it (11 §3a), and the pin is checked
-against that. In the unpacked path (`buildValidatedContentRegistry`) the two are the same value.
+against that. In the unpacked path (`buildValidatedContentRegistry`) the two are the same value
+unless an attachment reaches the campaign, which stamps it (below); the pin is checked against the
+authored value there too.
+
+**Attachments reach the unpacked path, and stamp what they reach** (design/30-slices.md, S141).
+`buildValidatedContentRegistry` takes the attachments a publication carries — on a portable
+manifest, `PortableManifest.attachments` (§19) — and composes them exactly as the pack path does:
+
+```typescript
+function buildValidatedContentRegistry(
+  builtCampaigns: readonly BuiltCampaign[],
+  kinds: KindRegistry,
+  attachments?: readonly CampaignAttachment[],   // default []; application order as given
+): CommandResult<ContentRegistry>;
+```
+
+Content-addressing (16 §3.4) refuses a campaign whose content changed under a version it already
+published, and an applied attachment changes its host's content without the host's author
+moving anything. So in this path every campaign an attachment **reaches** — its own attachments,
+and those of every module it composes, transitively — freezes under a **derived version**:
+
+- The suffix is `att.<h>`, where `<h>` is the first 12 hex digits of `canonicalDigest` (§4) over
+  the attachments that reach the campaign, taken from the `attachments` argument in that
+  argument's order.
+- It is appended as semver build metadata: `<authored>+att.<h>`, or `<authored>.att.<h>` when
+  the authored version already carries build metadata — never a second `+`.
+- `att` is reserved. A campaign whose **authored** version has `att` as a dot-separated
+  build-metadata identifier fails Tier 1 with `reserved_version_identifier`, in both validated
+  entry points. A prerelease `att` (`1.0.0-att`) and an identifier merely starting with it
+  (`+attic`) are not refused.
+- A campaign no attachment reaches keeps its authored version, so every registry built without
+  attachments is unchanged.
+
+The pack path does not stamp again: its versions are already the resolution id (11 §6), which
+moves whenever a pack does. A 12-hex collision between two attachment lists is not silent — the
+two publications claim one version for two contents, and `ContentArchive.publish` refuses the
+second (`content_version_conflict`, 16 §4.3).
 
 **Composition precedes validation.** Every Tier 1 and Tier 2 check (§11) runs on the composed
 campaign — the content play will actually see. A module stays an ordinary campaign: it is also
@@ -2702,6 +2738,7 @@ const BASE_REASON_CODES = [
   // campaign composition (§10.4) — registry build, before validation
   "include_missing", "include_version_mismatch", "include_kind_mismatch", "include_cycle",
   "include_alias_collision", "attachment_host_missing", "compose_unsupported",
+  "reserved_version_identifier",
   // content epochs (16 §4.3, §5.4) — publish and adoption
   "content_version_conflict", "content_kind_changed", "content_not_adoptable",
   "content_incompatible",
@@ -3160,6 +3197,73 @@ content set whose files a host has each verified against their entry digest. Fil
 excluded as transport details. The recipe includes `digest` from `0.12.0`; until then it was the
 ordered `{ id, version }` list over `PackRef[]`, so a manifest's `resolution` changes for
 unchanged content ([`OPEN-QUESTIONS.md`](OPEN-QUESTIONS.md), 2026-10-27).
+
+**Published composition: includes on the campaign, attachments on the manifest**
+(design/30-slices.md, S141). A campaign that composes modules and a publication that attaches
+one to a campaign it does not own both travel as portable JSON, so a host builds them with no
+authored source:
+
+```typescript
+/** `CampaignInclude` (§10.4) with the story-graph binding (03 §1.1) on the wire. */
+interface PortableStoryGraphInclude {
+  readonly alias: string;
+  readonly ref: CampaignRef;
+  readonly binding: StoryGraphIncludeBinding;
+}
+
+/** `CampaignAttachment` (§10.4) on the wire. `kindId` exists so the published schema closes per
+ *  kind; one arm today, because only story-graph implements `composeContent`. */
+type PortableCampaignAttachment = {
+  readonly kindId: "story-graph";
+  readonly hostCampaignId: string;
+  readonly include: PortableStoryGraphInclude;
+  readonly payload: StoryGraphAttachment;
+};
+
+// The story-graph arm of `PortableCampaignBody` gains, beside `migration`:
+//   readonly includes?: readonly PortableStoryGraphInclude[];
+
+interface PortableManifest {
+  readonly formatVersion: 2;
+  readonly campaigns: readonly PortableManifestEntry[];
+  /** In application order — the order composition applies them (§10.4). Absent means none. */
+  readonly attachments?: readonly PortableCampaignAttachment[];
+  readonly resolution: string;
+}
+
+function digestManifestResolution(
+  entries: readonly PortableManifestEntry[],
+  attachments?: readonly PortableCampaignAttachment[],
+): string;
+```
+
+- **Includes ride the story-graph arm**, as `migration` does, because a binding is kind-shaped
+  and only that kind composes. `fromPortable` sets `Campaign.includes` from them; `toPortable`
+  writes them, and throws on a non-story-graph campaign that has any.
+- **A module publishes as an ordinary campaign file**, listed in `campaigns` like any other. A
+  publisher that wants it reachable only through its host marks it `catalog.hidden`.
+- **A host passes `manifest.attachments` to `buildValidatedContentRegistry` unchanged.** A
+  `PortableCampaignAttachment` is assignable to `CampaignAttachment`; the kind already rebuilds a
+  binding's maps before reading them, so no hydration step is added.
+- **`resolution` covers the attachments.** With `attachments` absent or empty the recipe is the
+  one above, byte for byte, so every existing manifest keeps its `resolution`. Otherwise it is
+  `canonicalDigest` of `{ campaigns, attachments }`, where `campaigns` is that same ordered
+  `{ id, version, digest }` list. Reordering attachments changes it, as it changes the content.
+- Both types are exported from the root and from `/authoring`, beside the other `Portable*`
+  types.
+
+**The manifest stays at format version `2`, and here its silent-loss case can happen.** A `2`
+reader that predates `attachments` ignores the member and builds the publication without them:
+every host campaign uncomposed and every module standalone. The precedent above did not have to
+accept that, and this one does, because what is lost is bounded:
+- The result is a valid publication. Every campaign was validated standalone at publish
+  (§10.4), and each keeps its authored version, which names exactly the content that reader
+  plays, so no archive identity is wrong.
+- What is missing is additive content, never a changed or removed path.
+- A reader that recomputes `resolution` before accepting it still fails loudly.
+
+An `includes` a `2` reader drops is loud on its own: the host's `goto` to the alias names a
+node that does not exist uncomposed, and validation fails.
 
 **`PortableCampaignBody`'s simulation arm gains an optional `migration`, and the format version
 does not move.** Until now `migration` existed only on the story-graph arm, which
