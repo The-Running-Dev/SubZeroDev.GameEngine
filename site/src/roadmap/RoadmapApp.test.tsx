@@ -33,7 +33,7 @@ describe("roadmap page", () => {
       }),
     ).toHaveAttribute(
       "href",
-      "/docs/engine/todo#s136--simulation-refuses-details-it-did-not-ask-for",
+      "/docs/engine/todo#s141--a-campaign-publishes-its-attachments",
     );
     const future = screen.getByText("03 / NEXT").closest("section");
     expect(future).not.toBeNull();
@@ -79,9 +79,9 @@ describe("roadmap page", () => {
       "W90–W92",
       "W109–W113",
     ]);
-    expect(nextActs.map((chapter) => chapter.workUnits)).toEqual(["S136–S140"]);
+    expect(nextActs.map((chapter) => chapter.workUnits)).toEqual(["S141"]);
     expect(nextActs.every((chapter) => chapter.status !== "done")).toBe(true);
-    expect(currentAct.workUnits).toBe("S136–S140");
+    expect(currentAct.workUnits).toBe("S141");
     expect(futureActs).toEqual([]);
     expect(shippedChapters[0]?.links[0]?.href).toMatch(
       /^https:\/\/github\.com\/The-Running-Dev\/SubZeroDev\.GameEngine\/commit\/[0-9a-f]{40}$/,
